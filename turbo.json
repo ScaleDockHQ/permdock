@@ -3,13 +3,18 @@
   "agentGuidance": true,
   "futureFlags": {
     "globalConfiguration": true,
+    "affectedUsingTaskInputs": true,
+    "filterUsingTasks": true,
+    "watchUsingTaskInputs": true,
+    "pruneIncludesGlobalFiles": true,
+    "githubActionsRemoteBaseRefFallback": true,
     "errorsOnlyShowHash": true,
-    "longerSignatureKey": true,
-    "affectedUsingTaskInputs": true
+    "longerSignatureKey": true
   },
   "global": {
     "envMode": "strict",
     "cacheMaxAge": "14d",
+    "cacheMaxSize": "10GB",
     "remoteCache": {
       "enabled": true,
       "signature": true
@@ -23,26 +28,31 @@
       "LEFTHOOK",
       "PORTLESS*",
       "REUI_LICENSE_KEY",
+      "TURBO_REMOTE_CACHE_SIGNATURE_KEY",
       "VERCEL",
       "VERCEL_*"
     ],
-    "inputs": ["packages/typescript-config/*.json", "packages/ox-config/src/**"]
+    "inputs": [
+      "packages/typescript-config/*.json",
+      "packages/ox-config/src/**",
+      "pnpm-workspace.yaml"
+    ]
   },
   "boundaries": {
     "tags": {
       "library": {
         "dependencies": {
-          "allow": ["library", "config"]
+          "allow": ["library", "tooling"]
         }
       },
       "app": {
         "dependencies": {
-          "allow": ["library", "config", "ui", "next-config"]
+          "allow": ["library", "tooling", "ui", "next-config"]
         }
       },
       "example": {
         "dependencies": {
-          "allow": ["library", "config"]
+          "allow": ["library", "tooling"]
         },
         "dependents": {
           "allow": ["test"]
@@ -52,19 +62,24 @@
         "dependents": {
           "allow": ["test"]
         }
+      },
+      "ui": {
+        "dependencies": {
+          "deny": ["app", "example", "test", "next-config"]
+        },
+        "dependents": {
+          "allow": ["app", "test"]
+        }
       }
     }
   },
   "tasks": {
-    "transit": {
-      "dependsOn": ["^transit"]
-    },
     "typegen": {
       "dependsOn": ["^build"],
       "outputs": []
     },
     "build": {
-      "dependsOn": ["^build"],
+      "dependsOn": ["^build", "typegen"],
       "outputs": [
         "dist/**",
         ".next/**",
@@ -88,17 +103,81 @@
       "passThroughEnv": ["SENTRY_AUTH_TOKEN"]
     },
     "typecheck": {
-      "dependsOn": ["^build"]
+      "dependsOn": ["^build", "typegen"],
+      "inputs": ["$TURBO_DEFAULT$"]
     },
     "lint": {
       "dependsOn": ["^build", "typegen"],
       "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/turbo.json"]
     },
+    "//#lint:root": {
+      "inputs": ["*.config.ts", "knip.mts", "scripts/**"],
+      "outputs": []
+    },
     "test": {
-      "dependsOn": ["build", "^build"]
+      "dependsOn": ["build", "^build"],
+      "inputs": ["$TURBO_DEFAULT$"]
+    },
+    "size": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$"],
+      "outputs": []
+    },
+    "gen:check": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$"],
+      "outputs": []
+    },
+    "doctor": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$"],
+      "outputs": []
     },
     "check:publish": {
-      "dependsOn": ["build", "^build"]
+      "dependsOn": ["build", "^build"],
+      "inputs": ["$TURBO_DEFAULT$"]
+    },
+    "//#typecheck:tooling": {
+      "inputs": ["tsconfig.json", "*.config.ts", "knip.mts", "scripts/**"],
+      "outputs": []
+    },
+    "//#typecheck:perf": {
+      "dependsOn": ["permdock#build"],
+      "inputs": [
+        "scripts/typecheck-perf.*",
+        "packages/permdock/tsconfig.json",
+        "packages/permdock/src/**",
+        "packages/permdock/tests/**"
+      ],
+      "outputs": []
+    },
+    "//#knip": {
+      "dependsOn": [
+        "@permdock/e2e-sveltekit-saas#typegen",
+        "@permdock/e2e-nuxt-saas#typegen",
+        "@permdock/e2e-tanstack-start-saas#typegen",
+        "@permdock/example-prisma#typegen"
+      ],
+      "inputs": ["$TURBO_DEFAULT$"],
+      "outputs": []
+    },
+    "//#docs:drift": {
+      "inputs": ["$TURBO_DEFAULT$"],
+      "outputs": []
+    },
+    "//#openapi:check": {
+      "inputs": [
+        "scripts/fetch-openapi-schemas.ts",
+        "packages/permdock/schemas/openapi/**"
+      ],
+      "outputs": []
+    },
+    "//#audit:high": {
+      "cache": false
+    },
+    "analyze": {
+      "dependsOn": ["^build"],
+      "cache": false
     },
     "dev": {
       "cache": false,

@@ -1,5 +1,5 @@
-import { PostgreSqlContainer } from '@testcontainers/postgresql';
-import { Client } from 'pg';
+import { PostgreSqlContainer } from "@testcontainers/postgresql";
+import { Client } from "pg";
 
 export type AsOptions = {
   readonly role?: string;
@@ -32,14 +32,14 @@ function settingsQuery(settings: Readonly<Record<string, string>>): {
       `set_config($${String(values.length - 1)}, $${String(values.length)}, true)`,
     );
   }
-  return { text: `select ${calls.join(', ')}`, values };
+  return { text: `select ${calls.join(", ")}`, values };
 }
 
 function inTransaction(
   query: (text: string, values?: readonly string[]) => Promise<unknown>,
-): Postgres['as'] {
+): Postgres["as"] {
   return async (options, work) => {
-    await query('begin');
+    await query("begin");
     try {
       if (options.role !== undefined) {
         if (!/^[a-z_][a-z0-9_]*$/u.test(options.role)) {
@@ -53,7 +53,7 @@ function inTransaction(
       }
       return await work();
     } finally {
-      await query('rollback');
+      await query("rollback");
     }
   };
 }
@@ -67,15 +67,15 @@ grant usage on schema public to tester;
 export async function startPostgres(
   setup: readonly string[] = [],
 ): Promise<Postgres> {
-  const container = await new PostgreSqlContainer('postgres:16-alpine').start();
+  const container = await new PostgreSqlContainer("postgres:16-alpine").start();
   const admin = new Client({ connectionString: container.getConnectionUri() });
   await admin.connect();
-  await admin.query([TESTER, ...setup].join(';\n'));
+  await admin.query([TESTER, ...setup].join(";\n"));
   const tester = new Client({
     host: container.getHost(),
     port: container.getPort(),
-    user: 'tester',
-    password: 'tester',
+    user: "tester",
+    password: "tester",
     database: container.getDatabase(),
   });
   await tester.connect();

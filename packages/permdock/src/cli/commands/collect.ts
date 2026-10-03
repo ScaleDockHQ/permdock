@@ -1,4 +1,4 @@
-import { defineCommand } from 'citty';
+import { defineCommand } from "citty";
 
 import {
   type CliContext,
@@ -6,37 +6,38 @@ import {
   globalArgs,
   listArg,
   stringArg,
-} from './context.ts';
+} from "./context.ts";
+import { COMMAND_DESCRIPTIONS } from "./index.ts";
 
 export function collect(ctx: CliContext): Command {
   const command = defineCommand({
     meta: {
-      name: 'collect',
-      description:
-        'Scan the sources for definePermissions() and permission references; write the catalog and barrel',
+      name: "collect",
+      description: COMMAND_DESCRIPTIONS.collect,
     },
     args: {
       ...globalArgs,
       check: {
-        type: 'boolean',
-        description: 'Exit 1 when the catalog on disk is stale; write nothing',
+        type: "boolean",
+        description: "Exit 1 when the catalog on disk is stale; write nothing",
       },
       src: {
-        type: 'string',
-        description: 'Source roots or globs, repeatable or comma-separated',
-        valueHint: 'path',
+        type: "string",
+        description: "Source roots or globs, repeatable or comma-separated",
+        valueHint: "path",
       },
       out: {
-        type: 'string',
-        description: 'Catalog file to write',
-        valueHint: 'file',
+        type: "string",
+        description: "Catalog file to write",
+        valueHint: "file",
       },
     },
     async run({ args: parsed, rawArgs }) {
-      const src = listArg(rawArgs, 'src');
+      const src = listArg(rawArgs, "src");
       const out = stringArg(parsed.out);
+      // Lazy: the implementation loads only when this command runs, not for --help.
       const result = await (
-        await import('../collect.ts')
+        await import("../collect.ts")
       ).runCollect({
         cwd: ctx.cwd,
         config: ctx.config,

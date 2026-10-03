@@ -1,8 +1,10 @@
-import type { DecisionEvent } from '../core/interfaces.ts';
+import type { DecisionEvent } from "../core/interfaces.ts";
+import type { PermDock } from "../core/permdock.ts";
+import type { PolicyVocabulary } from "../core/policy.ts";
 
-export const GENAI_SEMCONV_PIN = '1.37.0';
-export const GEN_AI_TOOL_NAME = 'gen_ai.tool.name';
-export const GEN_AI_TOOL_CALL_ID = 'gen_ai.tool.call.id';
+export const GENAI_SEMCONV_PIN = "1.37.0";
+export const GEN_AI_TOOL_NAME = "gen_ai.tool.name";
+export const GEN_AI_TOOL_CALL_ID = "gen_ai.tool.call.id";
 
 export type StructuralLogger = {
   readonly debug?: (
@@ -81,3 +83,12 @@ export type OtelOptions = {
   readonly errorOnDeny?: boolean;
   readonly api?: OtelApi;
 };
+
+/**
+ * An adapter's `otel` option: wraps each request-scoped instance, usually
+ * `(permdock) => withOtel(permdock, options)` from `permdock/otel`, so an app
+ * without it does not bundle the instrumentation.
+ */
+export type OtelWrap = <V extends PolicyVocabulary>(
+  permdock: PermDock<V>,
+) => PermDock<V>;

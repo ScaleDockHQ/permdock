@@ -1,15 +1,15 @@
-import type { Decision } from '../core/decision.ts';
-import type { Permission } from '../core/permissions.ts';
-import type { ApprovalRequirement } from '../core/policy.ts';
-import type { Membership, Subject } from '../core/subject.ts';
+import type { Decision } from "../core/decision.ts";
+import type { Permission } from "../core/permissions.ts";
+import type { ApprovalRequirement } from "../core/policy.ts";
+import type { Membership, Subject } from "../core/subject.ts";
 
-import { compact } from '../core/compact.ts';
-import { describe } from '../core/describe.ts';
-import { parseDuration } from '../core/duration.ts';
-import { freezeDeep } from '../core/freeze.ts';
-import { ApprovalError } from './errors.ts';
-import { listAll } from './page.ts';
-import { assertApprover } from './store.ts';
+import { compact } from "../core/compact.ts";
+import { describe } from "../core/describe.ts";
+import { parseDuration } from "../core/duration.ts";
+import { freezeDeep } from "../core/freeze.ts";
+import { ApprovalError } from "./errors.ts";
+import { listAll } from "./page.ts";
+import { assertApprover } from "./store.ts";
 import {
   APPROVAL_HEADER,
   type ApprovalApprovers,
@@ -20,7 +20,7 @@ import {
   type ApprovalStore,
   type ApprovalVerdict,
   DEFAULT_APPROVAL_TTL_MS,
-} from './types.ts';
+} from "./types.ts";
 
 function permissionMeta(
   permission:
@@ -38,9 +38,9 @@ function permissionMeta(
   };
 }
 
-export function summariseSubject(subject: Subject): ApprovalRequest['subject'] {
+export function summariseSubject(subject: Subject): ApprovalRequest["subject"] {
   const principal = subject.principal;
-  return compact<ApprovalRequest['subject']>({
+  return compact<ApprovalRequest["subject"]>({
     principal:
       principal === null
         ? null
@@ -61,7 +61,7 @@ export function summariseSubject(subject: Subject): ApprovalRequest['subject'] {
     delegation:
       subject.delegation === undefined
         ? undefined
-        : compact<NonNullable<ApprovalRequest['subject']['delegation']>>({
+        : compact<NonNullable<ApprovalRequest["subject"]["delegation"]>>({
             scopes: subject.delegation.scopes,
             authorizationDetails: subject.delegation.authorizationDetails,
           }),
@@ -75,11 +75,11 @@ export function summariseSubject(subject: Subject): ApprovalRequest['subject'] {
  */
 function approvalTtl(
   storeTtl: number | undefined,
-  approval: ApprovalRequirement | 'human' | undefined,
+  approval: ApprovalRequirement | "human" | undefined,
 ): number {
   const base = storeTtl ?? DEFAULT_APPROVAL_TTL_MS;
   const grant =
-    approval === undefined || approval === 'human'
+    approval === undefined || approval === "human"
       ? undefined
       : parseDuration(approval.ttl);
   return grant === undefined ? base : Math.min(base, grant * 1000);
@@ -87,7 +87,7 @@ function approvalTtl(
 
 export async function requestApproval(
   store: ApprovalStore,
-  decision: Extract<Decision, { readonly outcome: 'approval-required' }>,
+  decision: Extract<Decision, { readonly outcome: "approval-required" }>,
   meta: {
     readonly permission:
       | Permission
@@ -109,7 +109,7 @@ export async function requestApproval(
   const leaf = permissionMeta(meta.permission);
   const approval = decision.grant.approval;
   const approvers: ApprovalApprovers | undefined =
-    approval === undefined || approval === 'human'
+    approval === undefined || approval === "human"
       ? undefined
       : compact<ApprovalApprovers>({
           by: approval.by,
@@ -135,7 +135,7 @@ export async function requestApproval(
       adapter: meta.adapter,
       createdAt: now.toISOString(),
       expiresAt: new Date(now.getTime() + ttl).toISOString(),
-      status: 'pending',
+      status: "pending",
     }),
   );
   await store.create(request);
@@ -150,7 +150,7 @@ export async function resolveApproval(
 ): Promise<ApprovalRequest> {
   const current = await store.get(token);
   if (current === null) {
-    throw new ApprovalError('approval-not-found', 'approval was not found');
+    throw new ApprovalError("approval-not-found", "approval was not found");
   }
   assertApprover(current, verdict.by, options.requireDistinctApprover === true);
   return store.resolve(token, verdict);
@@ -164,22 +164,22 @@ export async function inspectApproval(
   await store.expire(now);
   const request = await store.get(token);
   if (request === null) {
-    return { ok: false, detail: 'approval-not-found' };
+    return { ok: false, detail: "approval-not-found" };
   }
-  if (request.status === 'pending') {
-    return { ok: false, detail: 'approval-pending' };
+  if (request.status === "pending") {
+    return { ok: false, detail: "approval-pending" };
   }
-  if (request.status === 'rejected') {
-    return { ok: false, detail: 'approval-rejected' };
+  if (request.status === "rejected") {
+    return { ok: false, detail: "approval-rejected" };
   }
   if (request.consumedAt !== undefined) {
-    return { ok: false, detail: 'approval-consumed' };
+    return { ok: false, detail: "approval-consumed" };
   }
   if (
-    request.status === 'expired' ||
+    request.status === "expired" ||
     Date.parse(request.expiresAt) <= now.getTime()
   ) {
-    return { ok: false, detail: 'approval-expired' };
+    return { ok: false, detail: "approval-expired" };
   }
   return { ok: true, request };
 }
@@ -194,34 +194,34 @@ export async function consumeApproval(
   if (!inspected.ok) {
     return inspected;
   }
-  if (typeof store.consume !== 'function') {
-    return { ok: false, detail: 'approval-not-found' };
+  if (typeof store.consume !== "function") {
+    return { ok: false, detail: "approval-not-found" };
   }
   const consumed = await store.consume(token, now);
   if (consumed === null) {
-    return { ok: false, detail: 'approval-consumed' };
+    return { ok: false, detail: "approval-consumed" };
   }
   return { ok: true, request: consumed };
 }
 
 function approvalDenied(
   detail: string,
-): Extract<Decision, { readonly outcome: 'denied' }> {
+): Extract<Decision, { readonly outcome: "denied" }> {
   return {
-    outcome: 'denied',
-    denials: [{ role: null, reason: 'approval', detail }],
+    outcome: "denied",
+    denials: [{ role: null, reason: "approval", detail }],
     alternatives: [],
   };
 }
 
 function staleOnChange(
-  decision: Extract<Decision, { readonly outcome: 'approval-required' }>,
+  decision: Extract<Decision, { readonly outcome: "approval-required" }>,
 ): boolean {
   const approval = decision.grant.approval;
   return (
     approval !== undefined &&
-    approval !== 'human' &&
-    approval.staleOn === 'resource-change'
+    approval !== "human" &&
+    approval.staleOn === "resource-change"
   );
 }
 
@@ -251,7 +251,7 @@ async function isStaleToken(
   }
   return (
     request !== null &&
-    (request.status === 'approved' || request.status === 'pending') &&
+    (request.status === "approved" || request.status === "pending") &&
     request.permission === input.permission.key &&
     request.resource.type === input.resource.type &&
     request.resource.id === input.resource.id &&
@@ -286,7 +286,7 @@ export async function resumeDecision(input: {
   readonly now?: Date;
 }): Promise<Decision> {
   const { decision, store, token } = input;
-  if (decision.outcome !== 'approval-required') {
+  if (decision.outcome !== "approval-required") {
     return decision;
   }
   if (token === undefined || token !== decision.token) {
@@ -297,8 +297,8 @@ export async function resumeDecision(input: {
       (await isStaleToken(store, token, input))
     ) {
       return {
-        outcome: 'denied',
-        denials: [{ role: null, reason: 'stale-approval' }],
+        outcome: "denied",
+        denials: [{ role: null, reason: "stale-approval" }],
         alternatives: [],
       };
     }
@@ -317,7 +317,7 @@ export async function resumeDecision(input: {
     return decision;
   }
   if (store === undefined) {
-    return approvalDenied('approval-not-found');
+    return approvalDenied("approval-not-found");
   }
   let inspected: ApprovalInspectResult;
   try {
@@ -329,31 +329,31 @@ export async function resumeDecision(input: {
         (request.resource.id !== undefined &&
           request.resource.id !== input.resource.id)
       ) {
-        return approvalDenied('approval-mismatch');
+        return approvalDenied("approval-mismatch");
       }
       if (input.consume !== false) {
         inspected = await consumeApproval(store, token, input.now);
       }
     }
   } catch {
-    return approvalDenied('approval-not-found');
+    return approvalDenied("approval-not-found");
   }
   if (!inspected.ok) {
     return approvalDenied(inspected.detail);
   }
   const principal = input.subject.principal;
   if (principal === null) {
-    return approvalDenied('approval-mismatch');
+    return approvalDenied("approval-mismatch");
   }
   return {
-    outcome: 'granted',
+    outcome: "granted",
     subject: { ...input.subject, principal },
     matched: decision.grant,
     token: decision.token,
   };
 }
 
-const SYSTEM_KIND = 'system';
+const SYSTEM_KIND = "system";
 
 export async function cancelApprovals(
   store: ApprovalStore,
@@ -363,9 +363,9 @@ export async function cancelApprovals(
   if (store.cancel !== undefined) {
     return store.cancel(filter, meta);
   }
-  const pending = await listAll(store, { ...filter, status: 'pending' });
+  const pending = await listAll(store, { ...filter, status: "pending" });
   const by: Subject = {
-    principal: { id: `system:${meta.by}`, kind: 'service', roles: [] },
+    principal: { id: `system:${meta.by}`, kind: "service", roles: [] },
     actor: { id: `system:${meta.by}`, kind: SYSTEM_KIND },
     context: {},
   };
@@ -375,7 +375,7 @@ export async function cancelApprovals(
         await store.resolve(
           request.token,
           compact<ApprovalVerdict>({
-            status: 'rejected',
+            status: "rejected",
             by,
             note: meta.note,
           }),
@@ -393,7 +393,7 @@ export function readApprovalHeader(
   headers: Headers | { readonly get: (name: string) => string | null },
 ): string | undefined {
   const value = headers.get(APPROVAL_HEADER);
-  if (value === null || value.trim() === '') {
+  if (value === null || value.trim() === "") {
     return undefined;
   }
   return value.trim();
@@ -406,7 +406,7 @@ export function resumeFromHeader(
 ): Promise<ApprovalInspectResult> {
   const token = readApprovalHeader(headers);
   if (token === undefined) {
-    return Promise.resolve({ ok: false, detail: 'approval-not-found' });
+    return Promise.resolve({ ok: false, detail: "approval-not-found" });
   }
   return inspectApproval(store, token, now);
 }
@@ -422,15 +422,15 @@ export async function storedApprovalToken(
   decision: Decision,
   denyPending: boolean,
 ): Promise<string | undefined> {
-  if (store === undefined || decision.outcome !== 'approval-required') {
+  if (store === undefined || decision.outcome !== "approval-required") {
     return undefined;
   }
   try {
     const record = await store.get(decision.token);
     if (
       record === null ||
-      (record.status === 'pending' && !denyPending) ||
-      record.status === 'expired' ||
+      (record.status === "pending" && !denyPending) ||
+      record.status === "expired" ||
       Date.parse(record.expiresAt) <= Date.now()
     ) {
       return undefined;

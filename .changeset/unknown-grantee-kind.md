@@ -1,5 +1,5 @@
 ---
-'permdock': patch
+"permdock": patch
 ---
 
 Fail-closed fixes for a grantee kind this build does not know, as a forged snapshot or a newer policy document could carry:

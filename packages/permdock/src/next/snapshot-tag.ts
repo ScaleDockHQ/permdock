@@ -4,5 +4,5 @@
  * `revalidateTag` on every write that changes the subject's snapshot.
  */
 export function snapshotTag(sub?: string | null): string {
-  return `permdock:${sub === undefined || sub === null || sub === '' ? 'anon' : sub}`;
+  return `permdock:${sub === undefined || sub === null || sub === "" ? "anon" : sub}`;
 }

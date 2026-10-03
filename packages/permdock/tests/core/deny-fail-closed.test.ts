@@ -1,9 +1,9 @@
-import { describe, expect, it } from 'vitest';
-import { z } from 'zod';
+import { describe, expect, it } from "vitest";
+import { z } from "zod";
 
-import type { WhereShorthand } from '../../src/conditions/normalize.ts';
+import type { WhereShorthand } from "../../src/conditions/normalize.ts";
 
-import { fromSnapshot } from '../../src/core/from-snapshot.ts';
+import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import {
   allow,
   createPermDock,
@@ -12,55 +12,55 @@ import {
   deny,
   resource,
   role,
-} from '../../src/index.ts';
-import { reasonOf } from '../fixtures/decisions.ts';
+} from "../../src/index.ts";
+import { reasonOf } from "../fixtures/decisions.ts";
 
 const Invoice = z.object({ id: z.string(), amount: z.number() });
 const permissions = definePermissions({
-  invoice: resource(Invoice, { id: 'id', actions: ['update'] }),
+  invoice: resource(Invoice, { id: "id", actions: ["update"] }),
 });
 type Row = z.infer<typeof Invoice>;
-const invoice: Row = { id: 'i1', amount: 50 };
-const user = { id: 'u1', roles: ['member'] };
+const invoice: Row = { id: "i1", amount: 50 };
+const user = { id: "u1", roles: ["member"] };
 const subject = (
   input: { readonly id: string; readonly roles: readonly string[] } | null,
 ) => (input === null ? null : { id: input.id, roles: input.roles });
-const opaqueWhere = { sql: 'amount > 1000', fingerprint: 'big' };
+const opaqueWhere = { sql: "amount > 1000", fingerprint: "big" };
 const nestedOpaque: WhereShorthand = {
   or: [opaqueWhere, { amount: { gt: 1000 } }],
 };
 
 function policyWith(denyGrant: ReturnType<typeof deny>) {
   return definePolicy(permissions, {
-    roles: [role('member', [allow(permissions.invoice.update), denyGrant])],
+    roles: [role("member", [allow(permissions.invoice.update), denyGrant])],
     subject,
   });
 }
 
-describe('a deny that cannot be evaluated denies', () => {
-  it('denies when a deny closure throws', async () => {
+describe("a deny that cannot be evaluated denies", () => {
+  it("denies when a deny closure throws", async () => {
     const policy = policyWith(
       deny(permissions.invoice.update, (): boolean => {
-        throw new Error('lookup failed');
+        throw new Error("lookup failed");
       }),
     );
     const permdock = await createPermDock(policy, user);
     const decision = permdock.decide(permissions.invoice.update, invoice);
-    expect(decision.outcome).toBe('denied');
-    expect(reasonOf(decision)).toBe('closure-error');
+    expect(decision.outcome).toBe("denied");
+    expect(reasonOf(decision)).toBe("closure-error");
   });
 
-  it('denies when a deny has an opaque where', async () => {
+  it("denies when a deny has an opaque where", async () => {
     const policy = policyWith(
       deny(permissions.invoice.update, { where: opaqueWhere }),
     );
     const permdock = await createPermDock(policy, user);
     const decision = permdock.decide(permissions.invoice.update, invoice);
-    expect(decision.outcome).toBe('denied');
-    expect(reasonOf(decision)).toBe('opaque-condition');
+    expect(decision.outcome).toBe("denied");
+    expect(reasonOf(decision)).toBe("opaque-condition");
   });
 
-  it('denies when a deny nests an opaque condition', async () => {
+  it("denies when a deny nests an opaque condition", async () => {
     const policy = policyWith(
       deny(permissions.invoice.update, {
         where: nestedOpaque,
@@ -68,11 +68,11 @@ describe('a deny that cannot be evaluated denies', () => {
     );
     const permdock = await createPermDock(policy, user);
     const decision = permdock.decide(permissions.invoice.update, invoice);
-    expect(decision.outcome).toBe('denied');
-    expect(reasonOf(decision)).toBe('opaque-condition');
+    expect(decision.outcome).toBe("denied");
+    expect(reasonOf(decision)).toBe("opaque-condition");
   });
 
-  it('denies the same way from a snapshot', async () => {
+  it("denies the same way from a snapshot", async () => {
     const policy = policyWith(
       deny(permissions.invoice.update, {
         where: nestedOpaque,
@@ -81,18 +81,18 @@ describe('a deny that cannot be evaluated denies', () => {
     const server = await createPermDock(policy, user);
     const snapshot = server.snapshot();
     if (snapshot instanceof Promise) {
-      throw new Error('expected JSON snapshot');
+      throw new Error("expected JSON snapshot");
     }
     const client = fromSnapshot(snapshot);
     const decision = client.decide(permissions.invoice.update, invoice);
-    expect(decision.outcome).toBe('denied');
-    expect(reasonOf(decision)).toBe('opaque-condition');
+    expect(decision.outcome).toBe("denied");
+    expect(reasonOf(decision)).toBe("opaque-condition");
   });
 
-  it('does not grant an allow that negates an opaque condition', async () => {
+  it("does not grant an allow that negates an opaque condition", async () => {
     const policy = definePolicy(permissions, {
       roles: [
-        role('member', [
+        role("member", [
           allow(permissions.invoice.update, { where: { not: opaqueWhere } }),
         ]),
       ],
@@ -100,14 +100,14 @@ describe('a deny that cannot be evaluated denies', () => {
     });
     const permdock = await createPermDock(policy, user);
     const decision = permdock.decide(permissions.invoice.update, invoice);
-    expect(decision.outcome).toBe('denied');
-    expect(reasonOf(decision)).toBe('opaque-condition');
+    expect(decision.outcome).toBe("denied");
+    expect(reasonOf(decision)).toBe("opaque-condition");
   });
 
-  it('still fails only the grant when an allow cannot be evaluated', async () => {
+  it("still fails only the grant when an allow cannot be evaluated", async () => {
     const policy = definePolicy(permissions, {
       roles: [
-        role('member', [
+        role("member", [
           allow(permissions.invoice.update, { where: opaqueWhere }),
           allow(permissions.invoice.update, { where: { amount: { lt: 100 } } }),
         ]),

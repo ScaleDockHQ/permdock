@@ -14,34 +14,39 @@ It is an open-source entry first so that self-hosters get the feature, and so th
 ## API
 
 ```ts
-import { scimHandler, memoryDirectoryStore, directoryMembershipSource } from 'permdock/scim'
-import { joseTokenVerifier } from 'permdock/jwt'
-import { cloudEndpoints } from 'permdock/cloud'
-import { createPermDock } from 'permdock/hono'
+import {
+  scimHandler,
+  memoryDirectoryStore,
+  directoryMembershipSource,
+} from "permdock/scim";
+import { joseTokenVerifier } from "permdock/jwt";
+import { cloudEndpoints } from "permdock/cloud";
+import { createPermDock } from "permdock/hono";
 
-const directory = memoryDirectoryStore()            // default; replace with a store over your tables
+const directory = memoryDirectoryStore(); // default; replace with a store over your tables
 
 export const scim = scimHandler({
   store: directory,
-  tenant: (request) => tenantFromPath(request),      // '/scim/v2/:tenant' or a lookup on the credential; never the body
-  token: { hash: 'sha256', lookup: (tenant) => db.scimTokens.hashFor(tenant) },   // static bearer per tenant (Okta, Entra ID)
-  verifier: joseTokenVerifier({                       // or an RFC 7523 JWT bearer (the Cloud relay, IPSIE AL1)
-    jwks: cloudEndpoints().jwks,                      // the Cloud environment's JWK Set
+  tenant: (request) => tenantFromPath(request), // '/scim/v2/:tenant' or a lookup on the credential; never the body
+  token: { hash: "sha256", lookup: (tenant) => db.scimTokens.hashFor(tenant) }, // static bearer per tenant (Okta, Entra ID)
+  verifier: joseTokenVerifier({
+    // or an RFC 7523 JWT bearer (the Cloud relay, IPSIE AL1)
+    jwks: cloudEndpoints().jwks, // the Cloud environment's JWK Set
     issuer: cloudEndpoints().issuer,
   }),
-  audience: 'https://app.example.com/scim/v2',        // required with `verifier`; never read from the request
-  groupRoles: { 'g_9f2c…': ['editor'], 'g_0e6f…': ['admin'] },   // optional static map; the extension attribute wins when present
-  sink,                                               // a DecisionSink; receives one `directory` event per write, plus a `membership` event per affected group member
-  onChange: ({ tenant, userIds, kind }) => updateTag(`permdock:${tenant}`),   // optional; invalidate cached snapshots
-  revocations,                                        // optional RevocationFeed; deactivation ends streams, other writes revalidate them
-})
+  audience: "https://app.example.com/scim/v2", // required with `verifier`; never read from the request
+  groupRoles: { "g_9f2c…": ["editor"], "g_0e6f…": ["admin"] }, // optional static map; the extension attribute wins when present
+  sink, // a DecisionSink; receives one `directory` event per write, plus a `membership` event per affected group member
+  onChange: ({ tenant, userIds, kind }) => updateTag(`permdock:${tenant}`), // optional; invalidate cached snapshots
+  revocations, // optional RevocationFeed; deactivation ends streams, other writes revalidate them
+});
 
-app.all('/scim/v2/:tenant/*', (c) => scim(c.req.raw))
+app.all("/scim/v2/:tenant/*", (c) => scim(c.req.raw));
 
 export const { permdock, protect } = createPermDock(policy, {
-  subject: (c) => c.get('user'),
-  memberships: directoryMembershipSource(directory),  // groups become team memberships inside the active tenant
-})
+  subject: (c) => c.get("user"),
+  memberships: directoryMembershipSource(directory), // groups become team memberships inside the active tenant
+});
 ```
 
 - `scimHandler(options)` returns a Fetch handler serving `/Users`, `/Users/:id`, `/Groups`, `/Groups/:id`, `/ServiceProviderConfig`, `/ResourceTypes` and `/Schemas` under the mount point. Supported operations: `GET` (with `filter`, `startIndex` / `count`, and RFC 9865 `cursor` / `nextCursor`), `POST`, `PUT`, `PATCH` (`add`, `replace`, `remove` with the path forms Okta, Entra ID and Google Workspace emit) and `DELETE`. Responses use the SCIM media type `application/scim+json` and the RFC 7644 error body (`schemas`, `status`, `scimType`, `detail`).
@@ -57,38 +62,68 @@ export const { permdock, protect } = createPermDock(policy, {
 
 ```ts
 interface DirectoryStore {
-  getUser(tenant: string, id: string): Promise<DirectoryUser | null>
-  findUsers(tenant: string, filter: ScimFilter, page: ScimPage): Promise<ScimPageResult<DirectoryUser>>
-  putUser(tenant: string, user: DirectoryUser): Promise<DirectoryUser>          // create or replace; id assigned by the store on create
-  patchUser(tenant: string, id: string, ops: ScimPatchOp[]): Promise<DirectoryUser>
-  deleteUser(tenant: string, id: string): Promise<void>
-  getGroup(tenant: string, id: string): Promise<DirectoryGroup | null>
-  findGroups(tenant: string, filter: ScimFilter, page: ScimPage): Promise<ScimPageResult<DirectoryGroup>>
-  putGroup(tenant: string, group: DirectoryGroup): Promise<DirectoryGroup>
-  patchGroup(tenant: string, id: string, ops: ScimPatchOp[]): Promise<DirectoryGroup>
-  deleteGroup(tenant: string, id: string): Promise<void>
-  groupsFor(tenant: string, userId: string): Promise<DirectoryGroup[]>          // what directoryMembershipSource reads
+  getUser(tenant: string, id: string): Promise<DirectoryUser | null>;
+  findUsers(
+    tenant: string,
+    filter: ScimFilter,
+    page: ScimPage,
+  ): Promise<ScimPageResult<DirectoryUser>>;
+  putUser(tenant: string, user: DirectoryUser): Promise<DirectoryUser>; // create or replace; id assigned by the store on create
+  patchUser(
+    tenant: string,
+    id: string,
+    ops: ScimPatchOp[],
+  ): Promise<DirectoryUser>;
+  deleteUser(tenant: string, id: string): Promise<void>;
+  getGroup(tenant: string, id: string): Promise<DirectoryGroup | null>;
+  findGroups(
+    tenant: string,
+    filter: ScimFilter,
+    page: ScimPage,
+  ): Promise<ScimPageResult<DirectoryGroup>>;
+  putGroup(tenant: string, group: DirectoryGroup): Promise<DirectoryGroup>;
+  patchGroup(
+    tenant: string,
+    id: string,
+    ops: ScimPatchOp[],
+  ): Promise<DirectoryGroup>;
+  deleteGroup(tenant: string, id: string): Promise<void>;
+  groupsFor(tenant: string, userId: string): Promise<DirectoryGroup[]>; // what directoryMembershipSource reads
 }
 
-type DirectoryUser = { id: string; externalId?: string; userName: string; active: boolean; emails?: { value: string; primary?: boolean }[]; meta: { created: string; lastModified: string } }
-type DirectoryGroup = { id: string; externalId?: string; displayName: string; members: { value: string }[]; roles?: string[]; meta: { created: string; lastModified: string } }
+type DirectoryUser = {
+  id: string;
+  externalId?: string;
+  userName: string;
+  active: boolean;
+  emails?: { value: string; primary?: boolean }[];
+  meta: { created: string; lastModified: string };
+};
+type DirectoryGroup = {
+  id: string;
+  externalId?: string;
+  displayName: string;
+  members: { value: string }[];
+  roles?: string[];
+  meta: { created: string; lastModified: string };
+};
 ```
 
 The store is a repository, unlike `MembershipSource` and `RoleSource`, which are queries: this is the one place PermDock writes membership data, and it writes only what an authenticated IdP or relay sent. `displayName` is stored for the mapping UI and is never used as an identifier. `roles` on a group is the extension attribute. Every method may throw; the handler turns a throw into a SCIM `500` and never a partial write.
 
 ## Protocol subset
 
-| RFC 7644 feature | `permdock/scim` | Note |
-| --- | --- | --- |
-| `/Users`, `/Groups` `GET`, `POST`, `PUT`, `PATCH`, `DELETE` | Implements | The operations Okta, Entra ID and Google Workspace send |
-| `filter` with `eq`, `ne`, `co`, `sw`, `pr`, `and`, `or` on `userName`, `externalId`, `active`, `displayName`, `members.value` | Implements | Enough for every IdP's lookup-before-create; `pr` matches only a non-empty value (not null, not an empty string, not an empty array, RFC 7644 section 3.4.2.2); other operators return `400 invalidFilter` |
-| Index pagination (`startIndex`, `count`) | Implements | Required by RFC 7644 |
-| Cursor pagination (RFC 9865) | Implements | Advertised in `/ServiceProviderConfig`; used when the store returns a cursor |
-| `PATCH` path forms (`members[value eq "…"]`, `active`, `emails[type eq "work"].value`) | Implements, normalised | Each IdP's dialect is rewritten to one operation shape before the store sees it |
-| `/ServiceProviderConfig`, `/ResourceTypes`, `/Schemas` | Implements | Advertises the supported subset and the PermDock extension; `/Schemas` and `/ResourceTypes` are ListResponses, `/Schemas/:id` and `/ResourceTypes/:id` return one item, and a `filter` gets 403 (RFC 7644 section 4) |
-| `/Me`, `/Bulk`, `/.search` | Not implemented | No IdP requires them for provisioning; the routes do not exist |
-| `ETag` and `If-Match` | Not implemented | Stores may return `meta.version`; conditional requests are not enforced |
-| `sortBy`, `sortOrder` | Not implemented | Ignored |
+| RFC 7644 feature                                                                                                              | `permdock/scim`        | Note                                                                                                                                                                                                                 |
+| ----------------------------------------------------------------------------------------------------------------------------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/Users`, `/Groups` `GET`, `POST`, `PUT`, `PATCH`, `DELETE`                                                                   | Implements             | The operations Okta, Entra ID and Google Workspace send                                                                                                                                                              |
+| `filter` with `eq`, `ne`, `co`, `sw`, `pr`, `and`, `or` on `userName`, `externalId`, `active`, `displayName`, `members.value` | Implements             | Enough for every IdP's lookup-before-create; `pr` matches only a non-empty value (not null, not an empty string, not an empty array, RFC 7644 section 3.4.2.2); other operators return `400 invalidFilter`           |
+| Index pagination (`startIndex`, `count`)                                                                                      | Implements             | Required by RFC 7644                                                                                                                                                                                                 |
+| Cursor pagination (RFC 9865)                                                                                                  | Implements             | Advertised in `/ServiceProviderConfig`; used when the store returns a cursor                                                                                                                                         |
+| `PATCH` path forms (`members[value eq "…"]`, `active`, `emails[type eq "work"].value`)                                        | Implements, normalised | Each IdP's dialect is rewritten to one operation shape before the store sees it                                                                                                                                      |
+| `/ServiceProviderConfig`, `/ResourceTypes`, `/Schemas`                                                                        | Implements             | Advertises the supported subset and the PermDock extension; `/Schemas` and `/ResourceTypes` are ListResponses, `/Schemas/:id` and `/ResourceTypes/:id` return one item, and a `filter` gets 403 (RFC 7644 section 4) |
+| `/Me`, `/Bulk`, `/.search`                                                                                                    | Not implemented        | No IdP requires them for provisioning; the routes do not exist                                                                                                                                                       |
+| `ETag` and `If-Match`                                                                                                         | Not implemented        | Stores may return `meta.version`; conditional requests are not enforced                                                                                                                                              |
+| `sortBy`, `sortOrder`                                                                                                         | Not implemented        | Ignored                                                                                                                                                                                                              |
 
 ### The PermDock extension schema
 
@@ -112,12 +147,12 @@ Group-to-role mapping is application data, carried in a SCIM extension:
 
 ### IdP dialects
 
-| IdP | What it sends | Normalisation |
-| --- | --- | --- |
-| Okta | `PATCH` `replace` on `active`; group push as `PUT` of the full `members` list, later `PATCH` `add` / `remove` with `members[value eq "…"]`; `externalId` from the Okta user id | Full `PUT` members diffed into `add` / `remove` |
-| Microsoft Entra ID | `PATCH` `Operations` with `path` `members[value eq "…"]` and `remove`; `active` as a string in older tenants; no `/Groups` `PUT` | String `"False"` coerced; `remove` with filter path mapped to member removal |
-| Google Workspace | Full `PUT` of the user on any change; groups optional | `PUT` diffed against the stored resource |
-| WorkOS Directory Sync (as a client) | Standard `PATCH` | None |
+| IdP                                 | What it sends                                                                                                                                                                  | Normalisation                                                                |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------- |
+| Okta                                | `PATCH` `replace` on `active`; group push as `PUT` of the full `members` list, later `PATCH` `add` / `remove` with `members[value eq "…"]`; `externalId` from the Okta user id | Full `PUT` members diffed into `add` / `remove`                              |
+| Microsoft Entra ID                  | `PATCH` `Operations` with `path` `members[value eq "…"]` and `remove`; `active` as a string in older tenants; no `/Groups` `PUT`                                               | String `"False"` coerced; `remove` with filter path mapped to member removal |
+| Google Workspace                    | Full `PUT` of the user on any change; groups optional                                                                                                                          | `PUT` diffed against the stored resource                                     |
+| WorkOS Directory Sync (as a client) | Standard `PATCH`                                                                                                                                                               | None                                                                         |
 
 The dialect table is maintained with recorded requests in `apps/examples/scim`; a new IdP adds a recording, not a code path in the store.
 
@@ -141,15 +176,15 @@ The dialect table is maintained with recorded requests in `apps/examples/scim`; 
 
 ## What it validates
 
-| Check | Failure |
-| --- | --- |
-| Bearer present and valid (`token` hash match, or `verifier` `ok: true` with `aud` and tenant claim) | `401`, `WWW-Authenticate: Bearer` |
-| Tenant resolved and equal to the credential's tenant | `403`; never falls back to a default tenant |
-| `schemas` names a supported schema; required attributes present (`userName`, `displayName`) | `400 invalidSyntax` / `invalidValue` |
-| `filter` uses a supported operator (`eq`, `ne`, `co`, `sw`, `pr`, `and`, `or`) on a supported attribute | `400 invalidFilter` |
-| Uniqueness of `userName` and `externalId` within the tenant | `409 uniqueness` |
-| Extension `roles` values are role names the policy declares or the tenant's `RoleSource` resolves | Unknown names stored as sent, contribute no grant, reported in development |
-| Resource exists | `404` |
+| Check                                                                                                   | Failure                                                                    |
+| ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| Bearer present and valid (`token` hash match, or `verifier` `ok: true` with `aud` and tenant claim)     | `401`, `WWW-Authenticate: Bearer`                                          |
+| Tenant resolved and equal to the credential's tenant                                                    | `403`; never falls back to a default tenant                                |
+| `schemas` names a supported schema; required attributes present (`userName`, `displayName`)             | `400 invalidSyntax` / `invalidValue`                                       |
+| `filter` uses a supported operator (`eq`, `ne`, `co`, `sw`, `pr`, `and`, `or`) on a supported attribute | `400 invalidFilter`                                                        |
+| Uniqueness of `userName` and `externalId` within the tenant                                             | `409 uniqueness`                                                           |
+| Extension `roles` values are role names the policy declares or the tenant's `RoleSource` resolves       | Unknown names stored as sent, contribute no grant, reported in development |
+| Resource exists                                                                                         | `404`                                                                      |
 
 The handler never trusts the body to name the tenant or the caller, never accepts a `roles` value that widens beyond declared `assignable` roles, and never returns another tenant's resources. Bulk operations (RFC 7644 section 3.7) are not supported, because the IdPs PermDock targets do not require them. Enterprise User attributes such as `department` and `manager` stay in the store for the application to read; they never become `principal` fields.
 

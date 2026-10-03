@@ -1,16 +1,16 @@
-import type { Membership } from 'permdock';
+import type { Membership } from "permdock";
 
-import { cookies } from 'next/headers';
+import { cookies } from "next/headers";
 
-import type { SessionClaims } from '../policy.ts';
+import type { SessionClaims } from "../policy.ts";
 
-import { membershipsOf } from './store.ts';
-import { SESSION_COOKIE, signSession, verifySession } from './token.ts';
+import { membershipsOf } from "./store.ts";
+import { SESSION_COOKIE, signSession, verifySession } from "./token.ts";
 
-export type MembershipMode = 'jwt' | 'database';
+export type MembershipMode = "jwt" | "database";
 
 function membershipMode(): MembershipMode {
-  return process.env['MEMBERSHIP_MODE'] === 'database' ? 'database' : 'jwt';
+  return process.env["MEMBERSHIP_MODE"] === "database" ? "database" : "jwt";
 }
 
 export async function getClaims(): Promise<SessionClaims | null> {
@@ -22,7 +22,7 @@ export async function getClaims(): Promise<SessionClaims | null> {
 export async function mintSession(user: string): Promise<string> {
   return signSession(
     user,
-    membershipMode() === 'jwt' ? membershipsOf(user) : undefined,
+    membershipMode() === "jwt" ? membershipsOf(user) : undefined,
   );
 }
 
@@ -30,7 +30,7 @@ export async function mintSession(user: string): Promise<string> {
 export function membershipsFor(
   claims: SessionClaims,
 ): readonly Membership[] | undefined {
-  return membershipMode() === 'database'
+  return membershipMode() === "database"
     ? membershipsOf(claims.sub)
     : undefined;
 }

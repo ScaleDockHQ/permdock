@@ -12,28 +12,29 @@ PermDock snapshots are cached: on the server behind `use cache: private` and `up
 ## API
 
 ```ts
-import { createPermDock } from 'permdock/ssf'
-import { updateTag } from 'next/cache'
-import { snapshotTag } from 'permdock/next'
+import { createPermDock } from "permdock/ssf";
+import { updateTag } from "next/cache";
+import { snapshotTag } from "permdock/next";
 
 export const { receiver } = createPermDock(policy, {
-  issuer: 'https://login.example.com',                 // expected SET issuer
-  audience: 'https://app.example.com/ssf',            // this receiver
-  jwks: 'https://login.example.com/.well-known/jwks.json',
-  subject: (setSubject) => userIdFrom(setSubject),    // maps the SET sub_id to a PermDock principal id
+  issuer: "https://login.example.com", // expected SET issuer
+  audience: "https://app.example.com/ssf", // this receiver
+  jwks: "https://login.example.com/.well-known/jwks.json",
+  subject: (setSubject) => userIdFrom(setSubject), // maps the SET sub_id to a PermDock principal id
   onEvent: {
-    'session-revoked':         ({ subject }) => updateTag(snapshotTag(subject.id)),
-    'credential-change':       ({ subject }) => updateTag(snapshotTag(subject.id)),
-    'assurance-level-change':  ({ subject, event }) => updateTag(snapshotTag(subject.id)),
+    "session-revoked": ({ subject }) => updateTag(snapshotTag(subject.id)),
+    "credential-change": ({ subject }) => updateTag(snapshotTag(subject.id)),
+    "assurance-level-change": ({ subject, event }) =>
+      updateTag(snapshotTag(subject.id)),
   },
-})
+});
 
-app.post('/ssf/events', (c) => receiver.push(c.req.raw))   // RFC 8935 push delivery
-receiver.poll({ endpoint: 'https://login.example.com/ssf/poll', every: '30s' }) // RFC 8936 poll delivery
+app.post("/ssf/events", (c) => receiver.push(c.req.raw)); // RFC 8935 push delivery
+receiver.poll({ endpoint: "https://login.example.com/ssf/poll", every: "30s" }); // RFC 8936 poll delivery
 ```
 
 - `receiver.push(request)` is a Fetch handler for RFC 8935 push delivery: it accepts `application/secevent+jwt`, verifies, dispatches and returns `202`.
-- `receiver.poll(options)` runs RFC 8936 poll delivery from a long-lived process: it fetches pending SETs, dispatches them and acknowledges by `jti`.
+- `receiver.poll(options)` runs RFC 8936 poll delivery from a long-lived process: it fetches pending SETs, dispatches them and acknowledges by `jti`. Each poll request is aborted after 30 seconds, or earlier through `options.signal`.
 - `onEvent` is keyed by CAEP event type. Handlers receive the resolved `subject`, the raw `event` claims, `event_timestamp` and the `jti`.
 - `subject` maps the SET `sub_id` (formats `iss_sub`, `email`, `opaque`, `complex`, and others defined by the Subject Identifiers RFC) to the id PermDock uses in `tag` and snapshots. A SET without `sub_id` falls back to `sub`, then to the event's own `subject` member (the pre-1.0 CAEP layout some transmitters still send). The session of a `complex` subject becomes `subject.session`, so a `session-revoked` event ends only that session.
 - `verifier` (optional, a `TokenVerifier` from [extension interfaces](/docs/concepts/extension-interfaces)) replaces the built-in `joseTokenVerifier` over `jwks`; `discovery: '<issuer>'` may stand in for `issuer` plus `jwks` exactly as in [`permdock/jwt`](/docs/adapters/jwt); the document's issuer then becomes the expected SET issuer, for the built-in verifier and a custom one alike.
@@ -47,13 +48,21 @@ receiver.poll({ endpoint: 'https://login.example.com/ssf/poll', every: '30s' }) 
 ```ts
 // Redis: SET NX EX is the atomic claim, TTL from expiresAt
 const ttl = (expiresAt?: number) =>
-  expiresAt === undefined ? 3600 : Math.max(1, expiresAt - Math.floor(Date.now() / 1000))
+  expiresAt === undefined
+    ? 3600
+    : Math.max(1, expiresAt - Math.floor(Date.now() / 1000));
 const replay: ReplayStore = {
   seen: async (key) => (await redis.exists(`ssf:${key}`)) === 1,
-  remember: async (key, expiresAt) => { await redis.set(`ssf:${key}`, '1', { EX: ttl(expiresAt) }) },
-  claim: async (key, expiresAt) => (await redis.set(`ssf:${key}`, '1', { NX: true, EX: ttl(expiresAt) })) === 'OK',
-  release: async (key) => { await redis.del(`ssf:${key}`) },
-}
+  remember: async (key, expiresAt) => {
+    await redis.set(`ssf:${key}`, "1", { EX: ttl(expiresAt) });
+  },
+  claim: async (key, expiresAt) =>
+    (await redis.set(`ssf:${key}`, "1", { NX: true, EX: ttl(expiresAt) })) ===
+    "OK",
+  release: async (key) => {
+    await redis.del(`ssf:${key}`);
+  },
+};
 
 // Postgres: claim is INSERT … ON CONFLICT DO NOTHING RETURNING key; release is DELETE
 ```
@@ -63,7 +72,7 @@ const replay: ReplayStore = {
 The same receiver accepts an OpenID Connect [Back-Channel Logout](https://openid.net/specs/openid-connect-backchannel-1_0.html) `logout_token`: a JWT with `typ: logout+jwt`, an `events` claim keyed `http://schemas.openid.net/event/backchannel-logout`, `sub` and/or `sid`, and no `nonce`. Mount it on the URL registered as the RP's `backchannel_logout_uri`:
 
 ```ts
-app.post('/oidc/logout', (c) => receiver.logout(c.req.raw))   // application/x-www-form-urlencoded, logout_token=…
+app.post("/oidc/logout", (c) => receiver.logout(c.req.raw)); // application/x-www-form-urlencoded, logout_token=…
 ```
 
 `receiver.logout` verifies the token with the same `TokenVerifier` and `iss` / `aud` / `iat` / `jti` rules (Back-Channel Logout section 2.6), rejects one carrying `nonce`, and dispatches it as a `session-revoked` event whose `subject` is resolved from `sub` and whose `session` is `sid`. A handler that keys its cache on `subject.session` ([OpenID Connect](/docs/standards/openid-connect)) invalidates exactly the session the OP ended; a handler keyed on `subject.id` invalidates every session for the user, which is the CAEP `session-revoked` behaviour and a safe default. The response is `200` on success and `400` with `error: invalid_request` on a token that fails verification, as the specification requires; no body is trusted to name the OP.
@@ -82,14 +91,14 @@ Back-Channel Logout and CAEP `session-revoked` are two deliveries of one signal,
 
 ## What it validates
 
-| Check | Failure |
-|---|---|
-| JWS signature, `alg` allow-list | `400 invalid_key` / `invalid_request` per RFC 8935 |
-| `iss`, `aud`, `iat` | `400 invalid_issuer` / `invalid_audience` |
-| `jti` replay | acknowledged, not dispatched, logged |
-| Event URI known | unknown events acknowledged and ignored unless `onEvent['*']` is set |
-| `sub_id` format | supported formats mapped; others handed to `subject` raw |
-| `logout_token`: `typ: logout+jwt`, the backchannel-logout `events` key, `sub` or `sid` present, no `nonce` | `400 invalid_request` (Back-Channel Logout section 2.8) |
+| Check                                                                                                      | Failure                                                              |
+| ---------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| JWS signature, `alg` allow-list                                                                            | `400 invalid_key` / `invalid_request` per RFC 8935                   |
+| `iss`, `aud`, `iat`                                                                                        | `400 invalid_issuer` / `invalid_audience`                            |
+| `jti` replay                                                                                               | acknowledged, not dispatched, logged                                 |
+| Event URI known                                                                                            | unknown events acknowledged and ignored unless `onEvent['*']` is set |
+| `sub_id` format                                                                                            | supported formats mapped; others handed to `subject` raw             |
+| `logout_token`: `typ: logout+jwt`, the backchannel-logout `events` key, `sub` or `sid` present, no `nonce` | `400 invalid_request` (Back-Channel Logout section 2.8)              |
 
 The receiver never trusts the SET body to identify the transmitter; the signature and issuer do. It does not accept unsigned or `none`-algorithm tokens, and its algorithm allow-list is the [`permdock/jwt`](/docs/adapters/jwt) one (`Ed25519`, `ES256`, `PS256`, `RS256`; polymorphic `EdDSA` accepted for a `crv: Ed25519` key with a `permdock doctor` warning).
 

@@ -1,5 +1,5 @@
-import { app } from './app.ts';
-import { elysia } from './elysia.ts';
+import { app } from "./app.ts";
+import { elysia } from "./elysia.ts";
 
 declare const Bun: {
   serve(options: {
@@ -10,10 +10,10 @@ declare const Bun: {
 };
 
 Bun.serve({
-  port: Number(process.env['PORT']),
-  hostname: '127.0.0.1',
+  port: Number(process.env["PORT"]),
+  hostname: "127.0.0.1",
   fetch: (request) =>
-    new URL(request.url).pathname.startsWith('/elysia/')
+    new URL(request.url).pathname.startsWith("/elysia/")
       ? elysia.handle(request)
       : app.fetch(request),
 });

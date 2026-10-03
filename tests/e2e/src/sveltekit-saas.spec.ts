@@ -1,3 +1,3 @@
-import { saasUiScenarios } from './saas-ui.ts';
+import { saasUiScenarios } from "./saas-ui.ts";
 
-saasUiScenarios({ origin: 'http://127.0.0.1:3500' });
+saasUiScenarios({ origin: "http://127.0.0.1:3500" });

@@ -1,6 +1,6 @@
-import type { Membership } from './subject.ts';
+import type { Membership } from "./subject.ts";
 
-import { isForbiddenKey } from './paths.ts';
+import { isForbiddenKey } from "./paths.ts";
 
 /** One entry of `definePolicy({ scopes })`: the row field holding the scope id, and its parent scope. */
 export type ScopeDeclaration = {
@@ -24,16 +24,16 @@ export type Scope = {
 export type ScopeNames<S> = [S] extends [PolicyScopesInput]
   ? string extends keyof S
     ? string
-    : (keyof S & string) | 'tenant' | 'team'
+    : (keyof S & string) | "tenant" | "team"
   : string;
 
-const RESERVED = new Set(['global', 'resource']);
+const RESERVED = new Set(["global", "resource"]);
 const NAME = /^[a-z][a-z0-9_]*$/u;
 
 /** A policy without `scopes` keeps the historical pair: `tenant`, and `team` inside it. */
 const IMPLICIT: readonly Scope[] = Object.freeze([
-  Object.freeze({ name: 'tenant' }),
-  Object.freeze({ name: 'team', within: 'tenant' }),
+  Object.freeze({ name: "tenant" }),
+  Object.freeze({ name: "team", within: "tenant" }),
 ]);
 
 function fail(message: string): never {
@@ -53,8 +53,8 @@ export function defineScopes(
   if (input === undefined) {
     return Object.freeze([]);
   }
-  if (input === null || typeof input !== 'object' || Array.isArray(input)) {
-    fail('definePolicy({ scopes }) must be an object');
+  if (input === null || typeof input !== "object" || Array.isArray(input)) {
+    fail("definePolicy({ scopes }) must be an object");
   }
   const out: Scope[] = [];
   const seen = new Set<string>();
@@ -68,17 +68,17 @@ export function defineScopes(
     if (
       declaration === undefined ||
       declaration === null ||
-      typeof declaration !== 'object' ||
-      typeof declaration.key !== 'string' ||
-      declaration.key === ''
+      typeof declaration !== "object" ||
+      typeof declaration.key !== "string" ||
+      declaration.key === ""
     ) {
       fail(`scopes.${name} needs a key`);
     }
     const index = out.length;
-    if (name === 'tenant' && index !== 0) {
+    if (name === "tenant" && index !== 0) {
       fail("scope 'tenant' must be declared first");
     }
-    if (name === 'team' && index !== 1) {
+    if (name === "team" && index !== 1) {
       fail("scope 'team' must be declared second");
     }
     const within = declaration.within;
@@ -87,7 +87,7 @@ export function defineScopes(
         `scopes.${name}.within names '${within}', which is not declared before it`,
       );
     }
-    if (name === 'team' && within === undefined && seen.has('tenant')) {
+    if (name === "team" && within === undefined && seen.has("tenant")) {
       fail("scopes.team needs within: 'tenant'");
     }
     if (index > 0 && within === undefined) {
@@ -119,16 +119,16 @@ export function resolveScope(
   scopes: readonly Scope[],
   name: unknown,
 ): string | undefined {
-  if (typeof name !== 'string') {
+  if (typeof name !== "string") {
     return undefined;
   }
   if (scopes.some((scope) => scope.name === name)) {
     return name;
   }
-  if (name === 'tenant') {
+  if (name === "tenant") {
     return scopes[0]?.name;
   }
-  if (name === 'team') {
+  if (name === "team") {
     return scopes[1]?.name;
   }
   return undefined;
@@ -199,14 +199,14 @@ export function tenantOf(
 }
 
 function isId(value: unknown): value is string {
-  return typeof value === 'string' && value !== '';
+  return typeof value === "string" && value !== "";
 }
 
 function roleList(value: unknown): readonly string[] | undefined {
   if (!Array.isArray(value)) {
     return undefined;
   }
-  return value.filter((item): item is string => typeof item === 'string');
+  return value.filter((item): item is string => typeof item === "string");
 }
 
 /**
@@ -220,12 +220,12 @@ export function normalizeMembership(
   input: unknown,
   scopes: readonly Scope[],
 ): Membership | undefined {
-  if (input === null || typeof input !== 'object' || Array.isArray(input)) {
+  if (input === null || typeof input !== "object" || Array.isArray(input)) {
     return undefined;
   }
   // SAFETY: input is a non-null, non-array object checked above; each field is checked below.
   const raw = input as Record<string, unknown>;
-  const roles = roleList(raw['roles']);
+  const roles = roleList(raw["roles"]);
   if (roles === undefined) {
     return undefined;
   }
@@ -236,60 +236,60 @@ export function normalizeMembership(
     reason?: string;
     eligible?: readonly string[];
     member?: { readonly group: string };
-    managedBy?: 'idp';
+    managedBy?: "idp";
     entitlements?: readonly string[];
   } = {};
-  if (typeof raw['via'] === 'string') {
-    extra.via = raw['via'];
+  if (typeof raw["via"] === "string") {
+    extra.via = raw["via"];
   }
-  if (typeof raw['expiresAt'] === 'number') {
-    extra.expiresAt = raw['expiresAt'];
+  if (typeof raw["expiresAt"] === "number") {
+    extra.expiresAt = raw["expiresAt"];
   }
-  if (typeof raw['grantedBy'] === 'string' && raw['grantedBy'] !== '') {
-    extra.grantedBy = raw['grantedBy'];
+  if (typeof raw["grantedBy"] === "string" && raw["grantedBy"] !== "") {
+    extra.grantedBy = raw["grantedBy"];
   }
-  if (typeof raw['reason'] === 'string' && raw['reason'] !== '') {
-    extra.reason = raw['reason'];
+  if (typeof raw["reason"] === "string" && raw["reason"] !== "") {
+    extra.reason = raw["reason"];
   }
-  const eligible = roleList(raw['eligible']);
+  const eligible = roleList(raw["eligible"]);
   if (eligible !== undefined && eligible.length > 0) {
     extra.eligible = Object.freeze([...eligible]);
   }
   // SAFETY: member is a non-null, non-array object checked in the condition; group is checked below.
   const member =
-    raw['member'] !== null &&
-    typeof raw['member'] === 'object' &&
-    !Array.isArray(raw['member'])
-      ? (raw['member'] as Record<string, unknown>)['group']
+    raw["member"] !== null &&
+    typeof raw["member"] === "object" &&
+    !Array.isArray(raw["member"])
+      ? (raw["member"] as Record<string, unknown>)["group"]
       : undefined;
-  if (typeof member === 'string' && member !== '') {
+  if (typeof member === "string" && member !== "") {
     extra.member = Object.freeze({ group: member });
   }
-  if (raw['managedBy'] === 'idp') {
-    extra.managedBy = 'idp';
+  if (raw["managedBy"] === "idp") {
+    extra.managedBy = "idp";
   }
-  if (Array.isArray(raw['entitlements'])) {
-    const seats = raw['entitlements'].filter(
-      (item): item is string => typeof item === 'string' && item !== '',
+  if (Array.isArray(raw["entitlements"])) {
+    const seats = raw["entitlements"].filter(
+      (item): item is string => typeof item === "string" && item !== "",
     );
     if (seats.length > 0) {
       extra.entitlements = Object.freeze(seats);
     }
   }
-  const named = raw['scope'] !== undefined || raw['id'] !== undefined;
-  const legacy = raw['tenant'] !== undefined || raw['team'] !== undefined;
-  const on = raw['on'];
+  const named = raw["scope"] !== undefined || raw["id"] !== undefined;
+  const legacy = raw["tenant"] !== undefined || raw["team"] !== undefined;
+  const on = raw["on"];
   if (on !== undefined) {
-    if (named || legacy || on === null || typeof on !== 'object') {
+    if (named || legacy || on === null || typeof on !== "object") {
       return undefined;
     }
     // SAFETY: on is a non-null object checked above; resource and id are checked with isId below.
     const target = on as Record<string, unknown>;
-    if (!isId(target['resource']) || !isId(target['id'])) {
+    if (!isId(target["resource"]) || !isId(target["id"])) {
       return undefined;
     }
     return Object.freeze({
-      on: Object.freeze({ resource: target['resource'], id: target['id'] }),
+      on: Object.freeze({ resource: target["resource"], id: target["id"] }),
       roles: Object.freeze([...roles]),
       ...extra,
     });
@@ -301,31 +301,31 @@ export function normalizeMembership(
     if (legacy) {
       return undefined;
     }
-    scope = resolveScope(scopes, raw['scope']);
-    id = raw['id'];
-    if (raw['within'] !== undefined) {
+    scope = resolveScope(scopes, raw["scope"]);
+    id = raw["id"];
+    if (raw["within"] !== undefined) {
       if (
-        raw['within'] === null ||
-        typeof raw['within'] !== 'object' ||
-        Array.isArray(raw['within'])
+        raw["within"] === null ||
+        typeof raw["within"] !== "object" ||
+        Array.isArray(raw["within"])
       ) {
         return undefined;
       }
       // SAFETY: within is a non-null, non-array object checked above; its values stay unknown.
-      within = raw['within'] as Record<string, unknown>;
+      within = raw["within"] as Record<string, unknown>;
     }
-  } else if (raw['team'] !== undefined) {
-    scope = resolveScope(scopes, 'team');
-    id = raw['team'];
-    const parent = resolveScope(scopes, 'tenant');
-    if (raw['tenant'] !== undefined && parent !== undefined) {
-      within = { [parent]: raw['tenant'] };
+  } else if (raw["team"] !== undefined) {
+    scope = resolveScope(scopes, "team");
+    id = raw["team"];
+    const parent = resolveScope(scopes, "tenant");
+    if (raw["tenant"] !== undefined && parent !== undefined) {
+      within = { [parent]: raw["tenant"] };
     }
-  } else if (raw['tenant'] === undefined) {
+  } else if (raw["tenant"] === undefined) {
     return undefined;
   } else {
-    scope = resolveScope(scopes, 'tenant');
-    id = raw['tenant'];
+    scope = resolveScope(scopes, "tenant");
+    id = raw["tenant"];
   }
   if (scope === undefined || !isId(id)) {
     return undefined;

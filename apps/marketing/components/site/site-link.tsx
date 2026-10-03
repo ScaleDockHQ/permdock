@@ -1,10 +1,10 @@
-import type { ComponentProps } from 'react';
+import type { ComponentProps } from "react";
 
-import Link from 'next/link';
+import Link from "next/link";
 
-import { isCrossZone, type SiteHref } from '@/lib/site';
+import { isCrossZone, type SiteHref } from "@/lib/site";
 
-export type SiteLinkProps = Omit<ComponentProps<'a'>, 'href'> & {
+export type SiteLinkProps = Omit<ComponentProps<"a">, "href"> & {
   readonly href: SiteHref;
 };
 

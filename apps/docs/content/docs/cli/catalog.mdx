@@ -32,7 +32,10 @@ Usage sites and defining files come from the source scan; `usages` is always pre
   "resources": {
     "post": {
       "id": "id",
-      "schema": { "type": "object", "properties": { "id": { "type": "string" } } },
+      "schema": {
+        "type": "object",
+        "properties": { "id": { "type": "string" } }
+      },
       "definedIn": "features/posts/permissions.ts"
     }
   },
@@ -76,14 +79,18 @@ Notes on the shape:
 A package that reads the catalog at run time imports `permdock/catalog`, a runtime entry with no CLI code. A build script finds the file with `catalogPath(config, cwd)` from `permdock/cli`.
 
 ```ts
-import { readFileSync } from 'node:fs'
-import { catalogPath } from 'permdock/cli'
-import { parseCatalog, rowConditionKeys } from 'permdock/catalog'
-import config from './permdock.config.ts'
+import { readFileSync } from "node:fs";
+import { catalogPath } from "permdock/cli";
+import { parseCatalog, rowConditionKeys } from "permdock/catalog";
+import config from "./permdock.config.ts";
 
-const catalog = parseCatalog(readFileSync(catalogPath(config, process.cwd()), 'utf8'))
-const conditioned = rowConditionKeys(catalog)
-const sqlEnforceable = catalog.permissions.filter((permission) => !conditioned.has(permission.key))
+const catalog = parseCatalog(
+  readFileSync(catalogPath(config, process.cwd()), "utf8"),
+);
+const conditioned = rowConditionKeys(catalog);
+const sqlEnforceable = catalog.permissions.filter(
+  (permission) => !conditioned.has(permission.key),
+);
 ```
 
 - `parseCatalog(json)` takes the JSON text or the parsed value. It checks it against `schemas/catalog-v1.json` and returns a deep-frozen copy built from own keys. A `__proto__` key stays an ordinary key, and an object with any other prototype, a cycle or a value JSON cannot carry is rejected. On failure it throws `PermDockValidationError` with `code: 'invalid-data'`, `boundary: 'catalog'` and every issue with its `path`.
@@ -101,7 +108,7 @@ The reader, the `$schema` file and `--format schema` come from one schema consta
 
 - [openapi](/docs/cli/openapi) reads the catalog to emit `securitySchemes` scopes and `x-permdock-permissions`.
 - The MCP adapter uses `meta` for tool descriptions and `arity` to decide whether a `data` loader is required.
-- The docs MCP server (`search_docs` / `get_page` at `/mcp`) and `llms.txt` expose the Markdown output so agents can ask "which permissions exist?".
+- The docs MCP server (`search`, `list_pages` and `get_page` at `/mcp`) and `llms.txt` expose the Markdown output so agents can ask "which permissions exist?".
 - `permdock/testing` compares a policy matrix against the catalog to find permissions with no test.
 
 ## Related

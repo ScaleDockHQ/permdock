@@ -2,19 +2,19 @@ import {
   createServer,
   type IncomingMessage,
   type ServerResponse,
-} from 'node:http';
+} from "node:http";
 
-import { approval, approve, callContext } from './agent.ts';
-import { ownPost } from './permissions.ts';
+import { approval, approve, callContext } from "./agent.ts";
+import { ownPost } from "./permissions.ts";
 
-const port = Number(process.env['PORT'] ?? 3474);
-const host = '127.0.0.1';
+const port = Number(process.env["PORT"] ?? 3474);
+const host = "127.0.0.1";
 
 function toRequest(req: IncomingMessage): Request {
-  const url = new URL(req.url ?? '/', `http://${host}:${String(port)}`);
+  const url = new URL(req.url ?? "/", `http://${host}:${String(port)}`);
   const headers = new Headers();
   for (const [key, value] of Object.entries(req.headers)) {
-    if (typeof value === 'string') {
+    if (typeof value === "string") {
       headers.set(key, value);
     } else if (Array.isArray(value)) {
       for (const item of value) {
@@ -23,7 +23,7 @@ function toRequest(req: IncomingMessage): Request {
     }
   }
   return new Request(url, {
-    method: req.method ?? 'GET',
+    method: req.method ?? "GET",
     headers,
   });
 }
@@ -31,34 +31,34 @@ function toRequest(req: IncomingMessage): Request {
 function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { 'content-type': 'application/json; charset=utf-8' },
+    headers: { "content-type": "application/json; charset=utf-8" },
   });
 }
 
 async function route(request: Request): Promise<Response> {
   const url = new URL(request.url);
   const path = url.pathname;
-  const session = url.searchParams.get('session') ?? 's1';
-  const call = url.searchParams.get('call') ?? 'c1';
-  if (request.method === 'GET' && path === '/health') {
+  const session = url.searchParams.get("session") ?? "s1";
+  const call = url.searchParams.get("call") ?? "c1";
+  if (request.method === "GET" && path === "/health") {
     return json({ ok: true });
   }
-  if (request.method === 'GET' && path === '/list_posts') {
+  if (request.method === "GET" && path === "/list_posts") {
     const result = await approval.request(
-      callContext(session, call, 'list_posts', {}),
+      callContext(session, call, "list_posts", {}),
     );
     return json({ result });
   }
-  if (request.method === 'GET' && path === '/delete_post') {
+  if (request.method === "GET" && path === "/delete_post") {
     const result = await approval.request(
-      callContext(session, call, 'delete_post', { id: ownPost.id }),
+      callContext(session, call, "delete_post", { id: ownPost.id }),
     );
     return json({ result });
   }
-  if (request.method === 'POST' && path === '/approve') {
-    return json({ result: await approve(session, call, 'delete_post') });
+  if (request.method === "POST" && path === "/approve") {
+    return json({ result: await approve(session, call, "delete_post") });
   }
-  return json({ error: 'not found' }, 404);
+  return json({ error: "not found" }, 404);
 }
 
 async function writeResponse(

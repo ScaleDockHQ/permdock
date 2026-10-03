@@ -1,48 +1,48 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from "vitest";
 
 import type {
   ApprovalListFilter,
   ApprovalListQuery,
   ApprovalRequest,
   ApprovalStatus,
-} from '../../src/approvals/types.ts';
-import type { SinkEvent, Snapshot } from '../../src/core/interfaces.ts';
-import type { Subject } from '../../src/core/subject.ts';
+} from "../../src/approvals/types.ts";
+import type { SinkEvent, Snapshot } from "../../src/core/interfaces.ts";
+import type { Subject } from "../../src/core/subject.ts";
 
-import { isApprovalError } from '../../src/approvals/errors.ts';
-import { memoryApprovalStore } from '../../src/approvals/store.ts';
-import { cloud, cloudEndpoints } from '../../src/cloud/create.ts';
-import { joseTokenSigner } from '../../src/jwt/signer.ts';
-import { joseTokenVerifier } from '../../src/jwt/verifier.ts';
+import { isApprovalError } from "../../src/approvals/errors.ts";
+import { memoryApprovalStore } from "../../src/approvals/store.ts";
+import { cloud, cloudEndpoints } from "../../src/cloud/create.ts";
+import { joseTokenSigner } from "../../src/jwt/signer.ts";
+import { joseTokenVerifier } from "../../src/jwt/verifier.ts";
 
-const CLOUD_URL = 'https://cloud.permdock.test';
-const KEY = 'env-key';
+const CLOUD_URL = "https://cloud.permdock.test";
+const KEY = "env-key";
 const SNAPSHOT: Snapshot = {
   v: 1,
   issuedAt: 1,
-  subject: { principal: { id: 'u_1', roles: ['member'] }, context: {} },
-  roles: ['member'],
+  subject: { principal: { id: "u_1", roles: ["member"] }, context: {} },
+  roles: ["member"],
   grants: [],
-  tenants: ['o_acme'],
+  tenants: ["o_acme"],
 };
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'content-type': 'application/json' },
+    headers: { "content-type": "application/json" },
   });
 }
 
 function listQuery(params: URLSearchParams): ApprovalListQuery {
   const text = (name: string): string | undefined =>
     params.get(name) ?? undefined;
-  const status = text('status');
-  const principalId = text('principalId');
-  const actorId = text('actorId');
-  const tenant = text('tenant');
-  const session = text('session');
-  const limit = text('limit');
-  const cursor = text('cursor');
+  const status = text("status");
+  const principalId = text("principalId");
+  const actorId = text("actorId");
+  const tenant = text("tenant");
+  const session = text("session");
+  const limit = text("limit");
+  const cursor = text("cursor");
   return {
     // SAFETY: the cloud client under test only sends a status from ApprovalRequest.
     ...(status === undefined ? {} : { status: status as ApprovalStatus }),
@@ -67,21 +67,21 @@ function fakeCloud(options: { readonly snapshot?: Snapshot | string } = {}): {
     const request = new Request(input, init);
     const url = new URL(request.url);
     expect(url.origin).toBe(CLOUD_URL);
-    expect(url.pathname.startsWith('/v1/environments/')).toBe(true);
-    expect(request.headers.get('authorization')).toBe(`Bearer ${KEY}`);
+    expect(url.pathname.startsWith("/v1/environments/")).toBe(true);
+    expect(request.headers.get("authorization")).toBe(`Bearer ${KEY}`);
     const prefix = `/v1/environments/production`;
     expect(url.pathname.startsWith(prefix)).toBe(true);
     const path = url.pathname.slice(prefix.length);
     const method = request.method;
 
-    if (method === 'POST' && path === '/approvals') {
+    if (method === "POST" && path === "/approvals") {
       // SAFETY: the cloud client under test posts the ApprovalRequest it was given.
       const record = (await request.json()) as ApprovalRequest;
       store.create(record);
       return new Response(null, { status: 204 });
     }
     const resolve = /^\/approvals\/([^/]+)\/resolve$/u.exec(path);
-    if (method === 'POST' && resolve?.[1] !== undefined) {
+    if (method === "POST" && resolve?.[1] !== undefined) {
       try {
         // SAFETY: the cloud client under test posts the resolution it was given.
         const next = store.resolve(
@@ -92,9 +92,9 @@ function fakeCloud(options: { readonly snapshot?: Snapshot | string } = {}): {
       } catch (error) {
         if (isApprovalError(error)) {
           const status =
-            error.code === 'approval-not-pending'
+            error.code === "approval-not-pending"
               ? 409
-              : error.code === 'approval-expired'
+              : error.code === "approval-expired"
                 ? 410
                 : 404;
           return json({ code: error.code }, status);
@@ -103,21 +103,21 @@ function fakeCloud(options: { readonly snapshot?: Snapshot | string } = {}): {
       }
     }
     const consume = /^\/approvals\/([^/]+)\/consume$/u.exec(path);
-    if (method === 'POST' && consume?.[1] !== undefined) {
+    if (method === "POST" && consume?.[1] !== undefined) {
       const next = store.consume(decodeURIComponent(consume[1]));
       return next === null ? json({}, 409) : json(next);
     }
     const getOne = /^\/approvals\/([^/]+)$/u.exec(path);
-    if (method === 'GET' && getOne?.[1] !== undefined) {
+    if (method === "GET" && getOne?.[1] !== undefined) {
       const loaded = store.get(decodeURIComponent(getOne[1]));
       return loaded === null
         ? new Response(null, { status: 404 })
         : json(loaded);
     }
-    if (method === 'GET' && path === '/approvals') {
+    if (method === "GET" && path === "/approvals") {
       return json(store.list(listQuery(url.searchParams)));
     }
-    if (method === 'POST' && path === '/approvals/cancel') {
+    if (method === "POST" && path === "/approvals/cancel") {
       // SAFETY: the cloud client under test posts this cancel body.
       const body = (await request.json()) as {
         readonly filter: ApprovalListFilter;
@@ -125,7 +125,7 @@ function fakeCloud(options: { readonly snapshot?: Snapshot | string } = {}): {
         readonly note?: string;
       };
       if (store.cancel === undefined) {
-        throw new Error('the memory store cancels');
+        throw new Error("the memory store cancels");
       }
       return json({
         cancelled: store.cancel(
@@ -136,7 +136,7 @@ function fakeCloud(options: { readonly snapshot?: Snapshot | string } = {}): {
         ),
       });
     }
-    if (method === 'POST' && path === '/approvals/expire') {
+    if (method === "POST" && path === "/approvals/expire") {
       // SAFETY: the cloud client under test posts this expire body.
       const body = (await request.json()) as { readonly now?: string };
       const expired = store.expire(
@@ -144,15 +144,15 @@ function fakeCloud(options: { readonly snapshot?: Snapshot | string } = {}): {
       );
       return json({ expired });
     }
-    if (method === 'POST' && path === '/decisions') {
+    if (method === "POST" && path === "/decisions") {
       // SAFETY: the cloud sink under test posts its batch as { events }.
       const body = (await request.json()) as { readonly events: SinkEvent[] };
       decisions.push(body.events);
       return new Response(null, { status: 204 });
     }
-    if (method === 'GET' && path === '/snapshot') {
-      expect(request.headers.get('accept')).toBe('application/jwt');
-      if (typeof snapshot === 'string') {
+    if (method === "GET" && path === "/snapshot") {
+      expect(request.headers.get("accept")).toBe("application/jwt");
+      if (typeof snapshot === "string") {
         return new Response(snapshot, { status: 200 });
       }
       return json(snapshot);
@@ -163,14 +163,14 @@ function fakeCloud(options: { readonly snapshot?: Snapshot | string } = {}): {
   return { fetch: fetchImpl, decisions };
 }
 
-describe('cloud', () => {
-  it('throws when url or key is missing', () => {
+describe("cloud", () => {
+  it("throws when url or key is missing", () => {
     expect(() => cloud({})).toThrow(/requires url and key/);
     expect(() => cloud({ url: CLOUD_URL })).toThrow(/requires url and key/);
     expect(() => cloud({ key: KEY })).toThrow(/requires url and key/);
   });
 
-  it('returns a frozen client with approvals, sink and snapshots', () => {
+  it("returns a frozen client with approvals, sink and snapshots", () => {
     const client = cloud({
       url: CLOUD_URL,
       key: KEY,
@@ -184,74 +184,74 @@ describe('cloud', () => {
         snapshots: expect.any(Object),
       }),
     );
-    expect(client).not.toHaveProperty('memberships');
-    expect(client).not.toHaveProperty('roles');
-    expect(client).not.toHaveProperty('decide');
+    expect(client).not.toHaveProperty("memberships");
+    expect(client).not.toHaveProperty("roles");
+    expect(client).not.toHaveProperty("decide");
   });
 
-  it('reads url and key from the environment', () => {
+  it("reads url and key from the environment", () => {
     // SAFETY: vitest runs on Node.js, where globalThis.process.env exists.
     const env = (
       globalThis as {
         readonly process: { readonly env: Record<string, string | undefined> };
       }
     ).process.env;
-    const previousUrl = env['PERMDOCK_CLOUD_URL'];
-    const previousKey = env['PERMDOCK_CLOUD_KEY'];
-    env['PERMDOCK_CLOUD_URL'] = CLOUD_URL;
-    env['PERMDOCK_CLOUD_KEY'] = KEY;
+    const previousUrl = env["PERMDOCK_CLOUD_URL"];
+    const previousKey = env["PERMDOCK_CLOUD_KEY"];
+    env["PERMDOCK_CLOUD_URL"] = CLOUD_URL;
+    env["PERMDOCK_CLOUD_KEY"] = KEY;
     try {
       const client = cloud({ fetch: fakeCloud().fetch });
       expect(Object.isFrozen(client)).toBe(true);
     } finally {
       if (previousUrl === undefined) {
-        delete env['PERMDOCK_CLOUD_URL'];
+        delete env["PERMDOCK_CLOUD_URL"];
       } else {
-        env['PERMDOCK_CLOUD_URL'] = previousUrl;
+        env["PERMDOCK_CLOUD_URL"] = previousUrl;
       }
       if (previousKey === undefined) {
-        delete env['PERMDOCK_CLOUD_KEY'];
+        delete env["PERMDOCK_CLOUD_KEY"];
       } else {
-        env['PERMDOCK_CLOUD_KEY'] = previousKey;
+        env["PERMDOCK_CLOUD_KEY"] = previousKey;
       }
     }
   });
 
-  it('returns null from get when the API is unreachable', async () => {
+  it("returns null from get when the API is unreachable", async () => {
     const client = cloud({
       url: CLOUD_URL,
       key: KEY,
       fetch: async () => {
-        throw new Error('offline');
+        throw new Error("offline");
       },
     });
-    expect(await client.approvals.get('missing')).toBeNull();
+    expect(await client.approvals.get("missing")).toBeNull();
     expect(await client.approvals.list({})).toEqual({ items: [] });
     expect(await client.approvals.expire()).toBe(0);
   });
 
-  it('swallows sink delivery failures', async () => {
+  it("swallows sink delivery failures", async () => {
     const client = cloud({
       url: CLOUD_URL,
       key: KEY,
       flushAt: 1,
       fetch: async () => {
-        throw new Error('offline');
+        throw new Error("offline");
       },
     });
     await expect(
       Promise.resolve(
         client.sink.write([
           {
-            type: 'decision',
+            type: "decision",
             at: new Date().toISOString(),
-            outcome: 'granted',
-            permission: 'post.read',
-            scope: 'post:read',
-            resource: { type: 'post' },
-            subject: { principal: { id: 'u_1', roles: [] } },
+            outcome: "granted",
+            permission: "post.read",
+            scope: "post:read",
+            resource: { type: "post" },
+            subject: { principal: { id: "u_1", roles: [] } },
             trusted: true,
-            source: 'decide',
+            source: "decide",
           },
         ]),
       ),
@@ -261,7 +261,7 @@ describe('cloud', () => {
     ).resolves.toBeUndefined();
   });
 
-  it('bounds the re-queue while the Cloud is unreachable, oldest first', async () => {
+  it("bounds the re-queue while the Cloud is unreachable, oldest first", async () => {
     let online = false;
     const delivered: SinkEvent[][] = [];
     const client = cloud({
@@ -271,7 +271,7 @@ describe('cloud', () => {
       capacity: 3,
       fetch: async (input, init) => {
         if (!online) {
-          throw new Error('offline');
+          throw new Error("offline");
         }
         // SAFETY: the cloud sink under test posts its batch as { events }.
         const body = (await new Request(input, init).json()) as {
@@ -282,15 +282,15 @@ describe('cloud', () => {
       },
     });
     const event = (id: string): SinkEvent => ({
-      type: 'directory',
+      type: "directory",
       at: new Date().toISOString(),
-      source: 'scim',
-      operation: 'create',
-      tenant: 'o_acme',
-      resource: { type: 'User', id },
-      credential: { kind: 'token' },
+      source: "scim",
+      operation: "create",
+      tenant: "o_acme",
+      resource: { type: "User", id },
+      credential: { kind: "token" },
     });
-    for (const id of ['u_1', 'u_2', 'u_3', 'u_4', 'u_5']) {
+    for (const id of ["u_1", "u_2", "u_3", "u_4", "u_5"]) {
       await client.sink.write([event(id)]);
     }
     online = true;
@@ -298,11 +298,11 @@ describe('cloud', () => {
     expect(
       delivered
         .flat()
-        .map((item) => (item.type === 'directory' ? item.resource.id : '')),
-    ).toEqual(['u_3', 'u_4', 'u_5']);
+        .map((item) => (item.type === "directory" ? item.resource.id : "")),
+    ).toEqual(["u_3", "u_4", "u_5"]);
   });
 
-  it('flushes decision batches and refuses an unsigned snapshot', async () => {
+  it("flushes decision batches and refuses an unsigned snapshot", async () => {
     const backend = fakeCloud();
     const client = cloud({
       url: `${CLOUD_URL}/`,
@@ -311,21 +311,21 @@ describe('cloud', () => {
       fetch: backend.fetch,
     });
     const event: SinkEvent = {
-      type: 'directory',
+      type: "directory",
       at: new Date().toISOString(),
-      source: 'scim',
-      operation: 'create',
-      tenant: 'o_acme',
-      resource: { type: 'User', id: 'u_1' },
-      credential: { kind: 'token' },
+      source: "scim",
+      operation: "create",
+      tenant: "o_acme",
+      resource: { type: "User", id: "u_1" },
+      credential: { kind: "token" },
     };
     await client.sink.write([event]);
     expect(backend.decisions).toEqual([[event]]);
     await expect(client.snapshots.get()).rejects.toThrow(/unsigned/);
   });
 
-  it('returns a compact JWS snapshot unchanged', async () => {
-    const jws = 'aaa.bbb.ccc';
+  it("returns a compact JWS snapshot unchanged", async () => {
+    const jws = "aaa.bbb.ccc";
     const client = cloud({
       url: CLOUD_URL,
       key: KEY,
@@ -334,7 +334,7 @@ describe('cloud', () => {
     expect(await client.snapshots.get()).toBe(jws);
   });
 
-  it('schedules flush through waitUntil when the batch is under flushAt', async () => {
+  it("schedules flush through waitUntil when the batch is under flushAt", async () => {
     const backend = fakeCloud();
     const scheduled: Promise<void>[] = [];
     const client = cloud({
@@ -348,13 +348,13 @@ describe('cloud', () => {
     });
     client.sink.write([
       {
-        type: 'directory',
+        type: "directory",
         at: new Date().toISOString(),
-        source: 'scim',
-        operation: 'patch',
-        tenant: 'o_acme',
-        resource: { type: 'Group', id: 'g_1' },
-        credential: { kind: 'jwt', iss: 'https://idp.example' },
+        source: "scim",
+        operation: "patch",
+        tenant: "o_acme",
+        resource: { type: "Group", id: "g_1" },
+        credential: { kind: "jwt", iss: "https://idp.example" },
       },
     ]);
     expect(backend.decisions).toEqual([]);
@@ -363,7 +363,7 @@ describe('cloud', () => {
     expect(backend.decisions).toHaveLength(1);
   });
 
-  it('creates, lists, resolves and expires approvals over HTTP', async () => {
+  it("creates, lists, resolves and expires approvals over HTTP", async () => {
     const client = cloud({
       url: CLOUD_URL,
       key: KEY,
@@ -371,31 +371,31 @@ describe('cloud', () => {
     });
     const request: ApprovalRequest = {
       v: 1,
-      token: 'opaque-token',
-      permission: 'post.delete',
-      scope: 'post:delete',
-      resource: { type: 'post', id: '42' },
+      token: "opaque-token",
+      permission: "post.delete",
+      scope: "post:delete",
+      resource: { type: "post", id: "42" },
       subject: {
-        principal: { id: 'u_1', roles: ['member'] },
-        actor: { id: 'agent-1', kind: 'eve' },
+        principal: { id: "u_1", roles: ["member"] },
+        actor: { id: "agent-1", kind: "eve" },
       },
-      detail: 'post.delete requires human approval.',
+      detail: "post.delete requires human approval.",
       createdAt: new Date().toISOString(),
       expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
-      status: 'pending',
+      status: "pending",
     };
     await client.approvals.create(request);
-    expect(await client.approvals.get('opaque-token')).toEqual(request);
-    const listed = await client.approvals.list({ status: 'pending' });
-    expect(listed.items.some((item) => item.token === 'opaque-token')).toBe(
+    expect(await client.approvals.get("opaque-token")).toEqual(request);
+    const listed = await client.approvals.list({ status: "pending" });
+    expect(listed.items.some((item) => item.token === "opaque-token")).toBe(
       true,
     );
-    await client.approvals.create({ ...request, token: 'second-token' });
-    const first = await client.approvals.list({ status: 'pending', limit: 1 });
+    await client.approvals.create({ ...request, token: "second-token" });
+    const first = await client.approvals.list({ status: "pending", limit: 1 });
     expect(first.items).toHaveLength(1);
-    expect(first.next).toBeTypeOf('string');
+    expect(first.next).toBeTypeOf("string");
     const second = await client.approvals.list({
-      status: 'pending',
+      status: "pending",
       limit: 1,
       cursor: first.next!,
     });
@@ -403,24 +403,24 @@ describe('cloud', () => {
     expect(second.items[0]?.token).not.toBe(first.items[0]?.token);
     expect(second.next).toBeUndefined();
     const approver: Subject = {
-      principal: { id: 'u_9', roles: ['admin'] },
+      principal: { id: "u_9", roles: ["admin"] },
       context: {},
     };
-    const resolved = await client.approvals.resolve('opaque-token', {
-      status: 'approved',
+    const resolved = await client.approvals.resolve("opaque-token", {
+      status: "approved",
       by: approver,
     });
-    expect(resolved.status).toBe('approved');
+    expect(resolved.status).toBe("approved");
     await expect(
-      client.approvals.resolve('opaque-token', {
-        status: 'rejected',
+      client.approvals.resolve("opaque-token", {
+        status: "rejected",
         by: approver,
       }),
     ).rejects.toThrow(/not pending/);
     await client.approvals.create({
       ...request,
-      token: 'stale-token',
-      status: 'pending',
+      token: "stale-token",
+      status: "pending",
     });
     const expired = await client.approvals.expire(
       new Date(Date.now() + 2 * 60 * 60 * 1000),
@@ -428,7 +428,7 @@ describe('cloud', () => {
     expect(expired).toBeGreaterThanOrEqual(1);
   });
 
-  it('filters by session and cancels pending approvals over HTTP', async () => {
+  it("filters by session and cancels pending approvals over HTTP", async () => {
     const client = cloud({
       url: CLOUD_URL,
       key: KEY,
@@ -437,41 +437,41 @@ describe('cloud', () => {
     const pending = (token: string, session: string): ApprovalRequest => ({
       v: 1,
       token,
-      permission: 'post.delete',
-      scope: 'post:delete',
-      resource: { type: 'post', id: token },
-      subject: { principal: { id: 'u_1', roles: ['member'] }, session },
-      detail: 'post.delete requires human approval.',
+      permission: "post.delete",
+      scope: "post:delete",
+      resource: { type: "post", id: token },
+      subject: { principal: { id: "u_1", roles: ["member"] }, session },
+      detail: "post.delete requires human approval.",
       createdAt: new Date().toISOString(),
       expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
-      status: 'pending',
+      status: "pending",
     });
-    await client.approvals.create(pending('t_a', 'sid-a'));
-    await client.approvals.create(pending('t_b', 'sid-b'));
-    const bySession = await client.approvals.list({ session: 'sid-a' });
-    expect(bySession.items.map((item) => item.token)).toEqual(['t_a']);
+    await client.approvals.create(pending("t_a", "sid-a"));
+    await client.approvals.create(pending("t_b", "sid-b"));
+    const bySession = await client.approvals.list({ session: "sid-a" });
+    expect(bySession.items.map((item) => item.token)).toEqual(["t_a"]);
     expect(
       await client.approvals.cancel?.(
-        { session: 'sid-a' },
-        { by: 'system:ssf', note: 'session revoked' },
+        { session: "sid-a" },
+        { by: "system:ssf", note: "session revoked" },
       ),
     ).toBe(1);
-    expect((await client.approvals.get('t_a'))?.status).toBe('rejected');
-    expect((await client.approvals.get('t_b'))?.status).toBe('pending');
+    expect((await client.approvals.get("t_a"))?.status).toBe("rejected");
+    expect((await client.approvals.get("t_b"))?.status).toBe("pending");
   });
 
-  it('throws when the Cloud rejects a cancel', async () => {
+  it("throws when the Cloud rejects a cancel", async () => {
     const client = cloud({
       url: CLOUD_URL,
       key: KEY,
       fetch: () => Promise.resolve(new Response(null, { status: 500 })),
     });
     await expect(
-      client.approvals.cancel?.({ tenant: 'o_1' }, { by: 'admin' }),
+      client.approvals.cancel?.({ tenant: "o_1" }, { by: "admin" }),
     ).rejects.toThrow(/cancel/);
   });
 
-  it('resumes an approval once through the Cloud store', async () => {
+  it("resumes an approval once through the Cloud store", async () => {
     const client = cloud({
       url: CLOUD_URL,
       key: KEY,
@@ -479,74 +479,74 @@ describe('cloud', () => {
     });
     const request: ApprovalRequest = {
       v: 1,
-      token: 'pd1.v2',
-      permission: 'post.delete',
-      scope: 'post:delete',
-      resource: { type: 'post', id: '42' },
-      subject: { principal: { id: 'u_1', roles: ['member'] } },
-      detail: 'post.delete requires human approval.',
+      token: "pd1.v2",
+      permission: "post.delete",
+      scope: "post:delete",
+      resource: { type: "post", id: "42" },
+      subject: { principal: { id: "u_1", roles: ["member"] } },
+      detail: "post.delete requires human approval.",
       createdAt: new Date().toISOString(),
       expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
-      status: 'pending',
+      status: "pending",
     };
     await client.approvals.create(request);
-    expect(await client.approvals.get('pd1.v2')).toEqual(request);
-    await client.approvals.resolve('pd1.v2', {
-      status: 'approved',
-      by: { principal: { id: 'u_9', roles: ['admin'] }, context: {} },
+    expect(await client.approvals.get("pd1.v2")).toEqual(request);
+    await client.approvals.resolve("pd1.v2", {
+      status: "approved",
+      by: { principal: { id: "u_9", roles: ["admin"] }, context: {} },
     });
-    expect((await client.approvals.consume('pd1.v2'))?.consumedAt).toEqual(
+    expect((await client.approvals.consume("pd1.v2"))?.consumedAt).toEqual(
       expect.any(String),
     );
-    expect(await client.approvals.consume('pd1.v2')).toBeNull();
+    expect(await client.approvals.consume("pd1.v2")).toBeNull();
   });
 
-  it('verifies the signed policy document and keeps the last good one', async () => {
+  it("verifies the signed policy document and keeps the last good one", async () => {
     const PRIVATE_JWK = {
-      crv: 'Ed25519',
-      d: 'qco_Uh5slpzay2a-eC3woOxpC4DlS6aEzLtBRjrdtd4',
-      x: '79ab4WR6Eb9LkefWpmh5ZlvjXg7wqVGNMwIEHQqduIQ',
-      kty: 'OKP',
-      kid: '2026-09',
-      alg: 'Ed25519',
+      crv: "Ed25519",
+      d: "qco_Uh5slpzay2a-eC3woOxpC4DlS6aEzLtBRjrdtd4",
+      x: "79ab4WR6Eb9LkefWpmh5ZlvjXg7wqVGNMwIEHQqduIQ",
+      kty: "OKP",
+      kid: "2026-09",
+      alg: "Ed25519",
     };
     const { d: _d, ...publicJwk } = PRIVATE_JWK;
     const ENV_URL = `${CLOUD_URL}/v1/environments/production`;
     const signer = joseTokenSigner({
       key: { ...PRIVATE_JWK },
-      alg: 'Ed25519',
-      kid: '2026-09',
+      alg: "Ed25519",
+      kid: "2026-09",
       issuer: ENV_URL,
     });
     const foreign = joseTokenSigner({
       key: { ...PRIVATE_JWK },
-      alg: 'Ed25519',
-      kid: '2026-09',
-      issuer: 'https://elsewhere.example',
+      alg: "Ed25519",
+      kid: "2026-09",
+      issuer: "https://elsewhere.example",
     });
     const policy = {
       v: 1,
-      id: 'doc_1',
-      fingerprint: 'fp_1',
-      catalog: 'cat_1',
+      id: "doc_1",
+      fingerprint: "fp_1",
+      catalog: "cat_1",
       issuedAt: 1,
       grants: [],
     };
     const good = await signer.sign(
       { policy },
-      { typ: 'permdock-policy+jwt', audience: ENV_URL },
+      { typ: "permdock-policy+jwt", audience: ENV_URL },
     );
     const wrongTyp = await signer.sign(
-      { policy: { ...policy, id: 'doc_2' } },
-      { typ: 'permdock-snapshot+jwt', audience: ENV_URL },
+      { policy: { ...policy, id: "doc_2" } },
+      { typ: "permdock-snapshot+jwt", audience: ENV_URL },
     );
     const appAudience = await signer.sign(
-      { policy: { ...policy, id: 'doc_3' } },
-      { typ: 'permdock-policy+jwt', audience: 'https://app.example.com' },
+      { policy: { ...policy, id: "doc_3" } },
+      { typ: "permdock-policy+jwt", audience: "https://app.example.com" },
     );
     const wrongIssuer = await foreign.sign(
-      { policy: { ...policy, id: 'doc_4' } },
-      { typ: 'permdock-policy+jwt', audience: ENV_URL },
+      { policy: { ...policy, id: "doc_4" } },
+      { typ: "permdock-policy+jwt", audience: ENV_URL },
     );
     const bodies = [
       good,
@@ -560,12 +560,12 @@ describe('cloud', () => {
       const request = new Request(input, init);
       paths.push(new URL(request.url).pathname);
       return Promise.resolve(
-        new Response(bodies.shift() ?? '', { status: 200 }),
+        new Response(bodies.shift() ?? "", { status: 200 }),
       );
     };
     const verifier = joseTokenVerifier({
       jwks: { keys: [publicJwk] },
-      algorithms: ['Ed25519'],
+      algorithms: ["Ed25519"],
     });
     const client = cloud({
       url: CLOUD_URL,
@@ -577,33 +577,33 @@ describe('cloud', () => {
     expect(client.jwks).toBe(`${ENV_URL}/.well-known/jwks.json`);
     expect(client.policies.current()).toBeNull();
     await client.policies.refresh();
-    expect(client.policies.current()?.id).toBe('doc_1');
+    expect(client.policies.current()?.id).toBe("doc_1");
     for (let index = 0; index < 4; index += 1) {
       await client.policies.refresh();
-      expect(client.policies.current()?.id).toBe('doc_1');
+      expect(client.policies.current()?.id).toBe("doc_1");
     }
     expect(paths).toEqual(
-      Array.from({ length: 5 }, () => '/v1/environments/production/policy'),
+      Array.from({ length: 5 }, () => "/v1/environments/production/policy"),
     );
   });
 
-  it('resolves the environment endpoints like cloud()', () => {
+  it("resolves the environment endpoints like cloud()", () => {
     expect(
-      cloudEndpoints({ url: `${CLOUD_URL}/`, environment: 'pre view' }),
+      cloudEndpoints({ url: `${CLOUD_URL}/`, environment: "pre view" }),
     ).toEqual({
       issuer: `${CLOUD_URL}/v1/environments/pre%20view`,
       jwks: `${CLOUD_URL}/v1/environments/pre%20view/.well-known/jwks.json`,
     });
   });
 
-  it('never applies a policy document without a verifier', async () => {
+  it("never applies a policy document without a verifier", async () => {
     let calls = 0;
     const client = cloud({
       url: CLOUD_URL,
       key: KEY,
       fetch: () => {
         calls += 1;
-        return Promise.resolve(new Response('a.b.c'));
+        return Promise.resolve(new Response("a.b.c"));
       },
     });
     await client.policies.refresh();

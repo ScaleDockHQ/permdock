@@ -4,9 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "lint": "oxlint --disable-nested-config",
+    "doctor": "permdock doctor",
+    "lint": "oxlint --disable-nested-config --type-aware",
     "start": "node --experimental-strip-types src/serve.ts",
-    "typecheck": "tsc --noEmit --checkers 4"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@hono/node-server": "catalog:",

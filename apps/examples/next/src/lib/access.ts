@@ -1,24 +1,24 @@
-import type { Snapshot } from 'permdock';
+import type { Snapshot } from "permdock";
 
-import { cacheLife, cacheTag } from 'next/cache';
-import { snapshotFor } from 'permdock';
-import { cacheLifeFor, snapshotTag } from 'permdock/next';
+import { cacheLife, cacheTag } from "next/cache";
+import { snapshotFor } from "permdock";
+import { cacheLifeFor, snapshotTag } from "permdock/next";
 
-import type { Quote } from '../permissions.ts';
+import type { Quote } from "../permissions.ts";
 
-import { getPermDock } from '../permdock/server.ts';
-import { permissions } from '../permissions.ts';
-import { policy } from '../policy.ts';
-import { currentUser } from './session.ts';
-import { findQuote, quotesOf, staffOf } from './store.ts';
+import { getPermDock } from "../permdock/server.ts";
+import { permissions } from "../permissions.ts";
+import { policy } from "../policy.ts";
+import { currentUser } from "./session.ts";
+import { findQuote, quotesOf, staffOf } from "./store.ts";
 
 export const orgTag = (organization: string): string => `org:${organization}`;
 
 /** Shared layer: rows every member of the organization may be shown, before a permission check. */
 export async function getQuotes(organization: string): Promise<Quote[]> {
-  'use cache';
+  "use cache";
   cacheTag(orgTag(organization));
-  cacheLife('hours');
+  cacheLife("hours");
   const quotes = await quotesOf(organization);
   return quotes;
 }
@@ -26,9 +26,9 @@ export async function getQuotes(organization: string): Promise<Quote[]> {
 export async function getStaff(
   organization: string,
 ): Promise<{ readonly user: string; readonly role: string }[]> {
-  'use cache';
+  "use cache";
   cacheTag(orgTag(organization));
-  cacheLife('hours');
+  cacheLife("hours");
   const staff = await staffOf(organization);
   return staff;
 }
@@ -38,7 +38,7 @@ export async function getStaff(
  * or above 30 s, so per-link prefetches carry it, and at 300 s it joins the App Shell.
  */
 export async function loadSnapshot(organization: string): Promise<Snapshot> {
-  'use cache: private';
+  "use cache: private";
   const user = await currentUser();
   const snapshot = snapshotFor(policy, user, { tenant: organization });
   cacheLife(cacheLifeFor(snapshot));
@@ -48,7 +48,7 @@ export async function loadSnapshot(organization: string): Promise<Snapshot> {
 
 /** The quotes this session may read: every quote for staff, only their customer's for a contact. */
 export async function visibleQuotes(organization: string): Promise<Quote[]> {
-  'use cache: private';
+  "use cache: private";
   const permdock = await getPermDock({ tenant: organization });
   cacheLife({ stale: 300 });
   cacheTag(snapshotTag(permdock.subject.principal?.id), orgTag(organization));
@@ -68,7 +68,7 @@ export async function quoteAccess(
   organization: string,
   id: string,
 ): Promise<QuoteAccess> {
-  'use cache: private';
+  "use cache: private";
   const permdock = await getPermDock({ tenant: organization });
   cacheLife({ stale: 300 });
   cacheTag(snapshotTag(permdock.subject.principal?.id), orgTag(organization));

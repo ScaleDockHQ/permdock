@@ -1,6 +1,6 @@
-import { findOrg } from '@permdock/e2e-saas-kit';
+import { findOrg } from "@permdock/e2e-saas-kit";
 
-import { noStore, orgOf, sessionOf } from '../../lib/server';
+import { noStore, orgOf, sessionOf } from "../../lib/server";
 
 export async function GET(request: Request): Promise<Response> {
   const session = await sessionOf(request);

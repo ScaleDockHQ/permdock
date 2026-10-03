@@ -1,7 +1,7 @@
-import { invariants } from '@/lib/invariants';
-import { Frame, FramePanel } from '@permdock/ui/reui/frame';
+import { invariants } from "@/lib/invariants";
+import { Frame, FramePanel } from "@permdock/ui/reui/frame";
 
-import { Section } from './section';
+import { Section } from "./section";
 
 export function SecureByDefault() {
   return (
@@ -16,7 +16,7 @@ export function SecureByDefault() {
           <Frame key={item.title}>
             <FramePanel className="flex flex-col gap-2">
               <h3 className="text-base font-semibold">{item.title}</h3>
-              <p className="text-muted-foreground text-sm leading-6">
+              <p className="text-sm leading-6 text-muted-foreground">
                 {item.body}
               </p>
             </FramePanel>

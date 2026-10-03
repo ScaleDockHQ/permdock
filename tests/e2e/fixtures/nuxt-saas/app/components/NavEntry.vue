@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { usePermission } from 'permdock/vue';
+import { usePermission } from "permdock/vue";
 
-import type { NavItem } from '@permdock/e2e-saas-kit/nav';
+import type { NavItem } from "@permdock/e2e-saas-kit/nav";
 
 const props = defineProps<{
   item: NavItem;

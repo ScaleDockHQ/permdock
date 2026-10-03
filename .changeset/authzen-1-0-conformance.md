@@ -1,5 +1,5 @@
 ---
-'permdock': patch
+"permdock": patch
 ---
 
 `permdock/authzen` follows more of AuthZEN 1.0:

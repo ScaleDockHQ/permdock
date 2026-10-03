@@ -4,10 +4,10 @@ import {
   parseArgs,
   renderUsage,
   runCommand,
-} from 'citty';
-import { stripVTControlCharacters } from 'node:util';
+} from "citty";
+import { stripVTControlCharacters } from "node:util";
 
-import type { CliIo, PermDockConfig, RunResult } from './types.ts';
+import type { CliIo, PermDockConfig, RunResult } from "./types.ts";
 
 import {
   type CliContext,
@@ -16,9 +16,21 @@ import {
   globalArgs,
   resolveArgs,
   stringArg,
-} from './commands/context.ts';
-import { type CommandName, commands, isCommand } from './commands/index.ts';
-import { loadConfig, resolveCwd } from './config.ts';
+} from "./commands/context.ts";
+import {
+  COMMAND_DESCRIPTIONS,
+  type CommandName,
+  commands,
+  isCommand,
+} from "./commands/index.ts";
+import { loadConfig, resolveCwd } from "./config.ts";
+import {
+  type CliErrorKind,
+  cliErrorKind,
+  cliProblem,
+  exitCodeOf,
+} from "./errors.ts";
+import { cliVersion } from "./version.ts";
 
 const NAMES = Object.keys(commands).filter(isCommand);
 
@@ -55,8 +67,8 @@ export async function run(
   };
   const done = (code: 0 | 1 | 2): RunResult => ({
     code,
-    stdout: stdoutChunks.join(''),
-    stderr: stderrChunks.join(''),
+    stdout: stdoutChunks.join(""),
+    stderr: stderrChunks.join(""),
   });
 
   const flags = beforeSeparator(argv);
@@ -65,9 +77,9 @@ export async function run(
   const color = io.color === true && globals.color !== false;
   const plain = (text: string): string =>
     color ? text : stripVTControlCharacters(text);
-  const askedHelp = flags.includes('--help') || flags.includes('-h');
+  const askedHelp = flags.includes("--help") || flags.includes("-h");
   const first = globals._[0];
-  const name = first === 'help' ? globals._[1] : first;
+  const name = first === "help" ? globals._[1] : first;
 
   let result: CommandResult | undefined;
   const contextFor = (cwd: string, config: PermDockConfig): CliContext => ({
@@ -77,26 +89,49 @@ export async function run(
     now: io.now?.() ?? new Date(),
     json,
     color,
-    interactive: io.interactive === true && !json,
+    interactive: io.interactive === true && !json && globals.yes !== true,
     report: (outcome) => {
       result = outcome;
     },
   });
 
+  /** A failed run: text on stderr, or Problem Details on stdout under `--json`. */
+  const fail = (
+    kind: CliErrorKind,
+    message: string,
+    command?: string,
+  ): RunResult => {
+    if (json) {
+      writeOut(JSON.stringify(cliProblem(kind, message, command), null, 2));
+    } else {
+      writeErr(message);
+    }
+    return done(exitCodeOf(kind));
+  };
+
   if (name !== undefined && !isCommand(name)) {
-    writeErr(
-      `unknown command '${name}'. Use ${new Intl.ListFormat('en-GB', { type: 'disjunction' }).format(NAMES)}.`,
+    return fail(
+      "usage",
+      `unknown command '${name}'. Use ${new Intl.ListFormat("en-GB", { type: "disjunction" }).format(NAMES)}.`,
     );
-    return done(2);
   }
-  if (askedHelp || first === 'help' || name === undefined) {
-    const helpCtx = contextFor(options?.cwd ?? process.cwd(), {});
-    const root = rootCommand(helpCtx);
+  if (
+    name === undefined &&
+    (flags.includes("--version") || flags.includes("-v"))
+  ) {
+    writeOut(cliVersion());
+    return done(0);
+  }
+  if (askedHelp || first === "help" || name === undefined) {
+    const root = rootCommand();
     const usage =
       name === undefined
         ? await renderUsage(root)
-        : await renderUsage(await load(name, helpCtx), root);
-    if (name === undefined && !askedHelp && first !== 'help') {
+        : await renderUsage(
+            await load(name, contextFor(options?.cwd ?? process.cwd(), {})),
+            root,
+          );
+    if (name === undefined && !askedHelp && first !== "help") {
       writeErr(plain(usage));
       return done(2);
     }
@@ -109,8 +144,10 @@ export async function run(
   try {
     config = await loadConfig(cwd, stringArg(globals.config));
   } catch (error) {
-    writeErr(error instanceof Error ? error.message : String(error));
-    return done(2);
+    return fail(
+      cliErrorKind(error),
+      error instanceof Error ? error.message : String(error),
+    );
   }
   try {
     const command = await load(name, contextFor(cwd, config));
@@ -120,13 +157,16 @@ export async function run(
     });
   } catch (error) {
     if (!(error instanceof Error)) {
-      writeErr(String(error));
-    } else if (error.name === 'CLIError') {
-      writeErr(`${name}: ${stripVTControlCharacters(error.message)}`);
-    } else {
-      writeErr(error.message);
+      return fail("usage", String(error), name);
     }
-    return done(2);
+    if (error.name === "CLIError") {
+      return fail(
+        "usage",
+        `${name}: ${stripVTControlCharacters(error.message)}`,
+        name,
+      );
+    }
+    return fail(cliErrorKind(error), error.message, name);
   }
   if (result === undefined) {
     return done(0);
@@ -135,16 +175,29 @@ export async function run(
   return done(result.code);
 }
 
-function rootCommand(ctx: CliContext): Command {
+/** The root help lists commands from a static table, so it loads none of them. */
+function rootCommand(): Command {
   return defineCommand({
     meta: {
-      name: 'permdock',
+      name: "permdock",
       description:
-        'Collect, export, diff and check the permissions a PermDock policy declares',
+        "Collect, export, diff and check the permissions a PermDock policy declares",
     },
-    args: globalArgs,
+    args: {
+      ...globalArgs,
+      version: {
+        type: "boolean",
+        alias: "v",
+        description: "Print the permdock version",
+      },
+    },
     subCommands: Object.fromEntries(
-      NAMES.map((name) => [name, () => load(name, ctx)]),
+      NAMES.map((name) => [
+        name,
+        defineCommand({
+          meta: { name, description: COMMAND_DESCRIPTIONS[name] },
+        }),
+      ]),
     ),
   });
 }
@@ -154,11 +207,11 @@ async function load(name: CommandName, ctx: CliContext): Promise<Command> {
 }
 
 function lined(text: string): string {
-  return text.endsWith('\n') ? text : `${text}\n`;
+  return text.endsWith("\n") ? text : `${text}\n`;
 }
 
 function beforeSeparator(argv: readonly string[]): readonly string[] {
-  const end = argv.indexOf('--');
+  const end = argv.indexOf("--");
   return end === -1 ? argv : argv.slice(0, end);
 }
 
@@ -166,7 +219,7 @@ function beforeSeparator(argv: readonly string[]): readonly string[] {
 function withoutCommand(argv: readonly string[], name: string): string[] {
   const index = argv.findIndex(
     (token, i) =>
-      token === name && argv[i - 1] !== '--cwd' && argv[i - 1] !== '--config',
+      token === name && argv[i - 1] !== "--cwd" && argv[i - 1] !== "--config",
   );
   return argv.filter((_, i) => i !== index);
 }
@@ -180,17 +233,17 @@ function withoutCommand(argv: readonly string[], name: string): string[] {
 function normaliseValues(rawArgs: readonly string[], def: ArgsDef): string[] {
   const out: string[] = [];
   for (const [i, token] of rawArgs.entries()) {
-    if (token === '--') {
+    if (token === "--") {
       out.push(...rawArgs.slice(i));
       break;
     }
-    const arg = token.startsWith('--') ? def[token.slice(2)] : undefined;
+    const arg = token.startsWith("--") ? def[token.slice(2)] : undefined;
     const next = rawArgs[i + 1];
-    const bare = next === undefined || (next !== '-' && next.startsWith('-'));
-    if (arg?.type === 'enum' && bare) {
+    const bare = next === undefined || (next !== "-" && next.startsWith("-"));
+    if (arg?.type === "enum" && bare) {
       continue;
     }
-    out.push(arg?.type === 'string' && bare ? `${token}=` : token);
+    out.push(arg?.type === "string" && bare ? `${token}=` : token);
   }
   return out;
 }

@@ -1,6 +1,6 @@
-import type { StandardSchemaV1 } from '@standard-schema/spec';
+import type { StandardSchemaV1 } from "@standard-schema/spec";
 
-import { supabaseTenantClaim } from './budget.ts';
+import { supabaseTenantClaim } from "./budget.ts";
 
 /** One entry of the `memberships` claim, as `schemas/supabase-claims-v1.json` defines it. */
 export type SupabaseMembershipClaim = {
@@ -18,7 +18,9 @@ export type SupabaseMembershipClaim = {
   readonly expiresAt?: number;
   readonly grantedBy?: string;
   readonly reason?: string;
-  readonly managedBy?: 'idp';
+  /** The subgroup a membership source's `group` fills: a fixed name or a column. */
+  readonly member?: { readonly group: string };
+  readonly managedBy?: "idp";
   readonly entitlements?: readonly string[];
   /** Custom roles in compact form, read by the RLS helpers in `jwt` mode. */
   readonly grants?: Readonly<Record<string, unknown>>;
@@ -32,7 +34,7 @@ export type SupabaseActClaim = {
 };
 
 /** The claims the hook writes; each may also sit under `app_metadata`. */
-export type SupabasePermDockClaims<TenantClaim extends string = 'tenant_id'> = {
+export type SupabasePermDockClaims<TenantClaim extends string = "tenant_id"> = {
   /** Global roles: one name, a list, or `null` for none. */
   readonly user_role?: string | readonly string[] | null;
   readonly roles?: readonly string[];
@@ -49,7 +51,7 @@ export type SupabasePermDockClaims<TenantClaim extends string = 'tenant_id'> = {
  * A Supabase access token in PermDock's claim contract
  * (`schemas/supabase-claims-v1.json`). Claims it does not name pass through.
  */
-export type SupabaseClaims<TenantClaim extends string = 'tenant_id'> =
+export type SupabaseClaims<TenantClaim extends string = "tenant_id"> =
   SupabasePermDockClaims<TenantClaim> & {
     /** The OAuth client of a third-party app (Supabase OAuth server). */
     readonly client_id?: string;
@@ -68,7 +70,7 @@ export type SupabaseClaims<TenantClaim extends string = 'tenant_id'> =
  * are combined, and the app's output is merged over the base.
  */
 export type SupabaseClaimsSchema<
-  TenantClaim extends string = 'tenant_id',
+  TenantClaim extends string = "tenant_id",
   Extra = unknown,
 > = StandardSchemaV1<unknown, SupabaseClaims<TenantClaim> & Extra> & {
   extend<App extends StandardSchemaV1>(
@@ -79,7 +81,7 @@ export type SupabaseClaimsSchema<
   >;
 };
 
-export type SupabaseClaimsOptions<TenantClaim extends string = 'tenant_id'> = {
+export type SupabaseClaimsOptions<TenantClaim extends string = "tenant_id"> = {
   /** The claim holding the active tenant; `rls.tenantClaim`, default `tenant_id`. */
   readonly tenantClaim?: TenantClaim;
 };
@@ -88,20 +90,20 @@ type Path = readonly PropertyKey[];
 type Issues = StandardSchemaV1.Issue[];
 
 const KNOWN = new Set([
-  'user_role',
-  'roles',
-  'memberships',
-  'memberships_truncated',
-  'attrs',
-  'authz_ver',
-  'client_id',
-  'scope',
-  'act',
-  'app_metadata',
+  "user_role",
+  "roles",
+  "memberships",
+  "memberships_truncated",
+  "attrs",
+  "authz_ver",
+  "client_id",
+  "scope",
+  "act",
+  "app_metadata",
 ]);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function own(record: Record<string, unknown>, key: string): unknown {
@@ -114,7 +116,7 @@ function issue(issues: Issues, path: Path, message: string): void {
 
 function isStrings(value: unknown): value is readonly string[] {
   return (
-    Array.isArray(value) && value.every((item) => typeof item === 'string')
+    Array.isArray(value) && value.every((item) => typeof item === "string")
   );
 }
 
@@ -132,81 +134,92 @@ function optional(
   }
 }
 
-const isString = (value: unknown): boolean => typeof value === 'string';
+const isString = (value: unknown): boolean => typeof value === "string";
 
 function checkMembership(item: unknown, path: Path, issues: Issues): void {
   if (!isRecord(item)) {
-    issue(issues, path, 'Expected a membership object');
+    issue(issues, path, "Expected a membership object");
     return;
   }
-  const roles = own(item, 'roles');
+  const roles = own(item, "roles");
   if (!isStrings(roles) || roles.length === 0) {
-    issue(issues, [...path, 'roles'], 'Expected a non-empty array of strings');
+    issue(issues, [...path, "roles"], "Expected a non-empty array of strings");
   }
   for (const key of [
-    'scope',
-    'id',
-    'tenant',
-    'team',
-    'via',
-    'grantedBy',
-    'reason',
+    "scope",
+    "id",
+    "tenant",
+    "team",
+    "via",
+    "grantedBy",
+    "reason",
   ]) {
-    optional(item, key, path, issues, isString, 'a string');
+    optional(item, key, path, issues, isString, "a string");
   }
   optional(
     item,
-    'within',
+    "within",
     path,
     issues,
     (value) =>
       isRecord(value) &&
-      Object.values(value).every((id) => typeof id === 'string'),
-    'an object of string ids',
+      Object.values(value).every((id) => typeof id === "string"),
+    "an object of string ids",
   );
   optional(
     item,
-    'on',
+    "on",
     path,
     issues,
     (value) =>
       isRecord(value) &&
-      typeof own(value, 'resource') === 'string' &&
-      typeof own(value, 'id') === 'string',
-    'an object with string resource and id',
+      typeof own(value, "resource") === "string" &&
+      typeof own(value, "id") === "string",
+    "an object with string resource and id",
   );
   optional(
     item,
-    'expiresAt',
+    "expiresAt",
     path,
     issues,
-    (value) => typeof value === 'number' && Number.isFinite(value),
-    'a number of seconds since the epoch',
+    (value) => typeof value === "number" && Number.isFinite(value),
+    "a number of seconds since the epoch",
   );
   optional(
     item,
-    'managedBy',
+    "member",
     path,
     issues,
-    (value) => value === 'idp',
+    (value) =>
+      isRecord(value) &&
+      typeof own(value, "group") === "string" &&
+      own(value, "group") !== "",
+    "an object with a non-empty string group",
+  );
+  optional(
+    item,
+    "managedBy",
+    path,
+    issues,
+    (value) => value === "idp",
     "'idp'",
   );
   optional(
     item,
-    'entitlements',
+    "entitlements",
     path,
     issues,
     isStrings,
-    'an array of strings',
+    "an array of strings",
   );
-  optional(item, 'grants', path, issues, isRecord, 'an object');
+  optional(item, "grants", path, issues, isRecord, "an object");
   const located =
-    (own(item, 'scope') !== undefined && own(item, 'id') !== undefined) ||
-    own(item, 'tenant') !== undefined ||
-    own(item, 'team') !== undefined ||
-    own(item, 'on') !== undefined;
+    (own(item, "scope") !== undefined && own(item, "id") !== undefined) ||
+    own(item, "tenant") !== undefined ||
+    own(item, "team") !== undefined ||
+    own(item, "on") !== undefined;
   if (!located) {
-    issue(issues, path, 'Expected scope and id, tenant, team or on');
+    issue(issues, path, "Expected scope and id, tenant, team or on");
   }
 }
 
@@ -218,83 +231,86 @@ function checkPermDockClaims(
 ): void {
   optional(
     record,
-    'user_role',
+    "user_role",
     path,
     issues,
-    (value) => value === null || typeof value === 'string' || isStrings(value),
-    'a string, an array of strings or null',
+    (value) => value === null || typeof value === "string" || isStrings(value),
+    "a string, an array of strings or null",
   );
-  optional(record, 'roles', path, issues, isStrings, 'an array of strings');
-  const memberships = own(record, 'memberships');
+  optional(record, "roles", path, issues, isStrings, "an array of strings");
+  const memberships = own(record, "memberships");
   if (memberships !== undefined) {
     if (Array.isArray(memberships)) {
       for (const [index, item] of memberships.entries()) {
-        checkMembership(item, [...path, 'memberships', index], issues);
+        checkMembership(item, [...path, "memberships", index], issues);
       }
     } else {
-      issue(issues, [...path, 'memberships'], 'Expected an array');
+      issue(issues, [...path, "memberships"], "Expected an array");
     }
   }
   optional(
     record,
-    'memberships_truncated',
+    "memberships_truncated",
     path,
     issues,
-    (value) => typeof value === 'boolean',
-    'a boolean',
+    (value) => typeof value === "boolean",
+    "a boolean",
   );
-  optional(record, tenantClaim, path, issues, isString, 'a string');
-  optional(record, 'attrs', path, issues, isRecord, 'an object');
+  optional(record, tenantClaim, path, issues, isString, "a string");
+  optional(record, "attrs", path, issues, isRecord, "an object");
   optional(
     record,
-    'authz_ver',
+    "authz_ver",
     path,
     issues,
     (value) => Number.isInteger(value),
-    'an integer',
+    "an integer",
   );
 }
 
 function checkAct(value: unknown, issues: Issues): void {
   let current: unknown = value;
-  const path: PropertyKey[] = ['act'];
+  const path: PropertyKey[] = ["act"];
   while (current !== undefined) {
     if (!isRecord(current)) {
-      issue(issues, path, 'Expected an object');
+      issue(issues, path, "Expected an object");
       return;
     }
-    optional(current, 'sub', path, issues, isString, 'a string');
-    current = own(current, 'act');
-    path.push('act');
+    const sub = own(current, "sub");
+    if (typeof sub !== "string" || sub === "") {
+      issue(issues, [...path, "sub"], "Expected a non-empty string");
+    }
+    current = own(current, "act");
+    path.push("act");
   }
 }
 
 function checkClaims(value: unknown, tenantClaim: string): Issues {
   const issues: Issues = [];
   if (!isRecord(value)) {
-    issue(issues, [], 'Expected a claims object');
+    issue(issues, [], "Expected a claims object");
     return issues;
   }
   checkPermDockClaims(value, tenantClaim, [], issues);
-  optional(value, 'client_id', [], issues, isString, 'a string');
+  optional(value, "client_id", [], issues, isString, "a string");
   optional(
     value,
-    'scope',
+    "scope",
     [],
     issues,
-    (scope) => typeof scope === 'string' || isStrings(scope),
-    'a string or an array of strings',
+    (scope) => typeof scope === "string" || isStrings(scope),
+    "a string or an array of strings",
   );
-  const act = own(value, 'act');
+  const act = own(value, "act");
   if (act !== undefined) {
     checkAct(act, issues);
   }
-  const meta = own(value, 'app_metadata');
+  const meta = own(value, "app_metadata");
   if (meta !== undefined) {
     if (isRecord(meta)) {
-      checkPermDockClaims(meta, tenantClaim, ['app_metadata'], issues);
+      checkPermDockClaims(meta, tenantClaim, ["app_metadata"], issues);
     } else {
-      issue(issues, ['app_metadata'], 'Expected an object');
+      issue(issues, ["app_metadata"], "Expected an object");
     }
   }
   return issues;
@@ -320,7 +336,7 @@ function merge(
   const appValue = (app as StandardSchemaV1.SuccessResult<unknown>).value;
   if (!isRecord(appValue)) {
     return {
-      issues: [{ message: 'Expected the extension to output an object' }],
+      issues: [{ message: "Expected the extension to output an object" }],
     };
   }
   return {
@@ -332,24 +348,24 @@ function schemaOf<TenantClaim extends string, Extra>(
   validate: Validate,
 ): SupabaseClaimsSchema<TenantClaim, Extra> {
   const schema = {
-    '~standard': Object.freeze({
+    "~standard": Object.freeze({
       version: 1 as const,
-      vendor: 'permdock',
+      vendor: "permdock",
       validate,
     }),
     extend(app: StandardSchemaV1): SupabaseClaimsSchema<TenantClaim> {
-      if (!isRecord(app) && typeof app !== 'function') {
+      if (!isRecord(app) && typeof app !== "function") {
         throw new TypeError(
-          'PermDock: supabaseClaims().extend needs a Standard Schema',
+          "PermDock: supabaseClaims().extend needs a Standard Schema",
         );
       }
-      const props: unknown = Reflect.get(app, '~standard');
-      if (!isRecord(props) || typeof props['validate'] !== 'function') {
+      const props: unknown = Reflect.get(app, "~standard");
+      if (!isRecord(props) || typeof props["validate"] !== "function") {
         throw new TypeError(
-          'PermDock: supabaseClaims().extend needs a Standard Schema',
+          "PermDock: supabaseClaims().extend needs a Standard Schema",
         );
       }
-      const run = app['~standard'].validate.bind(app['~standard']);
+      const run = app["~standard"].validate.bind(app["~standard"]);
       return schemaOf((value: unknown) => {
         const base = validate(value);
         const extra = run(value);
@@ -377,17 +393,17 @@ function schemaOf<TenantClaim extends string, Extra>(
  * sb.claims(supabaseClaims().extend(z.object({ datetime_preferences: Prefs })))
  * ```
  */
-export function supabaseClaims<TenantClaim extends string = 'tenant_id'>(
+export function supabaseClaims<TenantClaim extends string = "tenant_id">(
   options: SupabaseClaimsOptions<TenantClaim> = {},
 ): SupabaseClaimsSchema<TenantClaim> {
   const tenantClaim: string = options.tenantClaim ?? supabaseTenantClaim;
   if (
-    typeof tenantClaim !== 'string' ||
-    tenantClaim === '' ||
+    typeof tenantClaim !== "string" ||
+    tenantClaim === "" ||
     KNOWN.has(tenantClaim)
   ) {
     throw new TypeError(
-      `PermDock: supabaseClaims tenantClaim must be a claim name other than ${[...KNOWN].join(', ')}`,
+      `PermDock: supabaseClaims tenantClaim must be a claim name other than ${[...KNOWN].join(", ")}`,
     );
   }
   return schemaOf((value: unknown) => {

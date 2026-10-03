@@ -1,6 +1,6 @@
-export { APPROVAL_META_KEY, createPermDock } from './create.ts';
-export { subjectFromMcp } from './subject.ts';
-export type { McpSubjectOptions } from './subject.ts';
+export { APPROVAL_META_KEY, createPermDock } from "./create.ts";
+export { subjectFromMcp } from "./subject.ts";
+export type { McpSubjectOptions } from "./subject.ts";
 export type {
   GuardedMcpServer,
   McpAuthInfo,
@@ -10,4 +10,4 @@ export type {
   McpPromptConfig,
   McpResourceConfig,
   McpToolConfig,
-} from './types.ts';
+} from "./types.ts";

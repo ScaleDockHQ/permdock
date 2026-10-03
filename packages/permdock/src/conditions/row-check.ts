@@ -16,7 +16,7 @@ export function rowCheckFrom(
   rows: readonly { readonly granted?: unknown }[],
 ): RowCheck {
   if (rows.length > 1) {
-    throw new Error('PermDock: checkRow key matches more than one row');
+    throw new Error("PermDock: checkRow key matches more than one row");
   }
   const [row] = rows;
   return rowCheckOf(

@@ -1,27 +1,27 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from "vitest";
 
-import type { PermDock } from '../../src/core/permdock.ts';
+import type { PermDock } from "../../src/core/permdock.ts";
 
-import { createPermDock as createCorePermDock } from '../../src/core/permdock.ts';
-import { createEvaluationsHandler } from '../../src/server/index.ts';
+import { createPermDock as createCorePermDock } from "../../src/core/permdock.ts";
+import { createEvaluationsHandler } from "../../src/server/index.ts";
 import {
   InvalidSignatureError,
   invalidSignatureProblem,
-} from '../../src/server/web-bot-auth.ts';
+} from "../../src/server/web-bot-auth.ts";
 import {
   memberUser,
   ownPost,
   otherPost,
   policy,
-} from '../fixtures/quick-start.ts';
+} from "../fixtures/quick-start.ts";
 
-const ENDPOINT = 'https://api.example/access/v1/evaluations';
+const ENDPOINT = "https://api.example/access/v1/evaluations";
 
 function post(body: unknown): Request {
   return new Request(ENDPOINT, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: typeof body === 'string' ? body : JSON.stringify(body),
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: typeof body === "string" ? body : JSON.stringify(body),
   });
 }
 
@@ -50,14 +50,14 @@ async function rows(response: Response): Promise<readonly Row[]> {
     .evaluations;
 }
 
-describe('createEvaluationsHandler POST', () => {
+describe("createEvaluationsHandler POST", () => {
   it.each<[string, string]>([
-    ['{nope', 'evaluations body was not valid JSON'],
-    ['[]', 'evaluations body must be an object'],
-    ['null', 'evaluations body must be an object'],
-    ['{}', 'evaluations array is required'],
-    ['{"evaluations":"x"}', 'evaluations must be an array'],
-  ])('refuses %s', async (body, detail) => {
+    ["{nope", "evaluations body was not valid JSON"],
+    ["[]", "evaluations body must be an object"],
+    ["null", "evaluations body must be an object"],
+    ["{}", "evaluations array is required"],
+    ['{"evaluations":"x"}', "evaluations must be an array"],
+  ])("refuses %s", async (body, detail) => {
     const response = await handler().POST(post(body));
     expect({
       status: response.status,
@@ -68,65 +68,65 @@ describe('createEvaluationsHandler POST', () => {
     });
   });
 
-  it('resolves each item by key, by resource and action, or not at all', async () => {
+  it("resolves each item by key, by resource and action, or not at all", async () => {
     const response = await handler().POST(
       post({
         evaluations: [
           {
-            action: { name: 'post.update' },
+            action: { name: "post.update" },
             resource: { properties: ownPost },
           },
           {
-            action: { name: 'update' },
-            resource: { type: 'post', properties: otherPost },
+            action: { name: "update" },
+            resource: { type: "post", properties: otherPost },
           },
-          { action: { name: 'read' }, resource: { type: 'post', id: 7 } },
-          { action: { name: 'list' }, resource: { type: 'post' } },
-          { action: { name: 'archive' }, resource: { type: 'post' } },
-          { action: { name: 'read' } },
+          { action: { name: "read" }, resource: { type: "post", id: 7 } },
+          { action: { name: "list" }, resource: { type: "post" } },
+          { action: { name: "archive" }, resource: { type: "post" } },
+          { action: { name: "read" } },
           { action: {} },
-          'junk',
+          "junk",
           {
-            action: { name: 'delete' },
-            resource: { type: 'post', properties: ownPost },
+            action: { name: "delete" },
+            resource: { type: "post", properties: ownPost },
           },
         ],
       }),
     );
     const result = await rows(response);
     expect(result.map((row) => [row.decision, row.context.outcome])).toEqual([
-      [true, 'granted'],
-      [false, 'denied'],
-      [false, 'denied'],
-      [true, 'granted'],
-      [false, 'denied'],
-      [false, 'denied'],
-      [false, 'denied'],
-      [false, 'denied'],
-      [false, 'approval-required'],
+      [true, "granted"],
+      [false, "denied"],
+      [false, "denied"],
+      [true, "granted"],
+      [false, "denied"],
+      [false, "denied"],
+      [false, "denied"],
+      [false, "denied"],
+      [false, "approval-required"],
     ]);
     expect(result[8]?.context.permdock).toMatchObject({
       token: expect.any(String),
     });
     expect(result[4]?.context.permdock).toMatchObject({
-      denials: [{ role: null, reason: 'no-grant' }],
+      denials: [{ role: null, reason: "no-grant" }],
     });
   });
 
-  it('answers the signature problem when resolving the instance rejects it', async () => {
-    const problem = invalidSignatureProblem('bad signature');
+  it("answers the signature problem when resolving the instance rejects it", async () => {
+    const problem = invalidSignatureProblem("bad signature");
     const response = await handler({
       resolve: () => Promise.reject(new InvalidSignatureError(problem)),
     }).POST(post({ evaluations: [] }));
     expect(response).toBe(problem);
     await expect(
-      handler({ resolve: () => Promise.reject(new Error('boom')) }).POST(
+      handler({ resolve: () => Promise.reject(new Error("boom")) }).POST(
         post({ evaluations: [] }),
       ),
-    ).rejects.toThrow('boom');
+    ).rejects.toThrow("boom");
   });
 
-  it('uses getPermDock when no resolver is given and fails without either', async () => {
+  it("uses getPermDock when no resolver is given and fails without either", async () => {
     const getPermDock = vi.fn<
       (query?: { readonly tenant?: string }) => Promise<PermDock>
     >(async (): Promise<PermDock> => createCorePermDock(policy, memberUser));
@@ -139,55 +139,55 @@ describe('createEvaluationsHandler POST', () => {
   });
 });
 
-describe('createEvaluationsHandler GET', () => {
-  it('serves AuthZEN discovery for the origin', async () => {
+describe("createEvaluationsHandler GET", () => {
+  it("serves AuthZEN discovery for the origin", async () => {
     const response = await handler().GET(
-      new Request('https://api.example/.well-known/authzen-configuration'),
+      new Request("https://api.example/.well-known/authzen-configuration"),
     );
     expect(await response.json()).toEqual({
-      policy_decision_point: 'https://api.example',
-      access_evaluation_endpoint: 'https://api.example/access/v1/evaluation',
-      access_evaluations_endpoint: 'https://api.example/access/v1/evaluations',
+      policy_decision_point: "https://api.example",
+      access_evaluation_endpoint: "https://api.example/access/v1/evaluation",
+      access_evaluations_endpoint: "https://api.example/access/v1/evaluations",
     });
   });
 
-  it('serves the snapshot, scoped to the requested tenant', async () => {
+  it("serves the snapshot, scoped to the requested tenant", async () => {
     const tenants: (string | undefined)[] = [];
     const resolve = async (): Promise<PermDock> => {
-      const dock = await createCorePermDock(policy, memberUser);
+      const permdock = await createCorePermDock(policy, memberUser);
       return {
-        ...dock,
+        ...permdock,
         tenant: (id: string) => {
           tenants.push(id);
-          return dock;
+          return permdock;
         },
       };
     };
     const response = await handler({ resolve }).GET(
-      new Request('https://api.example/permdock/snapshot?tenant=o1'),
+      new Request("https://api.example/permdock/snapshot?tenant=o1"),
     );
     expect(await response.json()).toMatchObject({ v: 1 });
-    expect(tenants).toEqual(['o1']);
+    expect(tenants).toEqual(["o1"]);
     const getPermDock = vi.fn<
       (query?: { readonly tenant?: string }) => Promise<PermDock>
     >(async (): Promise<PermDock> => createCorePermDock(policy, memberUser));
     await createEvaluationsHandler({ policy, getPermDock }).GET(
-      new Request('https://api.example/snapshot?tenant=o2'),
+      new Request("https://api.example/snapshot?tenant=o2"),
     );
-    expect(getPermDock).toHaveBeenCalledWith({ tenant: 'o2' });
+    expect(getPermDock).toHaveBeenCalledWith({ tenant: "o2" });
   });
 
-  it('answers the signature problem and rethrows other failures', async () => {
-    const problem = invalidSignatureProblem('bad');
+  it("answers the signature problem and rethrows other failures", async () => {
+    const problem = invalidSignatureProblem("bad");
     expect(
       await handler({
         resolve: () => Promise.reject(new InvalidSignatureError(problem)),
-      }).GET(new Request('https://api.example/snapshot')),
+      }).GET(new Request("https://api.example/snapshot")),
     ).toBe(problem);
     await expect(
-      handler({ resolve: () => Promise.reject(new Error('down')) }).GET(
-        new Request('https://api.example/snapshot'),
+      handler({ resolve: () => Promise.reject(new Error("down")) }).GET(
+        new Request("https://api.example/snapshot"),
       ),
-    ).rejects.toThrow('down');
+    ).rejects.toThrow("down");
   });
 });

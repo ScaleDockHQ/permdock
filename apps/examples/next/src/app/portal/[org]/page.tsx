@@ -1,6 +1,6 @@
-import { Suspense } from 'react';
+import { Suspense } from "react";
 
-import { ListSkeleton, QuoteList } from '../../quotes.tsx';
+import { ListSkeleton, QuoteList } from "../../quotes.tsx";
 
 export const instant = true;
 

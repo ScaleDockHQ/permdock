@@ -5,18 +5,18 @@ import {
   readdirSync,
   rmSync,
   writeFileSync,
-} from 'node:fs';
-import path from 'node:path';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { z } from 'zod';
+} from "node:fs";
+import path from "node:path";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { z } from "zod";
 
-import { createAgentKernel } from '../../src/agent/kernel.ts';
+import { createAgentKernel } from "../../src/agent/kernel.ts";
 import {
   memoryApprovalStore,
   requestApproval,
   resolveApproval,
-} from '../../src/approvals/index.ts';
-import { run } from '../../src/cli/run.ts';
+} from "../../src/approvals/index.ts";
+import { run } from "../../src/cli/run.ts";
 import {
   type Decision,
   allow,
@@ -25,48 +25,48 @@ import {
   definePolicy,
   resource,
   role,
-} from '../../src/index.ts';
-import { subjectFromSupabase } from '../../src/supabase/index.ts';
+} from "../../src/index.ts";
+import { subjectFromSupabase } from "../../src/supabase/index.ts";
 
-const FIXTURE = path.join(import.meta.dirname, '../fixtures/rls-standard.ts');
-const GOLDEN = path.join(import.meta.dirname, '../cli/fixtures/golden');
-const TMP = path.join(import.meta.dirname, '../../tmp');
-const DIALECTS = ['supabase', 'neon', 'guc'] as const;
-const TARGETS = ['sql', 'drizzle'] as const;
-const AUTHORIZE = ['jwt', 'database'] as const;
+const FIXTURE = path.join(import.meta.dirname, "../fixtures/rls-standard.ts");
+const GOLDEN = path.join(import.meta.dirname, "../cli/fixtures/golden");
+const TMP = path.join(import.meta.dirname, "../../tmp");
+const DIALECTS = ["supabase", "neon", "guc"] as const;
+const TARGETS = ["sql", "drizzle"] as const;
+const AUTHORIZE = ["jwt", "database"] as const;
 
 const Post = z.object({ id: z.string(), authorId: z.string() });
 const permissions = definePermissions({
-  post: resource(Post, { id: 'id', actions: ['delete', 'archive', 'purge'] }),
+  post: resource(Post, { id: "id", actions: ["delete", "archive", "purge"] }),
 });
 type User = { readonly id: string; readonly roles: readonly string[] };
 const subject = (user: User | null) => user;
 const policy = definePolicy(permissions, {
   roles: [
-    role('member', [
-      allow(permissions.post.delete, { approval: 'human' }),
+    role("member", [
+      allow(permissions.post.delete, { approval: "human" }),
       allow(permissions.post.archive, {
-        approval: { by: ['member'], distinct: false },
+        approval: { by: ["member"], distinct: false },
       }),
       allow(permissions.post.purge, {
-        approval: { by: ['member'], quorum: 2 },
+        approval: { by: ["member"], quorum: 2 },
       }),
     ]),
   ],
   subject,
 });
-const alice: User = { id: 'alice', roles: ['member'] };
-const bob: User = { id: 'bob', roles: ['member'] };
-const carol: User = { id: 'carol', roles: ['member'] };
-const p1 = { id: 'p1', authorId: 'alice' };
-const p2 = { id: 'p2', authorId: 'alice' };
-const agent = { id: 'agent-1', kind: 'agent' };
-const delegation = { scopes: ['post:delete', 'post:archive'] };
+const alice: User = { id: "alice", roles: ["member"] };
+const bob: User = { id: "bob", roles: ["member"] };
+const carol: User = { id: "carol", roles: ["member"] };
+const p1 = { id: "p1", authorId: "alice" };
+const p2 = { id: "p2", authorId: "alice" };
+const agent = { id: "agent-1", kind: "agent" };
+const delegation = { scopes: ["post:delete", "post:archive"] };
 
 function pending(
   decision: Decision,
-): Extract<Decision, { readonly outcome: 'approval-required' }> {
-  if (decision.outcome !== 'approval-required') {
+): Extract<Decision, { readonly outcome: "approval-required" }> {
+  if (decision.outcome !== "approval-required") {
     throw new Error(`expected approval-required, got ${decision.outcome}`);
   }
   return decision;
@@ -86,15 +86,15 @@ async function tokenFor(
   return pending(permdock.decide(leaf, row)).token;
 }
 
-let cwd = '';
+let cwd = "";
 const generated: string[] = [];
 
 beforeAll(async () => {
   mkdirSync(TMP, { recursive: true });
-  cwd = mkdtempSync(path.join(TMP, 'invariant-11-'));
+  cwd = mkdtempSync(path.join(TMP, "invariant-11-"));
   for (const authorize of AUTHORIZE) {
     writeFileSync(
-      path.join(cwd, 'permdock.config.ts'),
+      path.join(cwd, "permdock.config.ts"),
       `export default {
   permissions: ${JSON.stringify(FIXTURE)},
   policy: ${JSON.stringify(FIXTURE)},
@@ -107,13 +107,13 @@ beforeAll(async () => {
         const out = `${authorize}-${dialect}-${target}.out`;
         const result = await run(
           [
-            'rls',
-            'generate',
-            '--target',
+            "rls",
+            "generate",
+            "--target",
             target,
-            '--dialect',
+            "--dialect",
             dialect,
-            '--out',
+            "--out",
             out,
           ],
           { cwd },
@@ -121,7 +121,7 @@ beforeAll(async () => {
         if (result.code !== 0) {
           throw new Error(`${out}: ${result.stderr}`);
         }
-        generated.push(readFileSync(path.join(cwd, out), 'utf8'));
+        generated.push(readFileSync(path.join(cwd, out), "utf8"));
       }
     }
   }
@@ -131,8 +131,8 @@ afterAll(() => {
   rmSync(cwd, { recursive: true, force: true });
 });
 
-describe('invariant 11: no bypass role, bound tokens, distinct approvers', () => {
-  it('never emits service_role in generated RLS', () => {
+describe("invariant 11: no bypass role, bound tokens, distinct approvers", () => {
+  it("never emits service_role in generated RLS", () => {
     expect(generated).toHaveLength(
       DIALECTS.length * TARGETS.length * AUTHORIZE.length,
     );
@@ -140,24 +140,24 @@ describe('invariant 11: no bypass role, bound tokens, distinct approvers', () =>
       expect(text).not.toMatch(/service_role/iu);
     }
     for (const file of readdirSync(GOLDEN)) {
-      expect(readFileSync(path.join(GOLDEN, file), 'utf8')).not.toMatch(
+      expect(readFileSync(path.join(GOLDEN, file), "utf8")).not.toMatch(
         /\b(?:to|from)\s+service_role\b/iu,
       );
     }
   });
 
-  it('maps a service_role token to the anonymous subject', () => {
+  it("maps a service_role token to the anonymous subject", () => {
     const mapped = subjectFromSupabase({
-      sub: 'svc',
-      role: 'service_role',
-      user_role: 'admin',
+      sub: "svc",
+      role: "service_role",
+      user_role: "admin",
     });
     expect(mapped.principal).toBeNull();
   });
 
-  it('never takes the subject or actor from model arguments', async () => {
+  it("never takes the subject or actor from model arguments", async () => {
     const kernel = createAgentKernel(policy, {
-      adapter: 'test',
+      adapter: "test",
       subject: () => bob,
       tools: {
         delete_post: {
@@ -170,27 +170,27 @@ describe('invariant 11: no bypass role, bound tokens, distinct approvers', () =>
       },
     });
     const result = await kernel.decideTool(
-      'delete_post',
+      "delete_post",
       {
         ...p1,
-        subject: { principal: { id: 'alice', roles: ['admin'] } },
-        actor: { id: 'root', kind: 'user' },
+        subject: { principal: { id: "alice", roles: ["admin"] } },
+        actor: { id: "root", kind: "user" },
         user: alice,
       },
       {},
     );
-    const dock = await kernel.instance({});
-    expect(dock.subject.principal?.id).toBe('bob');
-    expect(dock.subject.actor).toBeUndefined();
-    expect(result.decision?.outcome).toBe('approval-required');
+    const permdock = await kernel.instance({});
+    expect(permdock.subject.principal?.id).toBe("bob");
+    expect(permdock.subject.actor).toBeUndefined();
+    expect(result.decision?.outcome).toBe("approval-required");
     expect(
-      result.decision?.outcome === 'approval-required'
+      result.decision?.outcome === "approval-required"
         ? result.decision.token
         : undefined,
     ).toBe(await tokenFor(bob, permissions.post.delete, p1));
   });
 
-  it('binds the approval token to permission, resource id, subject and actor', async () => {
+  it("binds the approval token to permission, resource id, subject and actor", async () => {
     const base = await tokenFor(alice, permissions.post.delete, p1);
     expect(await tokenFor(alice, permissions.post.delete, p1)).toBe(base);
     const variants = [
@@ -199,14 +199,14 @@ describe('invariant 11: no bypass role, bound tokens, distinct approvers', () =>
       await tokenFor(bob, permissions.post.delete, p1),
       await tokenFor(alice, permissions.post.delete, p1, agent),
       await tokenFor(alice, permissions.post.delete, p1, {
-        id: 'agent-2',
-        kind: 'agent',
+        id: "agent-2",
+        kind: "agent",
       }),
     ];
     expect(new Set([base, ...variants]).size).toBe(variants.length + 1);
   });
 
-  it('refuses the actor and, by default, the principal as approver', async () => {
+  it("refuses the actor and, by default, the principal as approver", async () => {
     const store = memoryApprovalStore();
     const permdock = await createPermDock(policy, alice, {
       actor: agent,
@@ -219,30 +219,30 @@ describe('invariant 11: no bypass role, bound tokens, distinct approvers', () =>
     });
     const asActor = await createPermDock(policy, {
       id: agent.id,
-      roles: ['member'],
+      roles: ["member"],
     });
     await expect(
       resolveApproval(store, decision.token, {
-        status: 'approved',
+        status: "approved",
         by: asActor.subject,
       }),
-    ).rejects.toMatchObject({ code: 'approver-is-actor' });
+    ).rejects.toMatchObject({ code: "approver-is-actor" });
     await expect(
       resolveApproval(store, decision.token, {
-        status: 'approved',
+        status: "approved",
         by: permdock.subject,
       }),
-    ).rejects.toMatchObject({ code: 'approver-is-principal' });
+    ).rejects.toMatchObject({ code: "approver-is-principal" });
     const other = await createPermDock(policy, bob);
     await expect(
       resolveApproval(store, decision.token, {
-        status: 'approved',
+        status: "approved",
         by: other.subject,
       }),
-    ).resolves.toMatchObject({ status: 'approved' });
+    ).resolves.toMatchObject({ status: "approved" });
   });
 
-  it('lets the principal approve only when the grant sets distinct: false', async () => {
+  it("lets the principal approve only when the grant sets distinct: false", async () => {
     const store = memoryApprovalStore();
     const permdock = await createPermDock(policy, alice);
     const decision = pending(permdock.decide(permissions.post.archive, p1));
@@ -254,19 +254,19 @@ describe('invariant 11: no bypass role, bound tokens, distinct approvers', () =>
       resolveApproval(
         store,
         decision.token,
-        { status: 'approved', by: permdock.subject },
+        { status: "approved", by: permdock.subject },
         { requireDistinctApprover: true },
       ),
-    ).rejects.toMatchObject({ code: 'approver-is-principal' });
+    ).rejects.toMatchObject({ code: "approver-is-principal" });
     await expect(
       resolveApproval(store, decision.token, {
-        status: 'approved',
+        status: "approved",
         by: permdock.subject,
       }),
-    ).resolves.toMatchObject({ status: 'approved' });
+    ).resolves.toMatchObject({ status: "approved" });
   });
 
-  it('counts a quorum in distinct principals, so one approver cannot meet two', async () => {
+  it("counts a quorum in distinct principals, so one approver cannot meet two", async () => {
     const store = memoryApprovalStore();
     const permdock = await createPermDock(policy, alice);
     const decision = pending(permdock.decide(permissions.post.purge, p1));
@@ -276,25 +276,25 @@ describe('invariant 11: no bypass role, bound tokens, distinct approvers', () =>
     });
     const asBob = await createPermDock(policy, bob);
     const first = await resolveApproval(store, decision.token, {
-      status: 'approved',
+      status: "approved",
       by: asBob.subject,
     });
-    expect(first.status).toBe('pending');
-    expect(first.approvals?.map((item) => item.by)).toEqual(['bob']);
+    expect(first.status).toBe("pending");
+    expect(first.approvals?.map((item) => item.by)).toEqual(["bob"]);
     await expect(
       resolveApproval(store, decision.token, {
-        status: 'approved',
+        status: "approved",
         by: asBob.subject,
       }),
-    ).rejects.toMatchObject({ code: 'approver-repeated' });
-    expect((await store.get(decision.token))?.status).toBe('pending');
+    ).rejects.toMatchObject({ code: "approver-repeated" });
+    expect((await store.get(decision.token))?.status).toBe("pending");
     const asCarol = await createPermDock(policy, carol);
     const second = await resolveApproval(store, decision.token, {
-      status: 'approved',
+      status: "approved",
       by: asCarol.subject,
     });
-    expect(second.status).toBe('approved');
-    expect(second.approvals?.map((item) => item.by)).toEqual(['bob', 'carol']);
-    expect(second.resolvedBy).toBe('carol');
+    expect(second.status).toBe("approved");
+    expect(second.approvals?.map((item) => item.by)).toEqual(["bob", "carol"]);
+    expect(second.resolvedBy).toBe("carol");
   });
 });

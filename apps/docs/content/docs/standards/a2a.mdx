@@ -3,7 +3,6 @@ title: A2A
 description: How permdock/a2a emits Agent Card security schemes and requirements per skill and filters the authenticated extended card by the caller's permissions.
 ---
 
-
 ## What it is
 
 The [Agent2Agent (A2A) protocol 1.0](https://a2a-protocol.org/latest/specification/) is a Linux Foundation project for agent-to-agent communication, backed by [more than 150 organisations](https://www.linuxfoundation.org/press/a2a-protocol-surpasses-150-organizations-lands-in-major-cloud-platforms-and-sees-enterprise-production-use-in-first-year). An agent publishes an **Agent Card** describing its identity, endpoints and **skills**. The parts relevant to authorization:
@@ -19,20 +18,25 @@ An A2A agent built on PermDock has two authorization jobs. Outbound, its card mu
 ## How PermDock uses it
 
 ```ts
-import { createPermDock } from 'permdock/a2a'
+import { createPermDock } from "permdock/a2a";
 
 const { agentCard, extendedAgentCard, protectSkill } = createPermDock(policy, {
-  subject: (auth) => userFrom(auth),        // principal from the caller's token
+  subject: (auth) => userFrom(auth), // principal from the caller's token
   skills: {
     summarise: { permission: permissions.post.read },
-    publish:   { permission: permissions.post.publish, data: (params) => loadPost(params.postId) },
+    publish: {
+      permission: permissions.post.publish,
+      data: (params) => loadPost(params.postId),
+    },
   },
-})
+});
 
 // Public card: securitySchemes + securityRequirements per skill, derived from permission.scope
-app.get('/.well-known/agent-card.json', (c) => c.json(agentCard()))
+app.get("/.well-known/agent-card.json", (c) => c.json(agentCard()));
 // Extended card: only the skills this caller may invoke
-app.get('/agent/authenticatedExtendedCard', (c) => c.json(extendedAgentCard(c.get('auth'))))
+app.get("/agent/authenticatedExtendedCard", (c) =>
+  c.json(extendedAgentCard(c.get("auth"))),
+);
 ```
 
 What the adapter does:
@@ -60,19 +64,19 @@ The A2A adapter reuses the MCP adapter's translation of a `Decision` into a stru
 
 ## Mapping table
 
-| A2A 1.0 concept | PermDock concept |
-| --- | --- |
-| Agent Card `securitySchemes` | Adapter OAuth configuration, shared with the OpenAPI emitter |
-| Agent Card `securityRequirements` (per skill) | `permission.scope` of the skill's permission |
-| Skill | Entry in `skills: { name: { permission, data? } }` |
-| Authenticated extended card | `extendedAgentCard(auth)` filtered by `can` per skill |
-| Public card | `agentCard()` listing all skills with their requirements |
-| Signed card | `sign(card, signPayload)`: the host's signer returns a compact JWS over the RFC 8785 card; the adapter appends the detached `{ protected, signature }` to `signatures` |
-| Calling agent identity | `actor` |
-| Caller's token scopes / `authorization_details` | `delegation` |
-| User the calling agent acts for | `principal` via `subject(auth)` |
-| Skill invocation | `protectSkill`: boundary validation, `decide`, structured refusal |
-| Refusal payload | `Decision` reasons and `alternatives` |
+| A2A 1.0 concept                                 | PermDock concept                                                                                                                                                       |
+| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Agent Card `securitySchemes`                    | Adapter OAuth configuration, shared with the OpenAPI emitter                                                                                                           |
+| Agent Card `securityRequirements` (per skill)   | `permission.scope` of the skill's permission                                                                                                                           |
+| Skill                                           | Entry in `skills: { name: { permission, data? } }`                                                                                                                     |
+| Authenticated extended card                     | `extendedAgentCard(auth)` filtered by `can` per skill                                                                                                                  |
+| Public card                                     | `agentCard()` listing all skills with their requirements                                                                                                               |
+| Signed card                                     | `sign(card, signPayload)`: the host's signer returns a compact JWS over the RFC 8785 card; the adapter appends the detached `{ protected, signature }` to `signatures` |
+| Calling agent identity                          | `actor`                                                                                                                                                                |
+| Caller's token scopes / `authorization_details` | `delegation`                                                                                                                                                           |
+| User the calling agent acts for                 | `principal` via `subject(auth)`                                                                                                                                        |
+| Skill invocation                                | `protectSkill`: boundary validation, `decide`, structured refusal                                                                                                      |
+| Refusal payload                                 | `Decision` reasons and `alternatives`                                                                                                                                  |
 
 ## Sources
 

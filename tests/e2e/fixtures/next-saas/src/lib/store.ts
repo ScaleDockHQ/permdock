@@ -1,9 +1,9 @@
-import type { CustomRole, Membership } from 'permdock';
-import type { SaasPlan } from 'permdock/testing/saas';
+import type { CustomRole, Membership } from "permdock";
+import type { SaasPlan } from "permdock/testing/saas";
 
-import { saasSeed } from 'permdock/testing/saas';
+import { saasSeed } from "permdock/testing/saas";
 
-import type { Project } from '../permissions.ts';
+import type { Project } from "../permissions.ts";
 
 export type Plan = SaasPlan;
 
@@ -28,15 +28,15 @@ type Store = {
   versions: Map<string, number>;
 };
 
-const ORGS: ReadonlySet<string> = new Set(['acme', 'globex']);
+const ORGS: ReadonlySet<string> = new Set(["acme", "globex"]);
 const USERS: ReadonlySet<string> = new Set([
-  'alice',
-  'bob',
-  'carol',
-  'dave',
-  'erin',
-  'frank',
-  'mallory',
+  "alice",
+  "bob",
+  "carol",
+  "dave",
+  "erin",
+  "frank",
+  "mallory",
 ]);
 
 // The shared SaaS seed, narrowed to what this app's spec numbers rely on.
@@ -70,7 +70,7 @@ function seed(): Store {
   };
 }
 
-const KEY = Symbol.for('permdock.e2e.next-saas.store');
+const KEY = Symbol.for("permdock.e2e.next-saas.store");
 
 // One store per server process, shared by the proxy-free server bundles.
 function store(): Store {
@@ -116,7 +116,7 @@ export function membershipsOf(user: string): Membership[] {
 export function membersOf(tenant: string): { user: string; role: string }[] {
   return store()
     .members.filter((row) => row.tenant === tenant)
-    .map((row) => ({ user: row.user, role: row.roles[0] ?? '' }));
+    .map((row) => ({ user: row.user, role: row.roles[0] ?? "" }));
 }
 
 export function setRole(tenant: string, user: string, role: string): boolean {

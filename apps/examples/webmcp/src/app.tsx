@@ -1,10 +1,10 @@
-import type { Snapshot } from 'permdock';
+import type { Snapshot } from "permdock";
 
-import { PermDockProvider, usePermDock } from 'permdock/react';
-import { registerTools } from 'permdock/webmcp';
-import { useEffect, useState } from 'react';
+import { PermDockProvider, usePermDock } from "permdock/react";
+import { registerTools } from "permdock/webmcp";
+import { useEffect, useState } from "react";
 
-import { ownPost, permissions } from './permissions.ts';
+import { ownPost, permissions } from "./permissions.ts";
 
 type FakeTool = { readonly name: string; readonly description: string };
 
@@ -47,7 +47,7 @@ function PostTools() {
           });
           setTools([...registered]);
           options?.signal?.addEventListener(
-            'abort',
+            "abort",
             () => {
               setTools((current) =>
                 current.filter((item) => item.name !== tool.name),

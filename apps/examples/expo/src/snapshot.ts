@@ -1,15 +1,15 @@
-import { createPermDock, type Snapshot } from 'permdock';
+import { createPermDock, type Snapshot } from "permdock";
 
-import { memberUser, policy } from './policy.ts';
+import { memberUser, policy } from "./policy.ts";
 
 function memberSnapshotValue(): Snapshot {
-  const dock = createPermDock(policy, memberUser);
-  if (dock instanceof Promise) {
-    throw new TypeError('expected sync createPermDock');
+  const permdock = createPermDock(policy, memberUser);
+  if (permdock instanceof Promise) {
+    throw new TypeError("expected sync createPermDock");
   }
-  const snapshot = dock.snapshot();
-  if (snapshot instanceof Promise || typeof snapshot === 'string') {
-    throw new TypeError('expected JSON snapshot');
+  const snapshot = permdock.snapshot();
+  if (snapshot instanceof Promise || typeof snapshot === "string") {
+    throw new TypeError("expected JSON snapshot");
   }
   return snapshot;
 }

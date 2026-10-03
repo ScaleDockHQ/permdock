@@ -14,3 +14,7 @@ The docs app does not depend on `fumadocs-openapi`. The CLI and adapter pages do
 ## Consequences
 
 Revisit when PermDock Cloud publishes an API document for these docs.
+
+## Alternatives considered
+
+- A reference page built from the vendored meta-schemas: they describe OpenAPI itself, not an API PermDock serves.

@@ -1,6 +1,6 @@
-import { z } from 'zod';
+import { z } from "zod";
 
-import type { Membership } from '../../src/index.ts';
+import type { Membership } from "../../src/index.ts";
 
 import {
   allow,
@@ -11,7 +11,7 @@ import {
   relation,
   resource,
   role,
-} from '../../src/index.ts';
+} from "../../src/index.ts";
 
 /**
  * A document workspace exercising the whole relationship graph: nested
@@ -42,57 +42,57 @@ const Folder = z.object({
 const Doc = z.object({ id: z.string(), folderId: z.string() });
 
 const asGroupOrUser = {
-  column: 'kind',
-  resources: { team: 'member' },
-  direct: 'user',
+  column: "kind",
+  resources: { team: "member" },
+  direct: "user",
 } as const;
 
 export const permissions = definePermissions({
   team: resource(Team, {
-    actions: ['read'],
+    actions: ["read"],
     relations: {
       member: {
-        edge: 'team_members',
-        object: 'team_id',
-        subject: 'subject_id',
+        edge: "team_members",
+        object: "team_id",
+        subject: "subject_id",
         groups: asGroupOrUser,
       },
-      lead: { principal: 'leadId' },
+      lead: { principal: "leadId" },
     },
   }),
   folder: resource(Folder, {
-    actions: ['read'],
-    parent: { field: 'parentId', resource: 'folder' },
-    links: { team: { field: 'teamId', resource: 'team' } },
-    restricted: 'restricted',
+    actions: ["read"],
+    parent: { field: "parentId", resource: "folder" },
+    links: { team: { field: "teamId", resource: "team" } },
+    restricted: "restricted",
     relations: {
       editor: {
-        edge: 'folder_members',
-        object: 'folder_id',
-        subject: 'subject_id',
-        expiresAt: 'expires_at',
-        match: { role: 'editor' },
+        edge: "folder_members",
+        object: "folder_id",
+        subject: "subject_id",
+        expiresAt: "expires_at",
+        match: { role: "editor" },
         groups: asGroupOrUser,
       },
       viewer: {
-        edge: 'folder_members',
-        object: 'folder_id',
-        subject: 'subject_id',
-        expiresAt: 'expires_at',
-        match: { role: 'viewer' },
+        edge: "folder_members",
+        object: "folder_id",
+        subject: "subject_id",
+        expiresAt: "expires_at",
+        match: { role: "viewer" },
         groups: asGroupOrUser,
-        includes: ['editor'],
+        includes: ["editor"],
       },
     },
   }),
   doc: resource(Doc, {
-    actions: ['read', 'review'],
-    parent: { field: 'folderId', resource: 'folder' },
-    links: { folder: { field: 'folderId', resource: 'folder' } },
+    actions: ["read", "review"],
+    parent: { field: "folderId", resource: "folder" },
+    links: { folder: { field: "folderId", resource: "folder" } },
   }),
 });
 
-const roles = defineRoles({ folderAdmin: { on: 'folder' } });
+const roles = defineRoles({ folderAdmin: { on: "folder" } });
 
 export const policy = definePolicy(
   { permissions, roles },
@@ -106,13 +106,13 @@ export const policy = definePolicy(
     ],
     grants: [
       allow(permissions.doc.read, {
-        to: relation(permissions.folder, 'viewer', {
-          through: 'parent',
+        to: relation(permissions.folder, "viewer", {
+          through: "parent",
           depth: 8,
         }),
       }),
       allow(permissions.doc.review, {
-        to: relation(permissions.team, 'lead', { through: ['folder', 'team'] }),
+        to: relation(permissions.team, "lead", { through: ["folder", "team"] }),
       }),
     ],
     subject: (user: {
@@ -124,65 +124,65 @@ export const policy = definePolicy(
 
 export const rows = {
   team: [
-    { id: 'eng-team', leadId: 'lee' },
-    { id: 'sre', leadId: 'lena' },
+    { id: "eng-team", leadId: "lee" },
+    { id: "sre", leadId: "lena" },
   ],
   folder: [
-    { id: 'root', parentId: null, teamId: null, restricted: false },
-    { id: 'eng', parentId: 'root', teamId: 'eng-team', restricted: false },
-    { id: 'platform', parentId: 'eng', teamId: 'eng-team', restricted: false },
-    { id: 'deep', parentId: 'platform', teamId: 'sre', restricted: false },
-    { id: 'hr', parentId: 'root', teamId: null, restricted: true },
-    { id: 'payroll', parentId: 'hr', teamId: null, restricted: false },
+    { id: "root", parentId: null, teamId: null, restricted: false },
+    { id: "eng", parentId: "root", teamId: "eng-team", restricted: false },
+    { id: "platform", parentId: "eng", teamId: "eng-team", restricted: false },
+    { id: "deep", parentId: "platform", teamId: "sre", restricted: false },
+    { id: "hr", parentId: "root", teamId: null, restricted: true },
+    { id: "payroll", parentId: "hr", teamId: null, restricted: false },
   ],
   doc: [
-    { id: 'root-doc', folderId: 'root' },
-    { id: 'eng-doc', folderId: 'eng' },
-    { id: 'deep-doc', folderId: 'deep' },
-    { id: 'pay-doc', folderId: 'payroll' },
+    { id: "root-doc", folderId: "root" },
+    { id: "eng-doc", folderId: "eng" },
+    { id: "deep-doc", folderId: "deep" },
+    { id: "pay-doc", folderId: "payroll" },
   ],
 } as const;
 
 const tables = {
   team_members: [
-    { team_id: 'eng-team', kind: 'user', subject_id: 'carl' },
-    { team_id: 'eng-team', kind: 'team', subject_id: 'sre' },
-    { team_id: 'sre', kind: 'user', subject_id: 'tina' },
+    { team_id: "eng-team", kind: "user", subject_id: "carl" },
+    { team_id: "eng-team", kind: "team", subject_id: "sre" },
+    { team_id: "sre", kind: "user", subject_id: "tina" },
   ],
   folder_members: [
     {
-      folder_id: 'root',
-      role: 'viewer',
-      kind: 'user',
-      subject_id: 'vera',
+      folder_id: "root",
+      role: "viewer",
+      kind: "user",
+      subject_id: "vera",
       expires_at: null,
     },
     {
-      folder_id: 'eng',
-      role: 'editor',
-      kind: 'user',
-      subject_id: 'eddie',
+      folder_id: "eng",
+      role: "editor",
+      kind: "user",
+      subject_id: "eddie",
       expires_at: null,
     },
     {
-      folder_id: 'eng',
-      role: 'viewer',
-      kind: 'user',
-      subject_id: 'ex',
+      folder_id: "eng",
+      role: "viewer",
+      kind: "user",
+      subject_id: "ex",
       expires_at: 1000,
     },
     {
-      folder_id: 'platform',
-      role: 'viewer',
-      kind: 'team',
-      subject_id: 'eng-team',
+      folder_id: "platform",
+      role: "viewer",
+      kind: "team",
+      subject_id: "eng-team",
       expires_at: null,
     },
     {
-      folder_id: 'hr',
-      role: 'viewer',
-      kind: 'user',
-      subject_id: 'hana',
+      folder_id: "hr",
+      role: "viewer",
+      kind: "user",
+      subject_id: "hana",
       expires_at: null,
     },
   ],
@@ -193,8 +193,8 @@ export const relations = memoryRelations(permissions, { rows, tables });
 
 /** A folder administrator on `eng`: reaches every document below it, never above. */
 export const engAdmin = {
-  id: 'ada',
+  id: "ada",
   memberships: [
-    { on: { resource: 'folder', id: 'eng' }, roles: ['folderAdmin'] },
+    { on: { resource: "folder", id: "eng" }, roles: ["folderAdmin"] },
   ],
 } as const;

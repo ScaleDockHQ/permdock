@@ -1,13 +1,13 @@
-import { createMemo, type JSX } from 'solid-js';
+import { createMemo, type JSX } from "solid-js";
 
-import type { Decision } from '../core/decision.ts';
-import type { Permission } from '../core/permissions.ts';
-import type { SolidChild } from './types.ts';
-import type { ClientStatus, ProtectedProps } from './types.ts';
+import type { Decision } from "../core/decision.ts";
+import type { Permission } from "../core/permissions.ts";
+import type { SolidChild } from "./types.ts";
+import type { ClientStatus, ProtectedProps } from "./types.ts";
 
-import { usePermission, usePermDock } from './hooks.ts';
+import { usePermission, usePermDock } from "./hooks.ts";
 
-type DecideDock = {
+type DecidePermDock = {
   readonly decide: (permission: Permission, data?: unknown) => Decision;
 };
 
@@ -29,23 +29,23 @@ export function Protected(props: ProtectedProps): JSX.Element {
     }
     // SAFETY: decide's instance and collection overloads share one implementation that takes either kind.
     return tenantView(
-      root.tenant(props.tenant) as DecideDock,
+      root.tenant(props.tenant) as DecidePermDock,
       props.permission,
       props.data,
     );
   });
   const render = (): SolidChild => {
     const scoped = view();
-    if (scoped.status === 'pending') {
+    if (scoped.status === "pending") {
       return props.pending ?? null;
     }
-    if (!scoped.allowed || scoped.decision.outcome !== 'granted') {
-      if (typeof props.fallback === 'function') {
+    if (!scoped.allowed || scoped.decision.outcome !== "granted") {
+      if (typeof props.fallback === "function") {
         return props.fallback(scoped.decision);
       }
       return props.fallback ?? null;
     }
-    if (typeof props.children === 'function') {
+    if (typeof props.children === "function") {
       return props.children(scoped.decision);
     }
     return props.children;
@@ -55,14 +55,14 @@ export function Protected(props: ProtectedProps): JSX.Element {
 }
 
 function tenantView(
-  dock: DecideDock,
+  permdock: DecidePermDock,
   permission: Permission,
   data: unknown,
 ): ScopedView {
-  const decision = dock.decide(permission, data);
+  const decision = permdock.decide(permission, data);
   return {
-    allowed: decision.outcome === 'granted',
-    status: 'ready',
+    allowed: decision.outcome === "granted",
+    status: "ready",
     decision,
   };
 }

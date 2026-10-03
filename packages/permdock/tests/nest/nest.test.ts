@@ -1,19 +1,19 @@
-import 'reflect-metadata';
-import type { Type } from '@nestjs/common';
-import type { Server } from 'node:http';
+import "reflect-metadata";
+import type { Type } from "@nestjs/common";
+import type { Server } from "node:http";
 
-import { Controller, Delete, Get, Module } from '@nestjs/common';
-import { APP_GUARD, NestFactory } from '@nestjs/core';
-import { afterEach, describe, expect, it } from 'vitest';
+import { Controller, Delete, Get, Module } from "@nestjs/common";
+import { APP_GUARD, NestFactory } from "@nestjs/core";
+import { afterEach, describe, expect, it } from "vitest";
 
-import { createPermDock } from '../../src/nest/index.ts';
+import { createPermDock } from "../../src/nest/index.ts";
 import {
   memberUser,
   otherPost,
   ownPost,
   permissions,
   policy,
-} from '../fixtures/quick-start.ts';
+} from "../fixtures/quick-start.ts";
 
 const apps: { close(): Promise<void> }[] = [];
 
@@ -38,19 +38,19 @@ async function listen(
 ): Promise<(path: string, init?: RequestInit) => Promise<Response>> {
   const app = await NestFactory.create(module, { logger: false });
   apps.push(app);
-  await app.listen(0, '127.0.0.1');
+  await app.listen(0, "127.0.0.1");
   // SAFETY: NestFactory.create defaults to the Express platform, whose server is a node Server.
   const server = app.getHttpServer() as Server;
   const address = server.address();
-  if (address === null || typeof address === 'string') {
-    throw new TypeError('expected tcp address');
+  if (address === null || typeof address === "string") {
+    throw new TypeError("expected tcp address");
   }
   const base = `http://127.0.0.1:${String(address.port)}`;
   return (path, init) => fetch(`${base}${path}`, init);
 }
 
-describe('permdock/nest', () => {
-  it('sets a request-scoped instance and protects routes', async () => {
+describe("permdock/nest", () => {
+  it("sets a request-scoped instance and protects routes", async () => {
     const { PermDockModule, PermDockGuard, Protect, InjectPermDock } =
       createPermDock(policy, {
         subject: () => memberUser,
@@ -64,15 +64,15 @@ describe('permdock/nest', () => {
       }
     }
     Controller()(PostsController);
-    applyMethod(PostsController, 'remove', Delete('posts/:id'));
+    applyMethod(PostsController, "remove", Delete("posts/:id"));
     applyMethod(
       PostsController,
-      'remove',
+      "remove",
       Protect(permissions.post.update, (req) =>
-        req.params?.['id'] === 'p1' ? ownPost : otherPost,
+        req.params?.["id"] === "p1" ? ownPost : otherPost,
       ),
     );
-    InjectPermDock()(PostsController.prototype, 'remove', 0);
+    InjectPermDock()(PostsController.prototype, "remove", 0);
 
     class AppModule {}
     Module({
@@ -83,18 +83,18 @@ describe('permdock/nest', () => {
 
     const request = await listen(AppModule);
 
-    const allowed = await request('/posts/p1', { method: 'DELETE' });
+    const allowed = await request("/posts/p1", { method: "DELETE" });
     expect(allowed.status).toBe(200);
-    expect(await allowed.json()).toEqual({ ok: true, via: 'u1' });
+    expect(await allowed.json()).toEqual({ ok: true, via: "u1" });
 
-    const denied = await request('/posts/p2', { method: 'DELETE' });
+    const denied = await request("/posts/p2", { method: "DELETE" });
     expect(denied.status).toBe(403);
-    expect(denied.headers.get('content-type')).toContain(
-      'application/problem+json',
+    expect(denied.headers.get("content-type")).toContain(
+      "application/problem+json",
     );
   });
 
-  it('answers 401 with a bare Bearer challenge to a caller without credentials', async () => {
+  it("answers 401 with a bare Bearer challenge to a caller without credentials", async () => {
     const { PermDockModule, PermDockGuard, Protect } = createPermDock(policy, {
       subject: () => null,
     });
@@ -105,10 +105,10 @@ describe('permdock/nest', () => {
       }
     }
     Controller()(PostsController);
-    applyMethod(PostsController, 'show', Get('posts/:id'));
+    applyMethod(PostsController, "show", Get("posts/:id"));
     applyMethod(
       PostsController,
-      'show',
+      "show",
       Protect(permissions.post.read, () => ownPost),
     );
 
@@ -120,12 +120,12 @@ describe('permdock/nest', () => {
     })(AppModule);
 
     const request = await listen(AppModule);
-    const denied = await request('/posts/p1');
+    const denied = await request("/posts/p1");
     expect(denied.status).toBe(401);
-    expect(denied.headers.get('www-authenticate')).toBe('Bearer');
+    expect(denied.headers.get("www-authenticate")).toBe("Bearer");
   });
 
-  it('mounts the AuthZEN evaluations handler', async () => {
+  it("mounts the AuthZEN evaluations handler", async () => {
     const { PermDockModule, permdockHandler } = createPermDock(policy, {
       subject: () => memberUser,
     });
@@ -137,14 +137,14 @@ describe('permdock/nest', () => {
     })(AppModule);
 
     const request = await listen(AppModule);
-    const response = await request('/api/permdock', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
+    const response = await request("/api/permdock", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
       body: JSON.stringify({
         evaluations: [
           {
-            resource: { type: 'post', properties: ownPost },
-            action: { name: 'update' },
+            resource: { type: "post", properties: ownPost },
+            action: { name: "update" },
           },
         ],
       }),

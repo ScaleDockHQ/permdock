@@ -1,7 +1,7 @@
-import type { JWK } from 'jose';
+import type { JWK } from "jose";
 
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 /**
  * `.contract/env.json` as permdock-cloud's `pnpm dev:contract` writes it.
@@ -33,20 +33,20 @@ export type ContractEnv = {
   };
 };
 
-export const CONTRACT_ENV_VARIABLE = 'PERMDOCK_CLOUD_CONTRACT_ENV';
+export const CONTRACT_ENV_VARIABLE = "PERMDOCK_CLOUD_CONTRACT_ENV";
 
 /** `undefined` when the variable is unset, so the contract suite skips. */
 export function readContractEnv(): ContractEnv | undefined {
-  const path = process.env[CONTRACT_ENV_VARIABLE] ?? '';
-  if (path === '') {
+  const path = process.env[CONTRACT_ENV_VARIABLE] ?? "";
+  if (path === "") {
     return undefined;
   }
   // SAFETY: the contract env file is written by the contract harness in this shape
   const env = JSON.parse(
     readFileSync(
-      resolve(process.env['INIT_CWD'] ?? process.cwd(), path),
-      'utf8',
+      resolve(process.env["INIT_CWD"] ?? process.cwd(), path),
+      "utf8",
     ),
   ) as ContractEnv;
-  return { ...env, url: env.url.replace(/\/+$/u, '') };
+  return { ...env, url: env.url.replace(/\/+$/u, "") };
 }

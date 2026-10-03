@@ -9,8 +9,13 @@ The standard workspace list is `apps/*`, `packages/*` and `tests/*`. PermDock ha
 
 ## Decision
 
-`pnpm-workspace.yaml` also lists `apps/examples/*`, `tests/e2e/fixtures/*`, `tests/e2e/fixtures/turborepo/{apps,packages}/*` and `tests/types/*`. The root keeps the scripts the standard does not have: `authzen:vectors`, `check:publish`, `docs:drift`, `docs:dev`, `marketing:dev`, `permdock`, `size`, `standards:fixtures`, `test:e2e`, `test:integration` and `test:runtimes`.
+`pnpm-workspace.yaml` also lists `apps/examples/*`, `tests/e2e/fixtures/*`, `tests/e2e/fixtures/turborepo/{apps,packages}/*` and `tests/types/*`. The root keeps the scripts the standard does not have: `authzen:vectors`, `openapi:generate`, `permdock`, `standards:fixtures`, `test:integration` and `test:runtimes`.
 
 ## Consequences
 
 `pnpm install` resolves 64 workspaces. Vercel installs only the service and its dependencies (`--filter '{.}...'`), so deploys do not pay for them.
+
+## Alternatives considered
+
+- Examples under `apps/*`: 30 example apps would sit next to the two deployed apps and match every `apps/*` filter.
+- One workspace for all examples: each example needs its own dependencies and peer versions.

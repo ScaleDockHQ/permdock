@@ -6,8 +6,9 @@
   "main": "expo-router/entry",
   "scripts": {
     "dev": "expo start --web --port 3486",
-    "lint": "oxlint --disable-nested-config",
-    "typecheck": "tsc --noEmit --checkers 4"
+    "doctor": "permdock doctor",
+    "lint": "oxlint --disable-nested-config --type-aware",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@expo/log-box": "catalog:",

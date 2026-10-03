@@ -1,27 +1,27 @@
-import { describe, expect, it, vi } from 'vitest';
-import { z } from 'zod';
+import { describe, expect, it, vi } from "vitest";
+import { z } from "zod";
 
-import type { Decision } from '../../src/core/decision.ts';
-import type { DecisionProvider } from '../../src/core/interfaces.ts';
+import type { Decision } from "../../src/core/decision.ts";
+import type { DecisionProvider } from "../../src/core/interfaces.ts";
 
 import {
   PermDockApprovalRequiredError,
   PermDockDeniedError,
   PermDockValidationError,
-} from '../../src/core/errors.ts';
-import { definePermissions, resource } from '../../src/core/permissions.ts';
-import { allow, definePolicy, deny, role } from '../../src/core/policy.ts';
-import { createPermDock } from '../../src/pdp/index.ts';
-import { reasonOf } from '../fixtures/decisions.ts';
+} from "../../src/core/errors.ts";
+import { definePermissions, resource } from "../../src/core/permissions.ts";
+import { allow, definePolicy, deny, role } from "../../src/core/policy.ts";
+import { createPermDock } from "../../src/pdp/index.ts";
+import { reasonOf } from "../fixtures/decisions.ts";
 
 const permissions = definePermissions({
   post: resource(z.object({ id: z.string(), title: z.string() }), {
-    id: 'id',
-    actions: ['read', 'update', 'delete'],
+    id: "id",
+    actions: ["read", "update", "delete"],
   }),
   note: resource(z.object({ key: z.string() }), {
-    id: 'key',
-    actions: ['read'],
+    id: "key",
+    actions: ["read"],
   }),
 });
 
@@ -34,34 +34,34 @@ type User = {
   }[];
 };
 
-const member: User = { id: 'u1', roles: ['member'] };
-const post = { id: 'p1', title: 'Hello' };
+const member: User = { id: "u1", roles: ["member"] };
+const post = { id: "p1", title: "Hello" };
 
 function grantedBy(name: string): Decision {
   return {
-    outcome: 'granted',
+    outcome: "granted",
     subject: {
-      principal: { id: 'u1', roles: ['member'] },
+      principal: { id: "u1", roles: ["member"] },
       context: {},
     },
-    matched: { role: name, permission: 'post.read', provider: name },
-    token: 'pd1.test',
+    matched: { role: name, permission: "post.read", provider: name },
+    token: "pd1.test",
   };
 }
 
-function deniedBy(reason: 'pdp-denied' | 'pdp-unavailable'): Decision {
+function deniedBy(reason: "pdp-denied" | "pdp-unavailable"): Decision {
   return {
-    outcome: 'denied',
+    outcome: "denied",
     denials: [{ role: null, reason }],
     alternatives: [],
   };
 }
 
 function provider(
-  overrides: Partial<DecisionProvider> & Pick<DecisionProvider, 'decide'>,
+  overrides: Partial<DecisionProvider> & Pick<DecisionProvider, "decide">,
 ): DecisionProvider {
   return {
-    name: 'fake',
+    name: "fake",
     handles: () => true,
     ...overrides,
   };
@@ -73,7 +73,7 @@ function policyWith(
 ) {
   return definePolicy(permissions, {
     roles: [
-      role('member', [
+      role("member", [
         allow(permissions.post.read),
         allow(permissions.post.update),
         deny(permissions.post.delete),
@@ -86,64 +86,67 @@ function policyWith(
   });
 }
 
-describe('permdock/pdp createPermDock', () => {
-  it('returns the local decision for permissions no provider handles', async () => {
-    const decide = vi.fn<DecisionProvider['decide']>(async () =>
-      grantedBy('fake'),
+describe("permdock/pdp createPermDock", () => {
+  it("returns the local decision for permissions no provider handles", async () => {
+    const decide = vi.fn<DecisionProvider["decide"]>(async () =>
+      grantedBy("fake"),
     );
-    const dock = await createPermDock(
+    const permdock = await createPermDock(
       policyWith([provider({ handles: () => false, decide })]),
       member,
     );
-    const decision = await dock.decide(permissions.post.read, post);
+    const decision = await permdock.decide(permissions.post.read, post);
     expect({
       outcome: decision.outcome,
       calls: decide.mock.calls.length,
-    }).toEqual({ outcome: 'granted', calls: 0 });
+    }).toEqual({ outcome: "granted", calls: 0 });
   });
 
-  it('keeps a policy with an empty provider list fully local', async () => {
-    const dock = await createPermDock(policyWith([]), member);
-    expect(await dock.can(permissions.post.read, post)).toBe(true);
-    expect(await dock.can(permissions.post.delete, post)).toBe(false);
+  it("keeps a policy with an empty provider list fully local", async () => {
+    const permdock = await createPermDock(policyWith([]), member);
+    expect(await permdock.can(permissions.post.read, post)).toBe(true);
+    expect(await permdock.can(permissions.post.delete, post)).toBe(false);
   });
 
-  it('short-circuits an anonymous subject without asking the provider', async () => {
-    const decide = vi.fn<DecisionProvider['decide']>(async () =>
-      grantedBy('fake'),
+  it("short-circuits an anonymous subject without asking the provider", async () => {
+    const decide = vi.fn<DecisionProvider["decide"]>(async () =>
+      grantedBy("fake"),
     );
-    const dock = await createPermDock(policyWith([provider({ decide })]), null);
-    const decision = await dock.decide(permissions.post.read, post);
+    const permdock = await createPermDock(
+      policyWith([provider({ decide })]),
+      null,
+    );
+    const decision = await permdock.decide(permissions.post.read, post);
     expect({
       reason: reasonOf(decision),
       calls: decide.mock.calls.length,
-    }).toEqual({ reason: 'anonymous', calls: 0 });
+    }).toEqual({ reason: "anonymous", calls: 0 });
   });
 
-  it('short-circuits a local validation failure without asking the provider', async () => {
-    const decide = vi.fn<DecisionProvider['decide']>(async () =>
-      grantedBy('fake'),
+  it("short-circuits a local validation failure without asking the provider", async () => {
+    const decide = vi.fn<DecisionProvider["decide"]>(async () =>
+      grantedBy("fake"),
     );
-    const dock = await createPermDock(
+    const permdock = await createPermDock(
       policyWith([provider({ decide })]),
       member,
     );
-    const decision = await dock.decide(permissions.post.read, { id: 1 });
+    const decision = await permdock.decide(permissions.post.read, { id: 1 });
     expect({
       reason: reasonOf(decision),
       calls: decide.mock.calls.length,
-    }).toEqual({ reason: 'validation', calls: 0 });
+    }).toEqual({ reason: "validation", calls: 0 });
   });
 
-  it('passes the local decision, row and subject to the provider', async () => {
-    const decide = vi.fn<DecisionProvider['decide']>(async () =>
-      grantedBy('fake'),
+  it("passes the local decision, row and subject to the provider", async () => {
+    const decide = vi.fn<DecisionProvider["decide"]>(async () =>
+      grantedBy("fake"),
     );
-    const dock = await createPermDock(
+    const permdock = await createPermDock(
       policyWith([provider({ decide })]),
       member,
     );
-    await dock.decide(permissions.post.read, post);
+    await permdock.decide(permissions.post.read, post);
     const request = decide.mock.calls[0]?.[0];
     expect({
       permission: request?.permission.key,
@@ -151,62 +154,62 @@ describe('permdock/pdp createPermDock', () => {
       principal: request?.subject.principal?.id,
       local: request?.local.outcome,
     }).toEqual({
-      permission: 'post.read',
+      permission: "post.read",
       data: post,
-      principal: 'u1',
-      local: 'granted',
+      principal: "u1",
+      local: "granted",
     });
   });
 
-  it('denies with pdp-unavailable when a provider throws', async () => {
-    const dock = await createPermDock(
+  it("denies with pdp-unavailable when a provider throws", async () => {
+    const permdock = await createPermDock(
       policyWith([
         provider({
           decide: () => {
-            throw new Error('boom');
+            throw new Error("boom");
           },
         }),
       ]),
       member,
     );
-    expect(reasonOf(await dock.decide(permissions.post.read, post))).toBe(
-      'pdp-unavailable',
+    expect(reasonOf(await permdock.decide(permissions.post.read, post))).toBe(
+      "pdp-unavailable",
     );
-    expect(await dock.can(permissions.post.read, post)).toBe(false);
+    expect(await permdock.can(permissions.post.read, post)).toBe(false);
   });
 
-  it('denies with pdp-unavailable when a provider rejects', async () => {
-    const dock = await createPermDock(
+  it("denies with pdp-unavailable when a provider rejects", async () => {
+    const permdock = await createPermDock(
       policyWith([
-        provider({ decide: () => Promise.reject(new Error('boom')) }),
+        provider({ decide: () => Promise.reject(new Error("boom")) }),
       ]),
       member,
     );
-    expect(reasonOf(await dock.decide(permissions.post.read, post))).toBe(
-      'pdp-unavailable',
+    expect(reasonOf(await permdock.decide(permissions.post.read, post))).toBe(
+      "pdp-unavailable",
     );
   });
 
-  describe('assert', () => {
-    it('returns a granted decision', async () => {
-      const dock = await createPermDock(
-        policyWith([provider({ decide: async () => grantedBy('fake') })]),
+  describe("assert", () => {
+    it("returns a granted decision", async () => {
+      const permdock = await createPermDock(
+        policyWith([provider({ decide: async () => grantedBy("fake") })]),
         member,
       );
-      const decision = await dock.assert(permissions.post.read, post);
-      expect(decision.outcome).toBe('granted');
+      const decision = await permdock.assert(permissions.post.read, post);
+      expect(decision.outcome).toBe("granted");
     });
 
-    it('throws PermDockDeniedError with the resource id and calls policy onDenied', async () => {
+    it("throws PermDockDeniedError with the resource id and calls policy onDenied", async () => {
       const onDenied = vi.fn<(decision: unknown) => void>();
-      const dock = await createPermDock(
+      const permdock = await createPermDock(
         policyWith(
-          [provider({ decide: async () => deniedBy('pdp-denied') })],
+          [provider({ decide: async () => deniedBy("pdp-denied") })],
           onDenied,
         ),
         member,
       );
-      const error = await dock
+      const error = await permdock
         .assert(permissions.post.read, post)
         .catch((caught: unknown) => caught);
       expect(error).toBeInstanceOf(PermDockDeniedError);
@@ -215,24 +218,24 @@ describe('permdock/pdp createPermDock', () => {
           ? { permission: error.permission, resource: error.resource }
           : null,
       ).toEqual({
-        permission: 'post.read',
-        resource: { type: 'post', id: 'p1' },
+        permission: "post.read",
+        resource: { type: "post", id: "p1" },
       });
       expect(onDenied.mock.calls.length).toBe(1);
     });
 
-    it('prefers the per-call onDenied over the policy one', async () => {
+    it("prefers the per-call onDenied over the policy one", async () => {
       const fromPolicy = vi.fn<(decision: unknown) => void>();
       const fromCall = vi.fn<(decision: unknown) => void>();
-      const dock = await createPermDock(
+      const permdock = await createPermDock(
         policyWith(
-          [provider({ decide: async () => deniedBy('pdp-denied') })],
+          [provider({ decide: async () => deniedBy("pdp-denied") })],
           fromPolicy,
         ),
         member,
       );
       await expect(
-        dock.assert(permissions.post.read, post, { onDenied: fromCall }),
+        permdock.assert(permissions.post.read, post, { onDenied: fromCall }),
       ).rejects.toBeInstanceOf(PermDockDeniedError);
       expect({
         policy: fromPolicy.mock.calls.length,
@@ -240,73 +243,73 @@ describe('permdock/pdp createPermDock', () => {
       }).toEqual({ policy: 0, call: 1 });
     });
 
-    it('omits the resource id when the data is not an object', async () => {
-      const dock = await createPermDock(
-        policyWith([provider({ decide: async () => deniedBy('pdp-denied') })]),
+    it("omits the resource id when the data is not an object", async () => {
+      const permdock = await createPermDock(
+        policyWith([provider({ decide: async () => deniedBy("pdp-denied") })]),
         member,
       );
-      const error = await dock
+      const error = await permdock
         .assert(permissions.post.read)
         .catch((caught: unknown) => caught);
       expect(
         error instanceof PermDockDeniedError ? error.resource : null,
-      ).toEqual({ type: 'post' });
+      ).toEqual({ type: "post" });
     });
 
-    it('reads the resource id from the declared id field', async () => {
-      const dock = await createPermDock(
-        policyWith([provider({ decide: async () => deniedBy('pdp-denied') })]),
+    it("reads the resource id from the declared id field", async () => {
+      const permdock = await createPermDock(
+        policyWith([provider({ decide: async () => deniedBy("pdp-denied") })]),
         member,
       );
-      const error = await dock
-        .assert(permissions.note.read, { key: 'n1' })
+      const error = await permdock
+        .assert(permissions.note.read, { key: "n1" })
         .catch((caught: unknown) => caught);
       expect(
         error instanceof PermDockDeniedError ? error.resource : null,
-      ).toEqual({ type: 'note', id: 'n1' });
+      ).toEqual({ type: "note", id: "n1" });
     });
 
-    it('throws PermDockApprovalRequiredError for approval-required', async () => {
-      const dock = await createPermDock(
+    it("throws PermDockApprovalRequiredError for approval-required", async () => {
+      const permdock = await createPermDock(
         policyWith([
           provider({
             decide: async () => ({
-              outcome: 'approval-required',
+              outcome: "approval-required",
               grant: {
-                role: 'pdp',
-                permission: 'post.read',
-                provider: 'pdp',
-                approval: 'human',
+                role: "pdp",
+                permission: "post.read",
+                provider: "pdp",
+                approval: "human",
               },
-              reason: 'human',
-              token: 'pd1.remote',
+              reason: "human",
+              token: "pd1.remote",
             }),
           }),
         ]),
         member,
       );
       await expect(
-        dock.assert(permissions.post.read, post),
+        permdock.assert(permissions.post.read, post),
       ).rejects.toBeInstanceOf(PermDockApprovalRequiredError);
     });
 
-    it('rethrows the validation error for invalid data', async () => {
-      const dock = await createPermDock(
-        policyWith([provider({ decide: async () => grantedBy('fake') })]),
+    it("rethrows the validation error for invalid data", async () => {
+      const permdock = await createPermDock(
+        policyWith([provider({ decide: async () => grantedBy("fake") })]),
         member,
       );
       await expect(
-        dock.assert(permissions.post.read, { id: 1 }),
+        permdock.assert(permissions.post.read, { id: 1 }),
       ).rejects.toBeInstanceOf(PermDockValidationError);
     });
 
-    it('throws PermDockDeniedError for a validation denial without an error detail', async () => {
-      const dock = await createPermDock(
+    it("throws PermDockDeniedError for a validation denial without an error detail", async () => {
+      const permdock = await createPermDock(
         policyWith([
           provider({
             decide: async () => ({
-              outcome: 'denied',
-              denials: [{ role: null, reason: 'validation' }],
+              outcome: "denied",
+              denials: [{ role: null, reason: "validation" }],
               alternatives: [],
             }),
           }),
@@ -314,45 +317,48 @@ describe('permdock/pdp createPermDock', () => {
         member,
       );
       await expect(
-        dock.assert(permissions.post.read, post),
+        permdock.assert(permissions.post.read, post),
       ).rejects.toBeInstanceOf(PermDockDeniedError);
     });
   });
 
-  describe('simulate', () => {
-    it('decides each pair through the provider', async () => {
-      const dock = await createPermDock(
+  describe("simulate", () => {
+    it("decides each pair through the provider", async () => {
+      const permdock = await createPermDock(
         policyWith([
           provider({
             decide: async (request) =>
-              request.permission.key === 'post.read'
-                ? grantedBy('fake')
-                : deniedBy('pdp-denied'),
+              request.permission.key === "post.read"
+                ? grantedBy("fake")
+                : deniedBy("pdp-denied"),
           }),
         ]),
         member,
       );
-      const decisions = await dock.simulate([
+      const decisions = await permdock.simulate([
         [permissions.post.read, post],
         [permissions.post.update, post],
         [permissions.post.delete, post],
       ]);
       expect(decisions.map((decision) => reasonOf(decision))).toEqual([
         undefined,
-        'pdp-denied',
-        'deny',
+        "pdp-denied",
+        "deny",
       ]);
     });
 
-    it('returns a PDP instance for a role preview', async () => {
-      const decide = vi.fn<DecisionProvider['decide']>(async () =>
-        grantedBy('fake'),
+    it("returns a PDP instance for a role preview", async () => {
+      const decide = vi.fn<DecisionProvider["decide"]>(async () =>
+        grantedBy("fake"),
       );
-      const dock = await createPermDock(policyWith([provider({ decide })]), {
-        id: 'u1',
-        roles: [],
-      });
-      const preview = dock.simulate({ roles: ['member'] });
+      const permdock = await createPermDock(
+        policyWith([provider({ decide })]),
+        {
+          id: "u1",
+          roles: [],
+        },
+      );
+      const preview = permdock.simulate({ roles: ["member"] });
       expect(await preview.can(permissions.post.read, post)).toBe(true);
       expect(await preview.can(permissions.post.delete, post)).toBe(false);
       expect(
@@ -360,174 +366,181 @@ describe('permdock/pdp createPermDock', () => {
           request.permission.key,
           request.local.outcome,
         ]),
-      ).toEqual([['post.read', 'granted']]);
+      ).toEqual([["post.read", "granted"]]);
     });
 
-    it('delegates an Arazzo plan to the local instance', async () => {
-      const dock = await createPermDock(policyWith([]), member);
-      const plan = dock.simulate({ arazzo: {}, openapi: {} });
+    it("delegates an Arazzo plan to the local instance", async () => {
+      const permdock = await createPermDock(policyWith([]), member);
+      const plan = permdock.simulate({ arazzo: {}, openapi: {} });
       expect(plan instanceof Promise).toBe(false);
     });
   });
 
-  describe('filter', () => {
+  describe("filter", () => {
     const rows = [
-      { id: 'p1', title: 'a' },
-      { id: 'p2', title: 'b' },
-      { id: 'p3', title: 'c' },
+      { id: "p1", title: "a" },
+      { id: "p2", title: "b" },
+      { id: "p3", title: "c" },
     ];
 
-    it('decides row by row when the provider cannot list', async () => {
-      const dock = await createPermDock(
+    it("decides row by row when the provider cannot list", async () => {
+      const permdock = await createPermDock(
         policyWith([
           provider({
             decide: async (request) =>
               // SAFETY: the rows above are the only data filter passes.
-              (request.data as { readonly id: string }).id === 'p2'
-                ? deniedBy('pdp-denied')
-                : grantedBy('fake'),
+              (request.data as { readonly id: string }).id === "p2"
+                ? deniedBy("pdp-denied")
+                : grantedBy("fake"),
           }),
         ]),
         member,
       );
       expect(
-        (await dock.filter(permissions.post.read, rows)).map((row) => row.id),
-      ).toEqual(['p1', 'p3']);
+        (await permdock.filter(permissions.post.read, rows)).map(
+          (row) => row.id,
+        ),
+      ).toEqual(["p1", "p3"]);
     });
 
-    it('decides row by row for an anonymous subject without listing', async () => {
-      const permitted = vi.fn<NonNullable<DecisionProvider['permitted']>>(
-        async () => ['p1'],
+    it("decides row by row for an anonymous subject without listing", async () => {
+      const permitted = vi.fn<NonNullable<DecisionProvider["permitted"]>>(
+        async () => ["p1"],
       );
-      const dock = await createPermDock(
+      const permdock = await createPermDock(
         policyWith([
-          provider({ decide: async () => grantedBy('fake'), permitted }),
+          provider({ decide: async () => grantedBy("fake"), permitted }),
         ]),
         null,
       );
-      expect(await dock.filter(permissions.post.read, rows)).toEqual([]);
+      expect(await permdock.filter(permissions.post.read, rows)).toEqual([]);
       expect(permitted.mock.calls.length).toBe(0);
     });
 
-    it('denies every row when the listing fails or throws', async () => {
+    it("denies every row when the listing fails or throws", async () => {
       for (const permitted of [
         async () => null,
         async () => {
-          throw new Error('boom');
+          throw new Error("boom");
         },
       ]) {
-        const dock = await createPermDock(
+        const permdock = await createPermDock(
           policyWith([
-            provider({ decide: async () => grantedBy('fake'), permitted }),
+            provider({ decide: async () => grantedBy("fake"), permitted }),
           ]),
           member,
         );
-        expect(await dock.filter(permissions.post.read, rows)).toEqual([]);
+        expect(await permdock.filter(permissions.post.read, rows)).toEqual([]);
       }
     });
 
-    it('keeps listed rows unless local evaluation short-circuits them', async () => {
-      const dock = await createPermDock(
+    it("keeps listed rows unless local evaluation short-circuits them", async () => {
+      const permdock = await createPermDock(
         policyWith([
           provider({
-            decide: async () => grantedBy('fake'),
-            permitted: async () => ['p1', 'p3'],
+            decide: async () => grantedBy("fake"),
+            permitted: async () => ["p1", "p3"],
           }),
         ]),
         member,
       );
       expect(
-        (await dock.filter(permissions.post.read, rows)).map((row) => row.id),
-      ).toEqual(['p1', 'p3']);
-      expect(await dock.filter(permissions.post.delete, rows)).toEqual([]);
+        (await permdock.filter(permissions.post.read, rows)).map(
+          (row) => row.id,
+        ),
+      ).toEqual(["p1", "p3"]);
+      expect(await permdock.filter(permissions.post.delete, rows)).toEqual([]);
     });
   });
 
-  describe('where', () => {
-    it('returns the local where for a permission no provider handles', async () => {
-      const dock = await createPermDock(
+  describe("where", () => {
+    it("returns the local where for a permission no provider handles", async () => {
+      const permdock = await createPermDock(
         policyWith([
           provider({
             handles: () => false,
-            decide: async () => grantedBy('x'),
+            decide: async () => grantedBy("x"),
           }),
         ]),
         member,
       );
-      expect((await dock.where(permissions.post.read)).partial).toBe(false);
+      expect((await permdock.where(permissions.post.read)).partial).toBe(false);
     });
 
-    it('returns an always-false complete result for an empty, failed or thrown listing', async () => {
+    it("returns an always-false complete result for an empty, failed or thrown listing", async () => {
       for (const permitted of [
         async () => [],
         async () => null,
         async () => {
-          throw new Error('boom');
+          throw new Error("boom");
         },
       ]) {
-        const dock = await createPermDock(
+        const permdock = await createPermDock(
           policyWith([
-            provider({ decide: async () => grantedBy('fake'), permitted }),
+            provider({ decide: async () => grantedBy("fake"), permitted }),
           ]),
           member,
         );
-        expect(await dock.where(permissions.post.read)).toEqual({
-          condition: { op: 'or', conditions: [] },
+        expect(await permdock.where(permissions.post.read)).toEqual({
+          condition: { op: "or", conditions: [] },
           partial: false,
         });
       }
     });
 
-    it('returns an always-false partial result for an anonymous subject', async () => {
-      const dock = await createPermDock(
+    it("returns an always-false partial result for an anonymous subject", async () => {
+      const permdock = await createPermDock(
         policyWith([
           provider({
-            decide: async () => grantedBy('fake'),
-            permitted: async () => ['p1'],
+            decide: async () => grantedBy("fake"),
+            permitted: async () => ["p1"],
           }),
         ]),
         null,
       );
-      expect(await dock.where(permissions.post.read)).toEqual({
-        condition: { op: 'or', conditions: [] },
+      expect(await permdock.where(permissions.post.read)).toEqual({
+        condition: { op: "or", conditions: [] },
         partial: true,
       });
     });
 
-    it('is the remote id list alone and partial when no local grant exists', async () => {
-      const dock = await createPermDock(
+    it("is the remote id list alone and partial when no local grant exists", async () => {
+      const permdock = await createPermDock(
         policyWith([
           provider({
-            decide: async () => grantedBy('fake'),
-            permitted: async () => ['n1'],
+            decide: async () => grantedBy("fake"),
+            permitted: async () => ["n1"],
           }),
         ]),
-        { id: 'u1', roles: [] },
+        { id: "u1", roles: [] },
       );
-      expect(await dock.where(permissions.note.read)).toEqual({
-        condition: { op: 'in', field: 'key', value: ['n1'] },
+      expect(await permdock.where(permissions.note.read)).toEqual({
+        condition: { op: "in", field: "key", value: ["n1"] },
         partial: true,
       });
     });
   });
 
-  describe('scoped instances', () => {
-    it('keeps the provider on tenant and team instances', async () => {
-      const decide = vi.fn<DecisionProvider['decide']>(async () =>
-        deniedBy('pdp-denied'),
+  describe("scoped instances", () => {
+    it("keeps the provider on tenant and team instances", async () => {
+      const decide = vi.fn<DecisionProvider["decide"]>(async () =>
+        deniedBy("pdp-denied"),
       );
-      const dock = await createPermDock(policyWith([provider({ decide })]), {
-        id: 'u1',
-        roles: [],
-        memberships: [{ tenant: 'acme', roles: ['member'] }],
-      });
-      const tenant = dock.tenant('acme');
+      const permdock = await createPermDock(
+        policyWith([provider({ decide })]),
+        {
+          id: "u1",
+          roles: [],
+          memberships: [{ tenant: "acme", roles: ["member"] }],
+        },
+      );
+      const tenant = permdock.tenant("acme");
       expect(reasonOf(await tenant.decide(permissions.post.read, post))).toBe(
-        'pdp-denied',
+        "pdp-denied",
       );
-      const team = dock.team('t1');
+      const team = permdock.team("t1");
       expect(await team.can(permissions.post.read, post)).toBe(false);
-      expect(tenant.subject.principal?.tenant).toBe('acme');
+      expect(tenant.subject.principal?.tenant).toBe("acme");
     });
   });
 });

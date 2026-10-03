@@ -1,8 +1,9 @@
-import { Hono } from 'hono';
-import { createPermDock } from 'permdock/hono';
+import { Hono } from "hono";
+import { createPermDock } from "permdock/hono";
+import { withOtel } from "permdock/otel";
 
-import { ownPost, permissions } from './permissions.ts';
-import { memberUser, policy } from './policy.ts';
+import { ownPost, permissions } from "./permissions.ts";
+import { memberUser, policy } from "./policy.ts";
 
 export const otelLog: {
   readonly message: string;
@@ -11,30 +12,31 @@ export const otelLog: {
 
 const { protect } = createPermDock(policy, {
   subject: () => memberUser,
-  otel: {
-    logger: {
-      info(message: string, attributes?: Record<string, unknown>) {
-        otelLog.push({ message, attributes });
+  otel: (permdock) =>
+    withOtel(permdock, {
+      logger: {
+        info(message: string, attributes?: Record<string, unknown>) {
+          otelLog.push({ message, attributes });
+        },
+        warn(message: string, attributes?: Record<string, unknown>) {
+          otelLog.push({ message, attributes });
+        },
       },
-      warn(message: string, attributes?: Record<string, unknown>) {
-        otelLog.push({ message, attributes });
-      },
-    },
-  },
+    }),
 });
 
 export const app = new Hono();
 
-app.get('/health', (c) => c.json({ ok: true }));
+app.get("/health", (c) => c.json({ ok: true }));
 
 app.patch(
-  '/posts/:id',
+  "/posts/:id",
   protect(permissions.post.update, () => ownPost),
   (c) => c.json({ ok: true }),
 );
 
 app.post(
-  '/posts/:id/publish',
+  "/posts/:id/publish",
   protect(permissions.post.publish, () => ownPost),
   (c) => c.json({ ok: true }),
 );

@@ -1,26 +1,26 @@
-import type { RelatedCondition } from '../conditions/ast.ts';
+import type { RelatedCondition } from "../conditions/ast.ts";
 import type {
   RelationChain,
   RelationGroup,
   RelationHolder,
   RelationSource,
-} from './interfaces.ts';
+} from "./interfaces.ts";
 import type {
   EdgeRelation,
   PermissionTree,
   ResourceNode,
-} from './permissions.ts';
-import type { Subject } from './subject.ts';
+} from "./permissions.ts";
+import type { Subject } from "./subject.ts";
 
-import { ownGet } from './paths.ts';
+import { ownGet } from "./paths.ts";
 import {
   expandRelation,
   getRegistry,
   isComputedRelation,
   isEdgeRelation,
   isPrincipalRelation,
-} from './permissions.ts';
-import { isThenable } from './thenable.ts';
+} from "./permissions.ts";
+import { isThenable } from "./thenable.ts";
 
 /** How deep groups of one resource may nest in each other; a group of another resource starts a fresh count. */
 export const DEFAULT_GROUP_DEPTH = 16;
@@ -29,14 +29,14 @@ export const DEFAULT_GROUP_DEPTH = 16;
 export type ReadHolder = RelationHolder & { readonly relation: string };
 
 type CacheEntry =
-  | { readonly state: 'ready'; readonly value: unknown }
-  | { readonly state: 'pending'; readonly promise: Promise<void> }
-  | { readonly state: 'failed' };
+  | { readonly state: "ready"; readonly value: unknown }
+  | { readonly state: "pending"; readonly promise: Promise<void> }
+  | { readonly state: "failed" };
 
 /** One instance's relation facts, keyed by query. Lives on the instance, never at module level. */
 export type RelationCache = Map<string, CacheEntry>;
 
-export type Unread = 'pending' | 'failed';
+export type Unread = "pending" | "failed";
 
 /** Synchronous reads over a `RelationSource` and the instance's cache. */
 export type RelationReader = {
@@ -59,61 +59,61 @@ export type RelationReader = {
 
 export type RelatedVerdict =
   | boolean
-  | 'relation-depth'
-  | 'relation-unavailable';
+  | "relation-depth"
+  | "relation-unavailable";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function isInstant(value: unknown): value is number | undefined {
   return (
-    value === undefined || (typeof value === 'number' && Number.isFinite(value))
+    value === undefined || (typeof value === "number" && Number.isFinite(value))
   );
 }
 
 function asChain(value: unknown): RelationChain | undefined {
-  if (!isRecord(value) || !Array.isArray(value['ancestors'])) {
+  if (!isRecord(value) || !Array.isArray(value["ancestors"])) {
     return undefined;
   }
   const ancestors: { readonly id: string; readonly restricted?: boolean }[] =
     [];
   // SAFETY: a widening from any, so each ancestor is checked with isRecord below.
-  for (const item of value['ancestors'] as readonly unknown[]) {
+  for (const item of value["ancestors"] as readonly unknown[]) {
     if (
       !isRecord(item) ||
-      typeof item['id'] !== 'string' ||
-      item['id'] === ''
+      typeof item["id"] !== "string" ||
+      item["id"] === ""
     ) {
       return undefined;
     }
     ancestors.push(
-      item['restricted'] === true
-        ? { id: item['id'], restricted: true }
-        : { id: item['id'] },
+      item["restricted"] === true
+        ? { id: item["id"], restricted: true }
+        : { id: item["id"] },
     );
   }
   return {
     ancestors,
-    ...(value['restricted'] === true ? { restricted: true } : {}),
-    ...(value['truncated'] === true ? { truncated: true } : {}),
+    ...(value["restricted"] === true ? { restricted: true } : {}),
+    ...(value["truncated"] === true ? { truncated: true } : {}),
   };
 }
 
 function asGroup(value: unknown): RelationGroup | undefined {
   if (
     !isRecord(value) ||
-    typeof value['resource'] !== 'string' ||
-    typeof value['id'] !== 'string' ||
-    typeof value['relation'] !== 'string' ||
-    value['id'] === ''
+    typeof value["resource"] !== "string" ||
+    typeof value["id"] !== "string" ||
+    typeof value["relation"] !== "string" ||
+    value["id"] === ""
   ) {
     return undefined;
   }
   return {
-    resource: value['resource'],
-    id: value['id'],
-    relation: value['relation'],
+    resource: value["resource"],
+    id: value["id"],
+    relation: value["relation"],
   };
 }
 
@@ -126,25 +126,25 @@ function asHolders(value: unknown): readonly RelationHolder[] | undefined {
   for (const item of value as readonly unknown[]) {
     if (
       !isRecord(item) ||
-      !isInstant(item['startsAt']) ||
-      !isInstant(item['expiresAt'])
+      !isInstant(item["startsAt"]) ||
+      !isInstant(item["expiresAt"])
     ) {
       return undefined;
     }
     const period = {
-      ...(item['startsAt'] === undefined ? {} : { startsAt: item['startsAt'] }),
-      ...(item['expiresAt'] === undefined
+      ...(item["startsAt"] === undefined ? {} : { startsAt: item["startsAt"] }),
+      ...(item["expiresAt"] === undefined
         ? {}
-        : { expiresAt: item['expiresAt'] }),
+        : { expiresAt: item["expiresAt"] }),
     };
     if (
-      isRecord(item['principal']) &&
-      typeof item['principal']['id'] === 'string'
+      isRecord(item["principal"]) &&
+      typeof item["principal"]["id"] === "string"
     ) {
-      holders.push({ principal: { id: item['principal']['id'] }, ...period });
+      holders.push({ principal: { id: item["principal"]["id"] }, ...period });
       continue;
     }
-    const group = asGroup(item['group']);
+    const group = asGroup(item["group"]);
     if (group === undefined) {
       return undefined;
     }
@@ -162,38 +162,38 @@ function read<T>(
   const entry = cache.get(key);
   if (entry !== undefined) {
     // SAFETY: a ready entry holds the result of validate, and each key is read with one validator.
-    return entry.state === 'ready' ? (entry.value as T) : entry.state;
+    return entry.state === "ready" ? (entry.value as T) : entry.state;
   }
   if (call === undefined) {
-    return 'failed';
+    return "failed";
   }
   const settle = (value: unknown): void => {
     const valid = validate(value);
     cache.set(
       key,
       valid === undefined
-        ? { state: 'failed' }
-        : { state: 'ready', value: valid },
+        ? { state: "failed" }
+        : { state: "ready", value: valid },
     );
   };
   let result: unknown;
   try {
     result = call();
   } catch {
-    cache.set(key, { state: 'failed' });
-    return 'failed';
+    cache.set(key, { state: "failed" });
+    return "failed";
   }
   if (isThenable(result)) {
     const promise = Promise.resolve(result).then(settle, () => {
-      cache.set(key, { state: 'failed' });
+      cache.set(key, { state: "failed" });
     });
-    cache.set(key, { state: 'pending', promise });
-    return 'pending';
+    cache.set(key, { state: "pending", promise });
+    return "pending";
   }
   settle(result);
   const settled = cache.get(key);
   // SAFETY: settle above stored validate's result for this key.
-  return settled?.state === 'ready' ? (settled.value as T) : 'failed';
+  return settled?.state === "ready" ? (settled.value as T) : "failed";
 }
 
 export function relationReader(
@@ -208,7 +208,7 @@ export function relationReader(
   ): readonly RelationHolder[] | Unread =>
     read(
       cache,
-      JSON.stringify(['holders', resource, id, relation]),
+      JSON.stringify(["holders", resource, id, relation]),
       source === undefined
         ? undefined
         : () => source.related({ resource, id, relation }),
@@ -217,11 +217,11 @@ export function relationReader(
   return {
     available: source !== undefined,
     chain(query) {
-      const through = query.through ?? 'parent';
+      const through = query.through ?? "parent";
       return read(
         cache,
         JSON.stringify([
-          'chain',
+          "chain",
           query.resource,
           query.id,
           query.depth,
@@ -249,9 +249,9 @@ export function relationReader(
       let unread: Unread | undefined;
       for (const name of names) {
         const answer = concrete(query.resource, query.id, name);
-        if (answer === 'pending' || answer === 'failed') {
+        if (answer === "pending" || answer === "failed") {
           unread =
-            answer === 'failed' || unread === 'failed' ? 'failed' : 'pending';
+            answer === "failed" || unread === "failed" ? "failed" : "pending";
           continue;
         }
         for (const holder of answer) {
@@ -269,7 +269,7 @@ export function pendingRelations(
 ): readonly Promise<void>[] {
   const out: Promise<void>[] = [];
   for (const entry of cache.values()) {
-    if (entry.state === 'pending') {
+    if (entry.state === "pending") {
       out.push(entry.promise);
     }
   }
@@ -277,13 +277,13 @@ export function pendingRelations(
 }
 
 export function relationId(value: unknown): string | undefined {
-  if (typeof value === 'string') {
-    return value === '' ? undefined : value;
+  if (typeof value === "string") {
+    return value === "" ? undefined : value;
   }
-  if (typeof value === 'number' && Number.isFinite(value)) {
+  if (typeof value === "number" && Number.isFinite(value)) {
     return String(value);
   }
-  if (typeof value === 'bigint') {
+  if (typeof value === "bigint") {
     return String(value);
   }
   return undefined;
@@ -303,7 +303,7 @@ function holdsNow(
   now: number,
 ): boolean {
   return (
-    'principal' in holder &&
+    "principal" in holder &&
     holder.principal.id === principalId &&
     activeNow(holder, now)
   );
@@ -314,7 +314,7 @@ function followHops(
   condition: RelatedCondition,
   first: string,
   reader: RelationReader,
-): { readonly id: string } | 'relation-unavailable' | undefined {
+): { readonly id: string } | "relation-unavailable" | undefined {
   const hops = condition.hops ?? [];
   let id = first;
   for (let index = 1; index < hops.length; index += 1) {
@@ -330,8 +330,8 @@ function followHops(
       depth: 1,
       through: hop.link,
     });
-    if (chain === 'pending' || chain === 'failed') {
-      return 'relation-unavailable';
+    if (chain === "pending" || chain === "failed") {
+      return "relation-unavailable";
     }
     const next = chain.ancestors[0]?.id;
     if (next === undefined) {
@@ -352,8 +352,8 @@ export function relationWalk(
       readonly ids: readonly string[];
       readonly truncated: boolean;
     }
-  | 'relation-depth'
-  | 'relation-unavailable'
+  | "relation-depth"
+  | "relation-unavailable"
   | undefined {
   if (!isRecord(row)) {
     return undefined;
@@ -370,7 +370,7 @@ export function relationWalk(
     return undefined;
   }
   const start = hopped ? followHops(condition, first, reader) : { id: first };
-  if (start === undefined || start === 'relation-unavailable') {
+  if (start === undefined || start === "relation-unavailable") {
     return start;
   }
   const id = start.id;
@@ -382,8 +382,8 @@ export function relationWalk(
     id,
     depth: condition.depth,
   });
-  if (chain === 'pending' || chain === 'failed') {
-    return 'relation-unavailable';
+  if (chain === "pending" || chain === "failed") {
+    return "relation-unavailable";
   }
   const ids = [id];
   let stopped = chain.restricted === true;
@@ -397,7 +397,7 @@ export function relationWalk(
     }
   }
   if (new Set(ids).size !== ids.length) {
-    return 'relation-depth';
+    return "relation-depth";
   }
   return {
     ids,
@@ -428,7 +428,7 @@ export function resolveRelated(
   if (walk === undefined) {
     return false;
   }
-  if (walk === 'relation-depth' || walk === 'relation-unavailable') {
+  if (walk === "relation-depth" || walk === "relation-unavailable") {
     return walk;
   }
   if (condition.ids !== undefined) {
@@ -436,7 +436,7 @@ export function resolveRelated(
     if (walk.ids.some((id) => held.has(id))) {
       return true;
     }
-    return walk.truncated ? 'relation-depth' : false;
+    return walk.truncated ? "relation-depth" : false;
   }
   let unavailable = false;
   let deep = false;
@@ -458,16 +458,16 @@ export function resolveRelated(
     if (verdict === true) {
       return true;
     }
-    if (verdict === 'relation-unavailable') {
+    if (verdict === "relation-unavailable") {
       unavailable = true;
-    } else if (verdict === 'relation-depth') {
+    } else if (verdict === "relation-depth") {
       deep = true;
     }
   }
   if (unavailable) {
-    return 'relation-unavailable';
+    return "relation-unavailable";
   }
-  return walk.truncated || deep ? 'relation-depth' : false;
+  return walk.truncated || deep ? "relation-depth" : false;
 }
 
 function groupKey(group: RelationGroup): string {
@@ -500,8 +500,8 @@ function holdsRelation(
   }
   explored.set(key, budget);
   const holders = reader.holders(at);
-  if (holders === 'pending' || holders === 'failed') {
-    return 'relation-unavailable';
+  if (holders === "pending" || holders === "failed") {
+    return "relation-unavailable";
   }
   if (holders.some((holder) => holdsNow(holder, principalId, now))) {
     return true;
@@ -510,7 +510,7 @@ function holdsRelation(
   let unavailable = false;
   let deep = false;
   for (const holder of holders) {
-    if (!('group' in holder) || !activeNow(holder, now)) {
+    if (!("group" in holder) || !activeNow(holder, now)) {
       continue;
     }
     const nested = holder.group.resource === at.resource;
@@ -530,16 +530,16 @@ function holdsRelation(
     if (verdict === true) {
       return true;
     }
-    if (verdict === 'relation-unavailable') {
+    if (verdict === "relation-unavailable") {
       unavailable = true;
-    } else if (verdict === 'relation-depth') {
+    } else if (verdict === "relation-depth") {
       deep = true;
     }
   }
   if (unavailable) {
-    return 'relation-unavailable';
+    return "relation-unavailable";
   }
-  return deep ? 'relation-depth' : false;
+  return deep ? "relation-depth" : false;
 }
 
 export type MemoryEdge = {
@@ -584,7 +584,7 @@ function tableHolder(
       return undefined;
     }
   }
-  const subject = relationId(ownGet(row, spec.subject ?? 'user_id'));
+  const subject = relationId(ownGet(row, spec.subject ?? "user_id"));
   if (subject === undefined) {
     return undefined;
   }
@@ -604,7 +604,7 @@ function tableHolder(
     return { principal: { id: subject }, ...period };
   }
   const relation =
-    typeof kind === 'string' && Object.hasOwn(groups.resources, kind)
+    typeof kind === "string" && Object.hasOwn(groups.resources, kind)
       ? groups.resources[kind]
       : undefined;
   // SAFETY: relation is defined only when kind passed the typeof string check above.
@@ -618,10 +618,10 @@ function seconds(value: unknown): number | undefined {
     const time = value.getTime();
     return Number.isNaN(time) ? undefined : time / 1000;
   }
-  if (typeof value === 'number' && Number.isFinite(value)) {
+  if (typeof value === "number" && Number.isFinite(value)) {
     return value;
   }
-  if (typeof value === 'string') {
+  if (typeof value === "string") {
     const parsed = Date.parse(value);
     return Number.isNaN(parsed) ? undefined : parsed / 1000;
   }
@@ -673,7 +673,7 @@ export function memoryRelations(
     const node = registry.get(name);
     const index = new Map<string, Readonly<Record<string, unknown>>>();
     for (const row of rows) {
-      const id = relationId(ownGet(row, node?.id ?? 'id'));
+      const id = relationId(ownGet(row, node?.id ?? "id"));
       if (id !== undefined) {
         index.set(id, row);
       }
@@ -692,7 +692,7 @@ export function memoryRelations(
       if (node === undefined || start === undefined) {
         return { ancestors: [] };
       }
-      if (through !== 'parent') {
+      if (through !== "parent") {
         const link = Object.hasOwn(node.links, through)
           ? node.links[through]
           : undefined;

@@ -5,9 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "node --watch --experimental-strip-types src/main.ts",
-    "lint": "oxlint --disable-nested-config",
+    "doctor": "permdock doctor",
+    "lint": "oxlint --disable-nested-config --type-aware",
     "start": "node --experimental-strip-types src/main.ts",
-    "typecheck": "tsc --noEmit --checkers 4"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "permdock": "workspace:*",

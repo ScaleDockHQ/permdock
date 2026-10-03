@@ -1,7 +1,7 @@
-export { ApprovalError, isApprovalError } from './errors.ts';
-export type { ApprovalErrorCode } from './errors.ts';
-export { approvalsHandler } from './handler.ts';
-export type { ApprovalsHandlerOptions } from './handler.ts';
+export { ApprovalError, isApprovalError } from "./errors.ts";
+export type { ApprovalErrorCode } from "./errors.ts";
+export { approvalsHandler } from "./handler.ts";
+export type { ApprovalsHandlerOptions } from "./handler.ts";
 export {
   cancelApprovals,
   consumeApproval,
@@ -12,19 +12,19 @@ export {
   resumeDecision,
   resumeFromHeader,
   summariseSubject,
-} from './helpers.ts';
+} from "./helpers.ts";
 export {
   applyApprovalVerdict,
   assertApprover,
   memoryApprovalStore,
-} from './store.ts';
-export type { MemoryApprovalStore } from './store.ts';
+} from "./store.ts";
+export type { MemoryApprovalStore } from "./store.ts";
 export {
   APPROVAL_HEADER,
   DEFAULT_APPROVAL_TTL_MS,
   approvalQuorum,
   escalationOpenAt,
-} from './types.ts';
+} from "./types.ts";
 export type {
   ApprovalApprovers,
   ApprovalCancelMeta,
@@ -39,4 +39,4 @@ export type {
   ApprovalStore,
   ApprovalSubjectSummary,
   ApprovalVerdict,
-} from './types.ts';
+} from "./types.ts";

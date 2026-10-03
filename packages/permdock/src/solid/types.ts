@@ -1,8 +1,8 @@
-import type { Accessor } from 'solid-js';
+import type { Accessor } from "solid-js";
 
-import type { Decision } from '../core/decision.ts';
-import type { Snapshot, TokenVerifier } from '../core/interfaces.ts';
-import type { Permission } from '../core/permissions.ts';
+import type { Decision } from "../core/decision.ts";
+import type { Snapshot, TokenVerifier } from "../core/interfaces.ts";
+import type { Permission } from "../core/permissions.ts";
 import type {
   ApprovalHandle,
   ApprovalState,
@@ -14,7 +14,7 @@ import type {
   SubjectView,
   TenantView,
   UseRolesOptions,
-} from '../react/types.ts';
+} from "../react/types.ts";
 
 /** Structural `JSX.Element`: text, a DOM node or a list of children. */
 export type SolidChild =
@@ -56,7 +56,7 @@ export type ProtectedProps = {
   readonly children:
     | SolidChild
     | ((
-        decision: Extract<Decision, { readonly outcome: 'granted' }>,
+        decision: Extract<Decision, { readonly outcome: "granted" }>,
       ) => SolidChild);
 };
 

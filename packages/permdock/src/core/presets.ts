@@ -3,10 +3,10 @@ import type {
   ActionMeta,
   ResourceParent,
   ResourceRelationInput,
-} from './permissions.ts';
+} from "./permissions.ts";
 
-import { compact } from './compact.ts';
-import { freezeDeep } from './freeze.ts';
+import { compact } from "./compact.ts";
+import { freezeDeep } from "./freeze.ts";
 
 type ReadOnlyMeta = { readonly readOnly: true };
 type DestructiveMeta = { readonly destructive: true };
@@ -97,7 +97,7 @@ type PresetOptions<
   readonly parent?: ResourceParent;
   readonly relations?: Readonly<Record<string, ResourceRelationInput>>;
   readonly restricted?: string;
-  readonly disclosure?: 'hide' | 'reveal';
+  readonly disclosure?: "hide" | "reveal";
   readonly actions?: A;
   readonly collection?: C;
 };
@@ -112,7 +112,7 @@ type PresetResult<
   readonly parent?: ResourceParent;
   readonly relations?: Readonly<Record<string, ResourceRelationInput>>;
   readonly restricted?: string;
-  readonly disclosure?: 'hide' | 'reveal';
+  readonly disclosure?: "hide" | "reveal";
   readonly actions: MergeActionRecords<BaseA, ToActionRecord<A>>;
   readonly collection?: MergeActionRecords<BaseC, ToActionRecord<C>>;
 };

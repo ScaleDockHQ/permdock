@@ -1,5 +1,5 @@
 ---
-'permdock': patch
+"permdock": patch
 ---
 
 The `permdock` CLI parses flags with citty. `permdock <command> --help` (or `permdock help <command>`) prints that command's flags with their values and defaults. A flag with a fixed set of values rejects any other with exit `2` and the list it accepts, for example `catalog: Invalid value for argument: --format (xml). Expected one of: json, schema, markdown.`

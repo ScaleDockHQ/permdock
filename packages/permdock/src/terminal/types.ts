@@ -1,7 +1,7 @@
-import type { ApprovalStore } from '../approvals/types.ts';
-import type { Decision } from '../core/decision.ts';
-import type { ApprovalHint, ProblemDetails } from '../core/errors.ts';
-import type { PolicySource } from '../core/hosted.ts';
+import type { ApprovalStore } from "../approvals/types.ts";
+import type { Decision } from "../core/decision.ts";
+import type { ApprovalHint, ProblemDetails } from "../core/errors.ts";
+import type { PolicySource } from "../core/hosted.ts";
 
 export type { ApprovalHint };
 import type {
@@ -11,12 +11,13 @@ import type {
   MembershipSource,
   RelationSource,
   RoleSource,
-} from '../core/interfaces.ts';
-import type { PermDock } from '../core/permdock.ts';
-import type { Permission } from '../core/permissions.ts';
-import type { Actor, Delegation, Subject } from '../core/subject.ts';
+} from "../core/interfaces.ts";
+import type { PermDock } from "../core/permdock.ts";
+import type { Permission } from "../core/permissions.ts";
+import type { PolicyVocabulary } from "../core/policy.ts";
+import type { Actor, Delegation, Subject } from "../core/subject.ts";
 
-export type TokenSourceName = 'device' | 'keychain' | 'env' | 'ci-oidc';
+export type TokenSourceName = "device" | "keychain" | "env" | "ci-oidc";
 
 export type TokenSource =
   | TokenSourceName
@@ -149,7 +150,7 @@ export type CommandEntry = {
 };
 
 export type FilterCommandsOptions = {
-  readonly mode: 'hide' | 'annotate';
+  readonly mode: "hide" | "annotate";
   readonly permdock?: PermDock;
 };
 
@@ -163,10 +164,13 @@ export type FormatOptions = {
 
 export type TerminalProblemDetails = ProblemDetails;
 
-export type ProtectContext<T = unknown> = {
-  readonly permdock: PermDock;
+export type ProtectContext<
+  T = unknown,
+  V extends PolicyVocabulary = PolicyVocabulary,
+> = {
+  readonly permdock: PermDock<V>;
   readonly data: T;
-  readonly decision: Extract<Decision, { readonly outcome: 'granted' }>;
+  readonly decision: Extract<Decision, { readonly outcome: "granted" }>;
 };
 
 export type TerminalActor = {
@@ -174,13 +178,13 @@ export type TerminalActor = {
   readonly delegation?: Delegation;
 };
 
-export type TerminalPermDock = {
-  readonly permdock: (options?: PermDockResolveOptions) => Promise<PermDock>;
+export type TerminalPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
+  readonly permdock: (options?: PermDockResolveOptions) => Promise<PermDock<V>>;
   readonly protect: <TArgs extends readonly unknown[], TData = unknown>(
     permission: Permission,
     load?: (...args: TArgs) => TData | Promise<TData>,
   ) => (
-    action: (context: ProtectContext<TData>, ...args: TArgs) => unknown,
+    action: (context: ProtectContext<TData, V>, ...args: TArgs) => unknown,
   ) => (...args: TArgs) => Promise<unknown>;
   readonly filterCommands: (
     entries: readonly CommandEntry[],

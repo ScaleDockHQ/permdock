@@ -1,4 +1,4 @@
-import type { ResourceRelation } from '../core/permissions.ts';
+import type { ResourceRelation } from "../core/permissions.ts";
 
 export type CatalogUsage = {
   readonly file: string;
@@ -11,17 +11,17 @@ export type CatalogPermission = {
   readonly scope: string;
   readonly resource: string;
   readonly action: string;
-  readonly arity: 'instance' | 'collection';
+  readonly arity: "instance" | "collection";
   readonly meta: Readonly<Record<string, unknown>>;
   readonly usages: readonly CatalogUsage[];
   /** Present only when the policy lists the permission in `hostable`. */
   readonly hostable?: true;
   /**
-   * Present when the catalog was built with the policy: `true` when a code
-   * grant for the key has a condition beyond role and scope, so the SQL
-   * helpers alone cannot enforce it.
+   * `true` when a code grant for the key has a condition beyond role and
+   * scope, so the SQL helpers alone cannot enforce it, and when the catalog
+   * was built without the policy, which leaves it unknown.
    */
-  readonly rowConditions?: boolean;
+  readonly rowConditions: boolean;
   /** The approvals code allows on this permission require; a hosted grant must meet each. */
   readonly approvals?: readonly CatalogApproval[];
   /** Present when a `breakGlass` override targets this permission. */
@@ -38,11 +38,11 @@ export type CatalogBreakGlass = {
 };
 
 export type CatalogApproval =
-  | 'human'
+  | "human"
   | {
       readonly by?: unknown;
       readonly distinct?: boolean;
-      readonly staleOn?: 'resource-change';
+      readonly staleOn?: "resource-change";
       readonly quorum?: number;
       readonly ttl?: string;
       readonly escalation?: { readonly after: string; readonly to: unknown };
@@ -82,7 +82,7 @@ export type CatalogRole = {
 /** A role activation as the catalog carries it. */
 export type CatalogActivation = {
   readonly maxDuration?: string;
-  readonly justification: 'required' | 'optional';
+  readonly justification: "required" | "optional";
   readonly approval?: boolean;
   readonly assurance?: {
     readonly maxAge?: number;
@@ -118,7 +118,7 @@ export type CatalogValidity = {
  */
 export type CatalogGrant = {
   readonly permission: string;
-  readonly effect: 'allow' | 'deny';
+  readonly effect: "allow" | "deny";
   /** The role binding the grant came from; `null` for a top-level grant. */
   readonly role: string | null;
   /** The grantee selector, or an array for an intersection, in its JSON form. */
@@ -137,7 +137,7 @@ export type CatalogGrant = {
   readonly limit?: {
     readonly count: number;
     readonly per: string;
-    readonly mode?: 'hard' | 'soft';
+    readonly mode?: "hard" | "soft";
   };
   /** Present when the grant is a closure, reads the relation graph or is opaque; `where` and `check` are then omitted. */
   readonly portable?: false;

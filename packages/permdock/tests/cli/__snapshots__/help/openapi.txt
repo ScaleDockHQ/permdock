@@ -1,0 +1,35 @@
+Emit security into an OpenAPI document, or import one into a generated definition (permdock openapi)
+
+USAGE permdock openapi [OPTIONS] [ACTION]
+
+ARGUMENTS
+
+  ACTION    emit (default) or import
+
+OPTIONS
+
+                       --cwd=<dir>    Run as if started in this directory                                      
+                   --config=<file>    Config file (default permdock.config.{ts,mts,js,mjs})                    
+                            --json    Machine-readable output                                                  
+                         -y, --yes    Never prompt; take the answer the flags give                             
+                           --color    Styled output on a colour terminal (Default: true)                       
+                        --no-color    Plain output                                                             
+                      --doc=<path>    OpenAPI document: a path, or a URL for import                            
+                      --out=<file>    File to write                                                            
+                   --from=<module>    Module exporting the policy, instead of the config                       
+            --target=<3.1|3.2|3.3>    OpenAPI version; 3.3 is the pinned Security Profiles draft (Default: 3.2)
+       --format=<document|overlay>    A full document or an Overlay (Default: document)                        
+               --overlay=<1.1|1.2>    Overlay version; 1.2 is the pinned reusable-actions draft (Default: 1.1) 
+                           --check    Exit 1 when --out is stale; write nothing                                
+                 --profile=<fapi2>    Security profile to declare                                              
+           --profile-scheme=<name>    Security scheme name for the profile                                     
+                   --scheme=<name>    OAuth security scheme name (Default: permdockOAuth)                      
+              --metadata-url=<url>    OAuth authorization server metadata URL                                  
+                     --device-flow    Declare the device authorization flow                                    
+                           --arity    Mark instance and collection operations                                  
+         --authorization-url=<url>    OAuth authorization endpoint                                             
+                 --token-url=<url>    OAuth token endpoint                                                     
+  --device-authorization-url=<url>    OAuth device authorization endpoint                                      
+    --schema=<zod|valibot|arktype>    import: schema library for the generated resources                       
+                      --map=<json>    import: JSON mapping of operations to permissions                        
+                        --annotate    import: write x-permdock-permissions back into the document              

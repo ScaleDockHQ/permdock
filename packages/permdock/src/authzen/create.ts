@@ -1,21 +1,21 @@
-import type { Decision } from '../core/decision.ts';
-import type { DecideOptions, PermDock } from '../core/permdock.ts';
-import type { Permission } from '../core/permissions.ts';
-import type { AuthzenItem } from './map.ts';
-import type { AuthzenFactory } from './types.ts';
+import type { Decision } from "../core/decision.ts";
+import type { DecideOptions, PermDock } from "../core/permdock.ts";
+import type { Permission } from "../core/permissions.ts";
+import type { AuthzenItem } from "./map.ts";
+import type { AuthzenFactory } from "./types.ts";
 
-import { compact } from '../core/compact.ts';
-import { ownGet } from '../core/paths.ts';
-import { createPermDock as createCorePermDock } from '../core/permdock.ts';
-import { getResource, listPermissions } from '../core/permissions.ts';
-import { applyApprovalResume } from '../server/evaluations.ts';
+import { compact } from "../core/compact.ts";
+import { ownGet } from "../core/paths.ts";
+import { createPermDock as createCorePermDock } from "../core/permdock.ts";
+import { getResource, listPermissions } from "../core/permissions.ts";
+import { applyApprovalResume } from "../server/evaluations.ts";
 import {
   DEFAULT_MAX_EVALUATIONS,
   PROBLEM_BASE,
   batchTooLarge,
   problemResponse,
   validationProblem,
-} from '../server/problem.ts';
+} from "../server/problem.ts";
 import {
   UNAVAILABLE,
   UNKNOWN,
@@ -33,20 +33,20 @@ import {
   resourceIdOf,
   tenantOf,
   userFromEntity,
-} from './map.ts';
+} from "./map.ts";
 
 function unauthorized(): Response {
   return problemResponse(
     {
       type: `${PROBLEM_BASE}/unauthenticated`,
-      title: 'Unauthenticated',
+      title: "Unauthenticated",
       status: 401,
-      detail: 'AuthZEN decision endpoint requires authentication',
+      detail: "AuthZEN decision endpoint requires authentication",
     },
     undefined,
     {
-      outcome: 'denied',
-      denials: [{ role: null, reason: 'anonymous' }],
+      outcome: "denied",
+      denials: [{ role: null, reason: "anonymous" }],
       alternatives: [],
     },
   );
@@ -55,18 +55,18 @@ function unauthorized(): Response {
 function methodNotAllowed(allow: string): Response {
   const response = problemResponse({
     type: `${PROBLEM_BASE}/method-not-allowed`,
-    title: 'Method not allowed',
+    title: "Method not allowed",
     status: 405,
     detail: `use ${allow}`,
   });
-  response.headers.set('Allow', allow);
+  response.headers.set("Allow", allow);
   return response;
 }
 
 function notFound(detail: string): Response {
   return problemResponse({
     type: `${PROBLEM_BASE}/not-found`,
-    title: 'Not found',
+    title: "Not found",
     status: 404,
     detail,
   });
@@ -76,33 +76,33 @@ async function readJson(request: Request): Promise<unknown> {
   try {
     return await request.json();
   } catch {
-    return validationProblem('AuthZEN body was not valid JSON');
+    return validationProblem("AuthZEN body was not valid JSON");
   }
 }
 
 const SEMANTICS = [
-  'execute_all',
-  'deny_on_first_deny',
-  'permit_on_first_permit',
+  "execute_all",
+  "deny_on_first_deny",
+  "permit_on_first_permit",
 ] as const;
 
 type Semantic = (typeof SEMANTICS)[number];
 
 function semanticOf(body: Record<string, unknown>): Semantic | undefined {
-  const options = body['options'];
-  const value = isRecord(options) ? options['evaluations_semantic'] : undefined;
+  const options = body["options"];
+  const value = isRecord(options) ? options["evaluations_semantic"] : undefined;
   if (value === undefined) {
-    return 'execute_all';
+    return "execute_all";
   }
   return SEMANTICS.find((semantic) => semantic === value);
 }
 
-const WELL_KNOWN = '/.well-known/authzen-configuration';
+const WELL_KNOWN = "/.well-known/authzen-configuration";
 
 function withRequestId(request: Request, response: Response): Response {
-  const id = request.headers.get('x-request-id');
-  if (id !== null && id !== '') {
-    response.headers.set('X-Request-ID', id);
+  const id = request.headers.get("x-request-id");
+  if (id !== null && id !== "") {
+    response.headers.set("X-Request-ID", id);
   }
   return response;
 }
@@ -113,14 +113,14 @@ function resourceRef(
   item: AuthzenItem,
 ): { readonly type: string; readonly id?: string } {
   const fromRow =
-    data !== null && typeof data === 'object' && 'id' in data
+    data !== null && typeof data === "object" && "id" in data
       ? data.id
       : undefined;
   const fromWire = item.resource?.id;
   const id =
-    typeof fromRow === 'string' || typeof fromRow === 'number'
+    typeof fromRow === "string" || typeof fromRow === "number"
       ? String(fromRow)
-      : typeof fromWire === 'string' || typeof fromWire === 'number'
+      : typeof fromWire === "string" || typeof fromWire === "number"
         ? String(fromWire)
         : undefined;
   return compact({ type: permission.resource, id });
@@ -130,7 +130,7 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
   const maxEvaluations = options.maxEvaluations ?? DEFAULT_MAX_EVALUATIONS;
   const trusts = (pep: unknown): boolean => {
     const allow = options.trustedPep;
-    if (typeof allow !== 'function' || pep === null) {
+    if (typeof allow !== "function" || pep === null) {
       return false;
     }
     try {
@@ -189,11 +189,11 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
     | undefined
   > {
     const properties = item.resource?.properties;
-    if (properties !== null && typeof properties === 'object') {
+    if (properties !== null && typeof properties === "object") {
       return { data: properties, trusted: false };
     }
     const type =
-      typeof item.resource?.type === 'string' ? item.resource.type : undefined;
+      typeof item.resource?.type === "string" ? item.resource.type : undefined;
     const id = resourceIdOf(item);
     const load =
       type !== undefined && options.resources !== undefined
@@ -224,9 +224,9 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
       return UNAVAILABLE;
     }
     const { data, trusted } = resolved;
-    const dock = await instantiate(pep, item);
+    const permdock = await instantiate(pep, item);
     // SAFETY: decide's instance and collection overloads share one implementation that takes either kind.
-    const decide = dock.decide as (
+    const decide = permdock.decide as (
       next: Permission,
       row?: unknown,
       options?: DecideOptions,
@@ -235,22 +235,22 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
       permission,
       data,
       trusted
-        ? { source: 'endpoint', adapter: 'authzen', trusted: true }
+        ? { source: "endpoint", adapter: "authzen", trusted: true }
         : {
-            source: 'endpoint',
-            adapter: 'authzen',
+            source: "endpoint",
+            adapter: "authzen",
             trusted: false,
-            boundary: 'decision-endpoint',
+            boundary: "decision-endpoint",
           },
     );
     return applyApprovalResume(
       decision,
       permission,
-      dock,
+      permdock,
       options.store,
       request,
       resourceRef(permission, data, item),
-      'authzen',
+      "authzen",
     );
   }
 
@@ -260,7 +260,7 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
       return body;
     }
     if (!isRecord(body)) {
-      return validationProblem('evaluation body must be an object');
+      return validationProblem("evaluation body must be an object");
     }
     return Response.json(evaluationRow(await decideItem(request, pep, body)));
   }
@@ -274,11 +274,11 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
       return body;
     }
     if (!isRecord(body)) {
-      return validationProblem('evaluations body must be an object');
+      return validationProblem("evaluations body must be an object");
     }
-    const items = body['evaluations'] ?? [];
+    const items = body["evaluations"] ?? [];
     if (!Array.isArray(items)) {
-      return validationProblem('evaluations must be an array');
+      return validationProblem("evaluations must be an array");
     }
     if (items.length === 0) {
       return Response.json(evaluationRow(await decideItem(request, pep, body)));
@@ -289,23 +289,23 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
     const semantic = semanticOf(body);
     if (semantic === undefined) {
       return validationProblem(
-        `options.evaluations_semantic must be one of ${SEMANTICS.join(', ')}`,
+        `options.evaluations_semantic must be one of ${SEMANTICS.join(", ")}`,
       );
     }
     const shared = compact<AuthzenItem>({
-      subject: isRecord(body['subject']) ? body['subject'] : undefined,
-      action: isRecord(body['action']) ? body['action'] : undefined,
-      resource: isRecord(body['resource']) ? body['resource'] : undefined,
-      context: body['context'],
+      subject: isRecord(body["subject"]) ? body["subject"] : undefined,
+      action: isRecord(body["action"]) ? body["action"] : undefined,
+      resource: isRecord(body["resource"]) ? body["resource"] : undefined,
+      context: body["context"],
     });
     const rowOf = (item: unknown): Promise<ReturnType<typeof evaluationRow>> =>
       decideItem(request, pep, mergeItem(shared, item)).then(evaluationRow);
-    if (semantic === 'execute_all') {
+    if (semantic === "execute_all") {
       return Response.json({
         evaluations: await Promise.all(items.map(rowOf)),
       });
     }
-    const stopOn = semantic === 'permit_on_first_permit';
+    const stopOn = semantic === "permit_on_first_permit";
     const rows: ReturnType<typeof evaluationRow>[] = [];
     for (const item of items) {
       // oxlint-disable-next-line no-await-in-loop -- short-circuit semantics evaluate in order and stop early
@@ -327,11 +327,11 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
       return body;
     }
     if (!isRecord(body)) {
-      return validationProblem('search/action body must be an object');
+      return validationProblem("search/action body must be an object");
     }
     const item: AuthzenItem = body;
     const type =
-      typeof item.resource?.type === 'string' ? item.resource.type : undefined;
+      typeof item.resource?.type === "string" ? item.resource.type : undefined;
     const leaves = listPermissions(policy.permissions).filter(
       (leaf) => type === undefined || leaf.resource === type,
     );
@@ -352,7 +352,7 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
     );
     const names: string[] = [];
     for (const { leaf, decision } of decisions) {
-      if (decision.outcome === 'granted' && !names.includes(leaf.action)) {
+      if (decision.outcome === "granted" && !names.includes(leaf.action)) {
         names.push(leaf.action);
       }
     }
@@ -390,11 +390,11 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
       return body;
     }
     if (!isRecord(body)) {
-      return validationProblem('search/resource body must be an object');
+      return validationProblem("search/resource body must be an object");
     }
     const item: AuthzenItem = body;
     const type =
-      typeof item.resource?.type === 'string' ? item.resource.type : undefined;
+      typeof item.resource?.type === "string" ? item.resource.type : undefined;
     const permission = permissionOf(policy.permissions, item);
     if (type === undefined || permission === undefined) {
       return Response.json(paged([], 0, 1));
@@ -405,25 +405,25 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
         ? item.resource.properties
         : undefined,
     );
-    const dock = await instantiate(pep, item);
+    const permdock = await instantiate(pep, item);
     let permitted: readonly unknown[] = [];
-    if (permission.kind === 'instance') {
+    if (permission.kind === "instance") {
       // SAFETY: permission.kind is checked to be instance just above.
-      permitted = dock.filter(
-        permission as Permission<string, unknown, 'instance'>,
+      permitted = permdock.filter(
+        permission as Permission<string, unknown, "instance">,
         rows,
       );
     } else if (
-      permission.kind === 'collection' &&
+      permission.kind === "collection" &&
       // SAFETY: permission.kind is checked to be collection just before.
-      dock.can(permission as Permission<string, unknown, 'collection'>)
+      permdock.can(permission as Permission<string, unknown, "collection">)
     ) {
       permitted = rows;
     }
-    const idField = getResource(policy.permissions, type)?.id ?? 'id';
+    const idField = getResource(policy.permissions, type)?.id ?? "id";
     const entities = permitted.flatMap((row) => {
       const id = isRecord(row) ? ownGet(row, idField) : undefined;
-      return typeof id === 'string' || typeof id === 'number'
+      return typeof id === "string" || typeof id === "number"
         ? [{ type, id: String(id) }]
         : [];
     });
@@ -436,14 +436,14 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
     pep: unknown,
   ): Promise<Response> {
     if (options.subjects?.list === undefined) {
-      return notFound('search/subject is not configured');
+      return notFound("search/subject is not configured");
     }
     const body = await readJson(request);
     if (body instanceof Response) {
       return body;
     }
     if (!isRecord(body)) {
-      return validationProblem('search/subject body must be an object');
+      return validationProblem("search/subject body must be an object");
     }
     let records: readonly {
       readonly id: string;
@@ -456,14 +456,14 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
     }
     const item: AuthzenItem = body;
     const wanted = item.subject?.type;
-    if (typeof wanted === 'string' && wanted !== 'user') {
+    if (typeof wanted === "string" && wanted !== "user") {
       return Response.json(paged([], 0, 1));
     }
     const decisions = await Promise.all(
       records.map(async (record) => {
         const properties: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(record)) {
-          if (key !== 'id') {
+          if (key !== "id") {
             properties[key] = value;
           }
         }
@@ -476,14 +476,14 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
               action: item.action,
               resource: item.resource,
               context: item.context,
-              subject: { type: 'user', id: record.id, properties },
+              subject: { type: "user", id: record.id, properties },
             }),
           ),
         };
       }),
     );
     const matches = decisions.flatMap(({ id, decision }) =>
-      decision.outcome === 'granted' ? [{ type: 'user', id }] : [],
+      decision.outcome === "granted" ? [{ type: "user", id }] : [],
     );
     const { offset, size } = pageOf(body);
     return Response.json(paged(matches, offset, size));
@@ -493,7 +493,7 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
     const origin = new URL(request.url).origin;
     const suffix = pathname
       .slice(pathname.indexOf(WELL_KNOWN) + WELL_KNOWN.length)
-      .replace(/\/+$/u, '');
+      .replace(/\/+$/u, "");
     const pdp = `${origin}${suffix}`;
     const document: Record<string, string> = {
       policy_decision_point: pdp,
@@ -503,7 +503,7 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
       search_resource_endpoint: `${pdp}/access/v1/search/resource`,
     };
     if (options.subjects?.list !== undefined) {
-      document['search_subject_endpoint'] = `${pdp}/access/v1/search/subject`;
+      document["search_subject_endpoint"] = `${pdp}/access/v1/search/subject`;
     }
     return Response.json(document);
   }
@@ -514,8 +514,8 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
       endsWithPath(pathname, WELL_KNOWN) ||
       pathname.includes(`${WELL_KNOWN}/`)
     ) {
-      if (request.method !== 'GET') {
-        return methodNotAllowed('GET');
+      if (request.method !== "GET") {
+        return methodNotAllowed("GET");
       }
       return discovery(request, pathname);
     }
@@ -530,11 +530,11 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
       string,
       (req: Request, identity: unknown) => Promise<Response>,
     ])[] = [
-      ['POST', '/access/v1/evaluation', evaluation],
-      ['POST', '/access/v1/evaluations', evaluations],
-      ['POST', '/access/v1/search/action', searchAction],
-      ['POST', '/access/v1/search/resource', searchResource],
-      ['POST', '/access/v1/search/subject', searchSubject],
+      ["POST", "/access/v1/evaluation", evaluation],
+      ["POST", "/access/v1/evaluations", evaluations],
+      ["POST", "/access/v1/search/action", searchAction],
+      ["POST", "/access/v1/search/resource", searchResource],
+      ["POST", "/access/v1/search/subject", searchSubject],
     ];
     for (const [method, suffix, serve] of routes) {
       if (endsWithPath(pathname, suffix)) {
@@ -544,11 +544,11 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
         return serve(request, identity.pep);
       }
     }
-    return notFound('unknown AuthZEN path');
+    return notFound("unknown AuthZEN path");
   }
 
   return {
-    async handler(request) {
+    async permdockHandler(request) {
       return withRequestId(request, await route(request));
     },
   };

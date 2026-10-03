@@ -1,41 +1,41 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync } from "node:fs";
 import {
   type Program,
   type VisitorObject,
   Visitor,
   parseSync,
   visitorKeys,
-} from 'oxc-parser';
+} from "oxc-parser";
 
 import type {
   CatalogUsage,
   DynamicUsage,
   ScanResult,
   SnapshotSite,
-} from './types.ts';
+} from "./types.ts";
 
-import { rel } from './files.ts';
+import { rel } from "./files.ts";
 
 const CHECK_CALLS = new Set([
-  'can',
-  'decide',
-  'assert',
-  'filter',
-  'where',
-  'simulate',
-  'actions',
-  'usePermission',
-  'getPermission',
-  'protect',
-  'allow',
-  'deny',
-  'registerTool',
-  'anyone',
-  'authenticated',
-  'relation',
-  'plan',
-  'actor',
-  'assurance',
+  "can",
+  "decide",
+  "assert",
+  "filter",
+  "where",
+  "simulate",
+  "actions",
+  "usePermission",
+  "getPermission",
+  "protect",
+  "allow",
+  "deny",
+  "registerTool",
+  "anyone",
+  "authenticated",
+  "relation",
+  "plan",
+  "actor",
+  "assurance",
 ]);
 
 type Estree = {
@@ -67,7 +67,7 @@ export function scanSources(
   files: readonly string[],
   knownKeys: ReadonlySet<string>,
 ): ScanResult {
-  const roots = new Set<string>(['permissions']);
+  const roots = new Set<string>(["permissions"]);
   const definitionFiles: Record<string, string> = {};
   const usages: Record<string, CatalogUsage[]> = {};
   const unknown: CatalogUsage[] = [];
@@ -78,7 +78,7 @@ export function scanSources(
   const snapshots: SnapshotSite[] = [];
 
   for (const file of files) {
-    const source = readFileSync(file, 'utf8');
+    const source = readFileSync(file, "utf8");
     let program: Program;
     try {
       program = parseSync(file, source).program;
@@ -87,7 +87,7 @@ export function scanSources(
     }
     const fileRel = rel(cwd, file);
     walk(program, (node, parent) => {
-      if (node.type === 'CallExpression') {
+      if (node.type === "CallExpression") {
         recordCall(
           node,
           parent,
@@ -104,20 +104,20 @@ export function scanSources(
           knownKeys,
         );
         const callee = calleeName(node.callee);
-        if (callee === 'snapshot' || callee === 'snapshotFor') {
+        if (callee === "snapshot" || callee === "snapshotFor") {
           snapshots.push({
             file: fileRel,
             line: lineAt(source, node.start ?? 0),
             include: includeOf(
-              node.arguments?.[callee === 'snapshot' ? 0 : 2],
+              node.arguments?.[callee === "snapshot" ? 0 : 2],
               roots,
             ),
           });
         }
       }
       if (
-        node.type === 'MemberExpression' &&
-        parent?.type !== 'MemberExpression'
+        node.type === "MemberExpression" &&
+        parent?.type !== "MemberExpression"
       ) {
         recordMember(
           node,
@@ -132,7 +132,7 @@ export function scanSources(
           knownKeys,
         );
       }
-      if (node.type === 'ImportDeclaration') {
+      if (node.type === "ImportDeclaration") {
         recordImport(node, roots);
       }
     });
@@ -155,31 +155,31 @@ function includeOf(
   options: Estree | undefined,
   roots: ReadonlySet<string>,
 ): readonly string[] | null | undefined {
-  if (options?.type !== 'ObjectExpression') {
+  if (options?.type !== "ObjectExpression") {
     return options === undefined ? undefined : null;
   }
   const property = options.properties?.find(
-    (item) => item.key?.name === 'include',
+    (item) => item.key?.name === "include",
   );
   if (property === undefined) {
-    return options.properties?.some((item) => item.type === 'SpreadElement')
+    return options.properties?.some((item) => item.type === "SpreadElement")
       ? null
       : undefined;
   }
   // SAFETY: a Property's value is an ESTree node; its type is checked on the next line.
   const list = property.value as Estree | undefined;
-  if (list?.type !== 'ArrayExpression') {
+  if (list?.type !== "ArrayExpression") {
     return null;
   }
   const keys: string[] = [];
   for (const element of list.elements ?? []) {
     const path =
-      element.type === 'MemberExpression' ? memberPath(element) : undefined;
+      element.type === "MemberExpression" ? memberPath(element) : undefined;
     const [root, ...rest] = path ?? [];
     if (root === undefined || !roots.has(root) || rest.length === 0) {
       return null;
     }
-    keys.push(rest.join('.'));
+    keys.push(rest.join("."));
   }
   return keys;
 }
@@ -188,7 +188,7 @@ function recordImport(node: Estree, roots: Set<string>): void {
   for (const spec of node.specifiers ?? []) {
     const imported = spec.imported?.name ?? spec.local?.name;
     const local = spec.local?.name;
-    if (imported === 'permissions' && local !== undefined) {
+    if (imported === "permissions" && local !== undefined) {
       roots.add(local);
     }
   }
@@ -212,50 +212,50 @@ function recordCall(
   const callee = calleeName(node.callee);
   const line = lineAt(source, node.start ?? 0);
   if (
-    callee === 'definePermissions' ||
-    callee === 'defineRoles' ||
-    callee === 'definePlans'
+    callee === "definePermissions" ||
+    callee === "defineRoles" ||
+    callee === "definePlans"
   ) {
     const name = declaredName(parent);
     if (name !== undefined) {
-      if (callee === 'definePermissions') {
+      if (callee === "definePermissions") {
         roots.add(name);
       }
       definitionFiles[name] = fileRel;
     }
-    if (callee === 'defineRoles') {
+    if (callee === "defineRoles") {
       collectObjectKeys(node.arguments?.[0], roleNames);
     }
-    if (callee === 'definePlans') {
+    if (callee === "definePlans") {
       collectObjectKeys(node.arguments?.[0], planNames);
     }
     return;
   }
-  if (callee === 'role') {
+  if (callee === "role") {
     const first = node.arguments?.[0];
-    if (typeof first?.value === 'string') {
+    if (typeof first?.value === "string") {
       roleNames.add(first.value);
     } else if (
-      first?.type === 'MemberExpression' &&
-      typeof first.property?.name === 'string'
+      first?.type === "MemberExpression" &&
+      typeof first.property?.name === "string"
     ) {
       roleNames.add(first.property.name);
     }
     return;
   }
-  if (callee === 'findPermission') {
+  if (callee === "findPermission") {
     const second = node.arguments?.[1];
-    if (typeof second?.value === 'string') {
+    if (typeof second?.value === "string") {
       pushUsage(
         second.value,
-        { file: fileRel, line, call: 'findPermission' },
+        { file: fileRel, line, call: "findPermission" },
         knownKeys,
         usages,
         unknown,
       );
       return;
     }
-    dynamic.push({ file: fileRel, line, call: 'findPermission' });
+    dynamic.push({ file: fileRel, line, call: "findPermission" });
   }
 }
 
@@ -290,7 +290,7 @@ function recordMember(
   if (root === undefined || !roots.has(root)) {
     return;
   }
-  const key = rest.join('.');
+  const key = rest.join(".");
   if (!knownKeys.has(key) && isFieldOrSubtree(rest, knownKeys)) {
     return;
   }
@@ -300,18 +300,18 @@ function recordMember(
     line: lineAt(source, node.start ?? 0),
     call,
   };
-  if (call === 'allow') {
+  if (call === "allow") {
     allowKeys.add(key);
   }
   pushUsage(key, usage, knownKeys, usages, unknown);
 }
 
 const LEAF_FIELDS: ReadonlySet<string> = new Set([
-  'key',
-  'resource',
-  'action',
-  'scope',
-  'meta',
+  "key",
+  "resource",
+  "action",
+  "scope",
+  "meta",
 ]);
 
 function isFieldOrSubtree(
@@ -322,11 +322,11 @@ function isFieldOrSubtree(
   if (
     last !== undefined &&
     LEAF_FIELDS.has(last) &&
-    knownKeys.has(path.slice(0, -1).join('.'))
+    knownKeys.has(path.slice(0, -1).join("."))
   ) {
     return true;
   }
-  const prefix = `${path.join('.')}.`;
+  const prefix = `${path.join(".")}.`;
   return [...knownKeys].some((known) => known.startsWith(prefix));
 }
 
@@ -350,12 +350,12 @@ function calleeName(node: Estree | undefined): string | undefined {
   if (node === undefined) {
     return undefined;
   }
-  if (node.type === 'Identifier') {
+  if (node.type === "Identifier") {
     return node.name;
   }
   if (
-    node.type === 'MemberExpression' &&
-    node.property?.type === 'Identifier'
+    node.type === "MemberExpression" &&
+    node.property?.type === "Identifier"
   ) {
     return node.property.name;
   }
@@ -364,8 +364,8 @@ function calleeName(node: Estree | undefined): string | undefined {
 
 function declaredName(parent: Estree | undefined): string | undefined {
   if (
-    parent?.type === 'VariableDeclarator' &&
-    parent.id?.type === 'Identifier'
+    parent?.type === "VariableDeclarator" &&
+    parent.id?.type === "Identifier"
   ) {
     return parent.id.name;
   }
@@ -373,22 +373,22 @@ function declaredName(parent: Estree | undefined): string | undefined {
 }
 
 function callName(parent: Estree | undefined): string {
-  if (parent?.type === 'CallExpression') {
+  if (parent?.type === "CallExpression") {
     const name = calleeName(parent.callee);
     if (name !== undefined && CHECK_CALLS.has(name)) {
       return name;
     }
   }
-  if (parent?.type === 'Property' || parent?.type === 'ObjectProperty') {
-    return 'tools';
+  if (parent?.type === "Property" || parent?.type === "ObjectProperty") {
+    return "tools";
   }
-  return 'reference';
+  return "reference";
 }
 
 function memberPath(node: Estree): string[] | undefined {
   const parts: string[] = [];
   let current: Estree | undefined = node;
-  while (current?.type === 'MemberExpression') {
+  while (current?.type === "MemberExpression") {
     if (current.computed === true) {
       return undefined;
     }
@@ -399,7 +399,7 @@ function memberPath(node: Estree): string[] | undefined {
     parts.unshift(name);
     current = current.object;
   }
-  if (current?.type !== 'Identifier' || current.name === undefined) {
+  if (current?.type !== "Identifier" || current.name === undefined) {
     return undefined;
   }
   parts.unshift(current.name);
@@ -408,10 +408,10 @@ function memberPath(node: Estree): string[] | undefined {
 
 function rootName(node: Estree): string | undefined {
   let current: Estree | undefined = node;
-  while (current?.type === 'MemberExpression') {
+  while (current?.type === "MemberExpression") {
     current = current.object;
   }
-  return current?.type === 'Identifier' ? current.name : undefined;
+  return current?.type === "Identifier" ? current.name : undefined;
 }
 
 function lineAt(source: string, index: number): number {
@@ -426,16 +426,16 @@ function lineAt(source: string, index: number): number {
 }
 
 function collectObjectKeys(node: Estree | undefined, into: Set<string>): void {
-  if (node?.type !== 'ObjectExpression' || node.properties === undefined) {
+  if (node?.type !== "ObjectExpression" || node.properties === undefined) {
     return;
   }
   for (const property of node.properties) {
     const key = property.key;
-    if (property.computed !== true && typeof key?.name === 'string') {
+    if (property.computed !== true && typeof key?.name === "string") {
       into.add(key.name);
       continue;
     }
-    if (typeof key?.value === 'string') {
+    if (typeof key?.value === "string") {
       into.add(key.value);
     }
   }

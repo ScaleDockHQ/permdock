@@ -1,36 +1,36 @@
-import type { StandardSchemaV1 } from '@standard-schema/spec';
+import type { StandardSchemaV1 } from "@standard-schema/spec";
 
-import type { Membership, Subject } from '../core/subject.ts';
+import type { Membership, Subject } from "../core/subject.ts";
 import type {
   BetterAuthLike,
   BetterAuthPrincipal,
   BetterAuthSubjectOptions,
-} from './types.ts';
+} from "./types.ts";
 
-import { compact, isReadonlyArray } from '../core/compact.ts';
-import { freezeDeep } from '../core/freeze.ts';
-import { anonymousSubject } from '../core/subject.ts';
-import { ignoreRejection } from '../core/thenable.ts';
+import { compact, isReadonlyArray } from "../core/compact.ts";
+import { freezeDeep } from "../core/freeze.ts";
+import { anonymousSubject } from "../core/subject.ts";
+import { ignoreRejection } from "../core/thenable.ts";
 import {
   asRoles,
   expiresAtSeconds,
   isRecord,
   parseMemberRows,
   parseTeamRows,
-} from './parse.ts';
+} from "./parse.ts";
 
-const PROFILE_FIELDS = new Set(['name', 'image', 'displayName']);
+const PROFILE_FIELDS = new Set(["name", "image", "displayName"]);
 
 function validateClaims(
   extra: Record<string, unknown>,
   schema: StandardSchemaV1,
 ): Record<string, unknown> | undefined {
-  const result = schema['~standard'].validate(extra);
+  const result = schema["~standard"].validate(extra);
   if (result instanceof Promise) {
     ignoreRejection(result);
     return undefined;
   }
-  if ('issues' in result && result.issues !== undefined) {
+  if ("issues" in result && result.issues !== undefined) {
     return undefined;
   }
   // SAFETY: a synchronous result without issues is the Standard Schema success result, which has value.
@@ -40,16 +40,16 @@ function validateClaims(
 
 function extraFields(user: Record<string, unknown>): Record<string, unknown> {
   const reserved = new Set([
-    'id',
-    'role',
-    'roles',
-    'email',
-    'emailVerified',
-    'createdAt',
-    'updatedAt',
-    'banned',
-    'banReason',
-    'banExpires',
+    "id",
+    "role",
+    "roles",
+    "email",
+    "emailVerified",
+    "createdAt",
+    "updatedAt",
+    "banned",
+    "banReason",
+    "banExpires",
   ]);
   const extra: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(user)) {
@@ -67,7 +67,7 @@ function isTrustedSession(
   if (!isRecord(session)) {
     return false;
   }
-  return isRecord(session['user']) || isRecord(session['session']);
+  return isRecord(session["user"]) || isRecord(session["session"]);
 }
 
 async function settle<T>(load: () => Promise<T>, fallback: T): Promise<T> {
@@ -84,7 +84,7 @@ async function organizationIds(
   options: BetterAuthSubjectOptions,
 ): Promise<readonly string[]> {
   const list = auth.api?.listOrganizations;
-  if (options.memberships === 'active' || list === undefined) {
+  if (options.memberships === "active" || list === undefined) {
     return tenant === undefined ? [] : [tenant];
   }
   const rows = await settle(async () => {
@@ -93,9 +93,9 @@ async function organizationIds(
   }, []);
   const ids = rows
     .map((row: unknown) =>
-      isRecord(row) && typeof row['id'] === 'string' ? row['id'] : undefined,
+      isRecord(row) && typeof row["id"] === "string" ? row["id"] : undefined,
     )
-    .filter((id): id is string => id !== undefined && id !== '');
+    .filter((id): id is string => id !== undefined && id !== "");
   return [...new Set(ids)];
 }
 
@@ -123,8 +123,8 @@ function memberIn(
         await list({
           query: {
             organizationId,
-            filterField: 'userId',
-            filterOperator: 'eq',
+            filterField: "userId",
+            filterOperator: "eq",
             filterValue: userId,
           },
           headers,
@@ -144,12 +144,12 @@ async function loadMemberships(
   options: BetterAuthSubjectOptions,
 ): Promise<readonly Membership[]> {
   let members = parseMemberRows(
-    session['members'] ?? session['member'] ?? user['members'],
+    session["members"] ?? session["member"] ?? user["members"],
     userId,
     false,
   );
   let teams = parseTeamRows(
-    session['teamMembers'] ?? session['teams'] ?? user['teamMembers'],
+    session["teamMembers"] ?? session["teams"] ?? user["teamMembers"],
     userId,
   );
   const headers = options.headers;
@@ -167,7 +167,7 @@ async function loadMemberships(
       [],
     );
   }
-  if (options.memberships === 'active' && tenant !== undefined) {
+  if (options.memberships === "active" && tenant !== undefined) {
     members = members.filter((item) => item.tenant === tenant);
     teams = teams.filter((item) => item.tenant === tenant);
   }
@@ -187,22 +187,22 @@ export async function subjectFromBetterAuth(
     ) {
       return anonymousSubject();
     }
-    if (!isRecord(session['user'])) {
+    if (!isRecord(session["user"])) {
       return anonymousSubject();
     }
-    const user = session['user'];
-    const record = isRecord(session['session'])
-      ? session['session']
+    const user = session["user"];
+    const record = isRecord(session["session"])
+      ? session["session"]
       : undefined;
-    const id = typeof user['id'] === 'string' ? user['id'] : undefined;
-    if (id === undefined || id === '') {
+    const id = typeof user["id"] === "string" ? user["id"] : undefined;
+    if (id === undefined || id === "") {
       return anonymousSubject();
     }
     const tenant =
-      typeof record?.['activeOrganizationId'] === 'string'
-        ? record['activeOrganizationId']
+      typeof record?.["activeOrganizationId"] === "string"
+        ? record["activeOrganizationId"]
         : undefined;
-    const roles = asRoles(user['role'] ?? user['roles']);
+    const roles = asRoles(user["role"] ?? user["roles"]);
     const declared = options.declared;
     const globalRoles =
       declared === undefined
@@ -222,19 +222,19 @@ export async function subjectFromBetterAuth(
     );
     const principal = compact<BetterAuthPrincipal>({
       id,
-      kind: 'user',
+      kind: "user",
       roles: globalRoles,
       tenant,
       memberships,
-      email: typeof user['email'] === 'string' ? user['email'] : undefined,
+      email: typeof user["email"] === "string" ? user["email"] : undefined,
       claims: Object.keys(extra).length === 0 ? undefined : extra,
     });
     return freezeDeep(
       compact<Subject<BetterAuthPrincipal>>({
         principal,
         context: {},
-        session: typeof record?.['id'] === 'string' ? record['id'] : undefined,
-        expiresAt: expiresAtSeconds(record?.['expiresAt']),
+        session: typeof record?.["id"] === "string" ? record["id"] : undefined,
+        expiresAt: expiresAtSeconds(record?.["expiresAt"]),
       }),
     );
   } catch {

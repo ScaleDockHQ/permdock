@@ -1,6 +1,6 @@
-import { sole } from '../core/compact.ts';
-import { freezeDeep } from '../core/freeze.ts';
-import { assertSafeKey, ownKeys } from '../core/paths.ts';
+import { sole } from "../core/compact.ts";
+import { freezeDeep } from "../core/freeze.ts";
+import { assertSafeKey, ownKeys } from "../core/paths.ts";
 import {
   type Condition,
   type ConditionValue,
@@ -8,26 +8,26 @@ import {
   isCondition,
   isConditionDate,
   isConditionRef,
-} from './ast.ts';
-import { opaque } from './opaque.ts';
-import { isSubjectRef } from './refs.ts';
+} from "./ast.ts";
+import { opaque } from "./opaque.ts";
+import { isSubjectRef } from "./refs.ts";
 import {
   assertPortableTwin,
   assertSqlFunctionArg,
   assertSqlFunctionName,
-} from './sql-function-assert.ts';
+} from "./sql-function-assert.ts";
 
 const FIELD_OPS = new Set([
-  'eq',
-  'ne',
-  'gt',
-  'gte',
-  'lt',
-  'lte',
-  'contains',
-  'in',
-  'notIn',
-  'isNull',
+  "eq",
+  "ne",
+  "gt",
+  "gte",
+  "lt",
+  "lte",
+  "contains",
+  "in",
+  "notIn",
+  "isNull",
 ]);
 
 export type FieldOperator = {
@@ -66,17 +66,17 @@ function toValue(raw: unknown): ConditionValue {
   }
   if (
     raw === null ||
-    typeof raw === 'string' ||
-    typeof raw === 'number' ||
-    typeof raw === 'boolean'
+    typeof raw === "string" ||
+    typeof raw === "number" ||
+    typeof raw === "boolean"
   ) {
     return raw;
   }
-  throw new Error('PermDock: unsupported condition value');
+  throw new Error("PermDock: unsupported condition value");
 }
 
 function flatten(
-  op: 'and' | 'or',
+  op: "and" | "or",
   conditions: readonly Condition[],
 ): readonly Condition[] {
   const out: Condition[] = [];
@@ -91,7 +91,7 @@ function flatten(
 }
 
 function collapse(condition: Condition): Condition {
-  if (condition.op === 'and' || condition.op === 'or') {
+  if (condition.op === "and" || condition.op === "or") {
     const flat = flatten(condition.op, condition.conditions).map(collapse);
     if (flat.length === 0) {
       throw new Error(`PermDock: empty ${condition.op} condition`);
@@ -102,12 +102,12 @@ function collapse(condition: Condition): Condition {
     }
     return freezeDeep({ op: condition.op, conditions: flat });
   }
-  if (condition.op === 'not') {
-    return freezeDeep({ op: 'not', condition: collapse(condition.condition) });
+  if (condition.op === "not") {
+    return freezeDeep({ op: "not", condition: collapse(condition.condition) });
   }
-  if (condition.op === 'sqlFunction') {
+  if (condition.op === "sqlFunction") {
     return freezeDeep({
-      op: 'sqlFunction',
+      op: "sqlFunction",
       name: condition.name,
       args: condition.args,
       twin: collapse(condition.twin),
@@ -117,13 +117,13 @@ function collapse(condition: Condition): Condition {
 }
 
 function fieldCondition(field: string, raw: unknown): Condition {
-  assertSafeKey(field, 'condition field');
-  if (isCondition(raw) && (raw.op === 'opaque' || raw.op === 'sqlFunction')) {
-    return raw.op === 'sqlFunction' ? normalizeSqlFunction(raw) : raw;
+  assertSafeKey(field, "condition field");
+  if (isCondition(raw) && (raw.op === "opaque" || raw.op === "sqlFunction")) {
+    return raw.op === "sqlFunction" ? normalizeSqlFunction(raw) : raw;
   }
   if (
     raw !== null &&
-    typeof raw === 'object' &&
+    typeof raw === "object" &&
     !isSubjectRef(raw) &&
     !isConditionRef(raw) &&
     !isConditionDate(raw) &&
@@ -135,13 +135,13 @@ function fieldCondition(field: string, raw: unknown): Condition {
       const op = keys[0];
       // SAFETY: raw is a non-null, non-array object checked above; op is one of its own keys.
       const value = (raw as Record<string, unknown>)[op];
-      if (op === 'isNull') {
-        if (typeof value !== 'boolean') {
-          throw new TypeError('PermDock: isNull requires a boolean');
+      if (op === "isNull") {
+        if (typeof value !== "boolean") {
+          throw new TypeError("PermDock: isNull requires a boolean");
         }
-        return collapse({ op: 'isNull', field, value });
+        return collapse({ op: "isNull", field, value });
       }
-      if (op === 'in' || op === 'notIn') {
+      if (op === "in" || op === "notIn") {
         if (isSubjectRef(value) || isConditionRef(value)) {
           return collapse({ op, field, value: { ref: value.ref } });
         }
@@ -158,13 +158,13 @@ function fieldCondition(field: string, raw: unknown): Condition {
       }
       // SAFETY: op is in FIELD_OPS and isNull, in and notIn returned above, so it is a comparison op.
       return collapse({
-        op: op as 'eq' | 'ne' | 'gt' | 'gte' | 'lt' | 'lte' | 'contains',
+        op: op as "eq" | "ne" | "gt" | "gte" | "lt" | "lte" | "contains",
         field,
         value: toValue(value),
       });
     }
   }
-  return collapse({ op: 'eq', field, value: toValue(raw) });
+  return collapse({ op: "eq", field, value: toValue(raw) });
 }
 
 function normalizeSqlFunction(input: {
@@ -177,15 +177,15 @@ function normalizeSqlFunction(input: {
   for (const arg of args) {
     assertSqlFunctionArg(arg);
   }
-  if (isCondition(input.twin) && input.twin.op === 'sqlFunction') {
-    throw new Error('PermDock: sqlFunction twin must not nest sqlFunction');
+  if (isCondition(input.twin) && input.twin.op === "sqlFunction") {
+    throw new Error("PermDock: sqlFunction twin must not nest sqlFunction");
   }
   const twin = isCondition(input.twin)
     ? collapse(input.twin)
     : normalizeWhere(input.twin);
   assertPortableTwin(twin);
   return freezeDeep({
-    op: 'sqlFunction' as const,
+    op: "sqlFunction" as const,
     name: input.name,
     args,
     twin,
@@ -194,17 +194,17 @@ function normalizeSqlFunction(input: {
 
 export function normalizeWhere(input: unknown): Condition {
   if (isCondition(input)) {
-    if (input.op === 'sqlFunction') {
+    if (input.op === "sqlFunction") {
       return collapse(normalizeSqlFunction(input));
     }
     return collapse(input);
   }
   if (
     input !== null &&
-    typeof input === 'object' &&
-    'sql' in input &&
-    'fingerprint' in input &&
-    typeof input.sql === 'string'
+    typeof input === "object" &&
+    "sql" in input &&
+    "fingerprint" in input &&
+    typeof input.sql === "string"
   ) {
     // SAFETY: sql is checked to be a string above; fingerprint is only checked to be present.
     return opaque({
@@ -213,41 +213,41 @@ export function normalizeWhere(input: unknown): Condition {
       fingerprint: (input as { readonly fingerprint: string }).fingerprint,
     });
   }
-  if (input === null || typeof input !== 'object' || Array.isArray(input)) {
-    throw new Error('PermDock: condition must be an object');
+  if (input === null || typeof input !== "object" || Array.isArray(input)) {
+    throw new Error("PermDock: condition must be an object");
   }
   const parts: Condition[] = [];
   for (const key of Object.keys(input)) {
     // SAFETY: input is a non-null, non-array object checked above; key is one of its own keys.
     const value = (input as Record<string, unknown>)[key];
-    if (key === 'and') {
+    if (key === "and") {
       if (!Array.isArray(value)) {
-        throw new TypeError('PermDock: and requires an array');
+        throw new TypeError("PermDock: and requires an array");
       }
       parts.push(
-        collapse({ op: 'and', conditions: value.map(normalizeWhere) }),
+        collapse({ op: "and", conditions: value.map(normalizeWhere) }),
       );
       continue;
     }
-    if (key === 'or') {
+    if (key === "or") {
       if (!Array.isArray(value)) {
-        throw new TypeError('PermDock: or requires an array');
+        throw new TypeError("PermDock: or requires an array");
       }
-      parts.push(collapse({ op: 'or', conditions: value.map(normalizeWhere) }));
+      parts.push(collapse({ op: "or", conditions: value.map(normalizeWhere) }));
       continue;
     }
-    if (key === 'not') {
-      parts.push(collapse({ op: 'not', condition: normalizeWhere(value) }));
+    if (key === "not") {
+      parts.push(collapse({ op: "not", condition: normalizeWhere(value) }));
       continue;
     }
     parts.push(fieldCondition(key, value));
   }
   if (parts.length === 0) {
-    throw new Error('PermDock: empty condition');
+    throw new Error("PermDock: empty condition");
   }
   const single = sole(parts);
   if (single !== undefined) {
     return single;
   }
-  return collapse({ op: 'and', conditions: parts });
+  return collapse({ op: "and", conditions: parts });
 }

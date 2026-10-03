@@ -1,11 +1,11 @@
-import { Suspense } from 'react';
-import { renderToStaticMarkup, renderToString } from 'react-dom/server';
-import { prerender } from 'react-dom/static';
-import { describe, expect, it, vi } from 'vitest';
+import { Suspense } from "react";
+import { renderToStaticMarkup, renderToString } from "react-dom/server";
+import { prerender } from "react-dom/static";
+import { describe, expect, it, vi } from "vitest";
 
-import { emptySnapshot } from '../../src/core/from-snapshot.ts';
-import { createPermDock } from '../../src/core/permdock.ts';
-import { approvalHeaders } from '../../src/react/headers.ts';
+import { emptySnapshot } from "../../src/core/from-snapshot.ts";
+import { createPermDock } from "../../src/core/permdock.ts";
+import { approvalHeaders } from "../../src/react/headers.ts";
 import {
   useAssignablePermissions,
   useFilter,
@@ -16,25 +16,25 @@ import {
   useRoles,
   useSubject,
   useTenant,
-} from '../../src/react/hooks.ts';
-import { Protected } from '../../src/react/protected.tsx';
-import { PermDockProvider } from '../../src/react/provider.tsx';
-import { createClientStore } from '../../src/react/store.ts';
+} from "../../src/react/hooks.ts";
+import { Protected } from "../../src/react/protected.tsx";
+import { PermDockProvider } from "../../src/react/provider.tsx";
+import { createClientStore } from "../../src/react/store.ts";
 import {
   memberUser,
   otherPost,
   ownPost,
   permissions,
   policy,
-} from '../fixtures/quick-start.ts';
-import { alice, policy as saasPolicy } from '../fixtures/saas.ts';
+} from "../fixtures/quick-start.ts";
+import { alice, policy as saasPolicy } from "../fixtures/saas.ts";
 
 async function memberSnapshot() {
   // SAFETY: memberUser is the quick-start policy's own user fixture; only the generic is erased.
   const server = await createPermDock(policy as never, memberUser);
   const snapshot = server.snapshot();
   if (snapshot instanceof Promise) {
-    throw new Error('expected JSON snapshot');
+    throw new Error("expected JSON snapshot");
   }
   return snapshot;
 }
@@ -50,40 +50,40 @@ function Probe(): string {
   const memberships = useMemberships();
   const { roles } = useRoles();
   const subject = useSubject();
-  const dock = usePermDock();
-  return `${allowed}:${actions.granted.length}:${editable.length}:${editable.partial}:${tenant.tenant ?? 'none'}:${memberships.length}:${roles.map((item) => item.key).join(',')}:${subject.simulated}:${dock.status()}`;
+  const permdock = usePermDock();
+  return `${allowed}:${actions.granted.length}:${editable.length}:${editable.partial}:${tenant.tenant ?? "none"}:${memberships.length}:${roles.map((item) => item.key).join(",")}:${subject.simulated}:${permdock.status()}`;
 }
 
 function AssignableProbe(): string {
   const leaves = useAssignablePermissions();
-  const other = useAssignablePermissions({ tenant: 'globex' });
-  return `${leaves.map((leaf) => leaf.key).join(',')}|${other.length}`;
+  const other = useAssignablePermissions({ tenant: "globex" });
+  return `${leaves.map((leaf) => leaf.key).join(",")}|${other.length}`;
 }
 
-describe('useAssignablePermissions', () => {
-  it('reads the custom-role ceiling the subject may hand out from the snapshot', async () => {
-    const server = await createPermDock(saasPolicy, alice, { tenant: 'acme' });
-    const snapshot = server.snapshot({ tenants: 'all' });
+describe("useAssignablePermissions", () => {
+  it("reads the custom-role ceiling the subject may hand out from the snapshot", async () => {
+    const server = await createPermDock(saasPolicy, alice, { tenant: "acme" });
+    const snapshot = server.snapshot({ tenants: "all" });
     if (snapshot instanceof Promise) {
-      throw new Error('expected JSON snapshot');
+      throw new Error("expected JSON snapshot");
     }
     const html = renderToStaticMarkup(
       <PermDockProvider snapshot={snapshot}>
         <AssignableProbe />
       </PermDockProvider>,
     );
-    const [acme = '', globex] = html.split('|');
-    expect(acme.split(',')).toContain('project.update');
-    expect(acme.split(',')).not.toContain('billing.read');
+    const [acme = "", globex] = html.split("|");
+    expect(acme.split(",")).toContain("project.update");
+    expect(acme.split(",")).not.toContain("billing.read");
     expect(Number(globex)).toBeGreaterThan(0);
-    expect(acme.split(',')).toEqual(
+    expect(acme.split(",")).toEqual(
       server.assignablePermissions().map((leaf) => leaf.key),
     );
   });
 });
 
-describe('permdock/react', () => {
-  it('renders portable grants from the snapshot without flashing deny', async () => {
+describe("permdock/react", () => {
+  it("renders portable grants from the snapshot without flashing deny", async () => {
     const snapshot = await memberSnapshot();
     const html = renderToStaticMarkup(
       <PermDockProvider snapshot={snapshot}>
@@ -103,11 +103,11 @@ describe('permdock/react', () => {
         </Protected>
       </PermDockProvider>,
     );
-    expect(html).toContain('edit');
-    expect(html).toContain('locked');
+    expect(html).toContain("edit");
+    expect(html).toContain("locked");
   });
 
-  it('exposes snapshot introspection through hooks', async () => {
+  it("exposes snapshot introspection through hooks", async () => {
     const snapshot = await memberSnapshot();
     const html = renderToStaticMarkup(
       <PermDockProvider snapshot={snapshot}>
@@ -116,18 +116,18 @@ describe('permdock/react', () => {
         </span>
       </PermDockProvider>,
     );
-    expect(html).toContain('true:1:1:false');
-    expect(html).toContain('member');
-    expect(html).toContain('false:ready');
+    expect(html).toContain("true:1:1:false");
+    expect(html).toContain("member");
+    expect(html).toContain("false:ready");
   });
 
-  it('marks closure grants server-only without an endpoint', async () => {
+  it("marks closure grants server-only without an endpoint", async () => {
     const snapshot = await memberSnapshot();
     const store = createClientStore({
       snapshot: {
         ...snapshot,
         grants: snapshot.grants.map((grant) =>
-          grant.permission === 'post.update'
+          grant.permission === "post.update"
             ? {
                 permission: grant.permission,
                 effect: grant.effect,
@@ -141,20 +141,20 @@ describe('permdock/react', () => {
     });
     const state = store.permissionState(permissions.post.update, ownPost);
     expect(state.allowed).toBe(false);
-    expect(state.status).toBe('server-only');
+    expect(state.status).toBe("server-only");
     expect(
-      state.decision.outcome === 'denied' && state.decision.denials,
-    ).toEqual([{ role: null, reason: 'server-only' }]);
+      state.decision.outcome === "denied" && state.decision.denials,
+    ).toEqual([{ role: null, reason: "server-only" }]);
   });
 
-  it('never fetches with endpoint false and hints once', async () => {
+  it("never fetches with endpoint false and hints once", async () => {
     const snapshot = await memberSnapshot();
     const fetch = vi.fn<typeof globalThis.fetch>();
-    const info = vi.spyOn(console, 'info').mockImplementation(() => undefined);
+    const info = vi.spyOn(console, "info").mockImplementation(() => undefined);
     const closure = {
       ...snapshot,
       grants: snapshot.grants.map((grant) =>
-        grant.permission === 'post.update'
+        grant.permission === "post.update"
           ? {
               permission: grant.permission,
               effect: grant.effect,
@@ -167,8 +167,8 @@ describe('permdock/react', () => {
     };
     function Reason(): string {
       const state = usePermission(permissions.post.update, ownPost);
-      return state.decision.outcome === 'denied'
-        ? `${state.status}:${state.decision.denials.map((denial) => denial.reason).join(',')}`
+      return state.decision.outcome === "denied"
+        ? `${state.status}:${state.decision.denials.map((denial) => denial.reason).join(",")}`
         : state.status;
     }
     const html = renderToStaticMarkup(
@@ -177,20 +177,20 @@ describe('permdock/react', () => {
         <Reason />
       </PermDockProvider>,
     );
-    expect(html).toBe('server-only:server-onlyserver-only:server-only');
+    expect(html).toBe("server-only:server-onlyserver-only:server-only");
     expect(fetch).not.toHaveBeenCalled();
     expect(info).toHaveBeenCalledOnce();
     info.mockRestore();
   });
 
-  it('never calls the endpoint while rendering on the server', async () => {
+  it("never calls the endpoint while rendering on the server", async () => {
     const snapshot = await memberSnapshot();
     let calls = 0;
     const store = createClientStore({
       snapshot: {
         ...snapshot,
         grants: snapshot.grants.map((grant) =>
-          grant.permission === 'post.update'
+          grant.permission === "post.update"
             ? {
                 permission: grant.permission,
                 effect: grant.effect,
@@ -201,29 +201,29 @@ describe('permdock/react', () => {
             : grant,
         ),
       },
-      endpoint: '/api/permdock',
+      endpoint: "/api/permdock",
       fetch: () => {
         calls += 1;
-        return Promise.resolve(new Response('{}'));
+        return Promise.resolve(new Response("{}"));
       },
     });
     expect(
       store.permissionState(permissions.post.update, ownPost),
-    ).toMatchObject({ allowed: false, status: 'pending' });
+    ).toMatchObject({ allowed: false, status: "pending" });
     await new Promise((resolve) => {
       setTimeout(resolve, 0);
     });
     expect(calls).toBe(0);
   });
 
-  it('batches endpoint evaluations and caches by resource id', async () => {
+  it("batches endpoint evaluations and caches by resource id", async () => {
     const snapshot = await memberSnapshot();
     const calls: unknown[] = [];
     const store = createClientStore({
       snapshot: {
         ...snapshot,
         grants: snapshot.grants.map((grant) =>
-          grant.permission === 'post.update'
+          grant.permission === "post.update"
             ? {
                 permission: grant.permission,
                 effect: grant.effect,
@@ -234,7 +234,7 @@ describe('permdock/react', () => {
             : grant,
         ),
       },
-      endpoint: '/api/permdock',
+      endpoint: "/api/permdock",
       server: false,
       fetch: async (_input, init) => {
         calls.push(JSON.parse(String(init?.body)));
@@ -245,13 +245,13 @@ describe('permdock/react', () => {
                 decision: true,
                 context: {
                   permdock: {
-                    outcome: 'granted',
+                    outcome: "granted",
                     subject: {
-                      principal: { id: 'u1', roles: ['member'] },
+                      principal: { id: "u1", roles: ["member"] },
                       context: {},
                     },
-                    matched: { role: 'member', permission: 'post.update' },
-                    token: 'pd1.x',
+                    matched: { role: "member", permission: "post.update" },
+                    token: "pd1.x",
                   },
                 },
               },
@@ -262,28 +262,28 @@ describe('permdock/react', () => {
       },
     });
     expect(store.permissionState(permissions.post.update, ownPost).status).toBe(
-      'pending',
+      "pending",
     );
     for (let attempt = 0; attempt < 20; attempt += 1) {
       await Promise.resolve();
       if (
         store.permissionState(permissions.post.update, ownPost).status ===
-        'ready'
+        "ready"
       ) {
         break;
       }
     }
     const ready = store.permissionState(permissions.post.update, ownPost);
-    expect(ready.status).toBe('ready');
+    expect(ready.status).toBe("ready");
     expect(ready.allowed).toBe(true);
     expect(calls).toHaveLength(1);
   });
 
-  it('does not read the clock while a snapshotPromise is pending', () => {
+  it("does not read the clock while a snapshotPromise is pending", () => {
     const never = new Promise<string>(() => {
       // never settles
     });
-    const clock = vi.spyOn(Date, 'now');
+    const clock = vi.spyOn(Date, "now");
     try {
       renderToString(
         <PermDockProvider snapshotPromise={never}>
@@ -296,7 +296,7 @@ describe('permdock/react', () => {
     }
   });
 
-  it('suspends only the readers of a snapshotPromise', async () => {
+  it("suspends only the readers of a snapshotPromise", async () => {
     const snapshot = await memberSnapshot();
     const never = new Promise<typeof snapshot>(() => {
       // never settles
@@ -313,9 +313,9 @@ describe('permdock/react', () => {
         </Protected>
       </PermDockProvider>,
     );
-    expect(shell).toContain('static nav');
-    expect(shell).toContain('loading');
-    expect(shell).not.toContain('edit');
+    expect(shell).toContain("static nav");
+    expect(shell).toContain("loading");
+    expect(shell).not.toContain("edit");
 
     const { prelude } = await prerender(
       <PermDockProvider snapshotPromise={Promise.resolve(snapshot)}>
@@ -338,14 +338,14 @@ describe('permdock/react', () => {
       </PermDockProvider>,
     );
     const html = await new Response(prelude).text();
-    expect(html).toContain('edit');
-    expect(html).toContain('locked');
-    expect(html).not.toContain('loading');
+    expect(html).toContain("edit");
+    expect(html).toContain("locked");
+    expect(html).not.toContain("loading");
   });
 
-  it('fails closed for an unverifiable JWS from a snapshotPromise', async () => {
+  it("fails closed for an unverifiable JWS from a snapshotPromise", async () => {
     const { prelude } = await prerender(
-      <PermDockProvider snapshotPromise={Promise.resolve('a.b.c')}>
+      <PermDockProvider snapshotPromise={Promise.resolve("a.b.c")}>
         <Suspense fallback="loading">
           <Protected
             permission={permissions.post.read}
@@ -358,25 +358,25 @@ describe('permdock/react', () => {
       </PermDockProvider>,
     );
     const html = await new Response(prelude).text();
-    expect(html).toContain('locked');
+    expect(html).toContain("locked");
   });
 
-  it('adopts each snapshotPromise once', async () => {
+  it("adopts each snapshotPromise once", async () => {
     const snapshot = await memberSnapshot();
     const store = createClientStore({ snapshot: emptySnapshot() });
     const first = Promise.resolve(snapshot);
     store.adopt(snapshot, first);
-    const dock = store.get();
-    expect(dock.can(permissions.post.update, ownPost)).toBe(true);
+    const permdock = store.get();
+    expect(permdock.can(permissions.post.update, ownPost)).toBe(true);
     store.adopt(emptySnapshot(), first);
-    expect(store.get()).toBe(dock);
+    expect(store.get()).toBe(permdock);
     store.adopt(emptySnapshot(), Promise.resolve(emptySnapshot()));
     expect(store.get().can(permissions.post.update, ownPost)).toBe(false);
   });
 
-  it('builds the approval resume header', () => {
-    expect(approvalHeaders('pd1.abc')).toEqual({
-      'PermDock-Approval': 'pd1.abc',
+  it("builds the approval resume header", () => {
+    expect(approvalHeaders("pd1.abc")).toEqual({
+      "PermDock-Approval": "pd1.abc",
     });
   });
 });

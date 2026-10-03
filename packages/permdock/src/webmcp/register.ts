@@ -1,12 +1,12 @@
-import type { StandardSchemaV1 } from '@standard-schema/spec';
+import type { StandardSchemaV1 } from "@standard-schema/spec";
 
-import type { Decision } from '../core/decision.ts';
-import type { Snapshot } from '../core/interfaces.ts';
+import type { Decision } from "../core/decision.ts";
+import type { Snapshot } from "../core/interfaces.ts";
 import type {
   Permission,
   PermissionTree,
   ResourceNode,
-} from '../core/permissions.ts';
+} from "../core/permissions.ts";
 import type {
   ModelContext,
   PermissionGroup,
@@ -14,56 +14,56 @@ import type {
   RegisterToolsOptions,
   WebMcpPermDock,
   WebMcpToolResult,
-} from './types.ts';
+} from "./types.ts";
 
-import { compact } from '../core/compact.ts';
-import { describe } from '../core/describe.ts';
-import { PermDockValidationError } from '../core/errors.ts';
+import { compact } from "../core/compact.ts";
+import { describe } from "../core/describe.ts";
+import { PermDockValidationError } from "../core/errors.ts";
 import {
   annotationsFor,
   getRegistry,
   isRegistryTree,
   resourceOfNode,
   listPermissions,
-} from '../core/permissions.ts';
-import { ignoreRejection, isThenable } from '../core/thenable.ts';
-import { wireDenials } from '../core/wire-denial.ts';
+} from "../core/permissions.ts";
+import { ignoreRejection, isThenable } from "../core/thenable.ts";
+import { wireDenials } from "../core/wire-denial.ts";
 
 const MISSING_CONTEXT =
-  'permdock/webmcp: document.modelContext is absent; registerTools is a no-op.';
+  "permdock/webmcp: document.modelContext is absent; registerTools is a no-op.";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-const CURRENT = Symbol.for('permdock.current');
+const CURRENT = Symbol.for("permdock.current");
 
 function current(permdock: WebMcpPermDock): WebMcpPermDock {
   // SAFETY: an optional read of the CURRENT symbol, typeof-checked below.
   const latest = (permdock as { readonly [CURRENT]?: unknown })[CURRENT];
   // SAFETY: the client store defines CURRENT as a getter for its latest instance.
-  return typeof latest === 'function'
+  return typeof latest === "function"
     ? (latest as () => WebMcpPermDock)()
     : permdock;
 }
 
 function snapshotOf(permdock: WebMcpPermDock): Snapshot | undefined {
   const value = permdock.snapshot();
-  if (value instanceof Promise || typeof value === 'string') {
+  if (value instanceof Promise || typeof value === "string") {
     return undefined;
   }
   return value;
 }
 
 function toolName(permission: Permission): string {
-  return permission.key.replaceAll('.', '_');
+  return permission.key.replaceAll(".", "_");
 }
 
 function untrustedHint(
   permission: Permission,
   fallback: boolean | undefined,
 ): boolean {
-  if (permission.meta.tags?.includes('untrusted') === true) {
+  if (permission.meta.tags?.includes("untrusted") === true) {
     return true;
   }
   return fallback === true;
@@ -76,8 +76,8 @@ function schemaFor(
 ): StandardSchemaV1 | undefined {
   if (
     option !== undefined ||
-    'key' in group ||
-    permission.kind !== 'instance'
+    "key" in group ||
+    permission.kind !== "instance"
   ) {
     return option;
   }
@@ -96,7 +96,7 @@ function resourceIn(
     return own.name === name ? own : undefined;
   }
   for (const child of Object.values(group)) {
-    if (!('key' in child)) {
+    if (!("key" in child)) {
       const found = resourceIn(child, name);
       if (found !== undefined) {
         return found;
@@ -113,27 +113,27 @@ function jsonSchemaOf(
     return undefined;
   }
   // SAFETY: an optional read of Standard JSON Schema's jsonSchema; it is checked before use.
-  const standard = schema['~standard'] as {
+  const standard = schema["~standard"] as {
     readonly jsonSchema?: unknown;
   };
   // SAFETY: Standard JSON Schema's shape; input is typeof-checked before the call.
   const converter = standard.jsonSchema as
     | { readonly input?: (options: { readonly target: string }) => unknown }
     | undefined;
-  if (typeof converter?.input === 'function') {
+  if (typeof converter?.input === "function") {
     try {
-      const converted = converter.input({ target: 'draft-2020-12' });
+      const converted = converter.input({ target: "draft-2020-12" });
       if (isRecord(converted)) {
         return converted;
       }
     } catch {
-      return { type: 'object' };
+      return { type: "object" };
     }
   }
   if (isRecord(standard.jsonSchema) && converter?.input === undefined) {
     return standard.jsonSchema;
   }
-  return { type: 'object' };
+  return { type: "object" };
 }
 
 function validateInput(
@@ -144,31 +144,31 @@ function validateInput(
   if (schema === undefined) {
     return args;
   }
-  const result = schema['~standard'].validate(args);
+  const result = schema["~standard"].validate(args);
   if (isThenable(result)) {
     ignoreRejection(result);
     throw new PermDockValidationError({
-      code: 'async-schema',
+      code: "async-schema",
       permission: permission.key,
       resource: permission.resource,
-      boundary: 'webmcp-args',
+      boundary: "webmcp-args",
       message: `${permission.key}: inputSchema is async.`,
       issues: [],
     });
   }
   // SAFETY: a thenable result threw above, so this is the synchronous Result.
   const sync = result as StandardSchemaV1.Result<unknown>;
-  if ('issues' in sync && sync.issues !== undefined) {
+  if ("issues" in sync && sync.issues !== undefined) {
     throw new PermDockValidationError({
-      code: 'invalid-data',
+      code: "invalid-data",
       permission: permission.key,
       resource: permission.resource,
-      boundary: 'webmcp-args',
+      boundary: "webmcp-args",
       message: `${permission.key}: invalid tool arguments.`,
       issues: [...sync.issues],
     });
   }
-  return 'value' in sync ? sync.value : args;
+  return "value" in sync ? sync.value : args;
 }
 
 function bindTenant(
@@ -177,7 +177,7 @@ function bindTenant(
   tenant: string | undefined,
 ):
   | { readonly ok: true; readonly input: unknown }
-  | { readonly ok: false; readonly reason: 'tenant-mismatch' } {
+  | { readonly ok: false; readonly reason: "tenant-mismatch" } {
   if (tenantKey === undefined || tenant === undefined) {
     return { ok: true, input };
   }
@@ -186,7 +186,7 @@ function bindTenant(
   }
   const given = input[tenantKey];
   if (given !== undefined && given !== tenant) {
-    return { ok: false, reason: 'tenant-mismatch' };
+    return { ok: false, reason: "tenant-mismatch" };
   }
   return { ok: true, input: { ...input, [tenantKey]: tenant } };
 }
@@ -195,35 +195,35 @@ function resourceRef(
   permission: Permission,
   data: unknown,
 ): { readonly type: string; readonly id?: string } {
-  if (permission.kind === 'collection' || !isRecord(data)) {
+  if (permission.kind === "collection" || !isRecord(data)) {
     return { type: permission.resource };
   }
-  const id = data['id'];
-  return typeof id === 'string' || typeof id === 'number'
+  const id = data["id"];
+  return typeof id === "string" || typeof id === "number"
     ? { type: permission.resource, id: String(id) }
     : { type: permission.resource };
 }
 
 function alternativesOf(
-  decision: Extract<Decision, { readonly outcome: 'denied' }>,
+  decision: Extract<Decision, { readonly outcome: "denied" }>,
 ): string[] {
   return decision.alternatives.map((leaf) => leaf.key);
 }
 
 function deniedResult(
-  decision: Extract<Decision, { readonly outcome: 'denied' }>,
+  decision: Extract<Decision, { readonly outcome: "denied" }>,
   permission: Permission,
   data: unknown,
 ): WebMcpToolResult {
   const described = describe(decision);
   const alternatives = alternativesOf(decision);
   const suffix =
-    alternatives.length === 0 ? '' : ` You may: ${alternatives.join(', ')}.`;
+    alternatives.length === 0 ? "" : ` You may: ${alternatives.join(", ")}.`;
   return {
     isError: true,
-    content: [{ type: 'text', text: `Denied: ${permission.key}.${suffix}` }],
+    content: [{ type: "text", text: `Denied: ${permission.key}.${suffix}` }],
     structuredContent: compact({
-      outcome: 'denied' as const,
+      outcome: "denied" as const,
       permission: permission.key,
       resource: resourceRef(permission, data),
       denials: wireDenials(decision.denials),
@@ -234,14 +234,14 @@ function deniedResult(
 }
 
 function approvalResult(
-  decision: Extract<Decision, { readonly outcome: 'approval-required' }>,
+  decision: Extract<Decision, { readonly outcome: "approval-required" }>,
   permission: Permission,
   data: unknown,
 ): WebMcpToolResult {
   return {
-    content: [{ type: 'text', text: describe(decision).detail }],
+    content: [{ type: "text", text: describe(decision).detail }],
     structuredContent: {
-      outcome: 'approval-required' as const,
+      outcome: "approval-required" as const,
       permission: permission.key,
       resource: resourceRef(permission, data),
       token: decision.token,
@@ -252,11 +252,11 @@ function approvalResult(
 function validationResult(error: PermDockValidationError): WebMcpToolResult {
   return {
     isError: true,
-    content: [{ type: 'text', text: error.message }],
+    content: [{ type: "text", text: error.message }],
     structuredContent: {
-      outcome: 'denied' as const,
+      outcome: "denied" as const,
       permission: error.permission,
-      denials: [{ role: null, reason: 'validation' }],
+      denials: [{ role: null, reason: "validation" }],
       alternatives: [],
       issues: error.issues,
     },
@@ -266,9 +266,9 @@ function validationResult(error: PermDockValidationError): WebMcpToolResult {
 function problemResult(error: unknown): WebMcpToolResult | undefined {
   if (
     error !== null &&
-    typeof error === 'object' &&
-    'toProblemDetails' in error &&
-    typeof error.toProblemDetails === 'function'
+    typeof error === "object" &&
+    "toProblemDetails" in error &&
+    typeof error.toProblemDetails === "function"
   ) {
     // SAFETY: toProblemDetails is the PermDock error method; it returns Problem Details with title and detail.
     const problem = (
@@ -276,18 +276,18 @@ function problemResult(error: unknown): WebMcpToolResult | undefined {
     ).toProblemDetails();
     return {
       isError: true,
-      content: [{ type: 'text', text: `${problem.title}: ${problem.detail}` }],
-      structuredContent: { outcome: 'denied' as const, problem },
+      content: [{ type: "text", text: `${problem.title}: ${problem.detail}` }],
+      structuredContent: { outcome: "denied" as const, problem },
     };
   }
-  if (isRecord(error) && error['type'] === 'application/problem+json') {
+  if (isRecord(error) && error["type"] === "application/problem+json") {
     const title =
-      typeof error['title'] === 'string' ? error['title'] : 'Denied';
-    const detail = typeof error['detail'] === 'string' ? error['detail'] : '';
+      typeof error["title"] === "string" ? error["title"] : "Denied";
+    const detail = typeof error["detail"] === "string" ? error["detail"] : "";
     return {
       isError: true,
-      content: [{ type: 'text', text: `${title}: ${detail}` }],
-      structuredContent: { outcome: 'denied' as const, problem: error },
+      content: [{ type: "text", text: `${title}: ${detail}` }],
+      structuredContent: { outcome: "denied" as const, problem: error },
     };
   }
   return undefined;
@@ -296,22 +296,22 @@ function problemResult(error: unknown): WebMcpToolResult | undefined {
 function wrapResult(value: unknown): WebMcpToolResult {
   if (
     isRecord(value) &&
-    Array.isArray(value['content']) &&
-    value['content'].every(
+    Array.isArray(value["content"]) &&
+    value["content"].every(
       (item) =>
         isRecord(item) &&
-        item['type'] === 'text' &&
-        typeof item['text'] === 'string',
+        item["type"] === "text" &&
+        typeof item["text"] === "string",
     )
   ) {
     // SAFETY: a record whose content items were each checked above to be a text part.
     return value as unknown as WebMcpToolResult;
   }
-  if (typeof value === 'string') {
-    return { content: [{ type: 'text', text: value }] };
+  if (typeof value === "string") {
+    return { content: [{ type: "text", text: value }] };
   }
   return {
-    content: [{ type: 'text', text: JSON.stringify(value ?? null) }],
+    content: [{ type: "text", text: JSON.stringify(value ?? null) }],
   };
 }
 
@@ -319,13 +319,13 @@ function instanceAllowed(snapshot: Snapshot, permission: Permission): boolean {
   return snapshot.grants.some(
     (grant) =>
       grant.permission === permission.key &&
-      grant.effect === 'allow' &&
+      grant.effect === "allow" &&
       grant.portable !== false,
   );
 }
 
 function shouldRegister(
-  dock: WebMcpPermDock,
+  permdock: WebMcpPermDock,
   snapshot: Snapshot,
   permission: Permission,
 ): boolean {
@@ -333,18 +333,18 @@ function shouldRegister(
     return false;
   }
   if (
-    dock.status?.(permission) === 'server-only' ||
-    dock.status?.(permission) === 'pending'
+    permdock.status?.(permission) === "server-only" ||
+    permdock.status?.(permission) === "pending"
   ) {
     return false;
   }
-  if (permission.kind === 'collection') {
-    return dock.can(permission);
+  if (permission.kind === "collection") {
+    return permdock.can(permission);
   }
   return instanceAllowed(snapshot, permission);
 }
 
-function warnMissing(warn: RegisterToolsOptions['warn']): void {
+function warnMissing(warn: RegisterToolsOptions["warn"]): void {
   if (warn !== undefined) {
     warn(MISSING_CONTEXT);
     return;
@@ -360,7 +360,7 @@ async function runTool(
   permission: Permission,
   raw: unknown,
   options: RegisterToolsOptions,
-  dock: WebMcpPermDock,
+  permdock: WebMcpPermDock,
   schema: StandardSchemaV1 | undefined,
 ): Promise<WebMcpToolResult> {
   try {
@@ -369,19 +369,19 @@ async function runTool(
     if (!bound.ok) {
       return deniedResult(
         {
-          outcome: 'denied',
-          denials: [{ role: null, reason: 'tenant-mismatch' }],
+          outcome: "denied",
+          denials: [{ role: null, reason: "tenant-mismatch" }],
           alternatives: [],
         },
         permission,
         validated,
       );
     }
-    const decision = dock.decide(permission, bound.input);
+    const decision = permdock.decide(permission, bound.input);
     switch (decision.outcome) {
-      case 'denied':
+      case "denied":
         return deniedResult(decision, permission, bound.input);
-      case 'approval-required': {
+      case "approval-required": {
         const confirmed = await options.onApprovalRequired?.({
           permission,
           decision,
@@ -392,7 +392,7 @@ async function runTool(
         }
         break;
       }
-      case 'granted':
+      case "granted":
         break;
       default: {
         const exhaustive: never = decision;
@@ -405,7 +405,7 @@ async function runTool(
         isError: true,
         content: [
           {
-            type: 'text',
+            type: "text",
             text: `${permission.key}: no handler registered.`,
           },
         ],
@@ -423,8 +423,8 @@ async function runTool(
         isError: true,
         content: [
           {
-            type: 'text',
-            text: error instanceof Error ? error.message : 'Tool failed.',
+            type: "text",
+            text: error instanceof Error ? error.message : "Tool failed.",
           },
         ],
       }
@@ -439,29 +439,29 @@ function registerGeneration(
   signal: AbortSignal,
 ): void {
   const root = current(options.permdock);
-  const dock =
+  const permdock =
     options.tenant !== undefined && root.tenant !== undefined
       ? root.tenant(options.tenant)
       : root;
-  const snapshot = snapshotOf(dock);
+  const snapshot = snapshotOf(permdock);
   if (snapshot === undefined) {
     return;
   }
   for (const permission of listPermissions(group)) {
-    if (!shouldRegister(dock, snapshot, permission)) {
+    if (!shouldRegister(permdock, snapshot, permission)) {
       continue;
     }
     const schema = schemaFor(group, permission, options.schema);
     const tenantTitle =
       options.tenant === undefined ? undefined : ` [tenant ${options.tenant}]`;
-    const description = `${permission.meta.description ?? permission.key}${tenantTitle ?? ''}`;
+    const description = `${permission.meta.description ?? permission.key}${tenantTitle ?? ""}`;
     modelContext.registerTool(
       compact({
         name: toolName(permission),
         title: permission.meta.title ?? permission.action,
         description,
         inputSchema:
-          permission.kind === 'instance' || schema !== undefined
+          permission.kind === "instance" || schema !== undefined
             ? jsonSchemaOf(schema)
             : undefined,
         annotations: compact({
@@ -472,7 +472,7 @@ function registerGeneration(
           ),
         }),
         execute: (input: unknown): Promise<WebMcpToolResult> =>
-          runTool(permission, input, options, dock, schema),
+          runTool(permission, input, options, permdock, schema),
       }),
       { signal },
     );
@@ -508,6 +508,6 @@ export function registerTools(
     generation?.abort();
     unsubscribe?.();
   };
-  parent?.addEventListener('abort', unregister, { once: true });
+  parent?.addEventListener("abort", unregister, { once: true });
   return { unregister };
 }

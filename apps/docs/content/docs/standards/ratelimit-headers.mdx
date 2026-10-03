@@ -21,7 +21,7 @@ A `limit` grant is how a policy caps a paid or agent-reachable action ([limits](
 ## How PermDock uses it
 
 ```ts
-allow(permissions.report.export, { limit: { count: 100, per: 'day' } })
+allow(permissions.report.export, { limit: { count: 100, per: "day" } });
 ```
 
 When that grant is exhausted, an HTTP adapter built on the [server kernel](/docs/adapters/server-kernel) answers:
@@ -46,16 +46,16 @@ RateLimit-Policy: "member";q=100;w=86400
 
 ## Mapping
 
-| Draft concept | PermDock |
-| --- | --- |
-| Quota policy | A `limit` grant under one role |
-| Policy name | The role name, or `"default"` for a grant without one |
-| `q` (quota) | `limit.count` |
-| `w` (window) | `limit.per` in seconds (`LimitDetail.window`) |
-| `r` (remaining) | `0` on a denial |
-| `t` (reset) | `LimitDetail.resetsAt` minus now, at least 1 |
-| `429` + `Retry-After` | Reason `limit` on every denial |
-| Service unavailable | Reason `limit-unavailable`, `503` |
+| Draft concept         | PermDock                                              |
+| --------------------- | ----------------------------------------------------- |
+| Quota policy          | A `limit` grant under one role                        |
+| Policy name           | The role name, or `"default"` for a grant without one |
+| `q` (quota)           | `limit.count`                                         |
+| `w` (window)          | `limit.per` in seconds (`LimitDetail.window`)         |
+| `r` (remaining)       | `0` on a denial                                       |
+| `t` (reset)           | `LimitDetail.resetsAt` minus now, at least 1          |
+| `429` + `Retry-After` | Reason `limit` on every denial                        |
+| Service unavailable   | Reason `limit-unavailable`, `503`                     |
 
 ## Sources
 

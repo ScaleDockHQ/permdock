@@ -14,3 +14,7 @@ What the repository does, naming the file, setting or package.
 ## Consequences
 
 What this costs, what it blocks, and the condition under which the decision is revisited.
+
+## Alternatives considered
+
+Each option rejected, and why.

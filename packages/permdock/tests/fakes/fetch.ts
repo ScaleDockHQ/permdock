@@ -18,7 +18,7 @@ export function json(
 ): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'content-type': 'application/json', ...headers },
+    headers: { "content-type": "application/json", ...headers },
   });
 }
 
@@ -42,10 +42,10 @@ export function fakeFetch(
       url: request.url,
       method: request.method,
       headers: request.headers,
-      body: request.body === null ? '' : await request.text(),
+      body: request.body === null ? "" : await request.text(),
     };
     calls.push(call);
-    return (await reply(call)) ?? new Response('not found', { status: 404 });
+    return (await reply(call)) ?? new Response("not found", { status: 404 });
   };
   // SAFETY: fetcher has fetch's call signature; `preconnect` is never called by PermDock.
   return { fetch: fetcher as typeof fetch, calls };
@@ -60,7 +60,7 @@ export function sequence(
     const make = responses[Math.min(index, responses.length - 1)];
     index += 1;
     if (make === undefined) {
-      throw new Error('sequence needs at least one response');
+      throw new Error("sequence needs at least one response");
     }
     return make();
   };

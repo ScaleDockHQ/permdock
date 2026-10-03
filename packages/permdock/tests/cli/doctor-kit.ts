@@ -1,12 +1,12 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import path from 'node:path';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import path from "node:path";
 
-import type { CliIo } from '../../src/cli/types.ts';
+import type { CliIo } from "../../src/cli/types.ts";
 
-const TMP = path.join(import.meta.dirname, '../../tmp');
+const TMP = path.join(import.meta.dirname, "../../tmp");
 const temps: string[] = [];
 
-export const NOW = new Date('2026-01-01T00:00:00.000Z');
+export const NOW = new Date("2026-01-01T00:00:00.000Z");
 
 export const quietIo: CliIo = {
   stdout: () => undefined,
@@ -51,7 +51,7 @@ ${body}
 /** Writes `files` (relative path to contents) into a fresh directory under `tmp/`. */
 export function project(files: Readonly<Record<string, string>>): string {
   mkdirSync(TMP, { recursive: true });
-  const cwd = mkdtempSync(path.join(TMP, 'doctor-coverage-'));
+  const cwd = mkdtempSync(path.join(TMP, "doctor-coverage-"));
   temps.push(cwd);
   for (const [file, text] of Object.entries(files)) {
     mkdirSync(path.dirname(path.join(cwd, file)), { recursive: true });
@@ -66,7 +66,7 @@ export function policyProject(
   extra: Readonly<Record<string, string>> = {},
 ): string {
   return project({
-    'src/permissions.ts': PERMISSIONS,
+    "src/permissions.ts": PERMISSIONS,
     ...Object.fromEntries(
       Object.entries(policies).map(([name, body]) => [
         `src/${name}.ts`,

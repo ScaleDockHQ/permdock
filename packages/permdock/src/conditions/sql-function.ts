@@ -1,12 +1,12 @@
-import type { SqlFunctionArg, SqlFunctionCondition } from './ast.ts';
+import type { SqlFunctionArg, SqlFunctionCondition } from "./ast.ts";
 
-import { freezeDeep } from '../core/freeze.ts';
-import { normalizeWhere } from './normalize.ts';
+import { freezeDeep } from "../core/freeze.ts";
+import { normalizeWhere } from "./normalize.ts";
 import {
   assertPortableTwin,
   assertSqlFunctionArg,
   assertSqlFunctionName,
-} from './sql-function-assert.ts';
+} from "./sql-function-assert.ts";
 
 export function sqlFunction(
   name: string,
@@ -23,7 +23,7 @@ export function sqlFunction(
   const twin = normalizeWhere(options.twin);
   assertPortableTwin(twin);
   return freezeDeep({
-    op: 'sqlFunction',
+    op: "sqlFunction",
     name,
     args,
     twin,

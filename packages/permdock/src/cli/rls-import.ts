@@ -1,20 +1,19 @@
-import type * as Pg from 'pg';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import type { SqlConnect } from "./pg.ts";
+import type { RolePermission } from "./rls-helpers.ts";
+import type { ImportedGrant } from "./rls-import-ast.ts";
+import type { ImportedFieldView } from "./rls-import-views.ts";
+import type { CliIo, PermDockConfig } from "./types.ts";
 
-import type { RolePermission } from './rls-helpers.ts';
-import type { ImportedGrant } from './rls-import-ast.ts';
-import type { ImportedFieldView } from './rls-import-views.ts';
-import type { SqlClient, SqlConnect } from './rls-verify.ts';
-import type { CliIo, PermDockConfig } from './types.ts';
-
+import { usageResult } from "./errors.ts";
 import {
   emitPermissionsModule,
   emptySchema,
   isSchemaKind,
-} from './generate.ts';
-import { requirePeer } from './peer.ts';
+} from "./generate.ts";
+import { connectPg } from "./pg.ts";
 import {
   canonicalDump,
   conditionFromAst,
@@ -22,9 +21,9 @@ import {
   helperGrants,
   seedFromRow,
   seedsFromSql,
-} from './rls-import-ast.ts';
-import { fieldViewsFromSql, viewsSqlFromDb } from './rls-import-views.ts';
-import { parseMembershipsFlag } from './rls-sql.ts';
+} from "./rls-import-ast.ts";
+import { fieldViewsFromSql, viewsSqlFromDb } from "./rls-import-views.ts";
+import { parseMembershipsFlag } from "./rls-sql.ts";
 
 export type ImportOutcome = {
   readonly code: 0 | 1 | 2;
@@ -57,7 +56,7 @@ const POLICY_RE =
   /create\s+policy\s+"?([A-Za-z0-9_]+)"?\s+on\s+"?([A-Za-z0-9_]+)"?([\s\S]*?);/gi;
 
 function extractParenClause(sql: string, keyword: string): string | undefined {
-  const match = new RegExp(`\\b${keyword}\\s*\\(`, 'i').exec(sql);
+  const match = new RegExp(`\\b${keyword}\\s*\\(`, "i").exec(sql);
   if (match?.index === undefined) {
     return undefined;
   }
@@ -65,9 +64,9 @@ function extractParenClause(sql: string, keyword: string): string | undefined {
   let depth = 1;
   for (let i = start; i < sql.length; i += 1) {
     const ch = sql[i];
-    if (ch === '(') {
+    if (ch === "(") {
       depth += 1;
-    } else if (ch === ')') {
+    } else if (ch === ")") {
       depth -= 1;
       if (depth === 0) {
         return sql.slice(start, i).trim();
@@ -80,25 +79,25 @@ function extractParenClause(sql: string, keyword: string): string | undefined {
 function splitPolicies(sql: string): ImportedPolicy[] {
   const out: ImportedPolicy[] = [];
   for (const match of sql.matchAll(POLICY_RE)) {
-    const name = match[1] ?? 'policy';
-    const table = match[2] ?? 'table';
-    const body = match[3] ?? '';
+    const name = match[1] ?? "policy";
+    const table = match[2] ?? "table";
+    const body = match[3] ?? "";
     const clauses = body.search(/\b(?:using|with\s+check)\s*\(/i);
     const header = clauses === -1 ? body : body.slice(0, clauses);
     const asRestrictive = /\bas\s+restrictive\b/i.test(header);
-    const cmdMatch = header.match(
-      /\bfor\s+(all|select|insert|update|delete)\b/i,
+    const cmdMatch = /\bfor\s+(all|select|insert|update|delete)\b/i.exec(
+      header,
     );
-    const toMatch = header.match(/\bto\s+([^\n]+)/i);
-    const using = extractParenClause(body, 'using');
-    const check = extractParenClause(body, 'with\\s+check');
-    const roles = (toMatch?.[1] ?? 'authenticated')
-      .split(',')
+    const toMatch = /\bto\s+([^\n]+)/i.exec(header);
+    const using = extractParenClause(body, "using");
+    const check = extractParenClause(body, "with\\s+check");
+    const roles = (toMatch?.[1] ?? "authenticated")
+      .split(",")
       .map((item) => item.trim())
-      .filter((item) => item !== '');
-    const cmd = (cmdMatch?.[1] ?? 'all').toUpperCase();
+      .filter((item) => item !== "");
+    const cmd = (cmdMatch?.[1] ?? "all").toUpperCase();
     const commands =
-      cmd === 'ALL' ? ['SELECT', 'INSERT', 'UPDATE', 'DELETE'] : [cmd];
+      cmd === "ALL" ? ["SELECT", "INSERT", "UPDATE", "DELETE"] : [cmd];
     for (const command of commands) {
       out.push({
         name,
@@ -120,21 +119,21 @@ function actionsFor(cmds: readonly string[]): {
 } {
   const actions: string[] = [];
   const collection: string[] = [];
-  if (cmds.includes('SELECT')) {
-    actions.push('read');
-    collection.push('list');
+  if (cmds.includes("SELECT")) {
+    actions.push("read");
+    collection.push("list");
   }
-  if (cmds.includes('INSERT')) {
-    collection.push('create');
+  if (cmds.includes("INSERT")) {
+    collection.push("create");
   }
-  if (cmds.includes('UPDATE')) {
-    actions.push('update');
+  if (cmds.includes("UPDATE")) {
+    actions.push("update");
   }
-  if (cmds.includes('DELETE')) {
-    actions.push('delete');
+  if (cmds.includes("DELETE")) {
+    actions.push("delete");
   }
   if (actions.length === 0) {
-    actions.push('read');
+    actions.push("read");
   }
   return { actions, collection };
 }
@@ -144,10 +143,10 @@ function emitGenerated(
   fieldViews: readonly ImportedFieldView[],
   schema: string,
 ): string {
-  const kind = isSchemaKind(schema) ? schema : 'zod';
+  const kind = isSchemaKind(schema) ? schema : "zod";
   const tables = [...new Set(catalog.map((item) => item.table))];
   return emitPermissionsModule({
-    generator: 'rls import',
+    generator: "rls import",
     schema: kind,
     exports: fieldViews.length === 0 ? { catalog } : { catalog, fieldViews },
     resources: tables.map((table) => {
@@ -155,7 +154,7 @@ function emitGenerated(
         catalog.filter((item) => item.table === table).map((item) => item.cmd),
       );
       return {
-        path: [table.replaceAll(/[^A-Za-z0-9_]/g, '_')],
+        path: [table.replaceAll(/[^A-Za-z0-9_]/g, "_")],
         schema: emptySchema(kind),
         actions,
         collection,
@@ -167,20 +166,9 @@ function emitGenerated(
 function assertNoServiceRole(sql: string): void {
   if (/\bto\s+service_role\b|\bfrom\s+service_role\b/i.test(sql)) {
     throw new Error(
-      'PermDock CLI: imported SQL must never target service_role',
+      "PermDock CLI: imported SQL must never target service_role",
     );
   }
-}
-
-function loadPg(): Promise<typeof Pg> {
-  return requirePeer(() => import('pg'), 'pg', 'permdock rls import --db');
-}
-
-async function connectPg(db: string): Promise<SqlClient> {
-  const pg = await loadPg();
-  const client = new pg.Client({ connectionString: db });
-  await client.connect();
-  return client;
 }
 
 type Query = (
@@ -189,10 +177,10 @@ type Query = (
 
 async function seedsFromDb(query: Query): Promise<readonly RolePermission[]> {
   const tables = await query(
-    `select table_schema from information_schema.tables where table_name = 'role_permissions' order by table_schema = 'public' desc, table_schema limit 1`,
+    `select table_schema from information_schema.tables where table_name = 'role_permissions' order by table_schema = 'permdock' desc, table_schema = 'public' desc, table_schema limit 1`,
   );
-  const schema = tables.rows[0]?.['table_schema'];
-  if (typeof schema !== 'string' || !/^[A-Za-z_][A-Za-z0-9_]*$/u.test(schema)) {
+  const schema = tables.rows[0]?.["table_schema"];
+  if (typeof schema !== "string" || !/^[A-Za-z_][A-Za-z0-9_]*$/u.test(schema)) {
     return [];
   }
   try {
@@ -214,12 +202,12 @@ function policyRoles(value: unknown): readonly string[] {
   if (Array.isArray(value)) {
     return value.map(String);
   }
-  return typeof value === 'string'
+  return typeof value === "string"
     ? value
-        .replaceAll(/[{}]/g, '')
-        .split(',')
+        .replaceAll(/[{}]/g, "")
+        .split(",")
         .map((item) => item.trim())
-        .filter((item) => item !== '')
+        .filter((item) => item !== "")
     : [];
 }
 
@@ -242,7 +230,7 @@ async function policiesFromDb(
     const procs = await query(`select proname, prosrc from pg_proc`);
     for (const row of procs.rows) {
       const { proname, prosrc } = row;
-      if (typeof proname === 'string' && typeof prosrc === 'string') {
+      if (typeof proname === "string" && typeof prosrc === "string") {
         bodies.set(proname, prosrc);
       }
     }
@@ -251,22 +239,22 @@ async function policiesFromDb(
     const policies: ImportedPolicy[] = [];
     for (const row of result.rows) {
       const { tablename, policyname, qual, with_check: check } = row;
-      if (typeof tablename !== 'string' || typeof policyname !== 'string') {
+      if (typeof tablename !== "string" || typeof policyname !== "string") {
         continue;
       }
       const cmd =
-        typeof row['cmd'] === 'string' ? row['cmd'].toUpperCase() : 'ALL';
+        typeof row["cmd"] === "string" ? row["cmd"].toUpperCase() : "ALL";
       const commands =
-        cmd === 'ALL' ? ['SELECT', 'INSERT', 'UPDATE', 'DELETE'] : [cmd];
+        cmd === "ALL" ? ["SELECT", "INSERT", "UPDATE", "DELETE"] : [cmd];
       for (const command of commands) {
         policies.push({
           name: policyname,
           table: tablename,
           cmd: command,
-          permissive: row['permissive'] !== 'RESTRICTIVE',
-          roles: policyRoles(row['roles']),
-          ...(typeof qual === 'string' ? { using: qual } : {}),
-          ...(typeof check === 'string' ? { check } : {}),
+          permissive: row["permissive"] !== "RESTRICTIVE",
+          roles: policyRoles(row["roles"]),
+          ...(typeof qual === "string" ? { using: qual } : {}),
+          ...(typeof check === "string" ? { check } : {}),
         });
       }
     }
@@ -291,7 +279,7 @@ export async function runRlsImport(input: {
   let policies: ImportedPolicy[] = [];
   let bodies = new Map<string, string>();
   let seeds: readonly RolePermission[] = [];
-  let viewsSql = '';
+  let viewsSql = "";
   if (input.sql !== undefined) {
     const sqlPath = resolve(input.cwd, input.sql);
     if (!existsSync(sqlPath)) {
@@ -300,7 +288,7 @@ export async function runRlsImport(input: {
         output: `PermDock CLI: SQL dump not found: ${input.sql}`,
       };
     }
-    const sql = readFileSync(sqlPath, 'utf8');
+    const sql = readFileSync(sqlPath, "utf8");
     assertNoServiceRole(sql);
     viewsSql = sql;
     seeds = await seedsFromSql(sql);
@@ -311,21 +299,22 @@ export async function runRlsImport(input: {
     }
   } else if (input.db !== undefined) {
     try {
-      const fromDb = await policiesFromDb(input.db, input.connect ?? connectPg);
+      const fromDb = await policiesFromDb(
+        input.db,
+        input.connect ??
+          ((db: string) => connectPg(db, "permdock rls import --db")),
+      );
       policies = fromDb.policies;
       bodies = fromDb.bodies;
       seeds = fromDb.seeds;
       viewsSql = fromDb.views;
     } catch (cause) {
-      return {
-        code: 2,
-        output: cause instanceof Error ? cause.message : String(cause),
-      };
+      return usageResult(cause);
     }
   } else {
     return {
       code: 2,
-      output: 'PermDock CLI: rls import needs --sql <file> or --db <url>',
+      output: "PermDock CLI: rls import needs --sql <file> or --db <url>",
     };
   }
   const memberships =
@@ -335,7 +324,7 @@ export async function runRlsImport(input: {
   const joins: string[] = [];
   const catalog: CatalogEntry[] = [];
   for (const item of policies) {
-    const sourceSql = item.using ?? item.check ?? 'true';
+    const sourceSql = item.using ?? item.check ?? "true";
     const condition = await conditionFromAst(
       item.using ?? item.check,
       memberships,
@@ -362,10 +351,10 @@ export async function runRlsImport(input: {
     });
   }
   const fieldViews =
-    viewsSql === ''
+    viewsSql === ""
       ? []
       : await fieldViewsFromSql(viewsSql, memberships, functions, seeds);
-  const outRel = input.out ?? 'src/permissions.generated.ts';
+  const outRel = input.out ?? "src/permissions.generated.ts";
   const outPath = resolve(input.cwd, outRel);
   mkdirSync(dirname(outPath), { recursive: true });
   writeFileSync(outPath, emitGenerated(catalog, fieldViews, input.schema));
@@ -380,19 +369,19 @@ export async function runRlsImport(input: {
     output:
       hints.length === 0
         ? `wrote ${outRel}`
-        : `wrote ${outRel}\n${hints.join('\n')}`,
+        : `wrote ${outRel}\n${hints.join("\n")}`,
   };
 }
 
 function fieldViewHint(view: ImportedFieldView): string {
-  return `field view ${view.view} over ${view.table}: ${view.restricted.map((item) => item.column).join(', ')} are field-limited; set fields on the read grants that list them (fieldViews export)`;
+  return `field view ${view.view} over ${view.table}: ${view.restricted.map((item) => item.column).join(", ")} are field-limited; set fields on the read grants that list them (fieldViews export)`;
 }
 
 function membershipHint(table: string): string {
   return [
     `exists over ${table} stayed opaque; if it holds memberships, map it in permdock.config.ts:`,
     `// rls: { memberships: { tenant: { table: '${table}', user: 'user_id', tenant: 'tenant_id', role: 'role' } } }`,
-  ].join('\n');
+  ].join("\n");
 }
 
 function uniqueHints(
@@ -401,8 +390,8 @@ function uniqueHints(
 ): readonly string[] {
   const lines: string[] = [];
   for (const name of names) {
-    const short = name.includes('.')
-      ? name.slice(name.lastIndexOf('.') + 1)
+    const short = name.includes(".")
+      ? name.slice(name.lastIndexOf(".") + 1)
       : name;
     lines.push(`add rls.functions.${short} to make this grant portable`);
     const body = bodies.get(short) ?? bodies.get(name);

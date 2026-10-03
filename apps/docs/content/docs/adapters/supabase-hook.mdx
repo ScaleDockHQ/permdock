@@ -11,32 +11,43 @@ A Supabase app usually reads memberships in two places: the server asks its tabl
 
 ```ts
 // src/memberships.ts
-import { fromJunction, fromTable, type SqlQuery } from 'permdock/supabase'
+import { fromJunction, fromTable, type SqlQuery } from "permdock/supabase";
 
 const suspension = {
-  users: { table: 'profiles', id: 'id', disabledAt: 'disabled_at' },
-  scopes: { organization: { table: 'organizations', id: 'id', disabledAt: 'disabled_at' } },
-}
+  users: { table: "profiles", id: "id", disabledAt: "disabled_at" },
+  scopes: {
+    organization: {
+      table: "organizations",
+      id: "id",
+      disabledAt: "disabled_at",
+    },
+  },
+};
 
 export function sources(query?: SqlQuery) {
-  const shared = query === undefined ? { suspension } : { query, suspension }
+  const shared = query === undefined ? { suspension } : { query, suspension };
   return [
     // one row per user, scope, instance and role
     fromTable({
-      table: 'memberships',
-      columns: { via: 'via', expiresAt: 'expires_at', managedBy: 'managed_by', seats: 'seats' },
+      table: "memberships",
+      columns: {
+        via: "via",
+        expiresAt: "expires_at",
+        managedBy: "managed_by",
+        seats: "seats",
+      },
       ...shared,
     }),
     // portal contacts: every row is a customer membership with the fixed role `contact`
     fromJunction({
-      table: 'customer_contacts',
-      scope: 'customer',
-      within: { organization: 'organization_id' },
-      roles: ['contact'],
-      via: 'contact',
+      table: "customer_contacts",
+      scope: "customer",
+      within: { organization: "organization_id" },
+      roles: ["contact"],
+      via: "contact",
       ...shared,
     }),
-  ]
+  ];
 }
 ```
 
@@ -58,14 +69,21 @@ A column-level `revoke update (user_id)` alone is not enough: Postgres keeps a t
 On the server, pass the sources as an array. `createPermDock` composes them with `composeMemberships`: memberships are merged and de-duplicated, entries that differ in `via`, expiry, owner or seats stay separate, and a source that throws makes the whole lookup fail closed.
 
 ```ts
-import { claimsFirst, createPermDock } from 'permdock'
-import { authzVersion, subjectFromSupabase } from 'permdock/supabase'
+import { claimsFirst, createPermDock } from "permdock";
+import { authzVersion, subjectFromSupabase } from "permdock/supabase";
 
-const query: SqlQuery = async (text, values) => (await pool.query(text, [...values])).rows
-const memberships = claimsFirst(sources(query), { version: authzVersion({ query }) })
+const query: SqlQuery = async (text, values) =>
+  (await pool.query(text, [...values])).rows;
+const memberships = claimsFirst(sources(query), {
+  version: authzVersion({ query }),
+});
 
-const { data } = await supabase.auth.getClaims()
-const permdock = await createPermDock(policy, subjectFromSupabase(data?.claims ?? null), { memberships })
+const { data } = await supabase.auth.getClaims();
+const permdock = await createPermDock(
+  policy,
+  subjectFromSupabase(data?.claims ?? null),
+  { memberships },
+);
 ```
 
 `claimsFirst(sources, { version? })` keeps the memberships the verified token carries and reads the sources only when the token says it dropped some (`memberships_truncated`). Without `claimsFirst`, a `memberships` source is always read and the token's copy is ignored. `getPermDock` in [`permdock/next`](/docs/adapters/next) takes the same `memberships` option.
@@ -74,17 +92,20 @@ const permdock = await createPermDock(policy, subjectFromSupabase(data?.claims ?
 
 ```ts
 // permdock.config.ts
-import { sources } from './src/memberships.ts'
+import { sources } from "./src/memberships.ts";
 
 export default defineConfig({
-  policy: './src/policy.ts',
+  policy: "./src/policy.ts",
   supabase: {
     hook: {
       memberships: sources(),
-      attrs: { table: 'profiles', columns: ['region', 'clearance', 'app_metadata.regions'] },
+      attrs: {
+        table: "profiles",
+        columns: ["region", "clearance", "app_metadata.regions"],
+      },
     },
   },
-})
+});
 ```
 
 ```bash
@@ -104,6 +125,7 @@ The output is one idempotent migration:
   - the claims other packages own, from `supabase.hook.claims` (below).
 - The `supabase_auth_admin` grants: `usage` on the schema, `execute` on the hook, `select` and a read policy on every table the hook reads (sources, their suspension tables, roles, the `attrs` table, version). `execute` is revoked from `authenticated`, `anon` and `public`. Nothing is granted to `service_role`.
 - `permdock_authz_version (user_id, version)` and the `permdock_bump_authz_version` trigger on every source table and the roles table. With `through`, `permdock_bump_authz_version_role_keys` on the roles table bumps every holder when a key or id changes, since a rename changes their `roles` claim.
+- `permdock_bump_authz_version_for(p_users uuid[])`, which bumps each listed user once, for membership data the hook does not read (below).
 - The `permdock_protect_managed` trigger on sources with `managedBy`.
 - The `config.toml` block, printed and repeated as a comment:
 
@@ -120,7 +142,9 @@ uri = "pg-functions://postgres/public/custom_access_token_hook"
 
 ## Declarative schemas
 
-A project that keeps its schema in `supabase/schemas` and writes migrations with `supabase db diff` cannot keep the grants in the hook file: `db diff` drops grants and policies for `supabase_auth_admin`, so the hook would land executable by `public` and not by the auth server. `--grants-out` moves those statements to a migration of their own and leaves a comment in the hook file that says where they went:
+With pg-delta (`[experimental.pgdelta] enabled = true`), `supabase db schema declarative sync` keeps grants and policies, so the hook file keeps its grants. Without `--out`, `hook generate` writes it to `supabase/schemas/<schema>/functions/custom_access_token_hook.sql`, under `declarative_schema_path` when that is set.
+
+A project that writes migrations with `supabase db diff` instead cannot keep the grants in the hook file: `db diff` drops grants and policies for `supabase_auth_admin`, so the hook would land executable by `public` and not by the auth server. `--grants-out` moves those statements to a migration of their own and leaves a comment in the hook file that says where they went:
 
 ```bash
 permdock supabase hook generate --out supabase/schemas/identity/056_permdock_hook.sql --grants-out -
@@ -174,7 +198,7 @@ supabase: {
   language sql stable as $$
     select jsonb_object_agg(f.organization_id, f.features)
     from public.organization_features f
-    where f.organization_id in (select public.member_organization_ids_for(user_id))
+    where f.organization_id in (select permdock.member_organization_ids_for(user_id))
   $$;
   ```
 
@@ -196,10 +220,12 @@ A token is a copy, and a copy can be stale: a demoted admin keeps their token un
 definePolicy(permissions, {
   fresh: [permissions.member.remove, permissions.payout.create],
   // ...
-})
+});
 ```
 
 The generated triggers bump `permdock_authz_version.version` for the affected user on every insert, update or delete in a source table or the roles table, and the hook writes the current value as `authz_ver`. `authzVersion({ query })` reads the same table. When the subject's memberships come from the token (`claimsFirst` without truncation), `createPermDock` compares the two. If the token is behind, or either side is missing, the subject is `stale` and every `fresh` permission denies with reason `stale-credentials`; other permissions still use the token. Memberships read live from a source are never stale. A stale subject's snapshot omits allows for `fresh` permissions, so the browser denies them too. A suspension change does not bump the version; RLS checks suspension live instead ([RLS](/docs/cli/rls)).
+
+A table that changes what a user may do without being a hook source, such as better-supabase's `entitlement_members`, bumps its users with `permdock_bump_authz_version_for(array[...])` from its own trigger. The function is `security definer`, and `execute` is revoked from `public`, `anon` and `authenticated` and granted to no one, so only the function's owner can call it: a `security definer` trigger owned by the table owner, or a migration. The manifest names it in `authzVersionBump`.
 
 ## Memberships the identity provider owns
 
@@ -215,13 +241,14 @@ A seat belongs to one membership, not the tenant: a Dev Mode seat in one organiz
 
 `permdock supabase inspect --out permdock.manifest.json` writes what the hook and helpers expect as one JSON file, and `--check` fails CI when it falls behind the config. It is the stable contract for packages that build on the hook: better-supabase reads it instead of PermDock's config or its generated SQL.
 
-| Field | What a reader learns |
-| --- | --- |
-| `hook`, `markers` | Where `custom_access_token_hook` lives and the majors of the `-- permdock:hook` / `-- permdock:grants` lines its migrations start with |
-| `claims`, `tenantClaim`, `budget`, `authzVersion` | Every claim the hook writes, who owns it, and what the budget measures |
-| `helpers`, `rls` | The helper schema, each helper's arguments, return type and the roles that may execute it, the RLS mode (`jwt` or `database`) and each scope's id type |
-| `memberships` | Each source's table and the columns (or fixed values) for user, scope, id, role, `within`, `via` and expiry |
-| `decidingColumns` | Every `schema.table.column` a membership or an `attrs` claim is computed from, which clients must not be able to write |
+| Field                                                                 | What a reader learns                                                                                                                                   |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `hook`, `markers`                                                     | Where `custom_access_token_hook` lives and the majors of the `-- permdock:hook` / `-- permdock:grants` lines its migrations start with                 |
+| `claims`, `tenantClaim`, `budget`, `authzVersion`, `authzVersionBump` | Every claim the hook writes, who owns it, what the budget measures, and the function that bumps `authz_ver` for a list of users                        |
+| `helpers`, `rls`                                                      | The helper schema, each helper's arguments, return type and the roles that may execute it, the RLS mode (`jwt` or `database`) and each scope's id type |
+| `memberships`                                                         | Each source's table and the columns (or fixed values) for user, scope, id, role, `within`, `via` and expiry                                            |
+| `rls.memberships`                                                     | The same shape for the tables `member_<scope>_ids_for` reads, which differ from the hook's when `rls.memberships` or `rls.membershipSources` is set    |
+| `decidingColumns`                                                     | Every `schema.table.column` a membership or an `attrs` claim is computed from, which clients must not be able to write                                 |
 
 The format, its JSON Schema (`schemas/supabase-manifest-v1.json`) and the versioning rule are on [wire formats](/docs/concepts/wire-formats#supabase-hook-manifest); `supabaseHookManifestFixture` in `permdock/testing` is a sample to test a reader against.
 
@@ -234,7 +261,8 @@ The format, its JSON Schema (`schemas/supabase-manifest-v1.json`) and the versio
 - **A version, not a shorter expiry, for sensitive verbs.** Dropping `jwt_expiry` to a minute taxes every request to protect a few. The version costs one indexed lookup per request that uses `claimsFirst` with `version`, and only `fresh` permissions depend on it. Missing either side counts as stale, because a check that passes when it cannot compare fails open.
 - **Attributes are server-owned or absent.** An attribute that decides row access and that the user can edit is a self-grant. Refusing `user_metadata` catches the obvious case; the migration guard catches a `profiles` table with a broad `update` grant, which is the common one.
 - **IdP ownership is enforced where edits happen.** The member list, `decideRoleChange` and the database all refuse, so a client that skips the UI still cannot edit a SCIM-provisioned row.
-- **Grants in their own migration for declarative schemas.** `db diff` reads the schema files back from a shadow database and leaves out what it cannot diff for the auth role. A separate, hand-created migration keeps those statements in the history in the right order; putting them in the schema file would make them silently disappear, and a hook the auth server cannot call fails every sign-in.
+- **Grants in their own migration for `db diff`.** `db diff` reads the schema files back from a shadow database and leaves out what it cannot diff for the auth role. A separate, hand-created migration keeps those statements in the history in the right order; putting them in the schema file would make them silently disappear, and a hook the auth server cannot call fails every sign-in. pg-delta diffs grants, which was checked against `declarative sync` in Supabase CLI 2.119, so under pg-delta the grants stay in the hook file.
+- **`uid` is a uuid.** Supabase Auth issues uuid user ids, so the hook casts `user_id` once and a malformed one fails the sign-in. Each `%type` variable is then assigned from a uuid, which `supabase db lint` accepts.
 - **Plans from billing, seats per membership.** Stripe recommends reading entitlements as a projection of billing state; a per-membership seat keeps "which products this person uses here" apart from permissions and from other tenants.
 
 ## Related

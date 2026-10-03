@@ -1,12 +1,12 @@
-import { describe, expect, it } from 'vitest';
-import { z } from 'zod';
+import { describe, expect, it } from "vitest";
+import { z } from "zod";
 
-import type { PermDock } from '../../src/core/permdock.ts';
-import type { Principal, Subject } from '../../src/core/subject.ts';
+import type { PermDock } from "../../src/core/permdock.ts";
+import type { Principal, Subject } from "../../src/core/subject.ts";
 
-import { memoryLimitStore } from '../../src/core/limits.ts';
-import { createPermDock as createCoreDock } from '../../src/core/permdock.ts';
-import { definePermissions, resource } from '../../src/core/permissions.ts';
+import { memoryLimitStore } from "../../src/core/limits.ts";
+import { createPermDock as createCorePermDock } from "../../src/core/permdock.ts";
+import { definePermissions, resource } from "../../src/core/permissions.ts";
 import {
   allow,
   assurance,
@@ -15,13 +15,13 @@ import {
   deny,
   principal,
   role,
-} from '../../src/index.ts';
-import { createPermDock } from '../../src/server/index.ts';
+} from "../../src/index.ts";
+import { createPermDock } from "../../src/server/index.ts";
 import {
   rateLimitHeaders,
   stepUpOf,
   wwwAuthenticate,
-} from '../../src/server/problem.ts';
+} from "../../src/server/problem.ts";
 
 const Report = z.object({ id: z.string(), ownerId: z.string() });
 
@@ -31,31 +31,31 @@ type User = {
   readonly authTime?: number;
 };
 
-function permissionsWith(disclosure?: 'hide' | 'reveal') {
+function permissionsWith(disclosure?: "hide" | "reveal") {
   return definePermissions({
     report: resource(Report, {
-      actions: ['read', 'export'],
+      actions: ["read", "export"],
       ...(disclosure === undefined ? {} : { disclosure }),
     }),
   });
 }
 
-const request = (): Request => new Request('https://api.example/reports/r1');
+const request = (): Request => new Request("https://api.example/reports/r1");
 
-describe('rate limit responses', () => {
+describe("rate limit responses", () => {
   const permissions = permissionsWith();
   const policy = definePolicy(permissions, {
     roles: [
-      role('member', [
-        allow(permissions.report.export, { limit: { count: 2, per: 'hour' } }),
+      role("member", [
+        allow(permissions.report.export, { limit: { count: 2, per: "hour" } }),
       ]),
     ],
     subject: (user: User) => user,
   });
 
-  it('answers an exhausted limit with 429 and the RateLimit fields', async () => {
+  it("answers an exhausted limit with 429 and the RateLimit fields", async () => {
     const { protect } = createPermDock(policy, {
-      subject: () => ({ id: 'u1', roles: ['member'] }),
+      subject: () => ({ id: "u1", roles: ["member"] }),
       limits: memoryLimitStore(),
     });
     const guard = protect(permissions.report.export);
@@ -68,24 +68,24 @@ describe('rate limit responses', () => {
     }
     const { response } = refused;
     expect(response.status).toBe(429);
-    const wait = Number(response.headers.get('Retry-After'));
+    const wait = Number(response.headers.get("Retry-After"));
     expect(wait).toBeGreaterThan(0);
     expect(wait).toBeLessThanOrEqual(3600);
-    expect(response.headers.get('RateLimit')).toBe(`"member";r=0;t=${wait}`);
-    expect(response.headers.get('RateLimit-Policy')).toBe(
+    expect(response.headers.get("RateLimit")).toBe(`"member";r=0;t=${wait}`);
+    expect(response.headers.get("RateLimit-Policy")).toBe(
       '"member";q=2;w=3600',
     );
-    expect(response.headers.get('WWW-Authenticate')).toBeNull();
+    expect(response.headers.get("WWW-Authenticate")).toBeNull();
     expect(await response.json()).toMatchObject({
-      type: 'https://permdock.dev/problems/rate-limited',
+      type: "https://permdock.dev/problems/rate-limited",
       status: 429,
-      denials: [{ role: 'member', reason: 'limit' }],
+      denials: [{ role: "member", reason: "limit" }],
     });
   });
 
-  it('answers a missing limit store with 503', async () => {
+  it("answers a missing limit store with 503", async () => {
     const { protect } = createPermDock(policy, {
-      subject: () => ({ id: 'u1', roles: ['member'] }),
+      subject: () => ({ id: "u1", roles: ["member"] }),
     });
     const refused = await protect(permissions.report.export)(request());
     expect(refused.ok).toBe(false);
@@ -93,54 +93,54 @@ describe('rate limit responses', () => {
       return;
     }
     expect(refused.response.status).toBe(503);
-    expect(refused.response.headers.get('Retry-After')).toBeNull();
+    expect(refused.response.headers.get("Retry-After")).toBeNull();
     expect(await refused.response.json()).toMatchObject({
-      type: 'https://permdock.dev/problems/limit-unavailable',
-      denials: [{ reason: 'limit-unavailable' }],
+      type: "https://permdock.dev/problems/limit-unavailable",
+      denials: [{ reason: "limit-unavailable" }],
     });
   });
 
-  it('takes the earliest reset across exhausted grants', () => {
+  it("takes the earliest reset across exhausted grants", () => {
     const headers = rateLimitHeaders(
       {
-        outcome: 'denied',
+        outcome: "denied",
         denials: [
           {
-            role: 'a',
-            reason: 'limit',
+            role: "a",
+            reason: "limit",
             detail: { count: 5, window: 60, resetsAt: 1030 },
           },
           {
-            role: 'b',
-            reason: 'limit',
+            role: "b",
+            reason: "limit",
             detail: { count: 100, window: 3600, resetsAt: 1500 },
           },
-          { role: 'c', reason: 'limit', detail: { count: 'x' } },
+          { role: "c", reason: "limit", detail: { count: "x" } },
         ],
         alternatives: [],
       },
       1000,
     );
     expect(headers).toEqual({
-      'Retry-After': '30',
+      "Retry-After": "30",
       RateLimit: '"a";r=0;t=30, "b";r=0;t=500',
-      'RateLimit-Policy': '"a";q=5;w=60, "b";q=100;w=3600',
+      "RateLimit-Policy": '"a";q=5;w=60, "b";q=100;w=3600',
     });
   });
 });
 
-describe('disclosure', () => {
-  function kernel(disclosure?: 'hide' | 'reveal') {
+describe("disclosure", () => {
+  function kernel(disclosure?: "hide" | "reveal") {
     const permissions = permissionsWith(disclosure);
     const policy = definePolicy(permissions, {
       roles: [
-        role('member', [
+        role("member", [
           allow(permissions.report.read, {
             where: { ownerId: principal.id },
           }),
           allow(permissions.report.export, {
             where: { ownerId: principal.id },
-            to: assurance({ acr: 'mfa' }),
+            to: assurance({ acr: "mfa" }),
           }),
         ]),
       ],
@@ -148,29 +148,29 @@ describe('disclosure', () => {
     });
     return {
       permissions,
-      dock: createPermDock(policy, {
+      permdock: createPermDock(policy, {
         subject: (req) =>
-          req.headers.has('anonymous') ? null : { id: 'u1', roles: ['member'] },
+          req.headers.has("anonymous") ? null : { id: "u1", roles: ["member"] },
       }),
     };
   }
 
-  it('answers a denied row of a hidden resource like a missing one', async () => {
-    const { permissions, dock } = kernel('hide');
-    const theirs = await dock.protect(permissions.report.read, () => ({
-      id: 'r2',
-      ownerId: 'u2',
+  it("answers a denied row of a hidden resource like a missing one", async () => {
+    const { permissions, permdock } = kernel("hide");
+    const theirs = await permdock.protect(permissions.report.read, () => ({
+      id: "r2",
+      ownerId: "u2",
     }))(request());
-    const missing = await dock.protect(
+    const missing = await permdock.protect(
       permissions.report.read,
       () => null,
     )(request());
-    const anonymous = await dock.protect(permissions.report.read, () => ({
-      id: 'r1',
-      ownerId: 'u1',
+    const anonymous = await permdock.protect(permissions.report.read, () => ({
+      id: "r1",
+      ownerId: "u1",
     }))(
-      new Request('https://api.example/reports/r1', {
-        headers: { anonymous: '1' },
+      new Request("https://api.example/reports/r1", {
+        headers: { anonymous: "1" },
       }),
     );
     expect(theirs.ok || missing.ok || anonymous.ok).toBe(false);
@@ -180,23 +180,23 @@ describe('disclosure', () => {
     const bodies = await Promise.all(
       [theirs, missing, anonymous].map(async ({ response }) => ({
         status: response.status,
-        challenge: response.headers.get('WWW-Authenticate'),
+        challenge: response.headers.get("WWW-Authenticate"),
         body: await response.text(),
       })),
     );
     expect(bodies[0]).toEqual(bodies[1]);
     expect(bodies[2]).toEqual(bodies[1]);
     expect(bodies[1]?.status).toBe(404);
-    expect(JSON.parse(bodies[1]?.body ?? '{}')).toMatchObject({
-      type: 'https://permdock.dev/problems/not-found',
+    expect(JSON.parse(bodies[1]?.body ?? "{}")).toMatchObject({
+      type: "https://permdock.dev/problems/not-found",
     });
   });
 
-  it('still asks the grant holder of a hidden row to step up', async () => {
-    const { permissions, dock } = kernel('hide');
-    const own = await dock.protect(permissions.report.export, () => ({
-      id: 'r1',
-      ownerId: 'u1',
+  it("still asks the grant holder of a hidden row to step up", async () => {
+    const { permissions, permdock } = kernel("hide");
+    const own = await permdock.protect(permissions.report.export, () => ({
+      id: "r1",
+      ownerId: "u1",
     }))(request());
     expect(own.ok).toBe(false);
     if (!own.ok) {
@@ -204,11 +204,11 @@ describe('disclosure', () => {
     }
   });
 
-  it('keeps the 403 on a revealed resource', async () => {
-    const { permissions, dock } = kernel();
-    const theirs = await dock.protect(permissions.report.read, () => ({
-      id: 'r2',
-      ownerId: 'u2',
+  it("keeps the 403 on a revealed resource", async () => {
+    const { permissions, permdock } = kernel();
+    const theirs = await permdock.protect(permissions.report.read, () => ({
+      id: "r2",
+      ownerId: "u2",
     }))(request());
     expect(theirs.ok).toBe(false);
     if (!theirs.ok) {
@@ -216,38 +216,38 @@ describe('disclosure', () => {
     }
   });
 
-  it('rejects an unknown disclosure', () => {
+  it("rejects an unknown disclosure", () => {
     // SAFETY: deliberately invalid disclosure to exercise definePermissions validation.
     expect(() =>
       definePermissions({
         report: resource(Report, {
-          actions: ['read'],
-          disclosure: 'maybe' as 'hide',
+          actions: ["read"],
+          disclosure: "maybe" as "hide",
         }),
       }),
     ).toThrow(/disclosure/u);
   });
 });
 
-describe('step-up challenges', () => {
+describe("step-up challenges", () => {
   const permissions = permissionsWith();
 
-  it('names acr_values and max_age in the header and the body', async () => {
+  it("names acr_values and max_age in the header and the body", async () => {
     const policy = definePolicy(permissions, {
       roles: [
-        role('member', [
+        role("member", [
           allow(permissions.report.read, {
-            to: assurance({ acr: ['mfa', 'phr'], maxAge: 600 }),
+            to: assurance({ acr: ["mfa", "phr"], maxAge: 600 }),
           }),
           allow(permissions.report.read, {
-            to: assurance({ acr: 'mfa', maxAge: 300 }),
+            to: assurance({ acr: "mfa", maxAge: 300 }),
           }),
         ]),
       ],
       subject: (user: User) => user,
     });
     const { protect } = createPermDock(policy, {
-      subject: () => ({ id: 'u1', roles: ['member'] }),
+      subject: () => ({ id: "u1", roles: ["member"] }),
     });
     const refused = await protect(permissions.report.read)(request());
     expect(refused.ok).toBe(false);
@@ -255,63 +255,63 @@ describe('step-up challenges', () => {
       return;
     }
     expect(refused.response.status).toBe(401);
-    expect(refused.response.headers.get('WWW-Authenticate')).toBe(
+    expect(refused.response.headers.get("WWW-Authenticate")).toBe(
       'Bearer error="insufficient_user_authentication", acr_values="mfa phr", max_age="300"',
     );
     expect(await refused.response.json()).toMatchObject({
-      type: 'https://permdock.dev/problems/step-up-required',
-      acrValues: ['mfa', 'phr'],
+      type: "https://permdock.dev/problems/step-up-required",
+      acrValues: ["mfa", "phr"],
       maxAge: 300,
     });
   });
 
-  it('carries break-glass and activation assurance requirements', async () => {
+  it("carries break-glass and activation assurance requirements", async () => {
     const policy = definePolicy(permissions, {
-      scopes: { tenant: { key: 'tenant_id' } },
+      scopes: { tenant: { key: "tenant_id" } },
       roles: [
-        role('admin', [], {
-          on: 'tenant',
-          activation: { assurance: { acr: ['mfa'], maxAge: 60 } },
+        role("admin", [], {
+          on: "tenant",
+          activation: { assurance: { acr: ["mfa"], maxAge: 60 } },
         }),
       ],
       grants: [
         deny(permissions.report.read, {
-          to: { kind: 'anyone' },
-          name: 'frozen',
+          to: { kind: "anyone" },
+          name: "frozen",
         }),
         breakGlass(permissions.report.read, {
-          overrides: ['frozen'],
-          requires: { purpose: ['incident'], assurance: { maxAge: 120 } },
+          overrides: ["frozen"],
+          requires: { purpose: ["incident"], assurance: { maxAge: 120 } },
         }),
       ],
       subject: (user: Subject | null) =>
         user === null ? null : user.principal,
     });
     const eligible: Principal = {
-      id: 'u1',
+      id: "u1",
       memberships: [
-        { scope: 'tenant', id: 't1', roles: [], eligible: ['admin'] },
+        { scope: "tenant", id: "t1", roles: [], eligible: ["admin"] },
       ],
     };
     // SAFETY: the subject omits optional fields; the policy's user generic is erased to PermDock.
-    const dock = (await createCoreDock(policy, {
+    const permdock = (await createCorePermDock(policy, {
       principal: eligible,
-      context: { purpose: 'incident' },
+      context: { purpose: "incident" },
     } as Subject)) as PermDock;
-    const glass = dock.decide(permissions.report.read, {
-      id: 'r1',
-      ownerId: 'u1',
+    const glass = permdock.decide(permissions.report.read, {
+      id: "r1",
+      ownerId: "u1",
     });
-    expect(glass.outcome).toBe('denied');
+    expect(glass.outcome).toBe("denied");
     expect(stepUpOf(glass)).toEqual({ maxAge: 120 });
     expect(wwwAuthenticate(glass, permissions.report.read)).toBe(
       'Bearer error="insufficient_user_authentication", max_age="120"',
     );
-    const elevated = dock.activate({
-      role: 'admin',
-      scope: 'tenant',
-      id: 't1',
+    const elevated = permdock.activate({
+      role: "admin",
+      scope: "tenant",
+      id: "t1",
     });
-    expect(stepUpOf(elevated)).toEqual({ acrValues: ['mfa'], maxAge: 60 });
+    expect(stepUpOf(elevated)).toEqual({ acrValues: ["mfa"], maxAge: 60 });
   });
 });

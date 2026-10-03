@@ -1,6 +1,6 @@
-import Link from 'next/link';
+import Link from "next/link";
 
-import { organizations, people } from '../lib/store.ts';
+import { organizations, people } from "../lib/store.ts";
 
 export default function Home() {
   return (

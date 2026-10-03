@@ -2,9 +2,13 @@ import type {
   DeviceFlowOptions,
   StoredCredential,
   TerminalRuntime,
-} from './types.ts';
+} from "./types.ts";
 
-import { compact } from '../core/compact.ts';
+import { compact } from "../core/compact.ts";
+import { timeoutSignal } from "../core/timeout.ts";
+
+/** Milliseconds an authorization server request may take. */
+export const TERMINAL_TIMEOUT_MS = 10_000;
 
 type DeviceAuthorization = {
   readonly device_code: string;
@@ -16,7 +20,7 @@ type DeviceAuthorization = {
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 async function readJson(
@@ -40,9 +44,10 @@ async function postForm(
   try {
     return await readJson(
       await fetchImpl(url, {
-        method: 'POST',
-        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
         body: new URLSearchParams(fields),
+        signal: timeoutSignal(TERMINAL_TIMEOUT_MS),
       }),
     );
   } catch {
@@ -59,11 +64,13 @@ async function discoverDeviceEndpoints(
   readonly revocationEndpoint?: string;
 }> {
   const fetchImpl = runtime.fetch ?? fetch;
-  const url = issuer.endsWith('/')
+  const url = issuer.endsWith("/")
     ? `${issuer}.well-known/oauth-authorization-server`
     : `${issuer}/.well-known/oauth-authorization-server`;
   try {
-    const response = await fetchImpl(url);
+    const response = await fetchImpl(url, {
+      signal: timeoutSignal(TERMINAL_TIMEOUT_MS),
+    });
     const body = await readJson(response);
     if (body === null) {
       return {};
@@ -74,16 +81,16 @@ async function discoverDeviceEndpoints(
       readonly revocationEndpoint?: string;
     } = compact({
       authorizationEndpoint:
-        typeof body['device_authorization_endpoint'] === 'string'
-          ? body['device_authorization_endpoint']
+        typeof body["device_authorization_endpoint"] === "string"
+          ? body["device_authorization_endpoint"]
           : undefined,
       tokenEndpoint:
-        typeof body['token_endpoint'] === 'string'
-          ? body['token_endpoint']
+        typeof body["token_endpoint"] === "string"
+          ? body["token_endpoint"]
           : undefined,
       revocationEndpoint:
-        typeof body['revocation_endpoint'] === 'string'
-          ? body['revocation_endpoint']
+        typeof body["revocation_endpoint"] === "string"
+          ? body["revocation_endpoint"]
           : undefined,
     });
     return discovered;
@@ -96,24 +103,24 @@ function parseAuthorization(
   body: Record<string, unknown>,
 ): DeviceAuthorization | null {
   if (
-    typeof body['device_code'] !== 'string' ||
-    typeof body['user_code'] !== 'string' ||
-    typeof body['verification_uri'] !== 'string' ||
-    typeof body['expires_in'] !== 'number'
+    typeof body["device_code"] !== "string" ||
+    typeof body["user_code"] !== "string" ||
+    typeof body["verification_uri"] !== "string" ||
+    typeof body["expires_in"] !== "number"
   ) {
     return null;
   }
   return compact<DeviceAuthorization>({
-    device_code: body['device_code'],
-    user_code: body['user_code'],
-    verification_uri: body['verification_uri'],
+    device_code: body["device_code"],
+    user_code: body["user_code"],
+    verification_uri: body["verification_uri"],
     verification_uri_complete:
-      typeof body['verification_uri_complete'] === 'string'
-        ? body['verification_uri_complete']
+      typeof body["verification_uri_complete"] === "string"
+        ? body["verification_uri_complete"]
         : undefined,
-    expires_in: body['expires_in'],
+    expires_in: body["expires_in"],
     interval:
-      typeof body['interval'] === 'number' ? body['interval'] : undefined,
+      typeof body["interval"] === "number" ? body["interval"] : undefined,
   });
 }
 
@@ -122,26 +129,26 @@ type ParsedToken =
   | { readonly ok: false; readonly error: string };
 
 function parseToken(body: Record<string, unknown>, now: number): ParsedToken {
-  if (typeof body['error'] === 'string') {
-    return { ok: false, error: body['error'] };
+  if (typeof body["error"] === "string") {
+    return { ok: false, error: body["error"] };
   }
-  if (typeof body['access_token'] !== 'string') {
-    return { ok: false, error: 'invalid-token' };
+  if (typeof body["access_token"] !== "string") {
+    return { ok: false, error: "invalid-token" };
   }
   return {
     ok: true,
     credential: compact<StoredCredential>({
-      access_token: body['access_token'],
+      access_token: body["access_token"],
       refresh_token:
-        typeof body['refresh_token'] === 'string'
-          ? body['refresh_token']
+        typeof body["refresh_token"] === "string"
+          ? body["refresh_token"]
           : undefined,
       expires_at:
-        typeof body['expires_in'] === 'number'
-          ? now + body['expires_in']
+        typeof body["expires_in"] === "number"
+          ? now + body["expires_in"]
           : undefined,
       token_type:
-        typeof body['token_type'] === 'string' ? body['token_type'] : undefined,
+        typeof body["token_type"] === "string" ? body["token_type"] : undefined,
     }),
   };
 }
@@ -169,7 +176,7 @@ export async function runDeviceFlow(
   }
   const startedBody = await postForm(runtime, authorizationEndpoint, {
     client_id: device.clientId,
-    scope: device.scope ?? '',
+    scope: device.scope ?? "",
   });
   const authorization =
     startedBody === null ? null : parseAuthorization(startedBody);
@@ -194,7 +201,7 @@ export async function runDeviceFlow(
   while (now() < deadline) {
     await sleep(interval * 1000);
     const polledBody = await postForm(runtime, tokenEndpoint, {
-      grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+      grant_type: "urn:ietf:params:oauth:grant-type:device_code",
       device_code: authorization.device_code,
       client_id: device.clientId,
     });
@@ -205,11 +212,11 @@ export async function runDeviceFlow(
     if (token.ok) {
       return token.credential;
     }
-    if (token.error === 'slow_down') {
+    if (token.error === "slow_down") {
       interval += 5;
       continue;
     }
-    if (token.error === 'authorization_pending') {
+    if (token.error === "authorization_pending") {
       continue;
     }
     return null;
@@ -235,7 +242,7 @@ export async function refreshCredential(
     return null;
   }
   const body = await postForm(runtime, tokenEndpoint, {
-    grant_type: 'refresh_token',
+    grant_type: "refresh_token",
     refresh_token: credential.refresh_token,
     client_id: device.clientId,
   });
@@ -264,7 +271,7 @@ export async function revokeCredential(
   }
   await postForm(runtime, revocationEndpoint, {
     token: credential.refresh_token,
-    token_type_hint: 'refresh_token',
+    token_type_hint: "refresh_token",
     client_id: device.clientId,
   });
 }

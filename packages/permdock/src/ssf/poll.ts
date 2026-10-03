@@ -1,7 +1,11 @@
-import type { PollOptions, SsfAuditEvent } from './types.ts';
+import type { PollOptions, SsfAuditEvent } from "./types.ts";
 
-import { compact } from '../core/compact.ts';
-import { isRecord, type IngestResult } from './wire.ts';
+import { compact } from "../core/compact.ts";
+import { timeoutSignal } from "../core/timeout.ts";
+import { isRecord, type IngestResult } from "./wire.ts";
+
+/** Milliseconds a poll or acknowledgement request may take. */
+const POLL_TIMEOUT_MS = 30_000;
 
 /**
  * One RFC 8936 poll round: fetch the pending SETs, ingest them and acknowledge
@@ -16,35 +20,35 @@ export async function pollOnce(input: {
   const { options, acks, ingest, emit } = input;
   const fetchFn = options.fetch ?? globalThis.fetch;
   const headers: Record<string, string> = {
-    'content-type': 'application/json',
+    "content-type": "application/json",
   };
   if (options.token !== undefined) {
-    headers['authorization'] = `Bearer ${options.token}`;
+    headers["authorization"] = `Bearer ${options.token}`;
   }
   const body: Record<string, unknown> = {
     maxEvents: 100,
     returnImmediately: true,
   };
   if (acks.length > 0) {
-    body['acks'] = acks;
+    body["acks"] = acks;
   }
   const requestInit = compact<RequestInit>({
-    method: 'POST',
+    method: "POST",
     headers,
     body: JSON.stringify(body),
-    signal: options.signal,
+    signal: timeoutSignal(POLL_TIMEOUT_MS, options.signal),
   });
   const response = await fetchFn(options.endpoint, requestInit);
   if (!response.ok) {
-    emit({ type: 'poll-failed', err: 'connection_failed' });
+    emit({ type: "poll-failed", err: "connection_failed" });
     return [];
   }
   const parsed: unknown = await response.json();
-  if (!isRecord(parsed) || !isRecord(parsed['sets'])) {
+  if (!isRecord(parsed) || !isRecord(parsed["sets"])) {
     return [];
   }
-  const tokens = Object.entries(parsed['sets']).flatMap(([jti, jwt]) =>
-    typeof jwt === 'string' ? [{ jti, jwt }] : [],
+  const tokens = Object.entries(parsed["sets"]).flatMap(([jti, jwt]) =>
+    typeof jwt === "string" ? [{ jti, jwt }] : [],
   );
   const outcomes = await Promise.all(
     tokens.map(async ({ jti, jwt }) => ({ jti, result: await ingest(jwt) })),
@@ -63,7 +67,7 @@ export async function pollOnce(input: {
     await fetchFn(
       options.endpoint,
       compact<RequestInit>({
-        method: 'POST',
+        method: "POST",
         headers,
         body: JSON.stringify(
           compact({
@@ -73,7 +77,7 @@ export async function pollOnce(input: {
             returnImmediately: true,
           }),
         ),
-        signal: options.signal,
+        signal: timeoutSignal(POLL_TIMEOUT_MS, options.signal),
       }),
     );
   }

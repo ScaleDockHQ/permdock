@@ -20,17 +20,17 @@ PermDock's client model is snapshot-based: `permdock.snapshot()` serialises role
 ## How PermDock uses it
 
 ```ts
-import { createPermDock } from 'permdock/ssf'
-import { updateTag } from 'next/cache'
-import { snapshotTag } from 'permdock/next'
+import { createPermDock } from "permdock/ssf";
+import { updateTag } from "next/cache";
+import { snapshotTag } from "permdock/next";
 
 export const { receiver } = createPermDock(policy, {
   onEvent: {
-    'session-revoked': ({ subject }) => updateTag(snapshotTag(subject.id)),
-    'credential-change': ({ subject }) => updateTag(snapshotTag(subject.id)),
-    'assurance-level-change': ({ subject, event }) => audit(event),
+    "session-revoked": ({ subject }) => updateTag(snapshotTag(subject.id)),
+    "credential-change": ({ subject }) => updateTag(snapshotTag(subject.id)),
+    "assurance-level-change": ({ subject, event }) => audit(event),
   },
-})
+});
 // Mount `receiver` as the RFC 8935 push endpoint, or run it as an RFC 8936 poller.
 ```
 
@@ -61,18 +61,18 @@ CAEP does not replace the TTL; it shortens the window. Snapshots still expire so
 
 ## Mapping table
 
-| SSF / CAEP concept | PermDock concept |
-| --- | --- |
-| Transmitter (Entra, Okta, Auth0, Keycloak) | Configured issuer whose SETs `receiver` accepts |
-| Receiver | `receiver` from `createPermDock` in `permdock/ssf` |
-| RFC 8935 push delivery | `receiver` mounted as an HTTP endpoint |
-| RFC 8936 poll delivery | `receiver` run as a poller with the stream's poll endpoint |
-| SET (Security Event Token) | Verified, then dispatched to `onEvent` by event type |
-| `session-revoked` | Invalidate the subject's snapshot and client caches |
-| `credential-change` | Invalidate the subject's snapshot (roles may depend on MFA state) |
-| `assurance-level-change` | Invalidate only. The next `subjectFrom*` carries the new `acr` / `amr`; `assurance()` on the grant decides. The event never raises a policy. |
-| Subject identifier formats | Adapter option mapping to the application's `principal.id` |
-| Unverifiable SET | Dropped and logged; no invalidation, no grant change |
+| SSF / CAEP concept                         | PermDock concept                                                                                                                             |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Transmitter (Entra, Okta, Auth0, Keycloak) | Configured issuer whose SETs `receiver` accepts                                                                                              |
+| Receiver                                   | `receiver` from `createPermDock` in `permdock/ssf`                                                                                           |
+| RFC 8935 push delivery                     | `receiver` mounted as an HTTP endpoint                                                                                                       |
+| RFC 8936 poll delivery                     | `receiver` run as a poller with the stream's poll endpoint                                                                                   |
+| SET (Security Event Token)                 | Verified, then dispatched to `onEvent` by event type                                                                                         |
+| `session-revoked`                          | Invalidate the subject's snapshot and client caches                                                                                          |
+| `credential-change`                        | Invalidate the subject's snapshot (roles may depend on MFA state)                                                                            |
+| `assurance-level-change`                   | Invalidate only. The next `subjectFrom*` carries the new `acr` / `amr`; `assurance()` on the grant decides. The event never raises a policy. |
+| Subject identifier formats                 | Adapter option mapping to the application's `principal.id`                                                                                   |
+| Unverifiable SET                           | Dropped and logged; no invalidation, no grant change                                                                                         |
 
 ## Sources
 

@@ -1,4 +1,4 @@
-import type { Snapshot } from 'permdock';
+import type { Snapshot } from "permdock";
 
 import {
   Link,
@@ -6,17 +6,17 @@ import {
   createFileRoute,
   redirect,
   useRouter,
-} from '@tanstack/react-router';
-import { PermDockProvider, usePermDock, usePermission } from 'permdock/react';
-import { Suspense, useEffect } from 'react';
+} from "@tanstack/react-router";
+import { PermDockProvider, usePermDock, usePermission } from "permdock/react";
+import { Suspense, useEffect } from "react";
 
-import type { NavItem } from '@permdock/e2e-saas-kit/nav';
+import type { NavItem } from "@permdock/e2e-saas-kit/nav";
 
-import { navItems, orgs } from '@permdock/e2e-saas-kit/nav';
+import { navItems, orgs } from "@permdock/e2e-saas-kit/nav";
 
-import type { OrgView } from '../lib/saas.functions';
+import type { OrgView } from "../lib/saas.functions";
 
-import { getOrgView, getSnapshot } from '../lib/saas.functions';
+import { getOrgView, getSnapshot } from "../lib/saas.functions";
 
 declare global {
   interface Window {
@@ -24,13 +24,13 @@ declare global {
   }
 }
 
-export const Route = createFileRoute('/$org')({
+export const Route = createFileRoute("/$org")({
   loader: async ({ params }) => {
     const view = await getOrgView({ data: { org: params.org } });
     if (!view.signedIn) {
       // TanStack Router's redirect contract: loaders throw the redirect object.
       // oxlint-disable-next-line typescript/only-throw-error
-      throw redirect({ to: '/login' });
+      throw redirect({ to: "/login" });
     }
     // Not awaited: the snapshot streams in and `PermDockProvider` follows it.
     const snapshot: Promise<Snapshot> = getSnapshot({
@@ -55,7 +55,7 @@ function Item(props: {
       </li>
     );
   }
-  if (props.item.pro === true && props.org.plan !== 'pro') {
+  if (props.item.pro === true && props.org.plan !== "pro") {
     return (
       <li data-upsell={props.item.id}>{props.item.label}: upgrade to Pro</li>
     );
@@ -75,7 +75,7 @@ function RefreshSignal(props: { readonly org: string }) {
       }
       // SAFETY: the fixture's /api/version route answers { changedAt: number }
       fetch(`/api/version?org=${encodeURIComponent(props.org)}`, {
-        cache: 'no-store',
+        cache: "no-store",
       })
         .then((response) => response.json() as Promise<{ changedAt: number }>)
         .then(async (body) => {

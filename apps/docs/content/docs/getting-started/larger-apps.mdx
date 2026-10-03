@@ -30,20 +30,27 @@ Each feature colocates its definition next to its code, and the app merges them:
 ```ts
 // features/posts/permissions.ts
 export const postPermissions = definePermissions({
-  post: resource(Post, { id: 'id', actions: ['read', 'update', 'delete'], collection: ['create', 'list'] }),
-})
+  post: resource(Post, {
+    id: "id",
+    actions: ["read", "update", "delete"],
+    collection: ["create", "list"],
+  }),
+});
 
 // features/billing/permissions.ts
 export const billingPermissions = definePermissions({
   billing: {
-    invoice: resource(Invoice, { actions: ['read', 'pay'] }),
-    plan: resource({ collection: ['view', 'change'] }),
+    invoice: resource(Invoice, { actions: ["read", "pay"] }),
+    plan: resource({ collection: ["view", "change"] }),
   },
-})
+});
 
 // src/permissions.ts
-import { mergePermissions } from 'permdock'
-export const permissions = mergePermissions(postPermissions, billingPermissions)
+import { mergePermissions } from "permdock";
+export const permissions = mergePermissions(
+  postPermissions,
+  billingPermissions,
+);
 ```
 
 `mergePermissions`:
@@ -59,21 +66,24 @@ Roles compose the same way. Each feature exports role fragments, `definePolicy` 
 ```ts
 // features/posts/policy.ts
 export const postRoles = [
-  role('member', [allow(postPermissions.post.read), allow(postPermissions.post.update, { where: { authorId: principal.id } })]),
-  role('admin', [allow(postPermissions.post.delete)]),
-]
+  role("member", [
+    allow(postPermissions.post.read),
+    allow(postPermissions.post.update, { where: { authorId: principal.id } }),
+  ]),
+  role("admin", [allow(postPermissions.post.delete)]),
+];
 
 // features/billing/policy.ts
 export const billingRoles = [
-  role('member', [allow(billingPermissions.billing.plan.view)]),
-  role('admin', [allow(billingPermissions.billing.invoice.pay)]),
-]
+  role("member", [allow(billingPermissions.billing.plan.view)]),
+  role("admin", [allow(billingPermissions.billing.invoice.pay)]),
+];
 
 // src/policy.ts
 export const policy = definePolicy(permissions, {
   roles: [...postRoles, ...billingRoles], // 'member' and 'admin' each merge into one role
   subject: (user: User | null) => user && { id: user.id, roles: user.roles },
-})
+});
 ```
 
 A grant that references a leaf outside `permissions` is a type error. See [policies](/docs/concepts/policies) for merge semantics when the same role grants and denies the same permission.
@@ -88,15 +98,15 @@ The generated file merges with hand-written definitions like any other feature f
 
 The model is next-intl's `useExtracted` ([docs](https://next-intl.dev/docs/usage/extraction), [announcement](https://next-intl.dev/blog/use-extracted)): declarations are colocated where they are used, a build step collects them into a catalog, the catalog is an output rather than something you edit, and namespaces keep packages from colliding. PermDock applies each part:
 
-| next-intl | PermDock |
-| --- | --- |
-| `useExtracted()` messages declared inline | `definePermissions()` colocated per feature |
-| Build loader or `unstable_extractMessages` fills `messages/*.json` | `permdock collect` fills `permissions.catalog.json`, JSON Schema, Markdown |
-| Sync target locales, fail CI on drift | `permdock collect --check` fails CI on drift |
-| Namespaces per package | Nested groups per package, merged with `mergePermissions` |
-| `useTranslations` on the client, `getTranslations` on the async server | `usePermission` on the client, `getPermission` on the async server |
-| Pass one message namespace to the client | `snapshot({ include: [permissions.post] })` |
-| Works uncompiled in tests | The runtime definition is already the catalog; `listPermissions(permissions)` needs no build |
+| next-intl                                                              | PermDock                                                                                     |
+| ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `useExtracted()` messages declared inline                              | `definePermissions()` colocated per feature                                                  |
+| Build loader or `unstable_extractMessages` fills `messages/*.json`     | `permdock collect` fills `permissions.catalog.json`, JSON Schema, Markdown                   |
+| Sync target locales, fail CI on drift                                  | `permdock collect --check` fails CI on drift                                                 |
+| Namespaces per package                                                 | Nested groups per package, merged with `mergePermissions`                                    |
+| `useTranslations` on the client, `getTranslations` on the async server | `usePermission` on the client, `getPermission` on the async server                           |
+| Pass one message namespace to the client                               | `snapshot({ include: [permissions.post] })`                                                  |
+| Works uncompiled in tests                                              | The runtime definition is already the catalog; `listPermissions(permissions)` needs no build |
 
 ### permdock collect
 
@@ -111,13 +121,13 @@ In a Next.js app the same step can run automatically during `next dev` and `next
 
 ```ts
 // next.config.ts
-import { createPermDockPlugin } from 'permdock/next/plugin'
+import { createPermDockPlugin } from "permdock/next/plugin";
 
 const withPermDock = createPermDockPlugin({
-  collect: { srcPath: ['./src', '../ui/src', './node_modules/@acme/*'] },
-})
+  collect: { srcPath: ["./src", "../ui/src", "./node_modules/@acme/*"] },
+});
 
-export default withPermDock({ /* next config */ })
+export default withPermDock({/* next config */});
 ```
 
 `createPermDockPlugin` is a build hook only. It never wires the API, never augments modules and never creates a `PermDock`; that stays in the explicit `src/permdock/server.ts` factory file described in the [quick start](/docs/getting-started/quick-start). See [Next.js plugin](/docs/cli/next-plugin).
@@ -127,7 +137,9 @@ export default withPermDock({ /* next config */ })
 A snapshot of a large policy can be big. `snapshot({ include: [...] })` limits it to the groups a route needs, the equivalent of sending one message namespace to the client:
 
 ```ts
-const snapshot = permdock.snapshot({ include: [permissions.post, permissions.billing.plan] })
+const snapshot = permdock.snapshot({
+  include: [permissions.post, permissions.billing.plan],
+});
 ```
 
 Permissions outside the included groups report `status: 'server-only'` on the client and fall back to the decision endpoint. Snapshots always ship full grants with their conditions, never per-permission booleans, however large the policy; `include` is the size lever. See [snapshots](/docs/concepts/snapshots).

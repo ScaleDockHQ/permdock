@@ -1,10 +1,10 @@
-import 'reflect-metadata';
-import type { INestApplication, Type } from '@nestjs/common';
-import type { FastifyRequest } from 'fastify';
-import type { NestRequest } from 'permdock/nest';
-import type { HttpMounted, HttpScenarioDomain } from 'permdock/testing';
+import "reflect-metadata";
+import type { INestApplication, Type } from "@nestjs/common";
+import type { FastifyRequest } from "fastify";
+import type { NestRequest } from "permdock/nest";
+import type { HttpMounted, HttpScenarioDomain } from "permdock/testing";
 
-import multipart from '@fastify/multipart';
+import multipart from "@fastify/multipart";
 import {
   Controller,
   Delete,
@@ -16,20 +16,20 @@ import {
   Req,
   UploadedFile,
   UseInterceptors,
-} from '@nestjs/common';
-import { APP_GUARD, NestFactory, RouterModule } from '@nestjs/core';
-import { FileInterceptor } from '@nestjs/platform-express';
+} from "@nestjs/common";
+import { APP_GUARD, NestFactory, RouterModule } from "@nestjs/core";
+import { FileInterceptor } from "@nestjs/platform-express";
 import {
   FastifyAdapter,
   type NestFastifyApplication,
-} from '@nestjs/platform-fastify';
-import { createPermDock } from 'permdock/nest';
-import { testHttpAdapter } from 'permdock/testing';
-import { saasPermissions as p } from 'permdock/testing/saas';
+} from "@nestjs/platform-fastify";
+import { createPermDock } from "permdock/nest";
+import { testHttpAdapter } from "permdock/testing";
+import { saasPermissions as p } from "permdock/testing/saas";
 
-import { forward } from '../support/listen.ts';
+import { forward } from "../support/listen.ts";
 
-type Platform = 'express' | 'fastify';
+type Platform = "express" | "fastify";
 
 function method(
   cls: Type<unknown>,
@@ -66,14 +66,14 @@ function appModule(
       subject: (req) =>
         domain.subject(
           req.headers.authorization,
-          req.originalUrl ?? req.url ?? '/',
+          req.originalUrl ?? req.url ?? "/",
         ),
-      tenant: (req) => req.params?.['org'],
+      tenant: (req) => req.params?.["org"],
       customRoles: domain.customRoles,
       store: domain.store,
       limits: domain.limits,
     });
-  const row = (req: NestRequest) => domain.project(req.params?.['id']);
+  const row = (req: NestRequest) => domain.project(req.params?.["id"]);
 
   class AdminController {
     members() {
@@ -81,7 +81,7 @@ function appModule(
     }
   }
   Controller()(AdminController);
-  method(AdminController, 'members', Get('members'), Protect(p.member.list));
+  method(AdminController, "members", Get("members"), Protect(p.member.list));
 
   class AdminModule {}
   Module({ controllers: [AdminController] })(AdminModule);
@@ -92,7 +92,7 @@ function appModule(
     }
 
     update(req: NestRequest) {
-      return { id: req.params?.['id'] };
+      return { id: req.params?.["id"] };
     }
 
     create(req: NestRequest) {
@@ -104,7 +104,7 @@ function appModule(
     }
 
     async upload(req: NestRequest, file?: Express.Multer.File) {
-      if (platform === 'express') {
+      if (platform === "express") {
         return file === undefined
           ? undefined
           : { name: file.originalname, size: file.size };
@@ -130,65 +130,65 @@ function appModule(
       return null;
     }
   }
-  Controller(':org')(ProjectsController);
+  Controller(":org")(ProjectsController);
   method(
     ProjectsController,
-    'read',
-    Get('projects/:id'),
+    "read",
+    Get("projects/:id"),
     Protect(p.project.read, row),
   );
   method(
     ProjectsController,
-    'update',
-    Patch('projects/:id'),
+    "update",
+    Patch("projects/:id"),
     Protect(p.project.update, row),
   );
   method(
     ProjectsController,
-    'create',
-    Post('projects'),
+    "create",
+    Post("projects"),
     Protect(p.project.create, (req) => req.body, { trusted: false }),
   );
   method(
     ProjectsController,
-    'remove',
-    Delete('projects/:id'),
+    "remove",
+    Delete("projects/:id"),
     HttpCode(204),
     Protect(p.project.read, row),
   );
   method(
     ProjectsController,
-    'upload',
-    Post('projects/:id/files'),
+    "upload",
+    Post("projects/:id/files"),
     Protect(p.project.update, row),
-    ...(platform === 'express'
-      ? [UseInterceptors(FileInterceptor('file'))]
+    ...(platform === "express"
+      ? [UseInterceptors(FileInterceptor("file"))]
       : []),
   );
   method(
     ProjectsController,
-    'analytics',
-    Get('analytics'),
+    "analytics",
+    Get("analytics"),
     Protect(p.analytics.read),
   );
   method(
     ProjectsController,
-    'createKey',
-    Post('api-keys'),
+    "createKey",
+    Post("api-keys"),
     Protect(p.apiKey.create),
   );
   method(
     ProjectsController,
-    'revokeAll',
-    Post('api-keys/revoke-all'),
+    "revokeAll",
+    Post("api-keys/revoke-all"),
     HttpCode(204),
     Protect(p.apiKey.revokeAll),
   );
-  for (const key of ['read', 'update', 'create', 'remove', 'upload']) {
+  for (const key of ["read", "update", "create", "remove", "upload"]) {
     parameter(ProjectsController, key, 0, Req());
   }
-  if (platform === 'express') {
-    parameter(ProjectsController, 'upload', 1, UploadedFile());
+  if (platform === "express") {
+    parameter(ProjectsController, "upload", 1, UploadedFile());
   }
 
   class AppModule {}
@@ -196,11 +196,11 @@ function appModule(
     imports: [
       PermDockModule,
       AdminModule,
-      RouterModule.register([{ path: ':org/admin', module: AdminModule }]),
+      RouterModule.register([{ path: ":org/admin", module: AdminModule }]),
     ],
     controllers: [
       ProjectsController,
-      permdockHandler({ path: ':org/permdock/access/v1/evaluations' }),
+      permdockHandler({ path: ":org/permdock/access/v1/evaluations" }),
     ],
     providers: [{ provide: APP_GUARD, useExisting: PermDockGuard }],
   })(AppModule);
@@ -208,8 +208,8 @@ function appModule(
 }
 
 async function serve(app: INestApplication): Promise<HttpMounted> {
-  await app.listen(0, '127.0.0.1');
-  const origin = (await app.getUrl()).replace('[::1]', '127.0.0.1');
+  await app.listen(0, "127.0.0.1");
+  const origin = (await app.getUrl()).replace("[::1]", "127.0.0.1");
   return {
     fetch: (request) => forward(origin, request),
     close: () => app.close(),
@@ -217,19 +217,19 @@ async function serve(app: INestApplication): Promise<HttpMounted> {
 }
 
 testHttpAdapter({
-  name: 'permdock/nest on platform-express',
+  name: "permdock/nest on platform-express",
   async mount(domain) {
     return serve(
-      await NestFactory.create(appModule(domain, 'express'), { logger: false }),
+      await NestFactory.create(appModule(domain, "express"), { logger: false }),
     );
   },
 });
 
 testHttpAdapter({
-  name: 'permdock/nest on platform-fastify',
+  name: "permdock/nest on platform-fastify",
   async mount(domain) {
     const app = await NestFactory.create<NestFastifyApplication>(
-      appModule(domain, 'fastify'),
+      appModule(domain, "fastify"),
       new FastifyAdapter(),
       { logger: false },
     );

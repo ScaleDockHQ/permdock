@@ -1,4 +1,4 @@
-import type { EntitlementSource } from './interfaces.ts';
+import type { EntitlementSource } from "./interfaces.ts";
 
 /** The part of the Stripe Node SDK this source calls: `stripe.entitlements.activeEntitlements.list`. */
 export type StripeEntitlementsClient = {
@@ -41,7 +41,7 @@ export function fromStripeEntitlements(options: {
         return [];
       }
       const customer = await options.customer(query.tenant, principal);
-      if (customer === undefined || customer === '') {
+      if (customer === undefined || customer === "") {
         return [];
       }
       const keys = new Set<string>();
@@ -55,7 +55,7 @@ export function fromStripeEntitlements(options: {
               : { customer, limit: PAGE, starting_after: after },
           );
         for (const item of result.data) {
-          if (typeof item.lookup_key === 'string' && item.lookup_key !== '') {
+          if (typeof item.lookup_key === "string" && item.lookup_key !== "") {
             keys.add(item.lookup_key);
           }
         }

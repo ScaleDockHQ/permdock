@@ -1,29 +1,29 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from "vitest";
 
 import {
   canonicalDump,
   conditionFromAst,
   fingerprintSql,
-} from '../../src/cli/rls-import-ast.ts';
-import { sqlFunctionNames } from '../../src/cli/rls-sql.ts';
+} from "../../src/cli/rls-import-ast.ts";
+import { sqlFunctionNames } from "../../src/cli/rls-sql.ts";
 
 const memberships = {
   tenant: {
-    table: 'organization_members',
-    tenant: 'orgId',
-    user: 'user_id',
-    role: 'role',
+    table: "organization_members",
+    tenant: "orgId",
+    user: "user_id",
+    role: "role",
   },
   team: {
-    table: 'team_users',
-    team: 'teamId',
-    user: 'user_id',
-    role: 'role',
+    table: "team_users",
+    team: "teamId",
+    user: "user_id",
+    role: "role",
   },
 };
 
-describe('conditionFromAst', () => {
-  it('maps auth.uid equality, compounds, isNull and claims', async () => {
+describe("conditionFromAst", () => {
+  it("maps auth.uid equality, compounds, isNull and claims", async () => {
     const unmapped: string[] = [];
     expect(
       await conditionFromAst(
@@ -33,9 +33,9 @@ describe('conditionFromAst', () => {
         unmapped,
       ),
     ).toMatchObject({
-      op: 'eq',
-      field: 'authorId',
-      value: { ref: 'principal.id' },
+      op: "eq",
+      field: "authorId",
+      value: { ref: "principal.id" },
     });
     expect(
       await conditionFromAst(
@@ -44,33 +44,33 @@ describe('conditionFromAst', () => {
         undefined,
         unmapped,
       ),
-    ).toEqual({ op: 'isNull', field: 'published', value: true });
+    ).toEqual({ op: "isNull", field: "published", value: true });
     expect(
       await conditionFromAst('"n" is not null', undefined, undefined, unmapped),
-    ).toEqual({ op: 'isNull', field: 'n', value: false });
+    ).toEqual({ op: "isNull", field: "n", value: false });
     expect(
       await conditionFromAst(
-        '"orgId" = ((select auth.jwt()) ->> \'tenant_id\')',
+        "\"orgId\" = ((select auth.jwt()) ->> 'tenant_id')",
         undefined,
         undefined,
         unmapped,
       ),
     ).toMatchObject({
-      op: 'eq',
-      field: 'orgId',
-      value: { ref: 'principal.claim.tenant_id' },
+      op: "eq",
+      field: "orgId",
+      value: { ref: "principal.claim.tenant_id" },
     });
     expect(
       await conditionFromAst(
-        'current_setting(\'app.user_id\', true) = "authorId"',
+        "current_setting('app.user_id', true) = \"authorId\"",
         undefined,
         undefined,
         unmapped,
       ),
     ).toMatchObject({
-      op: 'eq',
-      field: 'authorId',
-      value: { ref: 'principal.id' },
+      op: "eq",
+      field: "authorId",
+      value: { ref: "principal.id" },
     });
     expect(
       await conditionFromAst(
@@ -79,14 +79,14 @@ describe('conditionFromAst', () => {
         undefined,
         unmapped,
       ),
-    ).toMatchObject({ op: 'or' });
+    ).toMatchObject({ op: "or" });
     expect(
-      await conditionFromAst('true', undefined, undefined, unmapped),
-    ).toEqual({ op: 'eq', field: '_', value: true });
+      await conditionFromAst("true", undefined, undefined, unmapped),
+    ).toEqual({ op: "eq", field: "_", value: true });
     expect(unmapped).toEqual([]);
   });
 
-  it('maps EXISTS and IN memberships and mapped functions', async () => {
+  it("maps EXISTS and IN memberships and mapped functions", async () => {
     const unmapped: string[] = [];
     expect(
       await conditionFromAst(
@@ -95,7 +95,7 @@ describe('conditionFromAst', () => {
         undefined,
         unmapped,
       ),
-    ).toMatchObject({ op: 'memberOf', scope: 'tenant', field: 'orgId' });
+    ).toMatchObject({ op: "memberOf", scope: "tenant", field: "orgId" });
     expect(
       await conditionFromAst(
         '"teamId" in (select team_id from team_users)',
@@ -103,40 +103,40 @@ describe('conditionFromAst', () => {
         undefined,
         unmapped,
       ),
-    ).toMatchObject({ op: 'memberOf', scope: 'team', field: 'teamId' });
+    ).toMatchObject({ op: "memberOf", scope: "team", field: "teamId" });
     expect(
       await conditionFromAst(
-        'job_permitted(id)',
+        "job_permitted(id)",
         undefined,
         {
           job_permitted: {
             twin: {
-              op: 'eq',
-              field: 'authorId',
-              value: { ref: 'principal.id' },
+              op: "eq",
+              field: "authorId",
+              value: { ref: "principal.id" },
             },
-            args: ['id'],
+            args: ["id"],
           },
         },
         unmapped,
       ),
     ).toMatchObject({
-      op: 'sqlFunction',
-      name: 'job_permitted',
-      args: [{ field: 'id' }],
+      op: "sqlFunction",
+      name: "job_permitted",
+      args: [{ field: "id" }],
     });
     expect(
       await conditionFromAst(
-        'unmapped_helper(id)',
+        "unmapped_helper(id)",
         undefined,
         undefined,
         unmapped,
       ),
-    ).toMatchObject({ op: 'opaque', sql: 'unmapped_helper(id)' });
-    expect(unmapped).toContain('unmapped_helper');
+    ).toMatchObject({ op: "opaque", sql: "unmapped_helper(id)" });
+    expect(unmapped).toContain("unmapped_helper");
   });
 
-  it('fingerprints by deparsed AST and canonicalises dumps', async () => {
+  it("fingerprints by deparsed AST and canonicalises dumps", async () => {
     const a = await fingerprintSql('(select auth.uid()) = "authorId"');
     const b = await fingerprintSql('((SELECT auth.uid())) = "authorId"');
     expect(a).toBe(b);
@@ -144,29 +144,29 @@ describe('conditionFromAst', () => {
       'create policy "jobs_read" on job for select to authenticated using (job_permitted(id));',
     );
     expect(dump).toMatch(/CREATE POLICY/i);
-    expect(dump).toContain('job_permitted');
+    expect(dump).toContain("job_permitted");
   });
 });
 
-describe('sqlFunctionNames', () => {
-  it('walks compounds and ignores leaves without a function', () => {
+describe("sqlFunctionNames", () => {
+  it("walks compounds and ignores leaves without a function", () => {
     expect(sqlFunctionNames(undefined)).toEqual([]);
     expect(
       sqlFunctionNames({
-        op: 'and',
+        op: "and",
         conditions: [
           {
-            op: 'sqlFunction',
-            name: 'job_permitted',
-            args: [{ field: 'id' }],
-            twin: { op: 'eq', field: 'scope', value: 'public' },
+            op: "sqlFunction",
+            name: "job_permitted",
+            args: [{ field: "id" }],
+            twin: { op: "eq", field: "scope", value: "public" },
           },
-          { op: 'not', condition: { op: 'eq', field: 'hidden', value: true } },
+          { op: "not", condition: { op: "eq", field: "hidden", value: true } },
         ],
       }),
-    ).toEqual(['job_permitted']);
+    ).toEqual(["job_permitted"]);
     expect(
-      sqlFunctionNames({ op: 'opaque', sql: '1=1', fingerprint: 'x' }),
+      sqlFunctionNames({ op: "opaque", sql: "1=1", fingerprint: "x" }),
     ).toEqual([]);
   });
 });

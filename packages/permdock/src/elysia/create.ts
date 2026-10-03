@@ -1,7 +1,7 @@
-import { Elysia } from 'elysia';
+import { Elysia } from "elysia";
 
-import type { ApprovalStore } from '../approvals/types.ts';
-import type { PolicySource } from '../core/hosted.ts';
+import type { ApprovalStore } from "../approvals/types.ts";
+import type { PolicySource } from "../core/hosted.ts";
 import type {
   DecisionSink,
   EntitlementSource,
@@ -10,28 +10,27 @@ import type {
   RelationSource,
   RoleSource,
   SnapshotSource,
-} from '../core/interfaces.ts';
-import type { PermDock } from '../core/permdock.ts';
-import type { Permission } from '../core/permissions.ts';
-import type { Policy } from '../core/policy.ts';
-import type { RevocationFeed } from '../core/revocations.ts';
-import type { Principal } from '../core/subject.ts';
-import type { OtelOptions } from '../otel/types.ts';
-import type { PdpFactory } from '../pdp/types.ts';
-import type { Connection, ConnectionOptions } from '../server/connection.ts';
+} from "../core/interfaces.ts";
+import type { PermDock } from "../core/permdock.ts";
+import type { Permission } from "../core/permissions.ts";
+import type { Policy, PolicyVocabulary } from "../core/policy.ts";
+import type { RevocationFeed } from "../core/revocations.ts";
+import type { Principal } from "../core/subject.ts";
+import type { OtelWrap } from "../otel/types.ts";
+import type { PdpFactory } from "../pdp/types.ts";
+import type { Connection, ConnectionOptions } from "../server/connection.ts";
 import type {
   OpenApiHooks,
   ProtectOptions,
   TenantOption,
   TenantScope,
-} from '../server/create.ts';
-import type { WebBotAuthOptions } from '../server/web-bot-auth.ts';
+} from "../server/create.ts";
+import type { WebBotAuthVerifier } from "../server/web-bot-auth.ts";
 
-import { compact } from '../core/compact.ts';
-import { applyOtel } from '../otel/instrument.ts';
-import { createKernel, tenantScope } from '../server/create.ts';
-import { problemFromError } from '../server/map-error.ts';
-import { POLICY_VIOLATION, onRevoked } from '../server/stream.ts';
+import { compact } from "../core/compact.ts";
+import { createKernel, tenantScope } from "../server/create.ts";
+import { problemFromError } from "../server/map-error.ts";
+import { POLICY_VIOLATION, onRevoked } from "../server/stream.ts";
 
 export type ElysiaCtx = {
   readonly request: Request;
@@ -56,8 +55,10 @@ export type ElysiaPermDockOptions<TUser = unknown> = {
   readonly pdp?: PdpFactory;
   /** Accepted for adapter parity; not read by this adapter. */
   readonly snapshots?: SnapshotSource;
-  readonly otel?: OtelOptions;
-  readonly webBotAuth?: WebBotAuthOptions;
+  /** `(permdock) => withOtel(permdock, options)` from `permdock/otel`. */
+  readonly otel?: OtelWrap;
+  /** `(request) => verifyWebBotAuth(request, options)`; a verified bot becomes the actor. */
+  readonly webBotAuth?: WebBotAuthVerifier;
   /** Ends or revalidates open sockets. */
   readonly revocations?: RevocationFeed;
 };
@@ -68,10 +69,11 @@ export type ElysiaSocket = {
   close(code?: number, reason?: string): unknown;
 };
 
-export type ElysiaContext = ElysiaCtx & {
-  permdock: PermDock;
-  permdockData?: unknown;
-};
+export type ElysiaContext<V extends PolicyVocabulary = PolicyVocabulary> =
+  ElysiaCtx & {
+    permdock: PermDock<V>;
+    permdockData?: unknown;
+  };
 
 export type ElysiaProtect = (
   permission: Permission,
@@ -79,8 +81,23 @@ export type ElysiaProtect = (
   protectOptions?: ProtectOptions,
 ) => (ctx: ElysiaCtx) => Promise<Response | undefined>;
 
-export type ElysiaPermDock = {
-  readonly permdock: () => Elysia;
+/** The `permdock()` plugin: its global derive types `permdock` in every later handler. */
+export type ElysiaPermDockPlugin<
+  V extends PolicyVocabulary = PolicyVocabulary,
+> = Elysia<
+  "",
+  /* oxlint-disable typescript/no-generated-empty-object-type -- Elysia's own empty singleton slots */
+  {
+    decorator: Record<never, never>;
+    store: Record<never, never>;
+    derive: { readonly permdock: PermDock<V> };
+    resolve: Record<never, never>;
+  }
+  /* oxlint-enable typescript/no-generated-empty-object-type */
+>;
+
+export type ElysiaPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
+  readonly permdock: () => ElysiaPermDockPlugin<V>;
   readonly protect: ElysiaProtect;
   /**
    * One connection per socket: the same promise for every handler
@@ -94,10 +111,14 @@ export type ElysiaPermDock = {
   readonly openapi: OpenApiHooks;
 };
 
-export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
-  policy: Policy<TUser, TPrincipal>,
+export function createPermDock<
+  TUser,
+  TPrincipal extends Principal = Principal,
+  V extends PolicyVocabulary = PolicyVocabulary,
+>(
+  policy: Policy<TUser, TPrincipal, V>,
   options: ElysiaPermDockOptions<TUser>,
-): ElysiaPermDock {
+): ElysiaPermDock<V> {
   const contexts = new WeakMap<Request, ElysiaCtx>();
   const bound = new WeakMap<ElysiaCtx, Request>();
   const seed = globalThis.crypto.randomUUID();
@@ -119,8 +140,8 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       pdp: options.pdp,
       webBotAuth: options.webBotAuth,
       revocations: options.revocations,
-      adapter: 'elysia',
-      wrap: (dock: PermDock) => applyOtel(dock, options.otel),
+      adapter: "elysia",
+      wrap: options.otel,
     }),
   );
 
@@ -140,28 +161,28 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
 
   const decorate = (
     ctx: ElysiaCtx,
-    instance: PermDock,
+    instance: PermDock<V>,
     data?: unknown,
   ): void => {
     // SAFETY: ElysiaContext is the request context plus the permdock fields assigned here.
-    const scoped = ctx as ElysiaContext;
+    const scoped = ctx as ElysiaContext<V>;
     scoped.permdock = instance;
     if (data !== undefined) {
       scoped.permdockData = data;
     }
   };
 
-  // SAFETY: the chain returns an Elysia instance; only its accumulated generics are dropped.
-  const permdock = (): Elysia =>
-    new Elysia({ name: 'permdock', seed })
-      .derive({ as: 'global' }, async (ctx) => {
+  // SAFETY: the chain returns an Elysia instance; its generics are narrowed to the global permdock derive.
+  const permdock = (): ElysiaPermDockPlugin<V> =>
+    new Elysia({ name: "permdock", seed })
+      .derive({ as: "global" }, async (ctx) => {
         const instance = await kernel.permdock(bind(ctx), await scopeOf(ctx));
         decorate(ctx, instance);
         return { permdock: instance };
       })
-      .onError({ as: 'global' }, ({ error }) =>
+      .onError({ as: "global" }, ({ error }) =>
         problemFromError(error),
-      ) as unknown as Elysia;
+      ) as unknown as ElysiaPermDockPlugin<V>;
 
   const protect: ElysiaProtect =
     (permission, loadData, protectOptions) => async (ctx) => {
@@ -203,14 +224,14 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
   };
 
   const permdockHandler = (): Elysia => {
-    const { POST, GET } = kernel.handler((request) => {
+    const { POST, GET } = kernel.permdockHandler((request) => {
       const ctx = contexts.get(request);
       return ctx === undefined ? { tenant: undefined } : scopeOf(ctx);
     });
     // SAFETY: the chain returns an Elysia instance; only its accumulated generics are dropped.
-    return new Elysia({ name: 'permdock-handler', seed })
-      .post('/', (ctx) => POST(bind(ctx)))
-      .get('/', (ctx) => GET(bind(ctx))) as unknown as Elysia;
+    return new Elysia({ name: "permdock-handler", seed })
+      .post("/", (ctx) => POST(bind(ctx)))
+      .get("/", (ctx) => GET(bind(ctx))) as unknown as Elysia;
   };
 
   return {
@@ -224,14 +245,14 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
 
 function toRequest(ctx: ElysiaCtx): Request {
   const method = ctx.request.method;
-  if (method === 'GET' || method === 'HEAD' || ctx.body === undefined) {
+  if (method === "GET" || method === "HEAD" || ctx.body === undefined) {
     return ctx.request;
   }
   const headers = new Headers(ctx.request.headers);
   const body =
-    typeof ctx.body === 'string' ? ctx.body : JSON.stringify(ctx.body);
-  if (!headers.has('content-type')) {
-    headers.set('content-type', 'application/json');
+    typeof ctx.body === "string" ? ctx.body : JSON.stringify(ctx.body);
+  if (!headers.has("content-type")) {
+    headers.set("content-type", "application/json");
   }
   return new Request(ctx.request.url, { method, headers, body });
 }

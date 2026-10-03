@@ -1,18 +1,18 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import path from 'node:path';
-import { afterAll, describe, expect, it } from 'vitest';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import path from "node:path";
+import { afterAll, describe, expect, it } from "vitest";
 
-import type { PermDockConfig } from '../../src/cli/types.ts';
+import type { PermDockConfig } from "../../src/cli/types.ts";
 
-import { runRlsGenerate } from '../../src/cli/rls-generate.ts';
-import { fromTable } from '../../src/supabase/index.ts';
+import { runRlsGenerate } from "../../src/cli/rls-generate.ts";
+import { fromTable } from "../../src/supabase/index.ts";
 
-const TMP = path.join(import.meta.dirname, '../../tmp');
+const TMP = path.join(import.meta.dirname, "../../tmp");
 mkdirSync(TMP, { recursive: true });
-const cwd = mkdtempSync(path.join(TMP, 'rls-generate-cases-'));
-const MINI = path.join(import.meta.dirname, 'fixtures/mini-app/src/policy.ts');
+const cwd = mkdtempSync(path.join(TMP, "rls-generate-cases-"));
+const MINI = path.join(import.meta.dirname, "fixtures/mini-app/src/policy.ts");
 writeFileSync(
-  path.join(cwd, 'roles.ts'),
+  path.join(cwd, "roles.ts"),
   `import { allow, definePermissions, definePolicy, defineRoles, resource, role } from 'permdock';
 import { z } from 'zod';
 
@@ -44,7 +44,7 @@ export const policy = definePolicy({ permissions, roles }, {
 `,
 );
 writeFileSync(
-  path.join(cwd, 'graph.ts'),
+  path.join(cwd, "graph.ts"),
   `import { allow, definePermissions, definePolicy, relation, resource } from 'permdock';
 import { z } from 'zod';
 
@@ -67,7 +67,7 @@ export const policy = definePolicy(permissions, {
 `,
 );
 writeFileSync(
-  path.join(cwd, 'closure.ts'),
+  path.join(cwd, "closure.ts"),
   `import { allow, breakGlass, definePermissions, definePolicy, deny, resource, role } from 'permdock';
 import { z } from 'zod';
 
@@ -98,8 +98,8 @@ function generate(over: Partial<Input> & { readonly config?: PermDockConfig }) {
   return runRlsGenerate({
     cwd,
     config: {},
-    target: 'sql',
-    dialect: 'supabase',
+    target: "sql",
+    dialect: "supabase",
     rbac: false,
     check: false,
     skipClosures: false,
@@ -110,84 +110,84 @@ function generate(over: Partial<Input> & { readonly config?: PermDockConfig }) {
   });
 }
 
-describe('rls generate policy loading', () => {
-  it('reads the config policy for --from drizzle and needs one', async () => {
-    await expect(generate({ from: 'drizzle' })).rejects.toThrow(
-      'rls generate needs policy in permdock.config.ts or --from',
+describe("rls generate policy loading", () => {
+  it("reads the config policy for --from drizzle and needs one", async () => {
+    await expect(generate({ from: "drizzle" })).rejects.toThrow(
+      "rls generate needs policy in permdock.config.ts or --from",
     );
     const outcome = await generate({
-      from: 'drizzle',
+      from: "drizzle",
       config: { policy: MINI },
     });
     expect(outcome.code).toBe(0);
   });
 });
 
-describe('rls generate context from the config', () => {
-  it('scaffolds custom roles under rbac with the assignable declared roles', async () => {
+describe("rls generate context from the config", () => {
+  it("scaffolds custom roles under rbac with the assignable declared roles", async () => {
     const outcome = await generate({
-      from: './roles.ts',
+      from: "./roles.ts",
       rbac: true,
       customRoles: true,
-      authorize: 'database',
+      authorize: "database",
     });
     expect(outcome.code).toBe(0);
-    expect(outcome.text).toContain('custom_role_permissions');
+    expect(outcome.text).toContain("custom_role_permissions");
     expect(outcome.text).toContain(
       "and rp.role = any(array['editor', 'lead']::text[])",
     );
-    expect(outcome.text).not.toContain('service_role');
+    expect(outcome.text).not.toContain("service_role");
   });
 
-  it('types scopes from teamType and scopeTypes and ignores hook roles set to false', async () => {
+  it("types scopes from teamType and scopeTypes and ignores hook roles set to false", async () => {
     const outcome = await generate({
-      from: './roles.ts',
+      from: "./roles.ts",
       config: {
         rls: {
-          teamType: 'bigint',
-          scopeTypes: { tenant: 'text' },
+          teamType: "bigint",
+          scopeTypes: { tenant: "text" },
           capabilities: true,
         },
         supabase: {
           hook: {
             roles: false,
-            memberships: [fromTable({ table: 'memberships' })],
+            memberships: [fromTable({ table: "memberships" })],
           },
         },
       },
     });
     expect(outcome.code).toBe(0);
-    expect(outcome.text).toContain('returns setof bigint');
-    expect(outcome.text).toContain('returns setof text');
-    expect(outcome.text).not.toContain('user_roles (user_id, role app_role)');
+    expect(outcome.text).toContain("returns setof bigint");
+    expect(outcome.text).toContain("returns setof text");
+    expect(outcome.text).not.toContain("user_roles (user_id, role app_role)");
   });
 
-  it('maps graph tables and warns that --force recurses through own relations', async () => {
+  it("maps graph tables and warns that --force recurses through own relations", async () => {
     const outcome = await generate({
-      from: './graph.ts',
+      from: "./graph.ts",
       force: true,
-      config: { rls: { tables: { node: 'app.nodes' } } },
+      config: { rls: { tables: { node: "app.nodes" } } },
     });
     expect(outcome.code).toBe(0);
     expect(outcome.text).toContain('"app"."nodes"');
     expect(outcome.output).toContain(
-      '--force: node relations owner are read from the node table itself',
+      "--force: node relations owner are read from the node table itself",
     );
   });
 });
 
-describe('rls generate grants that never become a policy', () => {
-  it('refuses a closure grant unless --skip-closures, and routes break-glass through its function', async () => {
-    await expect(generate({ from: './closure.ts' })).rejects.toThrow(
-      'is not portable; rewrite it or pass --skip-closures',
+describe("rls generate grants that never become a policy", () => {
+  it("refuses a closure grant unless --skip-closures, and routes break-glass through its function", async () => {
+    await expect(generate({ from: "./closure.ts" })).rejects.toThrow(
+      "is not portable; rewrite it or pass --skip-closures",
     );
     const outcome = await generate({
-      from: './closure.ts',
+      from: "./closure.ts",
       skipClosures: true,
     });
     expect(outcome.code).toBe(0);
     expect(outcome.output).toContain(
-      'reads through permdock_break_glass_doc, not a policy',
+      "reads through permdock_break_glass_doc, not a policy",
     );
     expect(outcome.output).toMatch(
       /skipped non-portable grant .+\/doc\.update/u,
@@ -195,26 +195,26 @@ describe('rls generate grants that never become a policy', () => {
   });
 });
 
-describe('rls generate flag combinations', () => {
-  it('needs --target sql for --helpers-only', async () => {
+describe("rls generate flag combinations", () => {
+  it("needs --target sql for --helpers-only", async () => {
     expect(
-      await generate({ from: MINI, target: 'drizzle', helpersOnly: true }),
+      await generate({ from: MINI, target: "drizzle", helpersOnly: true }),
     ).toEqual({
       code: 2,
-      output: 'rls generate --helpers-only needs --target sql and no --fields',
-      text: '',
+      output: "rls generate --helpers-only needs --target sql and no --fields",
+      text: "",
     });
   });
 
-  it('needs --target sql for --split', async () => {
+  it("needs --target sql for --split", async () => {
     const outcome = await generate({
       from: MINI,
-      target: 'drizzle',
-      split: 'helpers,policies',
-      out: 'db/{part}.ts',
+      target: "drizzle",
+      split: "helpers,policies",
+      out: "db/{part}.ts",
       write: true,
     });
     expect(outcome.code).toBe(2);
-    expect(outcome.output).toBe('rls generate --split needs --target sql');
+    expect(outcome.output).toBe("rls generate --split needs --target sql");
   });
 });

@@ -1,7 +1,7 @@
 name: Adapter
 description: Propose or track an adapter contribution
-title: 'adapter: '
-labels: ['adapter']
+title: "adapter: "
+labels: ["adapter"]
 body:
   - type: markdown
     attributes:
@@ -19,10 +19,10 @@ body:
     attributes:
       label: Roadmap phase
       options:
-        - '1'
-        - '2'
-        - '3'
-        - '4'
+        - "1"
+        - "2"
+        - "3"
+        - "4"
     validations:
       required: true
   - type: textarea

@@ -1,33 +1,33 @@
-import type { StandardSchemaV1 } from '@standard-schema/spec';
+import type { StandardSchemaV1 } from "@standard-schema/spec";
 
-import type { Permission, ResourceNode } from './permissions.ts';
+import type { Permission, ResourceNode } from "./permissions.ts";
 
-import { PermDockValidationError } from './errors.ts';
-import { ignoreRejection, isThenable } from './thenable.ts';
+import { PermDockValidationError } from "./errors.ts";
+import { ignoreRejection, isThenable } from "./thenable.ts";
 
 export type Boundary =
-  | 'http-body'
-  | 'mcp-args'
-  | 'tool-args'
-  | 'decision-endpoint'
-  | 'manual';
+  | "http-body"
+  | "mcp-args"
+  | "tool-args"
+  | "decision-endpoint"
+  | "manual";
 
 export function validateBoundary(
   permission: Permission,
   resource: ResourceNode | undefined,
   data: unknown,
-  mode: 'boundary' | 'always' | 'never',
+  mode: "boundary" | "always" | "never",
   trusted: boolean,
-  boundary: Boundary = 'manual',
+  boundary: Boundary = "manual",
 ): unknown {
-  const shouldValidate = mode === 'always' || (mode === 'boundary' && !trusted);
+  const shouldValidate = mode === "always" || (mode === "boundary" && !trusted);
   if (!shouldValidate) {
     return data;
   }
   if (resource?.schema === undefined) {
-    if (mode === 'always') {
+    if (mode === "always") {
       throw new PermDockValidationError({
-        code: 'no-schema',
+        code: "no-schema",
         permission: permission.key,
         resource: permission.resource,
         boundary,
@@ -36,20 +36,20 @@ export function validateBoundary(
     }
     return data;
   }
-  const result = resource.schema['~standard'].validate(data);
+  const result = resource.schema["~standard"].validate(data);
   if (isThenable(result)) {
     ignoreRejection(result);
     throw new PermDockValidationError({
-      code: 'async-schema',
+      code: "async-schema",
       permission: permission.key,
       resource: permission.resource,
       boundary,
       message: `${permission.key}: schema for ${permission.resource} is async.`,
     });
   }
-  if ('issues' in result && result.issues !== undefined) {
+  if ("issues" in result && result.issues !== undefined) {
     throw new PermDockValidationError({
-      code: 'invalid-data',
+      code: "invalid-data",
       permission: permission.key,
       resource: permission.resource,
       issues: result.issues,
@@ -70,12 +70,12 @@ function validationMessage(
     const path =
       issue.path
         ?.map((item) =>
-          typeof item === 'object' && 'key' in item
+          typeof item === "object" && "key" in item
             ? String(item.key)
             : String(item),
         )
-        .join('.') ?? '/';
+        .join(".") ?? "/";
     return `invalid ${resource.name} data at ${path}: ${issue.message}`;
   });
-  return `${permission.key}: ${parts.join('; ')}.`;
+  return `${permission.key}: ${parts.join("; ")}.`;
 }

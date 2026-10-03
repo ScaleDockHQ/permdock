@@ -7,27 +7,27 @@ A custom role is a role a tenant admin defines at runtime. It is data from a `Ro
 
 ```ts
 type CustomRole = {
-  tenant: string
-  scope?: string               // the named scope it is held at; default the first scope
-  id?: string                  // pins it to one instance of that scope
-  team?: string                // input only: scope = the second scope, id = this team
-  name: string                 // unique within the tenant; a declared role name always wins
-  includes?: string[]          // declared roles to start from
-  grants?: { permission: string; effect?: 'allow' | 'deny' }[]   // declared permission keys
-  meta?: Record<string, unknown>
-}
+  tenant: string;
+  scope?: string; // the named scope it is held at; default the first scope
+  id?: string; // pins it to one instance of that scope
+  team?: string; // input only: scope = the second scope, id = this team
+  name: string; // unique within the tenant; a declared role name always wins
+  includes?: string[]; // declared roles to start from
+  grants?: { permission: string; effect?: "allow" | "deny" }[]; // declared permission keys
+  meta?: Record<string, unknown>;
+};
 ```
 
 ```ts
 const billingManager: CustomRole = {
-  tenant: 'o_acme',
-  name: 'billing-manager',
-  includes: ['billing'],
+  tenant: "o_acme",
+  name: "billing-manager",
+  includes: ["billing"],
   grants: [
-    { permission: 'post.read' },
-    { permission: 'invoice.refund', effect: 'deny' },
+    { permission: "post.read" },
+    { permission: "invoice.refund", effect: "deny" },
   ],
-}
+};
 ```
 
 A member holds it like any role: `{ tenant: 'o_acme', roles: ['billing-manager'] }`. [Tenancy](/docs/concepts/tenancy) covers memberships and the `RoleSource` interface.
@@ -55,12 +55,12 @@ Deny overrides allow inside the role: an own deny removes the permission even wh
 
 Nothing that fails resolution widens a role. `dropped` names each entry that was left out:
 
-| Reason | Meaning |
-| --- | --- |
-| `unknown-permission` | The key is not a declared permission |
-| `outside-ceiling` | The permission is declared but no assignable declared role of the scope allows it |
+| Reason                  | Meaning                                                                                                                                                                     |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `unknown-permission`    | The key is not a declared permission                                                                                                                                        |
+| `outside-ceiling`       | The permission is declared but no assignable declared role of the scope allows it                                                                                           |
 | `condition-not-allowed` | The entry carries a field other than `permission` and `effect` (a `where`, an `approval`, a `limit`), or an unknown `effect`. The permission is still removed, as if denied |
-| `unknown-role` | An `includes` entry names no declared role; reported as `{ role, reason }` |
+| `unknown-role`          | An `includes` entry names no declared role; reported as `{ role, reason }`                                                                                                  |
 
 `validateCustomRole(policy, role)` returns `{ ok, permissions, dropped }`, where `permissions` is the sorted list of keys the role allows after the ceiling. Call it in the server action that saves a custom role. `permdock doctor` PD023 runs it over the `customRoles` of the `doctor.memberships` fixture ([doctor](/docs/cli/doctor)).
 
@@ -105,35 +105,54 @@ The parity suite runs `permdock rls verify --db` over every custom role, table a
 A matrix editor shows permissions as rows and custom roles as columns, and saves each column as a `CustomRole`.
 
 ```tsx
-'use client'
-import { useAssignablePermissions } from 'permdock/react'
+"use client";
+import { useAssignablePermissions } from "permdock/react";
 
-export function RoleColumn({ role, onToggle }: { role: CustomRole; onToggle: (key: string, on: boolean) => void }) {
-  const offered = useAssignablePermissions()          // the ceiling this admin may hand out
-  const granted = new Set((role.grants ?? []).filter((g) => g.effect !== 'deny').map((g) => g.permission))
+export function RoleColumn({
+  role,
+  onToggle,
+}: {
+  role: CustomRole;
+  onToggle: (key: string, on: boolean) => void;
+}) {
+  const offered = useAssignablePermissions(); // the ceiling this admin may hand out
+  const granted = new Set(
+    (role.grants ?? [])
+      .filter((g) => g.effect !== "deny")
+      .map((g) => g.permission),
+  );
   return offered.map((leaf) => (
     <label key={leaf.key}>
-      <input type="checkbox" checked={granted.has(leaf.key)} onChange={(e) => onToggle(leaf.key, e.target.checked)} />
+      <input
+        type="checkbox"
+        checked={granted.has(leaf.key)}
+        onChange={(e) => onToggle(leaf.key, e.target.checked)}
+      />
       {leaf.meta.title ?? leaf.key}
     </label>
-  ))
+  ));
 }
 ```
 
 ```ts
-'use server'
-import { validateCustomRole } from 'permdock'
+"use server";
+import { validateCustomRole } from "permdock";
 
 export async function saveRole(input: unknown) {
-  const permdock = await getPermDock()
-  permdock.assert(permissions.member.assignRole)
-  const role = CustomRoleSchema.parse(input)           // boundary data: validate it
-  const offered = new Set(permdock.assignablePermissions({ tenant: role.tenant }).map((leaf) => leaf.key))
-  const result = validateCustomRole(policy, role)
-  const beyond = result.permissions.filter((key) => !offered.has(key))
-  if (!result.ok || beyond.length > 0) return { dropped: result.dropped, beyond }
-  await db.customRoles.upsert(role)                    // the table your RoleSource reads
-  return { saved: true }
+  const permdock = await getPermDock();
+  permdock.assert(permissions.member.assignRole);
+  const role = CustomRoleSchema.parse(input); // boundary data: validate it
+  const offered = new Set(
+    permdock
+      .assignablePermissions({ tenant: role.tenant })
+      .map((leaf) => leaf.key),
+  );
+  const result = validateCustomRole(policy, role);
+  const beyond = result.permissions.filter((key) => !offered.has(key));
+  if (!result.ok || beyond.length > 0)
+    return { dropped: result.dropped, beyond };
+  await db.customRoles.upsert(role); // the table your RoleSource reads
+  return { saved: true };
 }
 ```
 

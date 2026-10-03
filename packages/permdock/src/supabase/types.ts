@@ -1,8 +1,8 @@
-import type { StandardSchemaV1 } from '@standard-schema/spec';
+import type { StandardSchemaV1 } from "@standard-schema/spec";
 
-import type { AuthEvent } from '../core/interfaces.ts';
-import type { Principal } from '../core/subject.ts';
-import type { SupabaseActClaim } from './claims.ts';
+import type { AuthEvent } from "../core/interfaces.ts";
+import type { Principal } from "../core/subject.ts";
+import type { SupabaseActClaim } from "./claims.ts";
 
 export type SupabasePrincipal = Principal & {
   readonly claims?: Readonly<Record<string, unknown>>;
@@ -11,7 +11,7 @@ export type SupabasePrincipal = Principal & {
   readonly is_anonymous?: boolean;
 };
 
-export type SupabaseInclude = 'email' | 'phone' | 'is_anonymous';
+export type SupabaseInclude = "email" | "phone" | "is_anonymous";
 
 export type SupabaseMembershipTable = {
   readonly table: string;
@@ -53,10 +53,10 @@ type SupabaseMemberships = {
 };
 
 export type AuthorizeSqlOptions = {
-  /** Postgres schema of `authorize`, `user_roles`, `role_permissions` and `app_permission`. Default `public`. */
+  /** Postgres schema of `authorize`, `user_roles`, `role_permissions` and `app_permission`. Default `permdock`. */
   readonly schema?: string;
   /** `database` (default) reads the tables on every call; `jwt` reads the hook-injected claims. */
-  readonly authorize?: 'database' | 'jwt';
+  readonly authorize?: "database" | "jwt";
   /** The policy's first scope, which `requested_tenant` is an instance of. Default `tenant`. */
   readonly scope?: string;
   /** Membership table for tenant requests in `database` mode; without one they deny. */
@@ -81,7 +81,7 @@ export type SupabaseRlsOptions = {
 };
 
 export type SupabaseRlsConfig = {
-  readonly dialect: 'supabase';
+  readonly dialect: "supabase";
   readonly roleClaim: string;
   readonly tenantClaim: string;
   readonly tenantType?: string;
@@ -114,13 +114,13 @@ export type SupabaseSubjectOptions = {
 /** The app acting for the user; `chain` is a copy of the token's `act` claim when it has one. */
 export type SupabaseActor = {
   readonly id: string;
-  readonly kind: 'oauth-client';
+  readonly kind: "oauth-client";
   readonly chain?: SupabaseActClaim;
 };
 
 /** `actorOf` output: `{ ok: false }` must deny. */
 export type SupabaseActorResult =
   | { readonly ok: true; readonly actor?: SupabaseActor }
-  | { readonly ok: false; readonly reason: 'invalid-chain' };
+  | { readonly ok: false; readonly reason: "invalid-chain" };
 
 export type SupabaseDelegation = { readonly scopes: readonly string[] };

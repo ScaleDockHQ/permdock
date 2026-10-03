@@ -1,17 +1,17 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Slot } from 'expo-router';
-import { joseTokenVerifier } from 'permdock/jwt';
-import { PermDockProvider } from 'permdock/react-native';
-import { useEffect, useMemo, useState } from 'react';
-import { AppState, Text } from 'react-native';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Slot } from "expo-router";
+import { joseTokenVerifier } from "permdock/jwt";
+import { PermDockProvider } from "permdock/react-native";
+import { useEffect, useMemo, useState } from "react";
+import { AppState, Text } from "react-native";
 
-import type { Session } from '../lib/session';
+import type { Session } from "../lib/session";
 
-import { ORG, SessionContext } from '../lib/session';
+import { ORG, SessionContext } from "../lib/session";
 
 function subscribeForeground(listener: () => void): () => void {
-  const subscription = AppState.addEventListener('change', (state) => {
-    if (state === 'active') {
+  const subscription = AppState.addEventListener("change", (state) => {
+    if (state === "active") {
       listener();
     }
   });
@@ -24,7 +24,7 @@ export default function Layout() {
   const [session, setSession] = useState<Session | undefined>(undefined);
   useEffect(() => {
     // SAFETY: the fixture's /api/me route answers a Session
-    fetch(`/api/me?org=${ORG}`, { credentials: 'include', cache: 'no-store' })
+    fetch(`/api/me?org=${ORG}`, { credentials: "include", cache: "no-store" })
       .then((response) => response.json() as Promise<Session>)
       .then(setSession)
       .catch(() => {
@@ -33,12 +33,12 @@ export default function Layout() {
   }, []);
   const verifier = useMemo(
     () =>
-      typeof window === 'undefined'
+      typeof window === "undefined"
         ? undefined
         : joseTokenVerifier({
-            jwks: new URL('/api/jwks', window.location.origin),
-            typ: 'permdock-snapshot+jwt',
-            algorithms: ['ES256'],
+            jwks: new URL("/api/jwks", window.location.origin),
+            typ: "permdock-snapshot+jwt",
+            algorithms: ["ES256"],
           }),
     [],
   );

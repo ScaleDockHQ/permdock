@@ -1,5 +1,5 @@
-import type { ApprovalStore } from '../approvals/types.ts';
-import type { PolicySource } from '../core/hosted.ts';
+import type { ApprovalStore } from "../approvals/types.ts";
+import type { PolicySource } from "../core/hosted.ts";
 import type {
   DecisionSink,
   EntitlementSource,
@@ -8,9 +8,9 @@ import type {
   RelationSource,
   RoleSource,
   SnapshotSource,
-} from '../core/interfaces.ts';
-import type { Policy } from '../core/policy.ts';
-import type { Principal } from '../core/subject.ts';
+} from "../core/interfaces.ts";
+import type { Policy } from "../core/policy.ts";
+import type { Principal } from "../core/subject.ts";
 
 export type AuthzenResourceAdapter = {
   readonly load?: (id: string) => unknown;
@@ -54,7 +54,7 @@ export type AuthzenPermDockOptions<TUser = unknown> = {
 };
 
 export type AuthzenPermDock = {
-  readonly handler: (request: Request) => Promise<Response>;
+  readonly permdockHandler: (request: Request) => Promise<Response>;
 };
 
 export type AuthzenFactory = <TUser, TPrincipal extends Principal = Principal>(

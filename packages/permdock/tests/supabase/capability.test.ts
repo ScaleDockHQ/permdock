@@ -3,19 +3,19 @@ import {
   exportJWK,
   generateKeyPair,
   jwtVerify,
-} from 'jose';
-import { describe, expect, it } from 'vitest';
+} from "jose";
+import { describe, expect, it } from "vitest";
 
-import { capabilityOf, capabilitySubject } from '../../src/core/capability.ts';
-import { definePermissions, resource } from '../../src/core/permissions.ts';
-import { exchangeCapability } from '../../src/supabase/capability.ts';
+import { capabilityOf, capabilitySubject } from "../../src/core/capability.ts";
+import { definePermissions, resource } from "../../src/core/permissions.ts";
+import { exchangeCapability } from "../../src/supabase/capability.ts";
 
 const permissions = definePermissions({
-  quote: resource({ actions: ['read', 'accept'] }),
+  quote: resource({ actions: ["read", "accept"] }),
 });
-const SECRET = 'super-secret-jwt-token-with-at-least-32-characters';
+const SECRET = "super-secret-jwt-token-with-at-least-32-characters";
 const NOW = 1_900_000_000;
-const pair = generateKeyPair('ES256', { extractable: true });
+const pair = generateKeyPair("ES256", { extractable: true });
 
 async function es256() {
   const { privateKey, publicKey } = await pair;
@@ -23,8 +23,8 @@ async function es256() {
     publicKey,
     signing: {
       key: await exportJWK(privateKey),
-      alg: 'ES256',
-      kid: 'permdock-links',
+      alg: "ES256",
+      kid: "permdock-links",
     } as const,
   };
 }
@@ -32,52 +32,52 @@ async function es256() {
 function linkSubject(expiresAt = NOW + 86_400) {
   return capabilitySubject(
     capabilityOf({
-      id: 'lnk_1',
-      on: { resource: permissions.quote, id: 'q_1' },
-      roles: ['guest'],
+      id: "lnk_1",
+      on: { resource: permissions.quote, id: "q_1" },
+      roles: ["guest"],
       permissions: [permissions.quote.read],
       expiresAt,
     }),
   );
 }
 
-describe('exchangeCapability', () => {
-  it('mints a short-lived anon token carrying the capability', async () => {
+describe("exchangeCapability", () => {
+  it("mints a short-lived anon token carrying the capability", async () => {
     const { publicKey, signing } = await es256();
     const token = await exchangeCapability(linkSubject(), {
       ...signing,
-      issuer: 'https://ref.supabase.co/auth/v1',
+      issuer: "https://ref.supabase.co/auth/v1",
       now: NOW,
     });
-    const { payload } = await jwtVerify(token ?? '', publicKey, {
+    const { payload } = await jwtVerify(token ?? "", publicKey, {
       currentDate: new Date(NOW * 1000),
     });
     expect(payload).toEqual({
-      role: 'anon',
-      iss: 'https://ref.supabase.co/auth/v1',
+      role: "anon",
+      iss: "https://ref.supabase.co/auth/v1",
       iat: NOW,
       exp: NOW + 300,
       capability: {
         v: 1,
-        id: 'lnk_1',
-        holder: 'link',
-        on: { resource: 'quote', id: 'q_1' },
-        roles: ['guest'],
-        permissions: ['quote.read'],
+        id: "lnk_1",
+        holder: "link",
+        on: { resource: "quote", id: "q_1" },
+        roles: ["guest"],
+        permissions: ["quote.read"],
         expiresAt: NOW + 86_400,
       },
     });
-    expect(payload).not.toHaveProperty('sub');
+    expect(payload).not.toHaveProperty("sub");
   });
 
-  it('never outlives the capability', async () => {
+  it("never outlives the capability", async () => {
     const { publicKey, signing } = await es256();
     const token = await exchangeCapability(linkSubject(NOW + 30), {
       ...signing,
       ttl: 600,
       now: NOW,
     });
-    const { payload } = await jwtVerify(token ?? '', publicKey, {
+    const { payload } = await jwtVerify(token ?? "", publicKey, {
       currentDate: new Date(NOW * 1000),
     });
     expect(payload.exp).toBe(NOW + 30);
@@ -86,38 +86,38 @@ describe('exchangeCapability', () => {
     ).resolves.toBeUndefined();
   });
 
-  it('signs with an imported asymmetric key and its kid', async () => {
+  it("signs with an imported asymmetric key and its kid", async () => {
     const { signing } = await es256();
     const token = await exchangeCapability(linkSubject(), {
       ...signing,
       now: NOW,
     });
-    expect(decodeProtectedHeader(token ?? '')).toEqual({
-      alg: 'ES256',
-      kid: 'permdock-links',
-      typ: 'JWT',
+    expect(decodeProtectedHeader(token ?? "")).toEqual({
+      alg: "ES256",
+      kid: "permdock-links",
+      typ: "JWT",
     });
   });
 
-  it('still signs with the legacy shared secret', async () => {
+  it("still signs with the legacy shared secret", async () => {
     const token = await exchangeCapability(linkSubject(), {
       key: { secret: SECRET },
-      alg: 'HS256',
+      alg: "HS256",
       now: NOW,
     });
-    expect(decodeProtectedHeader(token ?? '')).toEqual({
-      alg: 'HS256',
-      typ: 'JWT',
+    expect(decodeProtectedHeader(token ?? "")).toEqual({
+      alg: "HS256",
+      typ: "JWT",
     });
     const { payload } = await jwtVerify(
-      token ?? '',
+      token ?? "",
       new TextEncoder().encode(SECRET),
       { currentDate: new Date(NOW * 1000) },
     );
-    expect(payload['role']).toBe('anon');
+    expect(payload["role"]).toBe("anon");
   });
 
-  it('exchanges only a link subject', async () => {
+  it("exchanges only a link subject", async () => {
     const { signing } = await es256();
     const options = { ...signing, now: NOW };
     await expect(
@@ -125,14 +125,14 @@ describe('exchangeCapability', () => {
     ).resolves.toBeUndefined();
     await expect(
       exchangeCapability(
-        { principal: { id: 'u_1', roles: ['admin'] }, context: {} },
+        { principal: { id: "u_1", roles: ["admin"] }, context: {} },
         options,
       ),
     ).resolves.toBeUndefined();
     await expect(
       exchangeCapability(
         {
-          principal: { id: 'lnk_1', kind: 'link', capability: { v: 1 } },
+          principal: { id: "lnk_1", kind: "link", capability: { v: 1 } },
           context: {},
         },
         options,
@@ -140,16 +140,29 @@ describe('exchangeCapability', () => {
     ).resolves.toBeUndefined();
   });
 
-  it('refuses a key that does not match the algorithm', async () => {
+  it("signs ES256 when no algorithm is named, and refuses the secret without HS256", async () => {
+    const { signing } = await es256();
+    const token = await exchangeCapability(linkSubject(), {
+      key: signing.key,
+      kid: signing.kid,
+      now: NOW,
+    });
+    expect(decodeProtectedHeader(token ?? "").alg).toBe("ES256");
+    await expect(
+      exchangeCapability(linkSubject(), { key: { secret: SECRET } }),
+    ).rejects.toThrow(/HS256 with \{ secret \} only/u);
+  });
+
+  it("refuses a key that does not match the algorithm", async () => {
     await expect(
       exchangeCapability(linkSubject(), {
         key: { secret: SECRET },
-        alg: 'ES256',
-        kid: 'k',
+        alg: "ES256",
+        kid: "k",
       }),
     ).rejects.toThrow(/HS256 with \{ secret \} only/u);
     await expect(
-      exchangeCapability(linkSubject(), { key: { kty: 'EC' }, alg: 'ES256' }),
+      exchangeCapability(linkSubject(), { key: { kty: "EC" }, alg: "ES256" }),
     ).rejects.toThrow(/kid/u);
   });
 });

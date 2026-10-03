@@ -1,15 +1,15 @@
 name: Setup
-description: Turborepo Remote Cache over OIDC, then pnpm and Node.js 24 from the lockfile.
+description: Turborepo Remote Cache over OIDC, then pnpm and the Node.js major in .node-version.
 
 inputs:
   turbo-team:
     description: Vercel team slug for the Remote Cache; empty (forks, before setup) means local cache only.
     required: false
-    default: ''
+    default: ""
   cache:
     description: Cache the pnpm store.
     required: false
-    default: 'true'
+    default: "true"
 
 runs:
   using: composite
@@ -23,6 +23,7 @@ runs:
 
     - uses: pnpm/setup@v3
       with:
-        runtime: node@24
+        runtime: node
+        node-version-file: .node-version
         cache: ${{ inputs.cache }}
         require-lockfile: true

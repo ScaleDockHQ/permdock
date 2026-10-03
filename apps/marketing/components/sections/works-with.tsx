@@ -1,10 +1,10 @@
-import { SiteLink } from '@/components/site/site-link';
-import { adapterGroups } from '@/lib/adapters';
-import { Frame, FrameFooter, FramePanel } from '@permdock/ui/reui/frame';
-import { IconTile } from '@permdock/ui/reui/icon-tile';
+import { SiteLink } from "@/components/site/site-link";
+import { adapterGroups } from "@/lib/adapters";
+import { Frame, FrameFooter, FramePanel } from "@permdock/ui/reui/frame";
+import { IconTile } from "@permdock/ui/reui/icon-tile";
 
-import { AdapterLogo } from './adapter-logos';
-import { Section } from './section';
+import { AdapterLogo } from "./adapter-logos";
+import { Section } from "./section";
 
 export function WorksWith() {
   return (
@@ -31,7 +31,7 @@ export function WorksWith() {
                   <FrameFooter className="px-1.5! py-2.5! text-center">
                     <SiteLink
                       href={tile.href}
-                      className="hover:text-primary text-sm leading-tight font-medium"
+                      className="text-sm leading-tight font-medium hover:text-primary"
                     >
                       {tile.name}
                     </SiteLink>

@@ -16,6 +16,11 @@
     "reui": {
       "type": "http",
       "url": "https://mcp.reui.io"
+    },
+    "next-devtools": {
+      "type": "stdio",
+      "command": "pnpm",
+      "args": ["dlx", "next-devtools-mcp@0.4.0"]
     }
   }
 }

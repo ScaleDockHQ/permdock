@@ -1,8 +1,8 @@
-import type { Snapshot } from 'permdock';
+import type { Snapshot } from "permdock";
 
-import { PermDockProvider, Protected } from 'permdock/react';
+import { PermDockProvider, Protected } from "permdock/react";
 
-import { ownPost, permissions } from './permissions.ts';
+import { ownPost, permissions } from "./permissions.ts";
 
 export function App(props: { readonly snapshot: Snapshot }) {
   return (

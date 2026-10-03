@@ -13,36 +13,46 @@ oRPC is contract-first and generates OpenAPI natively, which makes it the RPC fr
 
 ```ts
 // server/permdock.ts
-import { os } from '@orpc/server'
-import { openapi as orpcOpenapi } from '@orpc/openapi'
-import { createPermDock } from 'permdock/orpc'
-import { policy } from './policy'
-import { permissions } from './permissions'
+import { os } from "@orpc/server";
+import { openapi as orpcOpenapi } from "@orpc/openapi";
+import { createPermDock } from "permdock/orpc";
+import { policy } from "./policy";
+import { permissions } from "./permissions";
 
-export const { permdock, protect, openapi } = createPermDock(policy, { subject: ({ context }) => context.user ?? null })
+export const { permdock, protect, openapi } = createPermDock(policy, {
+  subject: ({ context }) => context.user ?? null,
+});
 
-export const base = os.$context<Context>().use(permdock())          // context.permdock is the request-scoped PermDock
+export const base = os.$context<Context>().use(permdock()); // context.permdock is the request-scoped PermDock
 
 // server/routers/posts.ts
 export const remove = base
-  .meta(orpcOpenapi({ method: 'DELETE', path: '/posts/{id}', spec: openapi.security(permissions.post.delete) }))
+  .meta(
+    orpcOpenapi({
+      method: "DELETE",
+      path: "/posts/{id}",
+      spec: openapi.security(permissions.post.delete),
+    }),
+  )
   .input(z.object({ id: z.string() }))
   .use(protect(permissions.post.delete, ({ input }) => loadPost(input.id)))
-  .handler(async ({ context }) => deletePost(context.permdockData))
+  .handler(async ({ context }) => deletePost(context.permdockData));
 
 export const list = base
-  .meta(orpcOpenapi({ method: 'GET', path: '/posts' }))
-  .handler(async ({ context }) => context.permdock.filter(permissions.post.read, await listPosts()))
+  .meta(orpcOpenapi({ method: "GET", path: "/posts" }))
+  .handler(async ({ context }) =>
+    context.permdock.filter(permissions.post.read, await listPosts()),
+  );
 ```
 
-| Export | Role |
-|---|---|
-| `permdock()` | Middleware. Resolves the subject once per request (memoised on the request context) and adds `permdock` to the context with oRPC's context inference. Applied a second time on the same request, it is a no-op when `context.permdock` is already set, because oRPC 2 does not dedupe middleware. |
+| Export                                 | Role                                                                                                                                                                                                                                                                                                                                      |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `permdock()`                           | Middleware. Resolves the subject once per request (memoised on the request context) and adds `permdock` to the context with oRPC's context inference. Applied a second time on the same request, it is a no-op when `context.permdock` is already set, because oRPC 2 does not dedupe middleware.                                         |
 | `protect(permission, load?, options?)` | Middleware placed after `.input(...)`. The `tenant` option reads each procedure's own opts (`(opts) => opts.input?.org`), so procedures in one `BatchLinkPlugin` batch decide in their own tenant. Loads and boundary-validates the resource, decides, continues with `context.permdockData` or throws `ORPCError` with code `FORBIDDEN`. |
-| `openapi.protect(permission, load?)` | Same as `protect`. Pair it with `openapi.security(permission)` in `.meta(orpcOpenapi({ spec }))` so the operation's `security` requirement and `x-permdock-permissions` extension are merged into the generated document. |
-| `openapi.securitySchemes()` | Document-level `securitySchemes` (scopes from `listPermissions`, `oauth2MetadataUrl`, `deviceAuthorization`, `deprecated`) to pass to `OpenAPIGenerator`. Targets 3.2; 3.1 output uses the registered `x-oai-*` fallbacks and `x-permdock-oauth2MetadataUrl` (see [OpenAPI registries](/docs/standards/openapi-registry)). |
-| `permdockHandler` | Procedure or Fetch handler for the AuthZEN-shaped decision endpoint. |
-| `request` option | `(context) => Request \| null \| undefined`. The Web `Request` behind a context; defaults to `context.request` or `context.req`. |
+| `openapi.protect(permission, load?)`   | Same as `protect`. Pair it with `openapi.security(permission)` in `.meta(orpcOpenapi({ spec }))` so the operation's `security` requirement and `x-permdock-permissions` extension are merged into the generated document.                                                                                                                 |
+| `openapi.securitySchemes()`            | Document-level `securitySchemes` (scopes from `listPermissions`, `oauth2MetadataUrl`, `deviceAuthorization`, `deprecated`) to pass to `OpenAPIGenerator`. Targets 3.2; 3.1 output uses the registered `x-oai-*` fallbacks and `x-permdock-oauth2MetadataUrl` (see [OpenAPI registries](/docs/standards/openapi-registry)).                |
+| `permdockHandler`                      | Procedure or Fetch handler for the AuthZEN-shaped decision endpoint.                                                                                                                                                                                                                                                                      |
+| `request` option                       | `(context) => Request \| null \| undefined`. The Web `Request` behind a context; defaults to `context.request` or `context.req`.                                                                                                                                                                                                          |
 
 ### Event iterators
 

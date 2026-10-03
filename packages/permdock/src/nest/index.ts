@@ -1,4 +1,4 @@
-export { createPermDock } from './create.ts';
+export { createPermDock } from "./create.ts";
 export type {
   NestPermDock,
   NestHandlerOptions,
@@ -6,9 +6,10 @@ export type {
   NestProtect,
   NestRequest,
   NestSocket,
-} from './create.ts';
-export { sendResponse, toRequest } from './http.ts';
+} from "./create.ts";
+export { sendResponse, toRequest } from "./http.ts";
 export {
   discoverViaSignatureAgent,
   InvalidSignatureError,
-} from '../server/web-bot-auth.ts';
+  verifyWebBotAuth,
+} from "../server/web-bot-auth.ts";

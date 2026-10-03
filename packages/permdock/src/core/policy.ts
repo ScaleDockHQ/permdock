@@ -1,18 +1,18 @@
-import type { StandardSchemaV1 } from '@standard-schema/spec';
+import type { StandardSchemaV1 } from "@standard-schema/spec";
 
-import type { DecisionProvider } from './interfaces.ts';
-import type { Principal } from './subject.ts';
-import type { Actor, Delegation } from './subject.ts';
+import type { DecisionProvider } from "./interfaces.ts";
+import type { Principal } from "./subject.ts";
+import type { Actor, Delegation } from "./subject.ts";
 
 import {
   type Condition,
   type WhereShorthand,
   normalizeWhere,
-} from '../conditions/index.ts';
-import { compact, isReadonlyArray, sole } from './compact.ts';
-import { parseDuration } from './duration.ts';
-import { sanitizeFields } from './fields.ts';
-import { freezeDeep } from './freeze.ts';
+} from "../conditions/index.ts";
+import { compact, isReadonlyArray, sole } from "./compact.ts";
+import { parseDuration } from "./duration.ts";
+import { sanitizeFields } from "./fields.ts";
+import { freezeDeep } from "./freeze.ts";
 import {
   type ActorGrantee,
   type Grantee,
@@ -25,9 +25,9 @@ import {
   relationStart,
   roleNameOf,
   roleScopeOf,
-} from './grantee.ts';
-import { assertLimit, normalizeLimit } from './limits.ts';
-import { isForbiddenKey } from './paths.ts';
+} from "./grantee.ts";
+import { assertLimit, normalizeLimit } from "./limits.ts";
+import { isForbiddenKey } from "./paths.ts";
 import {
   type Permission,
   type PermissionKind,
@@ -40,17 +40,17 @@ import {
   isRegistryTree,
   isSelfParented,
   listPermissions,
-} from './permissions.ts';
+} from "./permissions.ts";
 import {
   type PolicyScopesInput,
   type Scope,
   type ScopeNames,
   defineScopes,
   resolveScope,
-} from './scopes.ts';
-import { sha256, bytesToBase64Url } from './sha256.ts';
-import { relatesTo } from './tenancy.ts';
-import { normalizeValidity } from './validity.ts';
+} from "./scopes.ts";
+import { sha256, bytesToBase64Url } from "./sha256.ts";
+import { relatesTo } from "./tenancy.ts";
+import { normalizeValidity } from "./validity.ts";
 import {
   type PlanTree,
   type Role as RoleLeaf,
@@ -58,7 +58,7 @@ import {
   type RoleTree,
   isRole,
   listRoles,
-} from './vocabulary.ts';
+} from "./vocabulary.ts";
 
 export type ClosureContext = {
   readonly subject: {
@@ -89,7 +89,7 @@ export type ApprovalRequirement = {
   /** `false` lets the request's principal approve it; absent means `true`. */
   readonly distinct?: boolean;
   /** `'resource-change'` binds the approval to the row's `version` field. */
-  readonly staleOn?: 'resource-change';
+  readonly staleOn?: "resource-change";
   /** Distinct approvers a request needs before it is approved; absent means 1. */
   readonly quorum?: number;
   /** How long a request stays open (`'30m'`); the store's default when absent, and never longer than it. */
@@ -98,7 +98,7 @@ export type ApprovalRequirement = {
 };
 
 export type ApprovalOption =
-  | 'human'
+  | "human"
   | {
       readonly by?: GranteeInput;
       /** `false` lets the request's principal approve it; absent means `true`. */
@@ -108,7 +108,7 @@ export type ApprovalOption =
        * requested. The resource must declare `version`; once that field
        * changes, resuming denies with `stale-approval`.
        */
-      readonly staleOn?: 'resource-change';
+      readonly staleOn?: "resource-change";
       /** Distinct approvers needed (an integer of at least 1); the same approver counts once. Absent means 1. */
       readonly quorum?: number;
       /** How long the request stays open (`'30m'`, `'2d'`); caps the approval store's default. */
@@ -128,7 +128,7 @@ export type ApprovalOption =
 export type GrantLimit = {
   readonly count: number;
   readonly per: string;
-  readonly mode?: 'hard' | 'soft';
+  readonly mode?: "hard" | "soft";
   readonly alertAt?: number;
 };
 
@@ -151,7 +151,7 @@ export type ActivationOption = {
   /** The longest an activation may last, as a duration (`'4h'`, `'30m'`). */
   readonly maxDuration?: string;
   /** `'required'` denies an activation without a reason. */
-  readonly justification?: 'required' | 'optional';
+  readonly justification?: "required" | "optional";
   /** When set, `activate` returns `approval-required` before the membership can be written. */
   readonly approval?: ApprovalOption;
   /** How fresh the activator's authentication must be. */
@@ -160,8 +160,8 @@ export type ActivationOption = {
 
 export type ActivationSpec = {
   readonly maxDuration?: string;
-  readonly justification: 'required' | 'optional';
-  readonly approval?: 'human' | ApprovalRequirement;
+  readonly justification: "required" | "optional";
+  readonly approval?: "human" | ApprovalRequirement;
   readonly assurance?: AssuranceRequirement;
 };
 
@@ -181,7 +181,7 @@ export type BreakGlassOptions = {
   /** The longest a break-glass session may last, as a duration. */
   readonly maxDuration?: string;
   /** Follow-ups the grant owes: each becomes an obligation on the decision. */
-  readonly obligations?: readonly ('notify' | 'review')[];
+  readonly obligations?: readonly ("notify" | "review")[];
 };
 
 /** The normalized break-glass spec carried on a grant. */
@@ -191,7 +191,7 @@ export type BreakGlassSpec = {
   readonly reason: boolean;
   readonly assurance?: AssuranceRequirement;
   readonly maxDuration?: string;
-  readonly obligations: readonly ('notify' | 'review')[];
+  readonly obligations: readonly ("notify" | "review")[];
 };
 
 /** How a tenant consents to support access, and for how long. */
@@ -319,12 +319,12 @@ export type GrantScope = string | { readonly resource: string };
 
 export type Grant = {
   readonly permission: Permission;
-  readonly effect: 'allow' | 'deny';
+  readonly effect: "allow" | "deny";
   readonly to: Grantee | readonly Grantee[];
   readonly role: string | null;
   readonly where?: Condition;
   readonly check?: Condition;
-  readonly approval?: 'human' | ApprovalRequirement;
+  readonly approval?: "human" | ApprovalRequirement;
   readonly portable: boolean;
   /** Set when `portable` is false only because the grant reads the relation graph. */
   readonly graph?: true;
@@ -370,7 +370,7 @@ export type RoleBinding<S extends string = string> = {
   readonly support?: SupportSpec;
 };
 
-export type ValidateMode = 'boundary' | 'always' | 'never';
+export type ValidateMode = "boundary" | "always" | "never";
 
 /** The declared scopes, in declaration order; empty when the policy declares none. */
 export type PolicyScopes = readonly Scope[];
@@ -394,7 +394,7 @@ export type Policy<
   TPrincipal extends Principal = Principal,
   V extends PolicyVocabulary = PolicyVocabulary,
 > = {
-  readonly permissions: V['permissions'];
+  readonly permissions: V["permissions"];
   readonly roles: readonly RoleBinding[];
   readonly rolesByName: ReadonlyMap<string, RoleBinding>;
   readonly grants: readonly Grant[];
@@ -418,31 +418,69 @@ export type Policy<
   readonly fresh?: readonly string[];
   /** Policy delegations in declaration order; absent or empty when the policy declares none. */
   readonly delegations?: readonly PolicyDelegation[];
+  readonly index: PolicyIndex;
 };
 
-export { requiresApproval } from './approval-required.ts';
+/** Lookups built once per policy, so a decision does not rescan every role and grant. */
+export type PolicyIndex = {
+  readonly declaredRoles: ReadonlySet<string>;
+  readonly supports: readonly SupportSpec[];
+  /** The grants `grantList` returns, by permission key, in the same order. */
+  readonly grantsByKey: ReadonlyMap<string, readonly Grant[]>;
+};
+
+export function indexPolicy(
+  roles: readonly RoleBinding[],
+  grants: readonly Grant[],
+  vocabulary: PolicyVocabulary,
+): PolicyIndex {
+  const declaredRoles = new Set(roles.map((item) => item.name));
+  for (const leaf of listRoles(vocabulary.roles)) {
+    declaredRoles.add(leaf.key);
+  }
+  const supports = roles.flatMap((binding) =>
+    binding.support === undefined ? [] : [binding.support],
+  );
+  const listed =
+    grants.length > 0 ? grants : roles.flatMap((binding) => binding.grants);
+  const byKey = new Map<string, Grant[]>();
+  for (const grant of listed) {
+    const bucket = byKey.get(grant.permission.key);
+    if (bucket === undefined) {
+      byKey.set(grant.permission.key, [grant]);
+    } else {
+      bucket.push(grant);
+    }
+  }
+  for (const bucket of byKey.values()) {
+    Object.freeze(bucket);
+  }
+  return freezeDeep({ declaredRoles, supports, grantsByKey: byKey });
+}
+
+export { requiresApproval } from "./approval-required.ts";
 
 export function normalizeApproval(
   approval: ApprovalOption | undefined,
   permission?: string,
-): Grant['approval'] {
+): Grant["approval"] {
   if (approval === undefined) {
     return undefined;
   }
-  if (approval === 'human') {
-    return 'human';
+  if (approval === "human") {
+    return "human";
   }
   if (
     approval.staleOn !== undefined &&
-    approval.staleOn !== 'resource-change'
+    approval.staleOn !== "resource-change"
   ) {
     throw new Error(
       `PermDock: approval staleOn must be 'resource-change', got '${String(approval.staleOn)}'`,
     );
   }
-  const label = permission ?? 'a grant';
+  const label = permission ?? "a grant";
   const by = approval.by === undefined ? undefined : asGrantee(approval.by);
-  if (flattenGrantee(by).some((item) => item.kind === 'relation')) {
+  if (flattenGrantee(by).some((item) => item.kind === "relation")) {
     throw new Error(
       `PermDock: approval.by on '${label}' names a relation; an approval store cannot check a relation, so name a role or another subject-only grantee`,
     );
@@ -469,7 +507,7 @@ export function normalizeApproval(
     approval.ttl === undefined &&
     escalation === undefined
   ) {
-    return 'human';
+    return "human";
   }
   return compact<ApprovalRequirement>({
     by: by ?? authenticated(),
@@ -494,7 +532,7 @@ function normalizeEscalation(
     );
   }
   const to = asGrantee(escalation.to);
-  if (flattenGrantee(to).some((item) => item.kind === 'relation')) {
+  if (flattenGrantee(to).some((item) => item.kind === "relation")) {
     throw new Error(
       `PermDock: approval.escalation.to on '${label}' names a relation; an approval store cannot check a relation, so name a role or another subject-only grantee`,
     );
@@ -503,7 +541,7 @@ function normalizeEscalation(
 }
 
 function isClosure(value: unknown): value is ClosureGrantFn {
-  return typeof value === 'function';
+  return typeof value === "function";
 }
 
 function flattenPermissions(
@@ -520,24 +558,24 @@ function flattenPermissions(
 }
 
 function delegationTarget(
-  to: DelegationInput['to'],
+  to: DelegationInput["to"],
   index: number,
 ): DelegationTarget {
-  if (typeof to === 'string') {
+  if (typeof to === "string") {
     return { kind: to };
   }
-  if ('actor' in to) {
+  if ("actor" in to) {
     return { kind: to.actor };
   }
   const target = compact<DelegationTarget>({ kind: to.kind, id: to.id });
-  if (typeof target.kind !== 'string' || target.kind === '') {
+  if (typeof target.kind !== "string" || target.kind === "") {
     throw new Error(
       `PermDock: delegations[${index}].to needs an actor kind, such as actor('eve')`,
     );
   }
   if (
     target.id !== undefined &&
-    (typeof target.id !== 'string' || target.id === '')
+    (typeof target.id !== "string" || target.id === "")
   ) {
     throw new Error(
       `PermDock: delegations[${index}].to.id must be a non-empty string`,
@@ -557,12 +595,12 @@ function normalizeDelegation(
   if (items.length === 0) {
     throw new Error(`PermDock: ${label}.from names nobody`);
   }
-  if (items.some((item) => item.kind === 'relation')) {
+  if (items.some((item) => item.kind === "relation")) {
     throw new Error(
       `PermDock: ${label}.from names a relation; a delegation is matched without a row, so name a role or another subject-only grantee`,
     );
   }
-  if (items.some((item) => item.kind === 'actor')) {
+  if (items.some((item) => item.kind === "actor")) {
     throw new Error(
       `PermDock: ${label}.from names an actor; the principal hands over, the actor is \`to\``,
     );
@@ -592,12 +630,12 @@ function normalizeDelegation(
   });
 }
 
-function resolveRoleScope(on: RoleScope | undefined): Grant['scope'] {
+function resolveRoleScope(on: RoleScope | undefined): Grant["scope"] {
   if (on === undefined) {
-    return 'global';
+    return "global";
   }
-  if (typeof on === 'string') {
-    if (on === 'global' || on === 'resource') {
+  if (typeof on === "string") {
+    if (on === "global" || on === "resource") {
       throw new Error(`PermDock: role on: '${on}' is not a scope name`);
     }
     return on;
@@ -610,7 +648,7 @@ function resolveRoleScope(on: RoleScope | undefined): Grant['scope'] {
   const [resource] = names;
   if (names.size !== 1 || resource === undefined) {
     throw new Error(
-      'PermDock: role on: resource must name exactly one resource',
+      "PermDock: role on: resource must name exactly one resource",
     );
   }
   return { resource };
@@ -618,16 +656,16 @@ function resolveRoleScope(on: RoleScope | undefined): Grant['scope'] {
 
 function makeGrant(
   permission: Permission,
-  effect: 'allow' | 'deny',
+  effect: "allow" | "deny",
   condition: GrantOptions | ClosureGrantFn | undefined,
-): Omit<Grant, 'role' | 'scope'> {
+): Omit<Grant, "role" | "scope"> {
   const toInput = isClosure(condition) ? undefined : condition?.to;
   const to =
     toInput === undefined
       ? ({
-          kind: 'role',
-          role: '',
-          scope: 'global',
+          kind: "role",
+          role: "",
+          scope: "global",
         } satisfies Grantee)
       : asGrantee(toInput);
   if (isClosure(condition)) {
@@ -641,7 +679,7 @@ function makeGrant(
   }
   const whereInput = condition?.where;
   const checkInput = condition?.check;
-  if (whereInput !== undefined && permission.kind === 'collection') {
+  if (whereInput !== undefined && permission.kind === "collection") {
     throw new Error(
       `PermDock: where is not allowed on collection action '${permission.key}'`,
     );
@@ -656,7 +694,7 @@ function makeGrant(
       ? undefined
       : Object.freeze([...new Set(condition.purpose)]);
   const portable = condition?.limit === undefined && purpose === undefined;
-  return compact<Omit<Grant, 'role' | 'scope'>>({
+  return compact<Omit<Grant, "role" | "scope">>({
     permission,
     effect,
     to,
@@ -672,20 +710,20 @@ function makeGrant(
   });
 }
 
-export type GrantCondition<T, K extends PermissionKind> = K extends 'collection'
-  ? Omit<GrantOptions<T>, 'where' | 'fields'> | ClosureGrantFn<T>
+export type GrantCondition<T, K extends PermissionKind> = K extends "collection"
+  ? Omit<GrantOptions<T>, "where" | "fields"> | ClosureGrantFn<T>
   : GrantOptions<T> | ClosureGrantFn<T>;
 
 export function allow<T, K extends PermissionKind = PermissionKind>(
   permission: Permission<string, T, K> | readonly Permission<string, T, K>[],
   condition?: GrantCondition<T, K>,
-): Omit<Grant, 'role' | 'scope'> | Omit<Grant, 'role' | 'scope'>[] {
+): Omit<Grant, "role" | "scope"> | Omit<Grant, "role" | "scope">[] {
   const permissions = flattenPermissions(permission);
   // SAFETY: T and K only type the caller's closure and where input; makeGrant takes the erased form.
   const grants = permissions.map((leaf) =>
     makeGrant(
       leaf,
-      'allow',
+      "allow",
       condition as GrantOptions | ClosureGrantFn | undefined,
     ),
   );
@@ -695,13 +733,13 @@ export function allow<T, K extends PermissionKind = PermissionKind>(
 export function deny<T, K extends PermissionKind = PermissionKind>(
   permission: Permission<string, T, K> | readonly Permission<string, T, K>[],
   condition?: GrantCondition<T, K>,
-): Omit<Grant, 'role' | 'scope'> | Omit<Grant, 'role' | 'scope'>[] {
+): Omit<Grant, "role" | "scope"> | Omit<Grant, "role" | "scope">[] {
   const permissions = flattenPermissions(permission);
   // SAFETY: T and K only type the caller's closure and where input; makeGrant takes the erased form.
   const grants = permissions.map((leaf) =>
     makeGrant(
       leaf,
-      'deny',
+      "deny",
       condition as GrantOptions | ClosureGrantFn | undefined,
     ),
   );
@@ -710,26 +748,26 @@ export function deny<T, K extends PermissionKind = PermissionKind>(
 
 function flattenGrants(
   grants: readonly (
-    | Omit<Grant, 'role' | 'scope'>
-    | readonly Omit<Grant, 'role' | 'scope'>[]
+    | Omit<Grant, "role" | "scope">
+    | readonly Omit<Grant, "role" | "scope">[]
   )[],
-): Omit<Grant, 'role' | 'scope'>[] {
-  const out: Omit<Grant, 'role' | 'scope'>[] = [];
+): Omit<Grant, "role" | "scope">[] {
+  const out: Omit<Grant, "role" | "scope">[] = [];
   for (const grant of grants) {
     if (Array.isArray(grant)) {
       // SAFETY: Array.isArray does not narrow a readonly array; the array form is a grant list.
-      out.push(...(grant as readonly Omit<Grant, 'role' | 'scope'>[]));
+      out.push(...(grant as readonly Omit<Grant, "role" | "scope">[]));
     } else {
       // SAFETY: arrays take the branch above, so this is a single grant.
-      out.push(grant as Omit<Grant, 'role' | 'scope'>);
+      out.push(grant as Omit<Grant, "role" | "scope">);
     }
   }
   return out;
 }
 
 type RoleGrants = readonly (
-  | Omit<Grant, 'role' | 'scope'>
-  | readonly Omit<Grant, 'role' | 'scope'>[]
+  | Omit<Grant, "role" | "scope">
+  | readonly Omit<Grant, "role" | "scope">[]
 )[];
 
 /** A role held at a named scope: `on` is checked against `definePolicy({ scopes })`. */
@@ -755,7 +793,7 @@ export function role(
   grants: RoleGrants,
   options?: RoleOptions,
 ): RoleBinding {
-  if (options !== undefined && Object.hasOwn(options, 'restricted')) {
+  if (options !== undefined && Object.hasOwn(options, "restricted")) {
     throw new Error(`PermDock: role option 'restricted' is reserved`);
   }
   const leaf = isRole(name) ? name : undefined;
@@ -763,12 +801,12 @@ export function role(
   const roleName = leaf?.key ?? (name as string);
   const scope = resolveRoleScope(options?.on ?? leaf?.on);
   const assignable =
-    options?.assignable ?? leaf?.assignable ?? scope !== 'global';
+    options?.assignable ?? leaf?.assignable ?? scope !== "global";
   const rules = roleRules(roleName, scope, options);
   const activation = normalizeActivation(roleName, options?.activation);
   const roleGrantee = asGrantee(
     freezeDeep({
-      kind: 'role' as const,
+      kind: "role" as const,
       role: roleName,
       scope,
     }),
@@ -776,7 +814,7 @@ export function role(
   const normalised = flattenGrants(grants).map((grant) => {
     const items = flattenGrantee(grant.to);
     const first = items[0];
-    const roleTo = items.length === 1 && first?.kind === 'role';
+    const roleTo = items.length === 1 && first?.kind === "role";
     const to = roleTo ? roleGrantee : grant.to;
     return freezeDeep({
       ...grant,
@@ -810,8 +848,8 @@ function normalizeActivation(
   if (option === undefined) {
     return undefined;
   }
-  const justification = option.justification ?? 'optional';
-  if (justification !== 'required' && justification !== 'optional') {
+  const justification = option.justification ?? "optional";
+  if (justification !== "required" && justification !== "optional") {
     throw new Error(
       `PermDock: role '${roleName}' activation justification must be 'required' or 'optional'`,
     );
@@ -839,7 +877,7 @@ export function normalizeAssurance(
       ? undefined
       : Object.freeze([...input.amr]);
   const maxAge =
-    typeof input.maxAge === 'number' && input.maxAge >= 0
+    typeof input.maxAge === "number" && input.maxAge >= 0
       ? input.maxAge
       : undefined;
   if (acr === undefined && amr === undefined && maxAge === undefined) {
@@ -850,7 +888,7 @@ export function normalizeAssurance(
 
 type RoleRules = Pick<
   RoleBinding,
-  'min' | 'max' | 'transferOnly' | 'assigns' | 'for'
+  "min" | "max" | "transferOnly" | "assigns" | "for"
 >;
 
 function nameList(
@@ -864,7 +902,7 @@ function nameList(
   if (
     !Array.isArray(value) ||
     value.some(
-      (item) => typeof item !== 'string' || item === '' || isForbiddenKey(item),
+      (item) => typeof item !== "string" || item === "" || isForbiddenKey(item),
     )
   ) {
     throw new Error(
@@ -883,7 +921,7 @@ function holderCount(
   if (value === undefined) {
     return undefined;
   }
-  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
     throw new Error(
       `PermDock: role '${roleName}' ${option} must be a whole number of holders`,
     );
@@ -894,13 +932,13 @@ function holderCount(
 /** Ownership rules count holders per scope instance, so they need a named-scope role. */
 function roleRules(
   roleName: string,
-  scope: Grant['scope'],
+  scope: Grant["scope"],
   options: RoleOptions | undefined,
 ): RoleRules {
-  const min = holderCount(roleName, 'min', options?.min);
-  const max = holderCount(roleName, 'max', options?.max);
+  const min = holderCount(roleName, "min", options?.min);
+  const max = holderCount(roleName, "max", options?.max);
   const transferOnly = options?.transferOnly;
-  if (transferOnly !== undefined && typeof transferOnly !== 'boolean') {
+  if (transferOnly !== undefined && typeof transferOnly !== "boolean") {
     throw new Error(
       `PermDock: role '${roleName}' transferOnly must be a boolean`,
     );
@@ -915,7 +953,7 @@ function roleRules(
     (min !== undefined && min > 0) ||
     max !== undefined ||
     transferOnly === true;
-  if (counted && (typeof scope !== 'string' || scope === 'global')) {
+  if (counted && (typeof scope !== "string" || scope === "global")) {
     throw new Error(
       `PermDock: role '${roleName}' min, max and transferOnly need on: '<scope>'`,
     );
@@ -924,8 +962,8 @@ function roleRules(
     min,
     max,
     transferOnly,
-    assigns: nameList(roleName, 'assigns', options?.assigns),
-    for: nameList(roleName, 'for', options?.for),
+    assigns: nameList(roleName, "assigns", options?.assigns),
+    for: nameList(roleName, "for", options?.for),
   });
 }
 
@@ -985,7 +1023,7 @@ function assertRelationGrants(
 ): void {
   for (const grant of grants) {
     for (const item of flattenGrantee(grant.to)) {
-      if (item.kind !== 'relation' || !isGraphRelation(item, resources)) {
+      if (item.kind !== "relation" || !isGraphRelation(item, resources)) {
         continue;
       }
       const label = `grant ${grant.permission.key} relation '${item.relation}'`;
@@ -1005,13 +1043,13 @@ function assertRelationGrants(
       if (Array.isArray(item.through)) {
         if (relationHops(item, row, resources) === undefined) {
           throw new Error(
-            `PermDock: ${label}: the links [${item.through.join(', ')}] from ${grant.permission.resource} do not end on ${target.name}${(item.depth ?? 0) > 0 ? ` (or ${target.name} does not parent itself for depth)` : ''}`,
+            `PermDock: ${label}: the links [${item.through.join(", ")}] from ${grant.permission.resource} do not end on ${target.name}${(item.depth ?? 0) > 0 ? ` (or ${target.name} does not parent itself for depth)` : ""}`,
           );
         }
         continue;
       }
       if (
-        item.through === 'parent' &&
+        item.through === "parent" &&
         target.name === row?.name &&
         !isSelfParented(target)
       ) {
@@ -1031,10 +1069,10 @@ function assertRelationGrants(
 }
 
 function scopeOfGrant(
-  scope: Grant['scope'],
+  scope: Grant["scope"],
   declared: readonly Scope[],
-): Grant['scope'] {
-  if (typeof scope !== 'string' || scope === 'global') {
+): Grant["scope"] {
+  if (typeof scope !== "string" || scope === "global") {
     return scope;
   }
   const resolved = resolveScope(declared, scope);
@@ -1047,15 +1085,15 @@ function scopeOfGrant(
 }
 
 function rescopeGrantee(
-  to: Grant['to'],
+  to: Grant["to"],
   declared: readonly Scope[],
-): Grant['to'] {
+): Grant["to"] {
   const items = flattenGrantee(to);
-  if (!items.some((item) => item.kind === 'role')) {
+  if (!items.some((item) => item.kind === "role")) {
     return to;
   }
   const mapped = items.map((item) =>
-    item.kind === 'role'
+    item.kind === "role"
       ? freezeDeep({ ...item, scope: scopeOfGrant(item.scope, declared) })
       : item,
   );
@@ -1082,7 +1120,7 @@ function rescopeBinding(
 ): RoleBinding {
   const grants = binding.grants.map((grant) => rescopeGrant(grant, declared));
   const on =
-    typeof binding.on === 'string'
+    typeof binding.on === "string"
       ? scopeOfGrant(binding.on, declared)
       : binding.on;
   // SAFETY: a string on resolves to a declared scope name; any other on is passed through as is.
@@ -1104,9 +1142,9 @@ function assertScopeKeys(
 ): void {
   for (const grant of grants) {
     if (
-      typeof grant.scope !== 'string' ||
-      grant.scope === 'global' ||
-      grant.permission.kind !== 'instance'
+      typeof grant.scope !== "string" ||
+      grant.scope === "global" ||
+      grant.permission.kind !== "instance"
     ) {
       continue;
     }
@@ -1137,12 +1175,12 @@ function assertApprovalVersions(
     const approval = grant.approval;
     if (
       approval === undefined ||
-      approval === 'human' ||
+      approval === "human" ||
       approval.staleOn === undefined
     ) {
       continue;
     }
-    if (grant.permission.kind !== 'instance') {
+    if (grant.permission.kind !== "instance") {
       throw new Error(
         `PermDock: approval staleOn on '${grant.permission.key}' needs an instance action; a collection action has no row to version`,
       );
@@ -1159,20 +1197,20 @@ function assertApprovalVersions(
 function isVocabularyInput(value: unknown): value is PolicyVocabulary {
   return (
     value !== null &&
-    typeof value === 'object' &&
-    'permissions' in value &&
+    typeof value === "object" &&
+    "permissions" in value &&
     // SAFETY: permissions is checked to be a key; isRegistryTree then tests its registry brand.
     isRegistryTree((value as PolicyVocabulary).permissions)
   );
 }
 
-export function completeGrant(grant: Omit<Grant, 'role' | 'scope'>): Grant {
+export function completeGrant(grant: Omit<Grant, "role" | "scope">): Grant {
   const to = flattenGrantee(grant.to);
   const first = to[0];
   const placeholder =
-    to.length === 1 && first?.kind === 'role' && first.role === '';
+    to.length === 1 && first?.kind === "role" && first.role === "";
   if (placeholder) {
-    throw new Error('PermDock: grant is missing to');
+    throw new Error("PermDock: grant is missing to");
   }
   return freezeDeep({
     ...grant,
@@ -1223,8 +1261,8 @@ export type DefinePolicyOptions<
 > = {
   readonly roles?: readonly RoleBinding<ScopeNames<S>>[];
   readonly grants?: readonly (
-    | Omit<Grant, 'role' | 'scope'>
-    | readonly Omit<Grant, 'role' | 'scope'>[]
+    | Omit<Grant, "role" | "scope">
+    | readonly Omit<Grant, "role" | "scope">[]
     | Grant
   )[];
   /**
@@ -1280,7 +1318,7 @@ export function definePolicy<
   const tree = vocabulary.permissions;
   const mapper = options.principal ?? options.subject;
   if (mapper === undefined) {
-    throw new Error('PermDock: definePolicy requires principal or subject');
+    throw new Error("PermDock: definePolicy requires principal or subject");
   }
   const resources = getRegistry(tree);
   assertParentGraph(resources);
@@ -1340,7 +1378,7 @@ export function definePolicy<
     principal: mapper,
     subject: mapper,
     context: options.context,
-    validate: options.validate ?? 'boundary',
+    validate: options.validate ?? "boundary",
     onDenied: options.onDenied,
     fingerprint,
     resources,
@@ -1348,6 +1386,7 @@ export function definePolicy<
     hostable,
     fresh,
     delegations: delegations.length === 0 ? undefined : delegations,
+    index: indexPolicy(roles, grants, vocabulary),
   }) as Policy<TUser, TPrincipal, VocabularyFromInput<Input>>;
 }
 
@@ -1383,11 +1422,7 @@ export function grantList(policy: Policy): readonly Grant[] {
 }
 
 export function declaredRoleNames(policy: Policy): ReadonlySet<string> {
-  const names = new Set(policy.roles.map((item) => item.name));
-  for (const leaf of listRoles(policy.vocabulary.roles)) {
-    names.add(leaf.key);
-  }
-  return names;
+  return policy.index.declaredRoles;
 }
 
 export function separationConflicts(
@@ -1406,14 +1441,14 @@ export function separationConflicts(
         }
         // SAFETY: sorting a two-element array keeps both elements.
         const pair = [name, other].toSorted() as [string, string];
-        const key = `${membership.principal ?? ''}:${membership.tenant ?? ''}:${pair.join('+')}`;
+        const key = `${membership.principal ?? ""}:${membership.tenant ?? ""}:${pair.join("+")}`;
         if (seen.has(key)) {
           continue;
         }
         seen.add(key);
         conflicts.push(
           compact<SeparationConflict>({
-            principal: membership.principal ?? '',
+            principal: membership.principal ?? "",
             tenant: membership.tenant,
             roles: pair,
           }),

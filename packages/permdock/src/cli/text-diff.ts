@@ -1,4 +1,4 @@
-import { createTwoFilesPatch } from 'diff';
+import { createTwoFilesPatch } from "diff";
 
 const MAX_LINES = 40;
 
@@ -17,15 +17,15 @@ export function shortDiff(file: string, onDisk: string, next: string): string {
     { context: 2 },
   );
   const lines = patch
-    .split('\n')
-    .filter((line) => !line.startsWith('====='))
-    .filter((line, index, all) => line !== '' || index < all.length - 1);
+    .split("\n")
+    .filter((line) => !line.startsWith("====="))
+    .filter((line, index, all) => line !== "" || index < all.length - 1);
   if (lines.length <= MAX_LINES) {
-    return lines.join('\n');
+    return lines.join("\n");
   }
   const rest = lines.length - MAX_LINES;
   return [
     ...lines.slice(0, MAX_LINES),
-    `… ${rest} more diff line${rest === 1 ? '' : 's'}`,
-  ].join('\n');
+    `… ${rest} more diff line${rest === 1 ? "" : "s"}`,
+  ].join("\n");
 }

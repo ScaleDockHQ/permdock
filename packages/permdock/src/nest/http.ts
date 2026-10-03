@@ -1,14 +1,14 @@
-import type { IncomingMessage } from 'node:http';
+import type { IncomingMessage } from "node:http";
 
-import type { NodeRequest } from '../node/http.ts';
+import type { NodeRequest } from "../node/http.ts";
 
 import {
   isServerResponse,
   sendResponse,
   toRequest as nodeToRequest,
-} from '../node/http.ts';
+} from "../node/http.ts";
 
-export type { NodeRequest as NestHttpRequest } from '../node/http.ts';
+export type { NodeRequest as NestHttpRequest } from "../node/http.ts";
 export { sendResponse };
 
 type FastifyReplyLike = {
@@ -20,22 +20,22 @@ type FastifyReplyLike = {
 function isReadable(value: unknown): value is IncomingMessage {
   // SAFETY: checked to be a non-null object first; read is only typeof-checked.
   return (
-    typeof value === 'object' &&
+    typeof value === "object" &&
     value !== null &&
-    typeof (value as { readonly read?: unknown }).read === 'function'
+    typeof (value as { readonly read?: unknown }).read === "function"
   );
 }
 
 function isFastifyReply(value: unknown): value is FastifyReplyLike {
-  if (typeof value !== 'object' || value === null) {
+  if (typeof value !== "object" || value === null) {
     return false;
   }
   // SAFETY: checked above to be a non-null object; each method is typeof-checked below.
   const reply = value as Record<string, unknown>;
   return (
-    typeof reply['code'] === 'function' &&
-    typeof reply['header'] === 'function' &&
-    typeof reply['send'] === 'function'
+    typeof reply["code"] === "function" &&
+    typeof reply["header"] === "function" &&
+    typeof reply["send"] === "function"
   );
 }
 
@@ -69,6 +69,6 @@ export async function sendNestResponse(
     return;
   }
   throw new TypeError(
-    'permdock/nest supports @nestjs/platform-express and @nestjs/platform-fastify responses',
+    "permdock/nest supports @nestjs/platform-express and @nestjs/platform-fastify responses",
   );
 }

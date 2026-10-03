@@ -1,3 +1,3 @@
-import { defineConfig } from 'fumadocs-mdx/config';
+import { defineConfig } from "fumadocs-mdx/config";
 
 export default defineConfig();

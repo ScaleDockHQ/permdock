@@ -1,0 +1,15 @@
+{
+  "core definePolicy + createPermDock": 37475,
+  "react PermDockProvider + usePermission": 16577,
+  "next createPermDock": 42038,
+  "server createPermDock": 39428,
+  "server createPermDock + verifyWebBotAuth": 40975,
+  "hono createPermDock": 40403,
+  "hono createPermDock + withOtel": 41784,
+  "express createPermDock": 40463,
+  "fastify createPermDock": 40282,
+  "jwt subjectFromJwt": 8336,
+  "mcp createPermDock": 38731,
+  "ai-sdk createPermDock": 36516,
+  "supabase/middleware createPermDock": 39824
+}

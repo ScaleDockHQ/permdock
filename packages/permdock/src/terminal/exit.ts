@@ -5,7 +5,7 @@ export const EX_NOPERM = 77;
 export const EX_CONFIG = 78;
 
 export class TerminalExit extends Error {
-  public override readonly name = 'TerminalExit' as const;
+  public override readonly name = "TerminalExit" as const;
   public readonly code: number;
 
   public constructor(code: number) {

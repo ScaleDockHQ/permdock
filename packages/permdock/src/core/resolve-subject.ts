@@ -1,13 +1,13 @@
-import type { AuthEvent } from './interfaces.ts';
-import type { CreatePermDockOptions } from './permdock.ts';
-import type { Policy } from './policy.ts';
+import type { AuthEvent } from "./interfaces.ts";
+import type { PermDockOptions } from "./permdock.ts";
+import type { Policy } from "./policy.ts";
 
-import { compact } from './compact.ts';
-import { sanitizeContext } from './fields.ts';
-import { freezeCopy } from './freeze.ts';
-import { asMembershipSource } from './memberships.ts';
-import { applyRoleKinds } from './ownership.ts';
-import { normalizeMemberships, scopeList } from './scopes.ts';
+import { compact } from "./compact.ts";
+import { sanitizeContext } from "./fields.ts";
+import { freezeCopy } from "./freeze.ts";
+import { asMembershipSource } from "./memberships.ts";
+import { applyRoleKinds } from "./ownership.ts";
+import { normalizeMemberships, scopeList } from "./scopes.ts";
 import {
   type Actor,
   type Delegation,
@@ -17,14 +17,14 @@ import {
   anonymousSubject,
   isPrincipal,
   isSubject,
-} from './subject.ts';
-import { resolveActiveTenant } from './tenancy.ts';
-import { isThenable } from './thenable.ts';
+} from "./subject.ts";
+import { resolveActiveTenant } from "./tenancy.ts";
+import { isThenable } from "./thenable.ts";
 
 function assemblePrincipal(
   policy: Policy,
   user: unknown,
-  options: CreatePermDockOptions,
+  options: PermDockOptions,
   auth: AuthEvent[],
 ): {
   readonly principal: Principal | null;
@@ -85,7 +85,7 @@ function assemblePrincipal(
         compact({ tenant: options.tenant }),
       );
     } catch {
-      auth.push({ reason: 'source-threw', source: 'memberships' });
+      auth.push({ reason: "source-threw", source: "memberships" });
       memberships = [];
     }
   }
@@ -106,7 +106,7 @@ function finishSubject(
   assembled: ReturnType<typeof assemblePrincipal>,
   context: Readonly<Record<string, unknown>>,
   input: readonly Membership[],
-  options: CreatePermDockOptions,
+  options: PermDockOptions,
   extra: { readonly stale: boolean; readonly plans: readonly string[] },
 ): Subject {
   if (assembled.principal === null) {
@@ -155,7 +155,7 @@ function activeTenantOf(
   policy: Policy,
   assembled: ReturnType<typeof assemblePrincipal>,
   memberships: readonly Membership[],
-  options: CreatePermDockOptions,
+  options: PermDockOptions,
 ): string | undefined {
   if (assembled.principal === null) {
     return undefined;
@@ -189,7 +189,7 @@ function settle<T>(
 function staleness(
   policy: Policy,
   assembled: ReturnType<typeof assemblePrincipal>,
-  options: CreatePermDockOptions,
+  options: PermDockOptions,
   auth: AuthEvent[],
 ): boolean | Promise<boolean> {
   const principal = assembled.principal;
@@ -205,7 +205,7 @@ function staleness(
       ? undefined
       : asMembershipSource(options.memberships);
   const claimed = principal.authzVersion;
-  if (source?.version === undefined || typeof claimed !== 'number') {
+  if (source?.version === undefined || typeof claimed !== "number") {
     return true;
   }
   const compare = (current: number | undefined): boolean =>
@@ -214,11 +214,11 @@ function staleness(
     const current = source.version({ id: principal.id });
     return isThenable(current)
       ? settle(Promise.resolve(current).then(compare), true, () => {
-          auth.push({ reason: 'source-threw', source: 'memberships' });
+          auth.push({ reason: "source-threw", source: "memberships" });
         })
       : compare(current);
   } catch {
-    auth.push({ reason: 'source-threw', source: 'memberships' });
+    auth.push({ reason: "source-threw", source: "memberships" });
     return true;
   }
 }
@@ -226,7 +226,7 @@ function staleness(
 function cleanNames(list: unknown): readonly string[] {
   return Array.isArray(list)
     ? list.filter(
-        (item): item is string => typeof item === 'string' && item !== '',
+        (item): item is string => typeof item === "string" && item !== "",
       )
     : [];
 }
@@ -234,7 +234,7 @@ function cleanNames(list: unknown): readonly string[] {
 function entitlementsOf(
   assembled: ReturnType<typeof assemblePrincipal>,
   tenant: string | undefined,
-  options: CreatePermDockOptions,
+  options: PermDockOptions,
   auth: AuthEvent[],
 ): readonly string[] | Promise<readonly string[]> {
   const source = options.entitlements;
@@ -248,11 +248,11 @@ function entitlementsOf(
     );
     return isThenable(found)
       ? settle(Promise.resolve(found).then(cleanNames), [], () => {
-          auth.push({ reason: 'source-threw', source: 'entitlements' });
+          auth.push({ reason: "source-threw", source: "entitlements" });
         })
       : cleanNames(found);
   } catch {
-    auth.push({ reason: 'source-threw', source: 'entitlements' });
+    auth.push({ reason: "source-threw", source: "entitlements" });
     return [];
   }
 }
@@ -275,14 +275,14 @@ function resolveContext(
       return loaded.then(
         (value) => sanitizeContext(value),
         () => {
-          auth.push({ reason: 'source-threw', source: 'context' });
+          auth.push({ reason: "source-threw", source: "context" });
           return {};
         },
       );
     }
     return sanitizeContext(loaded);
   } catch {
-    auth.push({ reason: 'source-threw', source: 'context' });
+    auth.push({ reason: "source-threw", source: "context" });
     return {};
   }
 }
@@ -290,12 +290,12 @@ function resolveContext(
 export function resolveSubject(
   policy: Policy,
   user: unknown,
-  options: CreatePermDockOptions,
+  options: PermDockOptions,
   auth: AuthEvent[],
 ): Subject | Promise<Subject> {
   const assembled = assemblePrincipal(policy, user, options, auth);
   const memberships = settle(assembled.memberships, [], () => {
-    auth.push({ reason: 'source-threw', source: 'memberships' });
+    auth.push({ reason: "source-threw", source: "memberships" });
   });
   const stale = staleness(policy, assembled, options, auth);
   const withPlans = (

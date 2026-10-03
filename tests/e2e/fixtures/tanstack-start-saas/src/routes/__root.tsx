@@ -1,15 +1,15 @@
-import type { ReactNode } from 'react';
+import type { ReactNode } from "react";
 
 import {
   HeadContent,
   Outlet,
   Scripts,
   createRootRoute,
-} from '@tanstack/react-router';
+} from "@tanstack/react-router";
 
 export const Route = createRootRoute({
   head: () => ({
-    meta: [{ charSet: 'utf-8' }, { title: 'TanStack Start SaaS' }],
+    meta: [{ charSet: "utf-8" }, { title: "TanStack Start SaaS" }],
   }),
   component: () => (
     <Document>

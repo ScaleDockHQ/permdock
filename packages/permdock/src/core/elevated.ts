@@ -1,18 +1,18 @@
-import type { Obligation, Decision, Denial, DenialReason } from './decision.ts';
-import type { AssuranceGrantee } from './grantee.ts';
-import type { Permission, PermissionTree } from './permissions.ts';
-import type { Grant, Policy, SupportSpec } from './policy.ts';
-import type { AssuranceRequirement } from './policy.ts';
-import type { Scope } from './scopes.ts';
-import type { Membership, Subject } from './subject.ts';
-import type { Role } from './vocabulary.ts';
+import type { Obligation, Decision, Denial, DenialReason } from "./decision.ts";
+import type { AssuranceGrantee } from "./grantee.ts";
+import type { Permission, PermissionTree } from "./permissions.ts";
+import type { Grant, Policy, SupportSpec } from "./policy.ts";
+import type { AssuranceRequirement } from "./policy.ts";
+import type { Scope } from "./scopes.ts";
+import type { Membership, Subject } from "./subject.ts";
+import type { Role } from "./vocabulary.ts";
 
-import { canonicalJson } from './canonical-json.ts';
-import { compact, isReadonlyArray, sole } from './compact.ts';
-import { parseDuration } from './duration.ts';
-import { freezeDeep } from './freeze.ts';
-import { asGrantee, assurance, authenticated } from './grantee.ts';
-import { listPermissions } from './permissions.ts';
+import { canonicalJson } from "./canonical-json.ts";
+import { compact, isReadonlyArray, sole } from "./compact.ts";
+import { parseDuration } from "./duration.ts";
+import { freezeDeep } from "./freeze.ts";
+import { asGrantee, assurance, authenticated } from "./grantee.ts";
+import { listPermissions } from "./permissions.ts";
 import {
   type BreakGlassOptions,
   type BreakGlassSpec,
@@ -20,20 +20,20 @@ import {
   type SupportAccessOptions,
   normalizeAssurance,
   role,
-} from './policy.ts';
-import { resolveScope, scopeList } from './scopes.ts';
-import { isMembershipExpired, nowSeconds } from './tenancy.ts';
-import { decisionToken } from './token.ts';
-import { isRole } from './vocabulary.ts';
+} from "./policy.ts";
+import { resolveScope, scopeList } from "./scopes.ts";
+import { isMembershipExpired, nowSeconds } from "./tenancy.ts";
+import { decisionToken } from "./token.ts";
+import { isRole } from "./vocabulary.ts";
 
 function flattenPermissions(
   input: Permission | readonly Permission[] | PermissionTree,
 ): Permission[] {
   if (
     input !== null &&
-    typeof input === 'object' &&
-    'key' in input &&
-    'action' in input
+    typeof input === "object" &&
+    "key" in input &&
+    "action" in input
   ) {
     // SAFETY: a permission leaf carries key and action; a tree node does not.
     return [input as Permission];
@@ -53,7 +53,7 @@ function flattenPermissions(
 export function breakGlass<T>(
   permission: Permission<string, T> | readonly Permission<string, T>[],
   options: BreakGlassOptions = {},
-): Omit<Grant, 'role' | 'scope'> | Omit<Grant, 'role' | 'scope'>[] {
+): Omit<Grant, "role" | "scope"> | Omit<Grant, "role" | "scope">[] {
   const purpose =
     options.requires?.purpose === undefined ||
     options.requires.purpose.length === 0
@@ -69,9 +69,9 @@ export function breakGlass<T>(
   });
   const grants = flattenPermissions(permission).map((leaf) =>
     freezeDeep(
-      compact<Omit<Grant, 'role' | 'scope'>>({
+      compact<Omit<Grant, "role" | "scope">>({
         permission: leaf,
-        effect: 'allow',
+        effect: "allow",
         to: authenticated(),
         portable: false,
         breakGlass: spec,
@@ -93,24 +93,24 @@ export function supportAccess<const S extends string>(
 /** Support access held in the `tenant` scope. */
 export function supportAccess(
   options: SupportAccessOptions<never>,
-): RoleBinding<'tenant'>;
+): RoleBinding<"tenant">;
 export function supportAccess(options: SupportAccessOptions): RoleBinding {
   const via = options.role;
   const forbidden = (options.forbid ?? []).flatMap((item) =>
     flattenPermissions(item),
   );
   const binding = role(options.role, [], {
-    on: options.on ?? 'tenant',
+    on: options.on ?? "tenant",
     for: [via],
   });
   const denies = forbidden.map((leaf) =>
     freezeDeep(
       compact<Grant>({
         permission: leaf,
-        effect: 'deny',
+        effect: "deny",
         to: authenticated(),
         role: options.role,
-        scope: 'global',
+        scope: "global",
         viaOnly: via,
         portable: false,
       }),
@@ -124,7 +124,7 @@ export function supportAccess(options: SupportAccessOptions): RoleBinding {
         by: asGrantee(options.consent.by),
         durations: Object.freeze([...new Set(options.consent.durations)]),
       },
-      group: options.group ?? 'vendor-support',
+      group: options.group ?? "vendor-support",
     }),
   );
   return freezeDeep({
@@ -167,24 +167,24 @@ function assuranceMet(
 
 /** `context.purpose` as a list of strings; fail-closed to empty. */
 export function purposesOf(subject: Subject): readonly string[] {
-  const value = subject.context['purpose'];
+  const value = subject.context["purpose"];
   return Array.isArray(value)
-    ? value.filter((item): item is string => typeof item === 'string')
-    : typeof value === 'string' && value !== ''
+    ? value.filter((item): item is string => typeof item === "string")
+    : typeof value === "string" && value !== ""
       ? [value]
       : [];
 }
 
 export type BreakGlassResult =
-  | { readonly kind: 'inactive' }
-  | { readonly kind: 'granted'; readonly obligations: readonly Obligation[] }
+  | { readonly kind: "inactive" }
+  | { readonly kind: "granted"; readonly obligations: readonly Obligation[] }
   | {
-      readonly kind: 'denied';
-      readonly reason: 'purpose' | 'reason-required';
+      readonly kind: "denied";
+      readonly reason: "purpose" | "reason-required";
     }
   | {
-      readonly kind: 'denied';
-      readonly reason: 'insufficient-user-authentication';
+      readonly kind: "denied";
+      readonly reason: "insufficient-user-authentication";
       readonly to: AssuranceGrantee;
     };
 
@@ -201,36 +201,36 @@ export function evaluateBreakGlass(
 ): BreakGlassResult {
   const purposes = purposesOf(subject);
   if (purposes.length === 0) {
-    return { kind: 'inactive' };
+    return { kind: "inactive" };
   }
   const required = spec.purpose;
   if (
     required !== undefined &&
     !purposes.some((purpose) => required.includes(purpose))
   ) {
-    return { kind: 'denied', reason: 'purpose' };
+    return { kind: "denied", reason: "purpose" };
   }
-  const reason = subject.context['reason'];
-  if (spec.reason && (typeof reason !== 'string' || reason === '')) {
-    return { kind: 'denied', reason: 'reason-required' };
+  const reason = subject.context["reason"];
+  if (spec.reason && (typeof reason !== "string" || reason === "")) {
+    return { kind: "denied", reason: "reason-required" };
   }
   if (
     spec.assurance !== undefined &&
     !assuranceMet(spec.assurance, subject, now)
   ) {
     return {
-      kind: 'denied',
-      reason: 'insufficient-user-authentication',
+      kind: "denied",
+      reason: "insufficient-user-authentication",
       to: assurance(spec.assurance),
     };
   }
   const obligations: Obligation[] = [
     ...spec.obligations.map((kind): Obligation => ({ kind })),
-    ...(typeof reason === 'string' && reason !== ''
-      ? [{ kind: 'justify' as const, reason }]
+    ...(typeof reason === "string" && reason !== ""
+      ? [{ kind: "justify" as const, reason }]
       : []),
   ];
-  return { kind: 'granted', obligations };
+  return { kind: "granted", obligations };
 }
 
 /** Support memberships (`via: 'support'`) the subject holds that demand an actor. */
@@ -288,7 +288,7 @@ function activationDenied(
   const denial: Denial =
     to === undefined ? { role: null, reason } : { role: null, reason, to };
   return freezeDeep({
-    outcome: 'denied',
+    outcome: "denied",
     denials: [denial],
     alternatives: [],
   });
@@ -312,10 +312,10 @@ export function activate(
   const activation = binding?.activation;
   const principal = subject.principal;
   if (principal === null) {
-    return activationDenied('anonymous');
+    return activationDenied("anonymous");
   }
   if (binding === undefined || activation === undefined) {
-    return activationDenied('unknown-role');
+    return activationDenied("unknown-role");
   }
   const scopes = scopeList(policy.scopes);
   const scope = resolveScope(scopes, input.scope) ?? input.scope;
@@ -328,13 +328,13 @@ export function activate(
       withinAgrees(scopes, membership.within, input.within),
   );
   if (eligible === undefined) {
-    return activationDenied('no-membership');
+    return activationDenied("no-membership");
   }
   const within = eligible.within;
-  if (activation.justification === 'required') {
+  if (activation.justification === "required") {
     const reason = input.reason;
-    if (typeof reason !== 'string' || reason === '') {
-      return activationDenied('reason-required');
+    if (typeof reason !== "string" || reason === "") {
+      return activationDenied("reason-required");
     }
   }
   if (
@@ -342,7 +342,7 @@ export function activate(
     !assuranceMet(activation.assurance, subject, now)
   ) {
     return activationDenied(
-      'insufficient-user-authentication',
+      "insufficient-user-authentication",
       assurance(activation.assurance),
     );
   }
@@ -356,7 +356,7 @@ export function activate(
       id: input.id,
       within,
       roles: [roleName],
-      via: 'elevated',
+      via: "elevated",
       expiresAt: seconds === undefined ? undefined : Math.floor(now) + seconds,
       grantedBy: principal.id,
       reason: input.reason,
@@ -374,14 +374,14 @@ export function activate(
   });
   if (activation.approval !== undefined) {
     return freezeDeep({
-      outcome: 'approval-required',
+      outcome: "approval-required",
       grant: { role: roleName, permission: `activate:${roleName}` },
-      reason: 'human',
+      reason: "human",
       token,
     });
   }
   return freezeDeep({
-    outcome: 'granted',
+    outcome: "granted",
     subject,
     matched: { role: roleName, permission: `activate:${roleName}` },
     token,

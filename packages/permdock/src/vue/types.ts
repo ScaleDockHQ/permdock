@@ -1,6 +1,6 @@
-import type { MaybeRefOrGetter } from 'vue';
+import type { MaybeRefOrGetter } from "vue";
 
-import type { Snapshot, TokenVerifier } from '../core/interfaces.ts';
+import type { Snapshot, TokenVerifier } from "../core/interfaces.ts";
 import type {
   ApprovalHandle,
   ApprovalState,
@@ -12,7 +12,7 @@ import type {
   SubjectView,
   TenantView,
   UseRolesOptions,
-} from '../react/types.ts';
+} from "../react/types.ts";
 
 export type PermDockPluginOptions = {
   /**

@@ -14,12 +14,12 @@ permdock cloud push --url http://localhost:4000
 permdock cloud push --dry-run --json        # print the fingerprint and summary; no network
 ```
 
-| Flag | Meaning |
-| --- | --- |
-| `--url` | Base URL of the Cloud API; defaults to `PERMDOCK_CLOUD_URL` |
-| `--environment` | The environment name; defaults to `PERMDOCK_CLOUD_ENV`, then `VERCEL_ENV`, then `production` |
-| `--dry-run` | Build the catalog and print its fingerprint without posting it |
-| `--json` | Print `{ fingerprint, permissions, hostable, roles, plans, grants, environment, status }`; `hostable` is the list of hostable permission keys, the others are counts |
+| Flag            | Meaning                                                                                                                                                              |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--url`         | Base URL of the Cloud API; defaults to `PERMDOCK_CLOUD_URL`                                                                                                          |
+| `--environment` | The environment name; defaults to `PERMDOCK_CLOUD_ENV`, then `VERCEL_ENV`, then `production`                                                                         |
+| `--dry-run`     | Build the catalog and print its fingerprint without posting it                                                                                                       |
+| `--json`        | Print `{ fingerprint, permissions, hostable, roles, plans, grants, environment, status }`; `hostable` is the list of hostable permission keys, the others are counts |
 
 The request is `POST /v1/environments/:env/catalog` with `authorization: Bearer <PERMDOCK_CLOUD_KEY>` and the body `{ fingerprint, catalog, policy }`. `fingerprint` is `catalogFingerprint(catalog)` from `permdock` and equals the catalog's own `fingerprint` field ([wire formats](/docs/concepts/wire-formats) "Catalog"): the clock, the CLI version and call sites never change it, so two runs over the same contract produce the same value. The Cloud recomputes it and rejects a mismatch. A hosted policy document names the catalog it was authored against in its `catalog` field ([wire formats](/docs/concepts/wire-formats)).
 

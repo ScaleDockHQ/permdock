@@ -8,7 +8,7 @@ Workspace pattern for colocated `definePermissions()` per package, `mergePermiss
 - `src/policy.ts` spreads role fragments from each package
 
 ```bash
-pnpm --filter @permdock/example-monorepo test
+pnpm --filter @permdock/example-monorepo gen:check
 ```
 
 That runs `permdock collect --check` against `permissions.catalog.json`. Re-run `pnpm exec permdock collect --cwd apps/examples/monorepo` after adding a permission.

@@ -1,11 +1,11 @@
-import { loader } from 'fumadocs-core/source';
-import { defineDocs } from 'fumadocs-mdx/macro';
+import { loader } from "fumadocs-core/source";
+import { defineDocs } from "fumadocs-mdx/macro";
 
 const blogDocs = defineDocs({
-  dir: 'content/blog',
+  dir: "content/blog",
 });
 
 export const blogSource = loader({
-  baseUrl: '/blog',
+  baseUrl: "/blog",
   source: blogDocs.toFumadocsSource(),
 });

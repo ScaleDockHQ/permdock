@@ -1,6 +1,6 @@
-import type { BaseLayoutProps } from 'fumadocs-ui/layouts/shared';
+import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 
-import { appName, gitConfig } from './shared';
+import { appName, gitConfig } from "./shared";
 
 function GitHubIcon() {
   return (
@@ -19,10 +19,10 @@ export function baseOptions(): BaseLayoutProps {
     // reports as svg-img-alt.
     links: [
       {
-        type: 'icon',
+        type: "icon",
         url: `https://github.com/${gitConfig.user}/${gitConfig.repo}`,
-        text: 'GitHub',
-        label: 'GitHub',
+        text: "GitHub",
+        label: "GitHub",
         icon: <GitHubIcon />,
         external: true,
       },

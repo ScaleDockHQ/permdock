@@ -1,29 +1,29 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from "vitest";
 
 import type {
   ModelContext,
   WebMcpPermDock,
   WebMcpRegisteredTool,
-} from '../../src/webmcp/types.ts';
+} from "../../src/webmcp/types.ts";
 
-import { fromSnapshot } from '../../src/core/from-snapshot.ts';
-import { createPermDock } from '../../src/core/permdock.ts';
-import { registerTools } from '../../src/webmcp/register.ts';
+import { fromSnapshot } from "../../src/core/from-snapshot.ts";
+import { createPermDock } from "../../src/core/permdock.ts";
+import { registerTools } from "../../src/webmcp/register.ts";
 import {
   adminUser,
   memberUser,
   permissions,
   policy,
   type User,
-} from '../fixtures/quick-start.ts';
+} from "../fixtures/quick-start.ts";
 
 const TOOL_NAME = /^[A-Za-z0-9_.-]{1,128}$/u;
 
 async function clientOf(user: User): Promise<WebMcpPermDock> {
   const server = await createPermDock(policy, user);
   const snapshot = server.snapshot();
-  if (snapshot instanceof Promise || typeof snapshot === 'string') {
-    throw new Error('expected JSON snapshot');
+  if (snapshot instanceof Promise || typeof snapshot === "string") {
+    throw new Error("expected JSON snapshot");
   }
   return fromSnapshot(snapshot);
 }
@@ -42,19 +42,19 @@ function strictContext(): Strict {
     signals,
     context: {
       registerTool(tool, options) {
-        if (typeof tool.name !== 'string' || tool.name === '') {
-          throw new TypeError('name is required');
+        if (typeof tool.name !== "string" || tool.name === "") {
+          throw new TypeError("name is required");
         }
         if (active.has(tool.name)) {
           throw new DOMException(
             `${tool.name} is registered`,
-            'InvalidStateError',
+            "InvalidStateError",
           );
         }
         signals.push(options?.signal);
         active.set(tool.name, tool);
         options?.signal?.addEventListener(
-          'abort',
+          "abort",
           () => {
             active.delete(tool.name);
           },
@@ -66,8 +66,8 @@ function strictContext(): Strict {
   };
 }
 
-describe('WebMCP draft: ModelContext.registerTool', () => {
-  it('every tool has a valid unique name, a description and an object input schema', async () => {
+describe("WebMCP draft: ModelContext.registerTool", () => {
+  it("every tool has a valid unique name, a description and an object input schema", async () => {
     const { context, active } = strictContext();
     registerTools(context, permissions.post, {
       permdock: await clientOf(adminUser),
@@ -76,16 +76,16 @@ describe('WebMCP draft: ModelContext.registerTool', () => {
     for (const tool of active.values()) {
       expect(tool.name).toMatch(TOOL_NAME);
       expect(
-        typeof tool.description === 'string' && tool.description !== '',
+        typeof tool.description === "string" && tool.description !== "",
       ).toBe(true);
       if (tool.inputSchema !== undefined) {
-        expect(tool.inputSchema['type']).toBe('object');
+        expect(tool.inputSchema["type"]).toBe("object");
       }
-      expect(typeof tool.execute).toBe('function');
+      expect(typeof tool.execute).toBe("function");
     }
   });
 
-  it('annotations carry only the draft hints, as booleans', async () => {
+  it("annotations carry only the draft hints, as booleans", async () => {
     const { context, active } = strictContext();
     registerTools(context, permissions.post, {
       permdock: await clientOf(memberUser),
@@ -95,18 +95,18 @@ describe('WebMCP draft: ModelContext.registerTool', () => {
       for (const [key, value] of Object.entries(tool.annotations ?? {})) {
         expect({ key, kind: typeof value }).toEqual({
           key: expect.stringMatching(/^(readOnlyHint|untrustedContentHint)$/u),
-          kind: 'boolean',
+          kind: "boolean",
         });
       }
     }
-    expect(active.get('post_read')?.annotations?.readOnlyHint).toBe(true);
-    expect(active.get('post_update')?.annotations?.readOnlyHint).toBe(false);
-    expect(active.get('post_read')?.annotations?.untrustedContentHint).toBe(
+    expect(active.get("post_read")?.annotations?.readOnlyHint).toBe(true);
+    expect(active.get("post_update")?.annotations?.readOnlyHint).toBe(false);
+    expect(active.get("post_read")?.annotations?.untrustedContentHint).toBe(
       true,
     );
   });
 
-  it('passes an AbortSignal with every registration; aborting it unregisters', async () => {
+  it("passes an AbortSignal with every registration; aborting it unregisters", async () => {
     const { context, active, signals } = strictContext();
     const controller = new AbortController();
     registerTools(context, permissions.post, {
@@ -118,7 +118,7 @@ describe('WebMCP draft: ModelContext.registerTool', () => {
     expect(active.size).toBe(0);
   });
 
-  it('re-registering on a snapshot change never registers a name that is still active', async () => {
+  it("re-registering on a snapshot change never registers a name that is still active", async () => {
     const permdock = await clientOf(memberUser);
     const listeners = new Set<() => void>();
     const subscribed: WebMcpPermDock = Object.assign({}, permdock, {
@@ -141,17 +141,17 @@ describe('WebMCP draft: ModelContext.registerTool', () => {
     expect([...active.keys()].toSorted()).toEqual(before);
   });
 
-  it('execute resolves to a tool result of text content parts', async () => {
+  it("execute resolves to a tool result of text content parts", async () => {
     const { context, active } = strictContext();
     registerTools(context, permissions.post, {
       permdock: await clientOf(memberUser),
       handlers: { list: async () => [] },
     });
-    const result = await active.get('post_list')?.execute({});
-    expect(result?.content).toEqual([{ type: 'text', text: '[]' }]);
+    const result = await active.get("post_list")?.execute({});
+    expect(result?.content).toEqual([{ type: "text", text: "[]" }]);
   });
 
-  it('does nothing when the document exposes no modelContext', async () => {
+  it("does nothing when the document exposes no modelContext", async () => {
     const warnings: string[] = [];
     const handle = registerTools(undefined, permissions.post, {
       permdock: await clientOf(memberUser),
@@ -164,8 +164,8 @@ describe('WebMCP draft: ModelContext.registerTool', () => {
   });
 });
 
-describe('WebMCP: agent-supplied arguments are untrusted', () => {
-  it('invalid input is a validation error before any handler runs', async () => {
+describe("WebMCP: agent-supplied arguments are untrusted", () => {
+  it("invalid input is a validation error before any handler runs", async () => {
     const ran: unknown[] = [];
     const { context, active } = strictContext();
     registerTools(context, permissions.post, {
@@ -173,23 +173,23 @@ describe('WebMCP: agent-supplied arguments are untrusted', () => {
       handlers: {
         update: async ({ input }) => {
           ran.push(input);
-          return 'ok';
+          return "ok";
         },
       },
     });
-    const result = await active.get('post_update')?.execute({ id: 42 });
+    const result = await active.get("post_update")?.execute({ id: 42 });
     expect(result?.isError).toBe(true);
     expect(result?.structuredContent).toMatchObject({
-      denials: [{ reason: 'validation' }],
+      denials: [{ reason: "validation" }],
     });
     expect(ran).toEqual([]);
   });
 
-  it('a simulated snapshot exposes no tools at all', async () => {
+  it("a simulated snapshot exposes no tools at all", async () => {
     const server = await createPermDock(policy, adminUser);
     const snapshot = server.snapshot();
-    if (snapshot instanceof Promise || typeof snapshot === 'string') {
-      throw new Error('expected JSON snapshot');
+    if (snapshot instanceof Promise || typeof snapshot === "string") {
+      throw new Error("expected JSON snapshot");
     }
     const { context, active } = strictContext();
     registerTools(context, permissions.post, {

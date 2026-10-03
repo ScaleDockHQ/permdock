@@ -2,13 +2,13 @@ import type {
   FastifySchema,
   FastifyTypeProvider,
   RouteGenericInterface,
-} from 'fastify';
+} from "fastify";
 
-import Fastify from 'fastify';
-import { describe, expectTypeOf, it } from 'vitest';
+import Fastify from "fastify";
+import { describe, expectTypeOf, it } from "vitest";
 
-import { createPermDock } from '../../src/fastify/index.ts';
-import { ownPost, permissions, policy } from '../fixtures/quick-start.ts';
+import { createPermDock } from "../../src/fastify/index.ts";
+import { ownPost, permissions, policy } from "../fixtures/quick-start.ts";
 
 type PostBody = typeof ownPost;
 
@@ -20,10 +20,10 @@ interface PostProvider extends FastifyTypeProvider {
 
 const { protect } = createPermDock(policy, { subject: () => null });
 
-describe('permdock/fastify protect inference', () => {
-  it('infers route generics from the preHandler slot', () => {
+describe("permdock/fastify protect inference", () => {
+  it("infers route generics from the preHandler slot", () => {
     Fastify().get<{ Params: { readonly id: string } }>(
-      '/posts/:id',
+      "/posts/:id",
       {
         preHandler: protect(permissions.post.read, (request) => {
           expectTypeOf(request.params.id).toEqualTypeOf<string>();
@@ -34,11 +34,11 @@ describe('permdock/fastify protect inference', () => {
     );
   });
 
-  it('types a type provider body when the provider is passed', () => {
+  it("types a type provider body when the provider is passed", () => {
     Fastify()
       .withTypeProvider<PostProvider>()
       .put(
-        '/posts/:id',
+        "/posts/:id",
         {
           preHandler: protect<
             RouteGenericInterface,

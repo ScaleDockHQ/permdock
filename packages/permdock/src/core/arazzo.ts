@@ -1,9 +1,9 @@
-import type { Decision } from './decision.ts';
-import type { Permission, PermissionTree } from './permissions.ts';
+import type { Decision } from "./decision.ts";
+import type { Permission, PermissionTree } from "./permissions.ts";
 
-import { compact } from './compact.ts';
-import { freezeDeep } from './freeze.ts';
-import { findPermission } from './permissions.ts';
+import { compact } from "./compact.ts";
+import { freezeDeep } from "./freeze.ts";
+import { findPermission } from "./permissions.ts";
 
 export type ArazzoSimulateInput = {
   readonly arazzo: unknown;
@@ -25,7 +25,7 @@ export type ArazzoStepResult = {
 
 export type ArazzoPlan = {
   readonly workflowId: string;
-  readonly outcome: Decision['outcome'];
+  readonly outcome: Decision["outcome"];
   readonly steps: readonly ArazzoStepResult[];
 };
 
@@ -33,10 +33,10 @@ export type ArazzoFinding = {
   readonly stepId: string;
   readonly workflowId: string;
   readonly reason:
-    | 'undocumented'
-    | 'unsupported'
-    | 'validation'
-    | 'unknown-key';
+    | "undocumented"
+    | "unsupported"
+    | "validation"
+    | "unknown-key";
   readonly detail: string;
 };
 
@@ -75,34 +75,34 @@ type ResolvedStep = {
   readonly workflowId: string;
   readonly operationId?: string;
   readonly keys: readonly string[];
-  readonly finding?: Pick<ArazzoFinding, 'reason' | 'detail'>;
+  readonly finding?: Pick<ArazzoFinding, "reason" | "detail">;
   readonly data: unknown;
   readonly provisional: boolean;
 };
 
 const VERSION = /^1\.[01]\.\d+(?:-.+)?$/u;
 const STEP_TARGETS = [
-  'operationId',
-  'operationPath',
-  'workflowId',
-  'channelPath',
+  "operationId",
+  "operationPath",
+  "workflowId",
+  "channelPath",
 ] as const;
 
 const denied = (
-  reason: 'undocumented' | 'unsupported' | 'validation',
+  reason: "undocumented" | "unsupported" | "validation",
 ): Decision =>
   freezeDeep({
-    outcome: 'denied',
+    outcome: "denied",
     denials: [{ role: null, reason }],
     alternatives: [],
   });
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function asString(value: unknown): string | undefined {
-  return typeof value === 'string' && value.length > 0 ? value : undefined;
+  return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
 function parseParameters(
@@ -121,95 +121,95 @@ function parseParameters(
     if (!isRecord(item)) {
       return `${where}: a parameter is not an object`;
     }
-    const reference = asString(item['reference']);
+    const reference = asString(item["reference"]);
     if (reference !== undefined) {
       const match = /^\$components\.parameters\.(.+)$/u.exec(reference);
       const target =
         match?.[1] === undefined ? undefined : components[match[1]];
-      const name = isRecord(target) ? asString(target['name']) : undefined;
-      if (!isRecord(target) || name === undefined || !('value' in target)) {
+      const name = isRecord(target) ? asString(target["name"]) : undefined;
+      if (!isRecord(target) || name === undefined || !("value" in target)) {
         return `${where}: unresolved parameter reference ${reference}`;
       }
       out.push({
         name,
-        value: 'value' in item ? item['value'] : target['value'],
+        value: "value" in item ? item["value"] : target["value"],
       });
       continue;
     }
-    const name = asString(item['name']);
-    if (name === undefined || !('value' in item)) {
+    const name = asString(item["name"]);
+    if (name === undefined || !("value" in item)) {
       return `${where}: a parameter needs a name and a value`;
     }
-    out.push({ name, value: item['value'] });
+    out.push({ name, value: item["value"] });
   }
   return out;
 }
 
 function parseDocument(arazzo: unknown): ArazzoDocument | string {
   if (!isRecord(arazzo)) {
-    return 'Arazzo document is not an object';
+    return "Arazzo document is not an object";
   }
-  const version = arazzo['arazzo'];
-  if (typeof version !== 'string' || !VERSION.test(version)) {
-    return 'arazzo must be a 1.0.x or 1.1.x version';
+  const version = arazzo["arazzo"];
+  if (typeof version !== "string" || !VERSION.test(version)) {
+    return "arazzo must be a 1.0.x or 1.1.x version";
   }
-  if (!isRecord(arazzo['info'])) {
-    return 'info is required';
+  if (!isRecord(arazzo["info"])) {
+    return "info is required";
   }
-  const rawSources = arazzo['sourceDescriptions'];
+  const rawSources = arazzo["sourceDescriptions"];
   if (!Array.isArray(rawSources) || rawSources.length === 0) {
-    return 'sourceDescriptions needs at least one entry';
+    return "sourceDescriptions needs at least one entry";
   }
   const sources: Source[] = [];
   for (const source of rawSources) {
-    const name = isRecord(source) ? asString(source['name']) : undefined;
+    const name = isRecord(source) ? asString(source["name"]) : undefined;
     if (
       !isRecord(source) ||
       name === undefined ||
-      asString(source['url']) === undefined
+      asString(source["url"]) === undefined
     ) {
-      return 'a sourceDescription needs a name and a url';
+      return "a sourceDescription needs a name and a url";
     }
     if (sources.some((item) => item.name === name)) {
       return `duplicate sourceDescription ${name}`;
     }
-    sources.push({ name, type: asString(source['type']) ?? 'openapi' });
+    sources.push({ name, type: asString(source["type"]) ?? "openapi" });
   }
   const components =
-    isRecord(arazzo['components']) &&
-    isRecord(arazzo['components']['parameters'])
-      ? arazzo['components']['parameters']
+    isRecord(arazzo["components"]) &&
+    isRecord(arazzo["components"]["parameters"])
+      ? arazzo["components"]["parameters"]
       : {};
-  const rawWorkflows = arazzo['workflows'];
+  const rawWorkflows = arazzo["workflows"];
   if (!Array.isArray(rawWorkflows) || rawWorkflows.length === 0) {
-    return 'workflows needs at least one entry';
+    return "workflows needs at least one entry";
   }
   const workflows: Workflow[] = [];
   for (const item of rawWorkflows) {
     const workflowId = isRecord(item)
-      ? asString(item['workflowId'])
+      ? asString(item["workflowId"])
       : undefined;
     if (!isRecord(item) || workflowId === undefined) {
-      return 'a workflow needs a workflowId';
+      return "a workflow needs a workflowId";
     }
     if (workflows.some((workflow) => workflow.workflowId === workflowId)) {
       return `duplicate workflowId ${workflowId}`;
     }
     const parameters = parseParameters(
-      item['parameters'],
+      item["parameters"],
       components,
       workflowId,
     );
-    if (typeof parameters === 'string') {
+    if (typeof parameters === "string") {
       return parameters;
     }
-    const rawSteps = item['steps'];
+    const rawSteps = item["steps"];
     if (!Array.isArray(rawSteps) || rawSteps.length === 0) {
       return `${workflowId}: steps needs at least one entry`;
     }
     const steps: WorkflowStep[] = [];
     for (const step of rawSteps) {
-      const stepId = isRecord(step) ? asString(step['stepId']) : undefined;
+      const stepId = isRecord(step) ? asString(step["stepId"]) : undefined;
       if (!isRecord(step) || stepId === undefined) {
         return `${workflowId}: a step needs a stepId`;
       }
@@ -223,27 +223,27 @@ function parseDocument(arazzo: unknown): ArazzoDocument | string {
         targets.length !== 1 &&
         !(
           targets.length === 2 &&
-          targets.includes('operationId') &&
-          targets.includes('channelPath')
+          targets.includes("operationId") &&
+          targets.includes("channelPath")
         )
       ) {
         return `${workflowId}.${stepId}: a step needs exactly one of operationId, operationPath or workflowId`;
       }
       const stepParameters = parseParameters(
-        step['parameters'],
+        step["parameters"],
         components,
         `${workflowId}.${stepId}`,
       );
-      if (typeof stepParameters === 'string') {
+      if (typeof stepParameters === "string") {
         return stepParameters;
       }
       steps.push(
         compact<WorkflowStep>({
           stepId,
-          operationId: asString(step['operationId']),
-          operationPath: asString(step['operationPath']),
-          workflowId: asString(step['workflowId']),
-          channelPath: asString(step['channelPath']),
+          operationId: asString(step["operationId"]),
+          operationPath: asString(step["operationPath"]),
+          workflowId: asString(step["workflowId"]),
+          channelPath: asString(step["channelPath"]),
           parameters: stepParameters,
         }),
       );
@@ -254,15 +254,15 @@ function parseDocument(arazzo: unknown): ArazzoDocument | string {
 }
 
 function unescapePointer(token: string): string {
-  return token.replaceAll('~1', '/').replaceAll('~0', '~');
+  return token.replaceAll("~1", "/").replaceAll("~0", "~");
 }
 
 function readPointer(doc: unknown, pointer: string): unknown {
-  if (!pointer.startsWith('#/')) {
+  if (!pointer.startsWith("#/")) {
     return undefined;
   }
   let current: unknown = doc;
-  for (const raw of pointer.slice(2).split('/')) {
+  for (const raw of pointer.slice(2).split("/")) {
     if (!isRecord(current)) {
       return undefined;
     }
@@ -281,18 +281,18 @@ function readPointer(doc: unknown, pointer: string): unknown {
 }
 
 function findOperation(openapi: unknown, operationId: string): unknown {
-  if (!isRecord(openapi) || !isRecord(openapi['paths'])) {
+  if (!isRecord(openapi) || !isRecord(openapi["paths"])) {
     return undefined;
   }
-  for (const pathItem of Object.values(openapi['paths'])) {
+  for (const pathItem of Object.values(openapi["paths"])) {
     if (!isRecord(pathItem)) {
       continue;
     }
     for (const [method, operation] of Object.entries(pathItem)) {
       if (
-        !method.startsWith('x-') &&
+        !method.startsWith("x-") &&
         isRecord(operation) &&
-        operation['operationId'] === operationId
+        operation["operationId"] === operationId
       ) {
         return operation;
       }
@@ -305,8 +305,8 @@ function findOperation(openapi: unknown, operationId: string): unknown {
 function descriptionFor(openapi: unknown, name: string): unknown {
   if (
     isRecord(openapi) &&
-    !('openapi' in openapi) &&
-    !('paths' in openapi) &&
+    !("openapi" in openapi) &&
+    !("paths" in openapi) &&
     isRecord(openapi[name])
   ) {
     return openapi[name];
@@ -318,11 +318,11 @@ function permissionKeysOf(node: unknown): readonly string[] {
   if (!isRecord(node)) {
     return [];
   }
-  const raw = node['x-permdock-permissions'];
+  const raw = node["x-permdock-permissions"];
   if (!Array.isArray(raw)) {
     return [];
   }
-  return raw.filter((item): item is string => typeof item === 'string');
+  return raw.filter((item): item is string => typeof item === "string");
 }
 
 /** `$inputs.a.b` against the frame's inputs; anything else that is a runtime expression is unknown. */
@@ -330,17 +330,17 @@ function valueOf(
   value: unknown,
   inputs: Readonly<Record<string, unknown>>,
 ): { readonly known: boolean; readonly value?: unknown } {
-  if (typeof value !== 'string' || !value.includes('$')) {
+  if (typeof value !== "string" || !value.includes("$")) {
     return { known: true, value };
   }
   const match = /^\$inputs\.([^#{}]+)$/u.exec(value);
   if (match?.[1] === undefined) {
-    return value.startsWith('$') || value.includes('{$')
+    return value.startsWith("$") || value.includes("{$")
       ? { known: false }
       : { known: true, value };
   }
   let current: unknown = inputs;
-  for (const part of match[1].split('.')) {
+  for (const part of match[1].split(".")) {
     if (!isRecord(current) || !Object.hasOwn(current, part)) {
       return { known: false };
     }
@@ -379,7 +379,7 @@ function flatten(
   out: FlatStep[],
 ): string | undefined {
   if (seen.has(workflowId)) {
-    return 'workflowId cycle';
+    return "workflowId cycle";
   }
   const workflow = doc.workflows.find((item) => item.workflowId === workflowId);
   if (workflow === undefined) {
@@ -389,7 +389,7 @@ function flatten(
   for (const step of workflow.steps) {
     if (
       step.workflowId === undefined ||
-      step.workflowId.startsWith('$sourceDescriptions.')
+      step.workflowId.startsWith("$sourceDescriptions.")
     ) {
       out.push({ step, workflow, inputs });
       continue;
@@ -411,7 +411,7 @@ function flatten(
 
 type Located =
   | { readonly node: unknown; readonly operationId?: string }
-  | Pick<ArazzoFinding, 'reason' | 'detail'>;
+  | Pick<ArazzoFinding, "reason" | "detail">;
 
 function locate(
   doc: ArazzoDocument,
@@ -420,8 +420,8 @@ function locate(
 ): Located {
   if (step.workflowId !== undefined) {
     return {
-      reason: 'unsupported',
-      detail: 'workflows in another Arazzo document are not resolved',
+      reason: "unsupported",
+      detail: "workflows in another Arazzo document are not resolved",
     };
   }
   let sourceName: string | undefined;
@@ -434,12 +434,12 @@ function locate(
       );
     if (match?.[1] === undefined) {
       return {
-        reason: 'undocumented',
-        detail: 'operationPath is not a $sourceDescriptions reference',
+        reason: "undocumented",
+        detail: "operationPath is not a $sourceDescriptions reference",
       };
     }
     sourceName = match[1];
-    pointer = match[2] ?? '';
+    pointer = match[2] ?? "";
   } else if (operationId !== undefined) {
     const match = /^\$sourceDescriptions\.([^.]+)\.(.+)$/u.exec(operationId);
     if (match?.[1] !== undefined && match[2] !== undefined) {
@@ -449,21 +449,21 @@ function locate(
   }
   const candidates =
     sourceName === undefined
-      ? doc.sources.filter((source) => source.type !== 'arazzo')
+      ? doc.sources.filter((source) => source.type !== "arazzo")
       : doc.sources.filter((source) => source.name === sourceName);
   if (candidates.length === 0) {
     return {
-      reason: 'undocumented',
+      reason: "undocumented",
       detail:
         sourceName === undefined
-          ? 'no API sourceDescription'
+          ? "no API sourceDescription"
           : `unknown sourceDescription ${sourceName}`,
     };
   }
   if (step.channelPath !== undefined) {
     return {
-      reason: 'unsupported',
-      detail: 'AsyncAPI steps are not evaluated',
+      reason: "unsupported",
+      detail: "AsyncAPI steps are not evaluated",
     };
   }
   const found: { readonly source: Source; readonly node: unknown }[] = [];
@@ -481,28 +481,28 @@ function locate(
   }
   if (found.length > 1) {
     return {
-      reason: 'undocumented',
+      reason: "undocumented",
       detail:
-        'operationId matches several sources; qualify it with $sourceDescriptions',
+        "operationId matches several sources; qualify it with $sourceDescriptions",
     };
   }
   const [hit] = found;
-  if (hit?.source.type === 'asyncapi') {
+  if (hit?.source.type === "asyncapi") {
     return {
-      reason: 'unsupported',
-      detail: 'AsyncAPI steps are not evaluated',
+      reason: "unsupported",
+      detail: "AsyncAPI steps are not evaluated",
     };
   }
   if (
     hit === undefined ||
-    hit.source.type === 'arazzo' ||
+    hit.source.type === "arazzo" ||
     !isRecord(hit.node)
   ) {
-    return { reason: 'undocumented', detail: 'operation not found' };
+    return { reason: "undocumented", detail: "operation not found" };
   }
   return compact<{ node: unknown; operationId?: string }>({
     node: hit.node,
-    operationId: asString(hit.node['operationId']) ?? operationId,
+    operationId: asString(hit.node["operationId"]) ?? operationId,
   });
 }
 
@@ -532,7 +532,7 @@ function resolve(
     Object.keys(inputs).length + Object.keys(record).length === 0
       ? undefined
       : { ...inputs, ...record };
-  if ('reason' in located) {
+  if ("reason" in located) {
     return {
       ...base,
       ...compact({ operationId: step.operationId }),
@@ -554,13 +554,13 @@ function resolve(
     ...(keys.length === 0
       ? {
           finding: {
-            reason: 'undocumented' as const,
-            detail: 'operation has no x-permdock-permissions',
+            reason: "undocumented" as const,
+            detail: "operation has no x-permdock-permissions",
           },
         }
       : unknown === undefined
         ? {}
-        : { finding: { reason: 'unknown-key' as const, detail: unknown } }),
+        : { finding: { reason: "unknown-key" as const, detail: unknown } }),
     data,
     provisional,
   };
@@ -573,10 +573,10 @@ function resolveAll(
   | { readonly workflowId: string; readonly error: string }
   | { readonly workflowId: string; readonly steps: readonly ResolvedStep[] } {
   const doc = parseDocument(input.arazzo);
-  if (typeof doc === 'string') {
-    return { workflowId: input.workflowId ?? '', error: doc };
+  if (typeof doc === "string") {
+    return { workflowId: input.workflowId ?? "", error: doc };
   }
-  const workflowId = input.workflowId ?? doc.workflows[0]?.workflowId ?? '';
+  const workflowId = input.workflowId ?? doc.workflows[0]?.workflowId ?? "";
   const flat: FlatStep[] = [];
   const error = flatten(doc, workflowId, input.inputs ?? {}, new Set(), flat);
   if (error !== undefined) {
@@ -593,12 +593,12 @@ export function arazzoFindings(
   tree: PermissionTree | undefined,
 ): readonly ArazzoFinding[] {
   const resolved = resolveAll(input, tree);
-  if ('error' in resolved) {
+  if ("error" in resolved) {
     return [
       {
-        stepId: 'document',
+        stepId: "document",
         workflowId: resolved.workflowId,
-        reason: 'validation',
+        reason: "validation",
         detail: resolved.error,
       },
     ];
@@ -617,20 +617,20 @@ export function arazzoFindings(
   );
 }
 
-function worst(outcomes: readonly Decision['outcome'][]): Decision['outcome'] {
-  if (outcomes.includes('denied')) {
-    return 'denied';
+function worst(outcomes: readonly Decision["outcome"][]): Decision["outcome"] {
+  if (outcomes.includes("denied")) {
+    return "denied";
   }
-  if (outcomes.includes('approval-required')) {
-    return 'approval-required';
+  if (outcomes.includes("approval-required")) {
+    return "approval-required";
   }
-  return 'granted';
+  return "granted";
 }
 
 function combine(decisions: readonly Decision[]): Decision {
   const outcome = worst(decisions.map((item) => item.outcome));
   return (
-    decisions.find((item) => item.outcome === outcome) ?? denied('undocumented')
+    decisions.find((item) => item.outcome === outcome) ?? denied("undocumented")
   );
 }
 
@@ -640,15 +640,15 @@ export function simulateArazzo(
   decide: (permission: Permission, data: unknown) => Decision,
 ): ArazzoPlan {
   const resolved = resolveAll(input, tree);
-  if ('error' in resolved) {
+  if ("error" in resolved) {
     return freezeDeep({
-      workflowId: resolved.workflowId === '' ? 'unknown' : resolved.workflowId,
-      outcome: 'denied',
+      workflowId: resolved.workflowId === "" ? "unknown" : resolved.workflowId,
+      outcome: "denied",
       steps: [
         {
-          stepId: 'document',
+          stepId: "document",
           permissions: [],
-          decision: denied('validation'),
+          decision: denied("validation"),
         },
       ],
     });
@@ -663,9 +663,9 @@ export function simulateArazzo(
         operationId: step.operationId,
         permissions: [],
         decision: denied(
-          step.finding.reason === 'unsupported'
-            ? 'unsupported'
-            : 'undocumented',
+          step.finding.reason === "unsupported"
+            ? "unsupported"
+            : "undocumented",
         ),
       });
     }
@@ -694,5 +694,5 @@ export function simulateArazzo(
 export function isArazzoSimulateInput(
   value: unknown,
 ): value is ArazzoSimulateInput {
-  return isRecord(value) && 'arazzo' in value;
+  return isRecord(value) && "arazzo" in value;
 }

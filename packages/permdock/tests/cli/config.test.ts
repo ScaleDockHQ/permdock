@@ -1,61 +1,61 @@
-import path from 'node:path';
-import { afterAll, describe, expect, it } from 'vitest';
+import path from "node:path";
+import { afterAll, describe, expect, it } from "vitest";
 
-import { loadConfig, resolveCwd } from '../../src/cli/config.ts';
-import { project, removeProjects } from './doctor-kit.ts';
+import { loadConfig, resolveCwd } from "../../src/cli/config.ts";
+import { project, removeProjects } from "./doctor-kit.ts";
 
 afterAll(removeProjects);
 
-describe('loadConfig', () => {
-  it('is empty without a config file', async () => {
+describe("loadConfig", () => {
+  it("is empty without a config file", async () => {
     expect(await loadConfig(project({}))).toEqual({});
   });
 
-  it('finds permdock.config.mjs and reads its default export', async () => {
+  it("finds permdock.config.mjs and reads its default export", async () => {
     const cwd = project({
-      'permdock.config.mjs': "export default { policy: './policy.ts' };\n",
+      "permdock.config.mjs": "export default { policy: './policy.ts' };\n",
     });
     expect(await loadConfig(cwd)).toEqual({
-      policy: './policy.ts',
+      policy: "./policy.ts",
     });
   });
 
-  it('prefers permdock.config.ts over the other names', async () => {
+  it("prefers permdock.config.ts over the other names", async () => {
     const cwd = project({
-      'permdock.config.ts': "export default { policy: './ts.ts' };\n",
-      'permdock.config.js': "export default { policy: './js.ts' };\n",
+      "permdock.config.ts": "export default { policy: './ts.ts' };\n",
+      "permdock.config.js": "export default { policy: './js.ts' };\n",
     });
     expect(await loadConfig(cwd)).toEqual({
-      policy: './ts.ts',
+      policy: "./ts.ts",
     });
   });
 
-  it('reads --config relative to cwd and throws when it is missing', async () => {
+  it("reads --config relative to cwd and throws when it is missing", async () => {
     const cwd = project({
-      'config/custom.ts': "export default { permissions: './p.ts' };\n",
+      "config/custom.ts": "export default { permissions: './p.ts' };\n",
     });
-    expect(await loadConfig(cwd, 'config/custom.ts')).toEqual({
-      permissions: './p.ts',
+    expect(await loadConfig(cwd, "config/custom.ts")).toEqual({
+      permissions: "./p.ts",
     });
-    await expect(loadConfig(cwd, 'absent.ts')).rejects.toThrow(
-      `PermDock CLI: config file not found: ${path.join(cwd, 'absent.ts')}`,
+    await expect(loadConfig(cwd, "absent.ts")).rejects.toThrow(
+      `PermDock CLI: config file not found: ${path.join(cwd, "absent.ts")}`,
     );
   });
 
   it.each([
-    ['export default null;\n'],
-    ['export default 5;\n'],
-    ['export const other = 1;\n'],
-  ])('is empty when the default export is not an object: %s', async (text) => {
-    const cwd = project({ 'permdock.config.ts': text });
+    ["export default null;\n"],
+    ["export default 5;\n"],
+    ["export const other = 1;\n"],
+  ])("is empty when the default export is not an object: %s", async (text) => {
+    const cwd = project({ "permdock.config.ts": text });
     expect(await loadConfig(cwd)).toEqual({});
   });
 });
 
-describe('resolveCwd', () => {
-  it('resolves --cwd against the fallback', () => {
-    expect(resolveCwd('apps/web', '/repo')).toBe('/repo/apps/web');
-    expect(resolveCwd('/abs', '/repo')).toBe('/abs');
-    expect(resolveCwd(undefined, '/repo')).toBe('/repo');
+describe("resolveCwd", () => {
+  it("resolves --cwd against the fallback", () => {
+    expect(resolveCwd("apps/web", "/repo")).toBe("/repo/apps/web");
+    expect(resolveCwd("/abs", "/repo")).toBe("/abs");
+    expect(resolveCwd(undefined, "/repo")).toBe("/repo");
   });
 });

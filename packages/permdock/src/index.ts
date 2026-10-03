@@ -1,6 +1,6 @@
-export { context, principal } from './conditions/index.ts';
-export { opaque } from './conditions/opaque.ts';
-export { sqlFunction } from './conditions/sql-function.ts';
+export { context, principal } from "./conditions/index.ts";
+export { opaque } from "./conditions/opaque.ts";
+export { sqlFunction } from "./conditions/sql-function.ts";
 export type {
   Condition,
   ConditionRef,
@@ -11,16 +11,16 @@ export type {
   RelatedHop,
   SqlFunctionArg,
   SqlFunctionCondition,
-} from './conditions/ast.ts';
+} from "./conditions/ast.ts";
 export {
   hasConditionOp,
   isCondition,
   isConditionDate,
   isConditionRef,
   isSqlFunctionField,
-} from './conditions/ast.ts';
-export { describe, requiredPlans } from './core/describe.ts';
-export type { DecisionDescription } from './core/describe.ts';
+} from "./conditions/ast.ts";
+export { describe, requiredPlans } from "./core/describe.ts";
+export type { DecisionDescription } from "./core/describe.ts";
 export type {
   ApprovalRequiredDecision,
   Decision,
@@ -36,52 +36,52 @@ export type {
   Trace,
   TraceSkip,
   TraceSkipReason,
-} from './core/decision.ts';
-export type { WireDecision, WireDenial } from './core/wire-denial.ts';
+} from "./core/decision.ts";
+export type { WireDecision, WireDenial } from "./core/wire-denial.ts";
 export {
   PermDockApprovalRequiredError,
   PermDockDeniedError,
   PermDockRevokedError,
   PermDockValidationError,
-} from './core/errors.ts';
-export type { ProblemDetails, RevokedCode } from './core/errors.ts';
-export { parsePermDockDigest } from './core/digest.ts';
-export type { PermDockDigest } from './core/digest.ts';
-export { memoryRevocationFeed } from './core/revocations.ts';
+} from "./core/errors.ts";
+export type { ProblemDetails, RevokedCode } from "./core/errors.ts";
+export { parsePermDockDigest } from "./core/digest.ts";
+export type { PermDockDigest } from "./core/digest.ts";
+export { memoryRevocationFeed } from "./core/revocations.ts";
 export type {
   RevocationEvent,
   RevocationFeed,
   RevocationListener,
-} from './core/revocations.ts';
+} from "./core/revocations.ts";
 export {
   memoryEntitlementSource,
   memoryRoleSource,
   memorySettings,
-} from './core/interfaces.ts';
+} from "./core/interfaces.ts";
 export {
   claimsFirst,
   composeMemberships,
   isExternallyManaged,
-} from './core/memberships.ts';
-export { fromStripeEntitlements } from './core/stripe-entitlements.ts';
-export type { StripeEntitlementsClient } from './core/stripe-entitlements.ts';
-export { memoryLimitStore } from './core/limits.ts';
-export { memoryRelations } from './core/relations.ts';
-export type { MemoryEdge, MemoryRelationsData } from './core/relations.ts';
-export type { Holder, HoldingVia, WhoCan } from './core/who-can.ts';
+} from "./core/memberships.ts";
+export { fromStripeEntitlements } from "./core/stripe-entitlements.ts";
+export type { StripeEntitlementsClient } from "./core/stripe-entitlements.ts";
+export { memoryLimitStore } from "./core/limits.ts";
+export { memoryRelations } from "./core/relations.ts";
+export type { MemoryEdge, MemoryRelationsData } from "./core/relations.ts";
+export type { Holder, HoldingVia, WhoCan } from "./core/who-can.ts";
 export {
   isPortableCondition,
   memoryPolicySource,
   mergeHostedGrants,
   parsePolicyDocument,
-} from './core/hosted.ts';
+} from "./core/hosted.ts";
 export type {
   HostedGrant,
   HostedGrantDropReason,
   HostedGrantDropped,
   PolicyDocument,
   PolicySource,
-} from './core/hosted.ts';
+} from "./core/hosted.ts";
 export type {
   AccessEvent,
   AuthEvent,
@@ -119,39 +119,39 @@ export type {
   VerificationFailure,
   VerifiedToken,
   WhereCompiler,
-} from './core/interfaces.ts';
-export { arazzoFindings, simulateArazzo } from './core/arazzo.ts';
+} from "./core/interfaces.ts";
+export { arazzoFindings, simulateArazzo } from "./core/arazzo.ts";
 export type {
   ArazzoFinding,
   ArazzoPlan,
   ArazzoSimulateInput,
   ArazzoStepResult,
-} from './core/arazzo.ts';
-export { emptySnapshot, fromSnapshot } from './core/from-snapshot.ts';
-export { createPermDock, parseSnapshot } from './core/permdock.ts';
-export { mayAccess } from './core/may-access.ts';
-export { mayUse } from './core/may-use.ts';
+} from "./core/arazzo.ts";
+export { emptySnapshot, fromSnapshot } from "./core/from-snapshot.ts";
+export { createPermDock, parseSnapshot } from "./core/permdock.ts";
+export { mayAccess } from "./core/may-access.ts";
+export { mayUse } from "./core/may-use.ts";
 export {
   customRoleClaim,
   resolveCustomRole,
   validateCustomRole,
-} from './core/custom-roles.ts';
+} from "./core/custom-roles.ts";
 export type {
   CustomRoleDrop,
   CustomRoleDropReason,
   CustomRoleValidation,
   ResolvedCustomRole,
-} from './core/custom-roles.ts';
-export { snapshotFor } from './core/snapshot-for.ts';
-export type { SnapshotForOptions } from './core/snapshot-for.ts';
+} from "./core/custom-roles.ts";
+export { snapshotFor } from "./core/snapshot-for.ts";
+export type { SnapshotForOptions } from "./core/snapshot-for.ts";
 export type {
-  CreatePermDockOptions,
+  PermDockOptions,
   DecideOptions,
   PermDock,
   RowPair,
   SimulateOptions,
   WhereResult,
-} from './core/permdock.ts';
+} from "./core/permdock.ts";
 export {
   definePermissions,
   findPermission,
@@ -160,8 +160,8 @@ export {
   listPermissions,
   mergePermissions,
   resource,
-} from './core/permissions.ts';
-export { crud, readable, writable } from './core/presets.ts';
+} from "./core/permissions.ts";
+export { crud, readable, writable } from "./core/presets.ts";
 export type {
   ActionMeta,
   Permission,
@@ -180,7 +180,7 @@ export type {
   ResourceParent,
   ResourceRelation,
   ResourceRelationInput,
-} from './core/permissions.ts';
+} from "./core/permissions.ts";
 export {
   allow,
   definePolicy,
@@ -190,7 +190,7 @@ export {
   requiresApproval,
   role,
   separationConflicts,
-} from './core/policy.ts';
+} from "./core/policy.ts";
 export type {
   ActivationOption,
   ApprovalEscalation,
@@ -224,10 +224,10 @@ export type {
   SupportAccessOptions,
   SupportConsent,
   ValidateMode,
-} from './core/policy.ts';
-export { breakGlass, supportAccess } from './core/elevated.ts';
-export type { ActivateInput } from './core/elevated.ts';
-export { parseDuration } from './core/duration.ts';
+} from "./core/policy.ts";
+export { breakGlass, supportAccess } from "./core/elevated.ts";
+export type { ActivateInput } from "./core/elevated.ts";
+export { parseDuration } from "./core/duration.ts";
 export {
   actor,
   anyone,
@@ -235,14 +235,14 @@ export {
   authenticated,
   plan,
   relation,
-} from './core/grantee.ts';
-export type { Grantee, GranteeInput, RelationGrantee } from './core/grantee.ts';
+} from "./core/grantee.ts";
+export type { Grantee, GranteeInput, RelationGrantee } from "./core/grantee.ts";
 export type {
   PolicyScopesInput,
   Scope,
   ScopeDeclaration,
   ScopeNames,
-} from './core/scopes.ts';
+} from "./core/scopes.ts";
 export {
   definePlans,
   defineRoles,
@@ -251,7 +251,7 @@ export {
   isRole,
   listPlans,
   listRoles,
-} from './core/vocabulary.ts';
+} from "./core/vocabulary.ts";
 export type {
   Plan,
   PlanTree,
@@ -259,13 +259,13 @@ export type {
   RoleMeta,
   RoleTree,
   Vocabulary,
-} from './core/vocabulary.ts';
+} from "./core/vocabulary.ts";
 export type {
   RoleChange,
   RoleChangeDecision,
   RoleChangeOptions,
   RoleChangeTarget,
-} from './core/ownership.ts';
+} from "./core/ownership.ts";
 export {
   CLOUD_EVENT_TYPES,
   accessEvent,
@@ -274,7 +274,7 @@ export {
   memorySink,
   signDecisionBatch,
   toCloudEvent,
-} from './core/sink.ts';
+} from "./core/sink.ts";
 export type {
   CatalogEventData,
   CatalogFinding,
@@ -284,20 +284,20 @@ export type {
   MemorySink,
   MemorySinkOptions,
   SignDecisionBatchOptions,
-} from './core/sink.ts';
-export { OCSF_VERSION, accessToOcsf, toOcsf } from './core/ocsf.ts';
-export { CSV_COLUMNS, toCsvRow } from './core/csv.ts';
-export { catalogFingerprint } from './core/catalog-fingerprint.ts';
+} from "./core/sink.ts";
+export { OCSF_VERSION, accessToOcsf, toOcsf } from "./core/ocsf.ts";
+export { CSV_COLUMNS, toCsvRow } from "./core/csv.ts";
+export { catalogFingerprint } from "./core/catalog-fingerprint.ts";
 export {
   coveredByDelegation,
   delegatedPermissions,
-} from './core/delegation.ts';
+} from "./core/delegation.ts";
 export {
   capabilitySubject,
   linkPolicyViolation,
   parseCapability,
   signCapability,
-} from './core/capability.ts';
+} from "./core/capability.ts";
 export type {
   Capability,
   CapabilityInput,
@@ -306,14 +306,14 @@ export type {
   LinkPolicyViolation,
   LinkPrincipal,
   SignCapabilityOptions,
-} from './core/capability.ts';
+} from "./core/capability.ts";
 export {
   credentialDelegation,
   credentialPolicyViolation,
   credentialSubject,
   decideCredential,
   parseCredential,
-} from './core/credential.ts';
+} from "./core/credential.ts";
 export type {
   Credential,
   CredentialDecision,
@@ -325,8 +325,8 @@ export type {
   CredentialPrincipal,
   CredentialRequest,
   DecideCredentialOptions,
-} from './core/credential.ts';
-export type { OcsfAccountChange, OcsfAuthorizeSession } from './core/ocsf.ts';
+} from "./core/credential.ts";
+export type { OcsfAccountChange, OcsfAuthorizeSession } from "./core/ocsf.ts";
 export type {
   Actor,
   Assurance,
@@ -340,4 +340,4 @@ export type {
   Principal,
   Subject,
   VerifiedClaims,
-} from './core/subject.ts';
+} from "./core/subject.ts";

@@ -1,17 +1,17 @@
-import type { ApprovalStore } from 'permdock/approvals';
+import type { ApprovalStore } from "permdock/approvals";
 
-import { drizzle } from 'drizzle-orm/node-postgres';
-import { testApprovalStore } from 'permdock/testing';
-import { Client } from 'pg';
-import { afterAll, beforeAll, describe } from 'vitest';
+import { drizzle } from "drizzle-orm/node-postgres";
+import { testApprovalStore } from "permdock/testing";
+import { Client } from "pg";
+import { afterAll, beforeAll, describe } from "vitest";
 
-import type { Postgres } from './support/postgres.ts';
+import type { Postgres } from "./support/postgres.ts";
 
 import {
   approvalsDdl,
   drizzleApprovalStore,
-} from '../fixtures/approval-store/drizzle.ts';
-import { startPostgres } from './support/postgres.ts';
+} from "../fixtures/approval-store/drizzle.ts";
+import { startPostgres } from "./support/postgres.ts";
 
 let pg: Postgres;
 let current: ApprovalStore;
@@ -45,6 +45,6 @@ afterAll(async () => {
   await pg.stop();
 });
 
-describe('Drizzle approval store recipe on Postgres', () => {
+describe("Drizzle approval store recipe on Postgres", () => {
   testApprovalStore(store, { reopen: openStore });
 });

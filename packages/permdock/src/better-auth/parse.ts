@@ -1,25 +1,25 @@
-import type { Membership } from '../core/subject.ts';
-import type { BetterAuthStatements } from './types.ts';
+import type { Membership } from "../core/subject.ts";
+import type { BetterAuthStatements } from "./types.ts";
 
-import { compact } from '../core/compact.ts';
+import { compact } from "../core/compact.ts";
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 export function asRoles(value: unknown): readonly string[] {
-  if (typeof value === 'string') {
-    return value === ''
+  if (typeof value === "string") {
+    return value === ""
       ? []
       : value
-          .split(',')
+          .split(",")
           .map((item) => item.trim())
-          .filter((item) => item !== '');
+          .filter((item) => item !== "");
   }
   if (!Array.isArray(value)) {
     return [];
   }
-  return value.filter((item): item is string => typeof item === 'string');
+  return value.filter((item): item is string => typeof item === "string");
 }
 
 export function asStatements(value: unknown): BetterAuthStatements {
@@ -32,14 +32,14 @@ export function asStatements(value: unknown): BetterAuthStatements {
       continue;
     }
     out[resource] = actions.filter(
-      (action): action is string => typeof action === 'string',
+      (action): action is string => typeof action === "string",
     );
   }
   return out;
 }
 
 export function expiresAtSeconds(value: unknown): number | undefined {
-  if (typeof value === 'number' && Number.isFinite(value)) {
+  if (typeof value === "number" && Number.isFinite(value)) {
     return value > 1_000_000_000_000
       ? Math.floor(value / 1000)
       : Math.floor(value);
@@ -48,7 +48,7 @@ export function expiresAtSeconds(value: unknown): number | undefined {
     const ms = value.getTime();
     return Number.isFinite(ms) ? Math.floor(ms / 1000) : undefined;
   }
-  if (typeof value === 'string') {
+  if (typeof value === "string") {
     const parsed = Date.parse(value);
     return Number.isNaN(parsed) ? undefined : Math.floor(parsed / 1000);
   }
@@ -63,12 +63,12 @@ function unwrapList(value: unknown): unknown[] {
     return [];
   }
   for (const key of [
-    'members',
-    'teams',
-    'organizations',
-    'roles',
-    'data',
-    'items',
+    "members",
+    "teams",
+    "organizations",
+    "roles",
+    "data",
+    "items",
   ]) {
     const inner = value[key];
     if (Array.isArray(inner)) {
@@ -89,7 +89,7 @@ export function parseMemberRows(
 ): readonly Membership[] {
   const out: Membership[] = [];
   const rows =
-    isRecord(value) && typeof value['organizationId'] === 'string'
+    isRecord(value) && typeof value["organizationId"] === "string"
       ? [value]
       : unwrapList(value);
   for (const item of rows) {
@@ -97,15 +97,15 @@ export function parseMemberRows(
       continue;
     }
     const owner =
-      typeof item['userId'] === 'string' ? item['userId'] : undefined;
+      typeof item["userId"] === "string" ? item["userId"] : undefined;
     if (owner === undefined ? requireUserId : owner !== userId) {
       continue;
     }
     const tenant =
-      typeof item['organizationId'] === 'string'
-        ? item['organizationId']
+      typeof item["organizationId"] === "string"
+        ? item["organizationId"]
         : undefined;
-    const roles = asRoles(item['role'] ?? item['roles']);
+    const roles = asRoles(item["role"] ?? item["roles"]);
     if (tenant === undefined || roles.length === 0) {
       continue;
     }
@@ -123,23 +123,23 @@ export function parseTeamRows(
     if (!isRecord(item)) {
       continue;
     }
-    if (typeof item['userId'] === 'string' && item['userId'] !== userId) {
+    if (typeof item["userId"] === "string" && item["userId"] !== userId) {
       continue;
     }
-    const teamRecord = isRecord(item['team']) ? item['team'] : undefined;
+    const teamRecord = isRecord(item["team"]) ? item["team"] : undefined;
     const team =
-      typeof item['teamId'] === 'string'
-        ? item['teamId']
-        : typeof teamRecord?.['id'] === 'string'
-          ? teamRecord['id']
+      typeof item["teamId"] === "string"
+        ? item["teamId"]
+        : typeof teamRecord?.["id"] === "string"
+          ? teamRecord["id"]
           : undefined;
     const tenant =
-      typeof item['organizationId'] === 'string'
-        ? item['organizationId']
-        : typeof teamRecord?.['organizationId'] === 'string'
-          ? teamRecord['organizationId']
+      typeof item["organizationId"] === "string"
+        ? item["organizationId"]
+        : typeof teamRecord?.["organizationId"] === "string"
+          ? teamRecord["organizationId"]
           : undefined;
-    const roles = asRoles(item['role'] ?? item['roles']);
+    const roles = asRoles(item["role"] ?? item["roles"]);
     if (team === undefined || roles.length === 0) {
       continue;
     }
@@ -169,18 +169,18 @@ export function parseOrganizationRoles(
       continue;
     }
     const name =
-      typeof item['role'] === 'string'
-        ? item['role']
-        : typeof item['name'] === 'string'
-          ? item['name']
+      typeof item["role"] === "string"
+        ? item["role"]
+        : typeof item["name"] === "string"
+          ? item["name"]
           : undefined;
-    if (name === undefined || name === '') {
+    if (name === undefined || name === "") {
       continue;
     }
     out.push({
       name,
       statements: asStatements(
-        item['permission'] ?? item['permissions'] ?? item['statements'],
+        item["permission"] ?? item["permissions"] ?? item["statements"],
       ),
     });
   }

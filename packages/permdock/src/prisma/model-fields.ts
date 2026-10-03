@@ -1,4 +1,4 @@
-import { assertSafeKey } from '../core/paths.ts';
+import { assertSafeKey } from "../core/paths.ts";
 
 /** A model's non-nullable scalar fields and its scalar list fields, by Prisma field name. */
 export type PrismaModelFields = {
@@ -32,7 +32,7 @@ function fromSchema(
   for (const line of lines) {
     const block = BLOCK.exec(line);
     if (block !== null) {
-      composite.add(block[2] ?? '');
+      composite.add(block[2] ?? "");
     }
   }
   const required: string[] = [];
@@ -40,27 +40,27 @@ function fromSchema(
   let inside = false;
   let found = false;
   for (const line of lines) {
-    const code = line.replace(/\/\/.*$/u, '').trim();
+    const code = line.replace(/\/\/.*$/u, "").trim();
     if (!inside) {
       const block = BLOCK.exec(code);
-      if (block?.[1] === 'model' && block[2] === model) {
+      if (block?.[1] === "model" && block[2] === model) {
         inside = true;
         found = true;
       }
       continue;
     }
-    if (code === '}') {
+    if (code === "}") {
       break;
     }
-    if (code === '' || code.startsWith('@@')) {
+    if (code === "" || code.startsWith("@@")) {
       continue;
     }
     const field = FIELD.exec(code);
     if (field === null) {
       continue;
     }
-    const [, name = '', type = '', , list, optional] = field;
-    if (type.includes(':') || composite.has(type)) {
+    const [, name = "", type = "", , list, optional] = field;
+    if (type.includes(":") || composite.has(type)) {
       continue;
     }
     if (list !== undefined) {
@@ -81,7 +81,7 @@ function fromDatamodel(
     return undefined;
   }
   const scalars = found.fields.filter(
-    (field) => field.kind === 'scalar' || field.kind === 'enum',
+    (field) => field.kind === "scalar" || field.kind === "enum",
   );
   return {
     required: scalars
@@ -99,9 +99,9 @@ export function prismaModelFields(
   datamodel: string | PrismaDatamodel,
   model: string,
 ): PrismaModelFields {
-  assertSafeKey(model, 'Prisma model');
+  assertSafeKey(model, "Prisma model");
   const fields =
-    typeof datamodel === 'string'
+    typeof datamodel === "string"
       ? fromSchema(datamodel, model)
       : fromDatamodel(datamodel, model);
   if (fields === undefined) {

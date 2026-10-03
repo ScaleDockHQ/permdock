@@ -1,5 +1,5 @@
-export { describe, requiredPlans } from '../core/describe.ts';
-export { approvalHeaders } from '../react/headers.ts';
+export { describe, requiredPlans } from "../core/describe.ts";
+export { approvalHeaders } from "../react/headers.ts";
 export {
   useApproval,
   useAssignablePermissions,
@@ -12,9 +12,9 @@ export {
   useRoles,
   useSubject,
   useTenant,
-} from './hooks.ts';
-export { Protected } from './protected.ts';
-export { PermDockProvider } from './provider.ts';
+} from "./hooks.ts";
+export { Protected } from "./protected.ts";
+export { PermDockProvider } from "./provider.ts";
 export type {
   ApprovalHandle,
   ApprovalState,
@@ -29,4 +29,4 @@ export type {
   SubjectView,
   TenantView,
   UseRolesOptions,
-} from './types.ts';
+} from "./types.ts";

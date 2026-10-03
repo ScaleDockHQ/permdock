@@ -1,20 +1,20 @@
-import type { Server } from 'node:http';
-import type { AddressInfo } from 'node:net';
-import type { HttpCall, HttpResult } from 'permdock/testing';
+import type { Server } from "node:http";
+import type { AddressInfo } from "node:net";
+import type { HttpCall, HttpResult } from "permdock/testing";
 
-import { createAdaptorServer } from '@hono/node-server';
-import { createORPCClient, ORPCError } from '@orpc/client';
-import { RPCLink } from '@orpc/client/fetch';
-import { BatchLinkPlugin } from '@orpc/client/plugins';
-import { os, type RouterClient } from '@orpc/server';
-import { RPCHandler } from '@orpc/server/fetch';
-import { BatchHandlerPlugin } from '@orpc/server/plugins';
-import { createPermDock } from 'permdock/orpc';
-import { testHttpAdapter } from 'permdock/testing';
-import { saasPermissions as p } from 'permdock/testing/saas';
-import { z } from 'zod';
+import { createAdaptorServer } from "@hono/node-server";
+import { createORPCClient, ORPCError } from "@orpc/client";
+import { RPCLink } from "@orpc/client/fetch";
+import { BatchLinkPlugin } from "@orpc/client/plugins";
+import { os, type RouterClient } from "@orpc/server";
+import { RPCHandler } from "@orpc/server/fetch";
+import { BatchHandlerPlugin } from "@orpc/server/plugins";
+import { createPermDock } from "permdock/orpc";
+import { testHttpAdapter } from "permdock/testing";
+import { saasPermissions as p } from "permdock/testing/saas";
+import { z } from "zod";
 
-import { listen } from '../support/listen.ts';
+import { listen } from "../support/listen.ts";
 
 type Context = { readonly req: Request };
 
@@ -35,9 +35,9 @@ const ok = (status: number, body: unknown): HttpResult => ({
 });
 
 testHttpAdapter({
-  name: 'permdock/orpc over RPCHandler with BatchLinkPlugin',
+  name: "permdock/orpc over RPCHandler with BatchLinkPlugin",
   skip: {
-    upload: 'the mount takes JSON input; uploads go through a REST route',
+    upload: "the mount takes JSON input; uploads go through a REST route",
   },
   async mount(domain) {
     const { permdock, protect, permdockHandler } = createPermDock<Context>(
@@ -45,7 +45,7 @@ testHttpAdapter({
       {
         subject: (opts) =>
           domain.subject(
-            opts.context.req.headers.get('authorization'),
+            opts.context.req.headers.get("authorization"),
             new URL(opts.context.req.url).pathname,
           ),
         // SAFETY: every procedure's input is an object or undefined; `org` is a string when present
@@ -122,13 +122,13 @@ testHttpAdapter({
     const server = createAdaptorServer({
       fetch: async (request: Request) => {
         const [org, segment] = new URL(request.url).pathname
-          .split('/')
+          .split("/")
           .slice(1);
-        if (segment === 'permdock') {
+        if (segment === "permdock") {
           return permdockHandler(request);
         }
         const { matched, response } = await handler.handle(request, {
-          prefix: `/${org ?? ''}/rpc`,
+          prefix: `/${org ?? ""}/rpc`,
           context: { req: request },
         });
         return matched ? response : new Response(null, { status: 404 });
@@ -143,10 +143,10 @@ testHttpAdapter({
     function createClient(call: HttpCall) {
       const headers: Record<string, string> = {};
       if (call.authorization !== null) {
-        headers['authorization'] = call.authorization;
+        headers["authorization"] = call.authorization;
       }
       if (call.approval !== undefined) {
-        headers['permdock-approval'] = call.approval;
+        headers["permdock-approval"] = call.approval;
       }
       const link = new RPCLink({
         origin,
@@ -175,37 +175,37 @@ testHttpAdapter({
       const { org } = input;
       try {
         switch (input.op) {
-          case 'project.get':
+          case "project.get":
             return ok(200, await client.project.get({ org, id: input.id }));
-          case 'project.update':
+          case "project.update":
             return ok(200, await client.project.update({ org, id: input.id }));
-          case 'project.create':
+          case "project.create":
             return ok(
               201,
               await client.project.create({ org, body: input.body }),
             );
-          case 'project.delete':
+          case "project.delete":
             await client.project.delete({ org, id: input.id });
             return ok(204, null);
-          case 'project.upload':
-            throw new Error('uploads are skipped for oRPC');
-          case 'analytics.read':
+          case "project.upload":
+            throw new Error("uploads are skipped for oRPC");
+          case "analytics.read":
             return ok(200, await client.analytics({ org }));
-          case 'apiKey.create':
+          case "apiKey.create":
             return ok(201, await client.apiKey.create({ org }));
-          case 'apiKey.revokeAll':
+          case "apiKey.revokeAll":
             await client.apiKey.revokeAll({ org });
             return ok(204, null);
-          case 'admin.members':
+          case "admin.members":
             return ok(200, await client.admin.members({ org }));
-          case 'evaluations': {
-            const headers = new Headers({ 'content-type': 'application/json' });
+          case "evaluations": {
+            const headers = new Headers({ "content-type": "application/json" });
             if (input.authorization !== null) {
-              headers.set('authorization', input.authorization);
+              headers.set("authorization", input.authorization);
             }
             const response = await fetch(
               `${origin}/${org}/permdock/access/v1/evaluations`,
-              { method: 'POST', headers, body: JSON.stringify(input.body) },
+              { method: "POST", headers, body: JSON.stringify(input.body) },
             );
             return ok(response.status, await response.json());
           }

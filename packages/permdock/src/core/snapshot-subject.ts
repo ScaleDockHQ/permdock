@@ -1,10 +1,10 @@
-import type { Snapshot } from './interfaces.ts';
-import type { Principal, Subject } from './subject.ts';
+import type { Snapshot } from "./interfaces.ts";
+import type { Principal, Subject } from "./subject.ts";
 
-import { compact } from './compact.ts';
-import { freezeDeep } from './freeze.ts';
-import { type Scope, resolveScope, scopeList, tenantOf } from './scopes.ts';
-import { isMembershipExpired, resolveActiveTenant } from './tenancy.ts';
+import { compact } from "./compact.ts";
+import { freezeDeep } from "./freeze.ts";
+import { type Scope, resolveScope, scopeList, tenantOf } from "./scopes.ts";
+import { isMembershipExpired, resolveActiveTenant } from "./tenancy.ts";
 
 export function subjectFromSnapshot(
   snapshot: Snapshot,

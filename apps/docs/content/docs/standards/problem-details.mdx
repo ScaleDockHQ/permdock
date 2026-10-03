@@ -3,7 +3,6 @@ title: RFC 9457 Problem Details
 description: The application/problem+json body PermDock's HTTP adapters return for denied and approval-required decisions, and why it is written for humans and models alike.
 ---
 
-
 ## What it is
 
 RFC 9457 (Problem Details for HTTP APIs) defines a JSON media type, `application/problem+json`, for describing errors in HTTP responses. A problem document has five standard members, all optional:
@@ -37,7 +36,13 @@ A denial:
   "instance": "/posts/p_42",
   "permission": "post.delete",
   "denials": [
-    { "role": "member", "reason": { "kind": "condition", "condition": { "eq": ["authorId", { "subject": "id" }] } } }
+    {
+      "role": "member",
+      "reason": {
+        "kind": "condition",
+        "condition": { "eq": ["authorId", { "subject": "id" }] }
+      }
+    }
   ],
   "alternatives": ["post.read", "post.update"]
 }
@@ -71,19 +76,19 @@ Rules:
 
 When the caller is an OAuth client, Problem Details is the body and RFC 6750 (with RFC 9470 for step-up) is the header. The two are emitted together, and the header is derived from the same reason the body carries, so no adapter keeps a second mapping ([subject](/docs/concepts/subject), [JWT adapter](/docs/adapters/jwt)):
 
-| Situation | Status | `WWW-Authenticate` | Problem Details `type` |
-| --- | --- | --- | --- |
-| No token: no `Authorization` header (Decision reason `anonymous`) | 401 | `Bearer`, with no error code (RFC 6750 section 3.1) | `.../unauthenticated`; no `denials` |
-| A token that failed verification: `on('auth')` `reason: 'invalid-token'`, Decision reason `anonymous` | 401 | `Bearer error="invalid_token", error_description="The access token is invalid"`; the `cause` stays on the audit event (RFC 6750 section 3.1 says not to explain to an unauthenticated caller) | `.../unauthenticated` |
-| Decision `denied` with reason `not-delegated` or `no-delegation` | 403 | `Bearer error="insufficient_scope", scope="<permission.scope>"` | `.../denied`, with `alternatives` listing what the token would allow |
-| Decision `denied` with reason `insufficient-user-authentication` (only `subject.assurance` conditions failed) | 401 | `Bearer error="insufficient_user_authentication", acr_values="<required acr>", max_age="<seconds>"` (RFC 9470 section 3): the union of `acr` and the smallest `maxAge` across the failed assurance grantees, a break-glass `requires.assurance` and a role `activation.assurance` | `.../step-up-required` with `acrValues` and `maxAge` |
-| Every denial is `not-entitled` | 403 | none | `.../not-entitled` with `plans` |
-| Every denial is `limit` | 429 | none; `Retry-After`, `RateLimit` and `RateLimit-Policy` instead ([RateLimit header fields](/docs/standards/ratelimit-headers)) | `.../rate-limited` |
-| Denials are `limit-unavailable`, possibly with `limit` | 503 | none | `.../limit-unavailable` |
-| Any `denied` on a loaded row of a `disclosure: 'hide'` resource, unless every reason is step-up or limit | 404 | none | `.../not-found`, the body a missing row gets |
-| Any other `denied` | 403 | none (the token was fine; authorization was not) | `.../denied` |
-| `approval-required` | 403 | none | `.../approval-required` |
-| `PermDockValidationError` | 400 | none | `.../validation` |
+| Situation                                                                                                     | Status | `WWW-Authenticate`                                                                                                                                                                                                                                                                | Problem Details `type`                                               |
+| ------------------------------------------------------------------------------------------------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| No token: no `Authorization` header (Decision reason `anonymous`)                                             | 401    | `Bearer`, with no error code (RFC 6750 section 3.1)                                                                                                                                                                                                                               | `.../unauthenticated`; no `denials`                                  |
+| A token that failed verification: `on('auth')` `reason: 'invalid-token'`, Decision reason `anonymous`         | 401    | `Bearer error="invalid_token", error_description="The access token is invalid"`; the `cause` stays on the audit event (RFC 6750 section 3.1 says not to explain to an unauthenticated caller)                                                                                     | `.../unauthenticated`                                                |
+| Decision `denied` with reason `not-delegated` or `no-delegation`                                              | 403    | `Bearer error="insufficient_scope", scope="<permission.scope>"`                                                                                                                                                                                                                   | `.../denied`, with `alternatives` listing what the token would allow |
+| Decision `denied` with reason `insufficient-user-authentication` (only `subject.assurance` conditions failed) | 401    | `Bearer error="insufficient_user_authentication", acr_values="<required acr>", max_age="<seconds>"` (RFC 9470 section 3): the union of `acr` and the smallest `maxAge` across the failed assurance grantees, a break-glass `requires.assurance` and a role `activation.assurance` | `.../step-up-required` with `acrValues` and `maxAge`                 |
+| Every denial is `not-entitled`                                                                                | 403    | none                                                                                                                                                                                                                                                                              | `.../not-entitled` with `plans`                                      |
+| Every denial is `limit`                                                                                       | 429    | none; `Retry-After`, `RateLimit` and `RateLimit-Policy` instead ([RateLimit header fields](/docs/standards/ratelimit-headers))                                                                                                                                                    | `.../rate-limited`                                                   |
+| Denials are `limit-unavailable`, possibly with `limit`                                                        | 503    | none                                                                                                                                                                                                                                                                              | `.../limit-unavailable`                                              |
+| Any `denied` on a loaded row of a `disclosure: 'hide'` resource, unless every reason is step-up or limit      | 404    | none                                                                                                                                                                                                                                                                              | `.../not-found`, the body a missing row gets                         |
+| Any other `denied`                                                                                            | 403    | none (the token was fine; authorization was not)                                                                                                                                                                                                                                  | `.../denied`                                                         |
+| `approval-required`                                                                                           | 403    | none                                                                                                                                                                                                                                                                              | `.../approval-required`                                              |
+| `PermDockValidationError`                                                                                     | 400    | none                                                                                                                                                                                                                                                                              | `.../validation`                                                     |
 
 Hyphenated PermDock reasons become the underscored wire codes; nothing else is translated.
 
@@ -160,20 +165,20 @@ Each `type` URI dereferences here: `https://permdock.dev/problems/<type>` redire
 
 ## Mapping table
 
-| RFC 9457 member | PermDock value |
-| --- | --- |
-| `type` | `https://permdock.dev/problems/denied`, `.../approval-required`, `.../validation`, `.../unauthenticated`, `.../step-up-required`, `.../not-entitled`, `.../rate-limited`, `.../limit-unavailable`, `.../not-found` |
-| `title` | Fixed per type, for example "Permission denied", "Approval required", "Authentication required", "Plan upgrade required", "Rate limit exceeded" |
-| `status` | Fixed per type: the number in each heading under [Problem types](#problem-types) |
-| `detail` | Model-readable sentence built from `Decision` reasons and `alternatives` |
-| `instance` | Request path (adapter-supplied) |
-| Extension `permission` | `permission.key` |
-| Extension `denials` | `Decision.denials` (role, reason, portable condition) |
-| Extension `alternatives` | `Decision.alternatives` as keys |
-| Extension `token` | `Decision.token` (approval-required only) |
-| Extension `issues` | Standard Schema `issues` (validation only) |
-| Media type | `application/problem+json` |
-| Companion `WWW-Authenticate` (RFC 6750, RFC 9470) | `invalid_token` from `on('auth')` `reason`, `insufficient_scope` from `not-delegated` / `no-delegation`, `insufficient_user_authentication` from `insufficient-user-authentication` |
+| RFC 9457 member                                   | PermDock value                                                                                                                                                                                                     |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `type`                                            | `https://permdock.dev/problems/denied`, `.../approval-required`, `.../validation`, `.../unauthenticated`, `.../step-up-required`, `.../not-entitled`, `.../rate-limited`, `.../limit-unavailable`, `.../not-found` |
+| `title`                                           | Fixed per type, for example "Permission denied", "Approval required", "Authentication required", "Plan upgrade required", "Rate limit exceeded"                                                                    |
+| `status`                                          | Fixed per type: the number in each heading under [Problem types](#problem-types)                                                                                                                                   |
+| `detail`                                          | Model-readable sentence built from `Decision` reasons and `alternatives`                                                                                                                                           |
+| `instance`                                        | Request path (adapter-supplied)                                                                                                                                                                                    |
+| Extension `permission`                            | `permission.key`                                                                                                                                                                                                   |
+| Extension `denials`                               | `Decision.denials` (role, reason, portable condition)                                                                                                                                                              |
+| Extension `alternatives`                          | `Decision.alternatives` as keys                                                                                                                                                                                    |
+| Extension `token`                                 | `Decision.token` (approval-required only)                                                                                                                                                                          |
+| Extension `issues`                                | Standard Schema `issues` (validation only)                                                                                                                                                                         |
+| Media type                                        | `application/problem+json`                                                                                                                                                                                         |
+| Companion `WWW-Authenticate` (RFC 6750, RFC 9470) | `invalid_token` from `on('auth')` `reason`, `insufficient_scope` from `not-delegated` / `no-delegation`, `insufficient_user_authentication` from `insufficient-user-authentication`                                |
 
 ## Why
 

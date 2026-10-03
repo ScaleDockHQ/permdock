@@ -1,15 +1,15 @@
-import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import Link from "next/link";
+import { notFound } from "next/navigation";
 
-import type { Quote } from '../permissions.ts';
+import type { Quote } from "../permissions.ts";
 
-import { quoteAccess, visibleQuotes } from '../lib/access.ts';
-import { customers } from '../lib/store.ts';
-import { approveQuote } from './actions.ts';
+import { quoteAccess, visibleQuotes } from "../lib/access.ts";
+import { customers } from "../lib/store.ts";
+import { approveQuote } from "./actions.ts";
 
-const money = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'USD',
+const money = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
   maximumFractionDigits: 0,
 });
 
@@ -32,7 +32,7 @@ export function ListSkeleton() {
 /** Links use `prefetch={true}`: the prefetch resolves the quote's params and its private access check. */
 export async function QuoteList(props: {
   readonly params: Promise<{ readonly org: string }>;
-  readonly prefix: '' | '/portal';
+  readonly prefix: "" | "/portal";
 }) {
   const { org } = await props.params;
   const quotes = await visibleQuotes(org);
@@ -49,7 +49,7 @@ export async function QuoteList(props: {
             data-quote={quote.id}
           >
             {quote.title}
-          </Link>{' '}
+          </Link>{" "}
           <span>
             {customerName(quote)} · {quote.status} · {money.format(quote.total)}
           </span>

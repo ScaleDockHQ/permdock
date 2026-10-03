@@ -1,9 +1,9 @@
-import { defineConfig } from 'permdock/cli';
+import { defineConfig } from "permdock/cli";
 
 export default defineConfig({
-  permissions: './packages/permissions/src/index.ts',
+  permissions: "./packages/permissions/src/index.ts",
   collect: {
-    srcPath: ['./apps/*/src', './packages/*/src'],
-    out: './permissions.catalog.json',
+    srcPath: ["./apps/*/src", "./packages/*/src"],
+    out: "./permissions.catalog.json",
   },
 });

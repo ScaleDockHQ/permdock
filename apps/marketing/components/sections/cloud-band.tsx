@@ -1,10 +1,8 @@
-import Link from 'next/link';
+import { ButtonLink } from "@/components/site/button-link";
+import { site } from "@/lib/site";
+import { Frame, FramePanel } from "@permdock/ui/reui/frame";
 
-import { site } from '@/lib/site';
-import { Button } from '@permdock/ui/components/button';
-import { Frame, FramePanel } from '@permdock/ui/reui/frame';
-
-import { Section } from './section';
+import { Section } from "./section";
 
 export function CloudBand() {
   return (
@@ -16,21 +14,15 @@ export function CloudBand() {
     >
       <Frame>
         <FramePanel className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-muted-foreground max-w-xl text-sm leading-6">
+          <p className="max-w-xl text-sm leading-6 text-muted-foreground">
             Decision log as evidence, hosted AuthZEN ADS, approval inbox, SCIM
             relay. None of it sits on the decision path.
           </p>
           <div className="flex flex-wrap items-center gap-2">
-            <Button nativeButton={false} render={<Link href="/cloud" />}>
-              PermDock Cloud
-            </Button>
-            <Button
-              variant="outline"
-              nativeButton={false}
-              render={<Link href={site.cloud.app} />}
-            >
+            <ButtonLink href="/cloud">PermDock Cloud</ButtonLink>
+            <ButtonLink variant="outline" href={site.cloud.app}>
               Open Cloud
-            </Button>
+            </ButtonLink>
           </div>
         </FramePanel>
       </Frame>

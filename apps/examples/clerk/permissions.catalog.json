@@ -1,0 +1,152 @@
+{
+  "$schema": "https://permdock.dev/schemas/catalog-v1.json",
+  "version": 1,
+  "generatedAt": "2026-10-03T18:25:46.653Z",
+  "generator": "permdock@0.1.0-next.2",
+  "fingerprint": "BB7YvqcmBM9rbB9QdibPBgrQISh03O27WO_EZSzbd08",
+  "resources": {
+    "post": {
+      "id": "id",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "authorId": {
+            "type": "string"
+          },
+          "orgId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "authorId",
+          "orgId"
+        ],
+        "additionalProperties": false
+      },
+      "definedIn": "src/permissions.ts",
+      "relations": {
+        "org": {
+          "field": "orgId",
+          "memberOf": "tenant"
+        }
+      }
+    }
+  },
+  "permissions": [
+    {
+      "key": "post.create",
+      "scope": "post:create",
+      "resource": "post",
+      "action": "create",
+      "arity": "collection",
+      "meta": {},
+      "usages": [],
+      "rowConditions": true
+    },
+    {
+      "key": "post.delete",
+      "scope": "post:delete",
+      "resource": "post",
+      "action": "delete",
+      "arity": "instance",
+      "meta": {},
+      "usages": [
+        {
+          "file": "src/app.ts",
+          "line": 57,
+          "call": "can"
+        },
+        {
+          "file": "src/policy.ts",
+          "line": 12,
+          "call": "allow"
+        }
+      ],
+      "rowConditions": true
+    },
+    {
+      "key": "post.list",
+      "scope": "post:list",
+      "resource": "post",
+      "action": "list",
+      "arity": "collection",
+      "meta": {},
+      "usages": [
+        {
+          "file": "src/app.ts",
+          "line": 19,
+          "call": "tools"
+        },
+        {
+          "file": "src/policy.ts",
+          "line": 24,
+          "call": "allow"
+        }
+      ],
+      "rowConditions": true
+    },
+    {
+      "key": "post.read",
+      "scope": "post:read",
+      "resource": "post",
+      "action": "read",
+      "arity": "instance",
+      "meta": {},
+      "usages": [
+        {
+          "file": "src/policy.ts",
+          "line": 10,
+          "call": "allow"
+        },
+        {
+          "file": "src/policy.ts",
+          "line": 19,
+          "call": "allow"
+        }
+      ],
+      "rowConditions": true
+    },
+    {
+      "key": "post.update",
+      "scope": "post:update",
+      "resource": "post",
+      "action": "update",
+      "arity": "instance",
+      "meta": {},
+      "usages": [
+        {
+          "file": "src/app.ts",
+          "line": 45,
+          "call": "can"
+        },
+        {
+          "file": "src/policy.ts",
+          "line": 11,
+          "call": "allow"
+        },
+        {
+          "file": "src/policy.ts",
+          "line": 20,
+          "call": "allow"
+        }
+      ],
+      "rowConditions": true
+    }
+  ],
+  "roles": [
+    {
+      "key": "org:admin"
+    },
+    {
+      "key": "org:invoices:create"
+    },
+    {
+      "key": "org:member"
+    }
+  ]
+}

@@ -1,7 +1,7 @@
-import type { MembershipsMapping } from '../conditions/compile.ts';
-import type { RelationsMapping } from '../conditions/graph-sql.ts';
-import type { WithSubjectOptions } from '../conditions/subject-settings.ts';
-import type { Subject } from '../core/subject.ts';
+import type { MembershipsMapping } from "../conditions/compile.ts";
+import type { RelationsMapping } from "../conditions/graph-sql.ts";
+import type { WithSubjectOptions } from "../conditions/subject-settings.ts";
+import type { Subject } from "../core/subject.ts";
 
 export type KyselySelectQuery = {
   select(expr: unknown): KyselySelectQuery;

@@ -1,15 +1,15 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { useParams, useSearchParams } from 'next/navigation';
-import { Protected } from 'permdock/react';
+import Link from "next/link";
+import { useParams, useSearchParams } from "next/navigation";
+import { Protected } from "permdock/react";
 
-import { navItems } from '../../nav.ts';
-import { permissions } from '../../permissions.ts';
-import { ForbiddenState } from './forbidden-state.tsx';
+import { navItems } from "../../nav.ts";
+import { permissions } from "../../permissions.ts";
+import { ForbiddenState } from "./forbidden-state.tsx";
 
 export function DeniedBanner() {
-  const denied = useSearchParams().get('denied');
+  const denied = useSearchParams().get("denied");
   const item =
     denied === null ? undefined : navItems.find((entry) => entry.id === denied);
   if (item === undefined) {
@@ -36,7 +36,7 @@ function Links(props: { readonly org: string }) {
   return (
     <ul aria-label="Quick links">
       {navItems
-        .filter((item) => item.path !== '')
+        .filter((item) => item.path !== "")
         .map((item) => (
           <li key={item.id}>
             <Link

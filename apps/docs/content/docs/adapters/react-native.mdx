@@ -13,24 +13,29 @@ The guard has no promise, loading state or pending value: when it flips to `fals
 
 `Stack.Protected` and `Tabs.Protected` decide which screens exist; `Protected` decides which sections of a screen render, with `pending` and `fallback` render props. Both read the same snapshot.
 
-| Concern | `permdock/next` (web) | `permdock/react-native` (Expo) |
-| --- | --- | --- |
-| First-frame answer | Snapshot in the prefetched App Shell | Snapshot in device storage |
-| What makes it available before render | `'use cache: private'` with `cacheLife` | A synchronous `storage.getItem()` on launch |
-| Refresh trigger | `updateTag` after a mutation | Fetch on launch, on foreground, or on `refresh()` |
-| Revocation path | SSF receiver invalidates the tag | The `revalidate` interval; no push without an app channel |
-| Closure grants | Batched call to `permdockHandler()` | Same endpoint; `server-only` while offline |
+| Concern                               | `permdock/next` (web)                   | `permdock/react-native` (Expo)                            |
+| ------------------------------------- | --------------------------------------- | --------------------------------------------------------- |
+| First-frame answer                    | Snapshot in the prefetched App Shell    | Snapshot in device storage                                |
+| What makes it available before render | `'use cache: private'` with `cacheLife` | A synchronous `storage.getItem()` on launch               |
+| Refresh trigger                       | `updateTag` after a mutation            | Fetch on launch, on foreground, or on `refresh()`         |
+| Revocation path                       | SSF receiver invalidates the tag        | The `revalidate` interval; no push without an app channel |
+| Closure grants                        | Batched call to `permdockHandler()`     | Same endpoint; `server-only` while offline                |
 
 Everything above the transport is shared: the snapshot format, the condition evaluator, `usePermission`'s return shape and the decision endpoint.
 
 ## API
 
 ```tsx
-import { PermDockProvider, usePermDock, usePermission, Protected } from 'permdock/react-native'
-import { permissions } from '@/permissions'
+import {
+  PermDockProvider,
+  usePermDock,
+  usePermission,
+  Protected,
+} from "permdock/react-native";
+import { permissions } from "@/permissions";
 
 <PermDockProvider
-  storage={mmkvStorage}              // { getItem, setItem, removeItem }, sync or async
+  storage={mmkvStorage} // { getItem, setItem, removeItem }, sync or async
   endpoint="https://api.example.com/permdock"
   snapshotUrl="https://api.example.com/permdock/snapshot"
 >
@@ -39,17 +44,17 @@ import { permissions } from '@/permissions'
       <Stack.Screen name="admin" />
     </Stack.Protected>
   </Stack>
-</PermDockProvider>
+</PermDockProvider>;
 ```
 
-| Option or export | Role |
-|---|---|
-| `storage` | Any object with `getItem`, `setItem`, `removeItem` (MMKV, `expo-secure-store`, AsyncStorage). Synchronous stores answer on the first frame; asynchronous stores answer on the second frame with `status: 'pending'` in between. |
-| `snapshotUrl` | Where to fetch a fresh snapshot after launch and on `refresh()`. The request carries the app's session token through the `headers` or `fetch` option. |
-| `endpoint` | Same batched decision endpoint as React, for closure grants. |
-| `revalidate` | `'launch'` (default), `'focus'` (also on app foreground when `subscribeForeground` is set) or a number of seconds. |
-| `subscribeForeground` | Optional `(listener) => unsubscribe` for `revalidate: 'focus'`. Pass `AppState.addEventListener('change', ...)` from `react-native` so the snapshot refreshes when the app returns to the foreground. |
-| `usePermission`, `usePermDock`, `Protected` | Identical to `permdock/react`; `status` gains no new values, `stale` covers the persisted-but-revalidating case. |
+| Option or export                                                                                                                                        | Role                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `storage`                                                                                                                                               | Any object with `getItem`, `setItem`, `removeItem` (MMKV, `expo-secure-store`, AsyncStorage). Synchronous stores answer on the first frame; asynchronous stores answer on the second frame with `status: 'pending'` in between.                                                                                                                                                                                                                                                                             |
+| `snapshotUrl`                                                                                                                                           | Where to fetch a fresh snapshot after launch and on `refresh()`. The request carries the app's session token through the `headers` or `fetch` option.                                                                                                                                                                                                                                                                                                                                                       |
+| `endpoint`                                                                                                                                              | Same batched decision endpoint as React, for closure grants.                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `revalidate`                                                                                                                                            | `'launch'` (default), `'focus'` (also on app foreground when `subscribeForeground` is set) or a number of seconds.                                                                                                                                                                                                                                                                                                                                                                                          |
+| `subscribeForeground`                                                                                                                                   | Optional `(listener) => unsubscribe` for `revalidate: 'focus'`. Pass `AppState.addEventListener('change', ...)` from `react-native` so the snapshot refreshes when the app returns to the foreground.                                                                                                                                                                                                                                                                                                       |
+| `usePermission`, `usePermDock`, `Protected`                                                                                                             | Identical to `permdock/react`; `status` gains no new values, `stale` covers the persisted-but-revalidating case.                                                                                                                                                                                                                                                                                                                                                                                            |
 | `usePermissions`, `useFilter`, `useTenant`, `useMemberships`, `useRoles`, `useAssignableRoles`, `useAssignablePermissions`, `useApproval`, `useSubject` | Identical to `permdock/react` ([UI](/docs/concepts/ui)). `useTenant().switchTo` persists the chosen tenant next to the snapshot so the app reopens in the same organisation; a tenant already in the persisted snapshot (`tenants: 'all'`) switches locally and works offline; any other tenant refetches the snapshot with `?tenant=`, and a failed refetch (offline, non-2xx, invalid body) keeps the previous tenant and snapshot. Nothing is queued: call `switchTo` again when the connection returns. |
 
 ## Request lifecycle

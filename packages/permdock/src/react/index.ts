@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-export { describe, requiredPlans } from '../core/describe.ts';
-export { approvalHeaders } from './headers.ts';
+export { describe, requiredPlans } from "../core/describe.ts";
+export { approvalHeaders } from "./headers.ts";
 export {
   useApproval,
   useAssignablePermissions,
@@ -14,9 +14,9 @@ export {
   useRoles,
   useSubject,
   useTenant,
-} from './hooks.ts';
-export { PermDockProvider } from './provider.tsx';
-export { Protected } from './protected.tsx';
+} from "./hooks.ts";
+export { PermDockProvider } from "./provider.tsx";
+export { Protected } from "./protected.tsx";
 export type {
   ApprovalHandle,
   ApprovalState,
@@ -29,4 +29,4 @@ export type {
   ProtectedProps,
   SubjectView,
   TenantView,
-} from './types.ts';
+} from "./types.ts";

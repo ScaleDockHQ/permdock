@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { z } from 'zod';
+import { describe, expect, it } from "vitest";
+import { z } from "zod";
 
 import {
   allow,
@@ -10,8 +10,8 @@ import {
   resource,
   relation,
   role,
-} from '../../src/index.ts';
-import { rlsParity } from '../../src/testing/rls-parity.ts';
+} from "../../src/index.ts";
+import { rlsParity } from "../../src/testing/rls-parity.ts";
 
 const Post = z.object({
   id: z.string(),
@@ -20,15 +20,15 @@ const Post = z.object({
 
 const permissions = definePermissions({
   post: resource(Post, {
-    id: 'id',
-    actions: ['read', 'update', 'publish', 'delete'],
-    collection: ['list', 'create'],
+    id: "id",
+    actions: ["read", "update", "publish", "delete"],
+    collection: ["list", "create"],
   }),
 });
 
 const policy = definePolicy(permissions, {
   roles: [
-    role('member', [
+    role("member", [
       allow(permissions.post.read),
       allow(permissions.post.list),
       allow(permissions.post.create),
@@ -41,35 +41,35 @@ const policy = definePolicy(permissions, {
     user,
 });
 
-const own = { id: 'p1', authorId: 'u1' };
-const other = { id: 'p2', authorId: 'u9' };
+const own = { id: "p1", authorId: "u1" };
+const other = { id: "p2", authorId: "u9" };
 
-describe('rlsParity', () => {
-  it('agrees when the database filters a denied update', async () => {
+describe("rlsParity", () => {
+  it("agrees when the database filters a denied update", async () => {
     const report = await rlsParity(policy, {
-      dialect: 'guc',
+      dialect: "guc",
       fixtures: [
         {
-          name: 'read own',
-          subject: { id: 'u1', roles: ['member'] },
+          name: "read own",
+          subject: { id: "u1", roles: ["member"] },
           permission: permissions.post.read,
           row: own,
-          table: 'post',
+          table: "post",
         },
         {
-          name: 'update other',
-          subject: { id: 'u1', roles: ['member'] },
+          name: "update other",
+          subject: { id: "u1", roles: ["member"] },
           permission: permissions.post.update,
           row: other,
-          table: 'post',
+          table: "post",
         },
       ],
       query: async (sql, values) => {
         expect(sql).not.toMatch(/service_role/i);
-        if (sql.startsWith('update') && values?.[0] === 'p2') {
+        if (sql.startsWith("update") && values?.[0] === "p2") {
           return { rows: [], rowCount: 0 };
         }
-        if (sql.startsWith('select *') && values?.[0] === 'p1') {
+        if (sql.startsWith("select *") && values?.[0] === "p1") {
           return { rows: [own], rowCount: 1 };
         }
         return { rows: [], rowCount: 0 };
@@ -77,113 +77,113 @@ describe('rlsParity', () => {
     });
     expect(report.ok).toBe(true);
     expect(report.results).toEqual([
-      { name: 'read own', granted: true, database: 'allowed', ok: true },
-      { name: 'update other', granted: false, database: 'filtered', ok: true },
+      { name: "read own", granted: true, database: "allowed", ok: true },
+      { name: "update other", granted: false, database: "filtered", ok: true },
     ]);
   });
 
-  it('treats 42501 as rejected and never uses service_role', async () => {
+  it("treats 42501 as rejected and never uses service_role", async () => {
     const report = await rlsParity(policy, {
       fixtures: [
         {
-          name: 'update other rejected',
-          subject: { id: 'u1', roles: ['member'] },
+          name: "update other rejected",
+          subject: { id: "u1", roles: ["member"] },
           permission: permissions.post.update,
           row: other,
-          table: 'post',
+          table: "post",
         },
       ],
       query: async (sql) => {
         expect(sql).not.toMatch(/service_role/i);
-        if (sql.startsWith('update')) {
-          return { rows: [], code: '42501' };
+        if (sql.startsWith("update")) {
+          return { rows: [], code: "42501" };
         }
         return { rows: [] };
       },
     });
-    expect(report.results[0]?.database).toBe('rejected');
+    expect(report.results[0]?.database).toBe("rejected");
     expect(report.ok).toBe(true);
   });
 
-  it('sets supabase jwt claims and guc tenant settings', async () => {
+  it("sets supabase jwt claims and guc tenant settings", async () => {
     const seen: string[] = [];
     await rlsParity(policy, {
-      dialect: 'supabase',
+      dialect: "supabase",
       fixtures: [
         {
-          name: 'list own',
+          name: "list own",
           subject: {
-            id: 'u1',
-            roles: ['member'],
-            tenant: 'o1',
-            memberships: [{ tenant: 'o1', roles: ['member'] }],
+            id: "u1",
+            roles: ["member"],
+            tenant: "o1",
+            memberships: [{ tenant: "o1", roles: ["member"] }],
           },
           permission: permissions.post.list,
           row: own,
-          table: 'post',
+          table: "post",
         },
       ],
       query: async (sql, values) => {
-        seen.push(`${sql} ${String(values?.[0] ?? '')}`);
-        if (values?.[0] === 'request.jwt.claims') {
+        seen.push(`${sql} ${String(values?.[0] ?? "")}`);
+        if (values?.[0] === "request.jwt.claims") {
           expect(String(values[1])).toContain('"sub":"u1"');
         }
-        if (sql.startsWith('select *')) {
+        if (sql.startsWith("select *")) {
           return { rows: [own], rowCount: 1 };
         }
         return { rows: [] };
       },
     });
-    expect(seen.some((sql) => sql.includes('request.jwt.claims'))).toBe(true);
+    expect(seen.some((sql) => sql.includes("request.jwt.claims"))).toBe(true);
 
     const guc: string[] = [];
     await rlsParity(policy, {
-      dialect: 'guc',
+      dialect: "guc",
       fixtures: [
         {
-          name: 'read with tenant',
-          subject: { id: 'u1', roles: ['member'], tenant: 'o1' },
+          name: "read with tenant",
+          subject: { id: "u1", roles: ["member"], tenant: "o1" },
           permission: permissions.post.read,
           row: own,
-          table: 'post',
+          table: "post",
         },
       ],
       query: async (sql, values) => {
-        guc.push(`${sql} ${String(values?.[0] ?? '')}`);
-        if (sql.startsWith('select *')) {
+        guc.push(`${sql} ${String(values?.[0] ?? "")}`);
+        if (sql.startsWith("select *")) {
           return { rows: [own], rowCount: 1 };
         }
         return { rows: [] };
       },
     });
-    expect(guc.some((sql) => sql.includes('app.user_id'))).toBe(true);
-    expect(guc.some((sql) => sql.includes('app.tenant_id'))).toBe(true);
+    expect(guc.some((sql) => sql.includes("app.user_id"))).toBe(true);
+    expect(guc.some((sql) => sql.includes("app.tenant_id"))).toBe(true);
   });
 
-  it('compiles create, delete and unknown actions and rejects unsafe tables', async () => {
+  it("compiles create, delete and unknown actions and rejects unsafe tables", async () => {
     const sqls: string[] = [];
     await rlsParity(policy, {
       fixtures: [
         {
-          name: 'create',
-          subject: { id: 'u1', roles: ['member'] },
+          name: "create",
+          subject: { id: "u1", roles: ["member"] },
           permission: permissions.post.create,
           row: own,
-          table: 'post',
+          table: "post",
         },
         {
-          name: 'delete',
-          subject: { id: 'u1', roles: ['member'] },
+          name: "delete",
+          subject: { id: "u1", roles: ["member"] },
           permission: permissions.post.delete,
           row: own,
-          table: 'post',
+          table: "post",
         },
         {
-          name: 'publish',
-          subject: { id: 'u1', roles: ['member'] },
+          name: "publish",
+          subject: { id: "u1", roles: ["member"] },
           permission: permissions.post.publish,
           row: own,
-          table: 'post',
+          table: "post",
         },
       ],
       query: async (sql) => {
@@ -191,19 +191,19 @@ describe('rlsParity', () => {
         return { rows: [own], rowCount: 1 };
       },
     });
-    expect(sqls.some((sql) => sql.startsWith('insert'))).toBe(true);
-    expect(sqls.some((sql) => sql.startsWith('delete'))).toBe(true);
-    expect(sqls.some((sql) => sql.startsWith('select *'))).toBe(true);
+    expect(sqls.some((sql) => sql.startsWith("insert"))).toBe(true);
+    expect(sqls.some((sql) => sql.startsWith("delete"))).toBe(true);
+    expect(sqls.some((sql) => sql.startsWith("select *"))).toBe(true);
 
     await expect(
       rlsParity(policy, {
         fixtures: [
           {
-            name: 'unsafe',
-            subject: { id: 'u1', roles: ['member'] },
+            name: "unsafe",
+            subject: { id: "u1", roles: ["member"] },
             permission: permissions.post.read,
             row: own,
-            table: 'post;drop',
+            table: "post;drop",
           },
         ],
         query: async () => ({ rows: [] }),
@@ -211,15 +211,15 @@ describe('rlsParity', () => {
     ).rejects.toThrow(/unsafe SQL identifier/);
   });
 
-  it('reports mismatch when the database filters a granted read', async () => {
+  it("reports mismatch when the database filters a granted read", async () => {
     const report = await rlsParity(policy, {
       fixtures: [
         {
-          name: 'read own missing',
-          subject: { id: 'u1', roles: ['member'] },
+          name: "read own missing",
+          subject: { id: "u1", roles: ["member"] },
           permission: permissions.post.read,
           row: own,
-          table: 'post',
+          table: "post",
         },
       ],
       query: async () => ({ rows: [], rowCount: 0 }),
@@ -227,7 +227,7 @@ describe('rlsParity', () => {
     expect(report.ok).toBe(false);
     expect(report.results[0]).toMatchObject({
       granted: true,
-      database: 'filtered',
+      database: "filtered",
       ok: false,
     });
   });
@@ -235,10 +235,10 @@ describe('rlsParity', () => {
 
 const relationPermissions = definePermissions({
   post: resource(Post, {
-    id: 'id',
-    actions: ['read', 'update'],
-    collection: ['list'],
-    relations: { author: 'authorId' },
+    id: "id",
+    actions: ["read", "update"],
+    collection: ["list"],
+    relations: { author: "authorId" },
   }),
 });
 
@@ -250,37 +250,37 @@ const relationPolicy = definePolicy(relationPermissions, {
   grants: [
     allow(relationPermissions.post.read, { to: anyone() }),
     allow(relationPermissions.post.update, {
-      to: relation(relationPermissions.post, 'author'),
+      to: relation(relationPermissions.post, "author"),
     }),
   ],
 });
 
-describe('rlsParity relation grantee', () => {
-  it('agrees when a relation where filters another author', async () => {
+describe("rlsParity relation grantee", () => {
+  it("agrees when a relation where filters another author", async () => {
     const report = await rlsParity(relationPolicy, {
-      dialect: 'guc',
+      dialect: "guc",
       fixtures: [
         {
-          name: 'update own',
-          subject: { id: 'u1', roles: ['member'] },
+          name: "update own",
+          subject: { id: "u1", roles: ["member"] },
           permission: relationPermissions.post.update,
           row: own,
-          table: 'post',
+          table: "post",
         },
         {
-          name: 'update other',
-          subject: { id: 'u1', roles: ['member'] },
+          name: "update other",
+          subject: { id: "u1", roles: ["member"] },
           permission: relationPermissions.post.update,
           row: other,
-          table: 'post',
+          table: "post",
         },
       ],
       query: async (sql, values) => {
         expect(sql).not.toMatch(/service_role/i);
-        if (sql.startsWith('update') && values?.[0] === 'p2') {
+        if (sql.startsWith("update") && values?.[0] === "p2") {
           return { rows: [], rowCount: 0 };
         }
-        if (sql.startsWith('update') && values?.[0] === 'p1') {
+        if (sql.startsWith("update") && values?.[0] === "p1") {
           return { rows: [own], rowCount: 1 };
         }
         return { rows: [], rowCount: 0 };
@@ -288,49 +288,49 @@ describe('rlsParity relation grantee', () => {
     });
     expect(report.ok).toBe(true);
     expect(report.results).toEqual([
-      { name: 'update own', granted: true, database: 'allowed', ok: true },
-      { name: 'update other', granted: false, database: 'filtered', ok: true },
+      { name: "update own", granted: true, database: "allowed", ok: true },
+      { name: "update other", granted: false, database: "filtered", ok: true },
     ]);
   });
 
-  it('also decides from the serialized snapshot and flags a disagreement', async () => {
+  it("also decides from the serialized snapshot and flags a disagreement", async () => {
     const report = await rlsParity(policy, {
-      dialect: 'supabase',
+      dialect: "supabase",
       snapshot: true,
       fixtures: [
         {
-          name: 'read own',
+          name: "read own",
           subject: {
-            id: 'u1',
-            roles: ['member'],
-            tenant: 'o1',
-            memberships: [{ tenant: 'o1', roles: ['member'] }],
+            id: "u1",
+            roles: ["member"],
+            tenant: "o1",
+            memberships: [{ tenant: "o1", roles: ["member"] }],
           },
           permission: permissions.post.read,
           row: own,
-          table: 'post',
+          table: "post",
         },
       ],
       query: async (sql, values) => {
-        if (sql.startsWith('select set_config')) {
+        if (sql.startsWith("select set_config")) {
           // SAFETY: the runner passes the JSON claims it built as the second set_config value.
           const claims = JSON.parse(String(values?.[1])) as {
             readonly memberships: readonly unknown[];
           };
           expect(claims.memberships).toEqual([
-            { scope: 'tenant', id: 'o1', roles: ['member'] },
+            { scope: "tenant", id: "o1", roles: ["member"] },
           ]);
         }
-        return sql.startsWith('select *')
+        return sql.startsWith("select *")
           ? { rows: [own], rowCount: 1 }
           : { rows: [], rowCount: 0 };
       },
     });
     expect(report.results).toEqual([
       {
-        name: 'read own',
+        name: "read own",
         granted: true,
-        database: 'allowed',
+        database: "allowed",
         snapshot: true,
         ok: true,
       },
@@ -346,24 +346,24 @@ const Invoice = z.object({
 
 const invoices = definePermissions({
   invoice: resource(Invoice, {
-    id: 'id',
-    actions: ['read', 'update'],
-    collection: ['list'],
+    id: "id",
+    actions: ["read", "update"],
+    collection: ["list"],
   }),
 });
 
 const fieldPolicy = definePolicy(invoices, {
   roles: [
-    role('admin', [allow([invoices.invoice.read, invoices.invoice.update])]),
-    role('finance', [
-      allow(invoices.invoice.read, { fields: ['id', 'title'] }),
+    role("admin", [allow([invoices.invoice.read, invoices.invoice.update])]),
+    role("finance", [
+      allow(invoices.invoice.read, { fields: ["id", "title"] }),
     ]),
   ],
   subject: (user: { readonly id: string; readonly roles: readonly string[] }) =>
     user,
 });
 
-const invoice = { id: 'i1', title: 'Rent', amount: 100 };
+const invoice = { id: "i1", title: "Rent", amount: 100 };
 
 type Answer = {
   readonly rows: readonly Record<string, unknown>[];
@@ -387,53 +387,53 @@ function fieldDb(view: (sql: string) => Answer): {
         return { rows: [invoice], rowCount: 1 };
       }
       if (sql.startsWith('select "id" from "invoice"')) {
-        return { rows: [{ id: 'i1' }], rowCount: 1 };
+        return { rows: [{ id: "i1" }], rowCount: 1 };
       }
       return { rows: [], rowCount: 0 };
     },
   };
 }
 
-describe('rlsParity fieldViews', () => {
-  it('compares the view row with the columns pick keeps', async () => {
+describe("rlsParity fieldViews", () => {
+  it("compares the view row with the columns pick keeps", async () => {
     const db = fieldDb(() => ({
-      rows: [{ id: 'i1', title: 'Rent', amount: null }],
+      rows: [{ id: "i1", title: "Rent", amount: null }],
       rowCount: 1,
     }));
     const report = await rlsParity(fieldPolicy, {
-      dialect: 'neon',
+      dialect: "neon",
       fieldViews: true,
       fixtures: [
         {
-          name: 'finance',
-          subject: { id: 'u1', roles: ['finance'] },
+          name: "finance",
+          subject: { id: "u1", roles: ["finance"] },
           permission: invoices.invoice.read,
           row: invoice,
-          table: 'invoice',
+          table: "invoice",
         },
         {
-          name: 'admin sees a masked amount',
-          subject: { id: 'u2', roles: ['admin'] },
+          name: "admin sees a masked amount",
+          subject: { id: "u2", roles: ["admin"] },
           permission: invoices.invoice.read,
           row: invoice,
-          table: 'invoice',
+          table: "invoice",
         },
       ],
       query: db.query,
     });
     expect(report.results).toEqual([
       {
-        name: 'finance',
+        name: "finance",
         granted: true,
-        database: 'allowed',
-        fields: { app: ['id', 'title'], database: ['id', 'title'] },
+        database: "allowed",
+        fields: { app: ["id", "title"], database: ["id", "title"] },
         ok: true,
       },
       {
-        name: 'admin sees a masked amount',
+        name: "admin sees a masked amount",
         granted: true,
-        database: 'allowed',
-        fields: { app: ['amount', 'id', 'title'], database: ['id', 'title'] },
+        database: "allowed",
+        fields: { app: ["amount", "id", "title"], database: ["id", "title"] },
         ok: false,
       },
     ]);
@@ -441,20 +441,20 @@ describe('rlsParity fieldViews', () => {
     expect(
       db.sqls.some(
         (sql) =>
-          sql.includes('request.jwt.claims') ||
-          sql.startsWith('select set_config'),
+          sql.includes("request.jwt.claims") ||
+          sql.startsWith("select set_config"),
       ),
     ).toBe(true);
   });
 
-  it('reads the table when it has no view, and reports a failed view read', async () => {
-    const missing = fieldDb(() => ({ rows: [], code: '42P01' }));
+  it("reads the table when it has no view, and reports a failed view read", async () => {
+    const missing = fieldDb(() => ({ rows: [], code: "42P01" }));
     const admin = {
-      name: 'admin',
-      subject: { id: 'u2', roles: ['admin'] },
+      name: "admin",
+      subject: { id: "u2", roles: ["admin"] },
       permission: invoices.invoice.read,
       row: invoice,
-      table: 'invoice',
+      table: "invoice",
     };
     const fallback = await rlsParity(fieldPolicy, {
       fieldViews: true,
@@ -462,38 +462,38 @@ describe('rlsParity fieldViews', () => {
       query: missing.query,
     });
     expect(fallback.results[0]?.fields).toEqual({
-      app: ['amount', 'id', 'title'],
-      database: ['amount', 'id', 'title'],
+      app: ["amount", "id", "title"],
+      database: ["amount", "id", "title"],
     });
     expect(fallback.ok).toBe(true);
-    expect(missing.sqls).toContain('rollback to savepoint permdock_fields');
+    expect(missing.sqls).toContain("rollback to savepoint permdock_fields");
     const refused = await rlsParity(fieldPolicy, {
       fieldViews: true,
       fixtures: [admin],
-      query: fieldDb(() => ({ rows: [], code: '42501' })).query,
+      query: fieldDb(() => ({ rows: [], code: "42501" })).query,
     });
-    expect(refused.results[0]?.fields?.database).toBe('42501');
+    expect(refused.results[0]?.fields?.database).toBe("42501");
     expect(refused.ok).toBe(false);
   });
 
-  it('expects no columns for a denied row and skips writes', async () => {
+  it("expects no columns for a denied row and skips writes", async () => {
     const db = fieldDb(() => ({ rows: [], rowCount: 0 }));
     const report = await rlsParity(fieldPolicy, {
       fieldViews: true,
       fixtures: [
         {
-          name: 'stranger',
-          subject: { id: 'u3', roles: [] },
+          name: "stranger",
+          subject: { id: "u3", roles: [] },
           permission: invoices.invoice.read,
           row: invoice,
-          table: 'invoice',
+          table: "invoice",
         },
         {
-          name: 'finance update',
-          subject: { id: 'u1', roles: ['finance'] },
+          name: "finance update",
+          subject: { id: "u1", roles: ["finance"] },
           permission: invoices.invoice.update,
           row: invoice,
-          table: 'invoice',
+          table: "invoice",
         },
       ],
       query: async (sql) =>
@@ -509,21 +509,21 @@ describe('rlsParity fieldViews', () => {
     );
   });
 
-  it('runs as anonymous under neon with claims and no roles', async () => {
+  it("runs as anonymous under neon with claims and no roles", async () => {
     const sqls: {
       readonly sql: string;
       readonly values?: readonly unknown[];
     }[] = [];
     const report = await rlsParity(policy, {
-      dialect: 'neon',
-      role: 'anon',
+      dialect: "neon",
+      role: "anon",
       fixtures: [
         {
-          name: 'anonymous read',
-          subject: { id: 'u5', claims: { plan: 'pro' } },
+          name: "anonymous read",
+          subject: { id: "u5", claims: { plan: "pro" } },
           permission: permissions.post.read,
           row: own,
-          table: 'post',
+          table: "post",
         },
       ],
       query: async (sql, values) => {
@@ -533,9 +533,9 @@ describe('rlsParity fieldViews', () => {
     });
     expect(report.results).toEqual([
       {
-        name: 'anonymous read',
+        name: "anonymous read",
         granted: false,
-        database: 'filtered',
+        database: "filtered",
         ok: true,
       },
     ]);
@@ -543,27 +543,27 @@ describe('rlsParity fieldViews', () => {
       'set local role "anonymous"',
     );
     const claims = sqls.find(
-      (item) => item.values?.[0] === 'request.jwt.claims',
+      (item) => item.values?.[0] === "request.jwt.claims",
     );
     expect(JSON.parse(String(claims?.values?.[1]))).toMatchObject({
-      sub: 'u5',
-      plan: 'pro',
+      sub: "u5",
+      plan: "pro",
       user_role: [],
     });
   });
 
-  it('sets each claim as a GUC and refuses an unsafe claim name', async () => {
+  it("sets each claim as a GUC and refuses an unsafe claim name", async () => {
     const values: unknown[] = [];
     const fixture = {
-      name: 'claims',
+      name: "claims",
       subject: {
-        id: 'u1',
-        roles: ['member'],
-        claims: { plan: 'pro', seats: 3 },
+        id: "u1",
+        roles: ["member"],
+        claims: { plan: "pro", seats: 3 },
       },
       permission: permissions.post.read,
       row: own,
-      table: 'post',
+      table: "post",
     };
     await rlsParity(policy, {
       fixtures: [fixture],
@@ -572,11 +572,11 @@ describe('rlsParity fieldViews', () => {
         return { rows: [], rowCount: 0 };
       },
     });
-    expect(values).toContainEqual(['app.plan', 'pro']);
-    expect(values).toContainEqual(['app.seats', '3']);
+    expect(values).toContainEqual(["app.plan", "pro"]);
+    expect(values).toContainEqual(["app.seats", "3"]);
     await expect(
       rlsParity(policy, {
-        fixtures: [{ ...fixture, subject: { id: 'u1', claims: { 'a-b': 1 } } }],
+        fixtures: [{ ...fixture, subject: { id: "u1", claims: { "a-b": 1 } } }],
         query: async () => ({ rows: [], rowCount: 0 }),
       }),
     ).rejects.toThrow(/unsafe claim name/u);

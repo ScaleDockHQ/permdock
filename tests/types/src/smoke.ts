@@ -9,8 +9,8 @@ import {
   resource,
   role,
   principal,
-} from 'permdock';
-import { z } from 'zod';
+} from "permdock";
+import { z } from "zod";
 
 const Post = z.object({
   id: z.string(),
@@ -19,9 +19,9 @@ const Post = z.object({
 
 export const permissions = definePermissions({
   post: resource(Post, {
-    id: 'id',
-    actions: ['read', 'update', 'delete'],
-    collection: ['list', 'create'],
+    id: "id",
+    actions: ["read", "update", "delete"],
+    collection: ["list", "create"],
   }),
 });
 
@@ -51,11 +51,11 @@ export const policy = definePolicy(
 );
 
 export async function check(): Promise<boolean> {
-  const dock = await createPermDock(policy, {
-    id: 'u1',
-    roles: ['member'],
+  const permdock = await createPermDock(policy, {
+    id: "u1",
+    roles: ["member"],
   });
   const trees =
-    dock.roles.member.key === 'member' && dock.plans.pro.key === 'pro';
-  return dock.can(permissions.post.list) && trees;
+    permdock.roles.member.key === "member" && permdock.plans.pro.key === "pro";
+  return permdock.can(permissions.post.list) && trees;
 }

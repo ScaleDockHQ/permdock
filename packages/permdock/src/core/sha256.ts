@@ -99,10 +99,10 @@ export function sha256(message: string): Uint8Array {
 }
 
 export function bytesToBase64Url(bytes: Uint8Array): string {
-  let binary = '';
+  let binary = "";
   for (const byte of bytes) {
     binary += String.fromCodePoint(byte);
   }
   const base64 = btoa(binary);
-  return base64.replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '');
+  return base64.replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
 }

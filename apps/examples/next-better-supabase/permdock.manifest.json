@@ -2,12 +2,12 @@
   "$schema": "https://permdock.dev/schemas/supabase-manifest-v1.json",
   "version": 1,
   "hook": {
-    "schema": "public",
+    "schema": "permdock",
     "function": "custom_access_token_hook",
-    "out": "supabase/permdock-hook.sql"
+    "out": "supabase/schemas/permdock/functions/custom_access_token_hook.sql"
   },
   "helpers": {
-    "schema": "public",
+    "schema": "permdock",
     "functions": [
       "permdock_has",
       "permitted_organization_ids",
@@ -66,6 +66,11 @@
     }
   ],
   "authzVersion": true,
+  "authzVersionBump": {
+    "schema": "permdock",
+    "function": "permdock_bump_authz_version_for",
+    "args": "p_users uuid[]"
+  },
   "memberships": [
     {
       "table": "public.memberships",
@@ -109,7 +114,7 @@
     }
   ],
   "rls": {
-    "schema": "public",
+    "schema": "permdock",
     "mode": "database",
     "tenantClaim": "tenant_id",
     "scopes": [
@@ -165,6 +170,48 @@
         "args": "p_user uuid",
         "returns": "setof uuid",
         "execute": ["supabase_auth_admin"]
+      }
+    ],
+    "memberships": [
+      {
+        "table": "public.memberships",
+        "user": {
+          "column": "user_id"
+        },
+        "scope": {
+          "column": "scope"
+        },
+        "id": {
+          "column": "scope_id"
+        },
+        "role": {
+          "column": "role"
+        },
+        "columns": ["user_id", "scope", "scope_id", "role"]
+      },
+      {
+        "table": "public.contacts",
+        "user": {
+          "column": "user_id"
+        },
+        "scope": {
+          "value": "customer"
+        },
+        "id": {
+          "column": "customer_id"
+        },
+        "role": {
+          "value": ["contact"]
+        },
+        "within": {
+          "columns": {
+            "organization": "organization_id"
+          }
+        },
+        "via": {
+          "value": "contact"
+        },
+        "columns": ["user_id", "customer_id", "organization_id"]
       }
     ]
   },

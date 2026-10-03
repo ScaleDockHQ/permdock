@@ -1,9 +1,9 @@
-import { PermissionBoundary } from 'permdock/next/client';
-import { Suspense } from 'react';
+import { PermissionBoundary } from "permdock/next/client";
+import { Suspense } from "react";
 
-import { QuoteSkeleton, QuoteView } from '../../../quotes.tsx';
-import { ApprovalNotice } from './approval-notice.tsx';
-import { DeleteZone } from './delete-zone.tsx';
+import { QuoteSkeleton, QuoteView } from "../../../quotes.tsx";
+import { ApprovalNotice } from "./approval-notice.tsx";
+import { DeleteZone } from "./delete-zone.tsx";
 
 export const instant = true;
 

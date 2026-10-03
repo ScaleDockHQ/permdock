@@ -1,5 +1,5 @@
 export function freezeDeep<T>(value: T): T {
-  if (value === null || typeof value !== 'object') {
+  if (value === null || typeof value !== "object") {
     return value;
   }
   if (value instanceof Map || value instanceof Set) {
@@ -30,7 +30,7 @@ function isPlain(value: object): boolean {
 
 /** A deeply frozen copy of the plain objects and arrays in `value`; the caller's own objects stay writable. */
 export function freezeCopy<T>(value: T): T {
-  if (value === null || typeof value !== 'object') {
+  if (value === null || typeof value !== "object") {
     return value;
   }
   if (Array.isArray(value)) {

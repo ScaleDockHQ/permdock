@@ -1,0 +1,15 @@
+Report unused, ungranted and role-less permissions and conditions on undeclared fields (permdock usage)
+
+USAGE permdock usage [OPTIONS] 
+
+OPTIONS
+
+        --cwd=<dir>    Run as if started in this directory                  
+    --config=<file>    Config file (default permdock.config.{ts,mts,js,mjs})
+             --json    Machine-readable output                              
+          -y, --yes    Never prompt; take the answer the flags give         
+            --color    Styled output on a colour terminal (Default: true)   
+         --no-color    Plain output                                         
+           --strict    Exit 1 on any finding                                
+    --ignore=<glob>    Permission keys or globs to skip, repeatable         
+  --dynamic-as-used    Count computed permission references as uses         

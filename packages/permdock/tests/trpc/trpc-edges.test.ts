@@ -1,64 +1,69 @@
-import { initTRPC, TRPCError } from '@trpc/server';
-import { describe, expect, it } from 'vitest';
-import { z } from 'zod';
+import { initTRPC, TRPCError } from "@trpc/server";
+import { describe, expect, it } from "vitest";
+import { z } from "zod";
 
-import { memoryLimitStore } from '../../src/core/limits.ts';
-import { definePermissions, resource } from '../../src/core/permissions.ts';
-import { allow, definePolicy, role } from '../../src/core/policy.ts';
-import { createPermDock } from '../../src/trpc/index.ts';
+import { memoryLimitStore } from "../../src/core/limits.ts";
+import { definePermissions, resource } from "../../src/core/permissions.ts";
+import { allow, definePolicy, role } from "../../src/core/policy.ts";
+import { verifyWebBotAuth } from "../../src/server/web-bot-auth.ts";
+import { createPermDock } from "../../src/trpc/index.ts";
 import {
   memberUser,
   ownPost,
   permissions,
   policy,
-} from '../fixtures/quick-start.ts';
+} from "../fixtures/quick-start.ts";
 
 type Ctx = { readonly request?: unknown; readonly req?: unknown };
 
 const signed = {
-  'Signature-Input':
+  "Signature-Input":
     'sig1=("@method");created=1700000000;keyid="bot-1";alg="ed25519"',
-  Signature: 'sig1=:AAAA:',
-  'Signature-Agent': '"https://agents.example.com"',
+  Signature: "sig1=:AAAA:",
+  "Signature-Agent": '"https://agents.example.com"',
 };
 
 async function codeOf(run: () => Promise<unknown>): Promise<string> {
   try {
     await run();
   } catch (error) {
-    return error instanceof TRPCError ? error.code : 'not-trpc';
+    return error instanceof TRPCError ? error.code : "not-trpc";
   }
-  return 'resolved';
+  return "resolved";
 }
 
-describe('permdock/trpc request discovery and failures', () => {
-  it('reads ctx.request and rejects a bad Web Bot Auth signature', async () => {
+describe("permdock/trpc request discovery and failures", () => {
+  it("reads ctx.request and rejects a bad Web Bot Auth signature", async () => {
     const t = initTRPC.context<Ctx>().create();
     const { permdock } = createPermDock(policy, {
       subject: () => memberUser,
-      webBotAuth: { verify: true, keys: { lookup: () => undefined } },
+      webBotAuth: (request) =>
+        verifyWebBotAuth(request, {
+          verify: true,
+          keys: { lookup: () => undefined },
+        }),
     });
     const router = t.router({
-      read: t.procedure.use(permdock()).query(() => 'ok'),
+      read: t.procedure.use(permdock()).query(() => "ok"),
     });
-    const request = new Request('http://localhost/trpc/read', {
+    const request = new Request("http://localhost/trpc/read", {
       headers: signed,
     });
     expect(await codeOf(() => router.createCaller({ request }).read())).toBe(
-      'FORBIDDEN',
+      "FORBIDDEN",
     );
     expect(
-      await codeOf(() => router.createCaller({ req: 'not a request' }).read()),
-    ).toBe('resolved');
+      await codeOf(() => router.createCaller({ req: "not a request" }).read()),
+    ).toBe("resolved");
   });
 
-  it('treats a null or throwing request option as no request', async () => {
+  it("treats a null or throwing request option as no request", async () => {
     const t = initTRPC.context<Ctx>().create();
     const results = [];
     for (const request of [
       () => null,
       () => {
-        throw new Error('no request');
+        throw new Error("no request");
       },
     ]) {
       const { permdock } = createPermDock(policy, {
@@ -82,59 +87,59 @@ describe('permdock/trpc request discovery and failures', () => {
       });
       results.push(await router.createCaller({}).read());
     }
-    expect(results).toEqual(['u1', 'u1']);
+    expect(results).toEqual(["u1", "u1"]);
   });
 
-  it('rethrows a build failure from permdock()', async () => {
+  it("rethrows a build failure from permdock()", async () => {
     const t = initTRPC.context<Ctx>().create();
     const { permdock } = createPermDock(policy, {
       subject: () => memberUser,
       pdp: async () => {
-        throw new Error('pdp factory failed');
+        throw new Error("pdp factory failed");
       },
     });
     const router = t.router({
-      read: t.procedure.use(permdock()).query(() => 'ok'),
+      read: t.procedure.use(permdock()).query(() => "ok"),
     });
     expect(await codeOf(() => router.createCaller({}).read())).toBe(
-      'INTERNAL_SERVER_ERROR',
+      "INTERNAL_SERVER_ERROR",
     );
   });
 
-  it('maps invalid row data in a resolver to BAD_REQUEST', async () => {
+  it("maps invalid row data in a resolver to BAD_REQUEST", async () => {
     const t = initTRPC.context<Ctx>().create();
     const { permdock } = createPermDock(policy, { subject: () => memberUser });
     const router = t.router({
       update: t.procedure.use(permdock()).mutation(({ ctx }) => {
         // SAFETY: the permdock() middleware above adds ctx.permdock.
-        const { permdock: dock } = ctx as unknown as {
+        const scoped = ctx as unknown as {
           readonly permdock: {
             readonly assert: (permission: unknown, data: unknown) => void;
           };
         };
-        dock.assert(permissions.post.update, { id: 5 });
-        return 'ok';
+        scoped.permdock.assert(permissions.post.update, { id: 5 });
+        return "ok";
       }),
     });
     expect(await codeOf(() => router.createCaller({}).update())).toBe(
-      'BAD_REQUEST',
+      "BAD_REQUEST",
     );
   });
 
-  it('maps a missing row to NOT_FOUND', async () => {
+  it("maps a missing row to NOT_FOUND", async () => {
     const t = initTRPC.context<Ctx>().create();
     const { protect } = createPermDock(policy, { subject: () => memberUser });
     const router = t.router({
       read: t.procedure
         .use(protect(permissions.post.read, () => null))
-        .query(() => 'ok'),
+        .query(() => "ok"),
     });
     expect(await codeOf(() => router.createCaller({}).read())).toBe(
-      'NOT_FOUND',
+      "NOT_FOUND",
     );
   });
 
-  it('opens a subscription connection with the row loader', async () => {
+  it("opens a subscription connection with the row loader", async () => {
     const t = initTRPC.context<Ctx>().create();
     const { protect } = createPermDock(policy, { subject: () => memberUser });
     let loads = 0;
@@ -157,30 +162,30 @@ describe('permdock/trpc request discovery and failures', () => {
       items.push(item);
     }
     expect({ items, loaded: loads >= 1 }).toEqual({
-      items: ['p1'],
+      items: ["p1"],
       loaded: true,
     });
   });
 
-  it('serves the snapshot on GET from the handler', async () => {
+  it("serves the snapshot on GET from the handler", async () => {
     const { permdockHandler } = createPermDock(policy, {
       subject: () => memberUser,
     });
     const response = await permdockHandler(
-      new Request('http://localhost/permdock'),
+      new Request("http://localhost/permdock"),
     );
     expect(response.status).toBe(200);
   });
 });
 
-describe('permdock/trpc limit codes', () => {
+describe("permdock/trpc limit codes", () => {
   const limited = definePermissions({
-    report: resource(z.object({ id: z.string() }), { actions: ['export'] }),
+    report: resource(z.object({ id: z.string() }), { actions: ["export"] }),
   });
   const limitedPolicy = definePolicy(limited, {
     roles: [
-      role('member', [
-        allow(limited.report.export, { limit: { count: 1, per: 'hour' } }),
+      role("member", [
+        allow(limited.report.export, { limit: { count: 1, per: "hour" } }),
       ]),
     ],
     subject: (user: {
@@ -189,28 +194,28 @@ describe('permdock/trpc limit codes', () => {
     }) => user,
   });
 
-  it('maps an exhausted limit to TOO_MANY_REQUESTS and a missing store to SERVICE_UNAVAILABLE', async () => {
+  it("maps an exhausted limit to TOO_MANY_REQUESTS and a missing store to SERVICE_UNAVAILABLE", async () => {
     const t = initTRPC.context<Ctx>().create();
     const codes = [];
     for (const limits of [memoryLimitStore(), undefined]) {
       const { protect } = createPermDock(limitedPolicy, {
-        subject: () => ({ id: 'u1', roles: ['member'] }),
+        subject: () => ({ id: "u1", roles: ["member"] }),
         ...(limits === undefined ? {} : { limits }),
       });
       const router = t.router({
         run: t.procedure
-          .use(protect(limited.report.export, () => ({ id: 'r1' })))
-          .query(() => 'ok'),
+          .use(protect(limited.report.export, () => ({ id: "r1" })))
+          .query(() => "ok"),
       });
       const first = await codeOf(() => router.createCaller({}).run());
       const second = await codeOf(() => router.createCaller({}).run());
       codes.push(first, second);
     }
     expect(codes).toEqual([
-      'resolved',
-      'TOO_MANY_REQUESTS',
-      'SERVICE_UNAVAILABLE',
-      'SERVICE_UNAVAILABLE',
+      "resolved",
+      "TOO_MANY_REQUESTS",
+      "SERVICE_UNAVAILABLE",
+      "SERVICE_UNAVAILABLE",
     ]);
   });
 });

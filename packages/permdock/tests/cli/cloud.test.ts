@@ -1,26 +1,26 @@
-import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { afterEach, describe, expect, it } from 'vitest';
+import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { afterEach, describe, expect, it } from "vitest";
 
-import type { CliIo } from '../../src/cli/types.ts';
+import type { CliIo } from "../../src/cli/types.ts";
 
-import { run } from '../../src/cli/run.ts';
-import { catalogFingerprint } from '../../src/index.ts';
+import { run } from "../../src/cli/run.ts";
+import { catalogFingerprint } from "../../src/index.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const FIXTURE = join(HERE, './fixtures/mini-app');
-const TMP = join(HERE, '../../tmp');
+const FIXTURE = join(HERE, "./fixtures/mini-app");
+const TMP = join(HERE, "../../tmp");
 
 const temps: string[] = [];
 
 function appCopy(): string {
   mkdirSync(TMP, { recursive: true });
-  const dir = mkdtempSync(join(TMP, 'cloud-'));
+  const dir = mkdtempSync(join(TMP, "cloud-"));
   temps.push(dir);
   cpSync(FIXTURE, dir, { recursive: true });
   writeFileSync(
-    join(dir, 'src/hostable-policy.ts'),
+    join(dir, "src/hostable-policy.ts"),
     `import { allow, definePolicy, role } from 'permdock';
 import { permissions } from './permissions.ts';
 
@@ -35,7 +35,7 @@ export const policy = definePolicy(permissions, {
 `,
   );
   writeFileSync(
-    join(dir, 'permdock.config.ts'),
+    join(dir, "permdock.config.ts"),
     `export default {
   permissions: './src/permissions.ts',
   policy: './src/hostable-policy.ts',
@@ -65,21 +65,21 @@ function io(
   };
 }
 
-describe('permdock cloud push', () => {
-  it('posts the catalog with its fingerprint and the environment key', async () => {
+describe("permdock cloud push", () => {
+  it("posts the catalog with its fingerprint and the environment key", async () => {
     const cwd = appCopy();
     const requests: Request[] = [];
     const fetchImpl: typeof fetch = (input, init) => {
       requests.push(new Request(input, init));
       return Promise.resolve(new Response(null, { status: 204 }));
     };
-    const result = await run(['cloud', 'push', '--json'], {
+    const result = await run(["cloud", "push", "--json"], {
       cwd,
       io: io(
         {
-          PERMDOCK_CLOUD_URL: 'https://cloud.permdock.test/',
-          PERMDOCK_CLOUD_KEY: 'env-key',
-          VERCEL_ENV: 'preview',
+          PERMDOCK_CLOUD_URL: "https://cloud.permdock.test/",
+          PERMDOCK_CLOUD_KEY: "env-key",
+          VERCEL_ENV: "preview",
         },
         fetchImpl,
       ),
@@ -91,13 +91,13 @@ describe('permdock cloud push', () => {
       readonly environment: string;
       readonly fingerprint: string;
     };
-    expect(summary.hostable).toEqual(['post.publish']);
-    expect(summary.environment).toBe('preview');
+    expect(summary.hostable).toEqual(["post.publish"]);
+    expect(summary.environment).toBe("preview");
     const request = requests[0];
     expect(request?.url).toBe(
-      'https://cloud.permdock.test/v1/environments/preview/catalog',
+      "https://cloud.permdock.test/v1/environments/preview/catalog",
     );
-    expect(request?.headers.get('authorization')).toBe('Bearer env-key');
+    expect(request?.headers.get("authorization")).toBe("Bearer env-key");
     // SAFETY: the request body sent by `cloud push` under test, captured by fetchImpl.
     const body = (await request?.json()) as {
       readonly fingerprint: string;
@@ -116,46 +116,46 @@ describe('permdock cloud push', () => {
     expect(body.catalog.fingerprint).toBe(body.fingerprint);
     expect(catalogFingerprint(body.catalog)).toBe(body.fingerprint);
     expect(
-      body.catalog.permissions.find((item) => item.key === 'post.publish')
+      body.catalog.permissions.find((item) => item.key === "post.publish")
         ?.approvals,
-    ).toEqual(['human']);
+    ).toEqual(["human"]);
     expect(
-      body.catalog.permissions.find((item) => item.key === 'post.read')
+      body.catalog.permissions.find((item) => item.key === "post.read")
         ?.approvals,
     ).toBeUndefined();
     expect(
-      body.catalog.permissions.find((item) => item.key === 'post.publish')
+      body.catalog.permissions.find((item) => item.key === "post.publish")
         ?.hostable,
     ).toBe(true);
     expect(body.catalog.roles).toContainEqual({
-      key: 'member',
+      key: "member",
       assignable: false,
     });
-    expect(body.policy).not.toHaveProperty('scopes');
+    expect(body.policy).not.toHaveProperty("scopes");
     expect(body.policy?.grants).toEqual([
       {
-        permission: 'post.read',
-        effect: 'allow',
-        role: 'member',
-        to: { kind: 'role', role: 'member', scope: 'global' },
+        permission: "post.read",
+        effect: "allow",
+        role: "member",
+        to: { kind: "role", role: "member", scope: "global" },
       },
       {
-        permission: 'post.publish',
-        effect: 'allow',
-        role: 'editor',
-        to: { kind: 'role', role: 'editor', scope: 'global' },
-        approval: 'human',
+        permission: "post.publish",
+        effect: "allow",
+        role: "editor",
+        to: { kind: "role", role: "editor", scope: "global" },
+        approval: "human",
       },
     ]);
   });
 
-  it('keeps the same fingerprint across runs', async () => {
+  it("keeps the same fingerprint across runs", async () => {
     const cwd = appCopy();
-    const first = await run(['cloud', 'push', '--dry-run', '--json'], {
+    const first = await run(["cloud", "push", "--dry-run", "--json"], {
       cwd,
       io: io({}),
     });
-    const second = await run(['cloud', 'push', '--dry-run', '--json'], {
+    const second = await run(["cloud", "push", "--dry-run", "--json"], {
       cwd,
       io: io({}),
     });
@@ -170,31 +170,31 @@ describe('permdock cloud push', () => {
     );
   });
 
-  it('refuses to push without a key and reports a rejected catalog', async () => {
+  it("refuses to push without a key and reports a rejected catalog", async () => {
     const cwd = appCopy();
-    const missing = await run(['cloud', 'push'], {
+    const missing = await run(["cloud", "push"], {
       cwd,
-      io: io({ PERMDOCK_CLOUD_URL: 'https://cloud.permdock.test' }),
+      io: io({ PERMDOCK_CLOUD_URL: "https://cloud.permdock.test" }),
     });
     expect(missing.code).toBe(2);
-    expect(missing.stdout).toContain('PERMDOCK_CLOUD_KEY');
-    const rejected = await run(['cloud', 'push'], {
+    expect(missing.stdout).toContain("PERMDOCK_CLOUD_KEY");
+    const rejected = await run(["cloud", "push"], {
       cwd,
       io: io(
         {
-          PERMDOCK_CLOUD_URL: 'https://cloud.permdock.test',
-          PERMDOCK_CLOUD_KEY: 'k',
+          PERMDOCK_CLOUD_URL: "https://cloud.permdock.test",
+          PERMDOCK_CLOUD_KEY: "k",
         },
         () => Promise.resolve(new Response(null, { status: 409 })),
       ),
     });
     expect(rejected.code).toBe(1);
-    expect(rejected.stdout).toContain('409');
+    expect(rejected.stdout).toContain("409");
   });
 
-  it('prints usage for an unknown cloud action', async () => {
-    const result = await run(['cloud', 'pull'], { io: io({}) });
+  it("prints usage for an unknown cloud action", async () => {
+    const result = await run(["cloud", "pull"], { io: io({}) });
     expect(result.code).toBe(2);
-    expect(result.stdout).toContain('cloud push');
+    expect(result.stdout).toContain("cloud push");
   });
 });

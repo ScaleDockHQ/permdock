@@ -1,6 +1,6 @@
-import { resolve } from 'node:path';
+import { resolve } from "node:path";
 
-import type { PermDockConfig } from './types.ts';
+import type { PermDockConfig } from "./types.ts";
 
 /**
  * The absolute path `permdock collect` writes the catalog to: `collect.out`,
@@ -17,6 +17,6 @@ export function catalogPath(
     out ??
       config.collect?.out ??
       config.catalog?.out ??
-      'permissions.catalog.json',
+      "permissions.catalog.json",
   );
 }

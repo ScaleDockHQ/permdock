@@ -1,30 +1,30 @@
-import { getContext, onDestroy, setContext } from 'svelte';
-import { toStore, type Readable } from 'svelte/store';
+import { getContext, onDestroy, setContext } from "svelte";
+import { toStore, type Readable } from "svelte/store";
 
-import type { Snapshot } from '../core/interfaces.ts';
-import type { ClientStore } from '../react/store.ts';
-import type { PermDockSvelteOptions } from './types.ts';
+import type { Snapshot } from "../core/interfaces.ts";
+import type { ClientStore } from "../react/store.ts";
+import type { PermDockSvelteOptions } from "./types.ts";
 
-import { compact } from '../core/compact.ts';
-import { emptySnapshot } from '../core/from-snapshot.ts';
-import { isPromiseLike } from '../react/source.ts';
-import { createClientStore } from '../react/store.ts';
+import { compact } from "../core/compact.ts";
+import { emptySnapshot } from "../core/from-snapshot.ts";
+import { isPromiseLike } from "../react/source.ts";
+import { createClientStore } from "../react/store.ts";
 
-const permDockKey: unique symbol = Symbol('permdock');
+const permDockKey: unique symbol = Symbol("permdock");
 
 function isReadable(value: unknown): value is Readable<Snapshot | string> {
   return (
-    typeof value === 'object' &&
+    typeof value === "object" &&
     value !== null &&
-    'subscribe' in value &&
-    typeof value.subscribe === 'function'
+    "subscribe" in value &&
+    typeof value.subscribe === "function"
   );
 }
 
 function reactiveSource(
-  source: PermDockSvelteOptions['snapshot'],
+  source: PermDockSvelteOptions["snapshot"],
 ): Readable<Snapshot | string> | undefined {
-  if (typeof source === 'function') {
+  if (typeof source === "function") {
     return toStore(source);
   }
   return isReadable(source) ? source : undefined;
@@ -93,7 +93,7 @@ export function providePermDock(options: PermDockSvelteOptions): ClientStore {
 export function getStore(): ClientStore {
   const store = getContext<ClientStore | undefined>(permDockKey);
   if (store === undefined) {
-    throw new Error('PermDock: stores require setPermDock.');
+    throw new Error("PermDock: stores require setPermDock.");
   }
   return store;
 }

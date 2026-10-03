@@ -5,9 +5,9 @@ description: permdock/terminal puts permission checks inside command-line tools 
 
 Not to be confused with the `permdock` binary. That is PermDock's own developer tool (`permdock collect`, `permdock doctor`); this page is about the library entry you import when the command-line tool is yours and its commands need to be authorised.
 
-| | `permdock/terminal` (this page) | The `permdock` binary |
-|---|---|---|
-| What it is | A subpath of the `permdock` package, imported by the CLI you ship to your users | The `bin` of the same `permdock` package, run by you and your CI |
+|              | `permdock/terminal` (this page)                                                                                            | The `permdock` binary                                                                                                           |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| What it is   | A subpath of the `permdock` package, imported by the CLI you ship to your users                                            | The `bin` of the same `permdock` package, run by you and your CI                                                                |
 | What it does | Resolves a verified subject for the process, guards command actions, filters help output, formats denials, sets exit codes | Scans source, writes catalogs, checks OpenAPI and RLS drift; never evaluates a policy against a real subject ([CLI](/docs/cli)) |
 
 ## Purpose
@@ -25,51 +25,59 @@ Optional peers: `@napi-rs/keyring` for the OS keychain used by the `keychain` so
 ## API
 
 ```ts
-import { Entry } from '@napi-rs/keyring'
-import { createPermDock } from 'permdock/terminal'
-import { subjectFromJwt } from 'permdock/jwt'
-import { policy } from './policy'
-import { permissions } from './permissions'
+import { Entry } from "@napi-rs/keyring";
+import { createPermDock } from "permdock/terminal";
+import { subjectFromJwt } from "permdock/jwt";
+import { policy } from "./policy";
+import { permissions } from "./permissions";
 
-const issuer = 'https://auth.acme.dev'
+const issuer = "https://auth.acme.dev";
 
-export const { permdock, protect, filterCommands, format, exitCode } = createPermDock(policy, {
-  subject: async ({ token }) => {
-    const jwt = await token(['env', 'keychain', 'ci-oidc', 'device'])   // first source that yields a token wins
-    return jwt ? subjectFromJwt(jwt, { issuer, audience: 'acme-cli' }) : null   // null = anonymous
-  },
-  actor: async ({ token }) => {
-    const jwt = await token([{ env: 'PERMDOCK_ACTOR_TOKEN' }])          // agent-run mode; see below
-    return jwt ? subjectFromJwt(jwt, { issuer, audience: 'acme-cli-agent' }) : undefined
-  },
-  storage: { service: 'acme-cli', keyring: Entry },                      // Entry from @napi-rs/keyring; file fallback in the config dir
-  interactive: process.stdout.isTTY && !process.env.CI,                  // default shown; controls approval prompts
-  approval: { at: 'https://console.acme.dev/approvals', hint: 'Ask a release manager to approve, then re-run.' },
-  output: { json: process.argv.includes('--json') },                     // default shown; selects Problem Details output
-  yes: process.argv.includes('--yes') || process.argv.includes('-y'),    // default shown; skips the typed confirmation of a destructive action
-  dryRun: process.argv.includes('--dry-run'),                            // default shown; decides and prints, never runs the action
-})
+export const { permdock, protect, filterCommands, format, exitCode } =
+  createPermDock(policy, {
+    subject: async ({ token }) => {
+      const jwt = await token(["env", "keychain", "ci-oidc", "device"]); // first source that yields a token wins
+      return jwt ? subjectFromJwt(jwt, { issuer, audience: "acme-cli" }) : null; // null = anonymous
+    },
+    actor: async ({ token }) => {
+      const jwt = await token([{ env: "PERMDOCK_ACTOR_TOKEN" }]); // agent-run mode; see below
+      return jwt
+        ? subjectFromJwt(jwt, { issuer, audience: "acme-cli-agent" })
+        : undefined;
+    },
+    storage: { service: "acme-cli", keyring: Entry }, // Entry from @napi-rs/keyring; file fallback in the config dir
+    interactive: process.stdout.isTTY && !process.env.CI, // default shown; controls approval prompts
+    approval: {
+      at: "https://console.acme.dev/approvals",
+      hint: "Ask a release manager to approve, then re-run.",
+    },
+    output: { json: process.argv.includes("--json") }, // default shown; selects Problem Details output
+    yes: process.argv.includes("--yes") || process.argv.includes("-y"), // default shown; skips the typed confirmation of a destructive action
+    dryRun: process.argv.includes("--dry-run"), // default shown; decides and prints, never runs the action
+  });
 ```
 
-| Export | Role |
-|---|---|
-| `permdock()` | Resolves the subject once and returns a process-scoped `PermDock`. Memoised for the process lifetime; `permdock({ refresh: true })` re-resolves after `login`, `logout` or `--as <profile>` switches the stored profile. Anonymous callers get an anonymous instance, not an error. |
-| `protect(permission, load?)` | Returns a wrapper for a command action. `load(...args)` receives the framework's action arguments and returns the resource instance; the wrapped action runs only on `granted` (or after an approval) and receives `{ permdock, data, decision }` as its first argument, ahead of whatever the framework passes (commander's positionals, `options` and `command`, or citty's single context). |
-| `filterCommands(entries, options)` | Removes or annotates entries the subject cannot run before they are registered with the framework, so help output matches authority. |
-| `format(decision, options)` | Renders a `denied` or `approval-required` decision as text for stderr or, with `json: true`, as the RFC 9457 Problem Details object the HTTP adapters emit. |
-| `exitCode(decision)` | Maps an outcome to a `sysexits.h` code (table below). |
+| Export                             | Role                                                                                                                                                                                                                                                                                                                                                                                           |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `permdock()`                       | Resolves the subject once and returns a process-scoped `PermDock`. Memoised for the process lifetime; `permdock({ refresh: true })` re-resolves after `login`, `logout` or `--as <profile>` switches the stored profile. Anonymous callers get an anonymous instance, not an error.                                                                                                            |
+| `protect(permission, load?)`       | Returns a wrapper for a command action. `load(...args)` receives the framework's action arguments and returns the resource instance; the wrapped action runs only on `granted` (or after an approval) and receives `{ permdock, data, decision }` as its first argument, ahead of whatever the framework passes (commander's positionals, `options` and `command`, or citty's single context). |
+| `filterCommands(entries, options)` | Removes or annotates entries the subject cannot run before they are registered with the framework, so help output matches authority.                                                                                                                                                                                                                                                           |
+| `format(decision, options)`        | Renders a `denied` or `approval-required` decision as text for stderr or, with `json: true`, as the RFC 9457 Problem Details object the HTTP adapters emit.                                                                                                                                                                                                                                    |
+| `exitCode(decision)`               | Maps an outcome to a `sysexits.h` code (table below).                                                                                                                                                                                                                                                                                                                                          |
 
 `subject` and `actor` receive a `token(sources)` helper that walks the listed sources in order and returns the first raw token found, or `null`. Verification is your call to `subjectFromJwt` or a provider helper; the adapter refuses to build a principal from anything that has not been verified. `delegation` is lifted from the verified actor token (`scope`, RFC 9396 `authorization_details`) so a decision is the principal's grants intersected with what the agent was delegated ([delegation](/docs/security/delegation)).
 
 ## Subject sources
 
-| Source | How the token is obtained | Typical use |
-|---|---|---|
-| `device` | OAuth 2.0 device authorization grant (RFC 8628). The CLI prints `user_code` and `verification_uri` (and opens `verification_uri_complete` when a browser is available), polls the token endpoint honouring `interval` and `slow_down`, then stores the result through `storage`. | Interactive `login` on a developer machine |
-| `keychain` | Reads the token stored by a previous `device` login from the OS keychain through `storage.keyring`; falls back to a mode-0600 file when no keychain is available (headless Linux, containers). Refreshes with the refresh token when expired. | Every later invocation |
-| `env` | `PERMDOCK_TOKEN` (or a configured name) holding a JWT or an API key that your `subject` resolver exchanges for a principal. | Scripts, non-interactive shells |
-| `ci-oidc` | The job's OIDC token: GitHub Actions through `ACTIONS_ID_TOKEN_REQUEST_URL` (`{ source: 'ci-oidc', audience }` requests that `aud`), a GitLab `id_tokens` variable named with `{ source: 'ci-oidc', env }`, or `CI_JOB_JWT_V2`. Verify it with `subjectFromCiOidc` from `permdock/jwt`, which returns a workload principal (`kind: 'workload'`, `sub` as the id, with `repository`, `ref` and `environment`), or exchange it with RFC 8693 token exchange at your authorization server. The CLI never sees a long-lived secret. | Pipelines |
-| anonymous | `token()` returned `null` and `subject` returned `null`. | Public read-only commands |
+| Source     | How the token is obtained                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Typical use                                |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| `device`   | OAuth 2.0 device authorization grant (RFC 8628). The CLI prints `user_code` and `verification_uri` (and opens `verification_uri_complete` when a browser is available), polls the token endpoint honouring `interval` and `slow_down`, then stores the result through `storage`.                                                                                                                                                                                                                                                | Interactive `login` on a developer machine |
+| `keychain` | Reads the token stored by a previous `device` login from the OS keychain through `storage.keyring`; falls back to a mode-0600 file when no keychain is available (headless Linux, containers). Refreshes with the refresh token when expired.                                                                                                                                                                                                                                                                                   | Every later invocation                     |
+| `env`      | `PERMDOCK_TOKEN` (or a configured name) holding a JWT or an API key that your `subject` resolver exchanges for a principal.                                                                                                                                                                                                                                                                                                                                                                                                     | Scripts, non-interactive shells            |
+| `ci-oidc`  | The job's OIDC token: GitHub Actions through `ACTIONS_ID_TOKEN_REQUEST_URL` (`{ source: 'ci-oidc', audience }` requests that `aud`), a GitLab `id_tokens` variable named with `{ source: 'ci-oidc', env }`, or `CI_JOB_JWT_V2`. Verify it with `subjectFromCiOidc` from `permdock/jwt`, which returns a workload principal (`kind: 'workload'`, `sub` as the id, with `repository`, `ref` and `environment`), or exchange it with RFC 8693 token exchange at your authorization server. The CLI never sees a long-lived secret. | Pipelines                                  |
+| anonymous  | `token()` returned `null` and `subject` returned `null`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | Public read-only commands                  |
+
+Each request to the device and token endpoints, and the GitHub Actions OIDC request, is aborted after 10 seconds and then yields no token.
 
 All sources end in the same verification step. A `--user` flag, a `USER` environment variable or a git config email are never accepted as identity; they may at most select which stored profile to load (`--as`), and the profile's token is still verified.
 
@@ -84,13 +92,13 @@ All sources end in the same verification step. A `--user` flag, a `USER` environ
 
 Codes follow the BSD `sysexits.h` conventions so shell scripts and agents can branch without parsing output.
 
-| Code | Name | When |
-|---|---|---|
-| `0` | `EX_OK` | `granted` and the action completed, or `granted` under `--dry-run` |
-| `64` | `EX_USAGE` | A `destructive` permission in a process with no terminal and no `--yes` |
-| `75` | `EX_TEMPFAIL` | `approval-required` with the request recorded in `store`, or a self-approvable request in a non-interactive process: the command can succeed once someone approves |
-| `77` | `EX_NOPERM` | `denied`, including anonymous subjects, a declined approval prompt, an approval someone else must give with no `store` configured, and a typed confirmation that did not match |
-| `78` | `EX_CONFIG` | The adapter is misconfigured: no verifier, unreachable authorization server metadata, async schema at a boundary |
+| Code | Name          | When                                                                                                                                                                           |
+| ---- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `0`  | `EX_OK`       | `granted` and the action completed, or `granted` under `--dry-run`                                                                                                             |
+| `64` | `EX_USAGE`    | A `destructive` permission in a process with no terminal and no `--yes`                                                                                                        |
+| `75` | `EX_TEMPFAIL` | `approval-required` with the request recorded in `store`, or a self-approvable request in a non-interactive process: the command can succeed once someone approves             |
+| `77` | `EX_NOPERM`   | `denied`, including anonymous subjects, a declined approval prompt, an approval someone else must give with no `store` configured, and a typed confirmation that did not match |
+| `78` | `EX_CONFIG`   | The adapter is misconfigured: no verifier, unreachable authorization server metadata, async schema at a boundary                                                               |
 
 Failures inside your action keep whatever code your framework assigns; the adapter only sets codes for outcomes it produced. This is a different contract from the `0` / `1` / `2` codes of the [`permdock` binary](/docs/cli), which reports findings, not permissions.
 
@@ -99,15 +107,31 @@ Failures inside your action keep whatever code your framework assigns; the adapt
 `filterCommands` is the terminal counterpart of the MCP adapter's `list_tools` filter ([MCP](/docs/adapters/mcp)): what the subject cannot run is hidden or marked before the framework ever sees it.
 
 ```ts
-const instance = await permdock()
+const instance = await permdock();
 
-const visible = filterCommands([
-  { name: 'status',   permission: permissions.deploy.read,     description: 'Show the current deployment' },
-  { name: 'deploy',   permission: permissions.deploy.run,      description: 'Deploy a service' },
-  { name: 'rollback', permission: permissions.deploy.rollback, description: 'Roll back to the previous release' },
-], { mode: 'annotate' })   // or 'hide'
+const visible = filterCommands(
+  [
+    {
+      name: "status",
+      permission: permissions.deploy.read,
+      description: "Show the current deployment",
+    },
+    {
+      name: "deploy",
+      permission: permissions.deploy.run,
+      description: "Deploy a service",
+    },
+    {
+      name: "rollback",
+      permission: permissions.deploy.rollback,
+      description: "Roll back to the previous release",
+    },
+  ],
+  { mode: "annotate" },
+); // or 'hide'
 
-for (const entry of visible) program.command(entry.name).description(entry.description)
+for (const entry of visible)
+  program.command(entry.name).description(entry.description);
 ```
 
 - `mode: 'hide'` returns only entries whose collection-level check passes (`can(permission)` for collection actions; for instance actions, whether any grant exists for the permission). Unknown commands then fail with the framework's usual "unknown command" error, revealing nothing.
@@ -116,7 +140,7 @@ for (const entry of visible) program.command(entry.name).description(entry.descr
 ## Formatting denials
 
 ```ts
-process.stderr.write(format(decision, { json: false }))
+process.stderr.write(format(decision, { json: false }));
 ```
 
 ```text
@@ -164,24 +188,29 @@ The y/N prompt is the requester answering for themselves, so it is an approval o
   "resource": { "type": "service", "id": "api" },
   "reason": "human",
   "token": "pd1.…",
-  "approval": { "at": "https://console.acme.dev/approvals?token=pd1.…", "hint": "Ask a release manager to approve, then re-run." }
+  "approval": {
+    "at": "https://console.acme.dev/approvals?token=pd1.…",
+    "hint": "Ask a release manager to approve, then re-run."
+  }
 }
 ```
 
 `approval` is the `approval` option (`ApprovalHint`, `{ at?, hint? }`), the same optional member the [server kernel](/docs/adapters/server-kernel) adds to its `approval-required` Problem Details ([vocabulary](/docs/standards/problem-details)). The request is recorded in the `store` you pass ([approvals](/docs/adapters/approvals)); a rerun with the same permission, resource or arguments, subject and actor recomputes the same token and resumes the approved record once. Replacing the prompt with clack:
 
 ```ts
-import { confirm, isCancel } from '@clack/prompts'
+import { confirm, isCancel } from "@clack/prompts";
 
 createPermDock(policy, {
   // ...
   interactive: {
     confirm: async ({ permission, resource, reason }) => {
-      const answer = await confirm({ message: `${permission} on ${resource.type} ${resource.id} (${reason}). Continue?` })
-      return answer === true && !isCancel(answer)
+      const answer = await confirm({
+        message: `${permission} on ${resource.type} ${resource.id} (${reason}). Continue?`,
+      });
+      return answer === true && !isCancel(answer);
     },
   },
-})
+});
 ```
 
 An Ink `useInput` component can implement the same `confirm` contract; the adapter only needs a `Promise<boolean>`.
@@ -223,38 +252,48 @@ Combined with `filterCommands({ mode: 'hide' })`, the agent's `--help` shows onl
 commander:
 
 ```ts
-import { Command } from 'commander'
-import { permdock, protect, format, exitCode } from './permdock'
+import { Command } from "commander";
+import { permdock, protect, format, exitCode } from "./permdock";
 
-const program = new Command('acme')
+const program = new Command("acme");
 
-program.command('deploy <service>')
-  .option('--env <env>', 'target environment', 'staging')
-  .action(protect(permissions.deploy.run, (service, opts) => loadService(service, opts.env))(
-    async ({ data }, service, opts) => {
-      await deploy(data, opts.env)
-    },
-  ))
+program
+  .command("deploy <service>")
+  .option("--env <env>", "target environment", "staging")
+  .action(
+    protect(permissions.deploy.run, (service, opts) =>
+      loadService(service, opts.env),
+    )(async ({ data }, service, opts) => {
+      await deploy(data, opts.env);
+    }),
+  );
 
-program.command('login').action(async () => { await permdock({ refresh: true, source: 'device' }) })
+program.command("login").action(async () => {
+  await permdock({ refresh: true, source: "device" });
+});
 
-await program.parseAsync()
+await program.parseAsync();
 ```
 
 citty:
 
 ```ts
-import { defineCommand, runMain } from 'citty'
+import { defineCommand, runMain } from "citty";
 
 const deploy = defineCommand({
-  meta: { name: 'deploy', description: 'Deploy a service' },
-  args: { service: { type: 'positional', required: true }, env: { type: 'string', default: 'staging' } },
-  run: protect(permissions.deploy.run, ({ args }) => loadService(args.service, args.env))(
-    async ({ data }, { args }) => { await deploy(data, args.env) },
-  ),
-})
+  meta: { name: "deploy", description: "Deploy a service" },
+  args: {
+    service: { type: "positional", required: true },
+    env: { type: "string", default: "staging" },
+  },
+  run: protect(permissions.deploy.run, ({ args }) =>
+    loadService(args.service, args.env),
+  )(async ({ data }, { args }) => {
+    await deploy(data, args.env);
+  }),
+});
 
-runMain(defineCommand({ meta: { name: 'acme' }, subCommands: { deploy } }))
+runMain(defineCommand({ meta: { name: "acme" }, subCommands: { deploy } }));
 ```
 
 Both wrappers catch `PermDockDeniedError` and `PermDockApprovalRequiredError`, print `format(error.decision, output)` to stderr and call `process.exit(exitCode(error.decision))`; a `--json` run prints nothing else on stdout, so `acme deploy api --json || echo $?` yields `77` and a parseable object.

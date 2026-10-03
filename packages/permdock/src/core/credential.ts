@@ -1,24 +1,24 @@
-import type { Denial } from './decision.ts';
-import type { SettingsSource } from './interfaces.ts';
-import type { PermDock } from './permdock.ts';
-import type { Permission, PermissionTree } from './permissions.ts';
+import type { Denial } from "./decision.ts";
+import type { SettingsSource } from "./interfaces.ts";
+import type { PermDock } from "./permdock.ts";
+import type { Permission, PermissionTree } from "./permissions.ts";
 import type {
   AuthorizationDetail,
   Delegation,
   Membership,
   Principal,
   Subject,
-} from './subject.ts';
+} from "./subject.ts";
 
-import { idList, isId, ownRecord } from './capability.ts';
-import { compact, isReadonlyArray } from './compact.ts';
-import { coveredByDelegation } from './delegation.ts';
-import { freezeDeep } from './freeze.ts';
-import { listPermissions } from './permissions.ts';
-import { bytesToBase64Url, sha256 } from './sha256.ts';
-import { anonymousSubject } from './subject.ts';
+import { idList, isId, ownRecord } from "./capability.ts";
+import { compact, isReadonlyArray } from "./compact.ts";
+import { coveredByDelegation } from "./delegation.ts";
+import { freezeDeep } from "./freeze.ts";
+import { listPermissions } from "./permissions.ts";
+import { bytesToBase64Url, sha256 } from "./sha256.ts";
+import { anonymousSubject } from "./subject.ts";
 
-export type CredentialKind = 'user' | 'service';
+export type CredentialKind = "user" | "service";
 
 /** One permission (a key) a credential may use: on every instance, or only on `ids`. */
 export type CredentialPermission = {
@@ -70,7 +70,7 @@ export type CredentialPolicy = {
   readonly allowNoExpiry?: boolean;
 };
 
-export type CredentialPolicyViolation = 'kind' | 'no-expiry' | 'ttl';
+export type CredentialPolicyViolation = "kind" | "no-expiry" | "ttl";
 
 export type CredentialPermissionInput =
   | Permission
@@ -84,9 +84,9 @@ type CredentialRequestBase = {
 };
 
 export type CredentialRequest =
-  | (CredentialRequestBase & { readonly kind: 'user' })
+  | (CredentialRequestBase & { readonly kind: "user" })
   | (CredentialRequestBase & {
-      readonly kind: 'service';
+      readonly kind: "service";
       /** The service principal's id; defaults to the credential id. */
       readonly principal?: string;
       readonly tenant: string;
@@ -94,14 +94,14 @@ export type CredentialRequest =
     });
 
 export type CredentialDecision =
-  | { readonly outcome: 'granted'; readonly credential: Credential }
+  | { readonly outcome: "granted"; readonly credential: Credential }
   | {
-      readonly outcome: 'approval-required';
+      readonly outcome: "approval-required";
       readonly credential: Credential;
       /** Bound to the credential's content and its creator; pass it as `approved` to resume. */
       readonly token: string;
     }
-  | { readonly outcome: 'denied'; readonly denials: readonly Denial[] };
+  | { readonly outcome: "denied"; readonly denials: readonly Denial[] };
 
 export type DecideCredentialOptions = {
   /** Where the tenant's `credentials` policy comes from. Without it, only the no-expiry rule applies. */
@@ -133,25 +133,25 @@ export function credentialPolicyViolation(
   const list = policies(policy);
   for (const item of list) {
     if (item.kinds !== undefined && !item.kinds.includes(credential.kind)) {
-      return 'kind';
+      return "kind";
     }
   }
   if (credential.expiresAt === undefined) {
     const allowed =
       list.some((item) => item.allowNoExpiry === true) &&
       list.every((item) => item.maxTtl === undefined);
-    return allowed ? undefined : 'no-expiry';
+    return allowed ? undefined : "no-expiry";
   }
   for (const item of list) {
     const max = item.maxTtl;
     if (
       max !== undefined &&
-      (typeof max !== 'number' ||
+      (typeof max !== "number" ||
         !Number.isFinite(max) ||
         max < 0 ||
         credential.expiresAt - credential.createdAt > max)
     ) {
-      return 'ttl';
+      return "ttl";
     }
   }
   return undefined;
@@ -170,22 +170,22 @@ function parsePermissions(
   const out: CredentialPermission[] = [];
   for (const item of value) {
     const entry = ownRecord(item);
-    if (entry === undefined || !isId(entry['permission'])) {
+    if (entry === undefined || !isId(entry["permission"])) {
       return undefined;
     }
-    const ids = entry['ids'] === undefined ? undefined : idList(entry['ids']);
-    if (entry['ids'] !== undefined && ids === undefined) {
+    const ids = entry["ids"] === undefined ? undefined : idList(entry["ids"]);
+    if (entry["ids"] !== undefined && ids === undefined) {
       return undefined;
     }
     out.push(
-      compact<CredentialPermission>({ permission: entry['permission'], ids }),
+      compact<CredentialPermission>({ permission: entry["permission"], ids }),
     );
   }
   return out;
 }
 
 function isTime(value: unknown): value is number {
-  return typeof value === 'number' && Number.isFinite(value);
+  return typeof value === "number" && Number.isFinite(value);
 }
 
 /**
@@ -196,52 +196,52 @@ function isTime(value: unknown): value is number {
  */
 export function parseCredential(input: unknown): Credential | undefined {
   const value = ownRecord(input);
-  if (value === undefined || value['v'] !== 1 || !isId(value['id'])) {
+  if (value === undefined || value["v"] !== 1 || !isId(value["id"])) {
     return undefined;
   }
-  if (value['kind'] !== 'user' && value['kind'] !== 'service') {
+  if (value["kind"] !== "user" && value["kind"] !== "service") {
     return undefined;
   }
-  if (!isId(value['principal']) || !isId(value['createdBy'])) {
+  if (!isId(value["principal"]) || !isId(value["createdBy"])) {
     return undefined;
   }
-  const permissions = parsePermissions(value['permissions']);
-  if (permissions === undefined || !isTime(value['createdAt'])) {
+  const permissions = parsePermissions(value["permissions"]);
+  if (permissions === undefined || !isTime(value["createdAt"])) {
     return undefined;
   }
-  if (value['expiresAt'] !== undefined && !isTime(value['expiresAt'])) {
+  if (value["expiresAt"] !== undefined && !isTime(value["expiresAt"])) {
     return undefined;
   }
   if (
-    value['name'] !== undefined &&
-    (typeof value['name'] !== 'string' || value['name'].length > MAX_NAME)
+    value["name"] !== undefined &&
+    (typeof value["name"] !== "string" || value["name"].length > MAX_NAME)
   ) {
     return undefined;
   }
   let tenant: string | undefined;
   let roles: readonly string[] | undefined;
-  if (value['kind'] === 'service') {
-    roles = idList(value['roles']);
-    if (!isId(value['tenant']) || roles === undefined) {
+  if (value["kind"] === "service") {
+    roles = idList(value["roles"]);
+    if (!isId(value["tenant"]) || roles === undefined) {
       return undefined;
     }
-    tenant = value['tenant'];
-  } else if (value['tenant'] !== undefined || value['roles'] !== undefined) {
+    tenant = value["tenant"];
+  } else if (value["tenant"] !== undefined || value["roles"] !== undefined) {
     return undefined;
   }
   return freezeDeep(
     compact<Credential>({
       v: 1,
-      id: value['id'],
-      kind: value['kind'],
-      principal: value['principal'],
+      id: value["id"],
+      kind: value["kind"],
+      principal: value["principal"],
       tenant,
       roles,
       permissions,
-      createdBy: value['createdBy'],
-      createdAt: value['createdAt'],
-      expiresAt: value['expiresAt'],
-      name: value['name'],
+      createdBy: value["createdBy"],
+      createdAt: value["createdAt"],
+      expiresAt: value["expiresAt"],
+      name: value["name"],
     }),
   );
 }
@@ -303,24 +303,24 @@ export function credentialSubject(
 ): Subject<CredentialPrincipal> | Subject {
   const delegation = credentialDelegation(credential, options.permissions);
   let principal: CredentialPrincipal;
-  if (credential.kind === 'user') {
-    const owner = options.owner ?? { id: credential.principal, kind: 'user' };
+  if (credential.kind === "user") {
+    const owner = options.owner ?? { id: credential.principal, kind: "user" };
     if (
       owner.id !== credential.principal ||
-      (owner.kind !== undefined && owner.kind !== 'user')
+      (owner.kind !== undefined && owner.kind !== "user")
     ) {
       return anonymousSubject();
     }
-    principal = { ...owner, kind: 'user', credential };
+    principal = { ...owner, kind: "user", credential };
   } else {
     const membership = compact<Membership>({
       tenant: credential.tenant,
       roles: credential.roles ?? [],
-      via: 'credential',
+      via: "credential",
     });
     principal = compact<CredentialPrincipal>({
       id: credential.principal,
-      kind: 'service',
+      kind: "service",
       tenant: credential.tenant,
       memberships: [membership],
       credential,
@@ -338,7 +338,7 @@ export function credentialSubject(
 
 function credentialToken(credential: Credential): string {
   const payload = JSON.stringify({
-    t: 'credential',
+    t: "credential",
     id: credential.id,
     kind: credential.kind,
     principal: credential.principal,
@@ -353,11 +353,11 @@ function credentialToken(credential: Credential): string {
 }
 
 function denied(
-  reason: Denial['reason'],
+  reason: Denial["reason"],
   detail?: unknown,
 ): CredentialDecision {
   return freezeDeep({
-    outcome: 'denied' as const,
+    outcome: "denied" as const,
     denials: [compact<Denial>({ role: null, reason, detail })],
   });
 }
@@ -403,14 +403,14 @@ function permissionEntry(
 function isScopedInput(
   item: CredentialPermissionInput,
 ): item is Extract<CredentialPermissionInput, { readonly ids: unknown }> {
-  return 'permission' in item && 'ids' in item;
+  return "permission" in item && "ids" in item;
 }
 
 type Checked =
   | { readonly ok: true; readonly credential: Credential }
   | { readonly ok: false; readonly decision: CredentialDecision };
 
-function refuse(reason: Denial['reason'], detail?: unknown): Checked {
+function refuse(reason: Denial["reason"], detail?: unknown): Checked {
   return { ok: false, decision: denied(reason, detail) };
 }
 
@@ -421,11 +421,11 @@ function checkRequest(
 ): Checked {
   const creator = permdock.subject.principal;
   if (creator === null) {
-    return refuse('anonymous');
+    return refuse("anonymous");
   }
-  if (creator.kind === 'link' || 'credential' in creator) {
-    return refuse('exceeds-creator', {
-      creator: creator.kind === 'link' ? 'link' : 'credential',
+  if (creator.kind === "link" || "credential" in creator) {
+    return refuse("exceeds-creator", {
+      creator: creator.kind === "link" ? "link" : "credential",
     });
   }
   const entries = permissionEntries(request, leafByKey(permdock.permissions));
@@ -435,7 +435,7 @@ function checkRequest(
     (request.expiresAt !== undefined &&
       (!isTime(request.expiresAt) || request.expiresAt <= now))
   ) {
-    return refuse('validation');
+    return refuse("validation");
   }
   const subject = permdock.subject;
   for (const entry of entries) {
@@ -448,7 +448,7 @@ function checkRequest(
           subject.actor !== undefined,
         ) !== undefined
       ) {
-        return refuse('exceeds-creator', { permission: entry.leaf.key });
+        return refuse("exceeds-creator", { permission: entry.leaf.key });
       }
     }
   }
@@ -458,11 +458,11 @@ function checkRequest(
       id: request.id,
       kind: request.kind,
       principal:
-        request.kind === 'service'
+        request.kind === "service"
           ? (request.principal ?? request.id)
           : creator.id,
-      tenant: request.kind === 'service' ? request.tenant : undefined,
-      roles: request.kind === 'service' ? request.roles : undefined,
+      tenant: request.kind === "service" ? request.tenant : undefined,
+      roles: request.kind === "service" ? request.roles : undefined,
       permissions: entries.map((entry) =>
         compact({ permission: entry.leaf.key, ids: entry.ids }),
       ),
@@ -476,19 +476,19 @@ function checkRequest(
     }),
   );
   if (credential === undefined) {
-    return refuse('validation');
+    return refuse("validation");
   }
   if (credential.tenant !== undefined) {
     const tenant = credential.tenant;
     if (!permdock.tenants().includes(tenant)) {
-      return refuse('exceeds-creator', { tenant });
+      return refuse("exceeds-creator", { tenant });
     }
     const roles = new Set(
       permdock.assignableRoles({ tenant }).map((role) => role.key),
     );
     for (const name of credential.roles ?? []) {
       if (!roles.has(name)) {
-        return refuse('exceeds-creator', { role: name });
+        return refuse("exceeds-creator", { role: name });
       }
     }
     const ceiling = new Set(
@@ -496,7 +496,7 @@ function checkRequest(
     );
     for (const entry of credential.permissions) {
       if (!ceiling.has(entry.permission)) {
-        return refuse('exceeds-creator', { permission: entry.permission });
+        return refuse("exceeds-creator", { permission: entry.permission });
       }
     }
   }
@@ -548,23 +548,23 @@ export async function decideCredential(
     try {
       policy = (await options.settings.settingsFor(tenant))?.credentials;
     } catch {
-      return denied('credential-policy', { rule: 'unavailable' });
+      return denied("credential-policy", { rule: "unavailable" });
     }
   }
   const list = policy === undefined ? [] : [policy];
   const violation = credentialPolicyViolation(credential, list);
   if (violation !== undefined) {
-    return denied('credential-policy', { rule: violation });
+    return denied("credential-policy", { rule: violation });
   }
   if (list.some((item) => item.approval === true)) {
     const token = credentialToken(credential);
     if (options.approved !== token) {
       return freezeDeep({
-        outcome: 'approval-required' as const,
+        outcome: "approval-required" as const,
         credential,
         token,
       });
     }
   }
-  return freezeDeep({ outcome: 'granted' as const, credential });
+  return freezeDeep({ outcome: "granted" as const, credential });
 }

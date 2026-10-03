@@ -1,14 +1,14 @@
-import type { Membership, Subject } from '../core/subject.ts';
+import type { Membership, Subject } from "../core/subject.ts";
 
-import { isReadonlyArray } from '../core/compact.ts';
-import { ownGet } from '../core/paths.ts';
+import { isReadonlyArray } from "../core/compact.ts";
+import { ownGet } from "../core/paths.ts";
 import {
   type Scope,
   resolveScope,
   scopeList,
   subjectMemberships,
   tenantOf,
-} from '../core/scopes.ts';
+} from "../core/scopes.ts";
 import {
   type Condition,
   type ConditionValue,
@@ -17,8 +17,8 @@ import {
   type MemberOfParent,
   type RelatedCondition,
   parentHop,
-} from './ast.ts';
-import { resolveConditionRef } from './refs.ts';
+} from "./ast.ts";
+import { resolveConditionRef } from "./refs.ts";
 
 function isExpired(membership: Membership, now: number): boolean {
   return membership.expiresAt !== undefined && membership.expiresAt <= now;
@@ -52,7 +52,7 @@ function isoInstant(value: string): number | undefined {
     return undefined;
   }
   const [, day, time, zone] = match;
-  let offset = zone ?? (time === undefined ? '' : 'Z');
+  let offset = zone ?? (time === undefined ? "" : "Z");
   if (/^[+-]\d{2}$/u.test(offset)) {
     offset = `${offset}:00`;
   } else if (/^[+-]\d{4}$/u.test(offset)) {
@@ -69,10 +69,10 @@ function instantOf(value: unknown): number | undefined {
     const time = value.getTime();
     return Number.isNaN(time) ? undefined : time;
   }
-  if (typeof value === 'number') {
+  if (typeof value === "number") {
     return Number.isFinite(value) ? value : undefined;
   }
-  if (typeof value === 'string') {
+  if (typeof value === "string") {
     return isoInstant(value);
   }
   return undefined;
@@ -92,7 +92,7 @@ function comparablePair(
   const kind = typeof left;
   if (
     kind === typeof right &&
-    (kind === 'string' || kind === 'number' || kind === 'boolean')
+    (kind === "string" || kind === "number" || kind === "boolean")
   ) {
     // SAFETY: kind is typeof both sides and was checked to be string, number or boolean above.
     return [
@@ -118,17 +118,17 @@ function compare(op: string, left: unknown, right: unknown): boolean {
   }
   const [a, b] = comparable;
   switch (op) {
-    case 'eq':
+    case "eq":
       return a === b;
-    case 'ne':
+    case "ne":
       return a !== b;
-    case 'gt':
+    case "gt":
       return a > b;
-    case 'gte':
+    case "gte":
       return a >= b;
-    case 'lt':
+    case "lt":
       return a < b;
-    case 'lte':
+    case "lte":
       return a <= b;
     default:
       /* v8 ignore next */
@@ -145,7 +145,7 @@ function contains(left: unknown, right: unknown): boolean {
   ) {
     return false;
   }
-  if (typeof left === 'string' && typeof right === 'string') {
+  if (typeof left === "string" && typeof right === "string") {
     return left.includes(right);
   }
   if (Array.isArray(left)) {
@@ -179,13 +179,13 @@ function matchesParentHop(
 }
 
 function evaluateMemberOf(
-  condition: Extract<Condition, { readonly op: 'memberOf' }>,
+  condition: Extract<Condition, { readonly op: "memberOf" }>,
   data: unknown,
   subject: Subject,
   now: number,
   scopes: readonly Scope[],
 ): boolean {
-  if (data === null || typeof data !== 'object') {
+  if (data === null || typeof data !== "object") {
     return false;
   }
   const rowValue = ownGet(data, condition.field);
@@ -198,12 +198,12 @@ function evaluateMemberOf(
   );
   const wanted = new Set(condition.roles);
   const active =
-    subject.principal?.tenant === '' ? undefined : subject.principal?.tenant;
+    subject.principal?.tenant === "" ? undefined : subject.principal?.tenant;
   const scope =
-    condition.scope === 'resource'
+    condition.scope === "resource"
       ? undefined
       : resolveScope(scopes, condition.scope);
-  if (condition.scope !== 'resource' && scope === undefined) {
+  if (condition.scope !== "resource" && scope === undefined) {
     return false;
   }
   for (const membership of memberships) {
@@ -268,15 +268,15 @@ export function evaluateCondition(
   onOpaque?: OpaqueHook,
 ): boolean {
   switch (condition.op) {
-    case 'and':
+    case "and":
       return condition.conditions.every((child) =>
         evaluateCondition(child, data, subject, now, scopes, related, onOpaque),
       );
-    case 'or':
+    case "or":
       return condition.conditions.some((child) =>
         evaluateCondition(child, data, subject, now, scopes, related, onOpaque),
       );
-    case 'not':
+    case "not":
       return !evaluateCondition(
         condition.condition,
         data,
@@ -286,28 +286,28 @@ export function evaluateCondition(
         related,
         onOpaque,
       );
-    case 'isNull': {
-      if (data === null || typeof data !== 'object') {
+    case "isNull": {
+      if (data === null || typeof data !== "object") {
         return false;
       }
       const value = ownGet(data, condition.field);
       const isNull = value === null || value === undefined;
       return condition.value ? isNull : !isNull;
     }
-    case 'in':
-    case 'notIn': {
-      if (data === null || typeof data !== 'object') {
+    case "in":
+    case "notIn": {
+      if (data === null || typeof data !== "object") {
         return false;
       }
       const left = ownGet(data, condition.field);
       const right = unwrap(condition.value, subject);
       const matched = inList(left, right);
-      return condition.op === 'in'
+      return condition.op === "in"
         ? matched
         : !matched && left !== undefined && left !== null;
     }
-    case 'contains': {
-      if (data === null || typeof data !== 'object') {
+    case "contains": {
+      if (data === null || typeof data !== "object") {
         return false;
       }
       return contains(
@@ -315,16 +315,16 @@ export function evaluateCondition(
         unwrap(condition.value, subject),
       );
     }
-    case 'eq':
-    case 'ne':
-    case 'gt':
-    case 'gte':
-    case 'lt':
-    case 'lte': {
-      if (condition.field === '_' && condition.op === 'eq') {
+    case "eq":
+    case "ne":
+    case "gt":
+    case "gte":
+    case "lt":
+    case "lte": {
+      if (condition.field === "_" && condition.op === "eq") {
         return condition.value === true;
       }
-      if (data === null || typeof data !== 'object') {
+      if (data === null || typeof data !== "object") {
         return false;
       }
       return compare(
@@ -333,11 +333,11 @@ export function evaluateCondition(
         unwrap(condition.value, subject),
       );
     }
-    case 'memberOf':
+    case "memberOf":
       return evaluateMemberOf(condition, data, subject, now, scopes);
-    case 'related':
+    case "related":
       return related?.(condition, data) === true;
-    case 'sqlFunction':
+    case "sqlFunction":
       return evaluateCondition(
         condition.twin,
         data,
@@ -347,7 +347,7 @@ export function evaluateCondition(
         related,
         onOpaque,
       );
-    case 'opaque':
+    case "opaque":
       onOpaque?.();
       return false;
     default: {

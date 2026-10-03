@@ -1,7 +1,7 @@
-import type { Snapshot } from 'permdock';
+import type { Snapshot } from "permdock";
 
-import { emptySnapshot } from 'permdock';
-import { permdockPlugin } from 'permdock/vue';
+import { emptySnapshot } from "permdock";
+import { permdockPlugin } from "permdock/vue";
 
 /**
  * Nuxt creates the app per request on the server, so this plugin (and the
@@ -11,14 +11,14 @@ import { permdockPlugin } from 'permdock/vue';
  * before installing; `[org].vue` keeps it current on the client.
  */
 export default defineNuxtPlugin(async (nuxtApp) => {
-  const snapshot = useState<Snapshot | null>('permdock:snapshot', () => null);
+  const snapshot = useState<Snapshot | null>("permdock:snapshot", () => null);
   const org = useRouter().currentRoute.value.params.org;
   if (
     import.meta.server &&
-    typeof org === 'string' &&
+    typeof org === "string" &&
     snapshot.value === null
   ) {
-    snapshot.value = await useRequestFetch()<Snapshot>('/api/snapshot', {
+    snapshot.value = await useRequestFetch()<Snapshot>("/api/snapshot", {
       query: { org },
     }).catch(() => null);
   }

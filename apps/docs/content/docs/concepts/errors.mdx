@@ -7,41 +7,41 @@ PermDock's evaluation path never throws: `can`, `decide`, `filter`, `where`, `si
 
 ## The three classes
 
-| Class | Thrown by | Carries | HTTP |
-| --- | --- | --- | --- |
-| `PermDockDeniedError` | `assert` when the outcome is `denied`; `protect`, `protectServer` and the agent adapters on your behalf | the `denied` `Decision` | 403, `type` `/denied` |
-| `PermDockApprovalRequiredError` | `assert` when the outcome is `approval-required` | the `approval-required` `Decision` including `token` | 403, `type` `/approval-required` |
-| `PermDockValidationError` | boundary validation when data fails its resource schema, when a schema is async, or when a schema is missing in `'always'` mode | `code`, `issues`, `permission`, `resource`, `boundary` | 400, `type` `/validation` |
+| Class                           | Thrown by                                                                                                                       | Carries                                                | HTTP                             |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | -------------------------------- |
+| `PermDockDeniedError`           | `assert` when the outcome is `denied`; `protect`, `protectServer` and the agent adapters on your behalf                         | the `denied` `Decision`                                | 403, `type` `/denied`            |
+| `PermDockApprovalRequiredError` | `assert` when the outcome is `approval-required`                                                                                | the `approval-required` `Decision` including `token`   | 403, `type` `/approval-required` |
+| `PermDockValidationError`       | boundary validation when data fails its resource schema, when a schema is async, or when a schema is missing in `'always'` mode | `code`, `issues`, `permission`, `resource`, `boundary` | 400, `type` `/validation`        |
 
 | `PermDockRevokedError` | never thrown by a check; the `reason` of a [`Connection`](/docs/adapters/server-kernel#connections) signal when a stream or socket must end, and what tRPC and oRPC subscriptions end with | `code` (`session-revoked`, `expired`, `denied`, `subject-changed`), `permission`, the re-denying `decision` for `denied` | 403 `/denied` for `denied`, otherwise 401 `/unauthenticated` with `detail` set to the `code` |
 
 All four extend `Error`, set `name` to the class name, and are exported from `permdock`. They are ordinary subclasses with no prototype tricks, so `instanceof` works across the package's own entry points; across bundle copies, check `error.name`.
 
-HTTP adapters add one kernel rejection that is not an evaluation class: `InvalidSignatureError` from `permdock/server` when `webBotAuth.verify` is on and a claimed RFC 9421 signature fails. `protect` returns the Problem Details `response` (`type` `.../invalid-signature`); it is never downgraded to an anonymous actor.
+HTTP adapters add one kernel rejection that is not an evaluation class: `InvalidSignatureError` from `permdock/server` when `webBotAuth` is set and a claimed RFC 9421 signature fails. `protect` returns the Problem Details `response` (`type` `.../invalid-signature`); it is never downgraded to an anonymous actor.
 
 ## PermDockDeniedError
 
 ```ts
 class PermDockDeniedError extends Error {
-  readonly name: 'PermDockDeniedError'
-  readonly decision: Extract<Decision, { outcome: 'denied' }>
-  readonly permission: string          // 'post.delete'
-  readonly scope: string               // 'post:delete'
-  readonly resource: { type: string; id?: string }
-  readonly subject: Subject            // principal may be null
-  readonly digest: string              // 'PERMDOCK_DENIED;post.delete'
-  toProblemDetails(options?: { instance?: string }): ProblemDetails
+  readonly name: "PermDockDeniedError";
+  readonly decision: Extract<Decision, { outcome: "denied" }>;
+  readonly permission: string; // 'post.delete'
+  readonly scope: string; // 'post:delete'
+  readonly resource: { type: string; id?: string };
+  readonly subject: Subject; // principal may be null
+  readonly digest: string; // 'PERMDOCK_DENIED;post.delete'
+  toProblemDetails(options?: { instance?: string }): ProblemDetails;
 }
 ```
 
 ```ts
 try {
-  permdock.assert(permissions.post.delete, post)
+  permdock.assert(permissions.post.delete, post);
 } catch (error) {
   if (error instanceof PermDockDeniedError) {
-    error.decision.denials      // [{ role: 'member', reason: 'condition' }]
-    error.decision.alternatives // [permissions.post.read, permissions.post.update]
-    error.message               // 'post.delete denied for subject u_1: member (condition). Alternatives: post.read, post.update.'
+    error.decision.denials; // [{ role: 'member', reason: 'condition' }]
+    error.decision.alternatives; // [permissions.post.read, permissions.post.update]
+    error.message; // 'post.delete denied for subject u_1: member (condition). Alternatives: post.read, post.update.'
   }
 }
 ```
@@ -52,15 +52,15 @@ try {
 
 ```ts
 class PermDockApprovalRequiredError extends Error {
-  readonly name: 'PermDockApprovalRequiredError'
-  readonly decision: Extract<Decision, { outcome: 'approval-required' }>
-  readonly permission: string
-  readonly scope: string
-  readonly resource: { type: string; id?: string }
-  readonly token: string               // bind the approval reply to these arguments
-  readonly reason: string              // 'human'
-  readonly digest: string              // 'PERMDOCK_APPROVAL_REQUIRED;post.delete;pd1.…'
-  toProblemDetails(options?: { instance?: string }): ProblemDetails
+  readonly name: "PermDockApprovalRequiredError";
+  readonly decision: Extract<Decision, { outcome: "approval-required" }>;
+  readonly permission: string;
+  readonly scope: string;
+  readonly resource: { type: string; id?: string };
+  readonly token: string; // bind the approval reply to these arguments
+  readonly reason: string; // 'human'
+  readonly digest: string; // 'PERMDOCK_APPROVAL_REQUIRED;post.delete;pd1.…'
+  toProblemDetails(options?: { instance?: string }): ProblemDetails;
 }
 ```
 
@@ -74,13 +74,13 @@ Both classes set `digest`, the property React keeps when an error crosses from a
 
 ```ts
 class PermDockValidationError extends Error {
-  readonly name: 'PermDockValidationError'
-  readonly code: 'invalid-data' | 'async-schema' | 'no-schema'
-  readonly permission: string
-  readonly resource: string
-  readonly issues: StandardSchemaV1.Issue[]   // empty for 'async-schema' and 'no-schema'
-  readonly boundary: string                   // 'http-body' | 'mcp-args' | 'tool-args' | 'decision-endpoint' | 'manual'
-  toProblemDetails(options?: { instance?: string }): ProblemDetails
+  readonly name: "PermDockValidationError";
+  readonly code: "invalid-data" | "async-schema" | "no-schema";
+  readonly permission: string;
+  readonly resource: string;
+  readonly issues: StandardSchemaV1.Issue[]; // empty for 'async-schema' and 'no-schema'
+  readonly boundary: string; // 'http-body' | 'mcp-args' | 'tool-args' | 'decision-endpoint' | 'manual'
+  toProblemDetails(options?: { instance?: string }): ProblemDetails;
 }
 ```
 
@@ -90,11 +90,11 @@ class PermDockValidationError extends Error {
 
 ```ts
 class PermDockRevokedError extends Error {
-  readonly name: 'PermDockRevokedError'
-  readonly code: 'session-revoked' | 'expired' | 'denied' | 'subject-changed'
-  readonly permission?: string         // the permission the connection was opened for
-  readonly decision?: Exclude<Decision, { outcome: 'granted' }>   // set for 'denied'
-  toProblemDetails(options?: { instance?: string }): ProblemDetails
+  readonly name: "PermDockRevokedError";
+  readonly code: "session-revoked" | "expired" | "denied" | "subject-changed";
+  readonly permission?: string; // the permission the connection was opened for
+  readonly decision?: Exclude<Decision, { outcome: "granted" }>; // set for 'denied'
+  toProblemDetails(options?: { instance?: string }): ProblemDetails;
 }
 ```
 
@@ -102,19 +102,19 @@ Adapters send `toProblemDetails()` in the transport's own close frame: an SSE `e
 
 ## When each is thrown
 
-| Situation | `decide` | `assert` | Adapter behaviour |
-| --- | --- | --- | --- |
-| No grant, deny matched, condition false, anonymous | `denied` | throws `PermDockDeniedError` | 403 Problem Details; MCP `isError` refusal; AI SDK `denied` |
-| Delegation does not cover the permission | `denied` with `not-delegated` | throws `PermDockDeniedError` | 403 with `WWW-Authenticate: Bearer error="insufficient_scope"`; MCP adds a `scopeChallenge` so the client can step up |
-| Only `subject.assurance` conditions failed | `denied` with `insufficient-user-authentication` | throws `PermDockDeniedError` | 401 `/step-up-required` with `WWW-Authenticate: Bearer error="insufficient_user_authentication", acr_values=…` (RFC 9470); agent surfaces carry the required `acr` |
-| Only a `plan` grantee failed, on grants whose roles are held | `denied` with `not-entitled` | throws `PermDockDeniedError` | 403 `/not-entitled` with `plans`; `describe` returns `kind: 'upgrade'` |
-| Token present but unverifiable | `denied` with `anonymous`; `on('auth')` carries `invalid-token` and a `cause` | throws `PermDockDeniedError` | 401 `/unauthenticated` with `WWW-Authenticate: Bearer error="invalid_token"`; the `cause` is audit-only |
-| Grant with `approval: 'human'` matched | `approval-required` | throws `PermDockApprovalRequiredError` | 403 `/approval-required`; AI SDK `user-approval`; MCP `input_required` or refusal with `token` |
-| Untrusted data fails its schema | `denied` with reason `validation` | throws `PermDockValidationError` | 400 `/validation` with `issues` |
-| Schema returns a Promise at a boundary | throws `PermDockValidationError` (`async-schema`) | same | 500; this is a configuration bug |
-| Closure grant throws | `denied` with `closure-error` | throws `PermDockDeniedError` | 403; the closure's error is attached as `cause` on the denial |
-| An open connection's session is revoked, its token expires, its opening permission is re-denied or its principal changes | a later `connection.check` is `denied` with `no-grant` and `detail: 'connection-revoked'` | n/a | `signal` aborts with `PermDockRevokedError`; the stream or socket closes with its Problem Details |
-| Unknown permission string in `findPermission` | returns `undefined` | n/a | Your code decides; typed references cannot be unknown |
+| Situation                                                                                                                | `decide`                                                                                  | `assert`                               | Adapter behaviour                                                                                                                                                  |
+| ------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| No grant, deny matched, condition false, anonymous                                                                       | `denied`                                                                                  | throws `PermDockDeniedError`           | 403 Problem Details; MCP `isError` refusal; AI SDK `denied`                                                                                                        |
+| Delegation does not cover the permission                                                                                 | `denied` with `not-delegated`                                                             | throws `PermDockDeniedError`           | 403 with `WWW-Authenticate: Bearer error="insufficient_scope"`; MCP adds a `scopeChallenge` so the client can step up                                              |
+| Only `subject.assurance` conditions failed                                                                               | `denied` with `insufficient-user-authentication`                                          | throws `PermDockDeniedError`           | 401 `/step-up-required` with `WWW-Authenticate: Bearer error="insufficient_user_authentication", acr_values=…` (RFC 9470); agent surfaces carry the required `acr` |
+| Only a `plan` grantee failed, on grants whose roles are held                                                             | `denied` with `not-entitled`                                                              | throws `PermDockDeniedError`           | 403 `/not-entitled` with `plans`; `describe` returns `kind: 'upgrade'`                                                                                             |
+| Token present but unverifiable                                                                                           | `denied` with `anonymous`; `on('auth')` carries `invalid-token` and a `cause`             | throws `PermDockDeniedError`           | 401 `/unauthenticated` with `WWW-Authenticate: Bearer error="invalid_token"`; the `cause` is audit-only                                                            |
+| Grant with `approval: 'human'` matched                                                                                   | `approval-required`                                                                       | throws `PermDockApprovalRequiredError` | 403 `/approval-required`; AI SDK `user-approval`; MCP `input_required` or refusal with `token`                                                                     |
+| Untrusted data fails its schema                                                                                          | `denied` with reason `validation`                                                         | throws `PermDockValidationError`       | 400 `/validation` with `issues`                                                                                                                                    |
+| Schema returns a Promise at a boundary                                                                                   | throws `PermDockValidationError` (`async-schema`)                                         | same                                   | 500; this is a configuration bug                                                                                                                                   |
+| Closure grant throws                                                                                                     | `denied` with `closure-error`                                                             | throws `PermDockDeniedError`           | 403; the closure's error is attached as `cause` on the denial                                                                                                      |
+| An open connection's session is revoked, its token expires, its opening permission is re-denied or its principal changes | a later `connection.check` is `denied` with `no-grant` and `detail: 'connection-revoked'` | n/a                                    | `signal` aborts with `PermDockRevokedError`; the stream or socket closes with its Problem Details                                                                  |
+| Unknown permission string in `findPermission`                                                                            | returns `undefined`                                                                       | n/a                                    | Your code decides; typed references cannot be unknown                                                                                                              |
 
 The only case where `decide` throws is a misconfigured schema. Everything a request can cause is a `Decision`.
 

@@ -1,10 +1,10 @@
-import type { MemberEntry, MembershipSource } from '../core/interfaces.ts';
-import type { Membership } from '../core/subject.ts';
-import type { SupabaseManifestMembership } from './manifest.ts';
-import type { SupabaseActiveRow, SupabaseSuspension } from './types.ts';
+import type { MemberEntry, MembershipSource } from "../core/interfaces.ts";
+import type { Membership } from "../core/subject.ts";
+import type { SupabaseManifestMembership } from "./manifest.ts";
+import type { SupabaseActiveRow, SupabaseSuspension } from "./types.ts";
 
-import { compact } from '../core/compact.ts';
-import { quoteSqlIdent, quoteSqlLiteral, quoteSqlTable } from '../core/sql.ts';
+import { compact } from "../core/compact.ts";
+import { quoteSqlIdent, quoteSqlLiteral, quoteSqlTable } from "../core/sql.ts";
 
 /**
  * Runs one parameterised statement: `pg`'s `client.query` (which resolves
@@ -71,7 +71,7 @@ export type MembershipJunctionOptions = Common & {
   /** A subgroup filling `member.group`: a fixed name every row has, or a column. */
   readonly group?: string | { readonly column: string };
   /** `idp` when the identity provider owns every row, or a text column holding `idp` per row. */
-  readonly managedBy?: 'idp' | { readonly column: string };
+  readonly managedBy?: "idp" | { readonly column: string };
   /** A `text[]` column of seats. */
   readonly seats?: string;
 };
@@ -81,7 +81,13 @@ export type MembershipSql = {
   readonly table: string;
   /** Columns of the table that decide a membership; triggers bump the authorization version on them. */
   readonly user: string;
-  /** The `select` of claim rows for one user (`$1`), with every filter applied. */
+  /** `<table>.<user>%type`: the PL/pgSQL type of the user column, for a variable `select` compares with. */
+  readonly userType: string;
+  /**
+   * The `select` of claim rows for one user, with every filter applied.
+   * `user` must have the column's type (a `userType` variable, or an untyped
+   * `$1` Postgres infers): the column is compared uncast so its index applies.
+   */
   select(user: string): string;
   /** The `select` of member rows for one scope instance (`$1` scope, `$2` id). */
   list(): string;
@@ -106,7 +112,7 @@ const ident = (name: string): string => quoteSqlIdent(name);
 const literal = quoteSqlLiteral;
 
 function qualifiedName(name: string): string {
-  return name.includes('.') ? name : `public.${name}`;
+  return name.includes(".") ? name : `public.${name}`;
 }
 
 function qualified(name: string): string {
@@ -126,19 +132,19 @@ function activeRow(row: SupabaseActiveRow, id: string): string {
     const values = row.active ?? [];
     if (values.length === 0) {
       throw new TypeError(
-        'PermDock: a suspension status column needs its active values',
+        "PermDock: a suspension status column needs its active values",
       );
     }
     parts.push(
-      `s.${ident(row.status)}::text = any(array[${values.map(literal).join(', ')}]::text[])`,
+      `s.${ident(row.status)}::text = any(array[${values.map(literal).join(", ")}]::text[])`,
     );
   }
   if (row.disabledAt === undefined && row.status === undefined) {
     throw new TypeError(
-      'PermDock: a suspension table needs disabledAt or status',
+      "PermDock: a suspension table needs disabledAt or status",
     );
   }
-  return `exists (select 1 from ${qualified(row.table)} s where ${parts.join(' and ')})`;
+  return `exists (select 1 from ${qualified(row.table)} s where ${parts.join(" and ")})`;
 }
 
 type Shape = {
@@ -161,7 +167,7 @@ type Shape = {
   readonly groupBy: readonly string[];
   readonly suspension: SupabaseSuspension | undefined;
   readonly columns: readonly string[];
-  readonly manifest: Omit<SupabaseManifestMembership, 'table' | 'columns'>;
+  readonly manifest: Omit<SupabaseManifestMembership, "table" | "columns">;
 };
 
 function filters(shape: Shape, owner: string): string[] {
@@ -195,7 +201,7 @@ function selectOf(
     `${shape.within} as within`,
     `${shape.roles} as roles`,
     `${shape.via} as via`,
-    `${shape.expiresAt === undefined ? 'null::bigint' : `floor(extract(epoch from ${col(shape.expiresAt)}))::bigint`} as expires_at`,
+    `${shape.expiresAt === undefined ? "null::bigint" : `floor(extract(epoch from ${col(shape.expiresAt)}))::bigint`} as expires_at`,
     `${shape.grantedBy} as granted_by`,
     `${shape.reason} as reason`,
     `${shape.memberGroup} as member_group`,
@@ -203,10 +209,10 @@ function selectOf(
     `${shape.seats} as seats`,
   ];
   const group = [...(user ? [col(shape.user)] : []), ...shape.groupBy];
-  return `select ${fields.join(', ')}
+  return `select ${fields.join(", ")}
 from ${qualified(shape.table)} m
-where ${where.join('\n  and ')}
-group by ${group.join(', ')}`;
+where ${where.join("\n  and ")}
+group by ${group.join(", ")}`;
 }
 
 function sqlOf(shape: Shape): MembershipSql {
@@ -214,6 +220,7 @@ function sqlOf(shape: Shape): MembershipSql {
   return compact<MembershipSql>({
     table: shape.table,
     user: shape.user,
+    userType: `${qualified(shape.table)}.${ident(shape.user)}%type`,
     reads: [
       ...new Set(
         [suspension?.users, ...Object.values(suspension?.scopes ?? {})].flatMap(
@@ -229,11 +236,7 @@ function sqlOf(shape: Shape): MembershipSql {
       columns: [...new Set(shape.columns)],
     },
     select: (user: string) =>
-      selectOf(
-        shape,
-        filters(shape, `${col(shape.user)}::text = ${user}`),
-        false,
-      ),
+      selectOf(shape, filters(shape, `${col(shape.user)} = ${user}`), false),
     list: () =>
       selectOf(
         shape,
@@ -255,14 +258,14 @@ function rowsOf(
 function strings(value: unknown): readonly string[] {
   return Array.isArray(value)
     ? value.filter(
-        (item): item is string => typeof item === 'string' && item !== '',
+        (item): item is string => typeof item === "string" && item !== "",
       )
     : [];
 }
 
 function membershipOf(row: Record<string, unknown>): Membership | undefined {
-  const roles = strings(row['roles']);
-  if (typeof row['scope'] !== 'string' || typeof row['id'] !== 'string') {
+  const roles = strings(row["roles"]);
+  if (typeof row["scope"] !== "string" || typeof row["id"] !== "string") {
     return undefined;
   }
   if (roles.length === 0) {
@@ -270,45 +273,45 @@ function membershipOf(row: Record<string, unknown>): Membership | undefined {
   }
   // SAFETY: row['within'] is checked just before to be a non-null, non-array object.
   const within =
-    row['within'] !== null &&
-    typeof row['within'] === 'object' &&
-    !Array.isArray(row['within'])
+    row["within"] !== null &&
+    typeof row["within"] === "object" &&
+    !Array.isArray(row["within"])
       ? Object.fromEntries(
-          Object.entries(row['within'] as Record<string, unknown>).filter(
-            (entry): entry is [string, string] => typeof entry[1] === 'string',
+          Object.entries(row["within"] as Record<string, unknown>).filter(
+            (entry): entry is [string, string] => typeof entry[1] === "string",
           ),
         )
       : undefined;
   const expires =
-    typeof row['expires_at'] === 'number'
-      ? row['expires_at']
-      : typeof row['expires_at'] === 'string' && row['expires_at'] !== ''
-        ? Number(row['expires_at'])
+    typeof row["expires_at"] === "number"
+      ? row["expires_at"]
+      : typeof row["expires_at"] === "string" && row["expires_at"] !== ""
+        ? Number(row["expires_at"])
         : undefined;
-  const seats = strings(row['seats']);
+  const seats = strings(row["seats"]);
   return compact<Membership>({
-    scope: row['scope'],
-    id: row['id'],
+    scope: row["scope"],
+    id: row["id"],
     within:
       within === undefined || Object.keys(within).length === 0
         ? undefined
         : within,
     roles: [...roles].toSorted(),
-    via: typeof row['via'] === 'string' ? row['via'] : undefined,
+    via: typeof row["via"] === "string" ? row["via"] : undefined,
     expiresAt: Number.isFinite(expires) ? expires : undefined,
     grantedBy:
-      typeof row['granted_by'] === 'string' && row['granted_by'] !== ''
-        ? row['granted_by']
+      typeof row["granted_by"] === "string" && row["granted_by"] !== ""
+        ? row["granted_by"]
         : undefined,
     reason:
-      typeof row['reason'] === 'string' && row['reason'] !== ''
-        ? row['reason']
+      typeof row["reason"] === "string" && row["reason"] !== ""
+        ? row["reason"]
         : undefined,
     member:
-      typeof row['member_group'] === 'string' && row['member_group'] !== ''
-        ? { group: row['member_group'] }
+      typeof row["member_group"] === "string" && row["member_group"] !== ""
+        ? { group: row["member_group"] }
         : undefined,
-    managedBy: row['managed_by'] === 'idp' ? 'idp' : undefined,
+    managedBy: row["managed_by"] === "idp" ? "idp" : undefined,
     entitlements: seats.length === 0 ? undefined : seats,
   });
 }
@@ -331,7 +334,7 @@ function sourceOf(
   return {
     sql,
     async membershipsFor(principal) {
-      const rows = await run(sql.select('$1'), [principal.id]);
+      const rows = await run(sql.select("$1"), [principal.id]);
       return rows.flatMap((row) => {
         const membership = membershipOf(row);
         return membership === undefined ? [] : [membership];
@@ -341,9 +344,9 @@ function sourceOf(
       const rows = await run(sql.list(), [scope.scope, scope.id]);
       return rows.flatMap((row): MemberEntry[] => {
         const membership = membershipOf(row);
-        return membership === undefined || typeof row['user_id'] !== 'string'
+        return membership === undefined || typeof row["user_id"] !== "string"
           ? []
-          : [{ principal: { id: row['user_id'] }, membership }];
+          : [{ principal: { id: row["user_id"] }, membership }];
       });
     },
   };
@@ -359,28 +362,28 @@ export function fromTable(
   options: MembershipTableOptions,
 ): SqlMembershipSource {
   const c = options.columns ?? {};
-  const scope = `${col(c.scope ?? 'scope')}::text`;
-  const id = `${col(c.id ?? 'scope_id')}::text`;
-  const within = c.within === undefined ? 'null::jsonb' : col(c.within);
+  const scope = `${col(c.scope ?? "scope")}::text`;
+  const id = `${col(c.id ?? "scope_id")}::text`;
+  const within = c.within === undefined ? "null::jsonb" : col(c.within);
   const optional = (name: string | undefined, cast: string): string =>
     name === undefined ? `null::${cast}` : `${col(name)}::${cast}`;
   const shape: Shape = {
     table: options.table,
-    user: c.user ?? 'user_id',
+    user: c.user ?? "user_id",
     scope,
     id,
     within,
-    roles: `jsonb_agg(distinct ${col(c.role ?? 'role')}::text order by ${col(c.role ?? 'role')}::text)`,
-    via: optional(c.via, 'text'),
+    roles: `jsonb_agg(distinct ${col(c.role ?? "role")}::text order by ${col(c.role ?? "role")}::text)`,
+    via: optional(c.via, "text"),
     expiresAt: c.expiresAt,
-    grantedBy: optional(c.grantedBy, 'text'),
-    reason: optional(c.reason, 'text'),
-    memberGroup: optional(c.group, 'text'),
-    managed: optional(c.managedBy, 'text'),
+    grantedBy: optional(c.grantedBy, "text"),
+    reason: optional(c.reason, "text"),
+    memberGroup: optional(c.group, "text"),
+    managed: optional(c.managedBy, "text"),
     managedColumn: c.managedBy,
-    seats: c.seats === undefined ? 'null::jsonb' : `to_jsonb(${col(c.seats)})`,
+    seats: c.seats === undefined ? "null::jsonb" : `to_jsonb(${col(c.seats)})`,
     idOf: (name) =>
-      `coalesce(case when ${scope} = ${literal(name)} then ${id} end${c.within === undefined ? '' : `, ${within} ->> ${literal(name)}`})`,
+      `coalesce(case when ${scope} = ${literal(name)} then ${id} end${c.within === undefined ? "" : `, ${within} ->> ${literal(name)}`})`,
     groupBy: [
       scope,
       id,
@@ -399,19 +402,19 @@ export function fromTable(
     ],
     suspension: options.suspension,
     columns: [
-      c.user ?? 'user_id',
-      c.scope ?? 'scope',
-      c.id ?? 'scope_id',
-      c.role ?? 'role',
+      c.user ?? "user_id",
+      c.scope ?? "scope",
+      c.id ?? "scope_id",
+      c.role ?? "role",
       ...[c.within, c.via, c.expiresAt].filter(
         (name): name is string => name !== undefined,
       ),
     ],
-    manifest: compact<Shape['manifest']>({
-      user: { column: c.user ?? 'user_id' },
-      scope: { column: c.scope ?? 'scope' },
-      id: { column: c.id ?? 'scope_id' },
-      role: { column: c.role ?? 'role' },
+    manifest: compact<Shape["manifest"]>({
+      user: { column: c.user ?? "user_id" },
+      scope: { column: c.scope ?? "scope" },
+      id: { column: c.id ?? "scope_id" },
+      role: { column: c.role ?? "role" },
       within: c.within === undefined ? undefined : { column: c.within },
       via: c.via === undefined ? undefined : { column: c.via },
       expiresAt:
@@ -434,63 +437,63 @@ export function fromJunction(
   }
   const idColumn = options.id ?? `${options.scope}_id`;
   const withinEntries = Object.entries(options.within ?? {});
-  const fixed = typeof options.roles === 'string' ? undefined : options.roles;
+  const fixed = typeof options.roles === "string" ? undefined : options.roles;
   if (fixed?.length === 0) {
-    throw new TypeError('PermDock: fromJunction needs at least one role');
+    throw new TypeError("PermDock: fromJunction needs at least one role");
   }
   const managedColumn =
     options.managedBy === undefined
       ? undefined
-      : options.managedBy === 'idp'
-        ? ''
+      : options.managedBy === "idp"
+        ? ""
         : options.managedBy.column;
   const groupColumn =
-    options.group === undefined || typeof options.group === 'string'
+    options.group === undefined || typeof options.group === "string"
       ? undefined
       : options.group.column;
   const shape: Shape = {
     table: options.table,
-    user: options.user ?? 'user_id',
+    user: options.user ?? "user_id",
     scope: `${literal(options.scope)}::text`,
     id: `${col(idColumn)}::text`,
     within:
       withinEntries.length === 0
-        ? 'null::jsonb'
-        : `jsonb_build_object(${withinEntries.map(([name, column]) => `${literal(name)}, ${col(column)}::text`).join(', ')})`,
+        ? "null::jsonb"
+        : `jsonb_build_object(${withinEntries.map(([name, column]) => `${literal(name)}, ${col(column)}::text`).join(", ")})`,
     // SAFETY: fixed is undefined only when options.roles is a column name string.
     roles:
       fixed === undefined
         ? `jsonb_agg(distinct ${col(options.roles as string)}::text order by ${col(options.roles as string)}::text)`
-        : `jsonb_build_array(${fixed.map(literal).join(', ')})`,
+        : `jsonb_build_array(${fixed.map(literal).join(", ")})`,
     via:
       options.via === undefined
-        ? 'null::text'
+        ? "null::text"
         : `${literal(options.via)}::text`,
     expiresAt: options.expiresAt,
     grantedBy:
       options.grantedBy === undefined
-        ? 'null::text'
+        ? "null::text"
         : `${col(options.grantedBy)}::text`,
     reason:
       options.reason === undefined
-        ? 'null::text'
+        ? "null::text"
         : `${col(options.reason)}::text`,
     memberGroup:
       options.group === undefined
-        ? 'null::text'
-        : typeof options.group === 'string'
+        ? "null::text"
+        : typeof options.group === "string"
           ? `${literal(options.group)}::text`
           : `${col(options.group.column)}::text`,
     managed:
       managedColumn === undefined
-        ? 'null::text'
-        : managedColumn === ''
+        ? "null::text"
+        : managedColumn === ""
           ? `'idp'::text`
           : `${col(managedColumn)}::text`,
     managedColumn,
     seats:
       options.seats === undefined
-        ? 'null::jsonb'
+        ? "null::jsonb"
         : `to_jsonb(${col(options.seats)})`,
     idOf: (name) => {
       if (name === options.scope) {
@@ -507,7 +510,7 @@ export function fromJunction(
         options.grantedBy,
         options.reason,
         groupColumn,
-        managedColumn === '' ? undefined : managedColumn,
+        managedColumn === "" ? undefined : managedColumn,
         options.seats,
       ]
         .filter((name): name is string => name !== undefined)
@@ -515,20 +518,20 @@ export function fromJunction(
     ],
     suspension: options.suspension,
     columns: [
-      options.user ?? 'user_id',
+      options.user ?? "user_id",
       idColumn,
       ...withinEntries.map(([, column]) => column),
       ...[
-        typeof options.roles === 'string' ? options.roles : undefined,
+        typeof options.roles === "string" ? options.roles : undefined,
         options.expiresAt,
       ].filter((name): name is string => name !== undefined),
     ],
-    manifest: compact<Shape['manifest']>({
-      user: { column: options.user ?? 'user_id' },
+    manifest: compact<Shape["manifest"]>({
+      user: { column: options.user ?? "user_id" },
       scope: { value: options.scope },
       id: { column: idColumn },
       role:
-        typeof options.roles === 'string'
+        typeof options.roles === "string"
           ? { column: options.roles }
           : { value: [...options.roles] },
       within:
@@ -562,9 +565,16 @@ export function fromJunction(
   );
 }
 
-export const AUTHZ_VERSION_TABLE = 'permdock_authz_version';
+export const AUTHZ_VERSION_TABLE = "permdock_authz_version";
 
-export { supabaseMembershipsBudget, supabaseTenantClaim } from './budget.ts';
+/**
+ * The default schema of everything PermDock generates: helpers, seeds, the
+ * RBAC scaffold, the hook and the version table. Keep it out of the Data
+ * API's exposed schemas, so the `security definer` functions are not RPCs.
+ */
+export const PERMDOCK_SCHEMA = "permdock";
+
+export { supabaseMembershipsBudget, supabaseTenantClaim } from "./budget.ts";
 
 /**
  * Reads the authorization version `permdock supabase hook generate` keeps in
@@ -573,9 +583,9 @@ export { supabaseMembershipsBudget, supabaseTenantClaim } from './budget.ts';
 export function authzVersion(options: {
   readonly query: SqlQuery;
   readonly schema?: string;
-}): NonNullable<MembershipSource['version']> {
+}): NonNullable<MembershipSource["version"]> {
   const table = qualified(
-    `${options.schema ?? 'public'}.${AUTHZ_VERSION_TABLE}`,
+    `${options.schema ?? PERMDOCK_SCHEMA}.${AUTHZ_VERSION_TABLE}`,
   );
   return async (principal) => {
     const rows = rowsOf(
@@ -583,9 +593,9 @@ export function authzVersion(options: {
         principal.id,
       ]),
     );
-    const value = rows[0]?.['version'];
+    const value = rows[0]?.["version"];
     const version =
-      typeof value === 'number'
+      typeof value === "number"
         ? value
         : value === undefined
           ? 0

@@ -4,28 +4,33 @@
 -- rbac scaffold (Supabase Custom Claims and RBAC)
 -- authorize: database (reads user_roles on every statement)
 -- the custom access token hook that writes user_role: permdock supabase hook generate
+create schema if not exists "permdock";
 do $$ begin
-  create type "public"."app_role" as enum ('admin', 'member');
+  create type "permdock"."app_role" as enum ('admin', 'member');
 exception when duplicate_object then null;
 end $$;
 do $$ begin
-  create type "public"."app_permission" as enum ('post.read', 'post.update', 'post.delete', 'post.publish', 'post.archive', 'post.create', 'post.list');
+  create type "permdock"."app_permission" as enum ('post.read', 'post.update', 'post.delete', 'post.publish', 'post.archive', 'post.create', 'post.list');
 exception when duplicate_object then null;
 end $$;
 
-create table if not exists "public"."user_roles" (
+create table if not exists "permdock"."user_roles" (
   user_id uuid not null references auth.users on delete cascade,
-  role "public"."app_role" not null,
+  role "permdock"."app_role" not null,
   primary key (user_id, role)
 );
 
-alter table "public"."user_roles" enable row level security;
-revoke all on table "public"."user_roles" from authenticated, anon, public;
+alter table "permdock"."user_roles" enable row level security;
+revoke all on table "permdock"."user_roles" from authenticated, anon, public;
 
 -- permdock helpers (database: reads the membership and user_roles tables)
 -- policies call them uncorrelated, so Postgres evaluates each once per statement
 
-create table if not exists "public".role_permissions (
+create schema if not exists "permdock";
+revoke all on schema "permdock" from public;
+grant usage on schema "permdock" to authenticated;
+
+create table if not exists "permdock".role_permissions (
   role text not null,
   permission text not null,
   grant_key text not null,
@@ -33,10 +38,10 @@ create table if not exists "public".role_permissions (
   effect text not null default 'allow' check (effect in ('allow', 'deny')),
   primary key (role, grant_key, scope)
 );
-alter table "public".role_permissions enable row level security;
-revoke all on table "public".role_permissions from anon, authenticated, public;
+alter table "permdock".role_permissions enable row level security;
+revoke all on table "permdock".role_permissions from anon, authenticated, public;
 
-insert into "public".role_permissions (role, permission, grant_key, scope, effect) values
+insert into "permdock".role_permissions (role, permission, grant_key, scope, effect) values
   ('admin', 'post.read', 'post.read', 'global', 'allow'),
   ('admin', 'post.update', 'post.update#1', 'global', 'allow'),
   ('admin', 'post.delete', 'post.delete', 'global', 'allow'),
@@ -48,7 +53,7 @@ insert into "public".role_permissions (role, permission, grant_key, scope, effec
   ('member', 'post.update', 'post.update#2', 'tenant', 'allow')
 on conflict (role, grant_key, scope) do update
   set permission = excluded.permission, effect = excluded.effect;
-delete from "public".role_permissions
+delete from "permdock".role_permissions
 where (role, grant_key, scope) not in (values
   ('admin', 'post.read', 'global'),
   ('admin', 'post.update#1', 'global'),
@@ -61,7 +66,7 @@ where (role, grant_key, scope) not in (values
   ('member', 'post.update#2', 'tenant')
 );
 
-create or replace function "public".permdock_has(p_grant text)
+create or replace function "permdock".permdock_has(p_grant text)
 returns boolean
 language sql
 stable
@@ -70,17 +75,17 @@ set search_path = ''
 as $$
   select exists (
     select 1
-    from "public".user_roles ur
-    join "public".role_permissions rp on rp.role = ur.role::text
+    from "permdock".user_roles ur
+    join "permdock".role_permissions rp on rp.role = ur.role::text
     where ur.user_id = (select auth.uid())
       and rp.grant_key = p_grant
       and rp.scope = 'global'
   )
 $$;
-revoke execute on function "public".permdock_has(text) from public, anon;
-grant execute on function "public".permdock_has(text) to authenticated;
+revoke execute on function "permdock".permdock_has(text) from public, anon;
+grant execute on function "permdock".permdock_has(text) to authenticated;
 
-create or replace function "public".permitted_tenant_ids(p_grant text)
+create or replace function "permdock".permitted_tenant_ids(p_grant text)
 returns setof uuid
 language sql
 stable
@@ -89,16 +94,16 @@ set search_path = ''
 as $$
   select m."organization_id"::uuid
   from "public"."organization_members" m
-  join "public".role_permissions rp on rp.role = m."role"::text
+  join "permdock".role_permissions rp on rp.role = m."role"::text
   where m."user_id" = (select auth.uid())
     and rp.grant_key = p_grant
     and rp.scope = 'tenant'
     and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or m."organization_id"::text = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
 $$;
-revoke execute on function "public".permitted_tenant_ids(text) from public, anon;
-grant execute on function "public".permitted_tenant_ids(text) to authenticated;
+revoke execute on function "permdock".permitted_tenant_ids(text) from public, anon;
+grant execute on function "permdock".permitted_tenant_ids(text) to authenticated;
 
-create or replace function "public".member_tenant_ids()
+create or replace function "permdock".member_tenant_ids()
 returns setof uuid
 language sql
 stable
@@ -110,10 +115,10 @@ as $$
   where m."user_id" = (select auth.uid())
     and m."role" is not null
 $$;
-revoke execute on function "public".member_tenant_ids() from public, anon;
-grant execute on function "public".member_tenant_ids() to authenticated;
+revoke execute on function "permdock".member_tenant_ids() from public, anon;
+grant execute on function "permdock".member_tenant_ids() to authenticated;
 
-create or replace function "public".member_tenant_ids_for(p_user uuid)
+create or replace function "permdock".member_tenant_ids_for(p_user uuid)
 returns setof uuid
 language sql
 stable
@@ -125,10 +130,10 @@ as $$
   where m."user_id" = p_user
     and m."role" is not null
 $$;
-revoke execute on function "public".member_tenant_ids_for(uuid) from public, anon, authenticated;
+revoke execute on function "permdock".member_tenant_ids_for(uuid) from public, anon, authenticated;
 
-create or replace function "public"."authorize"(
-  requested_permission "public"."app_permission",
+create or replace function "permdock"."authorize"(
+  requested_permission "permdock"."app_permission",
   requested_tenant text default null
 )
 returns boolean
@@ -139,70 +144,107 @@ set search_path = ''
 as $$
 declare
   uid uuid := (select auth.uid());
+  v_member_user "public"."organization_members"."user_id"%type;
+  v_member_tenant "public"."organization_members"."organization_id"%type;
 begin
   if uid is null then
     return false;
   end if;
   if requested_tenant is not null then
-    return exists (
+    begin
+      v_member_user := uid;
+      v_member_tenant := requested_tenant;
+    exception when invalid_text_representation or numeric_value_out_of_range then
+      return false; -- not an id of the memberships table
+    end;
+    return (exists (
       select 1
       from "public"."organization_members" m
-      join "public"."role_permissions" rp on rp.role = m."role"::text
-      where m."user_id"::text = uid::text
-        and m."organization_id"::text = requested_tenant
+      join "permdock"."role_permissions" rp on rp.role = m."role"::text
+      where m."user_id" = v_member_user
+        and m."organization_id" = v_member_tenant
         and rp.permission = requested_permission::text
         and rp.scope = 'tenant'
         and rp.effect = 'allow'
+        and rp.grant_key = rp.permission
+    ))
+    and not exists (
+      select 1
+      from "public"."organization_members" m
+      join "permdock"."role_permissions" rp on rp.role = m."role"::text
+      where m."user_id" = v_member_user
+        and m."organization_id" = v_member_tenant
+        and rp.permission = requested_permission::text
+        and rp.scope = 'tenant'
+        and rp.effect = 'deny'
+    )
+    and not exists (
+      select 1
+      from "permdock"."user_roles" ur
+      join "permdock"."role_permissions" rp on rp.role = ur.role::text
+      where ur.user_id = uid
+        and rp.permission = requested_permission::text
+        and rp.scope = 'global'
+        and rp.effect = 'deny'
     );
   end if;
   return exists (
-    select 1
-    from "public"."user_roles" ur
-    join "public"."role_permissions" rp on rp.role = ur.role::text
-    where ur.user_id = uid
-      and rp.permission = requested_permission::text
-      and rp.scope = 'global'
-      and rp.effect = 'allow'
-  );
+      select 1
+      from "permdock"."user_roles" ur
+      join "permdock"."role_permissions" rp on rp.role = ur.role::text
+      where ur.user_id = uid
+        and rp.permission = requested_permission::text
+        and rp.scope = 'global'
+        and rp.effect = 'allow'
+        and rp.grant_key = rp.permission
+    )
+    and not exists (
+      select 1
+      from "permdock"."user_roles" ur
+      join "permdock"."role_permissions" rp on rp.role = ur.role::text
+      where ur.user_id = uid
+        and rp.permission = requested_permission::text
+        and rp.scope = 'global'
+        and rp.effect = 'deny'
+    );
 end;
 $$;
+revoke execute on function "permdock"."authorize"("permdock"."app_permission", text) from public, anon;
+grant execute on function "permdock"."authorize"("permdock"."app_permission", text) to authenticated;
 
-revoke execute on function "public"."authorize"("public"."app_permission", text) from public, anon;
-grant execute on function "public"."authorize"("public"."app_permission", text) to authenticated;
+alter table "public"."post" enable row level security;
+revoke all on table "public"."post" from anon, authenticated;
+grant select, insert, update, delete on table "public"."post" to authenticated;
 
-revoke all on table "post" from anon, authenticated;
-grant select, insert, update, delete on table "post" to authenticated;
-alter table "post" enable row level security;
-
-drop policy if exists "post_select" on "post";
+drop policy if exists "post_select" on "public"."post";
 create policy "post_select"
-  on "post"
+  on "public"."post"
   as permissive
   for select
   to authenticated
-  using (((select "public".permdock_has('post.read')) or ("orgId" in (select "public".permitted_tenant_ids('post.read')))) or ((select "public".permdock_has('post.list')) or ("orgId" in (select "public".permitted_tenant_ids('post.list')))));
+  using (((select "permdock".permdock_has('post.read')) or ("orgId" in (select "permdock".permitted_tenant_ids('post.read')))) or ((select "permdock".permdock_has('post.list')) or ("orgId" in (select "permdock".permitted_tenant_ids('post.list')))));
 
-drop policy if exists "post_update" on "post";
+drop policy if exists "post_update" on "public"."post";
 create policy "post_update"
-  on "post"
+  on "public"."post"
   as permissive
   for update
   to authenticated
-  using ((select "public".permdock_has('post.update#1')) or (("orgId" in (select "public".permitted_tenant_ids('post.update#2'))) and ("authorId" = (select auth.uid()))))
-  with check ((select "public".permdock_has('post.update#1')) or (("orgId" in (select "public".permitted_tenant_ids('post.update#2'))) and ("authorId" = (select auth.uid()))));
+  using ((select "permdock".permdock_has('post.update#1')) or (("orgId" in (select "permdock".permitted_tenant_ids('post.update#2'))) and ("authorId" = (select auth.uid()))))
+  with check ((select "permdock".permdock_has('post.update#1')) or (("orgId" in (select "permdock".permitted_tenant_ids('post.update#2'))) and ("authorId" = (select auth.uid()))));
 
-drop policy if exists "post_delete" on "post";
+drop policy if exists "post_delete" on "public"."post";
 create policy "post_delete"
-  on "post"
+  on "public"."post"
   as permissive
   for delete
   to authenticated
-  using ((select "public".permdock_has('post.delete')));
+  using ((select "permdock".permdock_has('post.delete')));
 
-drop policy if exists "post_insert" on "post";
+drop policy if exists "post_insert" on "public"."post";
 create policy "post_insert"
-  on "post"
+  on "public"."post"
   as permissive
   for insert
   to authenticated
-  with check ((select "public".permdock_has('post.create')) or ("orgId" in (select "public".permitted_tenant_ids('post.create'))));
+  with check ((select "permdock".permdock_has('post.create')) or ("orgId" in (select "permdock".permitted_tenant_ids('post.create'))));

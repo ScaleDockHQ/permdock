@@ -24,49 +24,58 @@ flowchart LR
 ## API
 
 ```ts
-import { subjectFromJwt, createJwtSubjectResolver, verifyDpopProof } from 'permdock/jwt'
+import {
+  subjectFromJwt,
+  createJwtSubjectResolver,
+  verifyDpopProof,
+} from "permdock/jwt";
 
 const subject = await subjectFromJwt(token, {
-  discovery: 'https://login.example.com',                              // OIDC Discovery, RFC 8414 fallback; supplies jwks_uri and issuer
+  discovery: "https://login.example.com", // OIDC Discovery, RFC 8414 fallback; supplies jwks_uri and issuer
   // jwks: new URL('https://login.example.com/.well-known/jwks.json'),  // alternative: URL | URL string | JSONWebKeySet | { secret: Uint8Array }
   // issuer: 'https://login.example.com',                               // required with any `jwks` but a secret; derived from the document with `discovery`
-  audience: 'https://api.example.com',
-  accept: 'access-token',                                              // default; 'id-token' for BFF patterns
-  algorithms: ['ES256', 'PS256', 'Ed25519'],                           // default allow-list (+ 'RS256' outside fapi2); 'none' never
-  clockTolerance: 5,                                                   // seconds
+  audience: "https://api.example.com",
+  accept: "access-token", // default; 'id-token' for BFF patterns
+  algorithms: ["ES256", "PS256", "Ed25519"], // default allow-list (+ 'RS256' outside fapi2); 'none' never
+  clockTolerance: 5, // seconds
   claims: {
-    id: 'sub',                                                         // dot paths, own-property lookups only
-    roles: 'roles',                                                    // default; RFC 9068, global roles
-    groups: 'groups',                                                  // default; RFC 9068, team memberships keyed on SCIM `value`
-    entitlements: 'entitlements',                                      // default; RFC 9068, maps to principal.plans
-    tenant: 'org_id',                                                  // no standard claim; vendor specific
-    memberships: 'tenants',                                            // optional; a per-tenant object such as Descope `tenants`
-    assurance: { acr: 'acr', amr: 'amr', authTime: 'auth_time', verified: 'verified_claims' },   // defaults; OIDC Core section 2, OIDC4IDA
-    session: 'sid',                                                    // default; joins logout_token and CAEP events to the snapshot
+    id: "sub", // dot paths, own-property lookups only
+    roles: "roles", // default; RFC 9068, global roles
+    groups: "groups", // default; RFC 9068, team memberships keyed on SCIM `value`
+    entitlements: "entitlements", // default; RFC 9068, maps to principal.plans
+    tenant: "org_id", // no standard claim; vendor specific
+    memberships: "tenants", // optional; a per-tenant object such as Descope `tenants`
+    assurance: {
+      acr: "acr",
+      amr: "amr",
+      authTime: "auth_time",
+      verified: "verified_claims",
+    }, // defaults; OIDC Core section 2, OIDC4IDA
+    session: "sid", // default; joins logout_token and CAEP events to the snapshot
   },
-  groupRoles: { '9f2c': ['lead'] },                                    // group id -> declared team roles; ids, never display names
-  schema: CustomClaims,                                                // optional Standard Schema for the remaining custom claims
+  groupRoles: { "9f2c": ["lead"] }, // group id -> declared team roles; ids, never display names
+  schema: CustomClaims, // optional Standard Schema for the remaining custom claims
   delegation: {
-    scopes: 'scope',                                                   // space-separated string or array
-    authorizationDetails: 'authorization_details',                     // RFC 9396
-    access: 'access',                                                  // GNAP access array; JWT mapping per RFC 9767 section 2.1
+    scopes: "scope", // space-separated string or array
+    authorizationDetails: "authorization_details", // RFC 9396
+    access: "access", // GNAP access array; JWT mapping per RFC 9767 section 2.1
   },
-  actor: { from: 'act' },                                              // RFC 8693; or (claims) => Actor
-  sender: 'dpop',                                                      // 'none' | 'dpop' | 'mtls'
-  decryptionKeys: undefined,                                           // JWE accepted only when set; see "JWE posture"
-  profile: 'fapi2',                                                    // optional; see below
+  actor: { from: "act" }, // RFC 8693; or (claims) => Actor
+  sender: "dpop", // 'none' | 'dpop' | 'mtls'
+  decryptionKeys: undefined, // JWE accepted only when set; see "JWE posture"
+  profile: "fapi2", // optional; see below
   // verifier: myTokenVerifier,                                        // replaces the built-in jose verifier; see "TokenVerifier"
-})
+});
 ```
 
-| Export | Role |
-|---|---|
-| `subjectFromJwt(token, options)` | Verifies one token and returns a `Subject`. `token` may be `undefined` or `null` (no header), in which case the result is anonymous without an audit event. Never throws. |
-| `createJwtSubjectResolver(options)` | Returns `(token, request?) => Promise<Subject>` with a cached Discovery document and JWKS. Use one resolver per issuer for the life of the process; pass it as the `subject` option of a server adapter. |
-| `verifyDpopProof(request, claims)` | Checks the `DPoP` header of `request` against `claims.cnf.jkt`: an asymmetric `alg` and a public `jwk` only, proof signature, `htm` / `htu` match, `iat` window, `ath` hash of the access token. Returns `{ ok: true }` or `{ ok: false, cause }`. Called automatically when `sender: 'dpop'`; exported for adapters that verify tokens elsewhere. |
-| `joseTokenVerifier(options)` | The built-in `TokenVerifier`: `jwks` or `discovery`, `algorithms`, `typ`, `audience`, `clockTolerance`, `decryptionKeys`. Exported so `permdock/ssf`, `permdock/cloud` and your own code verify PermDock's signed outputs and SETs with the same rules ([extension interfaces](/docs/concepts/extension-interfaces)). |
-| `joseTokenSigner({ key, alg, kid })` | The built-in `TokenSigner`: signs a payload as compact JWS with a registered `typ`. Used by `permdock.snapshot({ signer })`, `approvalsHandler({ signer })` and `permdock/cloud` ([wire formats](/docs/concepts/wire-formats)). |
-| `subjectFromCapability(token, options)` | Verifies a `permdock-capability+jwt` share link and returns the `link` subject it acts as: one resource membership, narrowed by `delegation.scopes` when the capability lists permissions. `issuer` and `audience` are required. Never throws ([link capabilities](/docs/concepts/capabilities)). |
+| Export                                        | Role                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `subjectFromJwt(token, options)`              | Verifies one token and returns a `Subject`. `token` may be `undefined` or `null` (no header), in which case the result is anonymous without an audit event. Never throws.                                                                                                                                                                                                                                                                                                                                               |
+| `createJwtSubjectResolver(options)`           | Returns `(token, request?) => Promise<Subject>` with a cached Discovery document and JWKS. Use one resolver per issuer for the life of the process; pass it as the `subject` option of a server adapter.                                                                                                                                                                                                                                                                                                                |
+| `verifyDpopProof(request, claims)`            | Checks the `DPoP` header of `request` against `claims.cnf.jkt`: an asymmetric `alg` and a public `jwk` only, proof signature, `htm` / `htu` match, `iat` window, `ath` hash of the access token. Returns `{ ok: true }` or `{ ok: false, cause }`. Called automatically when `sender: 'dpop'`; exported for adapters that verify tokens elsewhere.                                                                                                                                                                      |
+| `joseTokenVerifier(options)`                  | The built-in `TokenVerifier`: `jwks` or `discovery`, `algorithms`, `typ`, `audience`, `clockTolerance`, `decryptionKeys`. Exported so `permdock/ssf`, `permdock/cloud` and your own code verify PermDock's signed outputs and SETs with the same rules ([extension interfaces](/docs/concepts/extension-interfaces)).                                                                                                                                                                                                   |
+| `joseTokenSigner({ key, alg, kid })`          | The built-in `TokenSigner`: signs a payload as compact JWS with a registered `typ`. Used by `permdock.snapshot({ signer })`, `approvalsHandler({ signer })` and `permdock/cloud` ([wire formats](/docs/concepts/wire-formats)).                                                                                                                                                                                                                                                                                         |
+| `subjectFromCapability(token, options)`       | Verifies a `permdock-capability+jwt` share link and returns the `link` subject it acts as: one resource membership, narrowed by `delegation.scopes` when the capability lists permissions. `issuer` and `audience` are required. Never throws ([link capabilities](/docs/concepts/capabilities)).                                                                                                                                                                                                                       |
 | `subjectFromIntrospection(response, options)` | Maps an RFC 7662 or RFC 9767 introspection response (`active`, `access` / `scope`, `key`, `sub`, `iss`, `instance_id` / `client_id`) to the same `Subject` shape; `active` other than `true` is anonymous. With `audience` set, `aud` must contain it; with `issuer` set, a response whose `iss` differs is anonymous, and a response without `iss` has no `principal.issuer`. The HTTP call to the introspection endpoint is yours ([GNAP](/docs/standards/watch-list#gnap), [delegation](/docs/security/delegation)). |
 
 Option notes:
@@ -83,10 +92,11 @@ Option notes:
 
 ### Verified material
 
-| Claim | Trust | Becomes |
-| --- | --- | --- |
-| `acr`, `amr`, `auth_time` | Verified by `TokenVerifier` | `principal.assurance.acr`, `.amr`, `.authTime` |
-| `verified_claims` | Verified by `TokenVerifier`; entries without `verification.trust_framework` and `claims` dropped | `principal.assurance.verified`, frozen and opaque |
+| Claim                     | Trust                                                                                            | Becomes                                           |
+| ------------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------- |
+| `acr`, `amr`, `auth_time` | Verified by `TokenVerifier`                                                                      | `principal.assurance.acr`, `.amr`, `.authTime`    |
+| `verified_claims`         | Verified by `TokenVerifier`; entries without `verification.trust_framework` and `claims` dropped | `principal.assurance.verified`, frozen and opaque |
+
 - `claims.session` fills `subject.session` from `sid` so a later Back-Channel Logout `logout_token` or CAEP `session-revoked` event can be matched to the snapshot ([SSF adapter](/docs/adapters/ssf)).
 - `schema` (any Standard Schema) validates the claims that are not covered by `claims.*` before they become `principal.claims`. The OpenID Connect Core section 5.1 profile claims (`email`, `name`, `picture`, `preferred_username` and the rest) never reach `principal.claims`; an invalid claim set drops `claims`, never the subject, and reports cause `invalid-claims` on `on('auth')`.
 - `memberships` (a `MembershipSource`) supplements the token with memberships from your tables for issuers that carry none; it runs after verification with the verified `sub`.
@@ -103,6 +113,7 @@ Option notes:
 - The Discovery document is fetched over HTTPS only; `http:` issuers are a configuration error. Its `issuer` must equal the configured issuer (Discovery 1.0 section 4.3); a mismatch is reported once by `permdock doctor` and every token resolves to anonymous with cause `discovery-mismatch` until it is fixed. The document is re-read on the JWKS refetch schedule.
 - The JWKS cache honours `Cache-Control: max-age` on the JWKS response, with a configurable floor and ceiling (`jwksCache: { minTtl, maxTtl }`).
 - An unknown `kid` triggers a refetch at most once per `jwksCache.cooldown` seconds (default 60), so a flood of tokens with bogus `kid` values cannot turn the resolver into a JWKS-fetch amplifier.
+- Concurrent requests share one in-flight discovery or JWKS fetch. Each fetch is aborted after `jwksCache.timeout` milliseconds (default 5000) and then counts as `jwks-unavailable` or `discovery-unavailable`, so a slow identity provider cannot hold requests open.
 - A fetch error keeps the previous key set until it expires, then fails closed: tokens are rejected with cause `jwks-unavailable` (or `discovery-unavailable` when the document itself could not be fetched and none is cached). Nothing is ever verified against an empty or partially fetched set.
 - Key rotation with a standby key (Supabase's standby / current / previously used / revoked model, or any issuer that publishes the next key ahead of time) needs no configuration: the new `kid` is found on the next refetch.
 
@@ -117,14 +128,14 @@ Option notes:
 
 The result is `{ principal: { id, kind: 'link', issuer, memberships: [{ on, roles, via: 'link', expiresAt }], capability }, delegation?, context: {}, expiresAt }`, with `expiresAt` the earlier of `exp` and `capability.expiresAt`. Failures report `source: 'capability'` on `on('auth')`, with the causes below in addition to the verification causes of the next table:
 
-| Input | Result | `reason`, `cause` |
-|---|---|---|
-| `capability` claim is not a valid v1 object, its `id` is not `sub`, its `holder` is `key`, or a one-time capability arrives without `replay` or `jti` | anonymous | `invalid-token`, `invalid-claims` |
-| `redeemer` is `signed-in`, a user or a scope instance the `viewer` does not satisfy | anonymous | `invalid-token`, `redeemer-mismatch` |
-| A `linkPolicy` rule is broken (lifetime from `iat`, redeemer kind, one-time) | anonymous | `invalid-token`, `link-policy` |
-| `revoked(id)` returned `true` | anonymous | `invalid-token`, `capability-revoked` |
-| A one-time capability whose `jti` was already claimed | anonymous | `invalid-token`, `capability-replayed` |
-| `linkPolicy`, `revoked` or `replay` threw | anonymous | `source-threw`, no cause |
+| Input                                                                                                                                                 | Result    | `reason`, `cause`                      |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------- | --------- | -------------------------------------- |
+| `capability` claim is not a valid v1 object, its `id` is not `sub`, its `holder` is `key`, or a one-time capability arrives without `replay` or `jti` | anonymous | `invalid-token`, `invalid-claims`      |
+| `redeemer` is `signed-in`, a user or a scope instance the `viewer` does not satisfy                                                                   | anonymous | `invalid-token`, `redeemer-mismatch`   |
+| A `linkPolicy` rule is broken (lifetime from `iat`, redeemer kind, one-time)                                                                          | anonymous | `invalid-token`, `link-policy`         |
+| `revoked(id)` returned `true`                                                                                                                         | anonymous | `invalid-token`, `capability-revoked`  |
+| A one-time capability whose `jti` was already claimed                                                                                                 | anonymous | `invalid-token`, `capability-replayed` |
+| `linkPolicy`, `revoked` or `replay` threw                                                                                                             | anonymous | `source-threw`, no cause               |
 
 `CapabilityFailureCause` is `TokenFailureCause` plus the four capability causes; a `TokenVerifier` never returns them.
 
@@ -132,30 +143,30 @@ The result is `{ principal: { id, kind: 'link', issuer, memberships: [{ on, role
 
 Every failure produces the same outcome: the anonymous subject (`principal: null`, no actor, no delegation) and one `on('auth')` audit event with `reason: 'invalid-token'` (the RFC 6750 error name, hyphenated) and a `cause` naming what failed. `can` on the resulting `PermDock` returns `false`; `decide` returns `denied` with reason `anonymous`. Nothing throws.
 
-| Input | Result | `cause` |
-|---|---|---|
-| Signature does not verify | anonymous | `invalid-signature` |
-| `exp` in the past beyond `clockTolerance`, or `exp` absent (except on a `secevent+jwt` Security Event Token, which RFC 8417 lets omit `exp` and which must carry `iat` instead) | anonymous | `expired` |
-| `nbf` or `iat` in the future beyond `clockTolerance` | anonymous | `not-yet-valid` |
-| `aud` does not contain the configured audience | anonymous | `wrong-audience` |
-| `iss` differs from the configured or discovered issuer | anonymous | `wrong-issuer` |
-| `typ` not accepted for `accept`, or an ID token presented as an access token | anonymous | `wrong-token-type` |
-| `alg` not in `algorithms`, or `EdDSA` on a key that is not `crv: Ed25519` | anonymous | `alg-not-allowed` |
-| `alg: none` (with or without a signature) | anonymous | `alg-none` |
-| `kid` absent from the JWKS after one refetch | anonymous | `unknown-kid` |
-| Token carries `jku`, `x5u`, `jwk` or `x5c` headers | ignored; verification proceeds against the configured keys only | none (logged at debug) |
-| `crit` names a header parameter the verifier does not understand | anonymous | `malformed` |
-| Token is not a JWS or JWE (malformed) | anonymous | `malformed` |
-| Token is a JWE and `decryptionKeys` is not configured, or uses `zip` or `RSA1_5` | anonymous | `encrypted-token` |
-| `sender: 'dpop'` and the `DPoP` proof is missing or invalid | anonymous | `dpop-proof-invalid` |
-| `sender: 'mtls'` and the certificate thumbprint differs from `cnf.x5t#S256` | anonymous | `mtls-binding-mismatch` |
-| `profile: 'fapi2'` and no `cnf` claim | anonymous | `sender-constraint-required` |
-| `profile: 'fapi2'` and the token arrived in a query parameter | anonymous | `token-in-query` |
-| `schema` rejects the custom claims | principal without `claims` | `invalid-claims` |
-| Claimed `act` is not a nestable object with a string `sub` | anonymous | `invalid-chain` |
-| JWKS could not be fetched and no cached set remains | anonymous | `jwks-unavailable` |
-| Discovery document could not be fetched and none is cached | anonymous | `discovery-unavailable` |
-| Discovery document `issuer` differs from the configured issuer | anonymous | `discovery-mismatch` |
+| Input                                                                                                                                                                           | Result                                                          | `cause`                      |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- | ---------------------------- |
+| Signature does not verify                                                                                                                                                       | anonymous                                                       | `invalid-signature`          |
+| `exp` in the past beyond `clockTolerance`, or `exp` absent (except on a `secevent+jwt` Security Event Token, which RFC 8417 lets omit `exp` and which must carry `iat` instead) | anonymous                                                       | `expired`                    |
+| `nbf` or `iat` in the future beyond `clockTolerance`                                                                                                                            | anonymous                                                       | `not-yet-valid`              |
+| `aud` does not contain the configured audience                                                                                                                                  | anonymous                                                       | `wrong-audience`             |
+| `iss` differs from the configured or discovered issuer                                                                                                                          | anonymous                                                       | `wrong-issuer`               |
+| `typ` not accepted for `accept`, or an ID token presented as an access token                                                                                                    | anonymous                                                       | `wrong-token-type`           |
+| `alg` not in `algorithms`, or `EdDSA` on a key that is not `crv: Ed25519`                                                                                                       | anonymous                                                       | `alg-not-allowed`            |
+| `alg: none` (with or without a signature)                                                                                                                                       | anonymous                                                       | `alg-none`                   |
+| `kid` absent from the JWKS after one refetch                                                                                                                                    | anonymous                                                       | `unknown-kid`                |
+| Token carries `jku`, `x5u`, `jwk` or `x5c` headers                                                                                                                              | ignored; verification proceeds against the configured keys only | none (logged at debug)       |
+| `crit` names a header parameter the verifier does not understand                                                                                                                | anonymous                                                       | `malformed`                  |
+| Token is not a JWS or JWE (malformed)                                                                                                                                           | anonymous                                                       | `malformed`                  |
+| Token is a JWE and `decryptionKeys` is not configured, or uses `zip` or `RSA1_5`                                                                                                | anonymous                                                       | `encrypted-token`            |
+| `sender: 'dpop'` and the `DPoP` proof is missing or invalid                                                                                                                     | anonymous                                                       | `dpop-proof-invalid`         |
+| `sender: 'mtls'` and the certificate thumbprint differs from `cnf.x5t#S256`                                                                                                     | anonymous                                                       | `mtls-binding-mismatch`      |
+| `profile: 'fapi2'` and no `cnf` claim                                                                                                                                           | anonymous                                                       | `sender-constraint-required` |
+| `profile: 'fapi2'` and the token arrived in a query parameter                                                                                                                   | anonymous                                                       | `token-in-query`             |
+| `schema` rejects the custom claims                                                                                                                                              | principal without `claims`                                      | `invalid-claims`             |
+| Claimed `act` is not a nestable object with a string `sub`                                                                                                                      | anonymous                                                       | `invalid-chain`              |
+| JWKS could not be fetched and no cached set remains                                                                                                                             | anonymous                                                       | `jwks-unavailable`           |
+| Discovery document could not be fetched and none is cached                                                                                                                      | anonymous                                                       | `discovery-unavailable`      |
+| Discovery document `issuer` differs from the configured issuer                                                                                                                  | anonymous                                                       | `discovery-mismatch`         |
 
 The audit event carries `reason`, `cause`, the `kid`, `alg` and `typ` seen, the issuer claimed and the request id when the adapter has one. It never carries the token. `on('auth')` is its own event, separate from `on('decision')`: a verification failure is not a decision, and the decision that follows is recorded on its own with reason `anonymous`.
 
@@ -163,15 +174,15 @@ The audit event carries `reason`, `cause`, the `kid`, `alg` and `typ` seen, the 
 
 The resolver produces subjects, not HTTP responses; the HTTP adapters render the eventual `Decision`. Because `reason` values reuse the RFC 6750 error vocabulary, the rendering needs no second table:
 
-| Situation | `Decision` | HTTP status | `WWW-Authenticate` | Problem Details `type` |
-| --- | --- | --- | --- | --- |
-| No token, permission some role could grant | `denied`, reason `anonymous` | 401 | `Bearer` | `.../unauthenticated` |
-| Any row of the table above | `denied`, reason `anonymous`; the `on('auth')` event has reason `invalid-token` and a `cause` | 401 | `Bearer error="invalid_token", error_description="The access token is invalid"`; the `cause` is never sent | `.../unauthenticated` |
-| Verified principal without a grant | `denied`, reason `no-grant` or `deny` | 403 | none | `.../denied` |
-| Delegation does not cover the permission | `denied`, reason `not-delegated` | 403 | `Bearer error="insufficient_scope", scope="<permission.scope>"`; `alternatives` lists the permissions the token would allow | `.../denied` with `alternatives` |
-| Actor without any delegation | `denied`, reason `no-delegation` | 403 | `Bearer error="insufficient_scope", scope="<permission.scope>"` | `.../denied` |
-| The only conditions that failed read `subject.assurance` | `denied`, reason `insufficient-user-authentication` (a denial reason added by [subject](/docs/concepts/subject); any other failed condition keeps the ordinary `condition` reason) | 401 | `Bearer error="insufficient_user_authentication", acr_values="<required acr>", max_age=<seconds>` (RFC 9470) | `.../step-up-required` with `acrValues` and `maxAge` |
-| Human gate | `approval-required` | 403 | none | `.../approval-required` with `token` |
+| Situation                                                | `Decision`                                                                                                                                                                         | HTTP status | `WWW-Authenticate`                                                                                                          | Problem Details `type`                               |
+| -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| No token, permission some role could grant               | `denied`, reason `anonymous`                                                                                                                                                       | 401         | `Bearer`                                                                                                                    | `.../unauthenticated`                                |
+| Any row of the table above                               | `denied`, reason `anonymous`; the `on('auth')` event has reason `invalid-token` and a `cause`                                                                                      | 401         | `Bearer error="invalid_token", error_description="The access token is invalid"`; the `cause` is never sent                  | `.../unauthenticated`                                |
+| Verified principal without a grant                       | `denied`, reason `no-grant` or `deny`                                                                                                                                              | 403         | none                                                                                                                        | `.../denied`                                         |
+| Delegation does not cover the permission                 | `denied`, reason `not-delegated`                                                                                                                                                   | 403         | `Bearer error="insufficient_scope", scope="<permission.scope>"`; `alternatives` lists the permissions the token would allow | `.../denied` with `alternatives`                     |
+| Actor without any delegation                             | `denied`, reason `no-delegation`                                                                                                                                                   | 403         | `Bearer error="insufficient_scope", scope="<permission.scope>"`                                                             | `.../denied`                                         |
+| The only conditions that failed read `subject.assurance` | `denied`, reason `insufficient-user-authentication` (a denial reason added by [subject](/docs/concepts/subject); any other failed condition keeps the ordinary `condition` reason) | 401         | `Bearer error="insufficient_user_authentication", acr_values="<required acr>", max_age=<seconds>` (RFC 9470)                | `.../step-up-required` with `acrValues` and `maxAge` |
+| Human gate                                               | `approval-required`                                                                                                                                                                | 403         | none                                                                                                                        | `.../approval-required` with `token`                 |
 
 RFC 6750 says the resource server "SHOULD NOT" describe the failure beyond the error code to an unauthenticated caller; the `cause` therefore stays on the audit event and the OpenTelemetry span. The two `insufficient_scope` lines take `scope` from `permission.scope`, the same string the MCP adapter puts in a `scopeChallenge`; `not-delegated` and `no-delegation` are the Decision reasons, `insufficient_scope` their one HTTP rendering. The RFC 9470 line takes `acr_values` and `max_age` from the condition that failed. [Problem Details](/docs/standards/problem-details) documents the bodies; the [adapter matrix](/docs/adapters) shows every runtime's rendering side by side.
 
@@ -194,14 +205,27 @@ Setting `profile: 'fapi2'` applies the resource-server and cryptography requirem
 `permdock/jwt` implements the two JOSE interfaces core declares as types ([extension interfaces](/docs/concepts/extension-interfaces)):
 
 ```ts
-import { joseTokenVerifier, joseTokenSigner } from 'permdock/jwt'
+import { joseTokenVerifier, joseTokenSigner } from "permdock/jwt";
 
-const verifier = joseTokenVerifier({ discovery: 'https://login.example.com', algorithms: ['ES256'], typ: 'at+jwt' })
-const result = await verifier.verify(token, { audience: 'https://api.example.com' })
+const verifier = joseTokenVerifier({
+  discovery: "https://login.example.com",
+  algorithms: ["ES256"],
+  typ: "at+jwt",
+});
+const result = await verifier.verify(token, {
+  audience: "https://api.example.com",
+});
 // { ok: true, claims, header } | { ok: false, reason: 'invalid-token', cause: 'expired' }
 
-const signer = joseTokenSigner({ key: privateJwk, alg: 'Ed25519', kid: '2026-09' })
-const jws = await signer.sign(payload, { typ: 'permdock-snapshot+jwt', expiresAt })
+const signer = joseTokenSigner({
+  key: privateJwk,
+  alg: "Ed25519",
+  kid: "2026-09",
+});
+const jws = await signer.sign(payload, {
+  typ: "permdock-snapshot+jwt",
+  expiresAt,
+});
 ```
 
 `verify` never throws; every failure is the same `{ ok: false, reason, cause }` shape the behaviour table lists. `sign` produces compact JWS with the header `alg`, `kid`, `typ` and nothing else. The conformance runner `testTokenVerifier` in `permdock/testing` checks a custom verifier against the behaviour table with the fixture tokens it ships.
@@ -211,10 +235,13 @@ const jws = await signer.sign(payload, { typ: 'permdock-snapshot+jwt', expiresAt
 Four PermDock artefacts can be signed with a `TokenSigner`; the payloads are specified on [wire formats](/docs/concepts/wire-formats):
 
 ```ts
-const jws = await permdock.snapshot({ signer, audience: 'https://app.example.com' })   // typ: permdock-snapshot+jwt
-approvalsHandler({ store, signer })                                                      // typ: permdock-approval+jwt on the resume token
-cloud({ url, key }).sink                                                                 // typ: permdock-decisions+jwt on batch export
-await signCapability(link, signer, { audience: 'https://app.example.com' })              // typ: permdock-capability+jwt, a share link
+const jws = await permdock.snapshot({
+  signer,
+  audience: "https://app.example.com",
+}); // typ: permdock-snapshot+jwt
+approvalsHandler({ store, signer }); // typ: permdock-approval+jwt on the resume token
+cloud({ url, key }).sink; // typ: permdock-decisions+jwt on batch export
+await signCapability(link, signer, { audience: "https://app.example.com" }); // typ: permdock-capability+jwt, a share link
 ```
 
 PermDock Cloud signs one more artefact, the hosted-grant policy document (`typ: permdock-policy+jwt`); the application only verifies it, through the `verifier` passed to `cloud()`.
@@ -226,28 +253,32 @@ A client in any language verifies a signed snapshot with its JOSE library and th
 ### Inside a Hono route
 
 ```ts
-import { Hono } from 'hono'
-import { createPermDock } from 'permdock/hono'
-import { createJwtSubjectResolver } from 'permdock/jwt'
-import { policy } from './policy'
-import { permissions } from './permissions'
+import { Hono } from "hono";
+import { createPermDock } from "permdock/hono";
+import { createJwtSubjectResolver } from "permdock/jwt";
+import { policy } from "./policy";
+import { permissions } from "./permissions";
 
 const resolve = createJwtSubjectResolver({
-  discovery: 'https://login.example.com',
-  audience: 'https://api.example.com',
-  algorithms: ['ES256'],
-  claims: { id: 'sub', roles: 'app_metadata.roles' },
-  delegation: { scopes: 'scope' },
-  sender: 'dpop',
-})
+  discovery: "https://login.example.com",
+  audience: "https://api.example.com",
+  algorithms: ["ES256"],
+  claims: { id: "sub", roles: "app_metadata.roles" },
+  delegation: { scopes: "scope" },
+  sender: "dpop",
+});
 
 export const { permdock, protect } = createPermDock(policy, {
-  subject: (c) => resolve(bearerFrom(c.req.raw.headers), c.req.raw),   // the request carries the DPoP proof
-})
+  subject: (c) => resolve(bearerFrom(c.req.raw.headers), c.req.raw), // the request carries the DPoP proof
+});
 
-const app = new Hono()
-app.use(permdock())
-app.patch('/posts/:id', protect(permissions.post.update, (c) => loadPost(c.req.param('id'))), handler)
+const app = new Hono();
+app.use(permdock());
+app.patch(
+  "/posts/:id",
+  protect(permissions.post.update, (c) => loadPost(c.req.param("id"))),
+  handler,
+);
 ```
 
 `bearerFrom` reads the `Authorization` header only; the resolver itself never looks at the URL. A request with no header resolves to anonymous, and `protect` answers `401` with `WWW-Authenticate` for permissions any role could grant, `403` otherwise ([server kernel](/docs/adapters/server-kernel)).
@@ -257,18 +288,18 @@ app.patch('/posts/:id', protect(permissions.post.update, (c) => loadPost(c.req.p
 The MCP SDK verifies the bearer token and attaches `authInfo` with `scopes`, `clientId` and `expiresAt`. When the SDK also exposes `authInfo.token`, `permdock/jwt` can re-read the claims the SDK does not surface, such as `authorization_details`, `act` and `cnf`:
 
 ```ts
-import { createPermDock } from 'permdock/mcp'
-import { createJwtSubjectResolver } from 'permdock/jwt'
+import { createPermDock } from "permdock/mcp";
+import { createJwtSubjectResolver } from "permdock/jwt";
 
-const resolve = createJwtSubjectResolver({ /* same options as above */ })
+const resolve = createJwtSubjectResolver({/* same options as above */});
 
 const { protectServer } = createPermDock(policy, {
   subject: async (authInfo) => {
-    const subject = await resolve(authInfo.token)
-    return subject.principal                       // the adapter still fills actor = clientId, delegation = scopes
+    const subject = await resolve(authInfo.token);
+    return subject.principal; // the adapter still fills actor = clientId, delegation = scopes
   },
-  delegation: async (authInfo) => (await resolve(authInfo.token)).delegation,   // adds authorization_details, access
-})
+  delegation: async (authInfo) => (await resolve(authInfo.token)).delegation, // adds authorization_details, access
+});
 ```
 
 The SDK's verification and the resolver's verification must agree on issuer and audience; the resolver's result is the one PermDock trusts for claims the SDK did not check. Resolver calls are memoised per token within one request, so the two lines above verify once.

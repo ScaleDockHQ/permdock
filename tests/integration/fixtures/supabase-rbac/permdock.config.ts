@@ -1,5 +1,5 @@
 export default {
-  permissions: './permissions.ts',
-  policy: './policy.ts',
-  rls: { tenantType: 'text' },
+  permissions: "./permissions.ts",
+  policy: "./policy.ts",
+  rls: { tenantType: "text" },
 };

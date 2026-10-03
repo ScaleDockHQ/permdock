@@ -1,1 +1,1 @@
-export { graphPolicy as policy, permissions } from './policy.ts';
+export { graphPolicy as policy, permissions } from "./policy.ts";

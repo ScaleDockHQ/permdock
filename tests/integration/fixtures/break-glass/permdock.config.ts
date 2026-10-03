@@ -1,7 +1,7 @@
 export default {
-  permissions: './permissions.ts',
-  policy: './policy.ts',
+  permissions: "./permissions.ts",
+  policy: "./policy.ts",
   collect: {
-    srcPath: ['.'],
+    srcPath: ["."],
   },
 };

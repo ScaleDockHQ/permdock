@@ -1,9 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from "vitest";
 
-import { rowCheckFrom, rowCheckOf } from '../../src/conditions/row-check.ts';
+import { rowCheckFrom, rowCheckOf } from "../../src/conditions/row-check.ts";
 
-describe('row checks', () => {
-  it('tells a missing row from a denied one', () => {
+describe("row checks", () => {
+  it("tells a missing row from a denied one", () => {
     expect(rowCheckFrom([])).toEqual({ found: false });
     expect(rowCheckFrom([{ granted: true }])).toEqual({
       found: true,
@@ -16,8 +16,8 @@ describe('row checks', () => {
     expect(rowCheckOf(false, true)).toEqual({ found: false });
   });
 
-  it('grants only on true or 1', () => {
-    for (const granted of [false, 0, 't', 'true', null, undefined]) {
+  it("grants only on true or 1", () => {
+    for (const granted of [false, 0, "t", "true", null, undefined]) {
       expect(rowCheckFrom([{ granted }])).toEqual({
         found: true,
         granted: false,
@@ -25,7 +25,7 @@ describe('row checks', () => {
     }
   });
 
-  it('throws when the key matches more than one row', () => {
+  it("throws when the key matches more than one row", () => {
     expect(() => rowCheckFrom([{ granted: true }, { granted: true }])).toThrow(
       /more than one row/u,
     );

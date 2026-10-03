@@ -1,18 +1,18 @@
-import type { TokenSigner } from '../core/interfaces.ts';
-import type { JsonWebKeyLike } from '../core/subject.ts';
-import type { JoseTokenSignerOptions, JwtAlgorithm } from './types.ts';
+import type { TokenSigner } from "../core/interfaces.ts";
+import type { JsonWebKeyLike } from "../core/subject.ts";
+import type { JoseTokenSignerOptions, JwtAlgorithm } from "./types.ts";
 
-import { loadJose } from './load-jose.ts';
+import { loadJose } from "./load-jose.ts";
 
 const SIGNING_ALGS: ReadonlySet<JwtAlgorithm> = new Set([
-  'ES256',
-  'PS256',
-  'Ed25519',
-  'RS256',
+  "ES256",
+  "PS256",
+  "Ed25519",
+  "RS256",
 ]);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function publicJwk(key: Record<string, unknown>): JsonWebKeyLike {
@@ -21,21 +21,21 @@ function publicJwk(key: Record<string, unknown>): JsonWebKeyLike {
 }
 
 export function joseTokenSigner(options: JoseTokenSignerOptions): TokenSigner {
-  if (options.alg === 'HS256' || options.alg === 'EdDSA') {
+  if (options.alg === "HS256" || options.alg === "EdDSA") {
     throw new Error(
-      'PermDock: joseTokenSigner refuses HS* and polymorphic EdDSA on outputs.',
+      "PermDock: joseTokenSigner refuses HS* and polymorphic EdDSA on outputs.",
     );
   }
   if (!SIGNING_ALGS.has(options.alg)) {
     throw new Error(`PermDock: unsupported signing alg '${options.alg}'.`);
   }
   if (options.kid.length === 0) {
-    throw new Error('PermDock: joseTokenSigner requires kid.');
+    throw new Error("PermDock: joseTokenSigner requires kid.");
   }
 
   const importKey = async (): Promise<Uint8Array | object> => {
     if (options.key instanceof Uint8Array) {
-      throw new TypeError('PermDock: HMAC keys cannot sign PermDock outputs.');
+      throw new TypeError("PermDock: HMAC keys cannot sign PermDock outputs.");
     }
     const jose = await loadJose();
     // SAFETY: a non-Uint8Array key is the configured private JWK; importJWK validates it.
@@ -46,7 +46,7 @@ export function joseTokenSigner(options: JoseTokenSignerOptions): TokenSigner {
     kid: options.kid,
     sign(
       payload: Readonly<Record<string, unknown>>,
-      signOptions: Parameters<TokenSigner['sign']>[1],
+      signOptions: Parameters<TokenSigner["sign"]>[1],
     ): Promise<string> {
       return signJwt(payload, signOptions);
     },
@@ -60,7 +60,7 @@ export function joseTokenSigner(options: JoseTokenSignerOptions): TokenSigner {
 
   async function signJwt(
     payload: Readonly<Record<string, unknown>>,
-    signOptions: Parameters<TokenSigner['sign']>[1],
+    signOptions: Parameters<TokenSigner["sign"]>[1],
   ): Promise<string> {
     const jose = await loadJose();
     const key = await importKey();

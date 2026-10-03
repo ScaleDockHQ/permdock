@@ -241,9 +241,9 @@
   "scripts": {
     "build": "tsdown",
     "check:publish": "publint && pnpm pack --out pack.tgz && attw --profile esm-only pack.tgz && rm -f pack.tgz",
-    "lint": "oxlint --disable-nested-config",
+    "lint": "oxlint --disable-nested-config --type-aware",
     "test": "vitest run --coverage",
-    "typecheck": "tsc --noEmit --checkers 4 && tsc --noEmit --checkers 4 -p tests/tsconfig.json"
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tests/tsconfig.json"
   },
   "dependencies": {
     "@clack/prompts": "catalog:",

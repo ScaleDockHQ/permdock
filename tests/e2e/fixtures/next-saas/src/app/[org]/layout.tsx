@@ -1,13 +1,13 @@
-import type { ReactNode } from 'react';
+import type { ReactNode } from "react";
 
-import Link from 'next/link';
-import { PermDockProvider } from 'permdock/react';
-import { Suspense } from 'react';
+import Link from "next/link";
+import { PermDockProvider } from "permdock/react";
+import { Suspense } from "react";
 
-import { getOrg, loadSnapshot } from '../../lib/access.ts';
-import { orgs } from '../../nav.ts';
-import { Nav, NavSkeleton } from './nav.tsx';
-import { RefreshSignal } from './refresh-signal.tsx';
+import { getOrg, loadSnapshot } from "../../lib/access.ts";
+import { orgs } from "../../nav.ts";
+import { Nav, NavSkeleton } from "./nav.tsx";
+import { RefreshSignal } from "./refresh-signal.tsx";
 
 export default function OrgLayout(props: {
   readonly children: ReactNode;

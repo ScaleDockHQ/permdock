@@ -1,10 +1,10 @@
-import 'reflect-metadata';
-import { Controller, Get, Module, Patch, Post } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
-import { createPermDock } from 'permdock/nest';
+import "reflect-metadata";
+import { Controller, Get, Module, Patch, Post } from "@nestjs/common";
+import { APP_GUARD } from "@nestjs/core";
+import { createPermDock } from "permdock/nest";
 
-import { ownPost, permissions } from './permissions.ts';
-import { memberUser, policy } from './policy.ts';
+import { ownPost, permissions } from "./permissions.ts";
+import { memberUser, policy } from "./policy.ts";
 
 export const { PermDockModule, PermDockGuard, Protect, permdockHandler } =
   createPermDock(policy, {
@@ -31,7 +31,7 @@ class HealthController {
   }
 }
 Controller()(HealthController);
-applyMethod(HealthController, 'health', Get('health'));
+applyMethod(HealthController, "health", Get("health"));
 
 class PostsController {
   update() {
@@ -42,17 +42,17 @@ class PostsController {
     return { ok: true };
   }
 }
-Controller('posts')(PostsController);
-applyMethod(PostsController, 'update', Patch(':id'));
+Controller("posts")(PostsController);
+applyMethod(PostsController, "update", Patch(":id"));
 applyMethod(
   PostsController,
-  'update',
+  "update",
   Protect(permissions.post.update, () => ownPost),
 );
-applyMethod(PostsController, 'publish', Post(':id/publish'));
+applyMethod(PostsController, "publish", Post(":id/publish"));
 applyMethod(
   PostsController,
-  'publish',
+  "publish",
   Protect(permissions.post.publish, () => ownPost),
 );
 

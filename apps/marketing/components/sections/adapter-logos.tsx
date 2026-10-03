@@ -1,16 +1,16 @@
-import type { ReactNode, SVGProps } from 'react';
+import type { ReactNode, SVGProps } from "react";
 
-import type { AdapterTile } from '@/lib/adapters';
+import type { AdapterTile } from "@/lib/adapters";
 
-import { AnthropicBlack } from '@permdock/ui/components/svgs/anthropicBlack';
-import { AnthropicWhite } from '@permdock/ui/components/svgs/anthropicWhite';
-import { Convex } from '@permdock/ui/components/svgs/convex';
-import { Hono } from '@permdock/ui/components/svgs/hono';
-import { Openai } from '@permdock/ui/components/svgs/openai';
-import { OpenaiDark } from '@permdock/ui/components/svgs/openaiDark';
-import { Supabase } from '@permdock/ui/components/svgs/supabase';
+import { AnthropicBlack } from "@permdock/ui/components/svgs/anthropicBlack";
+import { AnthropicWhite } from "@permdock/ui/components/svgs/anthropicWhite";
+import { Convex } from "@permdock/ui/components/svgs/convex";
+import { Hono } from "@permdock/ui/components/svgs/hono";
+import { Openai } from "@permdock/ui/components/svgs/openai";
+import { OpenaiDark } from "@permdock/ui/components/svgs/openaiDark";
+import { Supabase } from "@permdock/ui/components/svgs/supabase";
 
-type AdapterName = AdapterTile['name'];
+type AdapterName = AdapterTile["name"];
 
 function Dual({ light, dark }: { light: ReactNode; dark: ReactNode }) {
   return (
@@ -313,11 +313,11 @@ function OrpcLogo({
 
 const adapterLogos = {
   React: <ReactLogo />,
-  'React Native': <ReactLogo />,
+  "React Native": <ReactLogo />,
   Vue: <VueLogo />,
   Svelte: <SvelteLogo />,
   Solid: <SolidLogo />,
-  'Next.js': <NextLogo />,
+  "Next.js": <NextLogo />,
   Hono: <Hono />,
   Express: <ExpressLogo />,
   Fastify: <FastifyLogo />,
@@ -328,21 +328,21 @@ const adapterLogos = {
     <Dual light={<OrpcLogo fill="#1b1b1f" />} dark={<OrpcLogo fill="#fff" />} />
   ),
   MCP: <McpLogo />,
-  'AI SDK': <VercelLogo />,
-  'Claude Agent SDK': (
+  "AI SDK": <VercelLogo />,
+  "Claude Agent SDK": (
     <Dual light={<AnthropicBlack />} dark={<AnthropicWhite />} />
   ),
   Eve: <EveLogo />,
-  'OpenAI Agents': <Dual light={<Openai />} dark={<OpenaiDark />} />,
+  "OpenAI Agents": <Dual light={<Openai />} dark={<OpenaiDark />} />,
   WebMCP: <McpLogo />,
   A2A: <A2aLogo />,
   Drizzle: <DrizzleLogo />,
   Prisma: <PrismaLogo />,
   Kysely: <KyselyLogo />,
-  'Postgres RLS': <PostgresLogo />,
+  "Postgres RLS": <PostgresLogo />,
   Supabase: <Supabase />,
   JWT: <JwtLogo />,
-  'Better Auth': <BetterAuthLogo />,
+  "Better Auth": <BetterAuthLogo />,
   Clerk: <ClerkLogo />,
   Convex: <Convex />,
 } satisfies Record<AdapterName, ReactNode>;

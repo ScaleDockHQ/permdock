@@ -1,27 +1,27 @@
-import { RPCHandler } from '@orpc/server/fetch';
-import { createServer } from 'node:http';
-import { sendResponse, toRequest } from 'permdock/node';
+import { RPCHandler } from "@orpc/server/fetch";
+import { createServer } from "node:http";
+import { sendResponse, toRequest } from "permdock/node";
 
-import { router } from './app.ts';
-import { memberUser } from './policy.ts';
+import { router } from "./app.ts";
+import { memberUser } from "./policy.ts";
 
-const port = Number(process.env['PORT'] ?? 3462);
+const port = Number(process.env["PORT"] ?? 3462);
 const handler = new RPCHandler(router);
 
 function isHealth(req: {
   readonly method?: string | undefined;
   readonly url?: string | undefined;
 }): boolean {
-  if (req.method !== 'GET') {
+  if (req.method !== "GET") {
     return false;
   }
-  const path = req.url ?? '';
-  return path === '/health' || path.startsWith('/health?');
+  const path = req.url ?? "";
+  return path === "/health" || path.startsWith("/health?");
 }
 
 createServer((req, res) => {
   if (isHealth(req)) {
-    res.setHeader('content-type', 'application/json');
+    res.setHeader("content-type", "application/json");
     res.end(JSON.stringify({ ok: true }));
     return;
   }
@@ -29,7 +29,7 @@ createServer((req, res) => {
     try {
       const request = toRequest(req);
       const result = await handler.handle(request, {
-        prefix: '/rpc',
+        prefix: "/rpc",
         context: { user: memberUser },
       });
       if (result.matched) {
@@ -47,4 +47,4 @@ createServer((req, res) => {
     res.statusCode = 500;
     res.end();
   });
-}).listen(port, '127.0.0.1');
+}).listen(port, "127.0.0.1");

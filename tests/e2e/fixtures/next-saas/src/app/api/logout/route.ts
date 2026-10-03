@@ -1,9 +1,9 @@
-import { revalidateTag } from 'next/cache';
-import { cookies } from 'next/headers';
-import { snapshotTag } from 'permdock/next';
+import { revalidateTag } from "next/cache";
+import { cookies } from "next/headers";
+import { snapshotTag } from "permdock/next";
 
-import { getClaims } from '../../../lib/session.ts';
-import { SESSION_COOKIE } from '../../../lib/token.ts';
+import { getClaims } from "../../../lib/session.ts";
+import { SESSION_COOKIE } from "../../../lib/token.ts";
 
 /**
  * Sign-out is a document navigation, not a Server Action: Next keeps visited
@@ -11,8 +11,8 @@ import { SESSION_COOKIE } from '../../../lib/token.ts';
  * the previous user's shell in the DOM for the next one.
  */
 export async function POST(request: Request): Promise<Response> {
-  const origin = request.headers.get('origin');
-  if (origin !== null && new URL(origin).host !== request.headers.get('host')) {
+  const origin = request.headers.get("origin");
+  if (origin !== null && new URL(origin).host !== request.headers.get("host")) {
     return new Response(null, { status: 403 });
   }
   const claims = await getClaims();
@@ -22,6 +22,6 @@ export async function POST(request: Request): Promise<Response> {
   }
   return new Response(null, {
     status: 303,
-    headers: { location: '/login' },
+    headers: { location: "/login" },
   });
 }

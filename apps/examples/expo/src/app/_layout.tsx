@@ -1,7 +1,7 @@
-import { Slot } from 'expo-router';
-import { memoryStorage, PermDockProvider } from 'permdock/react-native';
+import { Slot } from "expo-router";
+import { memoryStorage, PermDockProvider } from "permdock/react-native";
 
-import { memberSnapshot } from '../snapshot.ts';
+import { memberSnapshot } from "../snapshot.ts";
 
 const storage = memoryStorage();
 

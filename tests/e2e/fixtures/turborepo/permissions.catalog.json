@@ -1,9 +1,9 @@
 {
   "$schema": "https://permdock.dev/schemas/catalog-v1.json",
   "version": 1,
-  "generatedAt": "2026-10-01T17:14:56.076Z",
+  "generatedAt": "2026-10-03T15:41:22.437Z",
   "generator": "permdock@0.1.0-next.2",
-  "fingerprint": "1NzjjwFJjgDUJwOE8US-L2Z3Nb6p7zerwsgZR4mZe60",
+  "fingerprint": "itzidnD54Sh0kfmC1o5xApt5bNhOpAvsmfAUzq15_Mo",
   "resources": {
     "project": {
       "id": "id",
@@ -90,7 +90,8 @@
       "action": "read",
       "arity": "collection",
       "meta": {},
-      "usages": []
+      "usages": [],
+      "rowConditions": true
     },
     {
       "key": "apiKey.create",
@@ -99,7 +100,8 @@
       "action": "create",
       "arity": "collection",
       "meta": {},
-      "usages": []
+      "usages": [],
+      "rowConditions": true
     },
     {
       "key": "apiKey.manage",
@@ -108,7 +110,8 @@
       "action": "manage",
       "arity": "collection",
       "meta": {},
-      "usages": []
+      "usages": [],
+      "rowConditions": true
     },
     {
       "key": "apiKey.revokeAll",
@@ -117,7 +120,8 @@
       "action": "revokeAll",
       "arity": "collection",
       "meta": {},
-      "usages": []
+      "usages": [],
+      "rowConditions": true
     },
     {
       "key": "audit.read",
@@ -126,7 +130,8 @@
       "action": "read",
       "arity": "collection",
       "meta": {},
-      "usages": []
+      "usages": [],
+      "rowConditions": true
     },
     {
       "key": "billing.manage",
@@ -135,7 +140,8 @@
       "action": "manage",
       "arity": "collection",
       "meta": {},
-      "usages": []
+      "usages": [],
+      "rowConditions": true
     },
     {
       "key": "billing.read",
@@ -144,7 +150,8 @@
       "action": "read",
       "arity": "collection",
       "meta": {},
-      "usages": []
+      "usages": [],
+      "rowConditions": true
     },
     {
       "key": "doc.create",
@@ -153,7 +160,8 @@
       "action": "create",
       "arity": "collection",
       "meta": {},
-      "usages": []
+      "usages": [],
+      "rowConditions": true
     },
     {
       "key": "doc.delete",
@@ -164,7 +172,8 @@
       "meta": {
         "destructive": true
       },
-      "usages": []
+      "usages": [],
+      "rowConditions": true
     },
     {
       "key": "doc.list",
@@ -175,7 +184,8 @@
       "meta": {
         "readOnly": true
       },
-      "usages": []
+      "usages": [],
+      "rowConditions": true
     },
     {
       "key": "doc.read",
@@ -186,7 +196,8 @@
       "meta": {
         "readOnly": true
       },
-      "usages": []
+      "usages": [],
+      "rowConditions": true
     },
     {
       "key": "doc.update",
@@ -195,7 +206,8 @@
       "action": "update",
       "arity": "instance",
       "meta": {},
-      "usages": []
+      "usages": [],
+      "rowConditions": true
     },
     {
       "key": "folder.create",
@@ -204,7 +216,8 @@
       "action": "create",
       "arity": "collection",
       "meta": {},
-      "usages": []
+      "usages": [],
+      "rowConditions": true
     },
     {
       "key": "folder.delete",
@@ -215,7 +228,8 @@
       "meta": {
         "destructive": true
       },
-      "usages": []
+      "usages": [],
+      "rowConditions": true
     },
     {
       "key": "folder.list",
@@ -226,7 +240,8 @@
       "meta": {
         "readOnly": true
       },
-      "usages": []
+      "usages": [],
+      "rowConditions": true
     },
     {
       "key": "folder.read",
@@ -237,7 +252,8 @@
       "meta": {
         "readOnly": true
       },
-      "usages": []
+      "usages": [],
+      "rowConditions": true
     },
     {
       "key": "folder.update",
@@ -246,7 +262,8 @@
       "action": "update",
       "arity": "instance",
       "meta": {},
-      "usages": []
+      "usages": [],
+      "rowConditions": true
     },
     {
       "key": "integration.read",
@@ -255,7 +272,8 @@
       "action": "read",
       "arity": "collection",
       "meta": {},
-      "usages": []
+      "usages": [],
+      "rowConditions": true
     },
     {
       "key": "member.assignRole",
@@ -264,7 +282,8 @@
       "action": "assignRole",
       "arity": "collection",
       "meta": {},
-      "usages": []
+      "usages": [],
+      "rowConditions": true
     },
     {
       "key": "member.invite",
@@ -273,7 +292,8 @@
       "action": "invite",
       "arity": "collection",
       "meta": {},
-      "usages": []
+      "usages": [],
+      "rowConditions": true
     },
     {
       "key": "member.list",
@@ -282,7 +302,8 @@
       "action": "list",
       "arity": "collection",
       "meta": {},
-      "usages": []
+      "usages": [],
+      "rowConditions": true
     },
     {
       "key": "project.create",
@@ -291,7 +312,8 @@
       "action": "create",
       "arity": "collection",
       "meta": {},
-      "usages": []
+      "usages": [],
+      "rowConditions": true
     },
     {
       "key": "project.delete",
@@ -302,7 +324,8 @@
       "meta": {
         "destructive": true
       },
-      "usages": []
+      "usages": [],
+      "rowConditions": true
     },
     {
       "key": "project.list",
@@ -324,7 +347,8 @@
           "line": 15,
           "call": "can"
         }
-      ]
+      ],
+      "rowConditions": true
     },
     {
       "key": "project.read",
@@ -346,7 +370,8 @@
           "line": 22,
           "call": "filter"
         }
-      ]
+      ],
+      "rowConditions": true
     },
     {
       "key": "project.update",
@@ -381,7 +406,8 @@
           "line": 73,
           "call": "decide"
         }
-      ]
+      ],
+      "rowConditions": true
     },
     {
       "key": "settings.manage",
@@ -390,7 +416,8 @@
       "action": "manage",
       "arity": "collection",
       "meta": {},
-      "usages": []
+      "usages": [],
+      "rowConditions": true
     },
     {
       "key": "sso.manage",
@@ -399,7 +426,8 @@
       "action": "manage",
       "arity": "collection",
       "meta": {},
-      "usages": []
+      "usages": [],
+      "rowConditions": true
     }
   ]
 }

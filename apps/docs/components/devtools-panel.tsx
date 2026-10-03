@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { useMemo, useState } from 'react';
+import { useState } from "react";
 
 import {
   DEMO_ACTIONS,
@@ -9,9 +9,9 @@ import {
   type DemoAction,
   type DemoDecisionView,
   type DemoRole,
-} from '@/lib/devtools-demo';
+} from "@/lib/devtools-demo";
 
-const SELECT_CLASS = 'rounded-md border border-border bg-background px-3 py-2';
+const SELECT_CLASS = "rounded-md border border-border bg-background px-3 py-2";
 
 function isDemoRole(value: string): value is DemoRole {
   return DEMO_ROLES.some((role) => role === value);
@@ -103,9 +103,9 @@ function DecisionView({ view }: { view: DemoDecisionView }) {
 }
 
 export function DevtoolsPanel() {
-  const [roleName, setRoleName] = useState<DemoRole>('member');
-  const [action, setAction] = useState<DemoAction>('delete');
-  const view = useMemo(() => demoDecide(roleName, action), [roleName, action]);
+  const [roleName, setRoleName] = useState<DemoRole>("member");
+  const [action, setAction] = useState<DemoAction>("delete");
+  const view = demoDecide(roleName, action);
 
   return (
     <div className="flex flex-col gap-6">

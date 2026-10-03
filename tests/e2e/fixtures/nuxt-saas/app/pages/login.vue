@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { loginUsers } from '@permdock/e2e-saas-kit/nav';
+import { loginUsers } from "@permdock/e2e-saas-kit/nav";
 </script>
 
 <template>

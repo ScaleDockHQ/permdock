@@ -1,16 +1,16 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { Subject } from '../../src/core/subject.ts';
+import type { Subject } from "../../src/core/subject.ts";
 
-import { PermDockRevokedError } from '../../src/core/errors.ts';
-import { memoryRevocationFeed } from '../../src/core/revocations.ts';
-import { createPermDock } from '../../src/server/index.ts';
+import { PermDockRevokedError } from "../../src/core/errors.ts";
+import { memoryRevocationFeed } from "../../src/core/revocations.ts";
+import { createPermDock } from "../../src/server/index.ts";
 import {
   otherPost,
   ownPost,
   permissions,
   policy,
-} from '../fixtures/quick-start.ts';
+} from "../fixtures/quick-start.ts";
 
 type Session = {
   roles: string[];
@@ -33,7 +33,7 @@ function setup(state: Session, extra: { revalidate?: number } = {}) {
       return {
         principal: {
           id: state.id,
-          orgId: 'o1',
+          orgId: "o1",
           roles: [...state.roles],
           ...(state.memberships === undefined
             ? {}
@@ -52,7 +52,7 @@ function setup(state: Session, extra: { revalidate?: number } = {}) {
       | typeof permissions.post.list
       | typeof permissions.post.publish = permissions.post.list,
   ) =>
-    kernel.connection(new Request('https://api.example/stream'), {
+    kernel.connection(new Request("https://api.example/stream"), {
       permission,
       ...extra,
     });
@@ -76,16 +76,16 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe('kernel connection', () => {
-  it('checks each message and filters outbound items against the current instance', async () => {
-    const { open } = setup({ id: 'u1', roles: ['member'] });
+describe("kernel connection", () => {
+  it("checks each message and filters outbound items against the current instance", async () => {
+    const { open } = setup({ id: "u1", roles: ["member"] });
     const conn = await open();
     expect(conn.signal.aborted).toBe(false);
     expect(conn.check(permissions.post.update, ownPost).outcome).toBe(
-      'granted',
+      "granted",
     );
     expect(conn.check(permissions.post.update, otherPost).outcome).toBe(
-      'denied',
+      "denied",
     );
     expect(conn.filter(permissions.post.update, [ownPost, otherPost])).toEqual([
       ownPost,
@@ -94,104 +94,104 @@ describe('kernel connection', () => {
     conn.close();
   });
 
-  it('aborts at open when the opening permission is denied', async () => {
-    const { open } = setup({ id: 'u1', roles: ['member'] });
+  it("aborts at open when the opening permission is denied", async () => {
+    const { open } = setup({ id: "u1", roles: ["member"] });
     const conn = await open(permissions.post.publish);
     const reason = reasonOf(conn.signal);
-    expect(reason.code).toBe('denied');
-    expect(reason.decision?.outcome).toBe('denied');
+    expect(reason.code).toBe("denied");
+    expect(reason.decision?.outcome).toBe("denied");
     expect(reason.toProblemDetails().status).toBe(403);
     expect(conn.check(permissions.post.read, ownPost)).toMatchObject({
-      outcome: 'denied',
-      denials: [{ reason: 'no-grant', detail: 'connection-revoked' }],
+      outcome: "denied",
+      denials: [{ reason: "no-grant", detail: "connection-revoked" }],
     });
   });
 
-  it('aborts on session-revoked for its principal and session only', async () => {
+  it("aborts on session-revoked for its principal and session only", async () => {
     const { open, revocations } = setup({
-      id: 'u1',
-      roles: ['member'],
-      session: 's1',
+      id: "u1",
+      roles: ["member"],
+      session: "s1",
     });
     const conn = await open();
-    await revocations.revoke({ principal: 'u2', kind: 'session-revoked' });
+    await revocations.revoke({ principal: "u2", kind: "session-revoked" });
     await revocations.revoke({
-      principal: 'u1',
-      session: 's2',
-      kind: 'session-revoked',
+      principal: "u1",
+      session: "s2",
+      kind: "session-revoked",
     });
     expect(conn.signal.aborted).toBe(false);
     await revocations.revoke({
-      principal: 'u1',
-      session: 's1',
-      kind: 'session-revoked',
+      principal: "u1",
+      session: "s1",
+      kind: "session-revoked",
     });
-    expect(reasonOf(conn.signal).code).toBe('session-revoked');
+    expect(reasonOf(conn.signal).code).toBe("session-revoked");
     expect(reasonOf(conn.signal).toProblemDetails().status).toBe(401);
     expect(conn.filter(permissions.post.update, [ownPost])).toEqual([]);
   });
 
-  it('revalidates on changed: keeps a still-granted connection and swaps the instance', async () => {
-    const state: Session = { id: 'u2', roles: ['admin'] };
+  it("revalidates on changed: keeps a still-granted connection and swaps the instance", async () => {
+    const state: Session = { id: "u2", roles: ["admin"] };
     const { open, revocations, reads } = setup(state);
     const conn = await open(permissions.post.list);
     const before = conn.permdock;
     expect(conn.check(permissions.post.publish, ownPost).outcome).toBe(
-      'granted',
+      "granted",
     );
-    state.roles = ['member'];
-    await revocations.revoke({ principal: 'u2', kind: 'changed' });
+    state.roles = ["member"];
+    await revocations.revoke({ principal: "u2", kind: "changed" });
     await settle();
     expect(reads()).toBe(2);
     expect(conn.signal.aborted).toBe(false);
     expect(conn.permdock).not.toBe(before);
     expect(conn.check(permissions.post.publish, ownPost).outcome).toBe(
-      'denied',
+      "denied",
     );
   });
 
-  it('aborts with denied when a demotion removes the opening permission', async () => {
-    const state: Session = { id: 'u2', roles: ['admin'] };
+  it("aborts with denied when a demotion removes the opening permission", async () => {
+    const state: Session = { id: "u2", roles: ["admin"] };
     const { open, revocations } = setup(state);
     const conn = await open(permissions.post.publish);
-    state.roles = ['member'];
-    await revocations.revoke({ principal: 'u2', kind: 'changed' });
+    state.roles = ["member"];
+    await revocations.revoke({ principal: "u2", kind: "changed" });
     await settle();
-    expect(reasonOf(conn.signal).code).toBe('denied');
+    expect(reasonOf(conn.signal).code).toBe("denied");
   });
 
-  it('aborts with subject-changed when the subject no longer resolves', async () => {
-    const state: Session = { id: 'u1', roles: ['member'] };
+  it("aborts with subject-changed when the subject no longer resolves", async () => {
+    const state: Session = { id: "u1", roles: ["member"] };
     const { open, revocations } = setup(state);
     const conn = await open();
     state.id = null;
-    await revocations.revoke({ principal: 'u1', kind: 'changed' });
+    await revocations.revoke({ principal: "u1", kind: "changed" });
     await settle();
-    expect(reasonOf(conn.signal).code).toBe('subject-changed');
+    expect(reasonOf(conn.signal).code).toBe("subject-changed");
   });
 
-  it('aborts with expired at subject.expiresAt', async () => {
+  it("aborts with expired at subject.expiresAt", async () => {
     vi.useFakeTimers();
     const now = Date.now() / 1000;
     const { open } = setup({
-      id: 'u1',
-      roles: ['member'],
+      id: "u1",
+      roles: ["member"],
       expiresAt: now + 10,
     });
     const conn = await open();
     vi.advanceTimersByTime(9_000);
     expect(conn.signal.aborted).toBe(false);
     vi.advanceTimersByTime(1_500);
-    expect(reasonOf(conn.signal).code).toBe('expired');
+    expect(reasonOf(conn.signal).code).toBe("expired");
   });
 
-  it('revalidates at the earliest membership expiry and on the revalidate interval', async () => {
+  it("revalidates at the earliest membership expiry and on the revalidate interval", async () => {
     vi.useFakeTimers();
     const now = Date.now() / 1000;
     const membership = setup({
-      id: 'u1',
-      roles: ['member'],
-      memberships: [{ tenant: 'o1', roles: ['member'], expiresAt: now + 5 }],
+      id: "u1",
+      roles: ["member"],
+      memberships: [{ tenant: "o1", roles: ["member"], expiresAt: now + 5 }],
     });
     await membership.open();
     expect(membership.reads()).toBe(1);
@@ -199,7 +199,7 @@ describe('kernel connection', () => {
     expect(membership.reads()).toBe(2);
 
     const periodic = setup(
-      { id: 'u1', roles: ['member'] },
+      { id: "u1", roles: ["member"] },
       { revalidate: 1_000 },
     );
     const conn = await periodic.open();
@@ -210,50 +210,50 @@ describe('kernel connection', () => {
     expect(periodic.reads()).toBe(4);
   });
 
-  it('stops listening after close and denies later checks', async () => {
-    const { open, revocations } = setup({ id: 'u1', roles: ['member'] });
+  it("stops listening after close and denies later checks", async () => {
+    const { open, revocations } = setup({ id: "u1", roles: ["member"] });
     const conn = await open();
     conn.close();
-    await revocations.revoke({ principal: 'u1', kind: 'session-revoked' });
+    await revocations.revoke({ principal: "u1", kind: "session-revoked" });
     expect(conn.signal.aborted).toBe(false);
-    expect(conn.check(permissions.post.read, ownPost).outcome).toBe('denied');
+    expect(conn.check(permissions.post.read, ownPost).outcome).toBe("denied");
   });
 
-  it('fails closed when the feed cannot subscribe', async () => {
+  it("fails closed when the feed cannot subscribe", async () => {
     const kernel = createPermDock(policy, {
       revocations: {
         subscribe: () => {
-          throw new Error('feed down');
+          throw new Error("feed down");
         },
         revoke: () => undefined,
       },
-      subject: () => ({ id: 'u1', orgId: 'o1', roles: ['member'] }),
+      subject: () => ({ id: "u1", orgId: "o1", roles: ["member"] }),
     });
-    const conn = await kernel.connection(new Request('https://api.example/'));
-    expect(reasonOf(conn.signal).code).toBe('expired');
+    const conn = await kernel.connection(new Request("https://api.example/"));
+    expect(reasonOf(conn.signal).code).toBe("expired");
   });
 });
 
-describe('memoryRevocationFeed', () => {
-  it('rejects malformed events and isolates a throwing listener', () => {
+describe("memoryRevocationFeed", () => {
+  it("rejects malformed events and isolates a throwing listener", () => {
     const feed = memoryRevocationFeed();
     const seen: string[] = [];
     feed.subscribe(() => {
-      throw new Error('listener');
+      throw new Error("listener");
     });
     const stop = feed.subscribe((event) => {
       seen.push(event.principal);
     });
-    expect(() => feed.revoke({ principal: '', kind: 'changed' })).toThrow(
+    expect(() => feed.revoke({ principal: "", kind: "changed" })).toThrow(
       TypeError,
     );
     // SAFETY: deliberately unknown revocation kind to exercise input validation.
     expect(() =>
-      feed.revoke({ principal: 'u1', kind: 'grant' as never }),
+      feed.revoke({ principal: "u1", kind: "grant" as never }),
     ).toThrow(TypeError);
-    feed.revoke({ principal: 'u1', kind: 'changed' });
+    feed.revoke({ principal: "u1", kind: "changed" });
     stop();
-    feed.revoke({ principal: 'u2', kind: 'changed' });
-    expect(seen).toEqual(['u1']);
+    feed.revoke({ principal: "u2", kind: "changed" });
+    expect(seen).toEqual(["u1"]);
   });
 });

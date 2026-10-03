@@ -1,5 +1,5 @@
 ---
-'permdock': minor
+"permdock": minor
 ---
 
 Role ownership and audiences. `role(name, grants, options)` takes `min` and `max` (holders per scope instance), `transferOnly` (the holder count only moves by transfer), `assigns` (the roles a holder may assign and revoke), `for` (the membership kinds, `Membership.via`, that may hold the role) and a typed `meta: RoleMeta` with `audience`. A role held through a membership kind its `for` does not list, or through a membership without `via`, grants nothing: it is dropped when the subject is resolved and filtered in the generated RLS helpers.

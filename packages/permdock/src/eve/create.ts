@@ -1,6 +1,6 @@
-import type { ToolBinding, ToolMap, ToolVerdict } from '../agent/types.ts';
-import type { ApprovalRequest, ApprovalStore } from '../approvals/types.ts';
-import type { PolicySource } from '../core/hosted.ts';
+import type { ToolBinding, ToolMap, ToolVerdict } from "../agent/types.ts";
+import type { ApprovalRequest, ApprovalStore } from "../approvals/types.ts";
+import type { PolicySource } from "../core/hosted.ts";
 import type {
   DecisionSink,
   EntitlementSource,
@@ -9,18 +9,18 @@ import type {
   RelationSource,
   RoleSource,
   SnapshotSource,
-} from '../core/interfaces.ts';
-import type { PermDock } from '../core/permdock.ts';
-import type { Permission } from '../core/permissions.ts';
-import type { Policy } from '../core/policy.ts';
-import type { Delegation, Principal } from '../core/subject.ts';
+} from "../core/interfaces.ts";
+import type { PermDock } from "../core/permdock.ts";
+import type { Permission } from "../core/permissions.ts";
+import type { Policy, PolicyVocabulary } from "../core/policy.ts";
+import type { Delegation, Principal } from "../core/subject.ts";
 
-import { createAgentKernel } from '../agent/kernel.ts';
-import { boundedMap } from '../agent/lru.ts';
-import { isApprovalError } from '../approvals/errors.ts';
-import { resolveApproval } from '../approvals/helpers.ts';
-import { memoryApprovalStore } from '../approvals/store.ts';
-import { compact } from '../core/compact.ts';
+import { createAgentKernel } from "../agent/kernel.ts";
+import { boundedMap } from "../agent/lru.ts";
+import { isApprovalError } from "../approvals/errors.ts";
+import { resolveApproval } from "../approvals/helpers.ts";
+import { memoryApprovalStore } from "../approvals/store.ts";
+import { compact } from "../core/compact.ts";
 
 /** Structural `SessionAuthContext` from `eve`. */
 export type EvePrincipal = {
@@ -54,7 +54,11 @@ export type EveResponseContext = {
     readonly toolName: string;
     readonly toolInput?: unknown;
   };
-  readonly responder: EvePrincipal;
+  /** Who answered and how; eve settles the request only on `allowed`. */
+  readonly response: {
+    readonly decision: "approve" | "cancel";
+    readonly principal: EvePrincipal;
+  };
   readonly session: {
     readonly id: string;
     readonly initiator: EvePrincipal | null;
@@ -62,7 +66,7 @@ export type EveResponseContext = {
 };
 
 /** What `subject`, `actor` and `tenant` receive. */
-export type EveContext = Pick<EveApprovalContext, 'session' | 'callId'>;
+export type EveContext = Pick<EveApprovalContext, "session" | "callId">;
 
 export type EveApprovers =
   | { readonly roles: readonly string[] }
@@ -95,13 +99,13 @@ export type EvePermDockOptions<TUser = unknown> = {
 };
 
 export type EveRequestResult =
-  | 'not-applicable'
-  | 'user-approval'
-  | { readonly type: 'denied'; readonly reason: string };
+  | "not-applicable"
+  | "user-approval"
+  | { readonly type: "denied"; readonly reason: string };
 
 export type EveResponseResult =
-  | { readonly status: 'allowed' }
-  | { readonly status: 'rejected'; readonly reason: string };
+  | { readonly status: "allowed" }
+  | { readonly status: "rejected"; readonly reason: string };
 
 /** An eve `ApprovalConfiguration`: pass it as a tool's `approval`. */
 export type EveApprovalPair = {
@@ -109,26 +113,26 @@ export type EveApprovalPair = {
   readonly response: (ctx: EveResponseContext) => Promise<EveResponseResult>;
 };
 
-export type EvePermDock = {
+export type EvePermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
   readonly approval: EveApprovalPair;
   readonly approvalFor: (
     permission: Permission,
     data?: (input: unknown) => unknown,
   ) => EveApprovalPair;
-  readonly permdock: (ctx: EveContext) => Promise<PermDock>;
+  readonly permdock: (ctx: EveContext) => Promise<PermDock<V>>;
 };
 
 const TOKENS_PER_PROCESS = 1000;
 
 export function rolesOf(principal: EvePrincipal | null | undefined): string[] {
-  const roles = principal?.attributes?.['roles'];
-  if (typeof roles === 'string') {
+  const roles = principal?.attributes?.["roles"];
+  if (typeof roles === "string") {
     return [roles];
   }
   if (!Array.isArray(roles)) {
     return [];
   }
-  return roles.filter((role): role is string => typeof role === 'string');
+  return roles.filter((role): role is string => typeof role === "string");
 }
 
 export function subjectFromSession(context: EveContext): unknown {
@@ -150,19 +154,19 @@ export function actorFromSession(context: EveContext): unknown {
     initiator !== null &&
     current.principalId !== initiator.principalId
   ) {
-    return { id: current.principalId, kind: 'eve' };
+    return { id: current.principalId, kind: "eve" };
   }
-  return { id: 'eve:app', kind: 'eve' };
+  return { id: "eve:app", kind: "eve" };
 }
 
 function mapVerdict(verdict: ToolVerdict): EveRequestResult {
-  if (verdict.outcome === 'granted') {
-    return 'not-applicable';
+  if (verdict.outcome === "granted") {
+    return "not-applicable";
   }
-  if (verdict.outcome === 'approval-required') {
-    return 'user-approval';
+  if (verdict.outcome === "approval-required") {
+    return "user-approval";
   }
-  return { type: 'denied', reason: verdict.reason };
+  return { type: "denied", reason: verdict.reason };
 }
 
 function mayApprove(
@@ -173,7 +177,7 @@ function mayApprove(
   if (approvers === undefined) {
     return true;
   }
-  if (typeof approvers === 'function') {
+  if (typeof approvers === "function") {
     return approvers(responder, request);
   }
   const held = new Set(rolesOf(responder));
@@ -184,14 +188,18 @@ function callKey(sessionId: string | undefined, callId: string): string {
   return JSON.stringify([sessionId ?? null, callId]);
 }
 
-export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
-  policy: Policy<TUser, TPrincipal>,
+export function createPermDock<
+  TUser,
+  TPrincipal extends Principal = Principal,
+  V extends PolicyVocabulary = PolicyVocabulary,
+>(
+  policy: Policy<TUser, TPrincipal, V>,
   options: EvePermDockOptions<TUser>,
-): EvePermDock {
+): EvePermDock<V> {
   const store = options.store ?? memoryApprovalStore();
   const tokensByCall = boundedMap<string, string>(TOKENS_PER_PROCESS);
   // SAFETY: without options.subject, TUser is the { id, roles } user subjectFromSession builds, or null.
-  const kernel = createAgentKernel<EveContext, TUser>(policy, {
+  const kernel = createAgentKernel<EveContext, TUser, V>(policy, {
     ...compact({
       tenant: options.tenant,
       delegation: options.delegation,
@@ -210,7 +218,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     actor: options.actor ?? actorFromSession,
     tools: options.tools,
     store,
-    adapter: 'eve',
+    adapter: "eve",
   });
 
   // The responder is mapped by the same `subject` as an initiator, so the
@@ -220,13 +228,13 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     sessionId: string,
   ): Promise<Principal | null> => {
     try {
-      const dock = await kernel.instance({
+      const permdock = await kernel.instance({
         session: {
           id: sessionId,
           auth: { initiator: responder, current: responder },
         },
       });
-      return dock.subject.principal ?? null;
+      return permdock.subject.principal ?? null;
     } catch {
       return null;
     }
@@ -248,7 +256,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
           : await kernel.evaluate(binding, ctx.toolName, ctx.toolInput, ctx, {
               denyPending: true,
             });
-      if (verdict.outcome === 'approval-required' && ctx.callId !== undefined) {
+      if (verdict.outcome === "approval-required" && ctx.callId !== undefined) {
         tokensByCall.set(callKey(ctx.session?.id, ctx.callId), verdict.token);
       }
       return mapVerdict(verdict);
@@ -280,7 +288,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     ): Promise<EveResponseResult> => {
       const token = await tokenOf(ctx);
       if (token === undefined) {
-        return { status: 'rejected', reason: 'approval-not-found' };
+        return { status: "rejected", reason: "approval-not-found" };
       }
       let current: ApprovalRequest | null;
       try {
@@ -289,33 +297,33 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         current = null;
       }
       if (current === null) {
-        return { status: 'rejected', reason: 'approval-not-found' };
+        return { status: "rejected", reason: "approval-not-found" };
       }
-      const responder = ctx.responder;
+      const responder = ctx.response.principal;
       if (current.subject.actor?.id === responder.principalId) {
         return {
-          status: 'rejected',
-          reason: 'approver is the actor of this request',
+          status: "rejected",
+          reason: "approver is the actor of this request",
         };
       }
       if (!mayApprove(options.approvers, responder, current)) {
-        return { status: 'rejected', reason: 'approver is not eligible' };
+        return { status: "rejected", reason: "approver is not eligible" };
       }
       const approver = await approverOf(responder, ctx.session.id);
       if (approver === null) {
-        return { status: 'rejected', reason: 'approver is not eligible' };
+        return { status: "rejected", reason: "approver is not eligible" };
       }
       try {
         await resolveApproval(store, token, {
-          status: 'approved',
+          status: ctx.response.decision === "approve" ? "approved" : "rejected",
           by: { principal: approver, context: {} },
         });
-        return { status: 'allowed' };
+        return { status: "allowed" };
       } catch (error) {
         if (isApprovalError(error)) {
-          return { status: 'rejected', reason: error.message };
+          return { status: "rejected", reason: error.message };
         }
-        return { status: 'rejected', reason: 'approval-not-found' };
+        return { status: "rejected", reason: "approval-not-found" };
       }
     };
 

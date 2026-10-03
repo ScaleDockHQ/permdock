@@ -1,28 +1,28 @@
-'use server';
+"use server";
 
-import type { Decision } from 'permdock';
+import type { Decision } from "permdock";
 
-import { updateTag } from 'next/cache';
-import { cookies } from 'next/headers';
-import { redirect } from 'next/navigation';
-import { snapshotTag } from 'permdock/next';
+import { updateTag } from "next/cache";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { snapshotTag } from "permdock/next";
 
-import { serverPermDock } from '../lib/access.ts';
-import { mintSession } from '../lib/session.ts';
-import { findProject, removeProject, setRole } from '../lib/store.ts';
-import { SESSION_COOKIE, TOKEN_TTL_SECONDS } from '../lib/token.ts';
-import { users } from '../nav.ts';
-import { permissions, roleNames } from '../permissions.ts';
+import { serverPermDock } from "../lib/access.ts";
+import { mintSession } from "../lib/session.ts";
+import { findProject, removeProject, setRole } from "../lib/store.ts";
+import { SESSION_COOKIE, TOKEN_TTL_SECONDS } from "../lib/token.ts";
+import { users } from "../nav.ts";
+import { permissions, roleNames } from "../permissions.ts";
 
 export type ActionResult = { readonly ok: boolean; readonly reason?: string };
 
 function reasonOf(decision: Decision): string {
   switch (decision.outcome) {
-    case 'granted':
-      return 'granted';
-    case 'denied':
-      return decision.denials[0]?.reason ?? 'denied';
-    case 'approval-required':
+    case "granted":
+      return "granted";
+    case "denied":
+      return decision.denials[0]?.reason ?? "denied";
+    case "approval-required":
       return decision.reason;
     default: {
       const unreachable: never = decision;
@@ -37,20 +37,20 @@ function isUser(value: unknown): value is (typeof users)[number] {
 
 /** Test-only login: mints a session for a fixture user. */
 export async function signIn(form: FormData): Promise<void> {
-  const user = form.get('user');
-  const next = form.get('next');
+  const user = form.get("user");
+  const next = form.get("next");
   if (!isUser(user)) {
-    return redirect('/login');
+    return redirect("/login");
   }
   const jar = await cookies();
   jar.set(SESSION_COOKIE, await mintSession(user), {
     httpOnly: true,
-    sameSite: 'lax',
-    path: '/',
+    sameSite: "lax",
+    path: "/",
     maxAge: TOKEN_TTL_SECONDS,
   });
   updateTag(snapshotTag(user));
-  redirect(typeof next === 'string' && next.startsWith('/') ? next : '/');
+  redirect(typeof next === "string" && next.startsWith("/") ? next : "/");
 }
 
 export async function deleteProject(
@@ -59,11 +59,11 @@ export async function deleteProject(
 ): Promise<ActionResult> {
   const project = findProject(id);
   if (project === undefined || project.orgId !== org) {
-    return { ok: false, reason: 'not-found' };
+    return { ok: false, reason: "not-found" };
   }
   const { permdock } = await serverPermDock(org);
   const decision = permdock.decide(permissions.project.delete, project);
-  if (decision.outcome !== 'granted') {
+  if (decision.outcome !== "granted") {
     return { ok: false, reason: reasonOf(decision) };
   }
   removeProject(id);
@@ -78,14 +78,14 @@ export async function changeRole(
 ): Promise<ActionResult> {
   const { permdock } = await serverPermDock(org);
   const decision = permdock.decide(permissions.member.assignRole);
-  if (decision.outcome !== 'granted') {
+  if (decision.outcome !== "granted") {
     return { ok: false, reason: reasonOf(decision) };
   }
   if (!roleNames.some((name) => name === role)) {
-    return { ok: false, reason: 'unknown-role' };
+    return { ok: false, reason: "unknown-role" };
   }
   if (!setRole(org, user, role)) {
-    return { ok: false, reason: 'not-found' };
+    return { ok: false, reason: "not-found" };
   }
   updateTag(`org:${org}`);
   updateTag(snapshotTag(user));

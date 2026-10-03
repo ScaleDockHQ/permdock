@@ -1,23 +1,23 @@
-import type { Condition } from '../conditions/ast.ts';
-import type { SnapshotGrant } from './interfaces.ts';
-import type { WhereResult } from './permdock.ts';
-import type { ResourceNode } from './permissions.ts';
-import type { Membership, Subject } from './subject.ts';
+import type { Condition } from "../conditions/ast.ts";
+import type { SnapshotGrant } from "./interfaces.ts";
+import type { WhereResult } from "./permdock.ts";
+import type { ResourceNode } from "./permissions.ts";
+import type { Membership, Subject } from "./subject.ts";
 
-import { bindConditionRefs } from '../conditions/bind.ts';
-import { sole } from './compact.ts';
-import { freezeDeep } from './freeze.ts';
-import { resourceRoleCondition } from './grantee.ts';
-import { type Scope, findScope, scopeChain, scopeIdOf } from './scopes.ts';
+import { bindConditionRefs } from "../conditions/bind.ts";
+import { sole } from "./compact.ts";
+import { freezeDeep } from "./freeze.ts";
+import { resourceRoleCondition } from "./grantee.ts";
+import { type Scope, findScope, scopeChain, scopeIdOf } from "./scopes.ts";
 import {
   activeFor,
   inTeam,
   isMembershipExpired,
   membershipField,
-} from './tenancy.ts';
-import { isActive } from './validity.ts';
+} from "./tenancy.ts";
+import { isActive } from "./validity.ts";
 
-const ALWAYS: Condition = { op: 'eq', field: '_', value: true };
+const ALWAYS: Condition = { op: "eq", field: "_", value: true };
 
 export type WhereScope = {
   readonly resource: string;
@@ -36,8 +36,8 @@ export type WhereScope = {
 
 function eq(field: string, value: string | undefined): Condition {
   return value === undefined
-    ? { op: 'or', conditions: [] }
-    : { op: 'eq', field, value };
+    ? { op: "or", conditions: [] }
+    : { op: "eq", field, value };
 }
 
 /** One equality per partitioning scope key on the membership's chain, outermost first. */
@@ -46,7 +46,7 @@ function namedFilters(
   scope: WhereScope,
 ): Condition[] | null {
   if (
-    findScope(scope.scopes, membership.scope ?? '') === undefined ||
+    findScope(scope.scopes, membership.scope ?? "") === undefined ||
     !inTeam(membership, scope.scopes, scope.team) ||
     !activeFor(membership, scope.scopes, scope.tenant) ||
     membership.scope === undefined
@@ -78,7 +78,7 @@ function scopeFilters(
   if (membership === undefined || isMembershipExpired(membership, scope.now)) {
     return null;
   }
-  if (typeof grant.scope === 'string') {
+  if (typeof grant.scope === "string") {
     return membership.scope === grant.scope
       ? namedFilters(membership, scope)
       : null;
@@ -91,7 +91,7 @@ function scopeFilters(
   if (scope.resources === undefined) {
     return on.resource === grant.scope.resource &&
       on.resource === scope.resource
-      ? [eq('id', on.id)]
+      ? [eq("id", on.id)]
       : null;
   }
   const roleResource = scope.resources.get(grant.scope.resource);
@@ -125,19 +125,19 @@ function all(conditions: readonly Condition[]): Condition {
   if (conditions.length === 0) {
     return ALWAYS;
   }
-  return sole(conditions) ?? { op: 'and', conditions: [...conditions] };
+  return sole(conditions) ?? { op: "and", conditions: [...conditions] };
 }
 
 function scopedCondition(
   grant: SnapshotGrant,
   scope: WhereScope,
-): Condition | null | 'always' {
+): Condition | null | "always" {
   const filters = scopeFilters(grant, scope);
   if (filters === null) {
     return null;
   }
   const parts = grant.where === undefined ? filters : [...filters, grant.where];
-  return parts.length === 0 ? 'always' : all(parts);
+  return parts.length === 0 ? "always" : all(parts);
 }
 
 /** Whether an unconditional `deny` removes every row `allow` could reach. */
@@ -157,14 +157,14 @@ function covers(
   if (allowed === undefined) {
     return false;
   }
-  if (typeof deny.scope === 'object') {
+  if (typeof deny.scope === "object") {
     return (
-      typeof allow.scope === 'object' &&
+      typeof allow.scope === "object" &&
       denied.on?.resource === allowed.on?.resource &&
       denied.on?.id === allowed.on?.id
     );
   }
-  if (typeof allow.scope !== 'string' || allowed.scope === undefined) {
+  if (typeof allow.scope !== "string" || allowed.scope === undefined) {
     return false;
   }
   // The deny's instance contains the allow's: same ids along the deny's chain.
@@ -183,8 +183,8 @@ function covers(
 function collect(
   grants: readonly SnapshotGrant[],
   scope: WhereScope,
-): Omit<WhereResult, 'subject'> {
-  const none: WhereResult['condition'] = { op: 'or', conditions: [] };
+): Omit<WhereResult, "subject"> {
+  const none: WhereResult["condition"] = { op: "or", conditions: [] };
   const partial = grants.some((grant) => grant.portable === false);
   const denies: {
     readonly grant: SnapshotGrant;
@@ -192,14 +192,14 @@ function collect(
   }[] = [];
   for (const grant of grants) {
     if (
-      grant.effect !== 'deny' ||
+      grant.effect !== "deny" ||
       grant.portable === false ||
       !isActive(grant.validity, scope.now)
     ) {
       continue;
     }
     const condition = scopedCondition(grant, scope);
-    if (condition === 'always') {
+    if (condition === "always") {
       return { condition: none, partial };
     }
     if (condition !== null) {
@@ -209,7 +209,7 @@ function collect(
   const parts: Condition[] = [];
   for (const grant of grants) {
     if (
-      grant.effect !== 'allow' ||
+      grant.effect !== "allow" ||
       grant.portable === false ||
       !isActive(grant.validity, scope.now)
     ) {
@@ -224,9 +224,9 @@ function collect(
     }
     parts.push(
       all([
-        ...(condition === 'always' ? [] : [condition]),
+        ...(condition === "always" ? [] : [condition]),
         ...denies.map((deny): Condition => ({
-          op: 'not',
+          op: "not",
           condition: deny.condition,
         })),
       ]),
@@ -236,7 +236,7 @@ function collect(
     return { condition: none, partial };
   }
   return {
-    condition: sole(parts) ?? { op: 'or', conditions: parts },
+    condition: sole(parts) ?? { op: "or", conditions: parts },
     partial,
   };
 }
@@ -254,16 +254,16 @@ export function whereFromGrants(
     condition: bindConditionRefs(condition, scope.subject),
     partial,
   };
-  Object.defineProperty(result, 'subject', {
+  Object.defineProperty(result, "subject", {
     value: scope.subject,
     enumerable: false,
   });
-  Object.defineProperty(result, 'scopes', {
+  Object.defineProperty(result, "scopes", {
     value: scope.scopes,
     enumerable: false,
   });
   if (scope.resources !== undefined) {
-    Object.defineProperty(result, 'resources', {
+    Object.defineProperty(result, "resources", {
       value: scope.resources,
       enumerable: false,
     });

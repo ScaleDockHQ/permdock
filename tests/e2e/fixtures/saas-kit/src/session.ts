@@ -1,27 +1,27 @@
-import type { PermDock, Snapshot, Subject } from 'permdock';
+import type { PermDock, Snapshot, Subject } from "permdock";
 
-import { createPermDock, memoryRoleSource, snapshotFor } from 'permdock';
+import { createPermDock, memoryRoleSource, snapshotFor } from "permdock";
 import {
   SAAS_TOKEN_TTL_SECONDS,
   saasPolicy,
   signSaasToken,
   verifySaasSession,
-} from 'permdock/testing/saas';
+} from "permdock/testing/saas";
 
-import { findOrg, membershipsOf } from './store.ts';
+import { findOrg, membershipsOf } from "./store.ts";
 
-export const SESSION_COOKIE = 'saas_session';
+export const SESSION_COOKIE = "saas_session";
 
 export const USERS = [
-  'alice',
-  'bob',
-  'carol',
-  'dave',
-  'erin',
-  'frank',
-  'gina',
-  'hank',
-  'mallory',
+  "alice",
+  "bob",
+  "carol",
+  "dave",
+  "erin",
+  "frank",
+  "gina",
+  "hank",
+  "mallory",
 ] as const;
 
 export type SaasUser = (typeof USERS)[number];
@@ -47,10 +47,10 @@ export function readCookie(
   header: string | null | undefined,
   name: string = SESSION_COOKIE,
 ): string | undefined {
-  for (const part of (header ?? '').split(';')) {
-    const [key, ...rest] = part.trim().split('=');
+  for (const part of (header ?? "").split(";")) {
+    const [key, ...rest] = part.trim().split("=");
     if (key === name) {
-      return rest.join('=');
+      return rest.join("=");
     }
   }
   return undefined;

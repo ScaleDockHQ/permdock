@@ -1,26 +1,26 @@
-import type { Condition } from '../conditions/ast.ts';
+import type { Condition } from "../conditions/ast.ts";
 import type {
   Credential,
   CredentialKind,
   CredentialPolicy,
-} from './credential.ts';
-import type { Decision } from './decision.ts';
-import type { Grantee } from './grantee.ts';
-import type { Permission } from './permissions.ts';
+} from "./credential.ts";
+import type { Decision } from "./decision.ts";
+import type { Grantee } from "./grantee.ts";
+import type { Permission } from "./permissions.ts";
 import type {
   ApprovalRequirement,
   GrantValidity,
   HostedGrantRef,
-} from './policy.ts';
+} from "./policy.ts";
 import type {
   CustomRole,
   JsonWebKeyLike,
   Membership,
   Principal,
   Subject,
-} from './subject.ts';
-import type { Plan, Role } from './vocabulary.ts';
-import type { WireDenial } from './wire-denial.ts';
+} from "./subject.ts";
+import type { Plan, Role } from "./vocabulary.ts";
+import type { WireDenial } from "./wire-denial.ts";
 
 export type DecisionProvider = {
   readonly name: string;
@@ -170,26 +170,26 @@ export type JwtClaims = {
 };
 
 export type TokenFailureCause =
-  | 'invalid-signature'
-  | 'expired'
-  | 'not-yet-valid'
-  | 'wrong-audience'
-  | 'wrong-issuer'
-  | 'wrong-token-type'
-  | 'alg-not-allowed'
-  | 'alg-none'
-  | 'unknown-kid'
-  | 'malformed'
-  | 'encrypted-token'
-  | 'dpop-proof-invalid'
-  | 'mtls-binding-mismatch'
-  | 'sender-constraint-required'
-  | 'token-in-query'
-  | 'invalid-claims'
-  | 'invalid-chain'
-  | 'jwks-unavailable'
-  | 'discovery-unavailable'
-  | 'discovery-mismatch';
+  | "invalid-signature"
+  | "expired"
+  | "not-yet-valid"
+  | "wrong-audience"
+  | "wrong-issuer"
+  | "wrong-token-type"
+  | "alg-not-allowed"
+  | "alg-none"
+  | "unknown-kid"
+  | "malformed"
+  | "encrypted-token"
+  | "dpop-proof-invalid"
+  | "mtls-binding-mismatch"
+  | "sender-constraint-required"
+  | "token-in-query"
+  | "invalid-claims"
+  | "invalid-chain"
+  | "jwks-unavailable"
+  | "discovery-unavailable"
+  | "discovery-mismatch";
 
 export type VerifiedToken<TClaims extends JwtClaims = JwtClaims> = {
   readonly ok: true;
@@ -203,7 +203,7 @@ export type VerifiedToken<TClaims extends JwtClaims = JwtClaims> = {
 
 export type VerificationFailure = {
   readonly ok: false;
-  readonly reason: 'invalid-token';
+  readonly reason: "invalid-token";
   readonly cause: TokenFailureCause;
 };
 
@@ -224,11 +224,11 @@ export type TokenSigner = {
     payload: Readonly<Record<string, unknown>>,
     options: {
       readonly typ:
-        | 'permdock-snapshot+jwt'
-        | 'permdock-approval+jwt'
-        | 'permdock-decisions+jwt'
-        | 'permdock-policy+jwt'
-        | 'permdock-capability+jwt';
+        | "permdock-snapshot+jwt"
+        | "permdock-approval+jwt"
+        | "permdock-decisions+jwt"
+        | "permdock-policy+jwt"
+        | "permdock-capability+jwt";
       readonly audience?: string | readonly string[];
       readonly expiresAt?: number;
     },
@@ -256,7 +256,7 @@ export type Snapshot = {
       readonly tenant?: string;
       readonly memberships?: readonly Membership[];
     } | null;
-    readonly delegation?: Subject['delegation'];
+    readonly delegation?: Subject["delegation"];
     readonly context: Readonly<Record<string, unknown>>;
   };
   /** Roles held in the active tenant, in rank order. */
@@ -315,12 +315,12 @@ export type SnapshotAssignable = {
 
 export type SnapshotGrant = {
   readonly permission: string;
-  readonly effect: 'allow' | 'deny';
+  readonly effect: "allow" | "deny";
   readonly role: string | null;
   readonly to: Grantee | readonly Grantee[];
   readonly where?: Condition;
   readonly check?: Condition;
-  readonly approval?: 'human' | ApprovalRequirement;
+  readonly approval?: "human" | ApprovalRequirement;
   /** A scope name or one resource; absent for a global grant. */
   readonly scope?: string | { readonly resource: string };
   readonly membership?: Membership;
@@ -366,26 +366,26 @@ export type DecisionSink = {
 };
 
 export type DirectoryEvent = {
-  readonly type: 'directory';
+  readonly type: "directory";
   readonly at: string;
-  readonly source: 'scim';
-  readonly operation: 'create' | 'replace' | 'patch' | 'delete';
+  readonly source: "scim";
+  readonly operation: "create" | "replace" | "patch" | "delete";
   readonly tenant: string;
   readonly resource: {
-    readonly type: 'User' | 'Group';
+    readonly type: "User" | "Group";
     readonly id: string;
   };
   readonly credential:
-    | { readonly kind: 'token' }
-    | { readonly kind: 'jwt'; readonly iss?: string };
+    | { readonly kind: "token" }
+    | { readonly kind: "jwt"; readonly iss?: string };
   readonly active?: boolean;
 };
 
 export type MembershipEvent = {
-  readonly type: 'membership';
+  readonly type: "membership";
   readonly at: string;
   readonly source: string;
-  readonly operation: 'added' | 'removed' | 'changed';
+  readonly operation: "added" | "removed" | "changed";
   readonly principal: { readonly id: string };
   /** A declared scope name, or the `tenant` / `team` alias; absent for a global role change. */
   readonly scope?: string;
@@ -409,10 +409,10 @@ export type MembershipEvent = {
  * `used` event carries `sample`, the fraction of uses reported.
  */
 export type CredentialEvent = {
-  readonly type: 'credential';
+  readonly type: "credential";
   readonly at: string;
   readonly source: string;
-  readonly operation: 'created' | 'used' | 'rotated' | 'revoked';
+  readonly operation: "created" | "used" | "rotated" | "revoked";
   readonly credential: { readonly id: string; readonly kind: CredentialKind };
   readonly principal: { readonly id: string };
   readonly tenant?: string;
@@ -435,10 +435,10 @@ export type SinkEvent =
  * audit and revocation.
  */
 export type AccessEvent = {
-  readonly type: 'access';
+  readonly type: "access";
   readonly at: string;
   readonly source: string;
-  readonly operation: 'started' | 'ended' | 'revoked';
+  readonly operation: "started" | "ended" | "revoked";
   readonly tenant: string;
   readonly principal: { readonly id: string };
   /** The membership kind the session runs under (`support`). */
@@ -469,9 +469,9 @@ export type CredentialVerifier = {
 };
 
 export type DecisionEvent = {
-  readonly type: 'decision';
+  readonly type: "decision";
   readonly at: string;
-  readonly outcome: 'granted' | 'denied' | 'approval-required';
+  readonly outcome: "granted" | "denied" | "approval-required";
   readonly permission: string;
   readonly scope: string;
   readonly resource: { readonly type: string; readonly id?: string };
@@ -511,17 +511,17 @@ export type DecisionEvent = {
   readonly token?: string;
   readonly trusted: boolean;
   readonly source:
-    | 'can'
-    | 'decide'
-    | 'assert'
-    | 'filter'
-    | 'endpoint'
-    | 'adapter'
-    | 'approval'
-    | 'simulate'
-    | 'explain';
+    | "can"
+    | "decide"
+    | "assert"
+    | "filter"
+    | "endpoint"
+    | "adapter"
+    | "approval"
+    | "simulate"
+    | "explain";
   readonly adapter?: string;
-  readonly phase?: 'requested' | 'resolved';
+  readonly phase?: "requested" | "resolved";
   readonly counts?: {
     readonly granted: number;
     readonly denied: number;
@@ -531,11 +531,11 @@ export type DecisionEvent = {
 
 export type AuthEvent = {
   readonly reason:
-    | 'invalid-token'
-    | 'schema'
-    | 'unknown-role'
-    | 'groups-overflow'
-    | 'source-threw';
+    | "invalid-token"
+    | "schema"
+    | "unknown-role"
+    | "groups-overflow"
+    | "source-threw";
   readonly cause?: string;
   readonly source: string;
   readonly kid?: string;

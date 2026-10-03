@@ -1,7 +1,7 @@
-import { findQuote } from '../../../../lib/store.ts';
-import { getPermDock } from '../../../../permdock/server.ts';
-import { permissions } from '../../../../permissions.ts';
-import { deleteQuote } from '../../../actions.ts';
+import { findQuote } from "../../../../lib/store.ts";
+import { getPermDock } from "../../../../permdock/server.ts";
+import { permissions } from "../../../../permissions.ts";
+import { deleteQuote } from "../../../actions.ts";
 
 /**
  * Checks at request time and throws: a denial or an approval request becomes

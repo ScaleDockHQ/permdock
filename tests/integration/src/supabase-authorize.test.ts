@@ -1,23 +1,23 @@
-import type { Client } from 'pg';
+import type { Client } from "pg";
 
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { run } from 'permdock/cli';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { run } from "permdock/cli";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import type { Postgres } from './support/postgres.ts';
+import type { Postgres } from "./support/postgres.ts";
 
-import { startPostgres } from './support/postgres.ts';
+import { startPostgres } from "./support/postgres.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const FIXTURE = join(HERE, '../fixtures/supabase-rbac');
+const FIXTURE = join(HERE, "../fixtures/supabase-rbac");
 
-const ADMIN = '00000000-0000-4000-8000-00000000000a';
-const MEMBER = '00000000-0000-4000-8000-00000000000b';
-const STAFF = '00000000-0000-4000-8000-00000000000c';
-const OUTSIDER = '00000000-0000-4000-8000-00000000000d';
+const ADMIN = "00000000-0000-4000-8000-00000000000a";
+const MEMBER = "00000000-0000-4000-8000-00000000000b";
+const STAFF = "00000000-0000-4000-8000-00000000000c";
+const OUTSIDER = "00000000-0000-4000-8000-00000000000d";
 
 // The parts of a Supabase database the scaffold relies on, without Supabase.
 const SUPABASE_STUB = `
@@ -63,33 +63,33 @@ insert into public.post values
 
 async function ids(client: Client): Promise<string[]> {
   const result = await client.query<{ id: string }>(
-    'select id from public.post order by id',
+    "select id from public.post order by id",
   );
   return result.rows.map((row) => row.id);
 }
 
-describe('Supabase RBAC scaffold, database mode', () => {
+describe("Supabase RBAC scaffold, database mode", () => {
   let db: Postgres | undefined;
-  let generated = '';
+  let generated = "";
 
   beforeAll(async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'permdock-rbac-'));
-    const out = join(dir, 'rls.sql');
+    const dir = mkdtempSync(join(tmpdir(), "permdock-rbac-"));
+    const out = join(dir, "rls.sql");
     const generate = await run(
       [
-        'rls',
-        'generate',
-        '--target',
-        'sql',
-        '--dialect',
-        'supabase',
-        '--rbac',
-        'supabase',
-        '--authorize',
-        'database',
-        '--memberships',
-        'organization_members:organization_id,user_id,role',
-        '--out',
+        "rls",
+        "generate",
+        "--target",
+        "sql",
+        "--dialect",
+        "supabase",
+        "--rbac",
+        "supabase",
+        "--authorize",
+        "database",
+        "--memberships",
+        "organization_members:organization_id,user_id,role",
+        "--out",
         out,
       ],
       { cwd: FIXTURE },
@@ -97,12 +97,12 @@ describe('Supabase RBAC scaffold, database mode', () => {
     if (generate.code !== 0) {
       throw new Error(`PermDock: rls generate exited ${String(generate.code)}`);
     }
-    generated = readFileSync(out, 'utf8');
+    generated = readFileSync(out, "utf8");
     rmSync(dir, { recursive: true, force: true });
     db = await startPostgres([
       SUPABASE_STUB,
       generated,
-      `insert into public.user_roles (user_id, role) values ('${STAFF}', 'staff')`,
+      `insert into permdock.user_roles (user_id, role) values ('${STAFF}', 'staff')`,
     ]);
   }, 120_000);
 
@@ -111,19 +111,19 @@ describe('Supabase RBAC scaffold, database mode', () => {
   });
 
   async function as<T>(
-    role: 'authenticated' | 'anon' | 'supabase_auth_admin',
+    role: "authenticated" | "anon" | "supabase_auth_admin",
     sub: string | null,
     work: (client: Client) => Promise<T>,
   ): Promise<T> {
     if (db === undefined) {
-      throw new Error('PermDock: Postgres was not started');
+      throw new Error("PermDock: Postgres was not started");
     }
     const client = db.tester;
     return db.as(
       {
         role,
         settings: {
-          'request.jwt.claims': JSON.stringify(
+          "request.jwt.claims": JSON.stringify(
             sub === null ? { role } : { sub, role },
           ),
         },
@@ -132,44 +132,86 @@ describe('Supabase RBAC scaffold, database mode', () => {
     );
   }
 
-  it('emits per-statement helper calls, never per-row authorize() or service_role', () => {
+  it("emits per-statement helper calls, never per-row authorize() or service_role", () => {
     expect(generated).not.toMatch(/service_role/iu);
     expect(generated).toContain(
-      `"orgId" in (select "public".permitted_tenant_ids('post.update#2'))`,
+      `"orgId" in (select "permdock".permitted_tenant_ids('post.update#2'))`,
     );
-    expect(generated).toContain(`(select "public".permdock_has('post.read'))`);
+    expect(generated).toContain(
+      `(select "permdock".permdock_has('post.read'))`,
+    );
     expect(generated).not.toMatch(/using \([^\n]*authorize\(/u);
     expect(generated).toContain("set search_path = ''");
     expect(generated).not.toMatch(/for insert\s+to authenticated\s+using/u);
   });
 
-  it('scopes reads to the tenants a user belongs to', async () => {
-    expect(await as('authenticated', ADMIN, ids)).toEqual(['a1', 'a2']);
-    expect(await as('authenticated', MEMBER, ids)).toEqual(['a1', 'a2']);
-    expect(await as('authenticated', OUTSIDER, ids)).toEqual(['g1']);
-    expect(await as('authenticated', STAFF, ids)).toEqual(['a1', 'a2', 'g1']);
-    await expect(as('anon', null, ids)).rejects.toMatchObject({
-      code: '42501',
+  it("scopes reads to the tenants a user belongs to", async () => {
+    expect(await as("authenticated", ADMIN, ids)).toEqual(["a1", "a2"]);
+    expect(await as("authenticated", MEMBER, ids)).toEqual(["a1", "a2"]);
+    expect(await as("authenticated", OUTSIDER, ids)).toEqual(["g1"]);
+    expect(await as("authenticated", STAFF, ids)).toEqual(["a1", "a2", "g1"]);
+    await expect(as("anon", null, ids)).rejects.toMatchObject({
+      code: "42501",
     });
   });
 
-  it('answers authorize() for the requested tenant only', async () => {
+  it("answers authorize() for the requested tenant only", async () => {
     const check = (sub: string, tenant: string | null): Promise<boolean> =>
-      as('authenticated', sub, async (client) => {
+      as("authenticated", sub, async (client) => {
         const result = await client.query<{ ok: boolean }>(
-          'select public.authorize($1::public.app_permission, $2) as ok',
-          ['post.delete', tenant],
+          "select permdock.authorize($1::permdock.app_permission, $2) as ok",
+          ["post.delete", tenant],
         );
         return result.rows[0]?.ok ?? false;
       });
-    expect(await check(ADMIN, 'acme')).toBe(true);
-    expect(await check(ADMIN, 'globex')).toBe(false);
+    expect(await check(ADMIN, "acme")).toBe(true);
+    expect(await check(ADMIN, "globex")).toBe(false);
     expect(await check(ADMIN, null)).toBe(false);
-    expect(await check(MEMBER, 'acme')).toBe(false);
+    expect(await check(MEMBER, "acme")).toBe(false);
   });
 
-  it('limits member updates to their own rows and rejects cross-tenant inserts', async () => {
-    const updated = await as('authenticated', MEMBER, async (client) => {
+  it("never answers authorize() from a conditional allow, and lets a deny win", async () => {
+    if (db === undefined) {
+      throw new Error("PermDock: Postgres was not started");
+    }
+    const admin = db.admin;
+    const check = (permission: string): Promise<boolean> =>
+      as("authenticated", MEMBER, async (client) => {
+        const result = await client.query<{ ok: boolean }>(
+          "select permdock.authorize($1::permdock.app_permission, $2) as ok",
+          [permission, "acme"],
+        );
+        return result.rows[0]?.ok ?? false;
+      });
+    expect(await check("post.update")).toBe(false);
+    expect(await check("post.read")).toBe(true);
+    await admin.query(
+      `insert into permdock.role_permissions (role, permission, grant_key, scope, effect)
+       values ('member', 'post.read', 'post.read#9', 'tenant', 'deny')`,
+    );
+    try {
+      expect(await check("post.read")).toBe(false);
+    } finally {
+      await admin.query(
+        `delete from permdock.role_permissions where grant_key = 'post.read#9'`,
+      );
+    }
+  });
+
+  it("keeps the helpers out of the public schema", async () => {
+    if (db === undefined) {
+      throw new Error("PermDock: Postgres was not started");
+    }
+    const result = await db.admin.query<{ schema: string }>(
+      `select distinct n.nspname as schema
+       from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+       where p.proname in ('authorize', 'permdock_has', 'permitted_tenant_ids')`,
+    );
+    expect(result.rows.map((row) => row.schema)).toEqual(["permdock"]);
+  });
+
+  it("limits member updates to their own rows and rejects cross-tenant inserts", async () => {
+    const updated = await as("authenticated", MEMBER, async (client) => {
       const own = await client.query(
         `update public.post set id = id where id = 'a1'`,
       );
@@ -180,29 +222,29 @@ describe('Supabase RBAC scaffold, database mode', () => {
     });
     expect(updated).toEqual([1, 0]);
 
-    const inserted = await as('authenticated', MEMBER, async (client) => {
+    const inserted = await as("authenticated", MEMBER, async (client) => {
       await client.query(
         `insert into public.post values ('a3', 'acme', '${MEMBER}')`,
       );
-      return 'ok';
+      return "ok";
     });
-    expect(inserted).toBe('ok');
+    expect(inserted).toBe("ok");
     await expect(
-      as('authenticated', MEMBER, async (client) => {
+      as("authenticated", MEMBER, async (client) => {
         await client.query(
           `insert into public.post values ('g2', 'globex', '${MEMBER}')`,
         );
       }),
-    ).rejects.toMatchObject({ code: '42501' });
+    ).rejects.toMatchObject({ code: "42501" });
   });
 
-  it('applies a role change on the next statement', async () => {
+  it("applies a role change on the next statement", async () => {
     if (db === undefined) {
-      throw new Error('PermDock: Postgres was not started');
+      throw new Error("PermDock: Postgres was not started");
     }
     const admin = db.admin;
     const deleteOther = (): Promise<number | null> =>
-      as('authenticated', ADMIN, async (client) => {
+      as("authenticated", ADMIN, async (client) => {
         const result = await client.query(
           `delete from public.post where id = 'a1'`,
         );
@@ -221,8 +263,8 @@ describe('Supabase RBAC scaffold, database mode', () => {
     }
   });
 
-  it('emits no token hook, leaving the claims to permdock supabase hook generate', () => {
-    expect(generated).not.toContain('custom_access_token_hook(event jsonb)');
-    expect(generated).toContain('permdock supabase hook generate');
+  it("emits no token hook, leaving the claims to permdock supabase hook generate", () => {
+    expect(generated).not.toContain("custom_access_token_hook(event jsonb)");
+    expect(generated).toContain("permdock supabase hook generate");
   });
 });

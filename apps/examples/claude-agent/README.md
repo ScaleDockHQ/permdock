@@ -7,5 +7,5 @@ HTTP harness for `permdock/claude-agent`. `pnpm start` listens on `127.0.0.1:347
 - `GET /delete_post` — `canUseTool` → `null` (ask via `PermissionRequest`)
 
 ```ts
-import { createPermDock } from 'permdock/claude-agent'
+import { createPermDock } from "permdock/claude-agent";
 ```

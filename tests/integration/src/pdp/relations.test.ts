@@ -1,4 +1,4 @@
-import type { StartedTestContainer } from 'testcontainers';
+import type { StartedTestContainer } from "testcontainers";
 
 import {
   allow,
@@ -7,24 +7,24 @@ import {
   deny,
   resource,
   role,
-} from 'permdock';
-import { createPermDock, openfga, spicedb } from 'permdock/pdp';
-import { GenericContainer, Wait } from 'testcontainers';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { z } from 'zod';
+} from "permdock";
+import { createPermDock, openfga, spicedb } from "permdock/pdp";
+import { GenericContainer, Wait } from "testcontainers";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { z } from "zod";
 
 const permissions = definePermissions({
   doc: resource(z.object({ id: z.string(), archived: z.boolean() }), {
-    id: 'id',
-    actions: ['read', 'delete'],
+    id: "id",
+    actions: ["read", "delete"],
   }),
 });
 
 const docs = [
-  { id: 'd1', archived: false },
-  { id: 'd2', archived: false },
-  { id: 'd3', archived: true },
-  { id: 'd4', archived: false },
+  { id: "d1", archived: false },
+  { id: "d2", archived: false },
+  { id: "d3", archived: true },
+  { id: "d4", archived: false },
 ];
 
 // Anne views d1 and d3 directly and d2 through team eng; Bob owns d4.
@@ -32,14 +32,14 @@ const docs = [
 function policyFor(provider: ReturnType<typeof openfga>) {
   return definePolicy(permissions, {
     roles: [
-      role('member', [
+      role("member", [
         allow(permissions.doc.delete),
         deny(permissions.doc.delete, { where: { archived: true } }),
       ]),
     ],
     subject: (user: { readonly id: string }) => ({
       id: user.id,
-      roles: ['member'],
+      roles: ["member"],
     }),
     providers: [provider],
   });
@@ -47,9 +47,9 @@ function policyFor(provider: ReturnType<typeof openfga>) {
 
 async function post(url: string, body: unknown, token?: string) {
   const response = await fetch(url, {
-    method: 'POST',
+    method: "POST",
     headers: {
-      'content-type': 'application/json',
+      "content-type": "application/json",
       ...(token === undefined ? {} : { authorization: `Bearer ${token}` }),
     },
     body: JSON.stringify(body),
@@ -70,8 +70,8 @@ function sortedIds(condition: unknown): string[] {
     readonly field?: unknown;
     readonly value?: unknown;
   };
-  if (op !== 'in' || field !== 'id' || !Array.isArray(value)) {
-    throw new Error('expected an in over the listed ids');
+  if (op !== "in" || field !== "id" || !Array.isArray(value)) {
+    throw new Error("expected an in over the listed ids");
   }
   return value.map(String).toSorted((a, b) => a.localeCompare(b));
 }
@@ -82,100 +82,100 @@ function scenarios(
   revoke: () => Promise<void>,
 ) {
   describe(name, () => {
-    it('decides one row with check', async () => {
-      const anne = await createPermDock(policyFor(provider()), { id: 'anne' });
+    it("decides one row with check", async () => {
+      const anne = await createPermDock(policyFor(provider()), { id: "anne" });
       expect((await anne.decide(permissions.doc.read, docs[0])).outcome).toBe(
-        'granted',
+        "granted",
       );
       expect((await anne.decide(permissions.doc.read, docs[3])).outcome).toBe(
-        'denied',
+        "denied",
       );
     });
 
-    it('filters and compiles where from the listed ids, including a userset', async () => {
-      const anne = await createPermDock(policyFor(provider()), { id: 'anne' });
+    it("filters and compiles where from the listed ids, including a userset", async () => {
+      const anne = await createPermDock(policyFor(provider()), { id: "anne" });
       expect(
         (await anne.filter(permissions.doc.read, docs)).map((row) => row.id),
-      ).toEqual(['d1', 'd2', 'd3']);
+      ).toEqual(["d1", "d2", "d3"]);
       const where = await anne.where(permissions.doc.read);
       expect(where.partial).toBe(true);
-      expect(sortedIds(where.condition)).toEqual(['d1', 'd2', 'd3']);
+      expect(sortedIds(where.condition)).toEqual(["d1", "d2", "d3"]);
     });
 
-    it('intersects the remote answer with local grants and denies', async () => {
-      const bob = await createPermDock(policyFor(provider()), { id: 'bob' });
+    it("intersects the remote answer with local grants and denies", async () => {
+      const bob = await createPermDock(policyFor(provider()), { id: "bob" });
       expect(
         (await bob.filter(permissions.doc.delete, docs)).map((row) => row.id),
-      ).toEqual(['d4']);
+      ).toEqual(["d4"]);
       const where = await bob.where(permissions.doc.delete);
-      if (where.condition.op !== 'and') {
+      if (where.condition.op !== "and") {
         throw new Error(`expected an and, got ${where.condition.op}`);
       }
       const [local, remote] = where.condition.conditions;
       expect(local).toBeDefined();
-      expect(sortedIds(remote)).toEqual(['d3', 'd4']);
-      const anne = await createPermDock(policyFor(provider()), { id: 'anne' });
+      expect(sortedIds(remote)).toEqual(["d3", "d4"]);
+      const anne = await createPermDock(policyFor(provider()), { id: "anne" });
       expect(await anne.filter(permissions.doc.delete, docs)).toEqual([]);
     });
 
-    it('denies after the relation is removed', async () => {
+    it("denies after the relation is removed", async () => {
       await revoke();
-      const anne = await createPermDock(policyFor(provider()), { id: 'anne' });
+      const anne = await createPermDock(policyFor(provider()), { id: "anne" });
       expect((await anne.decide(permissions.doc.read, docs[0])).outcome).toBe(
-        'denied',
+        "denied",
       );
       expect(
         (await anne.filter(permissions.doc.read, docs)).map((row) => row.id),
-      ).toEqual(['d2', 'd3']);
+      ).toEqual(["d2", "d3"]);
     });
 
-    it('fails closed when the server is unreachable', async () => {
+    it("fails closed when the server is unreachable", async () => {
       const anne = await createPermDock(
-        policyFor(provider('http://127.0.0.1:9')),
-        { id: 'anne' },
+        policyFor(provider("http://127.0.0.1:9")),
+        { id: "anne" },
       );
       const decision = await anne.decide(permissions.doc.read, docs[1]);
-      expect(decision.outcome === 'denied' && decision.denials[0]?.reason).toBe(
-        'pdp-unavailable',
+      expect(decision.outcome === "denied" && decision.denials[0]?.reason).toBe(
+        "pdp-unavailable",
       );
       expect(await anne.filter(permissions.doc.read, docs)).toEqual([]);
       expect(await anne.where(permissions.doc.read)).toEqual({
-        condition: { op: 'or', conditions: [] },
+        condition: { op: "or", conditions: [] },
         partial: false,
       });
     });
   });
 }
 
-describe('permdock/pdp relation presets', () => {
+describe("permdock/pdp relation presets", () => {
   let fga: StartedTestContainer;
   let spice: StartedTestContainer;
-  let fgaUrl = '';
-  let storeId = '';
-  let spiceUrl = '';
-  const key = 'permdock-test-key';
+  let fgaUrl = "";
+  let storeId = "";
+  let spiceUrl = "";
+  const key = "permdock-test-key";
 
   const anneViewsD1 = {
-    user: 'user:anne',
-    relation: 'viewer',
-    object: 'document:d1',
+    user: "user:anne",
+    relation: "viewer",
+    object: "document:d1",
   };
 
   beforeAll(async () => {
     [fga, spice] = await Promise.all([
-      new GenericContainer('openfga/openfga:v1.21.0')
-        .withCommand(['run'])
+      new GenericContainer("openfga/openfga:v1.21.0")
+        .withCommand(["run"])
         .withExposedPorts(8080)
-        .withWaitStrategy(Wait.forHttp('/healthz', 8080))
+        .withWaitStrategy(Wait.forHttp("/healthz", 8080))
         .start(),
-      new GenericContainer('authzed/spicedb:v1.56.2')
+      new GenericContainer("authzed/spicedb:v1.56.2")
         .withCommand([
-          'serve',
-          '--grpc-preshared-key',
+          "serve",
+          "--grpc-preshared-key",
           key,
-          '--datastore-engine',
-          'memory',
-          '--http-enabled',
+          "--datastore-engine",
+          "memory",
+          "--http-enabled",
         ])
         .withExposedPorts(8443, 50051)
         .withWaitStrategy(Wait.forLogMessage(/http server started serving/iu))
@@ -184,34 +184,34 @@ describe('permdock/pdp relation presets', () => {
 
     fgaUrl = `http://${fga.getHost()}:${String(fga.getMappedPort(8080))}`;
     storeId = String(
-      (await post(`${fgaUrl}/stores`, { name: 'permdock' }))['id'],
+      (await post(`${fgaUrl}/stores`, { name: "permdock" }))["id"],
     );
     await post(`${fgaUrl}/stores/${storeId}/authorization-models`, {
-      schema_version: '1.1',
+      schema_version: "1.1",
       type_definitions: [
-        { type: 'user' },
+        { type: "user" },
         {
-          type: 'team',
+          type: "team",
           relations: { member: { this: {} } },
           metadata: {
             relations: {
-              member: { directly_related_user_types: [{ type: 'user' }] },
+              member: { directly_related_user_types: [{ type: "user" }] },
             },
           },
         },
         {
-          type: 'document',
+          type: "document",
           relations: {
             owner: { this: {} },
             viewer: { this: {} },
           },
           metadata: {
             relations: {
-              owner: { directly_related_user_types: [{ type: 'user' }] },
+              owner: { directly_related_user_types: [{ type: "user" }] },
               viewer: {
                 directly_related_user_types: [
-                  { type: 'user' },
-                  { type: 'team', relation: 'member' },
+                  { type: "user" },
+                  { type: "team", relation: "member" },
                 ],
               },
             },
@@ -223,15 +223,15 @@ describe('permdock/pdp relation presets', () => {
       writes: {
         tuple_keys: [
           anneViewsD1,
-          { user: 'user:anne', relation: 'viewer', object: 'document:d3' },
-          { user: 'user:anne', relation: 'member', object: 'team:eng' },
+          { user: "user:anne", relation: "viewer", object: "document:d3" },
+          { user: "user:anne", relation: "member", object: "team:eng" },
           {
-            user: 'team:eng#member',
-            relation: 'viewer',
-            object: 'document:d2',
+            user: "team:eng#member",
+            relation: "viewer",
+            object: "document:d2",
           },
-          { user: 'user:bob', relation: 'owner', object: 'document:d4' },
-          { user: 'user:bob', relation: 'owner', object: 'document:d3' },
+          { user: "user:bob", relation: "owner", object: "document:d4" },
+          { user: "user:bob", relation: "owner", object: "document:d3" },
         ],
       },
     });
@@ -262,9 +262,9 @@ definition document {
         readonly relation?: string;
       },
     ) => ({
-      operation: 'OPERATION_TOUCH',
+      operation: "OPERATION_TOUCH",
       relationship: {
-        resource: { objectType: 'document', objectId },
+        resource: { objectType: "document", objectId },
         relation,
         subject: {
           object: { objectType: subject.type, objectId: subject.id },
@@ -278,21 +278,21 @@ definition document {
       `${spiceUrl}/v1/relationships/write`,
       {
         updates: [
-          touch('d1', 'viewer', { type: 'user', id: 'anne' }),
-          touch('d3', 'viewer', { type: 'user', id: 'anne' }),
-          touch('d2', 'viewer', {
-            type: 'team',
-            id: 'eng',
-            relation: 'member',
+          touch("d1", "viewer", { type: "user", id: "anne" }),
+          touch("d3", "viewer", { type: "user", id: "anne" }),
+          touch("d2", "viewer", {
+            type: "team",
+            id: "eng",
+            relation: "member",
           }),
-          touch('d4', 'owner', { type: 'user', id: 'bob' }),
-          touch('d3', 'owner', { type: 'user', id: 'bob' }),
+          touch("d4", "owner", { type: "user", id: "bob" }),
+          touch("d3", "owner", { type: "user", id: "bob" }),
           {
-            operation: 'OPERATION_TOUCH',
+            operation: "OPERATION_TOUCH",
             relationship: {
-              resource: { objectType: 'team', objectId: 'eng' },
-              relation: 'member',
-              subject: { object: { objectType: 'user', objectId: 'anne' } },
+              resource: { objectType: "team", objectId: "eng" },
+              relation: "member",
+              subject: { object: { objectType: "user", objectId: "anne" } },
             },
           },
         ],
@@ -312,7 +312,7 @@ definition document {
   };
 
   scenarios(
-    'OpenFGA',
+    "OpenFGA",
     (url = fgaUrl) =>
       openfga({
         url,
@@ -322,18 +322,18 @@ definition document {
           [
             permissions.doc.read,
             (subject, data) => ({
-              user: `user:${subject.principal?.id ?? ''}`,
-              relation: 'viewer',
-              type: 'document',
+              user: `user:${subject.principal?.id ?? ""}`,
+              relation: "viewer",
+              type: "document",
               ...id(data),
             }),
           ],
           [
             permissions.doc.delete,
             (subject, data) => ({
-              user: `user:${subject.principal?.id ?? ''}`,
-              relation: 'owner',
-              type: 'document',
+              user: `user:${subject.principal?.id ?? ""}`,
+              relation: "owner",
+              type: "document",
               ...id(data),
             }),
           ],
@@ -347,28 +347,28 @@ definition document {
   );
 
   scenarios(
-    'SpiceDB',
+    "SpiceDB",
     (url = spiceUrl) =>
       spicedb({
         url,
         token: key,
         timeout: 5000,
-        consistency: 'fully-consistent',
+        consistency: "fully-consistent",
         map: [
           [
             permissions.doc.read,
             (subject, data) => ({
-              subject: { type: 'user', id: subject.principal?.id ?? '' },
-              permission: 'view',
-              resource: { type: 'document', ...id(data) },
+              subject: { type: "user", id: subject.principal?.id ?? "" },
+              permission: "view",
+              resource: { type: "document", ...id(data) },
             }),
           ],
           [
             permissions.doc.delete,
             (subject, data) => ({
-              subject: { type: 'user', id: subject.principal?.id ?? '' },
-              permission: 'delete',
-              resource: { type: 'document', ...id(data) },
+              subject: { type: "user", id: subject.principal?.id ?? "" },
+              permission: "delete",
+              resource: { type: "document", ...id(data) },
             }),
           ],
         ],
@@ -379,11 +379,11 @@ definition document {
         {
           updates: [
             {
-              operation: 'OPERATION_DELETE',
+              operation: "OPERATION_DELETE",
               relationship: {
-                resource: { objectType: 'document', objectId: 'd1' },
-                relation: 'viewer',
-                subject: { object: { objectType: 'user', objectId: 'anne' } },
+                resource: { objectType: "document", objectId: "d1" },
+                relation: "viewer",
+                subject: { object: { objectType: "user", objectId: "anne" } },
               },
             },
           ],

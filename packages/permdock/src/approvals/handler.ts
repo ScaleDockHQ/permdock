@@ -1,13 +1,13 @@
-import type { TokenSigner } from '../core/interfaces.ts';
-import type { Subject } from '../core/subject.ts';
-import type { ApprovalRequest, ApprovalStore } from './types.ts';
+import type { TokenSigner } from "../core/interfaces.ts";
+import type { Subject } from "../core/subject.ts";
+import type { ApprovalRequest, ApprovalStore } from "./types.ts";
 
-import { compact } from '../core/compact.ts';
-import { rootMembershipId } from '../core/scopes.ts';
-import { isApprovalError } from './errors.ts';
-import { assertApprover } from './store.ts';
+import { compact } from "../core/compact.ts";
+import { rootMembershipId } from "../core/scopes.ts";
+import { isApprovalError } from "./errors.ts";
+import { assertApprover } from "./store.ts";
 
-const PROBLEM_BASE = 'https://permdock.dev/problems';
+const PROBLEM_BASE = "https://permdock.dev/problems";
 
 export type ApprovalsHandlerOptions = {
   readonly subject: (
@@ -40,52 +40,52 @@ function problem(
   };
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'content-type': 'application/problem+json' },
+    headers: { "content-type": "application/problem+json" },
   });
 }
 
 function json(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'content-type': 'application/json' },
+    headers: { "content-type": "application/json" },
   });
 }
 
 type Route =
-  | { readonly kind: 'pending' }
-  | { readonly kind: 'mine' }
-  | { readonly kind: 'get'; readonly token: string }
-  | { readonly kind: 'approve'; readonly token: string }
-  | { readonly kind: 'reject'; readonly token: string };
+  | { readonly kind: "pending" }
+  | { readonly kind: "mine" }
+  | { readonly kind: "get"; readonly token: string }
+  | { readonly kind: "approve"; readonly token: string }
+  | { readonly kind: "reject"; readonly token: string };
 
 function parseRoute(url: URL, method: string): Route | undefined {
-  const parts = url.pathname.replace(/\/+$/u, '').split('/').filter(Boolean);
+  const parts = url.pathname.replace(/\/+$/u, "").split("/").filter(Boolean);
   const last = parts.at(-1);
   const prev = parts.at(-2);
   if (last === undefined) {
     return undefined;
   }
-  if (method === 'GET' && last === 'pending') {
-    return { kind: 'pending' };
+  if (method === "GET" && last === "pending") {
+    return { kind: "pending" };
   }
-  if (method === 'GET' && last === 'mine') {
-    return { kind: 'mine' };
+  if (method === "GET" && last === "mine") {
+    return { kind: "mine" };
   }
-  if (method === 'POST' && last === 'approve' && prev !== undefined) {
-    return { kind: 'approve', token: decodeURIComponent(prev) };
+  if (method === "POST" && last === "approve" && prev !== undefined) {
+    return { kind: "approve", token: decodeURIComponent(prev) };
   }
-  if (method === 'POST' && last === 'reject' && prev !== undefined) {
-    return { kind: 'reject', token: decodeURIComponent(prev) };
+  if (method === "POST" && last === "reject" && prev !== undefined) {
+    return { kind: "reject", token: decodeURIComponent(prev) };
   }
-  if (method === 'GET' && last !== 'pending' && last !== 'mine') {
-    return { kind: 'get', token: decodeURIComponent(last) };
+  if (method === "GET" && last !== "pending" && last !== "mine") {
+    return { kind: "get", token: decodeURIComponent(last) };
   }
   return undefined;
 }
 
 async function resolveSubject(
   request: Request,
-  resolve: ApprovalsHandlerOptions['subject'],
+  resolve: ApprovalsHandlerOptions["subject"],
 ): Promise<Subject | null> {
   try {
     const subject = await resolve(request);
@@ -157,8 +157,8 @@ function pageQuery(url: URL): {
   readonly limit?: number;
   readonly cursor?: string;
 } {
-  const limit = url.searchParams.get('limit');
-  const cursor = url.searchParams.get('cursor');
+  const limit = url.searchParams.get("limit");
+  const cursor = url.searchParams.get("cursor");
   return compact({
     limit: limit === null ? undefined : Number(limit),
     cursor: cursor ?? undefined,
@@ -175,8 +175,8 @@ function inboxScope(
       readonly tenantless: boolean;
     }
   | { readonly ok: false } {
-  const requested = url.searchParams.get('tenant');
-  if (requested !== null && requested !== '') {
+  const requested = url.searchParams.get("tenant");
+  if (requested !== null && requested !== "") {
     if (!belongsToTenant(subject, requested)) {
       return { ok: false };
     }
@@ -194,7 +194,7 @@ function signedApproval(
   signer: TokenSigner | undefined,
   audience: string | readonly string[] | undefined,
 ): Promise<string | undefined> {
-  if (signer === undefined || request.status !== 'approved') {
+  if (signer === undefined || request.status !== "approved") {
     return Promise.resolve(undefined);
   }
   const payload: Record<string, unknown> = {
@@ -206,12 +206,12 @@ function signedApproval(
     },
   };
   if (request.subject.principal !== null) {
-    payload['sub'] = request.subject.principal.id;
+    payload["sub"] = request.subject.principal.id;
   }
   return signer.sign(
     payload,
-    compact<Parameters<TokenSigner['sign']>[1]>({
-      typ: 'permdock-approval+jwt',
+    compact<Parameters<TokenSigner["sign"]>[1]>({
+      typ: "permdock-approval+jwt",
       audience,
       expiresAt: Math.floor(Date.parse(request.expiresAt) / 1000),
     }),
@@ -219,20 +219,20 @@ function signedApproval(
 }
 
 async function readNote(request: Request): Promise<string | undefined> {
-  const contentType = request.headers.get('content-type') ?? '';
-  if (request.method !== 'POST' || contentType === '') {
+  const contentType = request.headers.get("content-type") ?? "";
+  if (request.method !== "POST" || contentType === "") {
     return undefined;
   }
-  if (!contentType.includes('application/json')) {
+  if (!contentType.includes("application/json")) {
     return undefined;
   }
   try {
     const body: unknown = await request.json();
     if (
       body !== null &&
-      typeof body === 'object' &&
-      'note' in body &&
-      typeof body.note === 'string'
+      typeof body === "object" &&
+      "note" in body &&
+      typeof body.note === "string"
     ) {
       return body.note;
     }
@@ -244,22 +244,22 @@ async function readNote(request: Request): Promise<string | undefined> {
 
 function mapError(error: unknown): Response {
   if (!isApprovalError(error)) {
-    return problem(500, 'Internal error', 'approval store failed', 'internal');
+    return problem(500, "Internal error", "approval store failed", "internal");
   }
-  if (error.code === 'approval-not-found') {
-    return problem(404, 'Not found', error.message, 'not-found');
+  if (error.code === "approval-not-found") {
+    return problem(404, "Not found", error.message, "not-found");
   }
   if (
-    error.code === 'approval-not-pending' ||
-    error.code === 'approval-expired' ||
-    error.code === 'approver-repeated'
+    error.code === "approval-not-pending" ||
+    error.code === "approval-expired" ||
+    error.code === "approver-repeated"
   ) {
-    return problem(409, 'Conflict', error.message, 'conflict');
+    return problem(409, "Conflict", error.message, "conflict");
   }
-  if (error.code === 'approver-unauthenticated') {
-    return problem(401, 'Unauthenticated', error.message, 'unauthenticated');
+  if (error.code === "approver-unauthenticated") {
+    return problem(401, "Unauthenticated", error.message, "unauthenticated");
   }
-  return problem(403, 'Permission denied', error.message, 'denied');
+  return problem(403, "Permission denied", error.message, "denied");
 }
 
 export function approvalsHandler(
@@ -274,9 +274,9 @@ export function approvalsHandler(
     if (route === undefined) {
       return problem(
         405,
-        'Method not allowed',
-        'unknown approvals route',
-        'method-not-allowed',
+        "Method not allowed",
+        "unknown approvals route",
+        "method-not-allowed",
       );
     }
 
@@ -287,24 +287,24 @@ export function approvalsHandler(
     if (subject === null || principal === null) {
       return problem(
         401,
-        'Unauthenticated',
-        'approver must be authenticated',
-        'unauthenticated',
+        "Unauthenticated",
+        "approver must be authenticated",
+        "unauthenticated",
       );
     }
 
     try {
-      if (route.kind === 'pending') {
+      if (route.kind === "pending") {
         const scoped = inboxScope(url, subject);
         if (!scoped.ok) {
           return problem(
             403,
-            'Permission denied',
-            'approver does not belong to that tenant',
-            'denied',
+            "Permission denied",
+            "approver does not belong to that tenant",
+            "denied",
           );
         }
-        const page = await store.list({ ...pageQuery(url), status: 'pending' });
+        const page = await store.list({ ...pageQuery(url), status: "pending" });
         const tenants = new Set(scoped.tenants);
         return json(
           200,
@@ -319,39 +319,39 @@ export function approvalsHandler(
           }),
         );
       }
-      if (route.kind === 'mine') {
+      if (route.kind === "mine") {
         const page = await store.list({
           ...pageQuery(url),
           principalId: principal.id,
         });
         return json(200, compact({ items: page.items, next: page.next }));
       }
-      if (route.kind === 'get') {
+      if (route.kind === "get") {
         const current = await store.get(route.token);
         if (current === null || !canView(current, subject)) {
           return problem(
             404,
-            'Not found',
-            'approval was not found',
-            'not-found',
+            "Not found",
+            "approval was not found",
+            "not-found",
           );
         }
         return json(200, current);
       }
       const current = await store.get(route.token);
       if (current === null) {
-        return problem(404, 'Not found', 'approval was not found', 'not-found');
+        return problem(404, "Not found", "approval was not found", "not-found");
       }
       assertApprover(current, subject, requireDistinct);
       const note = await readNote(request);
       const resolved = await store.resolve(
         route.token,
         compact<{
-          readonly status: 'approved' | 'rejected';
+          readonly status: "approved" | "rejected";
           readonly by: Subject;
           readonly note?: string;
         }>({
-          status: route.kind === 'approve' ? 'approved' : 'rejected',
+          status: route.kind === "approve" ? "approved" : "rejected",
           by: subject,
           note,
         }),

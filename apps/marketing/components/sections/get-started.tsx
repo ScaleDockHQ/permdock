@@ -1,6 +1,6 @@
-import { getStartedSteps } from '@/lib/site';
+import { getStartedSteps } from "@/lib/site";
 
-import { Section } from './section';
+import { Section } from "./section";
 
 export function GetStarted() {
   return (

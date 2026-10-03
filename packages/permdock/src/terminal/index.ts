@@ -1,4 +1,4 @@
-export { createPermDock } from './create.ts';
+export { createPermDock } from "./create.ts";
 export {
   TerminalExit,
   EX_CONFIG,
@@ -6,9 +6,9 @@ export {
   EX_OK,
   EX_TEMPFAIL,
   EX_USAGE,
-} from './exit.ts';
-export { exitCode, formatDecision } from './format.ts';
-export { looksLikeJwt } from './token.ts';
+} from "./exit.ts";
+export { exitCode, formatDecision } from "./format.ts";
+export { looksLikeJwt } from "./token.ts";
 export type {
   ApprovalHint,
   CommandEntry,
@@ -29,4 +29,4 @@ export type {
   TokenSource,
   TokenSourceName,
   TypedConfirm,
-} from './types.ts';
+} from "./types.ts";

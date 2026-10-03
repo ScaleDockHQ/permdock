@@ -1,19 +1,19 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 
-import type { Permission, Policy } from '../index.ts';
-import type { OverlayOperation } from '../openapi/types.ts';
-import type { CliIo, PermDockConfig } from './types.ts';
+import type { Permission, Policy } from "../index.ts";
+import type { OverlayOperation } from "../openapi/types.ts";
+import type { CliIo, PermDockConfig } from "./types.ts";
 
-import { definePolicy, findPermission, getResource } from '../index.ts';
-import { openapiVersion } from '../openapi/emit.ts';
-import { createPermDock } from '../openapi/index.ts';
-import { asPermissionTree, asPolicy, loadModule, pickNamed } from './load.ts';
-import { validateOpenapi, validateOverlay } from './openapi-schema.ts';
-import { shortDiff } from './text-diff.ts';
+import { definePolicy, findPermission, getResource } from "../index.ts";
+import { openapiVersion } from "../openapi/emit.ts";
+import { createPermDock } from "../openapi/index.ts";
+import { asPermissionTree, asPolicy, loadModule, pickNamed } from "./load.ts";
+import { validateOpenapi, validateOverlay } from "./openapi-schema.ts";
+import { shortDiff } from "./text-diff.ts";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function mergeRecord(
@@ -42,10 +42,10 @@ function mergeSchemes(
       result[name] = scheme;
       continue;
     }
-    const beforeFlows = isRecord(before['flows']) ? before['flows'] : {};
+    const beforeFlows = isRecord(before["flows"]) ? before["flows"] : {};
     const flows: Record<string, unknown> = { ...beforeFlows };
     for (const [kind, flow] of Object.entries(
-      isRecord(scheme['flows']) ? scheme['flows'] : {},
+      isRecord(scheme["flows"]) ? scheme["flows"] : {},
     )) {
       const previous = beforeFlows[kind];
       flows[kind] =
@@ -54,7 +54,7 @@ function mergeSchemes(
     result[name] = {
       ...before,
       ...scheme,
-      ...(isRecord(scheme['flows']) ? { flows } : {}),
+      ...(isRecord(scheme["flows"]) ? { flows } : {}),
     };
   }
   return result;
@@ -72,16 +72,16 @@ async function loadPolicy(
   const policyPath = from ?? config.policy;
   if (policyPath !== undefined) {
     const abs = resolve(cwd, policyPath);
-    return asPolicy(pickNamed(await loadModule(abs), ['policy']));
+    return asPolicy(pickNamed(await loadModule(abs), ["policy"]));
   }
   const permissionsPath = config.permissions;
   if (permissionsPath === undefined) {
     throw new Error(
-      'PermDock CLI: openapi needs --from, policy or permissions in the config',
+      "PermDock CLI: openapi needs --from, policy or permissions in the config",
     );
   }
   const tree = asPermissionTree(
-    pickNamed(await loadModule(resolve(cwd, permissionsPath)), ['permissions']),
+    pickNamed(await loadModule(resolve(cwd, permissionsPath)), ["permissions"]),
   );
   return definePolicy(tree, {
     roles: [],
@@ -91,9 +91,9 @@ async function loadPolicy(
 
 function leavesOf(policy: Policy, keys: readonly unknown[]): Permission[] {
   return keys.map((key) => {
-    if (typeof key !== 'string') {
+    if (typeof key !== "string") {
       throw new TypeError(
-        'PermDock CLI: x-permdock-permissions must be strings',
+        "PermDock CLI: x-permdock-permissions must be strings",
       );
     }
     const leaf = findPermission(policy.permissions, key);
@@ -116,24 +116,24 @@ function overlayOperations(
   const operations: OverlayOperation[] = [];
   const unnamed: string[] = [];
   const secured: string[] = [];
-  const paths = isRecord(document['paths']) ? document['paths'] : {};
+  const paths = isRecord(document["paths"]) ? document["paths"] : {};
   for (const [path, item] of Object.entries(paths)) {
     for (const [method, operation] of Object.entries(
       isRecord(item) ? item : {},
     )) {
       if (
         !isRecord(operation) ||
-        !Array.isArray(operation['x-permdock-permissions'])
+        !Array.isArray(operation["x-permdock-permissions"])
       ) {
         continue;
       }
-      const permissions = leavesOf(policy, operation['x-permdock-permissions']);
-      const operationId = operation['operationId'];
-      if (typeof operationId !== 'string' || operationId.length === 0) {
+      const permissions = leavesOf(policy, operation["x-permdock-permissions"]);
+      const operationId = operation["operationId"];
+      if (typeof operationId !== "string" || operationId.length === 0) {
         unnamed.push(`${method.toUpperCase()} ${path}`);
         continue;
       }
-      if (operation['security'] !== undefined) {
+      if (operation["security"] !== undefined) {
         secured.push(operationId);
       }
       operations.push({ operationId, permissions });
@@ -155,33 +155,33 @@ function arityOf(
       ) === true,
   );
   if (!instance) {
-    return { kind: 'collection' };
+    return { kind: "collection" };
   }
   const parameter = [...path.matchAll(/\{([^}]+)\}/gu)].at(-1)?.[1];
   return parameter === undefined
-    ? { kind: 'instance' }
-    : { kind: 'instance', parameter };
+    ? { kind: "instance" }
+    : { kind: "instance", parameter };
 }
 
 function applyDocument(
   document: Record<string, unknown>,
   policy: Policy,
-  factory: ReturnType<typeof createPermDock>,
+  openapi: ReturnType<typeof createPermDock>,
   arity: boolean,
-  target: '3.1' | '3.2' | '3.3',
+  target: "3.1" | "3.2" | "3.3",
 ): Record<string, unknown> {
-  const components = isRecord(document['components'])
-    ? document['components']
+  const components = isRecord(document["components"])
+    ? document["components"]
     : {};
-  const schemes = isRecord(components['securitySchemes'])
-    ? components['securitySchemes']
+  const schemes = isRecord(components["securitySchemes"])
+    ? components["securitySchemes"]
     : {};
   const nextSchemes = mergeRecord(
     schemes,
-    mergeSchemes(schemes, factory.securitySchemes()),
+    mergeSchemes(schemes, openapi.securitySchemes()),
   );
   const scopeSets: (readonly string[])[] = [];
-  const paths = isRecord(document['paths']) ? document['paths'] : {};
+  const paths = isRecord(document["paths"]) ? document["paths"] : {};
   const nextPaths: Record<string, unknown> = {};
   for (const [path, item] of Object.entries(paths)) {
     if (!isRecord(item)) {
@@ -194,23 +194,23 @@ function applyDocument(
         nextItem[method] = operation;
         continue;
       }
-      const keys = operation['x-permdock-permissions'];
+      const keys = operation["x-permdock-permissions"];
       if (!Array.isArray(keys)) {
         nextItem[method] = operation;
         continue;
       }
       const leaves = leavesOf(policy, keys);
       scopeSets.push(leaves.map((leaf) => leaf.scope));
-      const described = mergeRecord(operation, factory.describe(leaves));
+      const described = mergeRecord(operation, openapi.describe(leaves));
       nextItem[method] = arity
         ? mergeRecord(described, {
-            'x-permdock-arity': arityOf(policy, leaves, path),
+            "x-permdock-arity": arityOf(policy, leaves, path),
           })
         : described;
     }
     nextPaths[path] = nextItem;
   }
-  const requirements = factory.securityProfileRequirements(scopeSets);
+  const requirements = openapi.securityProfileRequirements(scopeSets);
   const nextComponents = mergeRecord(
     components,
     mergeRecord(
@@ -221,10 +221,10 @@ function applyDocument(
     ),
   );
   return mergeRecord(document, {
-    ...(target === '3.3' ? { openapi: openapiVersion(target) } : {}),
+    ...(target === "3.3" ? { openapi: openapiVersion(target) } : {}),
     components: nextComponents,
     paths: nextPaths,
-    'x-permdock-catalog': factory.catalog(),
+    "x-permdock-catalog": openapi.catalog(),
   });
 }
 
@@ -242,11 +242,11 @@ function urls(
 function outputConformance(
   source: Record<string, unknown>,
   result: Record<string, unknown>,
-  format: 'document' | 'overlay',
-  overlay: '1.1' | '1.2',
+  format: "document" | "overlay",
+  overlay: "1.1" | "1.2",
 ): string | undefined {
-  if (format === 'overlay') {
-    if (overlay !== '1.1') {
+  if (format === "overlay") {
+    if (overlay !== "1.1") {
       return undefined;
     }
     const checked = validateOverlay(result);
@@ -268,11 +268,11 @@ export async function runOpenapi(input: {
   readonly doc: string | undefined;
   readonly out: string | undefined;
   readonly from: string | undefined;
-  readonly target: '3.1' | '3.2' | '3.3';
-  readonly format: 'document' | 'overlay';
-  readonly overlay: '1.1' | '1.2';
+  readonly target: "3.1" | "3.2" | "3.3";
+  readonly format: "document" | "overlay";
+  readonly overlay: "1.1" | "1.2";
   readonly check: boolean;
-  readonly profile: 'fapi2' | undefined;
+  readonly profile: "fapi2" | undefined;
   readonly profileScheme: string | undefined;
   readonly scheme: string;
   readonly metadataUrl: string | undefined;
@@ -283,18 +283,18 @@ export async function runOpenapi(input: {
   readonly deviceAuthorizationUrl?: string | undefined;
   readonly io: CliIo;
 }): Promise<{ readonly code: 0 | 1 | 2; readonly output: string }> {
-  const action = input.rest[0] ?? 'emit';
-  if (action !== 'emit') {
+  const action = input.rest[0] ?? "emit";
+  if (action !== "emit") {
     return {
       code: 2,
-      output: 'openapi action must be emit or import',
+      output: "openapi action must be emit or import",
     };
   }
   if (input.doc === undefined) {
-    return { code: 2, output: 'openapi --doc is required' };
+    return { code: 2, output: "openapi --doc is required" };
   }
   const policy = await loadPolicy(input.cwd, input.config, input.from);
-  const factory = createPermDock(policy, {
+  const openapi = createPermDock(policy, {
     target: input.target,
     ...(input.profile === undefined ? {} : { securityProfile: input.profile }),
     ...(input.profileScheme === undefined
@@ -302,7 +302,7 @@ export async function runOpenapi(input: {
       : { profileScheme: input.profileScheme }),
     scheme: {
       name: input.scheme,
-      type: 'oauth2',
+      type: "oauth2",
       ...(input.metadataUrl === undefined
         ? {}
         : { oauth2MetadataUrl: input.metadataUrl }),
@@ -331,36 +331,36 @@ export async function runOpenapi(input: {
   }
   let parsed: unknown;
   try {
-    parsed = JSON.parse(readFileSync(docPath, 'utf8'));
+    parsed = JSON.parse(readFileSync(docPath, "utf8"));
   } catch {
     return {
       code: 2,
-      output: 'PermDock CLI: --doc must be a JSON OpenAPI document',
+      output: "PermDock CLI: --doc must be a JSON OpenAPI document",
     };
   }
   if (!isRecord(parsed)) {
     return {
       code: 2,
-      output: 'PermDock CLI: OpenAPI document must be an object',
+      output: "PermDock CLI: OpenAPI document must be an object",
     };
   }
   const covered =
-    input.format === 'overlay' ? overlayOperations(parsed, policy) : undefined;
+    input.format === "overlay" ? overlayOperations(parsed, policy) : undefined;
   if (covered !== undefined && covered.unnamed.length > 0) {
     return {
       code: 1,
-      output: `openapi emit: an Overlay targets operations by operationId; none on ${covered.unnamed.join(', ')}`,
+      output: `openapi emit: an Overlay targets operations by operationId; none on ${covered.unnamed.join(", ")}`,
     };
   }
   if (input.check && covered !== undefined && covered.secured.length > 0) {
     return {
       code: 1,
-      output: `openapi drift: the source already sets security the Overlay replaces on ${covered.secured.join(', ')}`,
+      output: `openapi drift: the source already sets security the Overlay replaces on ${covered.secured.join(", ")}`,
     };
   }
   const result =
     covered !== undefined
-      ? factory.overlay({
+      ? openapi.overlay({
           extends: input.doc,
           version: input.overlay,
           operations: covered.operations,
@@ -368,7 +368,7 @@ export async function runOpenapi(input: {
       : applyDocument(
           parsed,
           policy,
-          factory,
+          openapi,
           input.arity === true,
           input.target,
         );
@@ -390,9 +390,9 @@ export async function runOpenapi(input: {
         output: `openapi drift: missing ${input.out ?? input.doc}`,
       };
     }
-    const current = readFileSync(outPath, 'utf8');
+    const current = readFileSync(outPath, "utf8");
     if (current === text) {
-      return { code: 0, output: 'openapi up to date' };
+      return { code: 0, output: "openapi up to date" };
     }
     return {
       code: 1,

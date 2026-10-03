@@ -1,0 +1,75 @@
+name: Database
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - apps/examples/next-better-supabase/**
+      - packages/permdock/src/cli/**
+      - packages/permdock/src/supabase/**
+      - .github/workflows/database.yml
+  pull_request:
+    branches: [main]
+    paths:
+      - apps/examples/next-better-supabase/**
+      - packages/permdock/src/cli/**
+      - packages/permdock/src/supabase/**
+      - .github/workflows/database.yml
+
+permissions: {}
+
+concurrency:
+  group: database-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CI: true
+  TURBO_REMOTE_CACHE_SIGNATURE_KEY: ${{ secrets.TURBO_REMOTE_CACHE_SIGNATURE_KEY }}
+
+jobs:
+  supabase:
+    name: Supabase stack (next-better-supabase)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: apps/examples/next-better-supabase
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: $/.github/actions/setup
+        with:
+          turbo-team: ${{ vars.TURBO_TEAM }}
+
+      - name: Build permdock
+        run: pnpm --filter permdock build
+        working-directory: .
+
+      - name: Generated SQL, manifest, kit and types are current
+        run: pnpm run gen:check
+
+      - name: Start the local stack
+        run: pnpm run supabase:start
+
+      # pg-delta replays the migrations, then diffs them against supabase/schemas.
+      - name: Declarative schemas match the migrations
+        run: |
+          pnpm run supabase:diff drift_check | tee sync.log
+          grep -q 'No schema changes found' sync.log
+          test -z "$(git status --porcelain -- supabase/migrations)"
+
+      # db lint, db advisors and both doctors; before pgTAP, whose test helpers stay installed.
+      - name: Lint, advisors and doctors
+        run: pnpm run supabase:check
+
+      - name: pgTAP
+        run: pnpm run supabase:test
+
+      - name: Stop the local stack
+        if: always()
+        run: pnpm run supabase:stop

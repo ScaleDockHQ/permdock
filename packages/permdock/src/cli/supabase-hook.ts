@@ -1,55 +1,69 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 
-import type { Scope } from '../core/scopes.ts';
+import type { Scope } from "../core/scopes.ts";
 import type {
   SupabaseHookClaim,
   SupabaseHookManifest,
   SupabaseManifestHelper,
-} from '../supabase/manifest.ts';
-import type { SqlMembershipSource } from '../supabase/sources.ts';
-import type { RlsSqlContext } from './rls-sql.ts';
+  SupabaseManifestMembership,
+} from "../supabase/manifest.ts";
+import type { SqlMembershipSource } from "../supabase/sources.ts";
+import type { RlsSqlContext } from "./rls-sql.ts";
 import type {
   CliIo,
   PermDockConfig,
   RlsActiveRow,
+  RlsMembershipTable,
+  RlsMemberships,
   SupabaseHookConfig,
-} from './types.ts';
+} from "./types.ts";
 
+import { scopeColumn } from "../conditions/compile.ts";
 import {
   resolveScope,
   rootScope,
   scopeChain,
   scopeList,
-} from '../core/scopes.ts';
+} from "../core/scopes.ts";
 import {
   AUTHZ_VERSION_TABLE,
+  PERMDOCK_SCHEMA,
   supabaseMembershipsBudget,
   supabaseTenantClaim,
-} from '../supabase/sources.ts';
-import { decidingColumns } from './deciding-columns.ts';
-import { globalRoleSource, type RoleRows } from './global-roles.ts';
-import { asPolicy, loadModule, pickNamed } from './load.ts';
-import { GRANTS_MARKER, HOOK_MARKER, hookMarkerFields } from './markers.ts';
-import { authAdminRead, hookUri, resolveAuthorize } from './rls-rbac.ts';
+} from "../supabase/sources.ts";
+import { decidingColumns } from "./deciding-columns.ts";
+import { globalRoleSource, type RoleRows } from "./global-roles.ts";
+import { asPolicy, loadModule, pickNamed } from "./load.ts";
+import { GRANTS_MARKER, HOOK_MARKER, hookMarkerFields } from "./markers.ts";
+import { authAdminRead, hookUri, resolveAuthorize } from "./rls-rbac.ts";
 import {
   activeRowSql,
   checkSuspension,
   hasMemberFor,
   memberForHelper,
+  memberForSources,
+  memberForTable,
   memberIdsHelper,
   quoteIdent,
   quoteLiteral,
   quoteTable,
   scopeTypeOf,
-} from './rls-sql.ts';
-import { driftOf, type SqlFile, STDOUT, writeSqlFiles } from './sql-files.ts';
+} from "./rls-sql.ts";
+import {
+  driftOf,
+  pgDeltaPath,
+  type SqlFile,
+  STDOUT,
+  writeSqlFiles,
+} from "./sql-files.ts";
+import { supabaseConfig } from "./supabase-config.ts";
 import {
   missingHelpersInDb,
   missingHelpersInFiles,
   missingHelpersMessage,
-} from './supabase-setup.ts';
-import { SUPABASE_MANIFEST_SCHEMA } from './version.ts';
+} from "./supabase-setup.ts";
+import { SUPABASE_MANIFEST_SCHEMA } from "./version.ts";
 
 const SUPABASE_HELP = `permdock supabase hook generate | inspect
 
@@ -68,12 +82,12 @@ budget, the claims the hook writes, the membership sources and the columns that 
 file differs.
 `;
 
-const MANIFEST_FILE = 'permdock.manifest.json';
+const MANIFEST_FILE = "permdock.manifest.json";
 
-const MANAGED_TRIGGER = 'permdock_protect_managed';
+const MANAGED_TRIGGER = "permdock_protect_managed";
 
 const CLAIM_KEY = /^[A-Za-z_][A-Za-z0-9_]*$/u;
-const PROTOTYPE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+const PROTOTYPE_KEYS = new Set(["__proto__", "constructor", "prototype"]);
 const USER_EDITABLE = /^(raw_)?user_meta(_)?data$/iu;
 
 export type AttrsPlan = {
@@ -93,22 +107,22 @@ export type AttrsPlan = {
  * or a table column without a table.
  */
 export function attrsPlan(
-  attrs: NonNullable<SupabaseHookConfig['attrs']>,
+  attrs: NonNullable<SupabaseHookConfig["attrs"]>,
 ): AttrsPlan {
   const errors: string[] = [];
   const columns: string[] = [];
   const meta: string[] = [];
   const seen = new Set<string>();
-  const tableName = attrs.table?.replaceAll('"', '').toLowerCase();
-  if (tableName === 'auth.users') {
+  const tableName = attrs.table?.replaceAll('"', "").toLowerCase();
+  if (tableName === "auth.users") {
     errors.push(
-      'supabase.hook.attrs.table cannot be auth.users: list app_metadata.<key> entries instead',
+      "supabase.hook.attrs.table cannot be auth.users: list app_metadata.<key> entries instead",
     );
   }
   for (const entry of attrs.columns) {
-    const [head = '', ...rest] = entry.split('.');
-    const isMeta = head === 'app_metadata' || head === 'raw_app_meta_data';
-    const key = isMeta ? rest.join('.') : entry;
+    const [head = "", ...rest] = entry.split(".");
+    const isMeta = head === "app_metadata" || head === "raw_app_meta_data";
+    const key = isMeta ? rest.join(".") : entry;
     if (
       USER_EDITABLE.test(head) ||
       USER_EDITABLE.test(key) ||
@@ -138,12 +152,12 @@ export function attrsPlan(
   }
   if (columns.length > 0 && attrs.table === undefined) {
     errors.push(
-      `supabase.hook.attrs lists ${columns.join(', ')} without a table`,
+      `supabase.hook.attrs lists ${columns.join(", ")} without a table`,
     );
   }
   return {
     ...(attrs.table === undefined ? {} : { table: attrs.table }),
-    id: attrs.id ?? 'id',
+    id: attrs.id ?? "id",
     columns,
     meta,
     errors,
@@ -155,26 +169,26 @@ export function attrsPlan(
  * (plus the tenant claim) and the ones Supabase Auth issues.
  */
 const RESERVED_CLAIMS: ReadonlySet<string> = new Set([
-  'roles',
-  'user_role',
-  'memberships',
-  'memberships_truncated',
-  'attrs',
-  'authz_ver',
-  'sub',
-  'aud',
-  'role',
-  'exp',
-  'iat',
-  'iss',
-  'aal',
-  'amr',
-  'session_id',
-  'is_anonymous',
-  'email',
-  'phone',
-  'app_metadata',
-  'user_metadata',
+  "roles",
+  "user_role",
+  "memberships",
+  "memberships_truncated",
+  "attrs",
+  "authz_ver",
+  "sub",
+  "aud",
+  "role",
+  "exp",
+  "iat",
+  "iss",
+  "aal",
+  "amr",
+  "session_id",
+  "is_anonymous",
+  "email",
+  "phone",
+  "app_metadata",
+  "user_metadata",
 ]);
 
 const CLAIM_FUNCTION = /^[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*$/u;
@@ -191,7 +205,7 @@ export type ExtraClaim = {
  * schema-qualified (the hook runs with an empty `search_path`).
  */
 function extraClaimsPlan(
-  claims: SupabaseHookConfig['claims'],
+  claims: SupabaseHookConfig["claims"],
   tenantClaim: string,
 ): {
   readonly claims: readonly ExtraClaim[];
@@ -212,7 +226,7 @@ function extraClaimsPlan(
       );
       continue;
     }
-    if (typeof fn !== 'string' || !CLAIM_FUNCTION.test(fn)) {
+    if (typeof fn !== "string" || !CLAIM_FUNCTION.test(fn)) {
       errors.push(
         `supabase.hook.claims.${claim} must be a schema-qualified function name such as better_supabase.feature_claims`,
       );
@@ -223,7 +237,9 @@ function extraClaimsPlan(
   return { claims: planned, errors };
 }
 
-const VERSION_TRIGGER = 'permdock_authz_version';
+const VERSION_TRIGGER = "permdock_authz_version";
+
+const AUTHZ_VERSION_BUMP = "permdock_bump_authz_version_for";
 
 type Parts = {
   readonly schema: string;
@@ -238,45 +254,118 @@ type Parts = {
   readonly hook: SupabaseHookConfig;
   /** Global roles for `user_role` and `roles`; `undefined` with `roles: false`. */
   readonly roles: RoleRows | undefined;
-  readonly active: string;
+  readonly active: ReturnType<typeof activeFromSql>;
   readonly attrs: AttrsPlan | undefined;
   readonly extra: readonly ExtraClaim[];
   /** The `rls.schema` helpers, and the scopes `rls generate` emits `member_<scope>_ids_for` for. */
   readonly helpers: {
     readonly schema: string;
     readonly memberFor: readonly string[];
+    /** The sources `member_<scope>_ids_for` reads, deduplicated across scopes. */
+    readonly memberships: readonly SupabaseManifestMembership[];
   };
 };
 
+type MemberForInput = {
+  readonly scopes: readonly Scope[];
+  readonly memberships?: RlsMemberships;
+  readonly memberSources: readonly SqlMembershipSource[];
+};
+
+function memberForPlan(input: MemberForInput): {
+  readonly memberFor: readonly string[];
+  readonly memberships: readonly SupabaseManifestMembership[];
+} {
+  const memberFor = input.scopes
+    .map((scope) => scope.name)
+    .filter((name) => hasMemberFor({ dialect: "supabase", ...input }, name));
+  const entries = new Map<string, SupabaseManifestMembership>();
+  for (const name of memberFor) {
+    const mapped = memberForTable(input, name);
+    const found =
+      mapped === undefined
+        ? memberForSources(input, name).map((source) => source.sql.manifest)
+        : [mappedMembership(mapped, input.scopes, name)];
+    for (const entry of found) {
+      entries.set(JSON.stringify(entry), entry);
+    }
+  }
+  return { memberFor, memberships: [...entries.values()] };
+}
+
+/** An `rls.memberships` table in the manifest's `fromTable` / `fromJunction` shape, for scope `name`. */
+function mappedMembership(
+  mapped: RlsMembershipTable,
+  scopes: readonly Scope[],
+  name: string,
+): SupabaseManifestMembership {
+  const id = scopeColumn(mapped, scopes, name) ?? "";
+  const within: Record<string, string> = {};
+  for (const ancestor of scopeChain(scopes, name).slice(1)) {
+    const column = scopeColumn(mapped, scopes, ancestor);
+    if (column !== undefined) {
+      within[ancestor] = column;
+    }
+  }
+  const columns = [
+    mapped.user,
+    id,
+    mapped.role,
+    ...Object.values(within),
+    ...(mapped.via === undefined ? [] : [mapped.via]),
+    ...(mapped.expiresAt === undefined ? [] : [mapped.expiresAt]),
+  ];
+  return {
+    table: mapped.table.includes(".") ? mapped.table : `public.${mapped.table}`,
+    user: { column: mapped.user },
+    scope: { value: name },
+    id: { column: id },
+    role: { column: mapped.role },
+    ...(Object.keys(within).length === 0
+      ? {}
+      : { within: { columns: within } }),
+    ...(mapped.via === undefined ? {} : { via: { column: mapped.via } }),
+    ...(mapped.expiresAt === undefined
+      ? {}
+      : { expiresAt: { column: mapped.expiresAt } }),
+    columns: [...new Set(columns)],
+  };
+}
+
 function table(name: string): string {
-  return quoteTable(name.includes('.') ? name : `public.${name}`);
+  return quoteTable(name.includes(".") ? name : `public.${name}`);
 }
 
 function positiveInteger(value: unknown, label: string): number {
-  const number = typeof value === 'string' ? Number(value) : value;
-  if (typeof number !== 'number' || !Number.isInteger(number) || number <= 0) {
+  const number = typeof value === "string" ? Number(value) : value;
+  if (typeof number !== "number" || !Number.isInteger(number) || number <= 0) {
     throw new Error(`PermDock CLI: ${label} must be a positive integer`);
   }
   return number;
 }
 
-/** SQL for the active first-scope id, as text, for user `uid`. */
+/**
+ * SQL for the active first-scope id, as text, for user `uid`; a table source
+ * compares its id column with `v_active_user`, declared as `userType`.
+ */
 export function activeFromSql(
-  input: SupabaseHookConfig['activeFrom'],
+  input: SupabaseHookConfig["activeFrom"],
   root: string,
-): string {
+): { readonly sql: string; readonly userType?: string } {
   const spec = input ?? `app_metadata.active_${root}`;
-  if (typeof spec === 'string' && spec.startsWith('app_metadata.')) {
-    const key = spec.slice('app_metadata.'.length);
+  if (typeof spec === "string" && spec.startsWith("app_metadata.")) {
+    const key = spec.slice("app_metadata.".length);
     if (!/^[A-Za-z_][A-Za-z0-9_]*$/u.test(key)) {
       throw new Error(`PermDock CLI: unsafe app_metadata key '${key}'`);
     }
-    return `(select u.raw_app_meta_data ->> ${quoteLiteral(key)} from auth.users u where u.id = uid::uuid)`;
+    return {
+      sql: `claims -> 'app_metadata' ->> ${quoteLiteral(key)}`,
+    };
   }
   const parsed =
-    typeof spec === 'string'
+    typeof spec === "string"
       ? (() => {
-          const dot = spec.lastIndexOf('.');
+          const dot = spec.lastIndexOf(".");
           if (dot <= 0) {
             throw new Error(
               `PermDock CLI: --active-from must be app_metadata.<key> or <table>.<column>, got '${spec}'`,
@@ -285,25 +374,54 @@ export function activeFromSql(
           return { table: spec.slice(0, dot), column: spec.slice(dot + 1) };
         })()
       : spec;
-  const id = 'id' in parsed && parsed.id !== undefined ? parsed.id : 'id';
-  return `(select a.${quoteIdent(parsed.column)}::text from ${table(parsed.table)} a where a.${quoteIdent(id)}::text = uid)`;
+  const id = "id" in parsed && parsed.id !== undefined ? parsed.id : "id";
+  return {
+    sql: `(select a.${quoteIdent(parsed.column)}::text from ${table(parsed.table)} a where a.${quoteIdent(id)} = v_active_user)`,
+    userType: `${table(parsed.table)}.${quoteIdent(id)}%type`,
+  };
+}
+
+/**
+ * One variable per user-keyed table the hook reads, holding `uid` (a uuid, as
+ * Supabase Auth issues) as that column's type, so each lookup compares the
+ * column uncast and its index applies.
+ */
+function typedUsers(parts: Parts): string {
+  const vars = [
+    ...parts.sources.map(
+      (source, index) =>
+        `v_user_${String(index)} ${source.sql.userType} := uid;`,
+    ),
+    ...(parts.roles === undefined
+      ? []
+      : [
+          `v_roles_user ${table(parts.roles.table)}.${quoteIdent(parts.roles.user)}%type := uid;`,
+        ]),
+    ...(parts.attrs?.table === undefined || parts.attrs.columns.length === 0
+      ? []
+      : [
+          `v_attrs_user ${table(parts.attrs.table)}.${quoteIdent(parts.attrs.id)}%type := uid;`,
+        ]),
+    ...(parts.active.userType === undefined
+      ? []
+      : [`v_active_user ${parts.active.userType} := uid;`]),
+  ];
+  return vars.map((line) => `\n  ${line}`).join("");
 }
 
 function checkSources(parts: {
   readonly sources: readonly SqlMembershipSource[];
   readonly scopes: readonly Scope[];
-  readonly suspended: readonly string[];
-}): string[] {
-  const warnings: string[] = [];
+}): void {
   if (parts.sources.length === 0) {
     throw new Error(
-      'PermDock CLI: supabase.hook.memberships needs at least one fromTable or fromJunction source',
+      "PermDock CLI: supabase.hook.memberships needs at least one fromTable or fromJunction source",
     );
   }
   for (const source of parts.sources) {
-    if (source.sql === undefined || typeof source.sql.select !== 'function') {
+    if (source.sql === undefined || typeof source.sql.select !== "function") {
       throw new Error(
-        'PermDock CLI: supabase.hook.memberships takes fromTable / fromJunction sources from permdock/supabase',
+        "PermDock CLI: supabase.hook.memberships takes fromTable / fromJunction sources from permdock/supabase",
       );
     }
     const scope = source.sql.scope;
@@ -321,18 +439,10 @@ function checkSources(parts: {
     const missing = chain.filter((ancestor) => !holds.has(ancestor));
     if (missing.length > 0) {
       throw new Error(
-        `PermDock CLI: the ${source.sql.table} source needs within columns for ${missing.join(', ')}: a ${scope} membership without every ancestor grants nothing`,
+        `PermDock CLI: the ${source.sql.table} source needs within columns for ${missing.join(", ")}: a ${scope} membership without every ancestor grants nothing`,
       );
     }
-    for (const ancestor of chain.slice(1)) {
-      if (parts.suspended.includes(ancestor) && !holds.has(ancestor)) {
-        warnings.push(
-          `the ${source.sql.table} source cannot check ${ancestor} suspension`,
-        );
-      }
-    }
   }
-  return warnings;
 }
 
 function entriesSql(parts: Parts): string {
@@ -347,10 +457,10 @@ function entriesSql(parts: Parts): string {
     'managedBy', s.managed_by, 'entitlements', s.seats
   )) as entry
 from (
-${source.sql.select('uid').replaceAll(/^/gmu, '  ')}
+${source.sql.select(`v_user_${String(index)}`).replaceAll(/^/gmu, "  ")}
 ) s`,
   );
-  return selects.join('\nunion all\n');
+  return selects.join("\nunion all\n");
 }
 
 function hookSql(parts: Parts): string {
@@ -363,37 +473,33 @@ function hookSql(parts: Parts): string {
       : `  select coalesce(jsonb_agg(distinct ${rows.roleSql} order by ${rows.roleSql}), '[]'::jsonb)
     into held
     from ${rows.from}
-    where ${rows.userSql}::text = uid;`;
+    where ${rows.userSql} = v_roles_user;`;
   const plan = parts.attrs;
   const fromTable =
     plan === undefined || plan.columns.length === 0 || plan.table === undefined
-      ? ''
+      ? ""
       : `
   select jsonb_strip_nulls(jsonb_build_object(${plan.columns
     .map(
       (column) => `${quoteLiteral(column)}, to_jsonb(p.${quoteIdent(column)})`,
     )
-    .join(', ')}))
+    .join(", ")}))
     into attrs
     from ${table(plan.table)} p
-    where p.${quoteIdent(plan.id)}::text = uid;`;
+    where p.${quoteIdent(plan.id)} = v_attrs_user;`;
   const fromMeta =
     plan === undefined || plan.meta.length === 0
-      ? ''
+      ? ""
       : `
-  attrs := coalesce(attrs, '{}'::jsonb) || coalesce((
-    select jsonb_strip_nulls(jsonb_build_object(${plan.meta
-      .map(
-        (key) =>
-          `${quoteLiteral(key)}, u.raw_app_meta_data -> ${quoteLiteral(key)}`,
-      )
-      .join(', ')}))
-    from auth.users u
-    where u.id = uid::uuid
-  ), '{}'::jsonb);`;
+  attrs := coalesce(attrs, '{}'::jsonb) || jsonb_strip_nulls(jsonb_build_object(${plan.meta
+    .map(
+      (key) =>
+        `${quoteLiteral(key)}, claims -> 'app_metadata' -> ${quoteLiteral(key)}`,
+    )
+    .join(", ")}));`;
   const attrs =
     plan === undefined
-      ? ''
+      ? ""
       : `${fromTable}${fromMeta}
   if attrs is not null and attrs <> '{}'::jsonb then
     used := octet_length(attrs::text);
@@ -409,29 +515,33 @@ function hookSql(parts: Parts): string {
     ? `
   select v.version into ver from ${versionTable} v where v.user_id = uid;
   claims := jsonb_set(claims, '{authz_ver}', to_jsonb(coalesce(ver, 0)));`
-    : '';
+    : "";
   const dropExtra = parts.extra
     .map((entry) => ` - ${quoteLiteral(entry.claim)}`)
-    .join('');
+    .join("");
   const extra = parts.extra
     .map(
       (entry) => `
-  extra := ${quoteTable(entry.fn)}(uid::uuid);
+  extra := ${quoteTable(entry.fn)}(uid);
   if extra is not null then
     claims := jsonb_set(claims, ${quoteLiteral(`{${entry.claim}}`)}, extra);
   end if;`,
     )
-    .join('');
+    .join("");
   const suspended =
     parts.users === undefined
-      ? ''
+      ? ""
       : `
-  if not ${activeRowSql(parts.users, 'uid::uuid')} then
+  if not ${activeRowSql(parts.users, "uid")} then
     claims := claims - 'memberships_truncated' - 'attrs' - ${quoteLiteral(parts.tenantClaim)}${dropExtra};
     claims := claims || jsonb_build_object('user_role', '[]'::jsonb, 'roles', '[]'::jsonb, 'memberships', '[]'::jsonb);${version}
     return jsonb_set(event, '{claims}', claims);
   end if;`;
-  return `create or replace function ${fn}(event jsonb)
+  const create =
+    parts.schema === "public"
+      ? ""
+      : `create schema if not exists ${schema};\nrevoke all on schema ${schema} from public;\n\n`;
+  return `${create}create or replace function ${fn}(event jsonb)
 returns jsonb
 language plpgsql
 stable
@@ -439,7 +549,7 @@ set search_path = ''
 as $$
 declare
   claims jsonb := event -> 'claims';
-  uid text := event ->> 'user_id';
+  uid uuid := (event ->> 'user_id')::uuid;
   active text;
   held jsonb;
   kept jsonb := '[]'::jsonb;
@@ -447,7 +557,7 @@ declare
   in_active boolean := false;
   budget integer := ${String(parts.budget)};
   used integer := 0;
-  item record;${plan === undefined ? '' : '\n  attrs jsonb;'}${parts.extra.length === 0 ? '' : '\n  extra jsonb;'}${parts.version ? '\n  ver bigint;' : ''}
+  item record;${typedUsers(parts)}${plan === undefined ? "" : "\n  attrs jsonb;"}${parts.extra.length === 0 ? "" : "\n  extra jsonb;"}${parts.version ? "\n  ver bigint;" : ""}
 begin${suspended}
   claims := claims - 'attrs'${dropExtra};
 ${roles}
@@ -457,11 +567,11 @@ ${roles}
   elsif jsonb_array_length(held) > 1 then
     claims := jsonb_set(claims, '{user_role}', held);
   end if;
-  active := ${parts.active};${attrs}
+  active := ${parts.active.sql};${attrs}
   for item in
     select x.entry, x.tenant is not distinct from active as current
     from (
-${entriesSql(parts).replaceAll(/^/gmu, '      ')}
+${entriesSql(parts).replaceAll(/^/gmu, "      ")}
     ) x
     order by (x.tenant is not distinct from active) desc, x.ord, x.entry ->> 'scope', x.entry ->> 'id', x.entry::text
   loop
@@ -501,25 +611,25 @@ grant execute on function ${fn}(jsonb) to supabase_auth_admin;
 revoke execute on function ${fn}(jsonb) from authenticated, anon, public;${extraGrantsSql(parts.extra)}${memberForGrantsSql(parts)}`,
     readsSql(parts),
     parts.version
-      ? authAdminRead(`${parts.schema}.${AUTHZ_VERSION_TABLE}`, 'version')
-      : '',
+      ? authAdminRead(`${parts.schema}.${AUTHZ_VERSION_TABLE}`, "version")
+      : "",
   ]
-    .filter((chunk) => chunk !== '')
-    .join('\n');
+    .filter((chunk) => chunk !== "")
+    .join("\n");
 }
 
 function extraGrantsSql(extra: readonly ExtraClaim[]): string {
-  const schemas = [...new Set(extra.map((entry) => entry.fn.split('.')[0]))];
+  const schemas = [...new Set(extra.map((entry) => entry.fn.split(".")[0]))];
   return [
     ...schemas.map(
       (name) =>
-        `\ngrant usage on schema ${quoteIdent(name ?? '')} to supabase_auth_admin;`,
+        `\ngrant usage on schema ${quoteIdent(name ?? "")} to supabase_auth_admin;`,
     ),
     ...extra.map(
       (entry) =>
         `\ngrant execute on function ${quoteTable(entry.fn)}(uuid) to supabase_auth_admin;`,
     ),
-  ].join('');
+  ].join("");
 }
 
 /**
@@ -531,7 +641,7 @@ function extraGrantsSql(extra: readonly ExtraClaim[]): string {
 function memberForGrantsSql(parts: Parts): string {
   const { schema, memberFor } = parts.helpers;
   if (memberFor.length === 0 || parts.extra.length === 0) {
-    return '';
+    return "";
   }
   return [
     ...(schema === parts.schema
@@ -543,41 +653,41 @@ function memberForGrantsSql(parts: Parts): string {
       (scope) =>
         `\ngrant execute on function ${quoteIdent(schema)}.${memberForHelper(scope)}(uuid) to supabase_auth_admin;`,
     ),
-  ].join('');
+  ].join("");
 }
 
 function readsSql(parts: Parts): string {
   const reads = new Map<string, string>();
   for (const source of parts.sources) {
-    reads.set(source.sql.table, 'memberships');
+    reads.set(source.sql.table, "memberships");
   }
   for (const source of parts.sources) {
     for (const name of source.sql.reads) {
-      reads.set(name, reads.get(name) ?? 'status');
+      reads.set(name, reads.get(name) ?? "status");
     }
   }
   if (parts.roles !== undefined) {
     const { table: rolesTable, through } = parts.roles;
-    reads.set(rolesTable, reads.get(rolesTable) ?? 'roles');
+    reads.set(rolesTable, reads.get(rolesTable) ?? "roles");
     if (through !== undefined) {
-      reads.set(through.table, reads.get(through.table) ?? 'role_keys');
+      reads.set(through.table, reads.get(through.table) ?? "role_keys");
     }
   }
   if (parts.attrs?.table !== undefined && parts.attrs.columns.length > 0) {
-    reads.set(parts.attrs.table, reads.get(parts.attrs.table) ?? 'attrs');
+    reads.set(parts.attrs.table, reads.get(parts.attrs.table) ?? "attrs");
   }
   if (parts.users !== undefined) {
     reads.set(
       parts.users.table,
-      reads.get(parts.users.table) ?? 'status_users',
+      reads.get(parts.users.table) ?? "status_users",
     );
   }
   const schemas = new Set(
     [...reads.keys()]
-      .map((name) => (name.includes('.') ? name.split('.')[0] : 'public'))
+      .map((name) => (name.includes(".") ? name.split(".")[0] : "public"))
       .filter(
         (schema): schema is string =>
-          schema !== undefined && schema !== parts.schema && schema !== 'auth',
+          schema !== undefined && schema !== parts.schema && schema !== "auth",
       ),
   );
   return [
@@ -586,16 +696,17 @@ function readsSql(parts: Parts): string {
         `grant usage on schema ${quoteIdent(schema)} to supabase_auth_admin;`,
     ),
     ...[...reads].map(([name, label]) => authAdminRead(name, label)),
-  ].join('\n');
+  ].join("\n");
 }
 
 function versionSql(parts: Parts): string {
   if (!parts.version) {
-    return '';
+    return "";
   }
   const schema = quoteIdent(parts.schema);
   const versionTable = `${schema}.${quoteIdent(AUTHZ_VERSION_TABLE)}`;
   const bump = `${schema}.permdock_bump_authz_version`;
+  const bumpFor = `${schema}.${AUTHZ_VERSION_BUMP}`;
   const tables = [
     ...new Map(
       parts.sources.map((source) => [source.sql.table, source.sql.user]),
@@ -614,14 +725,27 @@ create trigger ${quoteIdent(VERSION_TRIGGER)}
   after insert or update or delete on ${table(name)}
   for each row execute function ${bump}(${quoteLiteral(user)});`,
     )
-    .join('\n');
+    .join("\n");
   return `-- the authorization version: bumped on every membership change, written to authz_ver
 create table if not exists ${versionTable} (
-  user_id text primary key,
+  user_id uuid primary key references auth.users on delete cascade,
   version bigint not null default 0
 );
 alter table ${versionTable} enable row level security;
 revoke all on table ${versionTable} from anon, authenticated, public;
+
+-- bumps each listed user once, for a membership source outside the hook; no client role may call it
+create or replace function ${bumpFor}(p_users uuid[])
+returns void
+language sql
+security definer
+set search_path = ''
+as $$
+  insert into ${versionTable} as v (user_id, version)
+  select distinct u, 1 from unnest(p_users) u where u is not null
+  on conflict (user_id) do update set version = v.version + 1
+$$;
+revoke execute on function ${bumpFor}(uuid[]) from public, anon, authenticated;
 
 create or replace function ${bump}()
 returns trigger
@@ -631,17 +755,11 @@ set search_path = ''
 as $$
 declare
   column_name text := tg_argv[0];
-  affected text;
 begin
-  foreach affected in array array[
+  perform ${bumpFor}(array[
     case when tg_op <> 'INSERT' then to_jsonb(old) ->> column_name end,
     case when tg_op <> 'DELETE' then to_jsonb(new) ->> column_name end
-  ] loop
-    if affected is not null then
-      insert into ${versionTable} as v (user_id, version) values (affected, 1)
-      on conflict (user_id) do update set version = v.version + 1;
-    end if;
-  end loop;
+  ]::uuid[]);
   return null;
 end;
 $$;
@@ -653,7 +771,7 @@ ${triggers}${roleKeysVersionSql(parts, versionTable)}`;
 function roleKeysVersionSql(parts: Parts, versionTable: string): string {
   const through = parts.roles?.through;
   if (parts.roles === undefined || through === undefined) {
-    return '';
+    return "";
   }
   const bump = `${quoteIdent(parts.schema)}.permdock_bump_authz_version_role_keys`;
   const id = quoteIdent(through.id);
@@ -674,7 +792,7 @@ begin
     return null;
   end if;
   insert into ${versionTable} as v (user_id, version)
-  select distinct h.${quoteIdent(parts.roles.user)}::text, 1
+  select distinct h.${quoteIdent(parts.roles.user)}::uuid, 1
   from ${table(parts.roles.table)} h
   where h.${quoteIdent(through.ref)} = old.${id}
   on conflict (user_id) do update set version = v.version + 1;
@@ -694,12 +812,12 @@ create trigger ${quoteIdent(VERSION_TRIGGER)}
  */
 function attrsGuardSql(plan: AttrsPlan | undefined): string {
   if (plan?.table === undefined || plan.columns.length === 0) {
-    return '';
+    return "";
   }
   const target = quoteLiteral(table(plan.table));
   const columns = plan.columns
     .map((column) => `(${quoteLiteral(column)})`)
-    .join(', ');
+    .join(", ");
   return `-- attrs must be server-owned: refuse columns anon or authenticated can insert or update
 do $$
 begin
@@ -722,7 +840,7 @@ function managedSql(parts: Parts): string {
     (source) => source.sql.managed !== undefined,
   );
   if (managed.length === 0) {
-    return '';
+    return "";
   }
   const schema = quoteIdent(parts.schema);
   const guard = `${schema}.permdock_protect_managed`;
@@ -733,9 +851,9 @@ function managedSql(parts: Parts): string {
       ) => `drop trigger if exists ${quoteIdent(MANAGED_TRIGGER)} on ${table(source.sql.table)};
 create trigger ${quoteIdent(MANAGED_TRIGGER)}
   before insert or update or delete on ${table(source.sql.table)}
-  for each row execute function ${guard}(${quoteLiteral(source.sql.managed ?? '')});`,
+  for each row execute function ${guard}(${quoteLiteral(source.sql.managed ?? "")});`,
     )
-    .join('\n');
+    .join("\n");
   return `-- memberships the identity provider owns: clients (anon, authenticated) cannot write them
 create or replace function ${guard}()
 returns trigger
@@ -770,7 +888,7 @@ uri = "${hookUri(schema)}"`;
 }
 
 const BUDGET_MEASURE =
-  'octet_length(memberships::text) + octet_length(attrs::text)';
+  "octet_length(memberships::text) + octet_length(attrs::text)";
 
 type HookOverrides = {
   readonly activeFrom?: string;
@@ -782,28 +900,24 @@ function hookParts(
   scopes: readonly Scope[],
   config: PermDockConfig,
   overrides: HookOverrides,
-): { readonly parts: Parts; readonly warnings: readonly string[] } {
+): Parts {
   const hook = config.supabase?.hook;
   if (hook === undefined) {
     throw new Error(
-      'PermDock CLI: supabase hook generate needs supabase.hook in permdock.config.ts',
+      "PermDock CLI: supabase hook generate needs supabase.hook in permdock.config.ts",
     );
   }
-  const root = rootScope(scopes) ?? 'tenant';
+  const root = rootScope(scopes) ?? "tenant";
   const suspension = checkSuspension(
     hook.suspension ?? config.rls?.suspension,
     scopes,
   );
   const schema =
-    overrides.schema ?? hook.schema ?? config.rls?.schema ?? 'public';
+    overrides.schema ?? hook.schema ?? config.rls?.schema ?? PERMDOCK_SCHEMA;
   quoteIdent(schema);
   const tenantClaim = config.rls?.tenantClaim ?? supabaseTenantClaim;
   const extraPlan = extraClaimsPlan(hook.claims, tenantClaim);
-  const warnings = checkSources({
-    sources: hook.memberships,
-    scopes,
-    suspended: Object.keys(suspension?.scopes ?? {}),
-  });
+  checkSources({ sources: hook.memberships, scopes });
   const parts: Parts = {
     schema,
     scopes,
@@ -811,10 +925,10 @@ function hookParts(
     sources: hook.memberships,
     budget: positiveInteger(
       overrides.budget ?? hook.budget ?? supabaseMembershipsBudget,
-      'budget',
+      "budget",
     ),
     version: hook.version !== false,
-    jwtExpiry: positiveInteger(hook.jwtExpiry ?? 900, 'jwtExpiry'),
+    jwtExpiry: positiveInteger(hook.jwtExpiry ?? 900, "jwtExpiry"),
     tenantClaim,
     users: suspension?.users,
     hook,
@@ -824,54 +938,46 @@ function hookParts(
         : globalRoleSource(
             hook.roles ??
               config.rls?.roles ?? { table: `${schema}.user_roles` },
-            'public',
-            'r',
+            "public",
+            "r",
           ),
     active: activeFromSql(overrides.activeFrom ?? hook.activeFrom, root),
     attrs: hook.attrs === undefined ? undefined : attrsPlan(hook.attrs),
     extra: extraPlan.claims,
     helpers: {
-      schema: config.rls?.schema ?? 'public',
-      memberFor: scopes
-        .map((scope) => scope.name)
-        .filter((name) =>
-          hasMemberFor(
-            {
-              dialect: 'supabase',
-              scopes,
-              ...(config.rls?.memberships === undefined
-                ? {}
-                : { memberships: config.rls.memberships }),
-              memberSources: config.rls?.membershipSources ?? hook.memberships,
-            },
-            name,
-          ),
-        ),
+      schema: config.rls?.schema ?? PERMDOCK_SCHEMA,
+      ...memberForPlan({
+        scopes,
+        ...(config.rls?.memberships === undefined
+          ? {}
+          : { memberships: config.rls.memberships }),
+        memberSources: config.rls?.membershipSources ?? hook.memberships,
+      }),
     },
   };
   if (parts.attrs !== undefined && parts.attrs.errors.length > 0) {
-    throw new Error(`PermDock CLI: ${parts.attrs.errors.join('; ')}`);
+    throw new Error(`PermDock CLI: ${parts.attrs.errors.join("; ")}`);
   }
   if (extraPlan.errors.length > 0) {
-    throw new Error(`PermDock CLI: ${extraPlan.errors.join('; ')}`);
+    throw new Error(`PermDock CLI: ${extraPlan.errors.join("; ")}`);
   }
   quoteIdent(parts.tenantClaim);
-  return { parts, warnings };
+  return parts;
 }
 
 function permdockClaim(name: string, budget = false): SupabaseHookClaim {
-  return { name, source: 'permdock', budget };
+  return { name, source: "permdock", budget };
 }
 
 function hookClaims(parts: Parts): readonly SupabaseHookClaim[] {
   return [
-    permdockClaim('user_role'),
-    permdockClaim('roles'),
-    permdockClaim('memberships', true),
-    permdockClaim('memberships_truncated'),
+    permdockClaim("user_role"),
+    permdockClaim("roles"),
+    permdockClaim("memberships", true),
+    permdockClaim("memberships_truncated"),
     permdockClaim(parts.tenantClaim),
-    ...(parts.attrs === undefined ? [] : [permdockClaim('attrs', true)]),
-    ...(parts.version ? [permdockClaim('authz_ver')] : []),
+    ...(parts.attrs === undefined ? [] : [permdockClaim("attrs", true)]),
+    ...(parts.version ? [permdockClaim("authz_ver")] : []),
     ...parts.extra.map((entry) => ({
       name: entry.claim,
       source: entry.fn,
@@ -884,26 +990,26 @@ function helperList(
   parts: Parts,
   types: ReadonlyMap<string, string>,
 ): readonly SupabaseManifestHelper[] {
-  const client = ['authenticated'];
+  const client = ["authenticated"];
   return [
     {
-      name: 'permdock_has',
-      args: 'p_grant text',
-      returns: 'boolean',
+      name: "permdock_has",
+      args: "p_grant text",
+      returns: "boolean",
       execute: client,
     },
     ...parts.scopes.flatMap((scope): SupabaseManifestHelper[] => {
-      const returns = `setof ${types.get(scope.name) ?? 'uuid'}`;
+      const returns = `setof ${types.get(scope.name) ?? "uuid"}`;
       return [
         {
           name: `permitted_${scope.name}_ids`,
-          args: 'p_grant text',
+          args: "p_grant text",
           returns,
           execute: client,
         },
         {
           name: memberIdsHelper(scope.name),
-          args: '',
+          args: "",
           returns,
           execute: client,
         },
@@ -911,10 +1017,10 @@ function helperList(
           ? [
               {
                 name: memberForHelper(scope.name),
-                args: 'p_user uuid',
+                args: "p_user uuid",
                 returns,
                 execute:
-                  parts.extra.length === 0 ? [] : ['supabase_auth_admin'],
+                  parts.extra.length === 0 ? [] : ["supabase_auth_admin"],
               },
             ]
           : []),
@@ -930,11 +1036,11 @@ function manifestOf(
 ): SupabaseHookManifest {
   const rls = config.rls;
   const ctx: RlsSqlContext = {
-    dialect: 'supabase',
+    dialect: "supabase",
     scopes: parts.scopes,
     tenantClaim: parts.tenantClaim,
-    gucPrefix: rls?.gucPrefix ?? 'app',
-    tenantType: rls?.tenantType ?? 'uuid',
+    gucPrefix: rls?.gucPrefix ?? "app",
+    tenantType: rls?.tenantType ?? "uuid",
     ...(rls?.teamType === undefined ? {} : { teamType: rls.teamType }),
     ...(rls?.scopeTypes === undefined ? {} : { scopeTypes: rls.scopeTypes }),
   };
@@ -945,7 +1051,7 @@ function manifestOf(
   return {
     $schema: SUPABASE_MANIFEST_SCHEMA,
     version: 1,
-    hook: { schema: parts.schema, function: 'custom_access_token_hook', out },
+    hook: { schema: parts.schema, function: "custom_access_token_hook", out },
     helpers: {
       schema: parts.helpers.schema,
       functions: helpers.map((helper) => helper.name),
@@ -954,6 +1060,15 @@ function manifestOf(
     budget: { bytes: parts.budget, measure: BUDGET_MEASURE },
     claims: hookClaims(parts),
     authzVersion: parts.version,
+    ...(parts.version
+      ? {
+          authzVersionBump: {
+            schema: parts.schema,
+            function: AUTHZ_VERSION_BUMP,
+            args: "p_users uuid[]",
+          },
+        }
+      : {}),
     memberships: parts.sources.map((source) => source.sql.manifest),
     rls: {
       schema: parts.helpers.schema,
@@ -961,10 +1076,11 @@ function manifestOf(
       tenantClaim: parts.tenantClaim,
       scopes: parts.scopes.map((scope) => ({
         name: scope.name,
-        type: types.get(scope.name) ?? 'uuid',
+        type: types.get(scope.name) ?? "uuid",
         ...(scope.within === undefined ? {} : { within: scope.within }),
       })),
       helpers,
+      memberships: parts.helpers.memberships,
     },
     decidingColumns: decidingColumns(
       config,
@@ -977,17 +1093,36 @@ function manifestOf(
             columns: parts.attrs.columns,
           },
     ),
-    markers: { hook: 'v1', grants: 'v1' },
+    markers: { hook: "v1", grants: "v1" },
   };
 }
 
 /** The first line of the generated hook: fields `--check` compares before the full text. */
 function hookMarker(manifest: SupabaseHookManifest): string {
-  return `${HOOK_MARKER} schema=${manifest.hook.schema} tenant=${manifest.tenantClaim} budget=${String(manifest.budget.bytes)} claims=${manifest.claims.map((claim) => claim.name).join(',')}`;
+  return `${HOOK_MARKER} schema=${manifest.hook.schema} tenant=${manifest.tenantClaim} budget=${String(manifest.budget.bytes)} claims=${manifest.claims.map((claim) => claim.name).join(",")}`;
 }
 
 function defaultOut(config: PermDockConfig): string {
-  return config.supabase?.hook?.out ?? 'supabase/permdock-hook.sql';
+  return config.supabase?.hook?.out ?? "supabase/permdock-hook.sql";
+}
+
+/** `supabase.hook.out`, else pg-delta's per-schema path, else `supabase/permdock-hook.sql`. */
+export function hookOut(
+  cwd: string,
+  config: PermDockConfig,
+  schema?: string,
+): string {
+  const pgDelta = supabaseConfig(cwd).pgDelta;
+  return config.supabase?.hook?.out !== undefined || pgDelta === undefined
+    ? defaultOut(config)
+    : pgDeltaPath(
+        pgDelta.schemaDir,
+        "hook",
+        schema ??
+          config.supabase?.hook?.schema ??
+          config.rls?.schema ??
+          PERMDOCK_SCHEMA,
+      );
 }
 
 export function supabaseHookManifest(
@@ -995,7 +1130,7 @@ export function supabaseHookManifest(
   config: PermDockConfig,
   overrides: HookOverrides & { readonly out?: string } = {},
 ): SupabaseHookManifest {
-  const { parts } = hookParts(scopes, config, overrides);
+  const parts = hookParts(scopes, config, overrides);
   return manifestOf(parts, overrides.out ?? defaultOut(config), config);
 }
 
@@ -1011,32 +1146,31 @@ export function supabaseHookSql(
 ): {
   readonly sql: string;
   readonly grants: string;
-  readonly warnings: readonly string[];
   readonly manifest: SupabaseHookManifest;
 } {
-  const { parts, warnings } = hookParts(scopes, config, overrides);
+  const parts = hookParts(scopes, config, overrides);
   const manifest = manifestOf(parts, defaultOut(config), config);
   const toml = configToml(parts.schema, parts.jwtExpiry)
-    .split('\n')
-    .map((line) => (line === '' ? '--' : `--   ${line}`))
-    .join('\n');
+    .split("\n")
+    .map((line) => (line === "" ? "--" : `--   ${line}`))
+    .join("\n");
   const sql = [
     `${hookMarker(manifest)}
 -- custom_access_token_hook(jsonb): memberships go active ${parts.root} first and stop at the budget
 -- supabase/config.toml:
-${toml}${grantsOut === undefined ? '' : `\n-- the supabase_auth_admin grants are in ${grantsOut}`}`,
+${toml}${grantsOut === undefined ? "" : `\n-- the supabase_auth_admin grants are in ${grantsOut}`}`,
     attrsGuardSql(parts.attrs),
     hookSql(parts),
     versionSql(parts),
-    grantsOut === undefined ? grantsSql(parts) : '',
+    grantsOut === undefined ? grantsSql(parts) : "",
     managedSql(parts),
   ]
-    .filter((chunk) => chunk !== '')
-    .join('\n\n');
+    .filter((chunk) => chunk !== "")
+    .join("\n\n");
   const grants = `${GRANTS_MARKER} schema=${parts.schema}
 ${grantsSql(parts)}
 `;
-  return { sql: `${sql}\n`, grants, warnings, manifest };
+  return { sql: `${sql}\n`, grants, manifest };
 }
 
 /** What the hook file's header says about where its grants went. */
@@ -1044,7 +1178,7 @@ export function grantsLabel(grantsOut: string | undefined): string | undefined {
   if (grantsOut === undefined) {
     return undefined;
   }
-  return grantsOut === STDOUT ? 'a separate migration' : grantsOut;
+  return grantsOut === STDOUT ? "a separate migration" : grantsOut;
 }
 
 function markerDrift(
@@ -1059,21 +1193,21 @@ function markerDrift(
   const want = hookMarkerFields(hookMarker(expected)) ?? {};
   const changed = Object.keys(want)
     .filter((key) => found[key] !== want[key])
-    .map((key) => `${key} ${found[key] ?? '(none)'} -> ${want[key] ?? ''}`);
+    .map((key) => `${key} ${found[key] ?? "(none)"} -> ${want[key] ?? ""}`);
   return changed.length === 0
-    ? 'supabase hook drift'
-    : `supabase hook drift: ${changed.join('; ')}`;
+    ? "supabase hook drift"
+    : `supabase hook drift: ${changed.join("; ")}`;
 }
 
 function inspectText(manifest: SupabaseHookManifest): string {
   return [
     `hook ${manifest.hook.schema}.${manifest.hook.function} (${manifest.hook.out})`,
-    `helpers ${manifest.helpers.functions.map((fn) => `${manifest.helpers.schema}.${fn}`).join(', ')}`,
+    `helpers ${manifest.helpers.functions.map((fn) => `${manifest.helpers.schema}.${fn}`).join(", ")}`,
     `tenant claim ${manifest.tenantClaim}`,
     `budget ${String(manifest.budget.bytes)} bytes of ${manifest.budget.measure}`,
-    `claims ${manifest.claims.map((claim) => `${claim.name}${claim.source === 'permdock' ? '' : ` (${claim.source})`}${claim.budget ? ' [budget]' : ''}`).join(', ')}`,
-    `authz_ver ${manifest.authzVersion ? 'on' : 'off'}`,
-  ].join('\n');
+    `claims ${manifest.claims.map((claim) => `${claim.name}${claim.source === "permdock" ? "" : ` (${claim.source})`}${claim.budget ? " [budget]" : ""}`).join(", ")}`,
+    `authz_ver ${manifest.authzVersion ? "on" : "off"}`,
+  ].join("\n");
 }
 
 /**
@@ -1097,12 +1231,12 @@ function manifestFile(
   }
   let onDisk: unknown;
   try {
-    onDisk = JSON.parse(readFileSync(path, 'utf8'));
+    onDisk = JSON.parse(readFileSync(path, "utf8"));
   } catch {
     return { code: 1, output: `supabase manifest drift: ${rel} is not JSON` };
   }
   const found: Record<string, unknown> =
-    typeof onDisk === 'object' && onDisk !== null && !Array.isArray(onDisk)
+    typeof onDisk === "object" && onDisk !== null && !Array.isArray(onDisk)
       ? Object.fromEntries(Object.entries(onDisk))
       : {};
   const changed = [
@@ -1112,10 +1246,10 @@ function manifestFile(
       JSON.stringify(Reflect.get(manifest, key)) !== JSON.stringify(found[key]),
   );
   return changed.length === 0
-    ? { code: 0, output: 'supabase manifest up to date' }
+    ? { code: 0, output: "supabase manifest up to date" }
     : {
         code: 1,
-        output: `supabase manifest drift: ${rel} differs in ${changed.join(', ')}; run permdock supabase inspect --out ${rel}`,
+        output: `supabase manifest drift: ${rel} differs in ${changed.join(", ")}; run permdock supabase inspect --out ${rel}`,
       };
 }
 
@@ -1125,11 +1259,11 @@ export async function loadScopes(
 ): Promise<readonly Scope[]> {
   if (config.policy === undefined) {
     throw new Error(
-      'PermDock CLI: supabase hook generate needs policy in permdock.config.ts',
+      "PermDock CLI: supabase hook generate needs policy in permdock.config.ts",
     );
   }
   const policy = asPolicy(
-    pickNamed(await loadModule(resolve(cwd, config.policy)), ['policy']),
+    pickNamed(await loadModule(resolve(cwd, config.policy)), ["policy"]),
   );
   return scopeList(policy.scopes);
 }
@@ -1157,13 +1291,16 @@ export async function runSupabase(input: {
       schema: input.schema,
     }).filter(([, value]) => value !== undefined),
   );
-  if (area === 'inspect' && action === undefined) {
+  if (area === "inspect" && action === undefined) {
     const scopes = await loadScopes(input.cwd, input.config);
-    const manifest = supabaseHookManifest(scopes, input.config, overrides);
+    const manifest = supabaseHookManifest(scopes, input.config, {
+      ...overrides,
+      out: hookOut(input.cwd, input.config, input.schema),
+    });
     if (input.out !== undefined || input.check) {
       return manifestFile(
         input.cwd,
-        typeof input.out === 'string' ? input.out : MANIFEST_FILE,
+        typeof input.out === "string" ? input.out : MANIFEST_FILE,
         manifest,
         input.check,
       );
@@ -1176,40 +1313,42 @@ export async function runSupabase(input: {
           : inspectText(manifest),
     };
   }
-  if (area !== 'hook' || action !== 'generate') {
+  if (area !== "hook" || action !== "generate") {
     return { code: 2, output: SUPABASE_HELP };
   }
   const scopes = await loadScopes(input.cwd, input.config);
-  const { sql, grants, warnings, manifest } = supabaseHookSql(
+  const { sql, grants, manifest } = supabaseHookSql(
     scopes,
     input.config,
     overrides,
     grantsLabel(input.grantsOut),
   );
   const outRel =
-    typeof input.out === 'string' ? input.out : defaultOut(input.config);
+    typeof input.out === "string"
+      ? input.out
+      : hookOut(input.cwd, input.config, input.schema);
   const outPath = resolve(input.cwd, outRel);
   const hook = input.config.supabase?.hook;
   const grantsFile: readonly SqlFile[] =
     input.grantsOut === undefined
       ? []
-      : [{ part: 'grants', rel: input.grantsOut, text: grants }];
+      : [{ part: "grants", rel: input.grantsOut, text: grants }];
   const toml = configToml(
-    input.schema ?? hook?.schema ?? input.config.rls?.schema ?? 'public',
+    input.schema ?? hook?.schema ?? input.config.rls?.schema ?? PERMDOCK_SCHEMA,
     hook?.jwtExpiry ?? 900,
   );
   if (input.check) {
     if (!existsSync(outPath)) {
       return { code: 1, output: `supabase hook drift: missing ${outRel}` };
     }
-    const onDisk = readFileSync(outPath, 'utf8');
+    const onDisk = readFileSync(outPath, "utf8");
     if (onDisk !== sql) {
       return { code: 1, output: markerDrift(onDisk, manifest, outRel) };
     }
     const drift = driftOf(input.cwd, grantsFile);
     return drift.length === 0
-      ? { code: 0, output: 'supabase hook up to date' }
-      : { code: 1, output: `supabase hook drift: ${drift.join('; ')}` };
+      ? { code: 0, output: "supabase hook up to date" }
+      : { code: 1, output: `supabase hook drift: ${drift.join("; ")}` };
   }
   mkdirSync(dirname(outPath), { recursive: true });
   writeFileSync(outPath, sql);
@@ -1222,12 +1361,11 @@ export async function runSupabase(input: {
   return {
     code: 0,
     output: [
-      `wrote ${[outRel, ...grantsWritten.wrote].join(', ')}`,
-      ...(grantsWritten.printed === '' ? [] : [grantsWritten.printed]),
-      'add to supabase/config.toml:',
+      `wrote ${[outRel, ...grantsWritten.wrote].join(", ")}`,
+      ...(grantsWritten.printed === "" ? [] : [grantsWritten.printed]),
+      "add to supabase/config.toml:",
       toml,
-      ...warnings,
       ...(missing.length === 0 ? [] : [missingHelpersMessage(placed, missing)]),
-    ].join('\n'),
+    ].join("\n"),
   };
 }

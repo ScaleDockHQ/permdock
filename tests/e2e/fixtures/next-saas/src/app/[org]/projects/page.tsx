@@ -1,9 +1,9 @@
-import { Suspense } from 'react';
+import { Suspense } from "react";
 
-import { getProjects, serverPermDock } from '../../../lib/access.ts';
-import { permissions } from '../../../permissions.ts';
-import { ForbiddenState } from '../forbidden-state.tsx';
-import { RowActions } from './row-actions.tsx';
+import { getProjects, serverPermDock } from "../../../lib/access.ts";
+import { permissions } from "../../../permissions.ts";
+import { ForbiddenState } from "../forbidden-state.tsx";
+import { RowActions } from "./row-actions.tsx";
 
 /** The project cache is shared per org; the member check runs per request. */
 async function ProjectList(props: {
@@ -23,7 +23,7 @@ async function ProjectList(props: {
       {projects.map((project) => (
         <li key={project.id} data-project={project.id}>
           {project.name}
-          {project.archived ? ' (archived)' : ''}{' '}
+          {project.archived ? " (archived)" : ""}{" "}
           <RowActions project={project} />
         </li>
       ))}

@@ -20,25 +20,25 @@ WebMCP is a browser API, incubated in the W3C WebML Community Group and document
 
 A page that registers a "delete post" tool for every visitor is handing agents a capability the current user may not have. The client already holds a PermDock snapshot for exactly this reason: it knows which permissions the user has, including ownership conditions, without a round trip. `permdock/webmcp` is the same idea as `permission` on `registerTool` in [permdock/mcp](/docs/adapters/mcp), running on the client: register only the tools the snapshot allows, describe them from the permission metadata, and unregister them when the snapshot changes. See the [webmcp adapter](/docs/adapters/webmcp).
 
-Two boundaries stay server-side. The snapshot decides what to *register*; the server still decides what to *execute*, because a page-level tool handler calls the same API route that `protect` guards. And tool arguments coming from an agent are untrusted input, validated at the boundary like MCP tool arguments.
+Two boundaries stay server-side. The snapshot decides what to _register_; the server still decides what to _execute_, because a page-level tool handler calls the same API route that `protect` guards. And tool arguments coming from an agent are untrusted input, validated at the boundary like MCP tool arguments.
 
 ## How PermDock uses it
 
 ```tsx
-import { usePermDock } from 'permdock/react'
-import { registerTools } from 'permdock/webmcp'
+import { usePermDock } from "permdock/react";
+import { registerTools } from "permdock/webmcp";
 
 function PostTools() {
-  const permdock = usePermDock()
+  const permdock = usePermDock();
   useEffect(() => {
-    const controller = new AbortController()
+    const controller = new AbortController();
     registerTools(document.modelContext, permissions.post, {
       permdock,
       signal: controller.signal,
-    })
-    return () => controller.abort()
-  }, [permdock])
-  return null
+    });
+    return () => controller.abort();
+  }, [permdock]);
+  return null;
 }
 ```
 
@@ -56,20 +56,20 @@ What `registerTools` does:
 
 ## Mapping table
 
-| WebMCP concept | PermDock concept |
-| --- | --- |
-| `document.modelContext.registerTool` | `registerTools(document.modelContext, permissions.<resource>, options)` |
-| `navigator.modelContext` (deprecated) | Not used; the polyfill's `document.modelContext` is targeted |
-| Tool name and description | Permission key and action metadata (`title`, `description`) |
-| Tool `inputSchema` | Resource's Standard JSON Schema |
-| `readOnlyHint` | Action metadata `readOnly`, defaulted for `read` / `list` |
-| `untrustedContentHint` | Adapter option or resource metadata |
-| `AbortSignal` unregistration | Caller's signal plus automatic abort on snapshot change |
-| Permissions-Policy `tools` | Deployment requirement checked by `permdock doctor` |
-| Which tools exist for this user | `can(...)` against the client snapshot |
-| Whether a tool call succeeds | Server-side `protect` on the route the handler calls |
-| Puppeteer `page.webmcp` | Used in the `webmcp` example's tests to assert the registered tool list per role |
-| `@mcp-b/webmcp-polyfill` | Supported; the adapter only requires the `document.modelContext` shape |
+| WebMCP concept                        | PermDock concept                                                                 |
+| ------------------------------------- | -------------------------------------------------------------------------------- |
+| `document.modelContext.registerTool`  | `registerTools(document.modelContext, permissions.<resource>, options)`          |
+| `navigator.modelContext` (deprecated) | Not used; the polyfill's `document.modelContext` is targeted                     |
+| Tool name and description             | Permission key and action metadata (`title`, `description`)                      |
+| Tool `inputSchema`                    | Resource's Standard JSON Schema                                                  |
+| `readOnlyHint`                        | Action metadata `readOnly`, defaulted for `read` / `list`                        |
+| `untrustedContentHint`                | Adapter option or resource metadata                                              |
+| `AbortSignal` unregistration          | Caller's signal plus automatic abort on snapshot change                          |
+| Permissions-Policy `tools`            | Deployment requirement checked by `permdock doctor`                              |
+| Which tools exist for this user       | `can(...)` against the client snapshot                                           |
+| Whether a tool call succeeds          | Server-side `protect` on the route the handler calls                             |
+| Puppeteer `page.webmcp`               | Used in the `webmcp` example's tests to assert the registered tool list per role |
+| `@mcp-b/webmcp-polyfill`              | Supported; the adapter only requires the `document.modelContext` shape           |
 
 ## Sources
 

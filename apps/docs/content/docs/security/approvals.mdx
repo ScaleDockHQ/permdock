@@ -8,11 +8,14 @@ Some actions should be permitted in principle but confirmed by a person each tim
 ## The grant
 
 ```ts
-const clerk = role('clerk', [
+const clerk = role("clerk", [
   allow(permissions.filing.pay, {
-    approval: { by: [roles.admin, assurance({ amr: ['mfa'] })], distinct: true },
+    approval: {
+      by: [roles.admin, assurance({ amr: ["mfa"] })],
+      distinct: true,
+    },
   }),
-])
+]);
 ```
 
 `approval: 'human'` marks a grant that any authenticated person other than the requester may resolve: neither the actor nor the principal can approve. `{ by }` names the eligible approvers with the same grantee selectors as `to` (`role`, `assurance`, `authenticated`, an array as intersection; not `relation()`, which `definePolicy` refuses) and refuses the principal and the actor the same way. `distinct` defaults to `true`; `{ distinct: false }` lets the principal approve their own request (a user confirming their own agent's call), and `permdock doctor` PD024 lists every grant that sets it. The actor is refused either way.
@@ -23,11 +26,11 @@ Three more fields shape the request the grant produces:
 allow(permissions.payout.release, {
   approval: {
     by: roles.finance,
-    quorum: 2,                                   // two distinct finance approvers
-    ttl: '30m',                                  // the ask expires after half an hour
-    escalation: { after: '10m', to: roles.cfo }, // after ten minutes the CFO may approve too
+    quorum: 2, // two distinct finance approvers
+    ttl: "30m", // the ask expires after half an hour
+    escalation: { after: "10m", to: roles.cfo }, // after ten minutes the CFO may approve too
   },
-})
+});
 ```
 
 - `quorum` (an integer, default 1) is how many distinct approvers the request needs. Each approval is recorded as `{ by, at }` on the request's `approvals`, the same principal counts once, and the request stays `pending` (so it cannot be consumed) until the quorum is met. One rejection ends it.
@@ -37,7 +40,9 @@ allow(permissions.payout.release, {
 `definePolicy` refuses a `quorum` below 1 or a `ttl` or `after` that is not a duration, and `relation()` is refused in `escalation.to` as it is in `by`. When the grant matches, `decide` returns:
 
 ```ts
-{ outcome: 'approval-required', grant, reason, token }
+{
+  outcome: ("approval-required", grant, reason, token);
+}
 ```
 
 If the grant does not match, the outcome is `denied` as usual; approval is never offered for something the subject could not do even with approval. If a `deny` grant applies, it wins. `can` returns `false` for `approval-required` because a boolean caller cannot ask anyone; only `decide` and the adapters see the third outcome.
@@ -63,10 +68,12 @@ By default the token binds the row's id, not its content: an approval for "pay i
 
 ```ts
 const permissions = definePermissions({
-  invoice: resource(Invoice, { actions: ['pay'], version: 'updatedAt' }),
-})
+  invoice: resource(Invoice, { actions: ["pay"], version: "updatedAt" }),
+});
 
-allow(permissions.invoice.pay, { approval: { by: roles.finance, staleOn: 'resource-change' } })
+allow(permissions.invoice.pay, {
+  approval: { by: roles.finance, staleOn: "resource-change" },
+});
 ```
 
 - `version` on `resource()` names the row field that changes whenever the row does: an `updatedAt` timestamp or a revision counter. Its value (a `Date` as ISO text, a string, a number) joins the token input; a row without the field hashes as `null`.
@@ -92,22 +99,22 @@ Applications that need approvals to survive a restart implement the interface ov
 
 ## Surfaces
 
-| Runtime | How `approval-required` is surfaced | How it resumes |
-| --- | --- | --- |
-| AI SDK 7 `generateText` / `streamText` / `ToolLoopAgent` | `toolApproval` returns `'user-approval'` | The SDK's re-check of the same `toolCallId` is `denied` unless the store holds an approved, unconsumed record for the recomputed `token`; the record is consumed before the tool runs |
-| AI SDK 7 `WorkflowAgent` | `needsApproval(permissions.post.delete)` suspends the durable workflow | Workflow resumes; the adapter recomputes and compares `token` |
-| Claude Agent SDK | `canUseTool` denies with the reason and `token` and records the request in the store; `permissionRequestHook` answers the SDK's own prompt with the same decision | A reviewer resolves the request in the store; the agent's retry recomputes `token` and consumes the approved record once |
-| Eve | `approval.request` returns `"user-approval"`; the session parks at `session.waiting` | `approval.response` checks the responder against the store and `approvers`; on resume the adapter recomputes and compares `token` ([Eve adapter](/docs/adapters/eve)) |
-| OpenAI Agents SDK | `needsApproval` returns `true`; the run returns `interruptions` and a serialisable `RunState` | `resolveInterruptions` applies the store's verdict with `state.approve` / `state.reject`; the token is recomputed before `execute` ([OpenAI adapter](/docs/adapters/openai)) |
-| MCP | An MRTR `input_required` result with a URL-mode `elicitation/create` request to `approval.at` and the token as `requestState`, when the client takes URL elicitations; otherwise a structured tool result (`isError`) carrying the reason and `token` | A reviewer resolves the request in the store; the retried call re-runs `decide`, compares and consumes |
-| HTTP adapters | `403` Problem Details with `type` `.../approval-required`, `permission`, `token` | Client retries the same request with a `PermDock-Approval: <token>` header; the kernel requires an `approved` record, re-runs `decide` and compares |
-| Terminal (`permdock/terminal`) | A y/N prompt only for a grant with `distinct: false` and no actor; otherwise the request is recorded in `store` and the CLI exits `75` (`77` with no `store`) | The rerun recomputes `token` and consumes the approved record once ([terminal adapter](/docs/adapters/terminal)) |
-| A2A | Skill returns a structured "approval required" result with `token` | The task enters `input-required`; the caller retries with the token |
-| WebMCP | Tool handler returns a structured refusal with `token`; page renders its own approval UI | Page re-invokes the guarded route with the token |
-| React / Next.js UI | `usePermission` reports `allowed: false`; `decide` on the server shows `approval-required` for rendering an approval button | Server action re-checks with the token |
-| Chat UIs over AG-UI | The backend emits the approval request (reason, `token`, what to ask) as an AG-UI human-in-the-loop or custom event; the UI renders the control | The answer flows back on the same stream; the adapter in the backend recomputes and compares `token` ([agent frameworks](/docs/research/ecosystem-index)) |
-| Slack, Microsoft Teams, Discord through the Vercel Chat SDK | The store's `approval` event triggers `requestApproval` from a `chat/workflow` step; the card carries the reason and names the approvers | The Chat SDK verifies the platform signature and returns the responder's `user.id`; the app maps it to a `Subject` and calls `store.resolve`, which applies the actor rule; the resumed call recomputes `token` ([approvals adapter](/docs/adapters/approvals), Delivery) |
-| Other frameworks (LangGraph.js, Mastra, Inngest AgentKit, Google ADK) | Recipes, not adapters: `decide` in the framework's before-tool hook; `approval-required` parks as an `interrupt`, `suspend` or waiting step | The durable step resumes with the token; the same store and token check apply ([agent frameworks](/docs/research/ecosystem-index)) |
+| Runtime                                                               | How `approval-required` is surfaced                                                                                                                                                                                                                   | How it resumes                                                                                                                                                                                                                                                            |
+| --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AI SDK 7 `generateText` / `streamText` / `ToolLoopAgent`              | `toolApproval` returns `'user-approval'`                                                                                                                                                                                                              | The SDK's re-check of the same `toolCallId` is `denied` unless the store holds an approved, unconsumed record for the recomputed `token`; the record is consumed before the tool runs                                                                                     |
+| AI SDK 7 `WorkflowAgent`                                              | `needsApproval(permissions.post.delete)` suspends the durable workflow                                                                                                                                                                                | Workflow resumes; the adapter recomputes and compares `token`                                                                                                                                                                                                             |
+| Claude Agent SDK                                                      | `canUseTool` denies with the reason and `token` and records the request in the store; `permissionRequestHook` answers the SDK's own prompt with the same decision                                                                                     | A reviewer resolves the request in the store; the agent's retry recomputes `token` and consumes the approved record once                                                                                                                                                  |
+| Eve                                                                   | `approval.request` returns `"user-approval"`; the session parks at `session.waiting`                                                                                                                                                                  | `approval.response` checks the responder against the store and `approvers`; on resume the adapter recomputes and compares `token` ([Eve adapter](/docs/adapters/eve))                                                                                                     |
+| OpenAI Agents SDK                                                     | `needsApproval` returns `true`; the run returns `interruptions` and a serialisable `RunState`                                                                                                                                                         | `resolveInterruptions` applies the store's verdict with `state.approve` / `state.reject`; the token is recomputed before `execute` ([OpenAI adapter](/docs/adapters/openai))                                                                                              |
+| MCP                                                                   | An MRTR `input_required` result with a URL-mode `elicitation/create` request to `approval.at` and the token as `requestState`, when the client takes URL elicitations; otherwise a structured tool result (`isError`) carrying the reason and `token` | A reviewer resolves the request in the store; the retried call re-runs `decide`, compares and consumes                                                                                                                                                                    |
+| HTTP adapters                                                         | `403` Problem Details with `type` `.../approval-required`, `permission`, `token`                                                                                                                                                                      | Client retries the same request with a `PermDock-Approval: <token>` header; the kernel requires an `approved` record, re-runs `decide` and compares                                                                                                                       |
+| Terminal (`permdock/terminal`)                                        | A y/N prompt only for a grant with `distinct: false` and no actor; otherwise the request is recorded in `store` and the CLI exits `75` (`77` with no `store`)                                                                                         | The rerun recomputes `token` and consumes the approved record once ([terminal adapter](/docs/adapters/terminal))                                                                                                                                                          |
+| A2A                                                                   | Skill returns a structured "approval required" result with `token`                                                                                                                                                                                    | The task enters `input-required`; the caller retries with the token                                                                                                                                                                                                       |
+| WebMCP                                                                | Tool handler returns a structured refusal with `token`; page renders its own approval UI                                                                                                                                                              | Page re-invokes the guarded route with the token                                                                                                                                                                                                                          |
+| React / Next.js UI                                                    | `usePermission` reports `allowed: false`; `decide` on the server shows `approval-required` for rendering an approval button                                                                                                                           | Server action re-checks with the token                                                                                                                                                                                                                                    |
+| Chat UIs over AG-UI                                                   | The backend emits the approval request (reason, `token`, what to ask) as an AG-UI human-in-the-loop or custom event; the UI renders the control                                                                                                       | The answer flows back on the same stream; the adapter in the backend recomputes and compares `token` ([agent frameworks](/docs/research/ecosystem-index))                                                                                                                 |
+| Slack, Microsoft Teams, Discord through the Vercel Chat SDK           | The store's `approval` event triggers `requestApproval` from a `chat/workflow` step; the card carries the reason and names the approvers                                                                                                              | The Chat SDK verifies the platform signature and returns the responder's `user.id`; the app maps it to a `Subject` and calls `store.resolve`, which applies the actor rule; the resumed call recomputes `token` ([approvals adapter](/docs/adapters/approvals), Delivery) |
+| Other frameworks (LangGraph.js, Mastra, Inngest AgentKit, Google ADK) | Recipes, not adapters: `decide` in the framework's before-tool hook; `approval-required` parks as an `interrupt`, `suspend` or waiting step                                                                                                           | The durable step resumes with the token; the same store and token check apply ([agent frameworks](/docs/research/ecosystem-index))                                                                                                                                        |
 
 The AI SDK adapter fails closed: `denied` maps to `'denied'`, `approval-required` maps to `'user-approval'`, and `'not-applicable'` is never returned, in contrast to `@ai-sdk/policy-opa`, which executes tools on unrecognised decisions ([vercel/ai#19978](https://github.com/vercel/ai/issues/19978)).
 
@@ -131,7 +138,7 @@ sequenceDiagram
   Adapter->>Adapter: T' equals T? then run handler, else denied
 ```
 
-The second `decide` matters: the policy, the resource and the subject are re-evaluated at resume time, so a revocation between the ask and the answer (a CAEP `session-revoked`, a role change, the post being reassigned) turns the approval into a denial. The token proves the human approved *this* call; the re-check proves the call is still permitted.
+The second `decide` matters: the policy, the resource and the subject are re-evaluated at resume time, so a revocation between the ask and the answer (a CAEP `session-revoked`, a role change, the post being reassigned) turns the approval into a denial. The token proves the human approved _this_ call; the re-check proves the call is still permitted.
 
 ## What an approval does not do
 

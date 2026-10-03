@@ -1,16 +1,16 @@
-export { createPermDock } from './create.ts';
+export { createPermDock } from "./create.ts";
 export type {
   Guard,
   OpenApiHooks,
   ProtectOptions,
   ServerPermDock,
   ServerPermDockOptions,
-} from './create.ts';
+} from "./create.ts";
 export type {
   Connection,
   ConnectionData,
   ConnectionOptions,
-} from './connection.ts';
+} from "./connection.ts";
 export {
   apiKeyVerifier,
   generateApiKey,
@@ -18,42 +18,44 @@ export {
   memoryCredentials,
   parseApiKey,
   subjectFromApiKey,
-} from './credentials.ts';
+} from "./credentials.ts";
 export type {
   ApiKeyFailureCause,
   ApiKeyParts,
   ApiKeySubjectOptions,
   MemoryCredentials,
   StoredCredential,
-} from './credentials.ts';
-export { createEvaluationsHandler } from './evaluations.ts';
-export { problemFromError } from './map-error.ts';
+} from "./credentials.ts";
+export { createEvaluationsHandler } from "./evaluations.ts";
+export { problemFromError } from "./map-error.ts";
 export {
   PROBLEM_BASE,
   problemFromDecision,
   problemResponse,
   validationProblem,
   wwwAuthenticate,
-} from './problem.ts';
+} from "./problem.ts";
 export {
   PermDockApprovalRequiredError,
   PermDockDeniedError,
   PermDockRevokedError,
   PermDockValidationError,
-} from '../core/errors.ts';
-export { memoryRevocationFeed } from '../core/revocations.ts';
-export type { ApprovalHint } from '../core/errors.ts';
-export type { RevocationEvent, RevocationFeed } from '../core/revocations.ts';
+} from "../core/errors.ts";
+export { memoryRevocationFeed } from "../core/revocations.ts";
+export type { ApprovalHint } from "../core/errors.ts";
+export type { RevocationEvent, RevocationFeed } from "../core/revocations.ts";
 export {
   InvalidSignatureError,
   discoverViaSignatureAgent,
   invalidSignatureProblem,
   invalidSignatureResponse,
-} from './web-bot-auth.ts';
+  verifyWebBotAuth,
+} from "./web-bot-auth.ts";
 export type {
   DiscoverViaSignatureAgentOptions,
   WebBotAuthJwk,
   WebBotAuthKeyLookup,
   WebBotAuthKeys,
   WebBotAuthOptions,
-} from './web-bot-auth.ts';
+  WebBotAuthVerifier,
+} from "./web-bot-auth.ts";

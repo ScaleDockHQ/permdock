@@ -1,10 +1,10 @@
-import type { ApprovalStore } from '../approvals/types.ts';
-import type { PolicySource } from '../core/hosted.ts';
+import type { ApprovalStore } from "../approvals/types.ts";
+import type { PolicySource } from "../core/hosted.ts";
 import type {
   DecisionSink,
   SnapshotSource,
   TokenVerifier,
-} from '../core/interfaces.ts';
+} from "../core/interfaces.ts";
 
 export type CloudEndpointOptions = {
   readonly url?: string;

@@ -1,10 +1,10 @@
-import type { StandardSchemaV1 } from '@standard-schema/spec';
+import type { StandardSchemaV1 } from "@standard-schema/spec";
 
-import type { Decision } from '../core/decision.ts';
-import type { Snapshot } from '../core/interfaces.ts';
-import type { Permission, PermissionTree } from '../core/permissions.ts';
+import type { Decision } from "../core/decision.ts";
+import type { Snapshot } from "../core/interfaces.ts";
+import type { Permission, PermissionTree } from "../core/permissions.ts";
 
-export type WebMcpClientStatus = 'ready' | 'pending' | 'stale' | 'server-only';
+export type WebMcpClientStatus = "ready" | "pending" | "stale" | "server-only";
 
 export type WebMcpPermDock = {
   can(permission: Permission, data?: unknown): boolean;
@@ -16,7 +16,7 @@ export type WebMcpPermDock = {
 };
 
 export type WebMcpToolContent = {
-  readonly type: 'text';
+  readonly type: "text";
   readonly text: string;
 };
 
@@ -60,7 +60,7 @@ export type WebMcpApprovalRequest = {
   readonly permission: Permission;
   readonly decision: Extract<
     Decision,
-    { readonly outcome: 'approval-required' }
+    { readonly outcome: "approval-required" }
   >;
   readonly input: unknown;
 };

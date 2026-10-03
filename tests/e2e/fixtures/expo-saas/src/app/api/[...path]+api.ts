@@ -1,4 +1,4 @@
-import { handleSaasRoute } from '@permdock/e2e-saas-kit';
+import { handleSaasRoute } from "@permdock/e2e-saas-kit";
 
 async function route(request: Request): Promise<Response> {
   return (

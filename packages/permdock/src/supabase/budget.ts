@@ -6,4 +6,4 @@ export const supabaseMembershipsBudget = 1024;
  * it, `subjectFromSupabase` reads it, and the RLS helpers compare with it.
  * `rls.tenantClaim` and the `tenant` option change it.
  */
-export const supabaseTenantClaim = 'tenant_id';
+export const supabaseTenantClaim = "tenant_id";

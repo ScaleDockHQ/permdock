@@ -1,13 +1,13 @@
-import type { ReactNode } from 'react';
+import type { ReactNode } from "react";
 
-import type { Decision } from '../core/decision.ts';
-import type { Snapshot, TokenVerifier } from '../core/interfaces.ts';
-import type { PermDock } from '../core/permdock.ts';
-import type { Permission } from '../core/permissions.ts';
-import type { PolicyVocabulary } from '../core/policy.ts';
-import type { Actor, Delegation, Principal } from '../core/subject.ts';
+import type { Decision } from "../core/decision.ts";
+import type { Snapshot, TokenVerifier } from "../core/interfaces.ts";
+import type { PermDock } from "../core/permdock.ts";
+import type { Permission } from "../core/permissions.ts";
+import type { PolicyVocabulary } from "../core/policy.ts";
+import type { Actor, Delegation, Principal } from "../core/subject.ts";
 
-export type ClientStatus = 'ready' | 'pending' | 'stale' | 'server-only';
+export type ClientStatus = "ready" | "pending" | "stale" | "server-only";
 
 export type PermissionState = {
   readonly allowed: boolean;
@@ -30,12 +30,12 @@ export type ClientPermDock<V extends PolicyVocabulary = PolicyVocabulary> =
   };
 
 export type ApprovalState =
-  | 'not-needed'
-  | 'required'
-  | 'pending'
-  | 'approved'
-  | 'rejected'
-  | 'expired';
+  | "not-needed"
+  | "required"
+  | "pending"
+  | "approved"
+  | "rejected"
+  | "expired";
 
 export type ApprovalHandle = {
   readonly state: ApprovalState;
@@ -99,6 +99,6 @@ export type ProtectedProps = {
   readonly children:
     | ReactNode
     | ((
-        decision: Extract<Decision, { readonly outcome: 'granted' }>,
+        decision: Extract<Decision, { readonly outcome: "granted" }>,
       ) => ReactNode);
 };

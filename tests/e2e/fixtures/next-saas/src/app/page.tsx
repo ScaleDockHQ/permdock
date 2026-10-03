@@ -1,6 +1,6 @@
-import Link from 'next/link';
+import Link from "next/link";
 
-import { orgs } from '../nav.ts';
+import { orgs } from "../nav.ts";
 
 export default function OrgPicker() {
   return (

@@ -29,21 +29,26 @@ Because the interface is a dependency-free set of types, PermDock keeps its zero
 ## How PermDock uses it
 
 ```ts
-import { definePermissions, resource } from 'permdock'
-import { z } from 'zod' // or valibot / arktype / effect: any Standard Schema
+import { definePermissions, resource } from "permdock";
+import { z } from "zod"; // or valibot / arktype / effect: any Standard Schema
 
-const Post = z.object({ id: z.string(), authorId: z.string(), orgId: z.string(), published: z.boolean() })
+const Post = z.object({
+  id: z.string(),
+  authorId: z.string(),
+  orgId: z.string(),
+  published: z.boolean(),
+});
 
 export const permissions = definePermissions({
   post: resource(Post, {
-    id: 'id',
-    actions: ['read', 'update', 'delete', 'publish'],
-    collection: ['create', 'list'],
+    id: "id",
+    actions: ["read", "update", "delete", "publish"],
+    collection: ["create", "list"],
   }),
   billing: {
-    plan: resource({ collection: ['view', 'change'] }), // schema-less resource: no instance type, no validation
+    plan: resource({ collection: ["view", "change"] }), // schema-less resource: no instance type, no validation
   },
-})
+});
 ```
 
 Rules of consumption:
@@ -57,16 +62,16 @@ Rules of consumption:
 
 ## Mapping table
 
-| Standard Schema concept | PermDock concept |
-| --- | --- |
-| `StandardSchemaV1` object | First argument of `resource(schema, options)` |
-| `InferOutput` | Instance type of `Permission` leaves, `filter` element type, condition field names |
-| `InferInput` | Not used; PermDock reasons about parsed values |
-| `validate` returning `{ value }` | Rule receives the validated value |
-| `validate` returning `{ issues }` | `Decision` denied with `reason.kind === 'validation'` and the issues |
-| `validate` returning a Promise | `PermDockValidationError` at the boundary (sync requirement) |
-| `StandardJSONSchemaV1.jsonSchema.output` | Catalog JSON Schema, OpenAPI `components.schemas`, MCP `inputSchema` cross-check |
-| `vendor` | Not read; every implementer is treated the same |
+| Standard Schema concept                  | PermDock concept                                                                   |
+| ---------------------------------------- | ---------------------------------------------------------------------------------- |
+| `StandardSchemaV1` object                | First argument of `resource(schema, options)`                                      |
+| `InferOutput`                            | Instance type of `Permission` leaves, `filter` element type, condition field names |
+| `InferInput`                             | Not used; PermDock reasons about parsed values                                     |
+| `validate` returning `{ value }`         | Rule receives the validated value                                                  |
+| `validate` returning `{ issues }`        | `Decision` denied with `reason.kind === 'validation'` and the issues               |
+| `validate` returning a Promise           | `PermDockValidationError` at the boundary (sync requirement)                       |
+| `StandardJSONSchemaV1.jsonSchema.output` | Catalog JSON Schema, OpenAPI `components.schemas`, MCP `inputSchema` cross-check   |
+| `vendor`                                 | Not read; every implementer is treated the same                                    |
 
 ## Supported validators
 

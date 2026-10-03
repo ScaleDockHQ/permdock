@@ -1,25 +1,29 @@
-import { basename, resolve } from 'node:path';
+import { basename, resolve } from "node:path";
 
-import type { Policy } from '../index.ts';
-import type { CompiledPolicy } from './rls-compile.ts';
-import type { RolePermission } from './rls-helpers.ts';
-import type { RlsSqlContext } from './rls-sql.ts';
+import type { Policy } from "../index.ts";
+import type { CompiledPolicy } from "./rls-compile.ts";
+import type { RolePermission } from "./rls-helpers.ts";
+import type { IndexTarget } from "./rls-indexes.ts";
+import type { RlsSqlContext } from "./rls-sql.ts";
+import type { SplitPart } from "./sql-files.ts";
 import type {
   CliIo,
   PermDockConfig,
   RlsDialect,
   RlsMemberships,
   RlsTarget,
-} from './types.ts';
+} from "./types.ts";
 
-import { compact } from '../core/compact.ts';
-import { scopeList } from '../core/scopes.ts';
-import { listPermissions, listRoles } from '../index.ts';
-import { supabaseTenantClaim } from '../supabase/budget.ts';
-import { policyRowConditionKeys } from './catalog-doc.ts';
-import { asPolicy, loadModule, pickNamed } from './load.ts';
-import { breakGlassEntries, breakGlassSql } from './rls-break-glass.ts';
-import { compileGrants } from './rls-compile.ts';
+import { compact } from "../core/compact.ts";
+import { scopeList } from "../core/scopes.ts";
+import { listPermissions, listRoles } from "../index.ts";
+import { supabaseTenantClaim } from "../supabase/budget.ts";
+import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
+import { policyRowConditionKeys } from "./catalog-doc.ts";
+import { asPolicy, loadModule, pickNamed } from "./load.ts";
+import { INDEXES_MARKER, SEEDS_MARKER } from "./markers.ts";
+import { breakGlassEntries, breakGlassSql } from "./rls-break-glass.ts";
+import { compileGrants } from "./rls-compile.ts";
 import {
   defaultOut,
   emitDrizzle,
@@ -28,33 +32,36 @@ import {
   emitSql,
   migrationOut,
   migrationSql,
-} from './rls-emit.ts';
-import { fieldViews, rowBranches } from './rls-fields.ts';
-import { roleNames } from './rls-grants.ts';
-import { closureDepths, graphPlan, graphSql } from './rls-graph.ts';
-import { helpersSql } from './rls-helpers.ts';
-import { ownershipRules, ownershipSql } from './rls-ownership.ts';
-import { assemblePolicies } from './rls-policies.ts';
+} from "./rls-emit.ts";
+import { fieldViews, rowBranches } from "./rls-fields.ts";
+import { roleNames } from "./rls-grants.ts";
+import { closureDepths, graphPlan, graphSql } from "./rls-graph.ts";
+import { helpersSql, seedSql } from "./rls-helpers.ts";
+import { indexesSql, indexTargets } from "./rls-indexes.ts";
+import { ownershipRules, ownershipSql } from "./rls-ownership.ts";
+import { assemblePolicies } from "./rls-policies.ts";
 import {
   type RbacAuthorizeMode,
   rbacScaffold,
   resolveAuthorize,
-} from './rls-rbac.ts';
+} from "./rls-rbac.ts";
 import {
   checkSuspension,
   graphHelper,
   parseMembershipsFlag,
   scopeSources,
   scopeTable,
-} from './rls-sql.ts';
+} from "./rls-sql.ts";
 import {
   driftOf,
   parseSplit,
   partPath,
+  pgDeltaPath,
   type SqlFile,
   writeSqlFiles,
-} from './sql-files.ts';
-import { grantsLabel, supabaseHookSql } from './supabase-hook.ts';
+} from "./sql-files.ts";
+import { supabaseConfig } from "./supabase-config.ts";
+import { grantsLabel, supabaseHookSql } from "./supabase-hook.ts";
 
 export type GenerateOutcome = {
   readonly code: 0 | 1 | 2;
@@ -66,6 +73,8 @@ export type GenerateOutcome = {
   readonly migration?: string;
   /** The seeded `role_permissions` rows and the policy's keys; set when `write` is false. */
   readonly seeds?: readonly RolePermission[];
+  /** The indexes the policies and helpers read through. */
+  readonly indexes?: readonly IndexTarget[];
   readonly keys?: {
     readonly permissions: readonly string[];
     readonly rowConditions: readonly string[];
@@ -80,14 +89,14 @@ async function loadPolicy(
   from: string | undefined,
 ): Promise<Policy> {
   const policyPath =
-    from === 'drizzle' ? config.policy : (from ?? config.policy);
+    from === "drizzle" ? config.policy : (from ?? config.policy);
   if (policyPath === undefined) {
     throw new Error(
-      'PermDock CLI: rls generate needs policy in permdock.config.ts or --from',
+      "PermDock CLI: rls generate needs policy in permdock.config.ts or --from",
     );
   }
   return asPolicy(
-    pickNamed(await loadModule(resolve(cwd, policyPath)), ['policy']),
+    pickNamed(await loadModule(resolve(cwd, policyPath)), ["policy"]),
   );
 }
 
@@ -130,10 +139,12 @@ export async function runRlsGenerate(input: {
   readonly capabilities?: boolean;
   readonly fields?: string;
   readonly revokeColumns?: boolean;
-  /** `--split helpers,policies,hook`: one file per part, `{part}` in `out` naming it. */
+  /** `--split helpers,seeds,policies,hook`: one file per part, `{part}` in `out` naming it. */
   readonly split?: string;
   /** The hook's `supabase_auth_admin` grants go here (`-` prints them); needs the `hook` part. */
   readonly grantsOut?: string;
+  /** The `seeds` part goes here instead of `{part}` in `out` (`-` prints it), so it can be a versioned migration. */
+  readonly seedsOut?: string;
   /** Only the helpers, their seeds and the scaffold: no table policies, for a project whose policies are hand-written. */
   readonly helpersOnly?: boolean;
   /** `false` returns the SQL and its policies without touching `out`. */
@@ -142,11 +153,11 @@ export async function runRlsGenerate(input: {
 }): Promise<GenerateOutcome> {
   const rls = input.config.rls;
   const fieldsMode = input.fields ?? rls?.fields;
-  if (fieldsMode !== undefined && fieldsMode !== 'views') {
+  if (fieldsMode !== undefined && fieldsMode !== "views") {
     return {
       code: 2,
       output: `rls generate --fields must be views (got ${fieldsMode})`,
-      text: '',
+      text: "",
     };
   }
   const revokeColumns =
@@ -154,22 +165,22 @@ export async function runRlsGenerate(input: {
   if (revokeColumns && fieldsMode === undefined) {
     return {
       code: 2,
-      output: 'rls generate --revoke-columns needs --fields views',
-      text: '',
+      output: "rls generate --revoke-columns needs --fields views",
+      text: "",
     };
   }
   const policy = await loadPolicy(input.cwd, input.config, input.from);
   const memberships: RlsMemberships | undefined =
     parseMembershipsFlag(input.memberships) ?? rls?.memberships;
-  if (input.rbac && input.dialect !== 'supabase') {
+  if (input.rbac && input.dialect !== "supabase") {
     return {
       code: 2,
       output: `rls generate --rbac supabase needs --dialect supabase (got ${input.dialect})`,
-      text: '',
+      text: "",
     };
   }
   const schema =
-    input.rbacSchema ?? rls?.schema ?? rls?.rbac?.schema ?? 'public';
+    input.rbacSchema ?? rls?.schema ?? rls?.rbac?.schema ?? PERMDOCK_SCHEMA;
   const authorize = resolveAuthorize(input.config, {
     authorize: input.authorize,
     rbac: input.rbac,
@@ -177,7 +188,7 @@ export async function runRlsGenerate(input: {
   });
   const memberSources =
     rls?.membershipSources ?? input.config.supabase?.hook?.memberships;
-  const sources = authorize === 'database' ? memberSources : undefined;
+  const sources = authorize === "database" ? memberSources : undefined;
   const scopes = scopeList(policy.scopes);
   const suspension = checkSuspension(rls?.suspension, scopes);
   const hookRoles = input.config.supabase?.hook?.roles;
@@ -186,8 +197,8 @@ export async function runRlsGenerate(input: {
     return {
       code: 2,
       output:
-        'rls generate --rbac supabase creates its own user_roles (user_id, role app_role); drop rls.roles (or supabase.hook.roles) or the --rbac flag',
-      text: '',
+        "rls generate --rbac supabase creates its own user_roles (user_id, role app_role); drop rls.roles (or supabase.hook.roles) or the --rbac flag",
+      text: "",
     };
   }
   const ownership = ownershipRules(policy, scopes);
@@ -196,12 +207,12 @@ export async function runRlsGenerate(input: {
     dialect: input.dialect,
     scopes,
     tenantClaim: rls?.tenantClaim ?? supabaseTenantClaim,
-    gucPrefix: input.gucPrefix ?? rls?.gucPrefix ?? 'app',
+    gucPrefix: input.gucPrefix ?? rls?.gucPrefix ?? "app",
     inlineFunctions: input.inlineFunctions || rls?.inlineFunctions === true,
     schema,
     authorize,
-    roleClaim: rls?.roleClaim ?? 'user_role',
-    tenantType: input.tenantType ?? rls?.tenantType ?? 'uuid',
+    roleClaim: rls?.roleClaim ?? "user_role",
+    tenantType: input.tenantType ?? rls?.tenantType ?? "uuid",
     ...(rls?.teamType === undefined ? {} : { teamType: rls.teamType }),
     ...(rls?.scopeTypes === undefined ? {} : { scopeTypes: rls.scopeTypes }),
     ...(memberships === undefined ? {} : { memberships }),
@@ -217,6 +228,9 @@ export async function runRlsGenerate(input: {
     ...(input.capabilities === true || rls?.capabilities === true
       ? { capabilities: true as const }
       : {}),
+    ...(rls?.anonymousSignIns === "deny"
+      ? { anonymousSignIns: "deny" as const }
+      : {}),
     ...(ownership === undefined ? {} : { ownership }),
     ...(fieldsMode === undefined ? {} : { fields: fieldsMode }),
     ...(graph.size === 0
@@ -229,8 +243,15 @@ export async function runRlsGenerate(input: {
           },
         }),
   };
+  if (ctx.anonymousSignIns === "deny" && ctx.dialect !== "supabase") {
+    return {
+      code: 2,
+      output: `rls.anonymousSignIns needs --dialect supabase (got ${ctx.dialect})`,
+      text: "",
+    };
+  }
   const warnings: string[] = [];
-  if (authorize === 'database') {
+  if (authorize === "database") {
     for (const { name } of ctx.scopes) {
       const needs = policy.grants.some((grant) => grant.scope === name);
       if (
@@ -258,16 +279,16 @@ export async function runRlsGenerate(input: {
   const force = input.force === true || rls?.force === true;
   if (force && views.some((view) => view.companion !== undefined)) {
     warnings.push(
-      '--force with --revoke-columns: each <table>_visible_fields companion reads as its owner, so its owner needs BYPASSRLS or the restricted columns read as null',
+      "--force with --revoke-columns: each <table>_visible_fields companion reads as its owner, so its owner needs BYPASSRLS or the restricted columns read as null",
     );
   }
   const policyName = input.policyName ?? rls?.policyName;
   const helpersOnly = input.helpersOnly === true || rls?.helpersOnly === true;
-  if (helpersOnly && (input.target !== 'sql' || fieldsMode !== undefined)) {
+  if (helpersOnly && (input.target !== "sql" || fieldsMode !== undefined)) {
     return {
       code: 2,
-      output: 'rls generate --helpers-only needs --target sql and no --fields',
-      text: '',
+      output: "rls generate --helpers-only needs --target sql and no --fields",
+      text: "",
     };
   }
   const policies = helpersOnly
@@ -306,7 +327,7 @@ export async function runRlsGenerate(input: {
   }
   if (input.rbac) {
     warnings.push(
-      'the token hook that writes user_role and memberships comes from permdock supabase hook generate',
+      "the token hook that writes user_role and memberships comes from permdock supabase hook generate",
     );
   }
   const owned = ownershipSql(ctx);
@@ -316,47 +337,48 @@ export async function runRlsGenerate(input: {
     rbac?.head,
     helpersSql(ctx, compiled.rolePermissions, {
       userRoles: !input.rbac,
-      anonExecute: views.some((view) => view.roles.includes('anon')),
+      anonExecute: views.some((view) => view.roles.includes("anon")),
+      withoutSeeds: splitsPart(input.split, "seeds"),
     }),
-    owned === '' ? undefined : owned,
-    graphed === '' ? undefined : graphed,
-    breakGlass === '' ? undefined : breakGlass,
+    owned === "" ? undefined : owned,
+    graphed === "" ? undefined : graphed,
+    breakGlass === "" ? undefined : breakGlass,
     rbac?.tail,
   ]
     .filter((part): part is string => part !== undefined)
-    .join('\n');
+    .join("\n");
   if (force) {
     for (const entry of graph.values()) {
       const own = [...entry.relations].filter(
-        (name) => !('edge' in (entry.node.relations[name] ?? {})),
+        (name) => !("edge" in (entry.node.relations[name] ?? {})),
       );
       if (own.length > 0) {
         warnings.push(
-          `--force: ${entry.node.name} relations ${own.join(', ')} are read from the ${entry.node.name} table itself, so ${graphHelper(entry.node.name)} would recurse through its own policy; keep ${entry.node.name} unforced or move them to edge tables`,
+          `--force: ${entry.node.name} relations ${own.join(", ")} are read from the ${entry.node.name} table itself, so ${graphHelper(entry.node.name)} would recurse through its own policy; keep ${entry.node.name} unforced or move them to edge tables`,
         );
       }
     }
   }
   const outRel = input.out ?? rls?.out ?? defaultOut(input.target);
   const migration =
-    input.target === 'sql'
-      ? ''
+    input.target === "sql"
+      ? ""
       : dialectRoles(
           migrationSql(policies, preamble, force, views),
           ctx.dialect,
         );
-  const migrationRel = migration === '' ? undefined : migrationOut(outRel);
+  const migrationRel = migration === "" ? undefined : migrationOut(outRel);
   const helpers =
     migrationRel === undefined ? undefined : basename(migrationRel);
   let text: string;
   switch (input.target) {
-    case 'sql':
+    case "sql":
       text = dialectRoles(
         emitSql(policies, preamble, force, views),
         ctx.dialect,
       );
       break;
-    case 'drizzle':
+    case "drizzle":
       text = emitDrizzle(
         policies,
         compact({
@@ -367,7 +389,7 @@ export async function runRlsGenerate(input: {
         }),
       );
       break;
-    case 'prisma':
+    case "prisma":
       text = emitPrisma(
         policies,
         compact({ models: rls?.prisma?.models, helpers }),
@@ -378,17 +400,23 @@ export async function runRlsGenerate(input: {
       return exhaustive;
     }
   }
-  for (const column of compiled.filtered) {
-    warnings.push(`index suggestion: create index on ${column}`);
+  const indexes = indexTargets(ctx, compiled.rowColumns);
+  if (!splitsPart(input.split, "indexes")) {
+    for (const target of indexes) {
+      warnings.push(
+        `index suggestion: create index on ${target.table} (${target.columns.join(", ")}), or add indexes to --split`,
+      );
+    }
   }
-  const extras = migration === '' ? {} : { migration };
+  const extras = migration === "" ? {} : { migration };
   if (input.write === false) {
     return {
       code: 0,
-      output: warnings.join('\n'),
+      output: warnings.join("\n"),
       text,
       policies,
       seeds: compiled.rolePermissions,
+      indexes,
       keys: {
         permissions: listPermissions(policy.vocabulary.permissions).map(
           (leaf) => leaf.key,
@@ -406,37 +434,46 @@ export async function runRlsGenerate(input: {
     text,
     helpersOnly,
     sql: () => ({
-      policies: dialectRoles(emitSql(policies, '', force, views), ctx.dialect),
+      policies: dialectRoles(emitSql(policies, "", force, views), ctx.dialect),
       helpers: dialectRoles(emitSql([], preamble), ctx.dialect),
+      seeds: `${SEEDS_MARKER} schema=${schema}\n${seedSql(ctx, compiled.rolePermissions)}\n`,
+      indexes: `${INDEXES_MARKER}\n${indexesSql(indexes)}\n`,
     }),
     scopes,
+    schema,
   });
-  if (typeof planned === 'string') {
+  if (typeof planned === "string") {
     return { code: 2, output: planned, text, ...extras };
   }
   const files: SqlFile[] = [...planned];
   if (migrationRel !== undefined) {
-    files.push({ part: 'migration', rel: migrationRel, text: migration });
+    files.push({ part: "migration", rel: migrationRel, text: migration });
   }
   if (input.check) {
     const drift = driftOf(input.cwd, files);
     return drift.length === 0
-      ? { code: 0, output: 'rls generate up to date', text, ...extras }
+      ? { code: 0, output: "rls generate up to date", text, ...extras }
       : {
           code: 1,
-          output: drift.map((line) => `rls generate drift: ${line}`).join('\n'),
+          output: drift.map((line) => `rls generate drift: ${line}`).join("\n"),
           text,
           ...extras,
         };
   }
   const written = writeSqlFiles(input.cwd, files);
-  const extra = warnings.length === 0 ? '' : `\n${warnings.join('\n')}`;
+  const extra = warnings.length === 0 ? "" : `\n${warnings.join("\n")}`;
   return {
     code: 0,
-    output: `wrote ${written.wrote.join(', ')}${written.printed === '' ? '' : `\n${written.printed}`}${extra}`,
+    output: `wrote ${written.wrote.join(", ")}${written.printed === "" ? "" : `\n${written.printed}`}${extra}`,
     text,
     ...extras,
   };
+}
+
+/** Whether `--split` names `part`, which then leaves the helpers or the warnings. */
+function splitsPart(raw: string | undefined, part: SplitPart): boolean {
+  const split = parseSplit(raw);
+  return typeof split !== "string" && split?.includes(part) === true;
 }
 
 /** The files `generate` writes: one, or one per `--split` part, plus the hook's grants. */
@@ -445,56 +482,104 @@ function outputFiles(plan: {
   readonly outRel: string;
   readonly text: string;
   readonly helpersOnly: boolean;
-  readonly sql: () => { readonly policies: string; readonly helpers: string };
+  readonly sql: () => {
+    readonly policies: string;
+    readonly helpers: string;
+    readonly seeds: string;
+    readonly indexes: string;
+  };
   readonly scopes: ReturnType<typeof scopeList>;
+  readonly schema: string;
 }): readonly SqlFile[] | string {
-  const { input, outRel } = plan;
+  const { input } = plan;
   const split = parseSplit(input.split);
-  if (typeof split === 'string') {
+  if (typeof split === "string") {
     return split;
   }
-  if (split?.includes('policies') === true && plan.helpersOnly) {
-    return 'rls generate --helpers-only writes no policies part; drop it from --split';
+  if (split?.includes("policies") === true && plan.helpersOnly) {
+    return "rls generate --helpers-only writes no policies part; drop it from --split";
   }
   if (split === undefined) {
     if (input.grantsOut !== undefined) {
       return "rls generate --grants-out needs --split with the hook part: the grants are the token hook's";
     }
-    return [{ part: 'rls', rel: outRel, text: plan.text }];
+    if (input.seedsOut !== undefined) {
+      return "rls generate --seeds-out needs --split with the seeds part";
+    }
+    return [{ part: "rls", rel: plan.outRel, text: plan.text }];
   }
-  if (input.target !== 'sql') {
-    return 'rls generate --split needs --target sql';
+  if (input.target !== "sql") {
+    return "rls generate --split needs --target sql";
   }
-  if (!outRel.includes('{part}')) {
-    return `rls generate --split needs {part} in --out, for example supabase/schemas/identity/056_permdock_{part}.sql (got ${outRel})`;
+  const pgDelta =
+    input.out === undefined && input.config.rls?.out === undefined
+      ? supabaseConfig(input.cwd).pgDelta
+      : undefined;
+  if (pgDelta === undefined && !plan.outRel.includes("{part}")) {
+    return `rls generate --split needs {part} in --out, for example supabase/schemas/identity/056_permdock_{part}.sql (got ${plan.outRel})`;
   }
-  if (input.grantsOut !== undefined && !split.includes('hook')) {
-    return 'rls generate --grants-out needs the hook part in --split';
+  if (
+    pgDelta !== undefined &&
+    split.includes("helpers") &&
+    !split.includes("seeds")
+  ) {
+    return "rls generate --split helpers under pg-delta needs the seeds part with --seeds-out: pg-delta rejects the role_permissions rows in a declarative file";
   }
-  if (split.includes('hook') && input.config.supabase?.hook === undefined) {
-    return 'rls generate --split hook needs supabase.hook in permdock.config.ts';
+  if (
+    pgDelta !== undefined &&
+    split.includes("seeds") &&
+    input.seedsOut === undefined
+  ) {
+    return "rls generate --split seeds under pg-delta needs --seeds-out: pg-delta does not diff the role_permissions rows, so they go in a migration";
+  }
+  const at = (part: SplitPart, schema = plan.schema): string =>
+    pgDelta === undefined
+      ? partPath(plan.outRel, part)
+      : pgDeltaPath(pgDelta.schemaDir, part, schema);
+  if (input.grantsOut !== undefined && !split.includes("hook")) {
+    return "rls generate --grants-out needs the hook part in --split";
+  }
+  if (input.seedsOut !== undefined && !split.includes("seeds")) {
+    return "rls generate --seeds-out needs the seeds part in --split";
+  }
+  if (split.includes("hook") && input.config.supabase?.hook === undefined) {
+    return "rls generate --split hook needs supabase.hook in permdock.config.ts";
   }
   const sql = plan.sql();
   const files: SqlFile[] = [];
   for (const part of split) {
     switch (part) {
-      case 'helpers':
-        files.push({ part, rel: partPath(outRel, part), text: sql.helpers });
+      case "helpers":
+        files.push({ part, rel: at(part), text: sql.helpers });
         break;
-      case 'policies':
-        files.push({ part, rel: partPath(outRel, part), text: sql.policies });
+      case "seeds":
+        files.push({
+          part,
+          rel: input.seedsOut ?? at(part),
+          text: sql.seeds,
+        });
         break;
-      case 'hook': {
+      case "indexes":
+        files.push({ part, rel: at(part), text: sql.indexes });
+        break;
+      case "policies":
+        files.push({ part, rel: at(part), text: sql.policies });
+        break;
+      case "hook": {
         const hook = supabaseHookSql(
           plan.scopes,
           input.config,
           {},
           grantsLabel(input.grantsOut),
         );
-        files.push({ part, rel: partPath(outRel, part), text: hook.sql });
+        files.push({
+          part,
+          rel: at(part, hook.manifest.hook.schema),
+          text: hook.sql,
+        });
         if (input.grantsOut !== undefined) {
           files.push({
-            part: 'grants',
+            part: "grants",
             rel: input.grantsOut,
             text: hook.grants,
           });

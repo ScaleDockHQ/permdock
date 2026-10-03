@@ -1,7 +1,7 @@
-import type { IncomingMessage, ServerResponse } from 'node:http';
+import type { IncomingMessage, ServerResponse } from "node:http";
 
-import type { ApprovalStore } from '../approvals/types.ts';
-import type { PolicySource } from '../core/hosted.ts';
+import type { ApprovalStore } from "../approvals/types.ts";
+import type { PolicySource } from "../core/hosted.ts";
 import type {
   DecisionSink,
   EntitlementSource,
@@ -10,31 +10,30 @@ import type {
   RelationSource,
   RoleSource,
   SnapshotSource,
-} from '../core/interfaces.ts';
-import type { PermDock } from '../core/permdock.ts';
-import type { Permission } from '../core/permissions.ts';
-import type { Policy } from '../core/policy.ts';
-import type { Principal } from '../core/subject.ts';
-import type { OtelOptions } from '../otel/types.ts';
-import type { PdpFactory } from '../pdp/types.ts';
+} from "../core/interfaces.ts";
+import type { PermDock } from "../core/permdock.ts";
+import type { Permission } from "../core/permissions.ts";
+import type { Policy, PolicyVocabulary } from "../core/policy.ts";
+import type { Principal } from "../core/subject.ts";
+import type { OtelWrap } from "../otel/types.ts";
+import type { PdpFactory } from "../pdp/types.ts";
 import type {
   Guard,
   OpenApiHooks,
   ProtectOptions,
   TenantOption,
   TenantScope,
-} from '../server/create.ts';
-import type { WebBotAuthOptions } from '../server/web-bot-auth.ts';
+} from "../server/create.ts";
+import type { WebBotAuthVerifier } from "../server/web-bot-auth.ts";
 
-import { compact } from '../core/compact.ts';
-import { applyOtel } from '../otel/instrument.ts';
-import { createKernel, tenantScope } from '../server/create.ts';
+import { compact } from "../core/compact.ts";
+import { createKernel, tenantScope } from "../server/create.ts";
 import {
   fromResponse,
   sendResponse,
   toRequest,
   type NodeRequest,
-} from './http.ts';
+} from "./http.ts";
 
 export type NodePermDockOptions<TUser = unknown> = {
   readonly subject: (req: NodeRequest) => TUser | Promise<TUser>;
@@ -53,12 +52,14 @@ export type NodePermDockOptions<TUser = unknown> = {
   readonly pdp?: PdpFactory;
   /** Accepted for adapter parity; not read by this adapter. */
   readonly snapshots?: SnapshotSource;
-  readonly otel?: OtelOptions;
-  readonly webBotAuth?: WebBotAuthOptions;
+  /** `(permdock) => withOtel(permdock, options)` from `permdock/otel`. */
+  readonly otel?: OtelWrap;
+  /** `(request) => verifyWebBotAuth(request, options)`; a verified bot becomes the actor. */
+  readonly webBotAuth?: WebBotAuthVerifier;
 };
 
-export type NodePermDock = {
-  readonly permdock: (req: IncomingMessage) => Promise<PermDock>;
+export type NodePermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
+  readonly permdock: (req: IncomingMessage) => Promise<PermDock<V>>;
   readonly protect: (
     permission: Permission,
     loadData?: (req: NodeRequest) => unknown,
@@ -74,10 +75,14 @@ export type NodePermDock = {
   readonly openapi: OpenApiHooks;
 };
 
-export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
-  policy: Policy<TUser, TPrincipal>,
+export function createPermDock<
+  TUser,
+  TPrincipal extends Principal = Principal,
+  V extends PolicyVocabulary = PolicyVocabulary,
+>(
+  policy: Policy<TUser, TPrincipal, V>,
   options: NodePermDockOptions<TUser>,
-): NodePermDock {
+): NodePermDock<V> {
   const contexts = new WeakMap<globalThis.Request, NodeRequest>();
   const bound = new WeakMap<IncomingMessage, globalThis.Request>();
   const kernel = createKernel(
@@ -97,8 +102,8 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       limits: options.limits,
       pdp: options.pdp,
       webBotAuth: options.webBotAuth,
-      adapter: 'node',
-      wrap: (dock: PermDock) => applyOtel(dock, options.otel),
+      adapter: "node",
+      wrap: options.otel,
     }),
   );
 
@@ -119,7 +124,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
   const scopeOf = (req: IncomingMessage): Promise<TenantScope> =>
     tenantScope(options.tenant, req as NodeRequest);
 
-  const permdock = async (req: IncomingMessage): Promise<PermDock> =>
+  const permdock = async (req: IncomingMessage): Promise<PermDock<V>> =>
     kernel.permdock(bind(req), await scopeOf(req));
 
   // SAFETY: NodeRequest only adds optional fields that Express-style servers set on the request.
@@ -142,12 +147,12 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     req: IncomingMessage,
     res: ServerResponse,
   ) => Promise<void>) => {
-    const { POST, GET } = kernel.handler((request) => {
+    const { POST, GET } = kernel.permdockHandler((request) => {
       const req = contexts.get(request);
       return req === undefined ? { tenant: undefined } : scopeOf(req);
     });
     return async (req, res): Promise<void> => {
-      if (req.method === 'GET' || req.method === 'HEAD') {
+      if (req.method === "GET" || req.method === "HEAD") {
         await sendResponse(res, await GET(bind(req)));
         return;
       }

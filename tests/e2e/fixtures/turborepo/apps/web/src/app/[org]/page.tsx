@@ -1,7 +1,7 @@
-import { cookies } from 'next/headers';
+import { cookies } from "next/headers";
 
-import { projectsOf, readSession, saasPermDock } from '@permdock/e2e-saas-kit';
-import { permissions as p } from '@permdock/e2e-turbo-permissions';
+import { projectsOf, readSession, saasPermDock } from "@permdock/e2e-saas-kit";
+import { permissions as p } from "@permdock/e2e-turbo-permissions";
 
 export default async function OrgPage(props: {
   readonly params: Promise<{ readonly org: string }>;
@@ -21,7 +21,7 @@ export default async function OrgPage(props: {
       <ul>
         {permdock.filter(p.project.read, projectsOf(org)).map((project) => (
           <li key={project.id} data-testid={`project-${project.id}`}>
-            {project.name}{' '}
+            {project.name}{" "}
             <button
               type="button"
               disabled={!permdock.can(p.project.update, project)}

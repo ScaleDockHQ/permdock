@@ -12,22 +12,36 @@ The Claude Agent SDK exposes tool use to the host application as a callback: the
 ## API
 
 ```ts
-import { createPermDock } from 'permdock/claude-agent'
-import { z } from 'zod'
+import { createPermDock } from "permdock/claude-agent";
+import { z } from "zod";
 
-const PostArgs = z.object({ id: z.string() }) // tool input arrives as `unknown`
+const PostArgs = z.object({ id: z.string() }); // tool input arrives as `unknown`
 
 const { canUseTool, permissionRequestHook } = createPermDock(policy, {
   subject: () => currentUser,
-  actor: () => ({ id: 'claude-agent', kind: 'claude-agent' }),
-  delegation: () => ({ scopes: [permissions.post.read.scope, permissions.post.update.scope] }),
+  actor: () => ({ id: "claude-agent", kind: "claude-agent" }),
+  delegation: () => ({
+    scopes: [permissions.post.read.scope, permissions.post.update.scope],
+  }),
   tools: {
-    Bash:  { permission: permissions.shell.run,   data: (input) => ({ command: input.command }) },
-    Write: { permission: permissions.file.write,  data: (input) => ({ path: input.file_path }) },
-    Read:  { permission: permissions.file.read,   data: (input) => ({ path: input.file_path }) },
-    mcp__posts__delete_post: { permission: permissions.post.delete, data: (input) => loadPost(PostArgs.parse(input).id) },
+    Bash: {
+      permission: permissions.shell.run,
+      data: (input) => ({ command: input.command }),
+    },
+    Write: {
+      permission: permissions.file.write,
+      data: (input) => ({ path: input.file_path }),
+    },
+    Read: {
+      permission: permissions.file.read,
+      data: (input) => ({ path: input.file_path }),
+    },
+    mcp__posts__delete_post: {
+      permission: permissions.post.delete,
+      data: (input) => loadPost(PostArgs.parse(input).id),
+    },
   },
-})
+});
 
 query({
   prompt,
@@ -35,7 +49,7 @@ query({
     canUseTool,
     hooks: { PermissionRequest: [{ hooks: [permissionRequestHook] }] },
   },
-})
+});
 ```
 
 - `tools` keys are SDK tool names, including built-ins (`Bash`, `Read`, `Write`, `Edit`, `WebFetch`) and MCP tools by their prefixed name. Each entry names a permission and, for instance-level actions, a `data` resolver that turns the tool input into the resource shape the permission's schema expects.
@@ -52,10 +66,10 @@ query({
 4. `permdock.decide(permission, data)` runs.
 5. The outcome maps to the SDK's return value:
 
-| Decision outcome | `canUseTool` result |
-|---|---|
-| `granted` | allow, with the input passed back unchanged as `updatedInput` |
-| `denied` | deny, with a message built from denials and alternatives |
+| Decision outcome    | `canUseTool` result                                                                                                                                                            |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `granted`           | allow, with the input passed back unchanged as `updatedInput`                                                                                                                  |
+| `denied`            | deny, with a message built from denials and alternatives                                                                                                                       |
 | `approval-required` | deny, with a message naming the permission, the resource and `Approval <token> is pending; retry the call once it is approved.`; the pending request is written to the `store` |
 
 6. A reviewer resolves the request through `approvalsHandler`, `resolveApproval` or the PermDock Cloud inbox. When the agent retries the same call, the adapter recomputes the token from permission, resource, principal, actor and input, finds the approved record in the store, consumes it and allows the call once; a replay is denied with `approval-consumed`. `permissionRequestHook` answers the SDK's own prompt with the same decision, so the SDK never asks a human to allow what PermDock denied or has not yet approved.

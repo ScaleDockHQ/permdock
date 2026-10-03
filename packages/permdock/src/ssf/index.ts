@@ -1,5 +1,5 @@
-export { createPermDock } from './create.ts';
-export { memoryReplayStore } from './replay.ts';
+export { createPermDock } from "./create.ts";
+export { memoryReplayStore } from "./replay.ts";
 export type {
   CaepEventName,
   PollHandle,
@@ -7,14 +7,14 @@ export type {
   PollResult,
   ReplayStore,
   SetSubject,
-  SsfAdapter,
+  SsfPermDock,
   SsfAuditEvent,
   SsfEventHandler,
   SsfEventInput,
   SsfEventListener,
   SsfOnEvent,
-  SsfOptions,
+  SsfPermDockOptions,
   SsfReceiver,
   SsfSubject,
   SsfSubjectMapper,
-} from './types.ts';
+} from "./types.ts";

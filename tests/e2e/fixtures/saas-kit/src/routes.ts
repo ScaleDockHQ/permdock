@@ -1,6 +1,6 @@
-import { saasPermissions } from 'permdock/testing/saas';
+import { saasPermissions } from "permdock/testing/saas";
 
-import type { Session } from './session.ts';
+import type { Session } from "./session.ts";
 
 import {
   clearedCookie,
@@ -9,7 +9,7 @@ import {
   readSession,
   saasPermDock,
   sessionCookie,
-} from './session.ts';
+} from "./session.ts";
 import {
   changedAt,
   findProject,
@@ -17,7 +17,7 @@ import {
   resetStore,
   setPlan,
   setRole,
-} from './store.ts';
+} from "./store.ts";
 
 function json(
   body: unknown,
@@ -26,24 +26,24 @@ function json(
 ): Response {
   return Response.json(body, {
     status,
-    headers: { 'cache-control': 'no-store', ...headers },
+    headers: { "cache-control": "no-store", ...headers },
   });
 }
 
 function redirect(location: string, cookie?: string): Response {
-  const headers = new Headers({ location, 'cache-control': 'no-store' });
+  const headers = new Headers({ location, "cache-control": "no-store" });
   if (cookie !== undefined) {
-    headers.set('set-cookie', cookie);
+    headers.set("set-cookie", cookie);
   }
   return new Response(null, { status: 303, headers });
 }
 
 async function readBody(request: Request): Promise<Record<string, unknown>> {
-  const type = request.headers.get('content-type') ?? '';
-  if (type.includes('application/json')) {
+  const type = request.headers.get("content-type") ?? "";
+  if (type.includes("application/json")) {
     const value: unknown = await request.json();
     // SAFETY: checked to be a non-null object; every value stays unknown
-    return typeof value === 'object' && value !== null
+    return typeof value === "object" && value !== null
       ? (value as Record<string, unknown>)
       : {};
   }
@@ -51,7 +51,7 @@ async function readBody(request: Request): Promise<Record<string, unknown>> {
 }
 
 function text(value: unknown): string {
-  return typeof value === 'string' ? value : '';
+  return typeof value === "string" ? value : "";
 }
 
 /** Deletes a project after a fresh server-side check; the UI never decides. */
@@ -61,16 +61,16 @@ export async function deleteProject(
 ): Promise<{ readonly ok: boolean; readonly reason?: string }> {
   const project = findProject(id);
   if (project === undefined) {
-    return { ok: false, reason: 'not-found' };
+    return { ok: false, reason: "not-found" };
   }
   const permdock = await saasPermDock(session, project.orgId);
   const decision = permdock.decide(saasPermissions.project.delete, project);
-  if (decision.outcome !== 'granted') {
+  if (decision.outcome !== "granted") {
     return {
       ok: false,
       reason:
-        decision.outcome === 'denied'
-          ? (decision.denials[0]?.reason ?? 'denied')
+        decision.outcome === "denied"
+          ? (decision.denials[0]?.reason ?? "denied")
           : decision.reason,
     };
   }
@@ -81,35 +81,35 @@ export async function deleteProject(
 type PostRoute = (request: Request) => Promise<Response>;
 
 const postRoutes: Readonly<Record<string, PostRoute>> = {
-  '/api/test/reset': () => {
+  "/api/test/reset": () => {
     resetStore();
     return Promise.resolve(json({ ok: true }));
   },
-  '/api/test/set-role': async (request) => {
+  "/api/test/set-role": async (request) => {
     const input = await readBody(request);
     const ok = setRole(
-      text(input['org']),
-      text(input['user']),
-      text(input['role']),
+      text(input["org"]),
+      text(input["user"]),
+      text(input["role"]),
     );
     return json({ ok }, ok ? 200 : 404);
   },
-  '/api/test/billing': async (request) => {
+  "/api/test/billing": async (request) => {
     const input = await readBody(request);
     const ok = setPlan(
-      text(input['org']),
-      input['plan'] === 'pro' ? 'pro' : 'free',
+      text(input["org"]),
+      input["plan"] === "pro" ? "pro" : "free",
     );
     return json({ ok }, ok ? 200 : 404);
   },
-  '/api/login': async (request) => {
+  "/api/login": async (request) => {
     const input = await readBody(request);
-    if (!isUser(input['user'])) {
-      return redirect('/login');
+    if (!isUser(input["user"])) {
+      return redirect("/login");
     }
-    return redirect('/acme', sessionCookie(await mintSession(input['user'])));
+    return redirect("/acme", sessionCookie(await mintSession(input["user"])));
   },
-  '/api/logout': () => Promise.resolve(redirect('/login', clearedCookie)),
+  "/api/logout": () => Promise.resolve(redirect("/login", clearedCookie)),
 };
 
 /**
@@ -121,8 +121,8 @@ export async function handleSaasRoute(
 ): Promise<Response | undefined> {
   const url = new URL(request.url);
   const path = url.pathname;
-  const post = request.method === 'POST';
-  if (path === '/api/health') {
+  const post = request.method === "POST";
+  if (path === "/api/health") {
     return json({ ok: true });
   }
   const route =
@@ -130,9 +130,9 @@ export async function handleSaasRoute(
   if (route !== undefined) {
     return route(request);
   }
-  const session = await readSession(request.headers.get('cookie'));
-  if (request.method === 'GET' && path === '/api/version') {
-    const org = url.searchParams.get('org') ?? '';
+  const session = await readSession(request.headers.get("cookie"));
+  if (request.method === "GET" && path === "/api/version") {
+    const org = url.searchParams.get("org") ?? "";
     const keys = [
       `org:${org}`,
       ...(session === null ? [] : [`user:${session.sub}`]),

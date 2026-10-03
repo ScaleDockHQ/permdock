@@ -6,24 +6,28 @@ import type {
   ApprovalRequest,
   ApprovalStore,
   ApprovalVerdict,
-} from '../approvals/types.ts';
-import type { PolicyDocument, PolicySource } from '../core/hosted.ts';
+} from "../approvals/types.ts";
+import type { PolicyDocument, PolicySource } from "../core/hosted.ts";
 import type {
   DecisionSink,
   SinkEvent,
   SnapshotSource,
-} from '../core/interfaces.ts';
+} from "../core/interfaces.ts";
 import type {
   CloudClient,
   CloudEndpointOptions,
   CloudEndpoints,
   CloudOptions,
-} from './types.ts';
+} from "./types.ts";
 
-import { ApprovalError } from '../approvals/errors.ts';
-import { compact } from '../core/compact.ts';
-import { freezeDeep } from '../core/freeze.ts';
-import { parsePolicyDocument } from '../core/hosted.ts';
+import { ApprovalError } from "../approvals/errors.ts";
+import { compact } from "../core/compact.ts";
+import { freezeDeep } from "../core/freeze.ts";
+import { parsePolicyDocument } from "../core/hosted.ts";
+import { timeoutSignal } from "../core/timeout.ts";
+
+/** Milliseconds a PermDock Cloud request may take; a slower one fails like an unreachable Cloud. */
+const CLOUD_TIMEOUT_MS = 10_000;
 
 function readEnv(name: string): string {
   // SAFETY: process is optional here and the env value is typeof-checked before use.
@@ -31,31 +35,31 @@ function readEnv(name: string): string {
     readonly process?: { readonly env?: Record<string, string | undefined> };
   };
   const value = runtime.process?.env?.[name];
-  return typeof value === 'string' ? value : '';
+  return typeof value === "string" ? value : "";
 }
 
 function firstNonEmpty(...values: readonly (string | undefined)[]): string {
   for (const value of values) {
-    if (value !== undefined && value !== '') {
+    if (value !== undefined && value !== "") {
       return value;
     }
   }
-  return '';
+  return "";
 }
 
 function trimSlash(value: string): string {
-  return value.endsWith('/') ? value.slice(0, -1) : value;
+  return value.endsWith("/") ? value.slice(0, -1) : value;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function asApproval(value: unknown): ApprovalRequest | null {
   if (
     !isRecord(value) ||
-    value['v'] !== 1 ||
-    typeof value['token'] !== 'string'
+    value["v"] !== 1 ||
+    typeof value["token"] !== "string"
   ) {
     return null;
   }
@@ -64,17 +68,17 @@ function asApproval(value: unknown): ApprovalRequest | null {
 }
 
 function isCompactJws(value: string): boolean {
-  return !value.startsWith('{') && value.split('.').length === 3;
+  return !value.startsWith("{") && value.split(".").length === 3;
 }
 
 function approvalErrorFromStatus(status: number): ApprovalError {
   if (status === 409) {
-    return new ApprovalError('approval-not-pending', 'approval is not pending');
+    return new ApprovalError("approval-not-pending", "approval is not pending");
   }
   if (status === 410) {
-    return new ApprovalError('approval-expired', 'approval has expired');
+    return new ApprovalError("approval-expired", "approval has expired");
   }
-  return new ApprovalError('approval-not-found', 'approval was not found');
+  return new ApprovalError("approval-not-found", "approval was not found");
 }
 
 /**
@@ -85,25 +89,25 @@ export function cloudEndpoints(
   options: CloudEndpointOptions = {},
 ): CloudEndpoints {
   const url = trimSlash(
-    firstNonEmpty(options.url, readEnv('PERMDOCK_CLOUD_URL')),
+    firstNonEmpty(options.url, readEnv("PERMDOCK_CLOUD_URL")),
   );
-  if (url === '') {
-    throw new Error('PermDock: cloud() requires url and key.');
+  if (url === "") {
+    throw new Error("PermDock: cloud() requires url and key.");
   }
   const environment = firstNonEmpty(
     options.environment,
-    readEnv('PERMDOCK_CLOUD_ENV'),
-    readEnv('VERCEL_ENV'),
-    'production',
+    readEnv("PERMDOCK_CLOUD_ENV"),
+    readEnv("VERCEL_ENV"),
+    "production",
   );
   const issuer = `${url}/v1/environments/${encodeURIComponent(environment)}`;
   return Object.freeze({ issuer, jwks: `${issuer}/.well-known/jwks.json` });
 }
 
 export function cloud(options: CloudOptions = {}): CloudClient {
-  const key = firstNonEmpty(options.key, readEnv('PERMDOCK_CLOUD_KEY'));
-  if (key === '') {
-    throw new Error('PermDock: cloud() requires url and key.');
+  const key = firstNonEmpty(options.key, readEnv("PERMDOCK_CLOUD_KEY"));
+  if (key === "") {
+    throw new Error("PermDock: cloud() requires url and key.");
   }
   const { issuer: root, jwks } = cloudEndpoints(options);
   const fetchFn = options.fetch ?? globalThis.fetch.bind(globalThis);
@@ -112,8 +116,8 @@ export function cloud(options: CloudOptions = {}): CloudClient {
 
   const headers = (): Headers => {
     const next = new Headers();
-    next.set('authorization', `Bearer ${key}`);
-    next.set('content-type', 'application/json');
+    next.set("authorization", `Bearer ${key}`);
+    next.set("content-type", "application/json");
     return next;
   };
 
@@ -124,19 +128,23 @@ export function cloud(options: CloudOptions = {}): CloudClient {
   ): Promise<Response> => {
     const next = headers();
     if (accept !== undefined) {
-      next.set('accept', accept);
+      next.set("accept", accept);
     }
-    return fetchFn(`${root}${path}`, { ...init, headers: next });
+    return fetchFn(`${root}${path}`, {
+      ...init,
+      headers: next,
+      signal: timeoutSignal(CLOUD_TIMEOUT_MS, init.signal),
+    });
   };
 
   const approvals: ApprovalStore = {
     async create(record: ApprovalRequest): Promise<void> {
-      const response = await request('/approvals', {
-        method: 'POST',
+      const response = await request("/approvals", {
+        method: "POST",
         body: JSON.stringify(record),
       });
       if (!response.ok) {
-        throw new Error('PermDock Cloud rejected the approval create');
+        throw new Error("PermDock Cloud rejected the approval create");
       }
     },
     async get(token: string): Promise<ApprovalRequest | null> {
@@ -159,7 +167,7 @@ export function cloud(options: CloudOptions = {}): CloudClient {
       const response = await request(
         `/approvals/${encodeURIComponent(token)}/resolve`,
         {
-          method: 'POST',
+          method: "POST",
           body: JSON.stringify(verdict),
         },
       );
@@ -169,8 +177,8 @@ export function cloud(options: CloudOptions = {}): CloudClient {
       const parsed = asApproval(await response.json());
       if (parsed === null) {
         throw new ApprovalError(
-          'approval-not-found',
-          'PermDock Cloud returned an unknown approval shape',
+          "approval-not-found",
+          "PermDock Cloud returned an unknown approval shape",
         );
       }
       return parsed;
@@ -180,7 +188,7 @@ export function cloud(options: CloudOptions = {}): CloudClient {
         const response = await request(
           `/approvals/${encodeURIComponent(token)}/consume`,
           {
-            method: 'POST',
+            method: "POST",
             body: JSON.stringify(
               compact({
                 now: now === undefined ? undefined : now.toISOString(),
@@ -208,22 +216,22 @@ export function cloud(options: CloudOptions = {}): CloudClient {
           cursor: query.cursor,
         }),
       );
-      const suffix = params.size === 0 ? '' : `?${params.toString()}`;
+      const suffix = params.size === 0 ? "" : `?${params.toString()}`;
       try {
         const response = await request(`/approvals${suffix}`);
         if (!response.ok) {
           return { items: [] };
         }
         const body: unknown = await response.json();
-        if (!isRecord(body) || !Array.isArray(body['items'])) {
+        if (!isRecord(body) || !Array.isArray(body["items"])) {
           return { items: [] };
         }
-        const items = body['items'].flatMap((item: unknown) => {
+        const items = body["items"].flatMap((item: unknown) => {
           const parsed = asApproval(item);
           return parsed === null ? [] : [parsed];
         });
-        return typeof body['next'] === 'string' && body['next'] !== ''
-          ? { items, next: body['next'] }
+        return typeof body["next"] === "string" && body["next"] !== ""
+          ? { items, next: body["next"] }
           : { items };
       } catch {
         return { items: [] };
@@ -233,23 +241,23 @@ export function cloud(options: CloudOptions = {}): CloudClient {
       filter: ApprovalListFilter,
       meta: ApprovalCancelMeta,
     ): Promise<number> {
-      const response = await request('/approvals/cancel', {
-        method: 'POST',
+      const response = await request("/approvals/cancel", {
+        method: "POST",
         body: JSON.stringify(compact({ filter, by: meta.by, note: meta.note })),
       });
       if (!response.ok) {
-        throw new Error('PermDock Cloud rejected the approval cancel');
+        throw new Error("PermDock Cloud rejected the approval cancel");
       }
       const body: unknown = await response.json();
-      if (!isRecord(body) || typeof body['cancelled'] !== 'number') {
-        throw new Error('PermDock Cloud returned an unknown cancel shape');
+      if (!isRecord(body) || typeof body["cancelled"] !== "number") {
+        throw new Error("PermDock Cloud returned an unknown cancel shape");
       }
-      return body['cancelled'];
+      return body["cancelled"];
     },
     async expire(now?: Date): Promise<number> {
       try {
-        const response = await request('/approvals/expire', {
-          method: 'POST',
+        const response = await request("/approvals/expire", {
+          method: "POST",
           body: JSON.stringify(
             compact({
               now: now === undefined ? undefined : now.toISOString(),
@@ -260,10 +268,10 @@ export function cloud(options: CloudOptions = {}): CloudClient {
           return 0;
         }
         const body: unknown = await response.json();
-        if (!isRecord(body) || typeof body['expired'] !== 'number') {
+        if (!isRecord(body) || typeof body["expired"] !== "number") {
           return 0;
         }
-        return body['expired'];
+        return body["expired"];
       } catch {
         return 0;
       }
@@ -284,8 +292,8 @@ export function cloud(options: CloudOptions = {}): CloudClient {
     }
     const events = pending.splice(0);
     try {
-      const response = await request('/decisions', {
-        method: 'POST',
+      const response = await request("/decisions", {
+        method: "POST",
         body: JSON.stringify({ events }),
       });
       if (!response.ok) {
@@ -313,13 +321,13 @@ export function cloud(options: CloudOptions = {}): CloudClient {
 
   const snapshots: SnapshotSource = {
     async get(): Promise<string> {
-      const response = await request('/snapshot', {}, 'application/jwt');
+      const response = await request("/snapshot", {}, "application/jwt");
       if (!response.ok) {
-        throw new Error('PermDock Cloud snapshot request failed');
+        throw new Error("PermDock Cloud snapshot request failed");
       }
       const text = (await response.text()).trim();
       if (!isCompactJws(text)) {
-        throw new Error('PermDock Cloud served an unsigned snapshot');
+        throw new Error("PermDock Cloud served an unsigned snapshot");
       }
       return text;
     },
@@ -338,7 +346,7 @@ export function cloud(options: CloudOptions = {}): CloudClient {
       }
       let response: Response;
       try {
-        response = await request('/policy');
+        response = await request("/policy");
       } catch {
         return;
       }
@@ -354,7 +362,7 @@ export function cloud(options: CloudOptions = {}): CloudClient {
         return;
       }
       const verified = await verifier.verify(token, {
-        typ: 'permdock-policy+jwt',
+        typ: "permdock-policy+jwt",
         issuer: root,
         audience: root,
       });
@@ -363,7 +371,7 @@ export function cloud(options: CloudOptions = {}): CloudClient {
       }
       let next: PolicyDocument;
       try {
-        next = parsePolicyDocument(verified.claims['policy']);
+        next = parsePolicyDocument(verified.claims["policy"]);
       } catch {
         return;
       }

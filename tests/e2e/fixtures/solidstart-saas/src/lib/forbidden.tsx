@@ -1,4 +1,4 @@
-import { Show } from 'solid-js';
+import { Show } from "solid-js";
 
 export function Forbidden(props: { readonly label?: string }) {
   return (

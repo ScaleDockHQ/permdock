@@ -12,25 +12,29 @@ MCP servers are OAuth 2.1 resource servers under the [2026-07-28 specification](
 ## API
 
 ```ts
-import { createPermDock } from 'permdock/mcp'
+import { createPermDock } from "permdock/mcp";
 
 const { protectServer } = createPermDock(policy, {
   subject: (authInfo) => userFrom(authInfo), // principal; actor = client_id, delegation = scopes / authorization_details
-})
+});
 
-const guarded = protectServer(server)
+const guarded = protectServer(server);
 
 guarded.registerTool(
-  'delete_post',
+  "delete_post",
   {
-    permission: permissions.post.delete,   // typed reference; scope 'post:delete' derived from it
-    inputSchema,                           // Standard Schema for the tool arguments
-    data: (args) => loadPost(args.id),     // resolves the resource instance for an instance-level action
+    permission: permissions.post.delete, // typed reference; scope 'post:delete' derived from it
+    inputSchema, // Standard Schema for the tool arguments
+    data: (args) => loadPost(args.id), // resolves the resource instance for an instance-level action
   },
   handler,
-)
+);
 
-guarded.registerTool('list_posts', { permission: permissions.post.list, inputSchema }, listHandler)
+guarded.registerTool(
+  "list_posts",
+  { permission: permissions.post.list, inputSchema },
+  listHandler,
+);
 ```
 
 - `createPermDock(policy, options)` returns `protectServer`, which takes an SDK v2 `McpServer` and returns the same server with permission-aware `registerTool`, `registerResource` and `registerPrompt`. Registering any of them without a `permission` throws a `TypeError` at startup. There is no separate `requireScopes()` export: a handler registered outside `protectServer` is not guarded.
@@ -51,81 +55,134 @@ guarded.registerTool('list_posts', { permission: permissions.post.list, inputSch
 
 ```ts
 // app/api/mcp/route.ts (Next.js), or the equivalent route in Nuxt, SvelteKit or Hono
-import { createMcpHandler, withMcpAuth } from 'mcp-handler'
-import { createPermDock } from 'permdock/mcp'
-import { createJwtSubjectResolver } from 'permdock/jwt'
-import { policy, permissions } from '@/permissions'
+import { createMcpHandler, withMcpAuth } from "mcp-handler";
+import { createPermDock } from "permdock/mcp";
+import { createJwtSubjectResolver } from "permdock/jwt";
+import { policy, permissions } from "@/permissions";
 
-const verify = createJwtSubjectResolver({ issuer: process.env.AUTH_ISSUER!, audience: process.env.MCP_RESOURCE! })
+const verify = createJwtSubjectResolver({
+  issuer: process.env.AUTH_ISSUER!,
+  audience: process.env.MCP_RESOURCE!,
+});
 
 const { protectServer } = createPermDock(policy, {
-  subject: (authInfo) => authInfo.extra?.subject ?? null,   // the Subject `verifyToken` placed on AuthInfo
-})
+  subject: (authInfo) => authInfo.extra?.subject ?? null, // the Subject `verifyToken` placed on AuthInfo
+});
 
 const handler = createMcpHandler((server) => {
-  const guarded = protectServer(server)                      // the SDK v2 McpServer the callback receives
-  guarded.registerTool('delete_post', { permission: permissions.post.delete, inputSchema, data: loadPost }, deletePost)
-  guarded.registerTool('list_posts', { permission: permissions.post.list, inputSchema: listSchema }, listPosts)
-})
+  const guarded = protectServer(server); // the SDK v2 McpServer the callback receives
+  guarded.registerTool(
+    "delete_post",
+    { permission: permissions.post.delete, inputSchema, data: loadPost },
+    deletePost,
+  );
+  guarded.registerTool(
+    "list_posts",
+    { permission: permissions.post.list, inputSchema: listSchema },
+    listPosts,
+  );
+});
 
 // Step 1 of the request lifecycle on a Fetch host: verify the bearer token and attach AuthInfo
 const authed = withMcpAuth(
   handler,
   async (_req, token) => {
-    const subject = await verify(token)                       // never throws; anonymous on failure
-    if (!subject.principal) return undefined                  // 401 with the RFC 9728 challenge
-    return { token, clientId: subject.claims.client_id, scopes: subject.claims.scope?.split(' ') ?? [], expiresAt: subject.expiresAt, extra: { subject } }
+    const subject = await verify(token); // never throws; anonymous on failure
+    if (!subject.principal) return undefined; // 401 with the RFC 9728 challenge
+    return {
+      token,
+      clientId: subject.claims.client_id,
+      scopes: subject.claims.scope?.split(" ") ?? [],
+      expiresAt: subject.expiresAt,
+      extra: { subject },
+    };
   },
   { required: true },
-)
+);
 
-export { authed as GET, authed as POST }
+export { authed as GET, authed as POST };
 ```
 
 - **`withMcpAuth`** is where the bearer token is verified on a Fetch host; it answers `401` and `403` with `WWW-Authenticate` challenges pointing at the protected resource metadata. The `verifyToken` callback returns the SDK `AuthInfo` (`token`, `clientId`, `scopes`, `expiresAt`, `extra`) that `subject` receives; the recipe builds it from `permdock/jwt`, which verifies against the issuer's JWKS and never throws. `scopes` becomes `delegation.scopes` and `clientId` becomes `actor.id` exactly as with the SDK's own bearer middleware.
 - **`protectedResourceHandler`** from `mcp-handler` serves the RFC 9728 Protected Resource Metadata document. PermDock does not touch it, but its `scopes_supported` should list the `scope` of every permission the server exposes so clients can request them up front; `permdock collect` emits that list in the catalog ([CLI: collect](/docs/cli/collect)).
 - **Supabase Auth as the authorization server.** When Supabase Auth is the OAuth 2.1 server, [`@supabase/server`](https://github.com/supabase/server)'s `withOAuthProtectedResource` (alpha) replaces `protectedResourceHandler`: it serves the RFC 9728 document at `<resource>/oauth-protected-resource` with `authorization_servers` pointing at the project's Auth issuer, and enriches any `401` the inner handler returns with `WWW-Authenticate: Bearer resource_metadata="…"` unless the handler set its own challenge. Wrap the `withMcpAuth` result with it and point `createJwtSubjectResolver` at the same issuer (`https://<project>.supabase.co/auth/v1`, `algorithms: ['ES256']`, `audience` the resource URL); the token flows through `permdock/jwt` unchanged and `subjectFromSupabase` is not involved because the claims are OAuth access-token claims, not a Supabase session. Outside Edge Functions pass `resourceServer` explicitly (RFC 9728 requires it to equal the URL the client called) and `authorizationServer: fromSupabaseUrl(projectUrl)`. Its metadata does not list `scopes_supported`; publish the catalog's scope list through your own metadata response if clients need it up front ([Supabase provider](/docs/adapters/supabase)).
 - **Stateless serving.** The 2026-07-28 handler holds no session, so an `approval-required` call (an `input_required` result carrying the token as `requestState`, or the structured refusal carrying `token`) is resumed on a later request and the pending approval lives only in the `ApprovalStore`. On Vercel Functions, Cloudflare Workers or any other host where invocations do not share memory, `memoryApprovalStore()` loses pending approvals between calls; use a durable store ([approvals adapter](/docs/adapters/approvals)). `permdock doctor` warns when it detects this combination.
-- **better-supabase `createMcp`.** `createMcp` is its own MCP server, not an SDK `McpServer`, so `protectServer` cannot wrap it. Plug PermDock into its per-tool hooks instead: carry the permission as the tool's `meta`, narrow it with `isPermission` (a tool without one is hidden and refused), answer `visible` with `mayUse` and `authorize` with `decide`. better-supabase serves the RFC 9728 metadata and the `insufficient_scope` challenge; the recipe adds no import to better-supabase, because the hooks are structural.
+- **better-supabase `createMcp`.** `createMcp(betterSupabase, options)` is its own MCP server, not an SDK `McpServer`, so `protectServer` cannot wrap it. Plug PermDock into its per-tool hooks instead: carry the permission as the tool's `meta`, narrow it with `isPermission` (a tool without one is hidden and refused), answer `visible` with `mayUse` and `authorize` with `decide`. Both hooks get the tool context, whose `auth` is the verified caller. better-supabase serves the RFC 9728 metadata and the `insufficient_scope` challenge; the recipe adds no import to better-supabase, because the hooks are structural.
 
   ```ts
-  import { createPermDock, isPermission, mayUse } from 'permdock'
-  import { subjectFromSupabaseSession } from 'permdock/supabase'
-  import { policy, permissions } from '@/permissions'
+  import { createMcp, defineTool } from "better-supabase/mcp";
+  import { createPermDock, isPermission, mayUse } from "permdock";
+  import { subjectFromSupabaseSession } from "permdock/supabase";
+  import { betterSupabase } from "@/lib/supabase";
+  import { policy, permissions } from "@/permissions";
 
-  const dockFor = (ctx) => createPermDock(policy, subjectFromSupabaseSession(ctx.session))
+  const dockFor = (ctx) =>
+    createPermDock(policy, subjectFromSupabaseSession(ctx.auth));
 
-  export const mcp = sb.createMcp({
-    tools: [defineTool({ name: 'delete_post', meta: permissions.post.delete, input, run })],
-    visible: (ctx, tool) => isPermission(tool.meta) && mayUse(dockFor(ctx), tool.meta),
+  const bs = createMcp(betterSupabase, {
+    name: "posts",
+    version: "1.0.0",
+    tools: [
+      defineTool({
+        name: "delete_post",
+        description: "Delete a post",
+        meta: permissions.post.delete,
+        input,
+        run,
+      }),
+    ],
+    visible: (ctx, tool) =>
+      isPermission(tool.meta) && mayUse(dockFor(ctx), tool.meta),
     authorize: (ctx, tool, args) => {
-      if (!isPermission(tool.meta)) return { allowed: false, reason: 'no-grant' }
-      const decision = dockFor(ctx).decide(tool.meta, args)
-      if (decision.outcome === 'granted') return { allowed: true }
-      return { allowed: false, reason: decision.outcome === 'denied' ? decision.denials[0]?.reason : 'approval-required' }
+      if (!isPermission(tool.meta))
+        return { allowed: false, reason: "no-grant" };
+      const decision = dockFor(ctx).decide(tool.meta, args);
+      if (decision.outcome === "granted") return { allowed: true };
+      return {
+        allowed: false,
+        reason:
+          decision.outcome === "denied"
+            ? decision.denials[0]?.reason
+            : "approval-required",
+      };
     },
-  })
+  });
+
+  export const POST = bs.endpoint;
   ```
 
-  An `approval-required` outcome is refused here, because `createMcp` has no approval store; use `permdock/mcp` on an SDK server when tools need human approval. Validate `args` against the resource schema before `decide` (invariant 9) if `createMcp` has not already done so.
+  Refuse a tool whose `meta` is not a permission in both hooks: `authorize` is optional in better-supabase, and a missing or permissive one lets the call through. An `approval-required` outcome is refused here, because `createMcp` has no approval store; use `permdock/mcp` on an SDK server when tools need human approval. `createMcp` validates `args` against the tool's `input` before `authorize`, which covers invariant 9 when `input` is the resource schema.
+
 - **Serving the metadata with Supabase.** Whichever server answers MCP, the Protected Resource Metadata document and the `WWW-Authenticate` challenges come from the host, and PermDock only needs the same resource URL. With `@supabase/server` in front of an SDK server:
 
   ```ts
-  import { fromSupabaseUrl, withOAuthProtectedResource } from '@supabase/server'
-  import { createMcpHandler, withMcpAuth } from 'mcp-handler'
-  import { createPermDock } from 'permdock/mcp'
+  import {
+    fromSupabaseUrl,
+    withOAuthProtectedResource,
+  } from "@supabase/server";
+  import { createMcpHandler, withMcpAuth } from "mcp-handler";
+  import { createPermDock } from "permdock/mcp";
 
-  const resource = `${process.env.APP_URL}/mcp`
-  const { protectServer } = createPermDock(policy, { subject, resource, requireAuthInfo: true })
-  const mcp = withMcpAuth(createMcpHandler((server) => register(protectServer(server))), verifyToken, { required: true })
+  const resource = `${process.env.APP_URL}/mcp`;
+  const { protectServer } = createPermDock(policy, {
+    subject,
+    resource,
+    requireAuthInfo: true,
+  });
+  const mcp = withMcpAuth(
+    createMcpHandler((server) => register(protectServer(server))),
+    verifyToken,
+    { required: true },
+  );
 
   export const POST = withOAuthProtectedResource(mcp, {
     resourceServer: resource,
     authorizationServer: fromSupabaseUrl(process.env.SUPABASE_URL!),
-  })
+  });
   ```
 
   With better-supabase, `createMcp` serves the document and the challenges itself; pass the same URL as `resource` wherever a PermDock adapter checks the token. In both cases the metadata omits `scopes_supported`, so publish the catalog's scope list through your own metadata response if clients need it up front.
+
 - **Other hosts.** The official MCP framework middleware for Express (Node `IncomingMessage` servers), Cloudflare's `McpAgent` in the Agents SDK (a Durable Object per session, which is also a natural `ApprovalStore`), FastMCP for TypeScript and xmcp each construct or expose the same `McpServer`; `protectServer` wraps it at the point of construction. None of them needs a PermDock entry ([ecosystem index](/docs/research/ecosystem-index)).
 - **SDK version.** `permdock/mcp` targets `@modelcontextprotocol/server` 2.x (a types-only optional peer; `protectServer` duck-types the server at runtime, [installation](/docs/getting-started/installation)). SDK 1.x (`@modelcontextprotocol/sdk`) and `mcp-handler` 1.x are not supported: `scopeChallenge` and `ctx.http.authInfo` are v2 features, and 1.x's variadic `server.tool()` and `extra.authInfo` have no equivalents the adapter can wrap. The `mcp-handler` migration notes cover the move (`registerTool` instead of `server.tool`, `ctx.http?.authInfo` instead of `extra.authInfo`, Standard Schema for `inputSchema`).
 
@@ -141,14 +198,14 @@ export { authed as GET, authed as POST }
 
 ## What it validates
 
-| Input | Validation |
-|---|---|
-| Tool arguments | `inputSchema` (any Standard Schema), by the SDK before `data` runs |
-| Resource instance from `data` | Resource schema, `validate: 'boundary'` |
-| Token | `iss` (RFC 9207), audience, expiry: performed by the SDK middleware, not by PermDock |
-| Scopes | Permission `scope` must be present in `authInfo.scopes`; skipped only for calls without `authInfo` when `requireAuthInfo` is off |
-| `authorization_details` | Parsed into `delegation` and intersected with grants |
-| Model-supplied subject or approval token | Never trusted; the subject comes from `authInfo` only, and a token in the arguments is ignored |
+| Input                                    | Validation                                                                                                                       |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Tool arguments                           | `inputSchema` (any Standard Schema), by the SDK before `data` runs                                                               |
+| Resource instance from `data`            | Resource schema, `validate: 'boundary'`                                                                                          |
+| Token                                    | `iss` (RFC 9207), audience, expiry: performed by the SDK middleware, not by PermDock                                             |
+| Scopes                                   | Permission `scope` must be present in `authInfo.scopes`; skipped only for calls without `authInfo` when `requireAuthInfo` is off |
+| `authorization_details`                  | Parsed into `delegation` and intersected with grants                                                                             |
+| Model-supplied subject or approval token | Never trusted; the subject comes from `authInfo` only, and a token in the arguments is ignored                                   |
 
 Validation failures are reported as `isError: true` results with the issue list, not as protocol errors, so the model can correct its arguments. Resources and prompts have no error result, so their refusals are thrown and reach the client as JSON-RPC errors.
 
@@ -159,7 +216,12 @@ A denied call returns an MCP tool result with `isError: true`, a plain-language 
 ```json
 {
   "isError": true,
-  "content": [{ "type": "text", "text": "Denied: post.delete on post_42. You may: post.read, post.update." }],
+  "content": [
+    {
+      "type": "text",
+      "text": "Denied: post.delete on post_42. You may: post.read, post.update."
+    }
+  ],
   "structuredContent": {
     "outcome": "denied",
     "permission": "post.delete",

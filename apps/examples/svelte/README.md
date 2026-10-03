@@ -9,5 +9,5 @@ pnpm --filter @permdock/example-svelte dev
 Opens `http://127.0.0.1:3482/`. `Protected` shows `edit` for a member updating their own post and `locked` for publish.
 
 ```ts
-import { Protected, permission, setPermDock } from 'permdock/svelte'
+import { Protected, permission, setPermDock } from "permdock/svelte";
 ```

@@ -8,23 +8,32 @@ A permission in PermDock is a value, not a string. `permissions.post.update` is 
 ## Building the tree
 
 ```ts
-import { definePermissions, resource } from 'permdock'
-import { z } from 'zod' // or valibot / arktype / effect — any Standard Schema
+import { definePermissions, resource } from "permdock";
+import { z } from "zod"; // or valibot / arktype / effect — any Standard Schema
 
-const Post = z.object({ id: z.string(), authorId: z.string(), orgId: z.string(), published: z.boolean() })
-const Invoice = z.object({ id: z.string(), orgId: z.string(), amount: z.number() })
+const Post = z.object({
+  id: z.string(),
+  authorId: z.string(),
+  orgId: z.string(),
+  published: z.boolean(),
+});
+const Invoice = z.object({
+  id: z.string(),
+  orgId: z.string(),
+  amount: z.number(),
+});
 
 export const permissions = definePermissions({
   post: resource(Post, {
-    id: 'id',
-    actions: ['read', 'update', 'delete', 'publish'],
-    collection: ['create', 'list'],
+    id: "id",
+    actions: ["read", "update", "delete", "publish"],
+    collection: ["create", "list"],
   }),
   billing: {
-    invoice: resource(Invoice, { actions: ['read', 'pay'] }),
-    plan: resource({ collection: ['view', 'change'] }),
+    invoice: resource(Invoice, { actions: ["read", "pay"] }),
+    plan: resource({ collection: ["view", "change"] }),
   },
-})
+});
 ```
 
 `definePermissions` walks the object eagerly and materialises a frozen tree. There is no Proxy and no lazy path accumulation; every node exists at module load, which is what makes the tree serialisable and cheap to autocomplete.
@@ -33,24 +42,24 @@ export const permissions = definePermissions({
 
 `resource(schema?, options)` describes one kind of thing:
 
-| Option | Type | Purpose |
-| --- | --- | --- |
-| `schema` (first argument) | any Standard Schema | Infers the instance type for `actions` and conditions; validates untrusted input at trust boundaries. Optional: `resource({ collection: [...] })` is schema-less. |
-| `id` | key of the schema output | Identity field used for client cache keys, `filter`, decision tokens and RLS row identity. Defaults to `'id'` when the schema has one. |
-| `actions` | array or record | Instance-level actions: `can(permissions.post.update, post)` requires a `Post`. |
-| `collection` | array or record | Type-level actions: `can(permissions.post.create)` takes no instance. |
-| `parent` | `{ field, resource }` | Optional. `resource` is the parent **name string** (the last path segment). Exactly one parent. The name is resolved at `definePolicy` after `mergePermissions`. See [tenancy](/docs/concepts/tenancy). |
-| `disclosure` | `'hide'` or `'reveal'` | Optional, default `'reveal'`. With `'hide'`, an HTTP adapter answers a denied check on a loaded row with `404` `/not-found`, the same body a missing row gets, so an id never confirms that a row exists; the reason stays on the decision event. A step-up or rate-limit denial still answers as usual, because it arises only when the subject holds a matching grant. See the [threat model](/docs/security/threat-model). |
+| Option                    | Type                     | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| ------------------------- | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `schema` (first argument) | any Standard Schema      | Infers the instance type for `actions` and conditions; validates untrusted input at trust boundaries. Optional: `resource({ collection: [...] })` is schema-less.                                                                                                                                                                                                                                                             |
+| `id`                      | key of the schema output | Identity field used for client cache keys, `filter`, decision tokens and RLS row identity. Defaults to `'id'` when the schema has one.                                                                                                                                                                                                                                                                                        |
+| `actions`                 | array or record          | Instance-level actions: `can(permissions.post.update, post)` requires a `Post`.                                                                                                                                                                                                                                                                                                                                               |
+| `collection`              | array or record          | Type-level actions: `can(permissions.post.create)` takes no instance.                                                                                                                                                                                                                                                                                                                                                         |
+| `parent`                  | `{ field, resource }`    | Optional. `resource` is the parent **name string** (the last path segment). Exactly one parent. The name is resolved at `definePolicy` after `mergePermissions`. See [tenancy](/docs/concepts/tenancy).                                                                                                                                                                                                                       |
+| `disclosure`              | `'hide'` or `'reveal'`   | Optional, default `'reveal'`. With `'hide'`, an HTTP adapter answers a denied check on a loaded row with `404` `/not-found`, the same body a missing row gets, so an id never confirms that a row exists; the reason stays on the decision event. A step-up or rate-limit denial still answers as usual, because it arises only when the subject holds a matching grant. See the [threat model](/docs/security/threat-model). |
 
 ### actions versus collection
 
 The split is the answer to CASL's "can I read some Post versus this Post" ambiguity. Arity is part of the type:
 
 ```ts
-permdock.can(permissions.post.update, post) // ok
-permdock.can(permissions.post.update)       // type error: instance required
-permdock.can(permissions.post.create)       // ok: type-level "may I create"
-permdock.can(permissions.post.create, body) // ok: optional body; a check grant matches only with a body
+permdock.can(permissions.post.update, post); // ok
+permdock.can(permissions.post.update); // type error: instance required
+permdock.can(permissions.post.create); // ok: type-level "may I create"
+permdock.can(permissions.post.create, body); // ok: optional body; a check grant matches only with a body
 ```
 
 Collection `check` is [permissions](/docs/concepts/permissions).
@@ -62,23 +71,32 @@ An action name may appear in both lists when both readings are meaningful (`read
 `crud`, `readable` and `writable` are option factories. They return the same `actions` / `collection` records you can write by hand, including default `meta`. Pass the result into `resource()`; they are not constructors and they do not grant anything.
 
 ```ts
-import { definePermissions, resource, crud, readable, writable } from 'permdock'
+import {
+  definePermissions,
+  resource,
+  crud,
+  readable,
+  writable,
+} from "permdock";
 
 export const permissions = definePermissions({
-  post: resource(Post, crud({
-    id: 'id',
-    actions: { publish: { title: 'Publish post' } },
-  })),
-  report: resource(Report, readable({ id: 'id' })),
-  setting: resource(Setting, writable({ id: 'id' })),
-})
+  post: resource(
+    Post,
+    crud({
+      id: "id",
+      actions: { publish: { title: "Publish post" } },
+    }),
+  ),
+  report: resource(Report, readable({ id: "id" })),
+  setting: resource(Setting, writable({ id: "id" })),
+});
 ```
 
-| Helper | Instance | Collection | Default meta |
-| --- | --- | --- | --- |
-| `crud()` | `read`, `update`, `delete` | `create`, `list` | `read` and `list` carry `readOnly: true`; `delete` carries `destructive: true` |
-| `readable()` | `read` | `list` | both `readOnly: true` |
-| `writable()` | `read`, `update` | none | `read` carries `readOnly: true` |
+| Helper       | Instance                   | Collection       | Default meta                                                                   |
+| ------------ | -------------------------- | ---------------- | ------------------------------------------------------------------------------ |
+| `crud()`     | `read`, `update`, `delete` | `create`, `list` | `read` and `list` carry `readOnly: true`; `delete` carries `destructive: true` |
+| `readable()` | `read`                     | `list`           | both `readOnly: true`                                                          |
+| `writable()` | `read`, `update`           | none             | `read` carries `readOnly: true`                                                |
 
 The name is `readable`, not `readOnly`: `readOnly` is already `ActionMeta.readOnly`. Extra names merge into the preset records; overlapping meta fields on the extra win. There is no `omit`: write the lists by hand when the preset is the wrong shape. See [permissions](/docs/concepts/permissions).
 
@@ -93,12 +111,16 @@ Groups nest arbitrarily: feature, then resource, then action is the common shape
 ```ts
 post: resource(Post, {
   actions: {
-    read:   { title: 'Read post', readOnly: true },
-    update: { title: 'Edit post', description: 'Change title or body', tags: ['editor'] },
-    delete: { title: 'Delete post', destructive: true },
+    read: { title: "Read post", readOnly: true },
+    update: {
+      title: "Edit post",
+      description: "Change title or body",
+      tags: ["editor"],
+    },
+    delete: { title: "Delete post", destructive: true },
   },
-  collection: ['create', 'list'],
-})
+  collection: ["create", "list"],
+});
 ```
 
 Metadata is plain JSON and lands on the leaf as `meta`. `readOnly`, `destructive` and `idempotent` become the MCP tool hints `readOnlyHint`, `destructiveHint` and `idempotentHint` in [`permdock/mcp`](/docs/adapters/mcp) (WebMCP reads only `readOnly`); an action named `read` or `list` is read-only unless `readOnly` says otherwise, and `destructive` is ignored on a read-only action. The hints inform the client and never replace the server's decision. The [catalog](/docs/cli/catalog) prints `title` and `description`.
@@ -106,7 +128,7 @@ Metadata is plain JSON and lands on the leaf as `meta`. `readOnly`, `destructive
 ## What a leaf contains
 
 ```ts
-permissions.post.update
+permissions.post.update;
 // Permission<'post.update', Post>
 // {
 //   key: 'post.update',
@@ -117,13 +139,13 @@ permissions.post.update
 // }
 ```
 
-| Field | Example | Used by |
-| --- | --- | --- |
-| `key` | `'post.update'` | Grants, snapshots, cache keys, audit events, catalog, `findPermission` |
-| `scope` | `'billing:invoice:pay'` | OAuth scopes, MCP `scopeChallenge`, OpenAPI `securitySchemes`, RFC 9396 `authorization_details` |
-| `resource` | `'post'` | Lookup of the resource node (schema, `id` field), `alternatives` in denials |
-| `action` | `'update'` | RLS command mapping (`update` becomes `USING` plus `WITH CHECK`), tool descriptions |
-| `meta` | `{ title, description, tags, readOnly, inferredFrom }` | Catalogs, docs, tool hints; `inferredFrom` is written by `permdock openapi import` with the operation an action came from |
+| Field      | Example                                                | Used by                                                                                                                   |
+| ---------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| `key`      | `'post.update'`                                        | Grants, snapshots, cache keys, audit events, catalog, `findPermission`                                                    |
+| `scope`    | `'billing:invoice:pay'`                                | OAuth scopes, MCP `scopeChallenge`, OpenAPI `securitySchemes`, RFC 9396 `authorization_details`                           |
+| `resource` | `'post'`                                               | Lookup of the resource node (schema, `id` field), `alternatives` in denials                                               |
+| `action`   | `'update'`                                             | RLS command mapping (`update` becomes `USING` plus `WITH CHECK`), tool descriptions                                       |
+| `meta`     | `{ title, description, tags, readOnly, inferredFrom }` | Catalogs, docs, tool hints; `inferredFrom` is written by `permdock openapi import` with the operation an action came from |
 
 The schema is not on the leaf. It lives on the resource node, reachable through the definition, so a leaf stays JSON-serialisable while `can(permissions.post.update, post)` still knows that `post` must be a `Post`.
 
@@ -132,10 +154,12 @@ The schema is not on the leaf. It lives on the resource node, reachable through 
 Two phantom type parameters ride along with each leaf: the key literal, the instance type, and the kind.
 
 ```ts
-type UpdatePost = typeof permissions.post.update // Permission<'post.update', Post, 'instance'>
-type CreatePost = typeof permissions.post.create // Permission<'post.create', Post, 'collection'>: optional body
+type UpdatePost = typeof permissions.post.update; // Permission<'post.update', Post, 'instance'>
+type CreatePost = typeof permissions.post.create; // Permission<'post.create', Post, 'collection'>: optional body
 
-function guard<K extends string, T>(permission: Permission<K, T>, data: T) { /* ... */ }
+function guard<K extends string, T>(permission: Permission<K, T>, data: T) {
+  /* ... */
+}
 ```
 
 No template-literal unions are generated from the tree, which keeps TypeScript 7 checking fast and keeps error messages readable. Conditions and field lists are typed from the schema output (`StandardSchemaV1.InferOutput`), not from hand-written flat types.
@@ -155,13 +179,13 @@ These hold for every leaf and every adapter depends on them.
 Helpers are functions, not methods on the tree, so a resource named `list` or `find` never collides with them.
 
 ```ts
-import { listPermissions, findPermission } from 'permdock'
+import { listPermissions, findPermission } from "permdock";
 
-listPermissions(permissions)
+listPermissions(permissions);
 // [{ key: 'post.read', scope: 'post:read', resource: 'post', action: 'read', meta }, ...]
 
-findPermission(permissions, 'post.update')      // Permission | undefined
-findPermission(permissions, scopeFromJwt)       // strings from a DB, JWT scope or OpenAPI doc
+findPermission(permissions, "post.update"); // Permission | undefined
+findPermission(permissions, scopeFromJwt); // strings from a DB, JWT scope or OpenAPI doc
 ```
 
 `isPermission(value)` narrows an `unknown` to `Permission` without a cast: it checks for string `key`, `scope`, `resource` and `action` and an object `meta`. It accepts a leaf that crossed `JSON.stringify` (which drops the non-enumerable `kind`), and it does not look the key up, so the check that follows still decides by `key`.
@@ -189,26 +213,34 @@ This is the exact object you get from `JSON.stringify(permissions.post.update)`.
 Sensitive money or filing work is usually a chain of leaves, not one `update`. Name each verb on the resource so `permdock doctor` PD017 can see it, and so `approval.by` and `exclusiveWith` attach to the right step.
 
 ```ts
-const Filing = z.object({ id: z.string(), orgId: z.string(), amount: z.number() })
-const Invoice = z.object({ id: z.string(), orgId: z.string(), amount: z.number() })
-const Claim = z.object({ id: z.string(), orgId: z.string() })
+const Filing = z.object({
+  id: z.string(),
+  orgId: z.string(),
+  amount: z.number(),
+});
+const Invoice = z.object({
+  id: z.string(),
+  orgId: z.string(),
+  amount: z.number(),
+});
+const Claim = z.object({ id: z.string(), orgId: z.string() });
 
 export const permissions = definePermissions({
   filing: resource(Filing, {
     actions: {
-      prepare: { title: 'Prepare filing' },
-      approve: { title: 'Approve filing' },
-      pay: { title: 'Pay filing' },
-      settle: { title: 'Settle filing' },
+      prepare: { title: "Prepare filing" },
+      approve: { title: "Approve filing" },
+      pay: { title: "Pay filing" },
+      settle: { title: "Settle filing" },
     },
   }),
   billing: {
-    invoice: resource(Invoice, { actions: ['read', 'submit', 'pay'] }),
+    invoice: resource(Invoice, { actions: ["read", "submit", "pay"] }),
   },
   guarantee: {
-    claim: resource(Claim, { actions: ['prepare', 'approve', 'settle'] }),
+    claim: resource(Claim, { actions: ["prepare", "approve", "settle"] }),
   },
-})
+});
 ```
 
 Typical policy:

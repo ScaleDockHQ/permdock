@@ -1,13 +1,13 @@
-import { redirect } from '@sveltejs/kit';
+import { redirect } from "@sveltejs/kit";
 
-import { findOrg, saasSnapshot } from '@permdock/e2e-saas-kit';
+import { findOrg, saasSnapshot } from "@permdock/e2e-saas-kit";
 
-import type { LayoutServerLoad } from './$types';
+import type { LayoutServerLoad } from "./$types";
 
 export const load: LayoutServerLoad = ({ locals, params, depends }) => {
-  depends('saas:permissions');
+  depends("saas:permissions");
   if (locals.session === null) {
-    redirect(303, '/login');
+    redirect(303, "/login");
   }
   const org = findOrg(params.org);
   return {

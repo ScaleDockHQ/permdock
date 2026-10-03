@@ -1,12 +1,12 @@
-import { serve } from '@hono/node-server';
+import { serve } from "@hono/node-server";
 
-import { handler } from './server.ts';
+import { permdockHandler } from "./server.ts";
 
 serve({
   fetch: (request): Response | Promise<Response> =>
-    request.method === 'GET' && new URL(request.url).pathname === '/health'
+    request.method === "GET" && new URL(request.url).pathname === "/health"
       ? Response.json({ ok: true })
-      : handler(request),
-  port: Number(process.env['PORT'] ?? 3470),
-  hostname: '127.0.0.1',
+      : permdockHandler(request),
+  port: Number(process.env["PORT"] ?? 3470),
+  hostname: "127.0.0.1",
 });

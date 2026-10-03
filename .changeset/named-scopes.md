@@ -1,5 +1,5 @@
 ---
-'permdock': minor
+"permdock": minor
 ---
 
 Named scopes (breaking). `definePolicy({ scopes })` now declares scopes by name and in order, each `{ key, within? }`: `{ organization: { key: 'organization_id' }, customer: { key: 'customer_id', within: 'organization' } }`. Every scope after the first names an earlier parent, so the scopes form one tree; `tenant` and `team` are aliases of the first and second scope, and a policy with `{ tenant, team }` must now declare `team: { key, within: 'tenant' }`. `role(name, grants, { on })` is typed against the declared names, and the `activation` and `restricted` role options are reserved.

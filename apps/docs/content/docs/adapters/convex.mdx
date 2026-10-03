@@ -13,35 +13,45 @@ Convex has authentication (`ctx.auth`) and leaves authorization to code inside e
 
 ```ts
 // convex/permdock.ts
-import { createPermDock } from 'permdock/convex'
-import { policy } from './policy'
+import { createPermDock } from "permdock/convex";
+import { policy } from "./policy";
 
 export const { withPermDock, snapshotQuery } = createPermDock(policy, {
   subject: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity()
-    if (!identity) return null
-    const user = await ctx.db.query('users').withIndex('by_token', (q) => q.eq('tokenIdentifier', identity.tokenIdentifier)).unique()
-    return user && { id: user._id, orgId: user.orgId, roles: user.roles }
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return null;
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q) =>
+        q.eq("tokenIdentifier", identity.tokenIdentifier),
+      )
+      .unique();
+    return user && { id: user._id, orgId: user.orgId, roles: user.roles };
   },
-})
+});
 
 // convex/posts.ts
 export const remove = mutation({
-  args: { id: v.id('posts') },
+  args: { id: v.id("posts") },
   handler: withPermDock(async (ctx, { id }) => {
-    const post = await ctx.db.get(id)
-    ctx.permdock.assert(permissions.post.delete, post)
-    await ctx.db.delete(id)
+    const post = await ctx.db.get(id);
+    ctx.permdock.assert(permissions.post.delete, post);
+    await ctx.db.delete(id);
   }),
-})
+});
 
 export const list = query({
   args: {},
-  handler: withPermDock(async (ctx) => ctx.permdock.filter(permissions.post.read, await ctx.db.query('posts').collect())),
-})
+  handler: withPermDock(async (ctx) =>
+    ctx.permdock.filter(
+      permissions.post.read,
+      await ctx.db.query("posts").collect(),
+    ),
+  ),
+});
 
 // convex/permissions.ts
-export const snapshot = snapshotQuery()          // client: useQuery(api.permissions.snapshot) → PermDockProvider snapshot
+export const snapshot = snapshotQuery(); // client: useQuery(api.permissions.snapshot) → PermDockProvider snapshot
 ```
 
 - `createPermDock(policy, options)` returns `withPermDock`, a handler wrapper that resolves the subject from `ctx`, builds the request-scoped instance and attaches it as `ctx.permdock`; and `snapshotQuery`, a ready-made Convex query that returns `permdock.snapshot()` for the caller (optionally scoped: `snapshotQuery({ include: [permissions.post] })`).

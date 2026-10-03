@@ -1,20 +1,20 @@
-import type { ErrorObject, ValidateFunction } from 'ajv/dist/2020.js';
+import type { ErrorObject, ValidateFunction } from "ajv/dist/2020.js";
 
-import { Ajv2020 } from 'ajv/dist/2020.js';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { Ajv2020 } from "ajv/dist/2020.js";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
-import { DRAFT_PINS } from '../openapi/pins.ts';
-import { packageRoot } from './package-root.ts';
+import { DRAFT_PINS } from "../openapi/pins.ts";
+import { packageRoot } from "./package-root.ts";
 
-export type OpenapiVersion = '3.1' | '3.2' | '3.3';
+export type OpenapiVersion = "3.1" | "3.2" | "3.3";
 
 function schemaDir(): string {
-  return join(packageRoot(), 'schemas', 'openapi');
+  return join(packageRoot(), "schemas", "openapi");
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 const validators = new Map<string, ValidateFunction>();
@@ -36,7 +36,7 @@ export function parseSchema(
 }
 
 function schemaFile(file: string): Record<string, unknown> {
-  return parseSchema(readFileSync(join(schemaDir(), file), 'utf8'), file);
+  return parseSchema(readFileSync(join(schemaDir(), file), "utf8"), file);
 }
 
 function child(
@@ -48,7 +48,7 @@ function child(
     const next = node[key];
     if (!isRecord(next)) {
       throw new TypeError(
-        `PermDock CLI: OpenAPI schema has no ${path.join('.')}`,
+        `PermDock CLI: OpenAPI schema has no ${path.join(".")}`,
       );
     }
     node = next;
@@ -56,7 +56,7 @@ function child(
   return node;
 }
 
-const STRINGS = { type: 'array', items: { type: 'string' } } as const;
+const STRINGS = { type: "array", items: { type: "string" } } as const;
 
 /**
  * No official 3.3 schema exists: the 3.2 schema plus the pinned draft's
@@ -66,57 +66,57 @@ const STRINGS = { type: 'array', items: { type: 'string' } } as const;
 export function patchOas33(
   schema: Record<string, unknown>,
 ): Record<string, unknown> {
-  schema['$id'] =
+  schema["$id"] =
     `https://permdock.dev/schemas/openapi/oas-3.3/${DRAFT_PINS.oas}`;
-  child(schema, 'properties', 'openapi')['pattern'] =
+  child(schema, "properties", "openapi")["pattern"] =
     String.raw`^3\.3\.\d+(-.+)?$`;
-  const defs = child(schema, '$defs');
-  const scheme = child(defs, 'security-scheme');
-  const type = child(scheme, 'properties', 'type');
-  type['enum'] = [
-    ...(Array.isArray(type['enum']) ? type['enum'] : []),
-    'profile',
+  const defs = child(schema, "$defs");
+  const scheme = child(defs, "security-scheme");
+  const type = child(scheme, "properties", "type");
+  type["enum"] = [
+    ...(Array.isArray(type["enum"]) ? type["enum"] : []),
+    "profile",
   ];
-  const allOf = Array.isArray(scheme['allOf']) ? scheme['allOf'] : [];
-  scheme['allOf'] = [
+  const allOf = Array.isArray(scheme["allOf"]) ? scheme["allOf"] : [];
+  scheme["allOf"] = [
     ...allOf,
     {
-      if: { properties: { type: { const: 'profile' } } },
+      if: { properties: { type: { const: "profile" } } },
       // oxlint-disable-next-line unicorn/no-thenable -- the JSON Schema `then` keyword
       then: {
         properties: {
           profileMetadata: {
-            type: 'object',
-            required: ['name'],
+            type: "object",
+            required: ["name"],
             properties: {
-              name: { type: 'string' },
-              supportedParametersSchema: { type: ['string', 'object'] },
+              name: { type: "string" },
+              supportedParametersSchema: { type: ["string", "object"] },
               supportedOperations: {},
               servers: {
-                type: 'array',
+                type: "array",
                 items: {
-                  type: 'object',
-                  required: ['url'],
+                  type: "object",
+                  required: ["url"],
                   properties: {
-                    name: { type: 'string' },
-                    url: { type: 'string' },
+                    name: { type: "string" },
+                    url: { type: "string" },
                   },
                 },
               },
             },
           },
         },
-        required: ['profileMetadata'],
+        required: ["profileMetadata"],
       },
     },
   ];
-  child(defs, 'components', 'properties')['securityProfileRequirements'] = {
-    type: 'object',
+  child(defs, "components", "properties")["securityProfileRequirements"] = {
+    type: "object",
     additionalProperties: {
-      type: 'object',
-      required: ['securityScheme', 'scopes'],
+      type: "object",
+      required: ["securityScheme", "scopes"],
       properties: {
-        securityScheme: { $ref: '#/$defs/reference' },
+        securityScheme: { $ref: "#/$defs/reference" },
         token_endpoint_auth_methods: STRINGS,
         grant_types: STRINGS,
         scopes: STRINGS,
@@ -137,8 +137,8 @@ function validatorFor(file: string): ValidateFunction {
     validateFormats: false,
   });
   const compiled = ajv.compile(
-    file === 'oas-3.3.json'
-      ? patchOas33(schemaFile('oas-3.2.json'))
+    file === "oas-3.3.json"
+      ? patchOas33(schemaFile("oas-3.2.json"))
       : schemaFile(file),
   );
   validators.set(file, compiled);
@@ -148,8 +148,8 @@ function validatorFor(file: string): ValidateFunction {
 function describeErrors(errors: readonly ErrorObject[] | null | undefined) {
   return (errors ?? [])
     .slice(0, 5)
-    .map((error) => `  ${error.instancePath || '/'} ${error.message ?? ''}`)
-    .join('\n');
+    .map((error) => `  ${error.instancePath || "/"} ${error.message ?? ""}`)
+    .join("\n");
 }
 
 /** Validates an OpenAPI 3.1 or 3.2 document against the official JSON Schema, and 3.3 against the pinned patch of 3.2. */
@@ -158,16 +158,16 @@ export function validateOpenapi(
 ):
   | { readonly ok: true; readonly version: OpenapiVersion }
   | { readonly ok: false; readonly error: string } {
-  const version = isRecord(document) ? document['openapi'] : undefined;
+  const version = isRecord(document) ? document["openapi"] : undefined;
   const match =
-    typeof version === 'string' ? /^3\.([123])\.\d+$/u.exec(version) : null;
+    typeof version === "string" ? /^3\.([123])\.\d+$/u.exec(version) : null;
   if (match === null) {
     return {
       ok: false,
-      error: 'expected an OpenAPI 3.1, 3.2 or 3.3 document',
+      error: "expected an OpenAPI 3.1, 3.2 or 3.3 document",
     };
   }
-  const minor = match[1] === '1' ? '3.1' : match[1] === '2' ? '3.2' : '3.3';
+  const minor = match[1] === "1" ? "3.1" : match[1] === "2" ? "3.2" : "3.3";
   const validate = validatorFor(`oas-${minor}.json`);
   if (!validate(document)) {
     return {
@@ -182,7 +182,7 @@ export function validateOpenapi(
 export function validateOverlay(
   document: unknown,
 ): { readonly ok: true } | { readonly ok: false; readonly error: string } {
-  const validate = validatorFor('overlay-1.1.json');
+  const validate = validatorFor("overlay-1.1.json");
   return validate(document)
     ? { ok: true }
     : {

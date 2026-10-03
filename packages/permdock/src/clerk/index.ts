@@ -1,4 +1,4 @@
-export { subjectFromClerk } from './subject.ts';
+export { subjectFromClerk } from "./subject.ts";
 export type {
   ClerkAuthObject,
   ClerkBackend,
@@ -6,4 +6,4 @@ export type {
   ClerkMembershipListItem,
   ClerkPrincipal,
   ClerkSubjectOptions,
-} from './types.ts';
+} from "./types.ts";

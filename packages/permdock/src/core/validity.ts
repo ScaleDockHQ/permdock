@@ -1,4 +1,4 @@
-import type { GrantValidity } from './policy.ts';
+import type { GrantValidity } from "./policy.ts";
 
 /**
  * An instant as Unix seconds: a finite number is taken as seconds already, a
@@ -6,10 +6,10 @@ import type { GrantValidity } from './policy.ts';
  * decides whether that is "absent" or an error.
  */
 function instantOf(input: unknown): number | undefined {
-  if (typeof input === 'number') {
+  if (typeof input === "number") {
     return Number.isFinite(input) ? Math.floor(input) : undefined;
   }
-  if (typeof input !== 'string' || input.trim() === '') {
+  if (typeof input !== "string" || input.trim() === "") {
     return undefined;
   }
   const millis = Date.parse(input);

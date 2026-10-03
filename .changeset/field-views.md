@@ -1,5 +1,5 @@
 ---
-'permdock': minor
+"permdock": minor
 ---
 
 Field views. `permdock rls generate --fields views` (`rls.fields: 'views'`) emits, after the policies, one `security_invoker` view `<table>_visible` per table whose read grants set `fields`: a column some read allow leaves out or some read deny lists is `case when <permitted> then col end`, where `<permitted>` is `can(permission, row, { field })` built from the row policy's own per-statement helper calls (`permitted_<scope>_ids`, `permdock_has`) and row conditions; every other column and the row key pass through. In this mode grant keys also split by field set, and field-only read grants (a deny with `fields`, an allow with an empty list) leave the row policy and live in the masks, as they never decide the row in `can`. When `anon` reads a view, the helpers are executable by `anon` too; they return nothing without a subject. The resource schema must expose Standard JSON Schema so the view can list its columns.

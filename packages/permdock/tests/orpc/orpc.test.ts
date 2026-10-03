@@ -1,16 +1,16 @@
-import { call, ORPCError, os } from '@orpc/server';
-import { describe, expect, it } from 'vitest';
-import { z } from 'zod';
+import { call, ORPCError, os } from "@orpc/server";
+import { describe, expect, it } from "vitest";
+import { z } from "zod";
 
-import { memoryRevocationFeed } from '../../src/core/revocations.ts';
-import { createPermDock } from '../../src/orpc/index.ts';
+import { memoryRevocationFeed } from "../../src/core/revocations.ts";
+import { createPermDock } from "../../src/orpc/index.ts";
 import {
   memberUser,
   otherPost,
   ownPost,
   permissions,
   policy,
-} from '../fixtures/quick-start.ts';
+} from "../fixtures/quick-start.ts";
 
 type Ctx = { readonly user: typeof memberUser | null };
 
@@ -40,8 +40,8 @@ function channel<T>() {
   };
 }
 
-describe('permdock/orpc event iterators', () => {
-  it('drops unreadable items and ends on session revocation', async () => {
+describe("permdock/orpc event iterators", () => {
+  it("drops unreadable items and ends on session revocation", async () => {
     const revocations = memoryRevocationFeed();
     const { protect } = createPermDock<Ctx>(policy, {
       subject: (opts) => opts.context.user,
@@ -66,18 +66,18 @@ describe('permdock/orpc event iterators', () => {
     posts.push(otherPost, ownPost);
     await expect(iterator.next()).resolves.toMatchObject({ value: ownPost });
     const pending = iterator.next();
-    await revocations.revoke({ principal: 'u1', kind: 'session-revoked' });
+    await revocations.revoke({ principal: "u1", kind: "session-revoked" });
     const error: unknown = await pending.catch((caught: unknown) => caught);
     expect(error).toBeInstanceOf(ORPCError);
     expect(error).toMatchObject({
-      code: 'UNAUTHORIZED',
-      data: { status: 401, detail: 'session-revoked' },
+      code: "UNAUTHORIZED",
+      data: { status: 401, detail: "session-revoked" },
     });
   });
 });
 
-describe('permdock/orpc', () => {
-  it('grants and denies through call()', async () => {
+describe("permdock/orpc", () => {
+  it("grants and denies through call()", async () => {
     const { permdock, protect } = createPermDock<Ctx>(policy, {
       subject: (opts) => opts.context.user,
     });
@@ -88,9 +88,9 @@ describe('permdock/orpc', () => {
         protect(permissions.post.update, ({ input }) =>
           input !== undefined &&
           input !== null &&
-          typeof input === 'object' &&
-          'id' in input &&
-          input.id === 'p1'
+          typeof input === "object" &&
+          "id" in input &&
+          input.id === "p1"
             ? ownPost
             : otherPost,
         ),
@@ -101,17 +101,17 @@ describe('permdock/orpc', () => {
       }));
 
     await expect(
-      call(update, { id: 'p1' }, { context: { user: memberUser } }),
-    ).resolves.toEqual({ ok: true, via: 'u1' });
+      call(update, { id: "p1" }, { context: { user: memberUser } }),
+    ).resolves.toEqual({ ok: true, via: "u1" });
 
     try {
-      await call(update, { id: 'p2' }, { context: { user: memberUser } });
+      await call(update, { id: "p2" }, { context: { user: memberUser } });
       expect.unreachable();
     } catch (error) {
       expect(error).toBeInstanceOf(ORPCError);
       // SAFETY: toBeInstanceOf above checked the error is an ORPCError.
       const denied = error as ORPCError<string, unknown>;
-      expect(denied.code).toBe('FORBIDDEN');
+      expect(denied.code).toBe("FORBIDDEN");
       expect(denied.data).toEqual(
         expect.objectContaining({
           status: 403,
@@ -120,7 +120,7 @@ describe('permdock/orpc', () => {
     }
   });
 
-  it('maps assert inside a handler to FORBIDDEN with the Problem', async () => {
+  it("maps assert inside a handler to FORBIDDEN with the Problem", async () => {
     const { permdock } = createPermDock<Ctx>(policy, {
       subject: (opts) => opts.context.user,
     });
@@ -137,16 +137,16 @@ describe('permdock/orpc', () => {
     expect(error).toBeInstanceOf(ORPCError);
     // SAFETY: toBeInstanceOf above checked the error is an ORPCError.
     const denied = error as ORPCError<string, unknown>;
-    expect(denied.code).toBe('FORBIDDEN');
+    expect(denied.code).toBe("FORBIDDEN");
     expect(denied.data).toEqual(
       expect.objectContaining({
         status: 403,
-        type: 'https://permdock.dev/problems/denied',
+        type: "https://permdock.dev/problems/denied",
       }),
     );
   });
 
-  it('throws UNAUTHORIZED for an anonymous caller', async () => {
+  it("throws UNAUTHORIZED for an anonymous caller", async () => {
     const { permdock, protect } = createPermDock<Ctx>(policy, {
       subject: (opts) => opts.context.user,
     });
@@ -162,11 +162,11 @@ describe('permdock/orpc', () => {
     } catch (error) {
       expect(error).toBeInstanceOf(ORPCError);
       // SAFETY: toBeInstanceOf above checked the error is an ORPCError.
-      expect((error as ORPCError<string, unknown>).code).toBe('UNAUTHORIZED');
+      expect((error as ORPCError<string, unknown>).code).toBe("UNAUTHORIZED");
     }
   });
 
-  it('runs the subject resolver once when permdock() is applied twice', async () => {
+  it("runs the subject resolver once when permdock() is applied twice", async () => {
     let resolved = 0;
     const { permdock } = createPermDock<Ctx>(policy, {
       subject: (opts) => {
@@ -185,23 +185,23 @@ describe('permdock/orpc', () => {
 
     await expect(
       call(ping, undefined, { context: { user: memberUser } }),
-    ).resolves.toEqual({ ok: true, via: 'u1' });
+    ).resolves.toEqual({ ok: true, via: "u1" });
     expect(resolved).toBe(1);
   });
 
-  it('answers AuthZEN evaluations over Fetch', async () => {
+  it("answers AuthZEN evaluations over Fetch", async () => {
     const { permdockHandler, openapi } = createPermDock(policy, {
       subject: () => memberUser,
     });
     const response = await permdockHandler(
-      new Request('http://localhost/permdock', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
+      new Request("http://localhost/permdock", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
         body: JSON.stringify({
           evaluations: [
             {
-              resource: { type: 'post', properties: ownPost },
-              action: { name: 'update' },
+              resource: { type: "post", properties: ownPost },
+              action: { name: "update" },
             },
           ],
         }),
@@ -213,7 +213,7 @@ describe('permdock/orpc', () => {
     };
     expect(body.evaluations[0]?.decision).toBe(true);
     expect(
-      openapi.security(permissions.post.delete)['x-permdock-permissions'],
+      openapi.security(permissions.post.delete)["x-permdock-permissions"],
     ).toEqual([permissions.post.delete.key]);
   });
 });

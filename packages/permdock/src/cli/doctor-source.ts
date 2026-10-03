@@ -1,42 +1,42 @@
-import { parseSync } from 'oxc-parser';
+import { parseSync } from "oxc-parser";
 
-import type { DoctorFinding, DoctorSource } from './doctor-types.ts';
+import type { DoctorFinding, DoctorSource } from "./doctor-types.ts";
 
 const SERVER_SPECIFIERS = [
-  'permdock/server',
-  'permdock/next',
-  'permdock/hono',
-  'permdock/mcp',
-  'permdock/approvals',
-  'permdock/jwt',
-  'permdock/supabase',
-  'permdock/ssf',
-  'permdock/better-auth',
-  'permdock/clerk',
-  'permdock/convex',
-  'permdock/pdp',
-  'permdock/ai-sdk',
-  'permdock/claude-agent',
-  'permdock/eve',
-  'permdock/openai',
+  "permdock/server",
+  "permdock/next",
+  "permdock/hono",
+  "permdock/mcp",
+  "permdock/approvals",
+  "permdock/jwt",
+  "permdock/supabase",
+  "permdock/ssf",
+  "permdock/better-auth",
+  "permdock/clerk",
+  "permdock/convex",
+  "permdock/pdp",
+  "permdock/ai-sdk",
+  "permdock/claude-agent",
+  "permdock/eve",
+  "permdock/openai",
 ] as const;
 
 const ADAPTER_SPECIFIERS = [
-  'permdock/hono',
-  'permdock/next',
-  'permdock/mcp',
-  'permdock/ai-sdk',
-  'permdock/claude-agent',
-  'permdock/express',
-  'permdock/fastify',
+  "permdock/hono",
+  "permdock/next",
+  "permdock/mcp",
+  "permdock/ai-sdk",
+  "permdock/claude-agent",
+  "permdock/express",
+  "permdock/fastify",
 ] as const;
 
 const UNTRUSTED_CLAIMS = [
-  'user_metadata',
-  'unsafeMetadata',
-  'untrusted_metadata',
-  'clientMetadata',
-  'preferred_username',
+  "user_metadata",
+  "unsafeMetadata",
+  "untrusted_metadata",
+  "clientMetadata",
+  "preferred_username",
 ] as const;
 
 // A `jwks:` key, not a `const jwks: JSONWebKeySet` declaration.
@@ -48,7 +48,7 @@ function withoutComments(source: DoctorSource): string {
   for (const comment of comments) {
     text =
       text.slice(0, comment.start) +
-      ' '.repeat(comment.end - comment.start) +
+      " ".repeat(comment.end - comment.start) +
       text.slice(comment.end);
   }
   return text;
@@ -62,7 +62,7 @@ export function isClientSource(
     clientEntries.has(source.file) ||
     source.text.includes("'use client'") ||
     source.text.includes('"use client"') ||
-    source.file.includes('.client.')
+    source.file.includes(".client.")
   );
 }
 
@@ -81,8 +81,8 @@ export function pd001(
         source.text.includes(`"${spec}"`)
       ) {
         findings.push({
-          code: 'PD001',
-          severity: 'error',
+          code: "PD001",
+          severity: "error",
           message: `${source.file} imports ${spec}`,
           fix: "move the check into a Server Component or import from 'permdock/react'",
         });
@@ -104,8 +104,8 @@ export function pd007(
   if (hasNever && hasAdapter) {
     return [
       {
-        code: 'PD007',
-        severity: 'warning',
+        code: "PD007",
+        severity: "warning",
         message:
           "policy sets validate: 'never' while an HTTP, MCP or agent adapter is imported",
         fix: "use validate: 'boundary' for untrusted input",
@@ -120,7 +120,7 @@ export function pd008(
 ): readonly DoctorFinding[] {
   const findings: DoctorFinding[] = [];
   for (const source of sources) {
-    if (!source.text.includes('permdock')) {
+    if (!source.text.includes("permdock")) {
       continue;
     }
     if (
@@ -129,18 +129,18 @@ export function pd008(
       )
     ) {
       findings.push({
-        code: 'PD008',
-        severity: 'warning',
+        code: "PD008",
+        severity: "warning",
         message: `${source.file} exports a reserved name (dock or ability)`,
-        fix: 'use createPermDock and permdock',
+        fix: "use createPermDock and permdock",
       });
     }
     if (/export\s+(?:const|function|type|interface)\s+\$/u.test(source.text)) {
       findings.push({
-        code: 'PD008',
-        severity: 'warning',
+        code: "PD008",
+        severity: "warning",
         message: `${source.file} exports a $ prefixed member`,
-        fix: 'drop the $ prefix',
+        fix: "drop the $ prefix",
       });
     }
   }
@@ -156,10 +156,10 @@ export function pd010(
     for (const claim of UNTRUSTED_CLAIMS) {
       if (text.includes(claim) && /roles|tenant/u.test(text)) {
         findings.push({
-          code: 'PD010',
-          severity: 'error',
+          code: "PD010",
+          severity: "error",
           message: `${source.file} reads roles or tenant from ${claim}`,
-          fix: 'use a server-set claim or a MembershipSource',
+          fix: "use a server-set claim or a MembershipSource",
         });
       }
     }
@@ -177,10 +177,10 @@ export function pd011(
       (/accounts\.google\.com/u.test(source.text) && /tenant/.test(source.text))
     ) {
       findings.push({
-        code: 'PD011',
-        severity: 'warning',
+        code: "PD011",
+        severity: "warning",
         message: `${source.file} reads tenant from an optional issuer claim`,
-        fix: 'compare the claim to onboarded tenants; do not default a tenant',
+        fix: "compare the claim to onboarded tenants; do not default a tenant",
       });
     }
   }
@@ -194,18 +194,18 @@ export function pd013(
   for (const source of sources) {
     if (/algorithms[\s\S]{0,120}EdDSA/u.test(source.text)) {
       findings.push({
-        code: 'PD013',
-        severity: 'warning',
+        code: "PD013",
+        severity: "warning",
         message: `${source.file} lists polymorphic EdDSA`,
-        fix: 'write Ed25519',
+        fix: "write Ed25519",
       });
     }
     if (/algorithms[\s\S]{0,120}['"]none['"]/u.test(source.text)) {
       findings.push({
-        code: 'PD013',
-        severity: 'error',
+        code: "PD013",
+        severity: "error",
         message: `${source.file} allows alg none`,
-        fix: 'remove none and RSA1_5 from algorithms',
+        fix: "remove none and RSA1_5 from algorithms",
       });
     }
   }
@@ -220,19 +220,19 @@ export function pd014(
     const text = withoutComments(source);
     if (/discovery:\s*['"]http:/u.test(text)) {
       findings.push({
-        code: 'PD014',
-        severity: 'error',
+        code: "PD014",
+        severity: "error",
         message: `${source.file} uses a plain-HTTP discovery URL`,
-        fix: 'use an https: issuer',
+        fix: "use an https: issuer",
       });
     }
     const setsJwks = JWKS_OPTION.test(text);
     if (/discovery\s*:/u.test(text) && setsJwks) {
       findings.push({
-        code: 'PD014',
-        severity: 'error',
+        code: "PD014",
+        severity: "error",
         message: `${source.file} sets discovery together with jwks or issuer`,
-        fix: 'use discovery alone, or jwks plus issuer',
+        fix: "use discovery alone, or jwks plus issuer",
       });
     }
     if (
@@ -241,10 +241,10 @@ export function pd014(
       !/discovery\s*:/u.test(text)
     ) {
       findings.push({
-        code: 'PD014',
-        severity: 'error',
+        code: "PD014",
+        severity: "error",
         message: `${source.file} sets jwks without issuer`,
-        fix: 'set issuer with jwks, or switch to discovery',
+        fix: "set issuer with jwks, or switch to discovery",
       });
     }
   }
@@ -258,8 +258,8 @@ export function pd015(
   for (const source of sources) {
     if (/accept:\s*['"]id-token['"]/u.test(source.text)) {
       findings.push({
-        code: 'PD015',
-        severity: 'warning',
+        code: "PD015",
+        severity: "warning",
         message: `${source.file} accepts id-token on what looks like an API resolver`,
         fix: "leave accept as 'access-token' for API routes",
       });
@@ -282,24 +282,24 @@ function callArguments(
   for (let index = open + 1; index < text.length; index += 1) {
     const char = text[index];
     if (quote !== undefined) {
-      if (char === '\\') {
+      if (char === "\\") {
         index += 1;
       } else if (char === quote) {
         quote = undefined;
       }
       continue;
     }
-    if (char === "'" || char === '"' || char === '`') {
+    if (char === "'" || char === '"' || char === "`") {
       quote = char;
-    } else if (char === '(' || char === '{' || char === '[') {
+    } else if (char === "(" || char === "{" || char === "[") {
       depth += 1;
-    } else if (char === ')' || char === '}' || char === ']') {
+    } else if (char === ")" || char === "}" || char === "]") {
       if (depth === 0) {
         args.push(text.slice(start, index).trim());
-        return args.filter((arg) => arg !== '');
+        return args.filter((arg) => arg !== "");
       }
       depth -= 1;
-    } else if (char === ',' && depth === 0) {
+    } else if (char === "," && depth === 0) {
       args.push(text.slice(start, index).trim());
       start = index + 1;
     }
@@ -315,7 +315,7 @@ function readTenantClaim(
   if (options === undefined) {
     return fallback;
   }
-  if (!options.startsWith('{')) {
+  if (!options.startsWith("{")) {
     return undefined;
   }
   const tenant =
@@ -345,10 +345,10 @@ export function pd038(
       if (read === undefined || read === tenantClaim) {
         continue;
       }
-      const line = source.text.slice(0, match.index).split('\n').length;
+      const line = source.text.slice(0, match.index).split("\n").length;
       findings.push({
-        code: 'PD038',
-        severity: 'warning',
+        code: "PD038",
+        severity: "warning",
         message: `${source.file}:${line} reads the tenant from '${read}', but rls.tenantClaim is '${tenantClaim}'`,
         fix: `pass tenant: '${tenantClaim}' or set rls.tenantClaim to '${read}'`,
       });
@@ -374,10 +374,10 @@ export function pd041(
       ) {
         continue;
       }
-      const line = source.text.slice(0, match.index).split('\n').length;
+      const line = source.text.slice(0, match.index).split("\n").length;
       findings.push({
-        code: 'PD041',
-        severity: 'warning',
+        code: "PD041",
+        severity: "warning",
         message: `${source.file}:${String(line)} signs capability tokens with HS256, the project's shared JWT secret: whoever holds it can mint any user's token`,
         fix: "sign with alg: 'ES256' and the private JWK of an asymmetric Supabase signing key; keep HS256 for the local stack only",
       });
@@ -398,7 +398,7 @@ function idRouteOf(source: DoctorSource, index: number): string | undefined {
     return segment[1];
   }
   const window = source.text.slice(Math.max(0, index - 400), index);
-  const start = Math.max(window.lastIndexOf(';'), window.lastIndexOf('\n\n'));
+  const start = Math.max(window.lastIndexOf(";"), window.lastIndexOf("\n\n"));
   const statement = window.slice(start + 1);
   return [...statement.matchAll(ID_ROUTE)].at(-1)?.[1];
 }
@@ -409,7 +409,7 @@ export function pd036(
 ): readonly DoctorFinding[] {
   const findings: DoctorFinding[] = [];
   for (const source of sources) {
-    if (!source.text.includes('permdock')) {
+    if (!source.text.includes("permdock")) {
       continue;
     }
     for (const match of source.text.matchAll(PROTECT_CALL)) {
@@ -422,12 +422,12 @@ export function pd036(
       if (route === undefined) {
         continue;
       }
-      const line = source.text.slice(0, match.index).split('\n').length;
+      const line = source.text.slice(0, match.index).split("\n").length;
       findings.push({
-        code: 'PD036',
-        severity: 'warning',
-        message: `${source.file}:${String(line)} protects ${route} with ${args[0] ?? ''} and no row loader, so the check never sees the row the id names (BOLA, OWASP API1)`,
-        fix: 'pass a loader that fetches the row by the id: protect(permission, (request) => load(request))',
+        code: "PD036",
+        severity: "warning",
+        message: `${source.file}:${String(line)} protects ${route} with ${args[0] ?? ""} and no row loader, so the check never sees the row the id names (BOLA, OWASP API1)`,
+        fix: "pass a loader that fetches the row by the id: protect(permission, (request) => load(request))",
       });
     }
   }

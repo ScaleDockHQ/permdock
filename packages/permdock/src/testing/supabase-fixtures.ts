@@ -1,9 +1,9 @@
-import type { SupabaseHookManifest } from '../supabase/manifest.ts';
+import type { SupabaseHookManifest } from "../supabase/manifest.ts";
 
 /**
  * Claim sets in the shape the Supabase custom access token hook produces (the RBAC guide's
  * `user_role` claim, optionally mirrored into `app_metadata`, plus a `memberships` array for
- * multi-org apps). `betterSupabase` is the canonical shape better-supabase 0.2 emits: scoped
+ * multi-org apps). `betterSupabase` is the canonical shape better-supabase 0.4 emits: scoped
  * memberships, `tenant_id` and per-tenant plans in `features`. `full` sets every field of the
  * claim contract plus a `hook.claims` extra claim; `portalContact`, `oauthClient` and
  * `actChain` cover a customer contact, a Supabase OAuth server token and an RFC 8693 chain.
@@ -28,13 +28,13 @@ export type SupabaseClaimFixture = {
       readonly expiresAt?: number;
       readonly grantedBy?: string;
       readonly reason?: string;
-      readonly managedBy?: 'idp';
+      readonly managedBy?: "idp";
       readonly entitlements?: readonly string[];
     }[];
     readonly tenant?: string;
     readonly plans?: readonly string[];
     /** `subject.actor`, absent when the token has neither `act` nor `client_id`. */
-    readonly actor?: { readonly id: string; readonly kind: 'oauth-client' };
+    readonly actor?: { readonly id: string; readonly kind: "oauth-client" };
     /** `subject.delegation`: the `scope` claim and the `act` chain of a token with an actor. */
     readonly delegation?: {
       readonly scopes?: readonly string[];
@@ -44,67 +44,67 @@ export type SupabaseClaimFixture = {
 };
 
 const base = {
-  sub: '6f1c2c1e-5d0a-4d9e-9a51-6b1f0e7c2a10',
-  aud: 'authenticated',
-  role: 'authenticated',
-  iss: 'https://project.supabase.co/auth/v1',
+  sub: "6f1c2c1e-5d0a-4d9e-9a51-6b1f0e7c2a10",
+  aud: "authenticated",
+  role: "authenticated",
+  iss: "https://project.supabase.co/auth/v1",
   iat: 1_790_000_000,
   exp: 1_790_003_600,
-  aal: 'aal1',
-  session_id: 'b7a8f9c0-1111-4222-8333-944455556666',
+  aal: "aal1",
+  session_id: "b7a8f9c0-1111-4222-8333-944455556666",
   is_anonymous: false,
 } as const;
 
 const id: string = base.sub;
-const org = '0d8c5a2e-3f4b-4c6d-8e9f-a1b2c3d4e5f6';
-const project = '3b2a1c0d-9e8f-4a7b-8c6d-5e4f3a2b1c0d';
-const customer = 'c7d8e9f0-1a2b-4c3d-9e4f-5a6b7c8d9e0f';
+const org = "0d8c5a2e-3f4b-4c6d-8e9f-a1b2c3d4e5f6";
+const project = "3b2a1c0d-9e8f-4a7b-8c6d-5e4f3a2b1c0d";
+const customer = "c7d8e9f0-1a2b-4c3d-9e4f-5a6b7c8d9e0f";
 const ownerMembership = {
-  scope: 'organization',
+  scope: "organization",
   id: org,
-  roles: ['owner'],
-  via: 'direct',
+  roles: ["owner"],
+  via: "direct",
   expiresAt: 1_900_000_000,
-  grantedBy: '9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d',
-  reason: 'founding member',
-  managedBy: 'idp',
-  entitlements: ['seat:pro'],
+  grantedBy: "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d",
+  reason: "founding member",
+  managedBy: "idp",
+  entitlements: ["seat:pro"],
 } as const;
 const projectMembership = {
-  scope: 'project',
+  scope: "project",
   id: project,
   within: { organization: org },
-  roles: ['editor'],
+  roles: ["editor"],
 } as const;
 const shareMembership = {
-  on: { resource: 'document', id: 'doc-1' },
-  roles: ['viewer'],
-  via: 'share',
+  on: { resource: "document", id: "doc-1" },
+  roles: ["viewer"],
+  via: "share",
 } as const;
 const contactMembership = {
-  scope: 'customer',
+  scope: "customer",
   id: customer,
   within: { organization: org },
-  roles: ['contact'],
-  via: 'contact',
+  roles: ["contact"],
+  via: "contact",
 } as const;
 
 export type SupabaseClaimFixtureName =
-  | 'topLevelRole'
-  | 'appMetadataRole'
-  | 'nullTopLevelFallsBack'
-  | 'arrayRoles'
-  | 'missingRole'
-  | 'nullRole'
-  | 'userMetadataIgnored'
-  | 'multiOrg'
-  | 'betterSupabase'
-  | 'full'
-  | 'portalContact'
-  | 'oauthClient'
-  | 'actChain'
-  | 'anon'
-  | 'serviceRole';
+  | "topLevelRole"
+  | "appMetadataRole"
+  | "nullTopLevelFallsBack"
+  | "arrayRoles"
+  | "missingRole"
+  | "nullRole"
+  | "userMetadataIgnored"
+  | "multiOrg"
+  | "betterSupabase"
+  | "full"
+  | "portalContact"
+  | "oauthClient"
+  | "actChain"
+  | "anon"
+  | "serviceRole";
 
 export const supabaseClaimFixtures: Readonly<
   Record<SupabaseClaimFixtureName, SupabaseClaimFixture>
@@ -112,29 +112,29 @@ export const supabaseClaimFixtures: Readonly<
   topLevelRole: {
     claims: {
       ...base,
-      user_role: 'admin',
-      app_metadata: { provider: 'email' },
+      user_role: "admin",
+      app_metadata: { provider: "email" },
     },
-    expect: { id, roles: ['admin'], memberships: [] },
+    expect: { id, roles: ["admin"], memberships: [] },
   },
   appMetadataRole: {
     claims: {
       ...base,
-      app_metadata: { provider: 'email', user_role: 'moderator' },
+      app_metadata: { provider: "email", user_role: "moderator" },
     },
-    expect: { id, roles: ['moderator'], memberships: [] },
+    expect: { id, roles: ["moderator"], memberships: [] },
   },
   nullTopLevelFallsBack: {
     claims: {
       ...base,
       user_role: null,
-      app_metadata: { user_role: 'moderator' },
+      app_metadata: { user_role: "moderator" },
     },
-    expect: { id, roles: ['moderator'], memberships: [] },
+    expect: { id, roles: ["moderator"], memberships: [] },
   },
   arrayRoles: {
-    claims: { ...base, user_role: ['admin', 'moderator'] },
-    expect: { id, roles: ['admin', 'moderator'], memberships: [] },
+    claims: { ...base, user_role: ["admin", "moderator"] },
+    expect: { id, roles: ["admin", "moderator"], memberships: [] },
   },
   missingRole: {
     claims: { ...base },
@@ -148,8 +148,8 @@ export const supabaseClaimFixtures: Readonly<
     claims: {
       ...base,
       user_metadata: {
-        user_role: 'admin',
-        memberships: [{ tenant: 'acme', roles: ['owner'] }],
+        user_role: "admin",
+        memberships: [{ tenant: "acme", roles: ["owner"] }],
       },
     },
     expect: { id, roles: [], memberships: [] },
@@ -157,19 +157,19 @@ export const supabaseClaimFixtures: Readonly<
   multiOrg: {
     claims: {
       ...base,
-      tenant_id: 'acme',
+      tenant_id: "acme",
       memberships: [
-        { tenant: 'acme', roles: ['admin'] },
-        { tenant: 'globex', roles: ['viewer'] },
+        { tenant: "acme", roles: ["admin"] },
+        { tenant: "globex", roles: ["viewer"] },
       ],
     },
     expect: {
       id,
       roles: [],
-      tenant: 'acme',
+      tenant: "acme",
       memberships: [
-        { tenant: 'acme', roles: ['admin'] },
-        { tenant: 'globex', roles: ['viewer'] },
+        { tenant: "acme", roles: ["admin"] },
+        { tenant: "globex", roles: ["viewer"] },
       ],
     },
   },
@@ -177,73 +177,73 @@ export const supabaseClaimFixtures: Readonly<
     claims: {
       ...base,
       user_role: null,
-      tenant_id: '0d8c5a2e-3f4b-4c6d-8e9f-a1b2c3d4e5f6',
+      tenant_id: "0d8c5a2e-3f4b-4c6d-8e9f-a1b2c3d4e5f6",
       memberships: [
         {
-          scope: 'tenant',
-          id: '0d8c5a2e-3f4b-4c6d-8e9f-a1b2c3d4e5f6',
-          roles: ['admin'],
+          scope: "tenant",
+          id: "0d8c5a2e-3f4b-4c6d-8e9f-a1b2c3d4e5f6",
+          roles: ["admin"],
         },
         {
-          scope: 'tenant',
-          id: '7e6d5c4b-3a29-4817-9605-f4e3d2c1b0a9',
-          roles: ['viewer'],
+          scope: "tenant",
+          id: "7e6d5c4b-3a29-4817-9605-f4e3d2c1b0a9",
+          roles: ["viewer"],
         },
       ],
       features: {
-        '0d8c5a2e-3f4b-4c6d-8e9f-a1b2c3d4e5f6': ['pro'],
-        '7e6d5c4b-3a29-4817-9605-f4e3d2c1b0a9': ['free'],
+        "0d8c5a2e-3f4b-4c6d-8e9f-a1b2c3d4e5f6": ["pro"],
+        "7e6d5c4b-3a29-4817-9605-f4e3d2c1b0a9": ["free"],
       },
       authz_ver: 3,
     },
-    options: { plans: 'features' },
+    options: { plans: "features" },
     expect: {
       id,
       roles: [],
-      tenant: '0d8c5a2e-3f4b-4c6d-8e9f-a1b2c3d4e5f6',
+      tenant: "0d8c5a2e-3f4b-4c6d-8e9f-a1b2c3d4e5f6",
       memberships: [
         {
-          scope: 'tenant',
-          id: '0d8c5a2e-3f4b-4c6d-8e9f-a1b2c3d4e5f6',
-          roles: ['admin'],
+          scope: "tenant",
+          id: "0d8c5a2e-3f4b-4c6d-8e9f-a1b2c3d4e5f6",
+          roles: ["admin"],
         },
         {
-          scope: 'tenant',
-          id: '7e6d5c4b-3a29-4817-9605-f4e3d2c1b0a9',
-          roles: ['viewer'],
+          scope: "tenant",
+          id: "7e6d5c4b-3a29-4817-9605-f4e3d2c1b0a9",
+          roles: ["viewer"],
         },
       ],
-      plans: ['pro'],
+      plans: ["pro"],
     },
   },
   full: {
     claims: {
       ...base,
-      user_role: ['admin'],
-      roles: ['admin'],
+      user_role: ["admin"],
+      roles: ["admin"],
       tenant_id: org,
       memberships: [
         {
           ...ownerMembership,
-          grants: { analyst: ['post.read', '-post.delete'] },
+          grants: { analyst: ["post.read", "-post.delete"] },
         },
         projectMembership,
         shareMembership,
       ],
       memberships_truncated: true,
-      attrs: { department: 'finance', clearance: 2 },
+      attrs: { department: "finance", clearance: 2 },
       authz_ver: 7,
       datetime_preferences: {
-        timezone: 'Europe/Amsterdam',
-        week_start: 'monday',
-        date_format: 'dd-MM-yyyy',
-        time_format: '24h',
+        timezone: "Europe/Amsterdam",
+        week_start: "monday",
+        date_format: "dd-MM-yyyy",
+        time_format: "24h",
       },
-      app_metadata: { provider: 'email', providers: ['email'] },
+      app_metadata: { provider: "email", providers: ["email"] },
     },
     expect: {
       id,
-      roles: ['admin'],
+      roles: ["admin"],
       tenant: org,
       memberships: [ownerMembership, projectMembership, shareMembership],
     },
@@ -265,44 +265,44 @@ export const supabaseClaimFixtures: Readonly<
   oauthClient: {
     claims: {
       ...base,
-      client_id: '5f0e4d3c-2b1a-4098-8776-655443322110',
-      scope: 'openid email posts:read',
-      user_role: 'member',
+      client_id: "5f0e4d3c-2b1a-4098-8776-655443322110",
+      scope: "openid email posts:read",
+      user_role: "member",
     },
     expect: {
       id,
-      roles: ['member'],
+      roles: ["member"],
       memberships: [],
       actor: {
-        id: '5f0e4d3c-2b1a-4098-8776-655443322110',
-        kind: 'oauth-client',
+        id: "5f0e4d3c-2b1a-4098-8776-655443322110",
+        kind: "oauth-client",
       },
-      delegation: { scopes: ['openid', 'email', 'posts:read'] },
+      delegation: { scopes: ["openid", "email", "posts:read"] },
     },
   },
   actChain: {
     claims: {
       ...base,
-      scope: 'posts:read',
-      act: { sub: 'agent-runner', act: { sub: 'mcp-client-42' } },
+      scope: "posts:read",
+      act: { sub: "agent-runner", act: { sub: "mcp-client-42" } },
     },
     expect: {
       id,
       roles: [],
       memberships: [],
-      actor: { id: 'agent-runner', kind: 'oauth-client' },
+      actor: { id: "agent-runner", kind: "oauth-client" },
       delegation: {
-        scopes: ['posts:read'],
-        chain: { sub: 'agent-runner', act: { sub: 'mcp-client-42' } },
+        scopes: ["posts:read"],
+        chain: { sub: "agent-runner", act: { sub: "mcp-client-42" } },
       },
     },
   },
   anon: {
-    claims: { ...base, role: 'anon', sub: '' },
+    claims: { ...base, role: "anon", sub: "" },
     expect: { id: null, roles: [], memberships: [] },
   },
   serviceRole: {
-    claims: { ...base, role: 'service_role', user_role: 'admin' },
+    claims: { ...base, role: "service_role", user_role: "admin" },
     expect: { id: null, roles: [], memberships: [] },
   },
 };
@@ -311,7 +311,7 @@ export const supabaseClaimFixtures: Readonly<
  * Suggested ceiling for the `memberships` claim in bytes of JSON: about 15 UUID-keyed
  * single-role memberships. `permdock supabase hook generate` truncates at it by default.
  */
-export { supabaseMembershipsBudget } from '../supabase/budget.ts';
+export { supabaseMembershipsBudget } from "../supabase/budget.ts";
 
 /**
  * The `permdock supabase inspect --json` manifest for a policy with one
@@ -320,88 +320,103 @@ export { supabaseMembershipsBudget } from '../supabase/budget.ts';
  * parser against this value.
  */
 export const supabaseHookManifestFixture: SupabaseHookManifest = {
-  $schema: 'https://permdock.dev/schemas/supabase-manifest-v1.json',
+  $schema: "https://permdock.dev/schemas/supabase-manifest-v1.json",
   version: 1,
   hook: {
-    schema: 'public',
-    function: 'custom_access_token_hook',
-    out: 'supabase/permdock-hook.sql',
+    schema: "permdock",
+    function: "custom_access_token_hook",
+    out: "supabase/permdock-hook.sql",
   },
   helpers: {
-    schema: 'public',
+    schema: "permdock",
     functions: [
-      'permdock_has',
-      'permitted_tenant_ids',
-      'member_tenant_ids',
-      'member_tenant_ids_for',
+      "permdock_has",
+      "permitted_tenant_ids",
+      "member_tenant_ids",
+      "member_tenant_ids_for",
     ],
   },
-  tenantClaim: 'tenant_id',
+  tenantClaim: "tenant_id",
   budget: {
     bytes: 1024,
-    measure: 'octet_length(memberships::text) + octet_length(attrs::text)',
+    measure: "octet_length(memberships::text) + octet_length(attrs::text)",
   },
   claims: [
-    { name: 'user_role', source: 'permdock', budget: false },
-    { name: 'roles', source: 'permdock', budget: false },
-    { name: 'memberships', source: 'permdock', budget: true },
-    { name: 'memberships_truncated', source: 'permdock', budget: false },
-    { name: 'tenant_id', source: 'permdock', budget: false },
-    { name: 'authz_ver', source: 'permdock', budget: false },
+    { name: "user_role", source: "permdock", budget: false },
+    { name: "roles", source: "permdock", budget: false },
+    { name: "memberships", source: "permdock", budget: true },
+    { name: "memberships_truncated", source: "permdock", budget: false },
+    { name: "tenant_id", source: "permdock", budget: false },
+    { name: "authz_ver", source: "permdock", budget: false },
     {
-      name: 'features',
-      source: 'better_supabase.feature_claims',
+      name: "features",
+      source: "better_supabase.feature_claims",
       budget: false,
     },
   ],
   authzVersion: true,
+  authzVersionBump: {
+    schema: "permdock",
+    function: "permdock_bump_authz_version_for",
+    args: "p_users uuid[]",
+  },
   memberships: [
     {
-      table: 'public.memberships',
-      user: { column: 'user_id' },
-      scope: { column: 'scope' },
-      id: { column: 'scope_id' },
-      role: { column: 'role' },
-      columns: ['user_id', 'scope', 'scope_id', 'role'],
+      table: "public.memberships",
+      user: { column: "user_id" },
+      scope: { column: "scope" },
+      id: { column: "scope_id" },
+      role: { column: "role" },
+      columns: ["user_id", "scope", "scope_id", "role"],
     },
   ],
   rls: {
-    schema: 'public',
-    mode: 'jwt',
-    tenantClaim: 'tenant_id',
-    scopes: [{ name: 'tenant', type: 'uuid' }],
+    schema: "permdock",
+    mode: "jwt",
+    tenantClaim: "tenant_id",
+    scopes: [{ name: "tenant", type: "uuid" }],
     helpers: [
       {
-        name: 'permdock_has',
-        args: 'p_grant text',
-        returns: 'boolean',
-        execute: ['authenticated'],
+        name: "permdock_has",
+        args: "p_grant text",
+        returns: "boolean",
+        execute: ["authenticated"],
       },
       {
-        name: 'permitted_tenant_ids',
-        args: 'p_grant text',
-        returns: 'setof uuid',
-        execute: ['authenticated'],
+        name: "permitted_tenant_ids",
+        args: "p_grant text",
+        returns: "setof uuid",
+        execute: ["authenticated"],
       },
       {
-        name: 'member_tenant_ids',
-        args: '',
-        returns: 'setof uuid',
-        execute: ['authenticated'],
+        name: "member_tenant_ids",
+        args: "",
+        returns: "setof uuid",
+        execute: ["authenticated"],
       },
       {
-        name: 'member_tenant_ids_for',
-        args: 'p_user uuid',
-        returns: 'setof uuid',
-        execute: ['supabase_auth_admin'],
+        name: "member_tenant_ids_for",
+        args: "p_user uuid",
+        returns: "setof uuid",
+        execute: ["supabase_auth_admin"],
+      },
+    ],
+    memberships: [
+      {
+        table: "public.memberships",
+        user: { column: "user_id" },
+        scope: { column: "scope" },
+        id: { column: "scope_id" },
+        role: { column: "role" },
+        columns: ["user_id", "scope", "scope_id", "role"],
       },
     ],
   },
   decidingColumns: [
-    'public.memberships.role',
-    'public.memberships.scope',
-    'public.memberships.scope_id',
-    'public.memberships.user_id',
+    "public.memberships.role",
+    "public.memberships.scope",
+    "public.memberships.scope_id",
+    "public.memberships.user_id",
   ],
-  markers: { hook: 'v1', grants: 'v1' },
+  markers: { hook: "v1", grants: "v1" },
 };

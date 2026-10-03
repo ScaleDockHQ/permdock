@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "lint": "oxlint --disable-nested-config",
-    "test": "vitest run",
-    "typecheck": "tsc --noEmit --checkers 4"
+    "lint": "oxlint --disable-nested-config --type-aware",
+    "size": "vitest run",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@permdock/ox-config": "workspace:*",
@@ -15,6 +15,7 @@
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
+    "esbuild": "catalog:",
     "next": "catalog:",
     "oxlint": "catalog:",
     "oxlint-tsgolint": "catalog:",

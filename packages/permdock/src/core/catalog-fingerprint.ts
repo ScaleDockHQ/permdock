@@ -1,10 +1,10 @@
-import { canonicalJson } from './canonical-json.ts';
-import { bytesToBase64Url, sha256 } from './sha256.ts';
+import { canonicalJson } from "./canonical-json.ts";
+import { bytesToBase64Url, sha256 } from "./sha256.ts";
 
-const OMITTED_TOP_LEVEL = new Set(['generatedAt', 'generator', 'fingerprint']);
+const OMITTED_TOP_LEVEL = new Set(["generatedAt", "generator", "fingerprint"]);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function fingerprintInput(catalog: Record<string, unknown>): unknown {
@@ -14,7 +14,7 @@ function fingerprintInput(catalog: Record<string, unknown>): unknown {
       continue;
     }
     out[key] =
-      key === 'permissions' && Array.isArray(value)
+      key === "permissions" && Array.isArray(value)
         ? value.map((permission: unknown) => {
             if (!isRecord(permission)) {
               return permission;
@@ -35,7 +35,7 @@ function fingerprintInput(catalog: Record<string, unknown>): unknown {
  */
 export function catalogFingerprint(catalog: unknown): string {
   if (!isRecord(catalog)) {
-    throw new TypeError('PermDock: a catalog must be an object');
+    throw new TypeError("PermDock: a catalog must be an object");
   }
   return bytesToBase64Url(sha256(canonicalJson(fingerprintInput(catalog))));
 }

@@ -7,5 +7,5 @@ HTTP harness for `permdock/openai`. `pnpm start` listens on `127.0.0.1:3475` wit
 - `GET /delete_post` — `needsApproval` → `true` (pause)
 
 ```ts
-import { createPermDock } from 'permdock/openai'
+import { createPermDock } from "permdock/openai";
 ```

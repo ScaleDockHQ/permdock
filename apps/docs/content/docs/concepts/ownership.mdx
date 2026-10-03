@@ -6,42 +6,55 @@ description: Role rules as policy. Every organization keeps an owner (min, max, 
 Scoped roles answer "what may a holder do". A B2B product also needs rules about the holders themselves: every organization keeps at least one owner, an admin hands out member and viewer but never owner, a portal contact can never become an admin, and nobody quietly demotes themselves. PermDock declares these rules on the role, checks a proposed change with `decideRoleChange`, and generates Postgres triggers that refuse a write breaking them.
 
 ```ts
-const staff = { for: ['staff'], meta: { audience: 'staff' } } as const
+const staff = { for: ["staff"], meta: { audience: "staff" } } as const;
 
 export const policy = definePolicy(
   { permissions, roles },
   {
     scopes: {
-      organization: { key: 'organization_id' },
-      customer: { key: 'customer_id', within: 'organization' },
+      organization: { key: "organization_id" },
+      customer: { key: "customer_id", within: "organization" },
     },
     roles: [
       role(roles.owner, ownerGrants, {
-        on: 'organization', ...staff, min: 1,
-        assigns: ['owner', 'admin', 'member', 'viewer', 'contact'],
+        on: "organization",
+        ...staff,
+        min: 1,
+        assigns: ["owner", "admin", "member", "viewer", "contact"],
       }),
-      role(roles.admin, adminGrants, { on: 'organization', ...staff, assigns: ['member', 'viewer', 'contact'] }),
-      role(roles.member, memberGrants, { on: 'organization', ...staff }),
-      role(roles.viewer, viewerGrants, { on: 'organization', ...staff }),
-      role(roles.contact, contactGrants, { on: 'customer', min: 0, for: ['contact'], meta: { audience: 'portal' } }),
-      role(roles['platform-admin'], platformGrants, { meta: { audience: 'platform' } }),
+      role(roles.admin, adminGrants, {
+        on: "organization",
+        ...staff,
+        assigns: ["member", "viewer", "contact"],
+      }),
+      role(roles.member, memberGrants, { on: "organization", ...staff }),
+      role(roles.viewer, viewerGrants, { on: "organization", ...staff }),
+      role(roles.contact, contactGrants, {
+        on: "customer",
+        min: 0,
+        for: ["contact"],
+        meta: { audience: "portal" },
+      }),
+      role(roles["platform-admin"], platformGrants, {
+        meta: { audience: "platform" },
+      }),
     ],
     subject: subjectFromSupabase,
   },
-)
+);
 ```
 
 ## Role options
 
-| Option | Meaning |
-| --- | --- |
-| `min` | Fewest holders each instance of the role's scope keeps, default `0`. Removing the last owner is refused; deleting the whole instance (no memberships left) is not. |
-| `max` | Most holders an instance may have. |
-| `transferOnly` | The holder count of an instance never changes once it has holders: the role only moves from one holder to another. Creating the first holder and removing the last (which `min` guards) are not transfers. |
-| `assigns` | Roles a holder may assign and revoke. Names must be declared roles; a role may list itself (`owner` assigns `owner`). |
-| `for` | Membership kinds (`Membership.via`) that may hold the role. A role held through any other kind, or through a membership with no `via`, grants nothing. |
-| `exclusiveWith` | Roles nobody may hold together with this one in the same instance (separation of duties, PD018). |
-| `meta.audience` | The surface the role's holders use, such as `staff`, `portal` or `platform`. |
+| Option          | Meaning                                                                                                                                                                                                    |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `min`           | Fewest holders each instance of the role's scope keeps, default `0`. Removing the last owner is refused; deleting the whole instance (no memberships left) is not.                                         |
+| `max`           | Most holders an instance may have.                                                                                                                                                                         |
+| `transferOnly`  | The holder count of an instance never changes once it has holders: the role only moves from one holder to another. Creating the first holder and removing the last (which `min` guards) are not transfers. |
+| `assigns`       | Roles a holder may assign and revoke. Names must be declared roles; a role may list itself (`owner` assigns `owner`).                                                                                      |
+| `for`           | Membership kinds (`Membership.via`) that may hold the role. A role held through any other kind, or through a membership with no `via`, grants nothing.                                                     |
+| `exclusiveWith` | Roles nobody may hold together with this one in the same instance (separation of duties, PD018).                                                                                                           |
+| `meta.audience` | The surface the role's holders use, such as `staff`, `portal` or `platform`.                                                                                                                               |
 
 `min`, `max` and `transferOnly` count holders per scope instance, so they need a named-scope `on`; `definePolicy` throws on a global or resource role that sets them, on `max` below 1, on `min` above `max`, and on an `assigns` entry that names no declared role. `activation` stays reserved for time-boxed roles.
 
@@ -60,15 +73,18 @@ The filter runs when the subject is resolved, so `decide`, `where()`, snapshots,
 ## Checking a role change
 
 ```ts
-permdock.decideRoleChange({
-  kind: 'assign',                    // 'assign' | 'revoke' | 'transfer'
-  role: roles.admin,                 // a Role leaf or a declared name
-  scope: 'organization',             // the scope the role is held at
-  id: 'o_acme',                      // the instance
-  within: undefined,                 // ancestor ids, for a role on a nested scope
-  target: { id: 'u_bob', via: 'staff', roles: ['member'] },   // their membership there now
-  holders: 1,                        // how many hold the role in the instance now
-}, { trusted: false })               // true only when `within` came from your own store
+permdock.decideRoleChange(
+  {
+    kind: "assign", // 'assign' | 'revoke' | 'transfer'
+    role: roles.admin, // a Role leaf or a declared name
+    scope: "organization", // the scope the role is held at
+    id: "o_acme", // the instance
+    within: undefined, // ancestor ids, for a role on a nested scope
+    target: { id: "u_bob", via: "staff", roles: ["member"] }, // their membership there now
+    holders: 1, // how many hold the role in the instance now
+  },
+  { trusted: false },
+); // true only when `within` came from your own store
 // { outcome: 'granted', change, role: 'owner' } or { outcome: 'denied', change, denials }
 ```
 
@@ -76,34 +92,42 @@ The actor is always the instance's own subject; nothing in the change can stand 
 
 Authority comes from memberships the subject holds now. An expired membership gives no tenant and no assign authority. For a role on a nested scope, the tenant and ancestors are read from the subject's own live membership at that instance (or at one of its ancestors), and a `within` that disagrees is denied with `no-membership`. When the subject holds nothing at the instance, as an organization admin assigning a role on a customer does, `within` is taken from the change only with `{ trusted: true }`, which the application passes after loading the customer's ancestors from its own store. Without either, the change is denied with `no-membership`.
 
-| Rule | Checked on | Denial reason |
-| --- | --- | --- |
-| The role is declared and held at `scope` | every change | `unknown-role`, `scope` |
-| The subject changes someone else | every change | `self-demotion` (revoke, transfer), `not-assignable-by` (assign) |
-| The subject may hand the role out: it is in `assignableRoles()` for the instance's tenant and, with an `assigns` graph, a role the subject holds at the instance or an ancestor in `within` lists it | assign, revoke | `not-assignable-by` |
-| The subject holds the role at the instance | transfer | `not-assignable-by` |
-| The target's `via` is in the role's `for` | assign, transfer | `not-allowed-for-membership` |
-| The target holds no role in the role's `exclusiveWith` (or listing it) | assign, transfer | `conflicting-role` |
-| The holder count stays within `min` and `max`, and a `transferOnly` count does not move | whenever the count changes | `last-holder`, `max-holders`, `transfer-only` |
+| Rule                                                                                                                                                                                                 | Checked on                 | Denial reason                                                    |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- | ---------------------------------------------------------------- |
+| The role is declared and held at `scope`                                                                                                                                                             | every change               | `unknown-role`, `scope`                                          |
+| The subject changes someone else                                                                                                                                                                     | every change               | `self-demotion` (revoke, transfer), `not-assignable-by` (assign) |
+| The subject may hand the role out: it is in `assignableRoles()` for the instance's tenant and, with an `assigns` graph, a role the subject holds at the instance or an ancestor in `within` lists it | assign, revoke             | `not-assignable-by`                                              |
+| The subject holds the role at the instance                                                                                                                                                           | transfer                   | `not-assignable-by`                                              |
+| The target's `via` is in the role's `for`                                                                                                                                                            | assign, transfer           | `not-allowed-for-membership`                                     |
+| The target holds no role in the role's `exclusiveWith` (or listing it)                                                                                                                               | assign, transfer           | `conflicting-role`                                               |
+| The holder count stays within `min` and `max`, and a `transferOnly` count does not move                                                                                                              | whenever the count changes | `last-holder`, `max-holders`, `transfer-only`                    |
 
 An unknown or malformed `holders` fails closed: a role with `min`, `max` or `transferOnly` is denied with `holders: null` in the detail. Assigning a role the target already holds leaves the count alone; transferring to someone who already holds it counts as a removal. `granted` names the role that authorised the change (the transferred role for a transfer, the assigning role with an `assigns` graph, `null` otherwise). Pair it with a permission check for the action itself:
 
 ```ts
-'use server'
+"use server";
 export async function changeRole(input: unknown) {
-  const permdock = await getPermDock()
-  permdock.assert(permissions.member.assignRole)
-  const change = RoleChangeSchema.parse(input)                    // boundary data: validate it
-  const within = await db.scopes.ancestors(change.scope, change.id) // never from the request
-  const target = await db.memberships.find(change.scope, change.id, change.targetId)
-  const holders = await db.memberships.count(change.scope, change.id, change.role)
+  const permdock = await getPermDock();
+  permdock.assert(permissions.member.assignRole);
+  const change = RoleChangeSchema.parse(input); // boundary data: validate it
+  const within = await db.scopes.ancestors(change.scope, change.id); // never from the request
+  const target = await db.memberships.find(
+    change.scope,
+    change.id,
+    change.targetId,
+  );
+  const holders = await db.memberships.count(
+    change.scope,
+    change.id,
+    change.role,
+  );
   const decision = permdock.decideRoleChange(
     { ...change, within, target, holders },
     { trusted: true },
-  )
-  if (decision.outcome === 'denied') return { denials: decision.denials }
-  await db.memberships.apply(change)                              // the triggers re-check at commit
-  return { changed: true }
+  );
+  if (decision.outcome === "denied") return { denials: decision.denials };
+  await db.memberships.apply(change); // the triggers re-check at commit
+  return { changed: true };
 }
 ```
 
@@ -120,8 +144,8 @@ Without `assigns`, [`assignableRoles()`](/docs/concepts/custom-roles) keeps its 
 `audiences()` returns the distinct `meta.audience` values of the roles held in the active tenant, in rank order, and `snapshot.audiences` carries the same list to the client:
 
 ```ts
-permdock.audiences()                       // ['staff'] for a member of T
-permdock.tenant('B').audiences()           // ['portal'] for the same user, a contact in B
+permdock.audiences(); // ['staff'] for a member of T
+permdock.tenant("B").audiences(); // ['portal'] for the same user, a contact in B
 ```
 
 Use it to pick a layout or a landing page (the staff app, the customer portal, the platform console) and to show a "switch to portal" link to someone who has both. It decides nothing: every page still checks its permissions.

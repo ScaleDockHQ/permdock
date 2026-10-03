@@ -1,5 +1,13 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
   "extends": ["//"],
-  "tags": ["library"]
+  "tags": ["library"],
+  "tasks": {
+    "typecheck": {
+      "dependsOn": ["build", "^build"]
+    },
+    "test": {
+      "inputs": ["$TURBO_DEFAULT$", "tests/testing/fixtures/authzen/**"]
+    }
+  }
 }

@@ -1,0 +1,24 @@
+Generate the Supabase Custom Access Token Hook, or inspect its manifest (permdock supabase)
+
+USAGE permdock supabase [OPTIONS] [AREA] [VERB]
+
+ARGUMENTS
+
+  AREA    hook or inspect
+  VERB    hook: generate 
+
+OPTIONS
+
+             --cwd=<dir>    Run as if started in this directory                                 
+         --config=<file>    Config file (default permdock.config.{ts,mts,js,mjs})               
+                  --json    Machine-readable output                                             
+               -y, --yes    Never prompt; take the answer the flags give                        
+                 --color    Styled output on a colour terminal (Default: true)                  
+              --no-color    Plain output                                                        
+            --out=<file>    File to write; a bare --out on inspect writes permdock.manifest.json
+                 --check    Exit 1 when the file on disk is stale; write nothing                
+              --db=<url>    Postgres connection string                                          
+  --active-from=<source>    Where the hook reads the active tenant                              
+        --budget=<bytes>    Byte budget for the memberships claim                               
+         --schema=<name>    Schema for the hook function                                        
+     --grants-out=<file>    File for the supabase_auth_admin grants                             

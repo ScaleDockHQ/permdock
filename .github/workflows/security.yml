@@ -7,7 +7,7 @@ on:
     branches: [main]
   schedule:
     # Weekly, so new zizmor audits and advisories surface without a push.
-    - cron: '41 4 * * 1'
+    - cron: "41 4 * * 1"
 
 permissions: {}
 

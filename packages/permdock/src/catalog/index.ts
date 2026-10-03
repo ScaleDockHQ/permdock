@@ -1,4 +1,4 @@
-export { parseCatalog, rowConditionKeys } from './parse.ts';
+export { parseCatalog, rowConditionKeys } from "./parse.ts";
 export type {
   CatalogActivation,
   CatalogApproval,
@@ -13,4 +13,4 @@ export type {
   CatalogSupportAccess,
   CatalogUsage,
   CatalogValidity,
-} from './types.ts';
+} from "./types.ts";

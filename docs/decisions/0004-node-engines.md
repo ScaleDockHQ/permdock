@@ -14,3 +14,8 @@ The root `devEngines` pins the toolchain. `packages/permdock` publishes `engines
 ## Consequences
 
 Consumers on Node.js 25 or later are not warned. CI runs Node.js 24, so a break on a newer major shows up only in the runtime tests or a user report.
+
+## Alternatives considered
+
+- `engines.node` equal to the `devEngines` pin: consumers on any other 24.x release would get an engine warning for no reason.
+- No `engines` field: a consumer on Node.js 22 would install and fail at runtime.

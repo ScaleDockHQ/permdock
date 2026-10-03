@@ -1,5 +1,8 @@
-import { createFromSource } from 'fumadocs-core/search/server';
+import { searchServer } from "@/lib/search";
+import { publicCacheControl } from "@/lib/shared";
 
-import { source } from '@/lib/source';
-
-export const { GET } = createFromSource(source);
+export async function GET(request: Request): Promise<Response> {
+  const response = await searchServer.GET(request);
+  response.headers.set("Cache-Control", publicCacheControl);
+  return response;
+}

@@ -1,18 +1,18 @@
-import { cookies } from 'next/headers';
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { cookies } from "next/headers";
+import { createHmac, timingSafeEqual } from "node:crypto";
 
-import type { User } from '../policy.ts';
+import type { User } from "../policy.ts";
 
-import { membershipsOf, people } from './store.ts';
+import { membershipsOf, people } from "./store.ts";
 
-export const SESSION_COOKIE = 'example_session';
+export const SESSION_COOKIE = "example_session";
 
 // A demo secret so the example runs without configuration; set
 // SESSION_SECRET in any deployment.
-const SECRET = process.env['SESSION_SECRET'] ?? 'permdock-example-next-secret';
+const SECRET = process.env["SESSION_SECRET"] ?? "permdock-example-next-secret";
 
 function sign(user: string): string {
-  return createHmac('sha256', SECRET).update(user).digest('base64url');
+  return createHmac("sha256", SECRET).update(user).digest("base64url");
 }
 
 export function sessionValue(user: string): string {
@@ -24,7 +24,7 @@ export function verifySession(value: string | null): string | null {
   if (value === null) {
     return null;
   }
-  const dot = value.lastIndexOf('.');
+  const dot = value.lastIndexOf(".");
   if (dot <= 0) {
     return null;
   }

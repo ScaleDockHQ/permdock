@@ -1,13 +1,13 @@
-import type { Subject } from '../core/subject.ts';
+import type { Subject } from "../core/subject.ts";
 
 export type WithSubjectOptions = {
   /** Which settings the generated policies read; match `rls.dialect`. Default `supabase`. */
-  readonly dialect?: 'supabase' | 'guc' | 'neon';
+  readonly dialect?: "supabase" | "guc" | "neon";
   /**
    * `set local role` before the settings: `authenticated` with a principal, `anon` without.
    * `false` keeps the connection's role, for a login role that RLS already applies to.
    */
-  readonly role?: 'authenticated' | 'anon' | false;
+  readonly role?: "authenticated" | "anon" | false;
   /** Prefix of the `guc` dialect's settings (`rls.gucPrefix`). Default `app`. */
   readonly gucPrefix?: string;
   /** Claim holding the principal's tenant (`rls.tenantClaim`). Default `tenant_id`. */
@@ -38,7 +38,7 @@ function settingName(name: string, what: string): string {
 
 function setConfig(name: string, value: string): SubjectStatement {
   return {
-    strings: [`select set_config('${name}', `, ', true)'],
+    strings: [`select set_config('${name}', `, ", true)"],
     values: [value],
   };
 }
@@ -53,52 +53,52 @@ export function subjectStatements(
   options: WithSubjectOptions = {},
 ): readonly SubjectStatement[] {
   const principal = permdock.subject.principal;
-  const role = options.role ?? (principal === null ? 'anon' : 'authenticated');
-  if (role !== false && role !== 'authenticated' && role !== 'anon') {
+  const role = options.role ?? (principal === null ? "anon" : "authenticated");
+  if (role !== false && role !== "authenticated" && role !== "anon") {
     throw new Error(
       `PermDock: withSubject sets role authenticated or anon, not '${String(role)}'`,
     );
   }
   const tenantClaim = settingName(
-    options.tenantClaim ?? 'tenant_id',
-    'tenant claim',
+    options.tenantClaim ?? "tenant_id",
+    "tenant claim",
   );
   const claims: Record<string, unknown> = Object.fromEntries(
     Object.entries(options.claims ?? {}).filter(
-      ([name]) => name !== 'sub' && name !== 'role' && name !== tenantClaim,
+      ([name]) => name !== "sub" && name !== "role" && name !== tenantClaim,
     ),
   );
   if (principal !== null) {
-    claims['sub'] = principal.id;
+    claims["sub"] = principal.id;
     if (principal.tenant !== undefined) {
       claims[tenantClaim] = principal.tenant;
     }
   }
   if (role !== false) {
-    claims['role'] = role;
+    claims["role"] = role;
   }
   const statements: SubjectStatement[] =
     role === false ? [] : [{ strings: [`set local role ${role}`], values: [] }];
-  const dialect = options.dialect ?? 'supabase';
+  const dialect = options.dialect ?? "supabase";
   switch (dialect) {
-    case 'supabase':
-    case 'neon':
+    case "supabase":
+    case "neon":
       statements.push(
-        setConfig('request.jwt.claims', JSON.stringify(claims)),
-        setConfig('request.jwt.claim.sub', principal?.id ?? ''),
+        setConfig("request.jwt.claims", JSON.stringify(claims)),
+        setConfig("request.jwt.claim.sub", principal?.id ?? ""),
       );
       return statements;
-    case 'guc': {
-      const prefix = settingName(options.gucPrefix ?? 'app', 'setting prefix');
-      statements.push(setConfig(`${prefix}.user_id`, principal?.id ?? ''));
+    case "guc": {
+      const prefix = settingName(options.gucPrefix ?? "app", "setting prefix");
+      statements.push(setConfig(`${prefix}.user_id`, principal?.id ?? ""));
       for (const [name, value] of Object.entries(claims)) {
-        if (name === 'sub') {
+        if (name === "sub") {
           continue;
         }
         statements.push(
           setConfig(
-            `${prefix}.${settingName(name, 'claim name')}`,
-            typeof value === 'string' ? value : JSON.stringify(value),
+            `${prefix}.${settingName(name, "claim name")}`,
+            typeof value === "string" ? value : JSON.stringify(value),
           ),
         );
       }
@@ -113,7 +113,7 @@ export function subjectStatements(
 
 /** A statement as text with `$1`, `$2` placeholders, for raw executors. */
 export function statementText(statement: SubjectStatement): string {
-  let text = '';
+  let text = "";
   for (const [index, part] of statement.strings.entries()) {
     text = index === 0 ? part : `${text}$${String(index)}${part}`;
   }
