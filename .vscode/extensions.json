@@ -4,7 +4,8 @@
     "oxc.oxc-vscode",
     "bradlc.vscode-tailwindcss",
     "EditorConfig.EditorConfig",
-    "vivaxy.vscode-conventional-commits"
+    "vivaxy.vscode-conventional-commits",
+    "github.vscode-pull-request-github"
   ],
   "unwantedRecommendations": [
     "dbaeumer.vscode-eslint",

@@ -14,6 +14,7 @@ pnpm verify
 
 - [ ] `pnpm verify` passes
 - [ ] User-visible change has a changeset (`pnpm changeset`); CI-only changes do not
+- [ ] A dependency bump that adds, moves or clears a prerelease updates "Pre-release pins" in `AGENTS.md` (and `docs/decisions/0018-blocked-majors.md` for a held major)
 - [ ] A new env key is in the app's `env.ts`, `.env.example`, `turbo.json` and Vercel; secrets are not `NEXT_PUBLIC_*`
 - [ ] Rows in `AGENTS.md` "When you change X" and `.agents/rules/change-checklist.mdc` that match this change are done (docs page, `meta.json`, skill, example, tests)
 - [ ] No invariant in `.agents/rules/invariants.mdc` is broken

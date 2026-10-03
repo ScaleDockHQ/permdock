@@ -8,7 +8,7 @@
       "command": "pnpm dev:portless",
       "serverReadyAction": {
         "action": "openExternally",
-        "pattern": "Ready in",
+        "pattern": "Ready in [0-9]+ms",
         "uriFormat": "https://permdock.localhost"
       },
       "postDebugTask": "dev:cleanup"
@@ -17,10 +17,10 @@
       "name": "docs (Portless)",
       "type": "node-terminal",
       "request": "launch",
-      "command": "pnpm exec dotenv -e .env.local -e .env.development.local -- turbo run dev:portless --filter=docs",
+      "command": "pnpm exec dotenv -e .env.development.local -e .env.local -- turbo run dev:portless --filter=docs",
       "serverReadyAction": {
         "action": "openExternally",
-        "pattern": "Ready in",
+        "pattern": "Ready in [0-9]+ms",
         "uriFormat": "https://docs.permdock.localhost/docs"
       },
       "postDebugTask": "dev:cleanup"

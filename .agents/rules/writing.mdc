@@ -1,12 +1,7 @@
 ---
 description: Prose rules against AI slop for docs, READMEs, skills, changesets, rules, code comments, commit messages and PR descriptions - lead with the fact, name the thing, no marketing words, no filler
-globs: "**/*.md,**/*.mdx,**/*.mdc,.changeset/**"
-alwaysApply: false
-paths:
-  - "**/*.md"
-  - "**/*.mdx"
-  - "**/*.mdc"
-  - ".changeset/**"
+globs:
+alwaysApply: true
 ---
 
 # Writing

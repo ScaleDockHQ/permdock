@@ -6,21 +6,23 @@ For agents and humans changing this repository. Consumers get the `permdock` and
 
 ## Rules
 
-Topic rules live in `.agents/rules/*.mdc`. Cursor loads them through the `.cursor/rules` symlink and Claude Code through the `.claude/rules/<name>.md` symlinks; both attach a rule when you touch a file matching its globs. If your tool loads neither, read the rule for the area you touch.
+Topic rules live in `.agents/rules/*.mdc`. Cursor loads them through the `.cursor/rules` symlink and Claude Code through the `.claude/rules/<name>.md` symlinks. Always-on rules load in every session; the others attach when you touch a file matching their globs. If your tool loads neither, read the rule for the area you touch.
 
-| Rule                                   | Read it when                                                                                        |
-| -------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| `invariants.mdc`                       | Changing `packages/permdock/src`, `tests` or `apps/examples`: the full text of the invariants below |
-| `naming.mdc`                           | Adding or renaming a public identifier, option, flag, denial reason or wire field                   |
-| `change-checklist.mdc`                 | Before opening a PR: what else to update when you change X                                          |
-| `docs.mdc`                             | Editing `apps/docs/content/docs`                                                                    |
-| `testing.mdc`                          | Writing tests, runners, fixtures or examples                                                        |
-| `deployment.mdc`                       | Touching `apps/marketing`, the docs app code, `packages/{ui,next-config}` or `vercel.json`          |
-| `local-dev-portless-agent-browser.mdc` | Running or checking the apps locally                                                                |
-| `skills.mdc`                           | Touching `packages/permdock/skills`, `.claude-plugin`, vendored skills or `skills-lock.json`        |
-| `writing.mdc`                          | Writing any prose: docs, READMEs, skills, changesets, comments, commits, PRs                        |
+| Rule                                   | Read it when                                                                                 |
+| -------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `architecture.mdc`                     | Always on: layout, boundary tags, code rules                                                 |
+| `git-workflow.mdc`                     | Always on: one branch and one PR per chat or plan, never merge unasked                       |
+| `writing.mdc`                          | Always on: prose in docs, READMEs, skills, changesets, comments, commits, PRs                |
+| `invariants.mdc`                       | Changing `packages/permdock/src`, `tests` or `apps/examples`                                 |
+| `naming.mdc`                           | Adding or renaming a public identifier, option, flag, denial reason or wire field            |
+| `change-checklist.mdc`                 | Before opening a PR: what else to update when you change X                                   |
+| `docs.mdc`                             | Editing `apps/docs/content/docs`                                                             |
+| `testing.mdc`                          | Writing tests, runners, fixtures or examples                                                 |
+| `deployment.mdc`                       | Touching `apps/marketing`, the docs app code, `packages/{ui,next-config}` or `vercel.json`   |
+| `local-dev-portless-agent-browser.mdc` | Running or checking the apps locally                                                         |
+| `skills.mdc`                           | Touching `packages/permdock/skills`, `.claude-plugin`, vendored skills or `skills-lock.json` |
 
-A new rule gets `description`, `globs` and `alwaysApply` (Cursor) plus `paths` (Claude Code) frontmatter, a row in this table, and a `.claude/rules/<name>.md` symlink (Claude Code ignores `.mdc`).
+A new rule gets `description`, `globs` and `alwaysApply` (Cursor) frontmatter, plus `paths` (Claude Code) unless it is always on, a row here, and a `.claude/rules/<name>.md` symlink.
 
 ## Status
 
@@ -29,30 +31,16 @@ Pre-release. Everything here is the 0.1.0 baseline; nothing has shipped, so ther
 ## Repo layout
 
 ```
-packages/
-  permdock/           npm `permdock`, the only published package (`scaledockhq` npm org)
-    src/core, src/conditions, one folder per subpath adapter (react, next, hono, mcp, ai-sdk, drizzle, …)
-    src/testing       `permdock/testing`: policy matrix, conformance and scenario runners, `permdock/testing/saas`
-    src/cli           the `permdock` bin (collect, catalog, diff, usage, openapi, rls, doctor, skills, cloud, arazzo)
-                      and `permdock/cli`; commands load on demand
-    src/next/plugin.ts, src/unplugin   build-time collect hooks only
-    schemas/ rulesets/ skills/         catalog and OpenAPI schemas, lint ruleset, consumer skills
-  typescript-config/  private tsconfig presets: base, library, react-library, next
-  ox-config/          private oxlint and oxfmt config; root configs add repo ignores and `typeAware`
-  next-config/        private createNextConfig(): headers, allowedDevOrigins, Sentry
-  ui/                 private vendored shadcn/ui, ReUI, AI Elements; per-file exports
-apps/
-  marketing/          Next.js 16.3 marketing site, Vercel Service at `/`
-  docs/               Fumadocs on Next.js 16.3, content in apps/docs/content/docs, Vercel Service at `/docs`
-  examples/<name>/    one app per adapter (eve-agent doubles as the PermDock Cloud Marketplace template)
-tests/
-  e2e/                Playwright over examples; fixtures/<name> scenario apps over permdock/testing/saas
-  types/              public types under TS 5.9 / 6 / 7
-  integration/        Postgres via testcontainers: RLS parity, providers
-  runtimes/           Bun, Deno and workerd
-  bundle/             per-entry gzip baseline, client-entry and dependency assertions
-.agents/rules/        topic rules (see Rules); .agents/skills/ vendored skills pinned in skills-lock.json
-docs/agents/          corrections agents needed twice; docs/decisions/ exceptions to the repo standard
+packages/permdock/    npm `permdock`, the only published package
+  src/core, src/conditions, one folder per subpath adapter (react, next, hono, mcp, ai-sdk, drizzle, …)
+  src/testing         `permdock/testing`: policy matrix, conformance and scenario runners
+  src/cli             the `permdock` bin and `permdock/cli`; commands load on demand
+  schemas/ rulesets/ skills/   catalog and OpenAPI schemas, lint ruleset, consumer skills
+packages/{typescript-config,ox-config,next-config,ui}   private presets, createNextConfig(), vendored UI
+apps/marketing/ apps/docs/   Next.js 16.3, Vercel Services at `/` and `/docs`
+apps/examples/<name>/        one app per adapter
+tests/{e2e,types,integration,runtimes,bundle}   Playwright, TS 5.9/6/7, Postgres, Bun/Deno/workerd, size
+docs/agents/ docs/decisions/   corrections agents needed twice; exceptions to the repo standard
 ```
 
 ## Commands (keep these names)
@@ -60,27 +48,27 @@ docs/agents/          corrections agents needed twice; docs/decisions/ exception
 ```bash
 pnpm install
 pnpm build                 # turbo run build (tsdown)
+pnpm check                 # format:check, lint, typecheck: the fast gate
+pnpm verify                # every CI gate: root steps, then one cached turbo run
 pnpm test                  # vitest unit + type tests
 pnpm test:e2e              # playwright across apps/examples
 pnpm test:integration      # testcontainers Postgres (Docker)
 pnpm test:runtimes         # Bun (on PATH), Deno and workerd; CI requires all three
 pnpm lint && pnpm format   # oxlint per workspace, oxfmt over the whole repo
-pnpm typecheck             # turbo run typecheck (tsc --noEmit per package)
 pnpm knip                  # unused files, exports and dependencies
-pnpm verify                # format:check, lint, typecheck, knip, boundaries, test, docs:drift
-pnpm check:publish         # publint + arethetypeswrong
-pnpm size                  # per-entry gzip measurements
-pnpm docs:drift            # docs match doctor codes, entries, meta.json, standards tests
+pnpm size                  # per-entry gzip against the baseline
+pnpm gen:check && pnpm doctor   # generated catalogs and SQL current; doctors per example
+pnpm docs:drift            # docs match doctor codes, entries, meta.json, names
 pnpm dev:portless          # https://permdock.localhost, docs at /docs
-pnpm docs:dev              # apps/docs on :3001, no Portless
-pnpm marketing:dev         # apps/marketing on :3000, proxies /docs
-pnpm env:pull              # .env.{development,preview,production}.local from Vercel
+pnpm dev:docs              # apps/docs on :3001, no Portless
+pnpm dev:marketing         # apps/marketing on :3000, proxies /docs
+pnpm env:pull              # .env.local from Vercel development
 pnpm changeset             # every user-visible change
 ```
 
 ## Local dev
 
-Run `pnpm exec portless list` first and reuse a running PermDock route. The Portless proxy is shared with other repositories: never stop it, never run `portless clean` or `prune`, never kill a process you did not start. Check UI changes with `agent-browser` on the Portless URL. [`docs/agents/`](./docs/agents/README.md) lists the fixes agents needed before; read the file for the area you touch.
+Run `pnpm exec portless list` first and reuse a running PermDock route. The Portless proxy is shared with other repositories: never stop it, never run `portless clean` or `prune` (`pnpm dev:cleanup` is the user's to run), never kill a process you did not start. Check UI changes with `agent-browser` on the Portless URL. [`docs/agents/`](./docs/agents/README.md) lists the fixes agents needed before.
 
 ## When you change X, also update Y
 
@@ -89,9 +77,15 @@ Run `pnpm exec portless list` first and reuse a running PermDock route. The Port
 | Env key                        | The app's `env.ts`, `.env.example`, the task `env` in `turbo.json`, Vercel for each environment  |
 | Route                          | The app's `sitemap.ts`, `deployment.mdc` route ownership, a `redirects()` entry for a moved URL  |
 | UI primitive                   | Vendor it into `packages/ui` with the shadcn CLI, then `DESIGN.md` if it adds a token or pattern |
-| Dependency                     | Catalog pin (`docs/agents/pnpm-catalog.md`), the installed docs for any config it touches        |
+| Dependency                     | Catalog pin (`docs/agents/pnpm-catalog.md`), "Pre-release pins" below, the installed docs        |
+| `typescript` bump              | `oxlint-tsgolint` in the same commit                                                             |
+| Next.js bump                   | Run `next dev` once per Next.js app and commit the refreshed `AGENTS.md` block                   |
+| Package version                | `server.json`                                                                                    |
+| File move                      | Knip entries, the `docs:drift` paths                                                             |
+| Rename                         | The docs Naming page, the `docs:drift` naming check, the changeset's old-to-new table            |
+| Perf-sensitive change          | The bundle, type and CLI-startup baselines, before and after in the commit                       |
 | User-visible change            | A changeset; the owning docs page                                                                |
-| Exception to the repo standard | A record in `docs/decisions`                                                                     |
+| Exception to the repo standard | A record in `docs/decisions` and a line under Deviations                                         |
 | `permdock`, docs or examples   | The rows in `change-checklist.mdc`                                                               |
 
 ## Hard rules
@@ -123,13 +117,28 @@ A PR that breaks one is wrong, whatever else it does. Full text in `.agents/rule
 14. **Naming convention** (`naming.mdc`) is public API.
 15. **The Cloud is optional** and never on the decision path; every hosted capability is an interface with an in-process default.
 
-## Working style
+## Agent workflow
 
-- Small PRs, one adapter or one concept each. Public API changes start as an RFC-lite issue and end as an update to the owning page.
-- Every user-visible change has a changeset; CI-only changes do not.
-- Tests before features for anything touching evaluation semantics (`testing.mdc`).
-- Prefer deleting an open question by deciding it over carrying it forward.
-- Conventional commits, lower-case subject, at most 72 characters. The PR body follows `.github/pull_request_template.md`.
+One branch and one PR per chat or plan, small conventional commits (lower-case subject, at most 72 characters), and never merge unless asked and the required checks pass: `git-workflow.mdc`. Public API changes start as an RFC-lite issue and end as an update to the owning page. Tests come before features for evaluation semantics (`testing.mdc`). Decide an open question rather than carry it forward.
+
+## Deviations
+
+Each is a record in `docs/decisions`:
+
+- 0002 no global `typescript` override; 0003 Zod and agent SDKs where PermDock supports them; 0004 `engines.node: ">=24"`
+- 0005 extra workspace globs and root scripts; 0006 relaxed tsconfig for vendored UI
+- 0008 `turbo query affected`; 0009 boundary rules Turborepo cannot express; 0010 pnpm through Corepack on Vercel
+- 0011 no docs `robots.ts`; 0012 cross-zone links are plain anchors; 0013 no `fumadocs-openapi`
+- 0015 Ask AI input from `InputGroup`; 0016 Portless names; 0017 `permdock-<topic>` skills; 0018 blocked majors
+- 0019 `<Adapter>PermDock` and no `$` members; 0020 the CLI inside `permdock`; 0021 `^build` over `transit`
+- 0022 a `Status:` line; 0023 fence titles optional; 0024 root changelog first; 0025 `vercel.json`
+
+## Pre-release pins
+
+- `@orpc/server`, `@orpc/client` 2.0.0-beta.41: `permdock/orpc` targets oRPC 2's `openapi()` metadata.
+- `drizzle-orm` 1.0.0-rc.4: the release candidate the standard asks for; the peer also accepts 0.40.
+- `nitro` 3.0.260903-beta: the `solidstart-saas` fixture; Nitro 3 has no stable release.
+- Prisma 8 and Expo SDK 58 stay on 7.10.0 and SDK 57 until their blockers clear (0018).
 
 ## Turbo agent guidance
 
