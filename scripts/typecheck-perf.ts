@@ -8,6 +8,8 @@ const PERMDOCK = join(ROOT, "packages", "permdock");
 const BUDGET = join(ROOT, "scripts", "typecheck-perf.json");
 /** Headroom over the recorded count before the gate fails. */
 const INSTANTIATION_SLACK = 1.1;
+/** CI runners share their cores with the rest of the turbo run, so check time there only reports. */
+const ENFORCE_CHECK_TIME = process.env["CI"] === undefined;
 
 const PROJECTS = {
   src: "tsconfig.json",
@@ -87,7 +89,7 @@ for (const project of ["src", "tests"] as const) {
       `${project}: ${measured.instantiations} instantiations is more than ${INSTANTIATION_SLACK}x the recorded ${limit.instantiations}`,
     );
   }
-  if (measured.checkSeconds > limit.maxCheckSeconds) {
+  if (ENFORCE_CHECK_TIME && measured.checkSeconds > limit.maxCheckSeconds) {
     failures.push(
       `${project}: check time ${measured.checkSeconds}s is over the ${limit.maxCheckSeconds}s ceiling`,
     );
