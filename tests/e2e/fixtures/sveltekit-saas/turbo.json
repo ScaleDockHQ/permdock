@@ -4,6 +4,7 @@
   "tags": ["test"],
   "tasks": {
     "build": {
+      "dependsOn": ["^build", "typegen"],
       "outputs": ["build/**"]
     },
     "typegen": {

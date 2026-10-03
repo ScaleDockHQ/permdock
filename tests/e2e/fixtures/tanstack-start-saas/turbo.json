@@ -3,6 +3,9 @@
   "extends": ["//"],
   "tags": ["test"],
   "tasks": {
+    "build": {
+      "dependsOn": ["^build", "typegen"]
+    },
     "typegen": {
       "outputs": ["src/routeTree.gen.ts"]
     }
