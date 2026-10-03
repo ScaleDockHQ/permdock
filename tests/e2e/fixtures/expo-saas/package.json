@@ -6,7 +6,7 @@
   "main": "expo-router/entry",
   "scripts": {
     "build": "expo export --platform web --output-dir dist",
-    "lint": "oxlint --disable-nested-config",
+    "lint": "oxlint --disable-nested-config --type-aware",
     "serve": "node scripts/serve.ts",
     "typecheck": "tsc --noEmit --checkers 4"
   },

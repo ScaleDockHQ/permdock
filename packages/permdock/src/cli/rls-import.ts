@@ -85,10 +85,10 @@ function splitPolicies(sql: string): ImportedPolicy[] {
     const clauses = body.search(/\b(?:using|with\s+check)\s*\(/i);
     const header = clauses === -1 ? body : body.slice(0, clauses);
     const asRestrictive = /\bas\s+restrictive\b/i.test(header);
-    const cmdMatch = header.match(
-      /\bfor\s+(all|select|insert|update|delete)\b/i,
+    const cmdMatch = /\bfor\s+(all|select|insert|update|delete)\b/i.exec(
+      header,
     );
-    const toMatch = header.match(/\bto\s+([^\n]+)/i);
+    const toMatch = /\bto\s+([^\n]+)/i.exec(header);
     const using = extractParenClause(body, 'using');
     const check = extractParenClause(body, 'with\\s+check');
     const roles = (toMatch?.[1] ?? 'authenticated')

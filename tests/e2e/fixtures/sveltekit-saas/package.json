@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "lint": "oxlint --disable-nested-config",
+    "lint": "oxlint --disable-nested-config --type-aware",
     "serve": "node scripts/serve.ts",
     "typecheck": "svelte-kit sync && tsc --noEmit --checkers 4",
     "typegen": "svelte-kit sync"

@@ -51,25 +51,29 @@ const envAllowList = [
   ...runtimeOnlyEnv,
 ].map((name) => `^${name.replace('*', '.*')}$`);
 
-/**
- * Imports the repository never takes, anywhere: Base UI replaces Radix, and
- * the shadcn Drawer replaces vaul.
- */
-const neverImport = {
-  paths: [
-    { name: 'vaul', message: 'Use the shadcn Drawer from `@permdock/ui`.' },
-  ],
-  patterns: [
-    { group: ['@radix-ui/*'], message: 'Use Base UI (`@base-ui/react`).' },
-  ],
-};
-
 function banned(
   names: readonly string[],
   message: string,
 ): { name: string; message: string }[] {
   return names.map((name) => ({ name, message }));
 }
+
+const dateMessage = 'Dates use `Temporal`.';
+
+/**
+ * Imports the repository never takes, anywhere: Base UI replaces Radix, the
+ * shadcn Drawer replaces vaul, and dates use `Temporal`.
+ */
+const neverImport = {
+  paths: [
+    { name: 'vaul', message: 'Use the shadcn Drawer from `@permdock/ui`.' },
+    ...banned(['date-fns', 'dayjs', 'luxon', 'moment'], dateMessage),
+  ],
+  patterns: [
+    { group: ['@radix-ui/*'], message: 'Use Base UI (`@base-ui/react`).' },
+    { group: ['@date-fns/*'], message: dateMessage },
+  ],
+};
 
 /**
  * One library per concern for the docs and marketing apps and the packages
@@ -86,7 +90,6 @@ export const oneLibraryPerConcern: Rules = {
           ['zod', 'zod/mini', 'arktype', 'yup', 'joi'],
           'Schemas use Valibot.',
         ),
-        ...banned(['moment', 'dayjs', 'luxon'], 'Dates use date-fns.'),
         ...banned(
           [
             'openai',
@@ -127,7 +130,6 @@ export const oneLibraryPerConcern: Rules = {
 export const core: OxlintConfig = defineConfig({
   ignorePatterns: [...ignorePatterns],
   options: {
-    typeAware: true,
     denyWarnings: true,
     reportUnusedDisableDirectives: 'error',
   },
@@ -175,7 +177,20 @@ export const core: OxlintConfig = defineConfig({
     // turbo.json runs in strict env mode; undeclared variables are cache bugs.
     'turbo/no-undeclared-env-vars': ['error', { allowList: envAllowList }],
     'typescript/await-thenable': 'error',
+    'typescript/consistent-type-exports': 'error',
     'typescript/consistent-type-imports': 'error',
+    // noPropertyAccessFromIndexSignature requires brackets for index-signature reads.
+    'typescript/dot-notation': [
+      'error',
+      { allowIndexSignaturePropertyAccess: true },
+    ],
+    'typescript/non-nullable-type-assertion-style': 'error',
+    'typescript/prefer-find': 'error',
+    'typescript/prefer-includes': 'error',
+    'typescript/prefer-reduce-type-parameter': 'error',
+    'typescript/prefer-regexp-exec': 'error',
+    'typescript/prefer-return-this-type': 'error',
+    'typescript/prefer-string-starts-ends-with': 'error',
     'typescript/no-deprecated': 'error',
     'typescript/no-explicit-any': 'error',
     'typescript/no-floating-promises': 'error',

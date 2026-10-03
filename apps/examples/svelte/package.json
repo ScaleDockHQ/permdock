@@ -6,7 +6,7 @@
   "scripts": {
     "build": "vite build",
     "dev": "vite",
-    "lint": "oxlint --disable-nested-config",
+    "lint": "oxlint --disable-nested-config --type-aware",
     "preview": "vite preview --host 127.0.0.1 --port 3482",
     "typecheck": "tsc --noEmit --checkers 4"
   },

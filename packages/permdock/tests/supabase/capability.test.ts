@@ -147,7 +147,7 @@ describe('exchangeCapability', () => {
       kid: signing.kid,
       now: NOW,
     });
-    expect(decodeProtectedHeader(token ?? '')['alg']).toBe('ES256');
+    expect(decodeProtectedHeader(token ?? '').alg).toBe('ES256');
     await expect(
       exchangeCapability(linkSubject(), { key: { secret: SECRET } }),
     ).rejects.toThrow(/HS256 with \{ secret \} only/u);

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "prisma generate && node --watch --experimental-strip-types src/serve.ts",
-    "lint": "oxlint --disable-nested-config",
+    "lint": "oxlint --disable-nested-config --type-aware",
     "start": "prisma generate && node --experimental-strip-types src/serve.ts",
     "typecheck": "prisma generate && tsc --noEmit --checkers 4",
     "typegen": "prisma generate"
