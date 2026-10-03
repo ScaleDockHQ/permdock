@@ -1,0 +1,130 @@
+{
+  "$schema": "https://permdock.dev/schemas/catalog-v1.json",
+  "version": 1,
+  "generatedAt": "2026-10-03T18:25:49.147Z",
+  "generator": "permdock@0.1.0-next.2",
+  "fingerprint": "ynulzBfIhQ0UEZYBbQYdBJtB8Au31mlwCfesASrITPM",
+  "resources": {
+    "deploy": {
+      "id": "id",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "env": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "env"
+        ],
+        "additionalProperties": false
+      },
+      "definedIn": "src/permissions.ts"
+    }
+  },
+  "permissions": [
+    {
+      "key": "deploy.read",
+      "scope": "deploy:read",
+      "resource": "deploy",
+      "action": "read",
+      "arity": "collection",
+      "meta": {},
+      "usages": [
+        {
+          "file": "src/main.ts",
+          "line": 32,
+          "call": "tools"
+        },
+        {
+          "file": "src/main.ts",
+          "line": 62,
+          "call": "protect"
+        },
+        {
+          "file": "src/policy.ts",
+          "line": 11,
+          "call": "allow"
+        }
+      ],
+      "rowConditions": true
+    },
+    {
+      "key": "deploy.rollback",
+      "scope": "deploy:rollback",
+      "resource": "deploy",
+      "action": "rollback",
+      "arity": "instance",
+      "meta": {
+        "destructive": true
+      },
+      "usages": [
+        {
+          "file": "src/main.ts",
+          "line": 42,
+          "call": "tools"
+        },
+        {
+          "file": "src/main.ts",
+          "line": 74,
+          "call": "protect"
+        },
+        {
+          "file": "src/policy.ts",
+          "line": 13,
+          "call": "allow"
+        },
+        {
+          "file": "src/policy.ts",
+          "line": 19,
+          "call": "allow"
+        }
+      ],
+      "rowConditions": true
+    },
+    {
+      "key": "deploy.run",
+      "scope": "deploy:run",
+      "resource": "deploy",
+      "action": "run",
+      "arity": "instance",
+      "meta": {},
+      "usages": [
+        {
+          "file": "src/main.ts",
+          "line": 37,
+          "call": "tools"
+        },
+        {
+          "file": "src/main.ts",
+          "line": 67,
+          "call": "protect"
+        },
+        {
+          "file": "src/policy.ts",
+          "line": 12,
+          "call": "allow"
+        },
+        {
+          "file": "src/policy.ts",
+          "line": 18,
+          "call": "allow"
+        }
+      ],
+      "rowConditions": true
+    }
+  ],
+  "roles": [
+    {
+      "key": "developer"
+    },
+    {
+      "key": "release"
+    }
+  ]
+}

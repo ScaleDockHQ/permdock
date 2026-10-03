@@ -1,0 +1,282 @@
+{
+  "$schema": "https://permdock.dev/schemas/catalog-v1.json",
+  "version": 1,
+  "generatedAt": "2026-10-03T18:25:47.996Z",
+  "generator": "permdock@0.1.0-next.2",
+  "fingerprint": "YjQPCIaPnadv-NTK1RH31UsOuMPP2jnt2h2giGk-FDY",
+  "resources": {
+    "quote": {
+      "id": "id",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "organization_id": {
+            "type": "string"
+          },
+          "customer_id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "sent",
+              "approved"
+            ]
+          },
+          "total": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "organization_id",
+          "customer_id",
+          "title",
+          "status",
+          "total"
+        ],
+        "additionalProperties": false
+      },
+      "definedIn": "src/permissions.ts",
+      "relations": {
+        "organization": {
+          "field": "organization_id",
+          "memberOf": "organization"
+        },
+        "customer": {
+          "field": "customer_id",
+          "memberOf": "customer"
+        }
+      }
+    },
+    "member": {
+      "id": "id",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "organization_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "organization_id"
+        ],
+        "additionalProperties": false
+      },
+      "definedIn": "src/permissions.ts",
+      "relations": {
+        "organization": {
+          "field": "organization_id",
+          "memberOf": "organization"
+        }
+      }
+    }
+  },
+  "permissions": [
+    {
+      "key": "member.list",
+      "scope": "member:list",
+      "resource": "member",
+      "action": "list",
+      "arity": "collection",
+      "meta": {},
+      "usages": [
+        {
+          "file": "src/app/[org]/members/page.tsx",
+          "line": 52,
+          "call": "reference"
+        },
+        {
+          "file": "src/app/[org]/nav.tsx",
+          "line": 32,
+          "call": "tools"
+        },
+        {
+          "file": "src/policy.ts",
+          "line": 16,
+          "call": "allow"
+        }
+      ],
+      "rowConditions": true
+    },
+    {
+      "key": "member.manage",
+      "scope": "member:manage",
+      "resource": "member",
+      "action": "manage",
+      "arity": "collection",
+      "meta": {},
+      "usages": [
+        {
+          "file": "src/app/[org]/members/page.tsx",
+          "line": 25,
+          "call": "reference"
+        },
+        {
+          "file": "src/app/[org]/nav.tsx",
+          "line": 38,
+          "call": "tools"
+        },
+        {
+          "file": "src/app/[org]/settings/page.tsx",
+          "line": 13,
+          "call": "tools"
+        },
+        {
+          "file": "src/app/actions.ts",
+          "line": 69,
+          "call": "tools"
+        },
+        {
+          "file": "src/policy.ts",
+          "line": 33,
+          "call": "allow"
+        }
+      ],
+      "rowConditions": true
+    },
+    {
+      "key": "quote.approve",
+      "scope": "quote:approve",
+      "resource": "quote",
+      "action": "approve",
+      "arity": "instance",
+      "meta": {},
+      "usages": [
+        {
+          "file": "src/app/actions.ts",
+          "line": 33,
+          "call": "tools"
+        },
+        {
+          "file": "src/lib/access.ts",
+          "line": 79,
+          "call": "can"
+        },
+        {
+          "file": "src/policy.ts",
+          "line": 31,
+          "call": "allow"
+        },
+        {
+          "file": "src/policy.ts",
+          "line": 52,
+          "call": "allow"
+        }
+      ],
+      "rowConditions": true
+    },
+    {
+      "key": "quote.delete",
+      "scope": "quote:delete",
+      "resource": "quote",
+      "action": "delete",
+      "arity": "instance",
+      "meta": {},
+      "usages": [
+        {
+          "file": "src/app/[org]/quotes/[id]/delete-zone.tsx",
+          "line": 19,
+          "call": "assert"
+        },
+        {
+          "file": "src/app/actions.ts",
+          "line": 50,
+          "call": "tools"
+        },
+        {
+          "file": "src/policy.ts",
+          "line": 32,
+          "call": "allow"
+        },
+        {
+          "file": "src/policy.ts",
+          "line": 41,
+          "call": "allow"
+        }
+      ],
+      "rowConditions": true
+    },
+    {
+      "key": "quote.list",
+      "scope": "quote:list",
+      "resource": "quote",
+      "action": "list",
+      "arity": "collection",
+      "meta": {},
+      "usages": [
+        {
+          "file": "src/app/[org]/nav.tsx",
+          "line": 26,
+          "call": "tools"
+        },
+        {
+          "file": "src/policy.ts",
+          "line": 15,
+          "call": "allow"
+        },
+        {
+          "file": "src/policy.ts",
+          "line": 51,
+          "call": "allow"
+        }
+      ],
+      "rowConditions": true
+    },
+    {
+      "key": "quote.read",
+      "scope": "quote:read",
+      "resource": "quote",
+      "action": "read",
+      "arity": "instance",
+      "meta": {},
+      "usages": [
+        {
+          "file": "src/lib/access.ts",
+          "line": 55,
+          "call": "filter"
+        },
+        {
+          "file": "src/lib/access.ts",
+          "line": 76,
+          "call": "can"
+        },
+        {
+          "file": "src/policy.ts",
+          "line": 14,
+          "call": "allow"
+        },
+        {
+          "file": "src/policy.ts",
+          "line": 48,
+          "call": "allow"
+        }
+      ],
+      "rowConditions": true
+    }
+  ],
+  "roles": [
+    {
+      "key": "admin"
+    },
+    {
+      "key": "contact"
+    },
+    {
+      "key": "member"
+    }
+  ]
+}

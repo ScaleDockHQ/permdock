@@ -1,0 +1,90 @@
+{
+  "$schema": "https://permdock.dev/schemas/catalog-v1.json",
+  "version": 1,
+  "generatedAt": "2026-10-03T18:25:46.765Z",
+  "generator": "permdock@0.1.0-next.2",
+  "fingerprint": "bEKATNAhTXP85KIz5MQgpdlURDV6OcuQ9B69d3vpxEc",
+  "resources": {
+    "post": {
+      "id": "id",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "authorId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "authorId"
+        ],
+        "additionalProperties": false
+      },
+      "definedIn": "src/permissions.ts"
+    }
+  },
+  "permissions": [
+    {
+      "key": "post.delete",
+      "scope": "post:delete",
+      "resource": "post",
+      "action": "delete",
+      "arity": "instance",
+      "meta": {},
+      "usages": [
+        {
+          "file": "src/app.ts",
+          "line": 34,
+          "call": "can"
+        }
+      ],
+      "rowConditions": true
+    },
+    {
+      "key": "post.list",
+      "scope": "post:list",
+      "resource": "post",
+      "action": "list",
+      "arity": "collection",
+      "meta": {},
+      "usages": [
+        {
+          "file": "src/policy.ts",
+          "line": 9,
+          "call": "allow"
+        }
+      ],
+      "rowConditions": true
+    },
+    {
+      "key": "post.read",
+      "scope": "post:read",
+      "resource": "post",
+      "action": "read",
+      "arity": "instance",
+      "meta": {},
+      "usages": [
+        {
+          "file": "src/app.ts",
+          "line": 27,
+          "call": "filter"
+        },
+        {
+          "file": "src/policy.ts",
+          "line": 8,
+          "call": "allow"
+        }
+      ],
+      "rowConditions": true
+    }
+  ],
+  "roles": [
+    {
+      "key": "member"
+    }
+  ]
+}

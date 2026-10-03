@@ -1,0 +1,69 @@
+{
+  "$schema": "https://permdock.dev/schemas/catalog-v1.json",
+  "version": 1,
+  "generatedAt": "2026-10-03T18:25:48.577Z",
+  "generator": "permdock@0.1.0-next.2",
+  "fingerprint": "GU_sPDc-1-qX6aVfvzmocV2cKDo2zLaHTRIbo4aYBmY",
+  "resources": {
+    "post": {
+      "id": "id",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "orgId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "orgId"
+        ],
+        "additionalProperties": false
+      },
+      "definedIn": "src/permissions.ts",
+      "relations": {
+        "org": {
+          "field": "orgId",
+          "memberOf": "tenant"
+        }
+      }
+    }
+  },
+  "permissions": [
+    {
+      "key": "post.read",
+      "scope": "post:read",
+      "resource": "post",
+      "action": "read",
+      "arity": "instance",
+      "meta": {},
+      "usages": [
+        {
+          "file": "src/policy.ts",
+          "line": 9,
+          "call": "allow"
+        },
+        {
+          "file": "src/replay.ts",
+          "line": 50,
+          "call": "can"
+        },
+        {
+          "file": "src/replay.ts",
+          "line": 61,
+          "call": "can"
+        }
+      ],
+      "rowConditions": true
+    }
+  ],
+  "roles": [
+    {
+      "key": "editor"
+    }
+  ]
+}
