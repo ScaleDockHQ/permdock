@@ -396,6 +396,16 @@ export const supabaseHookManifestFixture: SupabaseHookManifest = {
         execute: ['supabase_auth_admin'],
       },
     ],
+    memberships: [
+      {
+        table: 'public.memberships',
+        user: { column: 'user_id' },
+        scope: { column: 'scope' },
+        id: { column: 'scope_id' },
+        role: { column: 'role' },
+        columns: ['user_id', 'scope', 'scope_id', 'role'],
+      },
+    ],
   },
   decidingColumns: [
     'public.memberships.role',

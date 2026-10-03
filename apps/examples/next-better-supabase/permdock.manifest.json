@@ -166,6 +166,48 @@
         "returns": "setof uuid",
         "execute": ["supabase_auth_admin"]
       }
+    ],
+    "memberships": [
+      {
+        "table": "public.memberships",
+        "user": {
+          "column": "user_id"
+        },
+        "scope": {
+          "column": "scope"
+        },
+        "id": {
+          "column": "scope_id"
+        },
+        "role": {
+          "column": "role"
+        },
+        "columns": ["user_id", "scope", "scope_id", "role"]
+      },
+      {
+        "table": "public.contacts",
+        "user": {
+          "column": "user_id"
+        },
+        "scope": {
+          "value": "customer"
+        },
+        "id": {
+          "column": "customer_id"
+        },
+        "role": {
+          "value": ["contact"]
+        },
+        "within": {
+          "columns": {
+            "organization": "organization_id"
+          }
+        },
+        "via": {
+          "value": "contact"
+        },
+        "columns": ["user_id", "customer_id", "organization_id"]
+      }
     ]
   },
   "decidingColumns": [

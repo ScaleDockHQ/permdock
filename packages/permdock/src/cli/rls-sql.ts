@@ -384,7 +384,8 @@ export function hasMemberFor(
   );
 }
 
-function memberForTable(
+/** The table `member_<scope>_ids_for` reads for scope `name`, when `memberships` maps one with its id column. */
+export function memberForTable(
   input: {
     readonly scopes: readonly Scope[];
     readonly memberships?: RlsMemberships;

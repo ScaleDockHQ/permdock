@@ -97,4 +97,10 @@ export type SupabaseManifestRls = {
     readonly within?: string;
   }[];
   readonly helpers: readonly SupabaseManifestHelper[];
+  /**
+   * The tables `member_<scope>_ids_for` reads: an `rls.memberships` table
+   * mapped for the scope, else `rls.membershipSources`, else the hook's
+   * `memberships`.
+   */
+  readonly memberships: readonly SupabaseManifestMembership[];
 };

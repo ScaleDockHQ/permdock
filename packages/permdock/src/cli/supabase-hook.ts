@@ -6,6 +6,7 @@ import type {
   SupabaseHookClaim,
   SupabaseHookManifest,
   SupabaseManifestHelper,
+  SupabaseManifestMembership,
 } from '../supabase/manifest.ts';
 import type { SqlMembershipSource } from '../supabase/sources.ts';
 import type { RlsSqlContext } from './rls-sql.ts';
@@ -13,9 +14,12 @@ import type {
   CliIo,
   PermDockConfig,
   RlsActiveRow,
+  RlsMembershipTable,
+  RlsMemberships,
   SupabaseHookConfig,
 } from './types.ts';
 
+import { scopeColumn } from '../conditions/compile.ts';
 import {
   resolveScope,
   rootScope,
@@ -38,6 +42,8 @@ import {
   checkSuspension,
   hasMemberFor,
   memberForHelper,
+  memberForSources,
+  memberForTable,
   memberIdsHelper,
   quoteIdent,
   quoteLiteral,
@@ -253,8 +259,76 @@ type Parts = {
   readonly helpers: {
     readonly schema: string;
     readonly memberFor: readonly string[];
+    /** The sources `member_<scope>_ids_for` reads, deduplicated across scopes. */
+    readonly memberships: readonly SupabaseManifestMembership[];
   };
 };
+
+type MemberForInput = {
+  readonly scopes: readonly Scope[];
+  readonly memberships?: RlsMemberships;
+  readonly memberSources: readonly SqlMembershipSource[];
+};
+
+function memberForPlan(input: MemberForInput): {
+  readonly memberFor: readonly string[];
+  readonly memberships: readonly SupabaseManifestMembership[];
+} {
+  const memberFor = input.scopes
+    .map((scope) => scope.name)
+    .filter((name) => hasMemberFor({ dialect: 'supabase', ...input }, name));
+  const entries = new Map<string, SupabaseManifestMembership>();
+  for (const name of memberFor) {
+    const mapped = memberForTable(input, name);
+    const found =
+      mapped === undefined
+        ? memberForSources(input, name).map((source) => source.sql.manifest)
+        : [mappedMembership(mapped, input.scopes, name)];
+    for (const entry of found) {
+      entries.set(JSON.stringify(entry), entry);
+    }
+  }
+  return { memberFor, memberships: [...entries.values()] };
+}
+
+/** An `rls.memberships` table in the manifest's `fromTable` / `fromJunction` shape, for scope `name`. */
+function mappedMembership(
+  mapped: RlsMembershipTable,
+  scopes: readonly Scope[],
+  name: string,
+): SupabaseManifestMembership {
+  const id = scopeColumn(mapped, scopes, name) ?? '';
+  const within: Record<string, string> = {};
+  for (const ancestor of scopeChain(scopes, name).slice(1)) {
+    const column = scopeColumn(mapped, scopes, ancestor);
+    if (column !== undefined) {
+      within[ancestor] = column;
+    }
+  }
+  const columns = [
+    mapped.user,
+    id,
+    mapped.role,
+    ...Object.values(within),
+    ...(mapped.via === undefined ? [] : [mapped.via]),
+    ...(mapped.expiresAt === undefined ? [] : [mapped.expiresAt]),
+  ];
+  return {
+    table: mapped.table.includes('.') ? mapped.table : `public.${mapped.table}`,
+    user: { column: mapped.user },
+    scope: { value: name },
+    id: { column: id },
+    role: { column: mapped.role },
+    ...(Object.keys(within).length === 0
+      ? {}
+      : { within: { columns: within } }),
+    ...(mapped.via === undefined ? {} : { via: { column: mapped.via } }),
+    ...(mapped.expiresAt === undefined
+      ? {}
+      : { expiresAt: { column: mapped.expiresAt } }),
+    columns: [...new Set(columns)],
+  };
+}
 
 function table(name: string): string {
   return quoteTable(name.includes('.') ? name : `public.${name}`);
@@ -876,21 +950,13 @@ function hookParts(
     extra: extraPlan.claims,
     helpers: {
       schema: config.rls?.schema ?? PERMDOCK_SCHEMA,
-      memberFor: scopes
-        .map((scope) => scope.name)
-        .filter((name) =>
-          hasMemberFor(
-            {
-              dialect: 'supabase',
-              scopes,
-              ...(config.rls?.memberships === undefined
-                ? {}
-                : { memberships: config.rls.memberships }),
-              memberSources: config.rls?.membershipSources ?? hook.memberships,
-            },
-            name,
-          ),
-        ),
+      ...memberForPlan({
+        scopes,
+        ...(config.rls?.memberships === undefined
+          ? {}
+          : { memberships: config.rls.memberships }),
+        memberSources: config.rls?.membershipSources ?? hook.memberships,
+      }),
     },
   };
   if (parts.attrs !== undefined && parts.attrs.errors.length > 0) {
@@ -1009,6 +1075,7 @@ function manifestOf(
         ...(scope.within === undefined ? {} : { within: scope.within }),
       })),
       helpers,
+      memberships: parts.helpers.memberships,
     },
     decidingColumns: decidingColumns(
       config,

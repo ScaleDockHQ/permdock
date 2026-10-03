@@ -9,6 +9,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 
+import type { SupabaseHookManifest } from '../../src/supabase/manifest.ts';
+
 import { run } from '../../src/cli/run.ts';
 import { subjectFromSupabase } from '../../src/supabase/index.ts';
 
@@ -427,6 +429,55 @@ describe('permdock supabase hook generate', () => {
     expect(JSON.parse(inspect.stdout)).toMatchObject({
       rls: { mode: 'database' },
     });
+  });
+
+  it('lists the membership sources behind member_<scope>_ids_for in rls.memberships', async () => {
+    const hookOnly = await generate(`{ memberships: [${SOURCES}] }`);
+    const fromHook: SupabaseHookManifest = JSON.parse(
+      (await run(['supabase', 'inspect', '--json'], { cwd: hookOnly.cwd }))
+        .stdout,
+    );
+    expect(fromHook.rls.memberships).toEqual(fromHook.memberships);
+
+    const mapped = await generate(
+      `{ memberships: [${SOURCES}] }`,
+      [],
+      `{
+        memberships: {
+          scopes: {
+            organization: { table: 'org.members', user: 'member_id', role: 'role', columns: { organization: 'org_id' }, expiresAt: 'ends_at' },
+          },
+        },
+        membershipSources: [
+          fromJunction({ table: 'customer_contacts', scope: 'customer', within: { organization: 'organization_id' }, roles: ['contact'] }),
+        ],
+      }`,
+    );
+    const inspect = await run(['supabase', 'inspect', '--json'], {
+      cwd: mapped.cwd,
+    });
+    expect(inspect.code).toBe(0);
+    const manifest: SupabaseHookManifest = JSON.parse(inspect.stdout);
+    expect(manifest.rls.memberships).toEqual([
+      {
+        table: 'org.members',
+        user: { column: 'member_id' },
+        scope: { value: 'organization' },
+        id: { column: 'org_id' },
+        role: { column: 'role' },
+        expiresAt: { column: 'ends_at' },
+        columns: ['member_id', 'org_id', 'role', 'ends_at'],
+      },
+      {
+        table: 'public.customer_contacts',
+        user: { column: 'user_id' },
+        scope: { value: 'customer' },
+        id: { column: 'customer_id' },
+        role: { value: ['contact'] },
+        within: { columns: { organization: 'organization_id' } },
+        columns: ['user_id', 'customer_id', 'organization_id'],
+      },
+    ]);
   });
 
   it('writes the manifest with --out and reports drift with --check', async () => {

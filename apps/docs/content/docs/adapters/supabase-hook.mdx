@@ -223,6 +223,7 @@ A seat belongs to one membership, not the tenant: a Dev Mode seat in one organiz
 | `claims`, `tenantClaim`, `budget`, `authzVersion` | Every claim the hook writes, who owns it, and what the budget measures |
 | `helpers`, `rls` | The helper schema, each helper's arguments, return type and the roles that may execute it, the RLS mode (`jwt` or `database`) and each scope's id type |
 | `memberships` | Each source's table and the columns (or fixed values) for user, scope, id, role, `within`, `via` and expiry |
+| `rls.memberships` | The same shape for the tables `member_<scope>_ids_for` reads, which differ from the hook's when `rls.memberships` or `rls.membershipSources` is set |
 | `decidingColumns` | Every `schema.table.column` a membership or an `attrs` claim is computed from, which clients must not be able to write |
 
 The format, its JSON Schema (`schemas/supabase-manifest-v1.json`) and the versioning rule are on [wire formats](/docs/concepts/wire-formats#supabase-hook-manifest); `supabaseHookManifestFixture` in `permdock/testing` is a sample to test a reader against.
