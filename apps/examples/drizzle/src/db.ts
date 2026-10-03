@@ -3,7 +3,7 @@ import { drizzle } from 'drizzle-orm/pglite';
 
 const client = new PGlite();
 
-export const db = drizzle(client);
+export const db = drizzle({ client });
 
 export const ready: Promise<unknown> = client.exec(`
   create table post (

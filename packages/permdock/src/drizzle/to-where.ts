@@ -85,11 +85,17 @@ function column(
 
 /** Drizzle's Postgres array columns (`text().array()`) report `dataType: 'array'`. */
 function isArrayColumn(col: unknown): boolean {
-  // SAFETY: checked to be a non-null object first; dataType is only compared.
+  if (col === null || typeof col !== 'object') {
+    return false;
+  }
+  // SAFETY: checked to be a non-null object first; both fields are only compared.
+  const { dataType, dimensions } = col as {
+    readonly dataType?: unknown;
+    readonly dimensions?: unknown;
+  };
+  // drizzle-orm 0.x sets `dataType: 'array'`; 1.x keeps the element type and counts `dimensions`.
   return (
-    col !== null &&
-    typeof col === 'object' &&
-    (col as { readonly dataType?: unknown }).dataType === 'array'
+    dataType === 'array' || (typeof dimensions === 'number' && dimensions > 0)
   );
 }
 

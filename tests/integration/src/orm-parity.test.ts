@@ -227,10 +227,12 @@ describe('ORM parity: filter() in memory equals toWhere(where()) in Postgres', (
     prisma = prismaDb;
 
     // SAFETY: pg and PGlite Drizzle clients share the query builder DrizzleDb declares
-    const drizzleOnPg = drizzleRun(drizzlePg(db.admin) as unknown as DrizzleDb);
+    const drizzleOnPg = drizzleRun(
+      drizzlePg({ client: db.admin }) as unknown as DrizzleDb,
+    );
     const drizzleOnLite = drizzleRun(
       // SAFETY: pg and PGlite Drizzle clients share the query builder DrizzleDb declares
-      drizzlePglite(lite) as unknown as DrizzleDb,
+      drizzlePglite({ client: lite }) as unknown as DrizzleDb,
     );
     const listFieldsOf: Readonly<Record<Resource, readonly string[]>> = {
       item: ['tags'],

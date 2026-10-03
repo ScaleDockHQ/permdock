@@ -5,12 +5,8 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { env } from '../../../../env.ts';
-import {
-  audience,
-  cookieName,
-  issuer,
-  postgres,
-} from '../../../../lib/supabase.ts';
+import { audience, cookieName } from '../../../../lib/supabase/index.ts';
+import { issuer, postgres } from '../../../../lib/supabase/server.ts';
 
 const SignIn = z.object({
   user: z.uuid(),

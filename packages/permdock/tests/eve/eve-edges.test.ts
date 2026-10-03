@@ -56,7 +56,10 @@ function respond(
 ): EveResponseContext {
   return {
     request: { callId, requestId: `r-${callId}`, toolName, toolInput: {} },
-    responder: { principalId: responderId, attributes: { roles: ['admin'] } },
+    response: {
+      decision: 'approve',
+      principal: { principalId: responderId, attributes: { roles: ['admin'] } },
+    },
     session: {
       id: 's1',
       initiator: principal(memberUser.id, memberUser.roles),

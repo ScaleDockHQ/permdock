@@ -203,14 +203,14 @@ describe('permdock/eve through the eve harness toolApproval on Postgres', () => 
     expect(
       await reviewer.approval.response({
         request,
-        responder: alice,
+        response: { decision: 'approve', principal: alice },
         session: { id: session.id, initiator: alice },
       }),
     ).toMatchObject({ status: 'rejected' });
     expect(
       await reviewer.approval.response({
         request,
-        responder: carol,
+        response: { decision: 'approve', principal: carol },
         session: { id: session.id, initiator: alice },
       }),
     ).toEqual({ status: 'allowed' });

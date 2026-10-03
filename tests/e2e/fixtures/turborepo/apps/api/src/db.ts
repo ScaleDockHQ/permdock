@@ -15,7 +15,7 @@ export const projects = pgTable('project', {
 
 const client = new PGlite();
 
-export const db = drizzle(client);
+export const db = drizzle({ client });
 
 const created = client.exec(`
   create table project (

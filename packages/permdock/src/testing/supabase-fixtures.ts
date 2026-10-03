@@ -3,7 +3,7 @@ import type { SupabaseHookManifest } from '../supabase/manifest.ts';
 /**
  * Claim sets in the shape the Supabase custom access token hook produces (the RBAC guide's
  * `user_role` claim, optionally mirrored into `app_metadata`, plus a `memberships` array for
- * multi-org apps). `betterSupabase` is the canonical shape better-supabase 0.2 emits: scoped
+ * multi-org apps). `betterSupabase` is the canonical shape better-supabase 0.4 emits: scoped
  * memberships, `tenant_id` and per-tenant plans in `features`. `full` sets every field of the
  * claim contract plus a `hook.claims` extra claim; `portalContact`, `oauthClient` and
  * `actChain` cover a customer contact, a Supabase OAuth server token and an RFC 8693 chain.

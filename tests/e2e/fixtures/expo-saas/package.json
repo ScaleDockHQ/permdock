@@ -22,7 +22,7 @@
     "expo-linking": "catalog:",
     "expo-modules-core": "catalog:",
     "expo-router": "catalog:",
-    "expo-server": "57.0.3",
+    "expo-server": "catalog:",
     "jose": "catalog:",
     "permdock": "workspace:*",
     "react": "catalog:",

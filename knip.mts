@@ -76,6 +76,8 @@ const config: KnipConfig = {
     },
     'tests/integration': {
       entry: ['fixtures/**/*.ts', 'src/support/openai-resume.ts'],
+      // The gitignored client `prisma generate` writes to src/support/prisma imports its runtime.
+      ignoreDependencies: ['@prisma/client'],
     },
     'tests/runtimes': {
       entry: ['src/serve-{bun,deno}.ts', 'src/worker.ts'],

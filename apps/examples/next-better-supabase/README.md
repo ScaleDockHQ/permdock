@@ -21,9 +21,10 @@ Where things live:
 - `src/policy.ts` and `src/sources.ts`: the policy and the membership sources the token hook and the SQL helpers share.
 - `supabase/migrations`: the app tables, then `permdock rls generate --target sql` (helpers and policies), the `features` claim function over `member_organization_ids_for`, and `permdock supabase hook generate --grants-out` (the access-token hook and its grants).
 - `permdock.manifest.json`: what the hook and helpers expect, from `permdock supabase inspect --out`; `pnpm gen` writes it, `pnpm gen:check` and `pnpm run doctor` fail on drift.
-- `src/lib/supabase.ts`: `createNext` with direct Postgres, an inline JWKS and explicit issuer and audience; sessions validated with `supabaseClaims().extend(...)`.
-- `src/lib/access.ts`: the shared slug lookup (`'use cache'`), the snapshot loader and the RLS reads (`'use cache: private'` over `next.cached()`), tagged `snapshotTag(sub)`.
+- `src/lib/supabase/index.ts`: the `betterSupabase` definition; sessions validated with `supabaseClaims().extend(...)`.
+- `src/lib/supabase/server.ts`: `import 'server-only'`, then `bs = createNext(betterSupabase, ...)` with direct Postgres, an inline JWKS and explicit issuer and audience.
+- `src/lib/access.ts`: the shared slug lookup (`'use cache'`), the snapshot loader and the RLS reads (`'use cache: private'` over `bs.cached({ tags })`), tagged `snapshotTag(sub)`. After a role or plan change, `bs.invalidateSession(userId, { tags: [snapshotTag(userId)] })` drops them.
 - `src/app/api/test/sign-in/route.ts`: e2e only. Runs the hook as `supabase_auth_admin`, signs the claims and sets the `@supabase/ssr` cookie, as Supabase Auth would.
-- `src/lib/supabase/generated.ts`: `pnpm gen` regenerates it from the migrations; `pnpm gen:check` fails on drift.
+- `src/lib/supabase/generated.ts`, `generated.meta.js` and `generated.meta.d.ts`: `pnpm gen` regenerates them from the migrations; `pnpm gen:check` fails on drift.
 
 `tests/e2e/src/next-better-supabase.spec.ts` asserts with `@next/playwright` `instant()` that page and organization switches render gated nav without a request, and that no request reaches `/api/permdock`.

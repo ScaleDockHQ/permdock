@@ -49,7 +49,7 @@ export default defineConfig({
 import { supabaseClaims } from 'permdock/supabase'
 import { z } from 'zod'
 
-const sb = defineSupabase(schema).claims(
+const betterSupabase = defineSupabase(schema).claims(
   supabaseClaims().extend(
     z.object({ datetime_preferences: z.object({ timezone: z.string() }) }),
   ),
@@ -281,7 +281,7 @@ better-supabase and PermDock split a Supabase app in two halves, and each half h
 | Token verification (`@supabase/server`), sessions, refresh and the `AuthSession` shape | better-supabase |
 | Typed clients, repositories and typegen (`@supabase/postgrest-typegen`) | better-supabase |
 | Storage and Realtime plumbing (`defineBucket`, `defineTopic`), jobs and webhooks | better-supabase |
-| MCP protected-resource metadata (`createMcp`) | better-supabase |
+| MCP protected-resource metadata and the `scopes` guard (`createMcp`, `bs.endpoint`) | better-supabase |
 | Token lifetime, refresh-token reuse, HS256 on the local stack, splinter | better-supabase lints |
 | The claim contract: `user_role`, `roles`, `memberships`, the active-tenant claim, `attrs`, `authz_ver`, `memberships_truncated` | PermDock |
 | The one token hook (`permdock supabase hook generate`) | PermDock |
@@ -289,9 +289,9 @@ better-supabase and PermDock split a Supabase app in two halves, and each half h
 | Tool and route authorization (`permdock/mcp`, `permdock/server`) | PermDock |
 | Doctor checks about authorization correctness | PermDock |
 
-Between them sit the [SQL helper contract](/docs/adapters/rls#sql-helper-contract) and its claim JSON Schema, which better-supabase's `permdock` mode policies call, the `supabaseClaims()` Standard Schema it validates sessions with (`sb.claims(supabaseClaims().extend(...))`), and one claims budget, `supabaseMembershipsBudget`, which better-supabase's size check reads when PermDock is configured. Map its session with `subjectFromSupabaseSession(session, { plans: 'features' })`: the canonical memberships come through as they are, and the active tenant's `features` become `principal.plans`. `supabaseClaimFixtures.betterSupabase` is that claim set.
+Between them sit the [SQL helper contract](/docs/adapters/rls#sql-helper-contract) and its claim JSON Schema, which better-supabase's `permdock` mode policies call, the `supabaseClaims()` Standard Schema it validates sessions with (`betterSupabase.claims(supabaseClaims().extend(...))`), and one claims budget, `supabaseMembershipsBudget`, which better-supabase's size check reads when PermDock is configured. Map its session with `subjectFromSupabaseSession(session, { plans: 'features' })`: the canonical memberships come through as they are, and the active tenant's `features` become `principal.plans`. `supabaseClaimFixtures.betterSupabase` is that claim set.
 
-better-supabase keeps its organization memberships in its own schema. Point a `fromJunction` source at the schema-qualified table; the hook and the in-process source quote it as `"better_supabase"."memberships"`, and the hook grants `supabase_auth_admin` usage on the schema and `select` on the table:
+PermDock owns the memberships. Keep them in the app's own tables and describe them with PermDock sources; don't run `better-supabase sql add tenant`, whose `better_supabase.memberships` table and `membership_claims()` would write a second set of tenant claims (better-supabase's doctor reports BS407 when a hook does). A source may name a schema-qualified table: the hook and the in-process source quote `"app"."memberships"` and the hook grants `supabase_auth_admin` usage on the schema and `select` on the table. `features` is better-supabase's claim, added through `supabase.hook.claims`:
 
 ```ts
 // permdock.config.ts
@@ -304,9 +304,9 @@ export default {
     hook: {
       memberships: [
         fromJunction({
-          table: 'better_supabase.memberships',
+          table: 'app.memberships',
           scope: 'organization',
-          id: 'org_id',
+          id: 'organization_id',
           roles: 'role',
         }),
       ],
@@ -316,9 +316,9 @@ export default {
 };
 ```
 
-Pass the same source, with a `query` over the app's connection, as `memberships` to `createPermDock` so `decide` reads the rows the token was minted from. `tests/integration/src/supabase-junction.test.ts` runs the round trip against Postgres.
+Pass the same source, with a `query` over the app's connection, as `memberships` to `createPermDock` so `decide` reads the rows the token was minted from. `tests/integration/src/supabase-junction.test.ts` runs the round trip against a schema-qualified table in Postgres.
 
-`better_supabase.feature_claims(user_id)` reads the user's organizations from `public.member_organization_ids_for(user_id)` rather than from `better_supabase.memberships`, so a membership that expired or an organization that is suspended loses its features in the same token that loses the membership ([claims other packages own](/docs/adapters/supabase-hook#claims-other-packages-own)). `tests/integration/src/supabase-member-for.test.ts` runs it inside the hook.
+Run `permdock supabase inspect --out` before `better-supabase sql add entitlements`. With `permdock.manifest.json` present, the entitlements module writes `better_supabase.feature_claims(user_id)` over `public.member_organization_ids_for(user_id)` instead of its own membership table, so a membership that expired or an organization that is suspended loses its features in the same token that loses the membership ([claims other packages own](/docs/adapters/supabase-hook#claims-other-packages-own)). `tests/integration/src/supabase-member-for.test.ts` runs that function shape inside the hook.
 
 ## Request lifecycle
 
@@ -329,6 +329,12 @@ Pass the same source, with a `query` over the app's connection, as `memberships`
 5. Snapshot: `permdock.snapshot()` is sent to the client; the browser never derives permissions from the JWT roles, even offline. Claims are stale until token refresh, so a role change should also trigger `updateTag` and a session refresh.
 
 ## Sessions and devices
+
+better-supabase 0.4.0 exposes three session tools that work next to PermDock:
+
+- `checkSession(sql, auth)` from `better-supabase/server` checks that a user token's session still exists in `auth.sessions`. A verified token stays valid until `exp` even after sign-out, so call it before a sensitive action; PermDock never makes that query itself.
+- `session.actor` and `session.delegation` carry the OAuth client or agent acting for the user (`client_id`, or the outermost `sub` of an RFC 8693 `act` chain) and the scopes the user granted it. They are the same values `actorOf` and `delegationOf` read from the claims, so `subjectFromSupabaseSession(session)` gives the same `oauth-client` actor either way.
+- The `scopes` guard option answers 403 `insufficient_scope` when a delegated token lacks a scope. It runs before PermDock, and PermDock's delegation narrowing still applies after it: a token that passes the guard reaches only the permissions whose `scope` its delegation names, and a `deny` for the `oauth-client` actor still wins.
 
 List and revoke sessions through the Supabase Auth API (`auth.admin.listUserSessions`, `auth.admin.signOut` / revoke). PermDock does not own a device list UI. Revocation reaches PermDock when the project emits Back-Channel Logout or a CAEP `session-revoked` SET into [`permdock/ssf`](/docs/adapters/ssf), joined on `subject.session` (`session_id`). With `approvals` set on the SSF factory, pending approval requests for that session are cancelled.
 
@@ -354,8 +360,8 @@ List and revoke sessions through the Supabase Auth API (`auth.admin.listUserSess
 
 `apps/examples/next-better-supabase`: better-supabase on Next.js 16.3 with Cache Components, over the contracts above instead of copies of them:
 
-- `src/lib/supabase.ts` validates sessions with `defineSupabase(schema).claims(supabaseClaims().extend(appClaims))`, where `appClaims` is the app's own `datetime_preferences` claim.
-- `supabase/migrations/20261001000150_features.sql` adds `public.feature_claims(user_id)`, which reads `organization_features` for the organizations `public.member_organization_ids_for(user_id)` returns. `permdock.config.ts` registers it as the `features` claim, and `src/lib/access.ts` maps it with `subjectFromSupabaseSession(session, { plans: 'features' })`. It stands in for `better_supabase.feature_claims` until that function calls the helper.
+- `src/lib/supabase/index.ts` validates sessions with `defineSupabase(schema).claims(supabaseClaims().extend(appClaims))`, where `appClaims` is the app's own `datetime_preferences` claim. `src/lib/supabase/server.ts` starts with `import 'server-only'` and holds `bs = createNext(betterSupabase, ...)` and the direct Postgres pool.
+- `supabase/migrations/20261001000150_features.sql` adds `public.feature_claims(user_id)`, which reads `organization_features` for the organizations `public.member_organization_ids_for(user_id)` returns. `permdock.config.ts` registers it as the `features` claim, and `src/lib/access.ts` maps it with `subjectFromSupabaseSession(session, { plans: 'features' })`. It stands in for `better_supabase.feature_claims`: in PermDock mode (`sql add entitlements` with `permdock.manifest.json` present) that function also reads `member_<scope>_ids_for`, but it reads entitlements from the Stripe Sync Engine, which the example does not run.
 - The helpers, hook and grants migrations come from `permdock rls generate` and `permdock supabase hook generate --grants-out`, so the `member_organization_ids_for` grant lands after the helpers exist.
 - `pnpm gen` writes `permdock.manifest.json` with `permdock supabase inspect --out`, and `pnpm run doctor` and `pnpm gen:check` fail when it has drifted.
 

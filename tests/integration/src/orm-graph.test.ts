@@ -113,7 +113,7 @@ describe('ORM parity over the relation graph: match, includes, groups, links, re
 
   for (const [label, mapping] of Object.entries(mappings)) {
     it(`drizzle, ${label}`, async () => {
-      const db = drizzle(database());
+      const db = drizzle({ client: database() });
       const report = await ormParity(policy, scenarios(), {
         run: async ({ scenario, where }) => {
           // SAFETY: every scenario's resource is one of the seeded Resource tables
@@ -163,7 +163,7 @@ describe('ORM parity over the relation graph: match, includes, groups, links, re
     });
 
     it(`resolveRelated (the Prisma path), ${label}`, async () => {
-      const db = drizzle(database());
+      const db = drizzle({ client: database() });
       const report = await ormParity(policy, scenarios(), {
         run: async ({ scenario, where }) => {
           const resolved: WhereResult = await resolveRelated(where, {

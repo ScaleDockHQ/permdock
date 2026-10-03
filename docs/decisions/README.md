@@ -23,3 +23,4 @@ Copy `0000-template.md`, take the next number, and add a row below. When a decis
 | [0015](./0015-ask-ai-input.md) | Ask AI input built from `InputGroup` |
 | [0016](./0016-portless-names.md) | Portless names under `permdock.localhost` |
 | [0017](./0017-permdock-skill-prefix.md) | Consumer skills are named `permdock` or `permdock-<topic>` |
+| [0018](./0018-blocked-majors.md) | Majors that stay on the previous line until a blocker clears |

@@ -9,5 +9,8 @@ import {
 
 export default defineConfig({
   extends: [core, react, example],
-  ignorePatterns: [...ignorePatterns, 'src/lib/supabase/**'],
+  ignorePatterns: [
+    ...ignorePatterns,
+    'src/lib/supabase/{generated.*,database.types.ts}',
+  ],
 });

@@ -128,7 +128,7 @@ describe('withSubject runs Drizzle, Kysely and Prisma under the generated RLS', 
       if (pool === undefined) {
         throw new Error('PermDock: Postgres was not started');
       }
-      const orm = drizzle(pool);
+      const orm = drizzle({ client: pool });
       return drizzleWithSubject(
         orm,
         dock,

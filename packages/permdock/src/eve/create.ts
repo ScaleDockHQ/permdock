@@ -54,7 +54,11 @@ export type EveResponseContext = {
     readonly toolName: string;
     readonly toolInput?: unknown;
   };
-  readonly responder: EvePrincipal;
+  /** Who answered and how; eve settles the request only on `allowed`. */
+  readonly response: {
+    readonly decision: 'approve' | 'cancel';
+    readonly principal: EvePrincipal;
+  };
   readonly session: {
     readonly id: string;
     readonly initiator: EvePrincipal | null;
@@ -291,7 +295,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       if (current === null) {
         return { status: 'rejected', reason: 'approval-not-found' };
       }
-      const responder = ctx.responder;
+      const responder = ctx.response.principal;
       if (current.subject.actor?.id === responder.principalId) {
         return {
           status: 'rejected',
@@ -307,7 +311,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       }
       try {
         await resolveApproval(store, token, {
-          status: 'approved',
+          status: ctx.response.decision === 'approve' ? 'approved' : 'rejected',
           by: { principal: approver, context: {} },
         });
         return { status: 'allowed' };

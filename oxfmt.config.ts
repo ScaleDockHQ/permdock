@@ -16,7 +16,7 @@ export default oxfmt({
     'apps/marketing/components/examples/**',
     'tests/integration/src/support/prisma/**',
     'apps/examples/prisma/src/generated/**',
-    'apps/examples/next-better-supabase/src/lib/supabase/**',
+    'apps/examples/next-better-supabase/src/lib/supabase/{generated.*,database.types.ts}',
     '**/.nuxt/**',
     '**/.output/**',
     '**/.svelte-kit/**',

@@ -248,44 +248,41 @@ subjectFromSupabaseSession(session, { memberships: 'memberships' }) // any { kin
 
 `subjectFromSupabaseSession` maps only `kind: 'user'`. `anon`, `service`, `invalid` or an unknown `kind` become the anonymous subject whatever `claims` holds. A top-level `user_role: null` (what the RBAC hook writes for a user without a role row) falls back to `app_metadata.user_role`.
 
-better-supabase is one such session source; its `AuthSession` union already has the `{ kind, claims }` shape. `next.cached()` is the first statement of an app-authored `'use cache: private'` function: it verifies the session locally against the JWKS, caps `stale` at the token's expiry, tags the entry `bs:session:<user id>` and returns the caller's context:
+better-supabase is one such session source; its `AuthSession` union already has the `{ kind, claims }` shape. `bs.cached()` is the first statement of an app-authored `'use cache: private'` function: it verifies the session locally against the JWKS, caps `stale` at the token's expiry and at 300 seconds, tags the entry `bs:session:<user id>` plus the `tags` you pass, and returns the caller's context:
 
 ```ts
 // src/lib/access.ts
-import { sessionStale } from 'better-supabase/next'
 import { cacheLife, cacheTag } from 'next/cache'
 import { snapshotFor } from 'permdock'
 import { cacheLifeFor, snapshotTag } from 'permdock/next'
 import { subjectFromSupabaseSession } from 'permdock/supabase'
-import { next } from '@/lib/supabase'
+import { bs } from '@/lib/supabase/server'
 import { policy } from '@/policy'
 
 export async function loadSnapshot(orgId: string) {
   'use cache: private'
-  const { session } = await next.cached()
+  const { session } = await bs.cached({ tags: [`org:${orgId}`] })
+  cacheTag(snapshotTag(session.kind === 'user' ? session.user.id : null))
   const subject = subjectFromSupabaseSession(session, { memberships: 'memberships' })
   const snapshot = snapshotFor(policy, subject, { tenant: orgId })
-  cacheLife({ stale: Math.min(sessionStale(session), cacheLifeFor(snapshot).stale) })
-  cacheTag(snapshotTag(session.kind === 'user' ? session.user.id : null), `org:${orgId}`)
+  cacheLife({ stale: cacheLifeFor(snapshot).stale })
   return snapshot
 }
 ```
 
-Next keeps the smallest `stale` set in one scope, so the entry lives no longer than either the token or the snapshot, and at 300 seconds it joins the App Shell.
+Next keeps the smallest `stale` set in one scope, so the entry lives no longer than either the token or the snapshot, and at 300 seconds it joins the App Shell. The snapshot's tag and lifetime come after `bs.cached()` because both depend on the session it returns. The same `bs.cached()` hands out `sql`, typed repositories over direct Postgres that run as the caller, so RLS on `permitted_<scope>_ids()` decides the rows in another `'use cache: private'` function.
 
-Planned in better-supabase: `next.cached({ tags: [snapshotTag(sub)], life: cacheLifeFor(snapshot) })` will set the tag and take the minimum of the session's and the snapshot's lifetimes itself, replacing the `cacheLife` and `cacheTag` lines above. Until that ships, keep both calls. The same `next.cached()` hands out `sql`, typed repositories over direct Postgres that run as the caller, so RLS on `permitted_<scope>_ids()` decides the rows in another `'use cache: private'` function.
-
-A role change busts both tags in the Server Action that made it:
+A role change drops both in the Server Action that made it:
 
 ```ts
 'use server'
-import { updateTag } from 'next/cache'
 import { snapshotTag } from 'permdock/next'
+import { bs } from '@/lib/supabase/server'
 
 export async function changeRole(userId: string, role: string) {
   // ...authorize and write the membership...
-  updateTag(snapshotTag(userId))   // PermDock's snapshot entries
-  next.invalidateSession(userId)   // every next.cached() entry of that user
+  // every bs.cached() entry of that user, and PermDock's snapshot entries
+  bs.invalidateSession(userId, { tags: [snapshotTag(userId)] })
 }
 ```
 

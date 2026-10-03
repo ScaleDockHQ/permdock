@@ -98,7 +98,7 @@ describe('permdock/drizzle toWhere with drizzle-orm', () => {
     },
     {
       condition: { op: 'notIn', field: 'orgId', value: [] },
-      sql: '"posts"."org_id" is not null',
+      sql: '("posts"."org_id" is not null)',
       params: [],
     },
     {
@@ -123,12 +123,12 @@ describe('permdock/drizzle toWhere with drizzle-orm', () => {
     },
     {
       condition: { op: 'isNull', field: 'teamId', value: true },
-      sql: '"posts"."team_id" is null',
+      sql: '("posts"."team_id" is null)',
       params: [],
     },
     {
       condition: { op: 'isNull', field: 'teamId', value: false },
-      sql: '"posts"."team_id" is not null',
+      sql: '("posts"."team_id" is not null)',
       params: [],
     },
     {
@@ -144,7 +144,7 @@ describe('permdock/drizzle toWhere with drizzle-orm', () => {
           { op: 'eq', field: 'rank', value: 2 },
         ],
       },
-      sql: '("posts"."org_id" = $1 and "posts"."rank" = $2)',
+      sql: '(("posts"."org_id" = $1) and ("posts"."rank" = $2))',
       params: ['o1', 2],
     },
     {
@@ -152,7 +152,7 @@ describe('permdock/drizzle toWhere with drizzle-orm', () => {
         op: 'not',
         condition: { op: 'eq', field: 'orgId', value: 'o1' },
       },
-      sql: '(not "posts"."org_id" = $1 or "posts"."org_id" is null)',
+      sql: '((not ("posts"."org_id" = $1)) or (("posts"."org_id" is null)))',
       params: ['o1'],
     },
     {
@@ -276,7 +276,7 @@ describe('permdock/drizzle memberships tables', () => {
       { subject, memberships },
     );
     expect(sql).toBe(
-      '(exists (select 1 from grants m where m.object_id = "posts"."id" and m.user_id = $1 and m.role in ($2) and m.object_type = $3) or exists (select 1 from folder_grants m where m.folder_id = "posts"."folder_id" and m.user_id = $4 and m.role in ($5)) or exists (select 1 from grants m where m.object_id = "posts"."team_id" and m.user_id = $6 and m.role in ($7)))',
+      '((exists (select 1 from grants m where m.object_id = "posts"."id" and m.user_id = $1 and m.role in ($2) and m.object_type = $3)) or (exists (select 1 from folder_grants m where m.folder_id = "posts"."folder_id" and m.user_id = $4 and m.role in ($5))) or (exists (select 1 from grants m where m.object_id = "posts"."team_id" and m.user_id = $6 and m.role in ($7))))',
     );
     expect(params).toEqual([
       'u1',

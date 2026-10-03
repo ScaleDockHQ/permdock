@@ -14,19 +14,15 @@ const bin = path.join(cwd, 'node_modules/.bin/better-supabase');
 const args = process.argv.slice(2);
 const database = await startDatabase();
 try {
-  const result = spawnSync(
-    bin,
-    args[0] === 'gen' ? [...args, '--db-url', database.url] : args,
-    {
-      cwd,
-      stdio: 'inherit',
-      env: {
-        ...process.env,
-        SUPABASE_DB_URL: database.url,
-        DATABASE_URL: database.url,
-      },
+  const result = spawnSync(bin, args, {
+    cwd,
+    stdio: 'inherit',
+    env: {
+      ...process.env,
+      SUPABASE_DB_URL: database.url,
+      DATABASE_URL: database.url,
     },
-  );
+  });
   process.exitCode = result.status ?? 1;
 } finally {
   await database.stop();

@@ -60,12 +60,15 @@ function respond(
   // SAFETY: roles is unknown so tests can pass malformed values; eve's type is widened here.
   return {
     request: { callId, requestId: `r-${callId}`, ...request },
-    responder: {
-      principalId: responder.principalId,
-      attributes:
-        responder.roles === undefined
-          ? {}
-          : { roles: responder.roles as string | readonly string[] },
+    response: {
+      decision: 'approve',
+      principal: {
+        principalId: responder.principalId,
+        attributes:
+          responder.roles === undefined
+            ? {}
+            : { roles: responder.roles as string | readonly string[] },
+      },
     },
     session: { id: 's1', initiator: principal(initiator) },
   };
@@ -147,6 +150,30 @@ describe('permdock/eve', () => {
     expect(await approval.request(call('delete_post', { id: 'p1' }))).toBe(
       'not-applicable',
     );
+    expect(
+      await approval.request(call('delete_post', { id: 'p1' })),
+    ).toMatchObject({ type: 'denied' });
+  });
+
+  it('records a cancel as a rejection and denies the re-check', async () => {
+    const store = memoryApprovalStore();
+    const { approval } = createPermDock(policy, {
+      tools: tools(),
+      delegation: () => delegated,
+      store,
+      approvers: { roles: ['admin'] },
+    });
+
+    expect(await approval.request(call('delete_post', { id: 'p1' }))).toBe(
+      'user-approval',
+    );
+    const cancel = respond({ principalId: 'u2', roles: 'admin' }, deleteOwn);
+    expect(
+      await approval.response({
+        ...cancel,
+        response: { ...cancel.response, decision: 'cancel' },
+      }),
+    ).toEqual({ status: 'allowed' });
     expect(
       await approval.request(call('delete_post', { id: 'p1' })),
     ).toMatchObject({ type: 'denied' });
