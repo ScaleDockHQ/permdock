@@ -46,6 +46,7 @@
   },
   "devDependencies": {
     "@changesets/assemble-release-plan": "catalog:",
+    "@changesets/changelog-github": "catalog:",
     "@changesets/cli": "catalog:",
     "@changesets/config": "catalog:",
     "@changesets/pre": "catalog:",

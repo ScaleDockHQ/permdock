@@ -49,6 +49,7 @@ catalog:
   "@vercel/speed-insights": 2.0.0
   valibot: 1.5.0
   "@changesets/assemble-release-plan": 7.0.0
+  "@changesets/changelog-github": 1.0.1
   "@changesets/config": 4.0.1
   "@changesets/pre": 3.0.0
   "@changesets/read": 1.0.1

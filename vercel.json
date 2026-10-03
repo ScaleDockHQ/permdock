@@ -5,7 +5,7 @@
     "deploymentEnabled": {
       "*": false,
       "**": false,
-      "changeset-release/*": false,
+      "changeset-release/**": false,
       "main": true
     }
   },

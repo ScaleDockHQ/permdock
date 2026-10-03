@@ -2,14 +2,14 @@ name: Database
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main]
     paths:
       - apps/examples/next-better-supabase/**
       - packages/permdock/src/cli/**
       - packages/permdock/src/supabase/**
       - .github/workflows/database.yml
   pull_request:
-    branches: [main, develop]
+    branches: [main]
     paths:
       - apps/examples/next-better-supabase/**
       - packages/permdock/src/cli/**
