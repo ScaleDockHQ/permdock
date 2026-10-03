@@ -5,9 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "prisma generate && node --watch --experimental-strip-types src/serve.ts",
+    "doctor": "permdock doctor",
     "lint": "oxlint --disable-nested-config --type-aware",
     "start": "prisma generate && node --experimental-strip-types src/serve.ts",
-    "typecheck": "prisma generate && tsc --noEmit",
+    "typecheck": "tsc --noEmit",
     "typegen": "prisma generate"
   },
   "dependencies": {

@@ -6,7 +6,7 @@
   "scripts": {
     "build": "next build",
     "dev": "next dev -p 3489 -H 127.0.0.1",
-    "doctor": "permdock supabase inspect --check && node scripts/better-supabase.ts doctor",
+    "doctor": "permdock doctor && permdock supabase inspect --check && node scripts/better-supabase.ts doctor",
     "gen": "permdock rls generate --target sql --split helpers,seeds,indexes,policies,hook --seeds-out supabase/migrations/20261001000100_permdock_seeds.sql && permdock supabase inspect --out && node scripts/better-supabase.ts gen",
     "gen:check": "permdock rls generate --target sql --split helpers,seeds,indexes,policies,hook --seeds-out supabase/migrations/20261001000100_permdock_seeds.sql --check && permdock supabase inspect --check && better-supabase sql sync --check && node scripts/better-supabase.ts gen --check",
     "lint": "oxlint --disable-nested-config --type-aware",

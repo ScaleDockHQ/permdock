@@ -1,4 +1,5 @@
 import { svelte } from "@sveltejs/vite-plugin-svelte";
+import { existsSync } from "node:fs";
 import { defineConfig } from "vitest/config";
 
 declare module "vitest" {
@@ -6,6 +7,17 @@ declare module "vitest" {
     readonly requireAuthzenVectors: boolean;
   }
 }
+
+// Thresholds follow CI's test set, which includes the official AuthZEN vectors
+// (`pnpm authzen:vectors`); CI itself never rewrites this file.
+const raiseThresholds =
+  process.env["CI"] === undefined &&
+  existsSync(
+    new URL(
+      "tests/testing/fixtures/authzen/decisions-authorization-api-1_0-02.json",
+      import.meta.url,
+    ),
+  );
 
 export default defineConfig({
   test: {
@@ -18,12 +30,6 @@ export default defineConfig({
           name: "node",
           include: ["tests/**/*.test.ts", "tests/**/*.test.tsx"],
           exclude: ["tests/**/*.browser.test.ts"],
-          typecheck: {
-            enabled: true,
-            include: ["tests/**/*.test-d.ts"],
-            tsconfig: "./tests/tsconfig.json",
-            ignoreSourceErrors: true,
-          },
         },
       },
       {
@@ -52,6 +58,9 @@ export default defineConfig({
         "src/jwt/load-jose.ts",
       ],
       thresholds: {
+        autoUpdate: raiseThresholds
+          ? (threshold): number => Math.floor(threshold)
+          : false,
         statements: 98,
         lines: 98,
         functions: 99,
@@ -59,7 +68,7 @@ export default defineConfig({
         "src/core/**": {
           statements: 97,
           lines: 97,
-          functions: 98,
+          functions: 99,
           branches: 95,
         },
         "src/conditions/**": {

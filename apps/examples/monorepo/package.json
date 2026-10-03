@@ -4,8 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "doctor": "permdock doctor",
+    "gen:check": "permdock collect --check",
     "lint": "oxlint --disable-nested-config --type-aware",
-    "test": "permdock collect --check",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

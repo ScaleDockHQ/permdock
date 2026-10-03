@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "node --watch --experimental-strip-types src/main.ts",
+    "doctor": "permdock doctor",
     "lint": "oxlint --disable-nested-config --type-aware",
     "start": "node --experimental-strip-types src/main.ts",
     "typecheck": "tsc --noEmit"

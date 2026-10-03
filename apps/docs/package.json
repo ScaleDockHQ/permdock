@@ -4,13 +4,15 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "analyze": "next experimental-analyze",
     "build": "next build",
     "dev": "next dev -p ${PORT:-3001}",
     "dev:portless": "portless",
     "lint": "oxlint --disable-nested-config --type-aware",
     "start": "next start",
     "test": "vitest run",
-    "typecheck": "next typegen && tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "typegen": "next typegen"
   },
   "dependencies": {
     "@ai-sdk/otel": "catalog:",

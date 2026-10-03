@@ -27,4 +27,4 @@ paths:
 - Functions run in `fra1` (`regions`).
 - The `/mcp` route is the public docs MCP server: search and page-fetch only, no subject.
 - PermDock Cloud is a separate Vercel project in the `PermDock-Cloud` repository: dashboard `https://app.permdock.com`, API `https://api.permdock.com`, read-only MCP `https://mcp.permdock.com`.
-- Local: `pnpm dev:portless` serves marketing at `https://permdock.localhost`, which proxies `/docs` to `https://docs.permdock.localhost` (`.agents/rules/local-dev-portless-agent-browser.mdc`). Without Portless, `pnpm marketing:dev` serves marketing on `:3000` and docs on `:3001`; `pnpm docs:dev` runs the docs alone.
+- Local: `pnpm dev:portless` serves marketing at `https://permdock.localhost`, which proxies `/docs` to `https://docs.permdock.localhost` (`.agents/rules/local-dev-portless-agent-browser.mdc`). Without Portless, `pnpm dev:marketing` serves marketing on `:3000` and docs on `:3001`; `pnpm dev:docs` runs the docs alone.

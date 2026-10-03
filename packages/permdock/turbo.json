@@ -5,6 +5,9 @@
   "tasks": {
     "typecheck": {
       "dependsOn": ["build", "^build"]
+    },
+    "test": {
+      "inputs": ["$TURBO_DEFAULT$", "tests/testing/fixtures/authzen/**"]
     }
   }
 }

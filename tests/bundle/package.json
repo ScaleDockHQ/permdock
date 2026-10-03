@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "lint": "oxlint --disable-nested-config --type-aware",
-    "test": "vitest run",
+    "size": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

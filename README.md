@@ -64,7 +64,7 @@ pnpm install        # also installs the lefthook git hooks
 pnpm build          # tsdown builds packages/permdock; apps and tests import dist/
 pnpm test           # vitest unit and type tests
 vercel link         # once, maintainers only: links the Vercel project
-pnpm env:pull       # maintainers only: writes .env.*.local from Vercel
+pnpm env:pull       # maintainers only: writes .env.local from Vercel
 pnpm dev:portless   # marketing and docs through Portless
 ```
 
@@ -80,30 +80,33 @@ No environment variables are needed for build, verify or test; `.env.example` li
 | Docs      | `https://permdock.localhost/docs` (served by `https://docs.permdock.localhost`) |
 | Docs MCP  | `https://permdock.localhost/mcp`                                                |
 
-In a git worktree the branch is prefixed: `https://<branch>.permdock.localhost`. Without Portless, `pnpm marketing:dev` serves `http://localhost:3000` with docs on `:3001`.
+In a git worktree the branch is prefixed: `https://<branch>.permdock.localhost`. Without Portless, `pnpm dev:marketing` serves `http://localhost:3000` with docs on `:3001`.
 
 ## Common Commands
 
 | Command                                | What it does                                                                                                                                                |
 | -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `pnpm build`                           | `turbo run build` (tsdown for `permdock`, `next build` for the apps)                                                                                        |
-| `pnpm verify`                          | `format:check`, `lint`, `typecheck`, `typecheck:tooling`, `knip`, `boundaries`, `test` and `docs:drift`                                                     |
+| `pnpm check`                           | The fast gate: `format:check`, `lint` and `typecheck`                                                                                                       |
+| `pnpm verify`                          | Every CI gate: `format:check`, `lint:root` and `boundaries`, then one cached `turbo run` of the rest                                                        |
 | `pnpm test`                            | Vitest unit and type tests across the workspace                                                                                                             |
 | `pnpm test:e2e`                        | Playwright across `apps/examples` and `tests/e2e/fixtures`                                                                                                  |
 | `pnpm test:integration`                | Postgres via testcontainers: RLS parity and providers                                                                                                       |
 | `pnpm test:runtimes`                   | The WinterTC app on Bun, Deno and workerd                                                                                                                   |
 | `pnpm size`                            | Per-entry min+gzip against the recorded baseline                                                                                                            |
+| `pnpm gen:check` / `pnpm doctor`       | Generated catalogs and SQL are current; `permdock doctor` (and `better-supabase doctor`) in every example                                                   |
 | `pnpm check:publish`                   | publint and arethetypeswrong on the published package                                                                                                       |
 | `pnpm docs:drift`                      | Docs mention every doctor code and package entry; every page is in `meta.json`. CLI flags are checked against their pages by `tests/cli/docs-flags.test.ts` |
-| `pnpm dev:portless`                    | Marketing and docs at the Portless URLs above, with `.env.local` and `.env.development.local` loaded                                                        |
-| `pnpm dev:cleanup`                     | `portless prune`: stops dev servers orphaned by a crashed session                                                                                           |
-| `pnpm docs:dev` / `pnpm marketing:dev` | Docs on `:3001`; marketing on `:3000` with `/docs` proxied                                                                                                  |
-| `pnpm env:pull`                        | `.env.development.local`, `.env.preview.local` and `.env.production.local` from Vercel                                                                      |
+| `pnpm dev:portless`                    | Marketing and docs at the Portless URLs above, with `.env.development.local`, then `.env.local` loaded                                                      |
+| `pnpm dev:cleanup`                     | `portless prune`: stops dev servers orphaned by a crashed session. Yours to run: agents never prune the shared proxy                                        |
+| `pnpm dev:docs` / `pnpm dev:marketing` | Docs on `:3001`; marketing on `:3000` with `/docs` proxied                                                                                                  |
+| `pnpm env:pull`                        | `.env.local` from Vercel's development environment; `env:pull:production` writes `.env.production.local`                                                    |
 | `pnpm format` / `pnpm lint`            | Oxfmt over the whole repository; Oxlint per workspace                                                                                                       |
 | `pnpm knip`                            | Unused files, exports and dependencies                                                                                                                      |
 | `pnpm boundaries`                      | `turbo boundaries`: workspace dependency rules by tag                                                                                                       |
 | `pnpm audit:high`                      | `pnpm audit` failing on high and critical advisories                                                                                                        |
-| `pnpm openapi:generate`                | Refresh the vendored OpenAPI and Overlay schemas                                                                                                            |
+| `pnpm openapi:generate`                | Refresh the vendored OpenAPI and Overlay schemas; `openapi:check` fails when they changed                                                                   |
+| `pnpm analyze`                         | `next experimental-analyze` for docs and marketing; not part of `verify`                                                                                    |
 | `pnpm standards:fixtures`              | Refresh the upstream schemas and RFC vectors `tests/standards` checks against                                                                               |
 | `pnpm changeset`                       | Record a user-visible change                                                                                                                                |
 

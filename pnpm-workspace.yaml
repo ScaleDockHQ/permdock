@@ -217,6 +217,14 @@ catalogs:
     vitest: ">=3"
     vue: ">=3"
 
+auditConfig:
+  # No patched release yet; drop each entry once one ships.
+  ignoreGhsas:
+    # node-forge <=1.4.0, through listhen in the Nuxt dev server (the nuxt-saas fixture,
+    # and nuxt as a peer of @vercel/analytics); no signature verification at runtime.
+    - GHSA-86w9-cpqp-85rv
+    # braces <=3.0.3, through micromatch in Expo's Metro file map; build-time globs only.
+    - GHSA-vfj7-8cjw-p6xm
 catalogMode: strict
 catalogPrune: true
 engineStrict: true

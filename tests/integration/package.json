@@ -4,10 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "generate": "prisma generate",
+    "gen:check": "permdock collect --check --cwd fixtures/posts",
     "lint": "oxlint --disable-nested-config --type-aware",
     "test:integration": "prisma generate && vitest run",
-    "typecheck": "prisma generate && tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "typegen": "prisma generate"
   },
   "devDependencies": {
     "@electric-sql/pglite": "catalog:",
