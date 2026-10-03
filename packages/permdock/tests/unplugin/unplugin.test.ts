@@ -11,7 +11,7 @@ import {
 import path from 'node:path';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 
-import type { CreatePermDockPluginOptions } from '../../src/unplugin/index.ts';
+import type { PermDockPluginOptions } from '../../src/unplugin/index.ts';
 
 import { createPermDockUnplugin } from '../../src/unplugin/index.ts';
 
@@ -42,7 +42,7 @@ function project(copyFixture: boolean): string {
 
 type Hook = () => unknown;
 
-function hooks(options?: CreatePermDockPluginOptions): {
+function hooks(options?: PermDockPluginOptions): {
   readonly buildStart: Hook;
   readonly watchChange: Hook;
 } {

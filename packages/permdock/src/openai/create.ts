@@ -12,7 +12,7 @@ import type {
 } from '../core/interfaces.ts';
 import type { PermDock } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
-import type { Policy } from '../core/policy.ts';
+import type { Policy, PolicyVocabulary } from '../core/policy.ts';
 import type { Delegation, Principal } from '../core/subject.ts';
 
 import { approvalTokenOf, createAgentKernel } from '../agent/kernel.ts';
@@ -83,7 +83,7 @@ export type OpenAiRunState<TItem> = {
   ): unknown;
 };
 
-export type OpenAiPermDock = {
+export type OpenAiPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
   /** A `ToolApprovalFunction`: pass it as a tool's `needsApproval`. */
   readonly needsApproval: (
     permission: Permission,
@@ -101,7 +101,7 @@ export type OpenAiPermDock = {
     interruptions: readonly TItem[],
     options: { readonly context: OpenAiContext },
   ) => Promise<readonly ApprovalRequest[]>;
-  readonly permdock: (context: OpenAiContext) => Promise<PermDock>;
+  readonly permdock: (context: OpenAiContext) => Promise<PermDock<V>>;
 };
 
 function appContext(runContext: OpenAiRunContext | undefined): OpenAiContext {
@@ -135,10 +135,14 @@ function parseCall(item: OpenAiInterruption): ParsedCall {
   }
 }
 
-export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
-  policy: Policy<TUser, TPrincipal>,
+export function createPermDock<
+  TUser,
+  TPrincipal extends Principal = Principal,
+  V extends PolicyVocabulary = PolicyVocabulary,
+>(
+  policy: Policy<TUser, TPrincipal, V>,
   options: OpenAiPermDockOptions<TUser>,
-): OpenAiPermDock {
+): OpenAiPermDock<V> {
   const store = options.store ?? memoryApprovalStore();
   const kernel = createAgentKernel(policy, {
     ...compact({
@@ -183,9 +187,12 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         return true;
       }
       try {
-        const dock = await kernel.instance(context);
+        const permdock = await kernel.instance(context);
         // SAFETY: can's instance and collection overloads share one implementation that takes either kind.
-        const can = dock.can as (next: Permission, row?: unknown) => boolean;
+        const can = permdock.can as (
+          next: Permission,
+          row?: unknown,
+        ) => boolean;
         if (binding.data === undefined) {
           return !can(permission);
         }

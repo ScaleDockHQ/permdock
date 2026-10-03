@@ -333,7 +333,7 @@ export type RunResult = {
   readonly stderr: string;
 };
 
-export type CreatePermDockPluginOptions = {
+export type PermDockPluginOptions = {
   readonly collect?: CollectConfig;
   readonly onDrift?: 'error' | 'warn';
   /**

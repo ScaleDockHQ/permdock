@@ -32,7 +32,7 @@ function pdp(
       },
     },
     ...options,
-  }).handler;
+  }).permdockHandler;
 }
 
 function post(

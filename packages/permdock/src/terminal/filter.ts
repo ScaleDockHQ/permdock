@@ -2,8 +2,8 @@ import type { PermDock } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
 import type { CommandEntry, FilterCommandsOptions } from './types.ts';
 
-function snapshotAllows(dock: PermDock, permission: Permission): boolean {
-  const snapshot = dock.snapshot();
+function snapshotAllows(permdock: PermDock, permission: Permission): boolean {
+  const snapshot = permdock.snapshot();
   if (typeof snapshot === 'string' || snapshot instanceof Promise) {
     return false;
   }
@@ -12,21 +12,21 @@ function snapshotAllows(dock: PermDock, permission: Permission): boolean {
   );
 }
 
-function commandAllowed(dock: PermDock, permission: Permission): boolean {
+function commandAllowed(permdock: PermDock, permission: Permission): boolean {
   if (permission.kind === 'collection') {
     // SAFETY: kind is collection, and a collection permission's can() takes no row.
-    return (dock.can as (next: Permission) => boolean)(permission);
+    return (permdock.can as (next: Permission) => boolean)(permission);
   }
-  return snapshotAllows(dock, permission);
+  return snapshotAllows(permdock, permission);
 }
 
 export function filterCommandEntries(
-  dock: PermDock | undefined,
+  permdock: PermDock | undefined,
   entries: readonly CommandEntry[],
   options: FilterCommandsOptions,
 ): readonly CommandEntry[] {
   const mode = options.mode;
-  if (dock === undefined) {
+  if (permdock === undefined) {
     if (mode === 'hide') {
       return [];
     }
@@ -37,7 +37,7 @@ export function filterCommandEntries(
   }
   const visible: CommandEntry[] = [];
   for (const entry of entries) {
-    const allowed = commandAllowed(dock, entry.permission);
+    const allowed = commandAllowed(permdock, entry.permission);
     if (allowed) {
       visible.push(entry);
       continue;

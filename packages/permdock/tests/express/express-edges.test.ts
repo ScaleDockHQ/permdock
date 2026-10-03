@@ -41,14 +41,14 @@ async function listen(
 
 describe('permdock/express edge cases', () => {
   it('protects a collection route without a loader', async () => {
-    const { protect, handler } = createPermDock(policy, {
+    const { protect, withPermDock } = createPermDock(policy, {
       subject: () => memberUser,
     });
     const app = express();
     app.get(
       '/posts',
       protect(permissions.post.list),
-      handler((req, res) => {
+      withPermDock((req, res) => {
         res.json({ data: req.permdockData ?? null });
       }),
     );

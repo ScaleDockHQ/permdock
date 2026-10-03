@@ -14,7 +14,7 @@ import type {
 } from '../core/interfaces.ts';
 import type { PermDock } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
-import type { Policy } from '../core/policy.ts';
+import type { Policy, PolicyVocabulary } from '../core/policy.ts';
 import type { RevocationFeed } from '../core/revocations.ts';
 import type { Principal } from '../core/subject.ts';
 import type { PdpFactory } from '../pdp/types.ts';
@@ -46,10 +46,11 @@ export type OrpcMiddlewareOpts<
 export type OrpcMiddleware<
   TCtx extends object = object,
   TInput = unknown,
+  V extends PolicyVocabulary = PolicyVocabulary,
 > = Middleware<
   TCtx,
   TCtx & {
-    readonly permdock: PermDock;
+    readonly permdock: PermDock<V>;
     readonly permdockData?: unknown;
   },
   TInput,
@@ -85,12 +86,15 @@ export type OrpcPermDockOptions<
   readonly revocations?: RevocationFeed;
 };
 
-export type OrpcOpenApiHooks<TCtx extends object = object> = {
+export type OrpcOpenApiHooks<
+  TCtx extends object = object,
+  V extends PolicyVocabulary = PolicyVocabulary,
+> = {
   readonly protect: (
     permission: Permission,
     loadData?: (opts: OrpcMiddlewareOpts<TCtx>) => unknown,
     protectOptions?: StreamProtectOptions,
-  ) => OrpcMiddleware<TCtx>;
+  ) => OrpcMiddleware<TCtx, unknown, V>;
   readonly security: (permission: Permission) => {
     readonly security: readonly Record<string, readonly string[]>[];
     readonly 'x-permdock-permissions': readonly string[];
@@ -98,20 +102,23 @@ export type OrpcOpenApiHooks<TCtx extends object = object> = {
   readonly securitySchemes: OpenApiHooks['securitySchemes'];
 };
 
-export type OrpcPermDock<TCtx extends object = object> = {
-  readonly permdock: () => OrpcMiddleware<TCtx>;
+export type OrpcPermDock<
+  TCtx extends object = object,
+  V extends PolicyVocabulary = PolicyVocabulary,
+> = {
+  readonly permdock: () => OrpcMiddleware<TCtx, unknown, V>;
   readonly protect: (
     permission: Permission,
     loadData?: (opts: OrpcMiddlewareOpts<TCtx>) => unknown,
     protectOptions?: StreamProtectOptions,
-  ) => OrpcMiddleware<TCtx>;
+  ) => OrpcMiddleware<TCtx, unknown, V>;
   /** A long-lived connection for the request behind `context`. */
   readonly connection: (
     opts: OrpcMiddlewareOpts<TCtx>,
     connectionOptions?: ConnectionOptions,
   ) => Promise<Connection>;
   readonly permdockHandler: (request: Request) => Promise<Response>;
-  readonly openapi: OrpcOpenApiHooks<TCtx>;
+  readonly openapi: OrpcOpenApiHooks<TCtx, V>;
 };
 
 function hasBoundPermDock(context: unknown): boolean {
@@ -217,10 +224,11 @@ export function createPermDock<
   TCtx extends object = object,
   TUser = unknown,
   TPrincipal extends Principal = Principal,
+  V extends PolicyVocabulary = PolicyVocabulary,
 >(
-  policy: Policy<TUser, TPrincipal>,
+  policy: Policy<TUser, TPrincipal, V>,
   options: OrpcPermDockOptions<TCtx, TUser>,
-): OrpcPermDock<TCtx> {
+): OrpcPermDock<TCtx, V> {
   const optsByRequest = new WeakMap<Request, OrpcMiddlewareOpts<TCtx>>();
   const requestByCtx = new WeakMap<object, Request>();
   const kernel = createKernel(
@@ -286,7 +294,7 @@ export function createPermDock<
   };
 
   // SAFETY: the function has oRPC's middleware call shape; its generics cannot be inferred from it.
-  const permdock = (): OrpcMiddleware<TCtx> =>
+  const permdock = (): OrpcMiddleware<TCtx, unknown, V> =>
     ((mwOptions, input) => {
       // SAFETY: oRPC passes this middleware's context as TCtx and next takes the extended context.
       const opts = toOpts(
@@ -302,7 +310,7 @@ export function createPermDock<
       if (hasBoundPermDock(opts.context)) {
         // SAFETY: hasBoundPermDock just confirmed the context already carries a permdock.
         return mwOptions.next({
-          context: opts.context as TCtx & { readonly permdock: PermDock },
+          context: opts.context as TCtx & { readonly permdock: PermDock<V> },
         });
       }
       const request = bind(opts);
@@ -322,7 +330,7 @@ export function createPermDock<
             throw error;
           },
         );
-    }) as OrpcMiddleware<TCtx>;
+    }) as OrpcMiddleware<TCtx, unknown, V>;
 
   const connection = async (
     opts: OrpcMiddlewareOpts<TCtx>,
@@ -364,7 +372,7 @@ export function createPermDock<
     permission: Permission,
     loadData?: (opts: OrpcMiddlewareOpts<TCtx>) => unknown,
     protectOptions?: StreamProtectOptions,
-  ): OrpcMiddleware<TCtx> =>
+  ): OrpcMiddleware<TCtx, unknown, V> =>
     // SAFETY: the function has oRPC's middleware call shape; its generics cannot be inferred from it.
     (async (mwOptions, input) => {
       // SAFETY: oRPC passes this middleware's context as TCtx and next takes the extended context.
@@ -400,7 +408,7 @@ export function createPermDock<
         );
       }
       return throwOrpcError(guard.response);
-    }) as OrpcMiddleware<TCtx>;
+    }) as OrpcMiddleware<TCtx, unknown, V>;
 
   const permdockHandler = (request: Request): Promise<Response> => {
     // SAFETY: the handler route runs outside oRPC, so its only context is the request as req.
@@ -411,14 +419,14 @@ export function createPermDock<
         Promise.resolve(nextOpts ?? { context: { req: request } as TCtx }),
     } satisfies OrpcMiddlewareOpts<TCtx>;
     bind(opts);
-    const { POST, GET } = kernel.handler(() => scopeOf(opts));
+    const { POST, GET } = kernel.permdockHandler(() => scopeOf(opts));
     return Promise.resolve(
       request.method === 'GET' ? GET(request) : POST(request),
     );
   };
 
   const kernelOpenApi = kernel.openapi;
-  const openapi: OrpcOpenApiHooks<TCtx> = {
+  const openapi: OrpcOpenApiHooks<TCtx, V> = {
     protect,
     security: kernelOpenApi.security,
     securitySchemes: kernelOpenApi.securitySchemes,

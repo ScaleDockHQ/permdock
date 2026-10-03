@@ -55,7 +55,7 @@ const policy = definePolicy(
 const NOW = Math.floor(Date.now() / 1000);
 const DAY = 86_400;
 
-function dock(subject: Subject) {
+function permdockFor(subject: Subject) {
   const instance = createPermDock(policy, subject);
   if (instance instanceof Promise) {
     throw new TypeError('expected a synchronous instance');
@@ -199,7 +199,9 @@ describe('credentialPolicyViolation', () => {
 describe('credentialSubject', () => {
   it('intersects a user key with its owner live rights', () => {
     const owner = person('u_1', ['developer']);
-    const permdock = dock(credentialSubject(userKey, { permissions, owner }));
+    const permdock = permdockFor(
+      credentialSubject(userKey, { permissions, owner }),
+    );
     expect(permdock.can(repo.read, r1)).toBe(true);
     const write = permdock.decide(repo.write, r1);
     expect(write.outcome).toBe('denied');
@@ -211,7 +213,7 @@ describe('credentialSubject', () => {
 
   it('loses what the owner loses: a demoted owner reads nothing', () => {
     const demoted = person('u_1', []);
-    const permdock = dock(
+    const permdock = permdockFor(
       credentialSubject(userKey, { permissions, owner: demoted }),
     );
     expect(permdock.can(repo.read, r1)).toBe(false);
@@ -231,7 +233,7 @@ describe('credentialSubject', () => {
         { type: 'repo', actions: ['write'], identifier: 'r_1' },
       ],
     });
-    const permdock = dock(
+    const permdock = permdockFor(
       credentialSubject(scoped, {
         permissions,
         owner: person('u_1', ['owner']),
@@ -248,7 +250,7 @@ describe('credentialSubject', () => {
       permissions: [{ permission: 'repo.archive' }],
     };
     expect(credentialDelegation(stale, permissions)).toEqual({ scopes: [] });
-    const permdock = dock(
+    const permdock = permdockFor(
       credentialSubject(stale, {
         permissions,
         owner: person('u_1', ['owner']),
@@ -284,7 +286,7 @@ describe('credentialSubject', () => {
       memberships: [{ tenant: 'o_1', roles: ['developer'], via: 'credential' }],
     });
     expect(subject.expiresAt).toBe(serviceKey.expiresAt);
-    const permdock = dock(subject);
+    const permdock = permdockFor(subject);
     expect(permdock.can(repo.read, r1)).toBe(true);
     expect(permdock.can(repo.write, r1)).toBe(true);
     expect(permdock.can(repo.delete, r1)).toBe(false);
@@ -294,7 +296,9 @@ describe('credentialSubject', () => {
 
   it('names the credential on every decision event', () => {
     const events: DecisionEvent[] = [];
-    const permdock = dock(credentialSubject(serviceKey, { permissions }));
+    const permdock = permdockFor(
+      credentialSubject(serviceKey, { permissions }),
+    );
     permdock.on('decision', (event) => {
       // SAFETY: the instance emits a DecisionEvent on every 'decision' event.
       events.push(event as DecisionEvent);
@@ -304,7 +308,7 @@ describe('credentialSubject', () => {
       id: 'svc_1',
       kind: 'service',
     });
-    const plain = dock(userSubject('u_1', ['owner']));
+    const plain = permdockFor(userSubject('u_1', ['owner']));
     plain.on('decision', (event) => {
       // SAFETY: the instance emits a DecisionEvent on every 'decision' event.
       events.push(event as DecisionEvent);
@@ -315,7 +319,7 @@ describe('credentialSubject', () => {
 });
 
 describe('decideCredential', () => {
-  const developer = dock(userSubject('u_1', ['developer']));
+  const developer = permdockFor(userSubject('u_1', ['developer']));
   const expiresAt = NOW + DAY;
   const readKey = {
     kind: 'user' as const,
@@ -408,12 +412,12 @@ describe('decideCredential', () => {
   });
 
   it('refuses anonymous creators, links and keys minting keys', async () => {
-    const anonymous = dock({ principal: null, context: {} });
+    const anonymous = permdockFor({ principal: null, context: {} });
     expect(await decideCredential(anonymous, readKey)).toMatchObject({
       outcome: 'denied',
       denials: [{ reason: 'anonymous' }],
     });
-    const link = dock(
+    const link = permdockFor(
       capabilitySubject({
         v: 1,
         id: 'lnk_1',
@@ -426,7 +430,7 @@ describe('decideCredential', () => {
     expect(await decideCredential(link, readKey)).toMatchObject({
       denials: [{ reason: 'exceeds-creator', detail: { creator: 'link' } }],
     });
-    const key = dock(credentialSubject(serviceKey, { permissions }));
+    const key = permdockFor(credentialSubject(serviceKey, { permissions }));
     expect(await decideCredential(key, readKey)).toMatchObject({
       denials: [
         { reason: 'exceeds-creator', detail: { creator: 'credential' } },
@@ -435,7 +439,7 @@ describe('decideCredential', () => {
   });
 
   it('keeps a delegated creator inside its delegation', async () => {
-    const delegated = dock(
+    const delegated = permdockFor(
       userSubject('u_1', ['owner'], { delegation: { scopes: ['repo:read'] } }),
     );
     expect(
@@ -522,7 +526,7 @@ describe('decideCredential', () => {
   });
 
   it('checks a service key against its own tenant, not the creator active one', async () => {
-    const owner = dock({
+    const owner = permdockFor({
       principal: {
         id: 'u_1',
         kind: 'user',
@@ -595,7 +599,7 @@ describe('decideCredential', () => {
     );
     expect(widened.outcome).toBe('approval-required');
     const otherCreator = await decideCredential(
-      dock(userSubject('u_2', ['developer'])),
+      permdockFor(userSubject('u_2', ['developer'])),
       readKey,
       { now: NOW, settings, approved: pending.token },
     );

@@ -30,7 +30,7 @@ const app = new Elysia()
 
 | Export | Role |
 |---|---|
-| `permdock()` | Plugin. `derive` calls `subject(ctx)` once per request and adds `permdock` to the context. Uses `as: 'global'` scoping so routes registered after `.use` see it. Each `createPermDock` result gets its own plugin `seed`, so two factories in one app are not deduplicated into one, while `.use(permdock())` in a child app and its parent is. |
+| `permdock()` | Plugin. `derive` calls `subject(ctx)` once per request and adds `permdock` to the context, typed with the policy's roles, plans and permissions in every later handler. Uses `as: 'global'` scoping so routes registered after `.use` see it. Each `createPermDock` result gets its own plugin `seed`, so two factories in one app are not deduplicated into one, while `.use(permdock())` in a child app and its parent is. |
 | `protect(permission, loadData?, options?)` | `beforeHandle` hook. The `tenant` option (`(ctx) => ctx.params?.org`) is resolved for each `protect`. Loads data (`ctx.permdockData`), validates untrusted input, decides. On denial it returns a `Response` with Problem Details, which Elysia sends without running the handler. |
 | `permdockHandler()` | Plugin mounting the AuthZEN-shaped decision endpoint under a prefix. |
 | `openapi` | Kernel hook contract; `openapi.security(permission)` returns the `detail` fragment for `@elysiajs/openapi` and `openapi.securitySchemes()` the document-level components. |

@@ -3,7 +3,7 @@ title: AuthZEN
 description: permdock/authzen serves the OpenID AuthZEN Authorization API 1.0 (evaluation, evaluations, search, discovery) from a PermDock policy so the decision endpoint is a standard PDP.
 ---
 
-`permdock/authzen` exposes a PermDock policy as an AuthZEN Policy Decision Point. One `handler` serves the evaluation, batched evaluations, search and discovery endpoints. The React decision endpoint (`permdockHandler` in `permdock/next`, the `endpoint` option of `PermDockProvider`) and the [pdp provider](/docs/adapters/pdp) use the same request and response schemas, so PermDock speaks one wire format whether it is the PDP or the PEP.
+`permdock/authzen` exposes a PermDock policy as an AuthZEN Policy Decision Point. One `permdockHandler` serves the evaluation, batched evaluations, search and discovery endpoints. The React decision endpoint (`permdockHandler` in `permdock/next`, the `endpoint` option of `PermDockProvider`) and the [pdp provider](/docs/adapters/pdp) use the same request and response schemas, so PermDock speaks one wire format whether it is the PDP or the PEP.
 
 ## Purpose
 
@@ -14,14 +14,14 @@ The [OpenID AuthZEN Authorization API 1.0](https://openid.net/specs/authorizatio
 ```ts
 import { createPermDock } from 'permdock/authzen'
 
-export const { handler } = createPermDock(policy, {
+export const { permdockHandler } = createPermDock(policy, {
   subject: fromBearer,                          // (request) => principal | null; MUST be real authentication
   resources: { post: { load: (id) => loadPost(id), list: ({ where }) => db.posts.where(where) } },
 })
 
 // Fetch-first: mount under /access/v1 and /.well-known
-app.all('/access/v1/*', (c) => handler(c.req.raw))
-app.get('/.well-known/authzen-configuration', (c) => handler(c.req.raw))
+app.all('/access/v1/*', (c) => permdockHandler(c.req.raw))
+app.get('/.well-known/authzen-configuration', (c) => permdockHandler(c.req.raw))
 ```
 
 | Endpoint | PermDock call | Certification level |
@@ -33,7 +33,7 @@ app.get('/.well-known/authzen-configuration', (c) => handler(c.req.raw))
 | `POST /access/v1/search/subject` | subjects permitted for an action on a resource (requires a subject enumerator) | Search |
 | `GET /.well-known/authzen-configuration` | PDP metadata: endpoint URLs, supported features | Discovery |
 
-- `handler` is a Fetch handler (`Request` to `Response`), so it mounts on Hono, Next.js route handlers, Node and any [server kernel](/docs/adapters/server-kernel) adapter.
+- `permdockHandler` is a Fetch handler (`Request` to `Response`), so it mounts on Hono, Next.js route handlers, Node and any [server kernel](/docs/adapters/server-kernel) adapter.
 - The same handler is what PermDock Cloud runs as a hosted Authorization Decision Service: publish the policy, and Kong, Envoy, Tyk, Zuplo or a service in another language calls the hosted `/access/v1/evaluation` with a Vercel OIDC or client-credentials token and gets the same `context` (`outcome`, denial reasons, approval `token`) that the embedded handler produces. Running the handler yourself and using the Cloud are interchangeable; the decision semantics are one code path ([Cloud adapter](/docs/adapters/cloud), [PermDock Cloud](/docs/adapters/cloud)).
 - `resources` tells the handler how to load an instance by id (for `where` conditions on instance actions) and how to enumerate for resource search.
 - `subject` authenticates the calling PEP or end user; see "decision endpoint auth" below.
@@ -79,7 +79,7 @@ An AuthZEN PEP is another party: a gateway, a service in another language, somet
 
 ## Example app
 
-`apps/examples/authzen-pdp`: `node:http` wrapper around the Fetch `handler` on `127.0.0.1:3470`. `GET /health`. `POST /access/v1/evaluation` with `Authorization: Bearer test` grants `post.update` on the member's own post and denies `post.publish`.
+`apps/examples/authzen-pdp`: `node:http` wrapper around the Fetch `permdockHandler` on `127.0.0.1:3470`. `GET /health`. `POST /access/v1/evaluation` with `Authorization: Bearer test` grants `post.update` on the member's own post and denies `post.publish`.
 
 ## Related standards
 

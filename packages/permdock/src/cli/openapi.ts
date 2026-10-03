@@ -166,7 +166,7 @@ function arityOf(
 function applyDocument(
   document: Record<string, unknown>,
   policy: Policy,
-  factory: ReturnType<typeof createPermDock>,
+  openapi: ReturnType<typeof createPermDock>,
   arity: boolean,
   target: '3.1' | '3.2' | '3.3',
 ): Record<string, unknown> {
@@ -178,7 +178,7 @@ function applyDocument(
     : {};
   const nextSchemes = mergeRecord(
     schemes,
-    mergeSchemes(schemes, factory.securitySchemes()),
+    mergeSchemes(schemes, openapi.securitySchemes()),
   );
   const scopeSets: (readonly string[])[] = [];
   const paths = isRecord(document['paths']) ? document['paths'] : {};
@@ -201,7 +201,7 @@ function applyDocument(
       }
       const leaves = leavesOf(policy, keys);
       scopeSets.push(leaves.map((leaf) => leaf.scope));
-      const described = mergeRecord(operation, factory.describe(leaves));
+      const described = mergeRecord(operation, openapi.describe(leaves));
       nextItem[method] = arity
         ? mergeRecord(described, {
             'x-permdock-arity': arityOf(policy, leaves, path),
@@ -210,7 +210,7 @@ function applyDocument(
     }
     nextPaths[path] = nextItem;
   }
-  const requirements = factory.securityProfileRequirements(scopeSets);
+  const requirements = openapi.securityProfileRequirements(scopeSets);
   const nextComponents = mergeRecord(
     components,
     mergeRecord(
@@ -224,7 +224,7 @@ function applyDocument(
     ...(target === '3.3' ? { openapi: openapiVersion(target) } : {}),
     components: nextComponents,
     paths: nextPaths,
-    'x-permdock-catalog': factory.catalog(),
+    'x-permdock-catalog': openapi.catalog(),
   });
 }
 
@@ -294,7 +294,7 @@ export async function runOpenapi(input: {
     return { code: 2, output: 'openapi --doc is required' };
   }
   const policy = await loadPolicy(input.cwd, input.config, input.from);
-  const factory = createPermDock(policy, {
+  const openapi = createPermDock(policy, {
     target: input.target,
     ...(input.profile === undefined ? {} : { securityProfile: input.profile }),
     ...(input.profileScheme === undefined
@@ -360,7 +360,7 @@ export async function runOpenapi(input: {
   }
   const result =
     covered !== undefined
-      ? factory.overlay({
+      ? openapi.overlay({
           extends: input.doc,
           version: input.overlay,
           operations: covered.operations,
@@ -368,7 +368,7 @@ export async function runOpenapi(input: {
       : applyDocument(
           parsed,
           policy,
-          factory,
+          openapi,
           input.arity === true,
           input.target,
         );

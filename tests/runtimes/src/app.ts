@@ -107,4 +107,4 @@ export const app = new Hono()
   .patch('/hono/:org/projects/:id', hono.protect(p.project.update, row), (c) =>
     c.json({ id: c.req.param('id') }),
   )
-  .all('/access/v1/*', (c) => authzen.handler(c.req.raw));
+  .all('/access/v1/*', (c) => authzen.permdockHandler(c.req.raw));

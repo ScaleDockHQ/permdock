@@ -124,8 +124,8 @@ describe('permdock/next', () => {
       },
     });
 
-    const dock = await getPermDock();
-    expect(() => dock.assert(permissions.post.publish, ownPost)).toThrow(
+    const permdock = await getPermDock();
+    expect(() => permdock.assert(permissions.post.publish, ownPost)).toThrow(
       /post.publish/,
     );
     expect(seen).toEqual(['denied']);
@@ -204,8 +204,8 @@ describe('permdock/next', () => {
         },
       },
     });
-    const dock = await getPermDock();
-    dock.decide(permissions.post.update, ownPost);
+    const permdock = await getPermDock();
+    permdock.decide(permissions.post.update, ownPost);
     await Promise.resolve();
     expect(written).toHaveLength(1);
     expect(flushed).toBe(0);
@@ -330,8 +330,8 @@ describe('permdock/next', () => {
       subject: () => memberUser,
       store,
     });
-    const dock = await getPermDock();
-    const required = dock.decide(permissions.post.delete, ownPost);
+    const permdock = await getPermDock();
+    const required = permdock.decide(permissions.post.delete, ownPost);
     expect(required.outcome).toBe('approval-required');
     if (required.outcome !== 'approval-required') {
       return;
@@ -545,8 +545,8 @@ describe('permdock/next', () => {
         },
       },
     });
-    const dock = await getPermDock();
-    dock.decide(permissions.post.update, ownPost);
+    const permdock = await getPermDock();
+    permdock.decide(permissions.post.update, ownPost);
     expect(written).toHaveLength(1);
   });
 });

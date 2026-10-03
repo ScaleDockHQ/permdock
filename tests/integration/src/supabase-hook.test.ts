@@ -202,7 +202,7 @@ describe('Supabase token hook with named scopes (jwt mode)', () => {
       const principal = subjectFromSupabase(claims, {
         memberships: 'memberships',
       }).principal;
-      const dock = await createPermDock(policy, principal);
+      const permdock = await createPermDock(policy, principal);
       for (const [permission, table] of [
         [permissions.quote.read, 'quote'],
         [permissions.invoice.read, 'invoice'],
@@ -210,7 +210,7 @@ describe('Supabase token hook with named scopes (jwt mode)', () => {
       ] as const) {
         const rows = table === 'asset' ? assets : documents;
         const expected = rows
-          .filter((row) => dock.can(permission, row))
+          .filter((row) => permdock.can(permission, row))
           .map((row) => row.id)
           .toSorted();
         const actual = await as('authenticated', claims, async (client) =>

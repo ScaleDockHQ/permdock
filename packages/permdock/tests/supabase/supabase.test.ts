@@ -258,14 +258,16 @@ describe('subjectFromSupabase', () => {
       },
     );
     const base = { sub: 'user-8', role: 'authenticated', user_role: 'member' };
-    const dock = async (claims: Record<string, unknown>): Promise<boolean> =>
+    const permdock = async (
+      claims: Record<string, unknown>,
+    ): Promise<boolean> =>
       (await createPermDock(policy, subjectFromSupabase(claims))).can(
         permissions.invoice.read,
       );
-    expect(await dock(base)).toBe(true);
-    expect(await dock({ ...base, client_id: 'app-1' })).toBe(false);
+    expect(await permdock(base)).toBe(true);
+    expect(await permdock({ ...base, client_id: 'app-1' })).toBe(false);
     expect(
-      await dock({ ...base, client_id: 'app-1', scope: 'invoice:read' }),
+      await permdock({ ...base, client_id: 'app-1', scope: 'invoice:read' }),
     ).toBe(true);
   });
 });

@@ -258,7 +258,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       webBotAuth: options.webBotAuth,
       revocations: options.revocations,
       adapter: 'nest',
-      wrap: (dock: PermDock) => applyOtel(dock, options.otel),
+      wrap: (permdock: PermDock) => applyOtel(permdock, options.otel),
     }),
   );
 
@@ -488,7 +488,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
   const permdockHandler = (
     handlerOptions: NestHandlerOptions = {},
   ): Type<unknown> => {
-    const { POST, GET } = kernel.handler((request) => {
+    const { POST, GET } = kernel.permdockHandler((request) => {
       const req = contexts.get(request);
       return req === undefined ? { tenant: undefined } : scopeOf(req);
     });

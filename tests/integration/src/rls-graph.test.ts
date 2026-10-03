@@ -159,18 +159,18 @@ async function inProcess(
       },
     },
   });
-  const dock = await createPermDock(
+  const permdock = await createPermDock(
     policy,
     { principal: { id: sub, roles: [] }, context: {} },
     { relations },
   );
   // SAFETY: folders holds the seeded folder rows permissions.folder.read checks
   return table === 'doc'
-    ? DOCS.filter((row) => dock.can(permissions.doc.read, row)).map(
+    ? DOCS.filter((row) => permdock.can(permissions.doc.read, row)).map(
         (row) => row.id,
       )
     : folders
-        .filter((row) => dock.can(permissions.folder.read, row as never))
+        .filter((row) => permdock.can(permissions.folder.read, row as never))
         .map((row) => String(row['id']))
         .toSorted();
 }

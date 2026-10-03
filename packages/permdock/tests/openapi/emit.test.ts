@@ -286,10 +286,10 @@ describe('permdock/openapi defaults', () => {
       grants: [allow(tree.status.view, { to: [anyone()] })],
       subject: () => null,
     });
-    const dock = createPermDock(listed, { scheme: oauth });
+    const permdock = createPermDock(listed, { scheme: oauth });
     expect({
-      overlay: dock.overlay()['overlay'],
-      security: dock.security(tree.status.view),
+      overlay: permdock.overlay()['overlay'],
+      security: permdock.security(tree.status.view),
     }).toEqual({ overlay: '1.1.0', security: [] });
   });
 });

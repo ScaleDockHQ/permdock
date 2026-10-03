@@ -16,7 +16,7 @@ import type {
 } from '../core/interfaces.ts';
 import type { PermDock } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
-import type { Policy } from '../core/policy.ts';
+import type { Policy, PolicyVocabulary } from '../core/policy.ts';
 import type { RevocationFeed } from '../core/revocations.ts';
 import type { Principal } from '../core/subject.ts';
 import type { OtelOptions } from '../otel/types.ts';
@@ -66,20 +66,23 @@ export type HonoPermDockOptions<TUser = unknown> = {
 };
 
 /** The `Variables` both middlewares set; Hono merges them into the route's Env. */
-export type PermDockEnv<TData = unknown> = {
+export type PermDockEnv<
+  TData = unknown,
+  V extends PolicyVocabulary = PolicyVocabulary,
+> = {
   readonly Variables: {
-    readonly permdock: PermDock;
+    readonly permdock: PermDock<V>;
     readonly permdockData: TData;
   };
 };
 
-export type HonoPermDock = {
-  readonly permdock: () => MiddlewareHandler<PermDockEnv>;
+export type HonoPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
+  readonly permdock: () => MiddlewareHandler<PermDockEnv<unknown, V>>;
   readonly protect: <TData = unknown>(
     permission: Permission,
     loadData?: (c: Context) => TData | Promise<TData>,
     protectOptions?: ProtectOptions,
-  ) => MiddlewareHandler<PermDockEnv<NonNullable<TData>>>;
+  ) => MiddlewareHandler<PermDockEnv<NonNullable<TData>, V>>;
   /** A long-lived connection for the request behind `c`. */
   readonly connection: (
     c: Context,
@@ -194,10 +197,14 @@ function mapDownstream(c: Context): void {
   }
 }
 
-export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
-  policy: Policy<TUser, TPrincipal>,
+export function createPermDock<
+  TUser,
+  TPrincipal extends Principal = Principal,
+  V extends PolicyVocabulary = PolicyVocabulary,
+>(
+  policy: Policy<TUser, TPrincipal, V>,
   options: HonoPermDockOptions<TUser>,
-): HonoPermDock {
+): HonoPermDock<V> {
   const contexts = new WeakMap<Request, Context>();
   const kernel = createKernel(
     policy,
@@ -218,7 +225,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       webBotAuth: options.webBotAuth,
       revocations: options.revocations,
       adapter: 'hono',
-      wrap: (dock: PermDock) => applyOtel(dock, options.otel),
+      wrap: (permdock: PermDock<V>) => applyOtel(permdock, options.otel),
     }),
   );
 
@@ -234,7 +241,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     tenantScope(options.tenant, c);
 
   const permdock =
-    (): MiddlewareHandler<PermDockEnv> => async (c, next: Next) => {
+    (): MiddlewareHandler<PermDockEnv<unknown, V>> => async (c, next: Next) => {
       try {
         c.set('permdock', await kernel.permdock(bind(c), await scopeOf(c)));
       } catch (error) {
@@ -254,7 +261,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       permission: Permission,
       loadData?: (c: Context) => TData | Promise<TData>,
       protectOptions?: ProtectOptions,
-    ): MiddlewareHandler<PermDockEnv<NonNullable<TData>>> =>
+    ): MiddlewareHandler<PermDockEnv<NonNullable<TData>, V>> =>
     async (c, next: Next): Promise<Response | undefined> => {
       const guard = await kernel.protect(
         permission,
@@ -279,7 +286,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     kernel.connection(bind(c), connectionOptions, await scopeOf(c));
 
   const permdockHandler = (): Hono => {
-    const { POST, GET } = kernel.handler((request) => {
+    const { POST, GET } = kernel.permdockHandler((request) => {
       const c = contexts.get(request);
       return c === undefined ? { tenant: undefined } : scopeOf(c);
     });

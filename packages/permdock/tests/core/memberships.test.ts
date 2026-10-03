@@ -129,7 +129,7 @@ describe('composeMemberships', () => {
   });
 
   it('accepts an array as memberships and fails closed when one source throws', async () => {
-    const dock = await createPermDock(
+    const permdock = await createPermDock(
       policy,
       { id: 'u', roles: [], tenant: 'T' },
       {
@@ -139,7 +139,7 @@ describe('composeMemberships', () => {
         ],
       },
     );
-    expect(dock.subject.principal?.memberships?.[0]?.roles).toEqual([
+    expect(permdock.subject.principal?.memberships?.[0]?.roles).toEqual([
       'member',
       'owner',
     ]);
@@ -299,9 +299,9 @@ describe('entitlements and seats', () => {
       tenant: 'T',
       memberships: [{ scope: 'organization', id: 'T', roles: ['member'] }],
     };
-    const dock = await createPermDock(policy, member, { entitlements });
-    expect(dock.subject.principal?.plans).toEqual(['dev-mode']);
-    expect(dock.can(permissions.doc.export, undefined)).toBe(true);
+    const permdock = await createPermDock(policy, member, { entitlements });
+    expect(permdock.subject.principal?.plans).toEqual(['dev-mode']);
+    expect(permdock.can(permissions.doc.export, undefined)).toBe(true);
     const { tenant: _tenant, ...untenanted } = member;
     const outsider = await createPermDock(
       policy,

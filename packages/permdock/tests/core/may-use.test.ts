@@ -23,7 +23,7 @@ const read: SnapshotGrant = {
   to: member,
 };
 
-function dock(
+function permdock(
   grants: readonly SnapshotGrant[],
   subject: Partial<Snapshot['subject']> = {},
 ): PermDock {
@@ -43,16 +43,16 @@ function dock(
 
 describe('mayUse', () => {
   it('is true for an allow and false without one', () => {
-    expect(mayUse(dock([read]), permissions.doc.read)).toBe(true);
-    expect(mayUse(dock([read]), permissions.doc.update)).toBe(false);
+    expect(mayUse(permdock([read]), permissions.doc.read)).toBe(true);
+    expect(mayUse(permdock([read]), permissions.doc.update)).toBe(false);
   });
 
   it('is false under an unconditional deny, and true when the deny has a condition', () => {
     const blanket: SnapshotGrant = { ...read, effect: 'deny' };
-    expect(mayUse(dock([read, blanket]), permissions.doc.read)).toBe(false);
+    expect(mayUse(permdock([read, blanket]), permissions.doc.read)).toBe(false);
     expect(
       mayUse(
-        dock([read, { ...blanket, scope: 'tenant' }]),
+        permdock([read, { ...blanket, scope: 'tenant' }]),
         permissions.doc.read,
       ),
     ).toBe(false);
@@ -65,7 +65,7 @@ describe('mayUse', () => {
     ] as const) {
       expect({
         conditional,
-        may: mayUse(dock([read, conditional]), permissions.doc.read),
+        may: mayUse(permdock([read, conditional]), permissions.doc.read),
       }).toEqual({ conditional, may: true });
     }
   });
@@ -80,13 +80,13 @@ describe('mayUse', () => {
       ...elsewhere,
       membership: { scope: 'tenant', id: 't1', roles: ['member'] },
     };
-    expect(mayUse(dock([elsewhere]), permissions.doc.read)).toBe(false);
-    expect(mayUse(dock([here]), permissions.doc.read)).toBe(true);
+    expect(mayUse(permdock([elsewhere]), permissions.doc.read)).toBe(false);
+    expect(mayUse(permdock([here]), permissions.doc.read)).toBe(true);
   });
 
   it('is false when the delegation covers no row of the permission', () => {
     const scoped = (type: string) =>
-      dock([read], {
+      permdock([read], {
         delegation: {
           access: [{ type, actions: ['read'], identifier: 'd1' }],
           authorizationDetails: [{ type, actions: ['read'] }],
@@ -97,7 +97,7 @@ describe('mayUse', () => {
   });
 
   it('is false when the snapshot is not at hand or reading it throws', () => {
-    const base = dock([read]);
+    const base = permdock([read]);
     const pending: PermDock = {
       ...base,
       snapshot: () => Promise.resolve('signed.snapshot.token'),

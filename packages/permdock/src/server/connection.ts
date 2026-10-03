@@ -68,13 +68,16 @@ const REVOKED: Decision = Object.freeze({
   alternatives: Object.freeze([]),
 });
 
-function principalId(dock: PermDock): string | undefined {
-  return dock.subject.principal?.id;
+function principalId(permdock: PermDock): string | undefined {
+  return permdock.subject.principal?.id;
 }
 
-function nextMembershipExpiry(dock: PermDock, now: number): number | undefined {
+function nextMembershipExpiry(
+  permdock: PermDock,
+  now: number,
+): number | undefined {
   let next: number | undefined;
-  for (const membership of dock.memberships()) {
+  for (const membership of permdock.memberships()) {
     const at = membership.expiresAt;
     if (at !== undefined && at > now && (next === undefined || at < next)) {
       next = at;
@@ -103,13 +106,13 @@ async function loadData<T>(
 
 function matches(
   event: RevocationEvent,
-  dock: PermDock,
+  permdock: PermDock,
   tenant: string | undefined,
 ): boolean {
-  if (event.principal !== principalId(dock)) {
+  if (event.principal !== principalId(permdock)) {
     return false;
   }
-  const session = dock.subject.session;
+  const session = permdock.subject.session;
   if (
     event.session !== undefined &&
     session !== undefined &&
@@ -175,8 +178,8 @@ export async function openConnection<T>(
     timers.add(timer);
   };
 
-  /** `true` when `dock` still holds the opening permission. */
-  const admits = async (dock: PermDock): Promise<boolean> => {
+  /** `true` when `permdock` still holds the opening permission. */
+  const admits = async (permdock: PermDock): Promise<boolean> => {
     const { permission } = input.options;
     if (permission === undefined) {
       return true;
@@ -188,7 +191,7 @@ export async function openConnection<T>(
     }
     // SAFETY: decide's generics only tie the row type to the permission; it accepts any row.
     const decision = (
-      dock.decide as (
+      permdock.decide as (
         next: Permission,
         row?: unknown,
         options?: DecideOptions,
@@ -201,7 +204,7 @@ export async function openConnection<T>(
     return true;
   };
 
-  let schedule: ((dock: PermDock) => void) | undefined;
+  let schedule: ((permdock: PermDock) => void) | undefined;
 
   const revalidate = (): void => {
     chain = chain
@@ -240,9 +243,9 @@ export async function openConnection<T>(
       });
   };
 
-  schedule = (dock: PermDock): void => {
+  schedule = (permdock: PermDock): void => {
     const now = Date.now() / 1000;
-    const expiresAt = dock.subject.expiresAt;
+    const expiresAt = permdock.subject.expiresAt;
     if (expiresAt !== undefined) {
       if (expiresAt <= now) {
         abort('expired');
@@ -251,13 +254,13 @@ export async function openConnection<T>(
       const wait = (expiresAt - now) * 1000;
       after(wait, () => {
         if (wait > MAX_DELAY) {
-          schedule?.(current ?? dock);
+          schedule?.(current ?? permdock);
           return;
         }
         abort('expired');
       });
     }
-    const membership = nextMembershipExpiry(dock, now);
+    const membership = nextMembershipExpiry(permdock, now);
     if (membership !== undefined) {
       after((membership - now) * 1000, revalidate);
     }
@@ -312,13 +315,13 @@ export async function openConnection<T>(
       data?: unknown,
       checkOptions?: { readonly trusted?: boolean },
     ): Decision {
-      const dock = live();
-      if (dock === undefined) {
+      const permdock = live();
+      if (permdock === undefined) {
         return REVOKED;
       }
       // SAFETY: decide's generics only tie the row type to the permission; it accepts any row.
       return (
-        dock.decide as (
+        permdock.decide as (
           next: Permission,
           row?: unknown,
           options?: DecideOptions,
@@ -335,10 +338,10 @@ export async function openConnection<T>(
       permission: Permission<string, U, 'instance'>,
       items: readonly U[],
     ): U[] {
-      const dock = live();
-      return dock === undefined
+      const permdock = live();
+      return permdock === undefined
         ? []
-        : dock.filter(permission, items, decideOptions);
+        : permdock.filter(permission, items, decideOptions);
     },
     close(): void {
       closed = true;

@@ -50,8 +50,8 @@ function Probe(): string {
   const memberships = useMemberships();
   const { roles } = useRoles();
   const subject = useSubject();
-  const dock = usePermDock();
-  return `${allowed}:${actions.granted.length}:${editable.length}:${editable.partial}:${tenant.tenant ?? 'none'}:${memberships.length}:${roles.map((item) => item.key).join(',')}:${subject.simulated}:${dock.status()}`;
+  const permdock = usePermDock();
+  return `${allowed}:${actions.granted.length}:${editable.length}:${editable.partial}:${tenant.tenant ?? 'none'}:${memberships.length}:${roles.map((item) => item.key).join(',')}:${subject.simulated}:${permdock.status()}`;
 }
 
 function AssignableProbe(): string {
@@ -366,10 +366,10 @@ describe('permdock/react', () => {
     const store = createClientStore({ snapshot: emptySnapshot() });
     const first = Promise.resolve(snapshot);
     store.adopt(snapshot, first);
-    const dock = store.get();
-    expect(dock.can(permissions.post.update, ownPost)).toBe(true);
+    const permdock = store.get();
+    expect(permdock.can(permissions.post.update, ownPost)).toBe(true);
     store.adopt(emptySnapshot(), first);
-    expect(store.get()).toBe(dock);
+    expect(store.get()).toBe(permdock);
     store.adopt(emptySnapshot(), Promise.resolve(emptySnapshot()));
     expect(store.get().can(permissions.post.update, ownPost)).toBe(false);
   });

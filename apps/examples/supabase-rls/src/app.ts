@@ -12,8 +12,8 @@ const claims = {
   memberships: [{ tenant: 'o1', roles: ['member'] }],
 };
 
-async function dockForMember() {
-  const dock = await createPermDock(
+async function permdockForMember() {
+  const permdock = await createPermDock(
     policy,
     subjectFromSupabase(claims, {
       roles: 'user_role',
@@ -22,7 +22,7 @@ async function dockForMember() {
       declared: ['member', 'admin'],
     }),
   );
-  return dock;
+  return permdock;
 }
 
 export const app = new Hono();
@@ -38,16 +38,16 @@ app.get('/rls/authorize', (c) => {
 });
 
 app.patch('/posts/:id', async (c) => {
-  const dock = await dockForMember();
-  if (!dock.can(permissions.post.update, ownPost)) {
+  const permdock = await permdockForMember();
+  if (!permdock.can(permissions.post.update, ownPost)) {
     return c.json({ ok: false }, 403);
   }
   return c.json({ ok: true });
 });
 
 app.post('/posts/:id/publish', async (c) => {
-  const dock = await dockForMember();
-  if (!dock.can(permissions.post.publish, ownPost)) {
+  const permdock = await permdockForMember();
+  if (!permdock.can(permissions.post.publish, ownPost)) {
     return c.json({ ok: false }, 403);
   }
   return c.json({ ok: true });

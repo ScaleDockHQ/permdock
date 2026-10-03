@@ -132,11 +132,13 @@ function allowed(
   permission: Permission<string, unknown, 'instance'>,
   list: readonly { readonly id: string }[],
 ): string[] {
-  const dock = createPermDock(policy, subject);
-  if (dock instanceof Promise) {
+  const permdock = createPermDock(policy, subject);
+  if (permdock instanceof Promise) {
     throw new TypeError('expected a synchronous instance');
   }
-  return list.filter((row) => dock.can(permission, row)).map((row) => row.id);
+  return list
+    .filter((row) => permdock.can(permission, row))
+    .map((row) => row.id);
 }
 
 describe('link capabilities through the Supabase exchange', () => {

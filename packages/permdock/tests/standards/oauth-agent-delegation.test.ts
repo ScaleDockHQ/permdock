@@ -27,35 +27,35 @@ async function asAgent(
 
 describe('two-principal subject: decision = principal grants intersected with delegation', () => {
   it('an OAuth scope covers the permission whose scope it names, and only that one', async () => {
-    const dock = await asAgent({ scopes: ['post:update'] });
-    expect(dock.can(permissions.post.update, ownPost)).toBe(true);
-    expect(dock.decide(permissions.post.read, ownPost)).toMatchObject({
+    const permdock = await asAgent({ scopes: ['post:update'] });
+    expect(permdock.can(permissions.post.update, ownPost)).toBe(true);
+    expect(permdock.decide(permissions.post.read, ownPost)).toMatchObject({
       outcome: 'denied',
       denials: [{ reason: 'not-delegated' }],
     });
   });
 
   it('a delegation never adds a grant the principal lacks', async () => {
-    const dock = await asAgent({
+    const permdock = await asAgent({
       scopes: ['post:update', 'post:publish'],
       authorizationDetails: [{ type: 'post' }],
     });
-    expect(dock.can(permissions.post.update, otherPost)).toBe(false);
+    expect(permdock.can(permissions.post.update, otherPost)).toBe(false);
     const admin = await asAgent({ scopes: ['post:update'] }, adminUser);
     expect(admin.can(permissions.post.update, otherPost)).toBe(true);
   });
 
   it('an empty scopes list is no delegated authority: no-delegation', async () => {
-    const dock = await asAgent({ scopes: [] });
-    expect(dock.decide(permissions.post.read, ownPost)).toMatchObject({
+    const permdock = await asAgent({ scopes: [] });
+    expect(permdock.decide(permissions.post.read, ownPost)).toMatchObject({
       outcome: 'denied',
       denials: [{ reason: 'no-delegation' }],
     });
   });
 
   it('an actor with no delegation at all is denied no-delegation', async () => {
-    const dock = await asAgent(undefined);
-    expect(dock.decide(permissions.post.read, ownPost)).toMatchObject({
+    const permdock = await asAgent(undefined);
+    expect(permdock.decide(permissions.post.read, ownPost)).toMatchObject({
       outcome: 'denied',
       denials: [{ reason: 'no-delegation' }],
     });
@@ -69,11 +69,11 @@ describe('two-principal subject: decision = principal grants intersected with de
 
 describe('RFC 9396 Rich Authorization Requests', () => {
   it('section 2: type matches the resource name and actions the action', async () => {
-    const dock = await asAgent({
+    const permdock = await asAgent({
       authorizationDetails: [{ type: 'post', actions: ['read'] }],
     });
-    expect(dock.can(permissions.post.read, ownPost)).toBe(true);
-    expect(dock.decide(permissions.post.update, ownPost)).toMatchObject({
+    expect(permdock.can(permissions.post.read, ownPost)).toBe(true);
+    expect(permdock.decide(permissions.post.update, ownPost)).toMatchObject({
       denials: [{ reason: 'not-delegated' }],
     });
   });
@@ -88,14 +88,14 @@ describe('RFC 9396 Rich Authorization Requests', () => {
   });
 
   it('an empty actions array covers nothing', async () => {
-    const dock = await asAgent({
+    const permdock = await asAgent({
       authorizationDetails: [{ type: 'post', actions: [] }],
     });
-    expect(dock.can(permissions.post.read, ownPost)).toBe(false);
+    expect(permdock.can(permissions.post.read, ownPost)).toBe(false);
   });
 
   it('an identifier narrows the entry to that one resource', async () => {
-    const dock = await asAgent(
+    const permdock = await asAgent(
       {
         authorizationDetails: [
           { type: 'post', actions: ['read'], identifier: otherPost.id },
@@ -103,12 +103,12 @@ describe('RFC 9396 Rich Authorization Requests', () => {
       },
       adminUser,
     );
-    expect(dock.can(permissions.post.read, otherPost)).toBe(true);
-    expect(dock.can(permissions.post.read, ownPost)).toBe(false);
+    expect(permdock.can(permissions.post.read, otherPost)).toBe(true);
+    expect(permdock.can(permissions.post.read, ownPost)).toBe(false);
   });
 
   it('locations and datatypes neither widen nor narrow the grant', async () => {
-    const dock = await asAgent({
+    const permdock = await asAgent({
       authorizationDetails: [
         {
           type: 'post',
@@ -118,8 +118,8 @@ describe('RFC 9396 Rich Authorization Requests', () => {
         },
       ],
     });
-    expect(dock.can(permissions.post.update, ownPost)).toBe(true);
-    expect(dock.can(permissions.post.update, otherPost)).toBe(false);
+    expect(permdock.can(permissions.post.update, ownPost)).toBe(true);
+    expect(permdock.can(permissions.post.update, otherPost)).toBe(false);
   });
 });
 

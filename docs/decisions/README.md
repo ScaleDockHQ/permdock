@@ -24,3 +24,4 @@ Copy `0000-template.md`, take the next number, and add a row below. When a decis
 | [0016](./0016-portless-names.md) | Portless names under `permdock.localhost` |
 | [0017](./0017-permdock-skill-prefix.md) | Consumer skills are named `permdock` or `permdock-<topic>` |
 | [0018](./0018-blocked-majors.md) | Majors that stay on the previous line until a blocker clears |
+| [0019](./0019-adapter-suffix-and-no-dollar-members.md) | Adapter types are `<Adapter>PermDock`, and no public object has `$` members |

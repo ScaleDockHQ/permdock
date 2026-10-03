@@ -260,7 +260,7 @@ export async function rlsParity<TUser>(
 
   async function runCase(fixture: RlsParityFixture): Promise<RlsParityCase> {
     // SAFETY: TUser is erased at the policy boundary; toSubject builds the Subject createPermDock reads.
-    const dock = await createPermDock(
+    const permdock = await createPermDock(
       policy,
       toSubject(fixture.subject) as TUser,
       { customRoles: memoryRoleSource(customRoles) },
@@ -268,17 +268,17 @@ export async function rlsParity<TUser>(
     // SAFETY: each branch casts to the kind just checked; Permission's kind parameter does not narrow.
     const granted =
       fixture.permission.kind === 'collection'
-        ? dock.can(
+        ? permdock.can(
             fixture.permission as Permission<string, unknown, 'collection'>,
             fixture.row,
           )
-        : dock.can(
+        : permdock.can(
             fixture.permission as Permission<string, unknown, 'instance'>,
             fixture.row,
           );
     let fromClient: boolean | undefined;
     if (options.snapshot === true) {
-      const snapshot = dock.snapshot();
+      const snapshot = permdock.snapshot();
       if (typeof snapshot !== 'object' || snapshot instanceof Promise) {
         throw new TypeError('PermDock: rlsParity needs an unsigned snapshot');
       }
@@ -328,7 +328,7 @@ export async function rlsParity<TUser>(
         const kept = new Set(
           granted
             ? valued(
-                dock.pick(
+                permdock.pick(
                   fixture.permission as Permission<string, unknown, 'instance'>,
                   fixture.row,
                 ),

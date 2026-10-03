@@ -1,6 +1,6 @@
 import type { Policy } from '../core/policy.ts';
 import type { Principal } from '../core/subject.ts';
-import type { SsfAdapter, SsfOptions } from './types.ts';
+import type { SsfPermDock, SsfPermDockOptions } from './types.ts';
 
 import { compact } from '../core/compact.ts';
 import { issuerFromDiscovery } from '../jwt/config.ts';
@@ -10,8 +10,8 @@ import { memoryReplayStore } from './replay.ts';
 
 export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
   policy: Policy<TUser, TPrincipal>,
-  options: SsfOptions,
-): SsfAdapter {
+  options: SsfPermDockOptions,
+): SsfPermDock {
   void policy;
   if (typeof options.subject !== 'function') {
     throw new TypeError('PermDock: permdock/ssf requires subject.');

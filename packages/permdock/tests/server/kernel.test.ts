@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { PermDock } from '../../src/core/permdock.ts';
 import type { PdpFactory, PdpPermDock } from '../../src/pdp/types.ts';
 
-import { createPermDock as createCoreDock } from '../../src/core/permdock.ts';
+import { createPermDock as createCorePermDock } from '../../src/core/permdock.ts';
 import { createKernel, tenantScope } from '../../src/server/create.ts';
 import { createPermDock } from '../../src/server/index.ts';
 import {
@@ -45,12 +45,12 @@ describe('actor resolution', () => {
       undefined,
     ],
   ])('keeps %s only when it is an Actor', async (_label, actor, expected) => {
-    const { permdock } = createPermDock(policy, {
+    const { permdock: permdockFor } = createPermDock(policy, {
       subject: () => memberUser,
       actor,
     });
-    const dock = await permdock(request());
-    expect(dock.subject.actor).toEqual(expected);
+    const permdock = await permdockFor(request());
+    expect(permdock.subject.actor).toEqual(expected);
   });
 });
 
@@ -60,9 +60,9 @@ describe('createKernel', () => {
     const wrapped: PermDock[] = [];
     const kernel = createKernel(policy, {
       subject,
-      wrap: (dock) => {
-        wrapped.push(dock);
-        return dock;
+      wrap: (permdock) => {
+        wrapped.push(permdock);
+        return permdock;
       },
     });
     const shared = request();
@@ -85,7 +85,7 @@ describe('createKernel', () => {
       }),
     );
     const kernel = createKernel(policy, { subject: () => memberUser });
-    const response = await kernel.handler(scope).POST(
+    const response = await kernel.permdockHandler(scope).POST(
       new Request('https://api.example/access/v1/evaluations', {
         method: 'POST',
         body: JSON.stringify({
@@ -99,8 +99,10 @@ describe('createKernel', () => {
 
   it('answers problem() without a permission with a generic 403', async () => {
     const { problem } = createPermDock(policy, { subject: () => memberUser });
-    const dock = await createCoreDock(policy, memberUser);
-    const response = problem(dock.decide(permissions.post.publish, ownPost));
+    const permdock = await createCorePermDock(policy, memberUser);
+    const response = problem(
+      permdock.decide(permissions.post.publish, ownPost),
+    );
     expect({
       status: response.status,
       body: await response.json(),
@@ -123,10 +125,10 @@ describe('createKernel', () => {
 
   it('denies with pdp-unavailable when the remote decision rejects', async () => {
     const pdp: PdpFactory = async (p, user, options) => {
-      const dock = await createCoreDock(p, user, options);
+      const permdock = await createCorePermDock(p, user, options);
       // SAFETY: the kernel only calls decide on the remote instance in protect.
       return {
-        ...dock,
+        ...permdock,
         decide: () => Promise.reject(new Error('pdp down')),
       } as unknown as PdpPermDock;
     };

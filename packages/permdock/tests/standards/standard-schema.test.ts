@@ -99,20 +99,20 @@ describe('Standard Schema', () => {
 
       it('hands the rule the validated value', async () => {
         const { permissions, policy } = setup(schema);
-        const dock = await createPermDock(policy, { id: 'u1' });
+        const permdock = await createPermDock(policy, { id: 'u1' });
         const post = { id: 'p1', title: '  Hello  ' };
         expect(
-          dock.can(permissions.post.update, post, { trusted: false }),
+          permdock.can(permissions.post.update, post, { trusted: false }),
         ).toBe(true);
-        expect(dock.can(permissions.post.update, post, { trusted: true })).toBe(
-          false,
-        );
+        expect(
+          permdock.can(permissions.post.update, post, { trusted: true }),
+        ).toBe(false);
       });
 
       it('turns issues into a validation denial that carries them', async () => {
         const { permissions, policy } = setup(schema);
-        const dock = await createPermDock(policy, { id: 'u1' });
-        const decision = dock.decide(
+        const permdock = await createPermDock(policy, { id: 'u1' });
+        const decision = permdock.decide(
           permissions.post.read,
           { id: 'p1', title: 7 },
           { trusted: false },
@@ -168,17 +168,17 @@ describe('Standard Schema', () => {
       },
     };
     const { permissions, policy } = setup(asyncSchema);
-    const dock = await createPermDock(policy, { id: 'u1' });
+    const permdock = await createPermDock(policy, { id: 'u1' });
     const post = { id: 'p1', title: 'Hello' };
     expect(() =>
-      dock.decide(permissions.post.read, post, { trusted: false }),
+      permdock.decide(permissions.post.read, post, { trusted: false }),
     ).toThrow(
       expect.objectContaining({
         name: 'PermDockValidationError',
         code: 'async-schema',
       }),
     );
-    expect(dock.can(permissions.post.read, post, { trusted: false })).toBe(
+    expect(permdock.can(permissions.post.read, post, { trusted: false })).toBe(
       false,
     );
   });

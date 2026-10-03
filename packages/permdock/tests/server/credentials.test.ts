@@ -76,7 +76,7 @@ const owner = {
   memberships: [{ tenant: 'o_1', roles: ['developer'] }],
 };
 
-function dock(subject: Subject) {
+function permdockFor(subject: Subject) {
   const instance = createPermDock(policy, subject);
   if (instance instanceof Promise) {
     throw new TypeError('expected a synchronous instance');
@@ -302,7 +302,7 @@ describe('subjectFromApiKey', () => {
       credential: { id: 'key_1', kind: 'user' },
     });
     expect(subject.delegation).toEqual({ scopes: ['repo:read'] });
-    const permdock = dock(subject);
+    const permdock = permdockFor(subject);
     expect(permdock.can(repo.read, r1)).toBe(true);
     expect(permdock.can(repo.write, r1)).toBe(false);
   });
@@ -355,7 +355,9 @@ describe('subjectFromApiKey', () => {
       ...service,
       permissions: [{ permission: 'repo.write', ids: ['r_1'] }],
     });
-    const permdock = dock(await resolve(key, { verifier: store, permissions }));
+    const permdock = permdockFor(
+      await resolve(key, { verifier: store, permissions }),
+    );
     expect(permdock.subject.principal?.kind).toBe('service');
     expect(permdock.can(repo.write, r1)).toBe(true);
     expect(permdock.can(repo.write, { id: 'r_2', orgId: 'o_1' })).toBe(false);

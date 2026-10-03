@@ -34,6 +34,7 @@ app.delete<{ Params: { id: string } }>('/posts/:id', {
 | `permdock` | Plugin (wrapped with `fastify-plugin` so decorators are visible to the parent scope). Adds `request.permdock` and registers an error handler mapping PermDock errors to Problem Details. Any other error goes to the error handler that was in place before, so an app's own `setErrorHandler` keeps working. |
 | `protect(permission, loadData?, options?)` | `preHandler` hook. The `tenant` option (`(request) => request.params.org`) is resolved for each `protect`. Generic over the route, schema and type provider (`protect<Route, Schema, Provider>`): route generics infer from the `preHandler` slot, so `request.params` and `request.body` keep their types inside `loadData` (permix's Elysia and Fastify guards lost route typing). With a zod or TypeBox type provider, pass the provider explicitly or read the body in the handler; see [Why](#why). |
 | `permdockHandler` | Plugin mounting the AuthZEN-shaped decision endpoint: `app.register(permdockHandler, { prefix: '/api/permdock' })`. |
+| `withPermDock(handler)` | Wraps a route handler registered after `permdock` or `protect` and types `request.permdock` with the policy's roles, plans and permissions. Generic over the route, like `protect`. The adapter does not augment `FastifyRequest`, for the reason the [Express adapter](/docs/adapters/express) gives. |
 | `openapi` | Kernel hook contract; feeds `@fastify/swagger` route `schema.security` and the document-level `securitySchemes`. |
 
 ### Encapsulation

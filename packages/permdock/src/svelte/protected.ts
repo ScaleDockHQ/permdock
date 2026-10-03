@@ -14,7 +14,7 @@ export type ProtectedProps = {
   readonly fallback?: Snippet<[Decision]>;
 };
 
-type DecideDock = {
+type DecidePermDock = {
   readonly decide: (permission: Permission, data?: unknown) => Decision;
 };
 
@@ -42,16 +42,20 @@ export function protectedView(
           decision: local.decision,
           slot: slotOf(local.allowed, local.status, local.decision),
         }
-      : tenantView(store.get().tenant(tenant) as DecideDock, reference, data);
+      : tenantView(
+          store.get().tenant(tenant) as DecidePermDock,
+          reference,
+          data,
+        );
   return scoped;
 }
 
 function tenantView(
-  dock: DecideDock,
+  permdock: DecidePermDock,
   reference: Permission,
   data: unknown,
 ): ProtectedView {
-  const decision = dock.decide(reference, data);
+  const decision = permdock.decide(reference, data);
   const allowed = decision.outcome === 'granted';
   return {
     allowed,

@@ -5,15 +5,15 @@ import type { Permission } from '../core/permissions.ts';
 import type { Policy } from '../core/policy.ts';
 import type { Actor, Delegation, Principal } from '../core/subject.ts';
 import type {
-  A2AAgentCard,
-  A2AAuth,
-  A2APermDock,
-  A2APermDockOptions,
-  A2ASecurityScheme,
-  A2ASkill,
-  A2ASkillConfig,
-  A2ATaskOutcome,
-  A2AWireSecurityScheme,
+  A2aAgentCard,
+  A2aAuth,
+  A2aPermDock,
+  A2aPermDockOptions,
+  A2aSecurityScheme,
+  A2aSkill,
+  A2aSkillConfig,
+  A2aTaskOutcome,
+  A2aWireSecurityScheme,
 } from './types.ts';
 
 import { resumeDecision, storedApprovalToken } from '../approvals/helpers.ts';
@@ -32,15 +32,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
-function firstScheme(options: A2APermDockOptions): string | undefined {
+function firstScheme(options: A2aPermDockOptions): string | undefined {
   return Object.keys(options.securitySchemes)[0];
 }
 
 function skillOf(
   id: string,
-  config: A2ASkillConfig,
+  config: A2aSkillConfig,
   scheme: string | undefined,
-): A2ASkill {
+): A2aSkill {
   return {
     id,
     name: id,
@@ -53,14 +53,14 @@ function skillOf(
   };
 }
 
-function publicSkills(options: A2APermDockOptions): readonly A2ASkill[] {
+function publicSkills(options: A2aPermDockOptions): readonly A2aSkill[] {
   const scheme = firstScheme(options);
   return Object.entries(options.skills).map(([id, config]) =>
     skillOf(id, config, scheme),
   );
 }
 
-function wireScheme(scheme: A2ASecurityScheme): A2AWireSecurityScheme {
+function wireScheme(scheme: A2aSecurityScheme): A2aWireSecurityScheme {
   switch (scheme.type) {
     case 'oauth2':
       return {
@@ -104,11 +104,11 @@ function wireScheme(scheme: A2ASecurityScheme): A2AWireSecurityScheme {
 }
 
 function cardOf(
-  options: A2APermDockOptions,
-  skills: readonly A2ASkill[],
-): A2AAgentCard {
+  options: A2aPermDockOptions,
+  skills: readonly A2aSkill[],
+): A2aAgentCard {
   const info = options.card;
-  return compact<A2AAgentCard>({
+  return compact<A2aAgentCard>({
     name: info.name,
     description: info.description ?? info.name,
     version: info.version,
@@ -141,22 +141,22 @@ function cardOf(
 
 const DEFAULT_MODES: readonly string[] = ['text/plain'];
 
-function delegationOf(auth: A2AAuth): Delegation | undefined {
+function delegationOf(auth: A2aAuth): Delegation | undefined {
   return compact<Delegation>({
     scopes: auth.scopes,
     authorizationDetails: auth.extra?.authorizationDetails,
   });
 }
 
-function actorOf(auth: A2AAuth): Actor | undefined {
+function actorOf(auth: A2aAuth): Actor | undefined {
   return typeof auth.clientId === 'string' && auth.clientId !== ''
     ? { id: auth.clientId, kind: 'oauth-client' }
     : undefined;
 }
 
 async function resolveTenant(
-  tenant: A2APermDockOptions['tenant'],
-  auth: A2AAuth,
+  tenant: A2aPermDockOptions['tenant'],
+  auth: A2aAuth,
 ): Promise<string | undefined> {
   if (tenant === undefined || typeof tenant === 'string') {
     return tenant;
@@ -168,7 +168,7 @@ async function resolveTenant(
   }
 }
 
-function hasScope(auth: A2AAuth, scope: string): boolean {
+function hasScope(auth: A2aAuth, scope: string): boolean {
   return auth.scopes?.includes(scope) === true;
 }
 
@@ -195,14 +195,14 @@ function deniedOutcome(
   decision: Extract<Decision, { readonly outcome: 'denied' }>,
   permission: Permission,
   data: unknown,
-  dock: PermDock,
-): A2ATaskOutcome {
+  permdock: PermDock,
+): A2aTaskOutcome {
   const error = new PermDockDeniedError({
     decision,
     permission: permission.key,
     scope: permission.scope,
     resource: resourceRef(permission, data),
-    subject: dock.subject,
+    subject: permdock.subject,
     message: `${permission.key} denied.`,
   });
   return {
@@ -217,7 +217,7 @@ function approvalOutcome(
   decision: Extract<Decision, { readonly outcome: 'approval-required' }>,
   permission: Permission,
   data: unknown,
-): A2ATaskOutcome {
+): A2aTaskOutcome {
   const error = new PermDockApprovalRequiredError({
     decision,
     permission: permission.key,
@@ -235,9 +235,9 @@ function approvalOutcome(
 
 /** A2A 1.0 section 8.4: a detached JWS over the RFC 8785 form of the card. */
 async function signCard(
-  card: A2AAgentCard,
+  card: A2aAgentCard,
   signPayload: (payload: string) => Promise<string>,
-): Promise<A2AAgentCard> {
+): Promise<A2aAgentCard> {
   const { signatures = [], ...unsigned } = card;
   const payload = canonicalJson(unsigned);
   const jws = await signPayload(payload);
@@ -258,7 +258,7 @@ async function signCard(
   };
 }
 
-function missingScope(permission: Permission): A2ATaskOutcome {
+function missingScope(permission: Permission): A2aTaskOutcome {
   const problem: ProblemDetails = {
     type: 'https://permdock.dev/problems/unauthenticated',
     title: 'Insufficient scope',
@@ -281,8 +281,8 @@ function missingScope(permission: Permission): A2ATaskOutcome {
 
 export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
   policy: Policy<TUser, TPrincipal>,
-  options: A2APermDockOptions<TUser>,
-): A2APermDock {
+  options: A2aPermDockOptions<TUser>,
+): A2aPermDock {
   for (const [id, config] of Object.entries(options.skills)) {
     if (config.permission.kind === 'instance' && config.data === undefined) {
       throw new TypeError(
@@ -290,7 +290,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       );
     }
   }
-  const instanceFor = async (auth: A2AAuth): Promise<PermDock> => {
+  const instanceFor = async (auth: A2aAuth): Promise<PermDock> => {
     let user: TUser | null = null;
     try {
       user = await options.subject(auth);
@@ -316,14 +316,14 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     );
   };
 
-  const agentCard = (): A2AAgentCard => cardOf(options, publicSkills(options));
+  const agentCard = (): A2aAgentCard => cardOf(options, publicSkills(options));
 
-  const extendedAgentCard = async (auth: A2AAuth): Promise<A2AAgentCard> => {
-    const dock = await instanceFor(auth);
+  const extendedAgentCard = async (auth: A2aAuth): Promise<A2aAgentCard> => {
+    const permdock = await instanceFor(auth);
     const scheme = firstScheme(options);
-    const skills: A2ASkill[] = [];
+    const skills: A2aSkill[] = [];
     for (const [id, config] of Object.entries(options.skills)) {
-      if (mayUse(dock, config.permission)) {
+      if (mayUse(permdock, config.permission)) {
         skills.push(skillOf(id, config, scheme));
       }
     }
@@ -332,7 +332,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
 
   const protectSkill =
     (selector: (task: unknown) => string) =>
-    async (task: unknown, auth: A2AAuth): Promise<A2ATaskOutcome> => {
+    async (task: unknown, auth: A2aAuth): Promise<A2aTaskOutcome> => {
       const id = selector(task);
       const config = Object.hasOwn(options.skills, id)
         ? options.skills[id]
@@ -353,26 +353,36 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       if (!hasScope(auth, config.permission.scope)) {
         return missingScope(config.permission);
       }
-      const dock = await instanceFor(auth);
+      const permdock = await instanceFor(auth);
       let data: unknown;
       if (config.data !== undefined) {
         try {
           data = await config.data(task);
         } catch {
-          return deniedOutcome(LOAD_FAILED, config.permission, undefined, dock);
+          return deniedOutcome(
+            LOAD_FAILED,
+            config.permission,
+            undefined,
+            permdock,
+          );
         }
         if (
           config.permission.kind === 'instance' &&
           (data === null || data === undefined)
         ) {
-          return deniedOutcome(LOAD_FAILED, config.permission, undefined, dock);
+          return deniedOutcome(
+            LOAD_FAILED,
+            config.permission,
+            undefined,
+            permdock,
+          );
         }
       }
       let decision: Decision;
       try {
         // SAFETY: decide's instance and collection overloads share one implementation that takes either kind.
         const raw = (
-          dock.decide as (
+          permdock.decide as (
             next: Permission,
             row?: unknown,
             decideOptions?: DecideOptions,
@@ -390,7 +400,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         decision = await resumeDecision({
           decision: raw,
           permission: config.permission,
-          subject: dock.subject,
+          subject: permdock.subject,
           store: options.store,
           resource: resourceRef(config.permission, data),
           adapter: 'a2a',
@@ -399,13 +409,13 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
             (await storedApprovalToken(options.store, raw, false)),
         });
       } catch {
-        return deniedOutcome(LOAD_FAILED, config.permission, data, dock);
+        return deniedOutcome(LOAD_FAILED, config.permission, data, permdock);
       }
       switch (decision.outcome) {
         case 'granted':
           return { ok: true };
         case 'denied':
-          return deniedOutcome(decision, config.permission, data, dock);
+          return deniedOutcome(decision, config.permission, data, permdock);
         case 'approval-required':
           return approvalOutcome(decision, config.permission, data);
         default: {

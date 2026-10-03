@@ -1,5 +1,5 @@
 import type { AuthEvent } from './interfaces.ts';
-import type { CreatePermDockOptions } from './permdock.ts';
+import type { PermDockOptions } from './permdock.ts';
 import type { Policy } from './policy.ts';
 
 import { compact } from './compact.ts';
@@ -24,7 +24,7 @@ import { isThenable } from './thenable.ts';
 function assemblePrincipal(
   policy: Policy,
   user: unknown,
-  options: CreatePermDockOptions,
+  options: PermDockOptions,
   auth: AuthEvent[],
 ): {
   readonly principal: Principal | null;
@@ -106,7 +106,7 @@ function finishSubject(
   assembled: ReturnType<typeof assemblePrincipal>,
   context: Readonly<Record<string, unknown>>,
   input: readonly Membership[],
-  options: CreatePermDockOptions,
+  options: PermDockOptions,
   extra: { readonly stale: boolean; readonly plans: readonly string[] },
 ): Subject {
   if (assembled.principal === null) {
@@ -155,7 +155,7 @@ function activeTenantOf(
   policy: Policy,
   assembled: ReturnType<typeof assemblePrincipal>,
   memberships: readonly Membership[],
-  options: CreatePermDockOptions,
+  options: PermDockOptions,
 ): string | undefined {
   if (assembled.principal === null) {
     return undefined;
@@ -189,7 +189,7 @@ function settle<T>(
 function staleness(
   policy: Policy,
   assembled: ReturnType<typeof assemblePrincipal>,
-  options: CreatePermDockOptions,
+  options: PermDockOptions,
   auth: AuthEvent[],
 ): boolean | Promise<boolean> {
   const principal = assembled.principal;
@@ -234,7 +234,7 @@ function cleanNames(list: unknown): readonly string[] {
 function entitlementsOf(
   assembled: ReturnType<typeof assemblePrincipal>,
   tenant: string | undefined,
-  options: CreatePermDockOptions,
+  options: PermDockOptions,
   auth: AuthEvent[],
 ): readonly string[] | Promise<readonly string[]> {
   const source = options.entitlements;
@@ -290,7 +290,7 @@ function resolveContext(
 export function resolveSubject(
   policy: Policy,
   user: unknown,
-  options: CreatePermDockOptions,
+  options: PermDockOptions,
   auth: AuthEvent[],
 ): Subject | Promise<Subject> {
   const assembled = assemblePrincipal(policy, user, options, auth);

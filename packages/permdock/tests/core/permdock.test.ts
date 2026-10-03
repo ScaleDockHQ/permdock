@@ -25,7 +25,7 @@ import {
 } from '../fixtures/quick-start.ts';
 import { unsigned } from '../fixtures/snapshots.ts';
 
-async function dock(
+async function permdockFor(
   user: Parameters<typeof createPermDock>[1],
   options?: Parameters<typeof createPermDock>[2],
 ) {
@@ -51,7 +51,7 @@ describe('createPermDock', () => {
   });
 
   it('grants admin publish unless already published', async () => {
-    const permdock = await dock(adminUser);
+    const permdock = await permdockFor(adminUser);
     expect(permdock.can(permissions.post.publish, ownPost)).toBe(true);
     expect(permdock.can(permissions.post.publish, otherPost)).toBe(false);
     const portable = permdock.where(permissions.post.publish);
@@ -66,7 +66,7 @@ describe('createPermDock', () => {
   });
 
   it('returns approval-required for the member delete grant', async () => {
-    const permdock = await dock(memberUser);
+    const permdock = await permdockFor(memberUser);
     const decision = permdock.decide(permissions.post.delete, ownPost);
     expect(decision.outcome).toBe('approval-required');
     if (decision.outcome === 'approval-required') {
@@ -104,14 +104,18 @@ describe('createPermDock', () => {
   });
 
   it('denies anonymous and unknown roles', async () => {
-    const anonymous = await dock(null);
+    const anonymous = await permdockFor(null);
     expect(anonymous.can(permissions.post.read, ownPost)).toBe(false);
     const decision = anonymous.decide(permissions.post.read, ownPost);
     expect(decision.outcome).toBe('denied');
     if (decision.outcome === 'denied') {
       expect(decision.denials[0]?.reason).toBe('anonymous');
     }
-    const unknown = await dock({ id: 'u3', orgId: 'o1', roles: ['ghost'] });
+    const unknown = await permdockFor({
+      id: 'u3',
+      orgId: 'o1',
+      roles: ['ghost'],
+    });
     expect(unknown.decide(permissions.post.read, ownPost).outcome).toBe(
       'denied',
     );
@@ -119,7 +123,7 @@ describe('createPermDock', () => {
 
   it('filters rows and emits one event with counts', async () => {
     const sink = memorySink();
-    const permdock = await dock(memberUser, { sink });
+    const permdock = await permdockFor(memberUser, { sink });
     const rows = permdock.filter(permissions.post.update, [ownPost, otherPost]);
     expect(rows).toEqual([ownPost]);
     expect(sink.events()).toHaveLength(1);
@@ -132,7 +136,7 @@ describe('createPermDock', () => {
   });
 
   it('simulates a batch and a preview instance', async () => {
-    const permdock = await dock(memberUser);
+    const permdock = await permdockFor(memberUser);
     const batch = permdock.simulate([
       [permissions.post.update, ownPost],
       [permissions.post.publish, ownPost],
@@ -154,7 +158,7 @@ describe('createPermDock', () => {
   });
 
   it('builds a snapshot and parses it', async () => {
-    const permdock = await dock(memberUser);
+    const permdock = await permdockFor(memberUser);
     const snapshot = permdock.snapshot({ include: [permissions.post] });
     if (snapshot instanceof Promise) {
       throw new Error('expected json snapshot');
@@ -167,7 +171,7 @@ describe('createPermDock', () => {
   });
 
   it('signs snapshots when a signer is passed', async () => {
-    const permdock = await dock(memberUser);
+    const permdock = await permdockFor(memberUser);
     const signed = permdock.snapshot({
       signer: {
         async sign(payload, options) {
@@ -372,14 +376,14 @@ describe('createPermDock', () => {
   });
 
   it('throws PermDockDeniedError from assert', async () => {
-    const permdock = await dock(memberUser);
+    const permdock = await permdockFor(memberUser);
     expect(() => permdock.assert(permissions.post.publish, ownPost)).toThrow(
       PermDockDeniedError,
     );
   });
 
   it('returns where AST and marks closures partial', async () => {
-    const permdock = await dock(memberUser);
+    const permdock = await permdockFor(memberUser);
     const portable = permdock.where(permissions.post.update);
     expect(portable.partial).toBe(false);
     expect(

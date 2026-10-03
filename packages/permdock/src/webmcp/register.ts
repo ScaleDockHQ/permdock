@@ -325,7 +325,7 @@ function instanceAllowed(snapshot: Snapshot, permission: Permission): boolean {
 }
 
 function shouldRegister(
-  dock: WebMcpPermDock,
+  permdock: WebMcpPermDock,
   snapshot: Snapshot,
   permission: Permission,
 ): boolean {
@@ -333,13 +333,13 @@ function shouldRegister(
     return false;
   }
   if (
-    dock.status?.(permission) === 'server-only' ||
-    dock.status?.(permission) === 'pending'
+    permdock.status?.(permission) === 'server-only' ||
+    permdock.status?.(permission) === 'pending'
   ) {
     return false;
   }
   if (permission.kind === 'collection') {
-    return dock.can(permission);
+    return permdock.can(permission);
   }
   return instanceAllowed(snapshot, permission);
 }
@@ -360,7 +360,7 @@ async function runTool(
   permission: Permission,
   raw: unknown,
   options: RegisterToolsOptions,
-  dock: WebMcpPermDock,
+  permdock: WebMcpPermDock,
   schema: StandardSchemaV1 | undefined,
 ): Promise<WebMcpToolResult> {
   try {
@@ -377,7 +377,7 @@ async function runTool(
         validated,
       );
     }
-    const decision = dock.decide(permission, bound.input);
+    const decision = permdock.decide(permission, bound.input);
     switch (decision.outcome) {
       case 'denied':
         return deniedResult(decision, permission, bound.input);
@@ -439,16 +439,16 @@ function registerGeneration(
   signal: AbortSignal,
 ): void {
   const root = current(options.permdock);
-  const dock =
+  const permdock =
     options.tenant !== undefined && root.tenant !== undefined
       ? root.tenant(options.tenant)
       : root;
-  const snapshot = snapshotOf(dock);
+  const snapshot = snapshotOf(permdock);
   if (snapshot === undefined) {
     return;
   }
   for (const permission of listPermissions(group)) {
-    if (!shouldRegister(dock, snapshot, permission)) {
+    if (!shouldRegister(permdock, snapshot, permission)) {
       continue;
     }
     const schema = schemaFor(group, permission, options.schema);
@@ -472,7 +472,7 @@ function registerGeneration(
           ),
         }),
         execute: (input: unknown): Promise<WebMcpToolResult> =>
-          runTool(permission, input, options, dock, schema),
+          runTool(permission, input, options, permdock, schema),
       }),
       { signal },
     );

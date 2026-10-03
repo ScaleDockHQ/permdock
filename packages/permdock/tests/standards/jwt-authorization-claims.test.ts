@@ -221,14 +221,14 @@ describe('Claims meet the policy', () => {
   it('undeclared role names grant nothing and are reported on auth', async () => {
     const events: AuthEvent[] = [];
     const subject = await mapped({ roles: ['superuser', 'admin'] });
-    const dock = await createPermDock(policy, subject);
-    dock.on('auth', (event) => {
+    const permdock = await createPermDock(policy, subject);
+    permdock.on('auth', (event) => {
       // SAFETY: the auth channel carries AuthEvent payloads.
       events.push(event as AuthEvent);
     });
-    expect(dock.can(permissions.project.delete, { id: 'p', orgId: 'o' })).toBe(
-      true,
-    );
+    expect(
+      permdock.can(permissions.project.delete, { id: 'p', orgId: 'o' }),
+    ).toBe(true);
     expect(events).toContainEqual({ reason: 'unknown-role', source: 'roles' });
   });
 
@@ -237,12 +237,12 @@ describe('Claims meet the policy', () => {
       { org_id: 'o_acme', groups: ['9f2c'] },
       { claims: { tenant: 'org_id' }, groupRoles: { '9f2c': ['member'] } },
     );
-    const dock = await createPermDock(policy, subject);
+    const permdock = await createPermDock(policy, subject);
     expect(
-      dock.can(permissions.project.read, { id: 'p', orgId: 'o_acme' }),
+      permdock.can(permissions.project.read, { id: 'p', orgId: 'o_acme' }),
     ).toBe(true);
     expect(
-      dock.can(permissions.project.read, { id: 'p', orgId: 'o_globex' }),
+      permdock.can(permissions.project.read, { id: 'p', orgId: 'o_globex' }),
     ).toBe(false);
   });
 });

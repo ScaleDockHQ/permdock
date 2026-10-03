@@ -8,7 +8,7 @@ import {
 } from 'jose';
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import type { A2AAgentCard } from '../../src/a2a/index.ts';
+import type { A2aAgentCard } from '../../src/a2a/index.ts';
 
 import { createPermDock } from '../../src/a2a/create.ts';
 import { canonicalJson } from '../../src/core/canonical-json.ts';
@@ -47,7 +47,7 @@ function conforms(card: unknown): { valid: boolean; errors: unknown } {
   return { valid, errors: valid ? null : validateCard.errors };
 }
 
-const dock = createPermDock(policy, {
+const permdock = createPermDock(policy, {
   subject: (auth) => (auth.clientId === 'admin' ? adminUser : memberUser),
   card: {
     name: 'Posts agent',
@@ -85,7 +85,10 @@ const callerScopes = [
 
 describe('A2A 1.0 Agent Card', () => {
   it('section 4.4.1: the public card validates against the published a2a.json', () => {
-    expect(conforms(dock.agentCard())).toEqual({ valid: true, errors: null });
+    expect(conforms(permdock.agentCard())).toEqual({
+      valid: true,
+      errors: null,
+    });
   });
 
   it('the schema refuses the pre-1.0 card shape', () => {
@@ -102,7 +105,7 @@ describe('A2A 1.0 Agent Card', () => {
 
   it('section 4.4.1: the authenticated extended card validates too', async () => {
     for (const clientId of ['admin', 'member']) {
-      const card = await dock.extendedAgentCard({
+      const card = await permdock.extendedAgentCard({
         clientId,
         scopes: callerScopes,
       });
@@ -111,7 +114,7 @@ describe('A2A 1.0 Agent Card', () => {
   });
 
   it('section 4.4.1: carries the fields A2A 1.0 marks REQUIRED', () => {
-    const card = dock.agentCard();
+    const card = permdock.agentCard();
     for (const field of [
       'name',
       'description',
@@ -141,7 +144,7 @@ describe('A2A 1.0 Agent Card', () => {
   });
 
   it('section 4.5: security schemes use the one-of member form', () => {
-    expect(dock.agentCard().securitySchemes).toEqual({
+    expect(permdock.agentCard().securitySchemes).toEqual({
       oauth: {
         oauth2SecurityScheme: {
           oauth2MetadataUrl:
@@ -155,7 +158,7 @@ describe('A2A 1.0 Agent Card', () => {
   });
 
   it('section 4.5: each skill requires exactly its permission scope', () => {
-    const skills = dock.agentCard().skills;
+    const skills = permdock.agentCard().skills;
     expect(
       skills.map((skill) => [skill.id, skill.securityRequirements]),
     ).toEqual([
@@ -171,12 +174,12 @@ describe('A2A 1.0 Agent Card', () => {
   });
 
   it('section 4.4.2: the extended card is advertised and lists only what the caller may run', async () => {
-    expect(dock.agentCard().capabilities.extendedAgentCard).toBe(true);
-    const member = await dock.extendedAgentCard({
+    expect(permdock.agentCard().capabilities.extendedAgentCard).toBe(true);
+    const member = await permdock.extendedAgentCard({
       clientId: 'member',
       scopes: callerScopes,
     });
-    const admin = await dock.extendedAgentCard({
+    const admin = await permdock.extendedAgentCard({
       clientId: 'admin',
       scopes: callerScopes,
     });
@@ -198,8 +201,8 @@ describe('A2A 1.0 section 8.4 Agent Card signatures', () => {
     publicJwk = await exportJWK(pair.publicKey);
   });
 
-  async function signWith(card: A2AAgentCard, kid: string) {
-    return dock.sign(card, (payload) =>
+  async function signWith(card: A2aAgentCard, kid: string) {
+    return permdock.sign(card, (payload) =>
       new CompactSign(new TextEncoder().encode(payload))
         .setProtectedHeader({ alg: 'ES256', kid, typ: 'JOSE' })
         .sign(privateKey),
@@ -207,7 +210,7 @@ describe('A2A 1.0 section 8.4 Agent Card signatures', () => {
   }
 
   it('a signed card still validates and carries a detached JWS', async () => {
-    const signed = await signWith(dock.agentCard(), 'card-1');
+    const signed = await signWith(permdock.agentCard(), 'card-1');
     expect(conforms(signed)).toEqual({ valid: true, errors: null });
     expect(signed.signatures).toHaveLength(1);
     expect(Object.keys(signed.signatures?.[0] ?? {})).toEqual([
@@ -217,7 +220,7 @@ describe('A2A 1.0 section 8.4 Agent Card signatures', () => {
   });
 
   it('the signature verifies over the RFC 8785 form of the card without signatures', async () => {
-    const signed = await signWith(dock.agentCard(), 'card-1');
+    const signed = await signWith(permdock.agentCard(), 'card-1');
     const { signatures, ...unsigned } = signed;
     const entry = signatures?.[0];
     if (entry === undefined) {
@@ -239,7 +242,7 @@ describe('A2A 1.0 section 8.4 Agent Card signatures', () => {
 
   it('a second signature is appended and both cover the same payload', async () => {
     const twice = await signWith(
-      await signWith(dock.agentCard(), 'card-1'),
+      await signWith(permdock.agentCard(), 'card-1'),
       'card-2',
     );
     const { signatures, ...unsigned } = twice;
@@ -260,7 +263,7 @@ describe('A2A 1.0 section 8.4 Agent Card signatures', () => {
   });
 
   it('a card changed after signing no longer verifies', async () => {
-    const signed = await signWith(dock.agentCard(), 'card-1');
+    const signed = await signWith(permdock.agentCard(), 'card-1');
     const { signatures, ...unsigned } = signed;
     const entry = signatures?.[0];
     if (entry === undefined) {

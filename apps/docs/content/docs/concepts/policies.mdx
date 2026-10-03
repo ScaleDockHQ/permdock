@@ -248,17 +248,24 @@ Use a closure when the check needs something a portable condition cannot express
 
 ## Testing a policy
 
-`permdock/testing` renders a matrix of roles by permissions with the outcome for representative fixtures, and snapshots it:
+`describePolicy` from `permdock/testing` asserts a matrix of subjects by permissions, with the outcome for representative fixtures:
 
 ```ts
-import { policyMatrix } from 'permdock/testing'
+import { describePolicy } from 'permdock/testing'
 
-test('policy matrix', () => {
-  expect(policyMatrix(policy, { fixtures: { post: [ownPost, otherPost] } })).toMatchSnapshot()
+describePolicy(policy, {
+  subjects: { member: { id: 'u1', roles: ['member'] }, admin: { id: 'u2', roles: ['admin'] } },
+  fixtures: { ownPost, otherPost },
+  matrix: {
+    [permissions.post.update.key]: {
+      ownPost:   { member: 'granted', admin: 'granted' },
+      otherPost: { member: 'denied',  admin: 'granted' },
+    },
+  },
 })
 ```
 
-A change in the matrix is a change in who can do what, and shows up in review as a snapshot diff.
+Every permission must have a row, so a new permission cannot ship untested, and a change in who can do what shows up in review as a changed cell. [Testing](/docs/adapters/testing) lists the options.
 
 ## Hostable permissions
 
@@ -270,7 +277,7 @@ export const policy = definePolicy(vocabulary, {
   hostable: [permissions.invoice, permissions.auditLog.read],
 })
 
-const permdock = await createPermDock(policy, user, { policies: pd.policies })
+const permdock = await createPermDock(policy, user, { policies: permdockCloud.policies })
 ```
 
 Hosted grants arrive as a [`PolicyDocument`](/docs/concepts/wire-formats) through a [`PolicySource`](/docs/concepts/extension-interfaces) whose `current()` is read once by `createPermDock`, and merge under rules that keep code in charge:

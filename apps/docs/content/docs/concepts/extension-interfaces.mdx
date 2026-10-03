@@ -274,7 +274,7 @@ testRoleSource(betterAuthRoles, { tenants: ['o_acme'], declared: policy.assignab
 testDirectoryStore(drizzleDirectory, { tenants: ['o_acme', 'o_globex'] })   // replays the recorded Okta and Entra ID requests
 testApprovalStore(postgresStore, { reopen: () => openPostgresStore() })
 testLimitStore(memoryLimitStore())
-testPolicySource(pd.policies, { policy })
+testPolicySource(permdockCloud.policies, { policy })
 testCredentialVerifier(apiKeyVerifier({ find }), { key: () => issueTestKey(), revoke: () => revokeTestKey() })
 testSettingsSource(tenantSettings, { tenant: 'o_acme' })
 testWhereCompiler(toMongo, { fixtures: conditionFixtures })

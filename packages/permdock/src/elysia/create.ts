@@ -13,7 +13,7 @@ import type {
 } from '../core/interfaces.ts';
 import type { PermDock } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
-import type { Policy } from '../core/policy.ts';
+import type { Policy, PolicyVocabulary } from '../core/policy.ts';
 import type { RevocationFeed } from '../core/revocations.ts';
 import type { Principal } from '../core/subject.ts';
 import type { OtelOptions } from '../otel/types.ts';
@@ -68,10 +68,11 @@ export type ElysiaSocket = {
   close(code?: number, reason?: string): unknown;
 };
 
-export type ElysiaContext = ElysiaCtx & {
-  permdock: PermDock;
-  permdockData?: unknown;
-};
+export type ElysiaContext<V extends PolicyVocabulary = PolicyVocabulary> =
+  ElysiaCtx & {
+    permdock: PermDock<V>;
+    permdockData?: unknown;
+  };
 
 export type ElysiaProtect = (
   permission: Permission,
@@ -79,8 +80,23 @@ export type ElysiaProtect = (
   protectOptions?: ProtectOptions,
 ) => (ctx: ElysiaCtx) => Promise<Response | undefined>;
 
-export type ElysiaPermDock = {
-  readonly permdock: () => Elysia;
+/** The `permdock()` plugin: its global derive types `permdock` in every later handler. */
+export type ElysiaPermDockPlugin<
+  V extends PolicyVocabulary = PolicyVocabulary,
+> = Elysia<
+  '',
+  /* oxlint-disable typescript/no-generated-empty-object-type -- Elysia's own empty singleton slots */
+  {
+    decorator: Record<never, never>;
+    store: Record<never, never>;
+    derive: { readonly permdock: PermDock<V> };
+    resolve: Record<never, never>;
+  }
+  /* oxlint-enable typescript/no-generated-empty-object-type */
+>;
+
+export type ElysiaPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
+  readonly permdock: () => ElysiaPermDockPlugin<V>;
   readonly protect: ElysiaProtect;
   /**
    * One connection per socket: the same promise for every handler
@@ -94,10 +110,14 @@ export type ElysiaPermDock = {
   readonly openapi: OpenApiHooks;
 };
 
-export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
-  policy: Policy<TUser, TPrincipal>,
+export function createPermDock<
+  TUser,
+  TPrincipal extends Principal = Principal,
+  V extends PolicyVocabulary = PolicyVocabulary,
+>(
+  policy: Policy<TUser, TPrincipal, V>,
   options: ElysiaPermDockOptions<TUser>,
-): ElysiaPermDock {
+): ElysiaPermDock<V> {
   const contexts = new WeakMap<Request, ElysiaCtx>();
   const bound = new WeakMap<ElysiaCtx, Request>();
   const seed = globalThis.crypto.randomUUID();
@@ -120,7 +140,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       webBotAuth: options.webBotAuth,
       revocations: options.revocations,
       adapter: 'elysia',
-      wrap: (dock: PermDock) => applyOtel(dock, options.otel),
+      wrap: (permdock: PermDock<V>) => applyOtel(permdock, options.otel),
     }),
   );
 
@@ -140,19 +160,19 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
 
   const decorate = (
     ctx: ElysiaCtx,
-    instance: PermDock,
+    instance: PermDock<V>,
     data?: unknown,
   ): void => {
     // SAFETY: ElysiaContext is the request context plus the permdock fields assigned here.
-    const scoped = ctx as ElysiaContext;
+    const scoped = ctx as ElysiaContext<V>;
     scoped.permdock = instance;
     if (data !== undefined) {
       scoped.permdockData = data;
     }
   };
 
-  // SAFETY: the chain returns an Elysia instance; only its accumulated generics are dropped.
-  const permdock = (): Elysia =>
+  // SAFETY: the chain returns an Elysia instance; its generics are narrowed to the global permdock derive.
+  const permdock = (): ElysiaPermDockPlugin<V> =>
     new Elysia({ name: 'permdock', seed })
       .derive({ as: 'global' }, async (ctx) => {
         const instance = await kernel.permdock(bind(ctx), await scopeOf(ctx));
@@ -161,7 +181,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       })
       .onError({ as: 'global' }, ({ error }) =>
         problemFromError(error),
-      ) as unknown as Elysia;
+      ) as unknown as ElysiaPermDockPlugin<V>;
 
   const protect: ElysiaProtect =
     (permission, loadData, protectOptions) => async (ctx) => {
@@ -203,7 +223,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
   };
 
   const permdockHandler = (): Elysia => {
-    const { POST, GET } = kernel.handler((request) => {
+    const { POST, GET } = kernel.permdockHandler((request) => {
       const ctx = contexts.get(request);
       return ctx === undefined ? { tenant: undefined } : scopeOf(ctx);
     });

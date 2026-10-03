@@ -31,7 +31,7 @@ const permissions = definePermissions({
 
 const scopes = { organization: { key: 'org_id' } } as const;
 
-function dockFor(
+function permdockFor(
   principal: Principal | null,
   context: Record<string, unknown> = {},
   options?: Parameters<typeof createPermDock>[2],
@@ -130,8 +130,8 @@ describe('E1 role activation', () => {
   };
 
   it('grants and carries the elevated membership to write', () => {
-    const dock = dockFor(eligible);
-    const decision = dock.activate({
+    const permdock = permdockFor(eligible);
+    const decision = permdock.activate({
       role: 'admin',
       scope: 'organization',
       id: 'T',
@@ -154,8 +154,8 @@ describe('E1 role activation', () => {
   });
 
   it('denies without a justification when justification is required', () => {
-    const dock = dockFor(eligible);
-    const decision = dock.activate({
+    const permdock = permdockFor(eligible);
+    const decision = permdock.activate({
       role: 'admin',
       scope: 'organization',
       id: 'T',
@@ -168,8 +168,8 @@ describe('E1 role activation', () => {
   });
 
   it('denies an ineligible subject', () => {
-    const dock = dockFor(nurse);
-    const decision = dock.activate({
+    const permdock = permdockFor(nurse);
+    const decision = permdock.activate({
       role: 'admin',
       scope: 'organization',
       id: 'T',
@@ -191,8 +191,8 @@ describe('E1 role activation', () => {
         },
       ],
     };
-    const dock = dockFor(stale);
-    const decision = dock.activate({
+    const permdock = permdockFor(stale);
+    const decision = permdock.activate({
       role: 'admin',
       scope: 'organization',
       id: 'T',
@@ -207,17 +207,20 @@ describe('E1 role activation', () => {
   });
 
   it('is never held directly: activation roles are eligible-only', () => {
-    const dock = dockFor(eligible);
-    expect(dock.can(permissions.patient.write, { id: 'p1', org_id: 'T' })).toBe(
-      false,
-    );
+    const permdock = permdockFor(eligible);
+    expect(
+      permdock.can(permissions.patient.write, { id: 'p1', org_id: 'T' }),
+    ).toBe(false);
   });
 });
 
 describe('E2 break-glass', () => {
   it('overrides the named deny with a purpose and a reason', () => {
-    const dock = dockFor(nurse, { purpose: ['BTG'], reason: 'cardiac arrest' });
-    const decision = dock.decide(permissions.patient.read, {
+    const permdock = permdockFor(nurse, {
+      purpose: ['BTG'],
+      reason: 'cardiac arrest',
+    });
+    const decision = permdock.decide(permissions.patient.read, {
       id: 'p1',
       org_id: 'T',
       restricted: true,
@@ -233,8 +236,8 @@ describe('E2 break-glass', () => {
   });
 
   it('denies a restricted read without break-glass (deny-overrides-allow)', () => {
-    const dock = dockFor(nurse);
-    const decision = dock.decide(permissions.patient.read, {
+    const permdock = permdockFor(nurse);
+    const decision = permdock.decide(permissions.patient.read, {
       id: 'p1',
       org_id: 'T',
       restricted: true,
@@ -246,8 +249,11 @@ describe('E2 break-glass', () => {
   });
 
   it('denies an unlisted purpose', () => {
-    const dock = dockFor(nurse, { purpose: ['MARKETING'], reason: 'x' });
-    const decision = dock.decide(permissions.patient.read, {
+    const permdock = permdockFor(nurse, {
+      purpose: ['MARKETING'],
+      reason: 'x',
+    });
+    const decision = permdock.decide(permissions.patient.read, {
       id: 'p1',
       org_id: 'T',
       restricted: true,
@@ -259,8 +265,8 @@ describe('E2 break-glass', () => {
   });
 
   it('denies break-glass without a reason', () => {
-    const dock = dockFor(nurse, { purpose: ['BTG'] });
-    const decision = dock.decide(permissions.patient.read, {
+    const permdock = permdockFor(nurse, { purpose: ['BTG'] });
+    const decision = permdock.decide(permissions.patient.read, {
       id: 'p1',
       org_id: 'T',
       restricted: true,
@@ -308,8 +314,8 @@ describe('E3 support access', () => {
   };
 
   it('denies every decision under a support membership without an actor', () => {
-    const dock = dockFor(support);
-    const decision = dock.decide(permissions.patient.read, {
+    const permdock = permdockFor(support);
+    const decision = permdock.decide(permissions.patient.read, {
       id: 'p1',
       org_id: 'T',
     });
@@ -320,7 +326,7 @@ describe('E3 support access', () => {
   });
 
   it('grants under support with an actor and forbids the forbidden permission', () => {
-    const instance = dockFor(
+    const instance = permdockFor(
       support,
       {},
       {
@@ -340,9 +346,9 @@ describe('E3 support access', () => {
       id: 'owner1',
       memberships: [{ scope: 'organization', id: 'T', roles: ['nurse'] }],
     };
-    const dock = dockFor(owner);
+    const permdock = permdockFor(owner);
     // billing has no allow, so this is no-grant, never a support forbid.
-    const decision = dock.decide(permissions.billing.read, { id: 'b1' });
+    const decision = permdock.decide(permissions.billing.read, { id: 'b1' });
     expect(decision.outcome).toBe('denied');
     if (decision.outcome === 'denied') {
       expect(decision.denials.every((d) => d.reason !== 'actor-required')).toBe(
@@ -441,11 +447,11 @@ describe('activate binds a nested elevation to the eligible membership', () => {
   };
 
   it('refuses a within that differs from the eligible membership', async () => {
-    const dock = await createPermDock(nested(false), {
+    const permdock = await createPermDock(nested(false), {
       principal,
       context: {},
     });
-    const forged = dock.activate({
+    const forged = permdock.activate({
       role: 'team-admin',
       scope: 'team',
       id: 'eng',
@@ -458,11 +464,11 @@ describe('activate binds a nested elevation to the eligible membership', () => {
   });
 
   it('mints the eligible membership ancestors when within is omitted', async () => {
-    const dock = await createPermDock(nested(false), {
+    const permdock = await createPermDock(nested(false), {
       principal,
       context: {},
     });
-    const decision = dock.activate({
+    const decision = permdock.activate({
       role: 'team-admin',
       scope: 'team',
       id: 'eng',

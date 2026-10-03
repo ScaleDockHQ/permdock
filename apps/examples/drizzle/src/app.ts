@@ -14,25 +14,25 @@ app.get('/health', (c) => c.json({ ok: true }));
 
 app.get('/posts', async (c) => {
   await ready;
-  const dock = await createPermDock(policy, memberUser);
+  const permdock = await createPermDock(policy, memberUser);
   const rows = await db
     .select({ id: posts.id })
     .from(posts)
-    .where(toWhere(dock.where(permissions.post.list), posts))
+    .where(toWhere(permdock.where(permissions.post.list), posts))
     .orderBy(posts.id);
   return c.json({ ok: true, posts: rows.map((row) => row.id) });
 });
 
 app.patch('/posts/:id', async (c) => {
   await ready;
-  const dock = await createPermDock(policy, memberUser);
+  const permdock = await createPermDock(policy, memberUser);
   const updated = await db
     .update(posts)
     .set({ title: 'Edited' })
     .where(
       and(
         eq(posts.id, c.req.param('id')),
-        toWhere(dock.where(permissions.post.update), posts),
+        toWhere(permdock.where(permissions.post.update), posts),
       ),
     )
     .returning({ id: posts.id });
@@ -43,14 +43,14 @@ app.patch('/posts/:id', async (c) => {
 });
 
 app.post('/posts/:id/publish', async (c) => {
-  const dock = await createPermDock(policy, memberUser);
+  const permdock = await createPermDock(policy, memberUser);
   const post = {
     id: c.req.param('id'),
     authorId: memberUser.id,
     orgId: memberUser.orgId,
     published: false,
   };
-  if (!dock.can(permissions.post.publish, post)) {
+  if (!permdock.can(permissions.post.publish, post)) {
     return c.json({ ok: false }, 403);
   }
   return c.json({ ok: true });

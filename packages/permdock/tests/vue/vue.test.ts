@@ -46,9 +46,9 @@ const Probe = defineComponent({
     const memberships = useMemberships();
     const roles = useRoles();
     const subject = useSubject();
-    const dock = usePermDock();
+    const permdock = usePermDock();
     return () =>
-      `${allowed.value}:${actions.value.granted.length}:${editable.value.length}:${editable.value.partial}:${tenant.value.tenant ?? 'none'}:${memberships.value.length}:${roles.value.roles.map((item) => item.key).join(',')}:${subject.value.simulated}:${dock.status()}`;
+      `${allowed.value}:${actions.value.granted.length}:${editable.value.length}:${editable.value.partial}:${tenant.value.tenant ?? 'none'}:${memberships.value.length}:${roles.value.roles.map((item) => item.key).join(',')}:${subject.value.simulated}:${permdock.status()}`;
   },
 });
 

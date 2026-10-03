@@ -82,7 +82,7 @@ All adapters live in the one `permdock` package. Import only what a bundle needs
 | `permdock/cloud` | `cloud({ url, key })` returning `approvals`, `sink`, `snapshots` for PermDock Cloud; optional, server-only, never on the decision path |
 | `permdock/webmcp` | `registerTools` |
 | `permdock/a2a` | `createPermDock` returning `agentCard`, `extendedAgentCard` |
-| `permdock/authzen` | `createPermDock` returning the AuthZEN `handler` |
+| `permdock/authzen` | `createPermDock` returning the AuthZEN `permdockHandler` |
 | `permdock/ssf` | `createPermDock` returning the CAEP `receiver` |
 | `permdock/scim` | `scimHandler`, the `DirectoryStore` interface, `memoryDirectoryStore`, `directoryMembershipSource` |
 | `permdock/openapi` | OpenAPI emission (document or Overlay) and import |

@@ -117,7 +117,7 @@ function subjectIn(memberships: readonly Membership[], tenant = 'acme') {
   };
 }
 
-async function dockFor(
+async function permdockFor(
   memberships: readonly Membership[],
   customRoles: readonly CustomRole[],
   tenant = 'acme',
@@ -253,16 +253,16 @@ describe('resolveCustomRole', () => {
 
 describe('custom roles in decisions', () => {
   it('inherits the declared condition of an included role', async () => {
-    const dock = await dockFor(
+    const permdock = await permdockFor(
       [{ tenant: 'acme', roles: ['writer'] }],
       [{ tenant: 'acme', name: 'writer', includes: ['editor'] }],
     );
-    expect(dock.can(permissions.post.update, ownPost)).toBe(true);
-    expect(dock.can(permissions.post.update, otherPost)).toBe(false);
+    expect(permdock.can(permissions.post.update, ownPost)).toBe(true);
+    expect(permdock.can(permissions.post.update, otherPost)).toBe(false);
   });
 
   it('an own allow reaches every ceiling grant of the permission', async () => {
-    const dock = await dockFor(
+    const permdock = await permdockFor(
       [{ tenant: 'acme', roles: ['moderator'] }],
       [
         {
@@ -272,15 +272,15 @@ describe('custom roles in decisions', () => {
         },
       ],
     );
-    expect(dock.can(permissions.post.update, otherPost)).toBe(true);
-    const decision = dock.decide(permissions.post.update, otherPost);
+    expect(permdock.can(permissions.post.update, otherPost)).toBe(true);
+    const decision = permdock.decide(permissions.post.update, otherPost);
     expect(decision.outcome === 'granted' && decision.matched.role).toBe(
       'moderator',
     );
   });
 
   it('keeps the declared deny of the role a grant comes from', async () => {
-    const dock = await dockFor(
+    const permdock = await permdockFor(
       [{ tenant: 'acme', roles: ['refunds'] }],
       [
         {
@@ -290,15 +290,17 @@ describe('custom roles in decisions', () => {
         },
       ],
     );
-    expect(dock.can(permissions.invoice.refund, invoice)).toBe(true);
-    expect(dock.decide(permissions.invoice.refund, bigInvoice)).toMatchObject({
+    expect(permdock.can(permissions.invoice.refund, invoice)).toBe(true);
+    expect(
+      permdock.decide(permissions.invoice.refund, bigInvoice),
+    ).toMatchObject({
       outcome: 'denied',
       denials: [{ role: 'refunds', reason: 'deny' }],
     });
   });
 
   it('an own deny removes the permission, including from includes', async () => {
-    const dock = await dockFor(
+    const permdock = await permdockFor(
       [{ tenant: 'acme', roles: ['clerk'] }],
       [
         {
@@ -312,8 +314,8 @@ describe('custom roles in decisions', () => {
         },
       ],
     );
-    expect(dock.can(permissions.invoice.read, invoice)).toBe(true);
-    expect(dock.can(permissions.invoice.refund, invoice)).toBe(false);
+    expect(permdock.can(permissions.invoice.read, invoice)).toBe(true);
+    expect(permdock.can(permissions.invoice.refund, invoice)).toBe(false);
   });
 
   it('never applies outside its tenant or to a declared name', async () => {
@@ -334,20 +336,20 @@ describe('custom roles in decisions', () => {
       { tenant: 'acme', roles: ['payer', 'viewer'] },
       { tenant: 'globex', roles: ['payer'] },
     ];
-    const acme = await dockFor(memberships, custom);
+    const acme = await permdockFor(memberships, custom);
     expect(acme.decide(permissions.invoice.pay, invoice).outcome).toBe(
       'approval-required',
     );
     expect(acme.can(permissions.invoice.pay, foreignInvoice)).toBe(false);
     expect(acme.can(permissions.post.update, otherPost)).toBe(false);
-    const globex = await dockFor(memberships, custom, 'globex');
+    const globex = await permdockFor(memberships, custom, 'globex');
     expect(globex.decide(permissions.invoice.pay, foreignInvoice).outcome).toBe(
       'denied',
     );
   });
 
   it('scopes a team custom role to its team', async () => {
-    const dock = await dockFor(
+    const permdock = await permdockFor(
       [{ tenant: 'acme', team: 't1', roles: ['reviewer'] }],
       [
         {
@@ -358,9 +360,9 @@ describe('custom roles in decisions', () => {
         },
       ],
     );
-    expect(dock.can(permissions.board.read, board)).toBe(true);
-    expect(dock.can(permissions.board.read, otherBoard)).toBe(false);
-    expect(dock.can(permissions.board.edit, board)).toBe(false);
+    expect(permdock.can(permissions.board.read, board)).toBe(true);
+    expect(permdock.can(permissions.board.read, otherBoard)).toBe(false);
+    expect(permdock.can(permissions.board.edit, board)).toBe(false);
   });
 });
 
@@ -381,7 +383,7 @@ describe('the ceiling', () => {
     const rows = [invoice, bigInvoice, ownPost, otherPost, board, undefined];
     const pick = <T>(list: readonly T[]): T =>
       list[Math.floor(random() * list.length)]!;
-    const everyAssignable = await dockFor(
+    const everyAssignable = await permdockFor(
       [
         {
           tenant: 'acme',
@@ -407,7 +409,7 @@ describe('the ceiling', () => {
               : { permission },
           ),
       };
-      const dock = await dockFor(
+      const permdock = await permdockFor(
         [
           {
             tenant: 'acme',
@@ -420,7 +422,7 @@ describe('the ceiling', () => {
       for (let check = 0; check < 12; check += 1) {
         const leaf = pick(leaves);
         const row = leaf.kind === 'collection' ? undefined : pick(rows);
-        if (decideLeaf(dock, leaf, row).outcome !== 'denied') {
+        if (decideLeaf(permdock, leaf, row).outcome !== 'denied') {
           reached += 1;
           expect(decideLeaf(everyAssignable, leaf, row).outcome).not.toBe(
             'denied',
@@ -434,17 +436,22 @@ describe('the ceiling', () => {
 
 describe('assignable roles and permissions', () => {
   it('intersects the ceiling with what the subject holds', async () => {
-    const dock = await dockFor([{ tenant: 'acme', roles: ['editor'] }], []);
-    expect(dock.assignablePermissions().map((leaf) => leaf.key)).toEqual([
+    const permdock = await permdockFor(
+      [{ tenant: 'acme', roles: ['editor'] }],
+      [],
+    );
+    expect(permdock.assignablePermissions().map((leaf) => leaf.key)).toEqual([
       'post.read',
       'post.update',
       'post.create',
     ]);
-    expect(dock.assignableRoles().map((leaf) => leaf.key)).toEqual(['editor']);
+    expect(permdock.assignableRoles().map((leaf) => leaf.key)).toEqual([
+      'editor',
+    ]);
   });
 
   it('counts custom-role grants as held', async () => {
-    const dock = await dockFor(
+    const permdock = await permdockFor(
       [{ tenant: 'acme', roles: ['reader'] }],
       [
         {
@@ -454,12 +461,17 @@ describe('assignable roles and permissions', () => {
         },
       ],
     );
-    expect(dock.assignableRoles().map((leaf) => leaf.key)).toEqual(['viewer']);
+    expect(permdock.assignableRoles().map((leaf) => leaf.key)).toEqual([
+      'viewer',
+    ]);
   });
 
   it('manageRoles on a role lifts the intersection', async () => {
-    const dock = await dockFor([{ tenant: 'acme', roles: ['steward'] }], []);
-    expect(dock.assignableRoles().map((leaf) => leaf.key)).toEqual([
+    const permdock = await permdockFor(
+      [{ tenant: 'acme', roles: ['steward'] }],
+      [],
+    );
+    expect(permdock.assignableRoles().map((leaf) => leaf.key)).toEqual([
       'admin',
       'billing',
       'editor',
@@ -467,7 +479,7 @@ describe('assignable roles and permissions', () => {
       'steward',
       'lead',
     ]);
-    expect(dock.assignablePermissions().map((leaf) => leaf.key)).toEqual([
+    expect(permdock.assignablePermissions().map((leaf) => leaf.key)).toEqual([
       'invoice.read',
       'invoice.pay',
       'invoice.refund',
@@ -479,9 +491,12 @@ describe('assignable roles and permissions', () => {
   });
 
   it('a granted manageRoles permission lifts the intersection', async () => {
-    const dock = await dockFor([{ tenant: 'acme', roles: ['owner'] }], []);
-    expect(dock.assignablePermissions()).toHaveLength(7);
-    expect(dock.assignableRoles().map((leaf) => leaf.key)).not.toContain(
+    const permdock = await permdockFor(
+      [{ tenant: 'acme', roles: ['owner'] }],
+      [],
+    );
+    expect(permdock.assignablePermissions()).toHaveLength(7);
+    expect(permdock.assignableRoles().map((leaf) => leaf.key)).not.toContain(
       'owner',
     );
   });
@@ -492,7 +507,7 @@ describe('assignable roles and permissions', () => {
       assignable: async (tenant: string) =>
         tenant === 'acme' ? ['viewer', 'editor'] : [],
     };
-    const dock = await createPermDock(
+    const permdock = await createPermDock(
       policy,
       subjectIn([
         { tenant: 'acme', roles: ['steward'] },
@@ -500,23 +515,23 @@ describe('assignable roles and permissions', () => {
       ]),
       { tenant: 'acme', customRoles: source },
     );
-    expect(dock.assignableRoles().map((leaf) => leaf.key)).toEqual([
+    expect(permdock.assignableRoles().map((leaf) => leaf.key)).toEqual([
       'editor',
       'viewer',
     ]);
-    expect(dock.assignablePermissions().map((leaf) => leaf.key)).toEqual([
+    expect(permdock.assignablePermissions().map((leaf) => leaf.key)).toEqual([
       'invoice.read',
       'post.read',
       'post.update',
       'post.create',
     ]);
-    expect(dock.assignablePermissions({ tenant: 'globex' })).toEqual([]);
-    expect(dock.assignableRoles({ tenant: 'globex' })).toEqual([]);
+    expect(permdock.assignablePermissions({ tenant: 'globex' })).toEqual([]);
+    expect(permdock.assignableRoles({ tenant: 'globex' })).toEqual([]);
   });
 
   it('a throwing RoleSource.assignable assigns nothing', async () => {
     const auth: unknown[] = [];
-    const dock = await createPermDock(
+    const permdock = await createPermDock(
       policy,
       subjectIn([{ tenant: 'acme', roles: ['steward'] }]),
       {
@@ -529,11 +544,11 @@ describe('assignable roles and permissions', () => {
         },
       },
     );
-    dock.on('auth', (event) => {
+    permdock.on('auth', (event) => {
       auth.push(event);
     });
-    expect(dock.assignableRoles()).toEqual([]);
-    expect(dock.assignablePermissions()).toEqual([]);
+    expect(permdock.assignableRoles()).toEqual([]);
+    expect(permdock.assignablePermissions()).toEqual([]);
     expect(auth).toEqual([{ reason: 'source-threw', source: 'customRoles' }]);
   });
 
@@ -610,7 +625,7 @@ describe('snapshot parity', () => {
         fixture.custom.team === undefined
           ? { tenant: 'acme', roles: ['c'] }
           : { tenant: 'acme', team: fixture.custom.team, roles: ['c'] };
-      const server = await dockFor([membership], [fixture.custom]);
+      const server = await permdockFor([membership], [fixture.custom]);
       const snapshot = server.snapshot();
       if (snapshot instanceof Promise) {
         throw new Error('expected JSON snapshot');
@@ -640,7 +655,7 @@ describe('snapshot parity', () => {
   }
 
   it('include trims custom grants and assignable permissions', async () => {
-    const server = await dockFor(
+    const server = await permdockFor(
       [{ tenant: 'acme', roles: ['steward', 'c'] }],
       [{ tenant: 'acme', name: 'c', grants: [{ permission: 'invoice.read' }] }],
     );

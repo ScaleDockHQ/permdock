@@ -250,12 +250,12 @@ describe('draft-meunier-webbotauth-httpsig-protocol-02', () => {
   });
 
   it('the HTTP kernel fills actor from the RFC 9421 vector', async () => {
-    const { permdock } = createPermDock(policy, {
+    const { permdock: permdockFor } = createPermDock(policy, {
       subject: () => memberUser,
       webBotAuth: { verify: true, keys: () => publicKey, now: at },
     });
-    const dock = await permdock(vectorRequest());
-    expect(dock.subject.actor).toEqual({
+    const permdock = await permdockFor(vectorRequest());
+    expect(permdock.subject.actor).toEqual({
       id: 'test-key-ed25519',
       kind: 'web-bot-auth',
     });

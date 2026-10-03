@@ -73,8 +73,10 @@ describe('filterCommandEntries', () => {
   it('hides instance commands when the snapshot is signed or async', () => {
     for (const snapshot of ['signed.jws', Promise.resolve({ grants: [] })]) {
       // SAFETY: filterCommandEntries only calls snapshot() for an instance permission.
-      const dock = { snapshot: () => snapshot } as unknown as PermDock;
-      expect(filterCommandEntries(dock, entries, { mode: 'hide' })).toEqual([]);
+      const permdock = { snapshot: () => snapshot } as unknown as PermDock;
+      expect(filterCommandEntries(permdock, entries, { mode: 'hide' })).toEqual(
+        [],
+      );
     }
   });
 });

@@ -316,12 +316,12 @@ describe('Audit path: CloudEvents 1.0.2 and OCSF 1.3.0', () => {
   async function decisionEvents(): Promise<DecisionEvent[]> {
     const events: DecisionEvent[] = [];
     for (const user of [{ id: 'u_1' }, null]) {
-      const dock = await createKernel(policy, user);
-      dock.on('decision', (event) => {
+      const permdock = await createKernel(policy, user);
+      permdock.on('decision', (event) => {
         // SAFETY: the decision channel carries DecisionEvent payloads.
         events.push(event as DecisionEvent);
       });
-      dock.decide(permissions.post.read, { id: 'p1' }, { adapter: 'test' });
+      permdock.decide(permissions.post.read, { id: 'p1' }, { adapter: 'test' });
     }
     return events;
   }

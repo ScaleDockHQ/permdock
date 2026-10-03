@@ -91,7 +91,7 @@ export type PollResult = {
   readonly acked: readonly string[];
 };
 
-export type SsfOptions = {
+export type SsfPermDockOptions = {
   readonly issuer?: string;
   readonly audience: string | readonly string[];
   readonly jwks?: JwtJwks | string;
@@ -117,6 +117,6 @@ export type SsfReceiver = {
   on(event: 'event', handler: SsfEventListener): () => void;
 };
 
-export type SsfAdapter = {
+export type SsfPermDock = {
   readonly receiver: SsfReceiver;
 };

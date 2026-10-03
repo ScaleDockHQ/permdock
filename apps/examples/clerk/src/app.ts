@@ -14,7 +14,7 @@ const authObject = {
   has: () => false,
 };
 
-async function dockForSession() {
+async function permdockForSession() {
   const resolved = await subjectFromClerk(authObject, {
     permissions: { 'org:invoices:create': permissions.post.list },
     memberships: 'all',
@@ -32,8 +32,8 @@ async function dockForSession() {
       },
     },
   });
-  const dock = await createPermDock(policy, resolved);
-  return { dock, resolved };
+  const permdock = await createPermDock(policy, resolved);
+  return { permdock, resolved };
 }
 
 export const app = new Hono();
@@ -41,20 +41,20 @@ export const app = new Hono();
 app.get('/health', (c) => c.json({ ok: true }));
 
 app.patch('/posts/:id', async (c) => {
-  const { dock, resolved } = await dockForSession();
-  if (!dock.can(permissions.post.update, ownPost)) {
+  const { permdock, resolved } = await permdockForSession();
+  if (!permdock.can(permissions.post.update, ownPost)) {
     return c.json({ ok: false }, 403);
   }
   return c.json({
     ok: true,
-    tenants: dock.tenants(),
+    tenants: permdock.tenants(),
     tenant: resolved.principal?.tenant,
   });
 });
 
 app.post('/posts/:id/delete', async (c) => {
-  const { dock } = await dockForSession();
-  if (!dock.can(permissions.post.delete, ownPost)) {
+  const { permdock } = await permdockForSession();
+  if (!permdock.can(permissions.post.delete, ownPost)) {
     return c.json({ ok: false }, 403);
   }
   return c.json({ ok: true });

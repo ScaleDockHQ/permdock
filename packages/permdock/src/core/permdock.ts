@@ -175,7 +175,7 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
       readonly roles?: readonly (string | Role)[];
       readonly memberships?: readonly Membership[];
       readonly tenant?: string;
-    }): PermDock;
+    }): PermDock<V>;
     (plan: ArazzoSimulateInput): ArazzoPlan;
   };
   readonly snapshot: (options?: {
@@ -191,8 +191,8 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
     event: 'decision' | 'denied' | 'approval' | 'auth' | 'error',
     handler: (payload: unknown) => void,
   ) => () => void;
-  readonly tenant: (id: string) => PermDock;
-  readonly team: (id: string) => PermDock;
+  readonly tenant: (id: string) => PermDock<V>;
+  readonly team: (id: string) => PermDock<V>;
   readonly memberships: () => readonly Membership[];
   readonly tenants: () => readonly string[];
   /**
@@ -260,7 +260,7 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
   readonly subject: Subject;
 };
 
-export type CreatePermDockOptions = {
+export type PermDockOptions = {
   readonly tenant?: string;
   /** One source, or several composed with `composeMemberships`. */
   readonly memberships?: MembershipSource | readonly MembershipSource[];
@@ -299,7 +299,7 @@ function hostedPolicy(
 function instantiate(
   codePolicy: Policy,
   subject: Subject,
-  options: CreatePermDockOptions,
+  options: PermDockOptions,
   auth: AuthEvent[],
 ): PermDock | Promise<PermDock> {
   const { policy, errors } = hostedPolicy(codePolicy, options.policies);
@@ -345,7 +345,7 @@ export function createPermDock<
 >(
   policy: Policy<TUser, TPrincipal, V>,
   user: TUser | Subject | null,
-  options: CreatePermDockOptions = {},
+  options: PermDockOptions = {},
 ): PermDock<V> | Promise<PermDock<V>> {
   const auth: AuthEvent[] = [];
   const subject = resolveSubject(policy, user, options, auth);

@@ -92,22 +92,22 @@ describe('permdock/solid (browser build)', () => {
       await snapshotOf(memberUser),
     );
     const admin = await snapshotOf(adminUser);
-    let dock: ReturnType<typeof usePermDock> | undefined;
+    let permdock: ReturnType<typeof usePermDock> | undefined;
     const root = document.createElement('div');
     const dispose = render(
       () =>
         createComponent(PermDockProvider, {
           snapshot,
           get children() {
-            dock = usePermDock();
+            permdock = usePermDock();
             return '';
           },
         }),
       root,
     );
-    expect(dock?.subject.principal?.id).toBe('u1');
+    expect(permdock?.subject.principal?.id).toBe('u1');
     setSnapshot(admin);
-    expect(dock?.subject.principal?.id).toBe('u2');
+    expect(permdock?.subject.principal?.id).toBe('u2');
     dispose();
   });
 
@@ -157,7 +157,7 @@ describe('permdock/solid (browser build)', () => {
   it('hydrates the store while a sibling keeps the boundary suspended', async () => {
     const snapshot = await snapshotOf(memberUser);
     let release: (value: Snapshot) => void = ignore;
-    let dock: ReturnType<typeof usePermDock> | undefined;
+    let permdock: ReturnType<typeof usePermDock> | undefined;
     const root = document.createElement('div');
     const dispose = render(() => {
       const [resource] = createResource(
@@ -173,7 +173,7 @@ describe('permdock/solid (browser build)', () => {
           return createComponent(PermDockProvider, {
             snapshot: () => resource(),
             get children() {
-              dock = usePermDock();
+              permdock = usePermDock();
               return () => never();
             },
           });
@@ -183,7 +183,7 @@ describe('permdock/solid (browser build)', () => {
     release(snapshot);
     await flush();
     expect(root.textContent).toBe('loading');
-    expect(dock?.subject.principal?.id).toBe('u1');
+    expect(permdock?.subject.principal?.id).toBe('u1');
     dispose();
   });
 });

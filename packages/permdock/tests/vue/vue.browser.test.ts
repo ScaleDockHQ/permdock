@@ -79,12 +79,12 @@ describe('permdock/vue (browser build)', () => {
   it('re-hydrates from a snapshot ref', async () => {
     const snapshot = shallowRef<Snapshot>(await snapshotOf(memberUser));
     const admin = await snapshotOf(adminUser);
-    let dock: ReturnType<typeof usePermDock> | undefined;
+    let permdock: ReturnType<typeof usePermDock> | undefined;
     const app = createApp(
       defineComponent({
         setup() {
-          dock = usePermDock();
-          return () => h('span', dock?.subject.principal?.id ?? '');
+          permdock = usePermDock();
+          return () => h('span', permdock?.subject.principal?.id ?? '');
         },
       }),
     );

@@ -47,17 +47,17 @@ const reads = {
   team: permissions.team.read,
 } as const;
 
-type Reader = (dock: PermDock, table: Table) => Promise<string[]>;
+type Reader = (permdock: PermDock, table: Table) => Promise<string[]>;
 
-async function dockFor(sub: string): Promise<PermDock> {
+async function permdockFor(sub: string): Promise<PermDock> {
   return createPermDock(graphPolicy, { id: sub }, { relations });
 }
 
-async function inProcess(dock: PermDock, table: Table): Promise<string[]> {
-  await dock.loadRelations(reads[table], rows[table]);
+async function inProcess(permdock: PermDock, table: Table): Promise<string[]> {
+  await permdock.loadRelations(reads[table], rows[table]);
   // SAFETY: rows[table] holds the seeded rows for the resource reads[table] checks
   return rows[table]
-    .filter((row) => dock.can(reads[table], row as never))
+    .filter((row) => permdock.can(reads[table], row as never))
     .map((row) => row.id)
     .toSorted();
 }
@@ -124,14 +124,14 @@ describe('withSubject runs Drizzle, Kysely and Prisma under the generated RLS', 
   });
 
   const readers: Record<string, Reader> = {
-    drizzle: async (dock, table) => {
+    drizzle: async (permdock, table) => {
       if (pool === undefined) {
         throw new Error('PermDock: Postgres was not started');
       }
       const orm = drizzle({ client: pool });
       return drizzleWithSubject(
         orm,
-        dock,
+        permdock,
         async (tx) =>
           (
             await tx.execute<{ id: string }>(
@@ -141,13 +141,13 @@ describe('withSubject runs Drizzle, Kysely and Prisma under the generated RLS', 
         { dialect: 'guc' },
       );
     },
-    kysely: async (dock, table) => {
+    kysely: async (permdock, table) => {
       if (kysely === undefined) {
         throw new Error('PermDock: Postgres was not started');
       }
       return kyselyWithSubject(
         kysely,
-        dock,
+        permdock,
         async (trx) =>
           (
             await trx.selectFrom(table).select('id').orderBy('id').execute()
@@ -155,13 +155,13 @@ describe('withSubject runs Drizzle, Kysely and Prisma under the generated RLS', 
         { dialect: 'guc' },
       );
     },
-    prisma: async (dock, table) => {
+    prisma: async (permdock, table) => {
       if (prisma === undefined) {
         throw new Error('PermDock: Postgres was not started');
       }
       return prismaWithSubject(
         prisma,
-        dock,
+        permdock,
         async (tx) =>
           (
             await tx.$queryRawUnsafe<{ id: string }[]>(
@@ -180,9 +180,9 @@ describe('withSubject runs Drizzle, Kysely and Prisma under the generated RLS', 
         (item) => item.memberships === undefined,
       )) {
         for (const table of TABLES) {
-          const dock = await dockFor(user.id);
-          const got = await read(dock, table);
-          const want = await inProcess(dock, table);
+          const permdock = await permdockFor(user.id);
+          const got = await read(permdock, table);
+          const want = await inProcess(permdock, table);
           if (JSON.stringify(got) !== JSON.stringify(want)) {
             mismatches.push(
               `${user.id} ${table}: rls [${got.join(',')}] can [${want.join(',')}]`,
@@ -191,7 +191,9 @@ describe('withSubject runs Drizzle, Kysely and Prisma under the generated RLS', 
         }
       }
       expect(mismatches).toEqual([]);
-      expect(await read(await dockFor('lena'), 'doc')).toEqual(['deep-doc']);
+      expect(await read(await permdockFor('lena'), 'doc')).toEqual([
+        'deep-doc',
+      ]);
     });
   }
 });

@@ -50,7 +50,7 @@ async function listen(
 
 describe('permdock/express', () => {
   it('sets a request-scoped instance and protects routes', async () => {
-    const { permdock, protect, handler } = createPermDock(policy, {
+    const { permdock, protect, withPermDock } = createPermDock(policy, {
       subject: () => memberUser,
     });
     const app = express();
@@ -60,7 +60,7 @@ describe('permdock/express', () => {
       protect(permissions.post.update, (req) =>
         req.params['id'] === 'p1' ? ownPost : otherPost,
       ),
-      handler((req, res) => {
+      withPermDock((req, res) => {
         res.json({ ok: true, via: req.permdock.subject.principal?.id });
       }),
     );
@@ -96,20 +96,20 @@ describe('permdock/express', () => {
   });
 
   it('turns a thrown assert into a problem and passes other errors on', async () => {
-    const { permdock, errorHandler, handler } = createPermDock(policy, {
+    const { permdock, errorHandler, withPermDock } = createPermDock(policy, {
       subject: () => memberUser,
     });
     const app = express();
     app.use(permdock());
     app.get(
       '/posts/:id',
-      handler((req) => {
+      withPermDock((req) => {
         req.permdock.assert(permissions.post.update, otherPost);
       }),
     );
     app.get(
       '/boom',
-      handler(() => {
+      withPermDock(() => {
         throw new Error('boom');
       }),
     );

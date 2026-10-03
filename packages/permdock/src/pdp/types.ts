@@ -1,14 +1,14 @@
 import type { ArazzoPlan, ArazzoSimulateInput } from '../core/arazzo.ts';
 import type { Decision, ExplainedDecision } from '../core/decision.ts';
 import type {
-  CreatePermDockOptions,
+  PermDockOptions,
   DecideOptions,
   PermDock,
   SimulateOptions,
   WhereResult,
 } from '../core/permdock.ts';
 import type { Permission, PermissionTree } from '../core/permissions.ts';
-import type { Policy } from '../core/policy.ts';
+import type { Policy, PolicyVocabulary } from '../core/policy.ts';
 import type { Principal } from '../core/subject.ts';
 import type { Membership, Subject } from '../core/subject.ts';
 
@@ -106,8 +106,8 @@ export type SpiceDbOptions = {
   readonly fetch?: typeof fetch;
 };
 
-export type PdpPermDock = Omit<
-  PermDock,
+export type PdpPermDock<V extends PolicyVocabulary = PolicyVocabulary> = Omit<
+  PermDock<V>,
   | 'can'
   | 'decide'
   | 'assert'
@@ -160,14 +160,18 @@ export type PdpPermDock = Omit<
       readonly roles?: readonly (string | { readonly key: string })[];
       readonly memberships?: readonly Membership[];
       readonly tenant?: string;
-    }): PdpPermDock;
+    }): PdpPermDock<V>;
   };
-  readonly tenant: (id: string) => PdpPermDock;
-  readonly team: (id: string) => PdpPermDock;
+  readonly tenant: (id: string) => PdpPermDock<V>;
+  readonly team: (id: string) => PdpPermDock<V>;
 };
 
-export type PdpFactory = <TUser, TPrincipal extends Principal = Principal>(
-  policy: Policy<TUser, TPrincipal>,
+export type PdpFactory = <
+  TUser,
+  TPrincipal extends Principal = Principal,
+  V extends PolicyVocabulary = PolicyVocabulary,
+>(
+  policy: Policy<TUser, TPrincipal, V>,
   user: TUser | null,
-  options?: CreatePermDockOptions,
-) => Promise<PdpPermDock>;
+  options?: PermDockOptions,
+) => Promise<PdpPermDock<V>>;

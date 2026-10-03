@@ -50,11 +50,11 @@ function useTick(store: ClientStore): ComputedRef<ClientPermDock> {
 
 export function usePermDock(): ClientPermDock {
   const store = useStore();
-  const dock = useTick(store);
+  const permdock = useTick(store);
   // SAFETY: the empty target is never read; the get trap answers from the store's current instance.
   return new Proxy({} as ClientPermDock, {
     get(_target, prop, _receiver): unknown {
-      return Reflect.get(dock.value, prop);
+      return Reflect.get(permdock.value, prop);
     },
   });
 }
@@ -68,9 +68,9 @@ export function usePermission(
   readonly decision: ComputedRef<Decision>;
 } {
   const store = useStore();
-  const dock = useTick(store);
+  const permdock = useTick(store);
   const state = computed(() => {
-    void dock.value;
+    void permdock.value;
     return store.permissionState(toValue(permission), toValue(data));
   });
   return {
@@ -85,9 +85,9 @@ export function usePermissions(
   data?: MaybeRefOrGetter<unknown>,
 ): ComputedRef<PermissionSet> {
   const store = useStore();
-  const dock = useTick(store);
+  const permdock = useTick(store);
   return computed(() => {
-    void dock.value;
+    void permdock.value;
     const granted: Permission[] = [];
     const byKey: Record<string, PermissionState> = {};
     for (const permission of toValue(permissions)) {
@@ -118,39 +118,39 @@ export function useFilter<T>(
   permission: Permission<string, T, 'instance'>,
   rows: MaybeRefOrGetter<readonly T[]>,
 ): ComputedRef<FilterResult<T>> {
-  const dock = useTick(useStore());
+  const permdock = useTick(useStore());
   return computed(() => {
-    const filtered = dock.value.filter(permission, toValue(rows));
+    const filtered = permdock.value.filter(permission, toValue(rows));
     // SAFETY: a fresh copy; the next line sets partial on it.
     const result = [...filtered] as T[] & { partial: boolean };
-    result.partial = dock.value.where(permission).partial;
+    result.partial = permdock.value.where(permission).partial;
     return result;
   });
 }
 
 export function useTenant(): ComputedRef<TenantView> {
-  const dock = useTick(useStore());
+  const permdock = useTick(useStore());
   return computed(() => ({
-    tenant: dock.value.subject.principal?.tenant ?? null,
-    tenants: dock.value.tenants(),
-    switchTo: (id: string) => dock.value.refresh({ tenant: id }),
-    status: dock.value.status(),
+    tenant: permdock.value.subject.principal?.tenant ?? null,
+    tenants: permdock.value.tenants(),
+    switchTo: (id: string) => permdock.value.refresh({ tenant: id }),
+    status: permdock.value.status(),
   }));
 }
 
 export function useMemberships(): ComputedRef<readonly Membership[]> {
-  const dock = useTick(useStore());
-  return computed(() => dock.value.memberships());
+  const permdock = useTick(useStore());
+  return computed(() => permdock.value.memberships());
 }
 
 export function useRoles(
   options: MaybeRefOrGetter<UseRolesOptions> = {},
 ): ComputedRef<{ readonly roles: readonly Role[] }> {
-  const dock = useTick(useStore());
+  const permdock = useTick(useStore());
   return computed(() => {
     const next = toValue(options);
     const scoped =
-      next.team === undefined ? dock.value : dock.value.team(next.team);
+      next.team === undefined ? permdock.value : permdock.value.team(next.team);
     return {
       roles: scoped.heldRoles(
         next.tenant === undefined ? undefined : { tenant: next.tenant },
@@ -160,31 +160,31 @@ export function useRoles(
 }
 
 export function useAssignableRoles(): ComputedRef<readonly Role[]> {
-  const dock = useTick(useStore());
-  return computed(() => dock.value.assignableRoles());
+  const permdock = useTick(useStore());
+  return computed(() => permdock.value.assignableRoles());
 }
 
 export function useAssignablePermissions(
   options: { readonly tenant?: string } = {},
 ): ComputedRef<readonly Permission[]> {
-  const dock = useTick(useStore());
-  return computed(() => dock.value.assignablePermissions(options));
+  const permdock = useTick(useStore());
+  return computed(() => permdock.value.assignablePermissions(options));
 }
 
 export function useSubject(): ComputedRef<SubjectView> {
-  const dock = useTick(useStore());
+  const permdock = useTick(useStore());
   return computed(() => {
-    const snapshot = dock.value.snapshot();
+    const snapshot = permdock.value.snapshot();
     const simulated =
       typeof snapshot === 'object' &&
       snapshot !== null &&
       'simulated' in snapshot &&
       snapshot.simulated === true;
     return {
-      principal: dock.value.subject.principal,
-      actor: dock.value.subject.actor,
-      delegation: dock.value.subject.delegation,
-      expiresAt: dock.value.subject.expiresAt,
+      principal: permdock.value.subject.principal,
+      actor: permdock.value.subject.actor,
+      delegation: permdock.value.subject.delegation,
+      expiresAt: permdock.value.subject.expiresAt,
       simulated,
     };
   });
@@ -194,9 +194,9 @@ export function useApproval(
   decision: MaybeRefOrGetter<Decision>,
 ): ComputedRef<ApprovalHandle> {
   const store = useStore();
-  const dock = useTick(store);
+  const permdock = useTick(store);
   return computed(() => {
-    void dock.value;
+    void permdock.value;
     const next = toValue(decision);
     const state: ApprovalState = store.approvalState(next);
     return {

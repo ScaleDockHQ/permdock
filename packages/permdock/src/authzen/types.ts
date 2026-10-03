@@ -54,7 +54,7 @@ export type AuthzenPermDockOptions<TUser = unknown> = {
 };
 
 export type AuthzenPermDock = {
-  readonly handler: (request: Request) => Promise<Response>;
+  readonly permdockHandler: (request: Request) => Promise<Response>;
 };
 
 export type AuthzenFactory = <TUser, TPrincipal extends Principal = Principal>(

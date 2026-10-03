@@ -19,7 +19,7 @@ type User = Parameters<typeof policy.subject>[0];
 
 const docs = Object.fromEntries(rows.doc.map((row) => [row.id, row]));
 
-async function dock(user: User | string) {
+async function permdock(user: User | string) {
   const instance = await createPermDock(
     policy,
     typeof user === 'string' ? { id: user } : user,
@@ -42,7 +42,7 @@ async function readers(id: string): Promise<string[]> {
     'lena',
     engAdmin,
   ]) {
-    const instance = await dock(user);
+    const instance = await permdock(user);
     if (instance.can(permissions.doc.read, docs[id])) {
       out.push(typeof user === 'string' ? user : user.id);
     }
@@ -87,15 +87,15 @@ describe('relationship graph: match, includes, groups, links', () => {
   });
 
   it('denies an expired share', async () => {
-    const ex = await dock('ex');
+    const ex = await permdock('ex');
     expect(ex.can(permissions.doc.read, docs['eng-doc'])).toBe(false);
   });
 
   it('follows named links to the owning team', async () => {
-    const lena = await dock('lena');
+    const lena = await permdock('lena');
     expect(lena.can(permissions.doc.review, docs['deep-doc'])).toBe(true);
     expect(lena.can(permissions.doc.review, docs['eng-doc'])).toBe(false);
-    const lee = await dock('lee');
+    const lee = await permdock('lee');
     expect(lee.can(permissions.doc.review, docs['eng-doc'])).toBe(true);
     expect(lee.can(permissions.doc.review, docs['root-doc'])).toBe(false);
   });
@@ -195,14 +195,14 @@ describe('relationship graph: match, includes, groups, links', () => {
   });
 
   it('puts graph grants and walking folder roles into where()', async () => {
-    const ada = await dock(engAdmin);
+    const ada = await permdock(engAdmin);
     const where = ada.where(permissions.doc.read);
     expect(where.partial).toBe(false);
     expect(JSON.stringify(where.condition)).toContain('"ids":["eng"]');
   });
 
   it('whoCan expands groups and names the concrete relation', async () => {
-    const owner = await dock('vera');
+    const owner = await permdock('vera');
     const result = await owner.whoCan(permissions.doc.read, docs['deep-doc']);
     // Folder-role holders need a MembershipSource that lists folder memberships.
     expect(result.complete).toBe(false);

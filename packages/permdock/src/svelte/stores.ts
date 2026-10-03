@@ -119,10 +119,12 @@ export function filteredFor<T>(
   rows: () => readonly T[],
 ): Readable<FilterResult<T>> {
   return fromStore(store, () => {
-    const dock = store.get();
+    const permdock = store.get();
     // SAFETY: filter returns a fresh array; the next line sets partial on it.
-    const next = dock.filter(reference, rows()) as T[] & { partial: boolean };
-    next.partial = dock.where(reference).partial;
+    const next = permdock.filter(reference, rows()) as T[] & {
+      partial: boolean;
+    };
+    next.partial = permdock.where(reference).partial;
     return next;
   });
 }
@@ -133,12 +135,12 @@ export function tenant(): Readable<TenantView> {
 
 export function tenantFor(store: ClientStore): Readable<TenantView> {
   return fromStore(store, () => {
-    const dock = store.get();
+    const permdock = store.get();
     return {
-      tenant: dock.subject.principal?.tenant ?? null,
-      tenants: dock.tenants(),
-      switchTo: (id: string) => dock.refresh({ tenant: id }),
-      status: dock.status(),
+      tenant: permdock.subject.principal?.tenant ?? null,
+      tenants: permdock.tenants(),
+      switchTo: (id: string) => permdock.refresh({ tenant: id }),
+      status: permdock.status(),
     };
   });
 }
@@ -165,8 +167,9 @@ export function rolesFor(
 ): Readable<{ readonly roles: readonly Role[] }> {
   return fromStore(store, () => {
     const next = options();
-    const dock = store.get();
-    const scoped = next.team === undefined ? dock : dock.team(next.team);
+    const permdock = store.get();
+    const scoped =
+      next.team === undefined ? permdock : permdock.team(next.team);
     return {
       roles: scoped.heldRoles(
         next.tenant === undefined ? undefined : { tenant: next.tenant },
@@ -202,18 +205,18 @@ export function subject(): Readable<SubjectView> {
 
 export function subjectFor(store: ClientStore): Readable<SubjectView> {
   return fromStore(store, () => {
-    const dock = store.get();
-    const snapshot = dock.snapshot();
+    const permdock = store.get();
+    const snapshot = permdock.snapshot();
     const simulated =
       typeof snapshot === 'object' &&
       snapshot !== null &&
       'simulated' in snapshot &&
       snapshot.simulated === true;
     return {
-      principal: dock.subject.principal,
-      actor: dock.subject.actor,
-      delegation: dock.subject.delegation,
-      expiresAt: dock.subject.expiresAt,
+      principal: permdock.subject.principal,
+      actor: permdock.subject.actor,
+      delegation: permdock.subject.delegation,
+      expiresAt: permdock.subject.expiresAt,
       simulated,
     };
   });

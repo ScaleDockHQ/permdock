@@ -100,12 +100,14 @@ describe('typed vocabulary', () => {
         grants: [allow(permissions.post.read, { to: roles.owner })],
       },
     );
-    const dock = await createPermDock(policy, { id: 'u1' });
-    expect(dock.roles.owner.key).toBe('owner');
-    expect(dock.plans.pro.key).toBe('pro');
-    expect(dock.permissions.post.read.key).toBe('post.read');
-    expect(dock.heldRoles().map((item) => item.key)).toContain('owner');
-    expect(dock.assignableRoles().map((item) => item.key)).toContain('owner');
+    const permdock = await createPermDock(policy, { id: 'u1' });
+    expect(permdock.roles.owner.key).toBe('owner');
+    expect(permdock.plans.pro.key).toBe('pro');
+    expect(permdock.permissions.post.read.key).toBe('post.read');
+    expect(permdock.heldRoles().map((item) => item.key)).toContain('owner');
+    expect(permdock.assignableRoles().map((item) => item.key)).toContain(
+      'owner',
+    );
   });
 });
 
@@ -115,8 +117,8 @@ describe('grantee selectors', () => {
       principal: () => null,
       grants: [allow(permissions.post.read, { to: anyone() })],
     });
-    const dock = await createPermDock(policy, null);
-    expect(dock.can(permissions.post.read, row)).toBe(true);
+    const permdock = await createPermDock(policy, null);
+    expect(permdock.can(permissions.post.read, row)).toBe(true);
     const denied = await createPermDock(
       definePolicy(permissions, {
         principal: () => null,
@@ -160,7 +162,7 @@ describe('grantee selectors', () => {
         ],
       },
     );
-    const dock = await createPermDock(
+    const permdock = await createPermDock(
       policy,
       { id: 'u1', plans: ['pro'] },
       {
@@ -168,17 +170,17 @@ describe('grantee selectors', () => {
         delegation: { authorizationDetails: [{ type: 'post' }] },
       },
     );
-    expect(dock.can(permissions.post.update, row)).toBe(true);
+    expect(permdock.can(permissions.post.update, row)).toBe(true);
     expect(
-      dock.can(permissions.post.update, { ...row, authorId: 'other' }),
+      permdock.can(permissions.post.update, { ...row, authorId: 'other' }),
     ).toBe(false);
-    expect(dock.can(permissions.post.update, { ...row, published: true })).toBe(
-      false,
-    );
-    expect(dock.can(permissions.post.delete, row)).toBe(true);
-    expect(dock.can(permissions.post.create)).toBe(true);
-    expect(dock.can(permissions.post.read, row)).toBe(true);
-    const actions = dock.actions(permissions.post, row);
+    expect(
+      permdock.can(permissions.post.update, { ...row, published: true }),
+    ).toBe(false);
+    expect(permdock.can(permissions.post.delete, row)).toBe(true);
+    expect(permdock.can(permissions.post.create)).toBe(true);
+    expect(permdock.can(permissions.post.read, row)).toBe(true);
+    const actions = permdock.actions(permissions.post, row);
     expect(actions.map((item) => item.action)).toEqual(
       expect.arrayContaining(['update', 'read', 'delete']),
     );
@@ -197,8 +199,8 @@ describe('grantee selectors', () => {
         roles: [role(roles.member, [allow(permissions.post.read)])],
       },
     );
-    const dock = await createPermDock(policy, { id: 'u1' });
-    expect(dock.can(permissions.post.read, row)).toBe(true);
+    const permdock = await createPermDock(policy, { id: 'u1' });
+    expect(permdock.can(permissions.post.read, row)).toBe(true);
   });
 
   it('throws when a top-level grant is missing to', () => {
@@ -223,8 +225,8 @@ describe('principal refs and snapshots', () => {
         ]),
       ],
     });
-    const dock = await createPermDock(policy, { id: 'u1' });
-    expect(dock.can(permissions.post.update, row)).toBe(true);
+    const permdock = await createPermDock(policy, { id: 'u1' });
+    expect(permdock.can(permissions.post.update, row)).toBe(true);
   });
 
   it('emits a snapshot with grant.to and vocabulary', async () => {
@@ -239,8 +241,8 @@ describe('principal refs and snapshots', () => {
         grants: [allow(permissions.post.read, { to: roles.owner })],
       },
     );
-    const dock = await createPermDock(policy, { id: 'u1' });
-    const snapshot = dock.snapshot();
+    const permdock = await createPermDock(policy, { id: 'u1' });
+    const snapshot = permdock.snapshot();
     if (snapshot instanceof Promise) {
       throw new Error('expected json snapshot');
     }

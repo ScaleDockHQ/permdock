@@ -130,7 +130,7 @@ describe('ownership triggers in generated RLS', () => {
   it.each(Object.entries(LEDGER_MEMBERS))(
     'agrees with can() on a resource role with for (%s)',
     async (user, via) => {
-      const dock = await createPermDock(policy, {
+      const permdock = await createPermDock(policy, {
         id: user,
         memberships: [
           {
@@ -150,7 +150,7 @@ describe('ownership triggers in generated RLS', () => {
           ).rows.map((row) => row.id),
       );
       const expected = ['l1', 'l2'].filter((id) =>
-        dock.can(permissions.ledger.read, { id }),
+        permdock.can(permissions.ledger.read, { id }),
       );
       expect(visible).toEqual(expected);
       expect(visible).toEqual(via === 'staff' ? ['l1'] : []);

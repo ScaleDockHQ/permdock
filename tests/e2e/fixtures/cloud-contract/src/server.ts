@@ -33,7 +33,7 @@ const endpoints =
     ? undefined
     : cloudEndpoints({ url: env.url, environment: env.environment });
 
-const pd =
+const permdockCloud =
   env === undefined || endpoints === undefined
     ? undefined
     : cloud({
@@ -52,12 +52,15 @@ revocations.subscribe((event) => {
 const webhooks: { readonly id: string; readonly type: string }[] = [];
 
 const scim =
-  pd === undefined || env === undefined
+  permdockCloud === undefined || env === undefined
     ? undefined
     : scimHandler({
         store: memoryDirectoryStore(),
         tenant: env.scim.tenant,
-        verifier: joseTokenVerifier({ jwks: pd.jwks, issuer: pd.issuer }),
+        verifier: joseTokenVerifier({
+          jwks: permdockCloud.jwks,
+          issuer: permdockCloud.issuer,
+        }),
         audience: SCIM_URL,
         assignable: ['member', 'finance', 'auditor'],
         revocations,
@@ -214,24 +217,28 @@ function testRoutes(client: CloudClient, contract: ContractEnv): Hono {
 const app = new Hono();
 
 app.get('/api/health', (c) =>
-  c.json({ ok: true, cloud: pd !== undefined, issuer: pd?.issuer ?? null }),
+  c.json({
+    ok: true,
+    cloud: permdockCloud !== undefined,
+    issuer: permdockCloud?.issuer ?? null,
+  }),
 );
 
-if (pd === undefined || env === undefined) {
+if (permdockCloud === undefined || env === undefined) {
   app.all('/api/test/*', (c) =>
     c.json({ error: 'set PERMDOCK_CLOUD_CONTRACT_ENV' }, 503),
   );
 } else {
-  app.route('/api/test', testRoutes(pd, env));
+  app.route('/api/test', testRoutes(permdockCloud, env));
 }
 
 app.post('/webhooks/permdock', async (c) => {
-  if (pd === undefined) {
+  if (permdockCloud === undefined) {
     return c.body(null, 503);
   }
   const verified = await verifyWebhook(c.req.raw, {
     audience: WEBHOOK_URL,
-    jwks: pd.jwks,
+    jwks: permdockCloud.jwks,
   });
   if (!verified.ok) {
     return c.json({ reason: verified.reason }, 401);

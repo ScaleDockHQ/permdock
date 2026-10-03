@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { globSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { basename, dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -15,17 +15,15 @@ const STANDARDS_TESTS = join(
 /** Standards pages that describe no standard of their own to conform to. */
 const UNTESTED_STANDARDS = new Set(['index', 'watch-list']);
 
+const EXPORTS = join(ROOT, 'tests', 'bundle', 'src', 'exports.json');
+/** The page that lists the old names on purpose. */
+const NAMING_PAGE = join(DOCS, 'getting-started', 'naming.mdx');
+
 function walk(dir: string, keep: (file: string) => boolean): string[] {
-  const out: string[] = [];
-  for (const name of readdirSync(dir)) {
-    const path = join(dir, name);
-    if (statSync(path).isDirectory()) {
-      out.push(...walk(path, keep));
-    } else if (keep(path)) {
-      out.push(path);
-    }
-  }
-  return out;
+  return globSync('**/*', { cwd: dir })
+    .map((file) => join(dir, file))
+    .filter((file) => statSync(file).isFile() && keep(file))
+    .toSorted();
 }
 
 function read(path: string): string {
@@ -39,9 +37,8 @@ const cliSources = walk(
 const cliDocs = walk(join(DOCS, 'cli'), (file) => file.endsWith('.mdx'))
   .map(read)
   .join('\n');
-const allDocs = walk(DOCS, (file) => file.endsWith('.mdx'))
-  .map(read)
-  .join('\n');
+const docPages = walk(DOCS, (file) => file.endsWith('.mdx'));
+const allDocs = docPages.map(read).join('\n');
 
 function doctorCodes(): readonly string[] {
   const codes = new Set<string>();
@@ -115,6 +112,81 @@ function standardsTests(): readonly string[] {
   ];
 }
 
+/** Instance names and identifiers renamed before 0.1.0; see the Naming page. */
+const BANNED: readonly (readonly [RegExp, string])[] = [
+  [
+    /\b(?:const|let)\s+(?:dock|pd|factory)\b/u,
+    'an instance named dock, pd or factory',
+  ],
+  [
+    /\b(?:dock|pd)\.(?:can|decide|assert|explain|filter|where|snapshot|simulate)\(/u,
+    'an instance named dock or pd',
+  ],
+  [
+    /\bconst\s+server\s*=\s*(?:await\s+)?createPermDock\(/u,
+    'an instance named server',
+  ],
+  [
+    /\b(?:CreatePermDockOptions|CreatePermDockPluginOptions|SsfAdapter|SsfOptions|SupabaseMiddlewareOptions)\b/u,
+    'a renamed type',
+  ],
+  [/\bA2A[A-Z][a-z]\w*/u, 'an A2A* type (now A2a*)'],
+  [/\bkernel\.handler\(/u, 'kernel.handler (now permdockHandler)'],
+];
+
+function bannedNames(): readonly string[] {
+  const found: string[] = [];
+  for (const page of docPages) {
+    if (page === NAMING_PAGE) {
+      continue;
+    }
+    const lines = read(page).split('\n');
+    for (const [index, line] of lines.entries()) {
+      for (const [pattern, what] of BANNED) {
+        if (pattern.test(line)) {
+          found.push(`${relative(ROOT, page)}:${index + 1} uses ${what}`);
+        }
+      }
+    }
+  }
+  return found;
+}
+
+/** Value imports from a `permdock` entry in docs code that the entry does not export. */
+function unknownImports(): readonly string[] {
+  // SAFETY: exports.json is the bundle test's own baseline, entry to sorted runtime export names
+  const exported = JSON.parse(read(EXPORTS)) as Readonly<
+    Record<string, readonly string[]>
+  >;
+  const found = new Set<string>();
+  const importPattern =
+    /import\s+\{([^}]*)\}\s+from\s+'(permdock(?:\/[\w/-]+)?)'/gu;
+  for (const page of docPages) {
+    for (const [, names = '', specifier = ''] of read(page).matchAll(
+      importPattern,
+    )) {
+      const entry =
+        specifier === 'permdock'
+          ? '.'
+          : `./${specifier.slice('permdock/'.length)}`;
+      const known = exported[entry];
+      if (known === undefined) {
+        continue;
+      }
+      for (const raw of names.split(',')) {
+        const name = raw.trim().split(/\s+as\s+/u)[0] ?? '';
+        if (name === '' || name.startsWith('type ') || known.includes(name)) {
+          continue;
+        }
+        found.add(
+          `${relative(ROOT, page)} imports ${name} from ${specifier}, which does not export it`,
+        );
+      }
+    }
+  }
+  return [...found];
+}
+
 const problems = [
   ...doctorCodes()
     .filter((code) => !cliDocs.includes(`| \`${code}\``))
@@ -124,6 +196,8 @@ const problems = [
     .map((entry) => `package entry ${entry} is not mentioned in the docs`),
   ...unlistedPages().map((page) => `${page} is not listed in its meta.json`),
   ...standardsTests(),
+  ...bannedNames(),
+  ...unknownImports(),
 ];
 
 if (problems.length > 0) {
@@ -131,6 +205,6 @@ if (problems.length > 0) {
   process.exitCode = 1;
 } else {
   process.stdout.write(
-    'docs match the doctor checks, package entries and standards tests\n',
+    'docs match the doctor checks, package entries, standards tests, names and exports\n',
   );
 }

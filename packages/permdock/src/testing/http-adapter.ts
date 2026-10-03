@@ -366,10 +366,14 @@ function reasonsOf(body: unknown): readonly unknown[] {
 }
 
 async function approverSubject(user: string, tenant: string): Promise<Subject> {
-  const dock = await createPermDock(saasPolicy, saasPrincipal(user, tenant), {
-    tenant,
-  });
-  return dock.subject;
+  const permdock = await createPermDock(
+    saasPolicy,
+    saasPrincipal(user, tenant),
+    {
+      tenant,
+    },
+  );
+  return permdock.subject;
 }
 
 const PARALLEL: readonly {

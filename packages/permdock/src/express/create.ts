@@ -21,7 +21,7 @@ import type {
 } from '../core/interfaces.ts';
 import type { PermDock } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
-import type { Policy } from '../core/policy.ts';
+import type { Policy, PolicyVocabulary } from '../core/policy.ts';
 import type { Principal } from '../core/subject.ts';
 import type { OtelOptions } from '../otel/types.ts';
 import type { PdpFactory } from '../pdp/types.ts';
@@ -60,12 +60,15 @@ export type ExpressPermDockOptions<TUser = unknown> = {
   readonly webBotAuth?: WebBotAuthOptions;
 };
 
-export type PermDockRequest<T = unknown> = Request & {
-  permdock: PermDock;
+export type PermDockRequest<
+  T = unknown,
+  V extends PolicyVocabulary = PolicyVocabulary,
+> = Request & {
+  permdock: PermDock<V>;
   permdockData?: T;
 };
 
-export type ExpressPermDock = {
+export type ExpressPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
   readonly permdock: () => RequestHandler;
   readonly protect: (
     permission: Permission,
@@ -74,8 +77,8 @@ export type ExpressPermDock = {
   ) => RequestHandler;
   readonly errorHandler: () => ErrorRequestHandler;
   readonly permdockHandler: () => Router;
-  readonly handler: (
-    fn: (req: PermDockRequest, res: Response) => unknown,
+  readonly withPermDock: (
+    fn: (req: PermDockRequest<unknown, V>, res: Response) => unknown,
   ) => RequestHandler;
   readonly openapi: OpenApiHooks;
 };
@@ -95,12 +98,14 @@ const errorHandler = (): ErrorRequestHandler => (err, _req, res, next) => {
   }, next);
 };
 
-const handler =
-  (fn: (req: PermDockRequest, res: Response) => unknown): RequestHandler =>
+const withPermDock =
+  <V extends PolicyVocabulary>(
+    fn: (req: PermDockRequest<unknown, V>, res: Response) => unknown,
+  ): RequestHandler =>
   (req, res, next) => {
     run(async () => {
-      // SAFETY: handler wraps routes mounted after permdock() or protect(), which set req.permdock.
-      await fn(req as PermDockRequest, res);
+      // SAFETY: withPermDock wraps routes mounted after permdock() or protect(), which set req.permdock from this factory's policy.
+      await fn(req as PermDockRequest<unknown, V>, res);
     }, next);
   };
 
@@ -115,10 +120,14 @@ export function withBound<T>(
   return req === undefined ? fallback : use(req);
 }
 
-export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
-  policy: Policy<TUser, TPrincipal>,
+export function createPermDock<
+  TUser,
+  TPrincipal extends Principal = Principal,
+  V extends PolicyVocabulary = PolicyVocabulary,
+>(
+  policy: Policy<TUser, TPrincipal, V>,
   options: ExpressPermDockOptions<TUser>,
-): ExpressPermDock {
+): ExpressPermDock<V> {
   const contexts = new WeakMap<globalThis.Request, Request>();
   const bound = new WeakMap<Request, globalThis.Request>();
   const kernel = createKernel(
@@ -137,7 +146,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       pdp: options.pdp,
       webBotAuth: options.webBotAuth,
       adapter: 'express',
-      wrap: (dock: PermDock) => applyOtel(dock, options.otel),
+      wrap: (permdock: PermDock<V>) => applyOtel(permdock, options.otel),
     }),
   );
 
@@ -197,7 +206,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     };
 
   const permdockHandler = (): Router => {
-    const { POST, GET } = kernel.handler((request) =>
+    const { POST, GET } = kernel.permdockHandler((request) =>
       withBound<TenantScope | Promise<TenantScope>>(
         contexts,
         request,
@@ -226,7 +235,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     protect,
     errorHandler,
     permdockHandler,
-    handler,
+    withPermDock,
     openapi: kernel.openapi,
   };
 }

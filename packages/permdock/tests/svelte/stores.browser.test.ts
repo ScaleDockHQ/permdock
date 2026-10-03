@@ -30,7 +30,7 @@ async function memberSnapshot(): Promise<Snapshot> {
 }
 
 type Stores = {
-  readonly dock: ClientPermDock;
+  readonly permdock: ClientPermDock;
   readonly permission: Readable<PermissionState>;
   readonly permissions: Readable<PermissionSet>;
   readonly filtered: Readable<readonly unknown[] & { partial: boolean }>;
@@ -101,7 +101,7 @@ describe('permdock/svelte context stores', () => {
     });
     // SAFETY: the harness hands over the stores it built under setPermDock.
     const stores = value as Stores;
-    expect(stores.dock.subject.principal?.id).toBe('u1');
+    expect(stores.permdock.subject.principal?.id).toBe('u1');
     expect(get(stores.permission).allowed).toBe(true);
     const set = get(stores.permissions);
     expect(set.granted.map((leaf) => leaf.key)).toEqual(['post.update']);
@@ -112,7 +112,7 @@ describe('permdock/svelte context stores', () => {
     expect(get(stores.filtered).partial).toBe(false);
     expect(get(stores.tenant)).toMatchObject({ tenant: null, tenants: [] });
     await get(stores.tenant).switchTo('o1');
-    expect(stores.dock.status()).toBe('ready');
+    expect(stores.permdock.status()).toBe('ready');
     expect(get(stores.memberships)).toEqual([]);
     expect(get(stores.roles).roles.map((role) => role.key)).toEqual(['member']);
     expect(get(stores.tenantRoles).roles.map((role) => role.key)).toEqual([

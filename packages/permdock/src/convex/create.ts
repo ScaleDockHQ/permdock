@@ -1,6 +1,5 @@
-import type { PermDock } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
-import type { Policy } from '../core/policy.ts';
+import type { Policy, PolicyVocabulary } from '../core/policy.ts';
 import type { Principal } from '../core/subject.ts';
 import type {
   ConvexCtxLike,
@@ -43,12 +42,13 @@ export function createPermDock<
   TCtx,
   TUser,
   TPrincipal extends Principal = Principal,
+  V extends PolicyVocabulary = PolicyVocabulary,
 >(
-  policy: Policy<TUser, TPrincipal>,
+  policy: Policy<TUser, TPrincipal, V>,
   options: ConvexPermDockOptions<TCtx, TUser>,
-): ConvexPermDock<TCtx> {
+): ConvexPermDock<TCtx, V> {
   const withPermDock = <TArgs, TResult>(
-    handler: ConvexHandler<TCtx, TArgs, TResult>,
+    handler: ConvexHandler<TCtx, TArgs, TResult, V>,
   ): ((ctx: TCtx, args: TArgs) => Promise<TResult>) => {
     return async (ctx: TCtx, args: TArgs): Promise<TResult> => {
       let user: TUser | null = null;
@@ -57,11 +57,9 @@ export function createPermDock<
       } catch {
         user = null;
       }
-      const dock = await createCore(policy, user);
+      const permdock = await createCore(policy, user);
       // SAFETY: the spread keeps every TCtx field and adds the permdock instance built above.
-      const next = { ...ctx, permdock: dock } as ConvexPermDockCtx<TCtx> & {
-        readonly permdock: PermDock;
-      };
+      const next = { ...ctx, permdock } as ConvexPermDockCtx<TCtx, V>;
       try {
         return await handler(next, args);
       } catch (error) {

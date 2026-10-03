@@ -1,6 +1,7 @@
 import type { ProblemDetails } from '../core/errors.ts';
 import type { PermDock } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
+import type { PolicyVocabulary } from '../core/policy.ts';
 
 export type ConvexCtxLike = {
   readonly auth?: {
@@ -9,8 +10,11 @@ export type ConvexCtxLike = {
   readonly db?: unknown;
 };
 
-export type ConvexPermDockCtx<TCtx> = TCtx & {
-  readonly permdock: PermDock;
+export type ConvexPermDockCtx<
+  TCtx,
+  V extends PolicyVocabulary = PolicyVocabulary,
+> = TCtx & {
+  readonly permdock: PermDock<V>;
 };
 
 export type ConvexSubject<TCtx, TUser = unknown> = (
@@ -30,16 +34,24 @@ export type ConvexPermDockOptions<TCtx, TUser = unknown> = {
   readonly query?: ConvexQueryBuilder;
 };
 
-export type ConvexHandler<TCtx, TArgs, TResult> = (
-  ctx: ConvexPermDockCtx<TCtx>,
+export type ConvexHandler<
+  TCtx,
+  TArgs,
+  TResult,
+  V extends PolicyVocabulary = PolicyVocabulary,
+> = (
+  ctx: ConvexPermDockCtx<TCtx, V>,
   args: TArgs,
 ) => TResult | Promise<TResult>;
 
 export type ConvexErrorData = ProblemDetails;
 
-export type ConvexPermDock<TCtx> = {
+export type ConvexPermDock<
+  TCtx,
+  V extends PolicyVocabulary = PolicyVocabulary,
+> = {
   readonly withPermDock: <TArgs, TResult>(
-    handler: ConvexHandler<TCtx, TArgs, TResult>,
+    handler: ConvexHandler<TCtx, TArgs, TResult, V>,
   ) => (ctx: TCtx, args: TArgs) => Promise<TResult>;
   readonly snapshotQuery: (options?: {
     readonly include?: readonly Permission[];

@@ -48,10 +48,10 @@ function Probe(): string {
   const memberships = useMemberships();
   const roles = useRoles();
   const subject = useSubject();
-  const dock = usePermDock();
+  const permdock = usePermDock();
   return `${allowed().allowed}:${actions().granted.length}:${editable().length}:${editable().partial}:${tenant().tenant ?? 'none'}:${memberships().length}:${roles()
     .roles.map((item) => item.key)
-    .join(',')}:${subject().simulated}:${dock.status()}`;
+    .join(',')}:${subject().simulated}:${permdock.status()}`;
 }
 
 describe('permdock/solid', () => {

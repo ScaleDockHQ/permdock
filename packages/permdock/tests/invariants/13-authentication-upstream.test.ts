@@ -148,10 +148,10 @@ describe('invariant 13: authentication is upstream', () => {
   });
 
   it('ignores identity in unsigned headers and request bodies', async () => {
-    const { permdock } = createServerPermDock(policy, {
+    const { permdock: permdockFor } = createServerPermDock(policy, {
       subject: () => null,
     });
-    const dock = await permdock(
+    const permdock = await permdockFor(
       new Request('https://api.example.com/projects', {
         method: 'POST',
         headers: {
@@ -162,10 +162,10 @@ describe('invariant 13: authentication is upstream', () => {
         body: JSON.stringify({ subject: viewer, tenant: 'o1' }),
       }),
     );
-    expect(dock.subject.principal).toBeNull();
-    expect(dock.can(permissions.project.read, { id: 'p', orgId: 'o1' })).toBe(
-      false,
-    );
+    expect(permdock.subject.principal).toBeNull();
+    expect(
+      permdock.can(permissions.project.read, { id: 'p', orgId: 'o1' }),
+    ).toBe(false);
   });
 
   it('takes the actor a policy delegation matches only from the adapter, never from headers or bodies', async () => {
@@ -182,11 +182,11 @@ describe('invariant 13: authentication is upstream', () => {
       subject: (user: User | null) =>
         user === null ? null : { id: user.id, memberships: user.memberships },
     });
-    const { permdock } = createServerPermDock(delegating, {
+    const { permdock: permdockFor } = createServerPermDock(delegating, {
       subject: () => viewer,
       tenant: 'o1',
     });
-    const dock = await permdock(
+    const permdock = await permdockFor(
       new Request('https://api.example.com/projects', {
         method: 'POST',
         headers: {
@@ -199,12 +199,12 @@ describe('invariant 13: authentication is upstream', () => {
     // No actor reached the subject, so this is a human call and the
     // delegation plays no part; an actor from a header would have made it
     // `granted` through the delegation ceiling.
-    expect(dock.subject.actor).toBeUndefined();
+    expect(permdock.subject.actor).toBeUndefined();
     const asAgent = await createPermDock(delegating, viewer, {
       actor: { id: 'agent', kind: 'eve' },
       tenant: 'o1',
     });
-    const plain = dock.snapshot();
+    const plain = permdock.snapshot();
     const delegated = asAgent.snapshot();
     if (plain instanceof Promise || delegated instanceof Promise) {
       throw new Error('unsigned snapshot expected');

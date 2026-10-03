@@ -2,14 +2,14 @@ import type { Condition } from '../conditions/ast.ts';
 import type { Decision, ExplainedDecision } from '../core/decision.ts';
 import type { DecisionProvider } from '../core/interfaces.ts';
 import type {
-  CreatePermDockOptions,
+  PermDockOptions,
   DecideOptions,
   PermDock,
   SimulateOptions,
   WhereResult,
 } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
-import type { Policy } from '../core/policy.ts';
+import type { Policy, PolicyVocabulary } from '../core/policy.ts';
 import type { Membership, Principal, Subject } from '../core/subject.ts';
 import type { PdpPermDock } from './types.ts';
 
@@ -27,14 +27,16 @@ import { createPermDock as createCore } from '../core/permdock.ts';
 import { getResource } from '../core/permissions.ts';
 import { denied, resourceIdOf } from './shared.ts';
 
-function withoutProviders<TUser, TPrincipal extends Principal>(
-  policy: Policy<TUser, TPrincipal>,
-): Policy<TUser, TPrincipal> {
+function withoutProviders<
+  TUser,
+  TPrincipal extends Principal,
+  V extends PolicyVocabulary,
+>(policy: Policy<TUser, TPrincipal, V>): Policy<TUser, TPrincipal, V> {
   if (policy.providers === undefined || policy.providers.length === 0) {
     return policy;
   }
   return freezeDeep(
-    compact<Policy<TUser, TPrincipal>>({
+    compact<Policy<TUser, TPrincipal, V>>({
       permissions: policy.permissions,
       roles: policy.roles,
       rolesByName: policy.rolesByName,
@@ -144,14 +146,14 @@ function isLocalShortCircuit(decision: Decision): boolean {
   });
 }
 
-function wrap(
-  dock: PermDock,
+function wrap<V extends PolicyVocabulary>(
+  permdock: PermDock<V>,
   policy: Policy,
   subject: Subject,
   providers: readonly DecisionProvider[],
-): PdpPermDock {
+): PdpPermDock<V> {
   // SAFETY: decide's generics only tie the row type to the permission; it accepts any row.
-  const decideLocal = dock.decide as (
+  const decideLocal = permdock.decide as (
     permission: Permission,
     data?: unknown,
     options?: DecideOptions,
@@ -308,11 +310,11 @@ function wrap(
       );
     }
     if (isArazzoSimulateInput(input)) {
-      return dock.simulate(input);
+      return permdock.simulate(input);
     }
     // SAFETY: pairs and Arazzo inputs returned above; what remains is the role override input.
     return wrap(
-      dock.simulate(
+      permdock.simulate(
         input as {
           readonly roles?: readonly string[];
           readonly memberships?: readonly Membership[];
@@ -323,7 +325,7 @@ function wrap(
       subject,
       providers,
     );
-  }) as PdpPermDock['simulate'];
+  }) as PdpPermDock<V>['simulate'];
 
   return {
     can,
@@ -356,11 +358,11 @@ function wrap(
         );
       });
     },
-    pick: dock.pick.bind(dock),
+    pick: permdock.pick.bind(permdock),
     async where(permission: Permission): Promise<WhereResult> {
       const provider = providerFor(providers, permission);
       if (provider === undefined) {
-        return dock.where(permission);
+        return permdock.where(permission);
       }
       const ids = await permittedIds(provider, permission);
       if (ids === undefined) {
@@ -374,7 +376,7 @@ function wrap(
         field: idFieldOf(policy, permission),
         value: [...ids],
       };
-      const local = dock.where(permission);
+      const local = permdock.where(permission);
       const hasLocal =
         local.condition.op !== 'or' || local.condition.conditions.length > 0;
       return hasLocal
@@ -384,31 +386,31 @@ function wrap(
           }
         : { condition: remote, partial: true };
     },
-    actions: dock.actions.bind(dock),
+    actions: permdock.actions.bind(permdock),
     simulate,
-    snapshot: dock.snapshot.bind(dock),
-    on: dock.on.bind(dock),
-    tenant: (id: string): PdpPermDock => {
-      const next = dock.tenant(id);
+    snapshot: permdock.snapshot.bind(permdock),
+    on: permdock.on.bind(permdock),
+    tenant: (id: string): PdpPermDock<V> => {
+      const next = permdock.tenant(id);
       return wrap(next, policy, next.subject, providers);
     },
-    team: (id: string): PdpPermDock => {
-      const next = dock.team(id);
+    team: (id: string): PdpPermDock<V> => {
+      const next = permdock.team(id);
       return wrap(next, policy, next.subject, providers);
     },
-    memberships: dock.memberships.bind(dock),
-    tenants: dock.tenants.bind(dock),
-    heldRoles: dock.heldRoles.bind(dock),
-    audiences: dock.audiences.bind(dock),
-    assignableRoles: dock.assignableRoles.bind(dock),
-    assignablePermissions: dock.assignablePermissions.bind(dock),
-    decideRoleChange: dock.decideRoleChange.bind(dock),
-    loadRelations: dock.loadRelations.bind(dock),
-    whoCan: dock.whoCan.bind(dock),
-    activate: dock.activate.bind(dock),
-    permissions: dock.permissions,
-    roles: dock.roles,
-    plans: dock.plans,
+    memberships: permdock.memberships.bind(permdock),
+    tenants: permdock.tenants.bind(permdock),
+    heldRoles: permdock.heldRoles.bind(permdock),
+    audiences: permdock.audiences.bind(permdock),
+    assignableRoles: permdock.assignableRoles.bind(permdock),
+    assignablePermissions: permdock.assignablePermissions.bind(permdock),
+    decideRoleChange: permdock.decideRoleChange.bind(permdock),
+    loadRelations: permdock.loadRelations.bind(permdock),
+    whoCan: permdock.whoCan.bind(permdock),
+    activate: permdock.activate.bind(permdock),
+    permissions: permdock.permissions,
+    roles: permdock.roles,
+    plans: permdock.plans,
     subject,
   };
 }
@@ -416,12 +418,13 @@ function wrap(
 export async function createPermDock<
   TUser,
   TPrincipal extends Principal = Principal,
+  V extends PolicyVocabulary = PolicyVocabulary,
 >(
-  policy: Policy<TUser, TPrincipal>,
+  policy: Policy<TUser, TPrincipal, V>,
   user: TUser | null,
-  options: CreatePermDockOptions = {},
-): Promise<PdpPermDock> {
+  options: PermDockOptions = {},
+): Promise<PdpPermDock<V>> {
   const localPolicy = withoutProviders(policy);
-  const dock = await createCore(localPolicy, user, options);
-  return wrap(dock, localPolicy, dock.subject, policy.providers ?? []);
+  const permdock = await createCore(localPolicy, user, options);
+  return wrap(permdock, localPolicy, permdock.subject, policy.providers ?? []);
 }

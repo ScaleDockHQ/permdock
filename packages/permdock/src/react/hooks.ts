@@ -52,14 +52,14 @@ export function usePermission(
   data?: unknown,
 ): PermissionState {
   const store = useStore();
-  const dock = useSyncExternalStore(
+  const permdock = useSyncExternalStore(
     (listener) => store.subscribe(listener),
     () => store.get(),
     () => store.get(),
   );
   return useMemo(
     () => store.permissionState(permission, data),
-    [store, dock, permission, data],
+    [store, permdock, permission, data],
   );
 }
 
@@ -68,7 +68,7 @@ export function usePermissions(
   data?: unknown,
 ): PermissionSet {
   const store = useStore();
-  const dock = useSyncExternalStore(
+  const permdock = useSyncExternalStore(
     (listener) => store.subscribe(listener),
     () => store.get(),
     () => store.get(),
@@ -97,30 +97,30 @@ export function usePermissions(
         return Reflect.get(target, prop, receiver);
       },
     });
-  }, [store, dock, permissions, data]);
+  }, [store, permdock, permissions, data]);
 }
 
 export function useFilter<T>(
   permission: Permission<string, T, 'instance'>,
   rows: readonly T[],
 ): FilterResult<T> {
-  const dock = usePermDock();
+  const permdock = usePermDock();
   return useMemo(() => {
-    const filtered = dock.filter(permission, rows);
+    const filtered = permdock.filter(permission, rows);
     // SAFETY: a fresh copy; the next line sets partial on it.
     const result = [...filtered] as T[] & { partial: boolean };
-    result.partial = dock.where(permission).partial;
+    result.partial = permdock.where(permission).partial;
     return result;
-  }, [dock, permission, rows]);
+  }, [permdock, permission, rows]);
 }
 
 export function useTenant(): TenantView {
-  const dock = usePermDock();
+  const permdock = usePermDock();
   return {
-    tenant: dock.subject.principal?.tenant ?? null,
-    tenants: dock.tenants(),
-    switchTo: (id: string) => dock.refresh({ tenant: id }),
-    status: dock.status(),
+    tenant: permdock.subject.principal?.tenant ?? null,
+    tenants: permdock.tenants(),
+    switchTo: (id: string) => permdock.refresh({ tenant: id }),
+    status: permdock.status(),
   };
 }
 
@@ -131,8 +131,9 @@ export function useMemberships(): readonly Membership[] {
 export function useRoles(options: UseRolesOptions = {}): {
   readonly roles: readonly Role[];
 } {
-  const dock = usePermDock();
-  const scoped = options.team === undefined ? dock : dock.team(options.team);
+  const permdock = usePermDock();
+  const scoped =
+    options.team === undefined ? permdock : permdock.team(options.team);
   return {
     roles: scoped.heldRoles(
       options.tenant === undefined ? undefined : { tenant: options.tenant },
@@ -151,18 +152,18 @@ export function useAssignablePermissions(
 }
 
 export function useSubject(): SubjectView {
-  const dock = usePermDock();
-  const snapshot = dock.snapshot();
+  const permdock = usePermDock();
+  const snapshot = permdock.snapshot();
   const simulated =
     typeof snapshot === 'object' &&
     snapshot !== null &&
     'simulated' in snapshot &&
     snapshot.simulated === true;
   return {
-    principal: dock.subject.principal,
-    actor: dock.subject.actor,
-    delegation: dock.subject.delegation,
-    expiresAt: dock.subject.expiresAt,
+    principal: permdock.subject.principal,
+    actor: permdock.subject.actor,
+    delegation: permdock.subject.delegation,
+    expiresAt: permdock.subject.expiresAt,
     simulated,
   };
 }

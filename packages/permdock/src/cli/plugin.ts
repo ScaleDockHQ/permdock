@@ -1,12 +1,12 @@
 import { watch } from 'node:fs';
 import { resolve } from 'node:path';
 
-import type { CreatePermDockPluginOptions } from './types.ts';
+import type { PermDockPluginOptions } from './types.ts';
 
 import { runCollect } from './collect.ts';
 import { loadConfig } from './config.ts';
 
-export type { CreatePermDockPluginOptions } from './types.ts';
+export type { PermDockPluginOptions } from './types.ts';
 
 /** Any object: Next's `NextConfig` is an interface, so no index signature. */
 export type NextConfigLike = object;
@@ -38,7 +38,7 @@ function describeError(error: unknown): string {
 }
 
 export function createPermDockPlugin(
-  options?: CreatePermDockPluginOptions,
+  options?: PermDockPluginOptions,
 ): <T extends NextConfigLike>(
   nextConfig: NextConfigInput<T>,
 ) => NextConfigFunction<T> {
@@ -73,7 +73,7 @@ export function createPermDockPlugin(
 
 export async function runPluginCollect(
   cwd: string,
-  options: CreatePermDockPluginOptions | undefined,
+  options: PermDockPluginOptions | undefined,
   check: boolean,
 ): Promise<string | undefined> {
   const config = await loadConfig(cwd);
@@ -102,7 +102,7 @@ export async function runPluginCollect(
 
 function startWatch(
   cwd: string,
-  options: CreatePermDockPluginOptions | undefined,
+  options: PermDockPluginOptions | undefined,
 ): void {
   const srcPath = options?.collect?.srcPath ?? ['./src'];
   for (const entry of srcPath) {

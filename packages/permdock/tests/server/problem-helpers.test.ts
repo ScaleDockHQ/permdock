@@ -4,7 +4,7 @@ import type { Decision, Denial } from '../../src/core/decision.ts';
 import type { Subject } from '../../src/core/subject.ts';
 
 import { PermDockValidationError } from '../../src/core/errors.ts';
-import { createPermDock as createCoreDock } from '../../src/core/permdock.ts';
+import { createPermDock as createCorePermDock } from '../../src/core/permdock.ts';
 import {
   bearerChallenge,
   problemFromDecision,
@@ -189,16 +189,16 @@ describe('rateLimitHeaders', () => {
 
 describe('problemFromDecision', () => {
   it('answers 204 for a granted decision', async () => {
-    const dock = await createCoreDock(policy, memberUser);
-    const decision = dock.decide(permissions.post.read, ownPost);
+    const permdock = await createCorePermDock(policy, memberUser);
+    const decision = permdock.decide(permissions.post.read, ownPost);
     expect(
       problemFromDecision(decision, permissions.post.read, SUBJECT).status,
     ).toBe(204);
   });
 
   it('carries the approval hint only when it names something', async () => {
-    const dock = await createCoreDock(policy, memberUser);
-    const decision = dock.decide(permissions.post.delete, ownPost);
+    const permdock = await createCorePermDock(policy, memberUser);
+    const decision = permdock.decide(permissions.post.delete, ownPost);
     const hinted = await body(
       problemFromDecision(decision, permissions.post.delete, SUBJECT, {
         approval: { at: 'https://app.example/approvals', hint: 'ask an admin' },

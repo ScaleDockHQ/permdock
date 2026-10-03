@@ -90,13 +90,13 @@ A Cloud admin can write grants such as "the `pro` plan may read audit logs" with
 import { cloud, cloudEndpoints } from 'permdock/cloud'
 import { joseTokenVerifier } from 'permdock/jwt'
 
-const pd = cloud({
+const permdockCloud = cloud({
   verifier: joseTokenVerifier({ jwks: cloudEndpoints().jwks, algorithms: ['Ed25519', 'ES256'] }),
 })
-await pd.policies.refresh()
-setInterval(() => void pd.policies.refresh(), 60_000)
+await permdockCloud.policies.refresh()
+setInterval(() => void permdockCloud.policies.refresh(), 60_000)
 
-const permdock = await createPermDock(policy, user, { policies: pd.policies })
+const permdock = await createPermDock(policy, user, { policies: permdockCloud.policies })
 ```
 
 A snapshot source never delivers hosted grants, because a snapshot is a per-subject result the server computed, not a policy; a snapshot the application builds from an instance already reflects that instance's merged grants. Fetching the policy per request would put the Cloud on the decision path.
@@ -122,7 +122,7 @@ Four things are worth paying for around an embedded decision engine, in the orde
 ```ts
 import { cloud } from 'permdock/cloud'
 
-const pd = cloud({
+const permdockCloud = cloud({
   url: process.env.PERMDOCK_CLOUD_URL,     // set by the Marketplace integration or by hand
   key: process.env.PERMDOCK_CLOUD_KEY,     // server-only; never in NEXT_PUBLIC_* or a client bundle
   environment: 'production',               // defaults to VERCEL_ENV when present
@@ -131,10 +131,10 @@ const pd = cloud({
 // Plug into any adapter that accepts store / sink / snapshots
 export const { getPermDock, getPermission, PermDockProvider, permdockHandler } = createPermDock(policy, {
   subject,
-  store: pd.approvals,       // ApprovalStore: persistent, inbox UI, delivery
-  sink: pd.sink,             // DecisionSink: batched, retried, queryable
-  snapshots: pd.snapshots,   // SnapshotSource: distributed, CAEP-invalidated (optional)
-  policies: pd.policies,     // PolicySource: hosted grants on hostable permissions (optional)
+  store: permdockCloud.approvals,       // ApprovalStore: persistent, inbox UI, delivery
+  sink: permdockCloud.sink,             // DecisionSink: batched, retried, queryable
+  snapshots: permdockCloud.snapshots,   // SnapshotSource: distributed, CAEP-invalidated (optional)
+  policies: permdockCloud.policies,     // PolicySource: hosted grants on hostable permissions (optional)
 })
 ```
 
@@ -246,10 +246,10 @@ The Cloud has an Integrations page; what each connector speaks is fixed here and
 ## Request lifecycle
 
 1. The application decides locally. Nothing on this path touches the network.
-2. `on('decision')` events go to `pd.sink`, which batches and posts them to `POST /v1/environments/:env/decisions` with the key.
-3. An `approval-required` outcome causes the adapter to call `pd.approvals.create`, which posts the `ApprovalRequest` to `POST /v1/environments/:env/approvals`. The Cloud notifies the configured approvers.
+2. `on('decision')` events go to `permdockCloud.sink`, which batches and posts them to `POST /v1/environments/:env/decisions` with the key.
+3. An `approval-required` outcome causes the adapter to call `permdockCloud.approvals.create`, which posts the `ApprovalRequest` to `POST /v1/environments/:env/approvals`. The Cloud notifies the configured approvers.
 4. An approver resolves the request in the inbox UI, through a Slack or Teams card (Chat SDK `requestApproval`; the platform signature identifies the responder) or through an email link that lands on the authenticated inbox. The Cloud authenticates the approver, applies the actor and distinct-approver rules, records `resolvedBy`.
-5. The application's retried call reads the record via `pd.approvals.get`, re-runs `decide` locally, compares the token and proceeds. The resumed decision goes to the sink like any other.
+5. The application's retried call reads the record via `permdockCloud.approvals.get`, re-runs `decide` locally, compares the token and proceeds. The resumed decision goes to the sink like any other.
 6. Independently of the above, an identity provider connected to the tenant's hosted SCIM endpoint pushes a provisioning operation. The Cloud records it in the sync log, applies the tenant's group-to-role mapping as the `urn:permdock:scim:schemas:extension:roles:1.0` attribute, and replays the operation to the application's `scimHandler` with an RFC 7523 JWT bearer signed by the environment key (`iss` = the environment URL, `aud` = your endpoint, `tenant` = the tenant, a 60-second `exp`). Your `DirectoryStore` is updated; the next `createPermDock` for an affected principal reads the change through `directoryMembershipSource` ([SCIM adapter](/docs/adapters/scim)). If your endpoint is unreachable the Cloud retries with backoff and shows the failure in the sync log; nothing is decided from the Cloud's copy.
 
 ## What it validates

@@ -57,7 +57,7 @@ type Principal = {
 `role()` gains a third argument that says where the role applies:
 
 ```ts
-import { definePolicy, role, allow, deny, subject } from 'permdock'
+import { definePolicy, role, allow, deny } from 'permdock'
 
 const viewer = role('viewer', [allow([permissions.post.read, permissions.post.list])], { on: 'tenant' })
 const admin  = role('admin',  [...viewer.grants, allow(permissions.post.delete), allow(permissions.member.invite)], { on: 'tenant' })

@@ -14,11 +14,14 @@ app.get('/health', (c) => c.json({ ok: true }));
 
 app.get('/posts', async (c) => {
   const prisma = await db;
-  const dock = await createPermDock(policy, memberUser);
+  const permdock = await createPermDock(policy, memberUser);
   const rows = await prisma.post.findMany({
-    where: toWhere<Prisma.postWhereInput>(dock.where(permissions.post.list), {
-      requiredFields,
-    }),
+    where: toWhere<Prisma.postWhereInput>(
+      permdock.where(permissions.post.list),
+      {
+        requiredFields,
+      },
+    ),
     select: { id: true },
     orderBy: { id: 'asc' },
   });
@@ -27,14 +30,17 @@ app.get('/posts', async (c) => {
 
 app.patch('/posts/:id', async (c) => {
   const prisma = await db;
-  const dock = await createPermDock(policy, memberUser);
+  const permdock = await createPermDock(policy, memberUser);
   const { count } = await prisma.post.updateMany({
     where: {
       AND: [
         { id: c.req.param('id') },
-        toWhere<Prisma.postWhereInput>(dock.where(permissions.post.update), {
-          requiredFields,
-        }),
+        toWhere<Prisma.postWhereInput>(
+          permdock.where(permissions.post.update),
+          {
+            requiredFields,
+          },
+        ),
       ],
     },
     data: { title: 'Edited' },
@@ -46,14 +52,14 @@ app.patch('/posts/:id', async (c) => {
 });
 
 app.post('/posts/:id/publish', async (c) => {
-  const dock = await createPermDock(policy, memberUser);
+  const permdock = await createPermDock(policy, memberUser);
   const post = {
     id: c.req.param('id'),
     authorId: memberUser.id,
     orgId: memberUser.orgId,
     published: false,
   };
-  if (!dock.can(permissions.post.publish, post)) {
+  if (!permdock.can(permissions.post.publish, post)) {
     return c.json({ ok: false }, 403);
   }
   return c.json({ ok: true });

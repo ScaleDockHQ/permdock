@@ -25,7 +25,7 @@ export function orgOf(request: Request): string {
  * One kernel for every `+api` route. `?org=` only selects a tenant: without a
  * live membership there it resolves to no tenant, and rows still carry their own org.
  */
-export const server = createPermDock(saasPolicy, {
+export const kernel = createPermDock(saasPolicy, {
   subject: async (request) =>
     saasSubject(await sessionOf(request), orgOf(request)),
   tenant: (request) => orgOf(request) || undefined,

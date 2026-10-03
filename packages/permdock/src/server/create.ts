@@ -13,7 +13,7 @@ import type {
 } from '../core/interfaces.ts';
 import type { DecideOptions, PermDock } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
-import type { Policy } from '../core/policy.ts';
+import type { Policy, PolicyVocabulary } from '../core/policy.ts';
 import type { RevocationFeed } from '../core/revocations.ts';
 import type { Actor, Principal, Subject } from '../core/subject.ts';
 import type { PdpFactory, PdpPermDock } from '../pdp/types.ts';
@@ -71,10 +71,10 @@ export type ServerPermDockOptions<TUser = unknown> = {
   readonly approval?: ApprovalHint;
 };
 
-export type Guard<T = unknown> =
+export type Guard<T = unknown, V extends PolicyVocabulary = PolicyVocabulary> =
   | {
       readonly ok: true;
-      readonly permdock: PermDock;
+      readonly permdock: PermDock<V>;
       readonly decision: Extract<Decision, { readonly outcome: 'granted' }>;
       readonly data: T;
     }
@@ -122,39 +122,39 @@ export async function tenantScope<TContext>(
   }
 }
 
-export type Kernel = {
+export type Kernel<V extends PolicyVocabulary = PolicyVocabulary> = {
   readonly permdock: (
     request: Request,
     scope?: TenantScope,
-  ) => Promise<PermDock>;
+  ) => Promise<PermDock<V>>;
   readonly protect: <T = unknown>(
     permission: Permission,
     loadData?: (
       request: Request,
     ) => T | null | undefined | Promise<T | null | undefined>,
     protectOptions?: ProtectOptions,
-  ) => (request: Request, scope?: TenantScope) => Promise<Guard<T>>;
+  ) => (request: Request, scope?: TenantScope) => Promise<Guard<T, V>>;
   readonly connection: <T = unknown>(
     request: Request,
     options?: ConnectionOptions<T>,
     scope?: TenantScope,
   ) => Promise<Connection>;
-  readonly problem: ServerPermDock['problem'];
+  readonly problem: ServerPermDock<V>['problem'];
   readonly openapi: OpenApiHooks;
-  readonly handler: (
+  readonly permdockHandler: (
     scope?: (request: Request) => TenantScope | Promise<TenantScope>,
   ) => ReturnType<typeof createEvaluationsHandler>;
 };
 
-export type ServerPermDock = {
-  readonly permdock: (request: Request) => Promise<PermDock>;
+export type ServerPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
+  readonly permdock: (request: Request) => Promise<PermDock<V>>;
   readonly protect: <T = unknown>(
     permission: Permission,
     loadData?: (
       request: Request,
     ) => T | null | undefined | Promise<T | null | undefined>,
     protectOptions?: ProtectOptions,
-  ) => (request: Request) => Promise<Guard<T>>;
+  ) => (request: Request) => Promise<Guard<T, V>>;
   /** A long-lived connection for a stream or socket opened by `request`. */
   readonly connection: <T = unknown>(
     request: Request,
@@ -165,7 +165,7 @@ export type ServerPermDock = {
     init?: { readonly permission?: Permission; readonly instance?: string },
   ) => Response;
   readonly openapi: OpenApiHooks;
-  readonly handler: () => ReturnType<typeof createEvaluationsHandler>;
+  readonly permdockHandler: () => ReturnType<typeof createEvaluationsHandler>;
 };
 
 async function resolveActor(
@@ -187,8 +187,8 @@ async function resolveActor(
   }
 }
 
-type Built = {
-  readonly dock: PermDock;
+type Built<V extends PolicyVocabulary = PolicyVocabulary> = {
+  readonly permdock: PermDock<V>;
   readonly remote: PdpPermDock | undefined;
 };
 
@@ -199,10 +199,14 @@ type Resolved<TUser> = {
 
 const NO_TENANT = '\u0000';
 
-export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
-  policy: Policy<TUser, TPrincipal>,
+export function createPermDock<
+  TUser,
+  TPrincipal extends Principal = Principal,
+  V extends PolicyVocabulary = PolicyVocabulary,
+>(
+  policy: Policy<TUser, TPrincipal, V>,
   options: ServerPermDockOptions<TUser>,
-): ServerPermDock {
+): ServerPermDock<V> {
   return createKernel(policy, options);
 }
 
@@ -232,16 +236,20 @@ function problemFor(
  * once per `Request`; one instance is cached per `(Request, tenant)`, so a
  * global middleware and a later tenant-scoped `protect` never share a tenant.
  */
-export function createKernel<TUser, TPrincipal extends Principal = Principal>(
-  policy: Policy<TUser, TPrincipal>,
+export function createKernel<
+  TUser,
+  TPrincipal extends Principal = Principal,
+  V extends PolicyVocabulary = PolicyVocabulary,
+>(
+  policy: Policy<TUser, TPrincipal, V>,
   options: ServerPermDockOptions<TUser> & {
-    readonly wrap?: (dock: PermDock) => PermDock;
+    readonly wrap?: (permdock: PermDock<V>) => PermDock<V>;
     readonly adapter?: string;
   },
-): Kernel {
+): Kernel<V> {
   const adapter = options.adapter ?? 'server';
   const subjects = new WeakMap<Request, Promise<Resolved<TUser>>>();
-  const instances = new WeakMap<Request, Map<string, Promise<Built>>>();
+  const instances = new WeakMap<Request, Map<string, Promise<Built<V>>>>();
 
   const resolveSubject = (request: Request): Promise<Resolved<TUser>> => {
     const hit = subjects.get(request);
@@ -274,7 +282,7 @@ export function createKernel<TUser, TPrincipal extends Principal = Principal>(
   const instanceFor = async (
     { user, actor }: Resolved<TUser>,
     tenant: string | undefined,
-  ): Promise<Built> => {
+  ): Promise<Built<V>> => {
     const coreOptions = compact({
       tenant,
       memberships: options.memberships,
@@ -286,13 +294,13 @@ export function createKernel<TUser, TPrincipal extends Principal = Principal>(
       limits: options.limits,
       actor,
     });
-    const dock = await createCorePermDock(policy, user, coreOptions);
+    const permdock = await createCorePermDock(policy, user, coreOptions);
     const remote =
       options.pdp === undefined
         ? undefined
         : await options.pdp(policy, user, coreOptions);
     return {
-      dock: options.wrap === undefined ? dock : options.wrap(dock),
+      permdock: options.wrap === undefined ? permdock : options.wrap(permdock),
       remote,
     };
   };
@@ -300,7 +308,7 @@ export function createKernel<TUser, TPrincipal extends Principal = Principal>(
   const build = async (
     request: Request,
     scope?: TenantScope,
-  ): Promise<Built> => {
+  ): Promise<Built<V>> => {
     const { tenant } = scope ?? (await tenantScope(options.tenant, request));
     let byTenant = instances.get(request);
     if (byTenant === undefined) {
@@ -312,7 +320,7 @@ export function createKernel<TUser, TPrincipal extends Principal = Principal>(
     if (hit !== undefined) {
       return hit;
     }
-    const built = (async (): Promise<Built> =>
+    const built = (async (): Promise<Built<V>> =>
       instanceFor(await resolveSubject(request), tenant))();
     byTenant.set(key, built);
     return built;
@@ -325,10 +333,10 @@ export function createKernel<TUser, TPrincipal extends Principal = Principal>(
   ): Promise<Connection> => {
     const { tenant } = scope ?? (await tenantScope(options.tenant, request));
     return openConnection<T>({
-      open: async (): Promise<PermDock> =>
-        (await build(request, { tenant })).dock,
-      rebuild: async (): Promise<PermDock> =>
-        (await instanceFor(await freshSubject(request), tenant)).dock,
+      open: async (): Promise<PermDock<V>> =>
+        (await build(request, { tenant })).permdock,
+      rebuild: async (): Promise<PermDock<V>> =>
+        (await instanceFor(await freshSubject(request), tenant)).permdock,
       tenant,
       ...(options.revocations === undefined
         ? {}
@@ -341,7 +349,7 @@ export function createKernel<TUser, TPrincipal extends Principal = Principal>(
   const permdock = async (
     request: Request,
     scope?: TenantScope,
-  ): Promise<PermDock> => (await build(request, scope)).dock;
+  ): Promise<PermDock<V>> => (await build(request, scope)).permdock;
 
   const protect =
     <T = unknown>(
@@ -351,11 +359,11 @@ export function createKernel<TUser, TPrincipal extends Principal = Principal>(
       ) => T | null | undefined | Promise<T | null | undefined>,
       protectOptions: ProtectOptions = {},
     ) =>
-    async (request: Request, scope?: TenantScope): Promise<Guard<T>> => {
-      let instance: PermDock;
+    async (request: Request, scope?: TenantScope): Promise<Guard<T, V>> => {
+      let instance: PermDock<V>;
       let remote: PdpPermDock | undefined;
       try {
-        ({ dock: instance, remote } = await build(request, scope));
+        ({ permdock: instance, remote } = await build(request, scope));
       } catch (error) {
         if (error instanceof InvalidSignatureError) {
           return { ok: false, response: error.response };
@@ -459,7 +467,7 @@ export function createKernel<TUser, TPrincipal extends Principal = Principal>(
     },
   };
 
-  const handler = (
+  const permdockHandler = (
     scope?: (request: Request) => TenantScope | Promise<TenantScope>,
   ): ReturnType<typeof createEvaluationsHandler> =>
     createEvaluationsHandler(
@@ -468,7 +476,7 @@ export function createKernel<TUser, TPrincipal extends Principal = Principal>(
         resolve:
           scope === undefined
             ? permdock
-            : async (request: Request): Promise<PermDock> =>
+            : async (request: Request): Promise<PermDock<V>> =>
                 permdock(request, await scope(request)),
         store: options.store,
         adapter,
@@ -481,6 +489,6 @@ export function createKernel<TUser, TPrincipal extends Principal = Principal>(
     connection,
     problem: (decision, init) => problemFor(decision, init, options.approval),
     openapi,
-    handler,
+    permdockHandler,
   };
 }

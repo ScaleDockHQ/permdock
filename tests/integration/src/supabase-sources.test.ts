@@ -296,13 +296,13 @@ describe('permdock supabase hook generate against Postgres', () => {
         subject: (user: Principal | null) => user,
       },
     );
-    const dock = await createPermDock(policy, principal, {
+    const permdock = await createPermDock(policy, principal, {
       memberships: claimsFirst(sources(query)),
       tenant: 'O00',
     });
-    expect(dock.subject.principal?.memberships).toHaveLength(MANY.length);
+    expect(permdock.subject.principal?.memberships).toHaveLength(MANY.length);
     expect(
-      dock.can(permissions.quote.read, {
+      permdock.can(permissions.quote.read, {
         id: 'q',
         organization_id: 'O00',
         customer_id: 'c',
@@ -348,7 +348,7 @@ describe('permdock supabase hook generate against Postgres', () => {
       version: authzVersion({ query }),
     });
     const before = await mint(OWNER);
-    const dockFor = async (claims: Claims) =>
+    const permdockFor = async (claims: Claims) =>
       createPermDock(
         policy,
         // SAFETY: minted claims always carry a subject, so the principal is set
@@ -356,13 +356,13 @@ describe('permdock supabase hook generate against Postgres', () => {
           .principal as Principal,
         { memberships },
       );
-    expect((await dockFor(before)).can(permissions.quote.delete, quote)).toBe(
-      true,
-    );
+    expect(
+      (await permdockFor(before)).can(permissions.quote.delete, quote),
+    ).toBe(true);
     await db.admin.query(
       `update memberships set via = 'staff' where user_id = '${OWNER}' and scope_id = 'T'`,
     );
-    const stale = await dockFor(before);
+    const stale = await permdockFor(before);
     expect(stale.decide(permissions.quote.delete, quote)).toMatchObject({
       outcome: 'denied',
       denials: [{ role: null, reason: 'stale-credentials' }],
@@ -371,9 +371,9 @@ describe('permdock supabase hook generate against Postgres', () => {
     const after = await mint(OWNER);
     // SAFETY: the custom access token hook mints authz_ver as a number
     expect(after['authz_ver']).toBeGreaterThan(before['authz_ver'] as number);
-    expect((await dockFor(after)).can(permissions.quote.delete, quote)).toBe(
-      true,
-    );
+    expect(
+      (await permdockFor(after)).can(permissions.quote.delete, quote),
+    ).toBe(true);
     const seated = await createPermDock(
       policy,
       // SAFETY: minted claims always carry a subject, so the principal is set

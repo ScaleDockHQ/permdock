@@ -128,7 +128,7 @@ describe('invariant 14: the naming convention', () => {
     const banned = allNames.filter(
       ({ name }) =>
         name.startsWith('$') ||
-        /^(?:dock|ability|Ability|Can|can)$/u.test(name) ||
+        /^(?:permdock|ability|Ability|Can|can)$/u.test(name) ||
         /(?<!Perm)Dock(?:[A-Z]|$)/u.test(name),
     );
     expect(banned).toEqual([]);

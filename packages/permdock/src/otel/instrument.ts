@@ -1,5 +1,6 @@
 import type { DecisionEvent } from '../core/interfaces.ts';
 import type { PermDock } from '../core/permdock.ts';
+import type { PolicyVocabulary } from '../core/policy.ts';
 import type {
   OtelApi,
   OtelOptions,
@@ -286,11 +287,11 @@ export function instrument(
   return listen(permdock, options, resolveApi(options.api), () => undefined);
 }
 
-function instrumented(
-  permdock: PermDock,
+function instrumented<V extends PolicyVocabulary>(
+  permdock: PermDock<V>,
   options: OtelOptions,
   api: OtelApi | undefined,
-): PermDock {
+): PermDock<V> {
   let started: number | undefined;
   listen(permdock, options, api, () => started);
   const timed =
@@ -313,31 +314,31 @@ function instrumented(
   // SAFETY: timed() forwards its arguments and result unchanged; the casts restore the overloads.
   return Object.freeze({
     ...permdock,
-    can: timed(permdock.can) as PermDock['can'],
-    decide: timed(permdock.decide) as PermDock['decide'],
-    assert: timed(permdock.assert) as PermDock['assert'],
-    explain: timed(permdock.explain) as PermDock['explain'],
-    filter: timed(permdock.filter) as PermDock['filter'],
-    pick: timed(permdock.pick) as PermDock['pick'],
+    can: timed(permdock.can) as PermDock<V>['can'],
+    decide: timed(permdock.decide) as PermDock<V>['decide'],
+    assert: timed(permdock.assert) as PermDock<V>['assert'],
+    explain: timed(permdock.explain) as PermDock<V>['explain'],
+    filter: timed(permdock.filter) as PermDock<V>['filter'],
+    pick: timed(permdock.pick) as PermDock<V>['pick'],
     actions: timed(permdock.actions),
-    tenant: (id: string): PermDock =>
+    tenant: (id: string): PermDock<V> =>
       instrumented(permdock.tenant(id), options, api),
-    team: (id: string): PermDock =>
+    team: (id: string): PermDock<V> =>
       instrumented(permdock.team(id), options, api),
   });
 }
 
 /** Returns an instrumented instance: timed spans and histogram, derived instances included. */
-export function withOtel(
-  permdock: PermDock,
+export function withOtel<V extends PolicyVocabulary = PolicyVocabulary>(
+  permdock: PermDock<V>,
   options: OtelOptions = {},
-): PermDock {
+): PermDock<V> {
   return instrumented(permdock, options, resolveApi(options.api));
 }
 
-export function applyOtel(
-  permdock: PermDock,
+export function applyOtel<V extends PolicyVocabulary = PolicyVocabulary>(
+  permdock: PermDock<V>,
   options: OtelOptions | undefined,
-): PermDock {
+): PermDock<V> {
   return options === undefined ? permdock : withOtel(permdock, options);
 }

@@ -1,6 +1,6 @@
 import {
   createPermDock,
-  type CreatePermDockOptions,
+  type PermDockOptions,
   type Permission,
   type Policy,
   type WhereResult,
@@ -11,7 +11,7 @@ export type OrmParityScenario<TUser = unknown> = {
   /** What the policy's `subject` mapper receives, as in `createPermDock(policy, user)`. */
   readonly user: TUser;
   /** The active tenant and role sources, as in `createPermDock(policy, user, options)`. */
-  readonly options?: CreatePermDockOptions;
+  readonly options?: PermDockOptions;
   /** An instance permission; its `where()` filters the table. */
   readonly permission: Permission<string, unknown, 'instance'>;
   /** Every row of the table, exactly as the database holds them. */
@@ -76,17 +76,21 @@ export async function ormParity<TUser>(
   async function runCase(
     scenario: OrmParityScenario<TUser>,
   ): Promise<OrmParityCase> {
-    const dock = await createPermDock(policy, scenario.user, scenario.options);
+    const permdock = await createPermDock(
+      policy,
+      scenario.user,
+      scenario.options,
+    );
     if (scenario.options?.relations !== undefined) {
-      await dock.loadRelations(scenario.permission, scenario.rows);
+      await permdock.loadRelations(scenario.permission, scenario.rows);
     }
     // SAFETY: scenario rows are object rows; the id field value stays unknown for sortedIds.
     const expected = sortedIds(
-      dock
+      permdock
         .filter(scenario.permission, scenario.rows)
         .map((row) => (row as Readonly<Record<string, unknown>>)[idField]),
     );
-    const where = dock.where(scenario.permission);
+    const where = permdock.where(scenario.permission);
     try {
       const actual = sortedIds(await options.run({ scenario, where }));
       const ok = where.partial

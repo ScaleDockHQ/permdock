@@ -132,7 +132,7 @@ async function repos(): Promise<readonly { id: string; orgId: string }[]> {
   ).rows;
 }
 
-async function dockFor(key: string, tenant = 'o_1') {
+async function permdockFor(key: string, tenant = 'o_1') {
   const subject = await resolveKey(key, { tenant });
   return createPermDock(
     policy,
@@ -185,9 +185,9 @@ describe('API keys stored as SHA-256 hashes in Postgres', () => {
   });
 
   it('stores only the hash and finds the key by its id', async () => {
-    const dock = await creator('u_1');
+    const creating = await creator('u_1');
     const decision = await decideCredential(
-      dock,
+      creating,
       {
         kind: 'user',
         id: 'key_user',
@@ -206,7 +206,7 @@ describe('API keys stored as SHA-256 hashes in Postgres', () => {
     );
     expect(row.rows[0]?.hash).toHaveLength(43);
     expect(JSON.stringify(row.rows[0])).not.toContain(key.slice(-43));
-    const permdock = await dockFor(key);
+    const permdock = await permdockFor(key);
     expect(permdock.filter(repo.read, await repos()).map((r) => r.id)).toEqual([
       'r_1',
       'r_2',
@@ -227,11 +227,11 @@ describe('API keys stored as SHA-256 hashes in Postgres', () => {
       expiresAt: now + DAY,
     });
     const [r1] = await repos();
-    expect((await dockFor(key)).can(repo.delete, r1)).toBe(true);
+    expect((await permdockFor(key)).can(repo.delete, r1)).toBe(true);
     await db.admin.query(
       "update memberships set role = 'developer' where user_id = 'u_2'",
     );
-    expect((await dockFor(key)).can(repo.delete, r1)).toBe(false);
+    expect((await permdockFor(key)).can(repo.delete, r1)).toBe(false);
   });
 
   it('creates a service key inside the creator ceiling and the tenant policy', async () => {
@@ -286,7 +286,7 @@ describe('API keys stored as SHA-256 hashes in Postgres', () => {
       return;
     }
     const key = await store(decision.credential);
-    const permdock = await dockFor(key);
+    const permdock = await permdockFor(key);
     expect(permdock.subject.principal?.kind).toBe('service');
     expect(permdock.filter(repo.write, await repos()).map((r) => r.id)).toEqual(
       ['r_1'],
@@ -294,7 +294,7 @@ describe('API keys stored as SHA-256 hashes in Postgres', () => {
     await db.admin.query(
       "update api_keys set revoked_at = now() where id = 'svc_ci'",
     );
-    expect((await dockFor(key)).subject.principal).toBeNull();
+    expect((await permdockFor(key)).subject.principal).toBeNull();
   });
 
   it('refuses existing keys once the tenant tightens its policy', async () => {
@@ -311,10 +311,10 @@ describe('API keys stored as SHA-256 hashes in Postgres', () => {
       createdAt: now,
       expiresAt: now + 7 * DAY,
     });
-    expect((await dockFor(key)).subject.principal?.id).toBe('nightly');
+    expect((await permdockFor(key)).subject.principal?.id).toBe('nightly');
     await db.admin.query(
       `update tenant_settings set settings = '{"credentials":{"maxTtl":86400}}' where tenant = 'o_1'`,
     );
-    expect((await dockFor(key)).subject.principal).toBeNull();
+    expect((await permdockFor(key)).subject.principal).toBeNull();
   });
 });

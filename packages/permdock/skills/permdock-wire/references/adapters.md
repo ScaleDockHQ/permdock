@@ -102,7 +102,7 @@ import { PermDockProvider, Protected, usePermission } from 'permdock/react';
 ```ts
 import { createPermDock } from 'permdock/authzen';
 
-export const { handler } = createPermDock(policy, {
+export const { permdockHandler } = createPermDock(policy, {
   subject: fromBearer,
   resources: {
     post: { load: (id) => loadPost(id), list: () => listPosts() },
@@ -334,20 +334,20 @@ No factory for a `PermDock`. `cloud({ url, key, environment })` returns `approva
 ```ts
 import { cloud } from 'permdock/cloud';
 
-const pd = cloud({
+const permdockCloud = cloud({
   url: process.env.PERMDOCK_CLOUD_URL,
   key: process.env.PERMDOCK_CLOUD_KEY,
 });
 
 export const { getPermDock } = createPermDock(policy, {
   subject,
-  store: pd.approvals,
-  sink: pd.sink,
-  snapshots: pd.snapshots,
+  store: permdockCloud.approvals,
+  sink: permdockCloud.sink,
+  snapshots: permdockCloud.snapshots,
 });
 ```
 
-Hosted grants are opt-in per permission. List the permissions a Cloud admin may grant in `definePolicy(..., { hostable: [permissions.auditLog.read] })`, pass `verifier: joseTokenVerifier({ jwks: cloudEndpoints({ url, environment }).jwks })` to `cloud()` (the policy document's issuer and audience are both the environment URL), forward `policies: pd.policies`, and call `pd.policies.refresh()` on a timer. Never mark a permission `hostable` when `permdock rls` compiles its table (`permdock doctor` PD020).
+Hosted grants are opt-in per permission. List the permissions a Cloud admin may grant in `definePolicy(..., { hostable: [permissions.auditLog.read] })`, pass `verifier: joseTokenVerifier({ jwks: cloudEndpoints({ url, environment }).jwks })` to `cloud()` (the policy document's issuer and audience are both the environment URL), forward `policies: permdockCloud.policies`, and call `permdockCloud.policies.refresh()` on a timer. Never mark a permission `hostable` when `permdock rls` compiles its table (`permdock doctor` PD020).
 
 `PERMDOCK_CLOUD_URL` and `PERMDOCK_CLOUD_KEY` are server-only. Production `PERMDOCK_CLOUD_URL` is `https://api.permdock.com`. The dashboard is `https://app.permdock.com`; the read-only MCP server is `https://mcp.permdock.com`. A Cloud outage leaves directory memberships at their last synced state.
 

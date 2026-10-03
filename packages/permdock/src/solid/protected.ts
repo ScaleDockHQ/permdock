@@ -7,7 +7,7 @@ import type { ClientStatus, ProtectedProps } from './types.ts';
 
 import { usePermission, usePermDock } from './hooks.ts';
 
-type DecideDock = {
+type DecidePermDock = {
   readonly decide: (permission: Permission, data?: unknown) => Decision;
 };
 
@@ -29,7 +29,7 @@ export function Protected(props: ProtectedProps): JSX.Element {
     }
     // SAFETY: decide's instance and collection overloads share one implementation that takes either kind.
     return tenantView(
-      root.tenant(props.tenant) as DecideDock,
+      root.tenant(props.tenant) as DecidePermDock,
       props.permission,
       props.data,
     );
@@ -55,11 +55,11 @@ export function Protected(props: ProtectedProps): JSX.Element {
 }
 
 function tenantView(
-  dock: DecideDock,
+  permdock: DecidePermDock,
   permission: Permission,
   data: unknown,
 ): ScopedView {
-  const decision = dock.decide(permission, data);
+  const decision = permdock.decide(permission, data);
   return {
     allowed: decision.outcome === 'granted',
     status: 'ready',

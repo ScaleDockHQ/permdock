@@ -107,12 +107,12 @@ describe('permdock/trpc request discovery and failures', () => {
     const router = t.router({
       update: t.procedure.use(permdock()).mutation(({ ctx }) => {
         // SAFETY: the permdock() middleware above adds ctx.permdock.
-        const { permdock: dock } = ctx as unknown as {
+        const scoped = ctx as unknown as {
           readonly permdock: {
             readonly assert: (permission: unknown, data: unknown) => void;
           };
         };
-        dock.assert(permissions.post.update, { id: 5 });
+        scoped.permdock.assert(permissions.post.update, { id: 5 });
         return 'ok';
       }),
     });

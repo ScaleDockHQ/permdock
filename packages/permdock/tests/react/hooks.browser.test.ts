@@ -123,7 +123,7 @@ describe('permdock/react hooks on the client', () => {
         ownPost,
       );
       const byKey: unknown = Reflect.get(set, 'post.update');
-      const dock = usePermDock();
+      const permdock = usePermDock();
       return [
         single.allowed,
         set.granted.length,
@@ -132,7 +132,7 @@ describe('permdock/react hooks on the client', () => {
           ? byKey.allowed
           : 'missing',
         typeof set.granted,
-        dock.subject.principal?.id ?? 'anonymous',
+        permdock.subject.principal?.id ?? 'anonymous',
       ].join(':');
     }
     const view = mount(withStore(store, createElement(Probe)));

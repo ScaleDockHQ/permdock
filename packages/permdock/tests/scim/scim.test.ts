@@ -318,19 +318,19 @@ describe('identity-provider memberships hold only assignable roles', () => {
       roles: ['editor', 'owner'],
       meta: { created: '', lastModified: '' },
     });
-    const dock = await createPermDock(
+    const permdock = await createPermDock(
       policy,
       { id: '00u1' },
       { tenant: TENANT, memberships: directoryMembershipSource(store) },
     );
     const row = { id: 'p1', orgId: TENANT };
-    expect(dock.can(permissions.post.read, row)).toBe(true);
-    expect(dock.can(permissions.post.delete, row)).toBe(false);
-    expect(dock.heldRoles().map((held) => held.key)).toEqual(['editor']);
+    expect(permdock.can(permissions.post.read, row)).toBe(true);
+    expect(permdock.can(permissions.post.delete, row)).toBe(false);
+    expect(permdock.heldRoles().map((held) => held.key)).toEqual(['editor']);
   });
 
   it('keeps a non-assignable role on a membership the application wrote', async () => {
-    const dock = await createPermDock(
+    const permdock = await createPermDock(
       policy,
       { id: 'u_ada' },
       {
@@ -340,9 +340,9 @@ describe('identity-provider memberships hold only assignable roles', () => {
         },
       },
     );
-    expect(dock.can(permissions.post.delete, { id: 'p1', orgId: TENANT })).toBe(
-      true,
-    );
+    expect(
+      permdock.can(permissions.post.delete, { id: 'p1', orgId: TENANT }),
+    ).toBe(true);
   });
 });
 

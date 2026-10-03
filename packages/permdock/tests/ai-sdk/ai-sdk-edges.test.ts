@@ -9,7 +9,7 @@ import {
   policy,
 } from '../fixtures/quick-start.ts';
 
-function dock() {
+function permdock() {
   return createPermDock(policy, {
     subject: () => memberUser,
     tools: {
@@ -22,12 +22,12 @@ describe('permdock/ai-sdk edge cases', () => {
   it('leaves params without tools unchanged', async () => {
     const params = { toolChoice: 'auto' };
     expect(
-      await dock().capabilityMiddleware({}).transformParams({ params }),
+      await permdock().capabilityMiddleware({}).transformParams({ params }),
     ).toBe(params);
   });
 
   it('asks for approval unless the messages already carry the request', async () => {
-    const { needsApproval } = dock();
+    const { needsApproval } = permdock();
     const check = needsApproval(permissions.post.delete);
     const unrelated = [
       null,

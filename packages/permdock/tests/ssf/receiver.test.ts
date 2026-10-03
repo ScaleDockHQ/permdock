@@ -10,7 +10,7 @@ import type {
   ReplayStore,
   SetSubject,
   SsfAuditEvent,
-  SsfOptions,
+  SsfPermDockOptions,
   SsfReceiver,
 } from '../../src/ssf/types.ts';
 
@@ -63,7 +63,7 @@ function set(claims: Record<string, unknown>): string {
   return `ok:${JSON.stringify({ iss: ISSUER, jti: 'j1', iat: NOW, ...claims })}`;
 }
 
-function receiverOf(options: Partial<SsfOptions> = {}): {
+function receiverOf(options: Partial<SsfPermDockOptions> = {}): {
   readonly receiver: SsfReceiver;
   readonly audit: SsfAuditEvent[];
 } {

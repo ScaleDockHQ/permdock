@@ -13,7 +13,7 @@ import type {
 } from '../core/interfaces.ts';
 import type { PermDock } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
-import type { Policy } from '../core/policy.ts';
+import type { Policy, PolicyVocabulary } from '../core/policy.ts';
 import type { Principal, Subject } from '../core/subject.ts';
 import type { OtelOptions } from '../otel/types.ts';
 import type { PdpFactory } from '../pdp/types.ts';
@@ -53,7 +53,7 @@ export type SupabaseMiddlewareContext = {
   readonly jwtClaims: SupabaseJwtClaims | null;
 };
 
-export type SupabaseMiddlewareOptions<TUser = unknown> = {
+export type SupabaseMiddlewarePermDockOptions<TUser = unknown> = {
   readonly subject: (
     ctx: SupabaseMiddlewareContext,
     request: Request,
@@ -101,21 +101,27 @@ export type SupabaseMiddlewareHandler = <Ctx extends SupabaseMiddlewareContext>(
   ctx: Ctx,
 ) => Promise<Response>;
 
-export type SupabaseMiddlewarePermDock = {
+export type SupabaseMiddlewarePermDock<
+  V extends PolicyVocabulary = PolicyVocabulary,
+> = {
   readonly withPermDock: Middleware<
     'permdock',
     WithPermDockConfig | undefined,
     SupabaseMiddlewareContext,
-    PermDock
+    PermDock<V>
   >;
   readonly permdockHandler: () => SupabaseMiddlewareHandler;
   readonly openapi: OpenApiHooks;
 };
 
-export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
-  policy: Policy<TUser, TPrincipal>,
-  options: SupabaseMiddlewareOptions<TUser>,
-): SupabaseMiddlewarePermDock {
+export function createPermDock<
+  TUser,
+  TPrincipal extends Principal = Principal,
+  V extends PolicyVocabulary = PolicyVocabulary,
+>(
+  policy: Policy<TUser, TPrincipal, V>,
+  options: SupabaseMiddlewarePermDockOptions<TUser>,
+): SupabaseMiddlewarePermDock<V> {
   const contexts = new WeakMap<Request, SupabaseMiddlewareContext>();
   const tenantOption = options.tenant;
 
@@ -146,7 +152,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       pdp: options.pdp,
       webBotAuth: options.webBotAuth,
       adapter: 'supabase-middleware',
-      wrap: (dock: PermDock) => applyOtel(dock, options.otel),
+      wrap: (permdock: PermDock<V>) => applyOtel(permdock, options.otel),
     }),
   );
 
@@ -159,7 +165,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     'permdock',
     WithPermDockConfig | undefined,
     SupabaseMiddlewareContext,
-    PermDock
+    PermDock<V>
   >({
     key: 'permdock',
     run:
@@ -167,7 +173,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       async (
         request,
         ctx,
-      ): Promise<Response | { readonly permdock: PermDock }> => {
+      ): Promise<Response | { readonly permdock: PermDock<V> }> => {
         bind(request, ctx);
         if (config?.protect === undefined) {
           try {
@@ -196,7 +202,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
   });
 
   const permdockHandler = (): SupabaseMiddlewareHandler => {
-    const { POST, GET } = kernel.handler();
+    const { POST, GET } = kernel.permdockHandler();
     return (request, ctx): Promise<Response> => {
       bind(request, ctx);
       switch (request.method) {

@@ -2,8 +2,8 @@ import { defineMiddleware, pipeline } from '@supabase/middleware';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
 import type { SinkEvent } from '../../src/core/interfaces.ts';
-import type { PermDock } from '../../src/core/permdock.ts';
 import type { SupabaseJwtClaims } from '../../src/supabase/middleware.ts';
+import type { PermDockOf } from '../fixtures/vocabulary.ts';
 
 import {
   memoryApprovalStore,
@@ -65,7 +65,7 @@ describe('permdock/supabase/middleware', () => {
     const fetch = pipeline(
       [withFixtureClaims({ claims: memberClaims }), withPermDock()],
       async (_req, ctx) => {
-        expectTypeOf(ctx.permdock).toEqualTypeOf<PermDock>();
+        expectTypeOf(ctx.permdock).toEqualTypeOf<PermDockOf<typeof policy>>();
         return Response.json({
           id: ctx.permdock.subject.principal?.id,
           own: ctx.permdock.can(permissions.post.update, ownPost),

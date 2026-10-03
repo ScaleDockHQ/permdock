@@ -43,9 +43,9 @@ function assertJson(value: unknown, path = '$'): void {
 
 describe('snapshotFor', () => {
   it('matches createPermDock().snapshot() for the same subject', async () => {
-    const dock = await createPermDock(policy, alice, { tenant: 'acme' });
+    const permdock = await createPermDock(policy, alice, { tenant: 'acme' });
     // SAFETY: the instance has no signer, so snapshot() returned an unsigned Snapshot.
-    const expected = dock.snapshot() as { readonly issuedAt: number };
+    const expected = permdock.snapshot() as { readonly issuedAt: number };
     const actual = snapshotFor(policy, alice, {
       tenant: 'acme',
       now: expected.issuedAt,

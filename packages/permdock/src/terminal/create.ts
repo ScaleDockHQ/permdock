@@ -3,7 +3,7 @@ import { createInterface } from 'node:readline';
 import type { Decision } from '../core/decision.ts';
 import type { PermDock } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
-import type { Policy } from '../core/policy.ts';
+import type { Policy, PolicyVocabulary } from '../core/policy.ts';
 import type { Actor, Delegation, Principal, Subject } from '../core/subject.ts';
 import type {
   CommandEntry,
@@ -189,10 +189,14 @@ const defaultTyped: TypedConfirm = (input) => {
   });
 };
 
-export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
-  policy: Policy<TUser, TPrincipal>,
+export function createPermDock<
+  TUser,
+  TPrincipal extends Principal = Principal,
+  V extends PolicyVocabulary = PolicyVocabulary,
+>(
+  policy: Policy<TUser, TPrincipal, V>,
   options: TerminalPermDockOptions<TUser>,
-): TerminalPermDock {
+): TerminalPermDock<V> {
   const write = writeOf(options);
   const exit = options.runtime?.exit ?? defaultExit;
   const runtime: TerminalRuntime = compact({
@@ -201,8 +205,8 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
   });
   warnJwtInArgv(argvOf(options), write);
 
-  let cached: Promise<PermDock> | undefined;
-  let last: PermDock | undefined;
+  let cached: Promise<PermDock<V>> | undefined;
+  let last: PermDock<V> | undefined;
   let lastProfile = 'default';
 
   const tokenFor =
@@ -222,7 +226,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
 
   const resolve = async (
     resolveOptions: PermDockResolveOptions = {},
-  ): Promise<PermDock> => {
+  ): Promise<PermDock<V>> => {
     const profile =
       resolveOptions.as ?? profileFromArgv(argvOf(options)) ?? 'default';
     lastProfile = profile;
@@ -270,7 +274,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
 
   const permdock = (
     resolveOptions: PermDockResolveOptions = {},
-  ): Promise<PermDock> => {
+  ): Promise<PermDock<V>> => {
     if (resolveOptions.refresh === true || cached === undefined) {
       cached = resolve(resolveOptions);
     }
@@ -305,7 +309,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       permission: Permission,
       load?: (...args: TArgs) => TData | Promise<TData>,
     ) =>
-    (action: (context: ProtectContext<TData>, ...args: TArgs) => unknown) =>
+    (action: (context: ProtectContext<TData, V>, ...args: TArgs) => unknown) =>
     async (...args: TArgs): Promise<unknown> => {
       const instance = await permdock();
       let data: TData | undefined;

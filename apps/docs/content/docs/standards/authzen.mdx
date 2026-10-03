@@ -33,7 +33,7 @@ See [AuthZEN](/docs/standards/authzen) and [wire formats](/docs/concepts/wire-fo
 
 ```ts
 import { createPermDock } from 'permdock/authzen'
-export const { handler } = createPermDock(policy, { subject: fromBearer })
+export const { permdockHandler } = createPermDock(policy, { subject: fromBearer })
 // Serves /access/v1/evaluation, /evaluations, /search/action, /search/resource, /search/subject,
 // and .well-known/authzen-configuration.
 ```
@@ -98,7 +98,7 @@ The boxcar form wraps many `{ action, resource }` pairs under one `subject`; a t
 | `subject.properties` | Principal fields returned by `definePolicy`'s `subject` function, plus `actor` |
 | `subject.properties.memberships` | `principal.memberships` (named-scope and resource roles, [tenancy](/docs/concepts/tenancy)) |
 | `context.tenant` | `principal.tenant`, the active tenant for this request; absent means no tenant, never a default |
-| `.well-known/authzen-configuration/<tenant>` | Per-tenant PDP metadata served by `handler` and the hosted ADS when the deployment is multi-tenant |
+| `.well-known/authzen-configuration/<tenant>` | Per-tenant PDP metadata served by `permdockHandler` and the hosted ADS when the deployment is multi-tenant |
 | `action.name` | `permission.key` (`post.update`) resolved with `findPermission`, or the bare action (`update`) of the resource named by `resource.type` |
 | `resource.type` | Resource node name (`post`) |
 | `resource.id` | Value of the resource's `id` field |
@@ -112,12 +112,12 @@ The boxcar form wraps many `{ action, resource }` pairs under one `subject`; a t
 | `/search/resource` | `filter` for arrays, `where` for query compilers; each permitted row is returned as `{ type, id }`, with `id` read from the resource's `id` field and rows without one dropped |
 | `/search/subject` | Iterating the subjects returned by the `subjects.list` option; without it the route answers 404 and the metadata document omits `search_subject_endpoint` |
 | `/search/resource` as a claim source (AuthZEN claims draft) | `permdock.heldRoles({ tenant })` and `memberships()` for the authenticated subject ([JWT authorization claims](/docs/standards/jwt-authorization-claims)) |
-| `.well-known` metadata | `.well-known/authzen-configuration` served by `handler` |
+| `.well-known` metadata | `.well-known/authzen-configuration` served by `permdockHandler` |
 | Certification levels Basic / Batch / Search / Discovery | `testAuthZen` from `permdock/testing` over the interop Todo domain; external submission per the checklist below |
 
 ## Conformance
 
-`testAuthZen(handler, { vectors })` from [`permdock/testing`](/docs/adapters/testing) runs vectors in the interop harness layout (`evaluation` and `evaluations` arrays of `{ request, expected }`, and `search.subject`, `search.resource`, `search.action` lists compared order-insensitively) against any `(Request) => Promise<Response>`, and checks `/.well-known/authzen-configuration` names the same origin as every endpoint it lists. It works for PermDock's own `handler` and for any other AuthZEN PDP.
+`testAuthZen(permdockHandler, { vectors })` from [`permdock/testing`](/docs/adapters/testing) runs vectors in the interop harness layout (`evaluation` and `evaluations` arrays of `{ request, expected }`, and `search.subject`, `search.resource`, `search.action` lists compared order-insensitively) against any `(Request) => Promise<Response>`, and checks `/.well-known/authzen-configuration` names the same origin as every endpoint it lists. It works for PermDock's own `permdockHandler` and for any other AuthZEN PDP.
 
 The package ships the interop Todo domain as `authzenTodoPermissions`, `authzenTodoPolicy`, `authzenTodoUsers` and `authzenTodoData` (Rick is `admin` and `evil_genius`, Morty and Summer are `editor`, Beth and Jerry are `viewer`; editors update and delete only todos whose `ownerID` is their email), and `authzenTodoVectors()` generates PermDock's own vectors from those rules. The official vectors live in [openid/authzen](https://github.com/openid/authzen), which carries no licence file, so the repository does not vendor them: `pnpm authzen:vectors` (the root `scripts/fetch-authzen-vectors.ts`) fetches `decisions-authorization-api-1_0-02.json` at commit `78a5165a0048895a345e4ac5b0f2b9c7904bb110` into the gitignored `fixtures/authzen/`, and the suite runs it whenever the file is present.
 

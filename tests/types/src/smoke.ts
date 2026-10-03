@@ -51,11 +51,11 @@ export const policy = definePolicy(
 );
 
 export async function check(): Promise<boolean> {
-  const dock = await createPermDock(policy, {
+  const permdock = await createPermDock(policy, {
     id: 'u1',
     roles: ['member'],
   });
   const trees =
-    dock.roles.member.key === 'member' && dock.plans.pro.key === 'pro';
-  return dock.can(permissions.post.list) && trees;
+    permdock.roles.member.key === 'member' && permdock.plans.pro.key === 'pro';
+  return permdock.can(permissions.post.list) && trees;
 }

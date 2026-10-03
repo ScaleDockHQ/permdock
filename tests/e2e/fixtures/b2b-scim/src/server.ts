@@ -77,7 +77,7 @@ const memberships = directoryMembershipSource(directory, {
   assignable: ASSIGNABLE,
 });
 
-const server = createPermDock(saasPolicy, {
+const kernel = createPermDock(saasPolicy, {
   subject: async (request): Promise<Subject | null> => {
     const session = await sessionOf(request);
     const org = findOrg(orgOf(request));
@@ -192,14 +192,14 @@ const app = new Hono()
     if ((await sessionOf(c.req.raw)) === null) {
       return c.body(null, 401, noStore);
     }
-    const permdock = await server.permdock(c.req.raw);
+    const permdock = await kernel.permdock(c.req.raw);
     return c.json(permdock.snapshot(), 200, noStore);
   })
   .get('/api/projects', async (c) => {
     if ((await sessionOf(c.req.raw)) === null) {
       return c.body(null, 401, noStore);
     }
-    const permdock = await server.permdock(c.req.raw);
+    const permdock = await kernel.permdock(c.req.raw);
     return c.json(
       {
         roles: permdock.heldRoles({ tenant: orgOf(c.req.raw) }),

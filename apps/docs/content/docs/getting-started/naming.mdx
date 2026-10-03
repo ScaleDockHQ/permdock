@@ -269,9 +269,9 @@ These never appear as public identifiers, for the reasons given:
 | `permdock` | `PermDock` | `await createPermDock(policy, user, { tenant?, memberships?, customRoles?, actor?, delegation? })`; sync when the policy declares no `context` and no async source |
 | `permdock/next` | `{ getPermDock, getPermission, requireAccess, PermDockProvider, permdockHandler }`, plus the standalone `cacheLifeFor(snapshot, { min, max, now })` | Options: `subject`, `tenant`, `memberships`, `customRoles`, `store`, `sink`, `snapshots`; never a cache directive or a `tag` option; `requireAccess`, not `requirePermission` or `authorize`, because it maps a decision to the `forbidden()` / `unauthorized()` interrupts |
 | `permdock/next/client` | `PermissionBoundary` (props `denied`, `approval`) and `usePermissionBoundary()` returning `{ outcome, permission, token?, retry }` | A `'use client'` entry built on `catchError` from `next/error`; the boundary never decides, it renders a fallback for an error a check already threw |
-| `permdock/server` | `{ permdock, protect, problem, openapi, handler }`, plus the standalone `problemFromError(error)` | The Fetch kernel every HTTP adapter wraps. Options: `subject`, `tenant`, `memberships`, `customRoles`, `store`, `sink`, `limits`, `pdp`, `snapshots` (accepted, not read), `otel`, `webBotAuth` |
+| `permdock/server` | `{ permdock, protect, problem, openapi, permdockHandler }`, plus the standalone `problemFromError(error)` | The Fetch kernel every HTTP adapter wraps. Options: `subject`, `tenant`, `memberships`, `customRoles`, `store`, `sink`, `limits`, `pdp`, `snapshots` (accepted, not read), `otel`, `webBotAuth` |
 | `permdock/hono` | `{ permdock, protect, permdockHandler }` | `permdock()` is middleware; `protect(permission, load?, options?)` guards a route |
-| `permdock/express`, `permdock/fastify`, `permdock/elysia`, `permdock/node` | `{ permdock, protect, permdockHandler }`, plus `errorHandler` (Express) and `send` (Node) | Same shape as Hono over the shared kernel |
+| `permdock/express`, `permdock/fastify`, `permdock/elysia`, `permdock/node` | `{ permdock, protect, permdockHandler }`, plus `errorHandler` and `withPermDock(fn)` (Express) and `send` (Node) | Same shape as Hono over the shared kernel |
 | `permdock/nest` | `{ PermDockModule, PermDockGuard, Protect, InjectPermDock, permdockHandler }` | Register `PermDockGuard` as `APP_GUARD` with `useExisting`; `permdockHandler({ path })` sets the controller path |
 | `permdock/terminal` | `{ permdock, protect, filterCommands, format, exitCode }`; `EX_OK`, `EX_USAGE`, `EX_TEMPFAIL`, `EX_NOPERM`, `EX_CONFIG`; options `yes` and `dryRun` (`--yes` / `-y`, `--dry-run`), `interactive: { confirm, typed }` | For your own CLI; `protect` wraps a command action, `filterCommands` hides or annotates denied commands. Not the `permdock` binary or `permdock/cli` |
 | `permdock/trpc` | `{ permdock, protect, permdockHandler }` | `protect` is procedure middleware; denials throw `TRPCError` |
@@ -281,7 +281,7 @@ These never appear as public identifiers, for the reasons given:
 | `permdock/claude-agent` | `{ canUseTool, permissionRequestHook, permdock }` | Options: `subject`, `tools`, `store`, `mcpSources` (trusted MCP server sources, default `['sdk']`) |
 | `permdock/eve` | `{ approval, approvalFor, permdock }` | `approval` is Eve's `{ request, response }` pair for `defineTool` (`EveApprovalPair`, contexts `EveApprovalContext` and `EveResponseContext`, principals `EvePrincipal`); options: `tools`, `store`, `approvers` (`EveApprovers`); also exports `subjectFromSession`, `actorFromSession`, `rolesOf` |
 | `permdock/openai` | `{ needsApproval, guardTools, resolveInterruptions, permdock }` | Options: `subject`, `actor`, `tools`, `store` |
-| `permdock/authzen` | `{ handler }` | Serves evaluation, evaluations, search and `.well-known` |
+| `permdock/authzen` | `{ permdockHandler }` | Serves evaluation, evaluations, search and `.well-known` |
 | `permdock/ssf` | `{ receiver }` | RFC 8935 push and RFC 8936 poll receiver for CAEP events; `receiver.logout` for OIDC Back-Channel Logout |
 | `permdock/pdp` | `{ createPermDock }` wrapping a local policy plus optional `remotePdp` | Opt-in AuthZEN client; fail-closed on unknown remote decisions |
 | `permdock/convex` | `{ withPermDock, snapshotQuery }` | Convex query/mutation wrappers; no Convex SDK peer (structurally typed) |
@@ -298,6 +298,12 @@ These entries deliberately do not export `createPermDock`:
 - `permdock/testing`, `permdock/testing/saas` and `permdock/testing/saas/permissions` export the test runners (`describePolicy`, the `test<Interface>` runners, `rlsParity`, `ormParity`, `testClientParity`, `testHttpAdapter`, `testAuthZen`) and the shared SaaS domain. Test files import them; application entries never do, and Vitest is an optional peer.
 - `permdock/cli` exports `defineConfig` (for `permdock.config.ts`) and `run` (the `permdock` binary as a function) plus the config types, and `parseHookMarker` / `parseGrantsMarker` with their result types `SupabaseHookMarker` / `SupabaseGrantsMarker`. It is a build-time entry: no runtime entry imports it.
 - Build hooks: `permdock/next/plugin` exports `createPermDockPlugin` and `permdock/unplugin` exports `createPermDockUnplugin` (Vite, Rollup, webpack, Rspack, esbuild through [unplugin](https://unplugin.unjs.io)). Both run `collect` at build time and never wire runtime API. The `create` prefix and the `PermDock` noun follow the factory rule; the suffix names the host (`Plugin` for Next's config API, `Unplugin` for the bundler family).
+
+## Names shared on purpose
+
+- `PermDock` methods and snapshot fields share a name when the field is the method's result serialized: `permdock.actions(resource)` and `snapshot.actions`, `permdock.audiences()` and `snapshot.audiences`, `permdock.snapshot()` and a `snapshot` option or prop, `permdock.tenant(id)` and `principal.tenant`. The method is on the instance; the field is the wire form a client hydrates from.
+- One name can be exported by several entries with that entry's meaning, like `createPermDock`. `PermDockPluginOptions` is the build plugin's options in `permdock/next/plugin` and `permdock/unplugin`, and the Vue app plugin's options in `permdock/vue`.
+- Every adapter returns `<Adapter>PermDock` from `createPermDock` and takes `<Adapter>PermDockOptions`, rather than `<Prefix><Thing>`, so the adapter is the first word wherever both appear (recorded in the repository's `docs/decisions/0019-adapter-suffix-and-no-dollar-members.md`).
 
 ## Spec names
 
@@ -338,3 +344,16 @@ PermDock's subject vocabulary is TypeScript, camelCase and typed; the specificat
 - The server factory lives in `src/permdock/server.ts` in every example. The definition is `src/permissions.ts`; the policy is `src/policy.ts`; generated definitions are `src/permissions.generated.ts`.
 - Example apps are `apps/examples/<adapter>`; the docs page is `/docs/adapters/<adapter>`; the source folder is `packages/permdock/src/<adapter>`. The same short name is used in all three.
 - Errors are `PermDockDeniedError`, `PermDockApprovalRequiredError` and `PermDockValidationError`. Problem Details `type` URIs end in `/denied`, `/approval-required` and `/validation`. The first two carry `digest` (React's name for the property that survives the Server Component boundary): `PERMDOCK_DENIED;<permission>` and `PERMDOCK_APPROVAL_REQUIRED;<permission>;<token>`, read with `parsePermDockDigest`.
+
+## Renamed before 0.1.0
+
+| Old | New |
+| --- | --- |
+| `CreatePermDockOptions` | `PermDockOptions` |
+| `CreatePermDockPluginOptions` | `PermDockPluginOptions` |
+| `ServerPermDock.handler`, `AuthzenPermDock.handler` | `permdockHandler`, like every other HTTP adapter |
+| `ExpressPermDock.handler(fn)` | `withPermDock(fn)`, like `permdock/convex` |
+| `SsfAdapter`, `SsfOptions` | `SsfPermDock`, `SsfPermDockOptions` |
+| `SupabaseMiddlewareOptions` | `SupabaseMiddlewarePermDockOptions` |
+| `A2AAgentCard`, `A2APermDock` and the other `A2A*` types | `A2aAgentCard`, `A2aPermDock`, … (`A2a` like `Ssf` and `Mcp`) |
+| `dock`, `pd`, `server`, `factory` for the instance in examples | `permdock`; a `cloud()` result is `permdockCloud` |

@@ -84,7 +84,7 @@ describe('openfga', () => {
         ? json({ allowed: true })
         : json({ objects: ['document:d1', 'document:d3'] }),
     );
-    const dock = await createPermDock(
+    const permdock = await createPermDock(
       policyWith(
         openfga({
           url: 'http://fga.test',
@@ -96,7 +96,7 @@ describe('openfga', () => {
       ),
       { id: 'anne' },
     );
-    expect((await dock.decide(permissions.doc.read, rows[0])).outcome).toBe(
+    expect((await permdock.decide(permissions.doc.read, rows[0])).outcome).toBe(
       'granted',
     );
     expect(fga.calls[0]).toEqual({
@@ -111,7 +111,7 @@ describe('openfga', () => {
       },
     });
     expect(
-      (await dock.filter(permissions.doc.read, rows)).map((row) => row.id),
+      (await permdock.filter(permissions.doc.read, rows)).map((row) => row.id),
     ).toEqual(['d1', 'd3']);
     expect(fga.calls[1]).toEqual({
       url: 'http://fga.test/stores/s1/list-objects',
@@ -122,7 +122,7 @@ describe('openfga', () => {
         user: 'user:anne',
       },
     });
-    expect(await dock.where(permissions.doc.read)).toEqual({
+    expect(await permdock.where(permissions.doc.read)).toEqual({
       condition: { op: 'in', field: 'id', value: ['d1', 'd3'] },
       partial: true,
     });
@@ -132,7 +132,7 @@ describe('openfga', () => {
     const fga = recorder(() =>
       json({ allowed: true, objects: ['document:d1'] }),
     );
-    const dock = await createPermDock(
+    const permdock = await createPermDock(
       policyWith(
         openfga({
           url: 'http://fga.test',
@@ -143,10 +143,10 @@ describe('openfga', () => {
       ),
       { id: 'anne' },
     );
-    expect((await dock.decide(permissions.doc.delete, rows[0])).outcome).toBe(
-      'denied',
-    );
-    expect(await dock.filter(permissions.doc.delete, rows)).toEqual([]);
+    expect(
+      (await permdock.decide(permissions.doc.delete, rows[0])).outcome,
+    ).toBe('denied');
+    expect(await permdock.filter(permissions.doc.delete, rows)).toEqual([]);
     expect(fga.calls.every((call) => !call.url.endsWith('/check'))).toBe(true);
   });
 
@@ -156,7 +156,7 @@ describe('openfga', () => {
       [json({ allowed: 'yes' }), 'pdp-invalid-response'],
     ];
     for (const [response, reason] of cases) {
-      const dock = await createPermDock(
+      const permdock = await createPermDock(
         policyWith(
           openfga({
             url: 'http://fga.test',
@@ -167,12 +167,12 @@ describe('openfga', () => {
         ),
         { id: 'anne' },
       );
-      const decision = await dock.decide(permissions.doc.read, rows[0]);
+      const decision = await permdock.decide(permissions.doc.read, rows[0]);
       expect(decision.outcome === 'denied' && decision.denials[0]?.reason).toBe(
         reason,
       );
     }
-    const dock = await createPermDock(
+    const permdock = await createPermDock(
       policyWith(
         openfga({
           url: 'http://fga.test',
@@ -183,11 +183,11 @@ describe('openfga', () => {
       ),
       { id: 'anne' },
     );
-    expect(await dock.filter(permissions.doc.read, rows)).toEqual([]);
+    expect(await permdock.filter(permissions.doc.read, rows)).toEqual([]);
   });
 
   it('denies with pdp-invalid-response when the tuple callback throws', async () => {
-    const dock = await createPermDock(
+    const permdock = await createPermDock(
       policyWith(
         openfga({
           url: 'http://fga.test',
@@ -205,7 +205,7 @@ describe('openfga', () => {
       ),
       { id: 'anne' },
     );
-    const decision = await dock.decide(permissions.doc.read, rows[0]);
+    const decision = await permdock.decide(permissions.doc.read, rows[0]);
     expect(decision.outcome === 'denied' && decision.denials[0]?.reason).toBe(
       'pdp-invalid-response',
     );
@@ -260,7 +260,7 @@ describe('spicedb', () => {
           .join('\n'),
       );
     };
-    const dock = await createPermDock(
+    const permdock = await createPermDock(
       policyWith(
         spicedb({
           url: 'http://spicedb.test',
@@ -271,7 +271,7 @@ describe('spicedb', () => {
       ),
       { id: 'anne' },
     );
-    expect((await dock.decide(permissions.doc.read, rows[0])).outcome).toBe(
+    expect((await permdock.decide(permissions.doc.read, rows[0])).outcome).toBe(
       'granted',
     );
     expect(calls[0]).toEqual({
@@ -284,7 +284,7 @@ describe('spicedb', () => {
       },
     });
     expect(
-      (await dock.filter(permissions.doc.read, rows)).map((row) => row.id),
+      (await permdock.filter(permissions.doc.read, rows)).map((row) => row.id),
     ).toEqual(['d2']);
     expect(calls[1]?.body).toEqual({
       consistency: { minimizeLatency: true },
@@ -300,7 +300,7 @@ describe('spicedb', () => {
       ['PERMISSIONSHIP_CONDITIONAL_PERMISSION', 'pdp-denied'],
       ['PERMISSIONSHIP_UNSPECIFIED', 'pdp-invalid-response'],
     ] as const) {
-      const dock = await createPermDock(
+      const permdock = await createPermDock(
         policyWith(
           spicedb({
             url: 'http://spicedb.test',
@@ -311,7 +311,7 @@ describe('spicedb', () => {
         ),
         { id: 'anne' },
       );
-      const decision = await dock.decide(permissions.doc.read, rows[0]);
+      const decision = await permdock.decide(permissions.doc.read, rows[0]);
       expect(decision.outcome === 'denied' && decision.denials[0]?.reason).toBe(
         reason,
       );
@@ -319,7 +319,7 @@ describe('spicedb', () => {
   });
 
   it('denies every row when the stream carries an error', async () => {
-    const dock = await createPermDock(
+    const permdock = await createPermDock(
       policyWith(
         spicedb({
           url: 'http://spicedb.test',
@@ -331,6 +331,6 @@ describe('spicedb', () => {
       ),
       { id: 'anne' },
     );
-    expect(await dock.filter(permissions.doc.read, rows)).toEqual([]);
+    expect(await permdock.filter(permissions.doc.read, rows)).toEqual([]);
   });
 });

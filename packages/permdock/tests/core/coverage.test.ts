@@ -318,7 +318,7 @@ describe('coverage edges', () => {
     });
     expect(auth[0]).toMatchObject({ reason: 'source-threw' });
 
-    const asyncDock = await createPermDock(
+    const asyncPermdock = await createPermDock(
       definePolicy(tree, {
         roles: [role('member', [allow(tree.post.read)])],
         subject: () => ({ id: 'u1', roles: ['member'] }),
@@ -339,7 +339,11 @@ describe('coverage edges', () => {
       },
     );
     expect(
-      asyncDock.can(tree.post.read, { id: 'p1', authorId: 'u1', orgId: 'o1' }),
+      asyncPermdock.can(tree.post.read, {
+        id: 'p1',
+        authorId: 'u1',
+        orgId: 'o1',
+      }),
     ).toBe(true);
 
     const throwingRoles = await createPermDock(
@@ -429,19 +433,20 @@ describe('coverage edges', () => {
       subject: () => ({ id: 'u1', roles: ['member'] }),
       validate: 'always',
     });
-    const dock = await createPermDock(schemaed, { id: 'u1' });
+    const validating = await createPermDock(schemaed, { id: 'u1' });
     expect(
-      dock.decide(withSchema.post.read, { id: 1 }, { trusted: false }).outcome,
+      validating.decide(withSchema.post.read, { id: 1 }, { trusted: false })
+        .outcome,
     ).toBe('denied');
     expect(() =>
-      dock.assert(withSchema.post.read, { id: 1 }, { trusted: false }),
+      validating.assert(withSchema.post.read, { id: 1 }, { trusted: false }),
     ).toThrow(PermDockValidationError);
-    expect(dock.can(withSchema.post.read, { id: 1 }, { trusted: false })).toBe(
-      false,
-    );
-    expect(dock.can(withSchema.post.read, { id: 'p1' })).toBe(true);
+    expect(
+      validating.can(withSchema.post.read, { id: 1 }, { trusted: false }),
+    ).toBe(false);
+    expect(validating.can(withSchema.post.read, { id: 'p1' })).toBe(true);
     expect(() =>
-      dock.assert(
+      validating.assert(
         withSchema.post.read,
         { id: 'p1' },
         { trusted: false, onDenied: () => undefined },
@@ -473,9 +478,13 @@ describe('coverage edges', () => {
       subject: () => ({ id: 'u1', roles: ['member'] }),
       validate: 'always',
     });
-    const asyncDock = await createPermDock(asyncPolicy, { id: 'u1' });
+    const asyncPermdock = await createPermDock(asyncPolicy, { id: 'u1' });
     expect(
-      asyncDock.can(asyncSchema.post.read, { id: 'p1' }, { trusted: false }),
+      asyncPermdock.can(
+        asyncSchema.post.read,
+        { id: 'p1' },
+        { trusted: false },
+      ),
     ).toBe(false);
   });
 
@@ -1102,17 +1111,17 @@ describe('coverage edges', () => {
         memberships: [{ tenant: 'o1', team: 't1', roles: ['lead'] }],
       }),
     });
-    const teamDock = await createPermDock(
+    const teamPermdock = await createPermDock(
       teamPolicy,
       { id: 'u1' },
       { tenant: 'o1' },
     );
-    const teamSnap = teamDock.snapshot();
+    const teamSnap = teamPermdock.snapshot();
     if (teamSnap instanceof Promise) {
       throw new Error('json');
     }
     expect(teamSnap.grants.some((grant) => grant.scope === 'team')).toBe(true);
-    expect(teamDock.snapshot({ include: [] })).toBeDefined();
+    expect(teamPermdock.snapshot({ include: [] })).toBeDefined();
     const authErrors: unknown[] = [];
     const throwingAuth = await createPermDock(policy, memberPrincipal, {
       memberships: {

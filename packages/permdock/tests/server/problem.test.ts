@@ -5,7 +5,7 @@ import type { PermDock } from '../../src/core/permdock.ts';
 import type { Principal, Subject } from '../../src/core/subject.ts';
 
 import { memoryLimitStore } from '../../src/core/limits.ts';
-import { createPermDock as createCoreDock } from '../../src/core/permdock.ts';
+import { createPermDock as createCorePermDock } from '../../src/core/permdock.ts';
 import { definePermissions, resource } from '../../src/core/permissions.ts';
 import {
   allow,
@@ -148,7 +148,7 @@ describe('disclosure', () => {
     });
     return {
       permissions,
-      dock: createPermDock(policy, {
+      permdock: createPermDock(policy, {
         subject: (req) =>
           req.headers.has('anonymous') ? null : { id: 'u1', roles: ['member'] },
       }),
@@ -156,16 +156,16 @@ describe('disclosure', () => {
   }
 
   it('answers a denied row of a hidden resource like a missing one', async () => {
-    const { permissions, dock } = kernel('hide');
-    const theirs = await dock.protect(permissions.report.read, () => ({
+    const { permissions, permdock } = kernel('hide');
+    const theirs = await permdock.protect(permissions.report.read, () => ({
       id: 'r2',
       ownerId: 'u2',
     }))(request());
-    const missing = await dock.protect(
+    const missing = await permdock.protect(
       permissions.report.read,
       () => null,
     )(request());
-    const anonymous = await dock.protect(permissions.report.read, () => ({
+    const anonymous = await permdock.protect(permissions.report.read, () => ({
       id: 'r1',
       ownerId: 'u1',
     }))(
@@ -193,8 +193,8 @@ describe('disclosure', () => {
   });
 
   it('still asks the grant holder of a hidden row to step up', async () => {
-    const { permissions, dock } = kernel('hide');
-    const own = await dock.protect(permissions.report.export, () => ({
+    const { permissions, permdock } = kernel('hide');
+    const own = await permdock.protect(permissions.report.export, () => ({
       id: 'r1',
       ownerId: 'u1',
     }))(request());
@@ -205,8 +205,8 @@ describe('disclosure', () => {
   });
 
   it('keeps the 403 on a revealed resource', async () => {
-    const { permissions, dock } = kernel();
-    const theirs = await dock.protect(permissions.report.read, () => ({
+    const { permissions, permdock } = kernel();
+    const theirs = await permdock.protect(permissions.report.read, () => ({
       id: 'r2',
       ownerId: 'u2',
     }))(request());
@@ -294,11 +294,11 @@ describe('step-up challenges', () => {
       ],
     };
     // SAFETY: the subject omits optional fields; the policy's user generic is erased to PermDock.
-    const dock = (await createCoreDock(policy, {
+    const permdock = (await createCorePermDock(policy, {
       principal: eligible,
       context: { purpose: 'incident' },
     } as Subject)) as PermDock;
-    const glass = dock.decide(permissions.report.read, {
+    const glass = permdock.decide(permissions.report.read, {
       id: 'r1',
       ownerId: 'u1',
     });
@@ -307,7 +307,7 @@ describe('step-up challenges', () => {
     expect(wwwAuthenticate(glass, permissions.report.read)).toBe(
       'Bearer error="insufficient_user_authentication", max_age="120"',
     );
-    const elevated = dock.activate({
+    const elevated = permdock.activate({
       role: 'admin',
       scope: 'tenant',
       id: 't1',

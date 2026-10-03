@@ -33,8 +33,8 @@ export default defineTool({
   inputSchema: RefundInput,
   approval,                                // { request, response } built from the tools map
   async execute(input, ctx) {
-    const pd = await permdock(ctx)         // request-scoped PermDock for checks inside the tool
-    pd.assert(permissions.charge.refund, await loadCharge(input.chargeId))
+    // permdock(ctx) is the request-scoped PermDock for checks inside the tool
+    ;(await permdock(ctx)).assert(permissions.charge.refund, await loadCharge(input.chargeId))
     return refund(input)
   },
 })

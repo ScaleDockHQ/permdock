@@ -56,19 +56,22 @@ function customRoleAt(
 }
 
 function canFixture(
-  dock: PermDock,
+  permdock: PermDock,
   permission: Permission,
   row: unknown,
 ): boolean {
   if (permission.kind === 'collection') {
     // SAFETY: kind was checked on the line above; Permission's kind parameter does not narrow.
-    return dock.can(
+    return permdock.can(
       permission as Permission<string, unknown, 'collection'>,
       row,
     );
   }
   // SAFETY: a permission is collection or instance, and collection returned above.
-  return dock.can(permission as Permission<string, unknown, 'instance'>, row);
+  return permdock.can(
+    permission as Permission<string, unknown, 'instance'>,
+    row,
+  );
 }
 
 function grantKind(
@@ -679,11 +682,15 @@ export async function runRlsVerify(input: {
       continue;
     }
     const kind = grantKind(policy, fixture.action);
-    const dock = await createPermDock(policy, fixtureSubject(fixture.subject), {
-      customRoles: memoryRoleSource(customRoles),
-    });
+    const permdock = await createPermDock(
+      policy,
+      fixtureSubject(fixture.subject),
+      {
+        customRoles: memoryRoleSource(customRoles),
+      },
+    );
     const granted = canFixture(
-      dock,
+      permdock,
       permission,
       fixtureRow(fixture, permission.kind),
     );
@@ -704,7 +711,7 @@ export async function runRlsVerify(input: {
     const fields = reads
       ? expectedFields(
           granted,
-          dock.pick(
+          permdock.pick(
             permission as Permission<string, unknown, 'instance'>,
             fixture.row,
           ),

@@ -45,29 +45,29 @@ function lattice(layers: number) {
 const rootDoc = rows.doc.find((row) => row.id === 'root-doc');
 
 async function loaded(layers: number) {
-  const dock = await createPermDock(
+  const permdock = await createPermDock(
     policy,
     { id: 'nobody' },
     { relations: lattice(layers) },
   );
-  await dock.loadRelations(permissions.doc.read, rows.doc);
-  return dock;
+  await permdock.loadRelations(permissions.doc.read, rows.doc);
+  return permdock;
 }
 
 async function stringifyCalls(layers: number): Promise<number> {
-  const dock = await loaded(layers);
+  const permdock = await loaded(layers);
   const spy = vi.spyOn(JSON, 'stringify');
-  expect(dock.can(permissions.doc.read, rootDoc)).toBe(false);
+  expect(permdock.can(permissions.doc.read, rootDoc)).toBe(false);
   const calls = spy.mock.calls.length;
   spy.mockRestore();
   return calls;
 }
 
 async function whoCanCalls(layers: number): Promise<number> {
-  const dock = await loaded(layers);
-  await dock.whoCan(permissions.doc.read, rootDoc);
+  const permdock = await loaded(layers);
+  await permdock.whoCan(permissions.doc.read, rootDoc);
   const spy = vi.spyOn(JSON, 'stringify');
-  const result = await dock.whoCan(permissions.doc.read, rootDoc);
+  const result = await permdock.whoCan(permissions.doc.read, rootDoc);
   const calls = spy.mock.calls.length;
   spy.mockRestore();
   expect(

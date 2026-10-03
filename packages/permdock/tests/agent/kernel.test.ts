@@ -133,10 +133,10 @@ describe('createAgentKernel', () => {
       },
       tools: tools(),
     });
-    const dock = await kernel.instance({});
-    expect(dock.subject.principal).toBeNull();
-    expect(dock.subject.actor).toBeUndefined();
-    expect(mayUse(dock, permissions.post.list)).toBe(false);
+    const permdock = await kernel.instance({});
+    expect(permdock.subject.principal).toBeNull();
+    expect(permdock.subject.actor).toBeUndefined();
+    expect(mayUse(permdock, permissions.post.list)).toBe(false);
 
     const denied = await kernel.decideTool('list_posts', {}, {});
     expect(denied.outcome).toBe('denied');
@@ -150,8 +150,8 @@ describe('createAgentKernel', () => {
       tenant: 'acme',
       tools: tools(),
     });
-    const dock = await kernel.instance({});
-    expect(dock.subject.actor).toEqual({ id: 'agent-1', kind: 'test' });
+    const permdock = await kernel.instance({});
+    expect(permdock.subject.actor).toEqual({ id: 'agent-1', kind: 'test' });
   });
 
   it('lists tools that have any matching grant', async () => {

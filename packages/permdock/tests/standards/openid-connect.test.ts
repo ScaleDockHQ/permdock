@@ -409,8 +409,8 @@ describe('RFC 9470 OAuth 2.0 Step Up Authentication Challenge', () => {
       await token({ acr: 'urn:example:loa:2', auth_time: NOW - 600 }),
       local(),
     );
-    const dock = await createPermDock(policy, subject);
-    const decision = dock.decide(
+    const permdock = await createPermDock(policy, subject);
+    const decision = permdock.decide(
       permissions.payout.create,
       { id: 'p1' },
       {
@@ -424,7 +424,7 @@ describe('RFC 9470 OAuth 2.0 Step Up Authentication Challenge', () => {
     const response = problemFromDecision(
       decision,
       permissions.payout.create,
-      dock.subject,
+      permdock.subject,
     );
     expect(response.status).toBe(401);
     expect(response.headers.get('WWW-Authenticate')).toBe(
@@ -442,9 +442,9 @@ describe('RFC 9470 OAuth 2.0 Step Up Authentication Challenge', () => {
       await token({ acr: 'urn:example:loa:3', auth_time: NOW - 10 }),
       local(),
     );
-    const dock = await createPermDock(policy, subject);
+    const permdock = await createPermDock(policy, subject);
     expect(
-      dock.decide(permissions.payout.create, { id: 'p1' }, { now: NOW })
+      permdock.decide(permissions.payout.create, { id: 'p1' }, { now: NOW })
         .outcome,
     ).toBe('granted');
   });

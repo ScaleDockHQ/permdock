@@ -1,8 +1,8 @@
 import type { Decision } from '../core/decision.ts';
 import type { PermDock } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
-import type { Policy } from '../core/policy.ts';
-import type { Actor, Delegation } from '../core/subject.ts';
+import type { Policy, PolicyVocabulary } from '../core/policy.ts';
+import type { Actor, Delegation, Principal } from '../core/subject.ts';
 import type {
   AgentKernelOptions,
   DecideToolOptions,
@@ -76,14 +76,14 @@ export function resourceRef(
 }
 
 function runDecide(
-  dock: PermDock,
+  permdock: PermDock,
   permission: Permission,
   data: unknown,
   adapter: string,
 ): Decision {
   // SAFETY: decide's instance and collection overloads share one implementation that takes either kind.
   return (
-    dock.decide as (
+    permdock.decide as (
       next: Permission,
       row?: unknown,
       decideOptions?: {
@@ -103,12 +103,16 @@ function runDecide(
   );
 }
 
-export function createAgentKernel<TContext, TUser = unknown>(
-  policy: Policy<TUser>,
+export function createAgentKernel<
+  TContext,
+  TUser = unknown,
+  V extends PolicyVocabulary = PolicyVocabulary,
+>(
+  policy: Policy<TUser, Principal, V>,
   options: AgentKernelOptions<TContext, TUser>,
 ): {
   /** One instance per context object while a call is in flight; later calls re-read the subject. */
-  readonly instance: (context: TContext) => Promise<PermDock>;
+  readonly instance: (context: TContext) => Promise<PermDock<V>>;
   readonly decideTool: (
     toolName: string,
     args: unknown,
@@ -132,16 +136,16 @@ export function createAgentKernel<TContext, TUser = unknown>(
     context: TContext,
   ) => Promise<ReadonlySet<string>>;
 } {
-  const cache = new WeakMap<object, Promise<PermDock>>();
+  const cache = new WeakMap<object, Promise<PermDock<V>>>();
 
-  const instance = (context: TContext): Promise<PermDock> => {
+  const instance = (context: TContext): Promise<PermDock<V>> => {
     if (typeof context === 'object' && context !== null) {
       const hit = cache.get(context);
       if (hit !== undefined) {
         return hit;
       }
     }
-    const built = (async (): Promise<PermDock> => {
+    const built = (async (): Promise<PermDock<V>> => {
       let user: TUser | null = null;
       try {
         user = await options.subject(context);
@@ -202,7 +206,7 @@ export function createAgentKernel<TContext, TUser = unknown>(
     decideOptions: DecideToolOptions = {},
   ): Promise<ToolVerdict> => {
     try {
-      const dock = await instance(context);
+      const permdock = await instance(context);
       let data: unknown;
       if (binding.data !== undefined) {
         data = await binding.data(args);
@@ -219,16 +223,21 @@ export function createAgentKernel<TContext, TUser = unknown>(
             reason: modelReason(
               decision,
               binding.permission,
-              dock.subject.principal?.id,
+              permdock.subject.principal?.id,
             ),
           };
         }
       }
-      const raw = runDecide(dock, binding.permission, data, options.adapter);
+      const raw = runDecide(
+        permdock,
+        binding.permission,
+        data,
+        options.adapter,
+      );
       const decision = await resumeDecision({
         decision: raw,
         permission: binding.permission,
-        subject: dock.subject,
+        subject: permdock.subject,
         store: options.store,
         resource: resourceRef(binding.permission, data),
         adapter: options.adapter,
@@ -258,7 +267,7 @@ export function createAgentKernel<TContext, TUser = unknown>(
           summary: modelReason(
             decision,
             binding.permission,
-            dock.subject.principal?.id,
+            permdock.subject.principal?.id,
           ),
         };
       }
@@ -269,7 +278,7 @@ export function createAgentKernel<TContext, TUser = unknown>(
         reason: modelReason(
           decision,
           binding.permission,
-          dock.subject.principal?.id,
+          permdock.subject.principal?.id,
         ),
       };
     } catch {
@@ -288,7 +297,7 @@ export function createAgentKernel<TContext, TUser = unknown>(
     context: TContext,
   ): Promise<string | undefined> => {
     try {
-      const dock = await instance(context);
+      const permdock = await instance(context);
       let data: unknown;
       if (binding.data !== undefined) {
         data = await binding.data(args);
@@ -296,7 +305,12 @@ export function createAgentKernel<TContext, TUser = unknown>(
           return undefined;
         }
       }
-      const raw = runDecide(dock, binding.permission, data, options.adapter);
+      const raw = runDecide(
+        permdock,
+        binding.permission,
+        data,
+        options.adapter,
+      );
       return raw.outcome === 'approval-required' ? raw.token : undefined;
     } catch {
       return undefined;
@@ -324,10 +338,10 @@ export function createAgentKernel<TContext, TUser = unknown>(
   const allowedToolNames = async (
     context: TContext,
   ): Promise<ReadonlySet<string>> => {
-    const dock = await instance(context);
+    const permdock = await instance(context);
     const allowed = new Set<string>();
     for (const [name, binding] of Object.entries(options.tools)) {
-      if (mayUse(dock, binding.permission)) {
+      if (mayUse(permdock, binding.permission)) {
         allowed.add(name);
       }
     }

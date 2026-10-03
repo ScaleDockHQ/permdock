@@ -174,7 +174,7 @@ testHttpAdapter({
       store: domain.store,
       limits: domain.limits,
     });
-    const evaluations = kernel.handler();
+    const evaluations = kernel.permdockHandler();
     const eventsPath = new URLPattern({
       pathname: '/:org/projects/:id/events',
     });

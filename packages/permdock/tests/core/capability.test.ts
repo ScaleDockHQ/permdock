@@ -63,12 +63,12 @@ const policy = definePolicy(
 const HOUR = 3600;
 const future = (): number => Math.floor(Date.now() / 1000) + HOUR;
 
-function dockFor(capability: Capability) {
-  const dock = createPermDock(policy, capabilitySubject(capability));
-  if (dock instanceof Promise) {
+function permdockFor(capability: Capability) {
+  const permdock = createPermDock(policy, capabilitySubject(capability));
+  if (permdock instanceof Promise) {
     throw new TypeError('expected a synchronous instance');
   }
-  return dock;
+  return permdock;
 }
 
 const quoteQ = { id: 'q_1', organizationId: 'o_1', status: 'sent' };
@@ -77,7 +77,7 @@ const draftQ = { id: 'q_1', organizationId: 'o_1', status: 'draft' };
 
 describe('capabilities', () => {
   it('lets a quote link read and accept quote Q only', () => {
-    const dock = dockFor(
+    const permdock = permdockFor(
       capabilityOf({
         id: 'lnk_1',
         on: { resource: permissions.quote, id: 'q_1' },
@@ -85,16 +85,16 @@ describe('capabilities', () => {
         expiresAt: future(),
       }),
     );
-    expect(dock.can(permissions.quote.read, quoteQ)).toBe(true);
-    expect(dock.can(permissions.quote.accept, quoteQ)).toBe(true);
-    expect(dock.can(permissions.quote.read, quoteOther)).toBe(false);
-    expect(dock.can(permissions.quote.read, draftQ)).toBe(false);
-    expect(dock.can(permissions.quote.update, quoteQ)).toBe(false);
-    expect(dock.can(permissions.quote.read, undefined)).toBe(false);
+    expect(permdock.can(permissions.quote.read, quoteQ)).toBe(true);
+    expect(permdock.can(permissions.quote.accept, quoteQ)).toBe(true);
+    expect(permdock.can(permissions.quote.read, quoteOther)).toBe(false);
+    expect(permdock.can(permissions.quote.read, draftQ)).toBe(false);
+    expect(permdock.can(permissions.quote.update, quoteQ)).toBe(false);
+    expect(permdock.can(permissions.quote.read, undefined)).toBe(false);
   });
 
   it('narrows the role to the listed permissions', () => {
-    const dock = dockFor(
+    const permdock = permdockFor(
       capabilityOf({
         id: 'lnk_2',
         on: { resource: permissions.quote, id: 'q_1' },
@@ -103,8 +103,8 @@ describe('capabilities', () => {
         expiresAt: future(),
       }),
     );
-    expect(dock.can(permissions.quote.read, quoteQ)).toBe(true);
-    const accept = dock.decide(permissions.quote.accept, quoteQ);
+    expect(permdock.can(permissions.quote.read, quoteQ)).toBe(true);
+    const accept = permdock.decide(permissions.quote.accept, quoteQ);
     expect(accept.outcome).toBe('denied');
     expect(
       accept.outcome === 'denied' &&
@@ -113,7 +113,7 @@ describe('capabilities', () => {
   });
 
   it('reaches a child file through a folder link, never a sibling', () => {
-    const dock = dockFor(
+    const permdock = permdockFor(
       capabilityOf({
         id: 'lnk_3',
         on: { resource: permissions.folder, id: 'f_1' },
@@ -122,15 +122,15 @@ describe('capabilities', () => {
       }),
     );
     expect(
-      dock.can(permissions.file.comment, { id: 'x_1', folderId: 'f_1' }),
+      permdock.can(permissions.file.comment, { id: 'x_1', folderId: 'f_1' }),
     ).toBe(true);
     expect(
-      dock.can(permissions.file.read, { id: 'x_2', folderId: 'f_2' }),
+      permdock.can(permissions.file.read, { id: 'x_2', folderId: 'f_2' }),
     ).toBe(false);
     expect(
-      dock.can(permissions.file.update, { id: 'x_1', folderId: 'f_1' }),
+      permdock.can(permissions.file.update, { id: 'x_1', folderId: 'f_1' }),
     ).toBe(false);
-    expect(dock.where(permissions.file.read).condition).toEqual({
+    expect(permdock.where(permissions.file.read).condition).toEqual({
       op: 'eq',
       field: 'folderId',
       value: 'f_1',
@@ -138,7 +138,7 @@ describe('capabilities', () => {
   });
 
   it('never exercises a scope role, even one named in the capability', () => {
-    const dock = dockFor(
+    const permdock = permdockFor(
       capabilityOf({
         id: 'lnk_4',
         on: { resource: permissions.quote, id: 'q_1' },
@@ -146,12 +146,12 @@ describe('capabilities', () => {
         expiresAt: future(),
       }),
     );
-    expect(dock.can(permissions.quote.update, quoteQ)).toBe(false);
-    expect(dock.can(permissions.quote.read, quoteQ)).toBe(false);
+    expect(permdock.can(permissions.quote.update, quoteQ)).toBe(false);
+    expect(permdock.can(permissions.quote.read, quoteQ)).toBe(false);
   });
 
   it('denies once the capability expires', () => {
-    const dock = dockFor(
+    const permdock = permdockFor(
       capabilityOf({
         id: 'lnk_5',
         on: { resource: permissions.quote, id: 'q_1' },
@@ -159,11 +159,11 @@ describe('capabilities', () => {
         expiresAt: Math.floor(Date.now() / 1000) - 1,
       }),
     );
-    expect(dock.can(permissions.quote.read, quoteQ)).toBe(false);
+    expect(permdock.can(permissions.quote.read, quoteQ)).toBe(false);
   });
 
   it('agrees with a client built from its snapshot', () => {
-    const dock = dockFor(
+    const permdock = permdockFor(
       capabilityOf({
         id: 'lnk_6',
         on: { resource: permissions.quote, id: 'q_1' },
@@ -172,14 +172,16 @@ describe('capabilities', () => {
         expiresAt: future(),
       }),
     );
-    const client = fromSnapshot(parseSnapshot(JSON.stringify(dock.snapshot())));
+    const client = fromSnapshot(
+      parseSnapshot(JSON.stringify(permdock.snapshot())),
+    );
     for (const [permission, row] of [
       [permissions.quote.read, quoteQ],
       [permissions.quote.accept, quoteQ],
       [permissions.quote.read, quoteOther],
       [permissions.quote.read, draftQ],
     ] as const) {
-      expect(client.can(permission, row)).toBe(dock.can(permission, row));
+      expect(client.can(permission, row)).toBe(permdock.can(permission, row));
     }
   });
 

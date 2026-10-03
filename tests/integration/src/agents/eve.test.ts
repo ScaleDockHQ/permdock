@@ -93,7 +93,7 @@ const session = { id: 'session-1', auth: { initiator: alice, current: alice } };
  * (`buildApprovalFn` + `buildToolApproval`): it calls the tool's
  * `approval.request` with the session context and passes the answer through.
  */
-function eveToolApproval(permdock: EvePermDock): ToolApproval {
+function eveToolApproval(adapter: EvePermDock): ToolApproval {
   // SAFETY: mirrors the approval function eve 0.58.1 builds, which reads only toolCall
   return (async ({
     toolCall,
@@ -104,7 +104,7 @@ function eveToolApproval(permdock: EvePermDock): ToolApproval {
       readonly input: unknown;
     };
   }) =>
-    permdock.approval.request({
+    adapter.approval.request({
       session,
       callId: toolCall.toolCallId,
       toolName: toolCall.toolName,
@@ -152,7 +152,7 @@ afterAll(async () => {
   await db.stop();
 });
 
-async function dock(): Promise<EvePermDock> {
+async function permdock(): Promise<EvePermDock> {
   return createPermDock(saasPolicy, {
     subject: ({ session: current }) =>
       agentSubject({ user: current?.auth?.initiator?.principalId }),
@@ -185,7 +185,7 @@ describe('permdock/eve through the eve harness toolApproval on Postgres', () => 
       ]),
       prompt: 'clean up acme',
       tools,
-      toolApproval: eveToolApproval(await dock()),
+      toolApproval: eveToolApproval(await permdock()),
       stopWhen: stepCountIs(5),
     });
     await first.consumeStream();
@@ -199,7 +199,7 @@ describe('permdock/eve through the eve harness toolApproval on Postgres', () => 
       toolName: 'revoke_api_keys',
       toolInput: {},
     };
-    const reviewer = await dock();
+    const reviewer = await permdock();
     expect(
       await reviewer.approval.response({
         request,
@@ -233,7 +233,7 @@ describe('permdock/eve through the eve harness toolApproval on Postgres', () => 
       model: scripted([reply]),
       messages: resumed,
       tools,
-      toolApproval: eveToolApproval(await dock()),
+      toolApproval: eveToolApproval(await permdock()),
     });
     await recheck.consumeStream();
     expect(revoked).toHaveBeenCalledTimes(1);
@@ -242,7 +242,7 @@ describe('permdock/eve through the eve harness toolApproval on Postgres', () => 
       model: scripted([reply]),
       messages: resumed,
       tools,
-      toolApproval: eveToolApproval(await dock()),
+      toolApproval: eveToolApproval(await permdock()),
     });
     await replay.consumeStream();
     expect(revoked).toHaveBeenCalledTimes(1);

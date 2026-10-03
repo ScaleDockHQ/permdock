@@ -587,10 +587,10 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       }
     }
     try {
-      const dock = await instanceFor(authInfo);
+      const permdock = await instanceFor(authInfo);
       // SAFETY: decide's instance and collection overloads share one implementation that takes either kind.
       const raw = (
-        dock.decide as (
+        permdock.decide as (
           next: Permission,
           row?: unknown,
           decideOptions?: {
@@ -623,7 +623,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       const decision = await resumeDecision({
         decision: raw,
         permission,
-        subject: dock.subject,
+        subject: permdock.subject,
         store: options.store,
         resource: resourceRef(permission, data),
         adapter: 'mcp',
@@ -697,15 +697,15 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     if (guarded.length === 0) {
       return shown;
     }
-    let dock: PermDock;
+    let permdock: PermDock;
     try {
-      dock = await instanceFor(authInfo);
+      permdock = await instanceFor(authInfo);
     } catch {
       // A subject that cannot be built sees no guarded entry.
       return shown;
     }
     for (const entry of guarded) {
-      if (mayUse(dock, entry.permission)) {
+      if (mayUse(permdock, entry.permission)) {
         shown.add(entry.key);
       }
     }

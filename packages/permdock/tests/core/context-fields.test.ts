@@ -69,17 +69,17 @@ describe('async context', () => {
         throw new Error('sync-fail');
       },
     });
-    const syncDock = await createPermDock(throwing, { id: 'u1' });
+    const syncPermdock = await createPermDock(throwing, { id: 'u1' });
     const syncAuth: unknown[] = [];
-    syncDock.on('auth', (event) => {
+    syncPermdock.on('auth', (event) => {
       syncAuth.push(event);
     });
     expect(syncAuth[0]).toMatchObject({
       reason: 'source-threw',
       source: 'context',
     });
-    expect(syncDock.subject.context).toEqual({});
-    expect(syncDock.can(permissions.post.read, row)).toBe(false);
+    expect(syncPermdock.subject.context).toEqual({});
+    expect(syncPermdock.can(permissions.post.read, row)).toBe(false);
 
     const rejecting = definePolicy(permissions, {
       roles: [
@@ -94,9 +94,9 @@ describe('async context', () => {
         throw new Error('async-fail');
       },
     });
-    const asyncDock = await createPermDock(rejecting, { id: 'u1' });
-    expect(asyncDock.subject.context).toEqual({});
-    expect(asyncDock.can(permissions.post.read, row)).toBe(false);
+    const asyncPermdock = await createPermDock(rejecting, { id: 'u1' });
+    expect(asyncPermdock.subject.context).toEqual({});
+    expect(asyncPermdock.can(permissions.post.read, row)).toBe(false);
   });
 
   it('treats a non-object context result as empty', async () => {

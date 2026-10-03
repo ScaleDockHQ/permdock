@@ -179,9 +179,9 @@ describe('invariant 11: no bypass role, bound tokens, distinct approvers', () =>
       },
       {},
     );
-    const dock = await kernel.instance({});
-    expect(dock.subject.principal?.id).toBe('bob');
-    expect(dock.subject.actor).toBeUndefined();
+    const permdock = await kernel.instance({});
+    expect(permdock.subject.principal?.id).toBe('bob');
+    expect(permdock.subject.actor).toBeUndefined();
     expect(result.decision?.outcome).toBe('approval-required');
     expect(
       result.decision?.outcome === 'approval-required'

@@ -10,8 +10,8 @@ import { permissions, policy, relations } from '../fixtures/graph.ts';
 type Query = { readonly sql: string; readonly values: readonly unknown[] };
 
 async function graphWhere(id: string): Promise<WhereResult> {
-  const dock = await createPermDock(policy, { id }, { relations });
-  return dock.where(permissions.doc.read);
+  const permdock = await createPermDock(policy, { id }, { relations });
+  return permdock.where(permissions.doc.read);
 }
 
 function withCondition(where: WhereResult, condition: Condition): WhereResult {

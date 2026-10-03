@@ -13,7 +13,7 @@ import {
   testAuthZen,
 } from '../../src/testing/authzen.ts';
 
-const { handler } = createPermDock(authzenTodoPolicy, {
+const { permdockHandler } = createPermDock(authzenTodoPolicy, {
   subject: () => ({ id: 'pep' }),
   trustedPep: () => true,
   resources: { todo: { list: () => authzenTodoData.todos } },
@@ -21,15 +21,15 @@ const { handler } = createPermDock(authzenTodoPolicy, {
 });
 
 describe('AuthZEN interop: PermDock vectors over the Todo domain', () => {
-  testAuthZen(handler, { vectors: authzenTodoVectors() });
+  testAuthZen(permdockHandler, { vectors: authzenTodoVectors() });
 });
 
 describe('AuthZEN runner with partial vector sets', () => {
-  testAuthZen(handler, {
+  testAuthZen(permdockHandler, {
     vectors: { search: authzenTodoVectors().search ?? {} },
     discovery: false,
   });
-  testAuthZen(handler, {
+  testAuthZen(permdockHandler, {
     vectors: {
       evaluation: [
         {
@@ -70,10 +70,12 @@ describe('authzenTodoPolicy principal', () => {
       anonymous: true,
     },
   ])('resolves $name', async ({ user, read, anonymous }) => {
-    const dock = await createInstance(authzenTodoPolicy, user);
+    const permdock = await createInstance(authzenTodoPolicy, user);
     expect({
-      anonymous: dock.subject.principal === null,
-      read: dock.can(authzenTodoPermissions.todo.can_read_todos, { id: 't1' }),
+      anonymous: permdock.subject.principal === null,
+      read: permdock.can(authzenTodoPermissions.todo.can_read_todos, {
+        id: 't1',
+      }),
     }).toEqual({ anonymous, read });
   });
 });
@@ -93,6 +95,6 @@ describe.runIf(requireOfficial)(
     const vectors = requireOfficial
       ? (JSON.parse(readFileSync(OFFICIAL, 'utf8')) as AuthZenVectors)
       : {};
-    testAuthZen(handler, { vectors, discovery: false });
+    testAuthZen(permdockHandler, { vectors, discovery: false });
   },
 );

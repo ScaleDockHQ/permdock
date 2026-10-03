@@ -198,7 +198,7 @@ function failures(results: readonly OrmParityCase[]): readonly string[] {
 }
 
 type Checker = (
-  dock: Awaited<ReturnType<typeof createPermDock>>,
+  permdock: Awaited<ReturnType<typeof createPermDock>>,
   permission: Permission<string, unknown, 'instance'>,
   id: string,
 ) => Promise<{ readonly found: boolean; readonly granted?: boolean }>;
@@ -291,25 +291,25 @@ describe('ORM parity: filter() in memory equals toWhere(where()) in Postgres', (
     };
     // SAFETY: each ORM's typed client and model is passed to its own row checker, erased to never
     checkers.push(
-      async (dock, permission, id) =>
+      async (permdock, permission, id) =>
         drizzleCheckRow(
           drizzlePg(db?.admin as never) as never,
           itemTable,
-          dock.where(permission),
+          permdock.where(permission),
           eq(itemTable.id, id),
         ),
-      async (dock, permission, id) =>
+      async (permdock, permission, id) =>
         kyselyCheckRow(
           kyselyDb as never,
           'item',
-          dock.where(permission),
+          permdock.where(permission),
           (eb) => eb('id', '=', id),
           { listFields: ['tags'] },
         ),
-      async (dock, permission, id) =>
+      async (permdock, permission, id) =>
         prismaCheckRow(
           models.item as never,
-          dock.where(permission),
+          permdock.where(permission),
           { id },
           { model: prismaModelFields(PRISMA_SCHEMA, 'item') },
         ),
@@ -399,7 +399,7 @@ describe('ORM parity: filter() in memory equals toWhere(where()) in Postgres', (
       ),
     );
     for (const scenario of scenarios) {
-      const dock = await createPermDock(
+      const permdock = await createPermDock(
         itemPolicy,
         scenario.user,
         scenario.options,
@@ -412,10 +412,10 @@ describe('ORM parity: filter() in memory equals toWhere(where()) in Postgres', (
             : {
                 found: true,
                 // SAFETY: the row comes from the scenario's seeded rows for this permission's resource
-                granted: dock.can(scenario.permission, row as never),
+                granted: permdock.can(scenario.permission, row as never),
               };
         for (const [index, check] of checkers.entries()) {
-          const got = await check(dock, scenario.permission, id);
+          const got = await check(permdock, scenario.permission, id);
           if (JSON.stringify(got) !== JSON.stringify(want)) {
             mismatches.push(
               `${['drizzle', 'kysely', 'prisma'][index] ?? ''} ${scenario.name} ${id}: ${JSON.stringify(got)} want ${JSON.stringify(want)}`,

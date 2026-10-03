@@ -31,14 +31,14 @@ function request(
 describe('permdock/server', () => {
   it('memoises one instance per Request and isolates factories', async () => {
     let reads = 0;
-    const { permdock } = createPermDock(policy, {
+    const { permdock: permdockFor } = createPermDock(policy, {
       subject: () => {
         reads += 1;
         return memberUser;
       },
     });
     const req = request();
-    const [a, b] = await Promise.all([permdock(req), permdock(req)]);
+    const [a, b] = await Promise.all([permdockFor(req), permdockFor(req)]);
     expect(reads).toBe(1);
     expect(a).toBe(b);
     expect(a.can(permissions.post.update, ownPost)).toBe(true);
@@ -49,14 +49,14 @@ describe('permdock/server', () => {
   });
 
   it('treats a thrown subject resolver as anonymous', async () => {
-    const { permdock } = createPermDock(policy, {
+    const { permdock: permdockFor } = createPermDock(policy, {
       subject: () => {
         throw new Error('session failed');
       },
     });
-    const dock = await permdock(request());
-    expect(dock.subject.principal).toBeNull();
-    expect(dock.can(permissions.post.read, ownPost)).toBe(false);
+    const permdock = await permdockFor(request());
+    expect(permdock.subject.principal).toBeNull();
+    expect(permdock.can(permissions.post.read, ownPost)).toBe(false);
   });
 
   it('protects a granted instance action and 404s a missing row', async () => {
@@ -125,7 +125,11 @@ describe('permdock/server', () => {
   });
 
   it('adds the approval hint to every approval-required problem', async () => {
-    const { protect, problem, permdock } = createPermDock(policy, {
+    const {
+      protect,
+      problem,
+      permdock: permdockFor,
+    } = createPermDock(policy, {
       subject: () => memberUser,
       approval: { at: 'https://app.example/approvals', hint: 'Ask an admin.' },
     });
@@ -140,8 +144,8 @@ describe('permdock/server', () => {
       type: 'https://permdock.dev/problems/approval-required',
       approval: { at: 'https://app.example/approvals', hint: 'Ask an admin.' },
     });
-    const dock = await permdock(request());
-    const decision = dock.decide(permissions.post.delete, ownPost);
+    const permdock = await permdockFor(request());
+    const decision = permdock.decide(permissions.post.delete, ownPost);
     // SAFETY: Problem Details JSON produced by problem() under test.
     const body = (await problem(decision, {
       permission: permissions.post.delete,
@@ -166,12 +170,12 @@ describe('permdock/server', () => {
 
   it('resumes an approved PermDock-Approval header on protect', async () => {
     const store = memoryApprovalStore();
-    const { permdock, protect } = createPermDock(policy, {
+    const { permdock: permdockFor, protect } = createPermDock(policy, {
       subject: () => memberUser,
       store,
     });
-    const dock = await permdock(request());
-    const required = dock.decide(permissions.post.delete, ownPost);
+    const permdock = await permdockFor(request());
+    const required = permdock.decide(permissions.post.delete, ownPost);
     expect(required.outcome).toBe('approval-required');
     if (required.outcome !== 'approval-required') {
       return;
@@ -229,12 +233,12 @@ describe('permdock/server', () => {
 
   it('checks an approval on the decision endpoint without consuming it', async () => {
     const store = memoryApprovalStore();
-    const { permdock, handler } = createPermDock(policy, {
+    const { permdock: permdockFor, permdockHandler } = createPermDock(policy, {
       subject: () => memberUser,
       store,
     });
-    const dock = await permdock(request());
-    const required = dock.decide(permissions.post.delete, ownPost);
+    const permdock = await permdockFor(request());
+    const required = permdock.decide(permissions.post.delete, ownPost);
     if (required.outcome !== 'approval-required') {
       throw new Error('expected approval-required');
     }
@@ -254,7 +258,7 @@ describe('permdock/server', () => {
       status: 'approved',
       by: { principal: { id: 'u9', roles: ['admin'] }, context: {} },
     });
-    const { POST } = handler();
+    const { POST } = permdockHandler();
     const ask = () =>
       POST(
         new Request('https://api.example/access/v1/evaluations', {
@@ -284,10 +288,10 @@ describe('permdock/server', () => {
   });
 
   it('exposes AuthZEN evaluations and OpenAPI security hooks', async () => {
-    const { handler, openapi } = createPermDock(policy, {
+    const { permdockHandler, openapi } = createPermDock(policy, {
       subject: () => memberUser,
     });
-    const { POST } = handler();
+    const { POST } = permdockHandler();
     const response = await POST(
       new Request('https://api.example/access/v1/evaluations', {
         method: 'POST',
@@ -342,10 +346,10 @@ describe('permdock/server protect', () => {
 
 describe('permdock/server decision endpoint', () => {
   it('validates body rows against the resource schema', async () => {
-    const { handler } = createPermDock(policy, {
+    const { permdockHandler } = createPermDock(policy, {
       subject: () => adminUser,
     });
-    const { POST } = handler();
+    const { POST } = permdockHandler();
     const evaluate = async (properties: unknown) => {
       const response = await POST(
         new Request('https://api.example/access/v1/evaluations', {
@@ -383,38 +387,40 @@ describe('permdock/server decision endpoint', () => {
 
 describe('permdock/server webBotAuth', () => {
   it('leaves unsigned requests without an actor when verification is off', async () => {
-    const { permdock } = createPermDock(policy, {
+    const { permdock: permdockFor } = createPermDock(policy, {
       subject: () => memberUser,
     });
-    const dock = await permdock(request());
-    expect(dock.subject.actor).toBeUndefined();
+    const permdock = await permdockFor(request());
+    expect(permdock.subject.actor).toBeUndefined();
   });
 
   it('leaves unsigned requests without an actor when verification is on', async () => {
     const { publicJwk } = await ed25519Pair();
-    const { permdock } = createPermDock(policy, {
+    const { permdock: permdockFor } = createPermDock(policy, {
       subject: () => memberUser,
       webBotAuth: {
         verify: true,
         keys: { lookup: () => publicJwk },
       },
     });
-    const dock = await permdock(request());
-    expect(dock.subject.actor).toBeUndefined();
-    expect(dock.can(permissions.post.update, ownPost)).toBe(true);
+    const permdock = await permdockFor(request());
+    expect(permdock.subject.actor).toBeUndefined();
+    expect(permdock.can(permissions.post.update, ownPost)).toBe(true);
   });
 
   it('fills actor from a verified RFC 9421 signature', async () => {
     const { publicJwk, privateKey } = await ed25519Pair();
-    const { permdock } = createPermDock(policy, {
+    const { permdock: permdockFor } = createPermDock(policy, {
       subject: () => memberUser,
       webBotAuth: {
         verify: true,
         keys: { lookup: () => publicJwk },
       },
     });
-    const dock = await permdock(await signedRequest(privateKey, 'bot-1'));
-    expect(dock.subject.actor).toEqual({
+    const permdock = await permdockFor(
+      await signedRequest(privateKey, 'bot-1'),
+    );
+    expect(permdock.subject.actor).toEqual({
       id: 'bot-1',
       kind: 'web-bot-auth',
     });
@@ -422,7 +428,7 @@ describe('permdock/server webBotAuth', () => {
 
   it('rejects a claimed signature that does not verify', async () => {
     const { publicJwk, privateKey } = await ed25519Pair();
-    const { permdock, protect } = createPermDock(policy, {
+    const { permdock: permdockFor, protect } = createPermDock(policy, {
       subject: () => memberUser,
       webBotAuth: {
         verify: true,
@@ -438,7 +444,7 @@ describe('permdock/server webBotAuth', () => {
         'Signature-Agent': good.headers.get('Signature-Agent') ?? '',
       },
     });
-    await expect(permdock(tampered)).rejects.toBeInstanceOf(
+    await expect(permdockFor(tampered)).rejects.toBeInstanceOf(
       InvalidSignatureError,
     );
     const denied = await protect(
@@ -509,7 +515,7 @@ describe('permdock/server webBotAuth', () => {
 
   it('discovers a key through Signature-Agent when the host is allowed', async () => {
     const { publicJwk, privateKey } = await ed25519Pair();
-    const { permdock } = createPermDock(policy, {
+    const { permdock: permdockFor } = createPermDock(policy, {
       subject: () => memberUser,
       webBotAuth: {
         verify: true,
@@ -524,8 +530,10 @@ describe('permdock/server webBotAuth', () => {
         }),
       },
     });
-    const dock = await permdock(await signedRequest(privateKey, 'bot-1'));
-    expect(dock.subject.actor?.id).toBe('bot-1');
+    const permdock = await permdockFor(
+      await signedRequest(privateKey, 'bot-1'),
+    );
+    expect(permdock.subject.actor?.id).toBe('bot-1');
   });
 });
 

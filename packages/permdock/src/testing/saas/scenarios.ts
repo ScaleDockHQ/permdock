@@ -1,6 +1,6 @@
 import type {
   Actor,
-  CreatePermDockOptions,
+  PermDockOptions,
   Delegation,
   LimitStore,
   Permission,
@@ -93,9 +93,7 @@ export function saasLimitStore(used = 0): LimitStore {
 }
 
 /** The `createPermDock` options a scenario runs with: tenant, custom roles, quota and folder tree. */
-export function saasScenarioOptions(
-  scenario: SaasScenario,
-): CreatePermDockOptions {
+export function saasScenarioOptions(scenario: SaasScenario): PermDockOptions {
   return {
     ...(scenario.tenant === undefined ? {} : { tenant: scenario.tenant }),
     customRoles: memoryRoleSource(saasCustomRoles),

@@ -20,14 +20,14 @@ export function Protected(props: ProtectedProps): ReactNode {
 function Guard(props: ProtectedProps): ReactNode {
   const root = usePermDock();
   const local = usePermission(props.permission, props.data);
-  const run = (dock: {
+  const run = (permdock: {
     readonly decide: (permission: Permission, data?: unknown) => Decision;
   }): {
     readonly allowed: boolean;
     readonly status: ClientStatus;
     readonly decision: Decision;
   } => {
-    const decision = dock.decide(props.permission, props.data);
+    const decision = permdock.decide(props.permission, props.data);
     return {
       allowed: decision.outcome === 'granted',
       status: 'ready',

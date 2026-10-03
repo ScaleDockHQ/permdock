@@ -13,7 +13,7 @@ import type {
 } from '../core/interfaces.ts';
 import type { PermDock } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
-import type { Policy } from '../core/policy.ts';
+import type { Policy, PolicyVocabulary } from '../core/policy.ts';
 import type { Principal } from '../core/subject.ts';
 import type { OtelOptions } from '../otel/types.ts';
 import type { PdpFactory } from '../pdp/types.ts';
@@ -57,8 +57,8 @@ export type NodePermDockOptions<TUser = unknown> = {
   readonly webBotAuth?: WebBotAuthOptions;
 };
 
-export type NodePermDock = {
-  readonly permdock: (req: IncomingMessage) => Promise<PermDock>;
+export type NodePermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
+  readonly permdock: (req: IncomingMessage) => Promise<PermDock<V>>;
   readonly protect: (
     permission: Permission,
     loadData?: (req: NodeRequest) => unknown,
@@ -74,10 +74,14 @@ export type NodePermDock = {
   readonly openapi: OpenApiHooks;
 };
 
-export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
-  policy: Policy<TUser, TPrincipal>,
+export function createPermDock<
+  TUser,
+  TPrincipal extends Principal = Principal,
+  V extends PolicyVocabulary = PolicyVocabulary,
+>(
+  policy: Policy<TUser, TPrincipal, V>,
   options: NodePermDockOptions<TUser>,
-): NodePermDock {
+): NodePermDock<V> {
   const contexts = new WeakMap<globalThis.Request, NodeRequest>();
   const bound = new WeakMap<IncomingMessage, globalThis.Request>();
   const kernel = createKernel(
@@ -98,7 +102,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       pdp: options.pdp,
       webBotAuth: options.webBotAuth,
       adapter: 'node',
-      wrap: (dock: PermDock) => applyOtel(dock, options.otel),
+      wrap: (permdock: PermDock<V>) => applyOtel(permdock, options.otel),
     }),
   );
 
@@ -119,7 +123,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
   const scopeOf = (req: IncomingMessage): Promise<TenantScope> =>
     tenantScope(options.tenant, req as NodeRequest);
 
-  const permdock = async (req: IncomingMessage): Promise<PermDock> =>
+  const permdock = async (req: IncomingMessage): Promise<PermDock<V>> =>
     kernel.permdock(bind(req), await scopeOf(req));
 
   // SAFETY: NodeRequest only adds optional fields that Express-style servers set on the request.
@@ -142,7 +146,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     req: IncomingMessage,
     res: ServerResponse,
   ) => Promise<void>) => {
-    const { POST, GET } = kernel.handler((request) => {
+    const { POST, GET } = kernel.permdockHandler((request) => {
       const req = contexts.get(request);
       return req === undefined ? { tenant: undefined } : scopeOf(req);
     });

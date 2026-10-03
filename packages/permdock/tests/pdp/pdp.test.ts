@@ -61,12 +61,12 @@ describe('permdock/pdp', () => {
         fetch: async () => jsonResponse({ decision: true }),
       }),
     ]);
-    const dock = await createCore(policy, {
+    const permdock = await createCore(policy, {
       id: 'user-1',
       roles: ['member'],
     });
-    expect(dock.can(permissions.post.read, post)).toBe(false);
-    expect(reasonOf(dock.decide(permissions.post.read, post))).toBe(
+    expect(permdock.can(permissions.post.read, post)).toBe(false);
+    expect(reasonOf(permdock.decide(permissions.post.read, post))).toBe(
       'pdp-unavailable',
     );
   });
@@ -83,11 +83,11 @@ describe('permdock/pdp', () => {
         },
       }),
     ]);
-    const dock = await createPermDock(policy, {
+    const permdock = await createPermDock(policy, {
       id: 'user-1',
       roles: ['member'],
     });
-    const decision = await dock.decide(permissions.post.delete, post);
+    const decision = await permdock.decide(permissions.post.delete, post);
     expect(decision.outcome).toBe('denied');
     expect(reasonOf(decision)).toBe('deny');
     expect(calls).toBe(0);
@@ -101,11 +101,11 @@ describe('permdock/pdp', () => {
         fetch: async () => jsonResponse({ decision: true }),
       }),
     ]);
-    const dock = await createPermDock(policy, {
+    const permdock = await createPermDock(policy, {
       id: 'user-1',
       roles: ['member'],
     });
-    await expect(dock.can(permissions.post.read, post)).resolves.toBe(true);
+    await expect(permdock.can(permissions.post.read, post)).resolves.toBe(true);
   });
 
   it('denies when the remote returns false', async () => {
@@ -116,11 +116,11 @@ describe('permdock/pdp', () => {
         fetch: async () => jsonResponse({ decision: false }),
       }),
     ]);
-    const dock = await createPermDock(policy, {
+    const permdock = await createPermDock(policy, {
       id: 'user-1',
       roles: ['member'],
     });
-    const decision = await dock.decide(permissions.post.read, post);
+    const decision = await permdock.decide(permissions.post.read, post);
     expect(decision.outcome).toBe('denied');
     expect(reasonOf(decision)).toBe('pdp-denied');
   });
@@ -141,14 +141,14 @@ describe('permdock/pdp', () => {
         }),
       ],
     });
-    const dock = await createPermDock(policy, {
+    const permdock = await createPermDock(policy, {
       id: 'user-1',
       roles: ['member'],
     });
     await expect(
-      dock.can(permissions.billing.invoice, { id: 'inv-1' }),
+      permdock.can(permissions.billing.invoice, { id: 'inv-1' }),
     ).resolves.toBe(true);
-    await expect(dock.can(permissions.post.read, post)).resolves.toBe(true);
+    await expect(permdock.can(permissions.post.read, post)).resolves.toBe(true);
   });
 
   it('maps approval-required from the remote context', async () => {
@@ -165,11 +165,11 @@ describe('permdock/pdp', () => {
           }),
       }),
     ]);
-    const dock = await createPermDock(policy, {
+    const permdock = await createPermDock(policy, {
       id: 'user-1',
       roles: ['member'],
     });
-    const decision = await dock.decide(permissions.post.read, post);
+    const decision = await permdock.decide(permissions.post.read, post);
     expect(decision).toMatchObject({
       outcome: 'approval-required',
       token: 'pd1.remote',
@@ -204,11 +204,11 @@ describe('permdock/pdp', () => {
           fetch: item.fetch,
         }),
       ]);
-      const dock = await createPermDock(policy, {
+      const permdock = await createPermDock(policy, {
         id: 'user-1',
         roles: ['member'],
       });
-      const decision = await dock.decide(permissions.post.read, post);
+      const decision = await permdock.decide(permissions.post.read, post);
       expect(decision.outcome).toBe('denied');
       expect(reasonOf(decision)).toBe(item.reason);
     }
@@ -227,12 +227,12 @@ describe('permdock/pdp', () => {
         },
       }),
     ]);
-    const dock = await createPermDock(policy, {
+    const permdock = await createPermDock(policy, {
       id: 'user-1',
       roles: ['member'],
     });
-    await dock.can(permissions.post.read, post);
-    await dock.can(permissions.post.read, post);
+    await permdock.can(permissions.post.read, post);
+    await permdock.can(permissions.post.read, post);
     expect(calls).toBe(1);
   });
 
@@ -251,7 +251,7 @@ describe('permdock/pdp', () => {
         }),
       ],
     });
-    const dock = await createPermDock(
+    const permdock = await createPermDock(
       policy,
       { id: 'user-1', roles: ['member'] },
       {
@@ -259,7 +259,7 @@ describe('permdock/pdp', () => {
         delegation: { scopes: [] },
       },
     );
-    const decision = await dock.decide(permissions.post.read, post);
+    const decision = await permdock.decide(permissions.post.read, post);
     expect(decision.outcome).toBe('denied');
     expect(reasonOf(decision)).toBe('no-delegation');
   });
@@ -290,7 +290,7 @@ describe('permdock/pdp', () => {
         }),
       ],
     });
-    const dock = await createPermDock(policy, {
+    const permdock = await createPermDock(policy, {
       id: 'user-1',
       roles: ['member'],
       memberships: [
@@ -298,12 +298,12 @@ describe('permdock/pdp', () => {
         { tenant: 'globex', roles: ['member'] },
       ],
     });
-    expect(await dock.tenant('acme').can(permissions.post.read, post)).toBe(
+    expect(await permdock.tenant('acme').can(permissions.post.read, post)).toBe(
       true,
     );
-    expect(await dock.tenant('globex').can(permissions.post.read, post)).toBe(
-      false,
-    );
+    expect(
+      await permdock.tenant('globex').can(permissions.post.read, post),
+    ).toBe(false);
   });
 
   it('re-asks the remote when the row changes under the same id', async () => {
@@ -319,12 +319,12 @@ describe('permdock/pdp', () => {
         },
       }),
     ]);
-    const dock = await createPermDock(policy, {
+    const permdock = await createPermDock(policy, {
       id: 'user-1',
       roles: ['member'],
     });
-    await dock.can(permissions.post.read, post);
-    await dock.can(permissions.post.read, { ...post, authorId: 'user-2' });
+    await permdock.can(permissions.post.read, post);
+    await permdock.can(permissions.post.read, { ...post, authorId: 'user-2' });
     expect(calls).toBe(2);
   });
 
@@ -336,11 +336,11 @@ describe('permdock/pdp', () => {
         fetch: async () => jsonResponse({ decision: true }),
       }),
     ]);
-    const dock = await createPermDock(policy, {
+    const permdock = await createPermDock(policy, {
       id: 'user-1',
       roles: ['member'],
     });
-    expect(await dock.where(permissions.post.read)).toEqual({
+    expect(await permdock.where(permissions.post.read)).toEqual({
       condition: { op: 'or', conditions: [] },
       partial: true,
     });
@@ -370,7 +370,7 @@ describe('permdock/pdp', () => {
         },
       }),
     ]);
-    const dock = await createPermDock(policy, {
+    const permdock = await createPermDock(policy, {
       id: 'user-1',
       roles: ['member'],
     });
@@ -380,10 +380,10 @@ describe('permdock/pdp', () => {
       { id: 'p3', authorId: 'a' },
     ];
     expect(
-      (await dock.filter(permissions.post.read, rows)).map((row) => row.id),
+      (await permdock.filter(permissions.post.read, rows)).map((row) => row.id),
     ).toEqual(['p1', 'p3']);
     expect(bodies).toHaveLength(2);
-    const where = await dock.where(permissions.post.read);
+    const where = await permdock.where(permissions.post.read);
     expect(where.partial).toBe(false);
     expect(where.condition).toEqual({
       op: 'and',
@@ -406,12 +406,12 @@ describe('permdock/pdp', () => {
         fetch: async () => jsonResponse({ results: [{ id: 'p1' }] }),
       }),
     ]);
-    const dock = await createPermDock(policy, {
+    const permdock = await createPermDock(policy, {
       id: 'user-1',
       roles: ['member'],
     });
-    expect(await dock.filter(permissions.post.read, [post])).toEqual([]);
-    expect(await dock.where(permissions.post.read)).toEqual({
+    expect(await permdock.filter(permissions.post.read, [post])).toEqual([]);
+    expect(await permdock.where(permissions.post.read)).toEqual({
       condition: { op: 'or', conditions: [] },
       partial: false,
     });
@@ -432,16 +432,16 @@ describe('permdock/pdp', () => {
           },
         }),
       ]);
-      const dock = await createPermDock(policy, {
+      const permdock = await createPermDock(policy, {
         id: 'user-1',
         roles: ['member'],
       });
-      await dock.decide(permissions.post.read, post);
+      await permdock.decide(permissions.post.read, post);
       vi.advanceTimersByTime(29_000);
-      await dock.decide(permissions.post.read, post);
+      await permdock.decide(permissions.post.read, post);
       expect(calls).toBe(1);
       vi.advanceTimersByTime(2000);
-      await dock.decide(permissions.post.read, post);
+      await permdock.decide(permissions.post.read, post);
       expect(calls).toBe(2);
     } finally {
       vi.useRealTimers();

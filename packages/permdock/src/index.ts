@@ -145,7 +145,7 @@ export type {
 export { snapshotFor } from './core/snapshot-for.ts';
 export type { SnapshotForOptions } from './core/snapshot-for.ts';
 export type {
-  CreatePermDockOptions,
+  PermDockOptions,
   DecideOptions,
   PermDock,
   RowPair,

@@ -125,7 +125,7 @@ function evaluationRow(decision: Decision): {
 export function applyApprovalResume(
   decision: Decision,
   permission: Permission,
-  dock: PermDock,
+  permdock: PermDock,
   store: ApprovalStore | undefined,
   request: Request,
   resource: { readonly type: string; readonly id?: string },
@@ -134,7 +134,7 @@ export function applyApprovalResume(
   return resumeDecision({
     decision,
     permission,
-    subject: dock.subject,
+    subject: permdock.subject,
     store,
     resource,
     adapter,
@@ -144,7 +144,7 @@ export function applyApprovalResume(
 
 function evaluateOne(
   policy: Policy,
-  dock: PermDock,
+  permdock: PermDock,
   item: EvaluationItem,
   store: ApprovalStore | undefined,
   header: string | undefined,
@@ -156,7 +156,7 @@ function evaluateOne(
   }
   const data = resourceData(item);
   // SAFETY: decide's generics only tie the row type to the permission; it accepts any row.
-  const decide = dock.decide as (
+  const decide = permdock.decide as (
     next: Permission,
     row?: unknown,
     options?: DecideOptions,
@@ -174,7 +174,7 @@ function evaluateOne(
   return resumeDecision({
     decision,
     permission,
-    subject: dock.subject,
+    subject: permdock.subject,
     store,
     resource: resourceRef(permission, item, data),
     adapter,
@@ -183,7 +183,7 @@ function evaluateOne(
   });
 }
 
-async function resolveDock(
+async function resolvePermdock(
   options: {
     readonly resolve?: (request: Request) => Promise<PermDock>;
     readonly getPermDock?: (query?: {
@@ -194,8 +194,8 @@ async function resolveDock(
   tenant?: string,
 ): Promise<PermDock> {
   if (options.resolve !== undefined) {
-    const dock = await options.resolve(request);
-    return tenant === undefined ? dock : dock.tenant(tenant);
+    const permdock = await options.resolve(request);
+    return tenant === undefined ? permdock : permdock.tenant(tenant);
   }
   if (options.getPermDock !== undefined) {
     return options.getPermDock(tenant === undefined ? undefined : { tenant });
@@ -243,9 +243,9 @@ export function createEvaluationsHandler(options: {
     }
 
     const header = readApprovalHeader(request.headers);
-    let dock: PermDock;
+    let permdock: PermDock;
     try {
-      dock = await resolveDock(options, request);
+      permdock = await resolvePermdock(options, request);
     } catch (error) {
       if (error instanceof InvalidSignatureError) {
         return error.response;
@@ -262,7 +262,7 @@ export function createEvaluationsHandler(options: {
         return evaluationRow(
           await evaluateOne(
             options.policy,
-            dock,
+            permdock,
             entry,
             options.store,
             header,
@@ -285,16 +285,16 @@ export function createEvaluationsHandler(options: {
       });
     }
     const tenant = url.searchParams.get('tenant') ?? undefined;
-    let dock: PermDock;
+    let permdock: PermDock;
     try {
-      dock = await resolveDock(options, request, tenant);
+      permdock = await resolvePermdock(options, request, tenant);
     } catch (error) {
       if (error instanceof InvalidSignatureError) {
         return error.response;
       }
       throw error;
     }
-    const snapshot = dock.snapshot();
+    const snapshot = permdock.snapshot();
     return Response.json(await Promise.resolve(snapshot));
   };
 

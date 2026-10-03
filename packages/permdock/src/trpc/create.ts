@@ -402,7 +402,7 @@ export function createPermDock<
         Promise.resolve(nextOpts ?? { ctx: { req: request } as TCtx }),
     } satisfies TrpcMiddlewareOpts<TCtx>;
     bind(opts);
-    const { POST, GET } = kernel.handler(() => scopeOf(opts));
+    const { POST, GET } = kernel.permdockHandler(() => scopeOf(opts));
     return Promise.resolve(
       request.method === 'GET' ? GET(request) : POST(request),
     );

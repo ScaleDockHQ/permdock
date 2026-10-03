@@ -187,11 +187,15 @@ async function visible(
 }
 
 async function inProcess(sub: string, table: Table): Promise<string[]> {
-  const dock = await createPermDock(graphPolicy, { id: sub }, { relations });
-  await dock.loadRelations(reads[table], rows[table]);
+  const permdock = await createPermDock(
+    graphPolicy,
+    { id: sub },
+    { relations },
+  );
+  await permdock.loadRelations(reads[table], rows[table]);
   // SAFETY: rows[table] holds the seeded rows for the resource reads[table] checks
   return rows[table]
-    .filter((row) => dock.can(reads[table], row as never))
+    .filter((row) => permdock.can(reads[table], row as never))
     .map((row) => row.id)
     .toSorted();
 }

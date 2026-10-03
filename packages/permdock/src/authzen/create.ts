@@ -224,9 +224,9 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
       return UNAVAILABLE;
     }
     const { data, trusted } = resolved;
-    const dock = await instantiate(pep, item);
+    const permdock = await instantiate(pep, item);
     // SAFETY: decide's instance and collection overloads share one implementation that takes either kind.
-    const decide = dock.decide as (
+    const decide = permdock.decide as (
       next: Permission,
       row?: unknown,
       options?: DecideOptions,
@@ -246,7 +246,7 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
     return applyApprovalResume(
       decision,
       permission,
-      dock,
+      permdock,
       options.store,
       request,
       resourceRef(permission, data, item),
@@ -405,18 +405,18 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
         ? item.resource.properties
         : undefined,
     );
-    const dock = await instantiate(pep, item);
+    const permdock = await instantiate(pep, item);
     let permitted: readonly unknown[] = [];
     if (permission.kind === 'instance') {
       // SAFETY: permission.kind is checked to be instance just above.
-      permitted = dock.filter(
+      permitted = permdock.filter(
         permission as Permission<string, unknown, 'instance'>,
         rows,
       );
     } else if (
       permission.kind === 'collection' &&
       // SAFETY: permission.kind is checked to be collection just before.
-      dock.can(permission as Permission<string, unknown, 'collection'>)
+      permdock.can(permission as Permission<string, unknown, 'collection'>)
     ) {
       permitted = rows;
     }
@@ -548,7 +548,7 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
   }
 
   return {
-    async handler(request) {
+    async permdockHandler(request) {
       return withRequestId(request, await route(request));
     },
   };

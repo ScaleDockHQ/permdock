@@ -12,7 +12,7 @@ Better Auth's access control (`createAccessControl(statement)`, `ac.newRole(...)
 ## API
 
 ```ts
-import { createPermDock, definePolicy, role, allow, subject } from 'permdock'
+import { createPermDock, definePolicy, role, allow } from 'permdock'
 import { subjectFromBetterAuth, betterAuthRoleSource, rolesFromAccessControl } from 'permdock/better-auth'
 import { auth } from './auth'          // betterAuth({ plugins: [organization({ ac, roles })] })
 import { ac, owner, admin, member } from './permissions.better-auth'

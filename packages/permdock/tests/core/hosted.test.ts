@@ -77,34 +77,34 @@ async function withDocument(
   user: User,
   grants: readonly unknown[],
 ): Promise<{
-  readonly dock: Awaited<ReturnType<typeof createPermDock>>;
+  readonly permdock: Awaited<ReturnType<typeof createPermDock>>;
   readonly errors: unknown[];
 }> {
-  const dock = await createPermDock(policy, user, {
+  const permdock = await createPermDock(policy, user, {
     policies: memoryPolicySource(document(grants)),
   });
   const errors: unknown[] = [];
-  dock.on('error', (error) => {
+  permdock.on('error', (error) => {
     errors.push(error);
   });
-  return { dock, errors };
+  return { permdock, errors };
 }
 
 describe('hosted grants', () => {
   it('ignores hosted grants without a policies source', async () => {
-    const dock = await createPermDock(policy, proUser);
-    expect(dock.can(permissions.auditLog.read, { id: 'a1' })).toBe(false);
+    const permdock = await createPermDock(policy, proUser);
+    expect(permdock.can(permissions.auditLog.read, { id: 'a1' })).toBe(false);
   });
 
   it('merges a hosted plan grant on a hostable permission', async () => {
-    const { dock, errors } = await withDocument(proUser, [
+    const { permdock, errors } = await withDocument(proUser, [
       {
         id: 'g_pro_audit',
         permission: 'auditLog.read',
         to: { kind: 'plan', plan: 'pro' },
       },
     ]);
-    const decision = dock.decide(permissions.auditLog.read, { id: 'a1' });
+    const decision = permdock.decide(permissions.auditLog.read, { id: 'a1' });
     expect(decision.outcome).toBe('granted');
     expect(
       decision.outcome === 'granted' ? decision.matched.hosted : undefined,
@@ -117,23 +117,25 @@ describe('hosted grants', () => {
         to: { kind: 'plan', plan: 'pro' },
       },
     ]);
-    expect(free.dock.can(permissions.auditLog.read, { id: 'a1' })).toBe(false);
+    expect(free.permdock.can(permissions.auditLog.read, { id: 'a1' })).toBe(
+      false,
+    );
   });
 
   it('never overrides a code deny', async () => {
-    const { dock } = await withDocument(member, [
+    const { permdock } = await withDocument(member, [
       {
         id: 'g_update',
         permission: 'invoice.update',
         to: { kind: 'role', role: 'member', scope: 'global' },
       },
     ]);
-    expect(dock.can(permissions.invoice.update, unlocked)).toBe(true);
-    expect(dock.can(permissions.invoice.update, locked)).toBe(false);
+    expect(permdock.can(permissions.invoice.update, unlocked)).toBe(true);
+    expect(permdock.can(permissions.invoice.update, locked)).toBe(false);
   });
 
   it('applies a hosted deny', async () => {
-    const { dock } = await withDocument(member, [
+    const { permdock } = await withDocument(member, [
       {
         id: 'g_no_read_locked',
         permission: 'invoice.read',
@@ -142,12 +144,12 @@ describe('hosted grants', () => {
         where: { op: 'eq', field: 'locked', value: true },
       },
     ]);
-    expect(dock.can(permissions.invoice.read, unlocked)).toBe(true);
-    expect(dock.can(permissions.invoice.read, locked)).toBe(false);
+    expect(permdock.can(permissions.invoice.read, unlocked)).toBe(true);
+    expect(permdock.can(permissions.invoice.read, locked)).toBe(false);
   });
 
   it('merges a relation grant with a portable condition', async () => {
-    const { dock } = await withDocument({ id: 'u1', roles: [] }, [
+    const { permdock } = await withDocument({ id: 'u1', roles: [] }, [
       {
         id: 'g_owner_export',
         permission: 'invoice.export',
@@ -155,15 +157,15 @@ describe('hosted grants', () => {
         where: { op: 'eq', field: 'locked', value: false },
       },
     ]);
-    expect(dock.can(permissions.invoice.export, unlocked)).toBe(true);
-    expect(dock.can(permissions.invoice.export, locked)).toBe(false);
+    expect(permdock.can(permissions.invoice.export, unlocked)).toBe(true);
+    expect(permdock.can(permissions.invoice.export, locked)).toBe(false);
     expect(
-      dock.can(permissions.invoice.export, { ...unlocked, ownerId: 'u9' }),
+      permdock.can(permissions.invoice.export, { ...unlocked, ownerId: 'u9' }),
     ).toBe(false);
   });
 
   it('drops grants that break a rule and reports each through on(error)', async () => {
-    const { dock, errors } = await withDocument(member, [
+    const { permdock, errors } = await withDocument(member, [
       {
         id: 'a',
         permission: 'invoice.nope',
@@ -206,7 +208,7 @@ describe('hosted grants', () => {
       'invalid',
       'non-portable',
     ]);
-    expect(dock.can(permissions.invoice.read, unlocked)).toBe(true);
+    expect(permdock.can(permissions.invoice.read, unlocked)).toBe(true);
   });
 
   it('drops a hosted approval that lets the requester approve a human grant', async () => {
@@ -344,7 +346,7 @@ describe('hosted grants', () => {
   });
 
   it('keeps an approval at least as strict as the code grant', async () => {
-    const { dock } = await withDocument({ id: 'u5', roles: ['auditor'] }, [
+    const { permdock } = await withDocument({ id: 'u5', roles: ['auditor'] }, [
       {
         id: 'g_delete',
         permission: 'invoice.delete',
@@ -352,14 +354,14 @@ describe('hosted grants', () => {
         approval: 'human',
       },
     ]);
-    expect(dock.decide(permissions.invoice.delete, unlocked).outcome).toBe(
+    expect(permdock.decide(permissions.invoice.delete, unlocked).outcome).toBe(
       'approval-required',
     );
   });
 
   it('binds approval tokens to the document', async () => {
     const plain = await createPermDock(policy, member);
-    const { dock } = await withDocument(member, [
+    const { permdock } = await withDocument(member, [
       {
         id: 'g_pro_audit',
         permission: 'auditLog.read',
@@ -367,7 +369,7 @@ describe('hosted grants', () => {
       },
     ]);
     const before = plain.decide(permissions.invoice.delete, unlocked);
-    const after = dock.decide(permissions.invoice.delete, unlocked);
+    const after = permdock.decide(permissions.invoice.delete, unlocked);
     expect(before.outcome).toBe('approval-required');
     expect(after.outcome).toBe('approval-required');
     expect(before.outcome === 'approval-required' && before.token).not.toBe(
@@ -390,9 +392,11 @@ describe('hosted grants', () => {
       },
       refresh: () => Promise.resolve(),
     };
-    const dock = await createPermDock(policy, proUser, { policies: counting });
-    dock.can(permissions.auditLog.read, { id: 'a' });
-    dock.can(permissions.auditLog.read, { id: 'b' });
+    const permdock = await createPermDock(policy, proUser, {
+      policies: counting,
+    });
+    permdock.can(permissions.auditLog.read, { id: 'a' });
+    permdock.can(permissions.auditLog.read, { id: 'b' });
     expect(reads).toBe(1);
     const throwing: PolicySource = {
       current: () => {
@@ -413,7 +417,7 @@ describe('hosted grants', () => {
 
   it('records the hosted grant on the decision event', async () => {
     const sink = memorySink();
-    const dock = await createPermDock(policy, proUser, {
+    const permdock = await createPermDock(policy, proUser, {
       sink,
       policies: memoryPolicySource(
         document([
@@ -425,7 +429,7 @@ describe('hosted grants', () => {
         ]),
       ),
     });
-    dock.decide(permissions.auditLog.read, { id: 'a' });
+    permdock.decide(permissions.auditLog.read, { id: 'a' });
     const event = sink.events().find((item) => item.type === 'decision');
     expect(
       event?.type === 'decision' ? event.matched?.hosted : undefined,
@@ -495,11 +499,11 @@ describe('hosted approvals that go stale on a resource change', () => {
   });
 
   async function reasons(grants: readonly unknown[]): Promise<unknown[]> {
-    const dock = await createPermDock(versioned, member, {
+    const permdock = await createPermDock(versioned, member, {
       policies: memoryPolicySource(document(grants)),
     });
     const errors: unknown[] = [];
-    dock.on('error', (error) => {
+    permdock.on('error', (error) => {
       errors.push(error);
     });
     // SAFETY: every 'error' event for a rejected hosted grant carries a reason string.
@@ -707,7 +711,7 @@ describe('hosted grant validation', () => {
   });
 
   it('merges a hosted deny for a grantee list, and it wins over the hosted allow', async () => {
-    const { dock } = await withDocument(proUser, [
+    const { permdock } = await withDocument(proUser, [
       {
         id: 'g_pro_read',
         permission: 'auditLog.read',
@@ -720,7 +724,9 @@ describe('hosted grant validation', () => {
         to: [{ kind: 'plan', plan: 'pro' }],
       },
     ]);
-    expect(dock.decide(permissions.auditLog.read, { id: 'a1' })).toMatchObject({
+    expect(
+      permdock.decide(permissions.auditLog.read, { id: 'a1' }),
+    ).toMatchObject({
       outcome: 'denied',
       denials: [{ reason: 'deny' }],
     });

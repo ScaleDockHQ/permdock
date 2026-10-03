@@ -17,7 +17,7 @@ type ScopedView = {
   readonly decision: Decision;
 };
 
-type DecideDock = {
+type DecidePermDock = {
   readonly decide: (permission: Permission, data?: unknown) => Decision;
 };
 
@@ -61,7 +61,7 @@ export const Protected: DefineComponent<ProtectedProps> = defineComponent({
               decision: local.decision.value,
             }
           : tenantView(
-              root.tenant(props.tenant) as DecideDock,
+              root.tenant(props.tenant) as DecidePermDock,
               props.permission,
               props.data,
             );
@@ -77,11 +77,11 @@ export const Protected: DefineComponent<ProtectedProps> = defineComponent({
 });
 
 function tenantView(
-  dock: DecideDock,
+  permdock: DecidePermDock,
   permission: Permission,
   data: unknown,
 ): ScopedView {
-  const decision = dock.decide(permission, data);
+  const decision = permdock.decide(permission, data);
   return {
     allowed: decision.outcome === 'granted',
     status: 'ready',

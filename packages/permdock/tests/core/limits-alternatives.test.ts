@@ -35,20 +35,20 @@ function member(limits: LimitStore) {
 
 describe('alternatives on a denial', () => {
   it('lists a quota grant as an alternative without spending its quota', async () => {
-    const dock = await member(memoryLimitStore());
-    const denied = dock.decide(permissions.report.delete, report);
+    const permdock = await member(memoryLimitStore());
+    const denied = permdock.decide(permissions.report.delete, report);
     expect(denied).toMatchObject({
       outcome: 'denied',
       alternatives: [expect.objectContaining({ key: 'report.export' })],
     });
-    dock.decide(permissions.report.delete, report);
-    expect(dock.decide(permissions.report.export, report).outcome).toBe(
+    permdock.decide(permissions.report.delete, report);
+    expect(permdock.decide(permissions.report.export, report).outcome).toBe(
       'granted',
     );
-    expect(dock.decide(permissions.report.export, report).outcome).toBe(
+    expect(permdock.decide(permissions.report.export, report).outcome).toBe(
       'granted',
     );
-    expect(dock.decide(permissions.report.export, report).outcome).toBe(
+    expect(permdock.decide(permissions.report.export, report).outcome).toBe(
       'denied',
     );
   });
@@ -63,8 +63,8 @@ describe('alternatives on a denial', () => {
         return store.remaining(input);
       },
     };
-    const dock = await member(counting);
-    expect(dock.can(permissions.report.delete, report)).toBe(false);
+    const permdock = await member(counting);
+    expect(permdock.can(permissions.report.delete, report)).toBe(false);
     expect(reads).toBe(0);
   });
 });

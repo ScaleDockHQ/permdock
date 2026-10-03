@@ -4,7 +4,7 @@ import {
   createPermDock,
   fromSnapshot,
   listPermissions,
-  type CreatePermDockOptions,
+  type PermDockOptions,
   type Decision,
   type Policy,
 } from '../index.ts';
@@ -34,7 +34,7 @@ export type DescribePolicyConfig<TSubject> = {
     Record<string, MatrixCell | Record<string, MatrixCell>>
   >;
   readonly exhaustive?: boolean;
-  readonly options?: CreatePermDockOptions;
+  readonly options?: PermDockOptions;
   /**
    * Also assert every granted or denied cell against `fromSnapshot(permdock.snapshot())`,
    * the client a Server Component hands down. Closures cannot cross a snapshot and deny on the client.
@@ -141,11 +141,14 @@ export function describePolicy<TSubject>(
 ): void {
   describe('policy matrix', () => {
     const permissions = listPermissions(policy.permissions);
-    const docks = new Map<string, Awaited<ReturnType<typeof createPermDock>>>();
+    const permdocks = new Map<
+      string,
+      Awaited<ReturnType<typeof createPermDock>>
+    >();
 
     beforeAll(async () => {
       for (const [name, user] of Object.entries(config.subjects)) {
-        docks.set(name, await createPermDock(policy, user, config.options));
+        permdocks.set(name, await createPermDock(policy, user, config.options));
       }
     });
 
@@ -178,7 +181,7 @@ export function describePolicy<TSubject>(
           ][]) {
             it(`${subjectName}`, async () => {
               const instance =
-                docks.get(subjectName) ??
+                permdocks.get(subjectName) ??
                 (await createPermDock(
                   policy,
                   config.subjects[subjectName],
@@ -208,7 +211,7 @@ export function describePolicy<TSubject>(
           for (const [subjectName, cell] of Object.entries(row)) {
             it(`${fixtureName} / ${subjectName}`, async () => {
               const instance =
-                docks.get(subjectName) ??
+                permdocks.get(subjectName) ??
                 (await createPermDock(
                   policy,
                   config.subjects[subjectName],

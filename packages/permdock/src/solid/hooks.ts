@@ -93,37 +93,40 @@ export function useFilter<T>(
   permission: Permission<string, T, 'instance'>,
   rows: Accessor<readonly T[]>,
 ): Accessor<FilterResult<T>> {
-  const dock = usePermDock();
+  const permdock = usePermDock();
   return createMemo(() => {
     // SAFETY: filter returns a fresh array; the next line sets partial on it.
-    const next = dock.filter(permission, rows()) as T[] & { partial: boolean };
-    next.partial = dock.where(permission).partial;
+    const next = permdock.filter(permission, rows()) as T[] & {
+      partial: boolean;
+    };
+    next.partial = permdock.where(permission).partial;
     return next;
   });
 }
 
 export function useTenant(): Accessor<TenantView> {
-  const dock = usePermDock();
+  const permdock = usePermDock();
   return createMemo(() => ({
-    tenant: dock.subject.principal?.tenant ?? null,
-    tenants: dock.tenants(),
-    switchTo: (id: string) => dock.refresh({ tenant: id }),
-    status: dock.status(),
+    tenant: permdock.subject.principal?.tenant ?? null,
+    tenants: permdock.tenants(),
+    switchTo: (id: string) => permdock.refresh({ tenant: id }),
+    status: permdock.status(),
   }));
 }
 
 export function useMemberships(): Accessor<readonly Membership[]> {
-  const dock = usePermDock();
-  return createMemo(() => dock.memberships());
+  const permdock = usePermDock();
+  return createMemo(() => permdock.memberships());
 }
 
 export function useRoles(
   options: Accessor<UseRolesOptions> = () => ({}),
 ): Accessor<{ readonly roles: readonly Role[] }> {
-  const dock = usePermDock();
+  const permdock = usePermDock();
   return createMemo(() => {
     const next = options();
-    const scoped = next.team === undefined ? dock : dock.team(next.team);
+    const scoped =
+      next.team === undefined ? permdock : permdock.team(next.team);
     return {
       roles: scoped.heldRoles(
         next.tenant === undefined ? undefined : { tenant: next.tenant },
@@ -133,31 +136,31 @@ export function useRoles(
 }
 
 export function useAssignableRoles(): Accessor<readonly Role[]> {
-  const dock = usePermDock();
-  return createMemo(() => dock.assignableRoles());
+  const permdock = usePermDock();
+  return createMemo(() => permdock.assignableRoles());
 }
 
 export function useAssignablePermissions(
   options: { readonly tenant?: string } = {},
 ): Accessor<readonly Permission[]> {
-  const dock = usePermDock();
-  return createMemo(() => dock.assignablePermissions(options));
+  const permdock = usePermDock();
+  return createMemo(() => permdock.assignablePermissions(options));
 }
 
 export function useSubject(): Accessor<SubjectView> {
-  const dock = usePermDock();
+  const permdock = usePermDock();
   return createMemo(() => {
-    const snapshot = dock.snapshot();
+    const snapshot = permdock.snapshot();
     const simulated =
       typeof snapshot === 'object' &&
       snapshot !== null &&
       'simulated' in snapshot &&
       snapshot.simulated === true;
     return {
-      principal: dock.subject.principal,
-      actor: dock.subject.actor,
-      delegation: dock.subject.delegation,
-      expiresAt: dock.subject.expiresAt,
+      principal: permdock.subject.principal,
+      actor: permdock.subject.actor,
+      delegation: permdock.subject.delegation,
+      expiresAt: permdock.subject.expiresAt,
       simulated,
     };
   });

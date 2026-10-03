@@ -101,10 +101,10 @@ describe('Cloud-native directory mode', () => {
       ],
       entitlements: ['pro'],
     });
-    const dock = await createPermDock(policy, await subjectOf(token));
-    expect(dock.can(permissions.doc.update, acmeDoc)).toBe(true);
-    expect(dock.can(permissions.report.export, acmeDoc)).toBe(true);
-    expect(dock.can(permissions.doc.update, globexDoc)).toBe(false);
+    const permdock = await createPermDock(policy, await subjectOf(token));
+    expect(permdock.can(permissions.doc.update, acmeDoc)).toBe(true);
+    expect(permdock.can(permissions.report.export, acmeDoc)).toBe(true);
+    expect(permdock.can(permissions.doc.update, globexDoc)).toBe(false);
   });
 
   it('drops a role the policy never declared', async () => {
@@ -112,8 +112,8 @@ describe('Cloud-native directory mode', () => {
       tenant: 'o_acme',
       memberships: [{ tenant: 'o_acme', roles: ['superadmin'] }],
     });
-    const dock = await createPermDock(policy, await subjectOf(token));
-    expect(dock.can(permissions.doc.read, acmeDoc)).toBe(false);
+    const permdock = await createPermDock(policy, await subjectOf(token));
+    expect(permdock.can(permissions.doc.read, acmeDoc)).toBe(false);
   });
 
   it('never defaults a requested tenant without a membership', async () => {
@@ -121,8 +121,8 @@ describe('Cloud-native directory mode', () => {
       tenant: 'o_initech',
       memberships: [{ tenant: 'o_acme', roles: ['editor'] }],
     });
-    const dock = await createPermDock(policy, await subjectOf(token));
-    expect(dock.subject.principal?.tenant).toBeUndefined();
+    const permdock = await createPermDock(policy, await subjectOf(token));
+    expect(permdock.subject.principal?.tenant).toBeUndefined();
   });
 
   it('treats a token for another application as anonymous', async () => {
@@ -135,7 +135,7 @@ describe('Cloud-native directory mode', () => {
     );
     const subject = await subjectOf(token);
     expect(subject.principal).toBeNull();
-    const dock = await createPermDock(policy, subject);
-    expect(dock.can(permissions.doc.read, acmeDoc)).toBe(false);
+    const permdock = await createPermDock(policy, subject);
+    expect(permdock.can(permissions.doc.read, acmeDoc)).toBe(false);
   });
 });

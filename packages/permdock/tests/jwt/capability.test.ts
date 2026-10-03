@@ -86,11 +86,11 @@ function resolve(
 }
 
 function can(subject: Subject, id: string): boolean {
-  const dock = createPermDock(policy, subject);
-  if (dock instanceof Promise) {
+  const permdock = createPermDock(policy, subject);
+  if (permdock instanceof Promise) {
     throw new TypeError('expected a synchronous instance');
   }
-  return dock.can(permissions.quote.read, { id });
+  return permdock.can(permissions.quote.read, { id });
 }
 
 describe('subjectFromCapability', () => {

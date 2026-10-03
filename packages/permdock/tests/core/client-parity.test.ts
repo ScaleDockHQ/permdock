@@ -122,18 +122,18 @@ const matches = (
 describe('client parity', () => {
   it('checks the tenant of a proposed row on create and on an update move', async () => {
     const { server, client } = await both(alice, 'acme');
-    for (const dock of [server, client]) {
-      expect(dock.can(permissions.project.create, acme)).toBe(true);
-      expect(dock.can(permissions.project.create, globex)).toBe(false);
-      expect(dock.can(permissions.project.create)).toBe(true);
+    for (const permdock of [server, client]) {
+      expect(permdock.can(permissions.project.create, acme)).toBe(true);
+      expect(permdock.can(permissions.project.create, globex)).toBe(false);
+      expect(permdock.can(permissions.project.create)).toBe(true);
       expect(
-        dock.can(permissions.project.update, {
+        permdock.can(permissions.project.update, {
           current: acme,
           next: { ...acme, orgId: 'globex' },
         }),
       ).toBe(false);
       expect(
-        dock.can(permissions.project.update, {
+        permdock.can(permissions.project.update, {
           current: acme,
           next: { ...acme, locked: true },
         }),

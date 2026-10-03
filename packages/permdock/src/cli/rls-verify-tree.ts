@@ -362,7 +362,7 @@ export async function verifyTree(input: {
       rows[leaf.resource] !== undefined,
   );
   for (const subject of subjects) {
-    const dock = await createPermDock(
+    const permdock = await createPermDock(
       policy,
       { principal: { id: subject, roles: [] }, context: {} },
       { relations },
@@ -384,7 +384,7 @@ export async function verifyTree(input: {
         checked += 1;
         const id = String(row[node.id]);
         // SAFETY: permission is a leaf of this policy's own permissions tree, which can() accepts.
-        const allowed = dock.can(permission as never, row);
+        const allowed = permdock.can(permission as never, row);
         if (allowed !== seen.has(id)) {
           mismatches.push(
             `${permission.key} ${id}: in-process ${allowed ? 'granted' : 'denied'}, database ${seen.has(id) ? 'allowed' : 'filtered'}`,

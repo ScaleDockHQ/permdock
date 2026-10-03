@@ -179,7 +179,7 @@ function resourceOf(
 function deniedError(
   verdict: Extract<ToolVerdict, { readonly outcome: 'denied' }>,
   permission: Permission,
-  dock: PermDock,
+  permdock: PermDock,
 ): PermDockDeniedError {
   return new PermDockDeniedError({
     decision: verdict.decision ?? {
@@ -190,7 +190,7 @@ function deniedError(
     permission: permission.key,
     scope: permission.scope,
     resource: { type: permission.resource },
-    subject: dock.subject,
+    subject: permdock.subject,
     message: verdict.reason,
   });
 }

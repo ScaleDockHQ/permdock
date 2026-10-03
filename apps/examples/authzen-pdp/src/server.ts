@@ -8,7 +8,7 @@ const posts = new Map<string, typeof ownPost>([
   [otherPost.id, otherPost],
 ]);
 
-export const { handler } = createPermDock(policy, {
+export const { permdockHandler } = createPermDock(policy, {
   subject: (request) => {
     const authorization = request.headers.get('authorization');
     return authorization === 'Bearer test' ? memberUser : null;

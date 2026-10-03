@@ -23,7 +23,7 @@ import type {
 } from '../core/interfaces.ts';
 import type { PermDock } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
-import type { Policy } from '../core/policy.ts';
+import type { Policy, PolicyVocabulary } from '../core/policy.ts';
 import type { Principal } from '../core/subject.ts';
 import type { OtelOptions } from '../otel/types.ts';
 import type { PdpFactory } from '../pdp/types.ts';
@@ -66,8 +66,9 @@ export type FastifyPermDockOptions<TUser = unknown> = {
 
 export type PermDockRequest<
   Route extends RouteGenericInterface = RouteGenericInterface,
+  V extends PolicyVocabulary = PolicyVocabulary,
 > = FastifyRequest<Route> & {
-  permdock: PermDock;
+  permdock: PermDock<V>;
   permdockData?: unknown;
 };
 
@@ -101,10 +102,16 @@ export type FastifyProtect = <
   reply: FastifyReply,
 ) => Promise<void>;
 
-export type FastifyPermDock = {
+export type FastifyPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
   readonly permdock: FastifyPluginAsync;
   readonly protect: FastifyProtect;
   readonly permdockHandler: FastifyPluginAsync;
+  /** Types `request.permdock` for a route registered after `permdock` or `protect`. */
+  readonly withPermDock: <
+    Route extends RouteGenericInterface = RouteGenericInterface,
+  >(
+    fn: (request: PermDockRequest<Route, V>, reply: FastifyReply) => unknown,
+  ) => (request: FastifyRequest<Route>, reply: FastifyReply) => unknown;
   readonly openapi: OpenApiHooks;
 };
 
@@ -113,23 +120,27 @@ function breakEncapsulation(plugin: FastifyPluginAsync): FastifyPluginAsync {
   return plugin;
 }
 
-function decorate(
+function decorate<V extends PolicyVocabulary>(
   request: FastifyRequest,
-  instance: PermDock,
+  instance: PermDock<V>,
   data?: unknown,
 ): void {
   // SAFETY: the next line assigns permdock, which makes the request a PermDockRequest.
-  const scoped = request as PermDockRequest;
+  const scoped = request as PermDockRequest<RouteGenericInterface, V>;
   scoped.permdock = instance;
   if (data !== undefined) {
     scoped.permdockData = data;
   }
 }
 
-export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
-  policy: Policy<TUser, TPrincipal>,
+export function createPermDock<
+  TUser,
+  TPrincipal extends Principal = Principal,
+  V extends PolicyVocabulary = PolicyVocabulary,
+>(
+  policy: Policy<TUser, TPrincipal, V>,
   options: FastifyPermDockOptions<TUser>,
-): FastifyPermDock {
+): FastifyPermDock<V> {
   const contexts = new WeakMap<Request, FastifyRequest>();
   const bound = new WeakMap<FastifyRequest, Request>();
   const kernel = createKernel(
@@ -150,7 +161,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       pdp: options.pdp,
       webBotAuth: options.webBotAuth,
       adapter: 'fastify',
-      wrap: (dock: PermDock) => applyOtel(dock, options.otel),
+      wrap: (permdock: PermDock<V>) => applyOtel(permdock, options.otel),
     }),
   );
 
@@ -213,7 +224,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     };
 
   const permdockHandler: FastifyPluginAsync = (app) => {
-    const { POST, GET } = kernel.handler((request) => {
+    const { POST, GET } = kernel.permdockHandler((request) => {
       const req = contexts.get(request);
       return req === undefined ? { tenant: undefined } : scopeOf(req);
     });
@@ -228,5 +239,19 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     return Promise.resolve();
   };
 
-  return { permdock, protect, permdockHandler, openapi: kernel.openapi };
+  const withPermDock =
+    <Route extends RouteGenericInterface>(
+      fn: (request: PermDockRequest<Route, V>, reply: FastifyReply) => unknown,
+    ) =>
+    (request: FastifyRequest<Route>, reply: FastifyReply): unknown =>
+      // SAFETY: the route runs after permdock or protect, which set request.permdock from this factory's policy.
+      fn(request as PermDockRequest<Route, V>, reply);
+
+  return {
+    permdock,
+    protect,
+    permdockHandler,
+    withPermDock,
+    openapi: kernel.openapi,
+  };
 }

@@ -63,7 +63,7 @@ describe('permdock/svelte', () => {
   it('exposes snapshot introspection through stores', async () => {
     const snapshot = await memberSnapshot();
     const store = createSvelteStore({ snapshot });
-    const dock = sveltePermDock(store);
+    const permdock = sveltePermDock(store);
     const actions = get(
       permissionsFor(
         store,
@@ -80,11 +80,11 @@ describe('permdock/svelte', () => {
     const subject = get(subjectFor(store));
     const canEdit = get(permissionFor(store, defs.post.update, () => ownPost));
     expect(
-      `${canEdit.allowed}:${actions.granted.length}:${editable.length}:${editable.partial}:${tenant.tenant ?? 'none'}:${memberships.length}:${roles.roles.map((item) => item.key).join(',')}:${subject.simulated}:${dock.status()}`,
+      `${canEdit.allowed}:${actions.granted.length}:${editable.length}:${editable.partial}:${tenant.tenant ?? 'none'}:${memberships.length}:${roles.roles.map((item) => item.key).join(',')}:${subject.simulated}:${permdock.status()}`,
     ).toContain('true:1:1:false');
     expect(roles.roles.map((item) => item.key)).toContain('member');
     expect(subject.simulated).toBe(false);
-    expect(dock.status()).toBe('ready');
+    expect(permdock.status()).toBe('ready');
     expect(get(assignableFor(store))).toEqual([]);
     expect(get(assignablePermissionsFor(store))).toEqual([]);
     expect(get(approvalFor(store, () => canEdit.decision)).state).toBe(

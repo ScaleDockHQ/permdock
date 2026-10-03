@@ -532,10 +532,14 @@ async function impactOf(input: {
     if (permission === undefined) {
       return 'unknown';
     }
-    const dock = await createPermDock(policy, fixtureSubject(fixture.subject), {
-      customRoles: memoryRoleSource(customRoles),
-    });
-    const [decision] = dock.simulate(
+    const permdock = await createPermDock(
+      policy,
+      fixtureSubject(fixture.subject),
+      {
+        customRoles: memoryRoleSource(customRoles),
+      },
+    );
+    const [decision] = permdock.simulate(
       [[permission, fixtureRow(fixture, permission.kind)]],
       { now },
     );

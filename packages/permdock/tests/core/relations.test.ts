@@ -149,7 +149,7 @@ const source = memoryRelations(permissions, {
   },
 });
 
-function dock(id: string, relations: RelationSource | null = source) {
+function permdock(id: string, relations: RelationSource | null = source) {
   return createPermDock(
     policy,
     { id },
@@ -159,10 +159,10 @@ function dock(id: string, relations: RelationSource | null = source) {
 
 describe('relationship graph', () => {
   it('reaches a document through viewers on its folder ancestors', async () => {
-    const vera = await dock('vera');
+    const vera = await permdock('vera');
     expect(vera.can(permissions.doc.read, doc('d1', 'platform'))).toBe(true);
     expect(vera.can(permissions.folder.read, folders[2])).toBe(true);
-    const stranger = await dock('sam');
+    const stranger = await permdock('sam');
     expect(
       stranger.decide(permissions.doc.read, doc('d1', 'platform')),
     ).toMatchObject({
@@ -171,24 +171,24 @@ describe('relationship graph', () => {
   });
 
   it('keeps ancestor grants out of a restricted branch but not grants on it', async () => {
-    const vera = await dock('vera');
+    const vera = await permdock('vera');
     expect(vera.can(permissions.doc.read, doc('d2', 'payroll'))).toBe(false);
     expect(vera.can(permissions.folder.read, folders[5])).toBe(false);
-    const hana = await dock('hana');
+    const hana = await permdock('hana');
     expect(hana.can(permissions.doc.read, doc('d2', 'payroll'))).toBe(true);
     expect(hana.can(permissions.folder.read, folders[5])).toBe(true);
     expect(hana.can(permissions.doc.read, doc('d3', 'eng'))).toBe(false);
   });
 
   it('denies with relation-depth past depth, and grants a holder within it', async () => {
-    const vera = await dock('vera');
+    const vera = await permdock('vera');
     const decision = vera.decide(permissions.doc.read, doc('d4', 'deeper'));
     expect(decision.outcome).toBe('denied');
     expect(
       decision.outcome === 'denied' &&
         decision.denials.some((item) => item.reason === 'relation-depth'),
     ).toBe(true);
-    const edith = await dock('edith');
+    const edith = await permdock('edith');
     expect(edith.can(permissions.doc.update, doc('d4', 'deeper'))).toBe(true);
   });
 
@@ -202,7 +202,7 @@ describe('relationship graph', () => {
       },
       edges: { folder: { viewer: [{ id: 'b', principal: 'vera' }] } },
     });
-    const vera = await dock('vera', cyclic);
+    const vera = await permdock('vera', cyclic);
     const decision = vera.decide(permissions.doc.read, doc('d5', 'a'));
     expect(decision).toMatchObject({
       outcome: 'denied',
@@ -213,7 +213,7 @@ describe('relationship graph', () => {
   });
 
   it('ignores an expired edge', async () => {
-    const ed = await dock('ed');
+    const ed = await permdock('ed');
     expect(ed.can(permissions.doc.read, doc('d6', 'eng'))).toBe(false);
     expect(ed.can(permissions.doc.read, doc('d6', 'eng'), { now: 999 })).toBe(
       true,
@@ -221,14 +221,14 @@ describe('relationship graph', () => {
   });
 
   it('denies with relation-unavailable without a source, on a throw and on an unloaded Promise', async () => {
-    const none = await dock('vera', null);
+    const none = await permdock('vera', null);
     expect(none.decide(permissions.doc.read, doc('d1', 'eng'))).toMatchObject({
       outcome: 'denied',
       denials: expect.arrayContaining([
         expect.objectContaining({ reason: 'relation-unavailable' }),
       ]),
     });
-    const throwing = await dock('vera', {
+    const throwing = await permdock('vera', {
       ancestors() {
         throw new Error('down');
       },
@@ -241,11 +241,11 @@ describe('relationship graph', () => {
       ancestors: (query) => Promise.resolve(source.ancestors(query)),
       related: (query) => Promise.resolve(source.related(query)),
     };
-    const vera = await dock('vera', slow);
+    const vera = await permdock('vera', slow);
     expect(vera.can(permissions.doc.read, doc('d1', 'eng'))).toBe(false);
     await vera.loadRelations(permissions.doc.read, [doc('d1', 'eng')]);
     expect(vera.can(permissions.doc.read, doc('d1', 'eng'))).toBe(true);
-    const rejecting = await dock('vera', {
+    const rejecting = await permdock('vera', {
       ancestors: () => Promise.reject(new Error('down')),
       related: () => Promise.reject(new Error('down')),
     });
@@ -255,7 +255,7 @@ describe('relationship graph', () => {
 
   it('rejects malformed source answers', async () => {
     // SAFETY: deliberately malformed source answers, to exercise fail-closed validation.
-    const junk = await dock('vera', {
+    const junk = await permdock('vera', {
       ancestors: () => ({ ancestors: [{ id: 7 }] }) as never,
       related: () => [{ principal: 'vera' }] as never,
     });
@@ -275,19 +275,19 @@ describe('relationship graph', () => {
       source.ancestors(query),
     );
     const counted: RelationSource = { ancestors, related };
-    const first = await dock('vera', counted);
+    const first = await permdock('vera', counted);
     first.can(permissions.doc.read, doc('d1', 'platform'));
     first.can(permissions.doc.read, doc('d7', 'platform'));
     first.tenant('acme').can(permissions.doc.read, doc('d8', 'platform'));
     const calls = related.mock.calls.length;
     expect(ancestors).toHaveBeenCalledTimes(1);
-    const second = await dock('vera', counted);
+    const second = await permdock('vera', counted);
     second.can(permissions.doc.read, doc('d1', 'platform'));
     expect(related.mock.calls.length).toBe(calls * 2);
   });
 
   it('intersects an array of relations', async () => {
-    const edith = await dock('edith');
+    const edith = await permdock('edith');
     expect(edith.can(permissions.doc.archive, doc('d9', 'eng', 'edith'))).toBe(
       true,
     );
@@ -307,18 +307,18 @@ describe('relationship graph', () => {
         ],
       },
     });
-    const ceo = await dock('ceo', people);
+    const ceo = await permdock('ceo', people);
     expect(
       ceo.can(permissions.employee.review, { id: 'dev', managerId: 'lead' }),
     ).toBe(true);
-    const lead = await dock('lead', people);
+    const lead = await permdock('lead', people);
     expect(
       lead.can(permissions.employee.review, { id: 'vp', managerId: 'ceo' }),
     ).toBe(false);
   });
 
   it('bounds a principal relation by its period', async () => {
-    const dana = await dock('dana');
+    const dana = await permdock('dana');
     const account = {
       id: 'a1',
       delegateId: 'dana',
@@ -366,7 +366,7 @@ describe('relationship graph', () => {
   });
 
   it('keeps the graph out of snapshots but in where()', async () => {
-    const vera = await dock('vera');
+    const vera = await permdock('vera');
     const snapshot = vera.snapshot();
     const grant =
       'grants' in snapshot
@@ -495,7 +495,7 @@ describe('relationship graph', () => {
       'rita',
     ]);
     const global = await (
-      await dock('olga')
+      await permdock('olga')
     ).whoCan(permissions.folder.read, folders[2]);
     expect(global.complete).toBe(false);
     const unlisted = await createPermDock(
@@ -507,7 +507,7 @@ describe('relationship graph', () => {
       (await unlisted.whoCan(permissions.folder.read, platform)).complete,
     ).toBe(false);
     const owners = await (
-      await dock('olga')
+      await permdock('olga')
     ).whoCan(permissions.doc.read, doc('d1', 'eng', 'owen'));
     expect(owners.holders.map((item) => item.principal.id)).toEqual([
       'owen',

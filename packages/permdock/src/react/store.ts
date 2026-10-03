@@ -515,9 +515,9 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
     };
   };
 
-  const wrap = (dock: PermDock): ClientPermDock => {
+  const wrap = (permdock: PermDock): ClientPermDock => {
     const client: ClientPermDock = {
-      ...dock,
+      ...permdock,
       status(permission?: Permission, data?: unknown): ClientStatus {
         if (permission === undefined) {
           return storeStatus();

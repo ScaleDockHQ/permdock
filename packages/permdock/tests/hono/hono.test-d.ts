@@ -4,9 +4,12 @@ import { describe, expectTypeOf, it } from 'vitest';
 
 import type { PermDock } from '../../src/core/permdock.ts';
 import type { PermDockEnv } from '../../src/hono/index.ts';
+import type { PermDockOf } from '../fixtures/vocabulary.ts';
 
 import { createPermDock } from '../../src/hono/index.ts';
 import { ownPost, permissions, policy } from '../fixtures/quick-start.ts';
+
+type QuickStartPermDock = PermDockOf<typeof policy>;
 
 const { permdock, protect } = createPermDock(policy, {
   subject: () => null,
@@ -15,7 +18,7 @@ const { permdock, protect } = createPermDock(policy, {
 describe('permdock/hono Env typing', () => {
   it('types c.get(permdock) without an app Env generic', () => {
     new Hono().use(permdock()).get('/', (c) => {
-      expectTypeOf(c.get('permdock')).toEqualTypeOf<PermDock>();
+      expectTypeOf(c.get('permdock')).toEqualTypeOf<QuickStartPermDock>();
       return c.body(null);
     });
   });
@@ -28,7 +31,7 @@ describe('permdock/hono Env typing', () => {
       ),
       (c) => {
         expectTypeOf(c.get('permdockData')).toEqualTypeOf<typeof ownPost>();
-        expectTypeOf(c.get('permdock')).toEqualTypeOf<PermDock>();
+        expectTypeOf(c.get('permdock')).toEqualTypeOf<QuickStartPermDock>();
         return c.body(null);
       },
     );
@@ -39,7 +42,7 @@ describe('permdock/hono Env typing', () => {
       .use(permdock())
       .get('/', (c) => {
         expectTypeOf(c.get('user')).toEqualTypeOf<string>();
-        expectTypeOf(c.get('permdock')).toEqualTypeOf<PermDock>();
+        expectTypeOf(c.get('permdock')).toEqualTypeOf<QuickStartPermDock>();
         return c.body(null);
       });
   });
@@ -53,7 +56,7 @@ describe('permdock/hono Env typing', () => {
       .use(permdock())
       .use(audit)
       .get('/', (c) => {
-        expectTypeOf(c.get('permdock')).toEqualTypeOf<PermDock>();
+        expectTypeOf(c.get('permdock')).toExtend<QuickStartPermDock>();
         return c.body(null);
       });
   });

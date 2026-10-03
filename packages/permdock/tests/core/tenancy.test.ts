@@ -139,7 +139,7 @@ describe('tenancy', () => {
         ],
       },
     );
-    const dock = createPermDock(policy, {
+    const permdock = createPermDock(policy, {
       principal: {
         id: 'u1',
         memberships: [
@@ -148,14 +148,14 @@ describe('tenancy', () => {
       },
       context: {},
     });
-    if (dock instanceof Promise) {
+    if (permdock instanceof Promise) {
       throw new TypeError('expected a synchronous instance');
     }
     const inFolder = { id: 'x1', folderId: 'f1' };
     const sameIdElsewhere = { id: 'f1', folderId: 'f9' };
-    expect(dock.can(permissions.file.read, inFolder)).toBe(true);
-    expect(dock.can(permissions.file.read, sameIdElsewhere)).toBe(false);
-    const where = dock.where(permissions.file.read);
+    expect(permdock.can(permissions.file.read, inFolder)).toBe(true);
+    expect(permdock.can(permissions.file.read, sameIdElsewhere)).toBe(false);
+    const where = permdock.where(permissions.file.read);
     expect(where.subject?.principal?.id).toBe('u1');
     expect(Object.keys(where)).not.toContain('subject');
     expect(where.condition).toEqual({
@@ -163,10 +163,10 @@ describe('tenancy', () => {
       field: 'folderId',
       value: 'f1',
     });
-    const snapshotDock = fromSnapshot(
-      parseSnapshot(JSON.stringify(dock.snapshot())),
+    const snapshotPermdock = fromSnapshot(
+      parseSnapshot(JSON.stringify(permdock.snapshot())),
     );
-    expect(snapshotDock.can(permissions.file.read, sameIdElsewhere)).toBe(
+    expect(snapshotPermdock.can(permissions.file.read, sameIdElsewhere)).toBe(
       false,
     );
   });
@@ -200,14 +200,14 @@ describe('tenancy', () => {
       },
     );
     const docFor = (on: { resource: string; id: string }) => {
-      const dock = createPermDock(policy, {
+      const permdock = createPermDock(policy, {
         principal: { id: 'u1', memberships: [{ on, roles: ['editor'] }] },
         context: {},
       });
-      if (dock instanceof Promise) {
+      if (permdock instanceof Promise) {
         throw new TypeError('expected a synchronous instance');
       }
-      return dock;
+      return permdock;
     };
     const row = { id: 'd1', folderId: 'f1', projectId: 'p1', orgId: 'o1' };
     expect(

@@ -182,14 +182,14 @@ describe('the attrs claim against Postgres', () => {
       const claims = await mint(user);
       // SAFETY: minted claims always carry a subject, so the principal is set
       const principal = subjectFromSupabase(claims).principal as Principal;
-      const dock = await createPermDock(policy, principal);
+      const permdock = await createPermDock(policy, principal);
       for (const [permission, table, rows] of [
         [permissions.report.read, 'report', REPORTS],
         [permissions.ticket.read, 'ticket', TICKETS],
       ] as const) {
         // SAFETY: every seeded row has an id and matches the resource its permission checks
         const expected = (rows as readonly { readonly id: string }[])
-          .filter((row) => dock.can(permission, row as never))
+          .filter((row) => permdock.can(permission, row as never))
           .map((row) => row.id)
           .toSorted();
         const actual = await as('authenticated', claims, async (client) =>

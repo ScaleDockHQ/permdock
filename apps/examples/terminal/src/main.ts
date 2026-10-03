@@ -3,7 +3,7 @@ import { createPermDock } from 'permdock/terminal';
 import { permissions, production, staging } from './permissions.ts';
 import { developerUser, policy, releaseUser } from './policy.ts';
 
-const factory = createPermDock(policy, {
+const { permdock, protect, filterCommands } = createPermDock(policy, {
   subject: async ({ token }) => {
     const raw = await token(['env', 'keychain']);
     if (raw === 'release') {
@@ -46,10 +46,10 @@ const commands = [
 
 const raw = process.argv.slice(2);
 const argv = raw[0] === '--' ? raw.slice(1) : raw;
-await factory.permdock();
+await permdock();
 
 if (argv[0] === '--help' || argv.length === 0) {
-  for (const entry of factory.filterCommands(commands, { mode: 'annotate' })) {
+  for (const entry of filterCommands(commands, { mode: 'annotate' })) {
     process.stdout.write(`${entry.name}\t${entry.description}\n`);
   }
 } else {
@@ -59,18 +59,18 @@ if (argv[0] === '--help' || argv.length === 0) {
   const data = envFlag === 'production' ? production : staging;
   const name = argv[0];
   if (name === 'status') {
-    await factory.protect(permissions.deploy.read)(() => {
+    await protect(permissions.deploy.read)(() => {
       process.stdout.write(`${data.id} ${data.env}\n`);
     })();
   } else if (name === 'deploy') {
-    await factory.protect(
+    await protect(
       permissions.deploy.run,
       () => data,
     )(() => {
       process.stdout.write(`deployed ${data.id} to ${data.env}\n`);
     })();
   } else if (name === 'rollback') {
-    await factory.protect(
+    await protect(
       permissions.deploy.rollback,
       () => data,
     )(() => {

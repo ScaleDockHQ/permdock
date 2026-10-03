@@ -12,7 +12,7 @@ import type {
 } from '../core/interfaces.ts';
 import type { PermDock } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
-import type { Policy } from '../core/policy.ts';
+import type { Policy, PolicyVocabulary } from '../core/policy.ts';
 import type { Delegation, Principal } from '../core/subject.ts';
 
 import { createAgentKernel } from '../agent/kernel.ts';
@@ -113,13 +113,13 @@ export type EveApprovalPair = {
   readonly response: (ctx: EveResponseContext) => Promise<EveResponseResult>;
 };
 
-export type EvePermDock = {
+export type EvePermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
   readonly approval: EveApprovalPair;
   readonly approvalFor: (
     permission: Permission,
     data?: (input: unknown) => unknown,
   ) => EveApprovalPair;
-  readonly permdock: (ctx: EveContext) => Promise<PermDock>;
+  readonly permdock: (ctx: EveContext) => Promise<PermDock<V>>;
 };
 
 const TOKENS_PER_PROCESS = 1000;
@@ -188,14 +188,18 @@ function callKey(sessionId: string | undefined, callId: string): string {
   return JSON.stringify([sessionId ?? null, callId]);
 }
 
-export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
-  policy: Policy<TUser, TPrincipal>,
+export function createPermDock<
+  TUser,
+  TPrincipal extends Principal = Principal,
+  V extends PolicyVocabulary = PolicyVocabulary,
+>(
+  policy: Policy<TUser, TPrincipal, V>,
   options: EvePermDockOptions<TUser>,
-): EvePermDock {
+): EvePermDock<V> {
   const store = options.store ?? memoryApprovalStore();
   const tokensByCall = boundedMap<string, string>(TOKENS_PER_PROCESS);
   // SAFETY: without options.subject, TUser is the { id, roles } user subjectFromSession builds, or null.
-  const kernel = createAgentKernel<EveContext, TUser>(policy, {
+  const kernel = createAgentKernel<EveContext, TUser, V>(policy, {
     ...compact({
       tenant: options.tenant,
       delegation: options.delegation,
@@ -224,13 +228,13 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     sessionId: string,
   ): Promise<Principal | null> => {
     try {
-      const dock = await kernel.instance({
+      const permdock = await kernel.instance({
         session: {
           id: sessionId,
           auth: { initiator: responder, current: responder },
         },
       });
-      return dock.subject.principal ?? null;
+      return permdock.subject.principal ?? null;
     } catch {
       return null;
     }

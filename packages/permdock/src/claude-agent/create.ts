@@ -11,7 +11,7 @@ import type {
   SnapshotSource,
 } from '../core/interfaces.ts';
 import type { PermDock } from '../core/permdock.ts';
-import type { Policy } from '../core/policy.ts';
+import type { Policy, PolicyVocabulary } from '../core/policy.ts';
 import type { Delegation, Principal } from '../core/subject.ts';
 
 import { createAgentKernel } from '../agent/kernel.ts';
@@ -96,21 +96,22 @@ export type PermissionRequestHookOutput =
     }
   | Record<string, never>;
 
-export type ClaudeAgentPermDock = {
-  /** A `CanUseTool`: pass it as the query's `canUseTool` option. */
-  readonly canUseTool: (
-    toolName: string,
-    input: Record<string, unknown>,
-    options?: CanUseToolOptions,
-  ) => Promise<PermissionResult>;
-  /** A `HookCallback` for the `PermissionRequest` event. */
-  readonly permissionRequestHook: (
-    input: PermissionRequestHookInput,
-    toolUseID?: string,
-    options?: { readonly signal?: AbortSignal },
-  ) => Promise<PermissionRequestHookOutput>;
-  readonly permdock: (context: ClaudeAgentContext) => Promise<PermDock>;
-};
+export type ClaudeAgentPermDock<V extends PolicyVocabulary = PolicyVocabulary> =
+  {
+    /** A `CanUseTool`: pass it as the query's `canUseTool` option. */
+    readonly canUseTool: (
+      toolName: string,
+      input: Record<string, unknown>,
+      options?: CanUseToolOptions,
+    ) => Promise<PermissionResult>;
+    /** A `HookCallback` for the `PermissionRequest` event. */
+    readonly permissionRequestHook: (
+      input: PermissionRequestHookInput,
+      toolUseID?: string,
+      options?: { readonly signal?: AbortSignal },
+    ) => Promise<PermissionRequestHookOutput>;
+    readonly permdock: (context: ClaudeAgentContext) => Promise<PermDock<V>>;
+  };
 
 const MCP_PREFIX = 'mcp__';
 
@@ -155,12 +156,16 @@ function toResult(verdict: ToolVerdict, input: unknown): PermissionResult {
   };
 }
 
-export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
-  policy: Policy<TUser, TPrincipal>,
+export function createPermDock<
+  TUser,
+  TPrincipal extends Principal = Principal,
+  V extends PolicyVocabulary = PolicyVocabulary,
+>(
+  policy: Policy<TUser, TPrincipal, V>,
   options: ClaudeAgentPermDockOptions<TUser>,
-): ClaudeAgentPermDock {
+): ClaudeAgentPermDock<V> {
   const sources = options.mcpSources ?? ['sdk'];
-  const kernel = createAgentKernel<ClaudeAgentContext, TUser>(policy, {
+  const kernel = createAgentKernel<ClaudeAgentContext, TUser, V>(policy, {
     ...compact({
       actor: options.actor,
       delegation: options.delegation,

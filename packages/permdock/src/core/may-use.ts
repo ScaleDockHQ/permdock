@@ -44,22 +44,22 @@ function blocksEveryRow(grant: SnapshotGrant): boolean {
  * unconditional deny, within its delegation. A listing hint for tools and
  * skills, never a decision; the call itself is decided in full.
  */
-export function mayUse(dock: PermDock, permission: Permission): boolean {
+export function mayUse(permdock: PermDock, permission: Permission): boolean {
   try {
-    const snapshot = dock.snapshot();
+    const snapshot = permdock.snapshot();
     if (!('grants' in snapshot)) {
       return false;
     }
     if (
       !delegationMayCover(
         permission,
-        dock.subject.delegation,
-        dock.subject.actor !== undefined,
+        permdock.subject.delegation,
+        permdock.subject.actor !== undefined,
       )
     ) {
       return false;
     }
-    const tenant = dock.subject.principal?.tenant;
+    const tenant = permdock.subject.principal?.tenant;
     const scopes = scopeList(snapshot.scopes);
     const grants = snapshot.grants.filter((grant) => {
       if (grant.permission !== permission.key) {
