@@ -5,8 +5,8 @@ export type DocsPageSummary = {
   readonly slugs: readonly string[];
 };
 
-export const DEFAULT_SEARCH_LIMIT = 8;
-export const MAX_SEARCH_LIMIT = 25;
+const DEFAULT_SEARCH_LIMIT = 8;
+const MAX_SEARCH_LIMIT = 25;
 
 function tokensOf(text: string): readonly string[] {
   return text
@@ -53,9 +53,7 @@ export function searchDocs(
   return pages
     .map((page) => ({ page, score: scorePage(page, queryTokens) }))
     .filter((entry) => entry.score > 0)
-    .toSorted(
-      (a, b) => b.score - a.score || a.page.url.localeCompare(b.page.url),
-    )
+    .toSorted((a, b) => b.score - a.score || (a.page.url < b.page.url ? -1 : 1))
     .slice(0, capped)
     .map((entry) => entry.page);
 }

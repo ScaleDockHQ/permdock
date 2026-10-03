@@ -1,4 +1,4 @@
-import { loader } from 'fumadocs-core/source';
+import { llms, loader } from 'fumadocs-core/source';
 import { lucideIconsPlugin } from 'fumadocs-core/source/lucide-icons';
 import { metaSchema, pageSchema } from 'fumadocs-core/source/schema';
 import { defineDocs } from 'fumadocs-mdx/macro';
@@ -58,3 +58,6 @@ export async function getLLMText(page: (typeof source)['$inferPage']) {
 
 ${processed}`;
 }
+
+/** `llms.txt`, `llms-full.txt`, the `.md` pages and the MCP `get_page` tool render through this. */
+export const docsLlms = llms(source, { renderPage: getLLMText });

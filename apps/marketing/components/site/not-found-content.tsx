@@ -1,6 +1,5 @@
-import { SiteLink } from '@/components/site/site-link';
+import { ButtonLink } from '@/components/site/button-link';
 import { site } from '@/lib/site';
-import { Button } from '@permdock/ui/components/button';
 
 export function NotFoundContent() {
   return (
@@ -10,16 +9,10 @@ export function NotFoundContent() {
         That URL is not a marketing route. Docs still live under /docs.
       </p>
       <div className="flex gap-2">
-        <Button nativeButton={false} render={<SiteLink href="/" />}>
-          Home
-        </Button>
-        <Button
-          variant="outline"
-          nativeButton={false}
-          render={<SiteLink href={site.docs} />}
-        >
+        <ButtonLink href="/">Home</ButtonLink>
+        <ButtonLink variant="outline" href={site.docs}>
           Docs
-        </Button>
+        </ButtonLink>
       </div>
     </div>
   );

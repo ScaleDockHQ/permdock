@@ -1,8 +1,7 @@
+import { ButtonLink } from '@/components/site/button-link';
 import { ScrollRegion } from '@/components/site/scroll-region';
-import { SiteLink } from '@/components/site/site-link';
 import { compareMatrix } from '@/lib/compare';
 import { site } from '@/lib/site';
-import { Button } from '@permdock/ui/components/button';
 import { Frame, FramePanel } from '@permdock/ui/reui/frame';
 
 export const metadata = {
@@ -59,12 +58,7 @@ export default function PricingPage() {
               <p className="text-muted-foreground flex-1 text-sm leading-6">
                 {tier.body}
               </p>
-              <Button
-                nativeButton={false}
-                render={<SiteLink href={tier.cta.href} />}
-              >
-                {tier.cta.label}
-              </Button>
+              <ButtonLink href={tier.cta.href}>{tier.cta.label}</ButtonLink>
             </FramePanel>
           </Frame>
         ))}

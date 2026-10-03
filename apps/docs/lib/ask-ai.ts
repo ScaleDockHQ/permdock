@@ -102,3 +102,59 @@ export const pageInput = toolInput(
     additionalProperties: false,
   },
 );
+
+/** The `@vercel/firewall` rule ID; the rule is configured in the Vercel Firewall. */
+export const askAiRateLimitId = 'docs-ask-ai';
+
+export type AskAiChecks = {
+  readonly isBot: () => Promise<boolean>;
+  readonly rateLimit: (request: Request) => Promise<{
+    readonly rateLimited: boolean;
+    readonly error?: 'not-found' | 'blocked';
+  }>;
+};
+
+export function askAiProblem(
+  status: number,
+  title: string,
+  detail: string,
+  headers: Record<string, string> = {},
+): Response {
+  return Response.json(
+    { title, status, detail },
+    {
+      status,
+      headers: { ...headers, 'Content-Type': 'application/problem+json' },
+    },
+  );
+}
+
+/**
+ * Bot and rate-limit checks before the model runs. A missing rate-limit rule
+ * or a failed check closes Ask AI instead of leaving it unlimited.
+ */
+export async function guardAskAi(
+  request: Request,
+  checks: AskAiChecks,
+): Promise<Response | null> {
+  try {
+    if (await checks.isBot()) {
+      return askAiProblem(403, 'Automated request', 'Ask AI is for people.');
+    }
+    const { rateLimited, error } = await checks.rateLimit(request);
+    if (error === 'not-found') {
+      return askAiProblem(503, 'Ask AI unavailable', 'Try again later.');
+    }
+    if (rateLimited) {
+      return askAiProblem(
+        429,
+        'Too many questions',
+        'Wait a minute before you ask again.',
+        { 'Retry-After': '60' },
+      );
+    }
+    return null;
+  } catch {
+    return askAiProblem(503, 'Ask AI unavailable', 'Try again later.');
+  }
+}

@@ -1,9 +1,9 @@
-import { AgentActivity } from '@/components/blocks/agent-activity-1/components/agent-activity';
 import { ScrollRegion } from '@/components/site/scroll-region';
 import { SiteLink } from '@/components/site/site-link';
 import { agentRuntimes } from '@/lib/site';
 import { Badge } from '@permdock/ui/reui/badge';
 
+import { AgentRunDemo } from './activity-demos';
 import { Section } from './section';
 
 export function AgentNative() {
@@ -26,7 +26,7 @@ export function AgentNative() {
         ))}
       </div>
       <ScrollRegion aria-label="Agent activity" className="w-full">
-        <AgentActivity />
+        <AgentRunDemo />
       </ScrollRegion>
     </Section>
   );

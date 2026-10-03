@@ -1,5 +1,3 @@
-'use client';
-
 import { surfaceSnippets } from '@/lib/snippets';
 import {
   Tabs,

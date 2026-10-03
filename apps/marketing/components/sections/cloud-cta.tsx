@@ -2,8 +2,8 @@ import { ArrowRightIcon, CloudIcon } from 'lucide-react';
 import Link from 'next/link';
 
 import { CtaGridBackground } from '@/components/blocks/cta-3/components/cta-grid-background';
+import { ButtonLink } from '@/components/site/button-link';
 import { site } from '@/lib/site';
-import { Button } from '@permdock/ui/components/button';
 import { Badge } from '@permdock/ui/reui/badge';
 import { Frame, FramePanel } from '@permdock/ui/reui/frame';
 
@@ -45,13 +45,10 @@ export function CloudCta() {
               </Link>
               . The in-process defaults stay in the MIT package either way.
             </p>
-            <Button
-              nativeButton={false}
-              render={<Link href={site.cloud.app} />}
-            >
+            <ButtonLink href={site.cloud.app}>
               Open Cloud
               <ArrowRightIcon aria-hidden="true" />
-            </Button>
+            </ButtonLink>
           </div>
         </FramePanel>
       </Frame>

@@ -35,6 +35,7 @@ Inter is `--font-sans` and Geist Mono is `--font-mono`, both loaded with `next/f
 
 - `packages/ui/src/components` holds shadcn/ui (`base-vega`, Base UI primitives) and the AI Elements. `packages/ui/src/reui` holds ReUI. Import each file on its own path (`@permdock/ui/components/button`); there is no barrel.
 - Add a primitive with the shadcn CLI from `packages/ui`, and keep the vendored file as published. Changes go in a wrapper in the app.
+- A link that looks like a button is `ButtonLink` (`apps/marketing/components/site/button-link.tsx`): a server-rendered `SiteLink` with `buttonVariants`. `Button` is for actions; `Button render={<SiteLink />}` ships Base UI's button to the client for a plain link.
 - `apps/marketing/components/blocks` and `components/examples` are ReUI blocks, installed as published. `components/sections` composes them into pages; `components/site` is the chrome.
 - Docs pages use Fumadocs UI (`@fumadocs/base-ui`) and the MDX components in `apps/docs/components/mdx.tsx`.
 

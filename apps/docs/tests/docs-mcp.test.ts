@@ -1,189 +1,148 @@
-import { describe, expect, it } from 'vitest';
-
 import {
-  findPage,
-  handleMcpBody,
-  negotiateProtocolVersion,
-  normalizeDocsPath,
-  searchDocs,
-  type DocsMcpTools,
-  type DocsPageSummary,
-} from '../lib/docs-mcp';
+  Client,
+  StreamableHTTPClientTransport,
+} from '@modelcontextprotocol/client';
+import { createSearchAPI } from 'fumadocs-core/search/server';
+import { llms, loader } from 'fumadocs-core/source';
+import { afterEach, describe, expect, it } from 'vitest';
 
-const pages: readonly DocsPageSummary[] = [
+import { createDocsMcpHandler, withCors } from '../lib/docs-mcp';
+import packageJson from '../package.json' with { type: 'json' };
+
+const pages = [
+  { path: 'index.mdx', title: 'PermDock', description: 'Overview' },
   {
+    path: 'adapters/hono.mdx',
     title: 'Hono',
     description: 'Fetch kernel adapter for Hono',
-    url: '/docs/adapters/hono',
-    slugs: ['adapters', 'hono'],
   },
-  {
-    title: 'Extension interfaces',
-    description: 'LimitStore and exhausted quotas',
-    url: '/docs/concepts/extension-interfaces',
-    slugs: ['concepts', 'extension-interfaces'],
+] as const;
+
+const source = loader({
+  baseUrl: '/docs',
+  source: {
+    files: pages.map((page) => ({
+      type: 'page' as const,
+      path: page.path,
+      data: { title: page.title, description: page.description },
+    })),
   },
-  {
-    title: 'Naming',
-    description: 'Public identifiers',
-    url: '/docs/getting-started/naming',
-    slugs: ['getting-started', 'naming'],
-  },
-];
-
-const tools: DocsMcpTools = {
-  search: (query, limit) => searchDocs(pages, query, limit),
-  getPage: (path) => {
-    const page = findPage(pages, path);
-    return Promise.resolve(
-      page === null ? null : `# ${page.title}\n\n${page.description}`,
-    );
-  },
-};
-
-describe('searchDocs', () => {
-  it('ranks title matches above path matches', () => {
-    const hits = searchDocs(pages, 'hono');
-    expect(hits[0]?.url).toBe('/docs/adapters/hono');
-  });
-
-  it('returns nothing for an empty query', () => {
-    expect(searchDocs(pages, '   ')).toEqual([]);
-  });
-
-  it('caps the limit', () => {
-    expect(searchDocs(pages, 'adapter', 1)).toHaveLength(1);
-  });
 });
 
-describe('normalizeDocsPath', () => {
-  it('strips /docs, hosts and suffixes', () => {
-    expect(normalizeDocsPath('/docs/adapters/hono')).toEqual([
-      'adapters',
-      'hono',
-    ]);
-    expect(
-      normalizeDocsPath('https://permdock.dev/docs/adapters/hono.md'),
-    ).toEqual(['adapters', 'hono']);
-    expect(normalizeDocsPath('llms.mdx/docs/adapters/hono')).toEqual([
-      'adapters',
-      'hono',
-    ]);
-  });
-});
-
-describe('findPage', () => {
-  it('resolves a slug path', () => {
-    expect(findPage(pages, 'adapters/hono')?.title).toBe('Hono');
-  });
-
-  it('returns null for an unknown path', () => {
-    expect(findPage(pages, 'adapters/missing')).toBeNull();
-  });
-});
-
-describe('negotiateProtocolVersion', () => {
-  it('echoes a known version and otherwise uses 2025-03-26', () => {
-    expect(negotiateProtocolVersion('2025-11-05')).toBe('2025-11-05');
-    expect(negotiateProtocolVersion('nope')).toBe('2025-03-26');
-  });
-});
-
-describe('handleMcpBody', () => {
-  it('initializes without a subject', async () => {
-    const result = await handleMcpBody(
+const handler = createDocsMcpHandler({
+  source,
+  search: createSearchAPI('simple', {
+    indexes: [
       {
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'initialize',
-        params: { protocolVersion: '2025-03-26' },
+        title: 'Hono',
+        description: 'Fetch kernel adapter for Hono',
+        content: 'Fetch kernel adapter for Hono',
+        url: '/docs/adapters/hono',
       },
-      tools,
-    );
-    expect(result.status).toBe(200);
-    expect(result.body).toMatchObject({
-      result: {
-        serverInfo: { name: 'permdock-docs' },
-        capabilities: { tools: {} },
-      },
+    ],
+  }),
+  llms: llms(source, {
+    renderPage: (page) => `# ${page.data.title}\n\n${page.data.description}`,
+  }),
+});
+
+const endpoint = new URL('https://docs.test/mcp');
+const clients: Client[] = [];
+
+async function connect(): Promise<Client> {
+  const client = new Client({ name: 'docs-mcp-test', version: '1.0.0' });
+  await client.connect(
+    new StreamableHTTPClientTransport(endpoint, {
+      fetch: (url, init) => handler.fetch(new Request(url, init)),
+    }),
+  );
+  clients.push(client);
+  return client;
+}
+
+function text(result: Awaited<ReturnType<Client['callTool']>>): string {
+  const [first] = 'content' in result ? result.content : [];
+  return first?.type === 'text' ? first.text : '';
+}
+
+afterEach(async () => {
+  await Promise.all(clients.splice(0).map((client) => client.close()));
+});
+
+describe('docs MCP', () => {
+  it('names itself with the docs package version', async () => {
+    const client = await connect();
+    expect(client.getServerVersion()).toMatchObject({
+      name: 'permdock-docs',
+      version: packageJson.version,
     });
   });
 
-  it('lists the two read-only tools', async () => {
-    const result = await handleMcpBody(
-      { jsonrpc: '2.0', id: 2, method: 'tools/list' },
-      tools,
-    );
-    expect(result.body).toMatchObject({
-      result: {
-        tools: [{ name: 'search_docs' }, { name: 'get_page' }],
-      },
-    });
+  it('lists only the read-only fumadocs tools', async () => {
+    const client = await connect();
+    const { tools } = await client.listTools();
+    expect(tools.map((tool) => tool.name).toSorted()).toEqual([
+      'get_page',
+      'list_pages',
+      'search',
+    ]);
   });
 
-  it('searches and fetches a page', async () => {
-    const search = await handleMcpBody(
-      {
-        jsonrpc: '2.0',
-        id: 3,
-        method: 'tools/call',
-        params: { name: 'search_docs', arguments: { query: 'extension' } },
-      },
-      tools,
-    );
-    expect(JSON.stringify(search.body)).toContain(
-      'concepts/extension-interfaces',
-    );
+  it('searches, lists and fetches pages', async () => {
+    const client = await connect();
+    const search = await client.callTool({
+      name: 'search',
+      arguments: { query: 'hono' },
+    });
+    expect(text(search)).toContain('/docs/adapters/hono');
 
-    const page = await handleMcpBody(
-      {
-        jsonrpc: '2.0',
-        id: 4,
-        method: 'tools/call',
-        params: {
-          name: 'get_page',
-          arguments: { path: '/docs/adapters/hono' },
+    const list = await client.callTool({ name: 'list_pages', arguments: {} });
+    expect(text(list)).toContain('[Hono](/docs/adapters/hono)');
+
+    const page = await client.callTool({
+      name: 'get_page',
+      arguments: { url: '/docs/adapters/hono' },
+    });
+    expect(text(page)).toBe('# Hono\n\nFetch kernel adapter for Hono');
+  });
+
+  it('reports an unknown page as a tool error', async () => {
+    const client = await connect();
+    const result = await client.callTool({
+      name: 'get_page',
+      arguments: { url: '/docs/nope' },
+    });
+    expect(result).toMatchObject({ isError: true });
+  });
+
+  it('never answers with a protocol version it does not serve', async () => {
+    const response = await handler.fetch(
+      new Request(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json, text/event-stream',
         },
-      },
-      tools,
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'initialize',
+          params: {
+            protocolVersion: '2025-11-05',
+            capabilities: {},
+            clientInfo: { name: 'raw', version: '1.0.0' },
+          },
+        }),
+      }),
     );
-    expect(JSON.stringify(page.body)).toContain('# Hono');
+    expect(await response.text()).not.toContain('2025-11-05');
   });
+});
 
-  it('fails closed on an unknown page and an unknown tool', async () => {
-    const missing = await handleMcpBody(
-      {
-        jsonrpc: '2.0',
-        id: 5,
-        method: 'tools/call',
-        params: { name: 'get_page', arguments: { path: 'nope' } },
-      },
-      tools,
-    );
-    expect(JSON.stringify(missing.body)).toContain('Unknown page');
-
-    const unknown = await handleMcpBody(
-      {
-        jsonrpc: '2.0',
-        id: 6,
-        method: 'tools/call',
-        params: { name: 'decide', arguments: {} },
-      },
-      tools,
-    );
-    expect(JSON.stringify(unknown.body)).toContain('Unknown tool');
-  });
-
-  it('acknowledges initialized with 202 and no body', async () => {
-    const result = await handleMcpBody(
-      { jsonrpc: '2.0', method: 'notifications/initialized' },
-      tools,
-    );
-    expect(result).toEqual({ status: 202, body: null });
-  });
-
-  it('rejects a non-request', async () => {
-    const result = await handleMcpBody({ hello: true }, tools);
-    expect(result.status).toBe(400);
+describe('withCors', () => {
+  it('adds the CORS headers and keeps the status', () => {
+    const response = withCors(new Response(null, { status: 202 }));
+    expect(response.status).toBe(202);
+    expect(response.headers.get('Access-Control-Allow-Origin')).toBe('*');
   });
 });

@@ -1,10 +1,10 @@
-import {
-  findPage,
-  searchDocs,
-  type DocsMcpTools,
-  type DocsPageSummary,
-} from './docs-mcp';
+import { findPage, searchDocs, type DocsPageSummary } from './docs-pages';
 import { getLLMText, source } from './source';
+
+export type DocsTools = {
+  readonly search: (query: string, limit: number) => readonly DocsPageSummary[];
+  readonly getPage: (path: string) => Promise<string | null>;
+};
 
 function pages(): readonly DocsPageSummary[] {
   return source.getPages().map((page) => ({
@@ -15,8 +15,8 @@ function pages(): readonly DocsPageSummary[] {
   }));
 }
 
-/** Page search and fetch over the docs source, shared by `/mcp` and Ask AI. */
-export function docsTools(): DocsMcpTools {
+/** Page search and fetch over the docs source, for the Ask AI tools. */
+export function docsTools(): DocsTools {
   const catalog = pages();
   return {
     search: (query, limit) => searchDocs(catalog, query, limit),

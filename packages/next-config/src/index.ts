@@ -29,9 +29,16 @@ export const documentSecurityHeaders: readonly {
   { key: 'Cross-Origin-Opener-Policy', value: 'same-origin-allow-popups' },
 ];
 
+export type NextConfigHeaderRule = {
+  readonly source: string;
+  readonly headers: readonly { readonly key: string; readonly value: string }[];
+};
+
 export type CreateNextConfigOptions = {
   /** Barrel packages to tree-shake beyond the Next.js defaults. */
   readonly optimizePackageImports?: readonly string[];
+  /** Header rules added after the document security headers. */
+  readonly headers?: readonly NextConfigHeaderRule[];
 };
 
 export function createNextConfig(
@@ -51,29 +58,21 @@ export function createNextConfig(
     headers() {
       return Promise.resolve([
         { source: '/(.*)', headers: [...documentSecurityHeaders] },
+        ...(options.headers ?? []).map((rule) => ({
+          source: rule.source,
+          headers: [...rule.headers],
+        })),
       ]);
     },
     experimental: {
-      varyParams: true,
-      optimisticRouting: true,
-      cachedNavigations: true,
-      prefetchInlining: true,
-      useOffline: true,
       globalNotFound: true,
-      appNewScrollHandler: true,
-      instantInsights: { validationLevel: 'warning' },
       requestInsights: true,
-      authInterrupts: true,
       typedEnv: true,
-      taint: true,
       turbopackRustReactCompiler: true,
-      // The persistent Turbopack cache has hung parallel Next builds on 2-vCPU runners.
+      // GitHub runners start without `.next/cache`, and the persistent cache has hung parallel builds there.
       turbopackFileSystemCacheForBuild:
         process.env['GITHUB_ACTIONS'] !== 'true',
-      // TypeScript 7 has no JS compiler API; `pnpm typecheck` is the type gate.
-      useTypeScriptCli: true,
       optimizePackageImports: [...(options.optimizePackageImports ?? [])],
-      webVitalsAttribution: ['CLS', 'LCP'],
       // `@next/playwright` `instant()` locks; never set on a real production deploy.
       exposeTestingApiInProductionBuild:
         process.env['EXPOSE_TESTING_API'] === '1',

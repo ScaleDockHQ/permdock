@@ -1,5 +1,3 @@
-'use client';
-
 import { portableSnippets } from '@/lib/snippets';
 import {
   Tabs,

@@ -177,6 +177,8 @@ catalog:
   package-manager-detector: 1.8.0
   smol-toml: 1.9.0
   diff: 9.0.0
+  '@vercel/firewall': 1.2.5
+  botid: 1.5.11
 
 catalogs:
   ts59:

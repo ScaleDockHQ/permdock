@@ -1,7 +1,5 @@
-import Link from 'next/link';
-
+import { ButtonLink } from '@/components/site/button-link';
 import { site } from '@/lib/site';
-import { Button } from '@permdock/ui/components/button';
 import { Frame, FramePanel } from '@permdock/ui/reui/frame';
 
 import { Section } from './section';
@@ -21,16 +19,10 @@ export function CloudBand() {
             relay. None of it sits on the decision path.
           </p>
           <div className="flex flex-wrap items-center gap-2">
-            <Button nativeButton={false} render={<Link href="/cloud" />}>
-              PermDock Cloud
-            </Button>
-            <Button
-              variant="outline"
-              nativeButton={false}
-              render={<Link href={site.cloud.app} />}
-            >
+            <ButtonLink href="/cloud">PermDock Cloud</ButtonLink>
+            <ButtonLink variant="outline" href={site.cloud.app}>
               Open Cloud
-            </Button>
+            </ButtonLink>
           </div>
         </FramePanel>
       </Frame>

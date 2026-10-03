@@ -1,3 +1,4 @@
+import { checkRateLimit } from '@vercel/firewall';
 import {
   convertToModelMessages,
   createUIMessageStreamResponse,
@@ -6,12 +7,23 @@ import {
   toUIMessageStream,
   tool,
 } from 'ai';
+import { checkBotId } from 'botid/server';
 
-import { pageInput, parseChatRequest, searchInput } from '@/lib/ask-ai';
+import { env } from '@/env';
+import {
+  askAiProblem,
+  askAiRateLimitId,
+  guardAskAi,
+  pageInput,
+  parseChatRequest,
+  searchInput,
+  type AskAiChecks,
+} from '@/lib/ask-ai';
 import { docsTools } from '@/lib/docs-tools';
 
 const model = 'anthropic/claude-sonnet-5.5';
 const searchLimit = 8;
+const docs = docsTools();
 
 const instructions = `You answer questions about PermDock, a TypeScript authorization library, using only its documentation.
 Call search_docs to find relevant pages, then get_page to read them before you answer.
@@ -19,14 +31,23 @@ Cite every page you rely on as a Markdown link to its URL.
 If the documentation does not answer the question, say so instead of guessing.
 Keep answers short and show code in fenced blocks.`;
 
+const vercelChecks: AskAiChecks = {
+  isBot: async () => (await checkBotId()).isBot,
+  rateLimit: (request) => checkRateLimit(askAiRateLimitId, { request }),
+};
+
 function problem(status: number, detail: string): Response {
-  return Response.json(
-    { title: 'Invalid chat request', status, detail },
-    { status, headers: { 'Content-Type': 'application/problem+json' } },
-  );
+  return askAiProblem(status, 'Invalid chat request', detail);
 }
 
 export async function POST(request: Request): Promise<Response> {
+  // BotID and the Firewall answer only on Vercel; local and e2e servers skip them.
+  if (env.VERCEL === '1') {
+    const blocked = await guardAskAi(request, vercelChecks);
+    if (blocked !== null) {
+      return blocked;
+    }
+  }
   let body: unknown;
   try {
     body = await request.json();
@@ -38,7 +59,6 @@ export async function POST(request: Request): Promise<Response> {
     return problem(parsed.status, parsed.detail);
   }
 
-  const docs = docsTools();
   const result = streamText({
     model,
     instructions,

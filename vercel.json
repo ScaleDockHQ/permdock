@@ -45,6 +45,12 @@
       }
     },
     {
+      "source": "/docs.md",
+      "destination": {
+        "service": "docs"
+      }
+    },
+    {
       "source": "/api/search",
       "destination": {
         "service": "docs"
@@ -82,6 +88,12 @@
     },
     {
       "source": "/og/(.*)",
+      "destination": {
+        "service": "docs"
+      }
+    },
+    {
+      "source": "/149e9513-01fa-4fb0-aad4-566afd725d1b/(.*)",
       "destination": {
         "service": "docs"
       }

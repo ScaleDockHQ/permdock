@@ -5,9 +5,8 @@ import {
   ShieldIcon,
 } from 'lucide-react';
 
-import { SiteLink } from '@/components/site/site-link';
+import { ButtonLink } from '@/components/site/button-link';
 import { site } from '@/lib/site';
-import { Button } from '@permdock/ui/components/button';
 import { Item, ItemMedia } from '@permdock/ui/components/item';
 import { Badge } from '@permdock/ui/reui/badge';
 import { Frame, FramePanel } from '@permdock/ui/reui/frame';
@@ -65,22 +64,13 @@ export function Closer() {
         </div>
       </Frame>
       <div className="flex flex-wrap items-center justify-center gap-3">
-        <Button
-          nativeButton={false}
-          render={<SiteLink href={site.getStarted} />}
-          size="lg"
-        >
+        <ButtonLink href={site.getStarted} size="lg">
           Get started
           <ArrowRightIcon aria-hidden="true" />
-        </Button>
-        <Button
-          variant="outline"
-          nativeButton={false}
-          render={<SiteLink href={site.docs} />}
-          size="lg"
-        >
+        </ButtonLink>
+        <ButtonLink variant="outline" href={site.docs} size="lg">
           View documentation
-        </Button>
+        </ButtonLink>
       </div>
     </section>
   );

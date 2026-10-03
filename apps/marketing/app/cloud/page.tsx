@@ -1,7 +1,6 @@
 import { ClipboardListIcon, InboxIcon, ShieldIcon } from 'lucide-react';
 
-import { AgentActivity } from '@/components/blocks/agent-activity-1/components/agent-activity';
-import { AgentActivity as McpActivity } from '@/components/blocks/agent-activity-4/components/agent-activity';
+import { AgentRunDemo, McpRunDemo } from '@/components/sections/activity-demos';
 import { CloudCta } from '@/components/sections/cloud-cta';
 import { PageHero } from '@/components/sections/page-hero';
 import { Section } from '@/components/sections/section';
@@ -53,7 +52,7 @@ export default function CloudPage() {
         description="The same approval-required Decision the agent runtime already halted on. Cloud hosts the inbox; decide() still runs in your process."
       >
         <ScrollRegion aria-label="Agent activity">
-          <AgentActivity />
+          <AgentRunDemo />
         </ScrollRegion>
       </Section>
       <Section
@@ -61,7 +60,7 @@ export default function CloudPage() {
         description="A missing grant is denied, not a boolean false with no reason. The table is an illustration of protectServer, not a live PDP."
       >
         <ScrollRegion aria-label="MCP activity">
-          <McpActivity />
+          <McpRunDemo />
         </ScrollRegion>
       </Section>
       <CloudCta />

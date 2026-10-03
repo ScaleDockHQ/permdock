@@ -1,8 +1,6 @@
-'use client';
-
 import { CircleHelpIcon, LifeBuoyIcon, MailIcon } from 'lucide-react';
 
-import { SiteLink } from '@/components/site/site-link';
+import { ButtonLink } from '@/components/site/button-link';
 import { faqItems } from '@/lib/faq';
 import { site } from '@/lib/site';
 import {
@@ -11,7 +9,6 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@permdock/ui/components/accordion';
-import { Button } from '@permdock/ui/components/button';
 import { Card, CardContent } from '@permdock/ui/components/card';
 import { Badge } from '@permdock/ui/reui/badge';
 
@@ -75,13 +72,9 @@ export function FaqSection() {
               <p className="text-muted-foreground text-sm leading-6">
                 Read the threat model, or email us. No invented SLA.
               </p>
-              <Button
-                nativeButton={false}
-                render={<SiteLink href="/docs/security/threat-model" />}
-                className="w-full"
-              >
+              <ButtonLink href="/docs/security/threat-model" className="w-full">
                 Threat model
-              </Button>
+              </ButtonLink>
               <div className="border-border/60 flex items-center gap-2.5 border-t pt-4 text-sm">
                 <MailIcon
                   className="text-muted-foreground size-4"
