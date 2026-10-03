@@ -47,7 +47,7 @@ export async function pd002(input: {
     cwd: input.cwd,
     config: input.config,
     collect: input.config.collect ?? {},
-    check: false,
+    check: true,
     now: input.now,
     io: input.io,
   });

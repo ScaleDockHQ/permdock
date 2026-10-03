@@ -16,7 +16,7 @@ permdock doctor --fix          # apply safe fixes (install skills, regenerate th
 
 Exit code `1` on any error, `0` otherwise; warnings only fail with `--strict`.
 
-On a terminal, `--fix` asks before it writes; answering no prints the report without fixing, and cancelling exits `2`. In CI, in a pipe or with `--json` it fixes without asking.
+Without `--fix`, doctor only reads: it never writes the catalog or any other file. On a terminal, `--fix` asks before it writes; answering no prints the report without fixing, and cancelling exits `2`. In CI, in a pipe or with `--json` it fixes without asking.
 
 ## Checks
 

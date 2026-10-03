@@ -1,8 +1,11 @@
+import { existsSync, rmSync } from "node:fs";
+import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
 import type { DoctorFinding } from "../../src/cli/doctor-types.ts";
 import type { PermDockConfig } from "../../src/cli/types.ts";
 
+import { runCollect } from "../../src/cli/collect.ts";
 import {
   pd002,
   pd003,
@@ -139,6 +142,19 @@ describe("PD002, PD003 and PD004 read the collected catalog", () => {
     ).toEqual([]);
   });
 
+  it("PD002 reads the sources without writing a catalog", async () => {
+    const cwd = policyProject(
+      {},
+      {
+        "src/check.ts": `import { permissions } from './permissions.ts';\nexport const x = can(permissions.post.read);\n`,
+      },
+    );
+    const catalog = join(cwd, "permissions.catalog.json");
+    rmSync(catalog, { force: true });
+    expect(await pd002({ cwd, config: {}, now: NOW, io: quietIo })).toEqual([]);
+    expect(existsSync(catalog)).toBe(false);
+  });
+
   it("PD003 names a used permission no grant gives", async () => {
     const cwd = policyProject(
       { policy: `  roles: [role('member', [allow(permissions.post.read)])],` },
@@ -175,7 +191,14 @@ describe("PD002, PD003 and PD004 read the collected catalog", () => {
         io: quietIo,
       }),
     ).toEqual([]);
-    await pd002({ cwd, config: {}, now: NOW, io: quietIo });
+    await runCollect({
+      cwd,
+      config: {},
+      collect: {},
+      check: false,
+      now: NOW,
+      io: quietIo,
+    });
     expect(await pd004({ cwd, config: {}, now: NOW, io: quietIo })).toEqual([]);
   });
 });
