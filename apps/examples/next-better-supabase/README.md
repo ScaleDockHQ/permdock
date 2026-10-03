@@ -8,7 +8,7 @@ Snapshot-only mode: every grant is portable, so the provider has `endpoint={fals
 pnpm --filter @permdock/example-next-better-supabase serve
 ```
 
-`serve` needs Docker. It starts a throwaway Postgres 17 (testcontainers), applies the auth stub, the migrations and the seed, generates an ES256 key, then runs `next build` and `next start` on `http://127.0.0.1:3489/en`.
+`serve` needs Docker. It starts a throwaway Postgres 17 (testcontainers), applies the auth stub (the Supabase roles and `auth` readers), the migrations and the seed, generates an ES256 key, then runs `next build` and `next start` on `http://127.0.0.1:3489/en`.
 
 Sign in as:
 
@@ -19,7 +19,10 @@ Sign in as:
 Where things live:
 
 - `src/policy.ts` and `src/sources.ts`: the policy and the membership sources the token hook and the SQL helpers share.
-- `supabase/migrations`: the app tables, then `permdock rls generate --target sql` (helpers and policies), the `features` claim function over `member_organization_ids_for`, and `permdock supabase hook generate --grants-out` (the access-token hook and its grants).
+- `supabase/config.toml`: the local stack on ports 54420 to 54429, pg-delta (`[experimental.pgdelta]`) and the token hook in the private `permdock` schema, which `[api] schemas` leaves out.
+- `supabase/schemas`: the source of truth, in pg-delta's per-schema layout. `public/tables` holds the app tables with `created_at` and `updated_at`, money as `amount_minor` plus `currency`, and the better-supabase `updated-at` and `audit` triggers. `permdock/` and `public/policies/permdock.sql` come from `permdock rls generate --split`, and `better_supabase/` comes from `better-supabase sql sync`.
+- `supabase/migrations`: the baseline from `pnpm supabase:diff baseline` (`supabase db schema declarative sync`), the `role_permissions` seeds from `--seeds-out`, and the `audited_tables` rows. Never edit the schema in Studio or with `psql`: the diff does not see those changes.
+- `supabase/tests`: pgTAP over the seeded tenants; `pnpm supabase:start`, then `pnpm supabase:test`.
 - `permdock.manifest.json`: what the hook and helpers expect, from `permdock supabase inspect --out`; `pnpm gen` writes it, `pnpm gen:check` and `pnpm run doctor` fail on drift.
 - `src/lib/supabase/index.ts`: the `betterSupabase` definition; sessions validated with `supabaseClaims().extend(...)`.
 - `src/lib/supabase/server.ts`: `import 'server-only'`, then `bs = createNext(betterSupabase, ...)` with direct Postgres, an inline JWKS and explicit issuer and audience.

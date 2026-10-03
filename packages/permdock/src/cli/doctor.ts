@@ -70,6 +70,7 @@ import { createStyle } from './style.ts';
 import { pd045 } from './supabase-config.ts';
 import {
   attrsPlan,
+  hookOut,
   loadScopes,
   supabaseHookManifest,
 } from './supabase-hook.ts';
@@ -347,6 +348,7 @@ async function supabaseSetup(input: {
     manifest = supabaseHookManifest(
       await loadScopes(input.cwd, input.config),
       input.config,
+      { out: hookOut(input.cwd, input.config) },
     );
   } catch {
     return [];

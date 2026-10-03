@@ -13,6 +13,16 @@ const internal = [
 
 export default defineConfig({
   output: 'src/lib/supabase/generated.ts',
+  sql: {
+    dir: 'supabase/schemas/better_supabase',
+    testsDir: 'supabase/tests',
+    kit: ['updated-at', 'audit', 'pgtap'],
+  },
+  doctor: {
+    // staff and quotes are read-only to clients: the API roles hold no write
+    // privilege on them, so a missing insert, update or delete policy denies nothing extra.
+    ignore: ['BS107'],
+  },
   expose: {
     organizations: { anon: ['select'], authenticated: ['select'] },
     staff: ['select'],

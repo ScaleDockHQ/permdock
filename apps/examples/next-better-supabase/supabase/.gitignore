@@ -1,0 +1,5 @@
+# Supabase CLI state and the local stack's signing key.
+.branches
+.temp
+.env
+signing_keys.json

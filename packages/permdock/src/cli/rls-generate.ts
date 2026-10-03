@@ -56,9 +56,11 @@ import {
   driftOf,
   parseSplit,
   partPath,
+  pgDeltaPath,
   type SqlFile,
   writeSqlFiles,
 } from './sql-files.ts';
+import { supabaseConfig } from './supabase-config.ts';
 import { grantsLabel, supabaseHookSql } from './supabase-hook.ts';
 
 export type GenerateOutcome = {
@@ -438,6 +440,7 @@ export async function runRlsGenerate(input: {
       indexes: `${INDEXES_MARKER}\n${indexesSql(indexes)}\n`,
     }),
     scopes,
+    schema,
   });
   if (typeof planned === 'string') {
     return { code: 2, output: planned, text, ...extras };
@@ -486,8 +489,9 @@ function outputFiles(plan: {
     readonly indexes: string;
   };
   readonly scopes: ReturnType<typeof scopeList>;
+  readonly schema: string;
 }): readonly SqlFile[] | string {
-  const { input, outRel } = plan;
+  const { input } = plan;
   const split = parseSplit(input.split);
   if (typeof split === 'string') {
     return split;
@@ -502,14 +506,36 @@ function outputFiles(plan: {
     if (input.seedsOut !== undefined) {
       return 'rls generate --seeds-out needs --split with the seeds part';
     }
-    return [{ part: 'rls', rel: outRel, text: plan.text }];
+    return [{ part: 'rls', rel: plan.outRel, text: plan.text }];
   }
   if (input.target !== 'sql') {
     return 'rls generate --split needs --target sql';
   }
-  if (!outRel.includes('{part}')) {
-    return `rls generate --split needs {part} in --out, for example supabase/schemas/identity/056_permdock_{part}.sql (got ${outRel})`;
+  const pgDelta =
+    input.out === undefined && input.config.rls?.out === undefined
+      ? supabaseConfig(input.cwd).pgDelta
+      : undefined;
+  if (pgDelta === undefined && !plan.outRel.includes('{part}')) {
+    return `rls generate --split needs {part} in --out, for example supabase/schemas/identity/056_permdock_{part}.sql (got ${plan.outRel})`;
   }
+  if (
+    pgDelta !== undefined &&
+    split.includes('helpers') &&
+    !split.includes('seeds')
+  ) {
+    return 'rls generate --split helpers under pg-delta needs the seeds part with --seeds-out: pg-delta rejects the role_permissions rows in a declarative file';
+  }
+  if (
+    pgDelta !== undefined &&
+    split.includes('seeds') &&
+    input.seedsOut === undefined
+  ) {
+    return 'rls generate --split seeds under pg-delta needs --seeds-out: pg-delta does not diff the role_permissions rows, so they go in a migration';
+  }
+  const at = (part: SplitPart, schema = plan.schema): string =>
+    pgDelta === undefined
+      ? partPath(plan.outRel, part)
+      : pgDeltaPath(pgDelta.schemaDir, part, schema);
   if (input.grantsOut !== undefined && !split.includes('hook')) {
     return 'rls generate --grants-out needs the hook part in --split';
   }
@@ -524,20 +550,20 @@ function outputFiles(plan: {
   for (const part of split) {
     switch (part) {
       case 'helpers':
-        files.push({ part, rel: partPath(outRel, part), text: sql.helpers });
+        files.push({ part, rel: at(part), text: sql.helpers });
         break;
       case 'seeds':
         files.push({
           part,
-          rel: input.seedsOut ?? partPath(outRel, part),
+          rel: input.seedsOut ?? at(part),
           text: sql.seeds,
         });
         break;
       case 'indexes':
-        files.push({ part, rel: partPath(outRel, part), text: sql.indexes });
+        files.push({ part, rel: at(part), text: sql.indexes });
         break;
       case 'policies':
-        files.push({ part, rel: partPath(outRel, part), text: sql.policies });
+        files.push({ part, rel: at(part), text: sql.policies });
         break;
       case 'hook': {
         const hook = supabaseHookSql(
@@ -546,7 +572,11 @@ function outputFiles(plan: {
           {},
           grantsLabel(input.grantsOut),
         );
-        files.push({ part, rel: partPath(outRel, part), text: hook.sql });
+        files.push({
+          part,
+          rel: at(part, hook.manifest.hook.schema),
+          text: hook.sql,
+        });
         if (input.grantsOut !== undefined) {
           files.push({
             part: 'grants',

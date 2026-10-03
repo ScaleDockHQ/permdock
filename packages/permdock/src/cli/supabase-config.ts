@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, posix } from 'node:path';
 import { parse } from 'smol-toml';
 
 import type { DoctorFinding } from './doctor-types.ts';
@@ -12,6 +12,14 @@ export type SupabaseConfig = {
   readonly schemaPaths?: readonly string[];
   /** `[api] schemas`: the schemas the Data API exposes. */
   readonly apiSchemas?: readonly string[];
+  /**
+   * `[experimental.pgdelta] enabled = true`: declarative schemas on pg-delta,
+   * which orders statements by their dependencies, so files are unnumbered.
+   */
+  readonly pgDelta?: {
+    /** `declarative_schema_path`, relative to the working directory. */
+    readonly schemaDir: string;
+  };
 };
 
 export type SupabaseConfigRead =
@@ -55,12 +63,26 @@ export function readSupabaseConfig(
   const paths = table(table(root['db'])?.['migrations'])?.['schema_paths'];
   const schemaPaths = strings(paths);
   const apiSchemas = strings(table(root['api'])?.['schemas']);
+  const pgDelta = table(table(root['experimental'])?.['pgdelta']);
+  const schemaPath = pgDelta?.['declarative_schema_path'];
   return {
     ok: true,
     config: {
       ...(typeof expiry === 'number' ? { jwtExpiry: expiry } : {}),
       ...(schemaPaths === undefined ? {} : { schemaPaths }),
       ...(apiSchemas === undefined ? {} : { apiSchemas }),
+      ...(pgDelta?.['enabled'] === true
+        ? {
+            pgDelta: {
+              schemaDir: posix
+                .join(
+                  'supabase',
+                  typeof schemaPath === 'string' ? schemaPath : 'schemas',
+                )
+                .replace(/\/$/u, ''),
+            },
+          }
+        : {}),
     },
   };
 }

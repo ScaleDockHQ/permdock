@@ -16,7 +16,8 @@ export async function Quotes(props: {
     <ul data-testid="quotes">
       {quotes.map((quote) => (
         <li key={quote.id} data-quote={quote.id}>
-          {quote.title}: {quote.amount}
+          {quote.title}: {quote.currency}{' '}
+          {(quote.amount_minor / 100).toFixed(2)}
         </li>
       ))}
     </ul>

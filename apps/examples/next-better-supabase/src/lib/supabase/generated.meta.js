@@ -17,7 +17,7 @@ export default {
           "db": "id",
           "type": "uuid",
           "nullable": false,
-          "hasDefault": false
+          "hasDefault": true
         },
         "organization_id": {
           "db": "organization_id",
@@ -42,6 +42,18 @@ export default {
           "type": "text",
           "nullable": false,
           "hasDefault": false
+        },
+        "created_at": {
+          "db": "created_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "hasDefault": true
+        },
+        "updated_at": {
+          "db": "updated_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "hasDefault": true
         }
       },
       "primaryKey": [
@@ -90,7 +102,7 @@ export default {
           "db": "id",
           "type": "uuid",
           "nullable": false,
-          "hasDefault": false
+          "hasDefault": true
         },
         "organization_id": {
           "db": "organization_id",
@@ -103,6 +115,18 @@ export default {
           "type": "text",
           "nullable": false,
           "hasDefault": false
+        },
+        "created_at": {
+          "db": "created_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "hasDefault": true
+        },
+        "updated_at": {
+          "db": "updated_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "hasDefault": true
         }
       },
       "primaryKey": [
@@ -198,6 +222,18 @@ export default {
             "12h",
             "24h"
           ]
+        },
+        "created_at": {
+          "db": "created_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "hasDefault": true
+        },
+        "updated_at": {
+          "db": "updated_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "hasDefault": true
         }
       },
       "primaryKey": [
@@ -236,6 +272,12 @@ export default {
           "type": "text",
           "nullable": false,
           "hasDefault": false
+        },
+        "created_at": {
+          "db": "created_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "hasDefault": true
         }
       },
       "primaryKey": [
@@ -265,6 +307,12 @@ export default {
           "type": "text",
           "nullable": false,
           "hasDefault": false
+        },
+        "created_at": {
+          "db": "created_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "hasDefault": true
         }
       },
       "primaryKey": [
@@ -300,7 +348,7 @@ export default {
           "db": "id",
           "type": "uuid",
           "nullable": false,
-          "hasDefault": false
+          "hasDefault": true
         },
         "slug": {
           "db": "slug",
@@ -313,6 +361,18 @@ export default {
           "type": "text",
           "nullable": false,
           "hasDefault": false
+        },
+        "created_at": {
+          "db": "created_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "hasDefault": true
+        },
+        "updated_at": {
+          "db": "updated_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "hasDefault": true
         }
       },
       "primaryKey": [
@@ -407,7 +467,7 @@ export default {
           "db": "id",
           "type": "uuid",
           "nullable": false,
-          "hasDefault": false
+          "hasDefault": true
         },
         "organization_id": {
           "db": "organization_id",
@@ -427,11 +487,29 @@ export default {
           "nullable": false,
           "hasDefault": false
         },
-        "amount": {
-          "db": "amount",
-          "type": "numeric",
+        "amount_minor": {
+          "db": "amount_minor",
+          "type": "int8",
           "nullable": false,
           "hasDefault": false
+        },
+        "currency": {
+          "db": "currency",
+          "type": "text",
+          "nullable": false,
+          "hasDefault": false
+        },
+        "created_at": {
+          "db": "created_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "hasDefault": true
+        },
+        "updated_at": {
+          "db": "updated_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "hasDefault": true
         }
       },
       "primaryKey": [
@@ -480,7 +558,7 @@ export default {
           "db": "id",
           "type": "uuid",
           "nullable": false,
-          "hasDefault": false
+          "hasDefault": true
         },
         "organization_id": {
           "db": "organization_id",
@@ -505,6 +583,18 @@ export default {
           "type": "text",
           "nullable": false,
           "hasDefault": false
+        },
+        "created_at": {
+          "db": "created_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "hasDefault": true
+        },
+        "updated_at": {
+          "db": "updated_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "hasDefault": true
         }
       },
       "primaryKey": [

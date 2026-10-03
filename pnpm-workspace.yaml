@@ -169,6 +169,7 @@ catalog:
   portless: 0.15.7
   '@axe-core/playwright': 4.13.0
   better-supabase: 0.4.0
+  supabase: 2.119.0
   server-only: 0.0.1
   '@clack/prompts': 1.8.1
   citty: 0.2.2
@@ -305,3 +306,5 @@ allowBuilds:
   esbuild: true
   # Installs the git hooks from lefthook.yml.
   lefthook: true
+  # The Supabase CLI binary for the next-better-supabase stack, pgTAP and declarative sync.
+  supabase: true

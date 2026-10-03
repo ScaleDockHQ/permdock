@@ -19,29 +19,6 @@ create table if not exists "permdock".role_permissions (
 alter table "permdock".role_permissions enable row level security;
 revoke all on table "permdock".role_permissions from anon, authenticated, public;
 
-insert into "permdock".role_permissions (role, permission, grant_key, scope, effect) values
-  ('owner', 'staff.read', 'staff.read', 'organization', 'allow'),
-  ('owner', 'staff.list', 'staff.list', 'organization', 'allow'),
-  ('owner', 'quotes.read', 'quotes.read', 'organization', 'allow'),
-  ('owner', 'quotes.list', 'quotes.list', 'organization', 'allow'),
-  ('member', 'staff.read', 'staff.read', 'organization', 'allow'),
-  ('member', 'staff.list', 'staff.list', 'organization', 'allow'),
-  ('contact', 'quotes.read', 'quotes.read', 'customer', 'allow'),
-  ('contact', 'quotes.list', 'quotes.list', 'customer', 'allow')
-on conflict (role, grant_key, scope) do update
-  set permission = excluded.permission, effect = excluded.effect;
-delete from "permdock".role_permissions
-where (role, grant_key, scope) not in (values
-  ('owner', 'staff.read', 'organization'),
-  ('owner', 'staff.list', 'organization'),
-  ('owner', 'quotes.read', 'organization'),
-  ('owner', 'quotes.list', 'organization'),
-  ('member', 'staff.read', 'organization'),
-  ('member', 'staff.list', 'organization'),
-  ('contact', 'quotes.read', 'customer'),
-  ('contact', 'quotes.list', 'customer')
-);
-
 create table if not exists "permdock".user_roles (
   user_id uuid not null references auth.users on delete cascade,
   role text not null,
@@ -258,27 +235,3 @@ $$;
 revoke execute on function "permdock".member_customer_ids_for(uuid) from public, anon, authenticated;
 
 -- organization: no memberships table configured, so min, max and transferOnly are checked only by decideRoleChange
-
-alter table "public"."staff" enable row level security;
-revoke all on table "public"."staff" from anon, authenticated;
-grant select on table "public"."staff" to authenticated;
-
-alter table "public"."quotes" enable row level security;
-revoke all on table "public"."quotes" from anon, authenticated;
-grant select on table "public"."quotes" to authenticated;
-
-drop policy if exists "staff_select" on "public"."staff";
-create policy "staff_select"
-  on "public"."staff"
-  as permissive
-  for select
-  to authenticated
-  using (("organization_id" in (select "permdock".permitted_organization_ids('staff.read'))) or ("organization_id" in (select "permdock".permitted_organization_ids('staff.list'))));
-
-drop policy if exists "quotes_select" on "public"."quotes";
-create policy "quotes_select"
-  on "public"."quotes"
-  as permissive
-  for select
-  to authenticated
-  using ((("organization_id" in (select "permdock".permitted_organization_ids('quotes.read'))) or ("customer_id" in (select "permdock".permitted_customer_ids('quotes.read')))) or (("organization_id" in (select "permdock".permitted_organization_ids('quotes.list'))) or ("customer_id" in (select "permdock".permitted_customer_ids('quotes.list')))));

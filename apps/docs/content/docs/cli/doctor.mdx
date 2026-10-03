@@ -63,8 +63,8 @@ On a terminal, `--fix` asks before it writes; answering no prints the report wit
 | `PD039` | Under a `supabase.hook` config, the helper schema has no generated `permdock_has`, `permitted_<scope>_ids` or `member_<scope>_ids`, a `supabase.hook.claims` entry in the `doctor.claims` fixture is larger than the memberships budget, or a sample has a `memberships` entry `subjectFromSupabase` drops | warning |
 | `PD040` | A SQL migration calls `auth.role()`, which Supabase deprecated | warning |
 | `PD041` | An `exchangeCapability` call signs with `alg: 'HS256'`, the project's shared JWT secret | warning |
-| `PD042` | The token hook is declared under `supabase/schemas`, and no migration from the one that creates it on grants it to `supabase_auth_admin` | error |
-| `PD043` | `schema_paths` in `supabase/config.toml` applies a file that calls the SQL helpers before the file that defines them, or leaves that file out | warning |
+| `PD042` | The token hook is declared under `supabase/schemas`, and no migration from the one that creates it on grants it to `supabase_auth_admin` (not under pg-delta) | error |
+| `PD043` | `schema_paths` in `supabase/config.toml` applies a file that calls the SQL helpers before the file that defines them, or leaves that file out (not under pg-delta) | warning |
 | `PD044` | `usePermission` reads a permission whose grant the snapshot cannot answer, and there is no `app/**/api/permdock/route.ts` using `permdockHandler` and no `endpoint` | warning |
 | `PD045` | `supabase/config.toml` is not valid TOML | warning |
 | `PD046` | The PermDock helper schema (`rls.schema`) is listed in `[api] schemas`, so the Data API serves the `security definer` helpers as RPCs | warning |
@@ -268,11 +268,11 @@ Supabase deprecated `auth.role()`. The role a request runs under is already the 
 
 ### PD042: hook grants missing from the migrations
 
-`supabase db diff` writes migrations from `supabase/schemas` but drops grants and policies for `supabase_auth_admin`, so a hook declared there lands without them: the auth server cannot call it, and Postgres's default `execute` for `public` lets clients call it. The check runs when a file under `supabase/schemas` starts with the hook marker. It finds the first migration under `supabase/migrations` that creates `custom_access_token_hook` and the last that drops it, and errors unless that migration or a later one grants `execute` on the hook to `supabase_auth_admin`. `create or replace function` keeps the grants, so later migrations that only change the body pass. Generate the grants file with `--grants-out` ([declarative schemas](/docs/cli/rls#declarative-schemas)). `--only declarative` (or `--only supabase`) runs PD042.
+`supabase db diff` writes migrations from `supabase/schemas` but drops grants and policies for `supabase_auth_admin`, so a hook declared there lands without them: the auth server cannot call it, and Postgres's default `execute` for `public` lets clients call it. The check runs when a file under `supabase/schemas` starts with the hook marker. It finds the first migration under `supabase/migrations` that creates `custom_access_token_hook` and the last that drops it, and errors unless that migration or a later one grants `execute` on the hook to `supabase_auth_admin`. `create or replace function` keeps the grants, so later migrations that only change the body pass. Generate the grants file with `--grants-out` ([declarative schemas](/docs/cli/rls#declarative-schemas)). pg-delta's `declarative sync` keeps those grants, so the check is off when `supabase/config.toml` sets `[experimental.pgdelta] enabled = true`. `--only declarative` (or `--only supabase`) runs PD042.
 
 ### PD043: helpers applied after their callers
 
-`db diff` applies schema files in the order of the `schema_paths` globs in `supabase/config.toml` (default `./schemas/**/*.sql`), sorted within each glob, so a policy that calls `permdock_has`, `permitted_<scope>_ids` or `member_<scope>_ids` before the file that defines `permdock_has` fails to apply. The check warns on each such file, and once when `schema_paths` leaves out the file that defines the helpers. `--only declarative` (or `--only supabase`) runs PD043.
+`db diff` applies schema files in the order of the `schema_paths` globs in `supabase/config.toml` (default `./schemas/**/*.sql`), sorted within each glob, so a policy that calls `permdock_has`, `permitted_<scope>_ids` or `member_<scope>_ids` before the file that defines `permdock_has` fails to apply. The check warns on each such file, and once when `schema_paths` leaves out the file that defines the helpers. pg-delta orders statements by their dependencies, so the check is off under `[experimental.pgdelta]`. `--only declarative` (or `--only supabase`) runs PD043.
 
 ### PD044: server-only grants with no endpoint
 

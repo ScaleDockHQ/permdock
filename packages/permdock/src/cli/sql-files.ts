@@ -80,3 +80,28 @@ export function parseSplit(
 export function partPath(out: string, part: SplitPart): string {
   return out.replaceAll('{part}', part);
 }
+
+/**
+ * pg-delta's per-schema, unnumbered layout: pg-delta orders statements by
+ * their dependencies, so no file needs a number to apply first.
+ */
+export function pgDeltaPath(
+  root: string,
+  part: SplitPart,
+  schema: string,
+): string {
+  switch (part) {
+    case 'helpers':
+    case 'indexes':
+    case 'seeds':
+      return `${root}/${schema}/${part}.sql`;
+    case 'policies':
+      return `${root}/public/policies/permdock.sql`;
+    case 'hook':
+      return `${root}/${schema}/functions/custom_access_token_hook.sql`;
+    default: {
+      const exhaustive: never = part;
+      return exhaustive;
+    }
+  }
+}

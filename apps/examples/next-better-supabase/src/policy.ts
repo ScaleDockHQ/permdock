@@ -27,7 +27,8 @@ const Quote = z.object({
   organization_id: z.uuid(),
   customer_id: z.uuid(),
   title: z.string(),
-  amount: z.number(),
+  amount_minor: z.number().int(),
+  currency: z.string().length(3),
 });
 
 export const permissions = definePermissions({

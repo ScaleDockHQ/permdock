@@ -87,7 +87,8 @@ export async function visibleStaff(
 export type QuoteRow = {
   readonly id: string;
   readonly title: string;
-  readonly amount: number;
+  readonly amount_minor: number;
+  readonly currency: string;
 };
 
 /** A contact reads only their customer's quotes; the policy on `quotes` decides, not this filter. */
@@ -103,7 +104,7 @@ export async function visibleQuotes(
   return sql.quotes
     .findMany({
       where: { organization_id: organization },
-      select: ['id', 'title', 'amount'],
+      select: ['id', 'title', 'amount_minor', 'currency'],
       orderBy: { title: 'asc' },
     })
     .orThrow();

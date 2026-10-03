@@ -33,13 +33,17 @@ export type Models = {
       customer_id: string;
       user_id: string | null;
       name: string;
+      created_at: string;
+      updated_at: string;
     };
     Insert: {
-      id: string;
+      id?: string;
       organization_id: string;
       customer_id: string;
       user_id?: string | null;
       name: string;
+      created_at?: string;
+      updated_at?: string;
     };
     Update: {
       id?: string;
@@ -47,6 +51,8 @@ export type Models = {
       customer_id?: string;
       user_id?: string | null;
       name?: string;
+      created_at?: string;
+      updated_at?: string;
     };
     Relations: {
       customer: { table: "customers"; kind: "one"; nullable: false };
@@ -63,16 +69,22 @@ export type Models = {
       id: string;
       organization_id: string;
       name: string;
+      created_at: string;
+      updated_at: string;
     };
     Insert: {
-      id: string;
+      id?: string;
       organization_id: string;
       name: string;
+      created_at?: string;
+      updated_at?: string;
     };
     Update: {
       id?: string;
       organization_id?: string;
       name?: string;
+      created_at?: string;
+      updated_at?: string;
     };
     Relations: {
       contacts: { table: "contacts"; kind: "many"; nullable: true };
@@ -92,6 +104,8 @@ export type Models = {
       week_start: "monday" | "sunday";
       date_format: string;
       time_format: "12h" | "24h";
+      created_at: string;
+      updated_at: string;
     };
     Insert: {
       user_id: string;
@@ -99,6 +113,8 @@ export type Models = {
       week_start: "monday" | "sunday";
       date_format: string;
       time_format: "12h" | "24h";
+      created_at?: string;
+      updated_at?: string;
     };
     Update: {
       user_id?: string;
@@ -106,6 +122,8 @@ export type Models = {
       week_start?: "monday" | "sunday";
       date_format?: string;
       time_format?: "12h" | "24h";
+      created_at?: string;
+      updated_at?: string;
     };
     Relations: Record<never, never>;
     PrimaryKey: "user_id";
@@ -120,18 +138,21 @@ export type Models = {
       scope: string;
       scope_id: string;
       role: string;
+      created_at: string;
     };
     Insert: {
       user_id: string;
       scope: string;
       scope_id: string;
       role: string;
+      created_at?: string;
     };
     Update: {
       user_id?: string;
       scope?: string;
       scope_id?: string;
       role?: string;
+      created_at?: string;
     };
     Relations: Record<never, never>;
     PrimaryKey: "user_id" | "scope" | "scope_id" | "role";
@@ -144,14 +165,17 @@ export type Models = {
     Row: {
       organization_id: string;
       feature: string;
+      created_at: string;
     };
     Insert: {
       organization_id: string;
       feature: string;
+      created_at?: string;
     };
     Update: {
       organization_id?: string;
       feature?: string;
+      created_at?: string;
     };
     Relations: {
       organization: { table: "organizations"; kind: "one"; nullable: false };
@@ -167,16 +191,22 @@ export type Models = {
       id: string;
       slug: string;
       name: string;
+      created_at: string;
+      updated_at: string;
     };
     Insert: {
-      id: string;
+      id?: string;
       slug: string;
       name: string;
+      created_at?: string;
+      updated_at?: string;
     };
     Update: {
       id?: string;
       slug?: string;
       name?: string;
+      created_at?: string;
+      updated_at?: string;
     };
     Relations: {
       contacts: { table: "contacts"; kind: "many"; nullable: true };
@@ -199,21 +229,30 @@ export type Models = {
       organization_id: string;
       customer_id: string;
       title: string;
-      amount: number;
+      amount_minor: number;
+      currency: string;
+      created_at: string;
+      updated_at: string;
     };
     Insert: {
-      id: string;
+      id?: string;
       organization_id: string;
       customer_id: string;
       title: string;
-      amount: number;
+      amount_minor: number;
+      currency: string;
+      created_at?: string;
+      updated_at?: string;
     };
     Update: {
       id?: string;
       organization_id?: string;
       customer_id?: string;
       title?: string;
-      amount?: number;
+      amount_minor?: number;
+      currency?: string;
+      created_at?: string;
+      updated_at?: string;
     };
     Relations: {
       customer: { table: "customers"; kind: "one"; nullable: false };
@@ -221,7 +260,7 @@ export type Models = {
     };
     PrimaryKey: "id";
     UniqueKeys: Record<never, never>;
-    Checks: never;
+    Checks: "quotes_amount_minor_check" | "quotes_currency_check";
     ForeignKeys: "quotes_customer_id_fkey" | "quotes_organization_id_fkey";
     Flags: Record<never, never>;
   };
@@ -232,13 +271,17 @@ export type Models = {
       user_id: string;
       name: string;
       title: string;
+      created_at: string;
+      updated_at: string;
     };
     Insert: {
-      id: string;
+      id?: string;
       organization_id: string;
       user_id: string;
       name: string;
       title: string;
+      created_at?: string;
+      updated_at?: string;
     };
     Update: {
       id?: string;
@@ -246,6 +289,8 @@ export type Models = {
       user_id?: string;
       name?: string;
       title?: string;
+      created_at?: string;
+      updated_at?: string;
     };
     Relations: {
       organization: { table: "organizations"; kind: "one"; nullable: false };

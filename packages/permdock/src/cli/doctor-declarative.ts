@@ -28,7 +28,8 @@ function uncommented(text: string): string {
 
 /**
  * PD042: a hook declared under `supabase/schemas` reaches the database through
- * `supabase db diff`, which drops its `supabase_auth_admin` grants. A function
+ * `supabase db diff`, which drops its `supabase_auth_admin` grants. pg-delta
+ * keeps them, so the check is off under `[experimental.pgdelta]`. A function
  * created (or dropped and created again) without them is executable by
  * `public` and not by the auth server, so a migration at or after the one
  * that creates it must carry the grants.
@@ -37,7 +38,10 @@ export function pd042(
   cwd: string,
   config: PermDockConfig,
 ): readonly DoctorFinding[] {
-  if (config.supabase?.hook === undefined) {
+  if (
+    config.supabase?.hook === undefined ||
+    supabaseConfig(cwd).pgDelta !== undefined
+  ) {
     return [];
   }
   const declared = sqlFiles(cwd, [SCHEMAS]).some((file) =>
@@ -87,9 +91,12 @@ function orderedSchemaFiles(cwd: string): readonly string[] {
 /**
  * PD043: `db diff` applies schema files in `schema_paths` order, so a policy
  * that calls `permdock_has` or `permitted_<scope>_ids` before the file that
- * defines them fails to apply.
+ * defines them fails to apply. pg-delta orders by dependencies instead.
  */
 export function pd043(cwd: string): readonly DoctorFinding[] {
+  if (supabaseConfig(cwd).pgDelta !== undefined) {
+    return [];
+  }
   if (!existsSync(join(cwd, SCHEMAS))) {
     return [];
   }

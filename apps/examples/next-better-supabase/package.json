@@ -7,11 +7,16 @@
     "build": "next build",
     "dev": "next dev -p 3489 -H 127.0.0.1",
     "doctor": "permdock supabase inspect --check && node scripts/better-supabase.ts doctor",
-    "gen": "permdock supabase inspect --out && node scripts/better-supabase.ts gen",
-    "gen:check": "permdock supabase inspect --check && node scripts/better-supabase.ts gen --check",
+    "gen": "permdock rls generate --target sql --split helpers,seeds,indexes,policies,hook --seeds-out supabase/migrations/20261001000100_permdock_seeds.sql && permdock supabase inspect --out && node scripts/better-supabase.ts gen",
+    "gen:check": "permdock rls generate --target sql --split helpers,seeds,indexes,policies,hook --seeds-out supabase/migrations/20261001000100_permdock_seeds.sql --check && permdock supabase inspect --check && better-supabase sql sync --check && node scripts/better-supabase.ts gen --check",
     "lint": "oxlint --disable-nested-config",
     "serve": "node scripts/serve.ts",
     "start": "next start -p 3489 -H 127.0.0.1",
+    "supabase:check": "supabase db lint --fail-on warning && supabase db advisors --local --fail-on warn && permdock doctor && node scripts/doctor-local.ts",
+    "supabase:diff": "supabase db schema declarative sync --no-apply -f",
+    "supabase:start": "supabase start",
+    "supabase:stop": "supabase stop",
+    "supabase:test": "supabase test db",
     "typecheck": "tsc --noEmit --checkers 4"
   },
   "dependencies": {
@@ -36,6 +41,7 @@
     "oxfmt": "catalog:",
     "oxlint": "catalog:",
     "oxlint-tsgolint": "catalog:",
+    "supabase": "catalog:",
     "typescript": "catalog:"
   }
 }

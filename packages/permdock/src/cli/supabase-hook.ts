@@ -44,7 +44,14 @@ import {
   quoteTable,
   scopeTypeOf,
 } from './rls-sql.ts';
-import { driftOf, type SqlFile, STDOUT, writeSqlFiles } from './sql-files.ts';
+import {
+  driftOf,
+  pgDeltaPath,
+  type SqlFile,
+  STDOUT,
+  writeSqlFiles,
+} from './sql-files.ts';
+import { supabaseConfig } from './supabase-config.ts';
 import {
   missingHelpersInDb,
   missingHelpersInFiles,
@@ -299,8 +306,9 @@ export function activeFromSql(
 }
 
 /**
- * One variable per user-keyed table the hook reads, holding `uid` as that
- * column's type, so each lookup compares the column uncast and its index applies.
+ * One variable per user-keyed table the hook reads, holding `uid` (a uuid, as
+ * Supabase Auth issues) as that column's type, so each lookup compares the
+ * column uncast and its index applies.
  */
 function typedUsers(parts: Parts): string {
   const vars = [
@@ -439,7 +447,7 @@ function hookSql(parts: Parts): string {
   const versionTable = `${schema}.${quoteIdent(AUTHZ_VERSION_TABLE)}`;
   const version = parts.version
     ? `
-  select v.version into ver from ${versionTable} v where v.user_id = uid::uuid;
+  select v.version into ver from ${versionTable} v where v.user_id = uid;
   claims := jsonb_set(claims, '{authz_ver}', to_jsonb(coalesce(ver, 0)));`
     : '';
   const dropExtra = parts.extra
@@ -448,7 +456,7 @@ function hookSql(parts: Parts): string {
   const extra = parts.extra
     .map(
       (entry) => `
-  extra := ${quoteTable(entry.fn)}(uid::uuid);
+  extra := ${quoteTable(entry.fn)}(uid);
   if extra is not null then
     claims := jsonb_set(claims, ${quoteLiteral(`{${entry.claim}}`)}, extra);
   end if;`,
@@ -458,7 +466,7 @@ function hookSql(parts: Parts): string {
     parts.users === undefined
       ? ''
       : `
-  if not ${activeRowSql(parts.users, 'uid::uuid')} then
+  if not ${activeRowSql(parts.users, 'uid')} then
     claims := claims - 'memberships_truncated' - 'attrs' - ${quoteLiteral(parts.tenantClaim)}${dropExtra};
     claims := claims || jsonb_build_object('user_role', '[]'::jsonb, 'roles', '[]'::jsonb, 'memberships', '[]'::jsonb);${version}
     return jsonb_set(event, '{claims}', claims);
@@ -475,7 +483,7 @@ set search_path = ''
 as $$
 declare
   claims jsonb := event -> 'claims';
-  uid text := event ->> 'user_id';
+  uid uuid := (event ->> 'user_id')::uuid;
   active text;
   held jsonb;
   kept jsonb := '[]'::jsonb;
@@ -1026,6 +1034,25 @@ function defaultOut(config: PermDockConfig): string {
   return config.supabase?.hook?.out ?? 'supabase/permdock-hook.sql';
 }
 
+/** `supabase.hook.out`, else pg-delta's per-schema path, else `supabase/permdock-hook.sql`. */
+export function hookOut(
+  cwd: string,
+  config: PermDockConfig,
+  schema?: string,
+): string {
+  const pgDelta = supabaseConfig(cwd).pgDelta;
+  return config.supabase?.hook?.out !== undefined || pgDelta === undefined
+    ? defaultOut(config)
+    : pgDeltaPath(
+        pgDelta.schemaDir,
+        'hook',
+        schema ??
+          config.supabase?.hook?.schema ??
+          config.rls?.schema ??
+          PERMDOCK_SCHEMA,
+      );
+}
+
 export function supabaseHookManifest(
   scopes: readonly Scope[],
   config: PermDockConfig,
@@ -1195,7 +1222,10 @@ export async function runSupabase(input: {
   );
   if (area === 'inspect' && action === undefined) {
     const scopes = await loadScopes(input.cwd, input.config);
-    const manifest = supabaseHookManifest(scopes, input.config, overrides);
+    const manifest = supabaseHookManifest(scopes, input.config, {
+      ...overrides,
+      out: hookOut(input.cwd, input.config, input.schema),
+    });
     if (input.out !== undefined || input.check) {
       return manifestFile(
         input.cwd,
@@ -1223,7 +1253,9 @@ export async function runSupabase(input: {
     grantsLabel(input.grantsOut),
   );
   const outRel =
-    typeof input.out === 'string' ? input.out : defaultOut(input.config);
+    typeof input.out === 'string'
+      ? input.out
+      : hookOut(input.cwd, input.config, input.schema);
   const outPath = resolve(input.cwd, outRel);
   const hook = input.config.supabase?.hook;
   const grantsFile: readonly SqlFile[] =

@@ -219,9 +219,7 @@ describe('permdock supabase hook generate', () => {
       `{ suspension: { users: { table: 'profiles', id: 'id', disabledAt: 'disabled_at' } } }`,
     );
     expect(code).toBe(0);
-    expect(sql).toContain(
-      `extra := "better_supabase"."feature_claims"(uid::uuid);`,
-    );
+    expect(sql).toContain(`extra := "better_supabase"."feature_claims"(uid);`);
     expect(sql).toContain(`claims := jsonb_set(claims, '{features}', extra);`);
     expect(sql).toContain(
       `claims := claims - 'memberships_truncated' - 'attrs' - 'tenant_id' - 'features';`,

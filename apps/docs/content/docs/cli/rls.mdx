@@ -18,9 +18,8 @@ permdock rls generate --target sql --inline-functions --out migrations/rls.sql
 permdock rls generate --target sql --force --out migrations/rls.sql   # also FORCE ROW LEVEL SECURITY
 permdock rls generate --target sql --fields views --out migrations/rls.sql   # plus <table>_visible field views
 permdock rls generate --target sql --fields views --revoke-columns --out migrations/rls.sql   # and close restricted columns on the table
-permdock rls generate --target sql --split helpers,seeds,policies,hook --out supabase/schemas/identity/056_permdock_{part}.sql \
-  --grants-out supabase/migrations/20260101000000_permdock_grants.sql \
-  --seeds-out supabase/migrations/20260101000001_permdock_seeds.sql   # declarative schemas
+permdock rls generate --target sql --split helpers,seeds,indexes,policies,hook \
+  --seeds-out supabase/migrations/20260101000001_permdock_seeds.sql   # declarative schemas on pg-delta
 permdock rls generate --target sql --rbac supabase --helpers-only --out supabase/migrations/0056_permdock.sql   # policies stay hand-written
 ```
 
@@ -262,7 +261,7 @@ Doctor PD030 warns while field-limited columns stay readable on the table ([doct
 
 ### Declarative schemas
 
-Supabase's [declarative schemas](https://supabase.com/docs/guides/local-development/declarative-database-schemas) keep the desired schema under `supabase/schemas` and let `supabase db diff` write the migrations. `--split` writes one file per part, replacing `{part}` in `--out` with its name:
+Supabase's [declarative schemas](https://supabase.com/docs/guides/local-development/declarative-database-schemas) keep the desired schema under `supabase/schemas`, and the CLI writes migrations from it. `--split` writes one file per part:
 
 | Part | Holds |
 | --- | --- |
@@ -272,9 +271,32 @@ Supabase's [declarative schemas](https://supabase.com/docs/guides/local-developm
 | `policies` | `enable row level security`, the table grants and every `create policy` |
 | `hook` | The token hook from `permdock supabase hook generate`; needs `supabase.hook` |
 
-Give the parts in any order and any subset; they are written as `helpers`, `seeds`, `indexes`, `policies`, `hook`. Without the `indexes` part, each index is printed as an `index suggestion` warning instead. The part names its indexes `permdock_<table>_<columns>_idx`, so an index the project already has under another name is created twice: drop that line, or leave the part out and keep the indexes in your own schema files. Without `--split`, `--out` is one file as before. `db diff` drops the grants and policies for `supabase_auth_admin`, so `--grants-out <file>` (with the `hook` part) moves them out of the hook into a file of their own, which starts with `-- permdock:grants v1`: the `supabase_auth_admin` schema usage, the hook's execute grant and the revoke from `authenticated`, `anon` and `public`, and the `select` grants and `permdock_auth_admin_read_*` policies on every table the hook reads. `--grants-out -` prints them instead. The `role_permissions` rows are data, which `db diff` drops too, so the `seeds` part writes them on their own, to `--seeds-out <file>` when it is set (a versioned migration; `-` prints it). Every policy change that changes a grant key needs a new seeds migration, and doctor PD054 warns when the last seeds in the migrations differ from what the policy compiles to. `--check` compares every part and the grants file, and names each part that drifted (`rls generate drift: policies: missing supabase/schemas/identity/056_permdock_policies.sql`).
+Give the parts in any order and any subset; they are written as `helpers`, `seeds`, `indexes`, `policies`, `hook`. Without the `indexes` part, each index is printed as an `index suggestion` warning instead. The part names its indexes `permdock_<table>_<columns>_idx`, so an index the project already has under another name is created twice: drop that line, or leave the part out and keep the indexes in your own schema files. Without `--split`, `--out` is one file as before. The `role_permissions` rows are data, which no schema diff carries, so the `seeds` part goes to `--seeds-out <file>` when it is set (a versioned migration; `-` prints it). Every policy change that changes a grant key needs a new seeds migration, and doctor PD054 warns when the last seeds in the migrations differ from what the policy compiles to. `--check` compares every part, the grants and the seeds file, and names each part that drifted (`rls generate drift: policies: missing supabase/schemas/public/policies/permdock.sql`).
 
-The workflow:
+#### pg-delta
+
+With `[experimental.pgdelta] enabled = true` in `supabase/config.toml`, and no `--out` or `rls.out`, `--split` writes pg-delta's per-schema, unnumbered layout under `declarative_schema_path` (default `supabase/schemas`). pg-delta orders statements by their dependencies, so no file needs a number:
+
+| Part | File |
+| --- | --- |
+| `helpers` | `<schema>/helpers.sql` |
+| `indexes` | `<schema>/indexes.sql` |
+| `policies` | `public/policies/permdock.sql` |
+| `hook` | `<schema>/functions/custom_access_token_hook.sql` |
+
+`<schema>` is the helper schema (`permdock` unless `rls.schema` says otherwise). pg-delta refuses a declarative file that inserts rows, so the `helpers` part needs the `seeds` part with `--seeds-out`. pg-delta keeps grants and policies, so the hook keeps its `supabase_auth_admin` grants and `--grants-out` is not needed. `permdock supabase hook generate` without `--out` writes the same hook path. An explicit `--out` with `{part}` overrides the layout.
+
+```bash
+permdock rls generate --target sql --split helpers,seeds,indexes,policies,hook \
+  --seeds-out supabase/migrations/<timestamp>_permdock_seeds.sql
+supabase db schema declarative sync --no-apply -f permdock   # a reviewed migration for the schema files
+```
+
+`declarative sync` replays the migrations before it diffs, so the seeds migration has to sort after the migration that creates `role_permissions`: generate the schema files, sync, then write the seeds to a migration named after the synced one. Doctor PD042 and PD043 are off under pg-delta. In CI, run the generate step with `--check`, and run `declarative sync` and expect `No schema changes found`.
+
+#### supabase db diff
+
+Without pg-delta, `supabase db diff` writes the migrations and applies the schema files in the order of `[db.migrations] schema_paths`. Give `--out` a `{part}` placeholder, such as `supabase/schemas/identity/056_permdock_{part}.sql`. `db diff` drops the grants and policies for `supabase_auth_admin`, so `--grants-out <file>` (with the `hook` part) moves them out of the hook into a file of their own, which starts with `-- permdock:grants v1`: the `supabase_auth_admin` schema usage, the hook's execute grant and the revoke from `authenticated`, `anon` and `public`, and the `select` grants and `permdock_auth_admin_read_*` policies on every table the hook reads. `--grants-out -` prints them instead.
 
 ```bash
 SPLIT="--split helpers,seeds,policies,hook --out supabase/schemas/identity/056_permdock_{part}.sql"
@@ -286,7 +308,7 @@ permdock rls generate $SPLIT --grants-out supabase/migrations/<timestamp>_permdo
   --seeds-out supabase/migrations/<timestamp>_permdock_seeds.sql
 ```
 
-The grants migration has to sort after the `db diff` migration that first creates the hook, which is why it is created second. `create or replace function` keeps the grants, so later `db diff` migrations need no new grants file; one that drops and recreates the hook does. Doctor PD042 fails while no migration from the one that creates the hook on grants it to `supabase_auth_admin`. PD043 warns when `schema_paths` in `supabase/config.toml` applies a file that calls the helpers before the `helpers` part; with no `schema_paths`, files apply in path order, so number the helpers part below the files that call it. In CI, run the same command with `--check`.
+The grants migration has to sort after the `db diff` migration that first creates the hook, which is why it is created second. `create or replace function` keeps the grants, so later `db diff` migrations need no new grants file; one that drops and recreates the hook does. Doctor PD042 fails while no migration from the one that creates the hook on grants it to `supabase_auth_admin`. PD043 warns when `schema_paths` applies a file that calls the helpers before the `helpers` part; with no `schema_paths`, files apply in path order, so number the helpers part below the files that call it. In CI, run the same command with `--check`.
 
 ### Helpers only
 

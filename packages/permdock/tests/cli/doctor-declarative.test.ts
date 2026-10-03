@@ -70,6 +70,19 @@ describe('PD042 hook grants after db diff', () => {
       /^supabase\/migrations\/001\.sql creates custom_access_token_hook from supabase\/schemas/u,
     );
   });
+
+  it('is silent under pg-delta, whose declarative sync keeps the grants', () => {
+    expect(
+      pd042(
+        project({
+          ...declared,
+          'supabase/migrations/001.sql': CREATE,
+          'supabase/config.toml': '[experimental.pgdelta]\nenabled = true\n',
+        }),
+        HOOK_CONFIG,
+      ),
+    ).toEqual([]);
+  });
 });
 
 describe('PD043 schema_paths order', () => {
@@ -108,6 +121,15 @@ describe('PD043 schema_paths order', () => {
         }),
       ),
     ).toEqual([]);
+  });
+
+  it('is silent under pg-delta, which orders statements by their dependencies', () => {
+    const cwd = project({
+      'supabase/schemas/public/policies.sql': POLICY,
+      'supabase/schemas/permdock/helpers.sql': HELPERS,
+      'supabase/config.toml': `[experimental.pgdelta]\nenabled = true\n[db.migrations]\nschema_paths = ['./schemas/public/*.sql', './schemas/permdock/*.sql']\n`,
+    });
+    expect(pd043(cwd)).toEqual([]);
   });
 
   it('reads single-quoted paths and warns on a policy listed before the helpers', () => {

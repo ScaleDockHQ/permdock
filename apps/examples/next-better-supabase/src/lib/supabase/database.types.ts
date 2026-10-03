@@ -16,24 +16,30 @@ export type Database = {
     Tables: {
       contacts: {
         Row: {
+          created_at: string
           customer_id: string
           id: string
           name: string
           organization_id: string
+          updated_at: string
           user_id: string | null
         }
         Insert: {
+          created_at?: string
           customer_id: string
-          id: string
+          id?: string
           name: string
           organization_id: string
+          updated_at?: string
           user_id?: string | null
         }
         Update: {
+          created_at?: string
           customer_id?: string
           id?: string
           name?: string
           organization_id?: string
+          updated_at?: string
           user_id?: string | null
         }
         Relationships: [
@@ -55,19 +61,25 @@ export type Database = {
       }
       customers: {
         Row: {
+          created_at: string
           id: string
           name: string
           organization_id: string
+          updated_at: string
         }
         Insert: {
-          id: string
+          created_at?: string
+          id?: string
           name: string
           organization_id: string
+          updated_at?: string
         }
         Update: {
+          created_at?: string
           id?: string
           name?: string
           organization_id?: string
+          updated_at?: string
         }
         Relationships: [
           {
@@ -81,23 +93,29 @@ export type Database = {
       }
       datetime_preferences: {
         Row: {
+          created_at: string
           date_format: string
           time_format: string
           timezone: string
+          updated_at: string
           user_id: string
           week_start: string
         }
         Insert: {
+          created_at?: string
           date_format: string
           time_format: string
           timezone: string
+          updated_at?: string
           user_id: string
           week_start: string
         }
         Update: {
+          created_at?: string
           date_format?: string
           time_format?: string
           timezone?: string
+          updated_at?: string
           user_id?: string
           week_start?: string
         }
@@ -105,18 +123,21 @@ export type Database = {
       }
       memberships: {
         Row: {
+          created_at: string
           role: string
           scope: string
           scope_id: string
           user_id: string
         }
         Insert: {
+          created_at?: string
           role: string
           scope: string
           scope_id: string
           user_id: string
         }
         Update: {
+          created_at?: string
           role?: string
           scope?: string
           scope_id?: string
@@ -126,14 +147,17 @@ export type Database = {
       }
       organization_features: {
         Row: {
+          created_at: string
           feature: string
           organization_id: string
         }
         Insert: {
+          created_at?: string
           feature: string
           organization_id: string
         }
         Update: {
+          created_at?: string
           feature?: string
           organization_id?: string
         }
@@ -149,43 +173,58 @@ export type Database = {
       }
       organizations: {
         Row: {
+          created_at: string
           id: string
           name: string
           slug: string
+          updated_at: string
         }
         Insert: {
-          id: string
+          created_at?: string
+          id?: string
           name: string
           slug: string
+          updated_at?: string
         }
         Update: {
+          created_at?: string
           id?: string
           name?: string
           slug?: string
+          updated_at?: string
         }
         Relationships: []
       }
       quotes: {
         Row: {
-          amount: number
+          amount_minor: number
+          created_at: string
+          currency: string
           customer_id: string
           id: string
           organization_id: string
           title: string
+          updated_at: string
         }
         Insert: {
-          amount: number
+          amount_minor: number
+          created_at?: string
+          currency: string
           customer_id: string
-          id: string
+          id?: string
           organization_id: string
           title: string
+          updated_at?: string
         }
         Update: {
-          amount?: number
+          amount_minor?: number
+          created_at?: string
+          currency?: string
           customer_id?: string
           id?: string
           organization_id?: string
           title?: string
+          updated_at?: string
         }
         Relationships: [
           {
@@ -206,24 +245,30 @@ export type Database = {
       }
       staff: {
         Row: {
+          created_at: string
           id: string
           name: string
           organization_id: string
           title: string
+          updated_at: string
           user_id: string
         }
         Insert: {
-          id: string
+          created_at?: string
+          id?: string
           name: string
           organization_id: string
           title: string
+          updated_at?: string
           user_id: string
         }
         Update: {
+          created_at?: string
           id?: string
           name?: string
           organization_id?: string
           title?: string
+          updated_at?: string
           user_id?: string
         }
         Relationships: [

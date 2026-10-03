@@ -120,7 +120,9 @@ uri = "pg-functions://postgres/public/custom_access_token_hook"
 
 ## Declarative schemas
 
-A project that keeps its schema in `supabase/schemas` and writes migrations with `supabase db diff` cannot keep the grants in the hook file: `db diff` drops grants and policies for `supabase_auth_admin`, so the hook would land executable by `public` and not by the auth server. `--grants-out` moves those statements to a migration of their own and leaves a comment in the hook file that says where they went:
+With pg-delta (`[experimental.pgdelta] enabled = true`), `supabase db schema declarative sync` keeps grants and policies, so the hook file keeps its grants. Without `--out`, `hook generate` writes it to `supabase/schemas/<schema>/functions/custom_access_token_hook.sql`, under `declarative_schema_path` when that is set.
+
+A project that writes migrations with `supabase db diff` instead cannot keep the grants in the hook file: `db diff` drops grants and policies for `supabase_auth_admin`, so the hook would land executable by `public` and not by the auth server. `--grants-out` moves those statements to a migration of their own and leaves a comment in the hook file that says where they went:
 
 ```bash
 permdock supabase hook generate --out supabase/schemas/identity/056_permdock_hook.sql --grants-out -
@@ -234,7 +236,8 @@ The format, its JSON Schema (`schemas/supabase-manifest-v1.json`) and the versio
 - **A version, not a shorter expiry, for sensitive verbs.** Dropping `jwt_expiry` to a minute taxes every request to protect a few. The version costs one indexed lookup per request that uses `claimsFirst` with `version`, and only `fresh` permissions depend on it. Missing either side counts as stale, because a check that passes when it cannot compare fails open.
 - **Attributes are server-owned or absent.** An attribute that decides row access and that the user can edit is a self-grant. Refusing `user_metadata` catches the obvious case; the migration guard catches a `profiles` table with a broad `update` grant, which is the common one.
 - **IdP ownership is enforced where edits happen.** The member list, `decideRoleChange` and the database all refuse, so a client that skips the UI still cannot edit a SCIM-provisioned row.
-- **Grants in their own migration for declarative schemas.** `db diff` reads the schema files back from a shadow database and leaves out what it cannot diff for the auth role. A separate, hand-created migration keeps those statements in the history in the right order; putting them in the schema file would make them silently disappear, and a hook the auth server cannot call fails every sign-in.
+- **Grants in their own migration for `db diff`.** `db diff` reads the schema files back from a shadow database and leaves out what it cannot diff for the auth role. A separate, hand-created migration keeps those statements in the history in the right order; putting them in the schema file would make them silently disappear, and a hook the auth server cannot call fails every sign-in. pg-delta diffs grants, which was checked against `declarative sync` in Supabase CLI 2.119, so under pg-delta the grants stay in the hook file.
+- **`uid` is a uuid.** Supabase Auth issues uuid user ids, so the hook casts `user_id` once and a malformed one fails the sign-in. Each `%type` variable is then assigned from a uuid, which `supabase db lint` accepts.
 - **Plans from billing, seats per membership.** Stripe recommends reading entitlements as a projection of billing state; a per-membership seat keeps "which products this person uses here" apart from permissions and from other tenants.
 
 ## Related

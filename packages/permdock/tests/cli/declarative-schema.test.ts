@@ -271,6 +271,94 @@ describe('rls generate --split and --grants-out', () => {
   });
 });
 
+describe('rls generate --split under pg-delta', () => {
+  const SEEDS = 'supabase/migrations/20260101000001_permdock_seeds.sql';
+  const pgDelta = (cwd: string, extra = ''): void => {
+    mkdirSync(join(cwd, 'supabase'), { recursive: true });
+    writeFileSync(
+      join(cwd, 'supabase/config.toml'),
+      `[experimental.pgdelta]\nenabled = true\n${extra}`,
+    );
+  };
+
+  it('writes the per-schema, unnumbered layout without --out', async () => {
+    const cwd = project();
+    pgDelta(cwd);
+    const result = await run(
+      [
+        'rls',
+        'generate',
+        '--split',
+        'helpers,seeds,indexes,policies,hook',
+        '--seeds-out',
+        SEEDS,
+        '--grants-out',
+        GRANTS,
+      ],
+      { cwd },
+    );
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain(
+      `wrote ${[
+        'supabase/schemas/permdock/helpers.sql',
+        SEEDS,
+        'supabase/schemas/permdock/indexes.sql',
+        'supabase/schemas/public/policies/permdock.sql',
+        'supabase/schemas/permdock/functions/custom_access_token_hook.sql',
+        GRANTS,
+      ].join(', ')}`,
+    );
+    expect(
+      read(cwd, 'supabase/schemas/public/policies/permdock.sql'),
+    ).toContain('create policy');
+  });
+
+  it('follows declarative_schema_path and keeps an explicit --out', async () => {
+    const cwd = project();
+    pgDelta(cwd, 'declarative_schema_path = "./declarative"\n');
+    const moved = await run(['rls', 'generate', '--split', 'indexes'], {
+      cwd,
+    });
+    expect(moved.stdout).toContain(
+      'wrote supabase/declarative/permdock/indexes.sql',
+    );
+    const explicit = await run(
+      ['rls', 'generate', '--split', 'helpers', '--out', OUT],
+      { cwd },
+    );
+    expect(explicit.stdout).toContain(`wrote ${part('helpers')}`);
+  });
+
+  it('writes supabase hook generate to the per-schema path without --out', async () => {
+    const cwd = project();
+    pgDelta(cwd);
+    const result = await run(['supabase', 'hook', 'generate'], { cwd });
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain(
+      'wrote supabase/schemas/permdock/functions/custom_access_token_hook.sql',
+    );
+  });
+
+  it('needs the seeds part with --seeds-out, since pg-delta rejects rows in a declarative file', async () => {
+    const cwd = project();
+    pgDelta(cwd);
+    const inline = await run(['rls', 'generate', '--split', 'helpers'], {
+      cwd,
+    });
+    expect(inline.code).toBe(2);
+    expect(inline.stdout).toContain(
+      'rls generate --split helpers under pg-delta needs the seeds part with --seeds-out',
+    );
+    const result = await run(['rls', 'generate', '--split', 'helpers,seeds'], {
+      cwd,
+    });
+    expect(result.code).toBe(2);
+    expect(result.stdout).toContain(
+      'rls generate --split seeds under pg-delta needs --seeds-out: pg-delta does not diff the role_permissions rows, so they go in a migration',
+    );
+  });
+});
+
 describe('supabase hook generate --grants-out', () => {
   it('keeps the grants out of the hook file and checks both', async () => {
     const cwd = project();

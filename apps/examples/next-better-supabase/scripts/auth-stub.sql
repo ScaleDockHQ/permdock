@@ -1,6 +1,8 @@
 -- What a Supabase project already has, so plain Postgres can run the migrations:
--- the API roles, auth.users and the auth.uid() / auth.jwt() readers of request.jwt.claims.
+-- the API and owner roles, auth.users and the auth.uid() / auth.jwt() readers of request.jwt.claims.
+do $$ begin create role postgres nologin; exception when duplicate_object then null; end $$;
 create role anon nologin;
+create role service_role nologin bypassrls;
 create role authenticated nologin;
 create role supabase_auth_admin nologin;
 create schema auth;

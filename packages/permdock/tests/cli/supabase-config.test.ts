@@ -42,6 +42,31 @@ schema_paths = [
     });
   });
 
+  it('reads [experimental.pgdelta] and its declarative_schema_path', () => {
+    expect(
+      supabaseConfig(
+        project({
+          'supabase/config.toml': '[experimental.pgdelta]\nenabled = true\n',
+        }),
+      ),
+    ).toEqual({ pgDelta: { schemaDir: 'supabase/schemas' } });
+    expect(
+      supabaseConfig(
+        project({
+          'supabase/config.toml':
+            '[experimental.pgdelta]\nenabled = true\ndeclarative_schema_path = "./db/declarative/"\n',
+        }),
+      ),
+    ).toEqual({ pgDelta: { schemaDir: 'supabase/db/declarative' } });
+    expect(
+      supabaseConfig(
+        project({
+          'supabase/config.toml': '[experimental.pgdelta]\nenabled = false\n',
+        }),
+      ),
+    ).toEqual({});
+  });
+
   it('ignores values of the wrong type', () => {
     const cwd = project({
       'supabase/config.toml':
