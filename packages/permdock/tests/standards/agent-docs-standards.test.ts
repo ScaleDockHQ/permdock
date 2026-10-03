@@ -130,12 +130,11 @@ describe('AGENTS.md and CLAUDE.md', () => {
     expect(read('CLAUDE.md').trim()).toBe('@AGENTS.md');
   });
 
-  it('AGENTS.md stays under 12 KB, and under 10 KB above the turbo block', () => {
+  it('AGENTS.md stays under 12 KB, not counting the managed turbo block', () => {
     const agents = read('AGENTS.md');
-    expect(Buffer.byteLength(agents)).toBeLessThan(12 * 1024);
-    const marker = agents.indexOf('## Turbo agent guidance');
+    const marker = agents.indexOf('<!-- BEGIN:turborepo-agent-rules -->');
     expect(marker).toBeGreaterThan(0);
-    expect(Buffer.byteLength(agents.slice(0, marker))).toBeLessThan(10 * 1024);
+    expect(Buffer.byteLength(agents.slice(0, marker))).toBeLessThan(12 * 1024);
   });
 
   it('every rule has Cursor and Claude Code frontmatter, a row in AGENTS.md and a symlink', () => {

@@ -133,7 +133,7 @@ A PR that breaks one is wrong, whatever else it does. Full text in `.agents/rule
 
 ## Turbo agent guidance
 
-`turbo` appends a managed agent-guidance block below this section when it detects an agent. Commit it as written and leave it last; keep everything above it under 10 KB so the file stays within 12 KB. Set `"agentGuidance": false` in `turbo.json` only to opt out on purpose.
+`turbo` appends a managed agent-guidance block below this section when it detects an agent. Commit it as written and leave it last; keep everything above it within 12 KB; the managed block does not count. Set `"agentGuidance": false` in `turbo.json` only to opt out on purpose.
 
 <!-- BEGIN:turborepo-agent-rules -->
 

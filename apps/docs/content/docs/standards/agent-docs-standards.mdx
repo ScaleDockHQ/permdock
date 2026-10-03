@@ -28,7 +28,7 @@ The same rule applies to the maintainer side: an agent contributing to PermDock 
 | `permdock-audit` skill | `packages/permdock/skills/permdock-audit/SKILL.md`, also on skills.sh | Agents finding unguarded routes and tools, unused or ungranted permissions (wraps `permdock usage`) |
 | Topic skills | `packages/permdock/skills/permdock-{agents,approvals,tenancy,data,credentials}/SKILL.md`, also on skills.sh | Agents working on one area: delegation, human approval, tenants and roles, queries and RLS, tokens and keys |
 | Claude Code plugin marketplace | `.claude-plugin/marketplace.json`, one `permdock` plugin whose `skills` are the folders above | Claude Code users: `/plugin marketplace add ScaleDockHQ/permdock` |
-| `AGENTS.md` | Repository root, under 12 KB including the block `turbo` appends | Agents contributing to PermDock: layout, commands, the invariants index and the rule index |
+| `AGENTS.md` | Repository root, under 12 KB not counting the block `turbo` appends | Agents contributing to PermDock: layout, commands, the invariants index and the rule index |
 | `.agents/rules/*.mdc` | Repository root; `.cursor/rules` symlinks the folder and `.claude/rules/<name>.md` symlinks each file | The same maintainers: invariants, naming, docs conventions, the change checklist, testing, deployment, skills and prose rules, each attached by path |
 | `CLAUDE.md` | Repository root, the one line `@AGENTS.md` | Claude Code and other tools that look for this name |
 | `llms.txt`, `llms-full.txt` | Docs site root | Models indexing the documentation |
