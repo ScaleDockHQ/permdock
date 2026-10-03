@@ -67,7 +67,8 @@ import { PermissionBoundary } from 'permdock/next/client'
 
 <PermissionBoundary denied={<p>Only staff can delete quotes.</p>} approval={<ApprovalNotice />}>
   <Suspense fallback={null}>
-    <DeleteZone params={params} />   {/* awaits getPermDock(), then permdock.assert(permissions.quote.delete, quote) */}
+    {/* awaits getPermDock(), then permdock.assert(permissions.quote.delete, quote) */}
+    <DeleteZone params={params} />
   </Suspense>
 </PermissionBoundary>
 
