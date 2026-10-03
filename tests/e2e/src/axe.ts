@@ -5,6 +5,8 @@ const wcagTags = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
 
 /** Fails with one line per violated rule and the selectors it hit. */
 export async function expectAccessible(page: Page): Promise<void> {
+  // Contrast is judged on settled colours; a fade-in mid-flight reads as a violation.
+  await page.emulateMedia({ reducedMotion: "reduce" });
   const { violations } = await new AxeBuilder({ page })
     .withTags(wcagTags)
     .analyze();
