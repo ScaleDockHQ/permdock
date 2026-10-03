@@ -147,7 +147,7 @@ describe('permdock supabase hook generate against Postgres', () => {
   });
 
   function as<T>(
-    dbRole: 'authenticated' | 'supabase_auth_admin',
+    dbRole: 'authenticated' | 'anon' | 'supabase_auth_admin',
     claims: Claims,
     work: (client: Client) => Promise<T>,
   ): Promise<T> {
@@ -382,6 +382,44 @@ describe('permdock supabase hook generate against Postgres', () => {
       { memberships },
     );
     expect(seated.can(permissions.organization.list)).toBe(true);
+  });
+
+  it('bumps authz_ver for a list of users through permdock_bump_authz_version_for', async () => {
+    if (db === undefined) {
+      throw new Error('PermDock: Postgres was not started');
+    }
+    const admin = db.admin;
+    const version = async (user: string): Promise<number> =>
+      Number(
+        (
+          await admin.query(
+            'select coalesce((select version from permdock.permdock_authz_version where user_id = $1), 0) as version',
+            [user],
+          )
+        ).rows[0]?.version,
+      );
+    const before = [await version(OWNER), await version(SEATED)];
+    await admin.query(
+      'select permdock.permdock_bump_authz_version_for($1::uuid[])',
+      [[OWNER, SEATED, OWNER, null]],
+    );
+    expect([await version(OWNER), await version(SEATED)]).toEqual([
+      (before[0] ?? 0) + 1,
+      (before[1] ?? 0) + 1,
+    ]);
+    for (const client of ['authenticated', 'anon'] as const) {
+      await expect(
+        as(client, { sub: OWNER, role: client }, (connection) =>
+          connection.query(
+            'select permdock.permdock_bump_authz_version_for($1::uuid[])',
+            [[OWNER]],
+          ),
+        ),
+      ).rejects.toMatchObject({ code: '42501' });
+    }
+    expect(generated).toContain(
+      'revoke execute on function "permdock".permdock_bump_authz_version_for(uuid[]) from public, anon, authenticated;',
+    );
   });
 
   it('lists the members of a scope instance', async () => {

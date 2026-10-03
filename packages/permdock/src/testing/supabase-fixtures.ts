@@ -355,6 +355,11 @@ export const supabaseHookManifestFixture: SupabaseHookManifest = {
     },
   ],
   authzVersion: true,
+  authzVersionBump: {
+    schema: 'permdock',
+    function: 'permdock_bump_authz_version_for',
+    args: 'p_users uuid[]',
+  },
   memberships: [
     {
       table: 'public.memberships',

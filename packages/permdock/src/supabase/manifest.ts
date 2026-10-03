@@ -29,6 +29,16 @@ export type SupabaseHookManifest = {
   };
   readonly claims: readonly SupabaseHookClaim[];
   readonly authzVersion: boolean;
+  /**
+   * With `authzVersion`, the function that bumps the listed users' `authz_ver`,
+   * for a membership source outside the hook. It is `security definer` and no
+   * client role may execute it: call it from a trigger owned by the table's owner.
+   */
+  readonly authzVersionBump?: {
+    readonly schema: string;
+    readonly function: 'permdock_bump_authz_version_for';
+    readonly args: 'p_users uuid[]';
+  };
   /** The `supabase.hook.memberships` sources, in the order the hook reads them. */
   readonly memberships: readonly SupabaseManifestMembership[];
   readonly rls: SupabaseManifestRls;

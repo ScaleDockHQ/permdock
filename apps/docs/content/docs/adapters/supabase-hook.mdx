@@ -104,6 +104,7 @@ The output is one idempotent migration:
   - the claims other packages own, from `supabase.hook.claims` (below).
 - The `supabase_auth_admin` grants: `usage` on the schema, `execute` on the hook, `select` and a read policy on every table the hook reads (sources, their suspension tables, roles, the `attrs` table, version). `execute` is revoked from `authenticated`, `anon` and `public`. Nothing is granted to `service_role`.
 - `permdock_authz_version (user_id, version)` and the `permdock_bump_authz_version` trigger on every source table and the roles table. With `through`, `permdock_bump_authz_version_role_keys` on the roles table bumps every holder when a key or id changes, since a rename changes their `roles` claim.
+- `permdock_bump_authz_version_for(p_users uuid[])`, which bumps each listed user once, for membership data the hook does not read (below).
 - The `permdock_protect_managed` trigger on sources with `managedBy`.
 - The `config.toml` block, printed and repeated as a comment:
 
@@ -203,6 +204,8 @@ definePolicy(permissions, {
 
 The generated triggers bump `permdock_authz_version.version` for the affected user on every insert, update or delete in a source table or the roles table, and the hook writes the current value as `authz_ver`. `authzVersion({ query })` reads the same table. When the subject's memberships come from the token (`claimsFirst` without truncation), `createPermDock` compares the two. If the token is behind, or either side is missing, the subject is `stale` and every `fresh` permission denies with reason `stale-credentials`; other permissions still use the token. Memberships read live from a source are never stale. A stale subject's snapshot omits allows for `fresh` permissions, so the browser denies them too. A suspension change does not bump the version; RLS checks suspension live instead ([RLS](/docs/cli/rls)).
 
+A table that changes what a user may do without being a hook source, such as better-supabase's `entitlement_members`, bumps its users with `permdock_bump_authz_version_for(array[...])` from its own trigger. The function is `security definer`, and `execute` is revoked from `public`, `anon` and `authenticated` and granted to no one, so only the function's owner can call it: a `security definer` trigger owned by the table owner, or a migration. The manifest names it in `authzVersionBump`.
+
 ## Memberships the identity provider owns
 
 A membership provisioned by SCIM belongs to the IdP: an edit in the app would be undone by the next sync. Such memberships carry `managedBy: 'idp'`. [`directoryMembershipSource`](/docs/adapters/scim) sets it on every group membership, and the SQL sources read it from `managedBy`. `isExternallyManaged(membership)` tells a member list to render the row read-only, and [`decideRoleChange`](/docs/concepts/ownership) refuses a change whose `target.managedBy` is `idp` with reason `externally-managed`. In the database, `permdock_protect_managed` raises `42501` when `anon` or `authenticated` inserts, updates or deletes an IdP-owned row; the server and the SCIM relay, which connect with their own role, are unaffected.
@@ -220,7 +223,7 @@ A seat belongs to one membership, not the tenant: a Dev Mode seat in one organiz
 | Field | What a reader learns |
 | --- | --- |
 | `hook`, `markers` | Where `custom_access_token_hook` lives and the majors of the `-- permdock:hook` / `-- permdock:grants` lines its migrations start with |
-| `claims`, `tenantClaim`, `budget`, `authzVersion` | Every claim the hook writes, who owns it, and what the budget measures |
+| `claims`, `tenantClaim`, `budget`, `authzVersion`, `authzVersionBump` | Every claim the hook writes, who owns it, what the budget measures, and the function that bumps `authz_ver` for a list of users |
 | `helpers`, `rls` | The helper schema, each helper's arguments, return type and the roles that may execute it, the RLS mode (`jwt` or `database`) and each scope's id type |
 | `memberships` | Each source's table and the columns (or fixed values) for user, scope, id, role, `within`, `via` and expiry |
 | `rls.memberships` | The same shape for the tables `member_<scope>_ids_for` reads, which differ from the hook's when `rls.memberships` or `rls.membershipSources` is set |

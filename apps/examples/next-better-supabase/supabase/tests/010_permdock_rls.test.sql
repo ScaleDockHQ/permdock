@@ -1,7 +1,7 @@
 -- RLS on the seeded tenants: Olivia owns Acme and is a member of Globex, Mason
 -- is a member of Acme, and Carla is a portal contact of Acme's customer Initech.
 begin;
-select extensions.plan(19);
+select extensions.plan(20);
 
 select tests.rls_enabled('public');
 select tests.rls_enabled('permdock');
@@ -75,6 +75,12 @@ select tests.clear_authentication();
 select extensions.ok(
   has_function_privilege('supabase_auth_admin', 'permdock.custom_access_token_hook(jsonb)', 'execute'),
   'the auth server can call the token hook'
+);
+select extensions.ok(
+  not has_function_privilege('authenticated', 'permdock.permdock_bump_authz_version_for(uuid[])', 'execute')
+    and not has_function_privilege('anon', 'permdock.permdock_bump_authz_version_for(uuid[])', 'execute')
+    and not has_function_privilege('service_role', 'permdock.permdock_bump_authz_version_for(uuid[])', 'execute'),
+  'no API role can bump authorization versions'
 );
 select extensions.ok(
   permdock.custom_access_token_hook(

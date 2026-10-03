@@ -121,6 +121,13 @@ describe('permdock supabase hook generate', () => {
         `grant select on table ${table} to supabase_auth_admin;`,
       );
     }
+    expect(sql).toContain(
+      'create or replace function "permdock".permdock_bump_authz_version_for(p_users uuid[])',
+    );
+    expect(sql).toContain(
+      'revoke execute on function "permdock".permdock_bump_authz_version_for(uuid[]) from public, anon, authenticated;',
+    );
+    expect(sql).not.toMatch(/grant execute on function [^;]*_for\(uuid\[\]\)/u);
     expect(sql).not.toMatch(/service_role/iu);
   });
 
@@ -339,6 +346,11 @@ describe('permdock supabase hook generate', () => {
         },
       ],
       authzVersion: true,
+      authzVersionBump: {
+        schema: 'permdock',
+        function: 'permdock_bump_authz_version_for',
+        args: 'p_users uuid[]',
+      },
       markers: { hook: 'v1', grants: 'v1' },
     });
     const text = await run(['supabase', 'inspect'], { cwd });

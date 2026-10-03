@@ -239,6 +239,8 @@ function extraClaimsPlan(
 
 const VERSION_TRIGGER = 'permdock_authz_version';
 
+const AUTHZ_VERSION_BUMP = 'permdock_bump_authz_version_for';
+
 type Parts = {
   readonly schema: string;
   readonly scopes: readonly Scope[];
@@ -714,6 +716,7 @@ function versionSql(parts: Parts): string {
   const schema = quoteIdent(parts.schema);
   const versionTable = `${schema}.${quoteIdent(AUTHZ_VERSION_TABLE)}`;
   const bump = `${schema}.permdock_bump_authz_version`;
+  const bumpFor = `${schema}.${AUTHZ_VERSION_BUMP}`;
   const tables = [
     ...new Map(
       parts.sources.map((source) => [source.sql.table, source.sql.user]),
@@ -741,6 +744,19 @@ create table if not exists ${versionTable} (
 alter table ${versionTable} enable row level security;
 revoke all on table ${versionTable} from anon, authenticated, public;
 
+-- bumps each listed user once, for a membership source outside the hook; no client role may call it
+create or replace function ${bumpFor}(p_users uuid[])
+returns void
+language sql
+security definer
+set search_path = ''
+as $$
+  insert into ${versionTable} as v (user_id, version)
+  select distinct u, 1 from unnest(p_users) u where u is not null
+  on conflict (user_id) do update set version = v.version + 1
+$$;
+revoke execute on function ${bumpFor}(uuid[]) from public, anon, authenticated;
+
 create or replace function ${bump}()
 returns trigger
 language plpgsql
@@ -749,17 +765,11 @@ set search_path = ''
 as $$
 declare
   column_name text := tg_argv[0];
-  affected text;
 begin
-  foreach affected in array array[
+  perform ${bumpFor}(array[
     case when tg_op <> 'INSERT' then to_jsonb(old) ->> column_name end,
     case when tg_op <> 'DELETE' then to_jsonb(new) ->> column_name end
-  ] loop
-    if affected is not null then
-      insert into ${versionTable} as v (user_id, version) values (affected::uuid, 1)
-      on conflict (user_id) do update set version = v.version + 1;
-    end if;
-  end loop;
+  ]::uuid[]);
   return null;
 end;
 $$;
@@ -1064,6 +1074,15 @@ function manifestOf(
     budget: { bytes: parts.budget, measure: BUDGET_MEASURE },
     claims: hookClaims(parts),
     authzVersion: parts.version,
+    ...(parts.version
+      ? {
+          authzVersionBump: {
+            schema: parts.schema,
+            function: AUTHZ_VERSION_BUMP,
+            args: 'p_users uuid[]',
+          },
+        }
+      : {}),
     memberships: parts.sources.map((source) => source.sql.manifest),
     rls: {
       schema: parts.helpers.schema,

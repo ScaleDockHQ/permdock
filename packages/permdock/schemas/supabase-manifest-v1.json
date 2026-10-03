@@ -68,6 +68,15 @@
       }
     },
     "authzVersion": { "type": "boolean" },
+    "authzVersionBump": {
+      "type": "object",
+      "required": ["schema", "function", "args"],
+      "properties": {
+        "schema": { "$ref": "#/$defs/identifier" },
+        "function": { "const": "permdock_bump_authz_version_for" },
+        "args": { "const": "p_users uuid[]" }
+      }
+    },
     "memberships": {
       "type": "array",
       "items": { "$ref": "#/$defs/membership" }
