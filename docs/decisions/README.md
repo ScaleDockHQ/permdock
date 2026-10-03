@@ -6,7 +6,7 @@ Copy `0000-template.md`, take the next number, and add a row below. When a decis
 
 | Record | Decision |
 | --- | --- |
-| [0001](./0001-skills-in-agents-folder.md) | Vendored skills stay in `.agents/skills` |
+| [0001](./0001-skills-in-agents-folder.md) | Withdrawn: the standard now commits lock-tracked skills |
 | [0002](./0002-no-typescript-catalog-override.md) | No global `typescript` override |
 | [0003](./0003-schema-libraries.md) | Zod, ArkType and agent SDKs where PermDock supports them |
 | [0004](./0004-node-engines.md) | `permdock` keeps `engines.node: ">=24"` |

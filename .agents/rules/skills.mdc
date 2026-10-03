@@ -37,7 +37,6 @@ Rules for these skills:
 
 ## Vendored skills (maintainer tooling)
 
-- `.agents/skills/` holds third-party skills for agents working in this repo, pinned by source and hash in `skills-lock.json`. `.cursor/skills` and `.claude/skills` symlink into it.
-- Refresh or add one with `npx skills add <source> --skill <name>`, which updates the lock. Never edit a vendored skill in place; the next update overwrites it.
-- They are hidden from ripgrep (`.ignore`) and from Cursor indexing (`.cursorignore`) because each match would appear three times; skills load by path.
-- If `skills add … --list` ever shows a vendored skill to consumers, stop committing `.agents/skills`: gitignore it and restore it from `skills-lock.json` on install.
+- `.agents/skills/` holds third-party skills for agents working in this repo, pinned by source and hash in `skills-lock.json`. Cursor reads `.agents/skills` directly; `.claude/skills` symlinks into it.
+- The `scaledock-repo-standard` skill (`references/skills.md`) owns the rules: manage skills only with `pnpm dlx skills add <source> --skill <name> -a cursor -a claude-code -y`, `pnpm dlx skills update -p -y` and `pnpm dlx skills remove`, never by hand, so the lock tracks every skill and `npx skills add ScaleDockHQ/PermDock` skips them.
+- They are hidden from ripgrep (`.ignore`) because each match would otherwise appear twice; skills load by path.

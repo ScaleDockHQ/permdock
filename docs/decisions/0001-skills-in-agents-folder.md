@@ -1,7 +1,8 @@
 # 0001. Vendored skills stay in `.agents/skills`
 
-- Status: accepted
+- Status: withdrawn
 - Date: 2026-09-30
+- Withdrawn: 2026-10-03
 
 ## Context
 
@@ -14,3 +15,7 @@ Maintainer skills stay in `.agents/skills`, installed with `npx skills add` and 
 ## Consequences
 
 One copy serves every agent. A tool that reads neither symlink needs a pointer to `.agents/skills`.
+
+## Withdrawn
+
+Repo standard 1.7.1 matches this setup: a repo that publishes skills commits its vendored skills when `skills-lock.json` tracks them, because `npx skills add <repo>` skips lock-tracked skills. The skills CLI treats Cursor as a universal agent that reads `.agents/skills` directly, so `.cursor/skills` is gone and only `.claude/skills` holds symlinks.
