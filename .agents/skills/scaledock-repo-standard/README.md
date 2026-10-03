@@ -59,9 +59,9 @@ The repo kind decides which parts of the standard apply. A `product` repo gets e
 - [`references/app-shell.md`](references/app-shell.md): auth pages, shell, page templates, standard screens.
 - [`references/expo.md`](references/expo.md): Expo shapes, app config, EAS, native UI, Uniwind, push, universal web.
 - [`references/offline-sync.md`](references/offline-sync.md): PowerSync on native.
-- [`references/data-permissions.md`](references/data-permissions.md): multi-tenancy, Supabase, better-supabase, audit log, PermDock.
+- [`references/data-permissions.md`](references/data-permissions.md): multi-tenancy, Supabase (the Docker-free local stack, declarative schemas on `pg-delta`, config in code), better-supabase, audit log, PermDock.
 - [`references/data-conventions.md`](references/data-conventions.md): UTC timestamps and Temporal types, integer money, UUID and integer IDs, naming, standard codes, pagination, deletion.
-- [`references/auth.md`](references/auth.md): Supabase Auth as the OAuth 2.1 server for every surface.
+- [`references/auth.md`](references/auth.md): Supabase Auth as the OAuth 2.1 server for every surface, and the OAuth Consent block.
 - [`references/api.md`](references/api.md): Hono, oRPC, Scalar.
 - [`references/mcp.md`](references/mcp.md): MCP server, tools from the contract, docs MCP.
 - [`references/cli.md`](references/cli.md): product, library and tooling CLIs.
@@ -71,7 +71,7 @@ The repo kind decides which parts of the standard apply. A `product` repo gets e
 **Delivery:**
 
 - [`references/git-workflow.md`](references/git-workflow.md): branches, the agent workflow, commitlint, lefthook, Changesets, releases.
-- [`references/ci.md`](references/ci.md): GitHub Actions, EAS builds and Dependabot.
+- [`references/ci.md`](references/ci.md): GitHub Actions on release tags, EAS builds and Dependabot.
 - [`references/tests.md`](references/tests.md): Vitest, jest-expo, Playwright, pgTAP, test rules.
 - [`references/agent-files.md`](references/agent-files.md): AGENTS.md, rules, the "also update" table, writing rules.
 - [`references/repo-files.md`](references/repo-files.md): README, standard files, `.github`, VS Code.
