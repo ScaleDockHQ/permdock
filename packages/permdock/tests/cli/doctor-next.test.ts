@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
 import type { PermDockConfig } from "../../src/cli/types.ts";
@@ -63,6 +65,15 @@ describe("PD044 server-only grants read by usePermission", () => {
     expect(await check({ "src/ui.tsx": UI })).toEqual([
       "usePermission reads lease.read at src/ui.tsx:6",
     ]);
+  });
+
+  it("reads the sources without writing a catalog", async () => {
+    const cwd = project({
+      "src/definitions.ts": DEFINITIONS,
+      "src/ui.tsx": UI,
+    });
+    await pd044({ cwd, config, now: NOW, io: quietIo });
+    expect(existsSync(join(cwd, "permissions.catalog.json"))).toBe(false);
   });
 
   it("stays quiet with an endpoint option in the sources", async () => {

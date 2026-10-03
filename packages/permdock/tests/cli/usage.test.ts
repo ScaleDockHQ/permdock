@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
 import type { PermDockConfig } from "../../src/cli/types.ts";
@@ -178,6 +180,12 @@ describe("the usage report", () => {
     "src/ui.tsx": UI,
     "src/server.ts": SERVER,
   };
+
+  it("scans in memory without writing a catalog", async () => {
+    const cwd = project(files);
+    expect((await usage(cwd)).code).not.toBe(2);
+    expect(existsSync(join(cwd, "permissions.catalog.json"))).toBe(false);
+  });
 
   it("prints every section with counts", async () => {
     const cwd = project(files);
