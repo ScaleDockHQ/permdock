@@ -1,20 +1,19 @@
-import type * as Pg from 'pg';
-
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 
+import type { SqlConnect } from './pg.ts';
 import type { RolePermission } from './rls-helpers.ts';
 import type { ImportedGrant } from './rls-import-ast.ts';
 import type { ImportedFieldView } from './rls-import-views.ts';
-import type { SqlClient, SqlConnect } from './rls-verify.ts';
 import type { CliIo, PermDockConfig } from './types.ts';
 
+import { usageResult } from './errors.ts';
 import {
   emitPermissionsModule,
   emptySchema,
   isSchemaKind,
 } from './generate.ts';
-import { requirePeer } from './peer.ts';
+import { connectPg } from './pg.ts';
 import {
   canonicalDump,
   conditionFromAst,
@@ -172,17 +171,6 @@ function assertNoServiceRole(sql: string): void {
   }
 }
 
-function loadPg(): Promise<typeof Pg> {
-  return requirePeer(() => import('pg'), 'pg', 'permdock rls import --db');
-}
-
-async function connectPg(db: string): Promise<SqlClient> {
-  const pg = await loadPg();
-  const client = new pg.Client({ connectionString: db });
-  await client.connect();
-  return client;
-}
-
 type Query = (
   sql: string,
 ) => Promise<{ readonly rows: readonly Record<string, unknown>[] }>;
@@ -311,16 +299,17 @@ export async function runRlsImport(input: {
     }
   } else if (input.db !== undefined) {
     try {
-      const fromDb = await policiesFromDb(input.db, input.connect ?? connectPg);
+      const fromDb = await policiesFromDb(
+        input.db,
+        input.connect ??
+          ((db: string) => connectPg(db, 'permdock rls import --db')),
+      );
       policies = fromDb.policies;
       bodies = fromDb.bodies;
       seeds = fromDb.seeds;
       viewsSql = fromDb.views;
     } catch (cause) {
-      return {
-        code: 2,
-        output: cause instanceof Error ? cause.message : String(cause),
-      };
+      return usageResult(cause);
     }
   } else {
     return {

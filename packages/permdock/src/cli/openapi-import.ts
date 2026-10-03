@@ -10,6 +10,7 @@ import type {
 } from './generate.ts';
 import type { CliIo } from './types.ts';
 
+import { byCodePoint } from '../core/compare.ts';
 import { emitPermissionsModule, schemaExpression } from './generate.ts';
 import { validateOpenapi } from './openapi-schema.ts';
 
@@ -488,7 +489,7 @@ export async function runOpenapiImport(input: {
     Object.fromEntries(
       [...actions.entries()]
         .filter(([, value]) => value.instance === instance)
-        .toSorted(([a], [b]) => a.localeCompare(b))
+        .toSorted(([a], [b]) => byCodePoint(a, b))
         .map(([name, value]) => [
           name,
           { ...value.meta, inferredFrom: value.from.join(', ') },

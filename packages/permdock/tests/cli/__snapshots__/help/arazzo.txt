@@ -1,0 +1,20 @@
+Resolve every Arazzo step to x-permdock-permissions (permdock arazzo)
+
+USAGE permdock arazzo [OPTIONS] [ACTION]
+
+ARGUMENTS
+
+  ACTION    check
+
+OPTIONS
+
+           --cwd=<dir>    Run as if started in this directory                  
+       --config=<file>    Config file (default permdock.config.{ts,mts,js,mjs})
+                --json    Machine-readable output                              
+             -y, --yes    Never prompt; take the answer the flags give         
+               --color    Styled output on a colour terminal (Default: true)   
+            --no-color    Plain output                                         
+   --doc=<arazzo.json>    Arazzo document                                      
+  --openapi=<doc.json>    OpenAPI document the workflows call                  
+       --workflow=<id>    Check one workflow                                   
+       --from=<module>    Module exporting the policy, instead of the config   

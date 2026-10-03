@@ -7,12 +7,13 @@ import {
   listArg,
   stringArg,
 } from './context.ts';
+import { COMMAND_DESCRIPTIONS } from './index.ts';
 
 export function catalog(ctx: CliContext): Command {
   const command = defineCommand({
     meta: {
       name: 'catalog',
-      description: 'Export the catalog as JSON, JSON Schema or Markdown',
+      description: COMMAND_DESCRIPTIONS.catalog,
     },
     args: {
       ...globalArgs,
@@ -34,6 +35,7 @@ export function catalog(ctx: CliContext): Command {
       },
     },
     async run({ args: parsed, rawArgs }) {
+      // Lazy: the implementation loads only when this command runs, not for --help.
       const result = await (
         await import('../catalog.ts')
       ).runCatalog({

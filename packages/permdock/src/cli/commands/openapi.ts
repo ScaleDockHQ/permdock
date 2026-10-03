@@ -7,13 +7,13 @@ import {
   listArg,
   stringArg,
 } from './context.ts';
+import { COMMAND_DESCRIPTIONS } from './index.ts';
 
 export function openapi(ctx: CliContext): Command {
   const command = defineCommand({
     meta: {
       name: 'openapi',
-      description:
-        'Emit security into an OpenAPI document, or import one into a generated definition',
+      description: COMMAND_DESCRIPTIONS.openapi,
     },
     args: {
       ...globalArgs,
@@ -123,6 +123,7 @@ export function openapi(ctx: CliContext): Command {
         if (doc === undefined) {
           throw new Error('openapi --doc is required');
         }
+        // Lazy: the implementation loads only when this command runs, not for --help.
         const { runOpenapiImport } = await import('../openapi-import.ts');
         ctx.report(
           await runOpenapiImport({
@@ -137,6 +138,7 @@ export function openapi(ctx: CliContext): Command {
         );
         return;
       }
+      // Lazy: the implementation loads only when this command runs, not for --help.
       const result = await (
         await import('../openapi.ts')
       ).runOpenapi({

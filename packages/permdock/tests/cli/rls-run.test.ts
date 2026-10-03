@@ -273,18 +273,21 @@ async function expectedFor(flags: { readonly helpersOnly?: boolean } = {}) {
 describe('runRls against a closed port through the pg peer', () => {
   const closed = 'postgres://permdock:permdock@127.0.0.1:1/missing';
 
-  it('answers 2 for import --db', async () => {
-    const result = await runRls(input({ rest: ['import'], db: closed }));
-    expect(result.code).toBe(2);
-    expect(result.output).toMatch(/ECONNREFUSED|connect/u);
+  it('throws an unavailable CliError for import --db', async () => {
+    await expect(
+      runRls(input({ rest: ['import'], db: closed })),
+    ).rejects.toMatchObject({
+      kind: 'unavailable',
+      message: 'PermDock CLI: rls import --db could not connect',
+    });
   });
 
-  it('answers 2 for verify --introspect', async () => {
-    expect(
-      await runRls(input({ rest: ['verify'], introspect: true, db: closed })),
-    ).toEqual({
-      code: 2,
-      output: 'PermDock CLI: rls verify --introspect could not connect',
+  it('throws an unavailable CliError for verify --introspect', async () => {
+    await expect(
+      runRls(input({ rest: ['verify'], introspect: true, db: closed })),
+    ).rejects.toMatchObject({
+      kind: 'unavailable',
+      message: 'PermDock CLI: rls verify --introspect could not connect',
     });
   });
 });

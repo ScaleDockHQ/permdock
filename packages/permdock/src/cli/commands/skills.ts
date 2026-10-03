@@ -7,13 +7,14 @@ import {
   globalArgs,
   listArg,
 } from './context.ts';
+import { COMMAND_DESCRIPTIONS } from './index.ts';
 import { CANCELLED, pick } from './prompt.ts';
 
 export function skills(ctx: CliContext): Command {
   const command = defineCommand({
     meta: {
       name: 'skills',
-      description: 'Install, update or list the PermDock Agent Skills',
+      description: COMMAND_DESCRIPTIONS.skills,
     },
     args: {
       ...globalArgs,

@@ -15,6 +15,7 @@ import { parseCatalog } from '../catalog/parse.ts';
 import { canonicalJson } from '../core/canonical-json.ts';
 import { createPermDock, findPermission, memoryRoleSource } from '../index.ts';
 import { buildCatalog } from './catalog-doc.ts';
+import { usageResult } from './errors.ts';
 import { fixtureRow, fixtureSubject, loadFixtures } from './fixtures.ts';
 import { asPolicy, loadModule, pickNamed } from './load.ts';
 
@@ -682,10 +683,7 @@ export async function runDiff(input: {
       loadSide(input.cwd, sourceB, input.now),
     ]);
   } catch (error) {
-    return {
-      code: 2,
-      output: error instanceof Error ? error.message : String(error),
-    };
+    return usageResult(error);
   }
   let diff = diffCatalogs(a, b);
   if (input.impact) {
@@ -712,10 +710,7 @@ export async function runDiff(input: {
         breaking: [...diff.breaking, ...impact.breaking],
       };
     } catch (error) {
-      return {
-        code: 2,
-        output: error instanceof Error ? error.message : String(error),
-      };
+      return usageResult(error);
     }
   }
   const code = diff.breaking.length > 0 ? 1 : 0;

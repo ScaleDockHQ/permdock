@@ -3,7 +3,7 @@ import { join } from 'node:path';
 
 import { packageRoot } from './package-root.ts';
 
-function cliVersion(): string {
+export function cliVersion(): string {
   // SAFETY: packageRoot() finds permdock's own package.json, which always has a version.
   const raw = JSON.parse(
     readFileSync(join(packageRoot(), 'package.json'), 'utf8'),

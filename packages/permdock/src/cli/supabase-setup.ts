@@ -3,13 +3,13 @@ import { resolve } from 'node:path';
 
 import type { SupabaseHookManifest } from '../supabase/manifest.ts';
 import type { DoctorFinding } from './doctor-types.ts';
-import type { SqlClient, SqlConnect } from './rls-verify.ts';
+import type { SqlConnect } from './pg.ts';
 import type { PermDockConfig } from './types.ts';
 
 import { readMemberships } from '../supabase/subject.ts';
 import { MIGRATION_DIRS } from './doctor-project.ts';
 import { sqlFiles } from './files.ts';
-import { requirePeer } from './peer.ts';
+import { connectPg } from './pg.ts';
 
 const HELPER_NAME =
   /^(?:permdock_has|permitted_[a-z][a-z0-9_]*_ids|member_[a-z][a-z0-9_]*_ids(?:_for)?)$/u;
@@ -73,30 +73,11 @@ export function missingHelpersInFiles(
   return manifest.helpers.functions.filter((name) => !found.has(name));
 }
 
-async function connectPg(db: string): Promise<SqlClient> {
-  const pg = await requirePeer(
-    () => import('pg'),
-    'pg',
-    'permdock supabase hook generate --db',
-  );
-  const client = new pg.Client({ connectionString: db });
-  try {
-    await client.connect();
-  } catch (cause) {
-    throw new Error(
-      'PermDock CLI: supabase hook generate --db could not connect',
-      {
-        cause,
-      },
-    );
-  }
-  return client;
-}
-
 export async function missingHelpersInDb(
   db: string,
   manifest: SupabaseHookManifest,
-  connect: SqlConnect = connectPg,
+  connect: SqlConnect = (url) =>
+    connectPg(url, 'permdock supabase hook generate --db'),
 ): Promise<readonly string[]> {
   const client = await connect(db);
   try {

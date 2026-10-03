@@ -6,13 +6,13 @@ import {
   globalArgs,
   stringArg,
 } from './context.ts';
+import { COMMAND_DESCRIPTIONS } from './index.ts';
 
 export function cloud(ctx: CliContext): Command {
   const command = defineCommand({
     meta: {
       name: 'cloud',
-      description:
-        'Publish the catalog, hostable flags and role assignability to a PermDock Cloud environment',
+      description: COMMAND_DESCRIPTIONS.cloud,
     },
     args: {
       ...globalArgs,
@@ -33,6 +33,7 @@ export function cloud(ctx: CliContext): Command {
       },
     },
     async run({ args: parsed }) {
+      // Lazy: the implementation loads only when this command runs, not for --help.
       const result = await (
         await import('../cloud.ts')
       ).runCloud({

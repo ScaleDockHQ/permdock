@@ -1,3 +1,5 @@
+import { byCodePoint } from '../core/compare.ts';
+
 export type SchemaKind = 'zod' | 'valibot' | 'arktype';
 
 export type JsonSchema = Readonly<Record<string, unknown>>;
@@ -293,7 +295,7 @@ function insert(trie: Trie, resource: GeneratedResource): void {
 
 function renderTrie(trie: Trie, indent: string): string {
   return [...trie.entries()]
-    .toSorted(([a], [b]) => a.localeCompare(b))
+    .toSorted(([a], [b]) => byCodePoint(a, b))
     .map(([segment, value]) =>
       value instanceof Map
         ? `${indent}${propertyKey(segment)}: {\n${renderTrie(value, `${indent}  `)}\n${indent}},`

@@ -1,11 +1,11 @@
+import type { SqlClient, SqlConnect } from './pg.ts';
 import type { CompiledPolicy } from './rls-compile.ts';
 import type { RolePermission } from './rls-helpers.ts';
 import type { IndexTarget } from './rls-indexes.ts';
-import type { SqlClient, SqlConnect } from './rls-verify.ts';
 
 import { escapeSqlIdent } from '../core/sql.ts';
 import { callsHelper, HELPER_TABLES, helperCallKeys } from './helper-calls.ts';
-import { requirePeer } from './peer.ts';
+import { connectPgPool } from './pg.ts';
 
 const ROLES = ['anon', 'authenticated'] as const;
 /** Neon's `anonymous` is the role `rls generate` writes as `anon` for the other dialects. */
@@ -276,38 +276,27 @@ function commandOf(cmd: unknown): string {
   return text === '*' ? 'all' : text;
 }
 
-async function connectPg(db: string): Promise<SqlClient> {
-  const pg = await requirePeer(
-    () => import('pg'),
-    'pg',
-    'permdock rls verify --introspect',
-  );
-  const client = new pg.Client({ connectionString: db });
-  try {
-    await client.connect();
-  } catch (cause) {
-    throw new Error('PermDock CLI: rls verify --introspect could not connect', {
-      cause,
-    });
-  }
-  return client;
+function connectIntrospect(db: string): Promise<SqlClient> {
+  return connectPgPool(db, 'permdock rls verify --introspect');
 }
 
 /** Reads the catalogs for the tables and helpers `expected` names (postgres-meta's queries, trimmed). */
 export async function introspectRls(
   db: string,
   expected: ExpectedRls,
-  connect: SqlConnect = connectPg,
+  connect: SqlConnect = connectIntrospect,
 ): Promise<ActualRls> {
   const client = await connect(db);
   try {
     const tables = [...expected.tables];
-    const policies = await client.query(POLICIES_SQL, [tables]);
-    const enabled = await client.query(TABLES_SQL, [tables]);
-    const grants = await client.query(GRANTS_SQL, [tables]);
-    const helpers = await client.query(HELPERS_SQL, [[...expected.helpers]]);
-    const indexes = await client.query(INDEXES_SQL, [
-      [...new Set(expected.indexes.map((target) => target.table))],
+    const [policies, enabled, grants, helpers, indexes] = await Promise.all([
+      client.query(POLICIES_SQL, [tables]),
+      client.query(TABLES_SQL, [tables]),
+      client.query(GRANTS_SQL, [tables]),
+      client.query(HELPERS_SQL, [[...expected.helpers]]),
+      client.query(INDEXES_SQL, [
+        [...new Set(expected.indexes.map((target) => target.table))],
+      ]),
     ]);
     const leadingColumns: Record<string, string[]> = {};
     for (const row of indexes.rows) {
@@ -470,16 +459,18 @@ const quoteIdent = escapeSqlIdent;
 export async function introspectMixed(
   db: string,
   schema: string,
-  connect: SqlConnect = connectPg,
+  connect: SqlConnect = connectIntrospect,
 ): Promise<ActualMixed> {
   const client = await connect(db);
   try {
-    const seeds = await client.query(
-      `select role, permission, grant_key, scope, effect from ${quoteIdent(schema)}.role_permissions`,
-      [],
-    );
-    const policies = await client.query(ALL_POLICIES_SQL, []);
-    const tables = await client.query(RLS_TABLES_SQL, []);
+    const [seeds, policies, tables] = await Promise.all([
+      client.query(
+        `select role, permission, grant_key, scope, effect from ${quoteIdent(schema)}.role_permissions`,
+        [],
+      ),
+      client.query(ALL_POLICIES_SQL, []),
+      client.query(RLS_TABLES_SQL, []),
+    ]);
     return {
       seeds: seeds.rows.map((row) => ({
         role: String(row['role']),

@@ -2,7 +2,7 @@ import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 
-import type { SqlClient } from '../../src/cli/rls-verify.ts';
+import type { SqlClient } from '../../src/cli/pg.ts';
 import type { PermDockConfig } from '../../src/cli/types.ts';
 import type { SqlCall, SqlReply } from '../fakes/sql.ts';
 

@@ -16,6 +16,7 @@ import type {
 
 import { catalogSchema } from '../catalog/schema.ts';
 import { canonicalJson } from '../core/canonical-json.ts';
+import { byCodePoint } from '../core/compare.ts';
 import {
   catalogFingerprint,
   findRole,
@@ -118,7 +119,7 @@ export function buildCatalog(
         breakGlass: breakGlass.get(leaf.key),
       }),
     )
-    .toSorted((a, b) => a.key.localeCompare(b.key));
+    .toSorted((a, b) => byCodePoint(a.key, b.key));
   const body = {
     resources,
     permissions,

@@ -1195,7 +1195,7 @@ export const policy = definePolicy(permissions, {
       ],
       { cwd },
     );
-    expect(missing.code).toBe(2);
-    expect(missing.stdout).toContain('could not connect');
+    expect(missing.code).toBe(1);
+    expect(missing.stderr).toContain('could not connect');
   });
 });

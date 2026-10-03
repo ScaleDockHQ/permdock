@@ -13,6 +13,7 @@ import { getResource } from '../index.ts';
 import { jsonSchemaOf } from './catalog-doc.ts';
 import { runCollect } from './collect.ts';
 import { isClientSource } from './doctor-source.ts';
+import { usageResult } from './errors.ts';
 import { listSourceFiles, rel } from './files.ts';
 import { asPolicy, loadModule, pickNamed } from './load.ts';
 import { USAGE_REPORT_SCHEMA } from './version.ts';
@@ -77,10 +78,7 @@ export async function runUsage(input: {
   try {
     policy = asPolicy(pickNamed(await loadModule(policyAbs), ['policy']));
   } catch (error) {
-    return {
-      code: 2,
-      output: error instanceof Error ? error.message : String(error),
-    };
+    return usageResult(error);
   }
   const granted = new Set<string>();
   const mergedRoles = new Set<string>();

@@ -1,4 +1,4 @@
-import type { SqlClient, SqlConnect } from '../../src/cli/rls-verify.ts';
+import type { SqlClient, SqlConnect } from '../../src/cli/pg.ts';
 
 export type SqlCall = {
   readonly sql: string;

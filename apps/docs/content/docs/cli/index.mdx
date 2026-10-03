@@ -16,7 +16,7 @@ pnpm exec permdock doctor
 npx permdock doctor
 ```
 
-The binary is `permdock`. All commands accept `--cwd` and `--config permdock.config.ts`. A config file is optional; every option can be passed as a flag.
+The binary is `permdock`; `permdock --version` prints its version. All commands accept `--cwd` and `--config permdock.config.ts`. A config file is optional; every option can be passed as a flag.
 
 ```ts
 // permdock.config.ts
@@ -58,14 +58,15 @@ All commands share one contract so CI steps can be written without parsing outpu
 | Code | Meaning |
 | --- | --- |
 | `0` | Success; for `--check` and `verify`, no drift and no findings |
-| `1` | Findings: drift detected, parity failures, unused or ungranted permissions, doctor errors |
+| `1` | Findings: drift detected, parity failures, unused or ungranted permissions, doctor errors. Also a database or the Cloud that did not answer |
 | `2` | Usage or configuration error: unknown flag, missing config, unreadable definition module, unsupported TypeScript version |
+| `130` | Interrupted with Ctrl-C while a `--db` command was connected; the connection is closed first |
 
 Warnings never change the exit code unless `--strict` is passed.
 
 ## Output
 
-Every command prints a human-readable report by default and supports `--json` for machine consumption. JSON reports carry a `$schema` field pointing at the report schema included in the package so agents can validate them. Paths in reports are relative to `--cwd`. `--help` (or `permdock help`) prints the command list; `permdock <command> --help` (or `permdock help <command>`) prints that command's flags, their values and defaults.
+Every command prints a human-readable report by default and supports `--json` for machine consumption. JSON reports carry a `$schema` field pointing at the report schema included in the package so agents can validate them. A command that fails under `--json` prints RFC 9457 Problem Details on stdout instead of a message on stderr: `type` is `https://permdock.dev/problems/cli-usage` or `https://permdock.dev/problems/cli-unavailable`, with `title`, `detail`, `command` and `exitCode`. Paths in reports are relative to `--cwd`. `--help` (or `permdock help`) prints the command list; `permdock <command> --help` (or `permdock help <command>`) prints that command's flags, their values and defaults.
 
 When `--check` finds drift (`collect`, `openapi`, `rls generate`, `supabase hook generate`), it prints each stale file's name followed by a unified diff from the file on disk to what the command would write, cut to the first 40 lines, so the CI log shows what changed without a local run.
 
@@ -82,7 +83,7 @@ Reports are styled on a colour terminal and plain in a pipe, unless `FORCE_COLOR
 - run: pnpm exec permdock arazzo check --doc workflows/publish-post.arazzo.json --openapi openapi.json
 ```
 
-`permdock rls verify --db $DATABASE_URL` runs in the integration job that has a Postgres service; see [rls](/docs/cli/rls).
+`permdock rls verify --db $DATABASE_URL` runs in the integration job that has a Postgres service; see [rls](/docs/cli/rls). Every `--db` connection gives up after 10 seconds and every statement after 60 seconds, and then exits `1`.
 
 ## How the CLI reads definitions
 
@@ -98,4 +99,4 @@ Config, permissions and policy modules are loaded with Node's `import()`. When N
 - **Heavy or rare dependencies stay optional peers.** `pgsql-parser`, `pg` and `unplugin` are large and serve one or two commands, so a project that never runs `rls import` never installs them.
 - **citty for flags and help.** One definition per command gives the parser, the `--help` text, the value check for flags with a fixed set of values, and the list the docs test reads, so the help and the docs cannot disagree with the parser.
 - **jiti for loading modules.** Node's own type stripping rejects `enum`, extensionless imports and tsconfig `paths`, which most app code uses; jiti loads a module the way the app's bundler does. Node goes first because it is faster, and a module it loads is the same module the app's runtime loads. An error thrown while a module runs is reported as it is.
-- **Prompts only at a terminal.** A prompt in CI or a pipe would hang the job, so prompts appear only when stdin and stdout are a terminal, `CI` is unset and `--json` is not set. Every prompt has a flag that answers it, and without a terminal the command behaves as the flag says.
+- **Prompts only at a terminal.** A prompt in CI or a pipe would hang the job, so prompts appear only when stdin and stdout are a terminal, `CI` is unset and `--json` is not set. Every prompt has a flag that answers it, and without a terminal the command behaves as the flag says. `--yes` (`-y`) turns prompts off at a terminal too.

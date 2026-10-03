@@ -3,6 +3,7 @@ import { expect, it } from 'vitest';
 import type { InferPermissionTree, ResourceInit } from '../core/permissions.ts';
 import type { Policy } from '../index.ts';
 
+import { byCodePoint } from '../core/compare.ts';
 import {
   allow,
   definePermissions,
@@ -76,7 +77,7 @@ export type TestAuthZenOptions = {
 function sortKey(value: Readonly<Record<string, unknown>>): string {
   return JSON.stringify(
     Object.fromEntries(
-      Object.entries(value).toSorted(([a], [b]) => a.localeCompare(b)),
+      Object.entries(value).toSorted(([a], [b]) => byCodePoint(a, b)),
     ),
   );
 }

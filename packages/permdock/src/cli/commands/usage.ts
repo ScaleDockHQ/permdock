@@ -6,13 +6,13 @@ import {
   globalArgs,
   listArg,
 } from './context.ts';
+import { COMMAND_DESCRIPTIONS } from './index.ts';
 
 export function usage(ctx: CliContext): Command {
   const command = defineCommand({
     meta: {
       name: 'usage',
-      description:
-        'Report unused, ungranted and role-less permissions and conditions on undeclared fields',
+      description: COMMAND_DESCRIPTIONS.usage,
     },
     args: {
       ...globalArgs,
@@ -28,6 +28,7 @@ export function usage(ctx: CliContext): Command {
       },
     },
     async run({ args: parsed, rawArgs }) {
+      // Lazy: the implementation loads only when this command runs, not for --help.
       const result = await (
         await import('../usage.ts')
       ).runUsage({

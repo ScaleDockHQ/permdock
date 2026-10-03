@@ -6,13 +6,13 @@ import {
   globalArgs,
   stringArg,
 } from './context.ts';
+import { COMMAND_DESCRIPTIONS } from './index.ts';
 
 export function supabase(ctx: CliContext): Command {
   const command = defineCommand({
     meta: {
       name: 'supabase',
-      description:
-        'Generate the Supabase Custom Access Token Hook, or inspect its manifest',
+      description: COMMAND_DESCRIPTIONS.supabase,
     },
     args: {
       ...globalArgs,
@@ -69,6 +69,7 @@ export function supabase(ctx: CliContext): Command {
       const budget = stringArg(parsed.budget);
       const schema = stringArg(parsed.schema);
       const grantsOut = stringArg(parsed['grants-out']);
+      // Lazy: the implementation loads only when this command runs, not for --help.
       const { runSupabase } = await import('../supabase-hook.ts');
       ctx.report(
         await runSupabase({

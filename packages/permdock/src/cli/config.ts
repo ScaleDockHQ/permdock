@@ -3,8 +3,6 @@ import { resolve } from 'node:path';
 
 import type { PermDockConfig } from './types.ts';
 
-import { loadModule, pickNamed } from './load.ts';
-
 const CONFIG_FILES = [
   'permdock.config.ts',
   'permdock.config.mts',
@@ -31,6 +29,8 @@ export async function loadConfig(
   if (!existsSync(path)) {
     throw new Error(`PermDock CLI: config file not found: ${path}`);
   }
+  // Lazy: jiti and the core load only when there is a config file to read.
+  const { loadModule, pickNamed } = await import('./load.ts');
   const mod = await loadModule(path);
   const value = pickNamed(mod, ['default']);
   if (value === null || typeof value !== 'object') {

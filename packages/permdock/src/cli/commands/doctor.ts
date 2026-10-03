@@ -6,14 +6,14 @@ import {
   globalArgs,
   listArg,
 } from './context.ts';
+import { COMMAND_DESCRIPTIONS } from './index.ts';
 import { ask, CANCELLED } from './prompt.ts';
 
 export function doctor(ctx: CliContext): Command {
   const command = defineCommand({
     meta: {
       name: 'doctor',
-      description:
-        'Check a PermDock installation and print a fix for each finding',
+      description: COMMAND_DESCRIPTIONS.doctor,
     },
     args: {
       ...globalArgs,
@@ -40,6 +40,7 @@ export function doctor(ctx: CliContext): Command {
         }
         fix = answer;
       }
+      // Lazy: the implementation loads only when this command runs, not for --help.
       const result = await (
         await import('../doctor.ts')
       ).runDoctor({

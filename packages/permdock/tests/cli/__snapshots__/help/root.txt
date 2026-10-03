@@ -1,0 +1,29 @@
+Collect, export, diff and check the permissions a PermDock policy declares (permdock)
+
+USAGE permdock [OPTIONS] collect|catalog|diff|usage|doctor|skills|openapi|rls|arazzo|cloud|supabase
+
+OPTIONS
+
+      --cwd=<dir>    Run as if started in this directory                  
+  --config=<file>    Config file (default permdock.config.{ts,mts,js,mjs})
+           --json    Machine-readable output                              
+        -y, --yes    Never prompt; take the answer the flags give         
+          --color    Styled output on a colour terminal (Default: true)   
+       --no-color    Plain output                                         
+    -v, --version    Print the permdock version                           
+
+COMMANDS
+
+   collect    Scan the sources for definePermissions() and permission references; write the catalog and barrel
+   catalog    Export the catalog as JSON, JSON Schema or Markdown                                             
+      diff    Compare two policies or catalogs; exit 1 on a breaking change                                   
+     usage    Report unused, ungranted and role-less permissions and conditions on undeclared fields          
+    doctor    Check a PermDock installation and print a fix for each finding                                  
+    skills    Install, update or list the PermDock Agent Skills                                               
+   openapi    Emit security into an OpenAPI document, or import one into a generated definition               
+       rls    Generate, import, verify or migrate Postgres RLS policies from the policy                       
+    arazzo    Resolve every Arazzo step to x-permdock-permissions                                             
+     cloud    Publish the catalog, hostable flags and role assignability to a PermDock Cloud environment      
+  supabase    Generate the Supabase Custom Access Token Hook, or inspect its manifest                         
+
+Use permdock <command> --help for more information about a command.

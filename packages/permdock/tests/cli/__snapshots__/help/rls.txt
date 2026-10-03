@@ -1,0 +1,50 @@
+Generate, import, verify or migrate Postgres RLS policies from the policy (permdock rls)
+
+USAGE permdock rls [OPTIONS] [ACTION]
+
+ARGUMENTS
+
+  ACTION    generate, import, verify or migrate
+
+OPTIONS
+
+                    --cwd=<dir>    Run as if started in this directory                      
+                --config=<file>    Config file (default permdock.config.{ts,mts,js,mjs})    
+                         --json    Machine-readable output                                  
+                      -y, --yes    Never prompt; take the answer the flags give             
+                        --color    Styled output on a colour terminal (Default: true)       
+                     --no-color    Plain output                                             
+  --target=<sql|drizzle|prisma>    generate: output form                                    
+  --dialect=<supabase|neon|guc>    How the database reads the subject (default rls.dialect) 
+                   --out=<file>    File to write                                            
+                --from=<module>    Module exporting the policy, instead of the config       
+                   --sql=<path>    import / migrate: SQL file or folder to read             
+                     --db=<url>    Postgres connection string                               
+              --fixtures=<file>    verify: fixtures file                                    
+                --schema=<name>    import: schema library, or the helper schema             
+          --memberships=<table>    import: membership table                                 
+              --format=<format>    verify: node or pgtap                                    
+                --emit=<format>    Alias of --format                                        
+              --rbac=<supabase>    generate: scaffold the role tables for this provider     
+                --rbac-scaffold    generate: scaffold the role tables                       
+           --rbac-schema=<name>    Schema for the scaffolded role tables                    
+             --authorize=<mode>    Where roles are read: 'jwt' or 'database'                
+                        --check    Exit 1 when the files on disk are stale; write nothing   
+                --skip-closures    Skip grants with closures instead of failing             
+             --inline-functions    Inline helper calls into the policies                    
+                        --force    Overwrite an existing file                               
+          --guc-prefix=<prefix>    guc dialect: setting prefix                              
+              --policy-per-role    One policy per role instead of one per command           
+       --policy-name=<template>    Policy name template                                     
+           --tenant-type=<type>    Postgres type of the tenant column                       
+                 --custom-roles    Emit the custom role tables and helpers                  
+                 --capabilities    Emit the link capability helpers                         
+                --fields=<mode>    Field security: 'views'                                  
+               --revoke-columns    Revoke restricted columns on the table                   
+                         --tree    verify: check the relationship closure                   
+                   --introspect    verify: compare against the live database                
+                --split=<parts>    Write helpers, seeds, policies and hook as separate parts
+            --grants-out=<file>    File for the supabase_auth_admin grants                  
+             --seeds-out=<file>    File for the role_permissions seeds                      
+                 --helpers-only    Write the helpers and keep the policies hand-written     
+                        --write    migrate: rewrite the files instead of a dry run          

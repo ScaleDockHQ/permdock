@@ -7,12 +7,13 @@ import {
   listArg,
   stringArg,
 } from './context.ts';
+import { COMMAND_DESCRIPTIONS } from './index.ts';
 
 export function arazzo(ctx: CliContext): Command {
   const command = defineCommand({
     meta: {
       name: 'arazzo',
-      description: 'Resolve every Arazzo step to x-permdock-permissions',
+      description: COMMAND_DESCRIPTIONS.arazzo,
     },
     args: {
       ...globalArgs,
@@ -39,6 +40,7 @@ export function arazzo(ctx: CliContext): Command {
       },
     },
     async run({ args: parsed, rawArgs }) {
+      // Lazy: the implementation loads only when this command runs, not for --help.
       const result = await (
         await import('../arazzo.ts')
       ).runArazzo({

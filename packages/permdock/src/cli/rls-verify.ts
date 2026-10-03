@@ -1,5 +1,3 @@
-import type * as Pg from 'pg';
-
 import { resolve } from 'node:path';
 
 import type { Scope } from '../core/scopes.ts';
@@ -17,6 +15,7 @@ import {
 import { supabaseTenantClaim } from '../supabase/budget.ts';
 import { PERMDOCK_SCHEMA } from '../supabase/sources.ts';
 import { policyRowConditionKeys } from './catalog-doc.ts';
+import { usageResult } from './errors.ts';
 import {
   type RlsFixture,
   fixtureRow,
@@ -29,7 +28,7 @@ import {
   rowConditionMessage,
 } from './helper-calls.ts';
 import { asPolicy, loadModule, pickNamed } from './load.ts';
-import { requirePeer } from './peer.ts';
+import { connectPg, type SqlConnect } from './pg.ts';
 import { commandFor } from './rls-compile.ts';
 import { FIELD_VIEWS, viewName } from './rls-fields.ts';
 import { quoteIdent } from './rls-sql.ts';
@@ -207,38 +206,6 @@ function emitPgtap(
   }
   lines.push('select * from finish();', 'rollback;');
   return `${lines.join('\n')}\n`;
-}
-
-function loadPg(): Promise<typeof Pg> {
-  return requirePeer(() => import('pg'), 'pg', 'permdock rls verify --db');
-}
-
-/** The part of a `pg` client `rls verify --db` uses. */
-export type SqlClient = {
-  readonly query: (
-    sql: string,
-    values: unknown[],
-  ) => Promise<{
-    readonly rows: Record<string, unknown>[];
-    readonly rowCount?: number | null;
-  }>;
-  readonly end: () => Promise<void>;
-};
-
-/** Opens a connected client for a connection string. */
-export type SqlConnect = (db: string) => Promise<SqlClient>;
-
-async function connectPg(db: string): Promise<SqlClient> {
-  const pg = await loadPg();
-  const client = new pg.Client({ connectionString: db });
-  try {
-    await client.connect();
-  } catch (cause) {
-    throw new Error('PermDock CLI: rls verify --db could not connect', {
-      cause,
-    });
-  }
-  return client;
 }
 
 type InProcess = {
@@ -625,7 +592,9 @@ export async function runRlsVerify(input: {
   /** Opens the `--db` connection; defaults to the `pg` peer. */
   readonly connect?: SqlConnect;
 }): Promise<VerifyOutcome> {
-  const connect = input.connect ?? connectPg;
+  const connect =
+    input.connect ??
+    ((db: string) => connectPg(db, 'permdock rls verify --db'));
   const policyPath = input.from ?? input.config.policy;
   if (policyPath === undefined) {
     return {
@@ -651,10 +620,7 @@ export async function runRlsVerify(input: {
         connect,
       );
     } catch (cause) {
-      return {
-        code: 2,
-        output: cause instanceof Error ? cause.message : String(cause),
-      };
+      return usageResult(cause);
     }
   }
   const fixturesPath =
@@ -740,10 +706,7 @@ export async function runRlsVerify(input: {
       mismatches.push(...database.mismatches);
       notes.push(...database.notes);
     } catch (cause) {
-      return {
-        code: 2,
-        output: cause instanceof Error ? cause.message : String(cause),
-      };
+      return usageResult(cause);
     }
   }
   if (mismatches.length > 0) {

@@ -15,6 +15,7 @@ import type { Scope } from './scopes.ts';
 import type { Membership, Subject } from './subject.ts';
 
 import { compact } from './compact.ts';
+import { byCodePoint } from './compare.ts';
 import { evaluate } from './evaluate.ts';
 import { emptyListeners } from './events.ts';
 import { freezeDeep } from './freeze.ts';
@@ -537,7 +538,7 @@ export async function whoCan(input: {
   };
   const now = nowSeconds();
   const ordered = [...found.entries()].toSorted(([a], [b]) =>
-    a.localeCompare(b),
+    byCodePoint(a, b),
   );
   const decideAll = (): readonly Decision[] =>
     ordered.map(([id, entry]) => {

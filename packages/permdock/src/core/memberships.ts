@@ -1,12 +1,13 @@
 import type { MemberEntry, MembershipSource } from './interfaces.ts';
 import type { Membership } from './subject.ts';
 
+import { byCodePoint } from './compare.ts';
 import { isThenable } from './thenable.ts';
 
 /** Two memberships are the same row when everything but `roles` matches. */
 function identity(membership: Membership): string {
   const within = Object.entries(membership.within ?? {}).toSorted(([a], [b]) =>
-    a.localeCompare(b),
+    byCodePoint(a, b),
   );
   return JSON.stringify([
     membership.scope ?? null,

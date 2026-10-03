@@ -1,6 +1,8 @@
+import type { SqlConnect } from './pg.ts';
 import type { CliIo, PermDockConfig, RlsDialect, RlsTarget } from './types.ts';
 
 import { PERMDOCK_SCHEMA } from '../supabase/sources.ts';
+import { usageResult } from './errors.ts';
 import { requirePeer } from './peer.ts';
 import { type GenerateOutcome, runRlsGenerate } from './rls-generate.ts';
 import {
@@ -13,7 +15,7 @@ import {
   missingIndexes,
 } from './rls-introspect.ts';
 import { parseRbacAuthorize } from './rls-rbac.ts';
-import { runRlsVerify, type SqlConnect } from './rls-verify.ts';
+import { runRlsVerify } from './rls-verify.ts';
 
 export const RLS_HELP = `permdock rls generate | import | verify | migrate
 
@@ -171,12 +173,14 @@ async function migrate(
   if (generated.code !== 0) {
     return { code: 2, output: generated.output };
   }
+  // Lazy: pgsql-parser is an optional peer that only migrate and import need.
   await requirePeer(
     () => import('pgsql-parser'),
     'pgsql-parser',
     'permdock rls migrate',
     input.cwd,
   );
+  // Lazy: the migrate code loads only after its peer check passes.
   const { migrateTarget, runRlsMigrate } = await import('./rls-migrate.ts');
   return runRlsMigrate({
     cwd: input.cwd,
@@ -222,10 +226,7 @@ async function introspectHelpersOnly(
           ].join('\n'),
         };
   } catch (cause) {
-    return {
-      code: 2,
-      output: cause instanceof Error ? cause.message : String(cause),
-    };
+    return usageResult(cause);
   }
 }
 
@@ -277,10 +278,7 @@ async function introspect(
       output: `${warnings.map((line) => `${line}\n`).join('')}introspected ${String(expected.policies.length)} policies on ${String(expected.tables.length)} table(s) and ${String(expected.helpers.length)} helper(s): no drift`,
     };
   } catch (cause) {
-    return {
-      code: 2,
-      output: cause instanceof Error ? cause.message : String(cause),
-    };
+    return usageResult(cause);
   }
 }
 
@@ -311,12 +309,14 @@ export async function runRls(
       return runRlsGenerate(generateInput(input, target, dialect));
     }
     case 'import': {
+      // Lazy: pgsql-parser is an optional peer that only migrate and import need.
       await requirePeer(
         () => import('pgsql-parser'),
         'pgsql-parser',
         'permdock rls import',
         input.cwd,
       );
+      // Lazy: the import code loads only after its peer check passes.
       const { runRlsImport } = await import('./rls-import.ts');
       return runRlsImport({
         cwd: input.cwd,

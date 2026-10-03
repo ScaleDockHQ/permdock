@@ -1,15 +1,15 @@
 {
-  "core definePolicy + createPermDock": 37466,
+  "core definePolicy + createPermDock": 37475,
   "react PermDockProvider + usePermission": 16577,
-  "next createPermDock": 42034,
-  "server createPermDock": 39416,
-  "server createPermDock + verifyWebBotAuth": 40985,
-  "hono createPermDock": 40401,
-  "hono createPermDock + withOtel": 41760,
-  "express createPermDock": 40459,
-  "fastify createPermDock": 40275,
+  "next createPermDock": 42038,
+  "server createPermDock": 39428,
+  "server createPermDock + verifyWebBotAuth": 40975,
+  "hono createPermDock": 40403,
+  "hono createPermDock + withOtel": 41784,
+  "express createPermDock": 40463,
+  "fastify createPermDock": 40282,
   "jwt subjectFromJwt": 8336,
-  "mcp createPermDock": 38721,
+  "mcp createPermDock": 38731,
   "ai-sdk createPermDock": 36516,
-  "supabase/middleware createPermDock": 39804
+  "supabase/middleware createPermDock": 39824
 }

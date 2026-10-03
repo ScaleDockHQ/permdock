@@ -17,8 +17,20 @@ import {
   resolveArgs,
   stringArg,
 } from './commands/context.ts';
-import { type CommandName, commands, isCommand } from './commands/index.ts';
+import {
+  COMMAND_DESCRIPTIONS,
+  type CommandName,
+  commands,
+  isCommand,
+} from './commands/index.ts';
 import { loadConfig, resolveCwd } from './config.ts';
+import {
+  type CliErrorKind,
+  cliErrorKind,
+  cliProblem,
+  exitCodeOf,
+} from './errors.ts';
+import { cliVersion } from './version.ts';
 
 const NAMES = Object.keys(commands).filter(isCommand);
 
@@ -77,25 +89,48 @@ export async function run(
     now: io.now?.() ?? new Date(),
     json,
     color,
-    interactive: io.interactive === true && !json,
+    interactive: io.interactive === true && !json && globals.yes !== true,
     report: (outcome) => {
       result = outcome;
     },
   });
 
+  /** A failed run: text on stderr, or Problem Details on stdout under `--json`. */
+  const fail = (
+    kind: CliErrorKind,
+    message: string,
+    command?: string,
+  ): RunResult => {
+    if (json) {
+      writeOut(JSON.stringify(cliProblem(kind, message, command), null, 2));
+    } else {
+      writeErr(message);
+    }
+    return done(exitCodeOf(kind));
+  };
+
   if (name !== undefined && !isCommand(name)) {
-    writeErr(
+    return fail(
+      'usage',
       `unknown command '${name}'. Use ${new Intl.ListFormat('en-GB', { type: 'disjunction' }).format(NAMES)}.`,
     );
-    return done(2);
+  }
+  if (
+    name === undefined &&
+    (flags.includes('--version') || flags.includes('-v'))
+  ) {
+    writeOut(cliVersion());
+    return done(0);
   }
   if (askedHelp || first === 'help' || name === undefined) {
-    const helpCtx = contextFor(options?.cwd ?? process.cwd(), {});
-    const root = rootCommand(helpCtx);
+    const root = rootCommand();
     const usage =
       name === undefined
         ? await renderUsage(root)
-        : await renderUsage(await load(name, helpCtx), root);
+        : await renderUsage(
+            await load(name, contextFor(options?.cwd ?? process.cwd(), {})),
+            root,
+          );
     if (name === undefined && !askedHelp && first !== 'help') {
       writeErr(plain(usage));
       return done(2);
@@ -109,8 +144,10 @@ export async function run(
   try {
     config = await loadConfig(cwd, stringArg(globals.config));
   } catch (error) {
-    writeErr(error instanceof Error ? error.message : String(error));
-    return done(2);
+    return fail(
+      cliErrorKind(error),
+      error instanceof Error ? error.message : String(error),
+    );
   }
   try {
     const command = await load(name, contextFor(cwd, config));
@@ -120,13 +157,16 @@ export async function run(
     });
   } catch (error) {
     if (!(error instanceof Error)) {
-      writeErr(String(error));
-    } else if (error.name === 'CLIError') {
-      writeErr(`${name}: ${stripVTControlCharacters(error.message)}`);
-    } else {
-      writeErr(error.message);
+      return fail('usage', String(error), name);
     }
-    return done(2);
+    if (error.name === 'CLIError') {
+      return fail(
+        'usage',
+        `${name}: ${stripVTControlCharacters(error.message)}`,
+        name,
+      );
+    }
+    return fail(cliErrorKind(error), error.message, name);
   }
   if (result === undefined) {
     return done(0);
@@ -135,16 +175,29 @@ export async function run(
   return done(result.code);
 }
 
-function rootCommand(ctx: CliContext): Command {
+/** The root help lists commands from a static table, so it loads none of them. */
+function rootCommand(): Command {
   return defineCommand({
     meta: {
       name: 'permdock',
       description:
         'Collect, export, diff and check the permissions a PermDock policy declares',
     },
-    args: globalArgs,
+    args: {
+      ...globalArgs,
+      version: {
+        type: 'boolean',
+        alias: 'v',
+        description: 'Print the permdock version',
+      },
+    },
     subCommands: Object.fromEntries(
-      NAMES.map((name) => [name, () => load(name, ctx)]),
+      NAMES.map((name) => [
+        name,
+        defineCommand({
+          meta: { name, description: COMMAND_DESCRIPTIONS[name] },
+        }),
+      ]),
     ),
   });
 }

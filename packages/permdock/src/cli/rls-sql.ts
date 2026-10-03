@@ -14,6 +14,7 @@ import type {
 import { scopeColumn, scopeMembershipTable } from '../conditions/compile.ts';
 import { type GraphSql, relatedSql } from '../conditions/graph-sql.ts';
 import { isReadonlyArray, sole } from '../core/compact.ts';
+import { byCodePoint } from '../core/compare.ts';
 import { isForbiddenKey } from '../core/paths.ts';
 import { resolveScope, rootScope, scopeChain } from '../core/scopes.ts';
 import {
@@ -259,7 +260,7 @@ export function kindFilterSql(
   viaExpr: string,
 ): string | undefined {
   const kinds = Object.entries(ctx.ownership?.kinds ?? {}).toSorted(
-    ([a], [b]) => a.localeCompare(b),
+    ([a], [b]) => byCodePoint(a, b),
   );
   if (kinds.length === 0) {
     return undefined;

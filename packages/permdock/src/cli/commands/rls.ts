@@ -6,13 +6,13 @@ import {
   globalArgs,
   stringArg,
 } from './context.ts';
+import { COMMAND_DESCRIPTIONS } from './index.ts';
 
 export function rls(ctx: CliContext): Command {
   const command = defineCommand({
     meta: {
       name: 'rls',
-      description:
-        'Generate, import, verify or migrate Postgres RLS policies from the policy',
+      description: COMMAND_DESCRIPTIONS.rls,
     },
     args: {
       ...globalArgs,
@@ -174,6 +174,7 @@ export function rls(ctx: CliContext): Command {
       },
     },
     async run({ args: parsed }) {
+      // Lazy: the implementation loads only when this command runs, not for --help.
       const result = await (
         await import('../rls.ts')
       ).runRls({

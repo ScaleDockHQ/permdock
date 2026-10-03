@@ -40,6 +40,11 @@ export const globalArgs = {
     valueHint: 'file',
   },
   json: { type: 'boolean', description: 'Machine-readable output' },
+  yes: {
+    type: 'boolean',
+    alias: 'y',
+    description: 'Never prompt; take the answer the flags give',
+  },
   color: {
     type: 'boolean',
     description: 'Styled output on a colour terminal',

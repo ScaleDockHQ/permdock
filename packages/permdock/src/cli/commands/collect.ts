@@ -7,13 +7,13 @@ import {
   listArg,
   stringArg,
 } from './context.ts';
+import { COMMAND_DESCRIPTIONS } from './index.ts';
 
 export function collect(ctx: CliContext): Command {
   const command = defineCommand({
     meta: {
       name: 'collect',
-      description:
-        'Scan the sources for definePermissions() and permission references; write the catalog and barrel',
+      description: COMMAND_DESCRIPTIONS.collect,
     },
     args: {
       ...globalArgs,
@@ -35,6 +35,7 @@ export function collect(ctx: CliContext): Command {
     async run({ args: parsed, rawArgs }) {
       const src = listArg(rawArgs, 'src');
       const out = stringArg(parsed.out);
+      // Lazy: the implementation loads only when this command runs, not for --help.
       const result = await (
         await import('../collect.ts')
       ).runCollect({

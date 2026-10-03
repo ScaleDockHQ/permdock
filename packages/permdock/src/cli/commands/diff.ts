@@ -6,13 +6,13 @@ import {
   globalArgs,
   stringArg,
 } from './context.ts';
+import { COMMAND_DESCRIPTIONS } from './index.ts';
 
 export function diff(ctx: CliContext): Command {
   const command = defineCommand({
     meta: {
       name: 'diff',
-      description:
-        'Compare two policies or catalogs; exit 1 on a breaking change',
+      description: COMMAND_DESCRIPTIONS.diff,
     },
     args: {
       ...globalArgs,
@@ -38,6 +38,7 @@ export function diff(ctx: CliContext): Command {
       },
     },
     async run({ args: parsed }) {
+      // Lazy: the implementation loads only when this command runs, not for --help.
       const result = await (
         await import('../diff.ts')
       ).runDiff({
