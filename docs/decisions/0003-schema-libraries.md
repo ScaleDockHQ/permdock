@@ -17,3 +17,8 @@ The standard uses Valibot and bans Zod through `no-restricted-imports`. PermDock
 ## Consequences
 
 The app bundles carry no Zod code of their own. Revisit when `ai` and `fumadocs-core` drop the Zod peer.
+
+## Alternatives considered
+
+- Valibot only, converting to Zod inside each adapter: the agent SDKs type tool inputs as Zod, so the conversion would show up in every example.
+- Leaving the `ai` and `fumadocs-core` Zod peers unmet: `strictPeerDependencies` fails the install.

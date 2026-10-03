@@ -14,3 +14,8 @@ The standard workspace list is `apps/*`, `packages/*` and `tests/*`. PermDock ha
 ## Consequences
 
 `pnpm install` resolves 64 workspaces. Vercel installs only the service and its dependencies (`--filter '{.}...'`), so deploys do not pay for them.
+
+## Alternatives considered
+
+- Examples under `apps/*`: 30 example apps would sit next to the two deployed apps and match every `apps/*` filter.
+- One workspace for all examples: each example needs its own dependencies and peer versions.

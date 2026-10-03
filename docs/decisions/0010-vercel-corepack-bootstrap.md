@@ -14,3 +14,8 @@ The standard `installCommand` is `pnpm install --frozen-lockfile --filter '{.}..
 ## Consequences
 
 Both commands are longer than the standard. Revisit when Vercel ships pnpm 12.8 or reads `devEngines`.
+
+## Alternatives considered
+
+- Vercel's bundled pnpm: it fails the `devEngines` check.
+- Dropping `devEngines`: contributors could run another pnpm and rewrite the lockfile.

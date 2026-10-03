@@ -16,3 +16,8 @@ The scaledock-skills naming rule prefixes opinionated skills with `scaledock-`, 
 ## Consequences
 
 `permdock doctor` PD005 looks for `permdock/SKILL.md`. A new consumer skill takes a `permdock-` name and updates the three lists above. Revisit if PermDock skills move into `ScaleDockHQ/scaledock-skills`, where they would take a `scaledock-` name instead.
+
+## Alternatives considered
+
+- Unprefixed names: they collide with other publishers' skills in the flat skill folders.
+- A `scaledock-` prefix: the skills ship with `permdock`, not in ScaleDock's skill collection.

@@ -28,3 +28,8 @@ The repo standard pins every dependency to its newest release that passes `minim
 ## Consequences
 
 Dependabot keeps proposing these majors; close each PR with a link to this record until its row clears. When a row clears, bump it in its own PR, delete the row, and mark this record superseded once the table is empty.
+
+## Alternatives considered
+
+- Adopting the prereleases: an alpha or release candidate in a published peer range is forced on every consumer.
+- Holding every major back: the stable ones (`motion` 14, `@streamdown/code` 2) would wait for nothing.

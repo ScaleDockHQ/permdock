@@ -14,3 +14,8 @@ The standard builds chat UIs from AI Elements. Its `prompt-input` component is t
 ## Consequences
 
 The input has no attachments or model picker, which Ask AI does not need. Revisit when AI Elements ships a Base UI variant.
+
+## Alternatives considered
+
+- Porting `prompt-input` to Base UI by hand: every AI Elements update becomes a merge.
+- Vendoring Radix for one component: two primitive libraries in the docs bundle.

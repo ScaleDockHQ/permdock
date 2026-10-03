@@ -18,3 +18,8 @@ The repo standard's CLI reference (`references/cli.md`) puts a library's CLI in 
 
 - `permdock` versions the CLI and the library together without a `fixed` group.
 - `knip`, `tests/bundle` and invariant 12 have to keep CLI code away from runtime entries. A separate package would enforce that by construction.
+
+## Alternatives considered
+
+- `packages/cli` published as `@scaledockhq/cli` in a `fixed` group: allows the version mismatch above, and `npx permdock` would need a second package.
+- A CLI package with `permdock` as a peer: the peer range still allows a mismatch inside it.

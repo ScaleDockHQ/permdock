@@ -14,3 +14,8 @@ The standard pins `typescript` once through a pnpm `overrides` entry. `tests/typ
 ## Consequences
 
 A workspace can move to another TypeScript only through a named catalog, which review catches. Revisit when TypeScript 5.9 and 6 leave the support matrix.
+
+## Alternatives considered
+
+- A global `overrides.typescript`: pnpm overrides have no per-workspace exception, so the 5.9 and 6 type tests would run on 7.
+- Dropping 5.9 and 6 from the matrix: consumers still compile against them.

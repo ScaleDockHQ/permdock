@@ -14,3 +14,7 @@ Links that cross between marketing and docs render a plain `<a>` through `SiteLi
 ## Consequences
 
 Cross-zone navigation is a full page load, with no prefetch.
+
+## Alternatives considered
+
+- `next/link` across zones: Next.js documents that navigation between zones needs a plain `<a>`, so it renders the 404 described above.

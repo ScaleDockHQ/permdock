@@ -19,3 +19,8 @@ The repo standard's naming rules (`architecture.md`, "Factories and types" and "
 
 - `docs:drift` checks names against `tests/bundle/src/exports.json` and the banned instance names, not against a `<Prefix><Thing>` pattern.
 - A new adapter follows `<Adapter>PermDock`. If PermDock ever adds a member to a user-keyed object, this record is revisited, because the free-function rule would no longer hold.
+
+## Alternatives considered
+
+- `PermDock<Adapter>` (`PermDockHono`): reads as a variant of `PermDock` rather than a different shape.
+- `$` members on the permissions tree: API surface that only the collision rule needs, when free functions avoid the collision.

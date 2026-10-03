@@ -16,3 +16,8 @@ shadcn/ui, ReUI and AI Elements components are copied in as published. They do n
 ## Consequences
 
 Type errors inside vendored code surface only where app code calls it. Revisit a flag when the upstream registries compile under it.
+
+## Alternatives considered
+
+- Editing the vendored files until they compile under the strict flags: every registry update becomes a merge.
+- Excluding `packages/ui` from type-checking: app code that calls it would lose its types.

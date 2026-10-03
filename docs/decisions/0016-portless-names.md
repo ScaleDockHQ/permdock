@@ -17,3 +17,7 @@ The standard names the apps `www` and `docs` in a root `portless.json`, and give
 ## Consequences
 
 The URLs are `https://permdock.localhost` and `https://docs.permdock.localhost`. `REUI_LICENSE_KEY` is used only by the shadcn CLI.
+
+## Alternatives considered
+
+- A root `portless.json` with `www` and `docs`: the names collide with other repositories on the shared proxy, and Portless reads the file only from the current directory.
