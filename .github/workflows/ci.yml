@@ -32,7 +32,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: $/.github/actions/setup
+      - uses: ./.github/actions/setup
 
       # The title becomes the squash commit.
       - name: Conventional commit header
@@ -45,7 +45,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    uses: $/.github/workflows/verify.yml
+    uses: ./.github/workflows/verify.yml
     with:
       affected: ${{ github.event_name == 'pull_request' }}
     secrets:
@@ -63,7 +63,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: $/.github/actions/setup
+      - uses: ./.github/actions/setup
         with:
           turbo-team: ${{ vars.TURBO_TEAM }}
 
@@ -90,7 +90,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: $/.github/actions/setup
+      - uses: ./.github/actions/setup
         with:
           turbo-team: ${{ vars.TURBO_TEAM }}
 
@@ -115,7 +115,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: $/.github/actions/setup
+      - uses: ./.github/actions/setup
         with:
           turbo-team: ${{ vars.TURBO_TEAM }}
 
@@ -183,7 +183,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: $/.github/actions/setup
+      - uses: ./.github/actions/setup
         with:
           turbo-team: ${{ vars.TURBO_TEAM }}
 

@@ -42,7 +42,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: $/.github/actions/setup
+      - uses: ./.github/actions/setup
         with:
           turbo-team: ${{ vars.TURBO_TEAM }}
 
@@ -59,7 +59,7 @@ jobs:
       # pg-delta replays the migrations, then diffs them against supabase/schemas.
       - name: Declarative schemas match the migrations
         run: |
-          pnpm run supabase:diff drift_check | tee sync.log
+          pnpm run supabase:diff drift_check 2>&1 | tee sync.log
           grep -q 'No schema changes found' sync.log
           test -z "$(git status --porcelain -- supabase/migrations)"
 
