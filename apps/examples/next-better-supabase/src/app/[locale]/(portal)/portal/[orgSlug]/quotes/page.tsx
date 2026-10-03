@@ -1,8 +1,8 @@
-import { Protected } from 'permdock/react';
-import { Suspense } from 'react';
+import { Protected } from "permdock/react";
+import { Suspense } from "react";
 
-import { permissions } from '../../../../../../policy.ts';
-import { Quotes } from '../../../../quotes.tsx';
+import { permissions } from "../../../../../../policy.ts";
+import { Quotes } from "../../../../quotes.tsx";
 
 export const instant = true;
 

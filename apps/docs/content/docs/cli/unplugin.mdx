@@ -10,15 +10,15 @@ There is no `permdock/nuxt`, `permdock/astro`, `permdock/react-router`, `permdoc
 ## Usage
 
 ```ts
-import { createPermDockUnplugin } from 'permdock/unplugin'
+import { createPermDockUnplugin } from "permdock/unplugin";
 
 export default {
   plugins: [
     createPermDockUnplugin.vite({
-      collect: { srcPath: ['./src', '../ui/src'] },
+      collect: { srcPath: ["./src", "../ui/src"] },
     }),
   ],
-}
+};
 ```
 
 Adapters on the factory: `createPermDockUnplugin.vite()`, `.rollup()`, `.webpack()`, `.rspack()`, `.esbuild()`. Options match the Next plugin (`collect.srcPath`, `collect.out`, `collect.barrel`, `onDrift`). `buildStart` writes the catalog by default; `check: true` makes it compare instead, and a stale catalog fails the build unless `onDrift: 'warn'`. `watchChange` re-runs collect and logs failures without stopping the dev server. `permdock.config.ts` is read when options are omitted.
@@ -31,13 +31,13 @@ Vite plugin. UI is `permdock/react`. Server functions use `permdock/server` or `
 
 ```ts
 // vite.config.ts
-import { defineConfig } from 'vite'
-import { tanstackStart } from '@tanstack/react-start/plugin/vite'
-import { createPermDockUnplugin } from 'permdock/unplugin'
+import { defineConfig } from "vite";
+import { tanstackStart } from "@tanstack/react-start/plugin/vite";
+import { createPermDockUnplugin } from "permdock/unplugin";
 
 export default defineConfig({
   plugins: [createPermDockUnplugin.vite(), tanstackStart()],
-})
+});
 ```
 
 ### React Router 7
@@ -46,13 +46,13 @@ Vite plugin. Same runtime as TanStack Start: `permdock/react` plus a Fetch or No
 
 ```ts
 // vite.config.ts
-import { reactRouter } from '@react-router/dev/vite'
-import { createPermDockUnplugin } from 'permdock/unplugin'
-import { defineConfig } from 'vite'
+import { reactRouter } from "@react-router/dev/vite";
+import { createPermDockUnplugin } from "permdock/unplugin";
+import { defineConfig } from "vite";
 
 export default defineConfig({
   plugins: [createPermDockUnplugin.vite(), reactRouter()],
-})
+});
 ```
 
 ### Nuxt
@@ -61,13 +61,13 @@ Vite plugin under `vite.plugins`. Client UI is `permdock/vue`. A server route (N
 
 ```ts
 // nuxt.config.ts
-import { createPermDockUnplugin } from 'permdock/unplugin'
+import { createPermDockUnplugin } from "permdock/unplugin";
 
 export default defineNuxtConfig({
   vite: {
     plugins: [createPermDockUnplugin.vite()],
   },
-})
+});
 ```
 
 ### Astro
@@ -76,14 +76,14 @@ Vite plugin on `astro.config`. Islands use `permdock/react`, `permdock/vue` or `
 
 ```ts
 // astro.config.ts
-import { defineConfig } from 'astro/config'
-import { createPermDockUnplugin } from 'permdock/unplugin'
+import { defineConfig } from "astro/config";
+import { createPermDockUnplugin } from "permdock/unplugin";
 
 export default defineConfig({
   vite: {
     plugins: [createPermDockUnplugin.vite()],
   },
-})
+});
 ```
 
 ### Effect

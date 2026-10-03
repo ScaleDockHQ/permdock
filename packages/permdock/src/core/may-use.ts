@@ -1,10 +1,10 @@
-import type { SnapshotGrant } from './interfaces.ts';
-import type { PermDock } from './permdock.ts';
-import type { Permission } from './permissions.ts';
-import type { Delegation } from './subject.ts';
+import type { SnapshotGrant } from "./interfaces.ts";
+import type { PermDock } from "./permdock.ts";
+import type { Permission } from "./permissions.ts";
+import type { Delegation } from "./subject.ts";
 
-import { coveredByDelegation } from './delegation.ts';
-import { scopeList, tenantOf } from './scopes.ts';
+import { coveredByDelegation } from "./delegation.ts";
+import { scopeList, tenantOf } from "./scopes.ts";
 
 function delegationMayCover(
   permission: Permission,
@@ -15,10 +15,10 @@ function delegationMayCover(
     ...(delegation?.access ?? []),
     ...(delegation?.authorizationDetails ?? []),
   ].flatMap((entry) =>
-    typeof entry === 'object' &&
+    typeof entry === "object" &&
     entry !== null &&
-    typeof entry['identifier'] === 'string'
-      ? [entry['identifier']]
+    typeof entry["identifier"] === "string"
+      ? [entry["identifier"]]
       : [],
   );
   return [undefined, ...identifiers].some(
@@ -29,12 +29,12 @@ function delegationMayCover(
 
 function blocksEveryRow(grant: SnapshotGrant): boolean {
   return (
-    grant.effect === 'deny' &&
+    grant.effect === "deny" &&
     grant.where === undefined &&
     grant.check === undefined &&
     grant.portable !== false &&
     grant.fields === undefined &&
-    (grant.scope === undefined || grant.scope === 'tenant')
+    (grant.scope === undefined || grant.scope === "tenant")
   );
 }
 
@@ -47,7 +47,7 @@ function blocksEveryRow(grant: SnapshotGrant): boolean {
 export function mayUse(permdock: PermDock, permission: Permission): boolean {
   try {
     const snapshot = permdock.snapshot();
-    if (!('grants' in snapshot)) {
+    if (!("grants" in snapshot)) {
       return false;
     }
     if (
@@ -74,7 +74,7 @@ export function mayUse(permdock: PermDock, permission: Permission): boolean {
     if (grants.some(blocksEveryRow)) {
       return false;
     }
-    return grants.some((grant) => grant.effect === 'allow');
+    return grants.some((grant) => grant.effect === "allow");
   } catch {
     return false;
   }

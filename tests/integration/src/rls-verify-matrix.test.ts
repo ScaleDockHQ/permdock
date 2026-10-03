@@ -1,23 +1,23 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { run } from 'permdock/cli';
-import { Client } from 'pg';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { run } from "permdock/cli";
+import { Client } from "pg";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import type { Postgres } from './support/postgres.ts';
+import type { Postgres } from "./support/postgres.ts";
 
-import { startPostgres } from './support/postgres.ts';
+import { startPostgres } from "./support/postgres.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const FIXTURE = join(HERE, '../fixtures/rls-matrix');
+const FIXTURE = join(HERE, "../fixtures/rls-matrix");
 
-const ADMIN = '00000000-0000-4000-8000-0000000000a1';
-const MEMBER = '00000000-0000-4000-8000-0000000000b2';
-const VIEWER = '00000000-0000-4000-8000-0000000000c3';
-const OUTSIDER = '00000000-0000-4000-8000-0000000000d4';
-const AUDITOR = '00000000-0000-4000-8000-0000000000e5';
+const ADMIN = "00000000-0000-4000-8000-0000000000a1";
+const MEMBER = "00000000-0000-4000-8000-0000000000b2";
+const VIEWER = "00000000-0000-4000-8000-0000000000c3";
+const OUTSIDER = "00000000-0000-4000-8000-0000000000d4";
+const AUDITOR = "00000000-0000-4000-8000-0000000000e5";
 
 const ROLES = `
 create role authenticated nologin;
@@ -85,79 +85,79 @@ type Subject = {
 const SUBJECTS: Readonly<Record<string, Subject>> = {
   admin: {
     id: ADMIN,
-    tenant: 'acme',
-    memberships: [{ tenant: 'acme', roles: ['admin'] }],
+    tenant: "acme",
+    memberships: [{ tenant: "acme", roles: ["admin"] }],
   },
   member: {
     id: MEMBER,
-    tenant: 'acme',
-    memberships: [{ tenant: 'acme', roles: ['member'] }],
+    tenant: "acme",
+    memberships: [{ tenant: "acme", roles: ["member"] }],
   },
   viewer: {
     id: VIEWER,
-    tenant: 'acme',
-    memberships: [{ tenant: 'acme', roles: ['viewer'] }],
+    tenant: "acme",
+    memberships: [{ tenant: "acme", roles: ["viewer"] }],
   },
   outsider: {
     id: OUTSIDER,
-    tenant: 'globex',
-    memberships: [{ tenant: 'globex', roles: ['member'] }],
+    tenant: "globex",
+    memberships: [{ tenant: "globex", roles: ["member"] }],
   },
-  auditor: { id: AUDITOR, roles: ['auditor'] },
+  auditor: { id: AUDITOR, roles: ["auditor"] },
 };
 
 const PROJECTS = [
-  { id: 'p-acme', orgId: 'acme', ownerId: MEMBER },
-  { id: 'p-admin', orgId: 'acme', ownerId: ADMIN },
-  { id: 'p-globex', orgId: 'globex', ownerId: OUTSIDER },
+  { id: "p-acme", orgId: "acme", ownerId: MEMBER },
+  { id: "p-admin", orgId: "acme", ownerId: ADMIN },
+  { id: "p-globex", orgId: "globex", ownerId: OUTSIDER },
 ];
 const TASKS = [
-  { id: 't-own', orgId: 'acme', authorId: MEMBER, locked: false },
-  { id: 't-other', orgId: 'acme', authorId: ADMIN, locked: false },
-  { id: 't-locked', orgId: 'acme', authorId: MEMBER, locked: true },
-  { id: 't-globex', orgId: 'globex', authorId: OUTSIDER, locked: false },
+  { id: "t-own", orgId: "acme", authorId: MEMBER, locked: false },
+  { id: "t-other", orgId: "acme", authorId: ADMIN, locked: false },
+  { id: "t-locked", orgId: "acme", authorId: MEMBER, locked: true },
+  { id: "t-globex", orgId: "globex", authorId: OUTSIDER, locked: false },
 ];
 
 type Fixture = {
   readonly subject: Subject;
   readonly row: Readonly<Record<string, unknown>>;
   readonly action: string;
-  readonly expected?: 'granted' | 'denied';
+  readonly expected?: "granted" | "denied";
 };
 
 // Spot checks that pin the matrix to intent, so a matrix that denies (or
 // grants) everything cannot pass by agreeing with itself.
-const EXPECTED: Readonly<Record<string, 'granted' | 'denied'>> = {
-  'admin task.update t-other': 'granted',
-  'admin task.update t-locked': 'granted',
-  'member task.update t-own': 'granted',
-  'member task.update t-other': 'denied',
-  'member task.update t-locked': 'denied',
-  'member task.delete t-locked': 'granted',
-  'member project.update p-acme': 'granted',
-  'member project.update p-admin': 'denied',
-  'viewer task.read t-own': 'granted',
-  'viewer task.update t-own': 'denied',
-  'outsider task.read t-own': 'denied',
-  'outsider task.read t-globex': 'granted',
-  'admin project.read p-globex': 'denied',
-  'auditor task.read t-globex': 'granted',
-  'auditor task.update t-own': 'denied',
-  'auditor task.create new': 'denied',
-  'member task.create new': 'granted',
-  'viewer task.create new': 'denied',
+const EXPECTED: Readonly<Record<string, "granted" | "denied">> = {
+  "admin task.update t-other": "granted",
+  "admin task.update t-locked": "granted",
+  "member task.update t-own": "granted",
+  "member task.update t-other": "denied",
+  "member task.update t-locked": "denied",
+  "member task.delete t-locked": "granted",
+  "member project.update p-acme": "granted",
+  "member project.update p-admin": "denied",
+  "viewer task.read t-own": "granted",
+  "viewer task.update t-own": "denied",
+  "outsider task.read t-own": "denied",
+  "outsider task.read t-globex": "granted",
+  "admin project.read p-globex": "denied",
+  "auditor task.read t-globex": "granted",
+  "auditor task.update t-own": "denied",
+  "auditor task.create new": "denied",
+  "member task.create new": "granted",
+  "viewer task.create new": "denied",
 };
 
 function fixtures(): readonly Fixture[] {
   const out: Fixture[] = [];
   for (const [name, subject] of Object.entries(SUBJECTS)) {
     const tables = [
-      ['project', PROJECTS],
-      ['task', TASKS],
+      ["project", PROJECTS],
+      ["task", TASKS],
     ] as const;
     for (const [resource, rows] of tables) {
       for (const row of rows) {
-        for (const action of ['read', 'update', 'delete']) {
+        for (const action of ["read", "update", "delete"]) {
           const label = `${name} ${resource}.${action} ${row.id}`;
           out.push({
             subject,
@@ -170,11 +170,11 @@ function fixtures(): readonly Fixture[] {
         }
       }
       const created =
-        resource === 'project'
-          ? { id: `new-${name}`, orgId: 'acme', ownerId: subject.id }
+        resource === "project"
+          ? { id: `new-${name}`, orgId: "acme", ownerId: subject.id }
           : {
               id: `new-${name}`,
-              orgId: 'acme',
+              orgId: "acme",
               authorId: subject.id,
               locked: false,
             };
@@ -192,22 +192,22 @@ function fixtures(): readonly Fixture[] {
 
 type Shape = {
   readonly name: string;
-  readonly mode: 'database' | 'jwt';
+  readonly mode: "database" | "jwt";
   readonly perRole: boolean;
 };
 
 const SHAPES: readonly Shape[] = [
-  { name: 'collapsed_database', mode: 'database', perRole: false },
-  { name: 'per_role_database', mode: 'database', perRole: true },
-  { name: 'collapsed_jwt', mode: 'jwt', perRole: false },
-  { name: 'per_role_jwt', mode: 'jwt', perRole: true },
+  { name: "collapsed_database", mode: "database", perRole: false },
+  { name: "per_role_database", mode: "database", perRole: true },
+  { name: "collapsed_jwt", mode: "jwt", perRole: false },
+  { name: "per_role_jwt", mode: "jwt", perRole: true },
 ];
 
 function shapeFlags(shape: Shape): readonly string[] {
   return [
-    '--authorize',
+    "--authorize",
     shape.mode,
-    ...(shape.perRole ? ['--policy-per-role'] : []),
+    ...(shape.perRole ? ["--policy-per-role"] : []),
   ];
 }
 
@@ -219,15 +219,15 @@ function databaseUri(uri: string, database: string): string {
 
 function testerUri(uri: string, database: string): string {
   const url = new URL(databaseUri(uri, database));
-  url.username = 'tester';
-  url.password = 'tester';
+  url.username = "tester";
+  url.password = "tester";
   return url.toString();
 }
 
-describe('rls verify matrix (admin, member, viewer, non-member, global role)', () => {
+describe("rls verify matrix (admin, member, viewer, non-member, global role)", () => {
   let db: Postgres | undefined;
-  const dir = mkdtempSync(join(tmpdir(), 'permdock-matrix-'));
-  const fixturesPath = join(dir, 'rls.fixtures.json');
+  const dir = mkdtempSync(join(tmpdir(), "permdock-matrix-"));
+  const fixturesPath = join(dir, "rls.fixtures.json");
 
   beforeAll(async () => {
     writeFileSync(fixturesPath, `${JSON.stringify(fixtures(), null, 2)}\n`);
@@ -236,12 +236,12 @@ describe('rls verify matrix (admin, member, viewer, non-member, global role)', (
       const out = join(dir, `${shape.name}.sql`);
       const generated = await run(
         [
-          'rls',
-          'generate',
-          '--target',
-          'sql',
+          "rls",
+          "generate",
+          "--target",
+          "sql",
           ...shapeFlags(shape),
-          '--out',
+          "--out",
           out,
         ],
         { cwd: FIXTURE },
@@ -258,11 +258,11 @@ describe('rls verify matrix (admin, member, viewer, non-member, global role)', (
         await client.query(
           [
             STUB,
-            readFileSync(out, 'utf8'),
-            shape.mode === 'database'
+            readFileSync(out, "utf8"),
+            shape.mode === "database"
               ? `insert into permdock.user_roles (user_id, role) values ('${AUDITOR}', 'auditor');`
-              : '',
-          ].join('\n'),
+              : "",
+          ].join("\n"),
         );
       } finally {
         await client.end();
@@ -276,18 +276,18 @@ describe('rls verify matrix (admin, member, viewer, non-member, global role)', (
   });
 
   it.each(SHAPES)(
-    '$name: the database agrees with can() for every table and command',
+    "$name: the database agrees with can() for every table and command",
     async (shape) => {
       if (db === undefined) {
-        throw new Error('PermDock: Postgres was not started');
+        throw new Error("PermDock: Postgres was not started");
       }
       const result = await run(
         [
-          'rls',
-          'verify',
-          '--db',
+          "rls",
+          "verify",
+          "--db",
           testerUri(db.uri, shape.name),
-          '--fixtures',
+          "--fixtures",
           fixturesPath,
         ],
         { cwd: FIXTURE },
@@ -299,23 +299,23 @@ describe('rls verify matrix (admin, member, viewer, non-member, global role)', (
     },
   );
 
-  it('reads the live policies back to roles with rls import --db', async () => {
+  it("reads the live policies back to roles with rls import --db", async () => {
     if (db === undefined) {
-      throw new Error('PermDock: Postgres was not started');
+      throw new Error("PermDock: Postgres was not started");
     }
-    for (const shape of ['collapsed_database', 'per_role_database']) {
+    for (const shape of ["collapsed_database", "per_role_database"]) {
       const out = join(dir, `${shape}.generated.ts`);
       const imported = await run(
-        ['rls', 'import', '--db', databaseUri(db.uri, shape), '--out', out],
+        ["rls", "import", "--db", databaseUri(db.uri, shape), "--out", out],
         { cwd: FIXTURE },
       );
       expect(imported.code).toBe(0);
-      const text = readFileSync(out, 'utf8');
+      const text = readFileSync(out, "utf8");
       const json = /export const catalog = ([\s\S]*?) as const/u.exec(
         text,
       )?.[1];
       // SAFETY: the generated catalog literal is JSON in this shape
-      const catalog = JSON.parse(json ?? '[]') as readonly {
+      const catalog = JSON.parse(json ?? "[]") as readonly {
         readonly table: string;
         readonly cmd: string;
         readonly grants?: readonly {
@@ -326,18 +326,18 @@ describe('rls verify matrix (admin, member, viewer, non-member, global role)', (
       }[];
       const grants = new Set(
         catalog
-          .filter((entry) => entry.table === 'task')
+          .filter((entry) => entry.table === "task")
           .flatMap((entry) =>
             (entry.grants ?? []).map(
               (grant) =>
-                `${entry.cmd} ${grant.permission} ${grant.scope} ${grant.roles.join('+')}`,
+                `${entry.cmd} ${grant.permission} ${grant.scope} ${grant.roles.join("+")}`,
             ),
           ),
       );
-      expect(grants).toContain('SELECT task.read global auditor');
-      expect(grants).toContain('SELECT task.read tenant admin+member+viewer');
-      expect(grants).toContain('UPDATE task.update tenant member');
-      expect(grants).toContain('DELETE task.delete tenant admin');
+      expect(grants).toContain("SELECT task.read global auditor");
+      expect(grants).toContain("SELECT task.read tenant admin+member+viewer");
+      expect(grants).toContain("UPDATE task.update tenant member");
+      expect(grants).toContain("DELETE task.delete tenant admin");
     }
   });
 });

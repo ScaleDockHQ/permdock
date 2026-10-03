@@ -1,12 +1,12 @@
-'use client';
+"use client";
 
-import { usePermission } from 'permdock/react';
-import { useState, useTransition } from 'react';
+import { usePermission } from "permdock/react";
+import { useState, useTransition } from "react";
 
-import type { Project } from '../../../permissions.ts';
+import type { Project } from "../../../permissions.ts";
 
-import { permissions } from '../../../permissions.ts';
-import { deleteProject } from '../../actions.ts';
+import { permissions } from "../../../permissions.ts";
+import { deleteProject } from "../../actions.ts";
 
 /**
  * Row actions come from the snapshot's portable conditions (`ownerId`,
@@ -33,8 +33,8 @@ export function RowActions(props: { readonly project: Project }) {
               );
               setResult(
                 outcome.ok
-                  ? 'Deleted'
-                  : `Denied: ${outcome.reason ?? 'unknown'}`,
+                  ? "Deleted"
+                  : `Denied: ${outcome.reason ?? "unknown"}`,
               );
             });
           }}

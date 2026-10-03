@@ -1,38 +1,38 @@
-import type { Decision } from '../core/decision.ts';
-import type { PermDock } from '../core/permdock.ts';
-import type { Permission } from '../core/permissions.ts';
-import type { Policy, PolicyVocabulary } from '../core/policy.ts';
-import type { Actor, Delegation, Principal } from '../core/subject.ts';
+import type { Decision } from "../core/decision.ts";
+import type { PermDock } from "../core/permdock.ts";
+import type { Permission } from "../core/permissions.ts";
+import type { Policy, PolicyVocabulary } from "../core/policy.ts";
+import type { Actor, Delegation, Principal } from "../core/subject.ts";
 import type {
   AgentKernelOptions,
   DecideToolOptions,
   ToolBinding,
   ToolVerdict,
-} from './types.ts';
+} from "./types.ts";
 
-import { resumeDecision, storedApprovalToken } from '../approvals/helpers.ts';
-import { compact } from '../core/compact.ts';
-import { mayUse } from '../core/may-use.ts';
-import { createPermDock as createCorePermDock } from '../core/permdock.ts';
-import { modelReason, thrownReason, unmappedReason } from './reason.ts';
+import { resumeDecision, storedApprovalToken } from "../approvals/helpers.ts";
+import { compact } from "../core/compact.ts";
+import { mayUse } from "../core/may-use.ts";
+import { createPermDock as createCorePermDock } from "../core/permdock.ts";
+import { modelReason, thrownReason, unmappedReason } from "./reason.ts";
 
 function asActor(value: unknown): Actor | undefined {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
     return undefined;
   }
   // SAFETY: checked above to be a non-array object; id and kind are typeof-checked below.
   const record = value as { readonly id?: unknown; readonly kind?: unknown };
-  if (typeof record.id !== 'string' || typeof record.kind !== 'string') {
+  if (typeof record.id !== "string" || typeof record.kind !== "string") {
     return undefined;
   }
   return { id: record.id, kind: record.kind };
 }
 
 async function resolveTenant<TContext>(
-  tenant: AgentKernelOptions<TContext>['tenant'],
+  tenant: AgentKernelOptions<TContext>["tenant"],
   context: TContext,
 ): Promise<string | undefined> {
-  if (tenant === undefined || typeof tenant === 'string') {
+  if (tenant === undefined || typeof tenant === "string") {
     return tenant;
   }
   try {
@@ -44,22 +44,22 @@ async function resolveTenant<TContext>(
 
 /** The resume token an agent run carries under the namespaced `permdockApproval` key. */
 export function approvalTokenOf(context: unknown): string | undefined {
-  if (context === null || typeof context !== 'object') {
+  if (context === null || typeof context !== "object") {
     return undefined;
   }
   // SAFETY: checked above to be a non-null object; the token is typeof-checked below.
   const token = (context as { readonly permdockApproval?: unknown })
     .permdockApproval;
-  return typeof token === 'string' && token !== '' ? token : undefined;
+  return typeof token === "string" && token !== "" ? token : undefined;
 }
 
 export function idOf(data: unknown): string | undefined {
-  if (data === null || typeof data !== 'object') {
+  if (data === null || typeof data !== "object") {
     return undefined;
   }
   // SAFETY: checked above to be a non-null object; id is typeof-checked below.
   const id = (data as { readonly id?: unknown }).id;
-  if (typeof id === 'string' || typeof id === 'number') {
+  if (typeof id === "string" || typeof id === "number") {
     return String(id);
   }
   return undefined;
@@ -87,18 +87,18 @@ function runDecide(
       next: Permission,
       row?: unknown,
       decideOptions?: {
-        readonly source: 'adapter';
+        readonly source: "adapter";
         readonly adapter: string;
-        readonly boundary: 'tool-args';
+        readonly boundary: "tool-args";
       },
     ) => Decision
   )(
     permission,
     data,
     compact({
-      source: 'adapter' as const,
+      source: "adapter" as const,
       adapter,
-      boundary: 'tool-args' as const,
+      boundary: "tool-args" as const,
     }),
   );
 }
@@ -139,7 +139,7 @@ export function createAgentKernel<
   const cache = new WeakMap<object, Promise<PermDock<V>>>();
 
   const instance = (context: TContext): Promise<PermDock<V>> => {
-    if (typeof context === 'object' && context !== null) {
+    if (typeof context === "object" && context !== null) {
       const hit = cache.get(context);
       if (hit !== undefined) {
         return hit;
@@ -186,7 +186,7 @@ export function createAgentKernel<
         }),
       );
     })();
-    if (typeof context === 'object' && context !== null) {
+    if (typeof context === "object" && context !== null) {
       cache.set(context, built);
       const release = (): void => {
         if (cache.get(context) === built) {
@@ -212,12 +212,12 @@ export function createAgentKernel<
         data = await binding.data(args);
         if (data === null || data === undefined) {
           const decision = {
-            outcome: 'denied' as const,
-            denials: [{ role: null, reason: 'validation' as const }],
+            outcome: "denied" as const,
+            denials: [{ role: null, reason: "validation" as const }],
             alternatives: [],
           };
           return {
-            outcome: 'denied',
+            outcome: "denied",
             decision,
             permission: binding.permission,
             reason: modelReason(
@@ -249,17 +249,17 @@ export function createAgentKernel<
             decideOptions.denyPending === true,
           )),
       });
-      if (decision.outcome === 'granted') {
+      if (decision.outcome === "granted") {
         return {
-          outcome: 'granted',
+          outcome: "granted",
           decision,
           permission: binding.permission,
           data,
         };
       }
-      if (decision.outcome === 'approval-required') {
+      if (decision.outcome === "approval-required") {
         return {
-          outcome: 'approval-required',
+          outcome: "approval-required",
           decision,
           permission: binding.permission,
           data,
@@ -272,7 +272,7 @@ export function createAgentKernel<
         };
       }
       return {
-        outcome: 'denied',
+        outcome: "denied",
         decision,
         permission: binding.permission,
         reason: modelReason(
@@ -283,7 +283,7 @@ export function createAgentKernel<
       };
     } catch {
       return {
-        outcome: 'denied',
+        outcome: "denied",
         decision: null,
         permission: binding.permission,
         reason: thrownReason(toolName),
@@ -311,7 +311,7 @@ export function createAgentKernel<
         data,
         options.adapter,
       );
-      return raw.outcome === 'approval-required' ? raw.token : undefined;
+      return raw.outcome === "approval-required" ? raw.token : undefined;
     } catch {
       return undefined;
     }
@@ -326,7 +326,7 @@ export function createAgentKernel<
     const binding = options.tools[toolName];
     if (binding === undefined) {
       return Promise.resolve({
-        outcome: 'denied',
+        outcome: "denied",
         decision: null,
         permission: undefined,
         reason: unmappedReason(toolName),

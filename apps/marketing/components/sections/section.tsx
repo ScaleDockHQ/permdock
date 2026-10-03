@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { ReactNode } from "react";
 
 export function Section({
   id,
@@ -20,15 +20,15 @@ export function Section({
     >
       <div className="mb-8 flex max-w-2xl flex-col gap-3">
         {eyebrow ? (
-          <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+          <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
             {eyebrow}
           </p>
         ) : null}
-        <h2 className="text-foreground text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
+        <h2 className="text-2xl font-semibold tracking-tight text-balance text-foreground sm:text-3xl">
           {title}
         </h2>
         {description ? (
-          <p className="text-muted-foreground text-base leading-7 text-pretty">
+          <p className="text-base leading-7 text-pretty text-muted-foreground">
             {description}
           </p>
         ) : null}

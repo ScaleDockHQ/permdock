@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import { MoonIcon, SunIcon } from 'lucide-react';
-import { useTheme } from 'next-themes';
-import { useSyncExternalStore } from 'react';
+import { MoonIcon, SunIcon } from "lucide-react";
+import { useTheme } from "next-themes";
+import { useSyncExternalStore } from "react";
 
-import { Button } from '@permdock/ui/components/button';
+import { Button } from "@permdock/ui/components/button";
 
 // oxlint-disable-next-line eslint/no-empty-function -- nothing to unsubscribe from
 const noSubscription = (): (() => void) => () => {};
@@ -18,15 +18,15 @@ export function ThemeToggle() {
     () => false,
   );
 
-  const isDark = mounted && resolvedTheme === 'dark';
+  const isDark = mounted && resolvedTheme === "dark";
 
   return (
     <Button
       type="button"
       variant="ghost"
       size="icon"
-      aria-label={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
-      onClick={() => setTheme(isDark ? 'light' : 'dark')}
+      aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
+      onClick={() => setTheme(isDark ? "light" : "dark")}
     >
       {isDark ? (
         <SunIcon aria-hidden="true" />

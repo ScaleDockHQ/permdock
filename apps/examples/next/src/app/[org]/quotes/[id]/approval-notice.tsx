@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import { usePermissionBoundary } from 'permdock/next/client';
+import { usePermissionBoundary } from "permdock/next/client";
 
 export function ApprovalNotice() {
   const state = usePermissionBoundary();
-  if (state?.outcome !== 'approval-required') {
+  if (state?.outcome !== "approval-required") {
     return null;
   }
   return (

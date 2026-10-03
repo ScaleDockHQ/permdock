@@ -1,13 +1,13 @@
-import type { createUnplugin, UnpluginOptions } from 'unplugin';
+import type { createUnplugin, UnpluginOptions } from "unplugin";
 
-import { createRequire } from 'node:module';
+import { createRequire } from "node:module";
 
-import type { PermDockPluginOptions } from '../cli/types.ts';
+import type { PermDockPluginOptions } from "../cli/types.ts";
 
-import { peerHint } from '../cli/peer.ts';
-import { runPluginCollect } from '../cli/plugin.ts';
+import { peerHint } from "../cli/peer.ts";
+import { runPluginCollect } from "../cli/plugin.ts";
 
-export type { PermDockPluginOptions } from '../cli/types.ts';
+export type { PermDockPluginOptions } from "../cli/types.ts";
 
 type CreateUnplugin = typeof createUnplugin<PermDockPluginOptions | undefined>;
 
@@ -15,12 +15,12 @@ type CreateUnplugin = typeof createUnplugin<PermDockPluginOptions | undefined>;
 function loadCreateUnplugin(): CreateUnplugin {
   try {
     // SAFETY: the unplugin peer's entry exports createUnplugin, whose type is imported above.
-    const unplugin = createRequire(import.meta.url)('unplugin') as {
+    const unplugin = createRequire(import.meta.url)("unplugin") as {
       readonly createUnplugin: CreateUnplugin;
     };
     return unplugin.createUnplugin;
   } catch {
-    throw new Error(peerHint('unplugin', 'permdock/unplugin'));
+    throw new Error(peerHint("unplugin", "permdock/unplugin"));
   }
 }
 
@@ -32,7 +32,7 @@ function report(message: string | undefined): void {
 
 function collectPlugin(options?: PermDockPluginOptions): UnpluginOptions {
   return {
-    name: 'permdock-collect',
+    name: "permdock-collect",
     async buildStart() {
       report(
         await runPluginCollect(process.cwd(), options, options?.check === true),

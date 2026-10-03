@@ -1,7 +1,7 @@
-import type { CompiledBranch, CompiledPolicy } from './rls-compile.ts';
+import type { CompiledBranch, CompiledPolicy } from "./rls-compile.ts";
 
-import { sole } from '../core/compact.ts';
-import { branchClauses, wrapSql } from './rls-compile.ts';
+import { sole } from "../core/compact.ts";
+import { branchClauses, wrapSql } from "./rls-compile.ts";
 
 export type PolicyShape = {
   /** One policy per role and permission (the pre-helper layout) instead of one per table and command. */
@@ -11,20 +11,20 @@ export type PolicyShape = {
 };
 
 /** Each database role gets its own policy, so no role sees two permissive policies for one command. */
-const AUDIENCES = ['authenticated', 'anon'] as const;
+const AUDIENCES = ["authenticated", "anon"] as const;
 
-const DEFAULT_POLICY_NAME = '{table}_{op}';
-const DEFAULT_PER_ROLE_NAME = '{role}_{permission}';
+const DEFAULT_POLICY_NAME = "{table}_{op}";
+const DEFAULT_PER_ROLE_NAME = "{role}_{permission}";
 
 const PLACEHOLDER = /\{(table|op|role|permission)\}/gu;
 
 function sanitize(name: string): string {
-  return name.replaceAll(/[^A-Za-z0-9_]/g, '_');
+  return name.replaceAll(/[^A-Za-z0-9_]/g, "_");
 }
 
 function render(
   template: string,
-  values: Readonly<Record<'table' | 'op' | 'role' | 'permission', string>>,
+  values: Readonly<Record<"table" | "op" | "role" | "permission", string>>,
 ): string {
   return sanitize(
     template.replaceAll(
@@ -38,25 +38,25 @@ function render(
 function assertPolicyName(template: string, perRole: boolean): void {
   if (!perRole && /\{(role|permission)\}/u.test(template)) {
     throw new Error(
-      'PermDock CLI: --policy-name {role} and {permission} need --policy-per-role; a collapsed policy covers several roles',
+      "PermDock CLI: --policy-name {role} and {permission} need --policy-per-role; a collapsed policy covers several roles",
     );
   }
   if (
     !perRole &&
-    !(template.includes('{table}') && template.includes('{op}'))
+    !(template.includes("{table}") && template.includes("{op}"))
   ) {
     throw new Error(
-      'PermDock CLI: --policy-name needs {table} and {op} so each table and command gets its own policy',
+      "PermDock CLI: --policy-name needs {table} and {op} so each table and command gets its own policy",
     );
   }
 }
 
 export function orSql(parts: readonly string[]): string {
   const distinct = [...new Set(parts)];
-  if (distinct.includes('true')) {
-    return 'true';
+  if (distinct.includes("true")) {
+    return "true";
   }
-  return sole(distinct) ?? distinct.map(wrapSql).join(' or ');
+  return sole(distinct) ?? distinct.map(wrapSql).join(" or ");
 }
 
 function negate(sql: string | undefined): string | undefined {
@@ -69,7 +69,7 @@ function policyOf(
   using: string | undefined,
   check: string | undefined,
 ): CompiledPolicy {
-  const deny = branch.effect === 'deny';
+  const deny = branch.effect === "deny";
   const policy: {
     -readonly [K in keyof CompiledPolicy]: CompiledPolicy[K];
   } = {
@@ -103,14 +103,14 @@ function perRolePolicies(
   const names = new Map<string, number>();
   return branches.map((branch) => {
     const clauses = branchClauses(branch);
-    const deny = branch.effect === 'deny';
+    const deny = branch.effect === "deny";
     const base = render(template, {
       table: branch.table,
       op: branch.command,
       role: branch.label,
       permission: branch.permissionKey,
     });
-    const name = `${deny ? 'deny_' : ''}${base}${branch.coverage === true ? '_select_coverage' : ''}`;
+    const name = `${deny ? "deny_" : ""}${base}${branch.coverage === true ? "_select_coverage" : ""}`;
     return policyOf(
       uniqueName(names, name),
       branch,
@@ -177,7 +177,7 @@ function collapsedPolicies(
       if (first === undefined) {
         return [];
       }
-      const deny = first.effect === 'deny';
+      const deny = first.effect === "deny";
       const clauses = members.map(branchClauses);
       const usings = clauses.flatMap((item) =>
         item.using === undefined ? [] : [item.using],
@@ -195,7 +195,7 @@ function collapsedPolicies(
         policyOf(
           uniqueName(
             names,
-            `${deny ? 'deny_' : ''}${base}${audience === 'anon' ? '_anon' : ''}`,
+            `${deny ? "deny_" : ""}${base}${audience === "anon" ? "_anon" : ""}`,
           ),
           { ...first, roles: [audience] },
           usings.length === 0 ? undefined : orSql(usings),

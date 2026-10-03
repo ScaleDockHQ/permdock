@@ -1,10 +1,10 @@
-import { type ReactElement, useEffect, useMemo } from 'react';
+import { type ReactElement, useEffect, useMemo } from "react";
 
-import type { NativePermDockProviderProps } from './types.ts';
+import type { NativePermDockProviderProps } from "./types.ts";
 
-import { compact } from '../core/compact.ts';
-import { PermDockStoreContext } from '../react/context.ts';
-import { createNativeStore } from './store.ts';
+import { compact } from "../core/compact.ts";
+import { PermDockStoreContext } from "../react/context.ts";
+import { createNativeStore } from "./store.ts";
 
 export function PermDockProvider(
   props: NativePermDockProviderProps,
@@ -46,7 +46,7 @@ export function PermDockProvider(
   );
 
   useEffect(() => {
-    const mode = props.revalidate ?? 'launch';
+    const mode = props.revalidate ?? "launch";
     const refresh = (): void => {
       if (props.snapshotUrl === undefined) {
         return;
@@ -56,16 +56,16 @@ export function PermDockProvider(
         .refresh()
         .catch(() => undefined);
     };
-    if (mode === 'launch' || mode === 'focus' || typeof mode === 'number') {
+    if (mode === "launch" || mode === "focus" || typeof mode === "number") {
       refresh();
     }
-    if (typeof mode === 'number') {
+    if (typeof mode === "number") {
       const timer = setInterval(refresh, mode * 1000);
       return (): void => {
         clearInterval(timer);
       };
     }
-    if (mode === 'focus' && props.subscribeForeground !== undefined) {
+    if (mode === "focus" && props.subscribeForeground !== undefined) {
       return props.subscribeForeground(refresh);
     }
     return undefined;

@@ -1,6 +1,6 @@
-import { compact } from '../core/compact.ts';
-import { freezeDeep } from '../core/freeze.ts';
-import { matchFilter } from './filter.ts';
+import { compact } from "../core/compact.ts";
+import { freezeDeep } from "../core/freeze.ts";
+import { matchFilter } from "./filter.ts";
 import {
   DirectoryNotFoundError,
   DirectoryUniquenessError,
@@ -11,7 +11,7 @@ import {
   type ScimPage,
   type ScimPageResult,
   type ScimPatchOp,
-} from './types.ts';
+} from "./types.ts";
 
 const DEFAULT_COUNT = 100;
 
@@ -24,15 +24,15 @@ function createdAt(
   at: string,
   ...candidates: readonly (string | undefined)[]
 ): string {
-  return candidates.find((value) => value !== undefined && value !== '') ?? at;
+  return candidates.find((value) => value !== undefined && value !== "") ?? at;
 }
 
 function randomId(prefix: string): string {
   const bytes = new Uint8Array(8);
   crypto.getRandomValues(bytes);
-  let hex = '';
+  let hex = "";
   for (const byte of bytes) {
-    hex += byte.toString(16).padStart(2, '0');
+    hex += byte.toString(16).padStart(2, "0");
   }
   return `${prefix}${hex}`;
 }
@@ -48,7 +48,7 @@ function asError(error: unknown): Error {
 function pageOf<T>(items: readonly T[], page: ScimPage): ScimPageResult<T> {
   const count = page.count ?? DEFAULT_COUNT;
   let start = 0;
-  if (page.cursor !== undefined && page.cursor !== '') {
+  if (page.cursor !== undefined && page.cursor !== "") {
     const decoded = Math.trunc(Number(page.cursor));
     start = Number.isFinite(decoded) && decoded > 0 ? decoded : 0;
   } else if (page.startIndex !== undefined && page.startIndex > 0) {
@@ -65,12 +65,12 @@ function pageOf<T>(items: readonly T[], page: ScimPage): ScimPageResult<T> {
   });
 }
 
-function emailsOf(value: unknown): DirectoryUser['emails'] | undefined {
+function emailsOf(value: unknown): DirectoryUser["emails"] | undefined {
   if (!Array.isArray(value)) {
     return undefined;
   }
   return value.flatMap((item) => {
-    if (item === null || typeof item !== 'object') {
+    if (item === null || typeof item !== "object") {
       return [];
     }
     // SAFETY: checked above to be a non-null object; each field is typeof-checked before use.
@@ -79,7 +79,7 @@ function emailsOf(value: unknown): DirectoryUser['emails'] | undefined {
       primary?: unknown;
       type?: unknown;
     };
-    if (typeof record.value !== 'string') {
+    if (typeof record.value !== "string") {
       return [];
     }
     return [
@@ -90,24 +90,24 @@ function emailsOf(value: unknown): DirectoryUser['emails'] | undefined {
       }>({
         value: record.value,
         primary:
-          typeof record.primary === 'boolean' ? record.primary : undefined,
-        type: typeof record.type === 'string' ? record.type : undefined,
+          typeof record.primary === "boolean" ? record.primary : undefined,
+        type: typeof record.type === "string" ? record.type : undefined,
       }),
     ];
   });
 }
 
-function membersOf(value: unknown): DirectoryGroup['members'] {
+function membersOf(value: unknown): DirectoryGroup["members"] {
   if (!Array.isArray(value)) {
     return [];
   }
   return value.flatMap((item) => {
-    if (item === null || typeof item !== 'object') {
+    if (item === null || typeof item !== "object") {
       return [];
     }
     // SAFETY: checked above to be a non-null object; value is typeof-checked below.
     const record = item as { value?: unknown };
-    return typeof record.value === 'string' ? [{ value: record.value }] : [];
+    return typeof record.value === "string" ? [{ value: record.value }] : [];
   });
 }
 
@@ -115,7 +115,7 @@ function rolesOf(value: unknown): readonly string[] | undefined {
   if (!Array.isArray(value)) {
     return undefined;
   }
-  return value.filter((item): item is string => typeof item === 'string');
+  return value.filter((item): item is string => typeof item === "string");
 }
 
 function memberValues(value: unknown): readonly string[] {
@@ -123,48 +123,48 @@ function memberValues(value: unknown): readonly string[] {
 }
 
 function applyUserOp(user: DirectoryUser, op: ScimPatchOp): DirectoryUser {
-  const path = op.path ?? '';
-  if (path === 'active' && typeof op.value === 'boolean') {
+  const path = op.path ?? "";
+  if (path === "active" && typeof op.value === "boolean") {
     return { ...user, active: op.value };
   }
-  if (path === 'userName' && typeof op.value === 'string') {
+  if (path === "userName" && typeof op.value === "string") {
     return { ...user, userName: op.value };
   }
-  if (path === 'externalId') {
+  if (path === "externalId") {
     return compact<DirectoryUser>({
       ...user,
-      externalId: typeof op.value === 'string' ? op.value : undefined,
+      externalId: typeof op.value === "string" ? op.value : undefined,
     });
   }
-  if (path === 'emails') {
+  if (path === "emails") {
     return compact<DirectoryUser>({ ...user, emails: emailsOf(op.value) });
   }
   return user;
 }
 
 function applyGroupOp(group: DirectoryGroup, op: ScimPatchOp): DirectoryGroup {
-  const path = op.path ?? '';
-  if (path === 'displayName' && typeof op.value === 'string') {
+  const path = op.path ?? "";
+  if (path === "displayName" && typeof op.value === "string") {
     return { ...group, displayName: op.value };
   }
-  if (path === 'externalId') {
+  if (path === "externalId") {
     return compact<DirectoryGroup>({
       ...group,
-      externalId: typeof op.value === 'string' ? op.value : undefined,
+      externalId: typeof op.value === "string" ? op.value : undefined,
     });
   }
-  if (path === 'roles') {
+  if (path === "roles") {
     return compact<DirectoryGroup>({ ...group, roles: rolesOf(op.value) });
   }
-  if (path !== 'members') {
+  if (path !== "members") {
     return group;
   }
   const incoming = memberValues(op.value);
   const current = group.members.map((member) => member.value);
-  if (op.op === 'replace') {
+  if (op.op === "replace") {
     return { ...group, members: incoming.map((value) => ({ value })) };
   }
-  if (op.op === 'add') {
+  if (op.op === "add") {
     const next = [...current];
     for (const value of incoming) {
       if (!next.includes(value)) {
@@ -188,7 +188,7 @@ function stampUser(user: DirectoryUser, created?: string): DirectoryUser {
     meta: compact({
       created: createdAt(at, created, user.meta.created),
       lastModified: at,
-      resourceType: 'User' as const,
+      resourceType: "User" as const,
       location: user.meta.location,
     }),
   });
@@ -201,7 +201,7 @@ function stampGroup(group: DirectoryGroup, created?: string): DirectoryGroup {
     meta: compact({
       created: createdAt(at, created, group.meta.created),
       lastModified: at,
-      resourceType: 'Group' as const,
+      resourceType: "Group" as const,
       location: group.meta.location,
     }),
   });
@@ -241,13 +241,13 @@ export function memoryDirectoryStore(): DirectoryStore {
         continue;
       }
       if (existing.userName === user.userName) {
-        throw new DirectoryUniquenessError('userName');
+        throw new DirectoryUniquenessError("userName");
       }
       if (
         user.externalId !== undefined &&
         existing.externalId === user.externalId
       ) {
-        throw new DirectoryUniquenessError('externalId');
+        throw new DirectoryUniquenessError("externalId");
       }
     }
   }
@@ -265,7 +265,7 @@ export function memoryDirectoryStore(): DirectoryStore {
         group.externalId !== undefined &&
         existing.externalId === group.externalId
       ) {
-        throw new DirectoryUniquenessError('externalId');
+        throw new DirectoryUniquenessError("externalId");
       }
     }
   }
@@ -282,7 +282,7 @@ export function memoryDirectoryStore(): DirectoryStore {
     },
     putUser(tenant, user) {
       try {
-        const id = user.id === '' ? randomId('u_') : user.id;
+        const id = user.id === "" ? randomId("u_") : user.id;
         const existing = users.get(directoryKey(tenant, id));
         const next = stampUser({ ...user, id }, existing?.meta.created);
         assertUserUnique(tenant, next, id);
@@ -342,7 +342,7 @@ export function memoryDirectoryStore(): DirectoryStore {
     },
     putGroup(tenant, group) {
       try {
-        const id = group.id === '' ? randomId('g_') : group.id;
+        const id = group.id === "" ? randomId("g_") : group.id;
         const existing = groups.get(directoryKey(tenant, id));
         const next = stampGroup(
           { ...group, id, members: group.members },

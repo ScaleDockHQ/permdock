@@ -1,8 +1,8 @@
-import { OpenTelemetry } from '@ai-sdk/otel';
-import * as Sentry from '@sentry/nextjs';
-import { registerTelemetry } from 'ai';
+import { OpenTelemetry } from "@ai-sdk/otel";
+import * as Sentry from "@sentry/nextjs";
+import { registerTelemetry } from "ai";
 
-import { sentryOptions } from '@/lib/monitoring';
+import { sentryOptions } from "@/lib/monitoring";
 
 export function register(): void {
   Sentry.init(sentryOptions());

@@ -1,16 +1,16 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { run } from 'permdock/cli';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { run } from "permdock/cli";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import type { Postgres } from './support/postgres.ts';
+import type { Postgres } from "./support/postgres.ts";
 
-import { startPostgres } from './support/postgres.ts';
+import { startPostgres } from "./support/postgres.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const FIXTURE = join(HERE, '../fixtures/named-scopes');
+const FIXTURE = join(HERE, "../fixtures/named-scopes");
 
 // quote.read carries a row condition (`where: visible`); asset.read does not.
 const SETUP = `
@@ -31,13 +31,13 @@ create policy "quote topics" on realtime.messages for select
   using (split_part(topic, ':', 2) in (select permdock.permitted_organization_ids('quote.read#2')));
 `;
 
-describe('rls verify --db and helper calls on storage and realtime', () => {
+describe("rls verify --db and helper calls on storage and realtime", () => {
   let db: Postgres | undefined;
-  let dir = '';
+  let dir = "";
 
   beforeAll(async () => {
-    dir = mkdtempSync(join(tmpdir(), 'permdock-helper-tables-'));
-    writeFileSync(join(dir, 'fixtures.json'), '[]');
+    dir = mkdtempSync(join(tmpdir(), "permdock-helper-tables-"));
+    writeFileSync(join(dir, "fixtures.json"), "[]");
     db = await startPostgres([SETUP]);
   }, 120_000);
 
@@ -46,28 +46,28 @@ describe('rls verify --db and helper calls on storage and realtime', () => {
     await db?.stop();
   });
 
-  it('reports PD037 for each policy that passes a row-conditioned key', async () => {
+  it("reports PD037 for each policy that passes a row-conditioned key", async () => {
     if (db === undefined) {
-      throw new Error('PermDock: Postgres was not started');
+      throw new Error("PermDock: Postgres was not started");
     }
     const result = await run(
       [
-        'rls',
-        'verify',
-        '--db',
+        "rls",
+        "verify",
+        "--db",
         db.uri,
-        '--fixtures',
-        join(dir, 'fixtures.json'),
+        "--fixtures",
+        join(dir, "fixtures.json"),
       ],
       { cwd: FIXTURE },
     );
     expect(result.code).toBe(1);
     const lines = result.stdout
-      .split('\n')
-      .filter((line) => line.startsWith('PD037'));
+      .split("\n")
+      .filter((line) => line.startsWith("PD037"));
     expect(lines).toHaveLength(2);
     expect(result.stdout).toContain("storage.objects policy 'quote files'");
     expect(result.stdout).toContain("realtime.messages policy 'quote topics'");
-    expect(result.stdout).not.toContain('asset files');
+    expect(result.stdout).not.toContain("asset files");
   });
 });

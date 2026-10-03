@@ -1,4 +1,4 @@
-import type { Principal } from 'permdock';
+import type { Principal } from "permdock";
 
 import {
   allow,
@@ -7,8 +7,8 @@ import {
   defineRoles,
   resource,
   role,
-} from 'permdock';
-import { z } from 'zod';
+} from "permdock";
+import { z } from "zod";
 
 /**
  * The CentraKit shape: staff hold one role per organization in `memberships`,
@@ -33,36 +33,36 @@ const Quote = z.object({
 
 export const permissions = definePermissions({
   staff: resource(Staff, {
-    id: 'id',
-    actions: ['read'],
-    collection: ['list'],
+    id: "id",
+    actions: ["read"],
+    collection: ["list"],
     relations: {
-      organization: { field: 'organization_id', memberOf: 'organization' },
+      organization: { field: "organization_id", memberOf: "organization" },
     },
   }),
   quotes: resource(Quote, {
-    id: 'id',
-    actions: ['read'],
-    collection: ['list'],
+    id: "id",
+    actions: ["read"],
+    collection: ["list"],
     relations: {
-      organization: { field: 'organization_id', memberOf: 'organization' },
-      customer: { field: 'customer_id', memberOf: 'customer' },
+      organization: { field: "organization_id", memberOf: "organization" },
+      customer: { field: "customer_id", memberOf: "customer" },
     },
   }),
 });
 
 export const roles = defineRoles({
-  owner: { on: 'organization' },
-  member: { on: 'organization' },
-  contact: { on: 'customer', assignable: false },
+  owner: { on: "organization" },
+  member: { on: "organization" },
+  contact: { on: "customer", assignable: false },
 });
 
 export const policy = definePolicy(
   { permissions, roles },
   {
     scopes: {
-      organization: { key: 'organization_id' },
-      customer: { key: 'customer_id', within: 'organization' },
+      organization: { key: "organization_id" },
+      customer: { key: "customer_id", within: "organization" },
     },
     // The loaders pass a full Subject from `subjectFromSupabaseSession`, which skips this mapper.
     subject: (user: Principal | null) => user,
@@ -77,17 +77,17 @@ export const policy = definePolicy(
             permissions.quotes.list,
           ]),
         ],
-        { on: 'organization', min: 1 },
+        { on: "organization", min: 1 },
       ),
       role(
         roles.member,
         [allow([permissions.staff.read, permissions.staff.list])],
-        { on: 'organization' },
+        { on: "organization" },
       ),
       role(
         roles.contact,
         [allow([permissions.quotes.read, permissions.quotes.list])],
-        { on: 'customer', min: 0 },
+        { on: "customer", min: 0 },
       ),
     ],
   },

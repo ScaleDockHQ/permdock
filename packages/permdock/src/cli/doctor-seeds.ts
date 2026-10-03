@@ -1,18 +1,18 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync } from "node:fs";
 
-import type { DoctorFinding } from './doctor-types.ts';
-import type { RlsSqlContext } from './rls-sql.ts';
-import type { PermDockConfig } from './types.ts';
+import type { DoctorFinding } from "./doctor-types.ts";
+import type { RlsSqlContext } from "./rls-sql.ts";
+import type { PermDockConfig } from "./types.ts";
 
-import { scopeList } from '../core/scopes.ts';
-import { supabaseTenantClaim } from '../supabase/budget.ts';
-import { PERMDOCK_SCHEMA } from '../supabase/sources.ts';
-import { tableKey } from './deciding-columns.ts';
-import { loadPolicy } from './doctor-collect.ts';
-import { MIGRATION_DIRS } from './doctor-project.ts';
-import { rel, sqlFiles } from './files.ts';
-import { compileGrants } from './rls-compile.ts';
-import { group, sqlStatements } from './sql-statements.ts';
+import { scopeList } from "../core/scopes.ts";
+import { supabaseTenantClaim } from "../supabase/budget.ts";
+import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
+import { tableKey } from "./deciding-columns.ts";
+import { loadPolicy } from "./doctor-collect.ts";
+import { MIGRATION_DIRS } from "./doctor-project.ts";
+import { rel, sqlFiles } from "./files.ts";
+import { compileGrants } from "./rls-compile.ts";
+import { group, sqlStatements } from "./sql-statements.ts";
 
 const SEED_INSERT =
   /^insert\s+into\s+((?:"[^"]+"|\w+)(?:\.(?:"[^"]+"|\w+))?)\s*\(\s*role\s*,\s*permission\s*,\s*grant_key\s*,\s*scope\s*,\s*effect\s*\)\s*values\s*([\s\S]*?)\s*on\s+conflict\b/iu;
@@ -21,7 +21,7 @@ const SEED_CLEAR =
 const LITERAL = String.raw`'((?:[^']|'')*)'`;
 const SEED_ROW = new RegExp(
   String.raw`\(\s*${LITERAL}\s*,\s*${LITERAL}\s*,\s*${LITERAL}\s*,\s*${LITERAL}\s*,\s*${LITERAL}\s*\)`,
-  'gu',
+  "gu",
 );
 
 type Seeded = {
@@ -30,7 +30,7 @@ type Seeded = {
 };
 
 function rowKey(values: readonly string[]): string {
-  return values.join(' ');
+  return values.join(" ");
 }
 
 /** The rows of the last statement that seeds or clears `table`, in migration order. */
@@ -44,7 +44,7 @@ function lastSeed(
     cwd,
     config.doctor?.migrations ?? MIGRATION_DIRS,
   )) {
-    for (const { text } of sqlStatements(readFileSync(file, 'utf8'))) {
+    for (const { text } of sqlStatements(readFileSync(file, "utf8"))) {
       const insert = SEED_INSERT.exec(text);
       if (insert !== null && tableKey(group(insert, 1)) === table) {
         const rows = new Set<string>();
@@ -70,7 +70,7 @@ function sample(rows: readonly string[]): string {
   return rows
     .slice(0, 3)
     .map((row) => `(${row})`)
-    .join(', ');
+    .join(", ");
 }
 
 /**
@@ -99,12 +99,12 @@ export async function pd054(input: {
     return [];
   }
   const ctx: RlsSqlContext = {
-    dialect: rls?.dialect ?? 'supabase',
+    dialect: rls?.dialect ?? "supabase",
     scopes: scopeList(policy.scopes),
     tenantClaim: rls?.tenantClaim ?? supabaseTenantClaim,
-    gucPrefix: rls?.gucPrefix ?? 'app',
+    gucPrefix: rls?.gucPrefix ?? "app",
     schema,
-    ...(rls?.fields === 'views' ? { fields: 'views' as const } : {}),
+    ...(rls?.fields === "views" ? { fields: "views" as const } : {}),
   };
   let expected: ReadonlySet<string>;
   try {
@@ -138,10 +138,10 @@ export async function pd054(input: {
   ];
   return [
     {
-      code: 'PD054',
-      severity: 'warning',
-      message: `${seeded.file} seeds ${schema}.role_permissions with rows the policy no longer compiles to: ${parts.join('; ')}`,
-      fix: 'run permdock rls generate (with --split ...,seeds --seeds-out into a new migration for declarative schemas) and apply it',
+      code: "PD054",
+      severity: "warning",
+      message: `${seeded.file} seeds ${schema}.role_permissions with rows the policy no longer compiles to: ${parts.join("; ")}`,
+      fix: "run permdock rls generate (with --split ...,seeds --seeds-out into a new migration for declarative schemas) and apply it",
     },
   ];
 }

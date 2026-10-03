@@ -12,16 +12,24 @@ Better Auth's access control (`createAccessControl(statement)`, `ac.newRole(...)
 ## API
 
 ```ts
-import { createPermDock, definePolicy, role, allow } from 'permdock'
-import { subjectFromBetterAuth, betterAuthRoleSource, rolesFromAccessControl } from 'permdock/better-auth'
-import { auth } from './auth'          // betterAuth({ plugins: [organization({ ac, roles })] })
-import { ac, owner, admin, member } from './permissions.better-auth'
+import { createPermDock, definePolicy, role, allow } from "permdock";
+import {
+  subjectFromBetterAuth,
+  betterAuthRoleSource,
+  rolesFromAccessControl,
+} from "permdock/better-auth";
+import { auth } from "./auth"; // betterAuth({ plugins: [organization({ ac, roles })] })
+import { ac, owner, admin, member } from "./permissions.better-auth";
 
 // 1. Subject: session + active organization + memberships (organization roles, team roles, dynamic roles)
-const session = await auth.api.getSession({ headers })
-const permdock = await createPermDock(policy, await subjectFromBetterAuth(auth, session), {
-  customRoles: betterAuthRoleSource(auth),          // organizationRole rows -> RoleSource
-})
+const session = await auth.api.getSession({ headers });
+const permdock = await createPermDock(
+  policy,
+  await subjectFromBetterAuth(auth, session),
+  {
+    customRoles: betterAuthRoleSource(auth), // organizationRole rows -> RoleSource
+  },
+);
 // subject.principal = {
 //   id,
 //   tenant: activeOrganizationId,
@@ -34,15 +42,26 @@ const permdock = await createPermDock(policy, await subjectFromBetterAuth(auth, 
 // }
 
 // 2. Optional: seed PermDock roles from Better Auth statements, then add what Better Auth cannot express
-const seeded = rolesFromAccessControl({ ac, roles: { owner, admin, member } }, permissions, { on: 'tenant' })
+const seeded = rolesFromAccessControl(
+  { ac, roles: { owner, admin, member } },
+  permissions,
+  { on: "tenant" },
+);
 export const policy = definePolicy(permissions, {
   roles: [
-    ...seeded,                                                                   // 'member' gets allow(post.read), allow(post.create), ... scoped to the organization
-    role('member', [allow(permissions.post.update, { where: { authorId: principal.id } })], { on: 'tenant' }),  // fragment merges by name
-    role('support', [allow(permissions.post.read)]),                             // global: admin plugin role
+    ...seeded, // 'member' gets allow(post.read), allow(post.create), ... scoped to the organization
+    role(
+      "member",
+      [allow(permissions.post.update, { where: { authorId: principal.id } })],
+      { on: "tenant" },
+    ), // fragment merges by name
+    role("support", [allow(permissions.post.read)]), // global: admin plugin role
   ],
-  scopes: { tenant: { key: 'organizationId' }, team: { key: 'teamId', within: 'tenant' } },
-})
+  scopes: {
+    tenant: { key: "organizationId" },
+    team: { key: "teamId", within: "tenant" },
+  },
+});
 ```
 
 - `subjectFromBetterAuth(auth, session, options?)` returns a principal with `id`, `tenant` (`activeOrganizationId`), `roles` (global roles from `user.role`, managed by the `admin` plugin) and `memberships`: one entry per `member` row the user holds (every organization by default, so the tenant switcher has the full list) with the row's `role` values, plus one entry per `teamMember` row with `via: 'team:<id>'`. Dynamic roles created through Better Auth's `dynamicAccessControl` (`organizationRole` rows) appear by name on the membership and resolve through the `RoleSource` below. The function is async because it reads member and team rows. Rows a `customSession` puts on the session (`members`, `teamMembers`) are used first. Otherwise it lists organization ids with `auth.api.listOrganizations` and reads the caller's own `member` row in each one: `getActiveMember` for the active organization, and elsewhere `listMembers` filtered with `filterField: 'userId'`. A row whose `userId` is not the session user is dropped, because `listMembers` returns every member of an organization. A failed lookup drops that organization only. Stock `teamMember` rows carry no role, so team memberships from `listUserTeams` appear only when a role is added to the row; otherwise put team roles on the session. `options.memberships: 'active'` limits the read to the active organization.

@@ -1,7 +1,7 @@
-import { createPermDock } from 'permdock/authzen';
+import { createPermDock } from "permdock/authzen";
 
-import { otherPost, ownPost } from './permissions.ts';
-import { adminUser, memberUser, policy } from './policy.ts';
+import { otherPost, ownPost } from "./permissions.ts";
+import { adminUser, memberUser, policy } from "./policy.ts";
 
 const posts = new Map<string, typeof ownPost>([
   [ownPost.id, ownPost],
@@ -10,8 +10,8 @@ const posts = new Map<string, typeof ownPost>([
 
 export const { permdockHandler } = createPermDock(policy, {
   subject: (request) => {
-    const authorization = request.headers.get('authorization');
-    return authorization === 'Bearer test' ? memberUser : null;
+    const authorization = request.headers.get("authorization");
+    return authorization === "Bearer test" ? memberUser : null;
   },
   resources: {
     post: {

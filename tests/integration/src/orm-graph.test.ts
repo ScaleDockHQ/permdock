@@ -1,10 +1,10 @@
-import type { SQL } from 'drizzle-orm';
-import type { Permission, WhereResult } from 'permdock';
-import type { RelationsMapping } from 'permdock/drizzle';
+import type { SQL } from "drizzle-orm";
+import type { Permission, WhereResult } from "permdock";
+import type { RelationsMapping } from "permdock/drizzle";
 
-import { PGlite } from '@electric-sql/pglite';
-import { boolean, pgTable, text } from 'drizzle-orm/pg-core';
-import { drizzle } from 'drizzle-orm/pglite';
+import { PGlite } from "@electric-sql/pglite";
+import { boolean, pgTable, text } from "drizzle-orm/pg-core";
+import { drizzle } from "drizzle-orm/pglite";
 import {
   DummyDriver,
   Kysely,
@@ -12,16 +12,16 @@ import {
   PostgresIntrospector,
   PostgresQueryCompiler,
   sql,
-} from 'kysely';
-import { toWhere as drizzleWhere } from 'permdock/drizzle';
-import { toWhere as kyselyWhere } from 'permdock/kysely';
-import { resolveRelated } from 'permdock/prisma';
+} from "kysely";
+import { toWhere as drizzleWhere } from "permdock/drizzle";
+import { toWhere as kyselyWhere } from "permdock/kysely";
+import { resolveRelated } from "permdock/prisma";
 import {
   type OrmParityCase,
   type OrmParityScenario,
   ormParity,
-} from 'permdock/testing';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+} from "permdock/testing";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
   type WorkspaceUser,
@@ -33,17 +33,17 @@ import {
   schemaSql,
   seedSql,
   users,
-} from '../fixtures/workspace/policy.ts';
+} from "../fixtures/workspace/policy.ts";
 
 const tables = {
-  doc: pgTable('doc', { id: text('id'), folderId: text('folderId') }),
-  folder: pgTable('folder', {
-    id: text('id'),
-    parentId: text('parentId'),
-    teamId: text('teamId'),
-    restricted: boolean('restricted'),
+  doc: pgTable("doc", { id: text("id"), folderId: text("folderId") }),
+  folder: pgTable("folder", {
+    id: text("id"),
+    parentId: text("parentId"),
+    teamId: text("teamId"),
+    restricted: boolean("restricted"),
   }),
-  team: pgTable('team', { id: text('id'), leadId: text('leadId') }),
+  team: pgTable("team", { id: text("id"), leadId: text("leadId") }),
 } as const;
 
 type Resource = keyof typeof tables;
@@ -62,7 +62,7 @@ function scenarios(): OrmParityScenario<WorkspaceUser>[] {
       user,
       options: { relations },
       // SAFETY: every check is an instance permission; the scenario type erases its generics
-      permission: permission as Permission<string, unknown, 'instance'>,
+      permission: permission as Permission<string, unknown, "instance">,
       // SAFETY: every check's resource is one of the seeded Resource tables
       rows: rows[permission.resource as Resource],
     })),
@@ -74,16 +74,16 @@ function failures(results: readonly OrmParityCase[]): readonly string[] {
     .filter((result) => !result.ok)
     .map(
       (result) =>
-        `${result.name}: expected [${result.expected.join(',')}] got [${result.actual.join(',')}]${result.error === undefined ? '' : ` (${result.error})`}`,
+        `${result.name}: expected [${result.expected.join(",")}] got [${result.actual.join(",")}]${result.error === undefined ? "" : ` (${result.error})`}`,
     );
 }
 
 const mappings: Readonly<Record<string, RelationsMapping>> = {
-  'closure table': { closure: 'permdock_closure' },
-  'recursive walk': {},
+  "closure table": { closure: "permdock_closure" },
+  "recursive walk": {},
 };
 
-describe('ORM parity over the relation graph: match, includes, groups, links, resource roles', () => {
+describe("ORM parity over the relation graph: match, includes, groups, links, resource roles", () => {
   let lite: PGlite | undefined;
 
   beforeAll(async () => {
@@ -97,7 +97,7 @@ describe('ORM parity over the relation graph: match, includes, groups, links, re
 
   const database = (): PGlite => {
     if (lite === undefined) {
-      throw new Error('PermDock: PGlite did not start');
+      throw new Error("PermDock: PGlite did not start");
     }
     return lite;
   };
@@ -147,7 +147,7 @@ describe('ORM parity over the relation graph: match, includes, groups, links, re
           const resource = scenario.permission.resource as Resource;
           const compiled = db
             .selectFrom(resource)
-            .select('id')
+            .select("id")
             .where(
               // SAFETY: kyselyWhere compiles for this db's resource table; Kysely's generic filter type is erased
               kyselyWhere(where, resource, {
@@ -177,7 +177,7 @@ describe('ORM parity over the relation graph: match, includes, groups, links, re
                 )
               ).rows,
           });
-          expect(JSON.stringify(resolved.condition)).not.toContain('related');
+          expect(JSON.stringify(resolved.condition)).not.toContain("related");
           // SAFETY: every scenario's resource is one of the seeded Resource tables
           const table = tables[scenario.permission.resource as Resource];
           // SAFETY: drizzleWhere compiles against a Drizzle table, so it returns a Drizzle SQL
@@ -192,7 +192,7 @@ describe('ORM parity over the relation graph: match, includes, groups, links, re
     });
   }
 
-  it('refuses a graph grant without a relations mapping', async () => {
+  it("refuses a graph grant without a relations mapping", async () => {
     const report = await ormParity(policy, scenarios().slice(0, 1), {
       run: ({ where }) => {
         drizzleWhere(where, tables.doc);

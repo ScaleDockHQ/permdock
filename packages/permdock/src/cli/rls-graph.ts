@@ -1,17 +1,17 @@
-import type { Policy, ResourceNode } from '../index.ts';
-import type { RlsSqlContext } from './rls-sql.ts';
+import type { Policy, ResourceNode } from "../index.ts";
+import type { RlsSqlContext } from "./rls-sql.ts";
 
-import { relationArmSql } from '../conditions/graph-sql.ts';
-import { flattenGrantee, relationCondition } from '../core/grantee.ts';
+import { relationArmSql } from "../conditions/graph-sql.ts";
+import { flattenGrantee, relationCondition } from "../core/grantee.ts";
 import {
   expandRelation,
   isEdgeRelation,
   isFieldRelation,
   isPrincipalRelation,
   isSelfParented,
-} from '../core/permissions.ts';
-import { scopeList } from '../core/scopes.ts';
-import { PERMDOCK_SCHEMA } from '../supabase/sources.ts';
+} from "../core/permissions.ts";
+import { scopeList } from "../core/scopes.ts";
+import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
 import {
   CLOSURE,
   activeUserSql,
@@ -22,7 +22,7 @@ import {
   quoteIdent,
   quoteLiteral,
   quoteTable,
-} from './rls-sql.ts';
+} from "./rls-sql.ts";
 
 function qualified(ctx: RlsSqlContext, name: string): string {
   return `${quoteIdent(ctx.schema ?? PERMDOCK_SCHEMA)}.${name}`;
@@ -92,13 +92,13 @@ export function graphPlan(policy: Policy): GraphPlan {
   for (const grant of policy.grants) {
     const row = policy.resources.get(grant.permission.resource);
     for (const item of flattenGrantee(grant.to)) {
-      if (item.kind !== 'relation') {
+      if (item.kind !== "relation") {
         continue;
       }
       const condition = relationCondition(item, row, scopes, {
         resources: policy.resources,
       });
-      if (condition?.op !== 'related') {
+      if (condition?.op !== "related") {
         continue;
       }
       const node = policy.resources.get(condition.resource);
@@ -112,7 +112,7 @@ export function graphPlan(policy: Policy): GraphPlan {
       }
       const hops = condition.hops ?? [];
       for (let index = 1; index < hops.length; index += 1) {
-        const from = policy.resources.get(hops[index - 1]?.resource ?? '');
+        const from = policy.resources.get(hops[index - 1]?.resource ?? "");
         const hop = hops[index];
         if (from !== undefined && hop !== undefined) {
           entryFor(from).links.add(hop.link);
@@ -167,7 +167,7 @@ function relationArm(
   const guard =
     asked.length === 1
       ? `(p_relation is null or p_relation = ${quoteLiteral(asked[0] ?? relation)})`
-      : `(p_relation is null or p_relation in (${asked.map(quoteLiteral).join(', ')}))`;
+      : `(p_relation is null or p_relation in (${asked.map(quoteLiteral).join(", ")}))`;
   const body = graphSqlText(
     relationArmSql(node.name, relation, {
       resources: new Map([...plan].map(([name, item]) => [name, item.node])),
@@ -183,7 +183,7 @@ function relationArm(
   );
   const active = activeUserSql(ctx)
     .map((part) => ` and ${part}`)
-    .join('');
+    .join("");
   return `  select a.id from (${body}) a\n  where ${guard}${active}`;
 }
 
@@ -211,7 +211,7 @@ function permittedSql(
     ),
   );
   if (arms.length === 0) {
-    arms.push('  select null::text where false');
+    arms.push("  select null::text where false");
   }
   return `-- ${entry.node.name}: ids the subject holds a relation on (all relations when p_relation is null)
 create or replace function ${fn}(p_relation text)
@@ -221,7 +221,7 @@ stable
 security definer
 set search_path = ''
 as $$
-${arms.join('\n  union\n')}
+${arms.join("\n  union\n")}
 $$;
 revoke execute on function ${fn}(text) from public, anon;
 grant execute on function ${fn}(text) to authenticated;`;
@@ -280,7 +280,7 @@ function closureObjectsSql(
   const { node } = entry;
   const parent = node.parent;
   if (parent === undefined) {
-    return '';
+    return "";
   }
   const name = node.name;
   const closure = qualified(ctx, CLOSURE.table);
@@ -289,18 +289,18 @@ function closureObjectsSql(
   const up = quoteIdent(parent.field);
   const stop =
     node.restricted === undefined
-      ? 'false'
+      ? "false"
       : `coalesce(t.${quoteIdent(node.restricted)}, false)`;
   const stopParent =
     node.restricted === undefined
-      ? 'false'
+      ? "false"
       : `coalesce(p.${quoteIdent(node.restricted)}, false)`;
   const refresh = qualified(ctx, `${CLOSURE.table}_${name}`);
   const changed = qualified(ctx, `${CLOSURE.table}_${name}_changed`);
   const literal = quoteLiteral(name);
   const restrictedChanged =
     node.restricted === undefined
-      ? ''
+      ? ""
       : ` or n.${quoteIdent(node.restricted)} is distinct from o.${quoteIdent(node.restricted)}`;
   const trigger = (suffix: string): string =>
     quoteIdent(`${CLOSURE.table}_${name}_${suffix}`);
@@ -392,20 +392,20 @@ begin
 end
 $$;
 revoke execute on function ${changed}() from public, anon, authenticated;
-drop trigger if exists ${trigger('insert')} on ${table};
-create trigger ${trigger('insert')} after insert on ${table}
+drop trigger if exists ${trigger("insert")} on ${table};
+create trigger ${trigger("insert")} after insert on ${table}
   referencing new table as new_rows
   for each statement execute function ${changed}();
-drop trigger if exists ${trigger('update')} on ${table};
-create trigger ${trigger('update')} after update on ${table}
+drop trigger if exists ${trigger("update")} on ${table};
+create trigger ${trigger("update")} after update on ${table}
   referencing old table as old_rows new table as new_rows
   for each statement execute function ${changed}();
-drop trigger if exists ${trigger('delete')} on ${table};
-create trigger ${trigger('delete')} after delete on ${table}
+drop trigger if exists ${trigger("delete")} on ${table};
+create trigger ${trigger("delete")} after delete on ${table}
   referencing old table as old_rows
   for each statement execute function ${changed}();
-drop trigger if exists ${trigger('truncate')} on ${table};
-create trigger ${trigger('truncate')} after truncate on ${table}
+drop trigger if exists ${trigger("truncate")} on ${table};
+create trigger ${trigger("truncate")} after truncate on ${table}
   for each statement execute function ${changed}();
 select ${refresh}(array(select t.${id}::text from ${table} t));`;
 }
@@ -461,7 +461,7 @@ export function graphSql(
   tables: Readonly<Record<string, string>> | undefined,
 ): string {
   if (plan.size === 0) {
-    return '';
+    return "";
   }
   for (const name of plan.keys()) {
     if (ctx.scopes.some((scope) => scope.name === name)) {
@@ -486,5 +486,5 @@ export function graphSql(
       chunks.push(closureObjectsSql(ctx, entry, entry.closure ?? 0, tables));
     }
   }
-  return `${chunks.join('\n\n')}\n`;
+  return `${chunks.join("\n\n")}\n`;
 }

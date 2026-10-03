@@ -1,21 +1,21 @@
-import type { JwtClaims } from '../core/interfaces.ts';
-import type { Actor, Binding } from '../core/subject.ts';
-import type { JwtSubjectOptions, MappedSubject } from './types.ts';
+import type { JwtClaims } from "../core/interfaces.ts";
+import type { Actor, Binding } from "../core/subject.ts";
+import type { JwtSubjectOptions, MappedSubject } from "./types.ts";
 
-import { compact } from '../core/compact.ts';
-import { freezeDeep } from '../core/freeze.ts';
-import { anonymousSubject } from '../core/subject.ts';
-import { mapClaimsToSubject } from './map-claims.ts';
+import { compact } from "../core/compact.ts";
+import { freezeDeep } from "../core/freeze.ts";
+import { anonymousSubject } from "../core/subject.ts";
+import { mapClaimsToSubject } from "./map-claims.ts";
 
-function emitAuth(options: JwtSubjectOptions, cause: 'invalid-chain'): void {
+function emitAuth(options: JwtSubjectOptions, cause: "invalid-chain"): void {
   if (options.onAuth === undefined) {
     return;
   }
   options.onAuth(
     compact({
-      reason: 'invalid-token' as const,
+      reason: "invalid-token" as const,
       cause,
-      source: 'jwt' as const,
+      source: "jwt" as const,
       issuer: options.issuer,
       requestId: options.requestId,
     }),
@@ -23,58 +23,58 @@ function emitAuth(options: JwtSubjectOptions, cause: 'invalid-chain'): void {
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-function keyToCnf(key: unknown): JwtClaims['cnf'] {
+function keyToCnf(key: unknown): JwtClaims["cnf"] {
   if (!isRecord(key)) {
     return undefined;
   }
-  if (isRecord(key['jwk'])) {
-    return { jwk: key['jwk'] };
+  if (isRecord(key["jwk"])) {
+    return { jwk: key["jwk"] };
   }
   return { jwk: key };
 }
 
 function introspectionToClaims(body: Record<string, unknown>): JwtClaims {
-  const cnf = keyToCnf(body['key']);
+  const cnf = keyToCnf(body["key"]);
   // SAFETY: the RFC 7662 response comes from the authorization server; aud is only compared by value.
   return compact<JwtClaims>({
-    sub: typeof body['sub'] === 'string' ? body['sub'] : undefined,
-    iss: typeof body['iss'] === 'string' ? body['iss'] : undefined,
-    aud: body['aud'] as JwtClaims['aud'],
-    exp: typeof body['exp'] === 'number' ? body['exp'] : undefined,
-    iat: typeof body['iat'] === 'number' ? body['iat'] : undefined,
-    nbf: typeof body['nbf'] === 'number' ? body['nbf'] : undefined,
-    jti: typeof body['jti'] === 'string' ? body['jti'] : undefined,
-    scope: typeof body['scope'] === 'string' ? body['scope'] : undefined,
-    authorization_details: body['authorization_details'],
-    access: body['access'],
+    sub: typeof body["sub"] === "string" ? body["sub"] : undefined,
+    iss: typeof body["iss"] === "string" ? body["iss"] : undefined,
+    aud: body["aud"] as JwtClaims["aud"],
+    exp: typeof body["exp"] === "number" ? body["exp"] : undefined,
+    iat: typeof body["iat"] === "number" ? body["iat"] : undefined,
+    nbf: typeof body["nbf"] === "number" ? body["nbf"] : undefined,
+    jti: typeof body["jti"] === "string" ? body["jti"] : undefined,
+    scope: typeof body["scope"] === "string" ? body["scope"] : undefined,
+    authorization_details: body["authorization_details"],
+    access: body["access"],
     client_id:
-      typeof body['client_id'] === 'string' ? body['client_id'] : undefined,
-    roles: body['roles'],
-    groups: body['groups'],
-    entitlements: body['entitlements'],
-    sid: typeof body['sid'] === 'string' ? body['sid'] : undefined,
-    acr: typeof body['acr'] === 'string' ? body['acr'] : undefined,
-    amr: body['amr'],
-    auth_time: body['auth_time'],
-    act: body['act'],
+      typeof body["client_id"] === "string" ? body["client_id"] : undefined,
+    roles: body["roles"],
+    groups: body["groups"],
+    entitlements: body["entitlements"],
+    sid: typeof body["sid"] === "string" ? body["sid"] : undefined,
+    acr: typeof body["acr"] === "string" ? body["acr"] : undefined,
+    amr: body["amr"],
+    auth_time: body["auth_time"],
+    act: body["act"],
     cnf,
   });
 }
 
 function instanceActor(body: Record<string, unknown>): Actor | undefined {
   const id =
-    typeof body['instance_id'] === 'string'
-      ? body['instance_id']
-      : typeof body['client_id'] === 'string'
-        ? body['client_id']
+    typeof body["instance_id"] === "string"
+      ? body["instance_id"]
+      : typeof body["client_id"] === "string"
+        ? body["client_id"]
         : undefined;
   if (id === undefined) {
     return undefined;
   }
-  return { id, kind: 'oauth-client' };
+  return { id, kind: "oauth-client" };
 }
 
 function attachActor(
@@ -110,8 +110,8 @@ function boundToConfig(
 ): boolean {
   if (
     options.issuer !== undefined &&
-    body['iss'] !== undefined &&
-    body['iss'] !== options.issuer
+    body["iss"] !== undefined &&
+    body["iss"] !== options.issuer
   ) {
     return false;
   }
@@ -121,8 +121,8 @@ function boundToConfig(
   const expected = Array.isArray(options.audience)
     ? options.audience
     : [options.audience];
-  const aud = body['aud'];
-  const held = typeof aud === 'string' ? [aud] : Array.isArray(aud) ? aud : [];
+  const aud = body["aud"];
+  const held = typeof aud === "string" ? [aud] : Array.isArray(aud) ? aud : [];
   return held.some((item) => expected.includes(item));
 }
 
@@ -133,14 +133,14 @@ export function subjectFromIntrospection(
   try {
     if (
       !isRecord(response) ||
-      response['active'] !== true ||
+      response["active"] !== true ||
       !boundToConfig(response, options)
     ) {
       return anonymousSubject();
     }
     const mapped = mapClaimsToSubject(introspectionToClaims(response), options);
     if (mapped.invalidChain) {
-      emitAuth(options, 'invalid-chain');
+      emitAuth(options, "invalid-chain");
       return anonymousSubject();
     }
     if (mapped.subject.principal === null) {

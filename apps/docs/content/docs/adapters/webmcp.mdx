@@ -14,26 +14,26 @@ WebMCP lets a web page expose tools to in-browser agents through `document.model
 ## API
 
 ```tsx
-import { registerTools } from 'permdock/webmcp'
-import { approvalHeaders, usePermDock } from 'permdock/react'
+import { registerTools } from "permdock/webmcp";
+import { approvalHeaders, usePermDock } from "permdock/react";
 
 function PostTools() {
-  const permdock = usePermDock()
+  const permdock = usePermDock();
   useEffect(() => {
-    const controller = new AbortController()
+    const controller = new AbortController();
     registerTools(document.modelContext, permissions.post, {
       permdock,
       signal: controller.signal,
       handlers: {
-        read:   async ({ input }) => api.posts.get(input.id),
+        read: async ({ input }) => api.posts.get(input.id),
         update: async ({ input, token }) =>
           api.posts.update(input, { headers: approvalHeaders(token) }),
         create: async ({ input }) => api.posts.create(input),
       },
-    })
-    return () => controller.abort()
-  }, [permdock])
-  return null
+    });
+    return () => controller.abort();
+  }, [permdock]);
+  return null;
 }
 ```
 

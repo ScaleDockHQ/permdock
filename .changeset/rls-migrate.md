@@ -1,5 +1,5 @@
 ---
-'permdock': minor
+"permdock": minor
 ---
 
 `permdock rls migrate --sql <dir>` rewrites a project's own SQL helper calls in `create policy` and `alter policy` statements onto `permitted_<scope>_ids`, `permdock_has` and `member_<scope>_ids`, as configured in `rls.migrate` (helper forms, exact key renames and prefixes). It is a dry run until `--write`, splices by parser location so formatting is kept, prints `{ rewrites, skipped }` with `--json`, and exits 1 while a mapped key is unknown. Calls it cannot rewrite safely (a computed id, a dynamic key, a key with row conditions or not seeded on that scope, a call inside a function body or outside a policy) are reported with their line and left as written. `rls generate --helpers-only` (or `rls.helpersOnly`) writes only the helpers, seeds and scaffold, and `rls verify --introspect` with it diffs the helpers and `role_permissions` seeds exactly, fails on a hand-written policy that passes an undeclared or row-conditioned key, and lists RLS tables that call no helper as info.

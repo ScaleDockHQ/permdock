@@ -1,15 +1,15 @@
-'use client';
+"use client";
 
-import type { ReactNode } from 'react';
+import type { ReactNode } from "react";
 
-import { ArrowRightIcon } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { ArrowRightIcon } from "lucide-react";
+import { useEffect, useState } from "react";
 
-import type { SiteHref } from '@/lib/site';
+import type { SiteHref } from "@/lib/site";
 
-import { SiteLink } from '@/components/site/site-link';
-import { cn } from '@permdock/ui/lib/utils';
-import { IconTile } from '@permdock/ui/reui/icon-tile';
+import { SiteLink } from "@/components/site/site-link";
+import { cn } from "@permdock/ui/lib/utils";
+import { IconTile } from "@permdock/ui/reui/icon-tile";
 
 export type PageHeroFeature = {
   title: string;
@@ -25,14 +25,14 @@ export function PageHeroFeatures({
   features: readonly PageHeroFeature[];
 }) {
   const first = features[0];
-  const [activeTitle, setActiveTitle] = useState(first?.title ?? '');
+  const [activeTitle, setActiveTitle] = useState(first?.title ?? "");
   const [held, setHeld] = useState(false);
 
   useEffect(() => {
     if (held || features.length === 0) {
       return;
     }
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       return;
     }
     const timer = setTimeout(() => {
@@ -49,7 +49,7 @@ export function PageHeroFeatures({
 
   return (
     <div
-      className="bg-border border-border grid grid-cols-1 gap-px border-t lg:grid-cols-3"
+      className="grid grid-cols-1 gap-px border-t border-border bg-border lg:grid-cols-3"
       onPointerEnter={() => setHeld(true)}
       onPointerLeave={() => setHeld(false)}
       onFocusCapture={() => setHeld(true)}
@@ -62,10 +62,10 @@ export function PageHeroFeatures({
             key={feature.title}
             href={feature.href}
             onClick={() => setActiveTitle(feature.title)}
-            aria-current={isActive ? 'true' : undefined}
+            aria-current={isActive ? "true" : undefined}
             className={cn(
-              'group/feature bg-background hover:bg-muted flex items-start gap-2.5 p-6 transition-colors',
-              isActive && 'group-not-has-[a:hover]/grid:bg-muted',
+              "group/feature flex items-start gap-2.5 bg-background p-6 transition-colors hover:bg-muted",
+              isActive && "group-not-has-[a:hover]/grid:bg-muted",
             )}
           >
             <IconTile variant="outline" size="sm" className="bg-muted">
@@ -73,13 +73,13 @@ export function PageHeroFeatures({
             </IconTile>
             <div className="flex flex-1 flex-col gap-1">
               <p className="text-sm font-medium">{feature.title}</p>
-              <p className="text-muted-foreground line-clamp-3 text-sm">
+              <p className="line-clamp-3 text-sm text-muted-foreground">
                 {feature.description}
               </p>
             </div>
             <ArrowRightIcon
               aria-hidden="true"
-              className="text-muted-foreground size-4 shrink-0 self-center"
+              className="size-4 shrink-0 self-center text-muted-foreground"
             />
           </SiteLink>
         );

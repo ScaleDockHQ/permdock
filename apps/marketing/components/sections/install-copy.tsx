@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { CheckIcon, CopyIcon } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { CheckIcon, CopyIcon } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 export function InstallCopy({ command }: { readonly command: string }) {
   const [copied, setCopied] = useState(false);
@@ -32,7 +32,7 @@ export function InstallCopy({ command }: { readonly command: string }) {
     <button
       type="button"
       onClick={handleCopy}
-      className="border-border bg-muted/50 hover:bg-muted inline-flex items-center gap-2 rounded-md border px-3 py-1.5 font-mono text-sm"
+      className="inline-flex items-center gap-2 rounded-md border border-border bg-muted/50 px-3 py-1.5 font-mono text-sm hover:bg-muted"
     >
       {command}
       {copied ? (

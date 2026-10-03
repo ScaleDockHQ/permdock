@@ -1,7 +1,7 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 
-import { shortDiff } from './text-diff.ts';
+import { shortDiff } from "./text-diff.ts";
 
 /** One generated file: `part` names it in drift reports, `rel` is relative to the working directory, `-` for stdout. */
 export type SqlFile = {
@@ -10,7 +10,7 @@ export type SqlFile = {
   readonly text: string;
 };
 
-export const STDOUT = '-';
+export const STDOUT = "-";
 
 /** `--check`: one entry per file that is missing or differs, naming its part; a differing file carries a short diff. */
 export function driftOf(cwd: string, files: readonly SqlFile[]): string[] {
@@ -23,7 +23,7 @@ export function driftOf(cwd: string, files: readonly SqlFile[]): string[] {
     if (!existsSync(path)) {
       drift.push(`${file.part}: missing ${file.rel}`);
     } else {
-      const onDisk = readFileSync(path, 'utf8');
+      const onDisk = readFileSync(path, "utf8");
       if (onDisk !== file.text) {
         drift.push(
           `${file.part}: ${file.rel}\n${shortDiff(file.rel, onDisk, file.text)}`,
@@ -51,10 +51,10 @@ export function writeSqlFiles(
     writeFileSync(path, file.text);
     wrote.push(file.rel);
   }
-  return { wrote, printed: printed.join('\n') };
+  return { wrote, printed: printed.join("\n") };
 }
 
-const PARTS = ['helpers', 'seeds', 'indexes', 'policies', 'hook'] as const;
+const PARTS = ["helpers", "seeds", "indexes", "policies", "hook"] as const;
 
 export type SplitPart = (typeof PARTS)[number];
 
@@ -66,9 +66,9 @@ export function parseSplit(
     return undefined;
   }
   const names = raw
-    .split(',')
+    .split(",")
     .map((name) => name.trim())
-    .filter((name) => name !== '');
+    .filter((name) => name !== "");
   const unknown = names.filter((name) => !PARTS.some((part) => part === name));
   if (unknown.length > 0 || names.length === 0) {
     return `rls generate --split takes helpers, seeds, indexes, policies and hook, got '${raw}'`;
@@ -78,7 +78,7 @@ export function parseSplit(
 
 /** The path of one split part: `{part}` in `out` replaced by the part name. */
 export function partPath(out: string, part: SplitPart): string {
-  return out.replaceAll('{part}', part);
+  return out.replaceAll("{part}", part);
 }
 
 /**
@@ -91,13 +91,13 @@ export function pgDeltaPath(
   schema: string,
 ): string {
   switch (part) {
-    case 'helpers':
-    case 'indexes':
-    case 'seeds':
+    case "helpers":
+    case "indexes":
+    case "seeds":
       return `${root}/${schema}/${part}.sql`;
-    case 'policies':
+    case "policies":
       return `${root}/public/policies/permdock.sql`;
-    case 'hook':
+    case "hook":
       return `${root}/${schema}/functions/custom_access_token_hook.sql`;
     default: {
       const exhaustive: never = part;

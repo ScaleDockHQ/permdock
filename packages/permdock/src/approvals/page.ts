@@ -4,7 +4,7 @@ import type {
   ApprovalRequest,
   ApprovalStore,
   ApprovalListFilter,
-} from './types.ts';
+} from "./types.ts";
 
 const DEFAULT_PAGE_SIZE = 50;
 const MAX_PAGE_SIZE = 200;
@@ -42,8 +42,8 @@ function decodeCursor(cursor: string): Position | null {
     const parsed: unknown = JSON.parse(cursor);
     return Array.isArray(parsed) &&
       parsed.length === 2 &&
-      typeof parsed[0] === 'string' &&
-      typeof parsed[1] === 'string'
+      typeof parsed[0] === "string" &&
+      typeof parsed[1] === "string"
       ? [parsed[0], parsed[1]]
       : null;
   } catch {

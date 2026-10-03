@@ -1,5 +1,5 @@
-import { crud, definePermissions, resource } from 'permdock';
-import { z } from 'zod';
+import { crud, definePermissions, resource } from "permdock";
+import { z } from "zod";
 
 export const Post = z.object({
   id: z.string(),
@@ -10,6 +10,6 @@ export const Post = z.object({
 export const permissions = definePermissions({
   post: resource(
     Post,
-    crud({ relations: { org: { field: 'orgId', memberOf: 'tenant' } } }),
+    crud({ relations: { org: { field: "orgId", memberOf: "tenant" } } }),
   ),
 });

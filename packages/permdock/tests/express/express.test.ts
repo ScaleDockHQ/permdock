@@ -1,16 +1,16 @@
-import type { Server } from 'node:http';
+import type { Server } from "node:http";
 
-import express from 'express';
-import { afterEach, describe, expect, it } from 'vitest';
+import express from "express";
+import { afterEach, describe, expect, it } from "vitest";
 
-import { createPermDock } from '../../src/express/index.ts';
+import { createPermDock } from "../../src/express/index.ts";
 import {
   memberUser,
   otherPost,
   ownPost,
   permissions,
   policy,
-} from '../fixtures/quick-start.ts';
+} from "../fixtures/quick-start.ts";
 
 const servers: Server[] = [];
 
@@ -35,30 +35,30 @@ async function listen(
   app: ReturnType<typeof express>,
 ): Promise<(path: string, init?: RequestInit) => Promise<Response>> {
   const server = await new Promise<Server>((resolve) => {
-    const next = app.listen(0, '127.0.0.1', () => {
+    const next = app.listen(0, "127.0.0.1", () => {
       resolve(next);
     });
   });
   servers.push(server);
   const address = server.address();
-  if (address === null || typeof address === 'string') {
-    throw new Error('expected tcp address');
+  if (address === null || typeof address === "string") {
+    throw new Error("expected tcp address");
   }
   const base = `http://127.0.0.1:${String(address.port)}`;
   return (path, init) => fetch(`${base}${path}`, init);
 }
 
-describe('permdock/express', () => {
-  it('sets a request-scoped instance and protects routes', async () => {
+describe("permdock/express", () => {
+  it("sets a request-scoped instance and protects routes", async () => {
     const { permdock, protect, withPermDock } = createPermDock(policy, {
       subject: () => memberUser,
     });
     const app = express();
     app.use(permdock());
     app.delete(
-      '/posts/:id',
+      "/posts/:id",
       protect(permissions.post.update, (req) =>
-        req.params['id'] === 'p1' ? ownPost : otherPost,
+        req.params["id"] === "p1" ? ownPost : otherPost,
       ),
       withPermDock((req, res) => {
         res.json({ ok: true, via: req.permdock.subject.principal?.id });
@@ -66,82 +66,82 @@ describe('permdock/express', () => {
     );
     const request = await listen(app);
 
-    const allowed = await request('/posts/p1', { method: 'DELETE' });
+    const allowed = await request("/posts/p1", { method: "DELETE" });
     expect(allowed.status).toBe(200);
-    expect(await allowed.json()).toEqual({ ok: true, via: 'u1' });
+    expect(await allowed.json()).toEqual({ ok: true, via: "u1" });
 
-    const denied = await request('/posts/p2', { method: 'DELETE' });
+    const denied = await request("/posts/p2", { method: "DELETE" });
     expect(denied.status).toBe(403);
-    expect(denied.headers.get('content-type')).toContain(
-      'application/problem+json',
+    expect(denied.headers.get("content-type")).toContain(
+      "application/problem+json",
     );
   });
 
-  it('answers 401 with a bare Bearer challenge to a caller without credentials', async () => {
+  it("answers 401 with a bare Bearer challenge to a caller without credentials", async () => {
     const { protect } = createPermDock(policy, {
       subject: () => null,
     });
     const app = express();
     app.get(
-      '/posts/:id',
+      "/posts/:id",
       protect(permissions.post.read, () => ownPost),
       (_req, res) => {
         res.json({ ok: true });
       },
     );
     const request = await listen(app);
-    const denied = await request('/posts/p1');
+    const denied = await request("/posts/p1");
     expect(denied.status).toBe(401);
-    expect(denied.headers.get('www-authenticate')).toBe('Bearer');
+    expect(denied.headers.get("www-authenticate")).toBe("Bearer");
   });
 
-  it('turns a thrown assert into a problem and passes other errors on', async () => {
+  it("turns a thrown assert into a problem and passes other errors on", async () => {
     const { permdock, errorHandler, withPermDock } = createPermDock(policy, {
       subject: () => memberUser,
     });
     const app = express();
     app.use(permdock());
     app.get(
-      '/posts/:id',
+      "/posts/:id",
       withPermDock((req) => {
         req.permdock.assert(permissions.post.update, otherPost);
       }),
     );
     app.get(
-      '/boom',
+      "/boom",
       withPermDock(() => {
-        throw new Error('boom');
+        throw new Error("boom");
       }),
     );
     app.use(errorHandler());
     const request = await listen(app);
 
-    const denied = await request('/posts/p2');
+    const denied = await request("/posts/p2");
     expect(denied.status).toBe(403);
-    expect(denied.headers.get('content-type')).toContain(
-      'application/problem+json',
+    expect(denied.headers.get("content-type")).toContain(
+      "application/problem+json",
     );
 
-    const other = await request('/boom');
+    const other = await request("/boom");
     expect(other.status).toBe(500);
   });
 
-  it('mounts the AuthZEN evaluations handler', async () => {
+  it("mounts the AuthZEN evaluations handler", async () => {
     const { permdockHandler } = createPermDock(policy, {
       subject: () => memberUser,
     });
     const app = express();
     app.use(express.json());
-    app.use('/api/permdock', permdockHandler());
+    app.use("/api/permdock", permdockHandler());
     const request = await listen(app);
-    const response = await request('/api/permdock', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
+    const response = await request("/api/permdock", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
       body: JSON.stringify({
         evaluations: [
           {
-            resource: { type: 'post', properties: ownPost },
-            action: { name: 'update' },
+            resource: { type: "post", properties: ownPost },
+            action: { name: "update" },
           },
         ],
       }),

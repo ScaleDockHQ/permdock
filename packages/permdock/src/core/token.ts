@@ -1,7 +1,7 @@
-import type { Actor, Principal } from './subject.ts';
+import type { Actor, Principal } from "./subject.ts";
 
-import { canonicalJson } from './canonical-json.ts';
-import { bytesToBase64Url, sha256 } from './sha256.ts';
+import { canonicalJson } from "./canonical-json.ts";
+import { bytesToBase64Url, sha256 } from "./sha256.ts";
 
 /**
  * Only stable identity goes into the token, so refreshing a session (new
@@ -20,7 +20,7 @@ function principalIdentity(principal: Principal | null): unknown {
 
 /** A row's `version` field as token input; `null` when it is missing or not a scalar. */
 export function versionOf(row: unknown, field: string): string | null {
-  if (row === null || typeof row !== 'object' || !Object.hasOwn(row, field)) {
+  if (row === null || typeof row !== "object" || !Object.hasOwn(row, field)) {
     return null;
   }
   // SAFETY: row is a non-null object with field as an own key, checked above; value stays unknown.
@@ -28,10 +28,10 @@ export function versionOf(row: unknown, field: string): string | null {
   if (value instanceof Date) {
     return Number.isNaN(value.getTime()) ? null : value.toISOString();
   }
-  return typeof value === 'string' ||
-    typeof value === 'number' ||
-    typeof value === 'bigint' ||
-    typeof value === 'boolean'
+  return typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "bigint" ||
+    typeof value === "boolean"
     ? String(value)
     : null;
 }

@@ -1,5 +1,5 @@
-import { freezeDeep } from './freeze.ts';
-import { isForbiddenKey, ownGet, ownKeys } from './paths.ts';
+import { freezeDeep } from "./freeze.ts";
+import { isForbiddenKey, ownGet, ownKeys } from "./paths.ts";
 
 export function sanitizeFields(
   fields: readonly string[] | undefined,
@@ -13,7 +13,7 @@ export function sanitizeFields(
 export function grantCoversField(
   fields: readonly string[] | undefined,
   field: string | undefined,
-  effect: 'allow' | 'deny',
+  effect: "allow" | "deny",
 ): boolean {
   if (fields === undefined) {
     return true;
@@ -22,7 +22,7 @@ export function grantCoversField(
     return false;
   }
   if (field === undefined) {
-    return effect === 'allow';
+    return effect === "allow";
   }
   return fields.includes(field);
 }
@@ -44,7 +44,7 @@ export function pickVisible<T extends object>(
 export function sanitizeContext(
   value: unknown,
 ): Readonly<Record<string, unknown>> {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
     return {};
   }
   const out: Record<string, unknown> = {};

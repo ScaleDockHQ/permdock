@@ -1,7 +1,7 @@
-import type { IncomingMessage, ServerResponse } from 'node:http';
+import type { IncomingMessage, ServerResponse } from "node:http";
 
-import type { ApprovalStore } from '../approvals/types.ts';
-import type { PolicySource } from '../core/hosted.ts';
+import type { ApprovalStore } from "../approvals/types.ts";
+import type { PolicySource } from "../core/hosted.ts";
 import type {
   DecisionSink,
   EntitlementSource,
@@ -10,30 +10,30 @@ import type {
   RelationSource,
   RoleSource,
   SnapshotSource,
-} from '../core/interfaces.ts';
-import type { PermDock } from '../core/permdock.ts';
-import type { Permission } from '../core/permissions.ts';
-import type { Policy, PolicyVocabulary } from '../core/policy.ts';
-import type { Principal } from '../core/subject.ts';
-import type { OtelWrap } from '../otel/types.ts';
-import type { PdpFactory } from '../pdp/types.ts';
+} from "../core/interfaces.ts";
+import type { PermDock } from "../core/permdock.ts";
+import type { Permission } from "../core/permissions.ts";
+import type { Policy, PolicyVocabulary } from "../core/policy.ts";
+import type { Principal } from "../core/subject.ts";
+import type { OtelWrap } from "../otel/types.ts";
+import type { PdpFactory } from "../pdp/types.ts";
 import type {
   Guard,
   OpenApiHooks,
   ProtectOptions,
   TenantOption,
   TenantScope,
-} from '../server/create.ts';
-import type { WebBotAuthVerifier } from '../server/web-bot-auth.ts';
+} from "../server/create.ts";
+import type { WebBotAuthVerifier } from "../server/web-bot-auth.ts";
 
-import { compact } from '../core/compact.ts';
-import { createKernel, tenantScope } from '../server/create.ts';
+import { compact } from "../core/compact.ts";
+import { createKernel, tenantScope } from "../server/create.ts";
 import {
   fromResponse,
   sendResponse,
   toRequest,
   type NodeRequest,
-} from './http.ts';
+} from "./http.ts";
 
 export type NodePermDockOptions<TUser = unknown> = {
   readonly subject: (req: NodeRequest) => TUser | Promise<TUser>;
@@ -102,7 +102,7 @@ export function createPermDock<
       limits: options.limits,
       pdp: options.pdp,
       webBotAuth: options.webBotAuth,
-      adapter: 'node',
+      adapter: "node",
       wrap: options.otel,
     }),
   );
@@ -152,7 +152,7 @@ export function createPermDock<
       return req === undefined ? { tenant: undefined } : scopeOf(req);
     });
     return async (req, res): Promise<void> => {
-      if (req.method === 'GET' || req.method === 'HEAD') {
+      if (req.method === "GET" || req.method === "HEAD") {
         await sendResponse(res, await GET(bind(req)));
         return;
       }

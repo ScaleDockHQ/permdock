@@ -1,12 +1,12 @@
-import type { Decision, Denial, DenialReason } from '../core/decision.ts';
-import type { DecisionProvider } from '../core/interfaces.ts';
-import type { Permission } from '../core/permissions.ts';
-import type { Subject } from '../core/subject.ts';
-import type { RemotePdpOptions } from './types.ts';
+import type { Decision, Denial, DenialReason } from "../core/decision.ts";
+import type { DecisionProvider } from "../core/interfaces.ts";
+import type { Permission } from "../core/permissions.ts";
+import type { Subject } from "../core/subject.ts";
+import type { RemotePdpOptions } from "./types.ts";
 
-import { isRecord } from '../authzen/map.ts';
-import { compact } from '../core/compact.ts';
-import { listPermissions } from '../core/permissions.ts';
+import { isRecord } from "../authzen/map.ts";
+import { compact } from "../core/compact.ts";
+import { listPermissions } from "../core/permissions.ts";
 import {
   DEFAULT_TIMEOUT_MS,
   cacheKey,
@@ -17,14 +17,14 @@ import {
   resourceIdOf,
   ttlCache,
   ttlMs,
-} from './shared.ts';
+} from "./shared.ts";
 
-const DEFAULT_EVALUATION = '/access/v1/evaluation';
-const DEFAULT_EVALUATIONS = '/access/v1/evaluations';
+const DEFAULT_EVALUATION = "/access/v1/evaluation";
+const DEFAULT_EVALUATIONS = "/access/v1/evaluations";
 const MAX_SEARCH_PAGES = 100;
 
 function delegatedKeys(
-  listed: RemotePdpOptions['permissions'],
+  listed: RemotePdpOptions["permissions"],
 ): ReadonlySet<string> | null {
   if (listed === undefined) {
     return null;
@@ -49,20 +49,20 @@ function parseDiscovery(url: string, body: unknown): Discovery | null {
     return null;
   }
   const evaluation =
-    typeof body['access_evaluation_endpoint'] === 'string'
-      ? body['access_evaluation_endpoint']
-      : typeof body['policy_decision_point'] === 'string'
-        ? joinUrl(body['policy_decision_point'], DEFAULT_EVALUATION)
+    typeof body["access_evaluation_endpoint"] === "string"
+      ? body["access_evaluation_endpoint"]
+      : typeof body["policy_decision_point"] === "string"
+        ? joinUrl(body["policy_decision_point"], DEFAULT_EVALUATION)
         : joinUrl(url, DEFAULT_EVALUATION);
   return compact<Discovery>({
     evaluation,
     evaluations:
-      typeof body['access_evaluations_endpoint'] === 'string'
-        ? body['access_evaluations_endpoint']
+      typeof body["access_evaluations_endpoint"] === "string"
+        ? body["access_evaluations_endpoint"]
         : joinUrl(url, DEFAULT_EVALUATIONS),
     searchResource:
-      typeof body['search_resource_endpoint'] === 'string'
-        ? body['search_resource_endpoint']
+      typeof body["search_resource_endpoint"] === "string"
+        ? body["search_resource_endpoint"]
         : undefined,
   });
 }
@@ -71,17 +71,17 @@ function mapEvaluationBody(
   permission: Permission,
   data: unknown,
   subject: Subject,
-  mapping: RemotePdpOptions['mapping'],
+  mapping: RemotePdpOptions["mapping"],
 ): Record<string, unknown> {
   // SAFETY: data was checked to be a non-null object; the id stays unknown.
   const defaultId =
-    data !== null && typeof data === 'object'
-      ? (data as Record<string, unknown>)['id']
+    data !== null && typeof data === "object"
+      ? (data as Record<string, unknown>)["id"]
       : undefined;
   const mappedSubject =
     mapping?.subject?.(subject) ??
     compact({
-      type: 'user',
+      type: "user",
       id: subject.principal?.id,
       properties: compact({
         orgId: subject.principal?.tenant,
@@ -95,7 +95,7 @@ function mapEvaluationBody(
     compact({
       type: permission.resource,
       id:
-        typeof defaultId === 'string' || typeof defaultId === 'number'
+        typeof defaultId === "string" || typeof defaultId === "number"
           ? String(defaultId)
           : resourceIdOf(data),
       properties: data,
@@ -121,92 +121,92 @@ function parseRemoteDecision(
   subject: Subject,
   data: unknown,
 ): Decision {
-  if (!isRecord(body) || typeof body['decision'] !== 'boolean') {
-    return denied('pdp-invalid-response');
+  if (!isRecord(body) || typeof body["decision"] !== "boolean") {
+    return denied("pdp-invalid-response");
   }
-  if (body['decision']) {
-    return granted('pdp', permission, subject, data);
+  if (body["decision"]) {
+    return granted("pdp", permission, subject, data);
   }
   const context =
-    isRecord(body['context']) && isRecord(body['context']['permdock'])
-      ? body['context']['permdock']
+    isRecord(body["context"]) && isRecord(body["context"]["permdock"])
+      ? body["context"]["permdock"]
       : {};
-  if (context['outcome'] === 'approval-required') {
-    const token = typeof context['token'] === 'string' ? context['token'] : '';
+  if (context["outcome"] === "approval-required") {
+    const token = typeof context["token"] === "string" ? context["token"] : "";
     return {
-      outcome: 'approval-required',
+      outcome: "approval-required",
       grant: {
-        role: 'pdp',
+        role: "pdp",
         permission: permission.key,
-        provider: 'pdp',
-        approval: 'human',
+        provider: "pdp",
+        approval: "human",
       },
-      reason: 'human',
+      reason: "human",
       token,
     };
   }
-  if (Array.isArray(context['denials'])) {
-    const denials: Denial[] = context['denials'].flatMap((item) => {
-      if (!isRecord(item) || typeof item['reason'] !== 'string') {
+  if (Array.isArray(context["denials"])) {
+    const denials: Denial[] = context["denials"].flatMap((item) => {
+      if (!isRecord(item) || typeof item["reason"] !== "string") {
         return [];
       }
       // SAFETY: a string reason from the remote PDP inside a denial; the outcome stays denied.
       return [
         compact<Denial>({
-          role: typeof item['role'] === 'string' ? item['role'] : null,
-          reason: item['reason'] as DenialReason,
-          detail: item['detail'],
+          role: typeof item["role"] === "string" ? item["role"] : null,
+          reason: item["reason"] as DenialReason,
+          detail: item["detail"],
         }),
       ];
     });
     if (denials.length > 0) {
       return {
-        outcome: 'denied',
+        outcome: "denied",
         denials,
         alternatives: [],
       };
     }
   }
-  return denied('pdp-denied');
+  return denied("pdp-denied");
 }
 
 function mapSearchBody(
   permission: Permission,
   subject: Subject,
-  mapping: RemotePdpOptions['mapping'],
+  mapping: RemotePdpOptions["mapping"],
 ): Record<string, unknown> {
   const body = mapEvaluationBody(permission, undefined, subject, mapping);
-  const resource = isRecord(body['resource']) ? body['resource'] : {};
+  const resource = isRecord(body["resource"]) ? body["resource"] : {};
   return {
     ...body,
-    resource: { type: resource['type'] ?? permission.resource },
+    resource: { type: resource["type"] ?? permission.resource },
   };
 }
 
 function searchIds(body: unknown, type: unknown): string[] | null {
-  if (!isRecord(body) || !Array.isArray(body['results'])) {
+  if (!isRecord(body) || !Array.isArray(body["results"])) {
     return null;
   }
   const ids: string[] = [];
-  for (const entity of body['results']) {
+  for (const entity of body["results"]) {
     if (
       !isRecord(entity) ||
-      entity['type'] !== type ||
-      typeof entity['id'] !== 'string'
+      entity["type"] !== type ||
+      typeof entity["id"] !== "string"
     ) {
       return null;
     }
-    ids.push(entity['id']);
+    ids.push(entity["id"]);
   }
   return ids;
 }
 
 function nextToken(body: unknown): string | undefined {
-  if (!isRecord(body) || !isRecord(body['page'])) {
+  if (!isRecord(body) || !isRecord(body["page"])) {
     return undefined;
   }
-  const token = body['page']['next_token'];
-  return typeof token === 'string' && token !== '' ? token : undefined;
+  const token = body["page"]["next_token"];
+  return typeof token === "string" && token !== "" ? token : undefined;
 }
 
 export function remotePdp(options: RemotePdpOptions): DecisionProvider {
@@ -232,7 +232,7 @@ export function remotePdp(options: RemotePdpOptions): DecisionProvider {
     try {
       const signal = AbortSignal.timeout(timeout);
       const response = await fetcher(
-        joinUrl(options.url, '/.well-known/authzen-configuration'),
+        joinUrl(options.url, "/.well-known/authzen-configuration"),
         { signal },
       );
       if (!response.ok) {
@@ -267,13 +267,13 @@ export function remotePdp(options: RemotePdpOptions): DecisionProvider {
   }
 
   return {
-    name: 'pdp',
+    name: "pdp",
     handles(permission: Permission): boolean {
       return keys === null || keys.has(permission.key);
     },
     async decide(request): Promise<Decision> {
       if (request.subject.principal === null) {
-        return denied('anonymous');
+        return denied("anonymous");
       }
       let body: Record<string, unknown>;
       try {
@@ -284,7 +284,7 @@ export function remotePdp(options: RemotePdpOptions): DecisionProvider {
           options.mapping,
         );
       } catch {
-        return denied('pdp-invalid-response');
+        return denied("pdp-invalid-response");
       }
       const key = cacheKey(request.subject, request.permission, body);
       const hit = decisions.get(key);
@@ -293,11 +293,11 @@ export function remotePdp(options: RemotePdpOptions): DecisionProvider {
       }
       const endpoints = await discover();
       if (endpoints === null) {
-        return denied('pdp-unavailable');
+        return denied("pdp-unavailable");
       }
       const posted = await readJson(endpoints.evaluation, body);
       if (!posted.ok) {
-        return denied('pdp-unavailable');
+        return denied("pdp-unavailable");
       }
       const decision = parseRemoteDecision(
         posted.body,
@@ -306,10 +306,10 @@ export function remotePdp(options: RemotePdpOptions): DecisionProvider {
         request.data,
       );
       const cacheable =
-        decision.outcome === 'granted' ||
-        decision.outcome === 'approval-required' ||
-        (decision.outcome === 'denied' &&
-          decision.denials[0]?.reason === 'pdp-denied');
+        decision.outcome === "granted" ||
+        decision.outcome === "approval-required" ||
+        (decision.outcome === "denied" &&
+          decision.denials[0]?.reason === "pdp-denied");
       if (cacheable) {
         decisions.set(key, decision);
       }
@@ -341,8 +341,8 @@ export function remotePdp(options: RemotePdpOptions): DecisionProvider {
       if (hit !== undefined) {
         return hit;
       }
-      const type = isRecord(body['resource'])
-        ? body['resource']['type']
+      const type = isRecord(body["resource"])
+        ? body["resource"]["type"]
         : undefined;
       const url = endpoints.searchResource;
       const collect = async (

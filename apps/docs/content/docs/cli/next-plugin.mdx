@@ -9,15 +9,15 @@ description: createPermDockPlugin runs permdock collect during next dev and next
 
 ```ts
 // next.config.ts
-import { createPermDockPlugin } from 'permdock/next/plugin'
+import { createPermDockPlugin } from "permdock/next/plugin";
 
 const permdockPlugin = createPermDockPlugin({
-  collect: { srcPath: ['./src', '../ui/src', './node_modules/@acme/*'] },
-})
+  collect: { srcPath: ["./src", "../ui/src", "./node_modules/@acme/*"] },
+});
 
 export default permdockPlugin({
   // your Next.js config
-})
+});
 ```
 
 `srcPath` accepts first-party folders, sibling workspace packages and installed packages, so a monorepo where `@acme/ui` ships its own `permissions.ts` next to its components is collected into the app's catalog without any manual import.
@@ -25,16 +25,16 @@ export default permdockPlugin({
 `permdockPlugin` accepts a config object or a config function and returns Next's config function `(phase, context) => Promise<config>`: the phase constant is how the plugin tells `next build` from `next dev`. Put it outermost when composing with plugins that only accept an object:
 
 ```ts
-export default permdockPlugin(withOtherPlugin({ /* your Next.js config */ }))
+export default permdockPlugin(withOtherPlugin({/* your Next.js config */}));
 ```
 
 ## What it does
 
-| Phase | Behaviour |
-| --- | --- |
-| `next dev` | Runs `collect` once at startup, then starts one watcher per app root over `srcPath` and re-runs on change. Writes `permissions.catalog.json` (and the barrel when `collect.barrel` is enabled). Failures are logged, never fatal. |
-| `next build` | Runs `collect --check`. A stale catalog fails the build with the diff, so a deployment can never ship a catalog that disagrees with the code. `PERMDOCK_COLLECT=write` switches to writing instead of checking for build pipelines that commit generated files. |
-| `next start`, `next export` | Nothing. |
+| Phase                       | Behaviour                                                                                                                                                                                                                                                       |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `next dev`                  | Runs `collect` once at startup, then starts one watcher per app root over `srcPath` and re-runs on change. Writes `permissions.catalog.json` (and the barrel when `collect.barrel` is enabled). Failures are logged, never fatal.                               |
+| `next build`                | Runs `collect --check`. A stale catalog fails the build with the diff, so a deployment can never ship a catalog that disagrees with the code. `PERMDOCK_COLLECT=write` switches to writing instead of checking for build pipelines that commit generated files. |
+| `next start`, `next export` | Nothing.                                                                                                                                                                                                                                                        |
 
 The plugin runs `collect` in-process from the same `permdock` package the app already depends on, so there is nothing else to install.
 

@@ -1,7 +1,7 @@
-import type { RelatedCondition } from '../conditions/ast.ts';
-import type { Scope } from '../core/scopes.ts';
-import type { Condition, ConditionValue, ResourceNode } from '../index.ts';
-import type { SqlMembershipSource } from '../supabase/sources.ts';
+import type { RelatedCondition } from "../conditions/ast.ts";
+import type { Scope } from "../core/scopes.ts";
+import type { Condition, ConditionValue, ResourceNode } from "../index.ts";
+import type { SqlMembershipSource } from "../supabase/sources.ts";
 import type {
   GlobalRoles,
   RlsActiveRow,
@@ -9,30 +9,30 @@ import type {
   RlsMembershipTable,
   RlsMemberships,
   RlsSuspension,
-} from './types.ts';
+} from "./types.ts";
 
-import { scopeColumn, scopeMembershipTable } from '../conditions/compile.ts';
-import { type GraphSql, relatedSql } from '../conditions/graph-sql.ts';
-import { isReadonlyArray, sole } from '../core/compact.ts';
-import { byCodePoint } from '../core/compare.ts';
-import { isForbiddenKey } from '../core/paths.ts';
-import { resolveScope, rootScope, scopeChain } from '../core/scopes.ts';
+import { scopeColumn, scopeMembershipTable } from "../conditions/compile.ts";
+import { type GraphSql, relatedSql } from "../conditions/graph-sql.ts";
+import { isReadonlyArray, sole } from "../core/compact.ts";
+import { byCodePoint } from "../core/compare.ts";
+import { isForbiddenKey } from "../core/paths.ts";
+import { resolveScope, rootScope, scopeChain } from "../core/scopes.ts";
 import {
   SQL_IDENT,
   quoteSqlIdent,
   quoteSqlLiteral,
   quoteSqlTable,
-} from '../core/sql.ts';
-import { isSqlFunctionField } from '../index.ts';
-import { PERMDOCK_SCHEMA } from '../supabase/sources.ts';
+} from "../core/sql.ts";
+import { isSqlFunctionField } from "../index.ts";
+import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
 
-const CLI = 'PermDock CLI';
+const CLI = "PermDock CLI";
 const CLAIM = SQL_IDENT;
 
 export type RlsSqlContext = {
   readonly dialect: RlsDialect;
   /** `rls.anonymousSignIns`: `'deny'` keeps an `is_anonymous` token out of every branch but `anyone()`'s. */
-  readonly anonymousSignIns?: 'deny';
+  readonly anonymousSignIns?: "deny";
   /** The policy's scopes in order (the implicit `tenant` / `team` pair when it declares none). */
   readonly scopes: readonly Scope[];
   readonly memberships?: RlsMemberships;
@@ -52,7 +52,7 @@ export type RlsSqlContext = {
   /** Schema of `role_permissions` and the RLS helpers (`permdock_has`, `permitted_<scope>_ids`). Default `permdock`, a schema the Data API does not expose. */
   readonly schema?: string;
   /** Where the helpers read roles and memberships: tables (`database`) or claims (`jwt`, the default). */
-  readonly authorize?: 'database' | 'jwt';
+  readonly authorize?: "database" | "jwt";
   /** Claim holding the global role (string or array). Default `user_role`. */
   readonly roleClaim?: string;
   /** Postgres type of the tenant column; the tenant claim is cast to it. Default `uuid`. */
@@ -86,7 +86,7 @@ export type RlsSqlContext = {
   /** `rls.roles`: the app's global-roles table, in place of the generated `user_roles`. */
   readonly roles?: GlobalRoles;
   /** Set when field views compile: grant keys also split by field set. */
-  readonly fields?: 'views';
+  readonly fields?: "views";
   /** Graph grants: the closure depth kept for each walked resource. */
   readonly graph?: {
     readonly closures: Readonly<Record<string, number>>;
@@ -147,7 +147,7 @@ export function checkSuspension(
     return undefined;
   }
   if (suspension.users !== undefined) {
-    checkActiveRow('rls.suspension.users', suspension.users);
+    checkActiveRow("rls.suspension.users", suspension.users);
   }
   const byName: Record<string, RlsActiveRow> = {};
   for (const [key, row] of Object.entries(suspension.scopes ?? {})) {
@@ -172,19 +172,19 @@ export function checkSuspension(
  */
 export function activeRowSql(row: RlsActiveRow, id: string): string {
   const table = quoteTable(
-    row.table.includes('.') ? row.table : `public.${row.table}`,
+    row.table.includes(".") ? row.table : `public.${row.table}`,
   );
   const parts = [`s.${quoteIdent(row.id)} = ${id}`];
   if (row.disabledAt !== undefined) {
     parts.push(`s.${quoteIdent(row.disabledAt)} is null`);
   }
   if (row.status !== undefined) {
-    const values = (row.active ?? []).map(quoteLiteral).join(', ');
+    const values = (row.active ?? []).map(quoteLiteral).join(", ");
     parts.push(
       `s.${quoteIdent(row.status)}::text = any(array[${values}]::text[])`,
     );
   }
-  return `exists (select 1 from ${table} s where ${parts.join(' and ')})`;
+  return `exists (select 1 from ${table} s where ${parts.join(" and ")})`;
 }
 
 /** The active-user check for `user`; empty without `rls.suspension.users`. */
@@ -233,11 +233,11 @@ function sqlType(name: string): string {
 }
 
 export function tenantTypeOf(ctx: RlsSqlContext): string {
-  return sqlType(ctx.tenantType ?? 'uuid');
+  return sqlType(ctx.tenantType ?? "uuid");
 }
 
 function teamTypeOf(ctx: RlsSqlContext): string {
-  return sqlType(ctx.teamType ?? ctx.tenantType ?? 'uuid');
+  return sqlType(ctx.teamType ?? ctx.tenantType ?? "uuid");
 }
 
 /** Postgres type of scope `name`'s id: `scopeTypes`, then the tenant / team type by position. */
@@ -267,9 +267,9 @@ export function kindFilterSql(
   }
   const arms = kinds.map(
     ([role, allowed]) =>
-      `when ${quoteLiteral(role)} then coalesce(${viaExpr}, '') = any(array[${allowed.map(quoteLiteral).join(', ')}]::text[])`,
+      `when ${quoteLiteral(role)} then coalesce(${viaExpr}, '') = any(array[${allowed.map(quoteLiteral).join(", ")}]::text[])`,
   );
-  return `case ${roleExpr} ${arms.join(' ')} else true end`;
+  return `case ${roleExpr} ${arms.join(" ")} else true end`;
 }
 
 /** The kind check for one known role; `undefined` when it has no `for`. */
@@ -281,7 +281,7 @@ export function roleKindSql(
   const allowed = ctx.ownership?.kinds[role];
   return allowed === undefined
     ? undefined
-    : `coalesce(${viaExpr}, '') = any(array[${allowed.map(quoteLiteral).join(', ')}]::text[])`;
+    : `coalesce(${viaExpr}, '') = any(array[${allowed.map(quoteLiteral).join(", ")}]::text[])`;
 }
 
 /** Roles with `for` held globally (no membership, so no kind) grant nothing. */
@@ -292,12 +292,12 @@ export function globalKindFilterSql(
   const roles = Object.keys(ctx.ownership?.kinds ?? {}).toSorted();
   return roles.length === 0
     ? undefined
-    : `not (${roleExpr} = any(array[${roles.map(quoteLiteral).join(', ')}]::text[]))`;
+    : `not (${roleExpr} = any(array[${roles.map(quoteLiteral).join(", ")}]::text[]))`;
 }
 
 /** The closure table graph grants read. Part of the SQL contract. */
 export const CLOSURE = {
-  table: 'permdock_closure',
+  table: "permdock_closure",
 } as const;
 
 /** The helper returning the ids of `resource` the subject holds a relation on. */
@@ -320,25 +320,25 @@ export function linkHelper(resource: string, link: string): string {
 export function graphSqlText(parts: GraphSql, ctx: RlsSqlContext): string {
   return parts
     .map((part) => {
-      if ('text' in part) {
+      if ("text" in part) {
         return part.text;
       }
-      if ('column' in part) {
+      if ("column" in part) {
         return quoteIdent(part.column);
       }
-      if ('subject' in part) {
+      if ("subject" in part) {
         return subjectIdSql(ctx);
       }
-      return typeof part.value === 'string'
+      return typeof part.value === "string"
         ? quoteLiteral(part.value)
         : String(part.value);
     })
-    .join('');
+    .join("");
 }
 
 /** The schema-qualified name of a table under `search_path = ''`. */
 export function qualifiedTable(name: string): string {
-  return name.includes('.') ? name : `public.${name}`;
+  return name.includes(".") ? name : `public.${name}`;
 }
 
 /** The helper returning the ids of scope `name` a grant key reaches. */
@@ -376,7 +376,7 @@ export function hasMemberFor(
   },
   name: string,
 ): boolean {
-  if (input.dialect !== 'supabase') {
+  if (input.dialect !== "supabase") {
     return false;
   }
   return (
@@ -426,7 +426,7 @@ export function scopeSources(
   ctx: RlsSqlContext,
   name: string,
 ): readonly SqlMembershipSource[] {
-  if (ctx.authorize !== 'database' || scopeTable(ctx, name) !== undefined) {
+  if (ctx.authorize !== "database" || scopeTable(ctx, name) !== undefined) {
     return [];
   }
   return (ctx.sources ?? []).filter(
@@ -482,11 +482,11 @@ export function quoteLiteral(value: string): string {
 
 export function subjectIdSql(ctx: RlsSqlContext): string {
   switch (ctx.dialect) {
-    case 'supabase':
-      return '(select auth.uid())';
-    case 'neon':
-      return '(select auth.user_id())';
-    case 'guc':
+    case "supabase":
+      return "(select auth.uid())";
+    case "neon":
+      return "(select auth.user_id())";
+    case "guc":
       return `(select current_setting(${quoteLiteral(`${ctx.gucPrefix}.user_id`)}, true))`;
     default: {
       const exhaustive: never = ctx.dialect;
@@ -500,11 +500,11 @@ export function subjectClaimSql(ctx: RlsSqlContext, claim: string): string {
     throw new Error(`PermDock CLI: unsafe claim name '${claim}'`);
   }
   switch (ctx.dialect) {
-    case 'supabase':
+    case "supabase":
       return `((select auth.jwt()) ->> ${quoteLiteral(claim)})`;
-    case 'neon':
+    case "neon":
       return `((select auth.session()) ->> ${quoteLiteral(claim)})`;
-    case 'guc':
+    case "guc":
       return `(select current_setting(${quoteLiteral(`${ctx.gucPrefix}.${claim}`)}, true))`;
     default: {
       const exhaustive: never = ctx.dialect;
@@ -519,11 +519,11 @@ export function subjectClaimJsonSql(ctx: RlsSqlContext, claim: string): string {
     throw new Error(`PermDock CLI: unsafe claim name '${claim}'`);
   }
   switch (ctx.dialect) {
-    case 'supabase':
+    case "supabase":
       return `((select auth.jwt()) -> ${quoteLiteral(claim)})`;
-    case 'neon':
+    case "neon":
       return `((select auth.session()) -> ${quoteLiteral(claim)})`;
-    case 'guc':
+    case "guc":
       return `nullif((select current_setting(${quoteLiteral(`${ctx.gucPrefix}.${claim}`)}, true)), '')::jsonb`;
     default: {
       const exhaustive: never = ctx.dialect;
@@ -533,7 +533,7 @@ export function subjectClaimJsonSql(ctx: RlsSqlContext, claim: string): string {
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 /** The Postgres type a JSON Schema property compares as; `undefined` for text or an unknown shape. */
@@ -542,35 +542,35 @@ function columnTypeOf(property: unknown): string | undefined {
     return undefined;
   }
   // SAFETY: find(Array.isArray) returns an array or undefined; its items stay unknown.
-  const variants = [property['anyOf'], property['oneOf']].find(
+  const variants = [property["anyOf"], property["oneOf"]].find(
     Array.isArray,
   ) as readonly unknown[] | undefined;
   if (variants !== undefined) {
     const present = variants.filter(
-      (item) => !(isRecord(item) && item['type'] === 'null'),
+      (item) => !(isRecord(item) && item["type"] === "null"),
     );
     return present.length === 1 ? columnTypeOf(present[0]) : undefined;
   }
   const types = (
-    Array.isArray(property['type']) ? property['type'] : [property['type']]
-  ).filter((item) => item !== 'null');
+    Array.isArray(property["type"]) ? property["type"] : [property["type"]]
+  ).filter((item) => item !== "null");
   if (types.length !== 1) {
     return undefined;
   }
   switch (types[0]) {
-    case 'integer':
-    case 'number':
-      return 'numeric';
-    case 'boolean':
-      return 'boolean';
-    case 'string':
-      switch (property['format']) {
-        case 'date-time':
-          return 'timestamptz';
-        case 'date':
-          return 'date';
-        case 'uuid':
-          return 'uuid';
+    case "integer":
+    case "number":
+      return "numeric";
+    case "boolean":
+      return "boolean";
+    case "string":
+      switch (property["format"]) {
+        case "date-time":
+          return "timestamptz";
+        case "date":
+          return "date";
+        case "uuid":
+          return "uuid";
         default:
           return undefined;
       }
@@ -588,7 +588,7 @@ function columnTypeOf(property: unknown): string | undefined {
 export function columnTypesOf(
   schema: unknown,
 ): Readonly<Record<string, string>> {
-  const properties = isRecord(schema) ? schema['properties'] : undefined;
+  const properties = isRecord(schema) ? schema["properties"] : undefined;
   if (!isRecord(properties)) {
     return {};
   }
@@ -609,7 +609,7 @@ export function columnTypesOf(
 export function arrayColumnsOf(
   schema: unknown,
 ): Readonly<Record<string, string>> {
-  const properties = isRecord(schema) ? schema['properties'] : undefined;
+  const properties = isRecord(schema) ? schema["properties"] : undefined;
   if (!isRecord(properties)) {
     return {};
   }
@@ -619,10 +619,10 @@ export function arrayColumnsOf(
       continue;
     }
     const types = (
-      Array.isArray(property['type']) ? property['type'] : [property['type']]
-    ).filter((item) => item !== 'null');
-    if (types.length === 1 && types[0] === 'array') {
-      arrays[name] = columnTypeOf(property['items']) ?? 'text';
+      Array.isArray(property["type"]) ? property["type"] : [property["type"]]
+    ).filter((item) => item !== "null");
+    if (types.length === 1 && types[0] === "array") {
+      arrays[name] = columnTypeOf(property["items"]) ?? "text";
     }
   }
   return arrays;
@@ -635,13 +635,13 @@ const MAX_CLAIM_DEPTH = 8;
  * segment per JSON key; `undefined` for any other ref.
  */
 export function claimPath(ref: string): readonly string[] | undefined {
-  const prefix = ['principal.claim.', 'principal.claims.'].find((item) =>
+  const prefix = ["principal.claim.", "principal.claims."].find((item) =>
     ref.startsWith(item),
   );
   if (prefix === undefined) {
     return undefined;
   }
-  const segments = ref.slice(prefix.length).split('.');
+  const segments = ref.slice(prefix.length).split(".");
   if (segments.length > MAX_CLAIM_DEPTH) {
     throw new Error(
       `PermDock CLI: claim path '${ref}' is deeper than ${MAX_CLAIM_DEPTH}`,
@@ -658,11 +658,11 @@ export function claimPath(ref: string): readonly string[] | undefined {
 function jsonPath(
   base: string,
   keys: readonly string[],
-  last: '->' | '->>',
+  last: "->" | "->>",
 ): string {
   let sql = base;
   for (const [index, key] of keys.entries()) {
-    sql += ` ${index === keys.length - 1 ? last : '->'} ${quoteLiteral(key)}`;
+    sql += ` ${index === keys.length - 1 ? last : "->"} ${quoteLiteral(key)}`;
   }
   return sql;
 }
@@ -677,14 +677,14 @@ function claimRoot(
 ): { readonly root: string; readonly keys: readonly string[] } {
   const [head, ...rest] = path;
   if (head === undefined) {
-    throw new Error('PermDock CLI: empty claim path');
+    throw new Error("PermDock CLI: empty claim path");
   }
   switch (ctx.dialect) {
-    case 'supabase':
-      return { root: '(select auth.jwt())', keys: path };
-    case 'neon':
-      return { root: '(select auth.session())', keys: path };
-    case 'guc':
+    case "supabase":
+      return { root: "(select auth.jwt())", keys: path };
+    case "neon":
+      return { root: "(select auth.session())", keys: path };
+    case "guc":
       return { root: subjectClaimJsonSql(ctx, head), keys: rest };
     default: {
       const exhaustive: never = ctx.dialect;
@@ -696,7 +696,7 @@ function claimRoot(
 /** The claim at `path` as `jsonb`. */
 function claimJsonSql(ctx: RlsSqlContext, path: readonly string[]): string {
   const { root, keys } = claimRoot(ctx, path);
-  return keys.length === 0 ? root : `(${jsonPath(root, keys, '->')})`;
+  return keys.length === 0 ? root : `(${jsonPath(root, keys, "->")})`;
 }
 
 /** The claim at `path` as text: `->>` on the last key, or the plain setting for a one-segment `guc` claim. */
@@ -706,15 +706,15 @@ function claimTextSql(ctx: RlsSqlContext, path: readonly string[]): string {
     return subjectClaimSql(ctx, head);
   }
   const { root, keys } = claimRoot(ctx, path);
-  return `(${jsonPath(root, keys, '->>')})`;
+  return `(${jsonPath(root, keys, "->>")})`;
 }
 
 /** The JSON kind a claim must have to compare with a column of `type`. */
-function jsonKindOf(type: string | undefined): 'number' | 'boolean' | 'string' {
-  if (type === 'numeric') {
-    return 'number';
+function jsonKindOf(type: string | undefined): "number" | "boolean" | "string" {
+  if (type === "numeric") {
+    return "number";
   }
-  return type === 'boolean' ? 'boolean' : 'string';
+  return type === "boolean" ? "boolean" : "string";
 }
 
 /**
@@ -729,12 +729,12 @@ function typedClaimSql(
   type: string | undefined,
 ): string {
   const text = claimTextSql(ctx, path);
-  if (type === undefined || type === 'text') {
+  if (type === undefined || type === "text") {
     return text;
   }
   const cast = `${text}::${sqlType(type)}`;
   const kind = jsonKindOf(type);
-  if (kind === 'string' || (ctx.dialect === 'guc' && path.length === 1)) {
+  if (kind === "string" || (ctx.dialect === "guc" && path.length === 1)) {
     return `(${cast})`;
   }
   return `(case when jsonb_typeof(${claimJsonSql(ctx, path)}) = '${kind}' then ${cast} end)`;
@@ -753,7 +753,7 @@ function claimArraySql(
 ): string {
   const json = claimJsonSql(ctx, path);
   const element =
-    type === undefined || type === 'text'
+    type === undefined || type === "text"
       ? `(e #>> '{}')`
       : `(e #>> '{}')::${sqlType(type)}`;
   return `array(select ${element} from jsonb_array_elements(case when jsonb_typeof(${json}) = 'array' then ${json} else '[]'::jsonb end) e where jsonb_typeof(e) = '${jsonKindOf(type)}')`;
@@ -764,41 +764,41 @@ function sqlValue(
   ctx: RlsSqlContext,
   field?: string,
 ): string {
-  if (value !== null && typeof value === 'object' && 'ref' in value) {
+  if (value !== null && typeof value === "object" && "ref" in value) {
     return compileRef(value.ref, ctx, field);
   }
-  if (value !== null && typeof value === 'object' && 'date' in value) {
+  if (value !== null && typeof value === "object" && "date" in value) {
     return quoteLiteral(value.date);
   }
   if (isReadonlyArray(value)) {
-    return `array[${value.map((item) => sqlValue(item, ctx)).join(', ')}]`;
+    return `array[${value.map((item) => sqlValue(item, ctx)).join(", ")}]`;
   }
   if (value === null) {
-    return 'null';
+    return "null";
   }
-  if (typeof value === 'boolean') {
-    return value ? 'true' : 'false';
+  if (typeof value === "boolean") {
+    return value ? "true" : "false";
   }
-  if (typeof value === 'number') {
-    return Number.isFinite(value) ? String(value) : 'null';
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? String(value) : "null";
   }
-  if (typeof value === 'string') {
+  if (typeof value === "string") {
     return quoteLiteral(value);
   }
-  throw new Error('PermDock CLI: non-portable condition value');
+  throw new Error("PermDock CLI: non-portable condition value");
 }
 
 function compileRef(ref: string, ctx: RlsSqlContext, field?: string): string {
-  if (ref === 'principal.id') {
+  if (ref === "principal.id") {
     return subjectIdSql(ctx);
   }
   // Only relation periods compile with it; conditions on the wire carry no clock ref.
-  if (ref === 'now') {
-    return 'now()';
+  if (ref === "now") {
+    return "now()";
   }
   const path = claimPath(ref);
   if (
-    ref === 'principal.tenant' ||
+    ref === "principal.tenant" ||
     (path?.length === 1 && path[0] === ctx.tenantClaim)
   ) {
     return tenantClaimSql(ctx);
@@ -810,7 +810,7 @@ function compileRef(ref: string, ctx: RlsSqlContext, field?: string): string {
       field === undefined ? undefined : ctx.columnTypes?.[field],
     );
   }
-  if (ref === 'context' || ref.startsWith('context.')) {
+  if (ref === "context" || ref.startsWith("context.")) {
     throw new Error(
       `PermDock CLI: '${ref}' is request context, which is not in the token; RLS cannot read it (permdock doctor PD027)`,
     );
@@ -824,25 +824,25 @@ function likeLiteralSql(value: string): string {
 }
 
 function compareSql(
-  op: 'eq' | 'ne' | 'gt' | 'gte' | 'lt' | 'lte' | 'contains',
+  op: "eq" | "ne" | "gt" | "gte" | "lt" | "lte" | "contains",
   field: string,
   value: string,
 ): string {
   const left = quoteIdent(field);
   switch (op) {
-    case 'eq':
+    case "eq":
       return `${left} = ${value}`;
-    case 'ne':
+    case "ne":
       return `${left} <> ${value}`;
-    case 'gt':
+    case "gt":
       return `${left} > ${value}`;
-    case 'gte':
+    case "gte":
       return `${left} >= ${value}`;
-    case 'lt':
+    case "lt":
       return `${left} < ${value}`;
-    case 'lte':
+    case "lte":
       return `${left} <= ${value}`;
-    case 'contains':
+    case "contains":
       return `${left}::text like '%' || ${likeLiteralSql(`${value}::text`)} || '%' escape '\\'`;
     default: {
       const exhaustive: never = op;
@@ -865,11 +865,11 @@ function existsSql(
     `m.${quoteIdent(table.user)} = ${subjectIdSql(ctx)}`,
   ];
   if (roles.length > 0) {
-    const roleList = roles.map((role) => role.replaceAll("'", "''")).join(',');
+    const roleList = roles.map((role) => role.replaceAll("'", "''")).join(",");
     parts.push(`m.${quoteIdent(table.role)} = any('{${roleList}}')`);
     const via =
       table.via === undefined
-        ? 'null::text'
+        ? "null::text"
         : `m.${quoteIdent(table.via)}::text`;
     const single = sole(roles);
     const kind =
@@ -897,18 +897,18 @@ function existsSql(
       }),
     );
   }
-  return `exists (select 1 from ${quoteTable(table.table)} m where ${parts.join(' and ')})`;
+  return `exists (select 1 from ${quoteTable(table.table)} m where ${parts.join(" and ")})`;
 }
 
 function compileMemberOf(
-  condition: Extract<Condition, { readonly op: 'memberOf' }>,
+  condition: Extract<Condition, { readonly op: "memberOf" }>,
   ctx: RlsSqlContext,
 ): string {
   const scope =
-    condition.scope === 'resource'
+    condition.scope === "resource"
       ? undefined
       : resolveScope(ctx.scopes, condition.scope);
-  if (condition.scope !== 'resource' && scope === undefined) {
+  if (condition.scope !== "resource" && scope === undefined) {
     throw new Error(
       `PermDock CLI: memberOf ${condition.scope} names a scope the policy does not declare`,
     );
@@ -940,11 +940,11 @@ function compileMemberOf(
       tenantColumn,
       scope,
     );
-    if (condition.scope !== 'resource' || condition.parents === undefined) {
+    if (condition.scope !== "resource" || condition.parents === undefined) {
       return primary;
     }
     const extras = condition.parents.flatMap((parent) => {
-      if (typeof parent === 'string') {
+      if (typeof parent === "string") {
         return [
           existsSql(
             mapping,
@@ -969,7 +969,7 @@ function compileMemberOf(
             ),
           ];
     });
-    return `(${[primary, ...extras].join(' or ')})`;
+    return `(${[primary, ...extras].join(" or ")})`;
   }
   if (
     scope !== undefined &&
@@ -984,7 +984,7 @@ function compileMemberOf(
       ...activeUserSql(ctx),
       ...activeInstancesSql(ctx, scope, () => quoteIdent(condition.field)),
     ];
-    return parts.length === 1 ? parts.join('') : `(${parts.join(' and ')})`;
+    return parts.length === 1 ? parts.join("") : `(${parts.join(" and ")})`;
   }
   throw new Error(
     `PermDock CLI: memberOf ${condition.scope} needs a memberships table mapping`,
@@ -996,18 +996,18 @@ export function compileConditionSql(
   ctx: RlsSqlContext,
 ): string {
   switch (condition.op) {
-    case 'eq':
-    case 'ne':
-    case 'gt':
-    case 'gte':
-    case 'lt':
-    case 'lte':
+    case "eq":
+    case "ne":
+    case "gt":
+    case "gte":
+    case "lt":
+    case "lte":
       return compareSql(
         condition.op,
         condition.field,
         sqlValue(condition.value, ctx, condition.field),
       );
-    case 'contains': {
+    case "contains": {
       const element = ctx.arrayColumns?.[condition.field];
       if (element !== undefined) {
         const value = sqlValue(
@@ -1026,13 +1026,13 @@ export function compileConditionSql(
         sqlValue(condition.value, ctx, condition.field),
       );
     }
-    case 'in':
-    case 'notIn': {
-      const keyword = condition.op === 'in' ? 'in' : 'not in';
+    case "in":
+    case "notIn": {
+      const keyword = condition.op === "in" ? "in" : "not in";
       if (
         !Array.isArray(condition.value) &&
-        typeof condition.value === 'object' &&
-        'ref' in condition.value
+        typeof condition.value === "object" &&
+        "ref" in condition.value
       ) {
         const path = claimPath(condition.value.ref);
         if (path === undefined) {
@@ -1047,7 +1047,7 @@ export function compileConditionSql(
           path,
           ctx.columnTypes?.[condition.field],
         );
-        return condition.op === 'in'
+        return condition.op === "in"
           ? `${column} = any (${list})`
           : `(${column} is not null and not (${column} = any (${list})))`;
       }
@@ -1055,24 +1055,24 @@ export function compileConditionSql(
       const values = (condition.value as readonly ConditionValue[]).map(
         (item) => sqlValue(item, ctx),
       );
-      return `${quoteIdent(condition.field)} ${keyword} (${values.join(', ')})`;
+      return `${quoteIdent(condition.field)} ${keyword} (${values.join(", ")})`;
     }
-    case 'isNull':
-      return `${quoteIdent(condition.field)} is ${condition.value ? '' : 'not '}null`;
-    case 'and':
-      return `(${condition.conditions.map((item) => compileConditionSql(item, ctx)).join(' and ')})`;
-    case 'or':
+    case "isNull":
+      return `${quoteIdent(condition.field)} is ${condition.value ? "" : "not "}null`;
+    case "and":
+      return `(${condition.conditions.map((item) => compileConditionSql(item, ctx)).join(" and ")})`;
+    case "or":
       if (condition.conditions.length === 0) {
-        return 'false';
+        return "false";
       }
-      return `(${condition.conditions.map((item) => compileConditionSql(item, ctx)).join(' or ')})`;
-    case 'not':
+      return `(${condition.conditions.map((item) => compileConditionSql(item, ctx)).join(" or ")})`;
+    case "not":
       return `not (${compileConditionSql(condition.condition, ctx)})`;
-    case 'memberOf':
+    case "memberOf":
       return compileMemberOf(condition, ctx);
-    case 'related':
+    case "related":
       return compileRelatedSql(condition, ctx);
-    case 'sqlFunction':
+    case "sqlFunction":
       if (ctx.inlineFunctions === true) {
         return compileConditionSql(condition.twin, ctx);
       }
@@ -1080,8 +1080,8 @@ export function compileConditionSql(
         .map((arg) =>
           isSqlFunctionField(arg) ? quoteIdent(arg.field) : sqlValue(arg, ctx),
         )
-        .join(', ')})`;
-    case 'opaque':
+        .join(", ")})`;
+    case "opaque":
       return condition.sql;
     default: {
       const exhaustive: never = condition;
@@ -1093,20 +1093,20 @@ export function compileConditionSql(
 export function parseMembershipsFlag(
   raw: string | undefined,
 ): RlsMemberships | undefined {
-  if (raw === undefined || raw === '') {
+  if (raw === undefined || raw === "") {
     return undefined;
   }
-  const colon = raw.indexOf(':');
+  const colon = raw.indexOf(":");
   const table = colon === -1 ? raw : raw.slice(0, colon);
-  const cols = (colon === -1 ? '' : raw.slice(colon + 1))
-    .split(',')
+  const cols = (colon === -1 ? "" : raw.slice(colon + 1))
+    .split(",")
     .map((item) => item.trim())
-    .filter((item) => item !== '');
+    .filter((item) => item !== "");
   const tenant: RlsMembershipTable = {
     table,
-    tenant: cols[0] ?? 'tenant_id',
-    user: cols[1] ?? 'user_id',
-    role: cols[2] ?? 'role',
+    tenant: cols[0] ?? "tenant_id",
+    user: cols[1] ?? "user_id",
+    role: cols[2] ?? "role",
     ...(cols[3] === undefined ? {} : { expiresAt: cols[3] }),
   };
   return { tenant };
@@ -1122,7 +1122,7 @@ export function andConditions(
   if (right === undefined) {
     return left;
   }
-  return { op: 'and', conditions: [left, right] };
+  return { op: "and", conditions: [left, right] };
 }
 
 function valueContextRefs(value: unknown): readonly string[] {
@@ -1131,10 +1131,10 @@ function valueContextRefs(value: unknown): readonly string[] {
   }
   if (
     isRecord(value) &&
-    typeof value['ref'] === 'string' &&
-    (value['ref'] === 'context' || value['ref'].startsWith('context.'))
+    typeof value["ref"] === "string" &&
+    (value["ref"] === "context" || value["ref"].startsWith("context."))
   ) {
-    return [value['ref']];
+    return [value["ref"]];
   }
   return [];
 }
@@ -1150,30 +1150,30 @@ export function contextRefs(
     return [];
   }
   switch (condition.op) {
-    case 'eq':
-    case 'ne':
-    case 'gt':
-    case 'gte':
-    case 'lt':
-    case 'lte':
-    case 'contains':
-    case 'in':
-    case 'notIn':
+    case "eq":
+    case "ne":
+    case "gt":
+    case "gte":
+    case "lt":
+    case "lte":
+    case "contains":
+    case "in":
+    case "notIn":
       return valueContextRefs(condition.value);
-    case 'and':
-    case 'or':
+    case "and":
+    case "or":
       return condition.conditions.flatMap((child) => contextRefs(child));
-    case 'not':
+    case "not":
       return contextRefs(condition.condition);
-    case 'sqlFunction':
+    case "sqlFunction":
       return [
         ...condition.args.flatMap(valueContextRefs),
         ...contextRefs(condition.twin),
       ];
-    case 'isNull':
-    case 'memberOf':
-    case 'related':
-    case 'opaque':
+    case "isNull":
+    case "memberOf":
+    case "related":
+    case "opaque":
       return [];
     default: {
       const exhaustive: never = condition;
@@ -1189,26 +1189,26 @@ export function sqlFunctionNames(
     return [];
   }
   switch (condition.op) {
-    case 'sqlFunction':
+    case "sqlFunction":
       return [condition.name, ...sqlFunctionNames(condition.twin)];
-    case 'and':
-    case 'or':
+    case "and":
+    case "or":
       return condition.conditions.flatMap((child) => sqlFunctionNames(child));
-    case 'not':
+    case "not":
       return sqlFunctionNames(condition.condition);
-    case 'eq':
-    case 'ne':
-    case 'gt':
-    case 'gte':
-    case 'lt':
-    case 'lte':
-    case 'contains':
-    case 'in':
-    case 'notIn':
-    case 'isNull':
-    case 'memberOf':
-    case 'related':
-    case 'opaque':
+    case "eq":
+    case "ne":
+    case "gt":
+    case "gte":
+    case "lt":
+    case "lte":
+    case "contains":
+    case "in":
+    case "notIn":
+    case "isNull":
+    case "memberOf":
+    case "related":
+    case "opaque":
       return [];
     default: {
       const exhaustive: never = condition;
@@ -1232,7 +1232,7 @@ function compileRelatedSql(
     return compileHoppedSql(condition, ctx);
   }
   const type = ctx.columnTypes?.[condition.field];
-  const cast = type === undefined || type === 'text' ? '' : `::${type}`;
+  const cast = type === undefined || type === "text" ? "" : `::${type}`;
   const column =
     type === undefined
       ? `${quoteIdent(condition.field)}::text`
@@ -1242,11 +1242,11 @@ function compileRelatedSql(
   let inner: string;
   if (condition.depth > 0 && cap !== undefined) {
     const depth =
-      condition.depth < cap ? ` and depth <= ${String(condition.depth)}` : '';
+      condition.depth < cap ? ` and depth <= ${String(condition.depth)}` : "";
     inner = `select descendant${cast} from ${`${quoteIdent(ctx.schema ?? PERMDOCK_SCHEMA)}.${CLOSURE.table}`} where resource = ${quoteLiteral(condition.resource)}${depth} and ancestor = any (array(select ${helper}))`;
   } else {
     inner =
-      cast === ''
+      cast === ""
         ? `select ${helper}`
         : `select p.id${cast} from ${helper} as p(id)`;
   }
@@ -1269,7 +1269,7 @@ function compileHoppedSql(
   const resources = ctx.graph?.resources;
   if (resources === undefined) {
     throw new Error(
-      'PermDock CLI: a related condition with link hops needs the policy resources in the RLS context',
+      "PermDock CLI: a related condition with link hops needs the policy resources in the RLS context",
     );
   }
   const schema = quoteIdent(ctx.schema ?? PERMDOCK_SCHEMA);
@@ -1290,7 +1290,7 @@ function compileHoppedSql(
           text: `select ${schema}.${linkHelper(resource, link)}(array(`,
         },
         ...targets,
-        { text: '))' },
+        { text: "))" },
       ],
     }),
     ctx,

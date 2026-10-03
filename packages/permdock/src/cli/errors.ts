@@ -1,11 +1,11 @@
-import { stripVTControlCharacters } from 'node:util';
+import { stripVTControlCharacters } from "node:util";
 
 /**
  * `usage`: a flag, config or definition module the command cannot use (exit
  * 2). `unavailable`: a database or service the command needs did not answer
  * (exit 1, like the Cloud being unreachable).
  */
-export type CliErrorKind = 'usage' | 'unavailable';
+export type CliErrorKind = "usage" | "unavailable";
 
 export class CliError extends Error {
   public readonly kind: CliErrorKind;
@@ -16,7 +16,7 @@ export class CliError extends Error {
     options?: ErrorOptions,
   ) {
     super(message, options);
-    this.name = 'CliError';
+    this.name = "CliError";
     this.kind = kind;
   }
 }
@@ -31,17 +31,17 @@ export type CliProblem = {
 };
 
 const TITLES: Readonly<Record<CliErrorKind, string>> = {
-  usage: 'Usage or configuration error',
-  unavailable: 'A database or service the command needs did not answer',
+  usage: "Usage or configuration error",
+  unavailable: "A database or service the command needs did not answer",
 };
 
 /** An unclassified error is a usage error: a module that throws while loading is the project's to fix. */
 export function cliErrorKind(error: unknown): CliErrorKind {
-  return error instanceof CliError ? error.kind : 'usage';
+  return error instanceof CliError ? error.kind : "usage";
 }
 
 export function exitCodeOf(kind: CliErrorKind): 1 | 2 {
-  return kind === 'usage' ? 2 : 1;
+  return kind === "usage" ? 2 : 1;
 }
 
 export function cliProblem(

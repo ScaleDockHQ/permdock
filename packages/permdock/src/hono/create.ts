@@ -1,10 +1,10 @@
-import type { SSEMessage, SSEStreamingApi } from 'hono/streaming';
-import type { WSEvents } from 'hono/ws';
+import type { SSEMessage, SSEStreamingApi } from "hono/streaming";
+import type { WSEvents } from "hono/ws";
 
-import { Hono, type Context, type MiddlewareHandler, type Next } from 'hono';
+import { Hono, type Context, type MiddlewareHandler, type Next } from "hono";
 
-import type { ApprovalStore } from '../approvals/types.ts';
-import type { PolicySource } from '../core/hosted.ts';
+import type { ApprovalStore } from "../approvals/types.ts";
+import type { PolicySource } from "../core/hosted.ts";
 import type {
   DecisionSink,
   EntitlementSource,
@@ -13,33 +13,33 @@ import type {
   RelationSource,
   RoleSource,
   SnapshotSource,
-} from '../core/interfaces.ts';
-import type { PermDock } from '../core/permdock.ts';
-import type { Permission } from '../core/permissions.ts';
-import type { Policy, PolicyVocabulary } from '../core/policy.ts';
-import type { RevocationFeed } from '../core/revocations.ts';
-import type { Principal } from '../core/subject.ts';
-import type { OtelWrap } from '../otel/types.ts';
-import type { PdpFactory } from '../pdp/types.ts';
-import type { Connection, ConnectionOptions } from '../server/connection.ts';
+} from "../core/interfaces.ts";
+import type { PermDock } from "../core/permdock.ts";
+import type { Permission } from "../core/permissions.ts";
+import type { Policy, PolicyVocabulary } from "../core/policy.ts";
+import type { RevocationFeed } from "../core/revocations.ts";
+import type { Principal } from "../core/subject.ts";
+import type { OtelWrap } from "../otel/types.ts";
+import type { PdpFactory } from "../pdp/types.ts";
+import type { Connection, ConnectionOptions } from "../server/connection.ts";
 import type {
   OpenApiHooks,
   ProtectOptions,
   TenantOption,
   TenantScope,
-} from '../server/create.ts';
-import type { WebBotAuthVerifier } from '../server/web-bot-auth.ts';
+} from "../server/create.ts";
+import type { WebBotAuthVerifier } from "../server/web-bot-auth.ts";
 
-import { compact } from '../core/compact.ts';
-import { PermDockRevokedError } from '../core/errors.ts';
-import { createKernel, tenantScope } from '../server/create.ts';
-import { problemFromError } from '../server/map-error.ts';
+import { compact } from "../core/compact.ts";
+import { PermDockRevokedError } from "../core/errors.ts";
+import { createKernel, tenantScope } from "../server/create.ts";
+import { problemFromError } from "../server/map-error.ts";
 import {
   POLICY_VIOLATION,
   guardIterable,
   onRevoked,
-} from '../server/stream.ts';
-import { invalidSignatureResponse } from '../server/web-bot-auth.ts';
+} from "../server/stream.ts";
+import { invalidSignatureResponse } from "../server/web-bot-auth.ts";
 
 export type HonoPermDockOptions<TUser = unknown> = {
   readonly subject: (c: Context) => TUser | Promise<TUser>;
@@ -130,7 +130,7 @@ function socket<T>(connection: Connection, events: WSEvents<T>): WSEvents<T> {
 
 export type SseOptions<T> = {
   /** Items the subscriber cannot read under this permission are dropped. */
-  readonly items?: Permission<string, unknown, 'instance'>;
+  readonly items?: Permission<string, unknown, "instance">;
   /** The row to check for an item, when the item wraps it. */
   readonly unwrap?: (item: T) => unknown;
   /** The frame for an item; defaults to `{ data: JSON.stringify(item) }`. */
@@ -181,7 +181,7 @@ async function sse<T>(
     }
     if (!stream.aborted) {
       await stream.writeSSE({
-        event: 'permdock',
+        event: "permdock",
         data: JSON.stringify(error.toProblemDetails()),
       });
     }
@@ -225,7 +225,7 @@ export function createPermDock<
       pdp: options.pdp,
       webBotAuth: options.webBotAuth,
       revocations: options.revocations,
-      adapter: 'hono',
+      adapter: "hono",
       wrap: options.otel,
     }),
   );
@@ -244,7 +244,7 @@ export function createPermDock<
   const permdock =
     (): MiddlewareHandler<PermDockEnv<unknown, V>> => async (c, next: Next) => {
       try {
-        c.set('permdock', await kernel.permdock(bind(c), await scopeOf(c)));
+        c.set("permdock", await kernel.permdock(bind(c), await scopeOf(c)));
       } catch (error) {
         const response = invalidSignatureResponse(error);
         if (response !== undefined) {
@@ -272,9 +272,9 @@ export function createPermDock<
       if (!guard.ok) {
         return guard.response;
       }
-      c.set('permdock', guard.permdock);
+      c.set("permdock", guard.permdock);
       // SAFETY: guard.data is loadData's TData result; protect answers 404 when it is null or undefined.
-      c.set('permdockData', guard.data as NonNullable<TData>);
+      c.set("permdockData", guard.data as NonNullable<TData>);
       await next();
       mapDownstream(c);
       return undefined;
@@ -292,8 +292,8 @@ export function createPermDock<
       return c === undefined ? { tenant: undefined } : scopeOf(c);
     });
     const app = new Hono();
-    app.post('/', (c) => POST(bind(c)));
-    app.get('/', (c) => GET(bind(c)));
+    app.post("/", (c) => POST(bind(c)));
+    app.get("/", (c) => GET(bind(c)));
     return app;
   };
 

@@ -1,42 +1,42 @@
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
-import { createRequire } from 'node:module';
-import { dirname, join, resolve } from 'node:path';
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { createRequire } from "node:module";
+import { dirname, join, resolve } from "node:path";
 
-import type { DoctorFinding } from './doctor-types.ts';
-import type { PermDockConfig } from './types.ts';
+import type { DoctorFinding } from "./doctor-types.ts";
+import type { PermDockConfig } from "./types.ts";
 
-import { membershipColumns, tableKey } from './deciding-columns.ts';
-import { rel, sqlFiles } from './files.ts';
-import { FIELD_VIEWS } from './rls-fields.ts';
-import { sqlStatements } from './sql-statements.ts';
+import { membershipColumns, tableKey } from "./deciding-columns.ts";
+import { rel, sqlFiles } from "./files.ts";
+import { FIELD_VIEWS } from "./rls-fields.ts";
+import { sqlStatements } from "./sql-statements.ts";
 
 export function pd005(cwd: string): readonly DoctorFinding[] {
-  const lockPath = join(cwd, '.permdock/skills-lock.json');
+  const lockPath = join(cwd, ".permdock/skills-lock.json");
   const folders = [
-    join(cwd, '.agents/skills'),
-    join(cwd, '.claude/skills'),
-    join(cwd, '.cursor/skills'),
+    join(cwd, ".agents/skills"),
+    join(cwd, ".claude/skills"),
+    join(cwd, ".cursor/skills"),
   ];
   const installed = folders.some((folder) =>
-    existsSync(join(folder, 'permdock/SKILL.md')),
+    existsSync(join(folder, "permdock/SKILL.md")),
   );
   if (!installed) {
     return [
       {
-        code: 'PD005',
-        severity: 'warning',
-        message: 'Agent Skills are not installed',
-        fix: 'pnpm exec permdock skills install',
+        code: "PD005",
+        severity: "warning",
+        message: "Agent Skills are not installed",
+        fix: "pnpm exec permdock skills install",
       },
     ];
   }
   if (!existsSync(lockPath)) {
     return [
       {
-        code: 'PD005',
-        severity: 'warning',
-        message: 'skills lock is missing',
-        fix: 'pnpm exec permdock skills install',
+        code: "PD005",
+        severity: "warning",
+        message: "skills lock is missing",
+        fix: "pnpm exec permdock skills install",
       },
     ];
   }
@@ -45,29 +45,29 @@ export function pd005(cwd: string): readonly DoctorFinding[] {
 
 export function pd006(cwd: string): readonly DoctorFinding[] {
   try {
-    const require = createRequire(resolve(cwd, 'package.json'));
+    const require = createRequire(resolve(cwd, "package.json"));
     // SAFETY: typescript's package.json always declares a version string.
-    const pkg = require('typescript/package.json') as {
+    const pkg = require("typescript/package.json") as {
       readonly version: string;
     };
-    const major = Number(pkg.version.split('.')[0]);
-    if (major < 5 || (major === 5 && Number(pkg.version.split('.')[1]) < 9)) {
+    const major = Number(pkg.version.split(".")[0]);
+    if (major < 5 || (major === 5 && Number(pkg.version.split(".")[1]) < 9)) {
       return [
         {
-          code: 'PD006',
-          severity: 'error',
+          code: "PD006",
+          severity: "error",
           message: `TypeScript ${pkg.version} is below the supported matrix (5.9, 6, 7)`,
-          fix: 'upgrade typescript to 5.9 or later',
+          fix: "upgrade typescript to 5.9 or later",
         },
       ];
     }
     if (major > 7) {
       return [
         {
-          code: 'PD006',
-          severity: 'error',
+          code: "PD006",
+          severity: "error",
           message: `TypeScript ${pkg.version} is not in the supported matrix (5.9, 6, 7)`,
-          fix: 'use TypeScript 5.9, 6 or 7',
+          fix: "use TypeScript 5.9, 6 or 7",
         },
       ];
     }
@@ -75,10 +75,10 @@ export function pd006(cwd: string): readonly DoctorFinding[] {
   } catch {
     return [
       {
-        code: 'PD006',
-        severity: 'error',
-        message: 'typescript is not installed',
-        fix: 'add typescript 5.9, 6 or 7',
+        code: "PD006",
+        severity: "error",
+        message: "typescript is not installed",
+        fix: "add typescript 5.9, 6 or 7",
       },
     ];
   }
@@ -90,18 +90,18 @@ export function pd009(cwd: string): readonly DoctorFinding[] {
     if (depth > 6 || !existsSync(dir)) {
       return;
     }
-    const pkg = join(dir, 'node_modules/permdock/package.json');
+    const pkg = join(dir, "node_modules/permdock/package.json");
     if (existsSync(pkg)) {
       copies.push(pkg);
     }
-    if (!existsSync(join(dir, 'node_modules'))) {
+    if (!existsSync(join(dir, "node_modules"))) {
       return;
     }
-    for (const name of readdirSync(join(dir, 'node_modules'))) {
-      if (name.startsWith('.')) {
+    for (const name of readdirSync(join(dir, "node_modules"))) {
+      if (name.startsWith(".")) {
         continue;
       }
-      const nested = join(dir, 'node_modules', name);
+      const nested = join(dir, "node_modules", name);
       try {
         if (statSync(nested).isDirectory()) {
           walk(nested, depth + 1);
@@ -115,10 +115,10 @@ export function pd009(cwd: string): readonly DoctorFinding[] {
   if (copies.length > 1) {
     return [
       {
-        code: 'PD009',
-        severity: 'error',
-        message: `duplicate permdock copies: ${copies.map((item) => rel(cwd, dirname(item))).join(', ')}`,
-        fix: 'dedupe so only one permdock version is installed',
+        code: "PD009",
+        severity: "error",
+        message: `duplicate permdock copies: ${copies.map((item) => rel(cwd, dirname(item))).join(", ")}`,
+        fix: "dedupe so only one permdock version is installed",
       },
     ];
   }
@@ -136,13 +136,13 @@ export function pd012(
     if (!existsSync(abs)) {
       continue;
     }
-    const text = readFileSync(abs, 'utf8');
-    if (text.includes('"drafts"') && !text.includes('overlay')) {
+    const text = readFileSync(abs, "utf8");
+    if (text.includes('"drafts"') && !text.includes("overlay")) {
       findings.push({
-        code: 'PD012',
-        severity: 'warning',
+        code: "PD012",
+        severity: "warning",
         message: `${doc} carries a draft pin the CLI no longer emits`,
-        fix: 'regenerate with permdock openapi',
+        fix: "regenerate with permdock openapi",
       });
     }
   }
@@ -150,28 +150,28 @@ export function pd012(
 }
 
 export const MIGRATION_DIRS = [
-  'supabase/migrations',
-  'supabase/schemas',
-  'migrations',
-  'drizzle',
-  'prisma/migrations',
-  'db/migrations',
+  "supabase/migrations",
+  "supabase/schemas",
+  "migrations",
+  "drizzle",
+  "prisma/migrations",
+  "db/migrations",
 ] as const;
 
 const VIEW_NAME = String.raw`((?:"[^"]+"|\w+)(?:\.(?:"[^"]+"|\w+))?)`;
 const CREATE_VIEW = new RegExp(
   String.raw`\bcreate\s+(?:or\s+replace\s+)?(?:temp(?:orary)?\s+)?(?:recursive\s+)?view\s+${VIEW_NAME}([\s\S]*?)\bas\b`,
-  'giu',
+  "giu",
 );
 const ALTER_VIEW = new RegExp(
   String.raw`\balter\s+view\s+(?:if\s+exists\s+)?${VIEW_NAME}\s+set\s*\(([^)]*)\)`,
-  'giu',
+  "giu",
 );
 const INVOKER =
   /\bsecurity_invoker\s*(?:=\s*(?:true|on|'true'|'on'|1)\b|[,)]|$)/iu;
 const COMPANION = new RegExp(
   String.raw`\bcomment\s+on\s+view\s+${VIEW_NAME}\s+is\s+'${FIELD_VIEWS.comment}\b`,
-  'giu',
+  "giu",
 );
 
 /**
@@ -194,11 +194,11 @@ export function pd022(
     cwd,
     config.doctor?.migrations ?? MIGRATION_DIRS,
   )) {
-    const raw = readFileSync(file, 'utf8');
+    const raw = readFileSync(file, "utf8");
     const text = raw
-      .replaceAll(/--[^\n]*/gu, '')
-      .replaceAll(/\/\*[\s\S]*?\*\//gu, '');
-    for (const [, name = '', options = ''] of text.matchAll(CREATE_VIEW)) {
+      .replaceAll(/--[^\n]*/gu, "")
+      .replaceAll(/\/\*[\s\S]*?\*\//gu, "");
+    for (const [, name = "", options = ""] of text.matchAll(CREATE_VIEW)) {
       const key = tableKey(name);
       created.set(key, rel(cwd, file));
       if (INVOKER.test(options)) {
@@ -207,20 +207,20 @@ export function pd022(
         invoker.delete(key);
       }
     }
-    for (const [, name = '', options = ''] of text.matchAll(ALTER_VIEW)) {
+    for (const [, name = "", options = ""] of text.matchAll(ALTER_VIEW)) {
       if (INVOKER.test(options)) {
         invoker.add(tableKey(name));
       }
     }
-    for (const [, name = ''] of raw.matchAll(COMPANION)) {
+    for (const [, name = ""] of raw.matchAll(COMPANION)) {
       companions.add(tableKey(name));
     }
   }
   return [...created]
     .filter(([key]) => !invoker.has(key) && !companions.has(key))
     .map(([key, file]) => ({
-      code: 'PD022',
-      severity: 'warning',
+      code: "PD022",
+      severity: "warning",
       message: `view ${key} in ${file} is not security_invoker, so it reads past row level security`,
       fix: `create the view with (security_invoker = true), or alter view ${key} set (security_invoker = true); Postgres 15 or later. For column-level reads, generate field views with permdock rls generate --fields views`,
     }));
@@ -242,16 +242,16 @@ export function pd040(
     cwd,
     config.doctor?.migrations ?? MIGRATION_DIRS,
   )) {
-    const text = readFileSync(file, 'utf8')
-      .replaceAll(/--[^\n]*/gu, (comment) => ' '.repeat(comment.length))
+    const text = readFileSync(file, "utf8")
+      .replaceAll(/--[^\n]*/gu, (comment) => " ".repeat(comment.length))
       .replaceAll(/\/\*[\s\S]*?\*\//gu, (comment) =>
-        comment.replaceAll(/[^\n]/gu, ' '),
+        comment.replaceAll(/[^\n]/gu, " "),
       );
     for (const match of text.matchAll(AUTH_ROLE)) {
-      const line = text.slice(0, match.index).split('\n').length;
+      const line = text.slice(0, match.index).split("\n").length;
       findings.push({
-        code: 'PD040',
-        severity: 'warning',
+        code: "PD040",
+        severity: "warning",
         message: `${rel(cwd, file)}:${String(line)} calls auth.role(), which Supabase deprecated`,
         fix: "name the roles on the policy (create policy ... to authenticated) and drop the auth.role() = 'authenticated' test; call permdock_has or permitted_<scope>_ids for permissions",
       });
@@ -262,7 +262,7 @@ export function pd040(
 
 const GRANT =
   /\b(grant|revoke)\s+([\s\S]+?)\s+on\s+(?:table\s+)?([\w."]+)\s+(?:to|from)\s+([\w\s,"]+?)(?:\s+with\s+grant\s+option|\s+cascade|\s+restrict)?\s*;/giu;
-const CLIENT_ROLES = new Set(['anon', 'authenticated', 'public']);
+const CLIENT_ROLES = new Set(["anon", "authenticated", "public"]);
 
 /** Writable columns per privilege: a revoke of one leaves the other in place. */
 type Writable = {
@@ -278,22 +278,22 @@ function applyPrivilege(writable: Writable, verb: string, part: string): void {
   if (match === null) {
     return;
   }
-  const kind = (match[1] ?? '').toLowerCase();
+  const kind = (match[1] ?? "").toLowerCase();
   const sets =
-    kind === 'insert'
+    kind === "insert"
       ? [writable.insert]
-      : kind === 'update'
+      : kind === "update"
         ? [writable.update]
         : [writable.insert, writable.update];
   const columns =
     match[2] === undefined
-      ? ['*']
-      : match[2].split(',').map((column) => column.trim().replaceAll('"', ''));
+      ? ["*"]
+      : match[2].split(",").map((column) => column.trim().replaceAll('"', ""));
   for (const set of sets) {
     for (const column of columns) {
-      if (verb.toLowerCase() === 'grant') {
+      if (verb.toLowerCase() === "grant") {
         set.add(column);
-      } else if (column === '*') {
+      } else if (column === "*") {
         set.clear();
       } else {
         set.delete(column);
@@ -319,37 +319,37 @@ function clientWritable(
   target: string,
 ): ReadonlySet<string> {
   const writable: Writable = { insert: new Set(), update: new Set() };
-  let defaults = config.supabase !== undefined && target.startsWith('public.');
+  let defaults = config.supabase !== undefined && target.startsWith("public.");
   for (const file of sqlFiles(
     cwd,
     config.doctor?.migrations ?? MIGRATION_DIRS,
   )) {
-    for (const { text } of sqlStatements(readFileSync(file, 'utf8'))) {
+    for (const { text } of sqlStatements(readFileSync(file, "utf8"))) {
       if (REVOKE_DEFAULT_TABLES.test(text)) {
         defaults = false;
         continue;
       }
       const created = CREATE_TABLE.exec(text);
       if (created !== null) {
-        if (defaults && tableKey(created[1] ?? '') === target) {
-          writable.insert.add('*');
-          writable.update.add('*');
+        if (defaults && tableKey(created[1] ?? "") === target) {
+          writable.insert.add("*");
+          writable.update.add("*");
         }
         continue;
       }
       for (const [
         ,
-        verb = '',
-        privileges = '',
-        name = '',
-        roles = '',
+        verb = "",
+        privileges = "",
+        name = "",
+        roles = "",
       ] of `${text};`.matchAll(GRANT)) {
         if (tableKey(name) !== target) {
           continue;
         }
         const clients = roles
-          .split(',')
-          .map((role) => role.trim().replaceAll('"', '').toLowerCase())
+          .split(",")
+          .map((role) => role.trim().replaceAll('"', "").toLowerCase())
           .some((role) => CLIENT_ROLES.has(role));
         if (!clients) {
           continue;
@@ -372,13 +372,13 @@ function membershipFindings(
   for (const [table, columns] of membershipColumns(config)) {
     const writable = clientWritable(cwd, config, table);
     const exposed = [...columns].filter(
-      (column) => writable.has('*') || writable.has(column),
+      (column) => writable.has("*") || writable.has(column),
     );
     if (exposed.length > 0) {
       findings.push({
-        code: 'PD028',
-        severity: 'warning',
-        message: `${table}.${exposed.join(', ')} decide${exposed.length === 1 ? 's' : ''} memberships, and the migrations let anon or authenticated insert or update ${exposed.length === 1 ? 'it' : 'them'}: a user could give themselves a membership`,
+        code: "PD028",
+        severity: "warning",
+        message: `${table}.${exposed.join(", ")} decide${exposed.length === 1 ? "s" : ""} memberships, and the migrations let anon or authenticated insert or update ${exposed.length === 1 ? "it" : "them"}: a user could give themselves a membership`,
         fix: `revoke insert, update on ${table} from anon, authenticated, then grant update (<columns clients edit>) on ${table} to authenticated; a column-level revoke alone leaves a table-level grant in place`,
       });
     }
@@ -396,7 +396,7 @@ export function pd028(
   config: PermDockConfig,
   plan: (
     attrs: NonNullable<
-      NonNullable<NonNullable<PermDockConfig['supabase']>['hook']>['attrs']
+      NonNullable<NonNullable<PermDockConfig["supabase"]>["hook"]>["attrs"]
     >,
   ) => {
     readonly table?: string;
@@ -411,21 +411,21 @@ export function pd028(
   }
   const planned = plan(attrs);
   const findings: DoctorFinding[] = planned.errors.map((message) => ({
-    code: 'PD028',
-    severity: 'error',
+    code: "PD028",
+    severity: "error",
     message,
-    fix: 'list server-owned columns or app_metadata.<key> entries; user_metadata is user-editable',
+    fix: "list server-owned columns or app_metadata.<key> entries; user_metadata is user-editable",
   }));
   if (planned.table !== undefined && planned.columns.length > 0) {
     const writable = clientWritable(cwd, config, tableKey(planned.table));
     const exposed = planned.columns.filter(
-      (column) => writable.has('*') || writable.has(column),
+      (column) => writable.has("*") || writable.has(column),
     );
     if (exposed.length > 0) {
       findings.push({
-        code: 'PD028',
-        severity: 'warning',
-        message: `attrs reads ${exposed.join(', ')} from ${tableKey(planned.table)}, which the migrations let anon or authenticated insert or update: a user could set their own attribute`,
+        code: "PD028",
+        severity: "warning",
+        message: `attrs reads ${exposed.join(", ")} from ${tableKey(planned.table)}, which the migrations let anon or authenticated insert or update: a user could set their own attribute`,
         fix: `revoke insert, update on ${tableKey(planned.table)} from anon, authenticated, and grant column-level update only on columns that are not attributes; the generated hook migration refuses to install otherwise`,
       });
     }

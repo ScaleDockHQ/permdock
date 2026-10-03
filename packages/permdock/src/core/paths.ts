@@ -1,7 +1,7 @@
 const FORBIDDEN_KEYS: ReadonlySet<string> = new Set([
-  '__proto__',
-  'constructor',
-  'prototype',
+  "__proto__",
+  "constructor",
+  "prototype",
 ]);
 
 export const MAX_GROUP_DEPTH = 10;
@@ -11,7 +11,7 @@ export function isForbiddenKey(key: string): boolean {
 }
 
 export function assertSafeKey(key: string, context: string): void {
-  if (key.length === 0 || key.split('.').some(isForbiddenKey)) {
+  if (key.length === 0 || key.split(".").some(isForbiddenKey)) {
     throw new Error(`PermDock: forbidden ${context} key '${key}'`);
   }
 }
@@ -32,7 +32,7 @@ export function ownKeys(object: object): readonly string[] {
 }
 
 export function splitPath(path: string): readonly string[] {
-  return path.split('.').filter((segment) => segment.length > 0);
+  return path.split(".").filter((segment) => segment.length > 0);
 }
 
 export function readPath(root: unknown, path: string): unknown {
@@ -45,7 +45,7 @@ export function readPath(root: unknown, path: string): unknown {
     if (
       current === null ||
       current === undefined ||
-      typeof current !== 'object'
+      typeof current !== "object"
     ) {
       return undefined;
     }

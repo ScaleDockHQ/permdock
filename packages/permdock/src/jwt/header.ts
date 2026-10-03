@@ -1,4 +1,4 @@
-import { isReadonlyArray } from '../core/compact.ts';
+import { isReadonlyArray } from "../core/compact.ts";
 export type DecodedHeader = {
   readonly alg?: string;
   readonly kid?: string;
@@ -11,7 +11,7 @@ export type DecodedHeader = {
 };
 
 function compactParts(token: string): readonly string[] {
-  return token.split('.');
+  return token.split(".");
 }
 
 export function isJwe(token: string): boolean {
@@ -24,12 +24,12 @@ export function decodeHeader(token: string): DecodedHeader | undefined {
     return undefined;
   }
   try {
-    const padded = encoded.replaceAll('-', '+').replaceAll('_', '/');
+    const padded = encoded.replaceAll("-", "+").replaceAll("_", "/");
     const pad =
-      padded.length % 4 === 0 ? '' : '='.repeat(4 - (padded.length % 4));
+      padded.length % 4 === 0 ? "" : "=".repeat(4 - (padded.length % 4));
     const json = atob(`${padded}${pad}`);
     const value: unknown = JSON.parse(json);
-    if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    if (value === null || typeof value !== "object" || Array.isArray(value)) {
       return undefined;
     }
     // SAFETY: unverified header, checked to be an object; fields are compared by value, jose re-checks.
@@ -47,8 +47,8 @@ export function unknownCrit(header: DecodedHeader): boolean {
   if (!isReadonlyArray(crit)) {
     return true;
   }
-  const understood = new Set(['alg', 'kid', 'typ', 'cty', 'enc']);
-  return crit.some((name) => typeof name !== 'string' || !understood.has(name));
+  const understood = new Set(["alg", "kid", "typ", "cty", "enc"]);
+  return crit.some((name) => typeof name !== "string" || !understood.has(name));
 }
 
 export function normalizeTyp(typ: string | undefined): string | undefined {
@@ -56,7 +56,7 @@ export function normalizeTyp(typ: string | undefined): string | undefined {
     return undefined;
   }
   const lower = typ.toLowerCase();
-  return lower.startsWith('application/')
-    ? lower.slice('application/'.length)
+  return lower.startsWith("application/")
+    ? lower.slice("application/".length)
     : lower;
 }

@@ -4,18 +4,18 @@ import {
   getOAuthProtectedResourceMetadataUrl,
   oauthMetadataResponse,
   verifyBearerToken,
-} from '@modelcontextprotocol/server';
+} from "@modelcontextprotocol/server";
 import {
   createServer,
   type IncomingMessage,
   type ServerResponse,
-} from 'node:http';
+} from "node:http";
 
-import { handleSaasRoute } from '@permdock/e2e-saas-kit';
+import { handleSaasRoute } from "@permdock/e2e-saas-kit";
 
-import { ORIGIN, PORT, RESOURCE } from './config.ts';
-import { createMcpServer } from './mcp.ts';
-import { metadata, tokenEndpoint, verifier } from './oauth.ts';
+import { ORIGIN, PORT, RESOURCE } from "./config.ts";
+import { createMcpServer } from "./mcp.ts";
+import { metadata, tokenEndpoint, verifier } from "./oauth.ts";
 
 const resourceMetadataUrl = getOAuthProtectedResourceMetadataUrl(
   new URL(RESOURCE),
@@ -28,13 +28,13 @@ async function route(request: Request): Promise<Response> {
     return discovery;
   }
   const path = new URL(request.url).pathname;
-  if (path === '/oauth/token' && request.method === 'POST') {
+  if (path === "/oauth/token" && request.method === "POST") {
     return tokenEndpoint(request);
   }
-  if (path === '/mcp') {
+  if (path === "/mcp") {
     try {
       const authInfo = await verifyBearerToken(
-        request.headers.get('authorization'),
+        request.headers.get("authorization"),
         {
           verifier,
           resourceMetadataUrl,
@@ -64,8 +64,8 @@ async function toRequest(req: IncomingMessage): Promise<Request> {
     // SAFETY: an IncomingMessage without setEncoding yields Buffer chunks
     chunks.push(chunk as Buffer);
   }
-  return new Request(new URL(req.url ?? '/', ORIGIN), {
-    method: req.method ?? 'GET',
+  return new Request(new URL(req.url ?? "/", ORIGIN), {
+    method: req.method ?? "GET",
     headers,
     ...(chunks.length === 0 ? {} : { body: Buffer.concat(chunks) }),
   });
@@ -74,13 +74,13 @@ async function toRequest(req: IncomingMessage): Promise<Request> {
 async function send(response: Response, res: ServerResponse): Promise<void> {
   res.statusCode = response.status;
   for (const [key, value] of response.headers) {
-    if (key !== 'set-cookie') {
+    if (key !== "set-cookie") {
       res.setHeader(key, value);
     }
   }
   const cookies = response.headers.getSetCookie();
   if (cookies.length > 0) {
-    res.setHeader('set-cookie', cookies);
+    res.setHeader("set-cookie", cookies);
   }
   if (response.body === null) {
     res.end();
@@ -100,4 +100,4 @@ createServer((req, res) => {
       res.statusCode = 500;
       res.end();
     });
-}).listen(PORT, '127.0.0.1');
+}).listen(PORT, "127.0.0.1");

@@ -1,27 +1,27 @@
-import type { Permission } from '../core/permissions.ts';
-import type { Policy, PolicyVocabulary } from '../core/policy.ts';
-import type { Principal } from '../core/subject.ts';
+import type { Permission } from "../core/permissions.ts";
+import type { Policy, PolicyVocabulary } from "../core/policy.ts";
+import type { Principal } from "../core/subject.ts";
 import type {
   ConvexCtxLike,
   ConvexHandler,
   ConvexPermDock,
   ConvexPermDockCtx,
   ConvexPermDockOptions,
-} from './types.ts';
+} from "./types.ts";
 
-import { compact } from '../core/compact.ts';
+import { compact } from "../core/compact.ts";
 import {
   PermDockApprovalRequiredError,
   PermDockDeniedError,
-} from '../core/errors.ts';
-import { createPermDock as createCore } from '../core/permdock.ts';
+} from "../core/errors.ts";
+import { createPermDock as createCore } from "../core/permdock.ts";
 
 export class ConvexError extends Error {
-  public override readonly name = 'ConvexError';
-  public readonly data: ReturnType<PermDockDeniedError['toProblemDetails']>;
+  public override readonly name = "ConvexError";
+  public readonly data: ReturnType<PermDockDeniedError["toProblemDetails"]>;
 
   public constructor(
-    data: ReturnType<PermDockDeniedError['toProblemDetails']>,
+    data: ReturnType<PermDockDeniedError["toProblemDetails"]>,
   ) {
     super(data.detail);
     this.data = data;

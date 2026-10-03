@@ -1,10 +1,10 @@
-import type { PermDockConfig } from './types.ts';
+import type { PermDockConfig } from "./types.ts";
 
 /** `schema.table`, unquoted and lower case; `public` when unqualified. */
 export function tableKey(name: string): string {
-  const parts = name.split('.').map((part) => part.replaceAll('"', ''));
-  return (parts.length === 1 ? ['public', ...parts] : parts)
-    .join('.')
+  const parts = name.split(".").map((part) => part.replaceAll('"', ""));
+  return (parts.length === 1 ? ["public", ...parts] : parts)
+    .join(".")
     .toLowerCase();
 }
 

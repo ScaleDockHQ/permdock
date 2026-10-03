@@ -1,33 +1,33 @@
-import { fetchRequestHandler } from '@trpc/server/adapters/fetch';
-import { createServer } from 'node:http';
-import { sendResponse, toRequest } from 'permdock/node';
+import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
+import { createServer } from "node:http";
+import { sendResponse, toRequest } from "permdock/node";
 
-import { appRouter } from './app.ts';
-import { memberUser } from './policy.ts';
+import { appRouter } from "./app.ts";
+import { memberUser } from "./policy.ts";
 
-const port = Number(process.env['PORT'] ?? 3461);
+const port = Number(process.env["PORT"] ?? 3461);
 
 function isHealth(req: {
   readonly method?: string | undefined;
   readonly url?: string | undefined;
 }): boolean {
-  if (req.method !== 'GET') {
+  if (req.method !== "GET") {
     return false;
   }
-  const path = req.url ?? '';
-  return path === '/health' || path.startsWith('/health?');
+  const path = req.url ?? "";
+  return path === "/health" || path.startsWith("/health?");
 }
 
 createServer((req, res) => {
   if (isHealth(req)) {
-    res.setHeader('content-type', 'application/json');
+    res.setHeader("content-type", "application/json");
     res.end(JSON.stringify({ ok: true }));
     return;
   }
   const handle = async (): Promise<void> => {
     try {
       const response = await fetchRequestHandler({
-        endpoint: '/trpc',
+        endpoint: "/trpc",
         req: toRequest(req),
         router: appRouter,
         createContext: () => ({ user: memberUser }),
@@ -42,4 +42,4 @@ createServer((req, res) => {
     res.statusCode = 500;
     res.end();
   });
-}).listen(port, '127.0.0.1');
+}).listen(port, "127.0.0.1");

@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitest/config';
+import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
@@ -7,11 +7,11 @@ export default defineConfig({
     projects: [
       {
         extends: true,
-        test: { name: 'integration', include: ['src/**/*.test.ts'] },
+        test: { name: "integration", include: ["src/**/*.test.ts"] },
       },
       {
         extends: true,
-        test: { name: 'rls-bench', include: ['bench/**/*.test.ts'] },
+        test: { name: "rls-bench", include: ["bench/**/*.test.ts"] },
       },
     ],
   },

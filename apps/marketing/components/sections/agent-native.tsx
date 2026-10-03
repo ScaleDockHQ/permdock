@@ -1,10 +1,10 @@
-import { ScrollRegion } from '@/components/site/scroll-region';
-import { SiteLink } from '@/components/site/site-link';
-import { agentRuntimes } from '@/lib/site';
-import { Badge } from '@permdock/ui/reui/badge';
+import { ScrollRegion } from "@/components/site/scroll-region";
+import { SiteLink } from "@/components/site/site-link";
+import { agentRuntimes } from "@/lib/site";
+import { Badge } from "@permdock/ui/reui/badge";
 
-import { AgentRunDemo } from './activity-demos';
-import { Section } from './section';
+import { AgentRunDemo } from "./activity-demos";
+import { Section } from "./section";
 
 export function AgentNative() {
   return (

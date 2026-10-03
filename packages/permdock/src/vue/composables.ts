@@ -6,13 +6,13 @@ import {
   toValue,
   type ComputedRef,
   type MaybeRefOrGetter,
-} from 'vue';
+} from "vue";
 
-import type { Decision } from '../core/decision.ts';
-import type { Permission } from '../core/permissions.ts';
-import type { Membership } from '../core/subject.ts';
-import type { Role } from '../core/vocabulary.ts';
-import type { ClientStore } from '../react/store.ts';
+import type { Decision } from "../core/decision.ts";
+import type { Permission } from "../core/permissions.ts";
+import type { Membership } from "../core/subject.ts";
+import type { Role } from "../core/vocabulary.ts";
+import type { ClientStore } from "../react/store.ts";
 import type {
   ApprovalHandle,
   ApprovalState,
@@ -23,14 +23,14 @@ import type {
   SubjectView,
   TenantView,
   UseRolesOptions,
-} from './types.ts';
+} from "./types.ts";
 
-import { permDockKey } from './context.ts';
+import { permDockKey } from "./context.ts";
 
 function useStore(): ClientStore {
   const store = inject(permDockKey);
   if (store === undefined) {
-    throw new Error('PermDock: composables require permdockPlugin.');
+    throw new Error("PermDock: composables require permdockPlugin.");
   }
   return store;
 }
@@ -64,7 +64,7 @@ export function usePermission(
   data?: MaybeRefOrGetter<unknown>,
 ): {
   readonly allowed: ComputedRef<boolean>;
-  readonly status: ComputedRef<PermissionState['status']>;
+  readonly status: ComputedRef<PermissionState["status"]>;
   readonly decision: ComputedRef<Decision>;
 } {
   const store = useStore();
@@ -105,7 +105,7 @@ export function usePermissions(
     };
     return new Proxy(base, {
       get(target, prop, receiver): unknown {
-        if (typeof prop === 'string' && Object.hasOwn(byKey, prop)) {
+        if (typeof prop === "string" && Object.hasOwn(byKey, prop)) {
           return byKey[prop];
         }
         return Reflect.get(target, prop, receiver);
@@ -115,7 +115,7 @@ export function usePermissions(
 }
 
 export function useFilter<T>(
-  permission: Permission<string, T, 'instance'>,
+  permission: Permission<string, T, "instance">,
   rows: MaybeRefOrGetter<readonly T[]>,
 ): ComputedRef<FilterResult<T>> {
   const permdock = useTick(useStore());
@@ -176,9 +176,9 @@ export function useSubject(): ComputedRef<SubjectView> {
   return computed(() => {
     const snapshot = permdock.value.snapshot();
     const simulated =
-      typeof snapshot === 'object' &&
+      typeof snapshot === "object" &&
       snapshot !== null &&
-      'simulated' in snapshot &&
+      "simulated" in snapshot &&
       snapshot.simulated === true;
     return {
       principal: permdock.value.subject.principal,
@@ -201,7 +201,7 @@ export function useApproval(
     const state: ApprovalState = store.approvalState(next);
     return {
       state,
-      token: next.outcome === 'approval-required' ? next.token : undefined,
+      token: next.outcome === "approval-required" ? next.token : undefined,
       request: (note?: string) => store.requestApproval(next, note),
     };
   });

@@ -1,4 +1,4 @@
-import type { SqlClient, SqlConnect } from '../../src/cli/pg.ts';
+import type { SqlClient, SqlConnect } from "../../src/cli/pg.ts";
 
 export type SqlCall = {
   readonly sql: string;
@@ -59,9 +59,9 @@ export function fakeSql(
 /** The rows of a multi-row `insert into t (a, b) values ($1, $2), …`, rebuilt from its values. */
 export function insertedRows(call: SqlCall): Record<string, unknown>[] {
   const match = /\(([^)]*)\) values /u.exec(call.sql);
-  const columns = (match?.[1] ?? '')
-    .split(',')
-    .map((name) => name.trim().replaceAll('"', ''));
+  const columns = (match?.[1] ?? "")
+    .split(",")
+    .map((name) => name.trim().replaceAll('"', ""));
   const rows: Record<string, unknown>[] = [];
   for (let index = 0; index < call.values.length; index += columns.length) {
     rows.push(

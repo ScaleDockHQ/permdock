@@ -1,32 +1,32 @@
-import type { DecisionEvent } from './interfaces.ts';
+import type { DecisionEvent } from "./interfaces.ts";
 
 /** The CSV export columns, in order; the header row of every CSV file. */
 export const CSV_COLUMNS: readonly [
-  'time',
-  'principal',
-  'actor',
-  'tenant',
-  'permission',
-  'outcome',
-  'matched.role',
-  'via',
-  'denials.reason',
-  'token',
+  "time",
+  "principal",
+  "actor",
+  "tenant",
+  "permission",
+  "outcome",
+  "matched.role",
+  "via",
+  "denials.reason",
+  "token",
 ] = Object.freeze([
-  'time',
-  'principal',
-  'actor',
-  'tenant',
-  'permission',
-  'outcome',
-  'matched.role',
-  'via',
-  'denials.reason',
-  'token',
+  "time",
+  "principal",
+  "actor",
+  "tenant",
+  "permission",
+  "outcome",
+  "matched.role",
+  "via",
+  "denials.reason",
+  "token",
 ] as const);
 
 function field(value: string | null | undefined): string {
-  const text = value ?? '';
+  const text = value ?? "";
   return /[",\r\n]/u.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 }
 
@@ -44,9 +44,9 @@ export function toCsvRow(event: DecisionEvent): string {
     event.outcome,
     event.matched?.role,
     event.via,
-    event.denials?.map((denial) => denial.reason).join(';'),
+    event.denials?.map((denial) => denial.reason).join(";"),
     event.token,
   ]
     .map(field)
-    .join(',');
+    .join(",");
 }

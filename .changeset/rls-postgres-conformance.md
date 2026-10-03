@@ -1,5 +1,5 @@
 ---
-'permdock': patch
+"permdock": patch
 ---
 
 `permdock rls generate` follows the Postgres and Splinter rules its docs cite:

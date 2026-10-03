@@ -1,5 +1,5 @@
 ---
-'permdock': minor
+"permdock": minor
 ---
 
 Custom roles in generated RLS. `permdock rls generate --custom-roles` (or `rls.customRoles: true`) makes `permitted_tenant_ids` and `permitted_team_ids` resolve tenant-defined custom roles as well: from the new `custom_role_permissions` and `custom_role_includes` tables in `database` mode, or from a compact `memberships[].grants` claim in `jwt` mode (off unless the flag is set). Both go through `permdock_custom_keys` and a generated `permdock_ceiling` view of the assignable declared roles, so a row or claim entry outside the ceiling never widens access, and the database agrees with `resolveCustomRole`. `authorizeSql({ customRoles: { declared } })` answers tenant requests from custom roles, and `--rbac supabase --custom-roles` passes it through.

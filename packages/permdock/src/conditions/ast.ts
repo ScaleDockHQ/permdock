@@ -16,13 +16,13 @@ export type ConditionValue =
   | ConditionDate;
 
 export type ComparisonOp =
-  | 'eq'
-  | 'ne'
-  | 'gt'
-  | 'gte'
-  | 'lt'
-  | 'lte'
-  | 'contains';
+  | "eq"
+  | "ne"
+  | "gt"
+  | "gte"
+  | "lt"
+  | "lte"
+  | "contains";
 
 export type ComparisonCondition = {
   readonly op: ComparisonOp;
@@ -31,34 +31,34 @@ export type ComparisonCondition = {
 };
 
 export type InCondition = {
-  readonly op: 'in' | 'notIn';
+  readonly op: "in" | "notIn";
   readonly field: string;
   readonly value: readonly ConditionValue[] | ConditionRef;
 };
 
 export type IsNullCondition = {
-  readonly op: 'isNull';
+  readonly op: "isNull";
   readonly field: string;
   readonly value: boolean;
 };
 
 export type AndCondition = {
-  readonly op: 'and';
+  readonly op: "and";
   readonly conditions: readonly Condition[];
 };
 
 export type OrCondition = {
-  readonly op: 'or';
+  readonly op: "or";
   readonly conditions: readonly Condition[];
 };
 
 export type NotCondition = {
-  readonly op: 'not';
+  readonly op: "not";
   readonly condition: Condition;
 };
 
 export type MemberOfCondition = {
-  readonly op: 'memberOf';
+  readonly op: "memberOf";
   /** A declared scope name (or the `tenant` / `team` alias), or `'resource'`. */
   readonly scope: string;
   readonly field: string;
@@ -80,7 +80,7 @@ export function parentHop(parent: MemberOfParent): {
   readonly field: string;
   readonly resource?: string;
 } {
-  return typeof parent === 'string' ? { field: parent } : parent;
+  return typeof parent === "string" ? { field: parent } : parent;
 }
 
 /**
@@ -90,7 +90,7 @@ export function parentHop(parent: MemberOfParent): {
  * and, given relation mappings, a subquery in the `toWhere` compilers.
  */
 export type RelatedCondition = {
-  readonly op: 'related';
+  readonly op: "related";
   readonly resource: string;
   readonly relation: string;
   /** The row's own id field, or (with `parent` or `hops`) the field holding the next instance's id. */
@@ -123,7 +123,7 @@ export type RelatedHop = {
 };
 
 export type OpaqueCondition = {
-  readonly op: 'opaque';
+  readonly op: "opaque";
   readonly sql: string;
   readonly fingerprint: string;
 };
@@ -135,7 +135,7 @@ export type SqlFunctionField = {
 export type SqlFunctionArg = ConditionValue | SqlFunctionField;
 
 export type SqlFunctionCondition = {
-  readonly op: 'sqlFunction';
+  readonly op: "sqlFunction";
   readonly name: string;
   readonly args: readonly SqlFunctionArg[];
   readonly twin: Condition;
@@ -156,46 +156,46 @@ export type Condition =
 export function isConditionRef(value: unknown): value is ConditionRef {
   return (
     value !== null &&
-    typeof value === 'object' &&
-    'ref' in value &&
-    typeof value.ref === 'string'
+    typeof value === "object" &&
+    "ref" in value &&
+    typeof value.ref === "string"
   );
 }
 
 export function isConditionDate(value: unknown): value is ConditionDate {
   return (
     value !== null &&
-    typeof value === 'object' &&
-    'date' in value &&
-    typeof value.date === 'string' &&
-    !('ref' in value)
+    typeof value === "object" &&
+    "date" in value &&
+    typeof value.date === "string" &&
+    !("ref" in value)
   );
 }
 
 export function isCondition(value: unknown): value is Condition {
   return (
     value !== null &&
-    typeof value === 'object' &&
-    'op' in value &&
-    typeof value.op === 'string'
+    typeof value === "object" &&
+    "op" in value &&
+    typeof value.op === "string"
   );
 }
 
 export function isSqlFunctionField(value: unknown): value is SqlFunctionField {
   return (
     value !== null &&
-    typeof value === 'object' &&
-    'field' in value &&
-    typeof value.field === 'string' &&
-    !('ref' in value) &&
-    !('date' in value) &&
-    !('op' in value)
+    typeof value === "object" &&
+    "field" in value &&
+    typeof value.field === "string" &&
+    !("ref" in value) &&
+    !("date" in value) &&
+    !("op" in value)
   );
 }
 
 export function hasConditionOp(
   condition: Condition | undefined,
-  op: Condition['op'],
+  op: Condition["op"],
 ): boolean {
   if (condition === undefined) {
     return false;
@@ -204,26 +204,26 @@ export function hasConditionOp(
     return true;
   }
   switch (condition.op) {
-    case 'and':
-    case 'or':
+    case "and":
+    case "or":
       return condition.conditions.some((child) => hasConditionOp(child, op));
-    case 'not':
+    case "not":
       return hasConditionOp(condition.condition, op);
-    case 'sqlFunction':
+    case "sqlFunction":
       return hasConditionOp(condition.twin, op);
-    case 'eq':
-    case 'ne':
-    case 'gt':
-    case 'gte':
-    case 'lt':
-    case 'lte':
-    case 'contains':
-    case 'in':
-    case 'notIn':
-    case 'isNull':
-    case 'memberOf':
-    case 'related':
-    case 'opaque':
+    case "eq":
+    case "ne":
+    case "gt":
+    case "gte":
+    case "lt":
+    case "lte":
+    case "contains":
+    case "in":
+    case "notIn":
+    case "isNull":
+    case "memberOf":
+    case "related":
+    case "opaque":
       return false;
     default: {
       const exhaustive: never = condition;

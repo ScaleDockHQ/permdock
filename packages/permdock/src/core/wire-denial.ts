@@ -4,10 +4,10 @@ import type {
   Denial,
   DenialReason,
   GrantedDecision,
-} from './decision.ts';
-import type { Grantee } from './grantee.ts';
+} from "./decision.ts";
+import type { Grantee } from "./grantee.ts";
 
-import { compact } from './compact.ts';
+import { compact } from "./compact.ts";
 
 /**
  * A denial as it leaves the process: in a decision event, a Problem Details
@@ -26,23 +26,23 @@ export type WireDenial = {
 export type WireDecision =
   | GrantedDecision
   | ApprovalRequiredDecision
-  | (Omit<DeniedDecision, 'denials'> & {
+  | (Omit<DeniedDecision, "denials"> & {
       readonly denials: readonly WireDenial[];
     });
 
-const IN_PROCESS = new Set<DenialReason>(['closure-error', 'validation']);
+const IN_PROCESS = new Set<DenialReason>(["closure-error", "validation"]);
 
 function jsonDetail(value: unknown): unknown {
   if (value === undefined || value === null || value instanceof Error) {
     return undefined;
   }
-  if (typeof value === 'string' || typeof value === 'boolean') {
+  if (typeof value === "string" || typeof value === "boolean") {
     return value;
   }
-  if (typeof value === 'number') {
+  if (typeof value === "number") {
     return Number.isFinite(value) ? value : undefined;
   }
-  if (typeof value !== 'object') {
+  if (typeof value !== "object") {
     return undefined;
   }
   try {

@@ -1,11 +1,11 @@
-import type { JsonWebKeySet } from 'permdock/jwt';
+import type { JsonWebKeySet } from "permdock/jwt";
 
-import { Hono } from 'hono';
-import { memoryRoleSource } from 'permdock';
-import { createPermDock as createAuthzen } from 'permdock/authzen';
-import { createPermDock as createHono } from 'permdock/hono';
-import { createJwtSubjectResolver } from 'permdock/jwt';
-import { createPermDock as createKernel } from 'permdock/server';
+import { Hono } from "hono";
+import { memoryRoleSource } from "permdock";
+import { createPermDock as createAuthzen } from "permdock/authzen";
+import { createPermDock as createHono } from "permdock/hono";
+import { createJwtSubjectResolver } from "permdock/jwt";
+import { createPermDock as createKernel } from "permdock/server";
 import {
   saasAudience,
   saasCustomRoles,
@@ -16,10 +16,10 @@ import {
   saasPolicy,
   saasPrincipal,
   saasSeed,
-} from 'permdock/testing/saas';
+} from "permdock/testing/saas";
 
 /** The only bearer the AuthZEN endpoint accepts: a test-only PEP credential. */
-export const PEP_TOKEN = 'runtimes-pep-bearer';
+export const PEP_TOKEN = "runtimes-pep-bearer";
 
 export const customRoles = memoryRoleSource(saasCustomRoles);
 
@@ -39,8 +39,8 @@ export async function subjectOf(
   tenant: string | undefined,
 ) {
   const token =
-    authorization?.startsWith('Bearer ') === true
-      ? authorization.slice('Bearer '.length)
+    authorization?.startsWith("Bearer ") === true
+      ? authorization.slice("Bearer ".length)
       : undefined;
   const id = (await verify(token)).principal?.id;
   return id === undefined
@@ -57,7 +57,7 @@ const PROJECT_PATH = /^\/kernel\/([^/]+)\/projects\/([^/]+)$/u;
 const kernel = createKernel(saasPolicy, {
   subject: (request) =>
     subjectOf(
-      request.headers.get('authorization'),
+      request.headers.get("authorization"),
       PROJECT_PATH.exec(new URL(request.url).pathname)?.[1],
     ),
   tenant: (request) => PROJECT_PATH.exec(new URL(request.url).pathname)?.[1],
@@ -67,27 +67,27 @@ const kernel = createKernel(saasPolicy, {
 async function kernelRoute(request: Request): Promise<Response> {
   const id = PROJECT_PATH.exec(new URL(request.url).pathname)?.[2];
   const permission =
-    request.method === 'PATCH' ? p.project.update : p.project.read;
+    request.method === "PATCH" ? p.project.update : p.project.read;
   const guard = await kernel.protect(permission, () => projectOf(id))(request);
   return guard.ok ? Response.json(guard.data) : guard.response;
 }
 
 const hono = createHono(saasPolicy, {
-  subject: (c) => subjectOf(c.req.header('authorization'), c.req.param('org')),
-  tenant: (c) => c.req.param('org'),
+  subject: (c) => subjectOf(c.req.header("authorization"), c.req.param("org")),
+  tenant: (c) => c.req.param("org"),
   customRoles,
 });
 const row = (c: { req: { param: (key: string) => string | undefined } }) =>
-  projectOf(c.req.param('id'));
+  projectOf(c.req.param("id"));
 
 const authzen = createAuthzen(saasPolicy, {
   subject: (request) =>
-    request.headers.get('authorization') === `Bearer ${PEP_TOKEN}`
-      ? { principal: { id: 'pep' }, context: {} }
+    request.headers.get("authorization") === `Bearer ${PEP_TOKEN}`
+      ? { principal: { id: "pep" }, context: {} }
       : null,
   trustedPep: (pep) =>
     // SAFETY: `principal` and `id` are optional; optional chaining covers null
-    (pep as { principal?: { id?: string } } | null)?.principal?.id === 'pep',
+    (pep as { principal?: { id?: string } } | null)?.principal?.id === "pep",
   resources: { project: { load: (id) => projectOf(id) } },
   memberships: {
     membershipsFor: (principal) => saasMemberships(principal.id),
@@ -96,15 +96,15 @@ const authzen = createAuthzen(saasPolicy, {
 });
 
 export const app = new Hono()
-  .get('/health', (c) => c.json({ ok: true }))
-  .on(['GET', 'PATCH'], '/kernel/:org/projects/:id', (c) =>
+  .get("/health", (c) => c.json({ ok: true }))
+  .on(["GET", "PATCH"], "/kernel/:org/projects/:id", (c) =>
     kernelRoute(c.req.raw),
   )
-  .use('/hono/:org/*', hono.permdock())
-  .get('/hono/:org/projects/:id', hono.protect(p.project.read, row), (c) =>
-    c.json(projectOf(c.req.param('id'))),
+  .use("/hono/:org/*", hono.permdock())
+  .get("/hono/:org/projects/:id", hono.protect(p.project.read, row), (c) =>
+    c.json(projectOf(c.req.param("id"))),
   )
-  .patch('/hono/:org/projects/:id', hono.protect(p.project.update, row), (c) =>
-    c.json({ id: c.req.param('id') }),
+  .patch("/hono/:org/projects/:id", hono.protect(p.project.update, row), (c) =>
+    c.json({ id: c.req.param("id") }),
   )
-  .all('/access/v1/*', (c) => authzen.permdockHandler(c.req.raw));
+  .all("/access/v1/*", (c) => authzen.permdockHandler(c.req.raw));

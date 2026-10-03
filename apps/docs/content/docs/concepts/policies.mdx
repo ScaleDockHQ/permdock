@@ -10,31 +10,47 @@ The policy is server-only. It is the one file in a PermDock app that must never 
 ## Shape
 
 ```ts
-import { definePolicy, defineRoles, role, allow, deny, principal, relation, anyone } from 'permdock'
-import { permissions } from './permissions'
+import {
+  definePolicy,
+  defineRoles,
+  role,
+  allow,
+  deny,
+  principal,
+  relation,
+  anyone,
+} from "permdock";
+import { permissions } from "./permissions";
 
-export const roles = defineRoles({ member: {}, admin: {} })
+export const roles = defineRoles({ member: {}, admin: {} });
 
 const member = role(roles.member, [
   allow(permissions.post.read),
   allow(permissions.post.list),
   allow(permissions.post.create),
-  allow(permissions.post.update, { to: relation(permissions.post, 'author') }),
-  allow(permissions.post.delete, { where: { authorId: principal.id }, approval: 'human' }),
-])
+  allow(permissions.post.update, { to: relation(permissions.post, "author") }),
+  allow(permissions.post.delete, {
+    where: { authorId: principal.id },
+    approval: "human",
+  }),
+]);
 
 const admin = role(roles.admin, [
   ...member.grants,
   allow(permissions.post.delete),
   deny(permissions.post.publish, { to: anyone(), where: { published: true } }),
-])
+]);
 
-export const policy = definePolicy({ permissions, roles }, {
-  roles: [member, admin],
-  principal: (user: User | null) => user && { id: user.id, orgId: user.orgId, roles: user.roles },
-  context: async (user) => ({ teamIds: await loadTeamIds(user.id) }),
-  validate: 'boundary',
-})
+export const policy = definePolicy(
+  { permissions, roles },
+  {
+    roles: [member, admin],
+    principal: (user: User | null) =>
+      user && { id: user.id, orgId: user.orgId, roles: user.roles },
+    context: async (user) => ({ teamIds: await loadTeamIds(user.id) }),
+    validate: "boundary",
+  },
+);
 ```
 
 ## Roles
@@ -52,15 +68,24 @@ The instance exposes the same trees as `permdock.permissions`, `permdock.roles` 
 The third argument says where a role applies. Without it the role is global and is selected by `principal.roles`, as in the example above. With `on`, the role is selected by a membership and its grants match only rows in that scope:
 
 ```ts
-const viewer = role('viewer', [allow([permissions.post.read, permissions.post.list])], { on: 'tenant' })
-const lead   = role('lead',   [allow(permissions.post.publish)], { on: 'team' })
-const editor = role('editor', [allow(permissions.document.update)], { on: permissions.document })
+const viewer = role(
+  "viewer",
+  [allow([permissions.post.read, permissions.post.list])],
+  { on: "tenant" },
+);
+const lead = role("lead", [allow(permissions.post.publish)], { on: "team" });
+const editor = role("editor", [allow(permissions.document.update)], {
+  on: permissions.document,
+});
 
 export const policy = definePolicy(permissions, {
   roles: [viewer, lead, editor, admin],
-  scopes: { tenant: { key: 'orgId' }, team: { key: 'teamId', within: 'tenant' } },
+  scopes: {
+    tenant: { key: "orgId" },
+    team: { key: "teamId", within: "tenant" },
+  },
   subject: subjectFromClerk,
-})
+});
 ```
 
 `scopes` declares the policy's [named scopes](/docs/concepts/scopes) in order; each `key` names the row field holding that scope's id, and every resource a scoped grant touches declares it as a `memberOf` relation. It replaces `where: { orgId: principal.orgId }` on each grant. `assignable` (default `true` for scoped roles) marks roles a tenant admin may hand out and compose into tenant-defined custom roles. The full model, memberships, evaluation rules, custom roles and the `RoleSource` and `MembershipSource` interfaces, is on [tenants, teams and scoped roles](/docs/concepts/tenancy).
@@ -77,7 +102,7 @@ Roles may be declared in several files and passed together to `definePolicy`. Ro
 export const policy = definePolicy(permissions, {
   roles: [...postRoles, ...billingRoles], // two 'member' fragments become one role
   subject,
-})
+});
 ```
 
 Merging is a concatenation of grant arrays; the evaluation rules below make order irrelevant to the outcome. A fragment that references a leaf outside `permissions` is a type error, which is what keeps a feature from granting a permission the app never merged. See [larger apps](/docs/getting-started/larger-apps).
@@ -86,17 +111,17 @@ Merging is a concatenation of grant arrays; the evaluation rules below make orde
 
 `allow(permission, condition?)` and `deny(permission, condition?)` are the only two grant constructors. The first argument is a reference or an array of references (`allow([permissions.post.read, permissions.post.list])`, `allow(listPermissions(permissions.post))`); an array is declaration sugar that becomes one grant per leaf in the normalised policy, the catalog and the snapshot.
 
-| Second argument | Meaning |
-| --- | --- |
-| `{ to }` | Grantee selector: `anyone()`, `authenticated()`, `relation(resource, name)`, a `Role` or `Plan` leaf, `actor(kind)`, `assurance({ acr })`, or an array (intersection). Required on top-level `grants`. `role()` bindings fill a role selector. |
-| `{ where }` | Portable condition on the current row (RLS `USING`) |
-| `{ check }` | Portable condition on the next row (RLS `WITH CHECK`) for `create` and `update` |
-| `{ where, check }` | Both, for `update` |
-| `(data, ctx) => boolean` | Closure: runtime only, branded non-portable |
+| Second argument                                                       | Meaning                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `{ to }`                                                              | Grantee selector: `anyone()`, `authenticated()`, `relation(resource, name)`, a `Role` or `Plan` leaf, `actor(kind)`, `assurance({ acr })`, or an array (intersection). Required on top-level `grants`. `role()` bindings fill a role selector.                                                                                                                                                                                                                                                                                                             |
+| `{ where }`                                                           | Portable condition on the current row (RLS `USING`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `{ check }`                                                           | Portable condition on the next row (RLS `WITH CHECK`) for `create` and `update`                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `{ where, check }`                                                    | Both, for `update`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `(data, ctx) => boolean`                                              | Closure: runtime only, branded non-portable                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `{ ..., approval: 'human' }` or `{ ..., approval: { by, distinct } }` | Grant is valid but the decision is `approval-required`. `'human'` lets any authenticated person other than the actor and the principal approve. `{ by }` names eligible approvers with the same grantee selectors as `to`. `distinct` defaults to `true`; `distinct: false` lets the principal approve their own request (doctor PD024 lists each one). `staleOn: 'resource-change'` binds the approval to the row's `version` field, so it no longer applies once the row changes ([approval security](/docs/security/approvals#approvals-that-go-stale)) |
-| `{ ..., limit: { count, per, mode?, alertAt? } }` | Quota grant: non-portable, needs a `LimitStore`. `mode: 'hard'` (default) denies past `count`; `mode: 'soft'` grants with an `over-limit` obligation; `alertAt` adds a `near-limit` obligation |
-| `{ ..., fields: ['title', 'body'] }` | Schema-aware field list: keys of the resource type; omitted means every field; empty never matches |
-| `{ ..., validFrom, validUntil }` | When the grant applies, as RFC 3339 strings or Unix seconds; `validFrom` inclusive, `validUntil` exclusive. Either bound alone is allowed ([validity](#validity)) |
+| `{ ..., limit: { count, per, mode?, alertAt? } }`                     | Quota grant: non-portable, needs a `LimitStore`. `mode: 'hard'` (default) denies past `count`; `mode: 'soft'` grants with an `over-limit` obligation; `alertAt` adds a `near-limit` obligation                                                                                                                                                                                                                                                                                                                                                             |
+| `{ ..., fields: ['title', 'body'] }`                                  | Schema-aware field list: keys of the resource type; omitted means every field; empty never matches                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `{ ..., validFrom, validUntil }`                                      | When the grant applies, as RFC 3339 strings or Unix seconds; `validFrom` inclusive, `validUntil` exclusive. Either bound alone is allowed ([validity](#validity))                                                                                                                                                                                                                                                                                                                                                                                          |
 
 Conditions are covered on their own page: [conditions](/docs/concepts/conditions). Collection actions accept no `where` (there is no current row). They may carry `check` on the proposed body; without a body a `check` grant does not match. Closures over `ctx` only remain valid on collection grants.
 
@@ -105,11 +130,11 @@ Conditions are covered on their own page: [conditions](/docs/concepts/conditions
 ```ts
 role(roles.contractor, [
   allow(permissions.doc.read, {
-    validFrom: '2026-03-01T00:00:00Z',
-    validUntil: '2026-04-01T00:00:00Z',
+    validFrom: "2026-03-01T00:00:00Z",
+    validUntil: "2026-04-01T00:00:00Z",
   }),
-  deny(permissions.doc.delete, { validUntil: launch, name: 'freeze' }),
-])
+  deny(permissions.doc.delete, { validUntil: launch, name: "freeze" }),
+]);
 ```
 
 `validFrom` and `validUntil` bound a grant in time without a membership: a contractor's read access for the length of an engagement, a change freeze that lifts itself at launch, a permission that opens on a release date. `definePolicy` normalises both to Unix seconds on `Grant.validity` as `{ from?, until? }`, and throws on a bound that does not parse or a window that ends before it starts, so a typo never widens a grant.
@@ -170,8 +195,12 @@ An `EntitlementSource` passed as `entitlements` to `createPermDock` (`fromStripe
 Flags (Vercel Flags SDK, PostHog, LaunchDarkly) and billing entitlements (Stripe Entitlements, a `plan` column) answer "is this capability on for this subject", and it is tempting to make them grants. They are inputs to the subject instead. Resolve them in the policy's `subject` function (or `context` when they need a call) and let them select roles; the grants stay attached to roles:
 
 ```ts
-const pro = role('pro', [allow(permissions.report.export, { where: { ownerId: principal.id } })])
-const newCheckout = role('new-checkout', [allow(permissions.billing.invoice.pay, { where: { orgId: principal.orgId } })])
+const pro = role("pro", [
+  allow(permissions.report.export, { where: { ownerId: principal.id } }),
+]);
+const newCheckout = role("new-checkout", [
+  allow(permissions.billing.invoice.pay, { where: { orgId: principal.orgId } }),
+]);
 
 export const policy = definePolicy(permissions, {
   roles: [member, pro, newCheckout],
@@ -179,12 +208,16 @@ export const policy = definePolicy(permissions, {
     user && {
       id: user.id,
       orgId: user.orgId,
-      roles: [...user.roles, ...(user.plan === 'pro' || user.plan === 'team' ? ['pro'] : []), ...(user.flags.newCheckout ? ['new-checkout'] : [])],
+      roles: [
+        ...user.roles,
+        ...(user.plan === "pro" || user.plan === "team" ? ["pro"] : []),
+        ...(user.flags.newCheckout ? ["new-checkout"] : []),
+      ],
     },
-})
+});
 ```
 
-The same rule decides which roles a tenant may *assign*: a plan that lacks "Billing Manager" is expressed as `RoleSource.assignable(tenant)` returning a smaller set, never as a grant ([tenancy](/docs/concepts/tenancy), custom roles).
+The same rule decides which roles a tenant may _assign_: a plan that lacks "Billing Manager" is expressed as `RoleSource.assignable(tenant)` returning a smaller set, never as a grant ([tenancy](/docs/concepts/tenancy), custom roles).
 
 Three reasons to keep the split. The policy stays the single statement of who may do what; a flag flipping in a dashboard can only select a role the policy already declares, never widen a grant. Roles reach the snapshot, the SQL `where` and generated RLS the same way as any subject field, so the UI and the database agree, and `permdock usage` can show which grants a flag unlocks. And a flag is never a security control: a `denied` decision cannot be turned into `granted` by a flag, only a matching `allow` can, and `deny` still overrides. A flag evaluated asynchronously belongs in `context` with the role selection done there; the result is the same frozen subject. Provider permission arrays (WorkOS `permissions`, Kinde `permissions`, Auth0 `permissions`) and billing claims (Clerk Billing `fea`, Frontegg entitlements) follow the same rule as `delegation.scopes`, `context` or roles ([authentication](/docs/concepts/authentication), provider recipes; [Clerk provider](/docs/adapters/clerk)). No flag SDK gets an adapter; the vendor-neutral way to read a flag is [OpenFeature](https://openfeature.dev), the CNCF incubating standard whose JavaScript SDK evaluates `getBooleanValue(flag, default, evaluationContext)` against whichever provider is installed (LaunchDarkly, PostHog, Statsig, Unleash, Flagsmith, GrowthBook, Vercel Flags through community providers). A `subject` or `context` function that calls OpenFeature with the subject's id and organisation as the evaluation context works unchanged when the flag vendor changes, and the vendors named here are examples, not a list PermDock maintains.
 
@@ -193,7 +226,9 @@ Three reasons to keep the split. The policy stays the single statement of who ma
 `limit: { count, per }` is a quota grant. It is non-portable (it cannot appear as an evaluable snapshot grant or an RLS policy). Pass `limits: memoryLimitStore()` (or your store) to `createPermDock`. `can`, `filter`, `simulate` and the `alternatives` of a denial never consume; they peek `remaining`. `decide` and `assert` consume, except when the matched grant is `approval: 'human'`. Exhausted remaining is `denied` with reason `limit`. A missing store, a throw, or a thenable from `consume` / `remaining` is `limit-unavailable`. A Promise is never treated as granted. The [OWASP Agentic Top 10](/docs/security/owasp-agentic) asks for a maximum rate per tool, which is the use case. See [extension interfaces](/docs/concepts/extension-interfaces).
 
 ```ts
-allow(permissions.report.export, { limit: { count: 100, per: 'day', mode: 'soft', alertAt: 0.8 } })
+allow(permissions.report.export, {
+  limit: { count: 100, per: "day", mode: "soft", alertAt: 0.8 },
+});
 ```
 
 - `mode` is `'hard'` (the default, the behaviour above) or `'soft'`. A soft limit grants past `count` and adds the obligation `{ kind: 'over-limit' }`, so the app can bill the overage, warn, or queue the work. The store still counts only up to `count`.
@@ -222,16 +257,16 @@ A denial's `alternatives` peek rather than consume because they are advice, not 
 
 ## definePolicy options
 
-| Option | Type | Notes |
-| --- | --- | --- |
-| `roles` | `RoleBinding[]` | Optional when `grants` is set. Fragments with the same name merge; if one allows and another denies the same permission, the deny wins as it does everywhere. Scoped roles (`on`) and global roles mix freely. |
-| `grants` | `Grant[]` | Top-level grants. Each entry needs a real `to:` selector. |
-| `scopes` | `{ tenant?: { key }, team?: { key } }` | Required when any role is scoped to `'tenant'` or `'team'`. Names the field on every scoped resource that holds the tenant or team id; checked against each resource schema ([tenancy](/docs/concepts/tenancy)). |
-| `principal` | `(user) => Principal \| null` | Required (`subject` is accepted as an alias). Returns the values referenced as `principal.<field>` in conditions, plus `roles`, `plans`, `memberships` and `tenant`. `null` means anonymous. Any `subjectFrom*` provider satisfies it. |
-| `context` | `async (user) => Record<string, unknown>` | Optional. Loads relations (org settings, flags, legacy team id arrays) once per `createPermDock`; referenced as `context.<key>`. Declaring it makes `createPermDock` async. A thrown or rejected loader is fail-closed: empty context and an `on('auth')` event with `reason: 'source-threw'`. Team and resource memberships belong in `memberships`, not here, so scoped roles and `memberOf` can use them. |
-| `validate` | `'boundary'`, `'always'` or `'never'` | Default `'boundary'`. Controls when resource schemas run; see [validation](/docs/concepts/validation). |
-| `onDenied` | `(decision) => never \| void` | Optional default unauthorized handler for `assert`; runs last in the layered chain. |
-| `fresh` | `(Permission \| PermissionTree)[]` | Optional. Sensitive permissions that deny with `stale-credentials` when the subject's memberships come from a token behind the `MembershipSource` authorization version ([Supabase token hook](/docs/adapters/supabase-hook)). Live memberships are never stale. |
+| Option        | Type                                                   | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ------------- | ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `roles`       | `RoleBinding[]`                                        | Optional when `grants` is set. Fragments with the same name merge; if one allows and another denies the same permission, the deny wins as it does everywhere. Scoped roles (`on`) and global roles mix freely.                                                                                                                                                                                                                                           |
+| `grants`      | `Grant[]`                                              | Top-level grants. Each entry needs a real `to:` selector.                                                                                                                                                                                                                                                                                                                                                                                                |
+| `scopes`      | `{ tenant?: { key }, team?: { key } }`                 | Required when any role is scoped to `'tenant'` or `'team'`. Names the field on every scoped resource that holds the tenant or team id; checked against each resource schema ([tenancy](/docs/concepts/tenancy)).                                                                                                                                                                                                                                         |
+| `principal`   | `(user) => Principal \| null`                          | Required (`subject` is accepted as an alias). Returns the values referenced as `principal.<field>` in conditions, plus `roles`, `plans`, `memberships` and `tenant`. `null` means anonymous. Any `subjectFrom*` provider satisfies it.                                                                                                                                                                                                                   |
+| `context`     | `async (user) => Record<string, unknown>`              | Optional. Loads relations (org settings, flags, legacy team id arrays) once per `createPermDock`; referenced as `context.<key>`. Declaring it makes `createPermDock` async. A thrown or rejected loader is fail-closed: empty context and an `on('auth')` event with `reason: 'source-threw'`. Team and resource memberships belong in `memberships`, not here, so scoped roles and `memberOf` can use them.                                             |
+| `validate`    | `'boundary'`, `'always'` or `'never'`                  | Default `'boundary'`. Controls when resource schemas run; see [validation](/docs/concepts/validation).                                                                                                                                                                                                                                                                                                                                                   |
+| `onDenied`    | `(decision) => never \| void`                          | Optional default unauthorized handler for `assert`; runs last in the layered chain.                                                                                                                                                                                                                                                                                                                                                                      |
+| `fresh`       | `(Permission \| PermissionTree)[]`                     | Optional. Sensitive permissions that deny with `stale-credentials` when the subject's memberships come from a token behind the `MembershipSource` authorization version ([Supabase token hook](/docs/adapters/supabase-hook)). Live memberships are never stale.                                                                                                                                                                                         |
 | `delegations` | `{ from, to, permissions, validFrom?, validUntil? }[]` | Optional. Standing delegations: holders of `from` (a role, `authenticated()`, a plan, `assurance()`) let actors matching `to` (`actor('eve')`, a kind, or `{ kind, id }`) use `permissions` for them without a token saying so. A ceiling, never a grant: the principal's grants still decide, and a token delegation on the call must also cover ([delegation](/docs/security/delegation#policy-delegations)). Part of the fingerprint and the catalog. |
 
 The `principal` function is the only place PermDock touches your user object. It is called once per `createPermDock` and its return value is frozen. Anything not returned from it is invisible to conditions, which is deliberate: conditions can only reference values that also exist in the snapshot and in the SQL session.
@@ -251,18 +286,21 @@ Use a closure when the check needs something a portable condition cannot express
 `describePolicy` from `permdock/testing` asserts a matrix of subjects by permissions, with the outcome for representative fixtures:
 
 ```ts
-import { describePolicy } from 'permdock/testing'
+import { describePolicy } from "permdock/testing";
 
 describePolicy(policy, {
-  subjects: { member: { id: 'u1', roles: ['member'] }, admin: { id: 'u2', roles: ['admin'] } },
+  subjects: {
+    member: { id: "u1", roles: ["member"] },
+    admin: { id: "u2", roles: ["admin"] },
+  },
   fixtures: { ownPost, otherPost },
   matrix: {
     [permissions.post.update.key]: {
-      ownPost:   { member: 'granted', admin: 'granted' },
-      otherPost: { member: 'denied',  admin: 'granted' },
+      ownPost: { member: "granted", admin: "granted" },
+      otherPost: { member: "denied", admin: "granted" },
     },
   },
-})
+});
 ```
 
 Every permission must have a row, so a new permission cannot ship untested, and a change in who can do what shows up in review as a changed cell. [Testing](/docs/adapters/testing) lists the options.
@@ -275,9 +313,11 @@ An application can opt specific permissions into grants authored in PermDock Clo
 export const policy = definePolicy(vocabulary, {
   roles: [member, admin],
   hostable: [permissions.invoice, permissions.auditLog.read],
-})
+});
 
-const permdock = await createPermDock(policy, user, { policies: permdockCloud.policies })
+const permdock = await createPermDock(policy, user, {
+  policies: permdockCloud.policies,
+});
 ```
 
 Hosted grants arrive as a [`PolicyDocument`](/docs/concepts/wire-formats) through a [`PolicySource`](/docs/concepts/extension-interfaces) whose `current()` is read once by `createPermDock`, and merge under rules that keep code in charge:
@@ -298,12 +338,15 @@ The opt-in exists because a hosted grant is an allow no code reviewer saw. Listi
 Authorizing a data fetch takes the three instance methods you already have, with no wrapper API: `where` narrows the query before it runs, `filter` drops rows a closure or a non-portable grant refuses, and `pick` redacts fields.
 
 ```ts
-import { toWhere } from 'permdock/drizzle'
+import { toWhere } from "permdock/drizzle";
 
 export async function listPosts(permdock: PermDock) {
-  const read = permissions.post.read
-  const rows = await db.select().from(posts).where(toWhere(permdock.where(read), posts)) // before: the database only returns candidate rows
-  return permdock.filter(read, rows).map((row) => permdock.pick(read, row))            // after: closures and fields
+  const read = permissions.post.read;
+  const rows = await db
+    .select()
+    .from(posts)
+    .where(toWhere(permdock.where(read), posts)); // before: the database only returns candidate rows
+  return permdock.filter(read, rows).map((row) => permdock.pick(read, row)); // after: closures and fields
 }
 ```
 
@@ -314,22 +357,39 @@ For a single record, load it and call `assert` (or `protect` in an HTTP adapter)
 Returning a whole row after an allowed read leaks every column the grant's `fields` leave out (OWASP API3, broken object property level authorization). Pass the response through `pick`, and check each field a write body sets against the row it changes:
 
 ```ts
-const loadInvoice = (c: Context) => invoices.find(c.req.param('id'))
+const loadInvoice = (c: Context) => invoices.find(c.req.param("id"));
 
-app.get('/invoices/:id', protect(permissions.invoice.read, loadInvoice), (c) =>
-  c.json(c.get('permdock').pick(permissions.invoice.read, c.get('permdockData'))), // only the fields the grant lists
-)
+app.get(
+  "/invoices/:id",
+  protect(permissions.invoice.read, loadInvoice),
+  (c) =>
+    c.json(
+      c.get("permdock").pick(permissions.invoice.read, c.get("permdockData")),
+    ), // only the fields the grant lists
+);
 
-app.patch('/invoices/:id', protect(permissions.invoice.update, loadInvoice), async (c) => {
-  const permdock = c.get('permdock')
-  const row = c.get('permdockData')
-  const changes: Partial<Invoice> = await c.req.json()
-  const refused = Object.keys(changes).filter(
-    (field) => !permdock.can(permissions.invoice.update, row, { field: field as keyof Invoice }),
-  )
-  if (refused.length > 0) return c.json({ refused }, 403)
-  return c.json(permdock.pick(permissions.invoice.read, await invoices.update(row.id, changes)))
-})
+app.patch(
+  "/invoices/:id",
+  protect(permissions.invoice.update, loadInvoice),
+  async (c) => {
+    const permdock = c.get("permdock");
+    const row = c.get("permdockData");
+    const changes: Partial<Invoice> = await c.req.json();
+    const refused = Object.keys(changes).filter(
+      (field) =>
+        !permdock.can(permissions.invoice.update, row, {
+          field: field as keyof Invoice,
+        }),
+    );
+    if (refused.length > 0) return c.json({ refused }, 403);
+    return c.json(
+      permdock.pick(
+        permissions.invoice.read,
+        await invoices.update(row.id, changes),
+      ),
+    );
+  },
+);
 ```
 
 `pick` returns only own keys the grant lists, so a column added to the table later stays out of the response until a grant names it. The write check runs against the stored row, not the body, so the grant's `where` sees the real owner. `permdock rls generate --fields views` gives a direct database read the same answer as `pick` ([field security](/docs/adapters/rls#field-security)).

@@ -1,10 +1,10 @@
-import type { MDXComponents } from 'mdx/types';
+import type { MDXComponents } from "mdx/types";
 
-import { TypeTable } from 'fumadocs-ui/components/type-table';
-import defaultMdxComponents from 'fumadocs-ui/mdx';
+import { TypeTable } from "fumadocs-ui/components/type-table";
+import defaultMdxComponents from "fumadocs-ui/mdx";
 
-import { Mermaid } from '@/components/mdx/mermaid';
-import { Table } from '@/components/mdx/table';
+import { Mermaid } from "@/components/mdx/mermaid";
+import { Table } from "@/components/mdx/table";
 
 export function getMDXComponents(components?: MDXComponents) {
   return {

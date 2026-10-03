@@ -1,8 +1,8 @@
-import type { MemberEntry, MembershipSource } from './interfaces.ts';
-import type { Membership } from './subject.ts';
+import type { MemberEntry, MembershipSource } from "./interfaces.ts";
+import type { Membership } from "./subject.ts";
 
-import { byCodePoint } from './compare.ts';
-import { isThenable } from './thenable.ts';
+import { byCodePoint } from "./compare.ts";
+import { isThenable } from "./thenable.ts";
 
 /** Two memberships are the same row when everything but `roles` matches. */
 function identity(membership: Membership): string {
@@ -132,7 +132,7 @@ export function composeMemberships(
               (versions) => {
                 const known = versions.filter(
                   (value): value is number =>
-                    typeof value === 'number' && Number.isFinite(value),
+                    typeof value === "number" && Number.isFinite(value),
                 );
                 return known.length === 0 ? undefined : Math.max(...known);
               },
@@ -160,7 +160,7 @@ export function asMembershipSource(
 export function claimsFirst(
   source: MembershipSource | readonly MembershipSource[],
   options: {
-    readonly version?: MembershipSource['version'];
+    readonly version?: MembershipSource["version"];
   } = {},
 ): MembershipSource {
   const inner = asMembershipSource(source);
@@ -170,7 +170,7 @@ export function claimsFirst(
       ? undefined
       : (principal: {
           readonly id: string;
-        }): ReturnType<NonNullable<MembershipSource['version']>> | undefined =>
+        }): ReturnType<NonNullable<MembershipSource["version"]>> | undefined =>
           inner.version?.(principal));
   return {
     membershipsFor: (principal, query) =>
@@ -185,5 +185,5 @@ export function claimsFirst(
 
 /** Whether the identity provider owns `membership`: the application must not add, change or remove it. */
 export function isExternallyManaged(membership: Membership): boolean {
-  return membership.managedBy === 'idp';
+  return membership.managedBy === "idp";
 }

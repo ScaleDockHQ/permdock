@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { usePermission } from 'permdock/vue';
+import { usePermission } from "permdock/vue";
 
-import { permissions } from '@permdock/e2e-saas-kit/nav';
+import { permissions } from "@permdock/e2e-saas-kit/nav";
 
 const { allowed } = usePermission(permissions.project.list);
 </script>

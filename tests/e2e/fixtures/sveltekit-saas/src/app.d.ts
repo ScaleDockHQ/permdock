@@ -1,4 +1,4 @@
-import type { Session } from '@permdock/e2e-saas-kit';
+import type { Session } from "@permdock/e2e-saas-kit";
 
 declare global {
   namespace App {

@@ -1,7 +1,7 @@
-import { type Middleware, defineMiddleware } from '@supabase/middleware';
+import { type Middleware, defineMiddleware } from "@supabase/middleware";
 
-import type { ApprovalStore } from '../approvals/types.ts';
-import type { PolicySource } from '../core/hosted.ts';
+import type { ApprovalStore } from "../approvals/types.ts";
+import type { PolicySource } from "../core/hosted.ts";
 import type {
   DecisionSink,
   EntitlementSource,
@@ -10,19 +10,19 @@ import type {
   RelationSource,
   RoleSource,
   SnapshotSource,
-} from '../core/interfaces.ts';
-import type { PermDock } from '../core/permdock.ts';
-import type { Permission } from '../core/permissions.ts';
-import type { Policy, PolicyVocabulary } from '../core/policy.ts';
-import type { Principal, Subject } from '../core/subject.ts';
-import type { OtelWrap } from '../otel/types.ts';
-import type { PdpFactory } from '../pdp/types.ts';
-import type { OpenApiHooks } from '../server/create.ts';
-import type { WebBotAuthVerifier } from '../server/web-bot-auth.ts';
+} from "../core/interfaces.ts";
+import type { PermDock } from "../core/permdock.ts";
+import type { Permission } from "../core/permissions.ts";
+import type { Policy, PolicyVocabulary } from "../core/policy.ts";
+import type { Principal, Subject } from "../core/subject.ts";
+import type { OtelWrap } from "../otel/types.ts";
+import type { PdpFactory } from "../pdp/types.ts";
+import type { OpenApiHooks } from "../server/create.ts";
+import type { WebBotAuthVerifier } from "../server/web-bot-auth.ts";
 
-import { compact } from '../core/compact.ts';
-import { createKernel } from '../server/create.ts';
-import { invalidSignatureResponse } from '../server/web-bot-auth.ts';
+import { compact } from "../core/compact.ts";
+import { createKernel } from "../server/create.ts";
+import { invalidSignatureResponse } from "../server/web-bot-auth.ts";
 
 /**
  * The verified Supabase Auth access-token payload as `@supabase/server`
@@ -106,7 +106,7 @@ export type SupabaseMiddlewarePermDock<
   V extends PolicyVocabulary = PolicyVocabulary,
 > = {
   readonly withPermDock: Middleware<
-    'permdock',
+    "permdock",
     WithPermDockConfig | undefined,
     SupabaseMiddlewareContext,
     PermDock<V>
@@ -136,7 +136,7 @@ export function createPermDock<
         // SAFETY: the kernel passes it to core createPermDock, which accepts TUser, a Subject or null.
         options.subject(contextFor(request), request) as TUser | Promise<TUser>,
       tenant:
-        typeof tenantOption === 'function'
+        typeof tenantOption === "function"
           ? (
               request: Request,
             ): string | undefined | Promise<string | undefined> =>
@@ -152,7 +152,7 @@ export function createPermDock<
       limits: options.limits,
       pdp: options.pdp,
       webBotAuth: options.webBotAuth,
-      adapter: 'supabase-middleware',
+      adapter: "supabase-middleware",
       wrap: options.otel,
     }),
   );
@@ -163,12 +163,12 @@ export function createPermDock<
   };
 
   const withPermDock = defineMiddleware<
-    'permdock',
+    "permdock",
     WithPermDockConfig | undefined,
     SupabaseMiddlewareContext,
     PermDock<V>
   >({
-    key: 'permdock',
+    key: "permdock",
     run:
       (config) =>
       async (
@@ -207,15 +207,15 @@ export function createPermDock<
     return (request, ctx): Promise<Response> => {
       bind(request, ctx);
       switch (request.method) {
-        case 'POST':
+        case "POST":
           return POST(request);
-        case 'GET':
+        case "GET":
           return GET(request);
         default:
           return Promise.resolve(
             new Response(null, {
               status: 405,
-              headers: { Allow: 'GET, POST' },
+              headers: { Allow: "GET, POST" },
             }),
           );
       }

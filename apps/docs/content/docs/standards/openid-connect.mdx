@@ -43,14 +43,18 @@ flowchart LR
 ### Discovery in `permdock/jwt`
 
 ```ts
-import { createJwtSubjectResolver } from 'permdock/jwt'
+import { createJwtSubjectResolver } from "permdock/jwt";
 
 const resolve = createJwtSubjectResolver({
-  discovery: 'https://login.example.com',        // fetches /.well-known/openid-configuration, then RFC 8414
-  audience: 'https://api.example.com',
-  algorithms: ['ES256', 'PS256', 'Ed25519'],
-  claims: { id: 'sub', roles: 'roles', assurance: { acr: 'acr', amr: 'amr', authTime: 'auth_time' } },
-})
+  discovery: "https://login.example.com", // fetches /.well-known/openid-configuration, then RFC 8414
+  audience: "https://api.example.com",
+  algorithms: ["ES256", "PS256", "Ed25519"],
+  claims: {
+    id: "sub",
+    roles: "roles",
+    assurance: { acr: "acr", amr: "amr", authTime: "auth_time" },
+  },
+});
 ```
 
 `discovery` replaces `jwks` and `issuer`: the resolver fetches the document lazily, requires `issuer` in the document to equal the configured issuer byte for byte (Discovery section 4.3), takes `jwks_uri` from it, and caches both under the JWKS cache rules. Fetching happens in the resolver, never in `decide` ([invariant 15](/docs/security/threat-model)). A document served over plain HTTP, with a mismatched `issuer`, or without `jwks_uri` is a configuration error reported once by `permdock doctor`; tokens resolve to anonymous until it is fixed. Full option list on the [JWT adapter](/docs/adapters/jwt).
@@ -61,22 +65,22 @@ const resolve = createJwtSubjectResolver({
 
 ### Claims that reach the principal
 
-| OIDC claim | PermDock field | Rule |
-| --- | --- | --- |
-| `sub` | `principal.id` | Opaque string; compared byte for byte; never a display name or email |
-| `iss` | `principal.issuer` | Always set by `permdock/jwt` and the provider adapters; audit events carry `issuer` next to `id` |
-| `aud`, `azp` | Verified, not stored | `aud` must contain `audience`; with `accept: 'id-token'` and several audiences, `azp` must equal the client id |
-| `exp`, `session_expiry` | `subject.expiresAt` | `min(exp, session_expiry)`; copied into the snapshot |
-| `iat`, `nbf` | Verified, not stored | Within `clockTolerance` |
-| `acr` | `principal.assurance.acr` | The authentication context class reference, compared as an opaque string against the policy's step-up conditions |
-| `amr` | `principal.assurance.amr` | Array of RFC 8176 method names (`pwd`, `otp`, `hwk`, `mfa`); conditions may require a member |
-| `auth_time` | `principal.assurance.authTime` | Seconds since the epoch; the input to `max_age` style conditions |
-| `sid` | `subject.session` | Session identifier, used to match a later `logout_token` or CAEP `session-revoked` event to the snapshot |
-| `nonce` | Rejected on access tokens | Its presence is one of the signals for `wrong-token-type` |
-| `roles`, `groups`, `entitlements` | `principal.roles`, `principal.memberships` | RFC 9068 claim names and SCIM encoding ([JWT authorization claims](/docs/standards/jwt-authorization-claims)) |
-| `org_id`, `tid`, `hd`, `org_code` | `principal.tenant` | No standard claim exists; the provider page names the claim; a tenant with no matching membership is no tenant |
-| `verified_claims` | `principal.assurance.verified` | OpenID Connect for Identity Assurance 1.0: one object or an array, normalised to an array of `{ verification, claims }` kept as the issuer sent them and frozen. An entry without `verification.trust_framework` or a `claims` object, or with a `__proto__`, `constructor` or `prototype` key anywhere, is dropped. Conditions read it as a ref (`principal.assurance.verified['0'].verification.trust_framework`); PermDock never interprets the evidence. Path option `claims.assurance.verified` (default `verified_claims`) |
-| `email`, `name`, `picture` | Nowhere | The provider owns them; conditions do not need them ([subject](/docs/concepts/subject)) |
+| OIDC claim                        | PermDock field                             | Rule                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| --------------------------------- | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sub`                             | `principal.id`                             | Opaque string; compared byte for byte; never a display name or email                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `iss`                             | `principal.issuer`                         | Always set by `permdock/jwt` and the provider adapters; audit events carry `issuer` next to `id`                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `aud`, `azp`                      | Verified, not stored                       | `aud` must contain `audience`; with `accept: 'id-token'` and several audiences, `azp` must equal the client id                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `exp`, `session_expiry`           | `subject.expiresAt`                        | `min(exp, session_expiry)`; copied into the snapshot                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `iat`, `nbf`                      | Verified, not stored                       | Within `clockTolerance`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `acr`                             | `principal.assurance.acr`                  | The authentication context class reference, compared as an opaque string against the policy's step-up conditions                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `amr`                             | `principal.assurance.amr`                  | Array of RFC 8176 method names (`pwd`, `otp`, `hwk`, `mfa`); conditions may require a member                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `auth_time`                       | `principal.assurance.authTime`             | Seconds since the epoch; the input to `max_age` style conditions                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `sid`                             | `subject.session`                          | Session identifier, used to match a later `logout_token` or CAEP `session-revoked` event to the snapshot                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `nonce`                           | Rejected on access tokens                  | Its presence is one of the signals for `wrong-token-type`                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `roles`, `groups`, `entitlements` | `principal.roles`, `principal.memberships` | RFC 9068 claim names and SCIM encoding ([JWT authorization claims](/docs/standards/jwt-authorization-claims))                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `org_id`, `tid`, `hd`, `org_code` | `principal.tenant`                         | No standard claim exists; the provider page names the claim; a tenant with no matching membership is no tenant                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `verified_claims`                 | `principal.assurance.verified`             | OpenID Connect for Identity Assurance 1.0: one object or an array, normalised to an array of `{ verification, claims }` kept as the issuer sent them and frozen. An entry without `verification.trust_framework` or a `claims` object, or with a `__proto__`, `constructor` or `prototype` key anywhere, is dropped. Conditions read it as a ref (`principal.assurance.verified['0'].verification.trust_framework`); PermDock never interprets the evidence. Path option `claims.assurance.verified` (default `verified_claims`) |
+| `email`, `name`, `picture`        | Nowhere                                    | The provider owns them; conditions do not need them ([subject](/docs/concepts/subject))                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 
 `user_metadata`-style claims that the End-User can edit are never mapped to roles or memberships ([authentication](/docs/concepts/authentication)).
 
@@ -94,22 +98,22 @@ It does not run the authorization code flow, exchange codes, refresh tokens, ver
 
 ## Mapping table
 
-| OpenID Connect concept | PermDock concept |
-| --- | --- |
-| OpenID Provider | The issuer configured through `discovery`; `principal.issuer` |
-| Relying Party / resource server | The application running `createPermDock`; `permdock/jwt` is its token-to-subject step |
-| End-User | `principal` with `kind: 'user'` |
-| Client (`azp`, `client_id`) | `actor` when it differs from the subject and acts under a delegation; otherwise verified and dropped |
-| ID token | Accepted only with `accept: 'id-token'`; never as authorization for an API |
-| Access token (RFC 9068 `at+jwt`) | The default input to `subjectFromJwt` |
-| Discovery document | Source of `jwks_uri` and `issuer`; cached with the JWKS |
-| `acr`, `amr`, `auth_time` | `principal.assurance.{acr, amr, authTime}` |
-| `verified_claims` | `principal.assurance.verified` |
-| RFC 9470 step-up challenge | `denied` with reason `insufficient-user-authentication`, rendered as `WWW-Authenticate` |
-| `sid` | `subject.session`; the join key for logout and CAEP events |
-| Back-Channel Logout `logout_token` | Revocation input to `permdock/ssf` |
-| Public vs pairwise `sub` | Documented on the provider page; grants and audit key on `issuer` + `id` either way, with no sector marker on the principal |
-| Federation entity statements | Tracking: candidate trust mechanism for `permdock/pdp` |
+| OpenID Connect concept             | PermDock concept                                                                                                            |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| OpenID Provider                    | The issuer configured through `discovery`; `principal.issuer`                                                               |
+| Relying Party / resource server    | The application running `createPermDock`; `permdock/jwt` is its token-to-subject step                                       |
+| End-User                           | `principal` with `kind: 'user'`                                                                                             |
+| Client (`azp`, `client_id`)        | `actor` when it differs from the subject and acts under a delegation; otherwise verified and dropped                        |
+| ID token                           | Accepted only with `accept: 'id-token'`; never as authorization for an API                                                  |
+| Access token (RFC 9068 `at+jwt`)   | The default input to `subjectFromJwt`                                                                                       |
+| Discovery document                 | Source of `jwks_uri` and `issuer`; cached with the JWKS                                                                     |
+| `acr`, `amr`, `auth_time`          | `principal.assurance.{acr, amr, authTime}`                                                                                  |
+| `verified_claims`                  | `principal.assurance.verified`                                                                                              |
+| RFC 9470 step-up challenge         | `denied` with reason `insufficient-user-authentication`, rendered as `WWW-Authenticate`                                     |
+| `sid`                              | `subject.session`; the join key for logout and CAEP events                                                                  |
+| Back-Channel Logout `logout_token` | Revocation input to `permdock/ssf`                                                                                          |
+| Public vs pairwise `sub`           | Documented on the provider page; grants and audit key on `issuer` + `id` either way, with no sector marker on the principal |
+| Federation entity statements       | Tracking: candidate trust mechanism for `permdock/pdp`                                                                      |
 
 ## Sources
 

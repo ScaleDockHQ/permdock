@@ -10,54 +10,68 @@ Hono is the reference HTTP adapter because it already speaks Fetch, runs on Node
 ## API
 
 ```ts
-import { Hono } from 'hono'
-import { createPermDock, discoverViaSignatureAgent, verifyWebBotAuth } from 'permdock/hono'
-import { policy } from './policy'
-import { permissions } from './permissions'
+import { Hono } from "hono";
+import {
+  createPermDock,
+  discoverViaSignatureAgent,
+  verifyWebBotAuth,
+} from "permdock/hono";
+import { policy } from "./policy";
+import { permissions } from "./permissions";
 
 export const { permdock, protect } = createPermDock(policy, {
-  subject: (c) => c.get('user'),
-  webBotAuth: (request) => verifyWebBotAuth(request, {
-    keys: discoverViaSignatureAgent({ allow: ['agents.example.com'] }),
-  }),
-})
+  subject: (c) => c.get("user"),
+  webBotAuth: (request) =>
+    verifyWebBotAuth(request, {
+      keys: discoverViaSignatureAgent({ allow: ["agents.example.com"] }),
+    }),
+});
 
-const app = new Hono<Env>()
-app.use(permdock())                                      // c.get('permdock') is the request-scoped PermDock
-app.delete('/posts/:id', protect(permissions.post.delete, (c) => loadPost(c.req.param('id'))), handler)
+const app = new Hono<Env>();
+app.use(permdock()); // c.get('permdock') is the request-scoped PermDock
+app.delete(
+  "/posts/:id",
+  protect(permissions.post.delete, (c) => loadPost(c.req.param("id"))),
+  handler,
+);
 // deny → 403 application/problem+json { type, title, permission, denials, alternatives }; approval-required → 403 with type .../approval-required
 // OpenAPI 3.2 `security`, `securitySchemes` (incl. oauth2MetadataUrl, deviceAuthorization, deprecated) emitted via the framework hook; registered x-oai-* fallbacks (plus x-permdock-oauth2MetadataUrl) for 3.1
 // Optional Web Bot Auth verification (RFC 9421) fills `actor` for agent callers
 ```
 
-| Export | Role |
-|---|---|
-| `permdock()` | Middleware. Resolves the subject with the `subject` option (receives the Hono context `c`), builds the instance through the kernel and sets it as `c.set('permdock', instance)`. It returns `MiddlewareHandler<PermDockEnv>`, and Hono merges that `Variables` type into the route's Env, so `c.get('permdock')` is typed without global module augmentation and without a factory generic. |
-| `protect(permission, loadData?, options?)` | Route middleware. The `tenant` option (`(c) => c.req.param('org')`) is resolved for each `protect`, where route params exist. For instance actions `loadData(c)` runs first; the result is available to the handler as `c.get('permdockData')` and validated at the boundary if the loader is marked untrusted. Denials short-circuit with a Problem Details response. |
-| `permdockHandler()` | Mounts the AuthZEN-shaped decision endpoint (`POST /`) for `permdock/react` clients on any sub-app: `app.route('/api/permdock', permdockHandler())`. |
-| `openapi` | Kernel hook contract, used by the two integrations below. |
+| Export                                     | Role                                                                                                                                                                                                                                                                                                                                                                                        |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `permdock()`                               | Middleware. Resolves the subject with the `subject` option (receives the Hono context `c`), builds the instance through the kernel and sets it as `c.set('permdock', instance)`. It returns `MiddlewareHandler<PermDockEnv>`, and Hono merges that `Variables` type into the route's Env, so `c.get('permdock')` is typed without global module augmentation and without a factory generic. |
+| `protect(permission, loadData?, options?)` | Route middleware. The `tenant` option (`(c) => c.req.param('org')`) is resolved for each `protect`, where route params exist. For instance actions `loadData(c)` runs first; the result is available to the handler as `c.get('permdockData')` and validated at the boundary if the loader is marked untrusted. Denials short-circuit with a Problem Details response.                      |
+| `permdockHandler()`                        | Mounts the AuthZEN-shaped decision endpoint (`POST /`) for `permdock/react` clients on any sub-app: `app.route('/api/permdock', permdockHandler())`.                                                                                                                                                                                                                                        |
+| `openapi`                                  | Kernel hook contract, used by the two integrations below.                                                                                                                                                                                                                                                                                                                                   |
 
 ### OpenAPI hooks
 
 With `hono-openapi`:
 
 ```ts
-import { describeRoute } from 'hono-openapi'
-app.delete('/posts/:id',
-  describeRoute({ ...openapi.security(permissions.post.delete), description: 'Delete a post' }),
-  protect(permissions.post.delete, (c) => loadPost(c.req.param('id'))),
+import { describeRoute } from "hono-openapi";
+app.delete(
+  "/posts/:id",
+  describeRoute({
+    ...openapi.security(permissions.post.delete),
+    description: "Delete a post",
+  }),
+  protect(permissions.post.delete, (c) => loadPost(c.req.param("id"))),
   handler,
-)
+);
 ```
 
 With `@hono/zod-openapi`:
 
 ```ts
 const route = createRoute({
-  method: 'delete', path: '/posts/{id}',
+  method: "delete",
+  path: "/posts/{id}",
   security: openapi.security(permissions.post.delete).security,
   responses: { 403: openapi.problemResponse() },
-})
+});
 ```
 
 `openapi.securitySchemes()` returns the `oauth2` scheme with every `scope` from `listPermissions(permissions)`, plus `oauth2MetadataUrl` and `deviceAuthorization` when configured. Emitted documents target OpenAPI 3.2; for a 3.1 document `deviceAuthorization` and `deprecated` are written under the registered `x-oai-deviceAuthorization` / `x-oai-deviceAuthorizationUrl` / `x-oai-deprecated` extensions and `oauth2MetadataUrl` under `x-permdock-oauth2MetadataUrl` (see [OpenAPI registries](/docs/standards/openapi-registry)). `permdock openapi` in the CLI reads the same hook output to check that every protected route is documented.
@@ -67,24 +81,43 @@ const route = createRoute({
 `connection(c, options?)` opens a kernel [`Connection`](/docs/adapters/server-kernel#connections) for the request behind `c`; pass `revocations` to `createPermDock` so revoked sessions and membership changes reach it. `sse(conn, stream, source, options?)` writes an async iterable to a `streamSSE` stream: items the subscriber cannot read under `options.items` are dropped (`unwrap` picks the row inside an envelope, `format` builds the frame), and when the connection aborts it writes `event: permdock` with the Problem Details body and resolves. Await it last in the callback, since `streamSSE` closes the stream when the callback returns. `socket(conn, events)` wraps `upgradeWebSocket` events so an abort closes the socket with `1008` and the Problem Details `type` as reason, and a closed socket closes the connection.
 
 ```ts
-const { protect, connection, sse, socket } = createPermDock(policy, { subject, revocations })
+const { protect, connection, sse, socket } = createPermDock(policy, {
+  subject,
+  revocations,
+});
 
-app.get('/projects/:id/events', protect(permissions.project.read, loadProject), async (c) => {
-  const conn = await connection(c, { permission: permissions.project.read, data: c.get('permdockData') })
-  return streamSSE(c, async (stream) => {
-    await sse(conn, stream, projectEvents(c.req.param('id'), conn.signal), { items: permissions.project.read })
-  })
-})
+app.get(
+  "/projects/:id/events",
+  protect(permissions.project.read, loadProject),
+  async (c) => {
+    const conn = await connection(c, {
+      permission: permissions.project.read,
+      data: c.get("permdockData"),
+    });
+    return streamSSE(c, async (stream) => {
+      await sse(conn, stream, projectEvents(c.req.param("id"), conn.signal), {
+        items: permissions.project.read,
+      });
+    });
+  },
+);
 
-app.get('/ws', upgradeWebSocket(async (c) => {
-  const conn = await connection(c)
-  return socket(conn, {
-    onMessage(event, ws) {
-      const decision = conn.check(permissions.post.update, JSON.parse(String(event.data)))
-      if (decision.outcome !== 'granted') ws.send(JSON.stringify({ denied: decision.denials }))
-    },
-  })
-}))
+app.get(
+  "/ws",
+  upgradeWebSocket(async (c) => {
+    const conn = await connection(c);
+    return socket(conn, {
+      onMessage(event, ws) {
+        const decision = conn.check(
+          permissions.post.update,
+          JSON.parse(String(event.data)),
+        );
+        if (decision.outcome !== "granted")
+          ws.send(JSON.stringify({ denied: decision.denials }));
+      },
+    });
+  }),
+);
 ```
 
 A denied message leaves the socket open; only a revocation, an expiry or a re-denied opening permission closes it.

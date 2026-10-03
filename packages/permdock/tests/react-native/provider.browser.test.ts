@@ -1,5 +1,5 @@
-import { type ReactNode, act, createElement } from 'react';
-import { createRoot, type Root } from 'react-dom/client';
+import { type ReactNode, act, createElement } from "react";
+import { createRoot, type Root } from "react-dom/client";
 import {
   afterEach,
   beforeAll,
@@ -8,14 +8,14 @@ import {
   expect,
   it,
   vi,
-} from 'vitest';
+} from "vitest";
 
-import type { NativeRevalidate } from '../../src/react-native/types.ts';
+import type { NativeRevalidate } from "../../src/react-native/types.ts";
 
-import { emptySnapshot } from '../../src/core/from-snapshot.ts';
-import { PermDockProvider } from '../../src/react-native/provider.tsx';
-import { memoryStorage } from '../../src/react-native/storage.ts';
-import { usePermDock } from '../../src/react/hooks.ts';
+import { emptySnapshot } from "../../src/core/from-snapshot.ts";
+import { PermDockProvider } from "../../src/react-native/provider.tsx";
+import { memoryStorage } from "../../src/react-native/storage.ts";
+import { usePermDock } from "../../src/react/hooks.ts";
 
 beforeAll(() => {
   // SAFETY: React reads this global flag to allow act() outside a test renderer.
@@ -39,7 +39,7 @@ afterEach(() => {
 });
 
 function mount(node: ReactNode): HTMLElement {
-  const host = document.createElement('div');
+  const host = document.createElement("div");
   const created = createRoot(host);
   root = created;
   act(() => {
@@ -83,28 +83,28 @@ function provider(
   });
 }
 
-describe('permdock/react-native PermDockProvider revalidation', () => {
-  it('refreshes once on launch by default', async () => {
+describe("permdock/react-native PermDockProvider revalidation", () => {
+  it("refreshes once on launch by default", async () => {
     const net = counter();
-    mount(provider(undefined, { fetch: net.fetch, snapshotUrl: '/snap' }));
+    mount(provider(undefined, { fetch: net.fetch, snapshotUrl: "/snap" }));
     await act(async () => {
       await vi.advanceTimersByTimeAsync(60_000);
     });
     expect(net.calls()).toBe(1);
   });
 
-  it('never refreshes without a snapshot URL', async () => {
+  it("never refreshes without a snapshot URL", async () => {
     const net = counter();
-    mount(provider('launch', { fetch: net.fetch }));
+    mount(provider("launch", { fetch: net.fetch }));
     await act(async () => {
       await vi.advanceTimersByTimeAsync(10_000);
     });
     expect(net.calls()).toBe(0);
   });
 
-  it('refreshes on an interval in seconds and stops on unmount', async () => {
+  it("refreshes on an interval in seconds and stops on unmount", async () => {
     const net = counter();
-    mount(provider(5, { fetch: net.fetch, snapshotUrl: '/snap' }));
+    mount(provider(5, { fetch: net.fetch, snapshotUrl: "/snap" }));
     await act(async () => {
       await vi.advanceTimersByTimeAsync(10_000);
     });
@@ -117,14 +117,14 @@ describe('permdock/react-native PermDockProvider revalidation', () => {
     expect(net.calls()).toBe(3);
   });
 
-  it('refreshes on each foreground event and unsubscribes on unmount', async () => {
+  it("refreshes on each foreground event and unsubscribes on unmount", async () => {
     const net = counter();
     let foreground: (() => void) | undefined;
     const unsubscribe = vi.fn<() => void>();
     mount(
-      provider('focus', {
+      provider("focus", {
         fetch: net.fetch,
-        snapshotUrl: '/snap',
+        snapshotUrl: "/snap",
         subscribeForeground: (listener) => {
           foreground = listener;
           return unsubscribe;
@@ -143,25 +143,25 @@ describe('permdock/react-native PermDockProvider revalidation', () => {
     expect(unsubscribe).toHaveBeenCalledOnce();
   });
 
-  it('refreshes once on focus mode without a foreground source', async () => {
+  it("refreshes once on focus mode without a foreground source", async () => {
     const net = counter();
-    mount(provider('focus', { fetch: net.fetch, snapshotUrl: '/snap' }));
+    mount(provider("focus", { fetch: net.fetch, snapshotUrl: "/snap" }));
     await act(async () => {
       await vi.advanceTimersByTimeAsync(10_000);
     });
     expect(net.calls()).toBe(1);
   });
 
-  it('marks the snapshot stale when the launch refresh fails', async () => {
+  it("marks the snapshot stale when the launch refresh fails", async () => {
     const host = mount(
-      provider('launch', {
-        snapshotUrl: '/snap',
-        fetch: () => Promise.reject(new Error('offline')),
+      provider("launch", {
+        snapshotUrl: "/snap",
+        fetch: () => Promise.reject(new Error("offline")),
       }),
     );
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
-    expect(host.textContent).toBe('stale');
+    expect(host.textContent).toBe("stale");
   });
 });

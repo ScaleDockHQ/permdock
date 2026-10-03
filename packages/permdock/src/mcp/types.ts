@@ -16,11 +16,11 @@ import type {
   ToolAnnotations,
   ToolCallback,
   Variables,
-} from '@modelcontextprotocol/server';
+} from "@modelcontextprotocol/server";
 
-import type { ApprovalStore } from '../approvals/types.ts';
-import type { ApprovalHint } from '../core/errors.ts';
-import type { PolicySource } from '../core/hosted.ts';
+import type { ApprovalStore } from "../approvals/types.ts";
+import type { ApprovalHint } from "../core/errors.ts";
+import type { PolicySource } from "../core/hosted.ts";
 import type {
   DecisionSink,
   EntitlementSource,
@@ -29,10 +29,10 @@ import type {
   RelationSource,
   RoleSource,
   SnapshotSource,
-} from '../core/interfaces.ts';
-import type { Permission } from '../core/permissions.ts';
-import type { Principal } from '../core/subject.ts';
-import type { OtelWrap } from '../otel/types.ts';
+} from "../core/interfaces.ts";
+import type { Permission } from "../core/permissions.ts";
+import type { Principal } from "../core/subject.ts";
+import type { OtelWrap } from "../otel/types.ts";
 
 /** The verified `AuthInfo` the MCP SDK's bearer auth puts on `ctx.http.authInfo`. */
 export type McpAuthInfo = {
@@ -102,7 +102,7 @@ export type McpPromptConfig<
 /** `McpServer` whose `register*` methods take a `permission` and decide first. */
 export type GuardedMcpServer = Omit<
   McpServer,
-  'registerTool' | 'registerResource' | 'registerPrompt'
+  "registerTool" | "registerResource" | "registerPrompt"
 > & {
   registerTool<
     TInput extends StandardSchemaWithJSON | undefined = undefined,

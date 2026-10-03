@@ -26,17 +26,22 @@ Everything else PermDock uses already existed in 3.1: `components.securityScheme
 - Resource schemas are exported through Standard JSON Schema into `components.schemas` when the validator supports it ([Standard Schema](/docs/standards/standard-schema)).
 
 ```ts
-import { createPermDock } from 'permdock/hono'
+import { createPermDock } from "permdock/hono";
 export const { permdock, protect, openapi } = createPermDock(policy, {
-  subject: (c) => c.get('user'),
+  subject: (c) => c.get("user"),
   openapi: {
-    target: '3.2',                      // '3.1' switches to the registered x-oai-* and x-permdock-* fallbacks
-    scheme: 'oauth',
-    oauth2MetadataUrl: 'https://auth.example.com/.well-known/oauth-authorization-server',
-    flows: ['authorizationCode', 'deviceAuthorization'],
+    target: "3.2", // '3.1' switches to the registered x-oai-* and x-permdock-* fallbacks
+    scheme: "oauth",
+    oauth2MetadataUrl:
+      "https://auth.example.com/.well-known/oauth-authorization-server",
+    flows: ["authorizationCode", "deviceAuthorization"],
   },
-})
-app.delete('/posts/:id', protect(permissions.post.delete, (c) => loadPost(c.req.param('id'))), handler)
+});
+app.delete(
+  "/posts/:id",
+  protect(permissions.post.delete, (c) => loadPost(c.req.param("id"))),
+  handler,
+);
 // operation: security: [{ oauth: ['post:delete'] }], x-permdock-permissions: ['post.delete']
 ```
 
@@ -44,13 +49,13 @@ app.delete('/posts/:id', protect(permissions.post.delete, (c) => loadPost(c.req.
 
 With `target: '3.1'` the emitter writes the same information through extensions, using a registered name whenever one exists:
 
-| 3.2 field | 3.1 fallback | Registered in the OAI Extension Registry |
-| --- | --- | --- |
-| `flows.deviceAuthorization` | `x-oai-deviceAuthorization` inside `flows` | yes |
-| `deviceAuthorizationUrl` inside that flow | `x-oai-deviceAuthorizationUrl` | yes |
-| `deprecated` on a security scheme | `x-oai-deprecated` | yes |
-| `oauth2MetadataUrl` | `x-permdock-oauth2MetadataUrl` | no `x-oai-*` extension is registered for it |
-| Scheme referenced by URI | Inlined into `components.securitySchemes` | not applicable |
+| 3.2 field                                 | 3.1 fallback                               | Registered in the OAI Extension Registry    |
+| ----------------------------------------- | ------------------------------------------ | ------------------------------------------- |
+| `flows.deviceAuthorization`               | `x-oai-deviceAuthorization` inside `flows` | yes                                         |
+| `deviceAuthorizationUrl` inside that flow | `x-oai-deviceAuthorizationUrl`             | yes                                         |
+| `deprecated` on a security scheme         | `x-oai-deprecated`                         | yes                                         |
+| `oauth2MetadataUrl`                       | `x-permdock-oauth2MetadataUrl`             | no `x-oai-*` extension is registered for it |
+| Scheme referenced by URI                  | Inlined into `components.securitySchemes`  | not applicable                              |
 
 PermDock never coins an `x-oai-*` name, because `oai` is reserved for the OpenAPI Initiative; everything else lives under `x-permdock-*` ([OpenAPI registries](/docs/standards/openapi-registry)). Scope and `x-permdock-permissions` output is identical in both versions, and the importer reads the native fields and every fallback.
 
@@ -60,18 +65,18 @@ PermDock never coins an `x-oai-*` name, because `oai` is reserved for the OpenAP
 
 ### Mapping table
 
-| OpenAPI concept | PermDock concept |
-| --- | --- |
-| `securitySchemes.<name>.flows.*.scopes` | `permission.scope` for every permission used by a guarded route |
-| Per-operation `security` | `protect(permission, ...)` on that route |
-| `security: []` | Route guarded by a permission every subject is granted: an unconditional allow to `anyone()` and no deny |
-| `oauth2MetadataUrl` | Adapter option (or `x-permdock-oauth2MetadataUrl` for 3.1) |
-| Device authorization flow | Adapter option `flows: ['deviceAuthorization']` (or the `x-oai-*` pair for 3.1) |
-| `deprecated` on a scheme | Adapter option `scheme.deprecated` (or `x-oai-deprecated` for 3.1) |
-| Scheme referenced by URI | Adapter option `schemeRef`; inlined for 3.1 |
-| `x-permdock-permissions` | Permission `key` list for the operation |
-| `components.schemas` | Standard JSON Schema export of resource schemas |
-| Imported `scopes` | Generated leaves with `scope` set |
+| OpenAPI concept                         | PermDock concept                                                                                         |
+| --------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `securitySchemes.<name>.flows.*.scopes` | `permission.scope` for every permission used by a guarded route                                          |
+| Per-operation `security`                | `protect(permission, ...)` on that route                                                                 |
+| `security: []`                          | Route guarded by a permission every subject is granted: an unconditional allow to `anyone()` and no deny |
+| `oauth2MetadataUrl`                     | Adapter option (or `x-permdock-oauth2MetadataUrl` for 3.1)                                               |
+| Device authorization flow               | Adapter option `flows: ['deviceAuthorization']` (or the `x-oai-*` pair for 3.1)                          |
+| `deprecated` on a scheme                | Adapter option `scheme.deprecated` (or `x-oai-deprecated` for 3.1)                                       |
+| Scheme referenced by URI                | Adapter option `schemeRef`; inlined for 3.1                                                              |
+| `x-permdock-permissions`                | Permission `key` list for the operation                                                                  |
+| `components.schemas`                    | Standard JSON Schema export of resource schemas                                                          |
+| Imported `scopes`                       | Generated leaves with `scope` set                                                                        |
 
 ## OpenAPI 3.3
 
@@ -110,20 +115,33 @@ Discussion #5304 has three parts (field names are the proposal's and may change;
         "type": "oauth2",
         "oauth2MetadataUrl": "https://auth.example.com/.well-known/oauth-authorization-server",
         "x-permdock-securityProfile": "fapi2",
-        "flows": { "authorizationCode": { "authorizationUrl": "https://auth.example.com/authorize", "tokenUrl": "https://auth.example.com/token", "scopes": { "post:delete": "Delete a post you own" } } }
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://auth.example.com/authorize",
+            "tokenUrl": "https://auth.example.com/token",
+            "scopes": { "post:delete": "Delete a post you own" }
+          }
+        }
       },
       "permdockFapi2": {
         "type": "profile",
         "profileMetadata": {
           "name": "fapi-20-security-profile",
           "supportedParametersSchema": "https://permdock.dev/schemas/security-profiles/fapi2.json",
-          "servers": [{ "name": "default", "url": "https://auth.example.com/.well-known/oauth-authorization-server" }]
+          "servers": [
+            {
+              "name": "default",
+              "url": "https://auth.example.com/.well-known/oauth-authorization-server"
+            }
+          ]
         }
       }
     },
     "securityProfileRequirements": {
       "permdockFapi2PostDelete": {
-        "securityScheme": { "$ref": "#/components/securitySchemes/permdockFapi2" },
+        "securityScheme": {
+          "$ref": "#/components/securitySchemes/permdockFapi2"
+        },
         "token_endpoint_auth_methods": ["private_key_jwt", "tls_client_auth"],
         "grant_types": ["authorization_code"],
         "scopes": ["post:delete"]
@@ -133,7 +151,10 @@ Discussion #5304 has three parts (field names are the proposal's and may change;
   "x-permdock-catalog": {
     "v": 1,
     "generator": "permdock/openapi",
-    "drafts": { "oas": "3.3-dev@<commit>", "securityProfiles": "oai-discussion-5304@2026-09-01" }
+    "drafts": {
+      "oas": "3.3-dev@<commit>",
+      "securityProfiles": "oai-discussion-5304@2026-09-01"
+    }
   }
 }
 ```

@@ -1,10 +1,10 @@
-import { readable, toStore, type Readable } from 'svelte/store';
+import { readable, toStore, type Readable } from "svelte/store";
 
-import type { Decision } from '../core/decision.ts';
-import type { Permission } from '../core/permissions.ts';
-import type { Membership } from '../core/subject.ts';
-import type { Role } from '../core/vocabulary.ts';
-import type { ClientStore } from '../react/store.ts';
+import type { Decision } from "../core/decision.ts";
+import type { Permission } from "../core/permissions.ts";
+import type { Membership } from "../core/subject.ts";
+import type { Role } from "../core/vocabulary.ts";
+import type { ClientStore } from "../react/store.ts";
 import type {
   ApprovalHandle,
   ApprovalState,
@@ -15,10 +15,10 @@ import type {
   SubjectView,
   TenantView,
   UseRolesOptions,
-} from './types.ts';
-import type { PermDockSvelteOptions } from './types.ts';
+} from "./types.ts";
+import type { PermDockSvelteOptions } from "./types.ts";
 
-import { getStore, providePermDock } from './context.ts';
+import { getStore, providePermDock } from "./context.ts";
 
 // Recomputes on a store change and, in the browser build, when a rune read
 // inside `compute` (a `data`, `rows` or `options` getter) changes.
@@ -97,7 +97,7 @@ export function permissionsFor(
     };
     return new Proxy(base, {
       get(target, prop, receiver): unknown {
-        if (typeof prop === 'string' && Object.hasOwn(byKey, prop)) {
+        if (typeof prop === "string" && Object.hasOwn(byKey, prop)) {
           return byKey[prop];
         }
         return Reflect.get(target, prop, receiver);
@@ -107,7 +107,7 @@ export function permissionsFor(
 }
 
 export function filtered<T>(
-  reference: Permission<string, T, 'instance'>,
+  reference: Permission<string, T, "instance">,
   rows: () => readonly T[],
 ): Readable<FilterResult<T>> {
   return filteredFor(getStore(), reference, rows);
@@ -115,7 +115,7 @@ export function filtered<T>(
 
 export function filteredFor<T>(
   store: ClientStore,
-  reference: Permission<string, T, 'instance'>,
+  reference: Permission<string, T, "instance">,
   rows: () => readonly T[],
 ): Readable<FilterResult<T>> {
   return fromStore(store, () => {
@@ -208,9 +208,9 @@ export function subjectFor(store: ClientStore): Readable<SubjectView> {
     const permdock = store.get();
     const snapshot = permdock.snapshot();
     const simulated =
-      typeof snapshot === 'object' &&
+      typeof snapshot === "object" &&
       snapshot !== null &&
-      'simulated' in snapshot &&
+      "simulated" in snapshot &&
       snapshot.simulated === true;
     return {
       principal: permdock.subject.principal,
@@ -235,7 +235,7 @@ export function approvalFor(
     const state: ApprovalState = store.approvalState(next);
     return {
       state,
-      token: next.outcome === 'approval-required' ? next.token : undefined,
+      token: next.outcome === "approval-required" ? next.token : undefined,
       request: (note?: string) => store.requestApproval(next, note),
     };
   });

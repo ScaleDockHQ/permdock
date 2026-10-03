@@ -1,5 +1,5 @@
 ---
-'permdock': patch
+"permdock": patch
 ---
 
 RLS CLI fixes found by the coverage suite:

@@ -1,11 +1,11 @@
-import type { StandardSchemaV1 } from '@standard-schema/spec';
+import type { StandardSchemaV1 } from "@standard-schema/spec";
 
-import type { CatalogSchemaNode } from './schema.ts';
-import type { CatalogDocument } from './types.ts';
+import type { CatalogSchemaNode } from "./schema.ts";
+import type { CatalogDocument } from "./types.ts";
 
-import { PermDockValidationError } from '../core/errors.ts';
-import { freezeDeep } from '../core/freeze.ts';
-import { catalogSchema } from './schema.ts';
+import { PermDockValidationError } from "../core/errors.ts";
+import { freezeDeep } from "../core/freeze.ts";
+import { catalogSchema } from "./schema.ts";
 
 type Path = readonly PropertyKey[];
 type Issues = StandardSchemaV1.Issue[];
@@ -15,7 +15,7 @@ function issue(issues: Issues, path: Path, message: string): void {
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 /**
@@ -31,23 +31,23 @@ function copyJson(
 ): unknown {
   if (
     value === null ||
-    typeof value === 'string' ||
-    typeof value === 'boolean'
+    typeof value === "string" ||
+    typeof value === "boolean"
   ) {
     return value;
   }
-  if (typeof value === 'number') {
+  if (typeof value === "number") {
     if (!Number.isFinite(value)) {
-      issue(issues, path, 'Expected a finite number');
+      issue(issues, path, "Expected a finite number");
     }
     return value;
   }
-  if (typeof value !== 'object') {
+  if (typeof value !== "object") {
     issue(issues, path, `Expected JSON, got ${typeof value}`);
     return undefined;
   }
   if (ancestors.has(value)) {
-    issue(issues, path, 'Expected JSON, got a cycle');
+    issue(issues, path, "Expected JSON, got a cycle");
     return undefined;
   }
   ancestors.add(value);
@@ -59,7 +59,7 @@ function copyJson(
     }
     const proto: unknown = Object.getPrototypeOf(value);
     if (proto !== Object.prototype && proto !== null) {
-      issue(issues, path, 'Expected a plain object');
+      issue(issues, path, "Expected a plain object");
       return undefined;
     }
     return Object.fromEntries(
@@ -74,19 +74,19 @@ function copyJson(
 }
 
 function typeMatches(
-  type: NonNullable<CatalogSchemaNode['type']>,
+  type: NonNullable<CatalogSchemaNode["type"]>,
   value: unknown,
 ): boolean {
   switch (type) {
-    case 'object':
+    case "object":
       return isRecord(value);
-    case 'array':
+    case "array":
       return Array.isArray(value);
-    case 'string':
-      return typeof value === 'string';
-    case 'boolean':
-      return typeof value === 'boolean';
-    case 'integer':
+    case "string":
+      return typeof value === "string";
+    case "boolean":
+      return typeof value === "boolean";
+    case "integer":
       return Number.isInteger(value);
     default: {
       const unreachable: never = type;
@@ -102,7 +102,7 @@ function checkSchema(
   path: Path,
   issues: Issues,
 ): void {
-  if ('const' in node && value !== node.const) {
+  if ("const" in node && value !== node.const) {
     issue(issues, path, `Expected ${JSON.stringify(node.const)}`);
     return;
   }
@@ -110,7 +110,7 @@ function checkSchema(
     issue(
       issues,
       path,
-      `Expected one of ${node.enum.map((item) => JSON.stringify(item)).join(', ')}`,
+      `Expected one of ${node.enum.map((item) => JSON.stringify(item)).join(", ")}`,
     );
     return;
   }
@@ -120,14 +120,14 @@ function checkSchema(
   }
   if (
     node.pattern !== undefined &&
-    typeof value === 'string' &&
-    !new RegExp(node.pattern, 'u').test(value)
+    typeof value === "string" &&
+    !new RegExp(node.pattern, "u").test(value)
   ) {
     issue(issues, path, `Expected a string matching ${node.pattern}`);
   }
   if (
     node.minimum !== undefined &&
-    typeof value === 'number' &&
+    typeof value === "number" &&
     value < node.minimum
   ) {
     issue(issues, path, `Expected at least ${String(node.minimum)}`);
@@ -139,7 +139,7 @@ function checkSchema(
       return scratch.length === 0;
     }).length;
     if (matches !== 1) {
-      issue(issues, path, 'Expected exactly one matching form');
+      issue(issues, path, "Expected exactly one matching form");
     }
   }
   if (Array.isArray(value) && node.items !== undefined) {
@@ -152,7 +152,7 @@ function checkSchema(
   }
   for (const key of node.required ?? []) {
     if (!Object.hasOwn(value, key)) {
-      issue(issues, [...path, key], 'Required');
+      issue(issues, [...path, key], "Required");
     }
   }
   const properties = node.properties ?? {};
@@ -170,17 +170,17 @@ function invalid(issues: readonly StandardSchemaV1.Issue[]): never {
   const [first] = issues;
   const where =
     first?.path === undefined || first.path.length === 0
-      ? ''
-      : ` at ${first.path.map(String).join('.')}`;
+      ? ""
+      : ` at ${first.path.map(String).join(".")}`;
   const more =
-    issues.length > 1 ? ` (and ${String(issues.length - 1)} more)` : '';
+    issues.length > 1 ? ` (and ${String(issues.length - 1)} more)` : "";
   throw new PermDockValidationError({
-    code: 'invalid-data',
-    permission: '',
-    resource: '',
-    boundary: 'catalog',
+    code: "invalid-data",
+    permission: "",
+    resource: "",
+    boundary: "catalog",
     issues,
-    message: `PermDock: invalid catalog${where}: ${first?.message ?? 'unknown'}${more}`,
+    message: `PermDock: invalid catalog${where}: ${first?.message ?? "unknown"}${more}`,
   });
 }
 
@@ -192,7 +192,7 @@ function invalid(issues: readonly StandardSchemaV1.Issue[]): never {
 export function parseCatalog(json: unknown): CatalogDocument {
   const issues: Issues = [];
   let input = json;
-  if (typeof json === 'string') {
+  if (typeof json === "string") {
     try {
       input = JSON.parse(json);
     } catch (error) {

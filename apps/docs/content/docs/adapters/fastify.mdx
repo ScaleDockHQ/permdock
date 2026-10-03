@@ -10,42 +10,57 @@ Fastify's plugin system, request decorators and typed route generics map cleanly
 ## API
 
 ```ts
-import Fastify from 'fastify'
-import { createPermDock } from 'permdock/fastify'
-import { policy } from './policy'
-import { permissions } from './permissions'
+import Fastify from "fastify";
+import { createPermDock } from "permdock/fastify";
+import { policy } from "./policy";
+import { permissions } from "./permissions";
 
-export const { permdock, protect } = createPermDock(policy, { subject: (request) => request.user ?? null })
+export const { permdock, protect } = createPermDock(policy, {
+  subject: (request) => request.user ?? null,
+});
 
-const app = Fastify()
-await app.register(permdock)                                             // request.permdock is the request-scoped PermDock
+const app = Fastify();
+await app.register(permdock); // request.permdock is the request-scoped PermDock
 
-app.delete<{ Params: { id: string } }>('/posts/:id', {
-  preHandler: protect(permissions.post.delete, (request) => loadPost(request.params.id)),
-  schema: { security: openapi.security(permissions.post.delete).security },   // @fastify/swagger
-}, async (request, reply) => {
-  await deletePost(request.permdockData)
-  return reply.code(204).send()
-})
+app.delete<{ Params: { id: string } }>(
+  "/posts/:id",
+  {
+    preHandler: protect(permissions.post.delete, (request) =>
+      loadPost(request.params.id),
+    ),
+    schema: { security: openapi.security(permissions.post.delete).security }, // @fastify/swagger
+  },
+  async (request, reply) => {
+    await deletePost(request.permdockData);
+    return reply.code(204).send();
+  },
+);
 ```
 
-| Export | Role |
-|---|---|
-| `permdock` | Plugin (wrapped with `fastify-plugin` so decorators are visible to the parent scope). Adds `request.permdock` and registers an error handler mapping PermDock errors to Problem Details. Any other error goes to the error handler that was in place before, so an app's own `setErrorHandler` keeps working. |
+| Export                                     | Role                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `permdock`                                 | Plugin (wrapped with `fastify-plugin` so decorators are visible to the parent scope). Adds `request.permdock` and registers an error handler mapping PermDock errors to Problem Details. Any other error goes to the error handler that was in place before, so an app's own `setErrorHandler` keeps working.                                                                                                                                                                                            |
 | `protect(permission, loadData?, options?)` | `preHandler` hook. The `tenant` option (`(request) => request.params.org`) is resolved for each `protect`. Generic over the route, schema and type provider (`protect<Route, Schema, Provider>`): route generics infer from the `preHandler` slot, so `request.params` and `request.body` keep their types inside `loadData` (permix's Elysia and Fastify guards lost route typing). With a zod or TypeBox type provider, pass the provider explicitly or read the body in the handler; see [Why](#why). |
-| `permdockHandler` | Plugin mounting the AuthZEN-shaped decision endpoint: `app.register(permdockHandler, { prefix: '/api/permdock' })`. |
-| `withPermDock(handler)` | Wraps a route handler registered after `permdock` or `protect` and types `request.permdock` with the policy's roles, plans and permissions. Generic over the route, like `protect`. The adapter does not augment `FastifyRequest`, for the reason the [Express adapter](/docs/adapters/express) gives. |
-| `openapi` | Kernel hook contract; feeds `@fastify/swagger` route `schema.security` and the document-level `securitySchemes`. |
+| `permdockHandler`                          | Plugin mounting the AuthZEN-shaped decision endpoint: `app.register(permdockHandler, { prefix: '/api/permdock' })`.                                                                                                                                                                                                                                                                                                                                                                                      |
+| `withPermDock(handler)`                    | Wraps a route handler registered after `permdock` or `protect` and types `request.permdock` with the policy's roles, plans and permissions. Generic over the route, like `protect`. The adapter does not augment `FastifyRequest`, for the reason the [Express adapter](/docs/adapters/express) gives.                                                                                                                                                                                                   |
+| `openapi`                                  | Kernel hook contract; feeds `@fastify/swagger` route `schema.security` and the document-level `securitySchemes`.                                                                                                                                                                                                                                                                                                                                                                                         |
 
 ### Encapsulation
 
 Fastify plugins are encapsulated by default. `permdock` is wrapped with `fastify-plugin` so the decorator and error handler are visible to the registering scope and its children; registering it once on the root instance covers every route. Apps that want different policies per prefix register the plugin from a second `createPermDock` result inside a child scope, and `request.permdock` is typed per scope through Fastify's declaration merging on the plugin's generic rather than a global `FastifyRequest` augmentation.
 
 ```ts
-await app.register(async (admin) => {
-  await admin.register(adminPermdock)          // a second factory with a stricter policy
-  admin.get('/audit', { preHandler: adminProtect(permissions.audit.read) }, listAudit)
-}, { prefix: '/admin' })
+await app.register(
+  async (admin) => {
+    await admin.register(adminPermdock); // a second factory with a stricter policy
+    admin.get(
+      "/audit",
+      { preHandler: adminProtect(permissions.audit.read) },
+      listAudit,
+    );
+  },
+  { prefix: "/admin" },
+);
 ```
 
 ## Request lifecycle

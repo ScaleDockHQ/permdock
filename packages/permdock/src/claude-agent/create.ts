@@ -1,6 +1,6 @@
-import type { ToolMap, ToolVerdict } from '../agent/types.ts';
-import type { ApprovalStore } from '../approvals/types.ts';
-import type { PolicySource } from '../core/hosted.ts';
+import type { ToolMap, ToolVerdict } from "../agent/types.ts";
+import type { ApprovalStore } from "../approvals/types.ts";
+import type { PolicySource } from "../core/hosted.ts";
 import type {
   DecisionSink,
   EntitlementSource,
@@ -9,13 +9,13 @@ import type {
   RelationSource,
   RoleSource,
   SnapshotSource,
-} from '../core/interfaces.ts';
-import type { PermDock } from '../core/permdock.ts';
-import type { Policy, PolicyVocabulary } from '../core/policy.ts';
-import type { Delegation, Principal } from '../core/subject.ts';
+} from "../core/interfaces.ts";
+import type { PermDock } from "../core/permdock.ts";
+import type { Policy, PolicyVocabulary } from "../core/policy.ts";
+import type { Delegation, Principal } from "../core/subject.ts";
 
-import { createAgentKernel } from '../agent/kernel.ts';
-import { compact } from '../core/compact.ts';
+import { createAgentKernel } from "../agent/kernel.ts";
+import { compact } from "../core/compact.ts";
 
 /** Structural `McpServerProvenance` from `@anthropic-ai/claude-agent-sdk`. */
 export type ClaudeMcpServer = {
@@ -64,10 +64,10 @@ export type ClaudeAgentPermDockOptions<TUser = unknown> = {
 
 export type PermissionResult =
   | {
-      readonly behavior: 'allow';
+      readonly behavior: "allow";
       readonly updatedInput: Record<string, unknown>;
     }
-  | { readonly behavior: 'deny'; readonly message: string };
+  | { readonly behavior: "deny"; readonly message: string };
 
 /** Structural `canUseTool` options from `@anthropic-ai/claude-agent-sdk`. */
 export type CanUseToolOptions = {
@@ -90,7 +90,7 @@ export type PermissionRequestHookInput = {
 export type PermissionRequestHookOutput =
   | {
       readonly hookSpecificOutput: {
-        readonly hookEventName: 'PermissionRequest';
+        readonly hookEventName: "PermissionRequest";
         readonly decision: PermissionResult;
       };
     }
@@ -113,10 +113,10 @@ export type ClaudeAgentPermDock<V extends PolicyVocabulary = PolicyVocabulary> =
     readonly permdock: (context: ClaudeAgentContext) => Promise<PermDock<V>>;
   };
 
-const MCP_PREFIX = 'mcp__';
+const MCP_PREFIX = "mcp__";
 
 function asInput(input: unknown): Record<string, unknown> {
-  if (input !== null && typeof input === 'object' && !Array.isArray(input)) {
+  if (input !== null && typeof input === "object" && !Array.isArray(input)) {
     // SAFETY: checked just above to be a non-null, non-array object.
     return input as Record<string, unknown>;
   }
@@ -144,14 +144,14 @@ function untrustedServer(
 }
 
 function toResult(verdict: ToolVerdict, input: unknown): PermissionResult {
-  if (verdict.outcome === 'granted') {
-    return { behavior: 'allow', updatedInput: asInput(input) };
+  if (verdict.outcome === "granted") {
+    return { behavior: "allow", updatedInput: asInput(input) };
   }
-  if (verdict.outcome === 'denied') {
-    return { behavior: 'deny', message: verdict.reason };
+  if (verdict.outcome === "denied") {
+    return { behavior: "deny", message: verdict.reason };
   }
   return {
-    behavior: 'deny',
+    behavior: "deny",
     message: `${verdict.summary} Approval ${verdict.token} is pending; retry the call once it is approved.`,
   };
 }
@@ -164,7 +164,7 @@ export function createPermDock<
   policy: Policy<TUser, TPrincipal, V>,
   options: ClaudeAgentPermDockOptions<TUser>,
 ): ClaudeAgentPermDock<V> {
-  const sources = options.mcpSources ?? ['sdk'];
+  const sources = options.mcpSources ?? ["sdk"];
   const kernel = createAgentKernel<ClaudeAgentContext, TUser, V>(policy, {
     ...compact({
       actor: options.actor,
@@ -182,7 +182,7 @@ export function createPermDock<
     }),
     subject: options.subject,
     tools: options.tools,
-    adapter: 'claude-agent',
+    adapter: "claude-agent",
   });
 
   const decide = async (
@@ -191,7 +191,7 @@ export function createPermDock<
   ): Promise<PermissionResult> => {
     const untrusted = untrustedServer(context, sources);
     if (untrusted !== undefined) {
-      return { behavior: 'deny', message: untrusted };
+      return { behavior: "deny", message: untrusted };
     }
     const verdict = await kernel.decideTool(context.toolName, input, context);
     return toResult(verdict, input);
@@ -215,8 +215,8 @@ export function createPermDock<
     input: PermissionRequestHookInput,
   ): Promise<PermissionRequestHookOutput> => {
     if (
-      input.hook_event_name !== 'PermissionRequest' ||
-      typeof input.tool_name !== 'string'
+      input.hook_event_name !== "PermissionRequest" ||
+      typeof input.tool_name !== "string"
     ) {
       return {};
     }
@@ -230,7 +230,7 @@ export function createPermDock<
       input.tool_input,
     );
     return {
-      hookSpecificOutput: { hookEventName: 'PermissionRequest', decision },
+      hookSpecificOutput: { hookEventName: "PermissionRequest", decision },
     };
   };
 

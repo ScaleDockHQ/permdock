@@ -1,13 +1,13 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { usePermission } from 'permdock/react';
-import { use } from 'react';
+import Link from "next/link";
+import { usePermission } from "permdock/react";
+import { use } from "react";
 
-import type { OrgView } from '../../lib/access.ts';
-import type { NavItem } from '../../nav.ts';
+import type { OrgView } from "../../lib/access.ts";
+import type { NavItem } from "../../nav.ts";
 
-import { navItems } from '../../nav.ts';
+import { navItems } from "../../nav.ts";
 
 export function NavSkeleton() {
   return (
@@ -36,7 +36,7 @@ function Item(props: { readonly item: NavItem; readonly org: OrgView }) {
       </li>
     );
   }
-  if (props.item.pro === true && props.org.plan !== 'pro') {
+  if (props.item.pro === true && props.org.plan !== "pro") {
     return (
       <li data-upsell={props.item.id}>{props.item.label}: upgrade to Pro</li>
     );

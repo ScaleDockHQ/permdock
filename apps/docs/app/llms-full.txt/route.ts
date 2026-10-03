@@ -1,11 +1,11 @@
-import { cacheLife } from 'next/cache';
+import { cacheLife } from "next/cache";
 
-import { markdownHeaders } from '@/lib/shared';
-import { docsLlms } from '@/lib/source';
+import { markdownHeaders } from "@/lib/shared";
+import { docsLlms } from "@/lib/source";
 
 async function llmsFull(): Promise<string> {
-  'use cache';
-  cacheLife('max');
+  "use cache";
+  cacheLife("max");
   return docsLlms.full();
 }
 

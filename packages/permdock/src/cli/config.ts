@@ -1,13 +1,13 @@
-import { existsSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
 
-import type { PermDockConfig } from './types.ts';
+import type { PermDockConfig } from "./types.ts";
 
 const CONFIG_FILES = [
-  'permdock.config.ts',
-  'permdock.config.mts',
-  'permdock.config.js',
-  'permdock.config.mjs',
+  "permdock.config.ts",
+  "permdock.config.mts",
+  "permdock.config.js",
+  "permdock.config.mjs",
 ] as const;
 
 export function defineConfig<T extends PermDockConfig>(config: T): T {
@@ -30,10 +30,10 @@ export async function loadConfig(
     throw new Error(`PermDock CLI: config file not found: ${path}`);
   }
   // Lazy: jiti and the core load only when there is a config file to read.
-  const { loadModule, pickNamed } = await import('./load.ts');
+  const { loadModule, pickNamed } = await import("./load.ts");
   const mod = await loadModule(path);
-  const value = pickNamed(mod, ['default']);
-  if (value === null || typeof value !== 'object') {
+  const value = pickNamed(mod, ["default"]);
+  if (value === null || typeof value !== "object") {
     return {};
   }
   // SAFETY: the project's own permdock config default export, checked to be an object above.

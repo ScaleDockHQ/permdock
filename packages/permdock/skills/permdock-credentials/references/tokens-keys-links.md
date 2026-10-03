@@ -5,11 +5,11 @@ Owning pages: [JWT adapter](https://permdock.dev/docs/adapters/jwt), [authentica
 ## Access tokens — `permdock/jwt`
 
 ```ts
-import { subjectFromJwt } from 'permdock/jwt';
+import { subjectFromJwt } from "permdock/jwt";
 
 const subject = await subjectFromJwt(token, {
-  discovery: 'https://issuer.example.com',
-  audience: 'https://api.example.com',
+  discovery: "https://issuer.example.com",
+  audience: "https://api.example.com",
 });
 ```
 
@@ -22,22 +22,22 @@ const subject = await subjectFromJwt(token, {
 ## API keys and service accounts
 
 ```ts
-import { decideCredential } from 'permdock';
-import { generateApiKey, hashApiKey } from 'permdock/server';
+import { decideCredential } from "permdock";
+import { generateApiKey, hashApiKey } from "permdock/server";
 
 const decision = await decideCredential(
   permdock,
   {
-    kind: 'service', // or 'user'
-    id: 'svc_01J8',
-    tenant: 'o_1',
-    roles: ['developer'],
+    kind: "service", // or 'user'
+    id: "svc_01J8",
+    tenant: "o_1",
+    roles: ["developer"],
     permissions: [permissions.repo.read],
     expiresAt: Math.floor(Date.now() / 1000) + 30 * 86_400,
   },
   { settings },
 );
-if (decision.outcome === 'granted') {
+if (decision.outcome === "granted") {
   const key = generateApiKey(decision.credential.id);
   await db.insert(apiKeys).values({
     id: decision.credential.id,
@@ -56,7 +56,7 @@ if (decision.outcome === 'granted') {
 Resolve keys on each request:
 
 ```ts
-import { apiKeyVerifier, subjectFromApiKey } from 'permdock/server';
+import { apiKeyVerifier, subjectFromApiKey } from "permdock/server";
 
 const resolveKey = subjectFromApiKey({
   verifier: apiKeyVerifier({ find: (id) => findKeyRow(id) }), // returns { credential, hash }
@@ -75,11 +75,11 @@ Never pass a `memberships` source to `createPermDock` for a service-key subject:
 ## Share links
 
 ```ts
-import { signCapability } from 'permdock';
-import { subjectFromCapability } from 'permdock/jwt';
+import { signCapability } from "permdock";
+import { subjectFromCapability } from "permdock/jwt";
 
 // Declare the link's roles on the resource
-role('guest', [allow(permissions.quote.read, { where: { status: 'sent' } })], {
+role("guest", [allow(permissions.quote.read, { where: { status: "sent" } })], {
   on: permissions.quote,
 });
 
@@ -88,7 +88,7 @@ const token = await signCapability(
   {
     id: linkId,
     on: { resource: permissions.quote, id: quote.id },
-    roles: ['guest'],
+    roles: ["guest"],
     expiresAt,
   },
   signer,
@@ -114,12 +114,12 @@ const subject = await subjectFromCapability(token, {
 With Supabase, let RLS serve the link through an exchange, never the link token itself:
 
 ```ts
-import { exchangeCapability } from 'permdock/supabase';
+import { exchangeCapability } from "permdock/supabase";
 
 const accessToken = await exchangeCapability(subject, {
   key: signingJwk,
-  alg: 'ES256',
-  kid: 'permdock-links',
+  alg: "ES256",
+  kid: "permdock-links",
   ttl: 300,
 });
 ```

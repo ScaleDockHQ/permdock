@@ -1,5 +1,5 @@
 ---
-'permdock': patch
+"permdock": patch
 ---
 
 One name per concept, and the policy vocabulary reaches every handler.

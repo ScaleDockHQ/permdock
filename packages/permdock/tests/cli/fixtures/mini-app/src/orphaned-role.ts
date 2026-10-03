@@ -1,5 +1,5 @@
-import { allow, role } from 'permdock';
+import { allow, role } from "permdock";
 
-import { permissions } from './permissions.ts';
+import { permissions } from "./permissions.ts";
 
-export const finance = role('finance', [allow(permissions.post.publish)]);
+export const finance = role("finance", [allow(permissions.post.publish)]);

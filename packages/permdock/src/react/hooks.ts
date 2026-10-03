@@ -1,11 +1,11 @@
-import { use, useMemo, useSyncExternalStore } from 'react';
+import { use, useMemo, useSyncExternalStore } from "react";
 
-import type { Decision } from '../core/decision.ts';
-import type { Permission } from '../core/permissions.ts';
-import type { PolicyVocabulary } from '../core/policy.ts';
-import type { Membership } from '../core/subject.ts';
-import type { Role } from '../core/vocabulary.ts';
-import type { ClientStore } from './store.ts';
+import type { Decision } from "../core/decision.ts";
+import type { Permission } from "../core/permissions.ts";
+import type { PolicyVocabulary } from "../core/policy.ts";
+import type { Membership } from "../core/subject.ts";
+import type { Role } from "../core/vocabulary.ts";
+import type { ClientStore } from "./store.ts";
 import type {
   ApprovalHandle,
   ApprovalState,
@@ -16,17 +16,17 @@ import type {
   SubjectView,
   TenantView,
   UseRolesOptions,
-} from './types.ts';
+} from "./types.ts";
 
 import {
   PermDockSnapshotPromiseContext,
   PermDockStoreContext,
-} from './context.ts';
+} from "./context.ts";
 
 function useStore(): ClientStore {
   const store = use(PermDockStoreContext);
   if (store === null) {
-    throw new Error('PermDock: hooks require <PermDockProvider>.');
+    throw new Error("PermDock: hooks require <PermDockProvider>.");
   }
   const pending = use(PermDockSnapshotPromiseContext);
   if (pending !== null) {
@@ -91,7 +91,7 @@ export function usePermissions(
     };
     return new Proxy(base, {
       get(target, prop, receiver): unknown {
-        if (typeof prop === 'string' && Object.hasOwn(byKey, prop)) {
+        if (typeof prop === "string" && Object.hasOwn(byKey, prop)) {
           return byKey[prop];
         }
         return Reflect.get(target, prop, receiver);
@@ -101,7 +101,7 @@ export function usePermissions(
 }
 
 export function useFilter<T>(
-  permission: Permission<string, T, 'instance'>,
+  permission: Permission<string, T, "instance">,
   rows: readonly T[],
 ): FilterResult<T> {
   const permdock = usePermDock();
@@ -155,9 +155,9 @@ export function useSubject(): SubjectView {
   const permdock = usePermDock();
   const snapshot = permdock.snapshot();
   const simulated =
-    typeof snapshot === 'object' &&
+    typeof snapshot === "object" &&
     snapshot !== null &&
-    'simulated' in snapshot &&
+    "simulated" in snapshot &&
     snapshot.simulated === true;
   return {
     principal: permdock.subject.principal,
@@ -179,7 +179,7 @@ export function useApproval(decision: Decision): ApprovalHandle {
   return {
     state,
     token:
-      decision.outcome === 'approval-required' ? decision.token : undefined,
+      decision.outcome === "approval-required" ? decision.token : undefined,
     request: (note?: string) => store.requestApproval(decision, note),
   };
 }

@@ -1,7 +1,7 @@
-import type { Membership } from 'permdock';
-import type { SaasOrg, SaasPlan, SaasProject } from 'permdock/testing/saas';
+import type { Membership } from "permdock";
+import type { SaasOrg, SaasPlan, SaasProject } from "permdock/testing/saas";
 
-import { saasSeed } from 'permdock/testing/saas';
+import { saasSeed } from "permdock/testing/saas";
 
 type MemberRow = {
   readonly user: string;
@@ -19,7 +19,7 @@ type Store = {
   versions: Map<string, number>;
 };
 
-const ORG_IDS: ReadonlySet<string> = new Set(['acme', 'globex']);
+const ORG_IDS: ReadonlySet<string> = new Set(["acme", "globex"]);
 
 function seed(): Store {
   return {
@@ -51,7 +51,7 @@ function seed(): Store {
   };
 }
 
-const KEY = Symbol.for('permdock.e2e.saas-kit.store');
+const KEY = Symbol.for("permdock.e2e.saas-kit.store");
 
 // One store per server process: frameworks may load this module more than once.
 function store(): Store {

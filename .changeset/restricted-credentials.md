@@ -1,5 +1,5 @@
 ---
-'permdock': minor
+"permdock": minor
 ---
 
 Restricted API keys and service accounts. An API key is an opaque `pdk_<id>_<secret>`; the application stores its SHA-256 hash (`hashApiKey`) next to a `Credential` (v1) record and never the key (`generateApiKey`, `parseApiKey`). A `user` credential acts as its owner with the owner's live roles and memberships, narrowed to the key's permissions through `delegation` (OAuth scopes, and RFC 9396 `authorizationDetails` with an `identifier` per resource id), so a demoted owner's keys lose the same rights at once. A `service` credential is a `kind: 'service'` principal whose only membership is `{ tenant, roles, via: 'credential' }`.

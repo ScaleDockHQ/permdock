@@ -1,37 +1,37 @@
-import { ArrowRightIcon } from 'lucide-react';
+import { ArrowRightIcon } from "lucide-react";
 
-import { ButtonLink } from '@/components/site/button-link';
-import { site } from '@/lib/site';
-import { heroSnippet } from '@/lib/snippets';
-import { Badge } from '@permdock/ui/reui/badge';
+import { ButtonLink } from "@/components/site/button-link";
+import { site } from "@/lib/site";
+import { heroSnippet } from "@/lib/snippets";
+import { Badge } from "@permdock/ui/reui/badge";
 import {
   CodeBlock,
   CodeBlockCopyButton,
-} from '@permdock/ui/reui/code-block/code-block';
+} from "@permdock/ui/reui/code-block/code-block";
 
-import { InstallCopy } from './install-copy';
+import { InstallCopy } from "./install-copy";
 
 export function HomeHero() {
   return (
     <section
       id="hero"
-      className="bg-background flex w-full items-center justify-center px-4 py-16 sm:px-6 lg:px-20"
+      className="flex w-full items-center justify-center bg-background px-4 py-16 sm:px-6 lg:px-20"
     >
       <div className="mx-auto flex w-full max-w-4xl flex-col items-center gap-8">
         <Badge variant="outline" size="xl" radius="full" className="h-7">
           <span
             aria-hidden="true"
-            className="bg-success size-1.5 shrink-0 rounded-full"
+            className="size-1.5 shrink-0 rounded-full bg-success"
           />
           Open source. MIT. In-process.
         </Badge>
-        <h1 className="text-foreground max-w-3xl text-center text-4xl font-semibold text-balance sm:text-5xl lg:text-6xl">
-          Typed permissions for TypeScript apps,{' '}
+        <h1 className="max-w-3xl text-center text-4xl font-semibold text-balance text-foreground sm:text-5xl lg:text-6xl">
+          Typed permissions for TypeScript apps,{" "}
           <span className="text-muted-foreground">
             APIs, databases, and AI agents.
           </span>
         </h1>
-        <p className="text-muted-foreground max-w-xl text-center text-base leading-7">
+        <p className="max-w-xl text-center text-base leading-7 text-muted-foreground">
           Define once. Check in React, Next.js, Hono, MCP and the Vercel AI SDK.
           The same conditions compile to SQL and Postgres RLS.
         </p>
@@ -48,11 +48,11 @@ export function HomeHero() {
           <InstallCopy command={site.install} />
           <a
             href={site.npm}
-            className="text-muted-foreground hover:text-foreground text-sm underline-offset-4 hover:underline"
+            className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
           >
             npm
           </a>
-          <span className="text-muted-foreground text-sm">MIT</span>
+          <span className="text-sm text-muted-foreground">MIT</span>
         </div>
         <div className="w-full max-w-2xl">
           <CodeBlock

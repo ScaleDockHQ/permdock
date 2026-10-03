@@ -1,22 +1,22 @@
-import { mkdirSync, rmSync } from 'node:fs';
-import path from 'node:path';
-import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
+import { mkdirSync, rmSync } from "node:fs";
+import path from "node:path";
+import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 
-import type { TokenSource } from '../../src/terminal/types.ts';
+import type { TokenSource } from "../../src/terminal/types.ts";
 
 import {
   readCredentials,
   writeCredentials,
-} from '../../src/terminal/storage.ts';
+} from "../../src/terminal/storage.ts";
 import {
   looksLikeJwt,
   profileFromArgv,
   resolveToken,
   warnJwtInArgv,
-} from '../../src/terminal/token.ts';
-import { fakeFetch, json } from '../fakes/fetch.ts';
+} from "../../src/terminal/token.ts";
+import { fakeFetch, json } from "../fakes/fetch.ts";
 
-const root = path.join(import.meta.dirname, '../../tmp/terminal-token');
+const root = path.join(import.meta.dirname, "../../tmp/terminal-token");
 let counter = 0;
 
 function configDir(): string {
@@ -36,168 +36,168 @@ afterEach(() => {
 
 const silent = (): void => undefined;
 
-describe('token helpers', () => {
-  it('recognises JWT-shaped values', () => {
+describe("token helpers", () => {
+  it("recognises JWT-shaped values", () => {
     expect([
-      looksLikeJwt('a.b.c'),
-      looksLikeJwt('a.b'),
-      looksLikeJwt('a.b.c d'),
+      looksLikeJwt("a.b.c"),
+      looksLikeJwt("a.b"),
+      looksLikeJwt("a.b.c d"),
     ]).toEqual([true, false, false]);
   });
 
-  it('warns once for any number of JWT-shaped arguments', () => {
+  it("warns once for any number of JWT-shaped arguments", () => {
     const lines: string[] = [];
-    warnJwtInArgv(['a.b.c', 'd.e.f'], (text) => {
+    warnJwtInArgv(["a.b.c", "d.e.f"], (text) => {
       lines.push(text);
     });
-    warnJwtInArgv(['plain'], (text) => {
+    warnJwtInArgv(["plain"], (text) => {
       lines.push(text);
     });
     expect(lines.length).toBe(1);
   });
 
-  it('reads --as from argv', () => {
+  it("reads --as from argv", () => {
     expect([
-      profileFromArgv(['--as', 'work']),
-      profileFromArgv(['--json']),
-      profileFromArgv(['--as']),
-      profileFromArgv(['--as', '-y']),
-    ]).toEqual(['work', undefined, undefined, undefined]);
+      profileFromArgv(["--as", "work"]),
+      profileFromArgv(["--json"]),
+      profileFromArgv(["--as"]),
+      profileFromArgv(["--as", "-y"]),
+    ]).toEqual(["work", undefined, undefined, undefined]);
   });
 });
 
-describe('resolveToken env', () => {
-  it('reads PERMDOCK_TOKEN, a named variable, and skips empty values', async () => {
+describe("resolveToken env", () => {
+  it("reads PERMDOCK_TOKEN, a named variable, and skips empty values", async () => {
     const runtime = {
-      env: { PERMDOCK_TOKEN: 'default', CUSTOM: 'named', EMPTY: '' },
+      env: { PERMDOCK_TOKEN: "default", CUSTOM: "named", EMPTY: "" },
     };
     const resolve = (sources: readonly TokenSource[]) =>
-      resolveToken(sources, { profile: 'default', runtime, write: silent });
+      resolveToken(sources, { profile: "default", runtime, write: silent });
     expect([
-      await resolve(['env']),
-      await resolve([{ env: 'CUSTOM' }]),
-      await resolve([{ source: 'env', env: 'CUSTOM' }]),
-      await resolve([{ env: 'EMPTY' }]),
-      await resolve([{ env: 'MISSING' }]),
-    ]).toEqual(['default', 'named', 'named', null, null]);
+      await resolve(["env"]),
+      await resolve([{ env: "CUSTOM" }]),
+      await resolve([{ source: "env", env: "CUSTOM" }]),
+      await resolve([{ env: "EMPTY" }]),
+      await resolve([{ env: "MISSING" }]),
+    ]).toEqual(["default", "named", "named", null, null]);
   });
 
-  it('falls back to process.env', async () => {
-    vi.stubEnv('PERMDOCK_TOKEN', 'from-process');
+  it("falls back to process.env", async () => {
+    vi.stubEnv("PERMDOCK_TOKEN", "from-process");
     expect(
-      await resolveToken(['env'], {
-        profile: 'default',
+      await resolveToken(["env"], {
+        profile: "default",
         runtime: {},
         write: silent,
       }),
-    ).toBe('from-process');
+    ).toBe("from-process");
   });
 
-  it('walks only the forced source', async () => {
+  it("walks only the forced source", async () => {
     expect(
-      await resolveToken(['env'], {
-        profile: 'default',
-        runtime: { env: { PERMDOCK_TOKEN: 'x' } },
+      await resolveToken(["env"], {
+        profile: "default",
+        runtime: { env: { PERMDOCK_TOKEN: "x" } },
         write: silent,
-        force: 'keychain',
+        force: "keychain",
       }),
     ).toBeNull();
   });
 });
 
-describe('resolveToken keychain', () => {
-  it('skips the keychain without storage or a stored credential', async () => {
+describe("resolveToken keychain", () => {
+  it("skips the keychain without storage or a stored credential", async () => {
     const dir = configDir();
     expect([
-      await resolveToken(['keychain'], {
-        profile: 'default',
+      await resolveToken(["keychain"], {
+        profile: "default",
         runtime: { configDir: dir },
         write: silent,
       }),
-      await resolveToken(['keychain'], {
-        profile: 'default',
-        storage: { service: 'acme' },
+      await resolveToken(["keychain"], {
+        profile: "default",
+        storage: { service: "acme" },
         runtime: { configDir: dir },
         write: silent,
       }),
     ]).toEqual([null, null]);
   });
 
-  it('returns an unexpired credential and skips an expired one without a device', async () => {
+  it("returns an unexpired credential and skips an expired one without a device", async () => {
     const dir = configDir();
-    const storage = { service: 'acme' };
+    const storage = { service: "acme" };
     writeCredentials(
       storage,
-      'live',
-      { access_token: 'live', expires_at: 2000 },
+      "live",
+      { access_token: "live", expires_at: 2000 },
       { configDir: dir },
     );
     writeCredentials(
       storage,
-      'expired',
-      { access_token: 'old', expires_at: 1000 },
+      "expired",
+      { access_token: "old", expires_at: 1000 },
       { configDir: dir },
     );
     const runtime = { configDir: dir, now: () => 1500 };
     expect([
-      await resolveToken(['keychain'], {
-        profile: 'live',
+      await resolveToken(["keychain"], {
+        profile: "live",
         storage,
         runtime,
         write: silent,
       }),
-      await resolveToken(['keychain', { env: 'NEXT' }], {
-        profile: 'expired',
+      await resolveToken(["keychain", { env: "NEXT" }], {
+        profile: "expired",
         storage,
-        runtime: { ...runtime, env: { NEXT: 'fallback' } },
+        runtime: { ...runtime, env: { NEXT: "fallback" } },
         write: silent,
       }),
-    ]).toEqual(['live', 'fallback']);
+    ]).toEqual(["live", "fallback"]);
   });
 
-  it('refreshes an expired credential and stores the new one', async () => {
+  it("refreshes an expired credential and stores the new one", async () => {
     const dir = configDir();
-    const storage = { service: 'acme' };
+    const storage = { service: "acme" };
     writeCredentials(
       storage,
-      'default',
-      { access_token: 'old', refresh_token: 'rt', expires_at: 1000 },
+      "default",
+      { access_token: "old", refresh_token: "rt", expires_at: 1000 },
       { configDir: dir },
     );
     const fake = fakeFetch(() =>
-      json({ access_token: 'fresh', refresh_token: 'rt2', expires_in: 60 }),
+      json({ access_token: "fresh", refresh_token: "rt2", expires_in: 60 }),
     );
     const runtime = { configDir: dir, now: () => 1500, fetch: fake.fetch };
-    const token = await resolveToken(['keychain'], {
-      profile: 'default',
+    const token = await resolveToken(["keychain"], {
+      profile: "default",
       storage,
-      device: { clientId: 'cli', tokenEndpoint: 'https://auth.test/token' },
+      device: { clientId: "cli", tokenEndpoint: "https://auth.test/token" },
       runtime,
       write: silent,
     });
-    expect(token).toBe('fresh');
-    expect(readCredentials(storage, 'default', runtime)?.access_token).toBe(
-      'fresh',
+    expect(token).toBe("fresh");
+    expect(readCredentials(storage, "default", runtime)?.access_token).toBe(
+      "fresh",
     );
   });
 
-  it('moves on when the refresh fails', async () => {
+  it("moves on when the refresh fails", async () => {
     const dir = configDir();
-    const storage = { service: 'acme' };
+    const storage = { service: "acme" };
     writeCredentials(
       storage,
-      'default',
-      { access_token: 'old', refresh_token: 'rt', expires_at: 1000 },
+      "default",
+      { access_token: "old", refresh_token: "rt", expires_at: 1000 },
       { configDir: dir },
     );
-    const token = await resolveToken(['keychain'], {
-      profile: 'default',
+    const token = await resolveToken(["keychain"], {
+      profile: "default",
       storage,
-      device: { clientId: 'cli', tokenEndpoint: 'https://auth.test/token' },
+      device: { clientId: "cli", tokenEndpoint: "https://auth.test/token" },
       runtime: {
         configDir: dir,
         now: () => 1500,
-        fetch: fakeFetch(() => json({ error: 'invalid_grant' }, 400)).fetch,
+        fetch: fakeFetch(() => json({ error: "invalid_grant" }, 400)).fetch,
       },
       write: silent,
     });
@@ -205,61 +205,61 @@ describe('resolveToken keychain', () => {
   });
 });
 
-describe('resolveToken ci-oidc', () => {
-  it('reads CI_JOB_JWT_V2 before GitHub Actions', async () => {
-    const fake = fakeFetch(() => json({ value: 'gha' }));
+describe("resolveToken ci-oidc", () => {
+  it("reads CI_JOB_JWT_V2 before GitHub Actions", async () => {
+    const fake = fakeFetch(() => json({ value: "gha" }));
     expect(
-      await resolveToken(['ci-oidc'], {
-        profile: 'default',
+      await resolveToken(["ci-oidc"], {
+        profile: "default",
         runtime: {
           env: {
-            CI_JOB_JWT_V2: 'gitlab',
-            ACTIONS_ID_TOKEN_REQUEST_URL: 'https://gha.test/oidc',
-            ACTIONS_ID_TOKEN_REQUEST_TOKEN: 'rt',
+            CI_JOB_JWT_V2: "gitlab",
+            ACTIONS_ID_TOKEN_REQUEST_URL: "https://gha.test/oidc",
+            ACTIONS_ID_TOKEN_REQUEST_TOKEN: "rt",
           },
           fetch: fake.fetch,
         },
         write: silent,
       }),
-    ).toBe('gitlab');
+    ).toBe("gitlab");
     expect(fake.calls.length).toBe(0);
   });
 
-  it('returns null for an empty named variable, a bad body, a network error or no CI', async () => {
+  it("returns null for an empty named variable, a bad body, a network error or no CI", async () => {
     const env = {
-      ACTIONS_ID_TOKEN_REQUEST_URL: 'https://gha.test/oidc',
-      ACTIONS_ID_TOKEN_REQUEST_TOKEN: 'rt',
-      EMPTY: '',
-      CI_JOB_JWT_V2: '',
+      ACTIONS_ID_TOKEN_REQUEST_URL: "https://gha.test/oidc",
+      ACTIONS_ID_TOKEN_REQUEST_TOKEN: "rt",
+      EMPTY: "",
+      CI_JOB_JWT_V2: "",
     };
     const results = [
-      await resolveToken([{ source: 'ci-oidc', env: 'EMPTY' }], {
-        profile: 'default',
+      await resolveToken([{ source: "ci-oidc", env: "EMPTY" }], {
+        profile: "default",
         runtime: { env },
         write: silent,
       }),
-      await resolveToken(['ci-oidc'], {
-        profile: 'default',
+      await resolveToken(["ci-oidc"], {
+        profile: "default",
         runtime: { env, fetch: fakeFetch(() => json({ value: 1 })).fetch },
         write: silent,
       }),
-      await resolveToken(['ci-oidc'], {
-        profile: 'default',
+      await resolveToken(["ci-oidc"], {
+        profile: "default",
         runtime: { env, fetch: fakeFetch(() => json(null)).fetch },
         write: silent,
       }),
-      await resolveToken(['ci-oidc'], {
-        profile: 'default',
+      await resolveToken(["ci-oidc"], {
+        profile: "default",
         runtime: {
           env,
           fetch: fakeFetch(() => {
-            throw new Error('down');
+            throw new Error("down");
           }).fetch,
         },
         write: silent,
       }),
-      await resolveToken(['ci-oidc'], {
-        profile: 'default',
+      await resolveToken(["ci-oidc"], {
+        profile: "default",
         runtime: { env: {} },
         write: silent,
       }),
@@ -268,20 +268,20 @@ describe('resolveToken ci-oidc', () => {
   });
 });
 
-describe('resolveToken device', () => {
+describe("resolveToken device", () => {
   const device = {
-    clientId: 'cli',
-    authorizationEndpoint: 'https://auth.test/device',
-    tokenEndpoint: 'https://auth.test/token',
+    clientId: "cli",
+    authorizationEndpoint: "https://auth.test/device",
+    tokenEndpoint: "https://auth.test/token",
   };
 
   function deviceFetch(token: () => Response) {
     return fakeFetch((call) =>
-      call.url.endsWith('/device')
+      call.url.endsWith("/device")
         ? json({
-            device_code: 'dc',
-            user_code: 'CODE',
-            verification_uri: 'https://auth.test/verify',
+            device_code: "dc",
+            user_code: "CODE",
+            verification_uri: "https://auth.test/verify",
             expires_in: 60,
             interval: 1,
           })
@@ -289,21 +289,21 @@ describe('resolveToken device', () => {
     );
   }
 
-  it('skips the device source without device options', async () => {
+  it("skips the device source without device options", async () => {
     expect(
-      await resolveToken(['device'], {
-        profile: 'default',
+      await resolveToken(["device"], {
+        profile: "default",
         runtime: {},
         write: silent,
       }),
     ).toBeNull();
   });
 
-  it('returns the device token without storing it when there is no storage', async () => {
-    const fake = deviceFetch(() => json({ access_token: 'device' }));
+  it("returns the device token without storing it when there is no storage", async () => {
+    const fake = deviceFetch(() => json({ access_token: "device" }));
     expect(
-      await resolveToken(['device'], {
-        profile: 'default',
+      await resolveToken(["device"], {
+        profile: "default",
         device,
         runtime: {
           fetch: fake.fetch,
@@ -312,38 +312,38 @@ describe('resolveToken device', () => {
         },
         write: silent,
       }),
-    ).toBe('device');
+    ).toBe("device");
   });
 
-  it('moves on when the device flow is denied', async () => {
-    const fake = deviceFetch(() => json({ error: 'access_denied' }, 400));
+  it("moves on when the device flow is denied", async () => {
+    const fake = deviceFetch(() => json({ error: "access_denied" }, 400));
     expect(
-      await resolveToken(['device', { env: 'NEXT' }], {
-        profile: 'default',
+      await resolveToken(["device", { env: "NEXT" }], {
+        profile: "default",
         device,
         runtime: {
-          env: { NEXT: 'next' },
+          env: { NEXT: "next" },
           fetch: fake.fetch,
           sleep: async () => undefined,
           now: () => 0,
         },
         write: silent,
       }),
-    ).toBe('next');
+    ).toBe("next");
   });
 
-  it('polls on real timers when no sleep is injected', async () => {
+  it("polls on real timers when no sleep is injected", async () => {
     vi.useFakeTimers();
     try {
-      const fake = deviceFetch(() => json({ access_token: 'device' }));
-      const pending = resolveToken(['device'], {
-        profile: 'default',
+      const fake = deviceFetch(() => json({ access_token: "device" }));
+      const pending = resolveToken(["device"], {
+        profile: "default",
         device,
         runtime: { fetch: fake.fetch, now: () => 0 },
         write: silent,
       });
       await vi.advanceTimersByTimeAsync(1000);
-      expect(await pending).toBe('device');
+      expect(await pending).toBe("device");
     } finally {
       vi.useRealTimers();
     }

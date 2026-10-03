@@ -1,7 +1,7 @@
 name: RFC
 description: Propose a public API, wire-format, or CLI change
-title: 'rfc: '
-labels: ['rfc']
+title: "rfc: "
+labels: ["rfc"]
 body:
   - type: markdown
     attributes:

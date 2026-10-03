@@ -1,43 +1,43 @@
-import type { StandardSchemaV1 } from '@standard-schema/spec';
+import type { StandardSchemaV1 } from "@standard-schema/spec";
 
 import type {
   AuthEvent,
   JwtClaims,
   TokenFailureCause,
   TokenVerifier,
-} from '../core/interfaces.ts';
-import type { Principal, Subject } from '../core/subject.ts';
-import type { JoseTokenVerifierOptions } from './types.ts';
+} from "../core/interfaces.ts";
+import type { Principal, Subject } from "../core/subject.ts";
+import type { JoseTokenVerifierOptions } from "./types.ts";
 
-import { compact } from '../core/compact.ts';
-import { freezeDeep } from '../core/freeze.ts';
-import { anonymousSubject } from '../core/subject.ts';
-import { decodeHeader } from './header.ts';
-import { validateCustomClaims } from './map-claims.ts';
-import { joseTokenVerifier } from './verifier.ts';
+import { compact } from "../core/compact.ts";
+import { freezeDeep } from "../core/freeze.ts";
+import { anonymousSubject } from "../core/subject.ts";
+import { decodeHeader } from "./header.ts";
+import { validateCustomClaims } from "./map-claims.ts";
+import { joseTokenVerifier } from "./verifier.ts";
 
-export type CiOidcProvider = 'github' | 'gitlab' | 'buildkite';
+export type CiOidcProvider = "github" | "gitlab" | "buildkite";
 
 const PROVIDERS: Readonly<
   Record<CiOidcProvider, { readonly issuer: string; readonly jwks: string }>
 > = {
   github: {
-    issuer: 'https://token.actions.githubusercontent.com',
-    jwks: 'https://token.actions.githubusercontent.com/.well-known/jwks',
+    issuer: "https://token.actions.githubusercontent.com",
+    jwks: "https://token.actions.githubusercontent.com/.well-known/jwks",
   },
   gitlab: {
-    issuer: 'https://gitlab.com',
-    jwks: 'https://gitlab.com/oauth/discovery/keys',
+    issuer: "https://gitlab.com",
+    jwks: "https://gitlab.com/oauth/discovery/keys",
   },
   buildkite: {
-    issuer: 'https://agent.buildkite.com',
-    jwks: 'https://agent.buildkite.com/.well-known/jwks',
+    issuer: "https://agent.buildkite.com",
+    jwks: "https://agent.buildkite.com/.well-known/jwks",
   },
 };
 
 export type CiOidcSubjectOptions = Omit<
   JoseTokenVerifierOptions,
-  'typ' | 'issuer' | 'audience' | 'discovery' | 'profile'
+  "typ" | "issuer" | "audience" | "discovery" | "profile"
 > & {
   readonly provider: CiOidcProvider;
   /** The audience the job requested the token for; required. */
@@ -56,7 +56,7 @@ export type CiOidcSubjectOptions = Omit<
 
 /** A CI job: never a user. `ref` is a full ref (`refs/heads/main`, `refs/tags/v1`). */
 export type CiOidcPrincipal = Principal & {
-  readonly kind: 'workload';
+  readonly kind: "workload";
   readonly issuer: string;
   readonly provider: CiOidcProvider;
   readonly repository?: string;
@@ -66,46 +66,46 @@ export type CiOidcPrincipal = Principal & {
 
 function text(claims: JwtClaims, key: string): string | undefined {
   const value = Object.hasOwn(claims, key) ? claims[key] : undefined;
-  return typeof value === 'string' && value !== '' ? value : undefined;
+  return typeof value === "string" && value !== "" ? value : undefined;
 }
 
 function fullRef(
   name: string | undefined,
-  type: 'branch' | 'tag',
+  type: "branch" | "tag",
 ): string | undefined {
   if (name === undefined) {
     return undefined;
   }
-  if (name.startsWith('refs/')) {
+  if (name.startsWith("refs/")) {
     return name;
   }
-  return type === 'tag' ? `refs/tags/${name}` : `refs/heads/${name}`;
+  return type === "tag" ? `refs/tags/${name}` : `refs/heads/${name}`;
 }
 
 function jobClaims(
   provider: CiOidcProvider,
   claims: JwtClaims,
-): Pick<CiOidcPrincipal, 'repository' | 'ref' | 'environment'> {
+): Pick<CiOidcPrincipal, "repository" | "ref" | "environment"> {
   switch (provider) {
-    case 'github':
+    case "github":
       return compact({
-        repository: text(claims, 'repository'),
-        ref: text(claims, 'ref'),
-        environment: text(claims, 'environment'),
+        repository: text(claims, "repository"),
+        ref: text(claims, "ref"),
+        environment: text(claims, "environment"),
       });
-    case 'gitlab':
+    case "gitlab":
       return compact({
-        repository: text(claims, 'project_path'),
+        repository: text(claims, "project_path"),
         ref: fullRef(
-          text(claims, 'ref'),
-          text(claims, 'ref_type') === 'tag' ? 'tag' : 'branch',
+          text(claims, "ref"),
+          text(claims, "ref_type") === "tag" ? "tag" : "branch",
         ),
-        environment: text(claims, 'environment'),
+        environment: text(claims, "environment"),
       });
-    case 'buildkite': {
-      const organization = text(claims, 'organization_slug');
-      const pipeline = text(claims, 'pipeline_slug');
-      const tag = text(claims, 'build_tag');
+    case "buildkite": {
+      const organization = text(claims, "organization_slug");
+      const pipeline = text(claims, "pipeline_slug");
+      const tag = text(claims, "build_tag");
       return compact({
         repository:
           organization === undefined || pipeline === undefined
@@ -113,8 +113,8 @@ function jobClaims(
             : `${organization}/${pipeline}`,
         ref:
           tag === undefined
-            ? fullRef(text(claims, 'build_branch'), 'branch')
-            : fullRef(tag, 'tag'),
+            ? fullRef(text(claims, "build_branch"), "branch")
+            : fullRef(tag, "tag"),
       });
     }
     default: {
@@ -145,9 +145,9 @@ export async function subjectFromCiOidc(
     const header = decodeHeader(token);
     options.onAuth?.(
       compact<AuthEvent>({
-        reason: 'invalid-token',
+        reason: "invalid-token",
         cause,
-        source: 'ci-oidc',
+        source: "ci-oidc",
         kid: header?.kid,
         alg: header?.alg,
         typ: header?.typ,
@@ -158,10 +158,10 @@ export async function subjectFromCiOidc(
     return anonymousSubject();
   };
   if (known === undefined || issuer === undefined) {
-    return deny('wrong-issuer');
+    return deny("wrong-issuer");
   }
   if (options.audience === undefined || options.audience.length === 0) {
-    return deny('wrong-audience');
+    return deny("wrong-audience");
   }
   let verifier: TokenVerifier;
   try {
@@ -173,38 +173,38 @@ export async function subjectFromCiOidc(
           : { ...options, issuer, discovery: issuer },
       );
   } catch {
-    return deny('malformed');
+    return deny("malformed");
   }
-  let verified: Awaited<ReturnType<TokenVerifier['verify']>>;
+  let verified: Awaited<ReturnType<TokenVerifier["verify"]>>;
   try {
     verified = await verifier.verify(
       token,
       compact({
-        typ: ['JWT'],
+        typ: ["JWT"],
         issuer,
         audience: options.audience,
         clockTolerance: options.clockTolerance,
       }),
     );
   } catch {
-    return deny('malformed');
+    return deny("malformed");
   }
   if (!verified.ok) {
     return deny(verified.cause);
   }
-  const sub = text(verified.claims, 'sub');
+  const sub = text(verified.claims, "sub");
   if (sub === undefined) {
-    return deny('invalid-claims');
+    return deny("invalid-claims");
   }
   if (
     options.schema !== undefined &&
     !validateCustomClaims(verified.claims, options.schema).ok
   ) {
-    return deny('invalid-claims');
+    return deny("invalid-claims");
   }
   const principal: CiOidcPrincipal = {
     id: sub,
-    kind: 'workload',
+    kind: "workload",
     issuer,
     provider: options.provider,
     ...jobClaims(options.provider, verified.claims),

@@ -1,15 +1,15 @@
-import type { Metadata } from 'next';
+import type { Metadata } from "next";
 
-import Link from 'next/link';
+import Link from "next/link";
 
-import { RootDocument, rootMetadata } from '@/components/root-document';
-import { docsIndex } from '@/lib/shared';
+import { RootDocument, rootMetadata } from "@/components/root-document";
+import { docsIndex } from "@/lib/shared";
 
-import './global.css';
+import "./global.css";
 
 export const metadata: Metadata = {
   ...rootMetadata,
-  title: 'Page not found',
+  title: "Page not found",
 };
 
 export default function GlobalNotFound() {

@@ -1,23 +1,23 @@
-import type { ChatAddToolApproveResponseFunction, UIMessage } from 'ai';
+import type { ChatAddToolApproveResponseFunction, UIMessage } from "ai";
 
-import { useChat } from '@ai-sdk/react';
+import { useChat } from "@ai-sdk/react";
 import {
   DefaultChatTransport,
   getToolName,
   isToolUIPart,
   lastAssistantMessageIsCompleteWithApprovalResponses,
-} from 'ai';
-import { useEffect, useState } from 'react';
+} from "ai";
+import { useEffect, useState } from "react";
 
 type Pending = { readonly token: string; readonly permission: string };
 
-const USERS = ['alice', 'bob', 'carol'] as const;
+const USERS = ["alice", "bob", "carol"] as const;
 
 function post(path: string, body: unknown): Promise<Response> {
   return fetch(path, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'content-type': 'application/json' },
+    method: "POST",
+    credentials: "include",
+    headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
 }
@@ -31,7 +31,7 @@ function Login() {
           key={user}
           type="button"
           onClick={() => {
-            void post('/api/login', { user }).then(() => {
+            void post("/api/login", { user }).then(() => {
               window.location.reload();
             });
           }}
@@ -44,11 +44,11 @@ function Login() {
 }
 
 function Part(props: {
-  readonly part: UIMessage['parts'][number];
+  readonly part: UIMessage["parts"][number];
   readonly respond: ChatAddToolApproveResponseFunction;
 }) {
   const { part, respond } = props;
-  if (part.type === 'text') {
+  if (part.type === "text") {
     return <p data-testid="text">{part.text}</p>;
   }
   if (!isToolUIPart(part)) {
@@ -56,7 +56,7 @@ function Part(props: {
   }
   return (
     <div data-testid={`tool-${getToolName(part)}`} data-state={part.state}>
-      {part.state === 'approval-requested' ? (
+      {part.state === "approval-requested" ? (
         <>
           <span data-testid="approval-reason">
             {part.approval.requestReason}
@@ -79,13 +79,13 @@ function Part(props: {
           </button>
         </>
       ) : null}
-      {part.state === 'output-available' ? (
+      {part.state === "output-available" ? (
         <pre data-testid="output">{JSON.stringify(part.output)}</pre>
       ) : null}
-      {part.state === 'output-denied' ? (
-        <span data-testid="denied">{part.approval.reason ?? 'denied'}</span>
+      {part.state === "output-denied" ? (
+        <span data-testid="denied">{part.approval.reason ?? "denied"}</span>
       ) : null}
-      {part.state === 'output-error' ? (
+      {part.state === "output-error" ? (
         <span data-testid="error">{part.errorText}</span>
       ) : null}
     </div>
@@ -94,10 +94,10 @@ function Part(props: {
 
 function Chat() {
   const { messages, sendMessage, status, addToolApprovalResponse } = useChat({
-    transport: new DefaultChatTransport({ api: '/api/chat' }),
+    transport: new DefaultChatTransport({ api: "/api/chat" }),
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
   });
-  const [input, setInput] = useState('');
+  const [input, setInput] = useState("");
   return (
     <main>
       <p data-testid="status">{status}</p>
@@ -118,7 +118,7 @@ function Chat() {
         onSubmit={(event) => {
           event.preventDefault();
           void sendMessage({ text: input });
-          setInput('');
+          setInput("");
         }}
       >
         <input
@@ -128,7 +128,7 @@ function Chat() {
             setInput(event.target.value);
           }}
         />
-        <button type="submit" disabled={status !== 'ready'}>
+        <button type="submit" disabled={status !== "ready"}>
           Send
         </button>
       </form>
@@ -138,10 +138,10 @@ function Chat() {
 
 function Approvals() {
   const [pending, setPending] = useState<readonly Pending[]>([]);
-  const [result, setResult] = useState('');
+  const [result, setResult] = useState("");
   const load = (): void => {
     // SAFETY: the fixture's /api/approvals/pending route answers { items: Pending[] }
-    fetch('/api/approvals/pending', { credentials: 'include' })
+    fetch("/api/approvals/pending", { credentials: "include" })
       .then((response) =>
         response.ok
           ? (response.json() as Promise<{ items: Pending[] }>)
@@ -169,7 +169,7 @@ function Approvals() {
                 ).then((response) => {
                   setResult(
                     response.ok
-                      ? 'approved'
+                      ? "approved"
                       : `refused ${String(response.status)}`,
                   );
                   load();
@@ -190,7 +190,7 @@ export function App() {
   const [user, setUser] = useState<string | null | undefined>(undefined);
   useEffect(() => {
     // SAFETY: the fixture's /api/me route answers { user: string | null }
-    fetch('/api/me', { credentials: 'include' })
+    fetch("/api/me", { credentials: "include" })
       .then((response) => response.json() as Promise<{ user: string | null }>)
       .then((body) => {
         setUser(body.user);
@@ -208,7 +208,7 @@ export function App() {
   return (
     <>
       <p data-testid="user">{user}</p>
-      {window.location.pathname === '/approvals' ? <Approvals /> : <Chat />}
+      {window.location.pathname === "/approvals" ? <Approvals /> : <Chat />}
     </>
   );
 }

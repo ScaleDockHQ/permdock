@@ -31,7 +31,7 @@ jobs:
 
       - uses: $/.github/actions/setup
         with:
-          cache: 'false'
+          cache: "false"
 
       # The pnpm runtime ships Node without npm; the Node.js distribution bundles it.
       - uses: actions/setup-node@v7
@@ -59,8 +59,8 @@ jobs:
           # Publishing to npm is opt-in: set the repository variable NPM_PUBLISH to 'true'.
           version-script: pnpm run version-packages
           publish-script: ${{ vars.NPM_PUBLISH == 'true' && 'pnpm run release' || '' }}
-          pr-title: 'chore: version packages'
-          commit-message: 'chore: version packages'
+          pr-title: "chore: version packages"
+          commit-message: "chore: version packages"
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Merge main back into develop

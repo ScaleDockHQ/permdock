@@ -4,26 +4,26 @@ import type {
   SnapshotGrant,
   SnapshotNotEntitled,
   TokenSigner,
-} from './interfaces.ts';
-import type { Grant, PolicyVocabulary } from './policy.ts';
-import type { Delegation, Membership, Subject } from './subject.ts';
+} from "./interfaces.ts";
+import type { Grant, PolicyVocabulary } from "./policy.ts";
+import type { Delegation, Membership, Subject } from "./subject.ts";
 
-import { bindConditionRefs } from '../conditions/bind.ts';
-import { compact } from './compact.ts';
-import { freezeDeep } from './freeze.ts';
-import { isForbiddenKey } from './paths.ts';
-import { scopeList } from './scopes.ts';
-import { tenantsOf } from './tenancy.ts';
-import { listPlans, listRoles } from './vocabulary.ts';
+import { bindConditionRefs } from "../conditions/bind.ts";
+import { compact } from "./compact.ts";
+import { freezeDeep } from "./freeze.ts";
+import { isForbiddenKey } from "./paths.ts";
+import { scopeList } from "./scopes.ts";
+import { tenantsOf } from "./tenancy.ts";
+import { listPlans, listRoles } from "./vocabulary.ts";
 
 export function snapshotGrant(
   grant: Grant,
   membership: Membership | undefined,
 ): SnapshotGrant {
   const scope =
-    grant.scope === 'global'
+    grant.scope === "global"
       ? undefined
-      : typeof grant.scope === 'string'
+      : typeof grant.scope === "string"
         ? grant.scope
         : { resource: grant.scope.resource };
   const entry = compact<SnapshotGrant>({
@@ -46,7 +46,7 @@ export function snapshotGrant(
 /** Claim refs: the snapshot principal does not carry `claims`, so they are bound to the subject's values. */
 function isClaimRef(ref: string): boolean {
   return (
-    ref.startsWith('principal.claim.') || ref.startsWith('principal.claims.')
+    ref.startsWith("principal.claim.") || ref.startsWith("principal.claims.")
   );
 }
 
@@ -74,7 +74,7 @@ function notEntitledOf(
 ): readonly SnapshotNotEntitled[] | undefined {
   const seen = new Map<string, SnapshotNotEntitled>();
   for (const { grant } of items) {
-    const key = `${grant.permission.key}\u0000${grant.role ?? ''}`;
+    const key = `${grant.permission.key}\u0000${grant.role ?? ""}`;
     if (!seen.has(key)) {
       seen.set(key, {
         permission: grant.permission.key,
@@ -95,11 +95,11 @@ export function buildSnapshot(input: {
     readonly membership?: Membership;
   }[];
   readonly include?: readonly string[];
-  readonly tenants?: 'all' | undefined;
+  readonly tenants?: "all" | undefined;
   readonly simulated?: boolean;
   readonly now?: number;
   readonly vocabulary?: PolicyVocabulary;
-  readonly scopes?: Snapshot['scopes'];
+  readonly scopes?: Snapshot["scopes"];
   readonly assignable?: (tenant: string) => SnapshotAssignable;
   readonly notEntitled?: readonly { readonly grant: Grant }[];
   readonly delegated?: ReadonlySet<string>;
@@ -108,13 +108,13 @@ export function buildSnapshot(input: {
   const principal = input.subject.principal;
   const allTenants = tenantsOf(principal, scopeList(input.scopes));
   const tenants =
-    input.tenants === 'all'
+    input.tenants === "all"
       ? allTenants
       : principal?.tenant === undefined
         ? []
         : [principal.tenant];
   const include = input.include;
-  const included = (permission: Grant['permission']): boolean =>
+  const included = (permission: Grant["permission"]): boolean =>
     include === undefined ||
     include.length === 0 ||
     include.some(
@@ -143,11 +143,11 @@ export function buildSnapshot(input: {
     compact<Snapshot>({
       v: 1 as const,
       issuedAt: now,
-      subject: compact<Snapshot['subject']>({
+      subject: compact<Snapshot["subject"]>({
         principal:
           principal === null
             ? null
-            : compact<NonNullable<Snapshot['subject']['principal']>>({
+            : compact<NonNullable<Snapshot["subject"]["principal"]>>({
                 id: principal.id,
                 roles: principal.roles ?? [],
                 plans: principal.plans,
@@ -181,7 +181,7 @@ export function buildSnapshot(input: {
       vocabulary:
         input.vocabulary === undefined
           ? undefined
-          : compact<NonNullable<Snapshot['vocabulary']>>({
+          : compact<NonNullable<Snapshot["vocabulary"]>>({
               roles:
                 listRoles(input.vocabulary.roles).length === 0
                   ? undefined
@@ -215,12 +215,12 @@ export async function signSnapshot(
     snapshot,
   };
   if (snapshot.subject.principal !== null) {
-    payload['sub'] = snapshot.subject.principal.id;
+    payload["sub"] = snapshot.subject.principal.id;
   }
   const token = await signer.sign(
     payload,
-    compact<Parameters<TokenSigner['sign']>[1]>({
-      typ: 'permdock-snapshot+jwt' as const,
+    compact<Parameters<TokenSigner["sign"]>[1]>({
+      typ: "permdock-snapshot+jwt" as const,
       audience,
       expiresAt: snapshot.expiresAt,
     }),
@@ -253,7 +253,7 @@ function snapshotDelegation(
 }
 
 function rejectUnsafe(value: unknown, path: string): void {
-  if (value === null || typeof value !== 'object') {
+  if (value === null || typeof value !== "object") {
     return;
   }
   if (Array.isArray(value)) {
@@ -272,21 +272,21 @@ function rejectUnsafe(value: unknown, path: string): void {
 }
 
 export function parseSnapshot(json: unknown): Snapshot {
-  const input: unknown = typeof json === 'string' ? JSON.parse(json) : json;
-  if (input === null || typeof input !== 'object' || Array.isArray(input)) {
-    throw new Error('PermDock: snapshot must be an object');
+  const input: unknown = typeof json === "string" ? JSON.parse(json) : json;
+  if (input === null || typeof input !== "object" || Array.isArray(input)) {
+    throw new Error("PermDock: snapshot must be an object");
   }
   // Freezing the caller's object in place would break a framework proxy
   // around it (Vue `reactive`, Nuxt `useState`); freeze a plain copy instead.
   // SAFETY: a JSON round trip of the non-array object checked above is again an object.
   const value =
-    typeof json === 'string' || Object.isFrozen(input)
+    typeof json === "string" || Object.isFrozen(input)
       ? input
       : (JSON.parse(JSON.stringify(input)) as object);
-  rejectUnsafe(value, '$');
+  rejectUnsafe(value, "$");
   // SAFETY: value is a non-array object; its fields stay unknown until checked.
   const record = value as Record<string, unknown>;
-  const version = record['v'];
+  const version = record["v"];
   if (version !== 1) {
     throw new Error(
       `PermDock: unsupported snapshot version '${String(version)}'`,

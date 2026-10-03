@@ -1,4 +1,4 @@
-import { compact } from '../core/compact.ts';
+import { compact } from "../core/compact.ts";
 import {
   ERROR_SCHEMA,
   GROUP_SCHEMA,
@@ -10,7 +10,7 @@ import {
   isDirectoryUniquenessError,
   type DirectoryGroup,
   type DirectoryUser,
-} from './types.ts';
+} from "./types.ts";
 
 export function scimResponse(
   status: number,
@@ -19,7 +19,7 @@ export function scimResponse(
 ): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'content-type': SCIM_CONTENT_TYPE, ...extra },
+    headers: { "content-type": SCIM_CONTENT_TYPE, ...extra },
   });
 }
 
@@ -39,25 +39,25 @@ export function scimError(
 export function unauthorized(): Response {
   return new Response(null, {
     status: 401,
-    headers: { 'www-authenticate': 'Bearer' },
+    headers: { "www-authenticate": "Bearer" },
   });
 }
 
 export function forbidden(): Response {
   return new Response(null, {
     status: 403,
-    headers: { 'www-authenticate': 'Bearer' },
+    headers: { "www-authenticate": "Bearer" },
   });
 }
 
 export function mapStoreError(error: unknown): Response {
   if (isDirectoryUniquenessError(error)) {
-    return scimError(409, 'uniqueness', error.message);
+    return scimError(409, "uniqueness", error.message);
   }
   if (isDirectoryNotFoundError(error)) {
-    return scimError(404, 'invalidValue', 'resource not found');
+    return scimError(404, "invalidValue", "resource not found");
   }
-  return scimError(500, 'invalidValue', 'store failed');
+  return scimError(500, "invalidValue", "store failed");
 }
 
 export function listBody<T>(
@@ -92,7 +92,7 @@ export function renderUser(
     active: user.active,
     emails: user.emails,
     meta: {
-      resourceType: 'User',
+      resourceType: "User",
       created: user.meta.created,
       lastModified: user.meta.lastModified,
       location,
@@ -119,7 +119,7 @@ export function renderGroup(
     members: group.members,
     ...extension,
     meta: {
-      resourceType: 'Group',
+      resourceType: "Group",
       created: group.meta.created,
       lastModified: group.meta.lastModified,
       location,

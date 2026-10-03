@@ -1,6 +1,6 @@
-import { allow, definePolicy, principal, role, sqlFunction } from 'permdock';
+import { allow, definePolicy, principal, role, sqlFunction } from "permdock";
 
-import { permissions, roles } from './permissions.ts';
+import { permissions, roles } from "./permissions.ts";
 
 export type User = {
   readonly id: string;
@@ -19,18 +19,18 @@ export const policy = definePolicy(
           where: { authorId: principal.id },
         }),
         allow(permissions.job.read, {
-          where: sqlFunction('job_permitted', {
-            args: [{ field: 'id' }],
+          where: sqlFunction("job_permitted", {
+            args: [{ field: "id" }],
             twin: {
               or: [
-                { scope: 'public' },
+                { scope: "public" },
                 {
                   and: [
-                    { scope: 'team' },
+                    { scope: "team" },
                     {
-                      op: 'memberOf',
-                      scope: 'team',
-                      field: 'teamId',
+                      op: "memberOf",
+                      scope: "team",
+                      field: "teamId",
                       roles: [],
                     },
                   ],

@@ -4,27 +4,27 @@ import {
   mkdirSync,
   readFileSync,
   writeFileSync,
-} from 'node:fs';
-import { createRequire } from 'node:module';
-import { dirname, join, resolve } from 'node:path';
+} from "node:fs";
+import { createRequire } from "node:module";
+import { dirname, join, resolve } from "node:path";
 
-import { packageRoot } from './package-root.ts';
+import { packageRoot } from "./package-root.ts";
 
 const SKILL_NAMES = [
-  'permdock',
-  'permdock-wire',
-  'permdock-audit',
-  'permdock-agents',
-  'permdock-approvals',
-  'permdock-tenancy',
-  'permdock-data',
-  'permdock-credentials',
+  "permdock",
+  "permdock-wire",
+  "permdock-audit",
+  "permdock-agents",
+  "permdock-approvals",
+  "permdock-tenancy",
+  "permdock-data",
+  "permdock-credentials",
 ] as const;
 
 const AGENT_FOLDERS: Readonly<Record<string, string>> = {
-  agents: '.agents/skills',
-  claude: '.claude/skills',
-  cursor: '.cursor/skills',
+  agents: ".agents/skills",
+  claude: ".claude/skills",
+  cursor: ".cursor/skills",
 };
 
 /** The `--agent` names `skills install` knows, with the folder each writes. */
@@ -49,10 +49,10 @@ export function runSkills(input: {
 }): SkillsResult {
   switch (input.action) {
     case undefined:
-    case 'install':
-    case 'update':
+    case "install":
+    case "update":
       return runSkillsInstall({ cwd: input.cwd, agents: input.agents });
-    case 'list':
+    case "list":
       return listSkills(input.cwd);
     default:
       return {
@@ -70,13 +70,13 @@ export function runSkillsInstall(input: {
 }): SkillsResult {
   const source = resolveSkillsRoot(
     input.cwd,
-    input.bundled ?? join(packageRoot(), 'skills'),
+    input.bundled ?? join(packageRoot(), "skills"),
   );
   if (source === undefined) {
     return {
       code: 2,
       output:
-        'PermDock CLI: permdock package with skills/ not found. Add permdock as a dependency.',
+        "PermDock CLI: permdock package with skills/ not found. Add permdock as a dependency.",
     };
   }
   const version = readPermdockVersion(source);
@@ -93,38 +93,38 @@ export function runSkillsInstall(input: {
       copied.push(`${folder}/${name}`);
     }
   }
-  mkdirSync(join(input.cwd, '.permdock'), { recursive: true });
+  mkdirSync(join(input.cwd, ".permdock"), { recursive: true });
   writeFileSync(
-    join(input.cwd, '.permdock/skills-lock.json'),
+    join(input.cwd, ".permdock/skills-lock.json"),
     `${JSON.stringify({ version, skills: [...SKILL_NAMES] }, null, 2)}\n`,
   );
   return {
     code: 0,
-    output: `installed ${copied.join(', ') || 'no skills'} (permdock@${version})`,
+    output: `installed ${copied.join(", ") || "no skills"} (permdock@${version})`,
   };
 }
 
 function listSkills(cwd: string): SkillsResult {
-  const lockPath = join(cwd, '.permdock/skills-lock.json');
+  const lockPath = join(cwd, ".permdock/skills-lock.json");
   // SAFETY: the lock file is written by permdock skills; version is only interpolated into text.
   const lock = existsSync(lockPath)
-    ? (JSON.parse(readFileSync(lockPath, 'utf8')) as {
+    ? (JSON.parse(readFileSync(lockPath, "utf8")) as {
         readonly version?: string;
       })
     : {};
-  const lines = ['permdock skills', ''];
+  const lines = ["permdock skills", ""];
   for (const name of SKILL_NAMES) {
     const places = Object.values(AGENT_FOLDERS).filter((folder) =>
-      existsSync(join(cwd, folder, name, 'SKILL.md')),
+      existsSync(join(cwd, folder, name, "SKILL.md")),
     );
     lines.push(
-      `  ${name}  ${places.length > 0 ? places.join(', ') : 'not installed'}`,
+      `  ${name}  ${places.length > 0 ? places.join(", ") : "not installed"}`,
     );
   }
   if (lock.version !== undefined) {
-    lines.push('', `  lock ${lock.version}`);
+    lines.push("", `  lock ${lock.version}`);
   }
-  return { code: 0, output: `${lines.join('\n')}\n` };
+  return { code: 0, output: `${lines.join("\n")}\n` };
 }
 
 function resolveTargets(agents: readonly string[]): readonly string[] {
@@ -132,23 +132,23 @@ function resolveTargets(agents: readonly string[]): readonly string[] {
     return Object.values(AGENT_FOLDERS);
   }
   return agents.map((agent) => {
-    const key = agent === 'agent' ? 'agents' : agent;
+    const key = agent === "agent" ? "agents" : agent;
     return AGENT_FOLDERS[key] ?? `.${key}/skills`;
   });
 }
 
 function resolveSkillsRoot(cwd: string, bundled: string): string | undefined {
   try {
-    const require = createRequire(resolve(cwd, 'package.json'));
-    const pkg = require.resolve('permdock/package.json');
-    const root = join(dirname(pkg), 'skills');
+    const require = createRequire(resolve(cwd, "package.json"));
+    const pkg = require.resolve("permdock/package.json");
+    const root = join(dirname(pkg), "skills");
     if (existsSync(root)) {
       return root;
     }
   } catch {
     // fall through
   }
-  const local = join(cwd, 'node_modules/permdock/skills');
+  const local = join(cwd, "node_modules/permdock/skills");
   if (existsSync(local)) {
     return local;
   }
@@ -156,12 +156,12 @@ function resolveSkillsRoot(cwd: string, bundled: string): string | undefined {
 }
 
 function readPermdockVersion(skillsRoot: string): string {
-  const pkg = join(dirname(skillsRoot), 'package.json');
+  const pkg = join(dirname(skillsRoot), "package.json");
   if (!existsSync(pkg)) {
-    return '0.0.0';
+    return "0.0.0";
   }
   // SAFETY: the package.json next to the skills folder is permdock's own, which has a version.
-  const raw = JSON.parse(readFileSync(pkg, 'utf8')) as {
+  const raw = JSON.parse(readFileSync(pkg, "utf8")) as {
     readonly version: string;
   };
   return raw.version;

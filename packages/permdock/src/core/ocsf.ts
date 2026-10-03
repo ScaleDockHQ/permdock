@@ -1,9 +1,9 @@
-import type { AccessEvent, DecisionEvent } from './interfaces.ts';
+import type { AccessEvent, DecisionEvent } from "./interfaces.ts";
 
-import { compact } from './compact.ts';
+import { compact } from "./compact.ts";
 
 /** The OCSF schema version `toOcsf` emits. */
-export const OCSF_VERSION = '1.3.0';
+export const OCSF_VERSION = "1.3.0";
 
 /** An OCSF Authorize Session (class 3003, category Identity and Access Management) event. */
 export type OcsfAuthorizeSession = {
@@ -14,12 +14,12 @@ export type OcsfAuthorizeSession = {
   readonly severity_id: 1 | 4;
   readonly time: number;
   readonly status_id: 0 | 1 | 2 | 99;
-  readonly status: 'Unknown' | 'Success' | 'Failure' | 'Other';
+  readonly status: "Unknown" | "Success" | "Failure" | "Other";
   readonly status_detail?: string;
   readonly message: string;
   readonly privileges: readonly string[];
   /** OCSF requires `user`; an anonymous subject is `{ name: 'anonymous' }`. */
-  readonly user: { readonly uid: string } | { readonly name: 'anonymous' };
+  readonly user: { readonly uid: string } | { readonly name: "anonymous" };
   readonly actor?: {
     readonly user?: { readonly uid: string };
     readonly app_name?: string;
@@ -27,19 +27,19 @@ export type OcsfAuthorizeSession = {
   readonly metadata: {
     readonly version: typeof OCSF_VERSION;
     readonly product: {
-      readonly name: 'PermDock';
-      readonly vendor_name: 'PermDock';
+      readonly name: "PermDock";
+      readonly vendor_name: "PermDock";
       readonly feature?: { readonly name: string };
     };
     readonly tenant_uid?: string;
     readonly correlation_uid?: string;
   };
   readonly unmapped: {
-    readonly outcome: DecisionEvent['outcome'];
+    readonly outcome: DecisionEvent["outcome"];
     readonly scope: string;
-    readonly resource: DecisionEvent['resource'];
-    readonly source: DecisionEvent['source'];
-    readonly phase?: DecisionEvent['phase'];
+    readonly resource: DecisionEvent["resource"];
+    readonly source: DecisionEvent["source"];
+    readonly phase?: DecisionEvent["phase"];
     readonly role?: string | null;
     readonly via?: string | null;
     /** Set high-severity break-glass events apart in a SIEM. */
@@ -50,15 +50,15 @@ export type OcsfAuthorizeSession = {
 };
 
 function status(
-  outcome: DecisionEvent['outcome'],
-): Pick<OcsfAuthorizeSession, 'status_id' | 'status'> {
+  outcome: DecisionEvent["outcome"],
+): Pick<OcsfAuthorizeSession, "status_id" | "status"> {
   switch (outcome) {
-    case 'granted':
-      return { status_id: 1, status: 'Success' };
-    case 'denied':
-      return { status_id: 2, status: 'Failure' };
-    case 'approval-required':
-      return { status_id: 99, status: 'Other' };
+    case "granted":
+      return { status_id: 1, status: "Success" };
+    case "denied":
+      return { status_id: 2, status: "Failure" };
+    case "approval-required":
+      return { status_id: 99, status: "Other" };
     default: {
       const exhaustive: never = outcome;
       return unknownStatus(exhaustive);
@@ -69,8 +69,8 @@ function status(
 /** An outcome this build does not know, from a newer producer, is reported as OCSF Unknown. */
 function unknownStatus(
   _outcome: never,
-): Pick<OcsfAuthorizeSession, 'status_id' | 'status'> {
-  return { status_id: 0, status: 'Unknown' };
+): Pick<OcsfAuthorizeSession, "status_id" | "status"> {
+  return { status_id: 0, status: "Unknown" };
 }
 
 /** Projects a decision or approval event onto OCSF Authorize Session; the event itself is unchanged. */
@@ -79,9 +79,9 @@ export function toOcsf(event: DecisionEvent): OcsfAuthorizeSession {
   const actor = event.subject.actor;
   const breakGlass = event.matched?.breakGlass === true;
   const detail =
-    event.outcome === 'approval-required'
-      ? 'approval-required'
-      : event.denials?.map((denial) => denial.reason).join(',');
+    event.outcome === "approval-required"
+      ? "approval-required"
+      : event.denials?.map((denial) => denial.reason).join(",");
   const time = Date.parse(event.at);
   return compact<OcsfAuthorizeSession>({
     class_uid: 3003,
@@ -91,12 +91,12 @@ export function toOcsf(event: DecisionEvent): OcsfAuthorizeSession {
     severity_id: breakGlass ? 4 : 1,
     time: Number.isNaN(time) ? 0 : time,
     ...status(event.outcome),
-    status_detail: detail === '' ? undefined : detail,
+    status_detail: detail === "" ? undefined : detail,
     message: `${event.permission} ${event.outcome}`,
     privileges: [event.permission],
     user:
       principal === null
-        ? { name: 'anonymous' as const }
+        ? { name: "anonymous" as const }
         : { uid: principal.id },
     actor:
       actor === undefined
@@ -108,8 +108,8 @@ export function toOcsf(event: DecisionEvent): OcsfAuthorizeSession {
     metadata: compact({
       version: OCSF_VERSION,
       product: compact({
-        name: 'PermDock' as const,
-        vendor_name: 'PermDock' as const,
+        name: "PermDock" as const,
+        vendor_name: "PermDock" as const,
         feature:
           event.adapter === undefined ? undefined : { name: event.adapter },
       }),
@@ -150,13 +150,13 @@ export type OcsfAccountChange = {
   readonly metadata: {
     readonly version: typeof OCSF_VERSION;
     readonly product: {
-      readonly name: 'PermDock';
-      readonly vendor_name: 'PermDock';
+      readonly name: "PermDock";
+      readonly vendor_name: "PermDock";
     };
     readonly tenant_uid: string;
   };
   readonly unmapped: {
-    readonly operation: AccessEvent['operation'];
+    readonly operation: AccessEvent["operation"];
     readonly via: string;
     readonly roles: readonly string[];
     readonly member?: { readonly group: string };
@@ -167,7 +167,7 @@ export type OcsfAccountChange = {
 
 export function accessToOcsf(event: AccessEvent): OcsfAccountChange {
   const time = Date.parse(event.at);
-  const enable = event.operation === 'started';
+  const enable = event.operation === "started";
   return compact<OcsfAccountChange>({
     class_uid: 3001,
     category_uid: 3,
@@ -181,7 +181,7 @@ export function accessToOcsf(event: AccessEvent): OcsfAccountChange {
       event.actor === undefined ? undefined : { user: { uid: event.actor.id } },
     metadata: {
       version: OCSF_VERSION,
-      product: { name: 'PermDock' as const, vendor_name: 'PermDock' as const },
+      product: { name: "PermDock" as const, vendor_name: "PermDock" as const },
       tenant_uid: event.tenant,
     },
     unmapped: compact({

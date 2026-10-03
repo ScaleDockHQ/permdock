@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from "zod";
 
 import {
   allow,
@@ -8,7 +8,7 @@ import {
   principal,
   resource,
   role,
-} from '../../src/index.ts';
+} from "../../src/index.ts";
 
 const Post = z.object({
   id: z.string(),
@@ -19,9 +19,9 @@ const Post = z.object({
 
 export const permissions = definePermissions({
   post: resource(Post, {
-    id: 'id',
-    actions: ['read', 'update', 'delete', 'publish'],
-    collection: ['create', 'list'],
+    id: "id",
+    actions: ["read", "update", "delete", "publish"],
+    collection: ["create", "list"],
   }),
 });
 
@@ -31,18 +31,18 @@ export type User = {
   readonly roles: readonly string[];
 };
 
-const member = role('member', [
+const member = role("member", [
   allow(permissions.post.read),
   allow(permissions.post.list),
   allow(permissions.post.create),
   allow(permissions.post.update, { where: { authorId: principal.id } }),
   allow(permissions.post.delete, {
     where: { authorId: principal.id },
-    approval: 'human',
+    approval: "human",
   }),
 ]);
 
-const admin = role('admin', [
+const admin = role("admin", [
   ...member.grants,
   allow(permissions.post.update),
   allow(permissions.post.delete),
@@ -56,22 +56,22 @@ export const policy = definePolicy(permissions, {
     user === null
       ? null
       : { id: user.id, orgId: user.orgId, roles: user.roles },
-  validate: 'boundary',
+  validate: "boundary",
 });
 
 export const ownPost = {
-  id: 'p1',
-  authorId: 'u1',
-  orgId: 'o1',
+  id: "p1",
+  authorId: "u1",
+  orgId: "o1",
   published: false,
 };
 
 export const otherPost = {
-  id: 'p2',
-  authorId: 'u9',
-  orgId: 'o1',
+  id: "p2",
+  authorId: "u9",
+  orgId: "o1",
   published: true,
 };
 
-export const memberUser: User = { id: 'u1', orgId: 'o1', roles: ['member'] };
-export const adminUser: User = { id: 'u2', orgId: 'o1', roles: ['admin'] };
+export const memberUser: User = { id: "u1", orgId: "o1", roles: ["member"] };
+export const adminUser: User = { id: "u2", orgId: "o1", roles: ["admin"] };

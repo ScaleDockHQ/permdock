@@ -1,18 +1,18 @@
-import { describe, expectTypeOf, it } from 'vitest';
+import { describe, expectTypeOf, it } from "vitest";
 
 import type {
   PermDockOf,
   VocabularyPermDock,
   roles,
-} from '../fixtures/vocabulary.ts';
+} from "../fixtures/vocabulary.ts";
 
-import { createPermDock } from '../../src/fastify/index.ts';
-import { policy } from '../fixtures/vocabulary.ts';
+import { createPermDock } from "../../src/fastify/index.ts";
+import { policy } from "../fixtures/vocabulary.ts";
 
 const { withPermDock } = createPermDock(policy, { subject: () => null });
 
-describe('permdock/fastify vocabulary', () => {
-  it('types request.permdock in withPermDock by the policy vocabulary', () => {
+describe("permdock/fastify vocabulary", () => {
+  it("types request.permdock in withPermDock by the policy vocabulary", () => {
     withPermDock<{ Params: { readonly id: string } }>((request) => {
       expectTypeOf(request.params.id).toEqualTypeOf<string>();
       expectTypeOf(request.permdock).toEqualTypeOf<VocabularyPermDock>();

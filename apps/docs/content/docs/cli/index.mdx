@@ -20,34 +20,34 @@ The binary is `permdock`; `permdock --version` prints its version. All commands 
 
 ```ts
 // permdock.config.ts
-import { defineConfig } from 'permdock/cli'
+import { defineConfig } from "permdock/cli";
 
 export default defineConfig({
-  permissions: './src/permissions.ts',      // the merged definition module
-  policy: './src/policy.ts',                // server-only; used by usage, rls, doctor
-  collect: { srcPath: ['./src', '../ui/src', './node_modules/@acme/*'] },
-  catalog: { out: './permissions.catalog.json' },
-  rls: { tables: { post: 'posts' }, dialect: 'supabase' },
+  permissions: "./src/permissions.ts", // the merged definition module
+  policy: "./src/policy.ts", // server-only; used by usage, rls, doctor
+  collect: { srcPath: ["./src", "../ui/src", "./node_modules/@acme/*"] },
+  catalog: { out: "./permissions.catalog.json" },
+  rls: { tables: { post: "posts" }, dialect: "supabase" },
   // or: rls: supabaseRls({ memberships: { table: 'organization_members', ... } })
-})
+});
 ```
 
 ## Commands
 
-| Command | Purpose | Page |
-| --- | --- | --- |
-| `permdock collect` | Scan `srcPath[]` for `definePermissions()` and `permissions.x.y` usages; write the catalog and generated barrel; `--check` for CI | [collect](/docs/cli/collect) |
-| `permdock catalog` | Export the catalog as JSON, JSON Schema or Markdown | [catalog](/docs/cli/catalog) |
-| `permdock diff` | Compare two policies or catalogs: changed permissions, scopes, roles and grants; `--impact` runs the fixtures through both; exit `1` on a breaking change | [diff](/docs/cli/diff) |
-| `permdock usage` | Report defined-but-unused, used-but-ungranted and granted-by-no-role permissions, conditions on undeclared fields, and client checks outside a snapshot `include` | [usage](/docs/cli/usage) |
-| `permdock openapi` | Emit `security` and `securitySchemes` into an OpenAPI document, or import one into a generated definition; `--target 3.1\|3.2\|3.3` (`3.3` experimental: pinned Security Profile draft), `--format document\|overlay`, `--overlay 1.1\|1.2` (`1.2` experimental: pinned reusable-actions draft), `--profile fapi2`, `--profile-scheme`, `--arity`, `--authorization-url`, `--token-url`, `--check`; `import` takes JSON or YAML with `--schema`, `--map` and `--annotate` | [openapi](/docs/cli/openapi) |
-| `permdock arazzo check` | Resolve every Arazzo step to `x-permdock-permissions`; never evaluates a subject | [arazzo](/docs/cli/arazzo) |
-| `permdock rls` | `generate`, `import` and `verify` Postgres RLS policies; `generate --split` for Supabase declarative schemas (pg-delta's per-schema layout, or `--grants-out` for `db diff`); `migrate` moves hand-written policies onto the generated helpers, and `--helpers-only` keeps them hand-written | [rls](/docs/cli/rls) |
-| `permdock doctor` | Check wiring, imports, references, catalog freshness, skills, TypeScript version, sensitive verbs (PD017), static separation of duty (PD018), hosted-grant wiring (PD020, PD021), custom roles outside their ceiling (PD023), approvals the requester can give (PD024), token attributes a user could set (PD028) and declarative-schema hook grants and helper order (PD042, PD043) and server-only grants with no decision endpoint (PD044) | [doctor](/docs/cli/doctor) |
-| `permdock skills` | Install or update the PermDock Agent Skills (`permdock`, `permdock-wire`, `permdock-audit` and the topic skills) | [skills](/docs/cli/skills) |
-| `permdock cloud push` | Publish the catalog, `hostable` flags and role assignability to a PermDock Cloud environment; `--dry-run`, `--url`, `--environment` | [cloud](/docs/cli/cloud) |
-| `permdock supabase hook generate` | Compile the app's `fromTable` / `fromJunction` membership sources into a Supabase Custom Access Token Hook migration with a size budget, `authz_ver` and IdP-row protection; `--grants-out` for declarative schemas, `--check` for CI | [supabase](/docs/cli/supabase) |
-| `permdock supabase inspect` | Print the hook and helper manifest (helper names, tenant claim, budget, claims written, membership sources, deciding columns); `--json` for the `version: 1` manifest, `--out` to write it (default `permdock.manifest.json`), `--check` for CI | [supabase](/docs/cli/supabase) |
+| Command                           | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | Page                           |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
+| `permdock collect`                | Scan `srcPath[]` for `definePermissions()` and `permissions.x.y` usages; write the catalog and generated barrel; `--check` for CI                                                                                                                                                                                                                                                                                                                                         | [collect](/docs/cli/collect)   |
+| `permdock catalog`                | Export the catalog as JSON, JSON Schema or Markdown                                                                                                                                                                                                                                                                                                                                                                                                                       | [catalog](/docs/cli/catalog)   |
+| `permdock diff`                   | Compare two policies or catalogs: changed permissions, scopes, roles and grants; `--impact` runs the fixtures through both; exit `1` on a breaking change                                                                                                                                                                                                                                                                                                                 | [diff](/docs/cli/diff)         |
+| `permdock usage`                  | Report defined-but-unused, used-but-ungranted and granted-by-no-role permissions, conditions on undeclared fields, and client checks outside a snapshot `include`                                                                                                                                                                                                                                                                                                         | [usage](/docs/cli/usage)       |
+| `permdock openapi`                | Emit `security` and `securitySchemes` into an OpenAPI document, or import one into a generated definition; `--target 3.1\|3.2\|3.3` (`3.3` experimental: pinned Security Profile draft), `--format document\|overlay`, `--overlay 1.1\|1.2` (`1.2` experimental: pinned reusable-actions draft), `--profile fapi2`, `--profile-scheme`, `--arity`, `--authorization-url`, `--token-url`, `--check`; `import` takes JSON or YAML with `--schema`, `--map` and `--annotate` | [openapi](/docs/cli/openapi)   |
+| `permdock arazzo check`           | Resolve every Arazzo step to `x-permdock-permissions`; never evaluates a subject                                                                                                                                                                                                                                                                                                                                                                                          | [arazzo](/docs/cli/arazzo)     |
+| `permdock rls`                    | `generate`, `import` and `verify` Postgres RLS policies; `generate --split` for Supabase declarative schemas (pg-delta's per-schema layout, or `--grants-out` for `db diff`); `migrate` moves hand-written policies onto the generated helpers, and `--helpers-only` keeps them hand-written                                                                                                                                                                              | [rls](/docs/cli/rls)           |
+| `permdock doctor`                 | Check wiring, imports, references, catalog freshness, skills, TypeScript version, sensitive verbs (PD017), static separation of duty (PD018), hosted-grant wiring (PD020, PD021), custom roles outside their ceiling (PD023), approvals the requester can give (PD024), token attributes a user could set (PD028) and declarative-schema hook grants and helper order (PD042, PD043) and server-only grants with no decision endpoint (PD044)                             | [doctor](/docs/cli/doctor)     |
+| `permdock skills`                 | Install or update the PermDock Agent Skills (`permdock`, `permdock-wire`, `permdock-audit` and the topic skills)                                                                                                                                                                                                                                                                                                                                                          | [skills](/docs/cli/skills)     |
+| `permdock cloud push`             | Publish the catalog, `hostable` flags and role assignability to a PermDock Cloud environment; `--dry-run`, `--url`, `--environment`                                                                                                                                                                                                                                                                                                                                       | [cloud](/docs/cli/cloud)       |
+| `permdock supabase hook generate` | Compile the app's `fromTable` / `fromJunction` membership sources into a Supabase Custom Access Token Hook migration with a size budget, `authz_ver` and IdP-row protection; `--grants-out` for declarative schemas, `--check` for CI                                                                                                                                                                                                                                     | [supabase](/docs/cli/supabase) |
+| `permdock supabase inspect`       | Print the hook and helper manifest (helper names, tenant claim, budget, claims written, membership sources, deciding columns); `--json` for the `version: 1` manifest, `--out` to write it (default `permdock.manifest.json`), `--check` for CI                                                                                                                                                                                                                           | [supabase](/docs/cli/supabase) |
 
 The Next.js build hook `createPermDockPlugin` is documented on [Next.js plugin](/docs/cli/next-plugin). The same collect hook for Vite, Rollup, webpack, Rspack and esbuild is `createPermDockUnplugin` ([unplugin](/docs/cli/unplugin)): Nuxt, Astro, React Router, TanStack Start and Effect apps use it; there is no per-vendor package.
 
@@ -55,12 +55,12 @@ The Next.js build hook `createPermDockPlugin` is documented on [Next.js plugin](
 
 All commands share one contract so CI steps can be written without parsing output.
 
-| Code | Meaning |
-| --- | --- |
-| `0` | Success; for `--check` and `verify`, no drift and no findings |
-| `1` | Findings: drift detected, parity failures, unused or ungranted permissions, doctor errors. Also a database or the Cloud that did not answer |
-| `2` | Usage or configuration error: unknown flag, missing config, unreadable definition module, unsupported TypeScript version |
-| `130` | Interrupted with Ctrl-C while a `--db` command was connected; the connection is closed first |
+| Code  | Meaning                                                                                                                                     |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `0`   | Success; for `--check` and `verify`, no drift and no findings                                                                               |
+| `1`   | Findings: drift detected, parity failures, unused or ungranted permissions, doctor errors. Also a database or the Cloud that did not answer |
+| `2`   | Usage or configuration error: unknown flag, missing config, unreadable definition module, unsupported TypeScript version                    |
+| `130` | Interrupted with Ctrl-C while a `--db` command was connected; the connection is closed first                                                |
 
 Warnings never change the exit code unless `--strict` is passed.
 
@@ -76,9 +76,9 @@ Reports are styled on a colour terminal and plain in a pipe, unless `FORCE_COLOR
 
 ```yaml
 # .github/workflows/permissions.yml
-- run: pnpm exec permdock collect --check       # catalog and barrel up to date
-- run: pnpm exec permdock usage --strict         # no ungranted or unused permissions
-- run: pnpm exec permdock doctor                 # wiring, imports, TS version
+- run: pnpm exec permdock collect --check # catalog and barrel up to date
+- run: pnpm exec permdock usage --strict # no ungranted or unused permissions
+- run: pnpm exec permdock doctor # wiring, imports, TS version
 - run: pnpm exec permdock openapi --check --doc openapi.json
 - run: pnpm exec permdock arazzo check --doc workflows/publish-post.arazzo.json --openapi openapi.json
 ```

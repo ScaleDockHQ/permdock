@@ -1,23 +1,23 @@
-import type { AuthEvent } from './interfaces.ts';
-import type { Permission } from './permissions.ts';
-import type { Policy } from './policy.ts';
-import type { Principal, Subject } from './subject.ts';
+import type { AuthEvent } from "./interfaces.ts";
+import type { Permission } from "./permissions.ts";
+import type { Policy } from "./policy.ts";
+import type { Principal, Subject } from "./subject.ts";
 
-import { compact } from './compact.ts';
-import { declaredRoleNames } from './evaluate.ts';
-import { flattenGrantee } from './grantee.ts';
-import { collectSnapshotGrants } from './instance.ts';
-import { grantList } from './policy.ts';
-import { resolveSubject } from './resolve-subject.ts';
-import { scopeList, tenantOf } from './scopes.ts';
-import { isThenable } from './thenable.ts';
-import { listPlans } from './vocabulary.ts';
+import { compact } from "./compact.ts";
+import { declaredRoleNames } from "./evaluate.ts";
+import { flattenGrantee } from "./grantee.ts";
+import { collectSnapshotGrants } from "./instance.ts";
+import { grantList } from "./policy.ts";
+import { resolveSubject } from "./resolve-subject.ts";
+import { scopeList, tenantOf } from "./scopes.ts";
+import { isThenable } from "./thenable.ts";
+import { listPlans } from "./vocabulary.ts";
 
 function policyPlans(policy: Policy): readonly string[] {
   const names = new Set(listPlans(policy.vocabulary?.plans).map((p) => p.key));
   for (const grant of grantList(policy)) {
     for (const item of flattenGrantee(grant.to)) {
-      if (item.kind === 'plan') {
+      if (item.kind === "plan") {
         names.add(item.plan);
       }
     }
@@ -65,7 +65,7 @@ export function mayAccess(
       }
       if (
         (principal.memberships ?? []).length === 0 &&
-        relevant.some((grant) => grant.scope !== 'global')
+        relevant.some((grant) => grant.scope !== "global")
       ) {
         return true;
       }
@@ -94,7 +94,7 @@ export function mayAccess(
     );
     const unconditionalDeny = matched.some(
       (item) =>
-        item.grant.effect === 'deny' &&
+        item.grant.effect === "deny" &&
         item.grant.where === undefined &&
         item.grant.check === undefined &&
         item.grant.portable,
@@ -102,7 +102,7 @@ export function mayAccess(
     if (unconditionalDeny) {
       return false;
     }
-    return matched.some((item) => item.grant.effect === 'allow');
+    return matched.some((item) => item.grant.effect === "allow");
   } catch {
     return true;
   }

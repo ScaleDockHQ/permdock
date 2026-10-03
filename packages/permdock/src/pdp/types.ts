@@ -1,16 +1,16 @@
-import type { ArazzoPlan, ArazzoSimulateInput } from '../core/arazzo.ts';
-import type { Decision, ExplainedDecision } from '../core/decision.ts';
+import type { ArazzoPlan, ArazzoSimulateInput } from "../core/arazzo.ts";
+import type { Decision, ExplainedDecision } from "../core/decision.ts";
 import type {
   PermDockOptions,
   DecideOptions,
   PermDock,
   SimulateOptions,
   WhereResult,
-} from '../core/permdock.ts';
-import type { Permission, PermissionTree } from '../core/permissions.ts';
-import type { Policy, PolicyVocabulary } from '../core/policy.ts';
-import type { Principal } from '../core/subject.ts';
-import type { Membership, Subject } from '../core/subject.ts';
+} from "../core/permdock.ts";
+import type { Permission, PermissionTree } from "../core/permissions.ts";
+import type { Policy, PolicyVocabulary } from "../core/policy.ts";
+import type { Principal } from "../core/subject.ts";
+import type { Membership, Subject } from "../core/subject.ts";
 
 export type RemotePdpAuth = {
   readonly bearer: string | (() => string | Promise<string>);
@@ -98,9 +98,9 @@ export type SpiceDbCheck = {
 export type SpiceDbOptions = {
   /** The SpiceDB HTTP gateway origin. */
   readonly url: string;
-  readonly token: RemotePdpAuth['bearer'];
+  readonly token: RemotePdpAuth["bearer"];
   readonly map: RelationMap<SpiceDbCheck>;
-  readonly consistency?: 'minimize-latency' | 'fully-consistent';
+  readonly consistency?: "minimize-latency" | "fully-consistent";
   readonly timeout?: number;
   readonly cache?: RemotePdpCache;
   readonly fetch?: typeof fetch;
@@ -108,15 +108,15 @@ export type SpiceDbOptions = {
 
 export type PdpPermDock<V extends PolicyVocabulary = PolicyVocabulary> = Omit<
   PermDock<V>,
-  | 'can'
-  | 'decide'
-  | 'assert'
-  | 'explain'
-  | 'filter'
-  | 'where'
-  | 'simulate'
-  | 'tenant'
-  | 'team'
+  | "can"
+  | "decide"
+  | "assert"
+  | "explain"
+  | "filter"
+  | "where"
+  | "simulate"
+  | "tenant"
+  | "team"
 > & {
   /**
    * For a delegated permission whose provider lists ids, an `in` over them
@@ -138,15 +138,15 @@ export type PdpPermDock<V extends PolicyVocabulary = PolicyVocabulary> = Omit<
     permission: Permission,
     data?: unknown,
     options?: DecideOptions,
-  ) => Promise<Extract<Decision, { readonly outcome: 'granted' }>>;
+  ) => Promise<Extract<Decision, { readonly outcome: "granted" }>>;
   /** `decide` with a trace of the local grants; a decision the remote PDP made carries an empty trace. */
   readonly explain: (
     permission: Permission,
     data?: unknown,
-    options?: Omit<DecideOptions, 'explain'>,
+    options?: Omit<DecideOptions, "explain">,
   ) => Promise<ExplainedDecision>;
   readonly filter: <T>(
-    permission: Permission<string, T, 'instance'>,
+    permission: Permission<string, T, "instance">,
     rows: readonly T[],
     options?: DecideOptions,
   ) => Promise<T[]>;

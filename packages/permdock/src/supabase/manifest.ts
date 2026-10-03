@@ -6,11 +6,11 @@
  * ever added within it. `schemas/supabase-manifest-v1.json` is its JSON Schema.
  */
 export type SupabaseHookManifest = {
-  readonly $schema: 'https://permdock.dev/schemas/supabase-manifest-v1.json';
+  readonly $schema: "https://permdock.dev/schemas/supabase-manifest-v1.json";
   readonly version: 1;
   readonly hook: {
     readonly schema: string;
-    readonly function: 'custom_access_token_hook';
+    readonly function: "custom_access_token_hook";
     readonly out: string;
   };
   readonly helpers: {
@@ -36,8 +36,8 @@ export type SupabaseHookManifest = {
    */
   readonly authzVersionBump?: {
     readonly schema: string;
-    readonly function: 'permdock_bump_authz_version_for';
-    readonly args: 'p_users uuid[]';
+    readonly function: "permdock_bump_authz_version_for";
+    readonly args: "p_users uuid[]";
   };
   /** The `supabase.hook.memberships` sources, in the order the hook reads them. */
   readonly memberships: readonly SupabaseManifestMembership[];
@@ -48,7 +48,7 @@ export type SupabaseHookManifest = {
    */
   readonly decidingColumns: readonly string[];
   /** The majors of the `-- permdock:hook` and `-- permdock:grants` marker lines. */
-  readonly markers: { readonly hook: 'v1'; readonly grants: 'v1' };
+  readonly markers: { readonly hook: "v1"; readonly grants: "v1" };
 };
 
 export type SupabaseHookClaim = {
@@ -98,7 +98,7 @@ export type SupabaseManifestHelper = {
 export type SupabaseManifestRls = {
   readonly schema: string;
   /** Where the helpers read roles and memberships: the claims (`jwt`) or the tables (`database`). */
-  readonly mode: 'jwt' | 'database';
+  readonly mode: "jwt" | "database";
   readonly tenantClaim: string;
   /** The declared scopes, root first, with the Postgres type of their ids. */
   readonly scopes: readonly {

@@ -1,10 +1,10 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync } from "node:fs";
 
-import type { DoctorFinding } from './doctor-types.ts';
-import type { CliIo, PermDockConfig } from './types.ts';
+import type { DoctorFinding } from "./doctor-types.ts";
+import type { CliIo, PermDockConfig } from "./types.ts";
 
-import { supabaseTenantClaim } from '../supabase/budget.ts';
-import { runCollect } from './collect.ts';
+import { supabaseTenantClaim } from "../supabase/budget.ts";
+import { runCollect } from "./collect.ts";
 import {
   pd002,
   pd003,
@@ -28,9 +28,9 @@ import {
   pd034,
   pd035,
   pd037,
-} from './doctor-collect.ts';
-import { pd042, pd043 } from './doctor-declarative.ts';
-import { pd044 } from './doctor-next.ts';
+} from "./doctor-collect.ts";
+import { pd042, pd043 } from "./doctor-declarative.ts";
+import { pd044 } from "./doctor-next.ts";
 import {
   pd005,
   pd006,
@@ -39,8 +39,8 @@ import {
   pd022,
   pd028,
   pd040,
-} from './doctor-project.ts';
-import { pd054 } from './doctor-seeds.ts';
+} from "./doctor-project.ts";
+import { pd054 } from "./doctor-seeds.ts";
 import {
   pd001,
   pd007,
@@ -53,7 +53,7 @@ import {
   pd036,
   pd038,
   pd041,
-} from './doctor-source.ts';
+} from "./doctor-source.ts";
 import {
   pd046,
   pd047,
@@ -63,32 +63,32 @@ import {
   pd051,
   pd052,
   pd053,
-} from './doctor-sql.ts';
-import { defaultSrcPath, listSourceFiles, rel } from './files.ts';
-import { runSkillsInstall } from './skills.ts';
-import { createStyle } from './style.ts';
-import { pd045 } from './supabase-config.ts';
+} from "./doctor-sql.ts";
+import { defaultSrcPath, listSourceFiles, rel } from "./files.ts";
+import { runSkillsInstall } from "./skills.ts";
+import { createStyle } from "./style.ts";
+import { pd045 } from "./supabase-config.ts";
 import {
   attrsPlan,
   hookOut,
   loadScopes,
   supabaseHookManifest,
-} from './supabase-hook.ts';
-import { pd039 } from './supabase-setup.ts';
-import { DOCTOR_REPORT_SCHEMA } from './version.ts';
+} from "./supabase-hook.ts";
+import { pd039 } from "./supabase-setup.ts";
+import { DOCTOR_REPORT_SCHEMA } from "./version.ts";
 
-export type { DoctorFinding, DoctorSeverity } from './doctor-types.ts';
+export type { DoctorFinding, DoctorSeverity } from "./doctor-types.ts";
 
 /** Static checks over the Supabase migrations; `--only sql` runs them alone. */
 const SQL_CHECKS = [
-  ['PD046', pd046],
-  ['PD047', pd047],
-  ['PD048', pd048],
-  ['PD049', pd049],
-  ['PD050', pd050],
-  ['PD051', pd051],
-  ['PD052', pd052],
-  ['PD053', pd053],
+  ["PD046", pd046],
+  ["PD047", pd047],
+  ["PD048", pd048],
+  ["PD049", pd049],
+  ["PD050", pd050],
+  ["PD051", pd051],
+  ["PD052", pd052],
+  ["PD053", pd053],
 ] as const;
 
 export type DoctorReport = {
@@ -132,10 +132,10 @@ export async function runDoctor(input: {
   const files = listSourceFiles(input.cwd, srcPath);
   const sources = files.map((file) => ({
     file: rel(input.cwd, file),
-    text: readFileSync(file, 'utf8'),
+    text: readFileSync(file, "utf8"),
   }));
 
-  if (include('imports') || include('PD001')) {
+  if (include("imports") || include("PD001")) {
     const clientEntries = new Set(
       listSourceFiles(input.cwd, input.config.doctor?.clientEntries ?? []).map(
         (file) => rel(input.cwd, file),
@@ -143,126 +143,126 @@ export async function runDoctor(input: {
     );
     findings.push(...pd001(sources, clientEntries));
   }
-  if (include('references') || include('PD002')) {
+  if (include("references") || include("PD002")) {
     findings.push(...(await pd002(input)));
   }
-  if (include('ungranted') || include('PD003')) {
+  if (include("ungranted") || include("PD003")) {
     findings.push(...(await pd003(input)));
   }
-  if (include('catalog') || include('PD004')) {
+  if (include("catalog") || include("PD004")) {
     findings.push(...(await pd004(input)));
   }
-  if (include('skills') || include('PD005')) {
+  if (include("skills") || include("PD005")) {
     findings.push(...pd005(input.cwd));
   }
-  if (include('typescript') || include('PD006')) {
+  if (include("typescript") || include("PD006")) {
     findings.push(...pd006(input.cwd));
   }
-  if (include('validation') || include('PD007')) {
+  if (include("validation") || include("PD007")) {
     findings.push(...pd007(sources));
   }
-  if (include('naming') || include('PD008')) {
+  if (include("naming") || include("PD008")) {
     findings.push(...pd008(sources));
   }
-  if (include('duplicates') || include('PD009')) {
+  if (include("duplicates") || include("PD009")) {
     findings.push(...pd009(input.cwd));
   }
-  if (include('claims') || include('PD010')) {
+  if (include("claims") || include("PD010")) {
     findings.push(...pd010(sources));
   }
-  if (include('tenant') || include('PD011')) {
+  if (include("tenant") || include("PD011")) {
     findings.push(...pd011(sources));
   }
-  if (include('drafts') || include('PD012')) {
+  if (include("drafts") || include("PD012")) {
     findings.push(...pd012(input.cwd, input.config));
   }
-  if (include('algorithms') || include('PD013')) {
+  if (include("algorithms") || include("PD013")) {
     findings.push(...pd013(sources));
   }
-  if (include('discovery') || include('PD014')) {
+  if (include("discovery") || include("PD014")) {
     findings.push(...pd014(sources));
   }
-  if (include('typ') || include('PD015')) {
+  if (include("typ") || include("PD015")) {
     findings.push(...pd015(sources));
   }
-  if (include('rls') || include('PD016')) {
+  if (include("rls") || include("PD016")) {
     findings.push(...(await pd016(input)));
   }
-  if (include('sensitive') || include('PD017')) {
+  if (include("sensitive") || include("PD017")) {
     findings.push(...(await pd017(input)));
   }
-  if (include('separation') || include('PD018')) {
+  if (include("separation") || include("PD018")) {
     findings.push(...(await pd018(input)));
   }
-  if (include('jwt-roles') || include('PD019')) {
+  if (include("jwt-roles") || include("PD019")) {
     findings.push(...(await pd019(input)));
   }
-  if (include('hosted') || include('PD020')) {
+  if (include("hosted") || include("PD020")) {
     findings.push(...(await pd020(input)));
   }
-  if (include('hosted') || include('PD021')) {
+  if (include("hosted") || include("PD021")) {
     findings.push(
       ...(await pd021({ ...input, env: input.io.env ?? process.env })),
     );
   }
-  if (include('views') || include('PD022')) {
+  if (include("views") || include("PD022")) {
     findings.push(...pd022(input.cwd, input.config));
   }
-  if (include('custom-roles') || include('PD023')) {
+  if (include("custom-roles") || include("PD023")) {
     findings.push(...(await pd023(input)));
   }
-  if (include('self-approval') || include('PD024')) {
+  if (include("self-approval") || include("PD024")) {
     findings.push(...(await pd024(input)));
   }
-  if (include('scopes') || include('PD025')) {
+  if (include("scopes") || include("PD025")) {
     findings.push(...(await pd025(input)));
   }
-  if (include('ownership') || include('PD026')) {
+  if (include("ownership") || include("PD026")) {
     findings.push(...(await pd026(input)));
   }
-  if (include('rls') || include('context-refs') || include('PD027')) {
+  if (include("rls") || include("context-refs") || include("PD027")) {
     findings.push(...(await pd027(input)));
   }
-  if (include('attrs') || include('supabase') || include('PD028')) {
+  if (include("attrs") || include("supabase") || include("PD028")) {
     findings.push(...pd028(input.cwd, input.config, attrsPlan));
   }
-  if (include('credentials') || include('PD029')) {
+  if (include("credentials") || include("PD029")) {
     findings.push(...pd029(input));
   }
-  if (include('fields') || include('PD030')) {
+  if (include("fields") || include("PD030")) {
     findings.push(...(await pd030(input)));
   }
-  if (include('graph') || include('PD031')) {
+  if (include("graph") || include("PD031")) {
     findings.push(...(await pd031(input)));
   }
-  if (include('graph') || include('rls') || include('PD032')) {
+  if (include("graph") || include("rls") || include("PD032")) {
     findings.push(...(await pd032(input)));
   }
-  if (include('activation') || include('PD033')) {
+  if (include("activation") || include("PD033")) {
     findings.push(...(await pd033(input)));
   }
-  if (include('break-glass') || include('PD034')) {
+  if (include("break-glass") || include("PD034")) {
     findings.push(...(await pd034(input)));
   }
-  if (include('support') || include('PD035')) {
+  if (include("support") || include("PD035")) {
     findings.push(...(await pd035(input)));
   }
-  if (include('bola') || include('PD036')) {
+  if (include("bola") || include("PD036")) {
     findings.push(...pd036(sources));
   }
-  if (include('supabase') || include('row-conditions') || include('PD037')) {
+  if (include("supabase") || include("row-conditions") || include("PD037")) {
     findings.push(...(await pd037(input)));
   }
   if (
     input.config.supabase?.hook !== undefined &&
-    (include('supabase') || include('helpers') || include('PD039'))
+    (include("supabase") || include("helpers") || include("PD039"))
   ) {
     findings.push(...(await supabaseSetup(input)));
   }
   if (
     (input.config.rls !== undefined ||
       input.config.supabase?.hook !== undefined) &&
-    (include('supabase') || include('tenant') || include('PD038'))
+    (include("supabase") || include("tenant") || include("PD038"))
   ) {
     findings.push(
       ...pd038(
@@ -272,36 +272,36 @@ export async function runDoctor(input: {
       ),
     );
   }
-  if (include('supabase') || include('auth-role') || include('PD040')) {
+  if (include("supabase") || include("auth-role") || include("PD040")) {
     findings.push(...pd040(input.cwd, input.config));
   }
-  if (include('supabase') || include('capabilities') || include('PD041')) {
+  if (include("supabase") || include("capabilities") || include("PD041")) {
     findings.push(...pd041(sources));
   }
-  if (include('supabase') || include('declarative') || include('PD042')) {
+  if (include("supabase") || include("declarative") || include("PD042")) {
     findings.push(...pd042(input.cwd, input.config));
   }
-  if (include('supabase') || include('declarative') || include('PD043')) {
+  if (include("supabase") || include("declarative") || include("PD043")) {
     findings.push(...pd043(input.cwd));
   }
-  if (include('supabase') || include('PD045')) {
+  if (include("supabase") || include("PD045")) {
     findings.push(...pd045(input.cwd));
   }
   for (const [code, check] of SQL_CHECKS) {
-    if (include('supabase') || include('sql') || include(code)) {
+    if (include("supabase") || include("sql") || include(code)) {
       findings.push(...check(input.cwd, input.config));
     }
   }
-  if (include('supabase') || include('seeds') || include('PD054')) {
+  if (include("supabase") || include("seeds") || include("PD054")) {
     findings.push(...(await pd054(input)));
   }
-  if (include('next') || include('endpoint') || include('PD044')) {
+  if (include("next") || include("endpoint") || include("PD044")) {
     findings.push(...(await pd044(input)));
   }
 
-  const errors = findings.filter((item) => item.severity === 'error').length;
+  const errors = findings.filter((item) => item.severity === "error").length;
   const warnings = findings.filter(
-    (item) => item.severity === 'warning',
+    (item) => item.severity === "warning",
   ).length;
   const report: DoctorReport = {
     $schema: DOCTOR_REPORT_SCHEMA,
@@ -320,23 +320,23 @@ export async function runDoctor(input: {
 
 function formatDoctor(report: DoctorReport, color: boolean): string {
   const style = createStyle(color);
-  const lines = [style.paint('bold', 'permdock doctor'), ''];
+  const lines = [style.paint("bold", "permdock doctor"), ""];
   for (const finding of report.findings) {
     const mark =
-      finding.severity === 'error' ? style.errorMark : style.warnMark;
+      finding.severity === "error" ? style.errorMark : style.warnMark;
     lines.push(
-      `  ${mark} ${style.paint('bold', finding.code)}  ${finding.message}`,
+      `  ${mark} ${style.paint("bold", finding.code)}  ${finding.message}`,
     );
-    lines.push(`           ${style.paint('dim', `fix: ${finding.fix}`)}`);
+    lines.push(`           ${style.paint("dim", `fix: ${finding.fix}`)}`);
   }
   if (report.findings.length === 0) {
-    lines.push('  no findings');
+    lines.push("  no findings");
   }
-  lines.push('');
+  lines.push("");
   lines.push(
-    `  ${String(report.errors)} error${report.errors === 1 ? '' : 's'}, ${String(report.warnings)} warning${report.warnings === 1 ? '' : 's'}`,
+    `  ${String(report.errors)} error${report.errors === 1 ? "" : "s"}, ${String(report.warnings)} warning${report.warnings === 1 ? "" : "s"}`,
   );
-  return `${lines.join('\n')}\n`;
+  return `${lines.join("\n")}\n`;
 }
 
 async function supabaseSetup(input: {

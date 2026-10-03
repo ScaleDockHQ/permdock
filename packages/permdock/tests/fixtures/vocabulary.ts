@@ -1,6 +1,6 @@
-import type { PermDock } from '../../src/core/permdock.ts';
-import type { Policy, PolicyVocabulary } from '../../src/core/policy.ts';
-import type { Principal } from '../../src/core/subject.ts';
+import type { PermDock } from "../../src/core/permdock.ts";
+import type { Policy, PolicyVocabulary } from "../../src/core/policy.ts";
+import type { Principal } from "../../src/core/subject.ts";
 
 import {
   allow,
@@ -8,8 +8,8 @@ import {
   definePolicy,
   defineRoles,
   role,
-} from '../../src/index.ts';
-import { permissions } from './quick-start.ts';
+} from "../../src/index.ts";
+import { permissions } from "./quick-start.ts";
 
 export { permissions };
 
@@ -30,7 +30,7 @@ export const policy = definePolicy(
       ]),
     ],
     subject: (user: User | null) =>
-      user === null ? null : { id: user.id, roles: ['editor'] },
+      user === null ? null : { id: user.id, roles: ["editor"] },
   },
 );
 

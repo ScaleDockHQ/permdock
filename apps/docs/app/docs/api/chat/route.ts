@@ -1,4 +1,4 @@
-import { checkRateLimit } from '@vercel/firewall';
+import { checkRateLimit } from "@vercel/firewall";
 import {
   convertToModelMessages,
   createUIMessageStreamResponse,
@@ -6,10 +6,10 @@ import {
   streamText,
   toUIMessageStream,
   tool,
-} from 'ai';
-import { checkBotId } from 'botid/server';
+} from "ai";
+import { checkBotId } from "botid/server";
 
-import { env } from '@/env';
+import { env } from "@/env";
 import {
   askAiProblem,
   askAiRateLimitId,
@@ -18,10 +18,10 @@ import {
   parseChatRequest,
   searchInput,
   type AskAiChecks,
-} from '@/lib/ask-ai';
-import { docsTools } from '@/lib/docs-tools';
+} from "@/lib/ask-ai";
+import { docsTools } from "@/lib/docs-tools";
 
-const model = 'anthropic/claude-sonnet-5.5';
+const model = "anthropic/claude-sonnet-5.5";
 const searchLimit = 8;
 const docs = docsTools();
 
@@ -37,12 +37,12 @@ const vercelChecks: AskAiChecks = {
 };
 
 function problem(status: number, detail: string): Response {
-  return askAiProblem(status, 'Invalid chat request', detail);
+  return askAiProblem(status, "Invalid chat request", detail);
 }
 
 export async function POST(request: Request): Promise<Response> {
   // BotID and the Firewall answer only on Vercel; local and e2e servers skip them.
-  if (env.VERCEL === '1') {
+  if (env.VERCEL === "1") {
     const blocked = await guardAskAi(request, vercelChecks);
     if (blocked !== null) {
       return blocked;
@@ -52,7 +52,7 @@ export async function POST(request: Request): Promise<Response> {
   try {
     body = await request.json();
   } catch {
-    return problem(400, 'The body is not JSON.');
+    return problem(400, "The body is not JSON.");
   }
   const parsed = await parseChatRequest(body);
   if (!parsed.ok) {
@@ -66,13 +66,13 @@ export async function POST(request: Request): Promise<Response> {
     tools: {
       search_docs: tool({
         description:
-          'Search the PermDock documentation. Returns page titles, descriptions and URLs.',
+          "Search the PermDock documentation. Returns page titles, descriptions and URLs.",
         inputSchema: searchInput,
         execute: ({ query }) => docs.search(query, searchLimit),
       }),
       get_page: tool({
         description:
-          'Read one documentation page as Markdown, by its URL path such as /docs/concepts/decisions.',
+          "Read one documentation page as Markdown, by its URL path such as /docs/concepts/decisions.",
         inputSchema: pageInput,
         execute: async ({ path }) =>
           (await docs.getPage(path)) ?? `No documentation page at ${path}.`,
@@ -80,7 +80,7 @@ export async function POST(request: Request): Promise<Response> {
     },
     stopWhen: isStepCount(6),
     maxOutputTokens: 2000,
-    telemetry: { functionId: 'docs-ask-ai' },
+    telemetry: { functionId: "docs-ask-ai" },
   });
 
   return createUIMessageStreamResponse({

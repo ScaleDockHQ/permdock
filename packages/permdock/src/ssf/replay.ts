@@ -1,4 +1,4 @@
-import type { ReplayStore } from './types.ts';
+import type { ReplayStore } from "./types.ts";
 
 export function memoryReplayStore(): ReplayStore {
   const seen = new Map<string, number | undefined>();

@@ -1,8 +1,8 @@
-import express from 'express';
-import { createPermDock } from 'permdock/express';
+import express from "express";
+import { createPermDock } from "permdock/express";
 
-import { ownPost, permissions } from './permissions.ts';
-import { memberUser, policy } from './policy.ts';
+import { ownPost, permissions } from "./permissions.ts";
+import { memberUser, policy } from "./policy.ts";
 
 const { protect } = createPermDock(policy, {
   subject: () => memberUser,
@@ -10,12 +10,12 @@ const { protect } = createPermDock(policy, {
 
 export const app = express();
 
-app.get('/health', (_req, res) => {
+app.get("/health", (_req, res) => {
   res.json({ ok: true });
 });
 
 app.patch(
-  '/posts/:id',
+  "/posts/:id",
   protect(permissions.post.update, () => ownPost),
   (_req, res) => {
     res.json({ ok: true });
@@ -23,7 +23,7 @@ app.patch(
 );
 
 app.post(
-  '/posts/:id/publish',
+  "/posts/:id/publish",
   protect(permissions.post.publish, () => ownPost),
   (_req, res) => {
     res.json({ ok: true });

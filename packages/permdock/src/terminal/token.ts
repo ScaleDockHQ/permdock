@@ -4,15 +4,15 @@ import type {
   TerminalStorageOptions,
   TokenSource,
   TokenSourceName,
-} from './types.ts';
+} from "./types.ts";
 
-import { timeoutSignal } from '../core/timeout.ts';
+import { timeoutSignal } from "../core/timeout.ts";
 import {
   TERMINAL_TIMEOUT_MS,
   refreshCredential,
   runDeviceFlow,
-} from './device.ts';
-import { readCredentials, writeCredentials } from './storage.ts';
+} from "./device.ts";
+import { readCredentials, writeCredentials } from "./storage.ts";
 
 const JWT_PART = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/u;
 
@@ -27,7 +27,7 @@ export function warnJwtInArgv(
   for (const arg of argv) {
     if (looksLikeJwt(arg)) {
       write(
-        'warning: a JWT-shaped value was found in argv; tokens must not be passed as flags\n',
+        "warning: a JWT-shaped value was found in argv; tokens must not be passed as flags\n",
       );
       return;
     }
@@ -35,26 +35,26 @@ export function warnJwtInArgv(
 }
 
 export function profileFromArgv(argv: readonly string[]): string | undefined {
-  const index = argv.indexOf('--as');
+  const index = argv.indexOf("--as");
   if (index === -1) {
     return undefined;
   }
   const next = argv[index + 1];
-  return next === undefined || next.startsWith('-') ? undefined : next;
+  return next === undefined || next.startsWith("-") ? undefined : next;
 }
 
 function sourceName(source: TokenSource): TokenSourceName {
-  if (typeof source === 'string') {
+  if (typeof source === "string") {
     return source;
   }
-  if ('source' in source) {
+  if ("source" in source) {
     return source.source;
   }
-  return 'env';
+  return "env";
 }
 
 function envName(source: TokenSource, fallback: string): string {
-  if (typeof source === 'string') {
+  if (typeof source === "string") {
     return fallback;
   }
   return source.env ?? fallback;
@@ -66,39 +66,39 @@ async function fromCiOidc(
 ): Promise<string | null> {
   const env = runtime.env ?? process.env;
   const fetchImpl = runtime.fetch ?? fetch;
-  const named = typeof source === 'string' ? undefined : source.env;
+  const named = typeof source === "string" ? undefined : source.env;
   const audience =
-    typeof source === 'object' && 'audience' in source
+    typeof source === "object" && "audience" in source
       ? source.audience
       : undefined;
   if (named !== undefined) {
     const value = env[named];
-    return typeof value === 'string' && value !== '' ? value : null;
+    return typeof value === "string" && value !== "" ? value : null;
   }
-  if (typeof env['CI_JOB_JWT_V2'] === 'string' && env['CI_JOB_JWT_V2'] !== '') {
-    return env['CI_JOB_JWT_V2'];
+  if (typeof env["CI_JOB_JWT_V2"] === "string" && env["CI_JOB_JWT_V2"] !== "") {
+    return env["CI_JOB_JWT_V2"];
   }
   if (
-    typeof env['ACTIONS_ID_TOKEN_REQUEST_URL'] === 'string' &&
-    typeof env['ACTIONS_ID_TOKEN_REQUEST_TOKEN'] === 'string'
+    typeof env["ACTIONS_ID_TOKEN_REQUEST_URL"] === "string" &&
+    typeof env["ACTIONS_ID_TOKEN_REQUEST_TOKEN"] === "string"
   ) {
     try {
-      const url = new URL(env['ACTIONS_ID_TOKEN_REQUEST_URL']);
+      const url = new URL(env["ACTIONS_ID_TOKEN_REQUEST_URL"]);
       if (audience !== undefined) {
-        url.searchParams.set('audience', audience);
+        url.searchParams.set("audience", audience);
       }
       const response = await fetchImpl(url, {
         headers: {
-          Authorization: `Bearer ${env['ACTIONS_ID_TOKEN_REQUEST_TOKEN']}`,
+          Authorization: `Bearer ${env["ACTIONS_ID_TOKEN_REQUEST_TOKEN"]}`,
         },
         signal: timeoutSignal(TERMINAL_TIMEOUT_MS),
       });
       const body: unknown = await response.json();
       if (
         body !== null &&
-        typeof body === 'object' &&
-        'value' in body &&
-        typeof body.value === 'string'
+        typeof body === "object" &&
+        "value" in body &&
+        typeof body.value === "string"
       ) {
         return body.value;
       }
@@ -126,15 +126,15 @@ export async function resolveToken(
   for (const source of walk) {
     const name = sourceName(source);
     switch (name) {
-      case 'env': {
-        const key = envName(source, 'PERMDOCK_TOKEN');
+      case "env": {
+        const key = envName(source, "PERMDOCK_TOKEN");
         const value = (options.runtime.env ?? process.env)[key];
-        if (typeof value === 'string' && value !== '') {
+        if (typeof value === "string" && value !== "") {
           return value;
         }
         break;
       }
-      case 'keychain': {
+      case "keychain": {
         if (options.storage === undefined) {
           break;
         }
@@ -167,14 +167,14 @@ export async function resolveToken(
         }
         return stored.access_token;
       }
-      case 'ci-oidc': {
+      case "ci-oidc": {
         const oidc = await fromCiOidc(options.runtime, source);
         if (oidc !== null) {
           return oidc;
         }
         break;
       }
-      case 'device': {
+      case "device": {
         if (options.device === undefined) {
           break;
         }

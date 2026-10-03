@@ -1,6 +1,6 @@
-import * as Sentry from '@sentry/nextjs';
+import * as Sentry from "@sentry/nextjs";
 
-import { sentryOptions } from '@/lib/monitoring';
+import { sentryOptions } from "@/lib/monitoring";
 
 export function register(): void {
   Sentry.init(sentryOptions());

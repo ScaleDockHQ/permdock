@@ -1,14 +1,14 @@
-import { createHash } from 'node:crypto';
+import { createHash } from "node:crypto";
 
-import type { Condition } from '../conditions/ast.ts';
-import type { RlsSqlContext } from './rls-sql.ts';
+import type { Condition } from "../conditions/ast.ts";
+import type { RlsSqlContext } from "./rls-sql.ts";
 
 import {
   qualifiedTable,
   quoteIdent,
   quoteTable,
   scopeTable,
-} from './rls-sql.ts';
+} from "./rls-sql.ts";
 
 /** An index a generated policy or helper needs, its first column the one it filters on. */
 export type IndexTarget = {
@@ -28,28 +28,28 @@ export function conditionFields(condition: Condition | undefined): string[] {
     return [];
   }
   switch (condition.op) {
-    case 'and':
-    case 'or':
+    case "and":
+    case "or":
       return condition.conditions.flatMap(conditionFields);
-    case 'not':
+    case "not":
       return conditionFields(condition.condition);
-    case 'sqlFunction':
+    case "sqlFunction":
       return conditionFields(condition.twin);
-    case 'opaque':
-    case 'related':
+    case "opaque":
+    case "related":
       return [];
-    case 'eq':
-    case 'ne':
-    case 'gt':
-    case 'gte':
-    case 'lt':
-    case 'lte':
-    case 'contains':
-    case 'in':
-    case 'notIn':
-    case 'isNull':
-    case 'memberOf':
-      return condition.field.includes('.') ? [] : [condition.field];
+    case "eq":
+    case "ne":
+    case "gt":
+    case "gte":
+    case "lt":
+    case "lte":
+    case "contains":
+    case "in":
+    case "notIn":
+    case "isNull":
+    case "memberOf":
+      return condition.field.includes(".") ? [] : [condition.field];
     default: {
       const exhaustive: never = condition;
       return exhaustive;
@@ -69,7 +69,7 @@ export function indexTargets(
   const targets = new Map<string, IndexTarget>();
   const add = (table: string, columns: readonly string[]): void => {
     const target = { table: qualifiedTable(table), columns };
-    targets.set(`${target.table}\u0000${columns[0] ?? ''}`, target);
+    targets.set(`${target.table}\u0000${columns[0] ?? ""}`, target);
   };
   for (const { table, column } of rowColumns) {
     add(table, [column]);
@@ -84,7 +84,7 @@ export function indexTargets(
     add(source.sql.table, [source.sql.user]);
   }
   return [...targets.values()].toSorted((a, b) =>
-    `${a.table}.${a.columns.join(',')}` < `${b.table}.${b.columns.join(',')}`
+    `${a.table}.${a.columns.join(",")}` < `${b.table}.${b.columns.join(",")}`
       ? -1
       : 1,
   );
@@ -92,12 +92,12 @@ export function indexTargets(
 
 /** A stable index name under Postgres' identifier limit. */
 export function indexName(target: IndexTarget): string {
-  const bare = target.table.slice(target.table.lastIndexOf('.') + 1);
-  const name = `permdock_${bare}_${target.columns.join('_')}_idx`;
+  const bare = target.table.slice(target.table.lastIndexOf(".") + 1);
+  const name = `permdock_${bare}_${target.columns.join("_")}_idx`;
   if (Buffer.byteLength(name) <= MAX_IDENT) {
     return name;
   }
-  const hash = createHash('sha256').update(name).digest('hex').slice(0, 8);
+  const hash = createHash("sha256").update(name).digest("hex").slice(0, 8);
   return `permdock_${hash}_idx`;
 }
 
@@ -106,7 +106,7 @@ export function indexesSql(targets: readonly IndexTarget[]): string {
   return targets
     .map(
       (target) =>
-        `create index if not exists ${quoteIdent(indexName(target))} on ${quoteTable(target.table)} (${target.columns.map(quoteIdent).join(', ')});`,
+        `create index if not exists ${quoteIdent(indexName(target))} on ${quoteTable(target.table)} (${target.columns.map(quoteIdent).join(", ")});`,
     )
-    .join('\n');
+    .join("\n");
 }

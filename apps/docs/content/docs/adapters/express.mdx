@@ -10,39 +10,48 @@ Express 4 and 5 use Node's `IncomingMessage` / `ServerResponse` rather than Fetc
 ## API
 
 ```ts
-import express from 'express'
-import { createPermDock } from 'permdock/express'
-import { policy } from './policy'
-import { permissions } from './permissions'
+import express from "express";
+import { createPermDock } from "permdock/express";
+import { policy } from "./policy";
+import { permissions } from "./permissions";
 
-export const { permdock, protect, errorHandler } = createPermDock(policy, { subject: (req) => req.user ?? null })
+export const { permdock, protect, errorHandler } = createPermDock(policy, {
+  subject: (req) => req.user ?? null,
+});
 
-const app = express()
-app.use(permdock())                                                   // req.permdock is the request-scoped PermDock
-app.use(express.json())                                               // either order: permdock() never reads the body stream
-app.delete('/posts/:id', protect(permissions.post.delete, (req) => loadPost(req.params.id)), async (req, res) => {
-  await deletePost(req.permdockData)
-  res.status(204).end()
-})
-app.use(errorHandler())                                               // PermDockDeniedError → 403 application/problem+json
+const app = express();
+app.use(permdock()); // req.permdock is the request-scoped PermDock
+app.use(express.json()); // either order: permdock() never reads the body stream
+app.delete(
+  "/posts/:id",
+  protect(permissions.post.delete, (req) => loadPost(req.params.id)),
+  async (req, res) => {
+    await deletePost(req.permdockData);
+    res.status(204).end();
+  },
+);
+app.use(errorHandler()); // PermDockDeniedError → 403 application/problem+json
 ```
 
-| Export | Role |
-|---|---|
-| `permdock()` | Middleware. Calls `subject(req)`, builds the instance, sets `req.permdock`. The `Request` type extension is scoped to the factory result (a typed `Request` alias is exported), not to Express globally. |
+| Export                                     | Role                                                                                                                                                                                                                                                                          |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `permdock()`                               | Middleware. Calls `subject(req)`, builds the instance, sets `req.permdock`. The `Request` type extension is scoped to the factory result (a typed `Request` alias is exported), not to Express globally.                                                                      |
 | `protect(permission, loadData?, options?)` | Middleware. The `tenant` option (`(req) => req.params.org`) is resolved for each `protect`, after routing. Loads data for instance actions (`req.permdockData`), decides, and either calls `next()` or writes the 403 Problem Details response. Rejections go to `next(err)`. |
-| `errorHandler()` | Error middleware that maps `PermDockDeniedError`, `PermDockApprovalRequiredError` and `PermDockValidationError` thrown inside handlers to Problem Details responses; other errors pass through. |
-| `permdockHandler()` | Router (`mergeParams: true`) mounting the AuthZEN-shaped decision endpoint: `app.use('/api/permdock', permdockHandler())`, or `app.use('/:org/permdock', permdockHandler())` to decide in the path tenant. |
-| `openapi` | Kernel hook contract for `express-openapi` or hand-written documents. |
+| `errorHandler()`                           | Error middleware that maps `PermDockDeniedError`, `PermDockApprovalRequiredError` and `PermDockValidationError` thrown inside handlers to Problem Details responses; other errors pass through.                                                                               |
+| `permdockHandler()`                        | Router (`mergeParams: true`) mounting the AuthZEN-shaped decision endpoint: `app.use('/api/permdock', permdockHandler())`, or `app.use('/:org/permdock', permdockHandler())` to decide in the path tenant.                                                                    |
+| `openapi`                                  | Kernel hook contract for `express-openapi` or hand-written documents.                                                                                                                                                                                                         |
 
 ### Typing `req.permdock`
 
 The factory returns a `Request` type alias (`PermDockRequest`) with `permdock` and `permdockData` declared. Handlers that need the instance annotate their `req` parameter with it, or use the returned `withPermDock(fn)` wrapper that supplies the type. Global augmentation of `express-serve-static-core` is deliberately avoided: two factories (for example, one per tenant policy) would otherwise fight over the same declaration, and a test double would inherit production types.
 
 ```ts
-app.get('/posts', withPermDock(async (req, res) => {
-  res.json(req.permdock.filter(permissions.post.read, await listPosts()))
-}))
+app.get(
+  "/posts",
+  withPermDock(async (req, res) => {
+    res.json(req.permdock.filter(permissions.post.read, await listPosts()));
+  }),
+);
 ```
 
 ## Request lifecycle

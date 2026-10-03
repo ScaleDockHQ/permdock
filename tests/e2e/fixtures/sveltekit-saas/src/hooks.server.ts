@@ -1,6 +1,6 @@
-import type { Handle } from '@sveltejs/kit';
+import type { Handle } from "@sveltejs/kit";
 
-import { handleSaasRoute, readSession } from '@permdock/e2e-saas-kit';
+import { handleSaasRoute, readSession } from "@permdock/e2e-saas-kit";
 
 /** The subject is resolved once per request from the verified session cookie. */
 export const handle: Handle = async ({ event, resolve }) => {
@@ -8,6 +8,6 @@ export const handle: Handle = async ({ event, resolve }) => {
   if (shared !== undefined) {
     return shared;
   }
-  event.locals.session = await readSession(event.request.headers.get('cookie'));
+  event.locals.session = await readSession(event.request.headers.get("cookie"));
   return resolve(event);
 };

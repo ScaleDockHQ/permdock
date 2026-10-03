@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import { Protected } from 'permdock/react';
-import { useState, useTransition } from 'react';
+import { Protected } from "permdock/react";
+import { useState, useTransition } from "react";
 
-import { permissions, roleNames } from '../../../permissions.ts';
-import { changeRole } from '../../actions.ts';
+import { permissions, roleNames } from "../../../permissions.ts";
+import { changeRole } from "../../actions.ts";
 
 export function RoleForm(props: {
   readonly org: string;
@@ -39,7 +39,7 @@ export function RoleForm(props: {
           startTransition(async () => {
             const outcome = await changeRole(props.org, props.user, role);
             setResult(
-              outcome.ok ? 'Saved' : `Denied: ${outcome.reason ?? 'unknown'}`,
+              outcome.ok ? "Saved" : `Denied: ${outcome.reason ?? "unknown"}`,
             );
           });
         }}

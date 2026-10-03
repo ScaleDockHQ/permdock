@@ -1,4 +1,4 @@
-export { registerTools } from './register.ts';
+export { registerTools } from "./register.ts";
 export type {
   ModelContext,
   PermissionGroup,
@@ -12,4 +12,4 @@ export type {
   WebMcpToolCall,
   WebMcpToolHandler,
   WebMcpToolResult,
-} from './types.ts';
+} from "./types.ts";

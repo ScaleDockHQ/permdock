@@ -1,5 +1,5 @@
 ---
-'permdock': patch
+"permdock": patch
 ---
 
 Supabase SQL security and performance:

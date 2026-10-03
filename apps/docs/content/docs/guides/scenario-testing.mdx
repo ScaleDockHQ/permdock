@@ -22,14 +22,14 @@ The expectations are never computed by the engine. Every suite runs the same cas
 
 ## Runners
 
-| Runner | What it proves | Where PermDock runs it |
-| --- | --- | --- |
-| `describePolicy` | Every permission has a cell per subject and fixture; a new permission cannot ship untested | Every example app |
-| `testClientParity` | `fromSnapshot` never grants what the server denies, per membership and tenant | `packages/permdock/src/testing` over the saas domain |
-| `testClientStore` | A client store's tenant switch, refresh races, stale snapshots, signed refreshes and cache | `permdock/react-native` `createNativeStore` |
-| `testHttpAdapter` | 14 HTTP scenarios over a real server: tenant from the path, per-org roles, custom roles, quotas, approvals, Problem Details | `tests/integration/src/http`, one file per adapter |
-| `ormParity` | `toWhere(where())` on a real database returns exactly the rows `filter()` keeps in memory | Drizzle, Kysely and Prisma 7 in `tests/integration` |
-| `rlsParity` | Generated RLS policies return the same rows as the in-memory evaluator | `tests/integration` on testcontainers Postgres |
+| Runner                                | What it proves                                                                                                                                                                                                                                                                     | Where PermDock runs it                                                                                            |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `describePolicy`                      | Every permission has a cell per subject and fixture; a new permission cannot ship untested                                                                                                                                                                                         | Every example app                                                                                                 |
+| `testClientParity`                    | `fromSnapshot` never grants what the server denies, per membership and tenant                                                                                                                                                                                                      | `packages/permdock/src/testing` over the saas domain                                                              |
+| `testClientStore`                     | A client store's tenant switch, refresh races, stale snapshots, signed refreshes and cache                                                                                                                                                                                         | `permdock/react-native` `createNativeStore`                                                                       |
+| `testHttpAdapter`                     | 14 HTTP scenarios over a real server: tenant from the path, per-org roles, custom roles, quotas, approvals, Problem Details                                                                                                                                                        | `tests/integration/src/http`, one file per adapter                                                                |
+| `ormParity`                           | `toWhere(where())` on a real database returns exactly the rows `filter()` keeps in memory                                                                                                                                                                                          | Drizzle, Kysely and Prisma 7 in `tests/integration`                                                               |
+| `rlsParity`                           | Generated RLS policies return the same rows as the in-memory evaluator                                                                                                                                                                                                             | `tests/integration` on testcontainers Postgres                                                                    |
 | `test<Interface>` conformance runners | A custom `ApprovalStore`, `DecisionSink`, `MembershipSource`, `RoleSource`, `SnapshotSource`, `PolicySource`, `LimitStore`, `DirectoryStore`, `ReplayStore`, `RevocationFeed`, `SubjectResolver`, `TokenVerifier`, `TokenSigner` or `WhereCompiler` keeps the interface's contract | The in-package defaults, the Drizzle `ApprovalStore` recipe on Postgres, the `b2b-scim` Postgres `DirectoryStore` |
 
 An application does not need the saas domain to use them. `describePolicy`, `ormParity`, `rlsParity` and the conformance runners take your own policy, scenarios and implementations; `testHttpAdapter` and `testClientStore` are tied to the saas domain because their scenarios are, and are most useful when you write a new adapter or store.
@@ -38,16 +38,16 @@ An application does not need the saas domain to use them. `describePolicy`, `orm
 
 `tests/e2e/fixtures/<name>` holds one realistic application per archetype, each built for production and driven by Playwright from `tests/e2e/src/<name>.spec.ts`:
 
-| Fixture | Archetype |
-| --- | --- |
-| `next-saas` | Next.js 16.3 Cache Components, JWT and database modes, instant navigation |
-| `sveltekit-saas`, `nuxt-saas`, `tanstack-start-saas`, `solidstart-saas` | The same SaaS UI in each framework, sharing `saas-kit` and the `saasUiScenarios` spec |
-| `expo-saas` | Expo Router web build with API routes on the server kernel |
-| `mcp-oauth` | MCP over Streamable HTTP with OAuth bearer tokens, scope step-up and per-token tool lists |
-| `ai-chat` | AI SDK chat with tool approvals resolved through `approvalsHandler` and resumed once |
-| `realtime-collab` | Streams and sockets under revocation |
-| `b2b-scim` | SCIM provisioning per tenant credential and CAEP session revocation |
-| `turborepo` | Definitions in one workspace package, enforcement in another, catalog drift checked |
+| Fixture                                                                 | Archetype                                                                                 |
+| ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `next-saas`                                                             | Next.js 16.3 Cache Components, JWT and database modes, instant navigation                 |
+| `sveltekit-saas`, `nuxt-saas`, `tanstack-start-saas`, `solidstart-saas` | The same SaaS UI in each framework, sharing `saas-kit` and the `saasUiScenarios` spec     |
+| `expo-saas`                                                             | Expo Router web build with API routes on the server kernel                                |
+| `mcp-oauth`                                                             | MCP over Streamable HTTP with OAuth bearer tokens, scope step-up and per-token tool lists |
+| `ai-chat`                                                               | AI SDK chat with tool approvals resolved through `approvalsHandler` and resumed once      |
+| `realtime-collab`                                                       | Streams and sockets under revocation                                                      |
+| `b2b-scim`                                                              | SCIM provisioning per tenant credential and CAEP session revocation                       |
+| `turborepo`                                                             | Definitions in one workspace package, enforcement in another, catalog drift checked       |
 
 `tests/runtimes` runs one kernel, Hono, Elysia and AuthZEN app on Node, Bun, Deno and workerd (through Miniflare) with `pnpm test:runtimes`; CI requires every runtime, and a local run skips the ones that are not installed.
 

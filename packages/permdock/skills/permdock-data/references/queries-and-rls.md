@@ -5,7 +5,7 @@ Owning pages: [protected queries](https://permdock.dev/docs/concepts/policies#pr
 ## List queries
 
 ```ts
-import { toWhere } from 'permdock/drizzle'; // or permdock/prisma, permdock/kysely
+import { toWhere } from "permdock/drizzle"; // or permdock/prisma, permdock/kysely
 
 export async function listPosts(permdock: PermDock) {
   const read = permissions.post.read;

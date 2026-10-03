@@ -70,17 +70,17 @@ permdock rls verify --db $DATABASE_URL
 
 ### The portable subset
 
-| Portable node | Supabase SQL | Neon or generic GUC |
-| --- | --- | --- |
-| `eq(row.user_id, principal.id)` | `(select auth.uid()) = user_id` | `(select auth.user_id()) = user_id` or `(select current_setting('app.user_id', true))::uuid = user_id` |
-| `eq(row.tenant_id, principal.claim.tenant_id)` | `tenant_id = ((select auth.jwt()) ->> 'tenant_id')::uuid` | `tenant_id = (select current_setting('app.tenant_id', true))::uuid` |
-| `eq(principal.claim.user_role, 'admin')` | `((select auth.jwt()) ->> 'user_role') = 'admin'` | GUC variant |
-| Claim array contains a row column | `team_id in (select jsonb_array_elements_text((select auth.jwt())->'app_metadata'->'teams'))::uuid` | none |
-| Membership via join table | `id in (select resource_id from memberships where user_id = (select auth.uid()) [and role in (...)])` | same |
-| Role check of a global role | `(select permdock.permdock_has('channels.delete'))` | same helper, claims from GUCs |
-| Role check of a role on a named scope | `org_id in (select permdock.permitted_organization_ids('channels.delete'))`, `customer_id in (select permdock.permitted_customer_ids('quote.read'))` | same helpers |
-| Named permission in a hand-written policy | `(select authorize('channels.delete'))` with `--rbac supabase`; imported as opaque | opaque unless a function is mapped |
-| Literal comparisons, `isNull`, `and`, `or`, `not`, `true`, `false` | literal SQL | literal SQL |
+| Portable node                                                      | Supabase SQL                                                                                                                                         | Neon or generic GUC                                                                                    |
+| ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `eq(row.user_id, principal.id)`                                    | `(select auth.uid()) = user_id`                                                                                                                      | `(select auth.user_id()) = user_id` or `(select current_setting('app.user_id', true))::uuid = user_id` |
+| `eq(row.tenant_id, principal.claim.tenant_id)`                     | `tenant_id = ((select auth.jwt()) ->> 'tenant_id')::uuid`                                                                                            | `tenant_id = (select current_setting('app.tenant_id', true))::uuid`                                    |
+| `eq(principal.claim.user_role, 'admin')`                           | `((select auth.jwt()) ->> 'user_role') = 'admin'`                                                                                                    | GUC variant                                                                                            |
+| Claim array contains a row column                                  | `team_id in (select jsonb_array_elements_text((select auth.jwt())->'app_metadata'->'teams'))::uuid`                                                  | none                                                                                                   |
+| Membership via join table                                          | `id in (select resource_id from memberships where user_id = (select auth.uid()) [and role in (...)])`                                                | same                                                                                                   |
+| Role check of a global role                                        | `(select permdock.permdock_has('channels.delete'))`                                                                                                  | same helper, claims from GUCs                                                                          |
+| Role check of a role on a named scope                              | `org_id in (select permdock.permitted_organization_ids('channels.delete'))`, `customer_id in (select permdock.permitted_customer_ids('quote.read'))` | same helpers                                                                                           |
+| Named permission in a hand-written policy                          | `(select authorize('channels.delete'))` with `--rbac supabase`; imported as opaque                                                                   | opaque unless a function is mapped                                                                     |
+| Literal comparisons, `isNull`, `and`, `or`, `not`, `true`, `false` | literal SQL                                                                                                                                          | literal SQL                                                                                            |
 
 Import recognises both the `EXISTS (select 1 ...)` and the `IN (subselect)` membership forms, and the helper calls in both policy layouts; generate emits the helpers for role checks and keeps `exists` joins only for resource-scoped roles. `now()` and interval arithmetic, `CASE`, multi-join subqueries, `current_user`, custom functions and claim checks beyond simple equality become `opaque`. The operators are written with the names on the [conditions](/docs/concepts/conditions) page.
 
@@ -98,21 +98,21 @@ The generated helpers are built so every call is uncorrelated: they take only a 
 
 ## Mapping table
 
-| PermDock concept | Postgres / Supabase concept |
-| --- | --- |
-| `allow(permission, { where })` | `AS PERMISSIVE ... USING (cond)` |
-| `deny(permission, { where })` | `AS RESTRICTIVE ... USING (NOT (cond))`, one restrictive policy per table and command |
-| Role held globally / at a named scope | `(select permdock_has('<key>'))` / `<scope key> in (select permitted_<scope>_ids('<key>'))` |
-| Any membership of a named scope | `<scope key> in (select member_<scope>_ids())` |
-| `read` action | `FOR SELECT USING` |
-| `create` action, `check` | `FOR INSERT WITH CHECK` (next row) |
-| `update` action, `where` + `check` | `FOR UPDATE USING (current) WITH CHECK (next)`; a grant on the current row only collapses to `USING` |
-| `delete` action | `FOR DELETE USING` |
-| App roles | JWT claims, never Postgres roles; policies default `TO authenticated`, public-visible permissions also get one policy `TO anon` (`anonymous` on Neon), so no role has two permissive policies for one command |
-| `service_role` | Never emitted (bypasses RLS) |
-| Anything not portable | `opaque({ sql, fingerprint })` |
-| `pg_policies` row | Catalog entry: table, cmd, permissive, roles, condition or opaque, fingerprint, source SQL |
-| `--target drizzle` / `--target prisma` output | Drizzle `pgPolicy`; Prisma 8 `policy_*` block with `@@rls` |
+| PermDock concept                              | Postgres / Supabase concept                                                                                                                                                                                   |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `allow(permission, { where })`                | `AS PERMISSIVE ... USING (cond)`                                                                                                                                                                              |
+| `deny(permission, { where })`                 | `AS RESTRICTIVE ... USING (NOT (cond))`, one restrictive policy per table and command                                                                                                                         |
+| Role held globally / at a named scope         | `(select permdock_has('<key>'))` / `<scope key> in (select permitted_<scope>_ids('<key>'))`                                                                                                                   |
+| Any membership of a named scope               | `<scope key> in (select member_<scope>_ids())`                                                                                                                                                                |
+| `read` action                                 | `FOR SELECT USING`                                                                                                                                                                                            |
+| `create` action, `check`                      | `FOR INSERT WITH CHECK` (next row)                                                                                                                                                                            |
+| `update` action, `where` + `check`            | `FOR UPDATE USING (current) WITH CHECK (next)`; a grant on the current row only collapses to `USING`                                                                                                          |
+| `delete` action                               | `FOR DELETE USING`                                                                                                                                                                                            |
+| App roles                                     | JWT claims, never Postgres roles; policies default `TO authenticated`, public-visible permissions also get one policy `TO anon` (`anonymous` on Neon), so no role has two permissive policies for one command |
+| `service_role`                                | Never emitted (bypasses RLS)                                                                                                                                                                                  |
+| Anything not portable                         | `opaque({ sql, fingerprint })`                                                                                                                                                                                |
+| `pg_policies` row                             | Catalog entry: table, cmd, permissive, roles, condition or opaque, fingerprint, source SQL                                                                                                                    |
+| `--target drizzle` / `--target prisma` output | Drizzle `pgPolicy`; Prisma 8 `policy_*` block with `@@rls`                                                                                                                                                    |
 
 ## Risks
 

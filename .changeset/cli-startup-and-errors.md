@@ -1,5 +1,5 @@
 ---
-'permdock': patch
+"permdock": patch
 ---
 
 The `permdock` CLI starts faster and reports failures in a form scripts can read.

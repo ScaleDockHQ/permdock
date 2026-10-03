@@ -1,17 +1,17 @@
-'use client';
+"use client";
 
-import { ArrowUpIcon } from 'lucide-react';
-import dynamic from 'next/dynamic';
-import { useState } from 'react';
+import { ArrowUpIcon } from "lucide-react";
+import dynamic from "next/dynamic";
+import { useState } from "react";
 
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupButton,
   InputGroupTextarea,
-} from '@permdock/ui/components/input-group';
+} from "@permdock/ui/components/input-group";
 
-const loadChat = () => import('./ask-ai-chat');
+const loadChat = () => import("./ask-ai-chat");
 
 function AskAiShell({ onActivate }: { readonly onActivate?: () => void }) {
   return (

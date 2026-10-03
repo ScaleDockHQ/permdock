@@ -1,4 +1,4 @@
-import type { Principal } from 'permdock';
+import type { Principal } from "permdock";
 
 import {
   allow,
@@ -7,8 +7,8 @@ import {
   defineRoles,
   resource,
   role,
-} from 'permdock';
-import { z } from 'zod';
+} from "permdock";
+import { z } from "zod";
 
 /**
  * CentraKit's target model: staff hold one role per organization through
@@ -27,43 +27,43 @@ const Organization = z.object({ id: z.uuid() });
 
 export const permissions = definePermissions({
   customers: resource(Customer, {
-    id: 'id',
-    actions: ['read', 'update'],
+    id: "id",
+    actions: ["read", "update"],
     relations: {
-      organization: { field: 'organization_id', memberOf: 'organization' },
+      organization: { field: "organization_id", memberOf: "organization" },
     },
   }),
   quotes: resource(Quote, {
-    id: 'id',
-    actions: ['read', 'update'],
+    id: "id",
+    actions: ["read", "update"],
     relations: {
-      organization: { field: 'organization_id', memberOf: 'organization' },
-      customer: { field: 'customer_id', memberOf: 'customer' },
+      organization: { field: "organization_id", memberOf: "organization" },
+      customer: { field: "customer_id", memberOf: "customer" },
     },
   }),
   organizations: resource(Organization, {
-    id: 'id',
-    actions: ['read', 'update'],
+    id: "id",
+    actions: ["read", "update"],
   }),
 });
 
 export const roles = defineRoles({
-  owner: { on: 'organization', assignable: false },
-  admin: { on: 'organization' },
-  member: { on: 'organization' },
-  viewer: { on: 'organization' },
-  contact: { on: 'customer', assignable: false },
-  'platform-admin': {},
+  owner: { on: "organization", assignable: false },
+  admin: { on: "organization" },
+  member: { on: "organization" },
+  viewer: { on: "organization" },
+  contact: { on: "customer", assignable: false },
+  "platform-admin": {},
 });
 
-const staff = { for: ['staff'] } as const;
+const staff = { for: ["staff"] } as const;
 
 export const policy = definePolicy(
   { permissions, roles },
   {
     scopes: {
-      organization: { key: 'organization_id' },
-      customer: { key: 'customer_id', within: 'organization' },
+      organization: { key: "organization_id" },
+      customer: { key: "customer_id", within: "organization" },
     },
     subject: (user: Principal | null) => user,
     roles: [
@@ -77,7 +77,7 @@ export const policy = definePolicy(
             permissions.quotes.update,
           ]),
         ],
-        { on: 'organization', ...staff },
+        { on: "organization", ...staff },
       ),
       role(
         roles.admin,
@@ -89,22 +89,22 @@ export const policy = definePolicy(
             permissions.quotes.update,
           ]),
         ],
-        { on: 'organization', ...staff },
+        { on: "organization", ...staff },
       ),
       role(
         roles.member,
         [allow([permissions.customers.read, permissions.quotes.read])],
-        { on: 'organization', ...staff },
+        { on: "organization", ...staff },
       ),
       role(roles.viewer, [allow(permissions.customers.read)], {
-        on: 'organization',
+        on: "organization",
         ...staff,
       }),
       role(roles.contact, [allow(permissions.quotes.read)], {
-        on: 'customer',
-        for: ['contact'],
+        on: "customer",
+        for: ["contact"],
       }),
-      role(roles['platform-admin'], [
+      role(roles["platform-admin"], [
         allow([
           permissions.organizations.read,
           permissions.organizations.update,

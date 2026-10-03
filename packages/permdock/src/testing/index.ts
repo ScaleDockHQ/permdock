@@ -1,24 +1,24 @@
-export { expectTypeOf } from 'vitest';
-export { describePolicy } from './describe-policy.ts';
-export { rlsParity } from './rls-parity.ts';
-export { ormParity } from './orm-parity.ts';
+export { expectTypeOf } from "vitest";
+export { describePolicy } from "./describe-policy.ts";
+export { rlsParity } from "./rls-parity.ts";
+export { ormParity } from "./orm-parity.ts";
 export type {
   OrmParityCase,
   OrmParityOptions,
   OrmParityReport,
   OrmParityRunInput,
   OrmParityScenario,
-} from './orm-parity.ts';
-export { testClientParity } from './client-parity.ts';
-export type { ClientParityCase, ClientParityOptions } from './client-parity.ts';
-export { testClientStore } from './client-store.ts';
+} from "./orm-parity.ts";
+export { testClientParity } from "./client-parity.ts";
+export type { ClientParityCase, ClientParityOptions } from "./client-parity.ts";
+export { testClientStore } from "./client-store.ts";
 export type {
   ClientStorePermDock,
   ClientStoreFactory,
   ClientStoreFactoryOptions,
   ClientStoreHandle,
   ClientStoreStatus,
-} from './client-store.ts';
+} from "./client-store.ts";
 export type {
   RlsDbOutcome,
   RlsFieldsOutcome,
@@ -29,14 +29,14 @@ export type {
   RlsParitySubject,
   RlsQueryFn,
   RlsQueryResult,
-} from './rls-parity.ts';
+} from "./rls-parity.ts";
 export type {
   DescribePolicyConfig,
   MatrixCell,
   MatrixOutcome,
-} from './describe-policy.ts';
-export { snapshotFixture } from './snapshot-fixture.ts';
-export { testHttpAdapter } from './http-adapter.ts';
+} from "./describe-policy.ts";
+export { snapshotFixture } from "./snapshot-fixture.ts";
+export { testHttpAdapter } from "./http-adapter.ts";
 export type {
   HttpAdapterOptions,
   HttpCall,
@@ -45,7 +45,7 @@ export type {
   HttpResult,
   HttpScenarioDomain,
   HttpScenarioName,
-} from './http-adapter.ts';
+} from "./http-adapter.ts";
 export {
   authzenTodoData,
   authzenTodoPermissions,
@@ -53,15 +53,15 @@ export {
   authzenTodoUsers,
   authzenTodoVectors,
   testAuthZen,
-} from './authzen.ts';
+} from "./authzen.ts";
 export type {
   AuthZenEvaluationVector,
   AuthZenEvaluationsVector,
   AuthZenSearchVector,
   AuthZenVectors,
   TestAuthZenOptions,
-} from './authzen.ts';
-export type { ApprovalStoreOptions } from './conformance.ts';
+} from "./authzen.ts";
+export type { ApprovalStoreOptions } from "./conformance.ts";
 export {
   testApprovalStore,
   testCredentialVerifier,
@@ -81,19 +81,19 @@ export {
   testTokenSigner,
   testTokenVerifier,
   testWhereCompiler,
-} from './conformance.ts';
+} from "./conformance.ts";
 export {
   jwtFixtureAudience,
   jwtFixtureIssuer,
   jwtFixtureJwks,
   jwtFixtureTokens,
-} from './jwt-fixtures.ts';
+} from "./jwt-fixtures.ts";
 export {
   supabaseClaimFixtures,
   supabaseHookManifestFixture,
   supabaseMembershipsBudget,
-} from './supabase-fixtures.ts';
+} from "./supabase-fixtures.ts";
 export type {
   SupabaseClaimFixture,
   SupabaseClaimFixtureName,
-} from './supabase-fixtures.ts';
+} from "./supabase-fixtures.ts";

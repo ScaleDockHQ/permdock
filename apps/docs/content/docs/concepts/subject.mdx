@@ -9,43 +9,67 @@ Who is asking? In a classic web app the answer is "the logged-in user". In 2026 
 
 ```ts
 type Subject = {
-  principal: Principal | null                 // from the policy's `subject` function; null = anonymous
-  actor?: { id: string; kind: string; binding?: Binding; [k: string]: unknown }
+  principal: Principal | null; // from the policy's `subject` function; null = anonymous
+  actor?: { id: string; kind: string; binding?: Binding; [k: string]: unknown };
   delegation?: {
-    scopes?: string[]                          // OAuth scopes, matched against permission.scope
-    authorizationDetails?: AuthorizationDetail[] // RFC 9396 objects, matched per permission
-    access?: GnapAccess[]                      // GNAP access array (RFC 9635), objects and reference strings
-    chain?: unknown                            // attenuated delegation chain (Later)
-  }
-  context: Record<string, unknown>            // loaded by the policy's `context` function
-  session?: string                             // `sid`: the login this request belongs to; the join key for logout and CAEP events
-  expiresAt?: number                           // NumericDate seconds, from the token's exp / session_expiry; copied into snapshots
-}
+    scopes?: string[]; // OAuth scopes, matched against permission.scope
+    authorizationDetails?: AuthorizationDetail[]; // RFC 9396 objects, matched per permission
+    access?: GnapAccess[]; // GNAP access array (RFC 9635), objects and reference strings
+    chain?: unknown; // attenuated delegation chain (Later)
+  };
+  context: Record<string, unknown>; // loaded by the policy's `context` function
+  session?: string; // `sid`: the login this request belongs to; the join key for logout and CAEP events
+  expiresAt?: number; // NumericDate seconds, from the token's exp / session_expiry; copied into snapshots
+};
 
 type Principal = {
-  id: string                                  // `sub`, a user id, a client id or a SPIFFE ID
-  issuer?: string                             // `iss`; identity is issuer + id, always set by subjectFrom*
-  kind?: 'user' | 'service' | 'workload' | 'link'  // default 'user'
-  roles?: string[]                            // global roles
-  memberships?: Membership[]                  // roles held in a tenant, a team or on one resource
-  tenant?: string                             // the active tenant for this request; never defaulted
-  assurance?: Assurance                       // `acr`, `amr`, `auth_time`, for step-up conditions
-  binding?: Binding                           // sender constraint, see "Binding"
-  [k: string]: unknown                        // any other value conditions reference
-}
+  id: string; // `sub`, a user id, a client id or a SPIFFE ID
+  issuer?: string; // `iss`; identity is issuer + id, always set by subjectFrom*
+  kind?: "user" | "service" | "workload" | "link"; // default 'user'
+  roles?: string[]; // global roles
+  memberships?: Membership[]; // roles held in a tenant, a team or on one resource
+  tenant?: string; // the active tenant for this request; never defaulted
+  assurance?: Assurance; // `acr`, `amr`, `auth_time`, for step-up conditions
+  binding?: Binding; // sender constraint, see "Binding"
+  [k: string]: unknown; // any other value conditions reference
+};
 
-type Membership = { tenant?: string; team?: string; on?: { resource: string; id: string }; roles: string[]; via?: string; expiresAt?: number }
-type Assurance = { acr?: string; amr?: string[]; authTime?: number; verified?: VerifiedClaims[] }   // OIDC Core section 2; provider `aal` maps into `acr`
-type VerifiedClaims = { verification: { trust_framework: string } & Record<string, unknown>; claims: Record<string, unknown> }   // OIDC4IDA `verified_claims`, opaque
-type Binding = { jkt?: string; 'x5t#S256'?: string; jwk?: JsonWebKey; kid?: string }   // the RFC 7800 `cnf` members, verbatim
+type Membership = {
+  tenant?: string;
+  team?: string;
+  on?: { resource: string; id: string };
+  roles: string[];
+  via?: string;
+  expiresAt?: number;
+};
+type Assurance = {
+  acr?: string;
+  amr?: string[];
+  authTime?: number;
+  verified?: VerifiedClaims[];
+}; // OIDC Core section 2; provider `aal` maps into `acr`
+type VerifiedClaims = {
+  verification: { trust_framework: string } & Record<string, unknown>;
+  claims: Record<string, unknown>;
+}; // OIDC4IDA `verified_claims`, opaque
+type Binding = {
+  jkt?: string;
+  "x5t#S256"?: string;
+  jwk?: JsonWebKey;
+  kid?: string;
+}; // the RFC 7800 `cnf` members, verbatim
 ```
 
 Field names follow one rule: where a specification names the concept, PermDock uses that name or maps to it exactly once, in the "Spec names" table on [naming](/docs/getting-started/naming). `id`, `issuer`, `expiresAt`, `actor`, `delegation.scopes` and `authorizationDetails` are the camelCase spellings of `sub`, `iss`, `exp`, `act`, `scope` and `authorization_details`; `assurance` and `binding` carry the claims' own member names inside.
 
 ```ts
-const permdock = await createPermDock(policy, user)                        // human or service: principal only
-const permdock = await createPermDock(policy, user, { actor, delegation }) // agent on behalf of user
-const permdock = await createPermDock(policy, user, { tenant, memberships, customRoles }) // active tenant and the two subject-input sources
+const permdock = await createPermDock(policy, user); // human or service: principal only
+const permdock = await createPermDock(policy, user, { actor, delegation }); // agent on behalf of user
+const permdock = await createPermDock(policy, user, {
+  tenant,
+  memberships,
+  customRoles,
+}); // active tenant and the two subject-input sources
 ```
 
 The decision endpoint, MCP, AI SDK, HTTP and A2A adapters build the third argument for you; see "How adapters fill actor and delegation" below. An actor the adapter supplies without a `delegation` is still covered when the policy declares a standing one for its kind in `definePolicy({ delegations })`; that ceiling, the sorted permission keys, is `snapshot.delegated` ([policy delegations](/docs/security/delegation#policy-delegations)).
@@ -57,8 +81,9 @@ The principal is whatever the policy's `subject` function returns:
 ```ts
 definePolicy(permissions, {
   roles,
-  subject: (user: User | null) => user && { id: user.id, orgId: user.orgId, roles: user.roles },
-})
+  subject: (user: User | null) =>
+    user && { id: user.id, orgId: user.orgId, roles: user.roles },
+});
 ```
 
 - Its fields are the values that `subject.<field>` references read in [conditions](/docs/concepts/conditions). Nothing else about the user is visible to the policy.
@@ -82,10 +107,12 @@ When `subject` returns `null` the principal is anonymous. Anonymous has no roles
 definePolicy(permissions, {
   roles,
   subject: (user) => user && { id: user.id, roles: user.roles },
-  context: async (user) => ({ teamIds: user ? await loadTeamIds(user.id) : [] }),
-})
+  context: async (user) => ({
+    teamIds: user ? await loadTeamIds(user.id) : [],
+  }),
+});
 
-allow(permissions.post.read, { where: { teamId: { in: context.teamIds } } })
+allow(permissions.post.read, { where: { teamId: { in: context.teamIds } } });
 ```
 
 Context values must be JSON so they can travel in the snapshot and compile to SQL (`team_id IN (select team_id from team_user where user_id = (select auth.uid()))` on the RLS side; the compiler maps `context.teamIds` to that subselect through a per-key mapping declared on the RLS adapter). A thrown or rejected `context` function is fail-closed: the instance still builds, `subject.context` is empty, and `on('auth')` reports `reason: 'source-threw'`. This is PermDock's answer to the "no real ReBAC" complaint against permix ([permix #25](https://github.com/letstri/permix/issues/25)): relations are resolved up front and become ordinary data, so checks stay synchronous and portable.
@@ -96,15 +123,15 @@ When the relation is a role held somewhere (a team the user leads, a document sh
 
 The actor identifies the agent. It has an `id` and a `kind` plus whatever the adapter knows:
 
-| Adapter | `actor.kind` | `actor.id` | Source |
-| --- | --- | --- | --- |
-| `permdock/mcp` | `'mcp-client'` | OAuth `client_id` | `authInfo` from the MCP TypeScript SDK (OAuth 2.1 resource server) |
-| `permdock/jwt` with an `act` claim | `'oauth-client'` | outermost `act.sub`, the current actor (RFC 8693) | the verified token; the nesting is `delegation.chain` |
-| `permdock/ai-sdk` | `'ai-sdk'` | your `runtimeContext.agentId` | the `actor` option of `createPermDock` |
-| `permdock/claude-agent` | `'claude-agent'` | session or agent name | the `actor` option |
-| HTTP adapters with Web Bot Auth | `'web-bot-auth'` | the verified signer `keyid` | RFC 9421 HTTP Message Signatures via `webBotAuth` |
-| `permdock/a2a` | `'a2a-agent'` | the calling Agent Card identity | A2A `securitySchemes` on the authenticated extended card |
-| none | absent | absent | a plain human or service request |
+| Adapter                            | `actor.kind`     | `actor.id`                                        | Source                                                             |
+| ---------------------------------- | ---------------- | ------------------------------------------------- | ------------------------------------------------------------------ |
+| `permdock/mcp`                     | `'mcp-client'`   | OAuth `client_id`                                 | `authInfo` from the MCP TypeScript SDK (OAuth 2.1 resource server) |
+| `permdock/jwt` with an `act` claim | `'oauth-client'` | outermost `act.sub`, the current actor (RFC 8693) | the verified token; the nesting is `delegation.chain`              |
+| `permdock/ai-sdk`                  | `'ai-sdk'`       | your `runtimeContext.agentId`                     | the `actor` option of `createPermDock`                             |
+| `permdock/claude-agent`            | `'claude-agent'` | session or agent name                             | the `actor` option                                                 |
+| HTTP adapters with Web Bot Auth    | `'web-bot-auth'` | the verified signer `keyid`                       | RFC 9421 HTTP Message Signatures via `webBotAuth`                  |
+| `permdock/a2a`                     | `'a2a-agent'`    | the calling Agent Card identity                   | A2A `securitySchemes` on the authenticated extended card           |
+| none                               | absent           | absent                                            | a plain human or service request                                   |
 
 This table is the closed list of `actor.kind` values; the transaction-token and SPIFFE recipes below add `'workload'`, and the agent-runtime adapters add their own name (`'eve'`, `'openai-agent'`, `'claude-agent'`, `'terminal'`) on their pages. An adapter adds its row here before using a new value.
 
@@ -139,11 +166,11 @@ The Agent Delegation Chain and Credential Delegation drafts describe tokens that
 ### Example: an MCP server
 
 ```ts
-import { createPermDock } from 'permdock/mcp'
+import { createPermDock } from "permdock/mcp";
 
 const { protectServer } = createPermDock(policy, {
   subject: (authInfo) => userFrom(authInfo), // principal from the verified token
-})
+});
 // actor     = { id: authInfo.clientId, kind: 'mcp-client' }
 // delegation = { scopes: authInfo.scopes, authorizationDetails: authInfo.extra?.authorization_details }
 ```
@@ -158,12 +185,12 @@ A backend job or a partner service is a principal with roles of its own, created
 
 `principal.kind` distinguishes four kinds of caller that act on their own authority:
 
-| `kind` | Who | `principal.id` | Typical material |
-| --- | --- | --- | --- |
-| `'user'` (default) | A human | The identity provider's `sub` | Session, ID token, access token |
-| `'service'` | An application-level service account | Your service account id | A service key verified by `subjectFromApiKey` (one tenant membership, `via: 'credential'`, [API keys](/docs/concepts/credentials)), a client-credentials token with a `sub` you assigned |
-| `'workload'` | A running workload with a platform identity | A SPIFFE ID (`spiffe://trust-domain/ns/prod/sa/reports`) or the WIMSE workload identifier | Client-credentials token, SPIFFE SVID over mTLS, transaction token |
-| `'link'` | Whoever holds a share link | The link id (`capability.id`) | A `permdock-capability+jwt` verified by `subjectFromCapability`; the principal holds one resource membership and no roles ([link capabilities](/docs/concepts/capabilities)) |
+| `kind`             | Who                                         | `principal.id`                                                                            | Typical material                                                                                                                                                                         |
+| ------------------ | ------------------------------------------- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `'user'` (default) | A human                                     | The identity provider's `sub`                                                             | Session, ID token, access token                                                                                                                                                          |
+| `'service'`        | An application-level service account        | Your service account id                                                                   | A service key verified by `subjectFromApiKey` (one tenant membership, `via: 'credential'`, [API keys](/docs/concepts/credentials)), a client-credentials token with a `sub` you assigned |
+| `'workload'`       | A running workload with a platform identity | A SPIFFE ID (`spiffe://trust-domain/ns/prod/sa/reports`) or the WIMSE workload identifier | Client-credentials token, SPIFFE SVID over mTLS, transaction token                                                                                                                       |
+| `'link'`           | Whoever holds a share link                  | The link id (`capability.id`)                                                             | A `permdock-capability+jwt` verified by `subjectFromCapability`; the principal holds one resource membership and no roles ([link capabilities](/docs/concepts/capabilities))             |
 
 The WIMSE architecture treats workloads as principals in their own right: a workload has an identity, obtains credentials, and is the subject that security context is propagated for ([WIMSE architecture](https://datatracker.ietf.org/doc/html/draft-ietf-wimse-arch)). PermDock follows that: a workload calling on its own behalf is a principal with roles, exactly like a service account, and `kind: 'workload'` exists so policies can say `where: { subject: { kind: 'workload' } }` or audit can separate human from machine traffic.
 
@@ -171,7 +198,7 @@ The WIMSE architecture treats workloads as principals in their own right: a work
 
 **SPIFFE SVIDs as actor material.** When a workload calls with a user's delegated token (a backend-for-frontend forwarding a user request, a job running under an OBO token) it is an actor, and its [SPIFFE](https://spiffe.io/docs/latest/spiffe-about/overview/) identity is the verified material for that half: the X.509-SVID presented over mTLS, or a JWT-SVID in a header, yields `actor: { id: '<spiffe id>', kind: 'workload' }` while the principal comes from the user token. Verification of the SVID is upstream (the mesh, the TLS terminator or the SPIRE Workload API), the same rule as every other token ([authentication](/docs/concepts/authentication)); PermDock reads the result. This is a recipe over `permdock/jwt` and the server kernel, not an adapter ([watch list](/docs/standards/watch-list)).
 
-**Why a workload is a principal and an agent is an actor.** The distinction is whose authority applies. A nightly report job runs under its own grants; nobody delegated anything to it, so it is a principal. An MCP client, an AI SDK agent or a Web Bot Auth signer exercises a *user's* authority under a delegation, so it is an actor and the user is the principal. The same binary can be both on different requests: a workload is a principal when it runs its own schedule and an actor when it calls with a user's delegated token. What decides is the token, not the process.
+**Why a workload is a principal and an agent is an actor.** The distinction is whose authority applies. A nightly report job runs under its own grants; nobody delegated anything to it, so it is a principal. An MCP client, an AI SDK agent or a Web Bot Auth signer exercises a _user's_ authority under a delegation, so it is an actor and the user is the principal. The same binary can be both on different requests: a workload is a principal when it runs its own schedule and an actor when it calls with a user's delegated token. What decides is the token, not the process.
 
 ## Binding
 
@@ -214,13 +241,13 @@ An actor with no `delegation` at all is treated as having none: every check is `
 
 Put in the principal only what conditions reference and what you are willing to ship to the client in a snapshot. An email address that no condition uses is noise on the wire; a `tenantId` that RLS filters on belongs there. Keep it flat and JSON: strings, numbers, booleans, arrays of those, and the `memberships` array.
 
-| Value | Where it goes | Why |
-| --- | --- | --- |
-| The user id and issuer, kind, assurance (`acr`, `amr`, `authTime`, `verified`) | `principal` fields | Referenced by conditions (`subject.assurance.acr`), step-up challenges and the token binding |
-| Global roles (`support`, `platform-admin`, `pro`) | `principal.roles` | Apply everywhere |
-| A role held in a tenant, a team or on a document | `principal.memberships` | Scoped roles, `memberOf`, tenant-scoped audit, the UI's role chips |
-| The tenant this request is about | `principal.tenant` | Selected by the server from the URL or the provider's active organisation, only when a membership matches |
-| Settings, flags, plan | `context` (or `roles` when they select a role) | Not roles, not memberships; still portable |
-| Display names, avatars, emails | Nowhere | The provider owns them; conditions do not need them |
+| Value                                                                          | Where it goes                                  | Why                                                                                                       |
+| ------------------------------------------------------------------------------ | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| The user id and issuer, kind, assurance (`acr`, `amr`, `authTime`, `verified`) | `principal` fields                             | Referenced by conditions (`subject.assurance.acr`), step-up challenges and the token binding              |
+| Global roles (`support`, `platform-admin`, `pro`)                              | `principal.roles`                              | Apply everywhere                                                                                          |
+| A role held in a tenant, a team or on a document                               | `principal.memberships`                        | Scoped roles, `memberOf`, tenant-scoped audit, the UI's role chips                                        |
+| The tenant this request is about                                               | `principal.tenant`                             | Selected by the server from the URL or the provider's active organisation, only when a membership matches |
+| Settings, flags, plan                                                          | `context` (or `roles` when they select a role) | Not roles, not memberships; still portable                                                                |
+| Display names, avatars, emails                                                 | Nowhere                                        | The provider owns them; conditions do not need them                                                       |
 
 Provider mappers (`subjectFromSupabase`, `subjectFromClerk`, `subjectFromBetterAuth`, `subjectFromJwt`) fill the first four rows from verified material and expose a `schema` option for custom claims, typed from its output ([extension interfaces](/docs/concepts/extension-interfaces)). `PrincipalOf<typeof policy>` is the resulting type.

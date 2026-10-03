@@ -1,6 +1,6 @@
-import { captureRouterTransitionStart, init } from '@sentry/nextjs';
+import { captureRouterTransitionStart, init } from "@sentry/nextjs";
 
-import { sentryOptions } from '@/lib/monitoring';
+import { sentryOptions } from "@/lib/monitoring";
 
 init(sentryOptions());
 

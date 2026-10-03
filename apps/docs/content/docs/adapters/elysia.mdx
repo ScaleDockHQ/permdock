@@ -10,42 +10,54 @@ Elysia is Fetch-native and Bun-first, so the [server kernel](/docs/adapters/serv
 ## API
 
 ```ts
-import { Elysia } from 'elysia'
-import { createPermDock } from 'permdock/elysia'
-import { policy } from './policy'
-import { permissions } from './permissions'
+import { Elysia } from "elysia";
+import { createPermDock } from "permdock/elysia";
+import { policy } from "./policy";
+import { permissions } from "./permissions";
 
-export const { permdock, protect } = createPermDock(policy, { subject: ({ store }) => store.user ?? null })
+export const { permdock, protect } = createPermDock(policy, {
+  subject: ({ store }) => store.user ?? null,
+});
 
 const app = new Elysia()
-  .use(permdock())                                              // ctx.permdock is the request-scoped PermDock
-  .delete('/posts/:id', async ({ permdockData: post, set }) => {
-    await deletePost(post)
-    set.status = 204
-  }, {
-    beforeHandle: protect(permissions.post.delete, ({ params }) => loadPost(params.id)),
-    detail: openapi.security(permissions.post.delete),          // @elysiajs/openapi
-  })
+  .use(permdock()) // ctx.permdock is the request-scoped PermDock
+  .delete(
+    "/posts/:id",
+    async ({ permdockData: post, set }) => {
+      await deletePost(post);
+      set.status = 204;
+    },
+    {
+      beforeHandle: protect(permissions.post.delete, ({ params }) =>
+        loadPost(params.id),
+      ),
+      detail: openapi.security(permissions.post.delete), // @elysiajs/openapi
+    },
+  );
 ```
 
-| Export | Role |
-|---|---|
-| `permdock()` | Plugin. `derive` calls `subject(ctx)` once per request and adds `permdock` to the context, typed with the policy's roles, plans and permissions in every later handler. Uses `as: 'global'` scoping so routes registered after `.use` see it. Each `createPermDock` result gets its own plugin `seed`, so two factories in one app are not deduplicated into one, while `.use(permdock())` in a child app and its parent is. |
-| `protect(permission, loadData?, options?)` | `beforeHandle` hook. The `tenant` option (`(ctx) => ctx.params?.org`) is resolved for each `protect`. Loads data (`ctx.permdockData`), validates untrusted input, decides. On denial it returns a `Response` with Problem Details, which Elysia sends without running the handler. |
-| `permdockHandler()` | Plugin mounting the AuthZEN-shaped decision endpoint under a prefix. |
-| `openapi` | Kernel hook contract; `openapi.security(permission)` returns the `detail` fragment for `@elysiajs/openapi` and `openapi.securitySchemes()` the document-level components. |
+| Export                                     | Role                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `permdock()`                               | Plugin. `derive` calls `subject(ctx)` once per request and adds `permdock` to the context, typed with the policy's roles, plans and permissions in every later handler. Uses `as: 'global'` scoping so routes registered after `.use` see it. Each `createPermDock` result gets its own plugin `seed`, so two factories in one app are not deduplicated into one, while `.use(permdock())` in a child app and its parent is. |
+| `protect(permission, loadData?, options?)` | `beforeHandle` hook. The `tenant` option (`(ctx) => ctx.params?.org`) is resolved for each `protect`. Loads data (`ctx.permdockData`), validates untrusted input, decides. On denial it returns a `Response` with Problem Details, which Elysia sends without running the handler.                                                                                                                                           |
+| `permdockHandler()`                        | Plugin mounting the AuthZEN-shaped decision endpoint under a prefix.                                                                                                                                                                                                                                                                                                                                                         |
+| `openapi`                                  | Kernel hook contract; `openapi.security(permission)` returns the `detail` fragment for `@elysiajs/openapi` and `openapi.securitySchemes()` the document-level components.                                                                                                                                                                                                                                                    |
 
 ### Guarding a group
 
 Elysia's `guard` and `group` apply hooks to many routes at once. `protect` composes with them for collection actions, and instance actions still take a per-route loader:
 
 ```ts
-app.group('/admin', (admin) =>
+app.group("/admin", (admin) =>
   admin
     .guard({ beforeHandle: protect(permissions.admin.access) })
-    .get('/audit', listAudit)
-    .delete('/users/:id', removeUser, { beforeHandle: protect(permissions.user.delete, ({ params }) => loadUser(params.id)) }),
-)
+    .get("/audit", listAudit)
+    .delete("/users/:id", removeUser, {
+      beforeHandle: protect(permissions.user.delete, ({ params }) =>
+        loadUser(params.id),
+      ),
+    }),
+);
 ```
 
 Because hooks run in registration order, the group-level `protect` decides first and the route-level one only runs for callers that already hold `admin.access`.
@@ -55,15 +67,19 @@ Because hooks run in registration order, the group-level `protect` decides first
 `connection(ws, options?)` opens a kernel [`Connection`](/docs/adapters/server-kernel#connections) for an Elysia `.ws` socket (typed `ElysiaSocket`), memoised per socket, and closes the socket with `1008` and the Problem Details `type` when the connection aborts. Pass `revocations` to `createPermDock`.
 
 ```ts
-app.ws('/ws', {
-  async open(ws) { await connection(ws, { permission: permissions.project.read }) },
-  async message(ws, message) {
-    const conn = await connection(ws)
-    const decision = conn.check(permissions.post.update, message)
-    if (decision.outcome !== 'granted') ws.send({ denied: decision.denials })
+app.ws("/ws", {
+  async open(ws) {
+    await connection(ws, { permission: permissions.project.read });
   },
-  async close(ws) { (await connection(ws)).close() },
-})
+  async message(ws, message) {
+    const conn = await connection(ws);
+    const decision = conn.check(permissions.post.update, message);
+    if (decision.outcome !== "granted") ws.send({ denied: decision.denials });
+  },
+  async close(ws) {
+    (await connection(ws)).close();
+  },
+});
 ```
 
 ## Request lifecycle

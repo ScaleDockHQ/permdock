@@ -32,8 +32,10 @@ See [AuthZEN](/docs/standards/authzen) and [wire formats](/docs/concepts/wire-fo
 ### PermDock as a PDP
 
 ```ts
-import { createPermDock } from 'permdock/authzen'
-export const { permdockHandler } = createPermDock(policy, { subject: fromBearer })
+import { createPermDock } from "permdock/authzen";
+export const { permdockHandler } = createPermDock(policy, {
+  subject: fromBearer,
+});
 // Serves /access/v1/evaluation, /evaluations, /search/action, /search/resource, /search/subject,
 // and .well-known/authzen-configuration.
 ```
@@ -55,15 +57,28 @@ An evaluation request for `permdock.decide(permissions.post.update, post)`:
 ```json
 {
   "subject": {
-    "type": "user", "id": "u_123",
+    "type": "user",
+    "id": "u_123",
     "properties": {
       "roles": [],
-      "memberships": [{ "tenant": "org_9", "roles": ["member"] }, { "tenant": "org_9", "team": "t_design", "roles": ["lead"], "via": "group:9f2c" }],
+      "memberships": [
+        { "tenant": "org_9", "roles": ["member"] },
+        {
+          "tenant": "org_9",
+          "team": "t_design",
+          "roles": ["lead"],
+          "via": "group:9f2c"
+        }
+      ],
       "actor": { "type": "mcp-client", "id": "https://agent.example/cimd.json" }
     }
   },
   "action": { "name": "post.update" },
-  "resource": { "type": "post", "id": "p_42", "properties": { "authorId": "u_123", "orgId": "org_9", "published": false } },
+  "resource": {
+    "type": "post",
+    "id": "p_42",
+    "properties": { "authorId": "u_123", "orgId": "org_9", "published": false }
+  },
   "context": { "tenant": "org_9", "delegation": { "scopes": ["post:update"] } }
 }
 ```
@@ -92,28 +107,28 @@ The boxcar form wraps many `{ action, resource }` pairs under one `subject`; a t
 
 ## Mapping table
 
-| AuthZEN 1.0 concept | PermDock concept |
-| --- | --- |
-| `subject.type`, `subject.id` | `principal` (`principal.id` in policy conditions) |
-| `subject.properties` | Principal fields returned by `definePolicy`'s `subject` function, plus `actor` |
-| `subject.properties.memberships` | `principal.memberships` (named-scope and resource roles, [tenancy](/docs/concepts/tenancy)) |
-| `context.tenant` | `principal.tenant`, the active tenant for this request; absent means no tenant, never a default |
-| `.well-known/authzen-configuration/<tenant>` | Per-tenant PDP metadata served by `permdockHandler` and the hosted ADS when the deployment is multi-tenant |
-| `action.name` | `permission.key` (`post.update`) resolved with `findPermission`, or the bare action (`update`) of the resource named by `resource.type` |
-| `resource.type` | Resource node name (`post`) |
-| `resource.id` | Value of the resource's `id` field |
-| `resource.properties` | The instance passed to `decide`; validated at the boundary |
-| `context` | `delegation` (scopes, `authorization_details`) and request context |
-| `decision: true` | `outcome: 'granted'` |
-| `decision: false` | `outcome: 'denied'` or `'approval-required'` (distinguished in `context.permdock.outcome`) |
-| Response `context.permdock` | `outcome`, `denials` as `{ role, reason }`, `token`; the full `Decision` only from the application's own `permdockHandler` |
-| `/access/v1/evaluations` (boxcar) | `permdock.simulate([...])` and the batched React client |
-| `/search/action` | Granted keys from `listPermissions` for one resource (the catalog question) |
-| `/search/resource` | `filter` for arrays, `where` for query compilers; each permitted row is returned as `{ type, id }`, with `id` read from the resource's `id` field and rows without one dropped |
-| `/search/subject` | Iterating the subjects returned by the `subjects.list` option; without it the route answers 404 and the metadata document omits `search_subject_endpoint` |
-| `/search/resource` as a claim source (AuthZEN claims draft) | `permdock.heldRoles({ tenant })` and `memberships()` for the authenticated subject ([JWT authorization claims](/docs/standards/jwt-authorization-claims)) |
-| `.well-known` metadata | `.well-known/authzen-configuration` served by `permdockHandler` |
-| Certification levels Basic / Batch / Search / Discovery | `testAuthZen` from `permdock/testing` over the interop Todo domain; external submission per the checklist below |
+| AuthZEN 1.0 concept                                         | PermDock concept                                                                                                                                                               |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `subject.type`, `subject.id`                                | `principal` (`principal.id` in policy conditions)                                                                                                                              |
+| `subject.properties`                                        | Principal fields returned by `definePolicy`'s `subject` function, plus `actor`                                                                                                 |
+| `subject.properties.memberships`                            | `principal.memberships` (named-scope and resource roles, [tenancy](/docs/concepts/tenancy))                                                                                    |
+| `context.tenant`                                            | `principal.tenant`, the active tenant for this request; absent means no tenant, never a default                                                                                |
+| `.well-known/authzen-configuration/<tenant>`                | Per-tenant PDP metadata served by `permdockHandler` and the hosted ADS when the deployment is multi-tenant                                                                     |
+| `action.name`                                               | `permission.key` (`post.update`) resolved with `findPermission`, or the bare action (`update`) of the resource named by `resource.type`                                        |
+| `resource.type`                                             | Resource node name (`post`)                                                                                                                                                    |
+| `resource.id`                                               | Value of the resource's `id` field                                                                                                                                             |
+| `resource.properties`                                       | The instance passed to `decide`; validated at the boundary                                                                                                                     |
+| `context`                                                   | `delegation` (scopes, `authorization_details`) and request context                                                                                                             |
+| `decision: true`                                            | `outcome: 'granted'`                                                                                                                                                           |
+| `decision: false`                                           | `outcome: 'denied'` or `'approval-required'` (distinguished in `context.permdock.outcome`)                                                                                     |
+| Response `context.permdock`                                 | `outcome`, `denials` as `{ role, reason }`, `token`; the full `Decision` only from the application's own `permdockHandler`                                                     |
+| `/access/v1/evaluations` (boxcar)                           | `permdock.simulate([...])` and the batched React client                                                                                                                        |
+| `/search/action`                                            | Granted keys from `listPermissions` for one resource (the catalog question)                                                                                                    |
+| `/search/resource`                                          | `filter` for arrays, `where` for query compilers; each permitted row is returned as `{ type, id }`, with `id` read from the resource's `id` field and rows without one dropped |
+| `/search/subject`                                           | Iterating the subjects returned by the `subjects.list` option; without it the route answers 404 and the metadata document omits `search_subject_endpoint`                      |
+| `/search/resource` as a claim source (AuthZEN claims draft) | `permdock.heldRoles({ tenant })` and `memberships()` for the authenticated subject ([JWT authorization claims](/docs/standards/jwt-authorization-claims))                      |
+| `.well-known` metadata                                      | `.well-known/authzen-configuration` served by `permdockHandler`                                                                                                                |
+| Certification levels Basic / Batch / Search / Discovery     | `testAuthZen` from `permdock/testing` over the interop Todo domain; external submission per the checklist below                                                                |
 
 ## Conformance
 

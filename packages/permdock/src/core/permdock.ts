@@ -1,7 +1,7 @@
-import type { Condition } from '../conditions/ast.ts';
-import type { ArazzoPlan, ArazzoSimulateInput } from './arazzo.ts';
-import type { Decision, ExplainedDecision } from './decision.ts';
-import type { ActivateInput } from './elevated.ts';
+import type { Condition } from "../conditions/ast.ts";
+import type { ArazzoPlan, ArazzoSimulateInput } from "./arazzo.ts";
+import type { Decision, ExplainedDecision } from "./decision.ts";
+import type { ActivateInput } from "./elevated.ts";
 import type {
   AuthEvent,
   DecisionEvent,
@@ -13,15 +13,15 @@ import type {
   RoleSource,
   Snapshot,
   TokenSigner,
-} from './interfaces.ts';
+} from "./interfaces.ts";
 import type {
   RoleChange,
   RoleChangeDecision,
   RoleChangeOptions,
-} from './ownership.ts';
-import type { Permission, ResourceNode } from './permissions.ts';
-import type { Policy, PolicyVocabulary } from './policy.ts';
-import type { Scope } from './scopes.ts';
+} from "./ownership.ts";
+import type { Permission, ResourceNode } from "./permissions.ts";
+import type { Policy, PolicyVocabulary } from "./policy.ts";
+import type { Scope } from "./scopes.ts";
 import type {
   Actor,
   CustomRole,
@@ -29,25 +29,25 @@ import type {
   Membership,
   Principal,
   Subject,
-} from './subject.ts';
-import type { Boundary } from './validation.ts';
-import type { PlanTree, Role, RoleTree } from './vocabulary.ts';
-import type { WhoCan } from './who-can.ts';
+} from "./subject.ts";
+import type { Boundary } from "./validation.ts";
+import type { PlanTree, Role, RoleTree } from "./vocabulary.ts";
+import type { WhoCan } from "./who-can.ts";
 
-import { compact } from './compact.ts';
-import { assignableNamesFor, customRolesFor } from './evaluate.ts';
+import { compact } from "./compact.ts";
+import { assignableNamesFor, customRolesFor } from "./evaluate.ts";
 import {
   type PolicyDocument,
   type PolicySource,
   mergeHostedGrants,
-} from './hosted.ts';
-import { buildInstance } from './instance.ts';
-import { asMembershipSource } from './memberships.ts';
-import { resolveSubject } from './resolve-subject.ts';
-import { scopeList } from './scopes.ts';
-import { parseSnapshot } from './snapshot.ts';
-import { tenantsOf } from './tenancy.ts';
-import { isThenable } from './thenable.ts';
+} from "./hosted.ts";
+import { buildInstance } from "./instance.ts";
+import { asMembershipSource } from "./memberships.ts";
+import { resolveSubject } from "./resolve-subject.ts";
+import { scopeList } from "./scopes.ts";
+import { parseSnapshot } from "./snapshot.ts";
+import { tenantsOf } from "./tenancy.ts";
+import { isThenable } from "./thenable.ts";
 
 export type DecideOptions = {
   /** `true` skips schema validation for a row the server loaded itself. Otherwise `data` is validated against the resource schema first (`validate: 'boundary'`), and a failure denies with reason `validation`. */
@@ -57,7 +57,7 @@ export type DecideOptions = {
   /** Decision clock in Unix seconds, for expiries and limits. Defaults to the current time. */
   readonly now?: number;
   /** The call that produced the decision, reported on the decision event. Defaults to `'decide'`. */
-  readonly source?: DecisionEvent['source'];
+  readonly source?: DecisionEvent["source"];
   /** The adapter that made the call, reported on the decision event. */
   readonly adapter?: string;
   /** Per-call unauthorized handler for `assert`; runs before instance and policy handlers. */
@@ -81,7 +81,7 @@ export type RowPair<T> = {
 export type WhereResult = {
   readonly condition:
     | Condition
-    | { readonly op: 'or'; readonly conditions: readonly [] };
+    | { readonly op: "or"; readonly conditions: readonly [] };
   readonly partial: boolean;
   /**
    * The subject `where()` was built for. `toWhere` reads its memberships for
@@ -98,39 +98,39 @@ export type WhereResult = {
 export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
   readonly can: {
     (
-      permission: Permission<string, unknown, 'instance'>,
+      permission: Permission<string, unknown, "instance">,
       data: unknown,
       options?: DecideOptions,
     ): boolean;
     (
-      permission: Permission<string, unknown, 'collection'>,
+      permission: Permission<string, unknown, "collection">,
       data?: unknown,
       options?: DecideOptions,
     ): boolean;
   };
   readonly decide: {
     (
-      permission: Permission<string, unknown, 'instance'>,
+      permission: Permission<string, unknown, "instance">,
       data: unknown,
       options?: DecideOptions,
     ): Decision;
     (
-      permission: Permission<string, unknown, 'collection'>,
+      permission: Permission<string, unknown, "collection">,
       data?: unknown,
       options?: DecideOptions,
     ): Decision;
   };
   readonly assert: {
     (
-      permission: Permission<string, unknown, 'instance'>,
+      permission: Permission<string, unknown, "instance">,
       data: unknown,
       options?: DecideOptions,
-    ): Extract<Decision, { readonly outcome: 'granted' }>;
+    ): Extract<Decision, { readonly outcome: "granted" }>;
     (
-      permission: Permission<string, unknown, 'collection'>,
+      permission: Permission<string, unknown, "collection">,
       data?: unknown,
       options?: DecideOptions,
-    ): Extract<Decision, { readonly outcome: 'granted' }>;
+    ): Extract<Decision, { readonly outcome: "granted" }>;
   };
   /**
    * `decide` with `explain: true`: the same decision, with a `trace` that
@@ -140,23 +140,23 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
    */
   readonly explain: {
     (
-      permission: Permission<string, unknown, 'instance'>,
+      permission: Permission<string, unknown, "instance">,
       data: unknown,
-      options?: Omit<DecideOptions, 'explain'>,
+      options?: Omit<DecideOptions, "explain">,
     ): ExplainedDecision;
     (
-      permission: Permission<string, unknown, 'collection'>,
+      permission: Permission<string, unknown, "collection">,
       data?: unknown,
-      options?: Omit<DecideOptions, 'explain'>,
+      options?: Omit<DecideOptions, "explain">,
     ): ExplainedDecision;
   };
   readonly filter: <T>(
-    permission: Permission<string, T, 'instance'>,
+    permission: Permission<string, T, "instance">,
     rows: readonly T[],
     options?: DecideOptions,
   ) => T[];
   readonly pick: <T>(
-    permission: Permission<string, T, 'instance'>,
+    permission: Permission<string, T, "instance">,
     row: T,
     options?: DecideOptions,
   ) => Partial<T>;
@@ -183,12 +183,12 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
       | Permission
       | { readonly [key: string]: unknown }
     )[];
-    readonly tenants?: 'all';
+    readonly tenants?: "all";
     readonly signer?: TokenSigner;
     readonly audience?: string | readonly string[];
   }) => Snapshot | Promise<string>;
   readonly on: (
-    event: 'decision' | 'denied' | 'approval' | 'auth' | 'error',
+    event: "decision" | "denied" | "approval" | "auth" | "error",
     handler: (payload: unknown) => void,
   ) => () => void;
   readonly tenant: (id: string) => PermDock<V>;
@@ -242,7 +242,7 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
    * never grants; `complete: false` means some holders could not be listed.
    */
   readonly whoCan: (
-    permission: Permission<string, unknown, 'instance'>,
+    permission: Permission<string, unknown, "instance">,
     resource: unknown,
   ) => Promise<WhoCan>;
   /**
@@ -252,11 +252,11 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
    * role's `activation` sets `approval`.
    */
   readonly activate: (input: ActivateInput) => Decision;
-  readonly roles: V['roles'] extends RoleTree ? V['roles'] : RoleTree;
-  readonly plans: V['plans'] extends PlanTree ? V['plans'] : PlanTree;
-  readonly permissions: V['permissions'] extends Policy['permissions']
-    ? V['permissions']
-    : Policy['permissions'];
+  readonly roles: V["roles"] extends RoleTree ? V["roles"] : RoleTree;
+  readonly plans: V["plans"] extends PlanTree ? V["plans"] : PlanTree;
+  readonly permissions: V["permissions"] extends Policy["permissions"]
+    ? V["permissions"]
+    : Policy["permissions"];
   readonly subject: Subject;
 };
 
@@ -359,5 +359,5 @@ export function createPermDock<
   return instantiate(policy, subject, options, auth) as PermDock<V>;
 }
 
-export { fromSnapshot } from './from-snapshot.ts';
+export { fromSnapshot } from "./from-snapshot.ts";
 export { parseSnapshot };

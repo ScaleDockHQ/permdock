@@ -1,6 +1,6 @@
-import { expect, it, vi } from 'vitest';
+import { expect, it, vi } from "vitest";
 
-import type { ApprovalRequest, ApprovalStore } from '../approvals/index.ts';
+import type { ApprovalRequest, ApprovalStore } from "../approvals/index.ts";
 import type {
   CredentialVerifier,
   DecisionSink,
@@ -24,40 +24,40 @@ import type {
   TokenSigner,
   TokenVerifier,
   WhereCompiler,
-} from '../index.ts';
-import type { DirectoryStore } from '../scim/index.ts';
-import type { ReplayStore } from '../ssf/index.ts';
+} from "../index.ts";
+import type { DirectoryStore } from "../scim/index.ts";
+import type { ReplayStore } from "../ssf/index.ts";
 
-import { normalizeMemberships, scopeList } from '../core/scopes.ts';
+import { normalizeMemberships, scopeList } from "../core/scopes.ts";
 import {
   memoryRevocationFeed,
   mergeHostedGrants,
   parseCredential,
   parsePolicyDocument,
   validateCustomRole,
-} from '../index.ts';
+} from "../index.ts";
 import {
   directoryMembershipSource,
   scimHandler,
   sha256Hex,
-} from '../scim/index.ts';
-import { parseApiKey } from '../server/credentials.ts';
+} from "../scim/index.ts";
+import { parseApiKey } from "../server/credentials.ts";
 import {
   jwtFixtureAudience,
   jwtFixtureIssuer,
   jwtFixtureTokens,
-} from './jwt-fixtures.ts';
+} from "./jwt-fixtures.ts";
 
 export function testSubjectResolver<TInput>(
   resolver: SubjectResolver<TInput>,
   options: { readonly invalid: TInput },
 ): void {
-  it('never throws and fails closed to anonymous', async () => {
+  it("never throws and fails closed to anonymous", async () => {
     let result: Subject;
     try {
       result = await resolver(options.invalid);
     } catch {
-      throw new Error('SubjectResolver must not throw');
+      throw new Error("SubjectResolver must not throw");
     }
     expect(result.principal).toBeNull();
   });
@@ -75,7 +75,7 @@ export function testMembershipSource(
     readonly policy?: Policy;
   },
 ): void {
-  it('returns well-formed memberships and fails closed on throw', async () => {
+  it("returns well-formed memberships and fails closed on throw", async () => {
     for (const principal of options.principals) {
       let memberships: Membership[] = [];
       try {
@@ -108,7 +108,7 @@ export function testMembershipSource(
     }
   });
   if (source.list !== undefined) {
-    it('lists every member of an instance it returns a membership for', async () => {
+    it("lists every member of an instance it returns a membership for", async () => {
       for (const principal of options.principals) {
         let memberships: Membership[] = [];
         try {
@@ -138,12 +138,12 @@ export function testMembershipSource(
     });
   }
   if (source.version !== undefined) {
-    it('reports a finite version or none', async () => {
+    it("reports a finite version or none", async () => {
       for (const principal of options.principals) {
         const version = await source.version?.({ id: principal.id });
         expect(
           version === undefined ||
-            (typeof version === 'number' && Number.isFinite(version)),
+            (typeof version === "number" && Number.isFinite(version)),
         ).toBe(true);
       }
     });
@@ -151,7 +151,7 @@ export function testMembershipSource(
 }
 
 function holderKey(holder: RelationHolder): string {
-  return 'group' in holder
+  return "group" in holder
     ? `${holder.group.resource}:${holder.group.id}#${holder.group.relation}`
     : holder.principal.id;
 }
@@ -181,18 +181,18 @@ export function testRelationSource(
     };
   },
 ): void {
-  it('returns chains nearest first, within depth, and truncated only when more exist', async () => {
+  it("returns chains nearest first, within depth, and truncated only when more exist", async () => {
     for (const object of options.objects) {
       const full = await source.ancestors({
         resource: object.resource,
         id: object.id,
-        through: 'parent',
+        through: "parent",
         depth: 32,
       });
       expect(Array.isArray(full.ancestors)).toBe(true);
       for (const ancestor of full.ancestors) {
-        expect(typeof ancestor.id).toBe('string');
-        expect(ancestor.id).not.toBe('');
+        expect(typeof ancestor.id).toBe("string");
+        expect(ancestor.id).not.toBe("");
       }
       expect(full.ancestors.length).toBeLessThanOrEqual(32);
       const expected =
@@ -204,7 +204,7 @@ export function testRelationSource(
         const short = await source.ancestors({
           resource: object.resource,
           id: object.id,
-          through: 'parent',
+          through: "parent",
           depth: 1,
         });
         expect(short.ancestors.map((ancestor) => ancestor.id)).toEqual([
@@ -215,14 +215,14 @@ export function testRelationSource(
       const none = await source.ancestors({
         resource: object.resource,
         id: object.id,
-        through: 'parent',
+        through: "parent",
         depth: 0,
       });
       expect(none.ancestors).toEqual([]);
     }
   });
 
-  it('returns well-formed holders', async () => {
+  it("returns well-formed holders", async () => {
     for (const object of options.objects) {
       if (object.relation === undefined) {
         continue;
@@ -234,22 +234,22 @@ export function testRelationSource(
       });
       expect(Array.isArray(holders)).toBe(true);
       for (const holder of holders) {
-        if ('group' in holder) {
+        if ("group" in holder) {
           for (const part of [
             holder.group.resource,
             holder.group.id,
             holder.group.relation,
           ]) {
-            expect(typeof part).toBe('string');
-            expect(part).not.toBe('');
+            expect(typeof part).toBe("string");
+            expect(part).not.toBe("");
           }
         } else {
-          expect(typeof holder.principal.id).toBe('string');
+          expect(typeof holder.principal.id).toBe("string");
         }
         for (const instant of [holder.startsAt, holder.expiresAt]) {
           expect(
             instant === undefined ||
-              (typeof instant === 'number' && Number.isFinite(instant)),
+              (typeof instant === "number" && Number.isFinite(instant)),
           ).toBe(true);
         }
       }
@@ -265,10 +265,10 @@ export function testRelationSource(
     }
   });
 
-  it('follows each link to exactly one instance', async () => {
+  it("follows each link to exactly one instance", async () => {
     for (const [key, id] of Object.entries(options.expect?.links ?? {})) {
-      const [object, through] = key.split('>');
-      const [resource, objectId] = (object ?? '').split(':');
+      const [object, through] = key.split(">");
+      const [resource, objectId] = (object ?? "").split(":");
       if (
         resource === undefined ||
         objectId === undefined ||
@@ -286,14 +286,14 @@ export function testRelationSource(
     }
   });
 
-  it('answers an unknown object with nothing instead of throwing', async () => {
+  it("answers an unknown object with nothing instead of throwing", async () => {
     const first = options.objects[0];
     if (first === undefined) {
       return;
     }
-    const missing = { resource: first.resource, id: 'permdock-missing-object' };
+    const missing = { resource: first.resource, id: "permdock-missing-object" };
     expect(
-      (await source.ancestors({ ...missing, through: 'parent', depth: 16 }))
+      (await source.ancestors({ ...missing, through: "parent", depth: 16 }))
         .ancestors,
     ).toEqual([]);
     if (first.relation !== undefined) {
@@ -312,13 +312,13 @@ export function testEntitlementSource(
     readonly expect?: readonly string[];
   },
 ): void {
-  it('returns plan names for a tenant and none without one', async () => {
+  it("returns plan names for a tenant and none without one", async () => {
     const found = await source.entitlementsFor(options.principal, {
       tenant: options.tenant,
     });
     expect(Array.isArray(found)).toBe(true);
     for (const name of found) {
-      expect(typeof name).toBe('string');
+      expect(typeof name).toBe("string");
     }
     if (options.expect !== undefined) {
       expect([...found].toSorted()).toEqual([...options.expect].toSorted());
@@ -336,9 +336,9 @@ export function testRoleSource(
     readonly policy?: Policy;
   },
 ): void {
-  it('only resolves declared role names', async () => {
+  it("only resolves declared role names", async () => {
     const declared = options.declared.map((item) =>
-      typeof item === 'string' ? item : item.key,
+      typeof item === "string" ? item : item.key,
     );
     const roles = await source.rolesFor(options.tenant);
     for (const role of roles) {
@@ -360,24 +360,24 @@ export function testRoleSource(
 }
 
 export function testLimitStore(store: LimitStore): void {
-  it('counts down synchronously and fails closed when exhausted', async () => {
+  it("counts down synchronously and fails closed when exhausted", async () => {
     const input = {
-      key: 'report.export',
-      subjectId: 'u_1',
+      key: "report.export",
+      subjectId: "u_1",
       count: 2,
-      per: 'hour',
+      per: "hour",
       now: 1_700_000_000,
     };
     const first = await store.consume(input);
     expect(first.remaining).toBeGreaterThanOrEqual(0);
     const peeked = store.remaining(input);
     if (peeked !== undefined) {
-      expect(typeof peeked.remaining).toBe('number');
+      expect(typeof peeked.remaining).toBe("number");
       expect(
         peeked !== null &&
-          typeof peeked === 'object' &&
-          'then' in peeked &&
-          typeof peeked.then === 'function',
+          typeof peeked === "object" &&
+          "then" in peeked &&
+          typeof peeked.then === "function",
       ).toBe(false);
     }
     await store.consume(input);
@@ -387,17 +387,17 @@ export function testLimitStore(store: LimitStore): void {
 }
 
 export function testDecisionSink(sink: DecisionSink): void {
-  it('accepts batches and never propagates write errors', async () => {
+  it("accepts batches and never propagates write errors", async () => {
     await expect(
       Promise.resolve(
         sink.write([
           {
-            type: 'membership',
+            type: "membership",
             at: new Date().toISOString(),
-            source: 'app',
-            operation: 'changed',
-            principal: { id: 'u_1' },
-            roles: { added: ['admin'], removed: ['member'] },
+            source: "app",
+            operation: "changed",
+            principal: { id: "u_1" },
+            roles: { added: ["admin"], removed: ["member"] },
           },
         ]),
       ),
@@ -411,10 +411,10 @@ export function testDecisionSink(sink: DecisionSink): void {
 }
 
 export function testSnapshotSource(source: SnapshotSource): void {
-  it('round-trips a snapshot', async () => {
+  it("round-trips a snapshot", async () => {
     const snapshot = await source.get();
     expect(snapshot === null || snapshot === undefined).toBe(false);
-    if (typeof snapshot === 'object' && snapshot !== null && 'v' in snapshot) {
+    if (typeof snapshot === "object" && snapshot !== null && "v" in snapshot) {
       expect(snapshot.v).toBe(1);
     }
     if (source.subscribe !== undefined) {
@@ -432,21 +432,21 @@ export function testPolicySource(
     const document = source.current();
     expect(
       document !== null &&
-        typeof document === 'object' &&
-        'then' in document &&
-        typeof document.then === 'function',
+        typeof document === "object" &&
+        "then" in document &&
+        typeof document.then === "function",
     ).toBe(false);
     return document;
   };
 
-  it('returns null or a v1 policy document synchronously', () => {
+  it("returns null or a v1 policy document synchronously", () => {
     const document = readCurrent();
     if (document !== null) {
       expect(parsePolicyDocument(document)).toEqual(document);
     }
   });
 
-  it('refreshes without rejecting and keeps current() synchronous', async () => {
+  it("refreshes without rejecting and keeps current() synchronous", async () => {
     await expect(Promise.resolve(source.refresh())).resolves.toBeUndefined();
     const document = readCurrent();
     if (document !== null) {
@@ -456,7 +456,7 @@ export function testPolicySource(
 
   if (options.policy !== undefined) {
     const policy = options.policy;
-    it('merges only grants on hostable permissions', () => {
+    it("merges only grants on hostable permissions", () => {
       const document = readCurrent();
       const merged = mergeHostedGrants(policy, document);
       for (const grant of merged.policy.grants) {
@@ -465,7 +465,7 @@ export function testPolicySource(
         }
       }
       for (const dropped of merged.dropped) {
-        expect(dropped.kind).toBe('hosted-grant-dropped');
+        expect(dropped.kind).toBe("hosted-grant-dropped");
       }
     });
   }
@@ -475,69 +475,69 @@ function sampleApproval(token: string): ApprovalRequest {
   return {
     v: 1,
     token,
-    permission: 'post.delete',
-    scope: 'post:delete',
-    resource: { type: 'post', id: '42' },
+    permission: "post.delete",
+    scope: "post:delete",
+    resource: { type: "post", id: "42" },
     subject: {
-      principal: { id: 'u_1', roles: ['member'] },
-      actor: { id: 'agent-1', kind: 'eve' },
+      principal: { id: "u_1", roles: ["member"] },
+      actor: { id: "agent-1", kind: "eve" },
     },
-    detail: 'post.delete requires human approval.',
+    detail: "post.delete requires human approval.",
     createdAt: new Date().toISOString(),
     expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
-    status: 'pending',
+    status: "pending",
   };
 }
 
 const approver: Subject = {
-  principal: { id: 'u_9', roles: ['admin'] },
+  principal: { id: "u_9", roles: ["admin"] },
   context: {},
 };
 
 const secondApprover: Subject = {
-  principal: { id: 'u_10', roles: ['admin'] },
+  principal: { id: "u_10", roles: ["admin"] },
   context: {},
 };
 
 const admin = {
-  kind: 'role' as const,
-  role: 'admin',
-  scope: 'global' as const,
+  kind: "role" as const,
+  role: "admin",
+  scope: "global" as const,
 };
 
 export function testReplayStore(store: ReplayStore): void {
-  it('records a jti after remember and reports it as seen', async () => {
-    const jti = 'jti-1';
+  it("records a jti after remember and reports it as seen", async () => {
+    const jti = "jti-1";
     expect(await store.seen(jti)).toBe(false);
     await store.remember(jti);
     expect(await store.seen(jti)).toBe(true);
-    expect(await store.seen('jti-2')).toBe(false);
+    expect(await store.seen("jti-2")).toBe(false);
   });
 
-  it('forgets a jti whose expiresAt has passed', async () => {
-    await store.remember('ttl-jti', Math.floor(Date.now() / 1000) - 1);
-    expect(await store.seen('ttl-jti')).toBe(false);
+  it("forgets a jti whose expiresAt has passed", async () => {
+    await store.remember("ttl-jti", Math.floor(Date.now() / 1000) - 1);
+    expect(await store.seen("ttl-jti")).toBe(false);
   });
 
-  it('claims a key once under concurrency and releases it for a retry', async (context) => {
+  it("claims a key once under concurrency and releases it for a retry", async (context) => {
     if (store.claim === undefined || store.release === undefined) {
       context.skip();
       return;
     }
     const expiresAt = Math.floor(Date.now() / 1000) + 60;
     const results = await Promise.all([
-      store.claim('claim-key', expiresAt),
-      store.claim('claim-key', expiresAt),
+      store.claim("claim-key", expiresAt),
+      store.claim("claim-key", expiresAt),
     ]);
     expect(results.toSorted()).toEqual([false, true]);
-    expect(await store.seen('claim-key')).toBe(true);
-    await store.release('claim-key');
-    expect(await store.claim('claim-key', expiresAt)).toBe(true);
+    expect(await store.seen("claim-key")).toBe(true);
+    await store.release("claim-key");
+    expect(await store.claim("claim-key", expiresAt)).toBe(true);
   });
 }
 
 export function testRevocationFeed(feed: RevocationFeed): void {
-  it('delivers each event to every subscriber until it unsubscribes', async () => {
+  it("delivers each event to every subscriber until it unsubscribes", async () => {
     const first: RevocationEvent[] = [];
     const second: RevocationEvent[] = [];
     const stopFirst = feed.subscribe((event) => {
@@ -547,9 +547,9 @@ export function testRevocationFeed(feed: RevocationFeed): void {
       second.push(event);
     });
     const revoked: RevocationEvent = {
-      principal: 'u-feed',
-      session: 's-feed',
-      kind: 'session-revoked',
+      principal: "u-feed",
+      session: "s-feed",
+      kind: "session-revoked",
     };
     await feed.revoke(revoked);
     await vi.waitFor(() => {
@@ -558,9 +558,9 @@ export function testRevocationFeed(feed: RevocationFeed): void {
     });
     stopFirst();
     const changed: RevocationEvent = {
-      principal: 'u-feed',
-      tenant: 't-feed',
-      kind: 'changed',
+      principal: "u-feed",
+      tenant: "t-feed",
+      kind: "changed",
     };
     await feed.revoke(changed);
     await vi.waitFor(() => {
@@ -570,15 +570,15 @@ export function testRevocationFeed(feed: RevocationFeed): void {
     stopSecond();
   });
 
-  it('keeps delivering when a listener throws', async () => {
+  it("keeps delivering when a listener throws", async () => {
     const seen: RevocationEvent[] = [];
     const stopThrowing = feed.subscribe(() => {
-      throw new Error('listener failed');
+      throw new Error("listener failed");
     });
     const stop = feed.subscribe((event) => {
       seen.push(event);
     });
-    const event: RevocationEvent = { principal: 'u-throw', kind: 'changed' };
+    const event: RevocationEvent = { principal: "u-throw", kind: "changed" };
     await feed.revoke(event);
     await vi.waitFor(() => {
       expect(seen).toEqual([event]);
@@ -587,15 +587,15 @@ export function testRevocationFeed(feed: RevocationFeed): void {
     stop();
   });
 
-  it('rejects an event without a principal or with an unknown kind', async () => {
+  it("rejects an event without a principal or with an unknown kind", async () => {
     const seen: unknown[] = [];
     const stop = feed.subscribe((event) => {
       seen.push(event);
     });
     // SAFETY: deliberately malformed events to exercise the feed's fail-closed validation.
     const bad = [
-      { principal: '', kind: 'changed' },
-      { principal: 'u-bad', kind: 'granted' },
+      { principal: "", kind: "changed" },
+      { principal: "u-bad", kind: "granted" },
     ] as unknown as readonly RevocationEvent[];
     for (const event of bad) {
       await expect(
@@ -614,82 +614,82 @@ export function testDirectoryStore(
   options: { readonly tenants: readonly [string, string] },
 ): void {
   const [home, other] = options.tenants;
-  it('round-trips users and groups, isolates tenants, and drops inactive memberships', async () => {
+  it("round-trips users and groups, isolates tenants, and drops inactive memberships", async () => {
     const created = await store.putUser(home, {
-      id: '',
-      userName: 'ada',
-      externalId: '00u1',
+      id: "",
+      userName: "ada",
+      externalId: "00u1",
       active: true,
-      meta: { created: '', lastModified: '' },
+      meta: { created: "", lastModified: "" },
     });
-    expect(created.id).not.toBe('');
+    expect(created.id).not.toBe("");
     expect(await store.getUser(home, created.id)).toMatchObject({
-      userName: 'ada',
-      externalId: '00u1',
+      userName: "ada",
+      externalId: "00u1",
     });
     expect(await store.getUser(other, created.id)).toBeNull();
     await expect(
       store.putUser(home, {
-        id: '',
-        userName: 'ada',
+        id: "",
+        userName: "ada",
         active: true,
-        meta: { created: '', lastModified: '' },
+        meta: { created: "", lastModified: "" },
       }),
     ).rejects.toThrow(/userName/);
     const group = await store.putGroup(home, {
-      id: 'g_editors',
-      displayName: 'Editors',
+      id: "g_editors",
+      displayName: "Editors",
       members: [{ value: created.id }],
-      roles: ['editor'],
-      meta: { created: '', lastModified: '' },
+      roles: ["editor"],
+      meta: { created: "", lastModified: "" },
     });
     expect(await store.groupsFor(home, created.id)).toEqual([
-      expect.objectContaining({ id: group.id, displayName: 'Editors' }),
+      expect.objectContaining({ id: group.id, displayName: "Editors" }),
     ]);
     expect(await store.groupsFor(other, created.id)).toEqual([]);
     const patched = await store.patchUser(home, created.id, [
-      { op: 'replace', path: 'active', value: false },
+      { op: "replace", path: "active", value: false },
     ]);
     expect(patched.active).toBe(false);
-    const source = directoryMembershipSource(store, { assignable: ['editor'] });
+    const source = directoryMembershipSource(store, { assignable: ["editor"] });
     expect(
-      await source.membershipsFor({ id: '00u1' }, { tenant: home }),
+      await source.membershipsFor({ id: "00u1" }, { tenant: home }),
     ).toEqual([]);
     await store.patchUser(home, created.id, [
-      { op: 'replace', path: 'active', value: true },
+      { op: "replace", path: "active", value: true },
     ]);
     expect(
-      await source.membershipsFor({ id: '00u1' }, { tenant: home }),
+      await source.membershipsFor({ id: "00u1" }, { tenant: home }),
     ).toEqual([
       {
         tenant: home,
-        roles: ['editor'],
+        roles: ["editor"],
         via: `group:${group.id}`,
-        managedBy: 'idp',
+        managedBy: "idp",
       },
     ]);
     await store.patchGroup(home, group.id, [
       {
-        op: 'remove',
-        path: 'members',
+        op: "remove",
+        path: "members",
         value: [{ value: created.id }],
       },
     ]);
     expect(await store.groupsFor(home, created.id)).toEqual([]);
   });
 
-  it('ends sessions when scimHandler deactivates a user in this store', async () => {
+  it("ends sessions when scimHandler deactivates a user in this store", async () => {
     const feed = memoryRevocationFeed();
     const seen: RevocationEvent[] = [];
     feed.subscribe((event) => {
       seen.push(event);
     });
     const kinds: string[] = [];
-    const token = 'conformance-scim-token';
+    const token = "conformance-scim-token";
     const handle = scimHandler({
       store,
       tenant: home,
-      token: { hash: 'sha256', lookup: () => sha256Hex(token) },
+      token: { hash: "sha256", lookup: () => sha256Hex(token) },
       revocations: feed,
       onChange: (change) => {
         kinds.push(change.kind);
@@ -701,32 +701,32 @@ export function testDirectoryStore(
           method,
           headers: {
             authorization: `Bearer ${token}`,
-            'content-type': 'application/scim+json',
+            "content-type": "application/scim+json",
           },
           body: JSON.stringify(body),
         }),
       );
-    const created = await call('/Users', 'POST', {
-      schemas: ['urn:ietf:params:scim:schemas:core:2.0:User'],
-      userName: 'grace',
+    const created = await call("/Users", "POST", {
+      schemas: ["urn:ietf:params:scim:schemas:core:2.0:User"],
+      userName: "grace",
       active: true,
     });
     expect(created.status).toBe(201);
     // SAFETY: a 201 from the SCIM handler under test returns the created User resource with id.
     const id = String(((await created.json()) as { id: unknown }).id);
     seen.length = 0;
-    const patched = await call(`/Users/${id}`, 'PATCH', {
-      schemas: ['urn:ietf:params:scim:api:messages:2.0:PatchOp'],
-      Operations: [{ op: 'replace', path: 'active', value: false }],
+    const patched = await call(`/Users/${id}`, "PATCH", {
+      schemas: ["urn:ietf:params:scim:api:messages:2.0:PatchOp"],
+      Operations: [{ op: "replace", path: "active", value: false }],
     });
     expect(patched.status).toBe(200);
     expect(seen).toContainEqual({
-      principal: 'grace',
+      principal: "grace",
       tenant: home,
-      kind: 'session-revoked',
+      kind: "session-revoked",
     });
-    expect(seen.every((event) => event.kind === 'session-revoked')).toBe(true);
-    expect(kinds).toEqual(['changed', 'session-revoked']);
+    expect(seen.every((event) => event.kind === "session-revoked")).toBe(true);
+    expect(kinds).toEqual(["changed", "session-revoked"]);
   });
 }
 
@@ -745,7 +745,7 @@ function tenantApproval(token: string, tenant: string): ApprovalRequest {
     ...base,
     subject: {
       ...base.subject,
-      principal: { id: 'u_1', roles: ['member'], tenant },
+      principal: { id: "u_1", roles: ["member"], tenant },
     },
   };
 }
@@ -753,9 +753,9 @@ function tenantApproval(token: string, tenant: string): ApprovalRequest {
 function tenantApprover(tenant: string): Subject {
   return {
     principal: {
-      id: 'u_9',
+      id: "u_9",
       roles: [],
-      memberships: [{ tenant, roles: ['admin'] }],
+      memberships: [{ tenant, roles: ["admin"] }],
     },
     context: {},
   };
@@ -765,140 +765,140 @@ export function testApprovalStore(
   store: ApprovalStore,
   options: ApprovalStoreOptions = {},
 ): void {
-  it('keeps the existing record when the same call asks again', async () => {
-    await store.create(sampleApproval('dup-token'));
-    await store.resolve('dup-token', { status: 'approved', by: approver });
-    await store.create(sampleApproval('dup-token'));
-    expect((await store.get('dup-token'))?.status).toBe('approved');
+  it("keeps the existing record when the same call asks again", async () => {
+    await store.create(sampleApproval("dup-token"));
+    await store.resolve("dup-token", { status: "approved", by: approver });
+    await store.create(sampleApproval("dup-token"));
+    expect((await store.get("dup-token"))?.status).toBe("approved");
   });
 
-  it('consumes an approved request exactly once', async () => {
-    await store.create(sampleApproval('once-token'));
-    expect(await store.consume('once-token')).toBeNull();
-    await store.resolve('once-token', { status: 'approved', by: approver });
+  it("consumes an approved request exactly once", async () => {
+    await store.create(sampleApproval("once-token"));
+    expect(await store.consume("once-token")).toBeNull();
+    await store.resolve("once-token", { status: "approved", by: approver });
     const [first, second] = await Promise.all([
-      store.consume('once-token'),
-      store.consume('once-token'),
+      store.consume("once-token"),
+      store.consume("once-token"),
     ]);
     expect([first, second].filter((item) => item !== null)).toHaveLength(1);
     expect((first ?? second)?.consumedAt).toEqual(expect.any(String));
-    expect(await store.consume('once-token')).toBeNull();
-    expect((await store.get('once-token'))?.consumedAt).toEqual(
+    expect(await store.consume("once-token")).toBeNull();
+    expect((await store.get("once-token"))?.consumedAt).toEqual(
       expect.any(String),
     );
   });
 
-  it('refuses an approver from another tenant', async () => {
-    await store.create(tenantApproval('tenant-token', 'o_1'));
+  it("refuses an approver from another tenant", async () => {
+    await store.create(tenantApproval("tenant-token", "o_1"));
     await expect(
       Promise.resolve().then(() =>
-        store.resolve('tenant-token', {
-          status: 'approved',
-          by: tenantApprover('o_2'),
+        store.resolve("tenant-token", {
+          status: "approved",
+          by: tenantApprover("o_2"),
         }),
       ),
     ).rejects.toThrow(/tenant|eligible/u);
-    expect((await store.get('tenant-token'))?.status).toBe('pending');
+    expect((await store.get("tenant-token"))?.status).toBe("pending");
   });
 
   it.skipIf(options.reopen === undefined)(
-    'resumes an approval after a restart',
+    "resumes an approval after a restart",
     async () => {
-      await store.create(sampleApproval('restart-token'));
-      await store.resolve('restart-token', {
-        status: 'approved',
+      await store.create(sampleApproval("restart-token"));
+      await store.resolve("restart-token", {
+        status: "approved",
         by: approver,
       });
       const reopened = await options.reopen!();
-      expect((await reopened.get('restart-token'))?.status).toBe('approved');
-      expect(await reopened.consume('restart-token')).not.toBeNull();
-      expect(await store.consume('restart-token')).toBeNull();
+      expect((await reopened.get("restart-token"))?.status).toBe("approved");
+      expect(await reopened.consume("restart-token")).not.toBeNull();
+      expect(await store.consume("restart-token")).toBeNull();
     },
   );
 
-  it('creates, gets, lists, resolves and expires', async () => {
-    const request = sampleApproval('opaque-token');
+  it("creates, gets, lists, resolves and expires", async () => {
+    const request = sampleApproval("opaque-token");
     await store.create(request);
-    const loaded = await store.get('opaque-token');
+    const loaded = await store.get("opaque-token");
     expect(loaded).toEqual(request);
     expect(JSON.parse(JSON.stringify(loaded))).toEqual(request);
-    const listed = await store.list({ status: 'pending' });
-    expect(listed.items.some((item) => item.token === 'opaque-token')).toBe(
+    const listed = await store.list({ status: "pending" });
+    expect(listed.items.some((item) => item.token === "opaque-token")).toBe(
       true,
     );
-    const resolved = await store.resolve('opaque-token', {
-      status: 'approved',
+    const resolved = await store.resolve("opaque-token", {
+      status: "approved",
       by: approver,
     });
-    expect(resolved.status).toBe('approved');
+    expect(resolved.status).toBe("approved");
     await expect(
       Promise.resolve().then(() =>
-        store.resolve('opaque-token', { status: 'rejected', by: approver }),
+        store.resolve("opaque-token", { status: "rejected", by: approver }),
       ),
     ).rejects.toThrow(/not pending/);
-    await store.create(sampleApproval('stale-token'));
+    await store.create(sampleApproval("stale-token"));
     const expired = await store.expire(
       new Date(Date.now() + 2 * 60 * 60 * 1000),
     );
     expect(expired).toBeGreaterThanOrEqual(1);
   });
 
-  it('pages list results with limit and an opaque cursor', async () => {
-    const base = Date.parse('2026-01-01T00:00:00.000Z');
-    const tokens = ['page-a', 'page-b', 'page-c'];
+  it("pages list results with limit and an opaque cursor", async () => {
+    const base = Date.parse("2026-01-01T00:00:00.000Z");
+    const tokens = ["page-a", "page-b", "page-c"];
     await Promise.all(
       tokens.map(async (token, index) =>
         store.create({
           ...sampleApproval(token),
-          subject: { principal: { id: 'u_pager', roles: ['member'] } },
+          subject: { principal: { id: "u_pager", roles: ["member"] } },
           createdAt: new Date(base + index * 1000).toISOString(),
         }),
       ),
     );
-    const first = await store.list({ principalId: 'u_pager', limit: 2 });
-    expect(first.items.map((item) => item.token)).toEqual(['page-a', 'page-b']);
-    expect(typeof first.next).toBe('string');
+    const first = await store.list({ principalId: "u_pager", limit: 2 });
+    expect(first.items.map((item) => item.token)).toEqual(["page-a", "page-b"]);
+    expect(typeof first.next).toBe("string");
     const second = await store.list({
-      principalId: 'u_pager',
+      principalId: "u_pager",
       limit: 2,
       cursor: first.next!,
     });
-    expect(second.items.map((item) => item.token)).toEqual(['page-c']);
+    expect(second.items.map((item) => item.token)).toEqual(["page-c"]);
     expect(second.next).toBeUndefined();
     expect(
-      (await store.list({ principalId: 'u_pager', cursor: 'not a cursor' }))
+      (await store.list({ principalId: "u_pager", cursor: "not a cursor" }))
         .items,
     ).toEqual([]);
   });
 
-  it('refuses an approver who does not match request.approvers', async () => {
+  it("refuses an approver who does not match request.approvers", async () => {
     const request = {
-      ...sampleApproval('gated-token'),
+      ...sampleApproval("gated-token"),
       approvers: {
-        by: { kind: 'role' as const, role: 'admin', scope: 'global' as const },
+        by: { kind: "role" as const, role: "admin", scope: "global" as const },
       },
     };
     await store.create(request);
     const member: Subject = {
-      principal: { id: 'u_2', roles: ['member'] },
+      principal: { id: "u_2", roles: ["member"] },
       context: {},
     };
     await expect(
       Promise.resolve().then(() =>
-        store.resolve('gated-token', { status: 'approved', by: member }),
+        store.resolve("gated-token", { status: "approved", by: member }),
       ),
     ).rejects.toThrow(/eligible|not pending|not found/);
   });
 
-  it('refuses the principal as approver unless the grant sets distinct: false', async () => {
+  it("refuses the principal as approver unless the grant sets distinct: false", async () => {
     const principal: Subject = {
-      principal: { id: 'u_1', roles: ['admin'] },
+      principal: { id: "u_1", roles: ["admin"] },
       context: {},
     };
     const shapes = [
-      ['self-human', undefined],
-      ['self-by', { by: admin }],
-      ['self-distinct', { by: admin, distinct: true }],
+      ["self-human", undefined],
+      ["self-by", { by: admin }],
+      ["self-distinct", { by: admin, distinct: true }],
     ] as const;
     for (const [token, approvers] of shapes) {
       await store.create(
@@ -908,102 +908,102 @@ export function testApprovalStore(
       );
       await expect(
         Promise.resolve().then(() =>
-          store.resolve(token, { status: 'approved', by: principal }),
+          store.resolve(token, { status: "approved", by: principal }),
         ),
       ).rejects.toThrow(/principal/u);
-      expect((await store.get(token))?.status).toBe('pending');
+      expect((await store.get(token))?.status).toBe("pending");
     }
     await store.create({
-      ...sampleApproval('self-optout'),
+      ...sampleApproval("self-optout"),
       approvers: { by: admin, distinct: false },
     });
-    const resolved = await store.resolve('self-optout', {
-      status: 'approved',
+    const resolved = await store.resolve("self-optout", {
+      status: "approved",
       by: principal,
     });
-    expect(resolved.resolvedBy).toBe('u_1');
+    expect(resolved.resolvedBy).toBe("u_1");
   });
 
-  it('stays pending until the quorum is met and counts an approver once', async () => {
+  it("stays pending until the quorum is met and counts an approver once", async () => {
     await store.create({
-      ...sampleApproval('quorum-token'),
+      ...sampleApproval("quorum-token"),
       approvers: { by: admin, quorum: 2 },
     });
-    const first = await store.resolve('quorum-token', {
-      status: 'approved',
+    const first = await store.resolve("quorum-token", {
+      status: "approved",
       by: approver,
     });
-    expect(first.status).toBe('pending');
-    expect(first.approvals).toEqual([{ by: 'u_9', at: expect.any(String) }]);
-    expect(await store.consume('quorum-token')).toBeNull();
+    expect(first.status).toBe("pending");
+    expect(first.approvals).toEqual([{ by: "u_9", at: expect.any(String) }]);
+    expect(await store.consume("quorum-token")).toBeNull();
     await expect(
       Promise.resolve().then(() =>
-        store.resolve('quorum-token', { status: 'approved', by: approver }),
+        store.resolve("quorum-token", { status: "approved", by: approver }),
       ),
     ).rejects.toThrow(/already approved/u);
-    const second = await store.resolve('quorum-token', {
-      status: 'approved',
+    const second = await store.resolve("quorum-token", {
+      status: "approved",
       by: secondApprover,
     });
-    expect(second.status).toBe('approved');
-    expect(second.approvals?.map((item) => item.by)).toEqual(['u_9', 'u_10']);
-    expect(second.resolvedBy).toBe('u_10');
-    expect(await store.consume('quorum-token')).not.toBeNull();
+    expect(second.status).toBe("approved");
+    expect(second.approvals?.map((item) => item.by)).toEqual(["u_9", "u_10"]);
+    expect(second.resolvedBy).toBe("u_10");
+    expect(await store.consume("quorum-token")).not.toBeNull();
   });
 
-  it('lets one rejection end a quorum request', async () => {
+  it("lets one rejection end a quorum request", async () => {
     await store.create({
-      ...sampleApproval('veto-token'),
+      ...sampleApproval("veto-token"),
       approvers: { by: admin, quorum: 2 },
     });
-    const rejected = await store.resolve('veto-token', {
-      status: 'rejected',
+    const rejected = await store.resolve("veto-token", {
+      status: "rejected",
       by: approver,
     });
-    expect(rejected.status).toBe('rejected');
+    expect(rejected.status).toBe("rejected");
     expect(rejected.approvals).toBeUndefined();
   });
 
-  it('admits the escalation grantee only once the request has waited', async () => {
+  it("admits the escalation grantee only once the request has waited", async () => {
     const auditor: Subject = {
-      principal: { id: 'u_11', roles: ['auditor'] },
+      principal: { id: "u_11", roles: ["auditor"] },
       context: {},
     };
     const escalation = {
-      after: '1h',
-      to: { kind: 'role' as const, role: 'auditor', scope: 'global' as const },
+      after: "1h",
+      to: { kind: "role" as const, role: "auditor", scope: "global" as const },
     };
     await store.create({
-      ...sampleApproval('fresh-escalation'),
+      ...sampleApproval("fresh-escalation"),
       approvers: { by: admin, escalation },
     });
     await expect(
       Promise.resolve().then(() =>
-        store.resolve('fresh-escalation', { status: 'approved', by: auditor }),
+        store.resolve("fresh-escalation", { status: "approved", by: auditor }),
       ),
     ).rejects.toThrow(/eligible/u);
     await store.create({
-      ...sampleApproval('waited-escalation'),
+      ...sampleApproval("waited-escalation"),
       createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
       approvers: { by: admin, escalation },
     });
-    const resolved = await store.resolve('waited-escalation', {
-      status: 'approved',
+    const resolved = await store.resolve("waited-escalation", {
+      status: "approved",
       by: auditor,
     });
-    expect(resolved.status).toBe('approved');
-    expect(resolved.resolvedBy).toBe('u_11');
+    expect(resolved.status).toBe("approved");
+    expect(resolved.resolvedBy).toBe("u_11");
   });
 }
 
 function decodeHeader(token: string): Record<string, unknown> {
-  const [encoded] = token.split('.');
+  const [encoded] = token.split(".");
   if (encoded === undefined) {
     return {};
   }
-  const padded = encoded.replaceAll('-', '+').replaceAll('_', '/');
+  const padded = encoded.replaceAll("-", "+").replaceAll("_", "/");
   const pad =
-    padded.length % 4 === 0 ? '' : '='.repeat(4 - (padded.length % 4));
+    padded.length % 4 === 0 ? "" : "=".repeat(4 - (padded.length % 4));
   // SAFETY: the protected header of a JWS the signer under test produced is a JSON object.
   return JSON.parse(atob(`${padded}${pad}`)) as Record<string, unknown>;
 }
@@ -1014,34 +1014,34 @@ export function testTokenVerifier(
 ): void {
   const audience = options?.audience ?? jwtFixtureAudience;
   const issuer = options?.issuer ?? jwtFixtureIssuer;
-  it('never throws and maps the JWT behaviour table', async () => {
+  it("never throws and maps the JWT behaviour table", async () => {
     const valid = await verifier.verify(jwtFixtureTokens.valid, {
       audience,
       issuer,
     });
     expect(valid.ok).toBe(true);
     if (valid.ok) {
-      expect(valid.claims.sub).toBe('u_1');
-      expect(valid.header.alg).toBe('Ed25519');
+      expect(valid.claims.sub).toBe("u_1");
+      expect(valid.header.alg).toBe("Ed25519");
     }
     const rows: readonly {
       readonly token: string;
       readonly cause: string;
     }[] = [
-      { token: jwtFixtureTokens.none, cause: 'alg-none' },
-      { token: jwtFixtureTokens.expired, cause: 'expired' },
-      { token: jwtFixtureTokens.wrongAud, cause: 'wrong-audience' },
-      { token: jwtFixtureTokens.wrongIss, cause: 'wrong-issuer' },
-      { token: jwtFixtureTokens.unknownKid, cause: 'unknown-kid' },
-      { token: 'not-a-jwt', cause: 'malformed' },
-      { token: 'a.b.c.d.e', cause: 'encrypted-token' },
+      { token: jwtFixtureTokens.none, cause: "alg-none" },
+      { token: jwtFixtureTokens.expired, cause: "expired" },
+      { token: jwtFixtureTokens.wrongAud, cause: "wrong-audience" },
+      { token: jwtFixtureTokens.wrongIss, cause: "wrong-issuer" },
+      { token: jwtFixtureTokens.unknownKid, cause: "unknown-kid" },
+      { token: "not-a-jwt", cause: "malformed" },
+      { token: "a.b.c.d.e", cause: "encrypted-token" },
     ];
     for (const row of rows) {
-      let result: Awaited<ReturnType<TokenVerifier['verify']>>;
+      let result: Awaited<ReturnType<TokenVerifier["verify"]>>;
       try {
         result = await verifier.verify(row.token, { audience, issuer });
       } catch {
-        throw new Error('TokenVerifier must not throw');
+        throw new Error("TokenVerifier must not throw");
       }
       expect(result.ok).toBe(false);
       if (!result.ok) {
@@ -1056,10 +1056,10 @@ export function testSettingsSource(
   source: SettingsSource,
   options: { readonly tenant: string; readonly unknown?: string },
 ): void {
-  it('answers per tenant with plain settings and nothing for an unknown tenant', async () => {
+  it("answers per tenant with plain settings and nothing for an unknown tenant", async () => {
     const settings = await source.settingsFor(options.tenant);
     if (settings !== undefined) {
-      expect(typeof settings).toBe('object');
+      expect(typeof settings).toBe("object");
       const credentials = settings.credentials;
       if (credentials !== undefined) {
         expect(
@@ -1069,21 +1069,21 @@ export function testSettingsSource(
         expect(
           credentials.kinds === undefined ||
             credentials.kinds.every(
-              (kind) => kind === 'user' || kind === 'service',
+              (kind) => kind === "user" || kind === "service",
             ),
         ).toBe(true);
       }
       expect(JSON.parse(JSON.stringify(settings))).toEqual(settings);
     }
     expect(
-      await source.settingsFor(options.unknown ?? '__permdock_unknown__'),
+      await source.settingsFor(options.unknown ?? "__permdock_unknown__"),
     ).toBeUndefined();
   });
 }
 
 function flipLast(value: string): string {
   const last = value.at(-1);
-  return `${value.slice(0, -1)}${last === 'A' ? 'B' : 'A'}`;
+  return `${value.slice(0, -1)}${last === "A" ? "B" : "A"}`;
 }
 
 /**
@@ -1101,11 +1101,11 @@ export function testCredentialVerifier(
   let issued: Promise<string> | undefined;
   const live = (): Promise<string> => {
     const source = options.key;
-    issued ??= Promise.resolve(typeof source === 'string' ? source : source());
+    issued ??= Promise.resolve(typeof source === "string" ? source : source());
     return issued;
   };
 
-  it('verifies the live key to a v1 credential with the key id', async () => {
+  it("verifies the live key to a v1 credential with the key id", async () => {
     const key = await live();
     const parts = parseApiKey(key);
     expect(parts).toBeDefined();
@@ -1115,43 +1115,43 @@ export function testCredentialVerifier(
     expect(parseCredential(await verifier.verify(key))).toEqual(credential);
   });
 
-  it('never throws and answers null for every other key', async () => {
+  it("never throws and answers null for every other key", async () => {
     const key = await live();
     const parts = parseApiKey(key);
     const others = [
-      '',
-      'garbage',
-      'pdk_',
+      "",
+      "garbage",
+      "pdk_",
       `${key}x`,
       flipLast(key),
-      `pdk_${parts?.id ?? 'x'}-other_${parts?.secret ?? ''}`,
-      key.replace(/^pdk_/u, 'sk_'),
+      `pdk_${parts?.id ?? "x"}-other_${parts?.secret ?? ""}`,
+      key.replace(/^pdk_/u, "sk_"),
     ];
     for (const other of others) {
-      let result: Awaited<ReturnType<CredentialVerifier['verify']>>;
+      let result: Awaited<ReturnType<CredentialVerifier["verify"]>>;
       try {
         result = await verifier.verify(other);
       } catch {
-        throw new Error('CredentialVerifier must not throw');
+        throw new Error("CredentialVerifier must not throw");
       }
       expect(result).toBeNull();
     }
   });
 
   if (verifier.touch !== undefined) {
-    it('accepts a touch without changing what the key verifies to', async () => {
+    it("accepts a touch without changing what the key verifies to", async () => {
       const key = await live();
       const before = parseCredential(await verifier.verify(key));
-      const id = parseApiKey(key)?.id ?? '';
+      const id = parseApiKey(key)?.id ?? "";
       await verifier.touch?.(id, Math.floor(Date.now() / 1000));
-      await verifier.touch?.('unknown-id', Math.floor(Date.now() / 1000));
+      await verifier.touch?.("unknown-id", Math.floor(Date.now() / 1000));
       expect(parseCredential(await verifier.verify(key))).toEqual(before);
     });
   }
 
   if (options.revoke !== undefined) {
     const revoke = options.revoke;
-    it('stops verifying a revoked key', async () => {
+    it("stops verifying a revoked key", async () => {
       const key = await live();
       await revoke();
       expect(await verifier.verify(key)).toBeNull();
@@ -1163,24 +1163,24 @@ export function testTokenSigner(
   signer: TokenSigner,
   options: { readonly verifier: TokenVerifier },
 ): void {
-  it('emits compact JWS with only alg, kid and typ', async () => {
+  it("emits compact JWS with only alg, kid and typ", async () => {
     const token = await signer.sign(
-      { snapshot: { v: 1 }, sub: 'u_1' },
-      { typ: 'permdock-snapshot+jwt', audience: 'https://app.example.com' },
+      { snapshot: { v: 1 }, sub: "u_1" },
+      { typ: "permdock-snapshot+jwt", audience: "https://app.example.com" },
     );
     const header = decodeHeader(token);
-    expect(Object.keys(header).toSorted()).toEqual(['alg', 'kid', 'typ']);
-    expect(header['typ']).toBe('permdock-snapshot+jwt');
-    expect(header['alg']).not.toBe('none');
+    expect(Object.keys(header).toSorted()).toEqual(["alg", "kid", "typ"]);
+    expect(header["typ"]).toBe("permdock-snapshot+jwt");
+    expect(header["alg"]).not.toBe("none");
     const verified = await options.verifier.verify(token, {
-      typ: 'permdock-snapshot+jwt',
-      audience: 'https://app.example.com',
+      typ: "permdock-snapshot+jwt",
+      audience: "https://app.example.com",
     });
     expect(verified.ok).toBe(true);
     if (signer.jwks !== undefined) {
       const jwks = await signer.jwks();
       expect(jwks.keys.length).toBeGreaterThan(0);
-      expect(jwks.keys[0]).not.toHaveProperty('d');
+      expect(jwks.keys[0]).not.toHaveProperty("d");
     }
   });
 }
@@ -1192,8 +1192,8 @@ export function testWhereCompiler<TTarget>(
     readonly isFailClosed?: (compiled: unknown) => boolean;
   },
 ): void {
-  it('fails closed on an empty allow set', () => {
-    const compiled = compiler({ op: 'or', conditions: [] }, options.target);
+  it("fails closed on an empty allow set", () => {
+    const compiled = compiler({ op: "or", conditions: [] }, options.target);
     const closed =
       options.isFailClosed === undefined
         ? compiled === false || compiled === undefined || compiled === null
@@ -1201,14 +1201,14 @@ export function testWhereCompiler<TTarget>(
     expect(closed).toBe(true);
   });
 
-  it('compiles a sqlFunction through its twin', () => {
-    const twin = { op: 'eq' as const, field: 'authorId', value: 'u1' };
+  it("compiles a sqlFunction through its twin", () => {
+    const twin = { op: "eq" as const, field: "authorId", value: "u1" };
     expect(() =>
       compiler(
         {
-          op: 'sqlFunction',
-          name: 'job_permitted',
-          args: [{ field: 'id' }],
+          op: "sqlFunction",
+          name: "job_permitted",
+          args: [{ field: "id" }],
           twin,
         },
         options.target,

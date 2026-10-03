@@ -4,8 +4,8 @@ import type {
   Principal,
   SettingsSource,
   TenantSettings,
-} from 'permdock';
-import type { StoredCredential } from 'permdock/server';
+} from "permdock";
+import type { StoredCredential } from "permdock/server";
 
 import {
   allow,
@@ -15,36 +15,36 @@ import {
   definePolicy,
   resource,
   role,
-} from 'permdock';
+} from "permdock";
 import {
   apiKeyVerifier,
   generateApiKey,
   hashApiKey,
   subjectFromApiKey,
-} from 'permdock/server';
-import { testCredentialVerifier } from 'permdock/testing';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+} from "permdock/server";
+import { testCredentialVerifier } from "permdock/testing";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import type { Postgres } from './support/postgres.ts';
+import type { Postgres } from "./support/postgres.ts";
 
-import { startPostgres } from './support/postgres.ts';
+import { startPostgres } from "./support/postgres.ts";
 
-const org = { organization: { field: 'orgId', memberOf: 'organization' } };
+const org = { organization: { field: "orgId", memberOf: "organization" } };
 const permissions = definePermissions({
-  repo: resource({ actions: ['read', 'write', 'delete'], relations: org }),
+  repo: resource({ actions: ["read", "write", "delete"], relations: org }),
 });
 const { repo } = permissions;
 const policy = definePolicy(
   { permissions },
   {
     subject: (user: Principal | null) => user,
-    scopes: { organization: { key: 'orgId' } },
+    scopes: { organization: { key: "orgId" } },
     roles: [
-      role('admin', [allow(repo.read), allow(repo.write), allow(repo.delete)], {
-        on: 'organization',
+      role("admin", [allow(repo.read), allow(repo.write), allow(repo.delete)], {
+        on: "organization",
       }),
-      role('developer', [allow(repo.read), allow(repo.write)], {
-        on: 'organization',
+      role("developer", [allow(repo.read), allow(repo.write)], {
+        on: "organization",
       }),
     ],
   },
@@ -70,7 +70,7 @@ let db: Postgres;
 const memberships: MembershipSource = {
   async membershipsFor(principal) {
     const result = await db.admin.query<{ org_id: string; role: string }>(
-      'select org_id, role from memberships where user_id = $1',
+      "select org_id, role from memberships where user_id = $1",
       [principal.id],
     );
     return result.rows.map((row) => ({
@@ -83,7 +83,7 @@ const memberships: MembershipSource = {
 const settings: SettingsSource = {
   async settingsFor(tenant) {
     const result = await db.admin.query<{ settings: TenantSettings }>(
-      'select settings from tenant_settings where tenant = $1',
+      "select settings from tenant_settings where tenant = $1",
       [tenant],
     );
     return result.rows[0]?.settings;
@@ -93,7 +93,7 @@ const settings: SettingsSource = {
 const verifier = apiKeyVerifier({
   async find(id) {
     const result = await db.admin.query<StoredCredential>(
-      'select hash, credential from api_keys where id = $1 and revoked_at is null',
+      "select hash, credential from api_keys where id = $1 and revoked_at is null",
       [id],
     );
     return result.rows[0];
@@ -107,7 +107,7 @@ const resolveKey = subjectFromApiKey({
   revoked: async (id) =>
     (
       await db.admin.query(
-        'select 1 from api_keys where id = $1 and revoked_at is not null',
+        "select 1 from api_keys where id = $1 and revoked_at is not null",
         [id],
       )
     ).rowCount !== 0,
@@ -118,7 +118,7 @@ async function store(
   key = generateApiKey(credential.id),
 ): Promise<string> {
   await db.admin.query(
-    'insert into api_keys (id, hash, credential) values ($1, $2, $3)',
+    "insert into api_keys (id, hash, credential) values ($1, $2, $3)",
     [credential.id, await hashApiKey(key), JSON.stringify(credential)],
   );
   return key;
@@ -132,25 +132,25 @@ async function repos(): Promise<readonly { id: string; orgId: string }[]> {
   ).rows;
 }
 
-async function permdockFor(key: string, tenant = 'o_1') {
+async function permdockFor(key: string, tenant = "o_1") {
   const subject = await resolveKey(key, { tenant });
   return createPermDock(
     policy,
     subject,
-    subject.principal?.kind === 'service' ? {} : { memberships, tenant },
+    subject.principal?.kind === "service" ? {} : { memberships, tenant },
   );
 }
 
 async function creator(id: string) {
   return createPermDock(
     policy,
-    { principal: { id, kind: 'user' }, context: {} },
-    { memberships, tenant: 'o_1' },
+    { principal: { id, kind: "user" }, context: {} },
+    { memberships, tenant: "o_1" },
   );
 }
 
 const DAY = 86_400;
-const conformanceKey = generateApiKey('conformance');
+const conformanceKey = generateApiKey("conformance");
 
 beforeAll(async () => {
   db = await startPostgres([SETUP]);
@@ -158,11 +158,11 @@ beforeAll(async () => {
   await store(
     {
       v: 1,
-      id: 'conformance',
-      kind: 'user',
-      principal: 'u_1',
-      permissions: [{ permission: 'repo.read' }],
-      createdBy: 'u_1',
+      id: "conformance",
+      kind: "user",
+      principal: "u_1",
+      permissions: [{ permission: "repo.read" }],
+      createdBy: "u_1",
       createdAt: now,
       expiresAt: now + DAY,
     },
@@ -174,7 +174,7 @@ afterAll(async () => {
   await db.stop();
 });
 
-describe('API keys stored as SHA-256 hashes in Postgres', () => {
+describe("API keys stored as SHA-256 hashes in Postgres", () => {
   testCredentialVerifier(verifier, {
     key: conformanceKey,
     revoke: async () => {
@@ -184,20 +184,20 @@ describe('API keys stored as SHA-256 hashes in Postgres', () => {
     },
   });
 
-  it('stores only the hash and finds the key by its id', async () => {
-    const creating = await creator('u_1');
+  it("stores only the hash and finds the key by its id", async () => {
+    const creating = await creator("u_1");
     const decision = await decideCredential(
       creating,
       {
-        kind: 'user',
-        id: 'key_user',
+        kind: "user",
+        id: "key_user",
         permissions: [repo.read],
         expiresAt: Math.floor(Date.now() / 1000) + DAY,
       },
       { settings },
     );
-    expect(decision.outcome).toBe('granted');
-    if (decision.outcome !== 'granted') {
+    expect(decision.outcome).toBe("granted");
+    if (decision.outcome !== "granted") {
       return;
     }
     const key = await store(decision.credential);
@@ -208,21 +208,21 @@ describe('API keys stored as SHA-256 hashes in Postgres', () => {
     expect(JSON.stringify(row.rows[0])).not.toContain(key.slice(-43));
     const permdock = await permdockFor(key);
     expect(permdock.filter(repo.read, await repos()).map((r) => r.id)).toEqual([
-      'r_1',
-      'r_2',
+      "r_1",
+      "r_2",
     ]);
     expect(permdock.filter(repo.write, await repos())).toEqual([]);
   });
 
-  it('follows the owner live rights: a demotion reaches the key on the next request', async () => {
+  it("follows the owner live rights: a demotion reaches the key on the next request", async () => {
     const now = Math.floor(Date.now() / 1000);
     const key = await store({
       v: 1,
-      id: 'key_demote',
-      kind: 'user',
-      principal: 'u_2',
-      permissions: [{ permission: 'repo.delete' }],
-      createdBy: 'u_2',
+      id: "key_demote",
+      kind: "user",
+      principal: "u_2",
+      permissions: [{ permission: "repo.delete" }],
+      createdBy: "u_2",
       createdAt: now,
       expiresAt: now + DAY,
     });
@@ -234,62 +234,62 @@ describe('API keys stored as SHA-256 hashes in Postgres', () => {
     expect((await permdockFor(key)).can(repo.delete, r1)).toBe(false);
   });
 
-  it('creates a service key inside the creator ceiling and the tenant policy', async () => {
-    const developer = await creator('u_1');
+  it("creates a service key inside the creator ceiling and the tenant policy", async () => {
+    const developer = await creator("u_1");
     const expiresAt = Math.floor(Date.now() / 1000) + DAY;
     const tooWide = await decideCredential(
       developer,
       {
-        kind: 'service',
-        id: 'svc_wide',
-        tenant: 'o_1',
-        roles: ['admin'],
+        kind: "service",
+        id: "svc_wide",
+        tenant: "o_1",
+        roles: ["admin"],
         permissions: [repo.delete],
         expiresAt,
       },
       { settings },
     );
     expect(tooWide).toMatchObject({
-      outcome: 'denied',
-      denials: [{ reason: 'exceeds-creator' }],
+      outcome: "denied",
+      denials: [{ reason: "exceeds-creator" }],
     });
     const tooLong = await decideCredential(
       developer,
       {
-        kind: 'service',
-        id: 'svc_long',
-        tenant: 'o_1',
-        roles: ['developer'],
+        kind: "service",
+        id: "svc_long",
+        tenant: "o_1",
+        roles: ["developer"],
         permissions: [repo.read],
         expiresAt: expiresAt + 90 * DAY,
       },
       { settings },
     );
     expect(tooLong).toMatchObject({
-      denials: [{ reason: 'credential-policy', detail: { rule: 'ttl' } }],
+      denials: [{ reason: "credential-policy", detail: { rule: "ttl" } }],
     });
     const decision = await decideCredential(
       developer,
       {
-        kind: 'service',
-        id: 'svc_ci',
-        principal: 'ci',
-        tenant: 'o_1',
-        roles: ['developer'],
-        permissions: [{ permission: repo.write, ids: ['r_1'] }],
+        kind: "service",
+        id: "svc_ci",
+        principal: "ci",
+        tenant: "o_1",
+        roles: ["developer"],
+        permissions: [{ permission: repo.write, ids: ["r_1"] }],
         expiresAt,
       },
       { settings },
     );
-    expect(decision.outcome).toBe('granted');
-    if (decision.outcome !== 'granted') {
+    expect(decision.outcome).toBe("granted");
+    if (decision.outcome !== "granted") {
       return;
     }
     const key = await store(decision.credential);
     const permdock = await permdockFor(key);
-    expect(permdock.subject.principal?.kind).toBe('service');
+    expect(permdock.subject.principal?.kind).toBe("service");
     expect(permdock.filter(repo.write, await repos()).map((r) => r.id)).toEqual(
-      ['r_1'],
+      ["r_1"],
     );
     await db.admin.query(
       "update api_keys set revoked_at = now() where id = 'svc_ci'",
@@ -297,21 +297,21 @@ describe('API keys stored as SHA-256 hashes in Postgres', () => {
     expect((await permdockFor(key)).subject.principal).toBeNull();
   });
 
-  it('refuses existing keys once the tenant tightens its policy', async () => {
+  it("refuses existing keys once the tenant tightens its policy", async () => {
     const now = Math.floor(Date.now() / 1000);
     const key = await store({
       v: 1,
-      id: 'svc_tighten',
-      kind: 'service',
-      principal: 'nightly',
-      tenant: 'o_1',
-      roles: ['developer'],
-      permissions: [{ permission: 'repo.read' }],
-      createdBy: 'u_1',
+      id: "svc_tighten",
+      kind: "service",
+      principal: "nightly",
+      tenant: "o_1",
+      roles: ["developer"],
+      permissions: [{ permission: "repo.read" }],
+      createdBy: "u_1",
       createdAt: now,
       expiresAt: now + 7 * DAY,
     });
-    expect((await permdockFor(key)).subject.principal?.id).toBe('nightly');
+    expect((await permdockFor(key)).subject.principal?.id).toBe("nightly");
     await db.admin.query(
       `update tenant_settings set settings = '{"credentials":{"maxTtl":86400}}' where tenant = 'o_1'`,
     );

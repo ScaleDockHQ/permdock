@@ -1,14 +1,14 @@
-import type { RouteSectionProps } from '@solidjs/router';
+import type { RouteSectionProps } from "@solidjs/router";
 
-import { Protected } from 'permdock/solid';
-import { Show } from 'solid-js';
+import { Protected } from "permdock/solid";
+import { Show } from "solid-js";
 
-import { navItemFor } from '@permdock/e2e-saas-kit/nav';
+import { navItemFor } from "@permdock/e2e-saas-kit/nav";
 
-import { Forbidden } from '../../lib/forbidden';
+import { Forbidden } from "../../lib/forbidden";
 
 export default function Section(props: RouteSectionProps) {
-  const item = () => navItemFor(props.params['section'] ?? '');
+  const item = () => navItemFor(props.params["section"] ?? "");
   return (
     <Show when={item()} fallback={<h1>Not found</h1>}>
       {(current) => (

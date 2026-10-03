@@ -1,5 +1,5 @@
 ---
-'permdock': patch
+"permdock": patch
 ---
 
 `definePolicy` takes `delegations`: standing statements that holders of `from` (a role, `authenticated()`, a plan or `assurance()`) let actors matching `to` (`actor('eve')`, an actor kind, or `{ kind, id }` for one agent) use `permissions` for them, with optional `validFrom` / `validUntil`. Each is normalised to `{ from, to, permissions: string[], validity? }` on `policy.delegations`, is part of the fingerprint, and is listed in the catalog's new `delegations` section; `permdock diff` reports a removed one as `delegation-removed` and one that lost permission keys or validity as `delegation-narrowed`. In `decide`, the matching delegations form a ceiling for the actor: a permission outside it is `not-delegated`, inside it a token `delegation` on the call must still cover, and the principal's grants, conditions, denies and approvals apply first as before. The snapshot carries the ceiling as `delegated` and the client evaluator applies it. `delegatedPermissions` is exported from `permdock`.

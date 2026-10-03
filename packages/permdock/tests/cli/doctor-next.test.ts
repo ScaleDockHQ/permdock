@@ -1,9 +1,9 @@
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from "vitest";
 
-import type { PermDockConfig } from '../../src/cli/types.ts';
+import type { PermDockConfig } from "../../src/cli/types.ts";
 
-import { pd044 } from '../../src/cli/doctor-next.ts';
-import { NOW, project, quietIo, removeProjects } from './doctor-kit.ts';
+import { pd044 } from "../../src/cli/doctor-next.ts";
+import { NOW, project, quietIo, removeProjects } from "./doctor-kit.ts";
 
 afterAll(removeProjects);
 
@@ -40,73 +40,73 @@ export const b = () => usePermission(permissions.lease.read);
 `;
 
 const config: PermDockConfig = {
-  permissions: './src/definitions.ts',
-  policy: './src/definitions.ts',
+  permissions: "./src/definitions.ts",
+  policy: "./src/definitions.ts",
 };
 
 async function check(
   files: Readonly<Record<string, string>>,
   overrides: PermDockConfig = {},
 ): Promise<readonly string[]> {
-  const cwd = project({ 'src/definitions.ts': DEFINITIONS, ...files });
+  const cwd = project({ "src/definitions.ts": DEFINITIONS, ...files });
   const findings = await pd044({
     cwd,
     config: { ...config, ...overrides },
     now: NOW,
     io: quietIo,
   });
-  return findings.map((item) => item.message.split(',')[0] ?? '');
+  return findings.map((item) => item.message.split(",")[0] ?? "");
 }
 
-describe('PD044 server-only grants read by usePermission', () => {
-  it('names a relation with a period, never a portable grant', async () => {
-    expect(await check({ 'src/ui.tsx': UI })).toEqual([
-      'usePermission reads lease.read at src/ui.tsx:6',
+describe("PD044 server-only grants read by usePermission", () => {
+  it("names a relation with a period, never a portable grant", async () => {
+    expect(await check({ "src/ui.tsx": UI })).toEqual([
+      "usePermission reads lease.read at src/ui.tsx:6",
     ]);
   });
 
-  it('stays quiet with an endpoint option in the sources', async () => {
+  it("stays quiet with an endpoint option in the sources", async () => {
     expect(
       await check({
-        'src/ui.tsx': UI,
-        'src/permdock.ts': `export const options = { endpoint: '/api/permdock' };\n`,
+        "src/ui.tsx": UI,
+        "src/permdock.ts": `export const options = { endpoint: '/api/permdock' };\n`,
       }),
     ).toEqual([]);
   });
 
-  it('ignores a permdock route outside an app folder', async () => {
+  it("ignores a permdock route outside an app folder", async () => {
     expect(
       await check(
         {
-          'src/ui.tsx': UI,
-          'lib/api/permdock/route.ts':
-            'export const POST = permdockHandler();\n',
+          "src/ui.tsx": UI,
+          "lib/api/permdock/route.ts":
+            "export const POST = permdockHandler();\n",
         },
-        { collect: { srcPath: ['./src', './lib'] } },
+        { collect: { srcPath: ["./src", "./lib"] } },
       ),
-    ).toEqual(['usePermission reads lease.read at src/ui.tsx:6']);
+    ).toEqual(["usePermission reads lease.read at src/ui.tsx:6"]);
   });
 
-  it('stays quiet when no grant needs the server', async () => {
+  it("stays quiet when no grant needs the server", async () => {
     expect(
       await check(
         {
-          'src/ui.tsx': UI,
-          'src/portable.ts': `export { portable as policy } from './definitions.ts';\n`,
+          "src/ui.tsx": UI,
+          "src/portable.ts": `export { portable as policy } from './definitions.ts';\n`,
         },
-        { policy: './src/portable.ts' },
+        { policy: "./src/portable.ts" },
       ),
     ).toEqual([]);
   });
 
-  it('stays quiet when no usePermission reads a server-only key, or the catalog cannot be collected', async () => {
+  it("stays quiet when no usePermission reads a server-only key, or the catalog cannot be collected", async () => {
     expect(
       await check({
-        'src/ui.tsx': `import { permissions } from './definitions.ts';\nexport const c = can(permissions.lease.read);\n`,
+        "src/ui.tsx": `import { permissions } from './definitions.ts';\nexport const c = can(permissions.lease.read);\n`,
       }),
     ).toEqual([]);
     expect(
-      await check({ 'src/ui.tsx': UI }, { permissions: './src/missing.ts' }),
+      await check({ "src/ui.tsx": UI }, { permissions: "./src/missing.ts" }),
     ).toEqual([]);
   });
 });

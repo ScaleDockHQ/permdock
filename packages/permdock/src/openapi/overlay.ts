@@ -1,32 +1,32 @@
-import type { Policy } from '../core/policy.ts';
+import type { Policy } from "../core/policy.ts";
 import type {
   OpenApiOverlayOptions,
   OpenApiPermDockOptions,
   OverlayOperation,
-} from './types.ts';
+} from "./types.ts";
 
-import { compact } from '../core/compact.ts';
-import { listPermissions } from '../core/permissions.ts';
-import { sha256 } from '../core/sha256.ts';
+import { compact } from "../core/compact.ts";
+import { listPermissions } from "../core/permissions.ts";
+import { sha256 } from "../core/sha256.ts";
 import {
   catalogOf,
   describeOf,
   securityProfileRequirementsOf,
   securitySchemesOf,
-} from './emit.ts';
-import { DRAFT_PINS } from './pins.ts';
+} from "./emit.ts";
+import { DRAFT_PINS } from "./pins.ts";
 
 function pointerEscape(value: string): string {
-  return value.replaceAll('~', '~0').replaceAll('/', '~1');
+  return value.replaceAll("~", "~0").replaceAll("/", "~1");
 }
 
 function actionKey(keys: readonly string[]): string {
-  return keys.toSorted().join(',');
+  return keys.toSorted().join(",");
 }
 
 /** An RFC 9535 single-quoted string literal. */
 function jsonPathString(value: string): string {
-  return `'${value.replaceAll('\\', '\\\\').replaceAll("'", "\\'")}'`;
+  return `'${value.replaceAll("\\", "\\\\").replaceAll("'", "\\'")}'`;
 }
 
 function operationTarget(operationId: string): string {
@@ -34,8 +34,8 @@ function operationTarget(operationId: string): string {
 }
 
 function hex(bytes: Uint8Array): string {
-  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join(
-    '',
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join(
+    "",
   );
 }
 
@@ -44,7 +44,7 @@ function fingerprint(policy: Policy): string {
   const lines = listPermissions(policy.permissions)
     .map((leaf) => `${leaf.key} ${leaf.scope}`)
     .toSorted();
-  return `sha256:${hex(sha256(lines.join('\n')))}`;
+  return `sha256:${hex(sha256(lines.join("\n")))}`;
 }
 
 export function overlayOf(
@@ -52,7 +52,7 @@ export function overlayOf(
   options: OpenApiPermDockOptions,
   overlayOptions: OpenApiOverlayOptions = {},
 ): Record<string, unknown> {
-  const version = overlayOptions.version ?? '1.1';
+  const version = overlayOptions.version ?? "1.1";
   const operations: readonly OverlayOperation[] = (
     overlayOptions.operations ??
     listPermissions(policy.permissions).map((leaf) => ({
@@ -72,30 +72,30 @@ export function overlayOf(
   );
   const catalogPin = fingerprint(policy);
   const drafts =
-    version === '1.2' ? { overlay: DRAFT_PINS.overlay } : undefined;
+    version === "1.2" ? { overlay: DRAFT_PINS.overlay } : undefined;
   const info = {
-    title: 'PermDock authorization metadata',
+    title: "PermDock authorization metadata",
     version: catalogPin,
   };
   const head: Record<string, unknown>[] = [
     {
-      target: '$.components.securitySchemes',
-      description: 'PermDock security schemes',
+      target: "$.components.securitySchemes",
+      description: "PermDock security schemes",
       update: schemes,
     },
   ];
   if (requirements !== undefined) {
     head.push({
-      target: '$.components.securityProfileRequirements',
-      description: 'PermDock security profile requirements',
+      target: "$.components.securityProfileRequirements",
+      description: "PermDock security profile requirements",
       update: requirements,
     });
   }
   const catalogAction = {
-    target: '$',
-    description: 'PermDock catalog pin',
+    target: "$",
+    description: "PermDock catalog pin",
     update: {
-      'x-permdock-catalog': catalogOf(options, drafts),
+      "x-permdock-catalog": catalogOf(options, drafts),
     },
   };
   const bodies = operations.map((operation) => {
@@ -107,9 +107,9 @@ export function overlayOf(
       fields: describeOf(policy, options, operation.permissions),
     };
   });
-  if (version === '1.1') {
+  if (version === "1.1") {
     return compact({
-      overlay: '1.1.0',
+      overlay: "1.1.0",
       info,
       extends: overlayOptions.extends,
       actions: [
@@ -133,7 +133,7 @@ export function overlayOf(
     };
   }
   return compact({
-    overlay: '1.2.0',
+    overlay: "1.2.0",
     info,
     extends: overlayOptions.extends,
     components: { actions: reusable },

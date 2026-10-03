@@ -1,15 +1,15 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 
-import type { DoctorFinding } from './doctor-types.ts';
-import type { PermDockConfig } from './types.ts';
+import type { DoctorFinding } from "./doctor-types.ts";
+import type { PermDockConfig } from "./types.ts";
 
-import { PERMDOCK_SCHEMA } from '../supabase/sources.ts';
-import { tableKey } from './deciding-columns.ts';
-import { MIGRATION_DIRS } from './doctor-project.ts';
-import { rel, sqlFiles } from './files.ts';
-import { group, sqlStatements } from './sql-statements.ts';
-import { supabaseConfig } from './supabase-config.ts';
+import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
+import { tableKey } from "./deciding-columns.ts";
+import { MIGRATION_DIRS } from "./doctor-project.ts";
+import { rel, sqlFiles } from "./files.ts";
+import { group, sqlStatements } from "./sql-statements.ts";
+import { supabaseConfig } from "./supabase-config.ts";
 
 /** One statement of a migration: comments blanked, its file and first line. */
 type SqlStatement = {
@@ -19,20 +19,20 @@ type SqlStatement = {
 };
 
 /** Supabase's `[api] schemas` when `config.toml` sets none. */
-const API_SCHEMAS = ['public', 'graphql_public'] as const;
+const API_SCHEMAS = ["public", "graphql_public"] as const;
 
 const NAME = String.raw`((?:"[^"]+"|\w+)(?:\.(?:"[^"]+"|\w+))?)`;
 const IDENT = String.raw`("[^"]+"|\w+)`;
 
 /** A statement without its dollar-quoted bodies: what a function header says. */
 function header(text: string): string {
-  return text.replaceAll(/\$([A-Za-z_]*)\$[\s\S]*?\$\1\$/gu, '$$$$');
+  return text.replaceAll(/\$([A-Za-z_]*)\$[\s\S]*?\$\1\$/gu, "$$$$");
 }
 
 function isSupabase(cwd: string, config: PermDockConfig): boolean {
   return (
-    existsSync(join(cwd, 'supabase')) ||
-    config.rls?.dialect === 'supabase' ||
+    existsSync(join(cwd, "supabase")) ||
+    config.rls?.dialect === "supabase" ||
     config.supabase !== undefined
   );
 }
@@ -43,7 +43,7 @@ function migrationStatements(
 ): readonly SqlStatement[] {
   return sqlFiles(cwd, config.doctor?.migrations ?? MIGRATION_DIRS).flatMap(
     (file) =>
-      sqlStatements(readFileSync(file, 'utf8')).map((statement) =>
+      sqlStatements(readFileSync(file, "utf8")).map((statement) =>
         Object.assign({ file: rel(cwd, file) }, statement),
       ),
   );
@@ -51,11 +51,11 @@ function migrationStatements(
 
 /** The schema of a `tableKey`, which always names one. */
 function schemaOf(key: string): string {
-  return key.slice(0, key.indexOf('.'));
+  return key.slice(0, key.indexOf("."));
 }
 
 function unquote(name: string): string {
-  return name.replaceAll('"', '').toLowerCase();
+  return name.replaceAll('"', "").toLowerCase();
 }
 
 /**
@@ -66,7 +66,7 @@ export function pd046(
   cwd: string,
   config: PermDockConfig,
 ): readonly DoctorFinding[] {
-  if (!existsSync(join(cwd, 'supabase/config.toml'))) {
+  if (!existsSync(join(cwd, "supabase/config.toml"))) {
     return [];
   }
   const schema =
@@ -77,11 +77,11 @@ export function pd046(
   }
   return [
     {
-      code: 'PD046',
-      severity: 'warning',
+      code: "PD046",
+      severity: "warning",
       message: `the PermDock helper schema ${schema} is in [api] schemas in supabase/config.toml, so the Data API serves its security definer helpers as RPCs`,
       fix:
-        schema === 'public'
+        schema === "public"
           ? `drop rls.schema: 'public' so the helpers move to the private ${PERMDOCK_SCHEMA} schema, regenerate with permdock rls generate, and keep ${PERMDOCK_SCHEMA} out of [api] schemas`
           : `remove ${schema} from [api] schemas; policies reach the helpers through grant usage, not the Data API`,
     },
@@ -100,29 +100,29 @@ export function pd047(
   }
   return migrationStatements(cwd, config).flatMap((statement) =>
     [...statement.text.matchAll(USER_METADATA)].map((match) => ({
-      code: 'PD047',
-      severity: 'warning' as const,
-      message: `${statement.file}:${String(statement.line + statement.text.slice(0, match.index).split('\n').length - 1)} reads ${match[0]}, which a user can set for themselves`,
-      fix: 'decide access from app_metadata (raw_app_meta_data), a server-owned table or a hook claim; user_metadata is for display only',
+      code: "PD047",
+      severity: "warning" as const,
+      message: `${statement.file}:${String(statement.line + statement.text.slice(0, match.index).split("\n").length - 1)} reads ${match[0]}, which a user can set for themselves`,
+      fix: "decide access from app_metadata (raw_app_meta_data), a server-owned table or a hook claim; user_metadata is for display only",
     })),
   );
 }
 
 const CREATE_FUNCTION = new RegExp(
   String.raw`^create\s+(?:or\s+replace\s+)?function\s+${NAME}\s*\(`,
-  'iu',
+  "iu",
 );
 const ALTER_SEARCH_PATH = new RegExp(
   String.raw`^alter\s+function\s+${NAME}\s*(?:\([^)]*\))?\s+set\s+search_path\b`,
-  'iu',
+  "iu",
 );
 const REVOKE_EXECUTE = new RegExp(
   String.raw`^revoke\s+(?:all(?:\s+privileges)?|execute)\s+on\s+(?:function|routine)\s+${NAME}\s*(?:\([^)]*\))?\s+from\s+([\s\S]+)$`,
-  'iu',
+  "iu",
 );
 const REVOKE_ALL_FUNCTIONS = new RegExp(
   String.raw`^(?:alter\s+default\s+privileges\s+(?:for\s+role\s+\S+\s+)?in\s+schema\s+${IDENT}\s+)?revoke\s+(?:all(?:\s+privileges)?|execute)\s+on\s+(?:all\s+)?(?:functions|routines)(?:\s+in\s+schema\s+${IDENT})?\s+from\s+([\s\S]+)$`,
-  'iu',
+  "iu",
 );
 
 type CreatedFunction = SqlStatement & {
@@ -172,9 +172,9 @@ export function pd048(
     .map((fn) => {
       const definer = /\bsecurity\s+definer\b/iu.test(fn.head);
       return {
-        code: 'PD048',
-        severity: 'warning' as const,
-        message: `${fn.file}:${String(fn.line)} ${definer ? 'security definer ' : ''}function ${fn.key} sets no search_path${definer ? ', so a caller can shadow what it reads with their own objects' : ''}`,
+        code: "PD048",
+        severity: "warning" as const,
+        message: `${fn.file}:${String(fn.line)} ${definer ? "security definer " : ""}function ${fn.key} sets no search_path${definer ? ", so a caller can shadow what it reads with their own objects" : ""}`,
         fix: `add set search_path = '' and qualify every name in the body (Supabase advisor function_search_path_mutable)`,
       };
     });
@@ -187,8 +187,8 @@ function revokedExecute(
   const revoked = new Map<string, Set<string>>();
   const add = (key: string, roles: string): void => {
     const set = revoked.get(key) ?? new Set<string>();
-    for (const role of roles.split(',')) {
-      set.add(unquote(role.trim().replace(/\s+(?:cascade|restrict)$/iu, '')));
+    for (const role of roles.split(",")) {
+      set.add(unquote(role.trim().replace(/\s+(?:cascade|restrict)$/iu, "")));
     }
     revoked.set(key, set);
   };
@@ -201,7 +201,7 @@ function revokedExecute(
     const all = REVOKE_ALL_FUNCTIONS.exec(statement.text);
     if (all !== null) {
       const schema = all[1] ?? all[2];
-      add(`${schema === undefined ? '*' : unquote(schema)}.*`, group(all, 3));
+      add(`${schema === undefined ? "*" : unquote(schema)}.*`, group(all, 3));
     }
   }
   return revoked;
@@ -233,16 +233,16 @@ export function pd049(
     const from = new Set([
       ...(revoked.get(fn.key) ?? []),
       ...(revoked.get(`${schema}.*`) ?? []),
-      ...(revoked.get('*.*') ?? []),
+      ...(revoked.get("*.*") ?? []),
     ]);
-    const missing = ['public', ...(schema === 'public' ? ['anon'] : [])].filter(
+    const missing = ["public", ...(schema === "public" ? ["anon"] : [])].filter(
       (role) => !from.has(role),
     );
     if (missing.length > 0) {
       findings.push({
-        code: 'PD049',
-        severity: 'warning',
-        message: `${fn.file}:${String(fn.line)} security definer function ${fn.key} can be executed by ${missing.join(' and ')}`,
+        code: "PD049",
+        severity: "warning",
+        message: `${fn.file}:${String(fn.line)} security definer function ${fn.key} can be executed by ${missing.join(" and ")}`,
         fix: `revoke execute on function ${fn.key}(…) from public, anon; then grant execute to the roles that call it`,
       });
     }
@@ -252,11 +252,11 @@ export function pd049(
 
 const CREATE_TABLE = new RegExp(
   String.raw`^create\s+(?:(?:global|local)\s+)?(?:(?:temp|temporary|unlogged)\s+)?table\s+(?:if\s+not\s+exists\s+)?${NAME}\s*\(`,
-  'iu',
+  "iu",
 );
 const ENABLE_RLS = new RegExp(
   String.raw`^alter\s+table\s+(?:if\s+exists\s+)?(?:only\s+)?${NAME}[\s\S]*\benable\s+row\s+level\s+security\b`,
-  'iu',
+  "iu",
 );
 const DROP_TABLE =
   /^drop\s+table\s+(?:if\s+exists\s+)?([\s\S]+?)(?:\s+(?:cascade|restrict))?$/iu;
@@ -284,16 +284,16 @@ export function pd050(
     }
     const dropped = DROP_TABLE.exec(statement.text);
     if (dropped !== null) {
-      for (const name of group(dropped, 1).split(',')) {
+      for (const name of group(dropped, 1).split(",")) {
         created.delete(tableKey(name.trim()));
       }
     }
   }
   return [...created]
-    .filter(([key]) => schemaOf(key) === 'public' && !enabled.has(key))
+    .filter(([key]) => schemaOf(key) === "public" && !enabled.has(key))
     .map(([key, statement]) => ({
-      code: 'PD050',
-      severity: 'error',
+      code: "PD050",
+      severity: "error",
       message: `${statement.file}:${String(statement.line)} creates ${key} without row level security, so the Data API serves every row to anon and authenticated`,
       fix: `alter table ${key} enable row level security; permdock rls generate writes its policies`,
     }));
@@ -301,7 +301,7 @@ export function pd050(
 
 const CREATE_POLICY = new RegExp(
   String.raw`^create\s+policy\s+${IDENT}\s+on\s+${NAME}([\s\S]*)$`,
-  'iu',
+  "iu",
 );
 const UNWRAPPED_AUTH = /(?<!\bselect\s{1,20})\bauth\.(uid|jwt)\s*\(\s*\)/giu;
 
@@ -330,9 +330,9 @@ export function pd051(
       ? []
       : [
           {
-            code: 'PD051',
-            severity: 'warning' as const,
-            message: `${statement.file}:${String(statement.line)} policy ${unquote(group(policy, 1))} on ${tableKey(group(policy, 2))} calls ${calls.join(' and ')} once per row`,
+            code: "PD051",
+            severity: "warning" as const,
+            message: `${statement.file}:${String(statement.line)} policy ${unquote(group(policy, 1))} on ${tableKey(group(policy, 2))} calls ${calls.join(" and ")} once per row`,
             fix: `wrap each call as (select ${first}) so Postgres evaluates it once per statement (Supabase advisor auth_rls_initplan)`,
           },
         ];
@@ -349,7 +349,7 @@ export function pd052(
   }
   return migrationStatements(cwd, config).flatMap((statement) => {
     const policy = CREATE_POLICY.exec(statement.text);
-    const rest = policy?.[3] ?? '';
+    const rest = policy?.[3] ?? "";
     if (
       policy === null ||
       !/\bfor\s+update\b/iu.test(rest) ||
@@ -359,10 +359,10 @@ export function pd052(
     }
     return [
       {
-        code: 'PD052',
-        severity: 'warning' as const,
+        code: "PD052",
+        severity: "warning" as const,
         message: `${statement.file}:${String(statement.line)} update policy ${unquote(group(policy, 1))} on ${tableKey(group(policy, 2))} has no with check, so Postgres checks the new row against using alone`,
-        fix: 'add with check (...) stating what the updated row must satisfy, such as the same tenant and owner test, so an update cannot move a row out of what the user may write',
+        fix: "add with check (...) stating what the updated row must satisfy, such as the same tenant and owner test, so an update cannot move a row out of what the user may write",
       },
     ];
   });
@@ -375,17 +375,17 @@ function topLevelParts(body: string): readonly string[] {
   let start = 0;
   for (let index = 0; index < body.length; index += 1) {
     const char = body[index];
-    if (char === '(') {
+    if (char === "(") {
       depth += 1;
-    } else if (char === ')') {
+    } else if (char === ")") {
       depth -= 1;
-    } else if (char === ',' && depth === 0) {
+    } else if (char === "," && depth === 0) {
       parts.push(body.slice(start, index).trim());
       start = index + 1;
     }
   }
   parts.push(body.slice(start).trim());
-  return parts.filter((part) => part !== '');
+  return parts.filter((part) => part !== "");
 }
 
 /**
@@ -398,7 +398,7 @@ function tablePart(raw: string): {
   readonly foreign: boolean;
   readonly indexed: boolean;
 } {
-  const part = raw.replace(/^constraint\s+(?:"[^"]+"|\w+)\s+/iu, '');
+  const part = raw.replace(/^constraint\s+(?:"[^"]+"|\w+)\s+/iu, "");
   const listed = /^(foreign\s+key|primary\s+key|unique)\s*\(([^)]*)\)/iu.exec(
     part,
   );
@@ -411,14 +411,14 @@ function tablePart(raw: string): {
     };
   }
   return {
-    column: unquote(/^("[^"]+"|\w+)/u.exec(part)?.[1] ?? ''),
+    column: unquote(/^("[^"]+"|\w+)/u.exec(part)?.[1] ?? ""),
     foreign: /\breferences\b/iu.test(part),
     indexed: /\b(?:primary\s+key|unique)\b/iu.test(part),
   };
 }
 
 function firstColumn(list: string): string {
-  return unquote(list.replace(/,[\s\S]*$/u, '').trim());
+  return unquote(list.replace(/,[\s\S]*$/u, "").trim());
 }
 
 type ForeignKey = SqlStatement & {
@@ -428,11 +428,11 @@ type ForeignKey = SqlStatement & {
 
 const ADD_CONSTRAINT = new RegExp(
   String.raw`^alter\s+table\s+(?:if\s+exists\s+)?(?:only\s+)?${NAME}\s+add\s+(?:constraint\s+${IDENT}\s+)?(foreign\s+key|primary\s+key|unique)\s*\(([^)]*)\)`,
-  'iu',
+  "iu",
 );
 const CREATE_INDEX = new RegExp(
   String.raw`^create\s+(?:unique\s+)?index\s+(?:concurrently\s+)?(?:if\s+not\s+exists\s+)?(?:${IDENT}\s+)?on\s+(?:only\s+)?${NAME}\s*(?:using\s+\w+\s*)?\(\s*${IDENT}`,
-  'iu',
+  "iu",
 );
 
 /** PD053: a foreign key no index starts with, so joins and deletes on the referenced row scan the table. */
@@ -449,10 +449,10 @@ export function pd053(
     const table = CREATE_TABLE.exec(statement.text);
     if (table !== null) {
       const key = tableKey(group(table, 1));
-      const open = statement.text.indexOf('(', table[0].length - 1);
+      const open = statement.text.indexOf("(", table[0].length - 1);
       const body = statement.text.slice(
         open + 1,
-        statement.text.lastIndexOf(')'),
+        statement.text.lastIndexOf(")"),
       );
       for (const raw of topLevelParts(body)) {
         const found = tablePart(raw);
@@ -484,8 +484,8 @@ export function pd053(
   return keys
     .filter((fk) => !indexed.has(`${fk.table}.${fk.column}`))
     .map((fk) => ({
-      code: 'PD053',
-      severity: 'warning',
+      code: "PD053",
+      severity: "warning",
       message: `${fk.file}:${String(fk.line)} ${fk.table}.${fk.column} is a foreign key no index starts with, so policies that join on it and deletes of the referenced row scan ${fk.table}`,
       fix: `create index on ${fk.table} (${fk.column}); (Supabase advisor unindexed_foreign_keys)`,
     }));

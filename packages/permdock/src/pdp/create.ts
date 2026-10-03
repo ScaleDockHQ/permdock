@@ -1,31 +1,31 @@
-import type { Condition } from '../conditions/ast.ts';
-import type { Decision, ExplainedDecision } from '../core/decision.ts';
-import type { DecisionProvider } from '../core/interfaces.ts';
+import type { Condition } from "../conditions/ast.ts";
+import type { Decision, ExplainedDecision } from "../core/decision.ts";
+import type { DecisionProvider } from "../core/interfaces.ts";
 import type {
   PermDockOptions,
   DecideOptions,
   PermDock,
   SimulateOptions,
   WhereResult,
-} from '../core/permdock.ts';
-import type { Permission } from '../core/permissions.ts';
-import type { Policy, PolicyVocabulary } from '../core/policy.ts';
-import type { Membership, Principal, Subject } from '../core/subject.ts';
-import type { PdpPermDock } from './types.ts';
+} from "../core/permdock.ts";
+import type { Permission } from "../core/permissions.ts";
+import type { Policy, PolicyVocabulary } from "../core/policy.ts";
+import type { Membership, Principal, Subject } from "../core/subject.ts";
+import type { PdpPermDock } from "./types.ts";
 
-import { isArazzoSimulateInput } from '../core/arazzo.ts';
-import { compact, isReadonlyArray } from '../core/compact.ts';
+import { isArazzoSimulateInput } from "../core/arazzo.ts";
+import { compact, isReadonlyArray } from "../core/compact.ts";
 import {
   PermDockApprovalRequiredError,
   PermDockDeniedError,
   PermDockValidationError,
   approvalMessage,
   deniedMessage,
-} from '../core/errors.ts';
-import { freezeDeep } from '../core/freeze.ts';
-import { createPermDock as createCore } from '../core/permdock.ts';
-import { getResource } from '../core/permissions.ts';
-import { denied, resourceIdOf } from './shared.ts';
+} from "../core/errors.ts";
+import { freezeDeep } from "../core/freeze.ts";
+import { createPermDock as createCore } from "../core/permdock.ts";
+import { getResource } from "../core/permissions.ts";
+import { denied, resourceIdOf } from "./shared.ts";
 
 function withoutProviders<
   TUser,
@@ -74,18 +74,18 @@ function providerFor(
 }
 
 function idFieldOf(policy: Policy, permission: Permission): string {
-  return getResource(policy.permissions, permission.resource)?.id ?? 'id';
+  return getResource(policy.permissions, permission.resource)?.id ?? "id";
 }
 
 function isExplicitDeny(decision: Decision): boolean {
   return (
-    decision.outcome === 'denied' &&
-    decision.denials.some((denial) => denial.reason === 'deny')
+    decision.outcome === "denied" &&
+    decision.denials.some((denial) => denial.reason === "deny")
   );
 }
 
 function isLocalShortCircuit(decision: Decision): boolean {
-  if (decision.outcome !== 'denied') {
+  if (decision.outcome !== "denied") {
     return false;
   }
   if (isExplicitDeny(decision)) {
@@ -93,51 +93,51 @@ function isLocalShortCircuit(decision: Decision): boolean {
   }
   return decision.denials.some((denial) => {
     switch (denial.reason) {
-      case 'no-grant':
-      case 'inactive-grant':
+      case "no-grant":
+      case "inactive-grant":
         return false;
-      case 'pdp-denied':
-      case 'pdp-unavailable':
-      case 'pdp-invalid-response':
+      case "pdp-denied":
+      case "pdp-unavailable":
+      case "pdp-invalid-response":
         return false;
-      case 'anonymous':
-      case 'validation':
-      case 'not-delegated':
-      case 'no-delegation':
-      case 'condition':
-      case 'deny':
-      case 'closure-error':
-      case 'opaque-condition':
-      case 'server-only':
-      case 'insufficient-user-authentication':
-      case 'not-entitled':
-      case 'purpose':
-      case 'reason-required':
-      case 'actor-required':
-      case 'limit':
-      case 'limit-unavailable':
-      case 'relation-depth':
-      case 'relation-unavailable':
-      case 'tenant-mismatch':
-      case 'no-membership':
-      case 'scope':
-      case 'expired-membership':
-      case 'stale-credentials':
-      case 'unknown-role':
-      case 'last-holder':
-      case 'max-holders':
-      case 'transfer-only':
-      case 'not-assignable-by':
-      case 'self-demotion':
-      case 'externally-managed':
-      case 'not-allowed-for-membership':
-      case 'conflicting-role':
-      case 'approval':
-      case 'stale-approval':
-      case 'undocumented':
-      case 'unsupported':
-      case 'exceeds-creator':
-      case 'credential-policy':
+      case "anonymous":
+      case "validation":
+      case "not-delegated":
+      case "no-delegation":
+      case "condition":
+      case "deny":
+      case "closure-error":
+      case "opaque-condition":
+      case "server-only":
+      case "insufficient-user-authentication":
+      case "not-entitled":
+      case "purpose":
+      case "reason-required":
+      case "actor-required":
+      case "limit":
+      case "limit-unavailable":
+      case "relation-depth":
+      case "relation-unavailable":
+      case "tenant-mismatch":
+      case "no-membership":
+      case "scope":
+      case "expired-membership":
+      case "stale-credentials":
+      case "unknown-role":
+      case "last-holder":
+      case "max-holders":
+      case "transfer-only":
+      case "not-assignable-by":
+      case "self-demotion":
+      case "externally-managed":
+      case "not-allowed-for-membership":
+      case "conflicting-role":
+      case "approval":
+      case "stale-approval":
+      case "undocumented":
+      case "unsupported":
+      case "exceeds-creator":
+      case "credential-policy":
         return true;
       default: {
         const exhaustive: never = denial.reason;
@@ -178,7 +178,7 @@ function wrap<V extends PolicyVocabulary>(
         local,
       });
     } catch {
-      return denied('pdp-unavailable');
+      return denied("pdp-unavailable");
     }
   };
 
@@ -186,11 +186,11 @@ function wrap<V extends PolicyVocabulary>(
   const explain = async (
     permission: Permission,
     data?: unknown,
-    options?: Omit<DecideOptions, 'explain'>,
+    options?: Omit<DecideOptions, "explain">,
   ): Promise<ExplainedDecision> => {
     const decision = await decide(permission, data, {
       ...options,
-      source: options?.source ?? 'explain',
+      source: options?.source ?? "explain",
       explain: true,
     });
     if (decision.trace !== undefined) {
@@ -223,7 +223,7 @@ function wrap<V extends PolicyVocabulary>(
     options?: DecideOptions,
   ): Promise<boolean> => {
     try {
-      return (await decide(permission, data, options)).outcome === 'granted';
+      return (await decide(permission, data, options)).outcome === "granted";
     } catch {
       return false;
     }
@@ -233,12 +233,12 @@ function wrap<V extends PolicyVocabulary>(
     permission: Permission,
     data?: unknown,
     options?: DecideOptions,
-  ): Promise<Extract<Decision, { readonly outcome: 'granted' }>> => {
+  ): Promise<Extract<Decision, { readonly outcome: "granted" }>> => {
     const decision = await decide(permission, data, {
       ...options,
-      source: options?.source ?? 'assert',
+      source: options?.source ?? "assert",
     });
-    if (decision.outcome === 'granted') {
+    if (decision.outcome === "granted") {
       return decision;
     }
     const onDenied = options?.onDenied ?? policy.onDenied;
@@ -248,8 +248,8 @@ function wrap<V extends PolicyVocabulary>(
     const resource = getResource(policy.permissions, permission.resource);
     // SAFETY: data was checked to be a non-null object; the id stays unknown until String().
     const resourceId =
-      data !== null && typeof data === 'object'
-        ? (data as Record<string, unknown>)[resource?.id ?? 'id']
+      data !== null && typeof data === "object"
+        ? (data as Record<string, unknown>)[resource?.id ?? "id"]
         : undefined;
     const resourceRef = compact<{
       readonly type: string;
@@ -258,7 +258,7 @@ function wrap<V extends PolicyVocabulary>(
       type: permission.resource,
       id: resourceId === undefined ? undefined : String(resourceId),
     });
-    if (decision.outcome === 'approval-required') {
+    if (decision.outcome === "approval-required") {
       throw new PermDockApprovalRequiredError({
         decision,
         permission: permission.key,
@@ -271,7 +271,7 @@ function wrap<V extends PolicyVocabulary>(
         ),
       });
     }
-    if (decision.denials.some((denial) => denial.reason === 'validation')) {
+    if (decision.denials.some((denial) => denial.reason === "validation")) {
       const detail = decision.denials[0]?.detail;
       if (detail instanceof PermDockValidationError) {
         throw detail;
@@ -296,7 +296,7 @@ function wrap<V extends PolicyVocabulary>(
   const simulate = ((
     input:
       | readonly (readonly [Permission, unknown?])[]
-      | Parameters<PermDock['simulate']>[0],
+      | Parameters<PermDock["simulate"]>[0],
     options?: SimulateOptions,
   ) => {
     if (isReadonlyArray(input)) {
@@ -305,7 +305,7 @@ function wrap<V extends PolicyVocabulary>(
           decide(
             permission,
             data,
-            compact<DecideOptions>({ source: 'simulate', now: options?.now }),
+            compact<DecideOptions>({ source: "simulate", now: options?.now }),
           ),
         ),
       );
@@ -326,7 +326,7 @@ function wrap<V extends PolicyVocabulary>(
       subject,
       providers,
     );
-  }) as PdpPermDock<V>['simulate'];
+  }) as PdpPermDock<V>["simulate"];
 
   return {
     can,
@@ -334,11 +334,11 @@ function wrap<V extends PolicyVocabulary>(
     assert,
     explain,
     async filter<T>(
-      permission: Permission<string, T, 'instance'>,
+      permission: Permission<string, T, "instance">,
       rows: readonly T[],
       options?: DecideOptions,
     ): Promise<T[]> {
-      const next = { ...options, source: 'filter' as const };
+      const next = { ...options, source: "filter" as const };
       const provider = providerFor(providers, permission);
       const ids = await permittedIds(provider, permission);
       if (ids === undefined) {
@@ -346,7 +346,7 @@ function wrap<V extends PolicyVocabulary>(
           rows.map((row) => decide(permission, row, next)),
         );
         return rows.filter(
-          (_, index) => decisions[index]?.outcome === 'granted',
+          (_, index) => decisions[index]?.outcome === "granted",
         );
       }
       const allowed = new Set(ids ?? []);
@@ -367,22 +367,22 @@ function wrap<V extends PolicyVocabulary>(
       }
       const ids = await permittedIds(provider, permission);
       if (ids === undefined) {
-        return { condition: { op: 'or', conditions: [] }, partial: true };
+        return { condition: { op: "or", conditions: [] }, partial: true };
       }
       if (ids === null || ids.length === 0) {
-        return { condition: { op: 'or', conditions: [] }, partial: false };
+        return { condition: { op: "or", conditions: [] }, partial: false };
       }
       const remote: Condition = {
-        op: 'in',
+        op: "in",
         field: idFieldOf(policy, permission),
         value: [...ids],
       };
       const local = permdock.where(permission);
       const hasLocal =
-        local.condition.op !== 'or' || local.condition.conditions.length > 0;
+        local.condition.op !== "or" || local.condition.conditions.length > 0;
       return hasLocal
         ? {
-            condition: { op: 'and', conditions: [local.condition, remote] },
+            condition: { op: "and", conditions: [local.condition, remote] },
             partial: local.partial,
           }
         : { condition: remote, partial: true };

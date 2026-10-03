@@ -15,7 +15,11 @@ Everything PermDock puts on a wire, in a file or in a log is plain JSON with a d
   "scope": "post:update",
   "resource": "post",
   "action": "update",
-  "meta": { "title": "Edit post", "description": "Change title or body", "tags": ["editor"] }
+  "meta": {
+    "title": "Edit post",
+    "description": "Change title or body",
+    "tags": ["editor"]
+  }
 }
 ```
 
@@ -35,18 +39,18 @@ The normalised form of `{ where: { authorId: principal.id, teamId: { in: context
 }
 ```
 
-| Node | Shape |
-| --- | --- |
-| Comparison | `{ "op": "eq" \| "ne" \| "gt" \| "gte" \| "lt" \| "lte" \| "contains", "field": string, "value": Value }` |
-| Membership | `{ "op": "in" \| "notIn", "field": string, "value": Value[] \| Ref }` |
-| Null test | `{ "op": "isNull", "field": string, "value": boolean }` |
-| Compound | `{ "op": "and" \| "or", "conditions": Condition[] }`, `{ "op": "not", "condition": Condition }` |
-| Reference | `{ "ref": "principal.<field>" }` or `{ "ref": "context.<key>" }`. No other prefix resolves. |
-| Date | `{ "date": "2026-09-06T10:15:00Z" }` |
-| Scope (from scoped roles) | `{ "op": "memberOf", "scope": string, "field": string, "roles": string[], "resource"?: string, "parents"?: (string \| { "field": string, "resource": string })[] }`. `scope` is a declared scope name (or the `tenant` / `team` alias) or `"resource"`. A keyed parent matches only a membership on that resource; a bare field name matches any ([tenancy](/docs/concepts/tenancy)) |
-| SQL function | `{ "op": "sqlFunction", "name": string, "args": array, "twin": Condition }`. Each arg is a value or `{ "field": "id" }`. |
+| Node                         | Shape                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Comparison                   | `{ "op": "eq" \| "ne" \| "gt" \| "gte" \| "lt" \| "lte" \| "contains", "field": string, "value": Value }`                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| Membership                   | `{ "op": "in" \| "notIn", "field": string, "value": Value[] \| Ref }`                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| Null test                    | `{ "op": "isNull", "field": string, "value": boolean }`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Compound                     | `{ "op": "and" \| "or", "conditions": Condition[] }`, `{ "op": "not", "condition": Condition }`                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| Reference                    | `{ "ref": "principal.<field>" }` or `{ "ref": "context.<key>" }`. No other prefix resolves.                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| Date                         | `{ "date": "2026-09-06T10:15:00Z" }`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| Scope (from scoped roles)    | `{ "op": "memberOf", "scope": string, "field": string, "roles": string[], "resource"?: string, "parents"?: (string \| { "field": string, "resource": string })[] }`. `scope` is a declared scope name (or the `tenant` / `team` alias) or `"resource"`. A keyed parent matches only a membership on that resource; a bare field name matches any ([tenancy](/docs/concepts/tenancy))                                                                                                                                                             |
+| SQL function                 | `{ "op": "sqlFunction", "name": string, "args": array, "twin": Condition }`. Each arg is a value or `{ "field": "id" }`.                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | Graph (from relation grants) | `{ "op": "related", "resource": string, "relation": string, "field": string, "depth": integer, "parent"?: true, "restricted"?: string }`: the subject holds `relation` on the `resource` instance the row's `field` names (its parent when `parent` is set), or on an ancestor within `depth` hops. Produced from a `relation(..., { through: 'parent' })` or edge-table grantee; it appears in an in-process `Decision.matched.where`, never in a snapshot, a policy document or a hosted grant ([relationships](/docs/concepts/relationships)) |
-| Opaque (imported) | `{ "op": "opaque", "sql": "...", "fingerprint": "sha256:..." }` |
+| Opaque (imported)            | `{ "op": "opaque", "sql": "...", "fingerprint": "sha256:..." }`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 
 Literals are JSON literals. Single-child compounds are collapsed and nested same-operator compounds are flattened when the grant is defined, so consumers see a canonical tree. Field names `op`, `field`, `value`, `ref` and `date` are final.
 
@@ -60,10 +64,19 @@ Output of `permdock.snapshot({ include: [permissions.post] })`. See [snapshots](
   "issuedAt": 1788999900,
   "subject": {
     "principal": {
-      "id": "u_1", "roles": [], "plans": ["pro"], "tenant": "o_1",
+      "id": "u_1",
+      "roles": [],
+      "plans": ["pro"],
+      "tenant": "o_1",
       "memberships": [
         { "scope": "tenant", "id": "o_1", "roles": ["member"] },
-        { "scope": "team", "id": "t_design", "within": { "tenant": "o_1" }, "roles": ["lead"], "via": "group:9f2c" }
+        {
+          "scope": "team",
+          "id": "t_design",
+          "within": { "tenant": "o_1" },
+          "roles": ["lead"],
+          "via": "group:9f2c"
+        }
       ]
     },
     "delegation": { "scopes": ["post:read", "post:update"] },
@@ -71,7 +84,10 @@ Output of `permdock.snapshot({ include: [permissions.post] })`. See [snapshots](
   },
   "roles": ["member", "lead"],
   "vocabulary": {
-    "roles": { "member": { "key": "member", "assignable": true }, "lead": { "key": "lead", "on": "team", "assignable": true } },
+    "roles": {
+      "member": { "key": "member", "assignable": true },
+      "lead": { "key": "lead", "on": "team", "assignable": true }
+    },
     "plans": { "pro": { "key": "pro" } }
   },
   "scopes": [
@@ -79,20 +95,50 @@ Output of `permdock.snapshot({ include: [permissions.post] })`. See [snapshots](
     { "name": "team", "key": "teamId", "within": "tenant" }
   ],
   "grants": [
-    { "permission": "post.read", "effect": "allow", "role": "member", "scope": "tenant",
+    {
+      "permission": "post.read",
+      "effect": "allow",
+      "role": "member",
+      "scope": "tenant",
       "to": { "kind": "role", "role": "member", "scope": "tenant" },
-      "membership": { "scope": "tenant", "id": "o_1", "roles": ["member"] } },
-    { "permission": "post.update", "effect": "allow", "role": null,
+      "membership": { "scope": "tenant", "id": "o_1", "roles": ["member"] }
+    },
+    {
+      "permission": "post.update",
+      "effect": "allow",
+      "role": null,
       "to": { "kind": "relation", "resource": "post", "relation": "author" },
-      "where": { "op": "eq", "field": "authorId", "value": { "ref": "principal.id" } } },
-    { "permission": "post.delete", "effect": "allow", "role": "member", "scope": "tenant", "approval": "human",
-      "to": { "kind": "role", "role": "member", "scope": "tenant" } }
+      "where": {
+        "op": "eq",
+        "field": "authorId",
+        "value": { "ref": "principal.id" }
+      }
+    },
+    {
+      "permission": "post.delete",
+      "effect": "allow",
+      "role": "member",
+      "scope": "tenant",
+      "approval": "human",
+      "to": { "kind": "role", "role": "member", "scope": "tenant" }
+    }
   ],
   "tenants": ["o_1"],
   "include": ["post"],
   "assignable": [
-    { "tenant": "o_1", "roles": ["member"],
-      "permissions": [{ "key": "post.read", "resource": "post", "action": "read", "scope": "post:read", "meta": {} }] }
+    {
+      "tenant": "o_1",
+      "roles": ["member"],
+      "permissions": [
+        {
+          "key": "post.read",
+          "resource": "post",
+          "action": "read",
+          "scope": "post:read",
+          "meta": {}
+        }
+      ]
+    }
   ]
 }
 ```
@@ -104,11 +150,25 @@ A grant entry has `permission`, `effect` (`allow` or `deny`), `to` (the [policie
 Carried inside the principal and exchanged with `MembershipSource` and `RoleSource` implementations ([tenancy](/docs/concepts/tenancy)). PermDock publishes both as Standard JSON Schema for validating edits at a boundary.
 
 ```json
-{ "scope": "customer", "id": "c_7", "within": { "organization": "o_1" }, "roles": ["contact"], "via": "contact", "expiresAt": 1789000000 }
+{
+  "scope": "customer",
+  "id": "c_7",
+  "within": { "organization": "o_1" },
+  "roles": ["contact"],
+  "via": "contact",
+  "expiresAt": 1789000000
+}
 ```
 
 ```json
-{ "scope": "organization", "id": "o_1", "roles": ["member"], "via": "group:g_eng", "managedBy": "idp", "entitlements": ["dev-mode"] }
+{
+  "scope": "organization",
+  "id": "o_1",
+  "roles": ["member"],
+  "via": "group:g_eng",
+  "managedBy": "idp",
+  "entitlements": ["dev-mode"]
+}
 ```
 
 ```json
@@ -116,7 +176,16 @@ Carried inside the principal and exchanged with `MembershipSource` and `RoleSour
 ```
 
 ```json
-{ "tenant": "o_1", "name": "billing-manager", "includes": ["billing-viewer"], "grants": [{ "permission": "invoice.pay" }, { "permission": "invoice.refund", "effect": "deny" }], "meta": { "title": "Billing Manager" } }
+{
+  "tenant": "o_1",
+  "name": "billing-manager",
+  "includes": ["billing-viewer"],
+  "grants": [
+    { "permission": "invoice.pay" },
+    { "permission": "invoice.refund", "effect": "deny" }
+  ],
+  "meta": { "title": "Billing Manager" }
+}
 ```
 
 A membership names one scope instance (`scope`, `id`, and in `within` the id of every ancestor scope) or one resource (`on`). Readers also accept the input form `{ tenant, team? }` for the first and second scope and normalise it; everything PermDock writes (snapshots, claims, events) uses the canonical form. The same shape is the `memberships` claim RLS reads in `jwt` mode, with a membership's custom roles as an optional compact `grants` map ([custom roles](/docs/concepts/custom-roles)). A custom role has `tenant` (the owning instance of the first scope), `name`, optional `scope` (the scope it is held at, default the first) and `id` (one instance of it), `includes` (declared role names) and `grants` (declared permission keys with `effect` `allow`, the default, or `deny`, and no other field). Both are bounded by the ceiling of assignable declared roles in the role's scope; entries outside it are dropped, never widened ([custom roles](/docs/concepts/custom-roles)).
@@ -128,25 +197,47 @@ A membership names one scope instance (`scope`, `id`, and in `within` the id of 
 The return value of `decide`, and the payload inside AuthZEN `context` and Problem Details. See [decisions](/docs/concepts/decisions).
 
 ```json
-{ "outcome": "granted", "matched": { "role": "member", "permission": "post.update", "to": { "kind": "role", "role": "member", "scope": "global" } }, "token": "pd1.…",
-  "subject": { "principal": { "id": "u_1", "roles": ["member"] } } }
+{
+  "outcome": "granted",
+  "matched": {
+    "role": "member",
+    "permission": "post.update",
+    "to": { "kind": "role", "role": "member", "scope": "global" }
+  },
+  "token": "pd1.…",
+  "subject": { "principal": { "id": "u_1", "roles": ["member"] } }
+}
 ```
 
 ```json
-{ "outcome": "granted", "matched": { "role": "member", "permission": "report.export" }, "token": "pd1.…",
+{
+  "outcome": "granted",
+  "matched": { "role": "member", "permission": "report.export" },
+  "token": "pd1.…",
   "subject": { "principal": { "id": "u_1", "roles": ["member"] } },
-  "quota": { "remaining": 0, "resetsAt": 1789002000 }, "obligations": [{ "kind": "over-limit" }] }
+  "quota": { "remaining": 0, "resetsAt": 1789002000 },
+  "obligations": [{ "kind": "over-limit" }]
+}
 ```
 
 ```json
-{ "outcome": "denied",
-  "denials": [{ "role": "member", "reason": "condition" }, { "role": null, "reason": "not-delegated" }],
-  "alternatives": ["post.read"] }
+{
+  "outcome": "denied",
+  "denials": [
+    { "role": "member", "reason": "condition" },
+    { "role": null, "reason": "not-delegated" }
+  ],
+  "alternatives": ["post.read"]
+}
 ```
 
 ```json
-{ "outcome": "approval-required", "grant": { "role": "member", "permission": "post.delete" },
-  "reason": "human", "token": "pd1.…" }
+{
+  "outcome": "approval-required",
+  "grant": { "role": "member", "permission": "post.delete" },
+  "reason": "human",
+  "token": "pd1.…"
+}
 ```
 
 In JSON, `alternatives` is an array of permission keys; in memory it is an array of leaves. Remote PDP denials use `pdp-denied`, `pdp-unavailable` or `pdp-invalid-response`. A remote grant sets `matched.provider` to `pdp`. Quota denials use `limit` (exhausted) or `limit-unavailable` (no store, throw, or thenable); a `limit` denial's `detail` is `{ count, window, resetsAt }`, the grant's count, its window in seconds and the Unix second it resets. A `granted` decision whose matched allow has a `limit` carries `quota`: `remaining` is what is left once this call counts (for `can`, `filter` and `simulate`, which only peek, what it would leave), and `resetsAt` is the Unix second the window ends. It may also carry `obligations`, an array of `{ kind }` objects the caller owes alongside the action: `over-limit` when a `mode: 'soft'` limit granted past its count (`remaining` is then `0`), and `near-limit` when usage reached the limit's `alertAt` fraction. Both fields are absent otherwise, and only `granted` carries them. Snapshots never carry `quota`, because it is live store state. An Arazzo hole uses `undocumented` (missing operation or no `x-permdock-permissions`) or `unsupported` (AsyncAPI source). A refused API key creation (`decideCredential`) uses `exceeds-creator` or `credential-policy`, with `detail` naming the offending role, permission, tenant or rule ([API keys](/docs/concepts/credentials)). A `deny` denial from a named deny grant carries `detail: { name }`. `matched` and `grant` carry the grant's `name` when it has one. A decision from `explain` (or `decide` with `explain: true`) adds `trace`, `{ evaluated, allows, denies, skipped }` ([decisions](/docs/concepts/decisions#explain)); `trace` never appears on a decision event, in Problem Details or in an AuthZEN response.
@@ -191,22 +282,33 @@ Two documented projections leave the event unchanged and exist so `DecisionSink`
 
 The CloudEvents `type` values are a closed list, exported as `CLOUD_EVENT_TYPES` from `permdock` with `CatalogEventData` for the catalog payload; adding one is a wire-format change:
 
-| `type` | `data` | Emitted by |
-| --- | --- | --- |
-| `dev.permdock.decision` | A decision event (above) | Every `DecisionSink` |
-| `dev.permdock.approval` | An approval event (`phase: requested` or `phase: resolved`) with the `ApprovalRequest` below | Every `DecisionSink`; the Cloud webhook and paging connectors |
-| `dev.permdock.directory` | A `directory` event: the SCIM operation (`User` or `Group`, method, tenant, the affected `id`s, `active` after the change) with no attribute values beyond identifiers | `scimHandler` through its `sink`; the Cloud relay's sync log ([SCIM adapter](/docs/adapters/scim)) |
-| `dev.permdock.membership` | A `membership` event: who gained or lost roles, from SCIM, Better Auth, Clerk or the app | `membershipEvent()`, `scimHandler` group changes, `onRoleChange({ sink })` |
-| `dev.permdock.credential` | A `credential` event: an API key `created`, `used` (sampled, with `sample`), `rotated` or `revoked` (below) | `credentialEvent()`, `memoryCredentials({ sink })`, `subjectFromApiKey({ sink })` |
-| `dev.permdock.catalog` | `{ kind: 'publish' \| 'drift', fingerprint, previous?, findings? }`: a catalog publish (the new fingerprint and the one it replaced) or the drift that publish caused against live hosted grants, with `findings` as `CatalogFinding` objects `{ code, permission, grant? }` (below) | The Cloud on `permdock cloud push` and on scheduled drift checks ([Cloud integrations](/docs/adapters/cloud-integrations)) |
-| `dev.permdock.access.started` / `.ended` / `.revoked` | An `access` event: a support-access session began, lapsed or was revoked, with `tenant`, `principal`, `via`, `roles`, `member`, `expiresAt`, `grantedBy`, `reason` and `actor` ([elevated access](/docs/concepts/elevated-access)) | `accessEvent()`; `accessToOcsf` projects it onto OCSF Account Change (`class_uid` 3001) |
+| `type`                                                | `data`                                                                                                                                                                                                                                                                               | Emitted by                                                                                                                 |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
+| `dev.permdock.decision`                               | A decision event (above)                                                                                                                                                                                                                                                             | Every `DecisionSink`                                                                                                       |
+| `dev.permdock.approval`                               | An approval event (`phase: requested` or `phase: resolved`) with the `ApprovalRequest` below                                                                                                                                                                                         | Every `DecisionSink`; the Cloud webhook and paging connectors                                                              |
+| `dev.permdock.directory`                              | A `directory` event: the SCIM operation (`User` or `Group`, method, tenant, the affected `id`s, `active` after the change) with no attribute values beyond identifiers                                                                                                               | `scimHandler` through its `sink`; the Cloud relay's sync log ([SCIM adapter](/docs/adapters/scim))                         |
+| `dev.permdock.membership`                             | A `membership` event: who gained or lost roles, from SCIM, Better Auth, Clerk or the app                                                                                                                                                                                             | `membershipEvent()`, `scimHandler` group changes, `onRoleChange({ sink })`                                                 |
+| `dev.permdock.credential`                             | A `credential` event: an API key `created`, `used` (sampled, with `sample`), `rotated` or `revoked` (below)                                                                                                                                                                          | `credentialEvent()`, `memoryCredentials({ sink })`, `subjectFromApiKey({ sink })`                                          |
+| `dev.permdock.catalog`                                | `{ kind: 'publish' \| 'drift', fingerprint, previous?, findings? }`: a catalog publish (the new fingerprint and the one it replaced) or the drift that publish caused against live hosted grants, with `findings` as `CatalogFinding` objects `{ code, permission, grant? }` (below) | The Cloud on `permdock cloud push` and on scheduled drift checks ([Cloud integrations](/docs/adapters/cloud-integrations)) |
+| `dev.permdock.access.started` / `.ended` / `.revoked` | An `access` event: a support-access session began, lapsed or was revoked, with `tenant`, `principal`, `via`, `roles`, `member`, `expiresAt`, `grantedBy`, `reason` and `actor` ([elevated access](/docs/concepts/elevated-access))                                                   | `accessEvent()`; `accessToOcsf` projects it onto OCSF Account Change (`class_uid` 3001)                                    |
 
 Changing either projection is a wire-format change and follows the versioning rule below.
 
 A drift `finding` names why a published catalog broke a hosted grant, which the Cloud then suspends and leaves out of the next policy document. `code` is a closed list, exported as `CatalogFindingCode`: `permission-removed` (the key is gone), `not-hostable` (the key is no longer `hostable`), `grantee-removed` (a role, plan or relation the grant targets is no longer declared) and `approval-tightened` (a code allow now requires an approval the hosted grant does not meet). `permission` is the key and `grant` the hosted grant id when one broke. `parseCloudEvent` rejects any other code and the earlier free-text form.
 
 ```json
-{ "kind": "drift", "fingerprint": "1jqQ…", "previous": "QD-Y…", "findings": [{ "code": "not-hostable", "permission": "auditLog.read", "grant": "hg_01J8…" }] }
+{
+  "kind": "drift",
+  "fingerprint": "1jqQ…",
+  "previous": "QD-Y…",
+  "findings": [
+    {
+      "code": "not-hostable",
+      "permission": "auditLog.read",
+      "grant": "hg_01J8…"
+    }
+  ]
+}
 ```
 
 ## Membership event
@@ -265,7 +367,10 @@ The record an API key stands for. The key itself (`pdk_<id>_<secret><checksum>`)
   "principal": "ci-deploy",
   "tenant": "o_1",
   "roles": ["developer"],
-  "permissions": [{ "permission": "repo.read" }, { "permission": "repo.write", "ids": ["r_1", "r_2"] }],
+  "permissions": [
+    { "permission": "repo.read" },
+    { "permission": "repo.write", "ids": ["r_1", "r_2"] }
+  ],
   "createdBy": "u_1",
   "createdAt": 1790000000,
   "expiresAt": 1792592000,
@@ -330,14 +435,21 @@ Hosted grants travel as a `PolicyDocument` under the `policy` claim of a `permdo
   "catalog": "b41c…",
   "issuedAt": 1788999900,
   "grants": [
-    { "id": "g_pro_audit", "permission": "auditLog.read", "to": { "kind": "plan", "plan": "pro" } },
+    {
+      "id": "g_pro_audit",
+      "permission": "auditLog.read",
+      "to": { "kind": "plan", "plan": "pro" }
+    },
     {
       "id": "g_owner_export",
       "permission": "invoice.export",
       "effect": "allow",
       "to": { "kind": "relation", "resource": "invoice", "relation": "owner" },
       "where": { "op": "eq", "field": "locked", "value": false },
-      "approval": { "by": { "kind": "role", "role": "finance", "scope": "global" }, "distinct": true }
+      "approval": {
+        "by": { "kind": "role", "role": "finance", "scope": "global" },
+        "distinct": true
+      }
     }
   ]
 }
@@ -375,13 +487,13 @@ The envelope is the same for all five:
 - **Registered claims**: `iss` (the signing service's URL), `aud` (the intended consumer), `iat`, `exp`, `jti` (RFC 7519 section 4.1). `sub` is present when the artefact is about one principal and equals `subject.principal.id` (for a capability, the link id, which becomes the link principal's id). All times are NumericDate seconds.
 - **One private claim** carrying the artefact: `snapshot`, `approval`, `events`, `policy` or `capability`. Nothing PermDock-specific appears at the top level; PermDock never registers a claim name in the IANA JWT registry for these.
 
-| `typ` | Private claim | Producer | Consumer |
-| --- | --- | --- | --- |
-| `permdock-snapshot+jwt` | `snapshot`: a Snapshot object | `permdock.snapshot({ signer, audience })`; a `SnapshotSource` (`permdock/cloud` always signs) | The client `PermDockProvider` through `joseTokenVerifier`, or any JOSE library |
-| `permdock-approval+jwt` | `approval`: `{ "token": "pd1.…", "permission", "resource": { "type", "id" }, "status" }` | `approvalsHandler({ signer })` on resolve, for a resume that crosses services | The resuming adapter, which still re-runs `decide` and recomputes the bound `token` |
-| `permdock-decisions+jwt` | `events`: an array of CloudEvents-enveloped events (decision and approval from a sink; any of the five types in a Cloud webhook delivery) | A `DecisionSink` with a `signer` (`memorySink({ signer })` or `signDecisionBatch`) ([audit](/docs/concepts/audit-and-observability)); `permdock/cloud` exports | A SIEM, an auditor, a compliance tool verifying provenance offline |
-| `permdock-policy+jwt` | `policy`: a PolicyDocument | PermDock Cloud, for each published hosted-grant revision | `cloud().policies.refresh()` through the application's `TokenVerifier`, with `iss` and `aud` checked against the environment URL |
-| `permdock-capability+jwt` | `capability`: a Capability | `signCapability(input, signer, { audience })` in the application | `subjectFromCapability` in `permdock/jwt`, with `iss` and `aud` required |
+| `typ`                     | Private claim                                                                                                                             | Producer                                                                                                                                                       | Consumer                                                                                                                         |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `permdock-snapshot+jwt`   | `snapshot`: a Snapshot object                                                                                                             | `permdock.snapshot({ signer, audience })`; a `SnapshotSource` (`permdock/cloud` always signs)                                                                  | The client `PermDockProvider` through `joseTokenVerifier`, or any JOSE library                                                   |
+| `permdock-approval+jwt`   | `approval`: `{ "token": "pd1.…", "permission", "resource": { "type", "id" }, "status" }`                                                  | `approvalsHandler({ signer })` on resolve, for a resume that crosses services                                                                                  | The resuming adapter, which still re-runs `decide` and recomputes the bound `token`                                              |
+| `permdock-decisions+jwt`  | `events`: an array of CloudEvents-enveloped events (decision and approval from a sink; any of the five types in a Cloud webhook delivery) | A `DecisionSink` with a `signer` (`memorySink({ signer })` or `signDecisionBatch`) ([audit](/docs/concepts/audit-and-observability)); `permdock/cloud` exports | A SIEM, an auditor, a compliance tool verifying provenance offline                                                               |
+| `permdock-policy+jwt`     | `policy`: a PolicyDocument                                                                                                                | PermDock Cloud, for each published hosted-grant revision                                                                                                       | `cloud().policies.refresh()` through the application's `TokenVerifier`, with `iss` and `aud` checked against the environment URL |
+| `permdock-capability+jwt` | `capability`: a Capability                                                                                                                | `signCapability(input, signer, { audience })` in the application                                                                                               | `subjectFromCapability` in `permdock/jwt`, with `iss` and `aud` required                                                         |
 
 Signed snapshot, decoded:
 
@@ -427,10 +539,22 @@ The decision endpoint, `permdock/authzen` and the `pdp` provider speak the OpenI
 
 ```json
 {
-  "subject": { "type": "user", "id": "u_1", "properties": { "memberships": [{ "tenant": "o_1", "roles": ["member"] }] } },
-  "resource": { "type": "post", "id": "42", "properties": { "authorId": "u_1", "orgId": "o_1", "published": false } },
+  "subject": {
+    "type": "user",
+    "id": "u_1",
+    "properties": { "memberships": [{ "tenant": "o_1", "roles": ["member"] }] }
+  },
+  "resource": {
+    "type": "post",
+    "id": "42",
+    "properties": { "authorId": "u_1", "orgId": "o_1", "published": false }
+  },
   "action": { "name": "update" },
-  "context": { "tenant": "o_1", "actor": { "id": "mcp-client-7", "kind": "mcp-client" }, "delegation": { "scopes": ["post:update"] } }
+  "context": {
+    "tenant": "o_1",
+    "actor": { "id": "mcp-client-7", "kind": "mcp-client" },
+    "delegation": { "scopes": ["post:update"] }
+  }
 }
 ```
 
@@ -439,7 +563,13 @@ Memberships travel as a subject property and the active tenant as request contex
 ```json
 {
   "decision": true,
-  "context": { "permdock": { "outcome": "granted", "matched": { "role": "member", "permission": "post.update" }, "token": "pd1.…" } }
+  "context": {
+    "permdock": {
+      "outcome": "granted",
+      "matched": { "role": "member", "permission": "post.update" },
+      "token": "pd1.…"
+    }
+  }
 }
 ```
 
@@ -455,8 +585,22 @@ That is the application's own endpoint. `permdock/authzen` answers another PEP w
 {
   "subject": { "type": "user", "id": "u_1" },
   "evaluations": [
-    { "resource": { "type": "post", "id": "42", "properties": { "authorId": "u_1" } }, "action": { "name": "update" } },
-    { "resource": { "type": "post", "id": "42", "properties": { "authorId": "u_1" } }, "action": { "name": "delete" } },
+    {
+      "resource": {
+        "type": "post",
+        "id": "42",
+        "properties": { "authorId": "u_1" }
+      },
+      "action": { "name": "update" }
+    },
+    {
+      "resource": {
+        "type": "post",
+        "id": "42",
+        "properties": { "authorId": "u_1" }
+      },
+      "action": { "name": "delete" }
+    },
     { "resource": { "type": "post" }, "action": { "name": "create" } }
   ]
 }
@@ -465,9 +609,34 @@ That is the application's own endpoint. `permdock/authzen` answers another PEP w
 ```json
 {
   "evaluations": [
-    { "decision": true,  "context": { "permdock": { "outcome": "granted", "matched": { "role": "member", "permission": "post.update" } } } },
-    { "decision": false, "context": { "permdock": { "outcome": "approval-required", "reason": "human", "token": "pd1.…" } } },
-    { "decision": true,  "context": { "permdock": { "outcome": "granted", "matched": { "role": "member", "permission": "post.create" } } } }
+    {
+      "decision": true,
+      "context": {
+        "permdock": {
+          "outcome": "granted",
+          "matched": { "role": "member", "permission": "post.update" }
+        }
+      }
+    },
+    {
+      "decision": false,
+      "context": {
+        "permdock": {
+          "outcome": "approval-required",
+          "reason": "human",
+          "token": "pd1.…"
+        }
+      }
+    },
+    {
+      "decision": true,
+      "context": {
+        "permdock": {
+          "outcome": "granted",
+          "matched": { "role": "member", "permission": "post.create" }
+        }
+      }
+    }
   ]
 }
 ```
@@ -479,11 +648,21 @@ That is the application's own endpoint. `permdock/authzen` answers another PEP w
 `POST /access/v1/search/action` answers "what can this subject do to this resource" (the `alternatives` computation), `search/resource` answers "which posts may this subject read" (the portable `where` compiled and executed by your resolver, or the snapshot filter), `search/subject` answers "who may do this" when a subject directory is configured.
 
 ```json
-{ "subject": { "type": "user", "id": "u_1" }, "resource": { "type": "post", "id": "42", "properties": { "authorId": "u_1" } } }
+{
+  "subject": { "type": "user", "id": "u_1" },
+  "resource": {
+    "type": "post",
+    "id": "42",
+    "properties": { "authorId": "u_1" }
+  }
+}
 ```
 
 ```json
-{ "results": [ { "name": "read" }, { "name": "update" } ], "page": { "next_token": "" } }
+{
+  "results": [{ "name": "read" }, { "name": "update" }],
+  "page": { "next_token": "" }
+}
 ```
 
 `GET /.well-known/authzen-configuration` lists the supported endpoints.
@@ -502,36 +681,119 @@ Output of `permdock collect` and `permdock catalog --format json`. The same list
   "resources": {
     "post": {
       "id": "id",
-      "schema": { "$schema": "https://json-schema.org/draft/2020-12/schema", "type": "object",
-                  "properties": { "id": { "type": "string" }, "authorId": { "type": "string" }, "published": { "type": "boolean" } },
-                  "required": ["id", "authorId", "published"] },
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "authorId": { "type": "string" },
+          "published": { "type": "boolean" }
+        },
+        "required": ["id", "authorId", "published"]
+      },
       "definedIn": "src/features/posts/permissions.ts"
     }
   },
   "permissions": [
-    { "key": "post.update", "scope": "post:update", "resource": "post", "action": "update", "arity": "instance",
+    {
+      "key": "post.update",
+      "scope": "post:update",
+      "resource": "post",
+      "action": "update",
+      "arity": "instance",
       "meta": { "title": "Edit post" },
-      "usages": [{ "file": "src/app/posts/[id]/page.tsx", "line": 22, "call": "assert" }], "rowConditions": true },
-    { "key": "post.create", "scope": "post:create", "resource": "post", "action": "create", "arity": "collection",
-      "meta": {}, "usages": [], "rowConditions": false },
-    { "key": "auditLog.read", "scope": "auditLog:read", "resource": "auditLog", "action": "read", "arity": "instance",
-      "meta": {}, "usages": [], "hostable": true, "rowConditions": false },
-    { "key": "invoice.refund", "scope": "invoice:refund", "resource": "invoice", "action": "refund", "arity": "instance",
-      "meta": {}, "usages": [], "rowConditions": false, "approvals": ["human"] }
+      "usages": [
+        { "file": "src/app/posts/[id]/page.tsx", "line": 22, "call": "assert" }
+      ],
+      "rowConditions": true
+    },
+    {
+      "key": "post.create",
+      "scope": "post:create",
+      "resource": "post",
+      "action": "create",
+      "arity": "collection",
+      "meta": {},
+      "usages": [],
+      "rowConditions": false
+    },
+    {
+      "key": "auditLog.read",
+      "scope": "auditLog:read",
+      "resource": "auditLog",
+      "action": "read",
+      "arity": "instance",
+      "meta": {},
+      "usages": [],
+      "hostable": true,
+      "rowConditions": false
+    },
+    {
+      "key": "invoice.refund",
+      "scope": "invoice:refund",
+      "resource": "invoice",
+      "action": "refund",
+      "arity": "instance",
+      "meta": {},
+      "usages": [],
+      "rowConditions": false,
+      "approvals": ["human"]
+    }
   ],
-  "scopes": [{ "name": "tenant", "key": "orgId" }, { "name": "team", "key": "teamId", "within": "tenant" }],
+  "scopes": [
+    { "name": "tenant", "key": "orgId" },
+    { "name": "team", "key": "teamId", "within": "tenant" }
+  ],
   "roles": [
-    { "key": "admin", "on": "tenant", "assignable": true, "min": 1, "assigns": ["admin", "member"], "for": ["staff"], "audience": "staff" },
-    { "key": "member", "on": "tenant", "assignable": true, "for": ["staff"], "audience": "staff" }
+    {
+      "key": "admin",
+      "on": "tenant",
+      "assignable": true,
+      "min": 1,
+      "assigns": ["admin", "member"],
+      "for": ["staff"],
+      "audience": "staff"
+    },
+    {
+      "key": "member",
+      "on": "tenant",
+      "assignable": true,
+      "for": ["staff"],
+      "audience": "staff"
+    }
   ],
   "plans": [{ "key": "pro" }],
   "grants": [
-    { "permission": "post.update", "effect": "allow", "role": "member", "to": { "kind": "role", "role": "member", "scope": "tenant" }, "scope": "tenant",
-      "where": { "op": "eq", "field": "authorId", "value": { "ref": "principal.id" } } },
-    { "permission": "post.update", "effect": "deny", "role": "member", "to": { "kind": "role", "role": "member", "scope": "tenant" }, "scope": "tenant",
-      "where": { "op": "eq", "field": "published", "value": true }, "name": "published" },
-    { "permission": "invoice.refund", "effect": "allow", "role": "admin", "to": { "kind": "role", "role": "admin", "scope": "tenant" }, "scope": "tenant",
-      "approval": "human", "validity": { "until": 1775001600 } }
+    {
+      "permission": "post.update",
+      "effect": "allow",
+      "role": "member",
+      "to": { "kind": "role", "role": "member", "scope": "tenant" },
+      "scope": "tenant",
+      "where": {
+        "op": "eq",
+        "field": "authorId",
+        "value": { "ref": "principal.id" }
+      }
+    },
+    {
+      "permission": "post.update",
+      "effect": "deny",
+      "role": "member",
+      "to": { "kind": "role", "role": "member", "scope": "tenant" },
+      "scope": "tenant",
+      "where": { "op": "eq", "field": "published", "value": true },
+      "name": "published"
+    },
+    {
+      "permission": "invoice.refund",
+      "effect": "allow",
+      "role": "admin",
+      "to": { "kind": "role", "role": "admin", "scope": "tenant" },
+      "scope": "tenant",
+      "approval": "human",
+      "validity": { "until": 1775001600 }
+    }
   ]
 }
 ```
@@ -573,16 +835,39 @@ Output of `permdock supabase inspect --json`, and the file `inspect --out permdo
 {
   "$schema": "https://permdock.dev/schemas/supabase-manifest-v1.json",
   "version": 1,
-  "hook": { "schema": "public", "function": "custom_access_token_hook", "out": "supabase/permdock-hook.sql" },
-  "helpers": { "schema": "public", "functions": ["permdock_has", "permitted_tenant_ids", "member_tenant_ids", "member_tenant_ids_for"] },
+  "hook": {
+    "schema": "public",
+    "function": "custom_access_token_hook",
+    "out": "supabase/permdock-hook.sql"
+  },
+  "helpers": {
+    "schema": "public",
+    "functions": [
+      "permdock_has",
+      "permitted_tenant_ids",
+      "member_tenant_ids",
+      "member_tenant_ids_for"
+    ]
+  },
   "tenantClaim": "tenant_id",
-  "budget": { "bytes": 1024, "measure": "octet_length(memberships::text) + octet_length(attrs::text)" },
+  "budget": {
+    "bytes": 1024,
+    "measure": "octet_length(memberships::text) + octet_length(attrs::text)"
+  },
   "claims": [
     { "name": "memberships", "source": "permdock", "budget": true },
-    { "name": "features", "source": "better_supabase.feature_claims", "budget": false }
+    {
+      "name": "features",
+      "source": "better_supabase.feature_claims",
+      "budget": false
+    }
   ],
   "authzVersion": true,
-  "authzVersionBump": { "schema": "permdock", "function": "permdock_bump_authz_version_for", "args": "p_users uuid[]" },
+  "authzVersionBump": {
+    "schema": "permdock",
+    "function": "permdock_bump_authz_version_for",
+    "args": "p_users uuid[]"
+  },
   "memberships": [
     {
       "table": "public.memberships",
@@ -599,8 +884,18 @@ Output of `permdock supabase inspect --json`, and the file `inspect --out permdo
     "tenantClaim": "tenant_id",
     "scopes": [{ "name": "tenant", "type": "uuid" }],
     "helpers": [
-      { "name": "permitted_tenant_ids", "args": "p_grant text", "returns": "setof uuid", "execute": ["authenticated"] },
-      { "name": "member_tenant_ids_for", "args": "p_user uuid", "returns": "setof uuid", "execute": ["supabase_auth_admin"] }
+      {
+        "name": "permitted_tenant_ids",
+        "args": "p_grant text",
+        "returns": "setof uuid",
+        "execute": ["authenticated"]
+      },
+      {
+        "name": "member_tenant_ids_for",
+        "args": "p_user uuid",
+        "returns": "setof uuid",
+        "execute": ["supabase_auth_admin"]
+      }
     ],
     "memberships": [
       {
@@ -613,7 +908,12 @@ Output of `permdock supabase inspect --json`, and the file `inspect --out permdo
       }
     ]
   },
-  "decidingColumns": ["public.memberships.role", "public.memberships.scope", "public.memberships.scope_id", "public.memberships.user_id"],
+  "decidingColumns": [
+    "public.memberships.role",
+    "public.memberships.scope",
+    "public.memberships.scope_id",
+    "public.memberships.user_id"
+  ],
   "markers": { "hook": "v1", "grants": "v1" }
 }
 ```
@@ -671,7 +971,9 @@ Output of `permdock supabase inspect --json`, and the file `inspect --out permdo
   "detail": "post.update: invalid post data at authorId: Expected string, received number.",
   "permission": "post.update",
   "resource": { "type": "post" },
-  "issues": [{ "path": ["authorId"], "message": "Expected string, received number" }]
+  "issues": [
+    { "path": ["authorId"], "message": "Expected string, received number" }
+  ]
 }
 ```
 

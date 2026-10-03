@@ -1,20 +1,20 @@
-import type { PermDock, Permission } from '../../src/index.ts';
-import type { ServerPermDock } from '../../src/server/index.ts';
+import type { PermDock, Permission } from "../../src/index.ts";
+import type { ServerPermDock } from "../../src/server/index.ts";
 import type {
   HttpCall,
   HttpMounted,
   HttpResult,
   HttpScenarioDomain,
-} from '../../src/testing/http-adapter.ts';
+} from "../../src/testing/http-adapter.ts";
 
-import { APPROVAL_HEADER } from '../../src/approvals/index.ts';
+import { APPROVAL_HEADER } from "../../src/approvals/index.ts";
 import {
   createPermDock,
   PermDockRevokedError,
   problemFromError,
-} from '../../src/server/index.ts';
-import { testHttpAdapter } from '../../src/testing/http-adapter.ts';
-import { saasPermissions as p } from '../../src/testing/saas/index.ts';
+} from "../../src/server/index.ts";
+import { testHttpAdapter } from "../../src/testing/http-adapter.ts";
+import { saasPermissions as p } from "../../src/testing/saas/index.ts";
 
 type Handler = (context: {
   readonly request: Request;
@@ -27,80 +27,80 @@ type Route = readonly [
   method: string,
   pathname: string,
   permission: Permission,
-  load: 'row' | 'body' | 'none',
+  load: "row" | "body" | "none",
   handle: Handler,
 ];
 
 const routes: readonly Route[] = [
   [
-    'GET',
-    '/:org/admin/members',
+    "GET",
+    "/:org/admin/members",
     p.member.list,
-    'none',
+    "none",
     () => Response.json({ members: [] }),
   ],
   [
-    'GET',
-    '/:org/projects/:id',
+    "GET",
+    "/:org/projects/:id",
     p.project.read,
-    'row',
+    "row",
     ({ data }) => Response.json(data),
   ],
   [
-    'PATCH',
-    '/:org/projects/:id',
+    "PATCH",
+    "/:org/projects/:id",
     p.project.update,
-    'row',
+    "row",
     ({ id }) => Response.json({ id }),
   ],
   [
-    'POST',
-    '/:org/projects',
+    "POST",
+    "/:org/projects",
     p.project.create,
-    'body',
+    "body",
     ({ data }) => Response.json(data, { status: 201 }),
   ],
   [
-    'DELETE',
-    '/:org/projects/:id',
+    "DELETE",
+    "/:org/projects/:id",
     p.project.read,
-    'row',
+    "row",
     ({ permdock, data }) => {
       permdock.assert(p.project.delete, data);
       return new Response(null, { status: 204 });
     },
   ],
   [
-    'POST',
-    '/:org/projects/:id/files',
+    "POST",
+    "/:org/projects/:id/files",
     p.project.update,
-    'row',
+    "row",
     async ({ request }) => {
-      const file = (await request.formData()).get('file');
+      const file = (await request.formData()).get("file");
       return file instanceof File
         ? Response.json({ name: file.name, size: file.size }, { status: 201 })
         : new Response(null, { status: 400 });
     },
   ],
   [
-    'GET',
-    '/:org/analytics',
+    "GET",
+    "/:org/analytics",
     p.analytics.read,
-    'none',
+    "none",
     () => Response.json({ ok: true }),
   ],
   [
-    'POST',
-    '/:org/api-keys',
+    "POST",
+    "/:org/api-keys",
     p.apiKey.create,
-    'none',
+    "none",
     () => Response.json({ ok: true }, { status: 201 }),
   ],
   [
-    'POST',
-    '/:org/api-keys/revoke-all',
+    "POST",
+    "/:org/api-keys/revoke-all",
     p.apiKey.revokeAll,
-    'none',
+    "none",
     () => new Response(null, { status: 204 }),
   ],
 ];
@@ -151,19 +151,19 @@ async function events(
     },
   });
   return new Response(body, {
-    headers: { 'content-type': 'text/event-stream' },
+    headers: { "content-type": "text/event-stream" },
   });
 }
 
 function mountKernel(
   domain: HttpScenarioDomain,
-  resolve: 'session' | 'subject',
+  resolve: "session" | "subject",
 ): HttpMounted {
   const kernel = createPermDock(domain.policy, {
     revocations: domain.revocations,
     subject: (request) =>
       domain[resolve](
-        request.headers.get('authorization'),
+        request.headers.get("authorization"),
         new URL(request.url).pathname,
       ),
     tenant: (request) => domain.org(new URL(request.url).pathname),
@@ -173,10 +173,10 @@ function mountKernel(
   });
   const evaluations = kernel.permdockHandler();
   const eventsPath = new URLPattern({
-    pathname: '/:org/projects/:id/events',
+    pathname: "/:org/projects/:id/events",
   });
   const evaluationsPath = new URLPattern({
-    pathname: '/:org/permdock/access/v1/evaluations',
+    pathname: "/:org/permdock/access/v1/evaluations",
   });
   const table = routes.map(
     ([method, pathname, permission, load, handle]) =>
@@ -185,12 +185,12 @@ function mountKernel(
 
   const app = async (request: Request): Promise<Response> => {
     const stream =
-      request.method === 'GET' ? eventsPath.exec(request.url) : null;
+      request.method === "GET" ? eventsPath.exec(request.url) : null;
     if (stream !== null) {
-      return events(kernel, domain, request, stream.pathname.groups['id']);
+      return events(kernel, domain, request, stream.pathname.groups["id"]);
     }
     if (evaluationsPath.test(request.url)) {
-      return request.method === 'GET'
+      return request.method === "GET"
         ? evaluations.GET(request)
         : evaluations.POST(request);
     }
@@ -200,16 +200,16 @@ function mountKernel(
       if (match === null) {
         continue;
       }
-      const id = match.pathname.groups['id'];
+      const id = match.pathname.groups["id"];
       // SAFETY: widens the any from json() to unknown; trusted: false makes the kernel validate it.
       const guard = await kernel.protect(
         permission,
-        load === 'row'
+        load === "row"
           ? () => domain.project(id)
-          : load === 'body'
+          : load === "body"
             ? (incoming) => incoming.clone().json() as Promise<unknown>
             : undefined,
-        load === 'body' ? { trusted: false } : undefined,
+        load === "body" ? { trusted: false } : undefined,
       )(request);
       if (!guard.ok) {
         return guard.response;
@@ -236,22 +236,22 @@ function mountKernel(
 }
 
 testHttpAdapter({
-  name: 'permdock/server kernel, in process',
+  name: "permdock/server kernel, in process",
   streams: true,
-  mount: (domain) => mountKernel(domain, 'session'),
+  mount: (domain) => mountKernel(domain, "session"),
 });
 
 testHttpAdapter({
-  name: 'permdock/server kernel, subject without a session',
-  skip: { upload: 'covered by the session mount' },
-  mount: (domain) => mountKernel(domain, 'subject'),
+  name: "permdock/server kernel, subject without a session",
+  skip: { upload: "covered by the session mount" },
+  mount: (domain) => mountKernel(domain, "subject"),
 });
 
 /** An anonymous call carries a non-Bearer header, which must stay anonymous. */
 function rpcRequest(call: HttpCall): Request {
   const headers = new Headers({
-    'content-type': 'application/json',
-    authorization: call.authorization ?? 'Basic Og==',
+    "content-type": "application/json",
+    authorization: call.authorization ?? "Basic Og==",
   });
   if (call.approval !== undefined) {
     headers.set(APPROVAL_HEADER, call.approval);
@@ -263,26 +263,26 @@ function rpcRequest(call: HttpCall): Request {
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
   switch (call.op) {
-    case 'project.get':
-      return at('GET', `/projects/${call.id}`);
-    case 'project.update':
-      return at('PATCH', `/projects/${call.id}`, { name: 'Renamed' });
-    case 'project.create':
-      return at('POST', '/projects', call.body);
-    case 'project.delete':
-      return at('DELETE', `/projects/${call.id}`);
-    case 'project.upload':
-      throw new Error('multipart does not travel over this transport');
-    case 'analytics.read':
-      return at('GET', '/analytics');
-    case 'apiKey.create':
-      return at('POST', '/api-keys');
-    case 'apiKey.revokeAll':
-      return at('POST', '/api-keys/revoke-all');
-    case 'admin.members':
-      return at('GET', '/admin/members');
-    case 'evaluations':
-      return at('POST', '/permdock/access/v1/evaluations', call.body);
+    case "project.get":
+      return at("GET", `/projects/${call.id}`);
+    case "project.update":
+      return at("PATCH", `/projects/${call.id}`, { name: "Renamed" });
+    case "project.create":
+      return at("POST", "/projects", call.body);
+    case "project.delete":
+      return at("DELETE", `/projects/${call.id}`);
+    case "project.upload":
+      throw new Error("multipart does not travel over this transport");
+    case "analytics.read":
+      return at("GET", "/analytics");
+    case "apiKey.create":
+      return at("POST", "/api-keys");
+    case "apiKey.revokeAll":
+      return at("POST", "/api-keys/revoke-all");
+    case "admin.members":
+      return at("GET", "/admin/members");
+    case "evaluations":
+      return at("POST", "/permdock/access/v1/evaluations", call.body);
     default: {
       const exhaustive: never = call;
       return exhaustive;
@@ -291,15 +291,15 @@ function rpcRequest(call: HttpCall): Request {
 }
 
 testHttpAdapter({
-  name: 'permdock/server kernel, over a call transport',
-  skip: { upload: 'multipart does not travel over this transport' },
+  name: "permdock/server kernel, over a call transport",
+  skip: { upload: "multipart does not travel over this transport" },
   mount(domain) {
-    const app = mountKernel(domain, 'session').fetch;
+    const app = mountKernel(domain, "session").fetch;
     return {
       async call(call): Promise<HttpResult> {
         const response = await app?.(rpcRequest(call));
         if (response === undefined) {
-          throw new Error('the kernel mount serves fetch');
+          throw new Error("the kernel mount serves fetch");
         }
         const text = await response.text();
         const body: unknown = text.length === 0 ? null : JSON.parse(text);

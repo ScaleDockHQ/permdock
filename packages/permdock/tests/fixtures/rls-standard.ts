@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from "zod";
 
 import {
   allow,
@@ -9,7 +9,7 @@ import {
   principal,
   resource,
   role,
-} from '../../src/index.ts';
+} from "../../src/index.ts";
 
 /** Every grant shape the Postgres RLS mapping table lists, on one table. */
 const Post = z.object({
@@ -22,10 +22,10 @@ const Post = z.object({
 
 export const permissions = definePermissions({
   post: resource(Post, {
-    id: 'id',
-    actions: ['read', 'update', 'delete'],
-    collection: ['create', 'list'],
-    relations: { org: { field: 'orgId', memberOf: 'tenant' } },
+    id: "id",
+    actions: ["read", "update", "delete"],
+    collection: ["create", "list"],
+    relations: { org: { field: "orgId", memberOf: "tenant" } },
   }),
 });
 
@@ -33,14 +33,14 @@ const { post } = permissions;
 
 export const policy = definePolicy(permissions, {
   subject: () => null,
-  scopes: { tenant: { key: 'orgId' } },
+  scopes: { tenant: { key: "orgId" } },
   roles: [
-    role('staff', [allow(post.read)]),
-    role('admin', [allow([post.read, post.update, post.delete])], {
-      on: 'tenant',
+    role("staff", [allow(post.read)]),
+    role("admin", [allow([post.read, post.update, post.delete])], {
+      on: "tenant",
     }),
     role(
-      'member',
+      "member",
       [
         allow(post.read),
         allow(post.create, { check: { authorId: principal.id } }),
@@ -50,7 +50,7 @@ export const policy = definePolicy(permissions, {
         }),
         deny(post.delete, { where: { locked: true } }),
       ],
-      { on: 'tenant' },
+      { on: "tenant" },
     ),
   ],
   grants: [allow(post.read, { to: anyone(), where: { published: true } })],

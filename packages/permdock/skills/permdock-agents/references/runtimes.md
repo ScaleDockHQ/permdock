@@ -5,8 +5,8 @@ Every agent adapter exports `createPermDock` from `permdock/<runtime>` and takes
 ## AI SDK — `permdock/ai-sdk`
 
 ```ts
-import { createPermDock } from 'permdock/ai-sdk';
-import { z } from 'zod';
+import { createPermDock } from "permdock/ai-sdk";
+import { z } from "zod";
 
 const PostArgs = z.object({ id: z.string() });
 
@@ -15,7 +15,7 @@ export const { toolApproval, capabilityMiddleware, needsApproval } =
     subject: ({ runtimeContext }) => runtimeContext.user,
     actor: ({ runtimeContext }) => ({
       id: runtimeContext.agentId,
-      kind: 'ai-sdk',
+      kind: "ai-sdk",
     }),
     delegation: () => ({ scopes: [permissions.post.delete.scope] }),
     tools: {
@@ -32,11 +32,11 @@ Pass `toolApproval` into `generateText` / `ToolLoopAgent`. Wrap the model with `
 ## Claude Agent SDK — `permdock/claude-agent`
 
 ```ts
-import { createPermDock } from 'permdock/claude-agent';
+import { createPermDock } from "permdock/claude-agent";
 
 export const { canUseTool, permissionRequestHook } = createPermDock(policy, {
   subject: () => user,
-  actor: () => ({ id: 'claude', kind: 'claude-agent' }),
+  actor: () => ({ id: "claude", kind: "claude-agent" }),
   delegation: () => ({ scopes: [permissions.post.delete.scope] }),
   tools: {
     delete_post: {
@@ -52,7 +52,7 @@ export const { canUseTool, permissionRequestHook } = createPermDock(policy, {
 ## Eve — `permdock/eve`
 
 ```ts
-import { createPermDock } from 'permdock/eve';
+import { createPermDock } from "permdock/eve";
 
 export const { approval, approvalFor, permdock } = createPermDock(policy, {
   delegation: () => ({ scopes: [permissions.post.delete.scope] }),
@@ -70,12 +70,12 @@ Pass `approval` as the tool's `approval`. Default subject and actor read `sessio
 ## OpenAI Agents SDK — `permdock/openai`
 
 ```ts
-import { createPermDock } from 'permdock/openai';
+import { createPermDock } from "permdock/openai";
 
 export const { needsApproval, guardTools, resolveInterruptions, permdock } =
   createPermDock(policy, {
     subject: (ctx) => ctx.user,
-    actor: (ctx) => ({ id: ctx.agentId, kind: 'openai' }),
+    actor: (ctx) => ({ id: ctx.agentId, kind: "openai" }),
     delegation: (ctx) => ({ scopes: ctx.scopes }),
     tools: {
       delete_post: {
@@ -91,7 +91,7 @@ export const { needsApproval, guardTools, resolveInterruptions, permdock } =
 ## MCP — `permdock/mcp`
 
 ```ts
-import { createPermDock } from 'permdock/mcp';
+import { createPermDock } from "permdock/mcp";
 
 export const { protectServer } = createPermDock(policy, {
   subject: (authInfo) => userFrom(authInfo), // or subjectFromMcp
@@ -100,10 +100,10 @@ export const { protectServer } = createPermDock(policy, {
 });
 
 const server = protectServer(
-  new McpServer({ name: 'posts', version: '1.0.0' }),
+  new McpServer({ name: "posts", version: "1.0.0" }),
 );
 server.registerTool(
-  'delete_post',
+  "delete_post",
   {
     permission: permissions.post.delete,
     inputSchema: z.object({ id: z.string() }),
@@ -120,18 +120,18 @@ An MCP server that is not an SDK `McpServer` cannot be wrapped: narrow the tool'
 ## A2A — `permdock/a2a`
 
 ```ts
-import { createPermDock } from 'permdock/a2a';
+import { createPermDock } from "permdock/a2a";
 
 export const { agentCard, extendedAgentCard, protectSkill } = createPermDock(
   policy,
   {
     subject: (auth) => userFrom(auth),
     card: {
-      name: 'Posts agent',
-      url: 'https://agent.example.com/a2a',
-      version: '1.0.0',
+      name: "Posts agent",
+      url: "https://agent.example.com/a2a",
+      version: "1.0.0",
     },
-    securitySchemes: { oauth: { type: 'oauth2' } },
+    securitySchemes: { oauth: { type: "oauth2" } },
     skills: {
       summarise: { permission: permissions.post.read },
       publish: {
@@ -142,10 +142,10 @@ export const { agentCard, extendedAgentCard, protectSkill } = createPermDock(
   },
 );
 
-app.get('/.well-known/agent-card.json', (c) => c.json(agentCard()));
-app.get('/a2a/extended-card', (c) => c.json(extendedAgentCard(c.get('auth'))));
+app.get("/.well-known/agent-card.json", (c) => c.json(agentCard()));
+app.get("/a2a/extended-card", (c) => c.json(extendedAgentCard(c.get("auth"))));
 app.post(
-  '/a2a/tasks',
+  "/a2a/tasks",
   protectSkill((task) => task.skillId),
   handleTask,
 );
@@ -158,8 +158,8 @@ Identity comes from transport auth, never the task body. `actor.kind` is `'a2a'`
 Client entry. No factory. Register snapshot-allowed tools on `document.modelContext`:
 
 ```ts
-import { registerTools } from 'permdock/webmcp';
-import { approvalHeaders, usePermDock } from 'permdock/react';
+import { registerTools } from "permdock/webmcp";
+import { approvalHeaders, usePermDock } from "permdock/react";
 
 const permdock = usePermDock();
 const controller = new AbortController();
@@ -182,12 +182,12 @@ import {
   createPermDock,
   discoverViaSignatureAgent,
   verifyWebBotAuth,
-} from 'permdock/hono';
+} from "permdock/hono";
 
-const keys = discoverViaSignatureAgent({ allow: ['agents.example.com'] });
+const keys = discoverViaSignatureAgent({ allow: ["agents.example.com"] });
 
 export const { permdock, protect } = createPermDock(policy, {
-  subject: (c) => c.get('user'),
+  subject: (c) => c.get("user"),
   webBotAuth: (request) => verifyWebBotAuth(request, { verify: true, keys }),
 });
 ```
@@ -197,13 +197,13 @@ A verified RFC 9421 signer becomes the actor with `kind: 'web-bot-auth'`; `deleg
 ## Terminal — `permdock/terminal`
 
 ```ts
-import { createPermDock } from 'permdock/terminal';
+import { createPermDock } from "permdock/terminal";
 
 export const { permdock, protect, filterCommands, format, exitCode } =
   createPermDock(policy, {
     subject: async ({ token }) => {
-      const jwt = await token(['env', 'keychain', 'ci-oidc', 'device']);
-      return jwt ? subjectFromJwt(jwt, { issuer, audience: 'acme-cli' }) : null;
+      const jwt = await token(["env", "keychain", "ci-oidc", "device"]);
+      return jwt ? subjectFromJwt(jwt, { issuer, audience: "acme-cli" }) : null;
     },
   });
 ```

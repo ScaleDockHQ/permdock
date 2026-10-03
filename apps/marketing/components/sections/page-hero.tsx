@@ -1,12 +1,12 @@
-import { ArrowUpRightIcon } from 'lucide-react';
+import { ArrowUpRightIcon } from "lucide-react";
 
-import type { SiteHref } from '@/lib/site';
+import type { SiteHref } from "@/lib/site";
 
-import { ButtonLink } from '@/components/site/button-link';
-import { SiteLink } from '@/components/site/site-link';
-import { Badge } from '@permdock/ui/reui/badge';
+import { ButtonLink } from "@/components/site/button-link";
+import { SiteLink } from "@/components/site/site-link";
+import { Badge } from "@permdock/ui/reui/badge";
 
-import { PageHeroFeatures, type PageHeroFeature } from './page-hero-features';
+import { PageHeroFeatures, type PageHeroFeature } from "./page-hero-features";
 
 export function PageHero({
   badge,
@@ -26,8 +26,8 @@ export function PageHero({
   features: readonly PageHeroFeature[];
 }) {
   return (
-    <section className="bg-background w-full px-4 py-12 sm:px-6 lg:px-20">
-      <div className="border-border mx-auto w-full max-w-6xl overflow-hidden rounded-xl border">
+    <section className="w-full bg-background px-4 py-12 sm:px-6 lg:px-20">
+      <div className="mx-auto w-full max-w-6xl overflow-hidden rounded-xl border border-border">
         <div className="flex flex-col items-start gap-4 px-6 pt-12 pb-6 sm:pt-16">
           <Badge
             variant="outline"
@@ -37,18 +37,18 @@ export function PageHero({
           >
             <span
               aria-hidden="true"
-              className="bg-success size-1.5 shrink-0 rounded-full"
+              className="size-1.5 shrink-0 rounded-full bg-success"
             />
             {badge}
             <ArrowUpRightIcon
               aria-hidden="true"
-              className="text-muted-foreground size-3.5"
+              className="size-3.5 text-muted-foreground"
             />
           </Badge>
-          <h1 className="text-foreground max-w-3xl text-3xl font-semibold tracking-tight sm:text-4xl lg:text-5xl">
+          <h1 className="max-w-3xl text-3xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
             {title}
           </h1>
-          <p className="text-muted-foreground max-w-3xl text-base leading-6">
+          <p className="max-w-3xl text-base leading-6 text-muted-foreground">
             {description}
           </p>
           <div className="flex flex-wrap items-center gap-2 pt-2">

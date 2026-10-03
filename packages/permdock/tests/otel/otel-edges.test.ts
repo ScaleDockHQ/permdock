@@ -1,17 +1,17 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from "vitest";
 
-import type { OtelApi } from '../../src/otel/types.ts';
+import type { OtelApi } from "../../src/otel/types.ts";
 
-import { createPermDock } from '../../src/core/permdock.ts';
-import { instrument, withOtel } from '../../src/otel/instrument.ts';
+import { createPermDock } from "../../src/core/permdock.ts";
+import { instrument, withOtel } from "../../src/otel/instrument.ts";
 import {
   memberUser,
   ownPost,
   permissions,
   policy,
-} from '../fixtures/quick-start.ts';
+} from "../fixtures/quick-start.ts";
 
-const REGISTRY = Symbol.for('opentelemetry.js.api.1');
+const REGISTRY = Symbol.for("opentelemetry.js.api.1");
 
 // SAFETY: globalThis is an ordinary object; tests write and restore one symbol key.
 const globals = globalThis as Record<symbol, unknown>;
@@ -57,8 +57,8 @@ function spanApi(recording: boolean): {
   };
 }
 
-describe('permdock/otel registry fallbacks', () => {
-  it('uses a no-op tracer and meter when the registry has no providers', async () => {
+describe("permdock/otel registry fallbacks", () => {
+  it("uses a no-op tracer and meter when the registry has no providers", async () => {
     const results = await withRegistry({}, async () => {
       const permdock = withOtel(await createPermDock(policy, memberUser));
       return [
@@ -66,11 +66,11 @@ describe('permdock/otel registry fallbacks', () => {
         permdock.decide(permissions.post.update, ownPost).outcome,
       ];
     });
-    expect(results).toEqual([true, 'granted']);
+    expect(results).toEqual([true, "granted"]);
   });
 
-  it('ignores a non-object registry value', async () => {
-    const result = await withRegistry('not-a-registry', async () => {
+  it("ignores a non-object registry value", async () => {
+    const result = await withRegistry("not-a-registry", async () => {
       const permdock = withOtel(await createPermDock(policy, memberUser));
       return permdock.can(permissions.post.read, ownPost);
     });
@@ -78,14 +78,14 @@ describe('permdock/otel registry fallbacks', () => {
   });
 });
 
-describe('permdock/otel logging and spans', () => {
-  it('reports a failing logger to logger.error and survives a failing error', async () => {
+describe("permdock/otel logging and spans", () => {
+  it("reports a failing logger to logger.error and survives a failing error", async () => {
     const errors: unknown[] = [];
     const permdock = await createPermDock(policy, memberUser);
     instrument(permdock, {
       logger: {
         info() {
-          throw new Error('info failed');
+          throw new Error("info failed");
         },
         warn() {
           return undefined;
@@ -99,13 +99,13 @@ describe('permdock/otel logging and spans', () => {
     instrument(loud, {
       logger: {
         info() {
-          throw new Error('info failed');
+          throw new Error("info failed");
         },
         warn() {
           return undefined;
         },
         error() {
-          throw new Error('error failed');
+          throw new Error("error failed");
         },
       },
     });
@@ -114,11 +114,11 @@ describe('permdock/otel logging and spans', () => {
       loud.can(permissions.post.read, ownPost),
     ]).toEqual([true, true]);
     expect(errors).toEqual([
-      ['permdock.otel', { cause: 'Error: info failed' }],
+      ["permdock.otel", { cause: "Error: info failed" }],
     ]);
   });
 
-  it('warns once per span when no provider records it', async () => {
+  it("warns once per span when no provider records it", async () => {
     const warns: string[] = [];
     const { api } = spanApi(false);
     const permdock = await createPermDock(policy, memberUser);
@@ -135,11 +135,11 @@ describe('permdock/otel logging and spans', () => {
     });
     permdock.can(permissions.post.read, ownPost);
     expect(warns).toEqual([
-      'permdock.otel: @opentelemetry/api is present but no provider is registered',
+      "permdock.otel: @opentelemetry/api is present but no provider is registered",
     ]);
   });
 
-  it('records an exception for a validation denial', async () => {
+  it("records an exception for a validation denial", async () => {
     const { api, exceptions } = spanApi(true);
     const permdock = await createPermDock(policy, memberUser);
     instrument(permdock, { api });
@@ -147,19 +147,19 @@ describe('permdock/otel logging and spans', () => {
     expect(exceptions.length).toBe(1);
   });
 
-  it('redacts nested paths and reports the ones that do not match', async () => {
+  it("redacts nested paths and reports the ones that do not match", async () => {
     const warns: string[] = [];
     const { api, attributes } = spanApi(true);
     const permdock = await createPermDock(policy, memberUser);
     instrument(permdock, {
       api,
-      attributes: () => ({ app: { secret: 's', keep: 1 } }),
+      attributes: () => ({ app: { secret: "s", keep: 1 } }),
       redact: [
-        'app.secret',
-        'app.missing',
-        'app.keep.deeper',
-        'app.__proto__',
-        'absent.key',
+        "app.secret",
+        "app.missing",
+        "app.keep.deeper",
+        "app.__proto__",
+        "absent.key",
       ],
       logger: {
         info() {
@@ -171,10 +171,10 @@ describe('permdock/otel logging and spans', () => {
       },
     });
     permdock.can(permissions.post.read, ownPost);
-    expect({ app: attributes[0]?.['app'], warns }).toEqual({
+    expect({ app: attributes[0]?.["app"], warns }).toEqual({
       app: { keep: 1 },
       warns: [
-        'permdock.otel unmatched redact: app.missing, app.keep.deeper, app.__proto__, absent.key',
+        "permdock.otel unmatched redact: app.missing, app.keep.deeper, app.__proto__, absent.key",
       ],
     });
   });

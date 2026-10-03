@@ -1,7 +1,7 @@
-import type { ApprovalStore } from '../approvals/types.ts';
-import type { Decision } from '../core/decision.ts';
-import type { ApprovalHint, ProblemDetails } from '../core/errors.ts';
-import type { PolicySource } from '../core/hosted.ts';
+import type { ApprovalStore } from "../approvals/types.ts";
+import type { Decision } from "../core/decision.ts";
+import type { ApprovalHint, ProblemDetails } from "../core/errors.ts";
+import type { PolicySource } from "../core/hosted.ts";
 
 export type { ApprovalHint };
 import type {
@@ -11,13 +11,13 @@ import type {
   MembershipSource,
   RelationSource,
   RoleSource,
-} from '../core/interfaces.ts';
-import type { PermDock } from '../core/permdock.ts';
-import type { Permission } from '../core/permissions.ts';
-import type { PolicyVocabulary } from '../core/policy.ts';
-import type { Actor, Delegation, Subject } from '../core/subject.ts';
+} from "../core/interfaces.ts";
+import type { PermDock } from "../core/permdock.ts";
+import type { Permission } from "../core/permissions.ts";
+import type { PolicyVocabulary } from "../core/policy.ts";
+import type { Actor, Delegation, Subject } from "../core/subject.ts";
 
-export type TokenSourceName = 'device' | 'keychain' | 'env' | 'ci-oidc';
+export type TokenSourceName = "device" | "keychain" | "env" | "ci-oidc";
 
 export type TokenSource =
   | TokenSourceName
@@ -150,7 +150,7 @@ export type CommandEntry = {
 };
 
 export type FilterCommandsOptions = {
-  readonly mode: 'hide' | 'annotate';
+  readonly mode: "hide" | "annotate";
   readonly permdock?: PermDock;
 };
 
@@ -170,7 +170,7 @@ export type ProtectContext<
 > = {
   readonly permdock: PermDock<V>;
   readonly data: T;
-  readonly decision: Extract<Decision, { readonly outcome: 'granted' }>;
+  readonly decision: Extract<Decision, { readonly outcome: "granted" }>;
 };
 
 export type TerminalActor = {

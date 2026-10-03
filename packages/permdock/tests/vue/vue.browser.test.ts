@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from "vitest";
 import {
   createApp,
   defineAsyncComponent,
@@ -7,15 +7,15 @@ import {
   nextTick,
   shallowRef,
   Suspense,
-} from 'vue';
+} from "vue";
 
-import type { Snapshot } from '../../src/core/interfaces.ts';
-import type { Permission } from '../../src/core/permissions.ts';
+import type { Snapshot } from "../../src/core/interfaces.ts";
+import type { Permission } from "../../src/core/permissions.ts";
 
-import { createPermDock } from '../../src/core/permdock.ts';
-import { usePermDock } from '../../src/vue/composables.ts';
-import { permdockPlugin } from '../../src/vue/plugin.ts';
-import { Protected } from '../../src/vue/protected.ts';
+import { createPermDock } from "../../src/core/permdock.ts";
+import { usePermDock } from "../../src/vue/composables.ts";
+import { permdockPlugin } from "../../src/vue/plugin.ts";
+import { Protected } from "../../src/vue/protected.ts";
 import {
   adminUser,
   memberUser,
@@ -23,7 +23,7 @@ import {
   ownPost,
   permissions,
   policy,
-} from '../fixtures/quick-start.ts';
+} from "../fixtures/quick-start.ts";
 
 async function snapshotOf(user: typeof memberUser): Promise<Snapshot> {
   // SAFETY: user is a quick-start user fixture; only the policy generic is erased.
@@ -43,20 +43,20 @@ function guarded(
           Protected,
           { permission: permission(), data: data() },
           {
-            default: () => h('b', 'granted'),
-            fallback: () => h('i', 'denied'),
-            pending: () => h('u', 'pending'),
+            default: () => h("b", "granted"),
+            fallback: () => h("i", "denied"),
+            pending: () => h("u", "pending"),
           },
         );
     },
   });
 }
 
-describe('permdock/vue (browser build)', () => {
-  it('<Protected> follows a changed permission prop', async () => {
+describe("permdock/vue (browser build)", () => {
+  it("<Protected> follows a changed permission prop", async () => {
     const permission = shallowRef<Permission>(permissions.post.update);
     const data = shallowRef<unknown>(ownPost);
-    const root = document.createElement('div');
+    const root = document.createElement("div");
     const app = createApp(
       guarded(
         () => permission.value,
@@ -65,18 +65,18 @@ describe('permdock/vue (browser build)', () => {
     );
     app.use(permdockPlugin, { snapshot: await snapshotOf(memberUser) });
     app.mount(root);
-    expect(root.textContent).toBe('granted');
+    expect(root.textContent).toBe("granted");
     permission.value = permissions.post.delete;
     await nextTick();
-    expect(root.textContent).toBe('denied');
+    expect(root.textContent).toBe("denied");
     permission.value = permissions.post.update;
     data.value = otherPost;
     await nextTick();
-    expect(root.textContent).toBe('denied');
+    expect(root.textContent).toBe("denied");
     app.unmount();
   });
 
-  it('re-hydrates from a snapshot ref', async () => {
+  it("re-hydrates from a snapshot ref", async () => {
     const snapshot = shallowRef<Snapshot>(await snapshotOf(memberUser));
     const admin = await snapshotOf(adminUser);
     let permdock: ReturnType<typeof usePermDock> | undefined;
@@ -84,22 +84,22 @@ describe('permdock/vue (browser build)', () => {
       defineComponent({
         setup() {
           permdock = usePermDock();
-          return () => h('span', permdock?.subject.principal?.id ?? '');
+          return () => h("span", permdock?.subject.principal?.id ?? "");
         },
       }),
     );
     app.use(permdockPlugin, { snapshot });
-    const root = document.createElement('div');
+    const root = document.createElement("div");
     app.mount(root);
-    expect(root.textContent).toBe('u1');
+    expect(root.textContent).toBe("u1");
     snapshot.value = admin;
     await nextTick();
     await nextTick();
-    expect(root.textContent).toBe('u2');
+    expect(root.textContent).toBe("u2");
     app.unmount();
   });
 
-  it('renders under <Suspense> once a snapshot promise settles', async () => {
+  it("renders under <Suspense> once a snapshot promise settles", async () => {
     const promise = snapshotOf(memberUser);
     const Page = defineAsyncComponent(async () => {
       await promise;
@@ -114,20 +114,20 @@ describe('permdock/vue (browser build)', () => {
           return () =>
             h(Suspense, null, {
               default: () => h(Page),
-              fallback: () => h('u', 'loading'),
+              fallback: () => h("u", "loading"),
             });
         },
       }),
     );
     app.use(permdockPlugin, { snapshot: promise });
-    const root = document.createElement('div');
+    const root = document.createElement("div");
     app.mount(root);
-    expect(root.textContent).toBe('loading');
+    expect(root.textContent).toBe("loading");
     await promise;
     await new Promise((resolve) => {
       setTimeout(resolve, 0);
     });
-    expect(root.textContent).toBe('granted');
+    expect(root.textContent).toBe("granted");
     app.unmount();
   });
 });

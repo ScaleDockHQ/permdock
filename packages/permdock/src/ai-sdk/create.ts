@@ -1,7 +1,7 @@
-import type { ToolMap } from '../agent/types.ts';
-import type { ToolVerdict } from '../agent/types.ts';
-import type { ApprovalStore } from '../approvals/types.ts';
-import type { PolicySource } from '../core/hosted.ts';
+import type { ToolMap } from "../agent/types.ts";
+import type { ToolVerdict } from "../agent/types.ts";
+import type { ApprovalStore } from "../approvals/types.ts";
+import type { PolicySource } from "../core/hosted.ts";
 import type {
   DecisionSink,
   EntitlementSource,
@@ -10,18 +10,18 @@ import type {
   RelationSource,
   RoleSource,
   SnapshotSource,
-} from '../core/interfaces.ts';
-import type { PermDock } from '../core/permdock.ts';
-import type { Permission } from '../core/permissions.ts';
-import type { Policy } from '../core/policy.ts';
-import type { Delegation, Principal } from '../core/subject.ts';
+} from "../core/interfaces.ts";
+import type { PermDock } from "../core/permdock.ts";
+import type { Permission } from "../core/permissions.ts";
+import type { Policy } from "../core/policy.ts";
+import type { Delegation, Principal } from "../core/subject.ts";
 
-import { approvalTokenOf, createAgentKernel } from '../agent/kernel.ts';
-import { compact } from '../core/compact.ts';
+import { approvalTokenOf, createAgentKernel } from "../agent/kernel.ts";
+import { compact } from "../core/compact.ts";
 import {
   PermDockApprovalRequiredError,
   PermDockDeniedError,
-} from '../core/errors.ts';
+} from "../core/errors.ts";
 
 export type AiSdkContext = {
   readonly runtimeContext?: unknown;
@@ -55,10 +55,10 @@ export type AiSdkPermDockOptions<TUser = unknown> = {
 };
 
 export type ToolApprovalStatus =
-  | 'approved'
-  | { readonly type: 'denied'; readonly reason: string }
+  | "approved"
+  | { readonly type: "denied"; readonly reason: string }
   | {
-      readonly type: 'user-approval';
+      readonly type: "user-approval";
       readonly reason: string;
       readonly token: string;
     };
@@ -88,7 +88,7 @@ type CallParams = {
 
 /** Structural `LanguageModelMiddleware` (specification `v4`) from `ai`. */
 export type LanguageModelMiddleware = {
-  readonly specificationVersion: 'v4';
+  readonly specificationVersion: "v4";
   readonly transformParams: <TParams extends CallParams>(options: {
     readonly params: TParams;
   }) => Promise<TParams>;
@@ -110,7 +110,7 @@ export type AiSdkPermDock = {
 function contextOf(call: ToolApprovalCall): AiSdkContext {
   // SAFETY: an object; AiSdkContext's fields are unknown but permdockApproval, which is typeof-checked.
   const runtime =
-    call.runtimeContext !== null && typeof call.runtimeContext === 'object'
+    call.runtimeContext !== null && typeof call.runtimeContext === "object"
       ? (call.runtimeContext as AiSdkContext)
       : {};
   return compact<AiSdkContext>({
@@ -122,7 +122,7 @@ function contextOf(call: ToolApprovalCall): AiSdkContext {
 function toolContextOf(options: NeedsApprovalOptions): AiSdkContext {
   // SAFETY: an object; AiSdkContext's fields are unknown but permdockApproval, which is typeof-checked.
   const tool =
-    options.context !== null && typeof options.context === 'object'
+    options.context !== null && typeof options.context === "object"
       ? (options.context as AiSdkContext)
       : {};
   return compact<AiSdkContext>({ ...tool, toolContext: options.context });
@@ -134,11 +134,11 @@ function toolContextOf(options: NeedsApprovalOptions): AiSdkContext {
  * than `denied` as approval.
  */
 function isRecheck(messages: unknown, toolCallId: unknown): boolean {
-  if (!Array.isArray(messages) || typeof toolCallId !== 'string') {
+  if (!Array.isArray(messages) || typeof toolCallId !== "string") {
     return false;
   }
   return messages.some((message: unknown) => {
-    if (typeof message !== 'object' || message === null) {
+    if (typeof message !== "object" || message === null) {
       return false;
     }
     // SAFETY: checked above to be a non-null object; role and content are only compared and tested.
@@ -148,14 +148,14 @@ function isRecheck(messages: unknown, toolCallId: unknown): boolean {
     };
     // SAFETY: each part is checked to be a non-null object before its fields are compared.
     return (
-      role === 'assistant' &&
+      role === "assistant" &&
       Array.isArray(content) &&
       content.some(
         (part: unknown) =>
-          typeof part === 'object' &&
+          typeof part === "object" &&
           part !== null &&
           (part as { readonly type?: unknown }).type ===
-            'tool-approval-request' &&
+            "tool-approval-request" &&
           (part as { readonly toolCallId?: unknown }).toolCallId === toolCallId,
       )
     );
@@ -168,22 +168,22 @@ function resourceOf(
 ): { readonly type: string; readonly id?: string } {
   // SAFETY: read only from a non-null object; id is typeof-checked below.
   const id =
-    typeof data === 'object' && data !== null
+    typeof data === "object" && data !== null
       ? (data as { readonly id?: unknown }).id
       : undefined;
-  return typeof id === 'string' || typeof id === 'number'
+  return typeof id === "string" || typeof id === "number"
     ? { type: permission.resource, id: String(id) }
     : { type: permission.resource };
 }
 
 function deniedError(
-  verdict: Extract<ToolVerdict, { readonly outcome: 'denied' }>,
+  verdict: Extract<ToolVerdict, { readonly outcome: "denied" }>,
   permission: Permission,
   permdock: PermDock,
 ): PermDockDeniedError {
   return new PermDockDeniedError({
     decision: verdict.decision ?? {
-      outcome: 'denied',
+      outcome: "denied",
       denials: [],
       alternatives: [],
     },
@@ -216,7 +216,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     }),
     subject: options.subject,
     tools: options.tools,
-    adapter: 'ai-sdk',
+    adapter: "ai-sdk",
   });
 
   const byPermission = new Map<string, string>();
@@ -245,20 +245,20 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       call.toolCall.input,
       context,
     );
-    if (verdict.outcome === 'granted') {
-      return 'approved';
+    if (verdict.outcome === "granted") {
+      return "approved";
     }
-    if (verdict.outcome === 'denied') {
-      return { type: 'denied', reason: verdict.reason };
+    if (verdict.outcome === "denied") {
+      return { type: "denied", reason: verdict.reason };
     }
     if (isRecheck(call.messages, call.toolCall.toolCallId)) {
       return {
-        type: 'denied',
+        type: "denied",
         reason: `${verdict.summary} No approval is recorded for this call.`,
       };
     }
     return {
-      type: 'user-approval',
+      type: "user-approval",
       reason: verdict.summary,
       token: verdict.token,
     };
@@ -267,7 +267,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
   const capabilityMiddleware = (
     context: AiSdkContext,
   ): LanguageModelMiddleware => ({
-    specificationVersion: 'v4',
+    specificationVersion: "v4",
     transformParams: async <TParams extends CallParams>({
       params,
     }: {
@@ -278,19 +278,19 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       }
       const allowed = await kernel.allowedToolNames(context);
       const tools = params.tools.filter(
-        (tool) => typeof tool.name === 'string' && allowed.has(tool.name),
+        (tool) => typeof tool.name === "string" && allowed.has(tool.name),
       );
       // SAFETY: every read is optional and compared, so any other toolChoice leaves forcedAway false.
       const choice = params.toolChoice as
         | { readonly type?: unknown; readonly toolName?: unknown }
         | undefined;
       const forcedAway =
-        choice?.type === 'tool' &&
-        !(typeof choice.toolName === 'string' && allowed.has(choice.toolName));
+        choice?.type === "tool" &&
+        !(typeof choice.toolName === "string" && allowed.has(choice.toolName));
       return {
         ...params,
         tools,
-        ...(forcedAway ? { toolChoice: { type: 'none' } } : {}),
+        ...(forcedAway ? { toolChoice: { type: "none" } } : {}),
       };
     },
   });
@@ -306,7 +306,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       if (toolName === undefined) {
         throw deniedError(
           {
-            outcome: 'denied',
+            outcome: "denied",
             decision: null,
             permission,
             reason: `${permission.key} is not bound to a tool.`,
@@ -316,10 +316,10 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         );
       }
       const verdict = await decide(toolName, input, context);
-      if (verdict.outcome === 'granted') {
+      if (verdict.outcome === "granted") {
         return false;
       }
-      if (verdict.outcome === 'denied') {
+      if (verdict.outcome === "denied") {
         throw deniedError(verdict, permission, await kernel.instance(context));
       }
       if (isRecheck(needsOptions.messages, needsOptions.toolCallId)) {

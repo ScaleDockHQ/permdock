@@ -1,5 +1,5 @@
-import { definePermissions, resource } from 'permdock';
-import { z } from 'zod';
+import { definePermissions, resource } from "permdock";
+import { z } from "zod";
 
 export const Patient = z.object({
   id: z.string(),
@@ -7,5 +7,5 @@ export const Patient = z.object({
 });
 
 export const permissions = definePermissions({
-  patient: resource(Patient, { actions: ['read'] }),
+  patient: resource(Patient, { actions: ["read"] }),
 });

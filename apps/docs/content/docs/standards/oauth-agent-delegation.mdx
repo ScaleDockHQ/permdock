@@ -34,20 +34,20 @@ A decision is **principal grants intersected with delegated authority**. The int
 ## How PermDock uses it
 
 ```ts
-import { createPermDock } from 'permdock'
+import { createPermDock } from "permdock";
 
 // Human case
-const permdock = await createPermDock(policy, user)
+const permdock = await createPermDock(policy, user);
 
 // Agent case: actor + delegation
 const asAgent = await createPermDock(policy, user, {
-  actor: { id: authInfo.clientId, kind: 'mcp-client' },
+  actor: { id: authInfo.clientId, kind: "mcp-client" },
   delegation: {
-    scopes: authInfo.scopes,                          // OAuth scopes
+    scopes: authInfo.scopes, // OAuth scopes
     authorizationDetails: authInfo.authorization_details, // RFC 9396 objects, if present
   },
-})
-asAgent.can(permissions.post.update, post) // true only if the user may AND the delegation covers it
+});
+asAgent.can(permissions.post.update, post); // true only if the user may AND the delegation covers it
 ```
 
 Adapters fill `actor` and `delegation` automatically from `authInfo` (MCP), `runtimeContext` (AI SDK), the verified signature (Web Bot Auth) or the Agent Card (A2A), so application code rarely constructs them by hand.
@@ -83,19 +83,19 @@ PermDock does not issue tokens, run token exchange, validate DPoP proofs or driv
 
 ## Mapping table
 
-| OAuth concept | PermDock concept |
-| --- | --- |
-| Resource owner / user in the token | `principal` |
-| `client_id`, `act` claim, `actor_token`, `requested_actor` | `actor` |
-| OAuth `scope` | `delegation.scopes`, matched against `permission.scope` |
-| RFC 9396 `authorization_details` | `delegation.authorizationDetails`; `type` matched against the resource name, `actions` against the action |
-| RAR constraint payload | Enforced by the authorization server; the grant's own condition still applies |
-| Agent Delegation Chain hops, RFC 8693 `act` | `delegation.chain`, verified by the token layer and recorded for audit |
-| Monotonic attenuation | Structural: decision = principal grants ∩ delegation |
-| RFC 8693 token exchange, ID-JAG | Transparent; resulting token's claims feed `principal`, `actor`, `delegation` |
-| DPoP, CIBA | Transport and consent layer; CIBA is one way `approval-required` can be fulfilled |
-| Transaction tokens | Not used; services call each other's AuthZEN endpoint |
-| Service agent with no human | `principal` with `kind: 'service'` |
+| OAuth concept                                              | PermDock concept                                                                                          |
+| ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Resource owner / user in the token                         | `principal`                                                                                               |
+| `client_id`, `act` claim, `actor_token`, `requested_actor` | `actor`                                                                                                   |
+| OAuth `scope`                                              | `delegation.scopes`, matched against `permission.scope`                                                   |
+| RFC 9396 `authorization_details`                           | `delegation.authorizationDetails`; `type` matched against the resource name, `actions` against the action |
+| RAR constraint payload                                     | Enforced by the authorization server; the grant's own condition still applies                             |
+| Agent Delegation Chain hops, RFC 8693 `act`                | `delegation.chain`, verified by the token layer and recorded for audit                                    |
+| Monotonic attenuation                                      | Structural: decision = principal grants ∩ delegation                                                      |
+| RFC 8693 token exchange, ID-JAG                            | Transparent; resulting token's claims feed `principal`, `actor`, `delegation`                             |
+| DPoP, CIBA                                                 | Transport and consent layer; CIBA is one way `approval-required` can be fulfilled                         |
+| Transaction tokens                                         | Not used; services call each other's AuthZEN endpoint                                                     |
+| Service agent with no human                                | `principal` with `kind: 'service'`                                                                        |
 
 ## Sources
 

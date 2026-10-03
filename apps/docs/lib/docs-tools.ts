@@ -1,5 +1,5 @@
-import { findPage, searchDocs, type DocsPageSummary } from './docs-pages';
-import { getLLMText, source } from './source';
+import { findPage, searchDocs, type DocsPageSummary } from "./docs-pages";
+import { getLLMText, source } from "./source";
 
 export type DocsTools = {
   readonly search: (query: string, limit: number) => readonly DocsPageSummary[];
@@ -9,7 +9,7 @@ export type DocsTools = {
 function pages(): readonly DocsPageSummary[] {
   return source.getPages().map((page) => ({
     title: page.data.title,
-    description: page.data.description ?? '',
+    description: page.data.description ?? "",
     url: page.url,
     slugs: page.slugs,
   }));

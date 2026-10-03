@@ -1,10 +1,10 @@
-import type { NextConfig } from 'next';
+import type { NextConfig } from "next";
 
 /** Hosts `next dev` accepts besides its own: Portless `*.localhost` names and 127.0.0.1. */
 export const allowedDevOrigins: readonly string[] = [
-  '127.0.0.1',
-  'localhost',
-  '**.localhost',
+  "127.0.0.1",
+  "localhost",
+  "**.localhost",
 ];
 
 /**
@@ -15,18 +15,18 @@ export const documentSecurityHeaders: readonly {
   readonly key: string;
   readonly value: string;
 }[] = [
-  { key: 'X-Content-Type-Options', value: 'nosniff' },
-  { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-  { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  { key: "X-Frame-Options", value: "SAMEORIGIN" },
   {
-    key: 'Content-Security-Policy',
+    key: "Content-Security-Policy",
     value: "frame-ancestors 'self'; base-uri 'none'",
   },
   {
-    key: 'Permissions-Policy',
-    value: 'camera=(), microphone=(), geolocation=(), display-capture=()',
+    key: "Permissions-Policy",
+    value: "camera=(), microphone=(), geolocation=(), display-capture=()",
   },
-  { key: 'Cross-Origin-Opener-Policy', value: 'same-origin-allow-popups' },
+  { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
 ];
 
 export type NextConfigHeaderRule = {
@@ -57,7 +57,7 @@ export function createNextConfig(
     allowedDevOrigins: [...allowedDevOrigins],
     headers() {
       return Promise.resolve([
-        { source: '/(.*)', headers: [...documentSecurityHeaders] },
+        { source: "/(.*)", headers: [...documentSecurityHeaders] },
         ...(options.headers ?? []).map((rule) => ({
           source: rule.source,
           headers: [...rule.headers],
@@ -71,11 +71,11 @@ export function createNextConfig(
       turbopackRustReactCompiler: true,
       // GitHub runners start without `.next/cache`, and the persistent cache has hung parallel builds there.
       turbopackFileSystemCacheForBuild:
-        process.env['GITHUB_ACTIONS'] !== 'true',
+        process.env["GITHUB_ACTIONS"] !== "true",
       optimizePackageImports: [...(options.optimizePackageImports ?? [])],
       // `@next/playwright` `instant()` locks; never set on a real production deploy.
       exposeTestingApiInProductionBuild:
-        process.env['EXPOSE_TESTING_API'] === '1',
+        process.env["EXPOSE_TESTING_API"] === "1",
     },
     typescript: { ignoreBuildErrors: true },
   };
@@ -91,15 +91,15 @@ export function sentryBuildOptions(): {
   readonly sourcemaps: { readonly disable: boolean };
   readonly release: { readonly create: boolean };
 } {
-  const upload = process.env['VERCEL_ENV'] === 'production';
-  const org = process.env['SENTRY_ORG'];
-  const project = process.env['SENTRY_PROJECT'];
-  const authToken = process.env['SENTRY_AUTH_TOKEN'];
+  const upload = process.env["VERCEL_ENV"] === "production";
+  const org = process.env["SENTRY_ORG"];
+  const project = process.env["SENTRY_PROJECT"];
+  const authToken = process.env["SENTRY_AUTH_TOKEN"];
   return {
     ...(org === undefined ? {} : { org }),
     ...(project === undefined ? {} : { project }),
     ...(authToken === undefined ? {} : { authToken }),
-    silent: process.env['CI'] === undefined,
+    silent: process.env["CI"] === undefined,
     telemetry: false,
     sourcemaps: { disable: !upload },
     release: { create: upload },

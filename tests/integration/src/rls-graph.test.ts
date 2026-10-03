@@ -1,28 +1,28 @@
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { createPermDock, memoryRelations } from 'permdock';
-import { run } from 'permdock/cli';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { createPermDock, memoryRelations } from "permdock";
+import { run } from "permdock/cli";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import type { Postgres } from './support/postgres.ts';
+import type { Postgres } from "./support/postgres.ts";
 
-import { permissions } from '../fixtures/graph/permissions.ts';
-import { policy } from '../fixtures/graph/policy.ts';
-import { startPostgres } from './support/postgres.ts';
+import { permissions } from "../fixtures/graph/permissions.ts";
+import { policy } from "../fixtures/graph/policy.ts";
+import { startPostgres } from "./support/postgres.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const FIXTURE = join(HERE, '../fixtures/graph');
+const FIXTURE = join(HERE, "../fixtures/graph");
 
-const VERA = '00000000-0000-4000-8000-00000000000a';
-const HANA = '00000000-0000-4000-8000-00000000000b';
-const EDITH = '00000000-0000-4000-8000-00000000000c';
+const VERA = "00000000-0000-4000-8000-00000000000a";
+const HANA = "00000000-0000-4000-8000-00000000000b";
+const EDITH = "00000000-0000-4000-8000-00000000000c";
 
 const f = (n: number): string =>
-  `10000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
+  `10000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const d = (n: number): string =>
-  `20000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
+  `20000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 
 const ROLES = `
 create role authenticated nologin;
@@ -93,7 +93,7 @@ const EDGES = [
 
 function claims(sub: string): Readonly<Record<string, string>> {
   return {
-    'request.jwt.claims': JSON.stringify({ sub, role: 'authenticated' }),
+    "request.jwt.claims": JSON.stringify({ sub, role: "authenticated" }),
   };
 }
 
@@ -107,14 +107,14 @@ async function seed(db: Postgres): Promise<void> {
           `(${Object.values(row)
             .map((value) =>
               value === null
-                ? 'null'
-                : typeof value === 'boolean'
+                ? "null"
+                : typeof value === "boolean"
                   ? String(value)
                   : `'${value}'`,
             )
-            .join(', ')})`,
+            .join(", ")})`,
       )
-      .join(', ');
+      .join(", ");
   await db.admin.query(
     `insert into public.folder (id, "parentId", restricted, "ownerId") values ${values(FOLDERS)}`,
   );
@@ -132,9 +132,9 @@ async function seed(db: Postgres): Promise<void> {
 async function visible(
   db: Postgres,
   sub: string,
-  table: 'doc' | 'folder',
+  table: "doc" | "folder",
 ): Promise<readonly string[]> {
-  return db.as({ role: 'authenticated', settings: claims(sub) }, async () => {
+  return db.as({ role: "authenticated", settings: claims(sub) }, async () => {
     const result = await db.tester.query<{ id: string }>(
       `select id::text from public.${table} order by id`,
     );
@@ -144,7 +144,7 @@ async function visible(
 
 async function inProcess(
   sub: string,
-  table: 'doc' | 'folder',
+  table: "doc" | "folder",
   folders: readonly Record<string, unknown>[],
 ): Promise<readonly string[]> {
   const relations = memoryRelations(permissions, {
@@ -165,30 +165,30 @@ async function inProcess(
     { relations },
   );
   // SAFETY: folders holds the seeded folder rows permissions.folder.read checks
-  return table === 'doc'
+  return table === "doc"
     ? DOCS.filter((row) => permdock.can(permissions.doc.read, row)).map(
         (row) => row.id,
       )
     : folders
         .filter((row) => permdock.can(permissions.folder.read, row as never))
-        .map((row) => String(row['id']))
+        .map((row) => String(row["id"]))
         .toSorted();
 }
 
-describe('relationship graph in RLS (closure table)', () => {
+describe("relationship graph in RLS (closure table)", () => {
   let db: Postgres | undefined;
-  const dir = mkdtempSync(join(tmpdir(), 'permdock-graph-'));
-  const out = join(dir, 'graph.sql');
+  const dir = mkdtempSync(join(tmpdir(), "permdock-graph-"));
+  const out = join(dir, "graph.sql");
 
   beforeAll(async () => {
     const generated = await run(
-      ['rls', 'generate', '--target', 'sql', '--out', out],
+      ["rls", "generate", "--target", "sql", "--out", out],
       { cwd: FIXTURE },
     );
     if (generated.code !== 0) {
       throw new Error(`rls generate: ${generated.stdout}`);
     }
-    db = await startPostgres([ROLES, STUB, readFileSync(out, 'utf8')]);
+    db = await startPostgres([ROLES, STUB, readFileSync(out, "utf8")]);
     await seed(db);
   }, 180_000);
 
@@ -197,26 +197,26 @@ describe('relationship graph in RLS (closure table)', () => {
     await db?.stop();
   });
 
-  it('agrees with can() over ancestors, the depth cap and a restricted branch', async () => {
+  it("agrees with can() over ancestors, the depth cap and a restricted branch", async () => {
     if (db === undefined) {
-      throw new Error('PermDock: Postgres was not started');
+      throw new Error("PermDock: Postgres was not started");
     }
     for (const sub of [VERA, HANA, EDITH]) {
-      for (const table of ['doc', 'folder'] as const) {
+      for (const table of ["doc", "folder"] as const) {
         expect(await visible(db, sub, table)).toEqual(
           await inProcess(sub, table, FOLDERS),
         );
       }
     }
-    expect(await visible(db, VERA, 'folder')).toEqual(
+    expect(await visible(db, VERA, "folder")).toEqual(
       [f(1), f(2), f(3), f(4), f(5)].toSorted(),
     );
-    expect(await visible(db, HANA, 'doc')).toEqual([d(7), d(8)]);
+    expect(await visible(db, HANA, "doc")).toEqual([d(7), d(8)]);
   });
 
-  it('keeps the closure current when a branch moves or a folder turns restricted', async () => {
+  it("keeps the closure current when a branch moves or a folder turns restricted", async () => {
     if (db === undefined) {
-      throw new Error('PermDock: Postgres was not started');
+      throw new Error("PermDock: Postgres was not started");
     }
     await db.admin.query(
       `update public.folder set "parentId" = '${f(1)}' where id = '${f(5)}'`,
@@ -231,12 +231,12 @@ describe('relationship graph in RLS (closure table)', () => {
       }),
     );
     for (const sub of [VERA, HANA, EDITH]) {
-      expect(await visible(db, sub, 'folder')).toEqual(
-        await inProcess(sub, 'folder', folders),
+      expect(await visible(db, sub, "folder")).toEqual(
+        await inProcess(sub, "folder", folders),
       );
     }
-    expect(await visible(db, VERA, 'folder')).toContain(f(6));
-    expect(await visible(db, VERA, 'folder')).not.toContain(f(3));
+    expect(await visible(db, VERA, "folder")).toContain(f(6));
+    expect(await visible(db, VERA, "folder")).not.toContain(f(3));
     await db.admin.query(
       `update public.folder set restricted = false where id = '${f(3)}'`,
     );
@@ -245,9 +245,9 @@ describe('relationship graph in RLS (closure table)', () => {
     );
   });
 
-  it('refuses a write that makes a folder its own ancestor', async () => {
+  it("refuses a write that makes a folder its own ancestor", async () => {
     if (db === undefined) {
-      throw new Error('PermDock: Postgres was not started');
+      throw new Error("PermDock: Postgres was not started");
     }
     await expect(
       db.admin.query(
@@ -256,30 +256,30 @@ describe('relationship graph in RLS (closure table)', () => {
     ).rejects.toThrow(/its own ancestor/);
   });
 
-  it('shows a subject only the closure rows under what it holds, one InitPlan per helper', async () => {
+  it("shows a subject only the closure rows under what it holds, one InitPlan per helper", async () => {
     if (db === undefined) {
-      throw new Error('PermDock: Postgres was not started');
+      throw new Error("PermDock: Postgres was not started");
     }
     const rows = await db.as(
-      { role: 'authenticated', settings: claims(HANA) },
+      { role: "authenticated", settings: claims(HANA) },
       async () =>
         (
           await db!.tester.query<{ ancestor: string }>(
-            'select distinct ancestor from permdock.permdock_closure',
+            "select distinct ancestor from permdock.permdock_closure",
           )
         ).rows.map((row) => row.ancestor),
     );
     expect(rows).toEqual([f(7)]);
     const plan = await db.as(
-      { role: 'authenticated', settings: claims(VERA) },
+      { role: "authenticated", settings: claims(VERA) },
       async () =>
         (
-          await db!.tester.query<{ 'QUERY PLAN': string }>(
-            'explain (analyze, costs off, timing off, summary off) select id from public.doc',
+          await db!.tester.query<{ "QUERY PLAN": string }>(
+            "explain (analyze, costs off, timing off, summary off) select id from public.doc",
           )
-        ).rows.map((row) => row['QUERY PLAN']),
+        ).rows.map((row) => row["QUERY PLAN"]),
     );
-    expect(plan.join('\n')).toMatch(/InitPlan/);
+    expect(plan.join("\n")).toMatch(/InitPlan/);
     const helperScans = plan.filter((line) =>
       /ProjectSet|Function Scan/.test(line),
     );
@@ -289,11 +289,11 @@ describe('relationship graph in RLS (closure table)', () => {
     }
   });
 
-  it('rls verify --tree agrees with decide on a generated tree with restricted branches', async () => {
+  it("rls verify --tree agrees with decide on a generated tree with restricted branches", async () => {
     if (db === undefined) {
-      throw new Error('PermDock: Postgres was not started');
+      throw new Error("PermDock: Postgres was not started");
     }
-    const result = await run(['rls', 'verify', '--tree', '--db', db.uri], {
+    const result = await run(["rls", "verify", "--tree", "--db", db.uri], {
       cwd: FIXTURE,
     });
     const counts =

@@ -1,12 +1,12 @@
-import { createPermDock } from 'permdock/openai';
+import { createPermDock } from "permdock/openai";
 
-import { ownPost, permissions } from './permissions.ts';
-import { memberUser, policy } from './policy.ts';
+import { ownPost, permissions } from "./permissions.ts";
+import { memberUser, policy } from "./policy.ts";
 
 export const { needsApproval, guardTools, resolveInterruptions, permdock } =
   createPermDock(policy, {
     subject: (ctx) => ctx.user ?? memberUser,
-    actor: (ctx) => ({ id: ctx.agentId ?? 'openai-1', kind: 'openai' }),
+    actor: (ctx) => ({ id: ctx.agentId ?? "openai-1", kind: "openai" }),
     delegation: () => ({
       scopes: [permissions.post.list.scope, permissions.post.delete.scope],
     }),

@@ -5,11 +5,11 @@ inputs:
   turbo-team:
     description: Vercel team slug for the Remote Cache; empty (forks, before setup) means local cache only.
     required: false
-    default: ''
+    default: ""
   cache:
     description: Cache the pnpm store.
     required: false
-    default: 'true'
+    default: "true"
 
 runs:
   using: composite

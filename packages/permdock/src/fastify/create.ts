@@ -8,10 +8,10 @@ import type {
   RawRequestDefaultExpression,
   RawServerDefault,
   RouteGenericInterface,
-} from 'fastify';
+} from "fastify";
 
-import type { ApprovalStore } from '../approvals/types.ts';
-import type { PolicySource } from '../core/hosted.ts';
+import type { ApprovalStore } from "../approvals/types.ts";
+import type { PolicySource } from "../core/hosted.ts";
 import type {
   DecisionSink,
   EntitlementSource,
@@ -20,27 +20,27 @@ import type {
   RelationSource,
   RoleSource,
   SnapshotSource,
-} from '../core/interfaces.ts';
-import type { PermDock } from '../core/permdock.ts';
-import type { Permission } from '../core/permissions.ts';
-import type { Policy, PolicyVocabulary } from '../core/policy.ts';
-import type { Principal } from '../core/subject.ts';
-import type { OtelWrap } from '../otel/types.ts';
-import type { PdpFactory } from '../pdp/types.ts';
+} from "../core/interfaces.ts";
+import type { PermDock } from "../core/permdock.ts";
+import type { Permission } from "../core/permissions.ts";
+import type { Policy, PolicyVocabulary } from "../core/policy.ts";
+import type { Principal } from "../core/subject.ts";
+import type { OtelWrap } from "../otel/types.ts";
+import type { PdpFactory } from "../pdp/types.ts";
 import type {
   OpenApiHooks,
   ProtectOptions,
   TenantOption,
   TenantScope,
-} from '../server/create.ts';
-import type { WebBotAuthVerifier } from '../server/web-bot-auth.ts';
+} from "../server/create.ts";
+import type { WebBotAuthVerifier } from "../server/web-bot-auth.ts";
 
-import { compact } from '../core/compact.ts';
-import { createKernel, tenantScope } from '../server/create.ts';
-import { problemFromError } from '../server/map-error.ts';
-import { sendReply, toRequest } from './http.ts';
+import { compact } from "../core/compact.ts";
+import { createKernel, tenantScope } from "../server/create.ts";
+import { problemFromError } from "../server/map-error.ts";
+import { sendReply, toRequest } from "./http.ts";
 
-const SKIP_OVERRIDE = Symbol.for('skip-override');
+const SKIP_OVERRIDE = Symbol.for("skip-override");
 
 export type FastifyPermDockOptions<TUser = unknown> = {
   readonly subject: (request: FastifyRequest) => TUser | Promise<TUser>;
@@ -161,7 +161,7 @@ export function createPermDock<
       limits: options.limits,
       pdp: options.pdp,
       webBotAuth: options.webBotAuth,
-      adapter: 'fastify',
+      adapter: "fastify",
       wrap: options.otel,
     }),
   );
@@ -181,9 +181,9 @@ export function createPermDock<
     tenantScope(options.tenant, request);
 
   const permdock = breakEncapsulation((app) => {
-    app.decorateRequest('permdock', null);
-    app.decorateRequest('permdockData', null);
-    app.addHook('onRequest', async (request) => {
+    app.decorateRequest("permdock", null);
+    app.decorateRequest("permdockData", null);
+    app.addHook("onRequest", async (request) => {
       decorate(
         request,
         await kernel.permdock(bind(request), await scopeOf(request)),
@@ -229,12 +229,12 @@ export function createPermDock<
       const req = contexts.get(request);
       return req === undefined ? { tenant: undefined } : scopeOf(req);
     });
-    app.post('/', async (request, reply) => {
+    app.post("/", async (request, reply) => {
       const parsed = toRequest(request);
       contexts.set(parsed, request);
       await sendReply(reply, await POST(parsed));
     });
-    app.get('/', async (request, reply) => {
+    app.get("/", async (request, reply) => {
       await sendReply(reply, await GET(bind(request)));
     });
     return Promise.resolve();

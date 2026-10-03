@@ -1,6 +1,6 @@
-import type { ToolMap } from '../agent/types.ts';
-import type { ApprovalRequest, ApprovalStore } from '../approvals/types.ts';
-import type { PolicySource } from '../core/hosted.ts';
+import type { ToolMap } from "../agent/types.ts";
+import type { ApprovalRequest, ApprovalStore } from "../approvals/types.ts";
+import type { PolicySource } from "../core/hosted.ts";
 import type {
   DecisionSink,
   EntitlementSource,
@@ -9,15 +9,15 @@ import type {
   RelationSource,
   RoleSource,
   SnapshotSource,
-} from '../core/interfaces.ts';
-import type { PermDock } from '../core/permdock.ts';
-import type { Permission } from '../core/permissions.ts';
-import type { Policy, PolicyVocabulary } from '../core/policy.ts';
-import type { Delegation, Principal } from '../core/subject.ts';
+} from "../core/interfaces.ts";
+import type { PermDock } from "../core/permdock.ts";
+import type { Permission } from "../core/permissions.ts";
+import type { Policy, PolicyVocabulary } from "../core/policy.ts";
+import type { Delegation, Principal } from "../core/subject.ts";
 
-import { approvalTokenOf, createAgentKernel } from '../agent/kernel.ts';
-import { memoryApprovalStore } from '../approvals/store.ts';
-import { compact } from '../core/compact.ts';
+import { approvalTokenOf, createAgentKernel } from "../agent/kernel.ts";
+import { memoryApprovalStore } from "../approvals/store.ts";
+import { compact } from "../core/compact.ts";
 
 /** The app context passed to `run(agent, input, { context })`. */
 export type OpenAiContext = {
@@ -107,7 +107,7 @@ export type OpenAiPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
 function appContext(runContext: OpenAiRunContext | undefined): OpenAiContext {
   const context = runContext?.context;
   // SAFETY: the object the app passed to the run as its context, which the app types as OpenAiContext.
-  return typeof context === 'object' && context !== null
+  return typeof context === "object" && context !== null
     ? (context as OpenAiContext)
     : {};
 }
@@ -118,12 +118,12 @@ type ParsedCall =
 
 function parseCall(item: OpenAiInterruption): ParsedCall {
   const name = item.name ?? item.rawItem?.name;
-  if (typeof name !== 'string') {
+  if (typeof name !== "string") {
     return { ok: false };
   }
   const raw = item.arguments ?? item.rawItem?.arguments;
-  if (typeof raw !== 'string') {
-    return typeof raw === 'object' && raw !== null
+  if (typeof raw !== "string") {
+    return typeof raw === "object" && raw !== null
       ? { ok: true, name, args: raw }
       : { ok: false };
   }
@@ -161,7 +161,7 @@ export function createPermDock<
     subject: options.subject,
     tools: options.tools,
     store,
-    adapter: 'openai',
+    adapter: "openai",
   });
 
   const byPermission = new Map<string, string>();
@@ -221,7 +221,7 @@ export function createPermDock<
   ): Promise<ApprovalRequest | null> => {
     const call = parseCall(item);
     if (!call.ok) {
-      await state.reject(item, { message: 'Denied: unreadable tool call.' });
+      await state.reject(item, { message: "Denied: unreadable tool call." });
       return null;
     }
     const verdict = await kernel.decideTool(
@@ -230,11 +230,11 @@ export function createPermDock<
       context,
       compact({ resumeToken: approvalTokenOf(context) }),
     );
-    if (verdict.outcome === 'granted') {
+    if (verdict.outcome === "granted") {
       await state.approve(item);
       return null;
     }
-    if (verdict.outcome === 'denied') {
+    if (verdict.outcome === "denied") {
       await state.reject(item, { message: verdict.reason });
       return null;
     }

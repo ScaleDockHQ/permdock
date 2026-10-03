@@ -1,8 +1,8 @@
-import { readFileSync } from 'node:fs';
-import { describe, expect, it } from 'vitest';
-import { z } from 'zod';
+import { readFileSync } from "node:fs";
+import { describe, expect, it } from "vitest";
+import { z } from "zod";
 
-import { memoryApprovalStore } from '../../src/approvals/index.ts';
+import { memoryApprovalStore } from "../../src/approvals/index.ts";
 import {
   actor,
   allow,
@@ -19,21 +19,21 @@ import {
   resource,
   role,
   sqlFunction,
-} from '../../src/index.ts';
+} from "../../src/index.ts";
 import {
   memoryLimitStore,
   memoryPolicySource,
   memoryRevocationFeed,
   mergeHostedGrants,
   parsePolicyDocument,
-} from '../../src/index.ts';
+} from "../../src/index.ts";
 import {
   joseTokenSigner,
   joseTokenVerifier,
   subjectFromCapability,
-} from '../../src/jwt/index.ts';
-import { memoryDirectoryStore } from '../../src/scim/index.ts';
-import { memoryReplayStore } from '../../src/ssf/index.ts';
+} from "../../src/jwt/index.ts";
+import { memoryDirectoryStore } from "../../src/scim/index.ts";
+import { memoryReplayStore } from "../../src/ssf/index.ts";
 import {
   testApprovalStore,
   testDecisionSink,
@@ -49,17 +49,17 @@ import {
   testTokenSigner,
   testTokenVerifier,
   testWhereCompiler,
-} from '../../src/testing/conformance.ts';
-import { describePolicy } from '../../src/testing/describe-policy.ts';
-import { jwtFixtureJwks } from '../../src/testing/jwt-fixtures.ts';
+} from "../../src/testing/conformance.ts";
+import { describePolicy } from "../../src/testing/describe-policy.ts";
+import { jwtFixtureJwks } from "../../src/testing/jwt-fixtures.ts";
 import {
   saasFolder,
   saasPermissions,
   saasPolicy,
   saasPrincipal,
   saasRelations,
-} from '../../src/testing/saas/index.ts';
-import { snapshotFixture } from '../../src/testing/snapshot-fixture.ts';
+} from "../../src/testing/saas/index.ts";
+import { snapshotFixture } from "../../src/testing/snapshot-fixture.ts";
 
 const Post = z.object({
   id: z.string(),
@@ -70,10 +70,10 @@ const Post = z.object({
 
 const permissions = definePermissions({
   post: resource(Post, {
-    id: 'id',
-    actions: ['read', 'update', 'delete', 'publish'],
-    collection: ['create', 'list'],
-    relations: { org: { field: 'orgId', memberOf: 'tenant' } },
+    id: "id",
+    actions: ["read", "update", "delete", "publish"],
+    collection: ["create", "list"],
+    relations: { org: { field: "orgId", memberOf: "tenant" } },
   }),
 });
 
@@ -83,18 +83,18 @@ type User = {
   readonly roles: readonly string[];
 };
 
-const member = role('member', [
+const member = role("member", [
   allow(permissions.post.read),
   allow(permissions.post.list),
   allow(permissions.post.create),
   allow(permissions.post.update, { where: { authorId: principal.id } }),
   allow(permissions.post.delete, {
     where: { authorId: principal.id },
-    approval: 'human',
+    approval: "human",
   }),
 ]);
 
-const admin = role('admin', [
+const admin = role("admin", [
   ...member.grants,
   allow(permissions.post.update),
   allow(permissions.post.delete),
@@ -110,8 +110,8 @@ const policy = definePolicy(permissions, {
       : { id: user.id, orgId: user.orgId, roles: user.roles },
 });
 
-const ownPost = { id: 'p1', authorId: 'u1', orgId: 'o1', published: false };
-const otherPost = { id: 'p2', authorId: 'u9', orgId: 'o1', published: true };
+const ownPost = { id: "p1", authorId: "u1", orgId: "o1", published: false };
+const otherPost = { id: "p2", authorId: "u9", orgId: "o1", published: true };
 
 const hostablePolicy = definePolicy(permissions, {
   roles: [member, admin],
@@ -124,21 +124,21 @@ const hostablePolicy = definePolicy(permissions, {
 
 const hostedDocument = parsePolicyDocument({
   v: 1,
-  id: 'doc_1',
-  fingerprint: 'fp_doc_1',
-  catalog: 'cat_1',
+  id: "doc_1",
+  fingerprint: "fp_doc_1",
+  catalog: "cat_1",
   issuedAt: 1,
   grants: [
     {
-      id: 'g_member_publish',
-      permission: 'post.publish',
-      to: { kind: 'role', role: 'member', scope: 'global' },
-      where: { op: 'eq', field: 'authorId', value: { ref: 'principal.id' } },
+      id: "g_member_publish",
+      permission: "post.publish",
+      to: { kind: "role", role: "member", scope: "global" },
+      where: { op: "eq", field: "authorId", value: { ref: "principal.id" } },
     },
     {
-      id: 'g_member_delete',
-      permission: 'post.delete',
-      to: { kind: 'role', role: 'member', scope: 'global' },
+      id: "g_member_delete",
+      permission: "post.delete",
+      to: { kind: "role", role: "member", scope: "global" },
     },
   ],
 });
@@ -146,17 +146,17 @@ const hostedDocument = parsePolicyDocument({
 describePolicy(mergeHostedGrants(hostablePolicy, hostedDocument).policy, {
   exhaustive: false,
   subjects: {
-    member: { id: 'u1', orgId: 'o1', roles: ['member'] },
-    admin: { id: 'u2', orgId: 'o1', roles: ['admin'] },
+    member: { id: "u1", orgId: "o1", roles: ["member"] },
+    admin: { id: "u2", orgId: "o1", roles: ["admin"] },
   },
   fixtures: { ownPost, otherPost },
   matrix: {
     [permissions.post.publish.key]: {
-      ownPost: { member: 'granted', admin: 'granted' },
-      otherPost: { member: 'denied', admin: 'denied' },
+      ownPost: { member: "granted", admin: "granted" },
+      otherPost: { member: "denied", admin: "denied" },
     },
     [permissions.post.delete.key]: {
-      ownPost: { member: 'approval-required', admin: 'granted' },
+      ownPost: { member: "approval-required", admin: "granted" },
     },
   },
 });
@@ -165,50 +165,50 @@ describePolicy(policy, {
   snapshot: true,
   subjects: {
     anonymous: null,
-    member: { id: 'u1', orgId: 'o1', roles: ['member'] },
-    admin: { id: 'u2', orgId: 'o1', roles: ['admin'] },
+    member: { id: "u1", orgId: "o1", roles: ["member"] },
+    admin: { id: "u2", orgId: "o1", roles: ["admin"] },
   },
   fixtures: { ownPost, otherPost },
   matrix: {
     [permissions.post.create.key]: {
-      anonymous: 'denied',
-      member: 'granted',
-      admin: 'granted',
+      anonymous: "denied",
+      member: "granted",
+      admin: "granted",
     },
     [permissions.post.list.key]: {
-      anonymous: 'denied',
-      member: 'granted',
-      admin: 'granted',
+      anonymous: "denied",
+      member: "granted",
+      admin: "granted",
     },
     [permissions.post.read.key]: {
-      ownPost: { anonymous: 'denied', member: 'granted', admin: 'granted' },
-      otherPost: { anonymous: 'denied', member: 'granted', admin: 'granted' },
+      ownPost: { anonymous: "denied", member: "granted", admin: "granted" },
+      otherPost: { anonymous: "denied", member: "granted", admin: "granted" },
     },
     [permissions.post.update.key]: {
-      ownPost: { anonymous: 'denied', member: 'granted', admin: 'granted' },
-      otherPost: { anonymous: 'denied', member: 'denied', admin: 'granted' },
+      ownPost: { anonymous: "denied", member: "granted", admin: "granted" },
+      otherPost: { anonymous: "denied", member: "denied", admin: "granted" },
     },
     [permissions.post.delete.key]: {
       ownPost: {
-        anonymous: 'denied',
-        member: 'approval-required',
-        admin: 'granted',
+        anonymous: "denied",
+        member: "approval-required",
+        admin: "granted",
       },
-      otherPost: { anonymous: 'denied', member: 'denied', admin: 'granted' },
+      otherPost: { anonymous: "denied", member: "denied", admin: "granted" },
     },
     [permissions.post.publish.key]: {
-      ownPost: { anonymous: 'denied', member: 'denied', admin: 'granted' },
-      otherPost: { anonymous: 'denied', member: 'denied', admin: 'denied' },
+      ownPost: { anonymous: "denied", member: "denied", admin: "granted" },
+      otherPost: { anonymous: "denied", member: "denied", admin: "denied" },
     },
   },
 });
 
 const sqlFunctionPolicy = definePolicy(permissions, {
   roles: [
-    role('member', [
+    role("member", [
       allow(permissions.post.read, {
-        where: sqlFunction('job_permitted', {
-          args: [{ field: 'id' }],
+        where: sqlFunction("job_permitted", {
+          args: [{ field: "id" }],
           twin: { authorId: principal.id },
         }),
       }),
@@ -223,14 +223,14 @@ const sqlFunctionPolicy = definePolicy(permissions, {
 describePolicy(sqlFunctionPolicy, {
   exhaustive: false,
   subjects: {
-    member: { id: 'u1', orgId: 'o1', roles: ['member'] },
-    other: { id: 'u9', orgId: 'o1', roles: ['member'] },
+    member: { id: "u1", orgId: "o1", roles: ["member"] },
+    other: { id: "u9", orgId: "o1", roles: ["member"] },
   },
   fixtures: { ownPost, otherPost },
   matrix: {
     [permissions.post.read.key]: {
-      ownPost: { member: 'granted', other: 'denied' },
-      otherPost: { member: 'denied', other: 'granted' },
+      ownPost: { member: "granted", other: "denied" },
+      otherPost: { member: "denied", other: "granted" },
     },
   },
 });
@@ -245,14 +245,14 @@ type OrgUser = {
 };
 
 const orgRoles = defineRoles({
-  member: { on: 'tenant' },
-  admin: { on: 'tenant' },
+  member: { on: "tenant" },
+  admin: { on: "tenant" },
 });
 const orgPlans = definePlans({ free: {}, pro: {} });
 const orgPolicy = definePolicy(
   { permissions, roles: orgRoles, plans: orgPlans },
   {
-    scopes: { tenant: { key: 'orgId' } },
+    scopes: { tenant: { key: "orgId" } },
     subject: (user: OrgUser | null) => user,
     grants: [
       allow(permissions.post.update, {
@@ -268,49 +268,49 @@ const orgPolicy = definePolicy(
 describePolicy(orgPolicy, {
   exhaustive: false,
   snapshot: true,
-  options: { tenant: 'o1' },
+  options: { tenant: "o1" },
   subjects: {
     adminHere: {
-      id: 'u2',
-      plans: ['pro'],
+      id: "u2",
+      plans: ["pro"],
       memberships: [
-        { tenant: 'o1', roles: ['admin'] },
-        { tenant: 'o2', roles: ['member'] },
+        { tenant: "o1", roles: ["admin"] },
+        { tenant: "o2", roles: ["member"] },
       ],
     },
     adminElsewhere: {
-      id: 'u3',
-      plans: ['pro'],
+      id: "u3",
+      plans: ["pro"],
       memberships: [
-        { tenant: 'o1', roles: ['member'] },
-        { tenant: 'o2', roles: ['admin'] },
+        { tenant: "o1", roles: ["member"] },
+        { tenant: "o2", roles: ["admin"] },
       ],
     },
     stranger: {
-      id: 'u4',
-      plans: ['pro'],
-      memberships: [{ tenant: 'o2', roles: ['admin'] }],
+      id: "u4",
+      plans: ["pro"],
+      memberships: [{ tenant: "o2", roles: ["admin"] }],
     },
   },
-  fixtures: { ownPost: { ...ownPost, authorId: 'u3' }, otherPost },
+  fixtures: { ownPost: { ...ownPost, authorId: "u3" }, otherPost },
   matrix: {
     [permissions.post.update.key]: {
       ownPost: {
-        adminHere: 'granted',
-        adminElsewhere: 'granted',
-        stranger: 'denied',
+        adminHere: "granted",
+        adminElsewhere: "granted",
+        stranger: "denied",
       },
       otherPost: {
-        adminHere: 'granted',
-        adminElsewhere: 'denied',
-        stranger: 'denied',
+        adminHere: "granted",
+        adminElsewhere: "denied",
+        stranger: "denied",
       },
     },
     [permissions.post.publish.key]: {
       otherPost: {
-        adminHere: 'granted',
-        adminElsewhere: 'denied',
-        stranger: 'denied',
+        adminHere: "granted",
+        adminElsewhere: "denied",
+        stranger: "denied",
       },
     },
   },
@@ -319,47 +319,47 @@ describePolicy(orgPolicy, {
 describePolicy(orgPolicy, {
   exhaustive: false,
   snapshot: true,
-  options: { tenant: 'Org_A' },
+  options: { tenant: "Org_A" },
   subjects: {
     exactCase: {
-      id: 'u2',
+      id: "u2",
       plans: [],
-      memberships: [{ tenant: 'Org_A', roles: ['admin'] }],
+      memberships: [{ tenant: "Org_A", roles: ["admin"] }],
     },
     lowerCase: {
-      id: 'u3',
+      id: "u3",
       plans: [],
-      memberships: [{ tenant: 'org_a', roles: ['admin'] }],
+      memberships: [{ tenant: "org_a", roles: ["admin"] }],
     },
   },
-  fixtures: { mixedCasePost: { ...otherPost, orgId: 'Org_A' } },
+  fixtures: { mixedCasePost: { ...otherPost, orgId: "Org_A" } },
   matrix: {
     [permissions.post.update.key]: {
-      mixedCasePost: { exactCase: 'granted', lowerCase: 'denied' },
+      mixedCasePost: { exactCase: "granted", lowerCase: "denied" },
     },
   },
 });
 
-describe('snapshotFixture', () => {
-  it('returns snapshot JSON', async () => {
+describe("snapshotFixture", () => {
+  it("returns snapshot JSON", async () => {
     const snapshot = await snapshotFixture(policy, {
-      id: 'u1',
-      orgId: 'o1',
-      roles: ['member'],
+      id: "u1",
+      orgId: "o1",
+      roles: ["member"],
     });
     expect(snapshot.v).toBe(1);
-    expect(snapshot.roles).toContain('member');
+    expect(snapshot.roles).toContain("member");
   });
 
-  it('accepts include, tenants and simulated previews', async () => {
+  it("accepts include, tenants and simulated previews", async () => {
     const snapshot = await snapshotFixture(
       policy,
-      { id: 'u1', orgId: 'o1', roles: ['member'] },
+      { id: "u1", orgId: "o1", roles: ["member"] },
       {
         include: [permissions.post.read],
-        tenants: 'all',
+        tenants: "all",
         simulated: true,
-        tenant: 'o1',
+        tenant: "o1",
       },
     );
     expect(snapshot.v).toBe(1);
@@ -369,27 +369,27 @@ describe('snapshotFixture', () => {
 
 describePolicy(policy, {
   exhaustive: false,
-  subjects: { member: { id: 'u1', orgId: 'o1', roles: ['member'] } },
+  subjects: { member: { id: "u1", orgId: "o1", roles: ["member"] } },
   matrix: {
-    [permissions.post.create.key]: { member: { outcome: 'granted' } },
+    [permissions.post.create.key]: { member: { outcome: "granted" } },
     [permissions.post.list.key]: {
-      member: { outcome: 'granted', denials: [{ reason: 'no-grant' }] },
+      member: { outcome: "granted", denials: [{ reason: "no-grant" }] },
     },
   },
 });
 
 const quotaPermissions = definePermissions({
   report: resource(z.object({ id: z.string() }), {
-    id: 'id',
-    actions: ['export'],
+    id: "id",
+    actions: ["export"],
   }),
 });
 
 const quotaPolicy = definePolicy(quotaPermissions, {
   roles: [
-    role('member', [
+    role("member", [
       allow(quotaPermissions.report.export, {
-        limit: { count: 10, per: 'hour' },
+        limit: { count: 10, per: "hour" },
       }),
     ]),
   ],
@@ -400,25 +400,25 @@ const quotaPolicy = definePolicy(quotaPermissions, {
 describePolicy(quotaPolicy, {
   exhaustive: false,
   options: { limits: memoryLimitStore() },
-  subjects: { member: { id: 'u1', roles: ['member'] } },
-  fixtures: { report: { id: 'r1' } },
+  subjects: { member: { id: "u1", roles: ["member"] } },
+  fixtures: { report: { id: "r1" } },
   matrix: {
     [quotaPermissions.report.export.key]: {
-      report: { member: 'granted' },
+      report: { member: "granted" },
     },
   },
 });
 
 describePolicy(quotaPolicy, {
   exhaustive: false,
-  subjects: { member: { id: 'u1', roles: ['member'] } },
-  fixtures: { report: { id: 'r1' } },
+  subjects: { member: { id: "u1", roles: ["member"] } },
+  fixtures: { report: { id: "r1" } },
   matrix: {
     [quotaPermissions.report.export.key]: {
       report: {
         member: {
-          outcome: 'denied',
-          denials: [{ reason: 'limit-unavailable' }],
+          outcome: "denied",
+          denials: [{ reason: "limit-unavailable" }],
         },
       },
     },
@@ -427,14 +427,14 @@ describePolicy(quotaPolicy, {
 
 const softQuotaPolicy = definePolicy(quotaPermissions, {
   roles: [
-    role('member', [
+    role("member", [
       allow(quotaPermissions.report.export, {
-        limit: { count: 1, per: 'hour', mode: 'soft', alertAt: 1 },
+        limit: { count: 1, per: "hour", mode: "soft", alertAt: 1 },
       }),
     ]),
-    role('capped', [
+    role("capped", [
       allow(quotaPermissions.report.export, {
-        limit: { count: 5, per: 'hour' },
+        limit: { count: 5, per: "hour" },
       }),
     ]),
   ],
@@ -446,15 +446,15 @@ describePolicy(softQuotaPolicy, {
   exhaustive: false,
   options: { limits: memoryLimitStore() },
   subjects: {
-    member: { id: 'u1', roles: ['member'] },
-    capped: { id: 'u2', roles: ['capped'] },
+    member: { id: "u1", roles: ["member"] },
+    capped: { id: "u2", roles: ["capped"] },
   },
-  fixtures: { report: { id: 'r1' } },
+  fixtures: { report: { id: "r1" } },
   matrix: {
     [quotaPermissions.report.export.key]: {
       report: {
-        member: { outcome: 'granted', obligations: ['near-limit'] },
-        capped: { outcome: 'granted', obligations: [] },
+        member: { outcome: "granted", obligations: ["near-limit"] },
+        capped: { outcome: "granted", obligations: [] },
       },
     },
   },
@@ -463,17 +463,17 @@ describePolicy(softQuotaPolicy, {
 describePolicy(policy, {
   exhaustive: false,
   options: {
-    delegation: { access: [{ type: 'post', actions: ['read'] }] },
+    delegation: { access: [{ type: "post", actions: ["read"] }] },
   },
-  subjects: { admin: { id: 'u2', orgId: 'o1', roles: ['admin'] } },
+  subjects: { admin: { id: "u2", orgId: "o1", roles: ["admin"] } },
   fixtures: { ownPost },
   matrix: {
     [permissions.post.read.key]: {
-      ownPost: { admin: 'granted' },
+      ownPost: { admin: "granted" },
     },
     [permissions.post.publish.key]: {
       ownPost: {
-        admin: { outcome: 'denied', denials: [{ reason: 'not-delegated' }] },
+        admin: { outcome: "denied", denials: [{ reason: "not-delegated" }] },
       },
     },
   },
@@ -481,13 +481,13 @@ describePolicy(policy, {
 
 describePolicy(policy, {
   exhaustive: false,
-  options: { actor: { id: 'agent-1', kind: 'ai-sdk' } },
-  subjects: { admin: { id: 'u2', orgId: 'o1', roles: ['admin'] } },
+  options: { actor: { id: "agent-1", kind: "ai-sdk" } },
+  subjects: { admin: { id: "u2", orgId: "o1", roles: ["admin"] } },
   fixtures: { ownPost },
   matrix: {
     [permissions.post.read.key]: {
       ownPost: {
-        admin: { outcome: 'denied', denials: [{ reason: 'no-delegation' }] },
+        admin: { outcome: "denied", denials: [{ reason: "no-delegation" }] },
       },
     },
   },
@@ -498,22 +498,22 @@ describePolicy(policy, {
   options: {
     delegation: {
       authorizationDetails: [
-        { type: 'post', actions: ['read'], identifier: 'someone-else' },
+        { type: "post", actions: ["read"], identifier: "someone-else" },
       ],
     },
   },
-  subjects: { admin: { id: 'u2', orgId: 'o1', roles: ['admin'] } },
+  subjects: { admin: { id: "u2", orgId: "o1", roles: ["admin"] } },
   fixtures: { ownPost },
   matrix: {
     [permissions.post.read.key]: {
       ownPost: {
-        admin: { outcome: 'denied', denials: [{ reason: 'not-delegated' }] },
+        admin: { outcome: "denied", denials: [{ reason: "not-delegated" }] },
       },
     },
   },
 });
 
-describe('conformance runners', () => {
+describe("conformance runners", () => {
   testLimitStore(memoryLimitStore());
 
   testSubjectResolver(
@@ -521,39 +521,39 @@ describe('conformance runners', () => {
       if (input === null) {
         return { principal: null, context: {} };
       }
-      return { principal: { id: 'u1' }, context: {} };
+      return { principal: { id: "u1" }, context: {} };
     },
     { invalid: null },
   );
 
   testMembershipSource(
     {
-      membershipsFor: () => [{ tenant: 'o1', roles: ['viewer'] }],
+      membershipsFor: () => [{ tenant: "o1", roles: ["viewer"] }],
     },
     {
-      principals: [{ id: 'alice' }],
-      expect: { alice: [{ tenant: 'o1', roles: ['viewer'] }] },
+      principals: [{ id: "alice" }],
+      expect: { alice: [{ tenant: "o1", roles: ["viewer"] }] },
     },
   );
 
   testMembershipSource(
     {
       membershipsFor: () => [
-        { scope: 'organization', id: 'o1', roles: ['viewer'] },
+        { scope: "organization", id: "o1", roles: ["viewer"] },
         {
-          scope: 'customer',
-          id: 'c1',
-          within: { organization: 'o1' },
-          roles: ['contact'],
+          scope: "customer",
+          id: "c1",
+          within: { organization: "o1" },
+          roles: ["contact"],
         },
       ],
     },
     {
-      principals: [{ id: 'carol' }],
+      principals: [{ id: "carol" }],
       policy: definePolicy(definePermissions({}), {
         scopes: {
-          organization: { key: 'organization_id' },
-          customer: { key: 'customer_id', within: 'organization' },
+          organization: { key: "organization_id" },
+          customer: { key: "customer_id", within: "organization" },
         },
         subject: () => null,
       }),
@@ -563,18 +563,18 @@ describe('conformance runners', () => {
   testMembershipSource(
     {
       membershipsFor(): never {
-        throw new Error('nope');
+        throw new Error("nope");
       },
     },
-    { principals: [{ id: 'bob' }] },
+    { principals: [{ id: "bob" }] },
   );
 
   testRoleSource(
     {
-      rolesFor: () => [{ tenant: 'o1', name: 'staff', includes: ['member'] }],
-      assignable: () => ['member'],
+      rolesFor: () => [{ tenant: "o1", name: "staff", includes: ["member"] }],
+      assignable: () => ["member"],
     },
-    { tenant: 'o1', declared: ['member'] },
+    { tenant: "o1", declared: ["member"] },
   );
 
   testDecisionSink({
@@ -615,7 +615,7 @@ describe('conformance runners', () => {
   testApprovalStore(memoryApprovalStore());
 
   testDirectoryStore(memoryDirectoryStore(), {
-    tenants: ['o_acme', 'o_globex'],
+    tenants: ["o_acme", "o_globex"],
   });
 
   testReplayStore(memoryReplayStore());
@@ -625,69 +625,69 @@ describe('conformance runners', () => {
   testTokenVerifier(
     joseTokenVerifier({
       jwks: jwtFixtureJwks,
-      issuer: 'https://login.example.com',
-      audience: 'https://api.example.com',
-      algorithms: ['Ed25519'],
+      issuer: "https://login.example.com",
+      audience: "https://api.example.com",
+      algorithms: ["Ed25519"],
     }),
   );
 
-  it('ships one signed-output fixture per typ', () => {
+  it("ships one signed-output fixture per typ", () => {
     // SAFETY: signed-outputs.json is a checked-in map of fixture names to compact JWS strings.
     const fixtures = JSON.parse(
       readFileSync(
-        new URL('./fixtures/jwt/signed-outputs.json', import.meta.url),
-        'utf8',
+        new URL("./fixtures/jwt/signed-outputs.json", import.meta.url),
+        "utf8",
       ),
     ) as Record<string, string>;
     expect(Object.keys(fixtures).toSorted()).toEqual([
-      'permdock-approval+jwt',
-      'permdock-capability+jwt',
-      'permdock-decisions+jwt',
-      'permdock-policy+jwt',
-      'permdock-snapshot+jwt',
+      "permdock-approval+jwt",
+      "permdock-capability+jwt",
+      "permdock-decisions+jwt",
+      "permdock-policy+jwt",
+      "permdock-snapshot+jwt",
     ]);
   });
 
-  it('resolves the capability fixture into a link subject', async () => {
+  it("resolves the capability fixture into a link subject", async () => {
     // SAFETY: signed-outputs.json is a checked-in map of fixture names to compact JWS strings.
     const fixtures = JSON.parse(
       readFileSync(
-        new URL('./fixtures/jwt/signed-outputs.json', import.meta.url),
-        'utf8',
+        new URL("./fixtures/jwt/signed-outputs.json", import.meta.url),
+        "utf8",
       ),
     ) as Record<string, string>;
     const subject = await subjectFromCapability(
-      fixtures['permdock-capability+jwt'],
+      fixtures["permdock-capability+jwt"],
       {
         jwks: jwtFixtureJwks,
-        algorithms: ['Ed25519'],
-        issuer: 'https://app.example.com',
-        audience: 'https://app.example.com',
+        algorithms: ["Ed25519"],
+        issuer: "https://app.example.com",
+        audience: "https://app.example.com",
       },
     );
     expect(subject.principal).toMatchObject({
-      id: 'lnk_fixture',
-      kind: 'link',
-      memberships: [{ on: { resource: 'post', id: '42' }, roles: ['viewer'] }],
+      id: "lnk_fixture",
+      kind: "link",
+      memberships: [{ on: { resource: "post", id: "42" }, roles: ["viewer"] }],
     });
-    expect(subject.delegation).toEqual({ scopes: ['post:read'] });
+    expect(subject.delegation).toEqual({ scopes: ["post:read"] });
   });
 
-  it('verifies the policy fixture and parses its document', async () => {
+  it("verifies the policy fixture and parses its document", async () => {
     // SAFETY: signed-outputs.json is a checked-in map of fixture names to compact JWS strings.
     const fixtures = JSON.parse(
       readFileSync(
-        new URL('./fixtures/jwt/signed-outputs.json', import.meta.url),
-        'utf8',
+        new URL("./fixtures/jwt/signed-outputs.json", import.meta.url),
+        "utf8",
       ),
     ) as Record<string, string>;
     const verified = await joseTokenVerifier({
       jwks: jwtFixtureJwks,
-      algorithms: ['Ed25519'],
-    }).verify(fixtures['permdock-policy+jwt'] ?? '', {
-      typ: 'permdock-policy+jwt',
-      issuer: 'https://api.permdock.test/v1/environments/production',
-      audience: 'https://api.permdock.test/v1/environments/production',
+      algorithms: ["Ed25519"],
+    }).verify(fixtures["permdock-policy+jwt"] ?? "", {
+      typ: "permdock-policy+jwt",
+      issuer: "https://api.permdock.test/v1/environments/production",
+      audience: "https://api.permdock.test/v1/environments/production",
     });
     expect(
       verified.ok
@@ -696,7 +696,7 @@ describe('conformance runners', () => {
     ).toBe(86_400);
     expect(verified.ok).toBe(true);
     const document = parsePolicyDocument(
-      verified.ok ? verified.claims['policy'] : null,
+      verified.ok ? verified.claims["policy"] : null,
     );
     expect(document.grants).toHaveLength(1);
   });
@@ -704,21 +704,21 @@ describe('conformance runners', () => {
   testTokenSigner(
     joseTokenSigner({
       key: {
-        crv: 'Ed25519',
-        d: 'qco_Uh5slpzay2a-eC3woOxpC4DlS6aEzLtBRjrdtd4',
-        x: '79ab4WR6Eb9LkefWpmh5ZlvjXg7wqVGNMwIEHQqduIQ',
-        kty: 'OKP',
-        kid: '2026-09',
-        alg: 'Ed25519',
+        crv: "Ed25519",
+        d: "qco_Uh5slpzay2a-eC3woOxpC4DlS6aEzLtBRjrdtd4",
+        x: "79ab4WR6Eb9LkefWpmh5ZlvjXg7wqVGNMwIEHQqduIQ",
+        kty: "OKP",
+        kid: "2026-09",
+        alg: "Ed25519",
       },
-      alg: 'Ed25519',
-      kid: '2026-09',
-      issuer: 'https://app.example.com',
+      alg: "Ed25519",
+      kid: "2026-09",
+      issuer: "https://app.example.com",
     }),
     {
       verifier: joseTokenVerifier({
         jwks: jwtFixtureJwks,
-        typ: 'permdock-snapshot+jwt',
+        typ: "permdock-snapshot+jwt",
       }),
     },
   );
@@ -726,10 +726,10 @@ describe('conformance runners', () => {
 
 const selectorPermissions = definePermissions({
   post: resource(Post, {
-    id: 'id',
-    actions: ['read', 'update', 'delete', 'publish'],
-    collection: ['list'],
-    relations: { author: 'authorId' },
+    id: "id",
+    actions: ["read", "update", "delete", "publish"],
+    collection: ["list"],
+    relations: { author: "authorId" },
   }),
 });
 
@@ -770,13 +770,13 @@ const selectorPolicy = definePolicy(
       allow(selectorPermissions.post.read, { to: anyone() }),
       allow(selectorPermissions.post.list, { to: authenticated() }),
       allow(selectorPermissions.post.update, {
-        to: relation(selectorPermissions.post, 'author'),
+        to: relation(selectorPermissions.post, "author"),
       }),
       allow(selectorPermissions.post.delete, {
         to: [selectorRoles.owner, selectorPlans.pro],
       }),
       allow(selectorPermissions.post.publish, {
-        to: [actor('mcp-client'), assurance({ acr: ['mfa'] })],
+        to: [actor("mcp-client"), assurance({ acr: ["mfa"] })],
       }),
       deny(selectorPermissions.post.publish, {
         to: anyone(),
@@ -790,12 +790,12 @@ describePolicy(selectorPolicy, {
   exhaustive: false,
   subjects: {
     anonymous: null,
-    member: { id: 'u1' },
-    ownerPro: { id: 'u1', roles: ['owner'], plans: ['pro'] },
-    ownerFree: { id: 'u1', roles: ['owner'] },
+    member: { id: "u1" },
+    ownerPro: { id: "u1", roles: ["owner"], plans: ["pro"] },
+    ownerFree: { id: "u1", roles: ["owner"] },
     agent: {
-      principal: { id: 'u1', assurance: { acr: 'mfa' } },
-      actor: { id: 'agent', kind: 'mcp-client' },
+      principal: { id: "u1", assurance: { acr: "mfa" } },
+      actor: { id: "agent", kind: "mcp-client" },
       delegation: { scopes: [selectorPermissions.post.publish.scope] },
       context: {},
     },
@@ -804,59 +804,59 @@ describePolicy(selectorPolicy, {
   matrix: {
     [selectorPermissions.post.read.key]: {
       ownPost: {
-        anonymous: 'granted',
-        member: 'granted',
-        ownerPro: 'granted',
+        anonymous: "granted",
+        member: "granted",
+        ownerPro: "granted",
       },
     },
     [selectorPermissions.post.list.key]: {
-      anonymous: 'denied',
-      member: 'granted',
+      anonymous: "denied",
+      member: "granted",
     },
     [selectorPermissions.post.update.key]: {
-      ownPost: { anonymous: 'denied', member: 'granted' },
-      otherPost: { anonymous: 'denied', member: 'denied' },
+      ownPost: { anonymous: "denied", member: "granted" },
+      otherPost: { anonymous: "denied", member: "denied" },
     },
     [selectorPermissions.post.delete.key]: {
       ownPost: {
-        ownerPro: 'granted',
-        ownerFree: 'denied',
-        member: 'denied',
+        ownerPro: "granted",
+        ownerFree: "denied",
+        member: "denied",
       },
     },
     [selectorPermissions.post.publish.key]: {
-      ownPost: { agent: 'granted', member: 'denied' },
-      otherPost: { agent: 'denied' },
+      ownPost: { agent: "granted", member: "denied" },
+      otherPost: { agent: "denied" },
     },
   },
 });
 
 describePolicy(saasPolicy, {
   exhaustive: false,
-  options: { tenant: 'acme', relations: saasRelations() },
+  options: { tenant: "acme", relations: saasRelations() },
   subjects: {
-    viewer: saasPrincipal('bob', 'acme'),
-    restrictedViewer: saasPrincipal('hank', 'acme'),
-    expired: saasPrincipal('frank', 'acme'),
+    viewer: saasPrincipal("bob", "acme"),
+    restrictedViewer: saasPrincipal("hank", "acme"),
+    expired: saasPrincipal("frank", "acme"),
   },
   fixtures: {
-    infra: saasFolder('infra'),
-    payroll: saasFolder('payroll'),
+    infra: saasFolder("infra"),
+    payroll: saasFolder("payroll"),
   },
   matrix: {
     [saasPermissions.folder.read.key]: {
       infra: {
-        viewer: 'granted',
+        viewer: "granted",
         restrictedViewer: {
-          outcome: 'denied',
-          denials: [{ reason: 'condition' }],
+          outcome: "denied",
+          denials: [{ reason: "condition" }],
         },
-        expired: 'denied',
+        expired: "denied",
       },
       payroll: {
-        viewer: 'denied',
-        restrictedViewer: 'granted',
-        expired: 'denied',
+        viewer: "denied",
+        restrictedViewer: "granted",
+        expired: "denied",
       },
     },
   },

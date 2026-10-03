@@ -1,19 +1,19 @@
-import type { GrantValidity } from '../core/policy.ts';
-import type { Condition, Policy, ResourceNode } from '../index.ts';
-import type { RlsGrant } from './rls-grants.ts';
-import type { RolePermission } from './rls-helpers.ts';
-import type { RlsSqlContext } from './rls-sql.ts';
+import type { GrantValidity } from "../core/policy.ts";
+import type { Condition, Policy, ResourceNode } from "../index.ts";
+import type { RlsGrant } from "./rls-grants.ts";
+import type { RolePermission } from "./rls-helpers.ts";
+import type { RlsSqlContext } from "./rls-sql.ts";
 
-import { sole } from '../core/compact.ts';
-import { hasConditionOp, requiresApproval } from '../index.ts';
-import { jsonSchemaOf } from './catalog-doc.ts';
+import { sole } from "../core/compact.ts";
+import { hasConditionOp, requiresApproval } from "../index.ts";
+import { jsonSchemaOf } from "./catalog-doc.ts";
 import {
   breakGlassHolder,
   breakGlassKey,
   collectGrants,
-} from './rls-grants.ts';
-import { accessSql, capabilityAccessSql } from './rls-helpers.ts';
-import { conditionFields } from './rls-indexes.ts';
+} from "./rls-grants.ts";
+import { accessSql, capabilityAccessSql } from "./rls-helpers.ts";
+import { conditionFields } from "./rls-indexes.ts";
 import {
   arrayColumnsOf,
   columnTypesOf,
@@ -22,9 +22,9 @@ import {
   sqlFunctionNames,
   subjectClaimJsonSql,
   subjectClaimSql,
-} from './rls-sql.ts';
+} from "./rls-sql.ts";
 
-export type SqlCommand = 'select' | 'insert' | 'update' | 'delete';
+export type SqlCommand = "select" | "insert" | "update" | "delete";
 
 /**
  * One grant (or one grant-key group) on one table and command, before
@@ -34,7 +34,7 @@ export type SqlCommand = 'select' | 'insert' | 'update' | 'delete';
 export type CompiledBranch = {
   readonly table: string;
   readonly command: SqlCommand;
-  readonly effect: 'allow' | 'deny';
+  readonly effect: "allow" | "deny";
   /** Postgres roles the policy targets: `authenticated`, plus `anon` for `anyone()`. */
   readonly roles: readonly string[];
   /** Role name, `anyone` or `authenticated`. */
@@ -55,7 +55,7 @@ export type CompiledPolicy = {
   readonly name: string;
   readonly table: string;
   readonly command: SqlCommand;
-  readonly effect: 'allow' | 'deny';
+  readonly effect: "allow" | "deny";
   readonly roles: readonly string[];
   readonly using?: string;
   readonly check?: string;
@@ -74,16 +74,16 @@ export type CompiledGrants = {
 
 export function commandFor(action: string): SqlCommand | undefined {
   switch (action) {
-    case 'read':
-    case 'list':
-    case 'get':
-      return 'select';
-    case 'create':
-      return 'insert';
-    case 'update':
-      return 'update';
-    case 'delete':
-      return 'delete';
+    case "read":
+    case "list":
+    case "get":
+      return "select";
+    case "create":
+      return "insert";
+    case "update":
+      return "update";
+    case "delete":
+      return "delete";
     default:
       return undefined;
   }
@@ -118,7 +118,7 @@ function membershipField(
     return undefined;
   }
   if (resource.name === holder) {
-    return resource.id ?? 'id';
+    return resource.id ?? "id";
   }
   let current: ResourceNode | undefined = resource;
   const seen = new Set<string>();
@@ -139,8 +139,8 @@ function resourceCondition(
   policy: Policy,
   ctx: RlsSqlContext,
 ): Condition {
-  if (item.access.kind !== 'resource') {
-    throw new Error('PermDock CLI: resourceCondition needs a resource role');
+  if (item.access.kind !== "resource") {
+    throw new Error("PermDock CLI: resourceCondition needs a resource role");
   }
   const { role, resource: roleResource } = item.access;
   const target = policy.resources.get(item.grant.permission.resource);
@@ -155,14 +155,14 @@ function resourceCondition(
       continue;
     }
     hops.push({
-      op: 'memberOf',
-      scope: 'resource',
+      op: "memberOf",
+      scope: "resource",
       field,
       roles: [role],
       resource: holder,
     });
   }
-  return sole(hops) ?? { op: 'or', conditions: hops };
+  return sole(hops) ?? { op: "or", conditions: hops };
 }
 
 /**
@@ -175,13 +175,13 @@ function capabilityAccess(
   policy: Policy,
   ctx: RlsSqlContext,
 ): string | undefined {
-  if (item.access.kind !== 'resource') {
+  if (item.access.kind !== "resource") {
     return undefined;
   }
   const { role, resource: roleResource } = item.access;
   // A capability's membership has kind `link`, so a role whose `for` omits it holds nothing through a link.
   const kinds = ctx.ownership?.kinds[role];
-  if (kinds !== undefined && !kinds.includes('link')) {
+  if (kinds !== undefined && !kinds.includes("link")) {
     return undefined;
   }
   const target = policy.resources.get(item.grant.permission.resource);
@@ -203,7 +203,7 @@ function capabilityAccess(
   if (hops.length === 0) {
     return undefined;
   }
-  return hops.length === 1 ? hops[0] : hops.map(wrapSql).join(' or ');
+  return hops.length === 1 ? hops[0] : hops.map(wrapSql).join(" or ");
 }
 
 type Prepared = {
@@ -248,12 +248,12 @@ function prepare(
   if (context.length > 0) {
     if (skipClosures) {
       warnings.push(
-        `skipped grant ${label}/${grant.permission.key}: it reads ${context.join(', ')}, which is not in the token`,
+        `skipped grant ${label}/${grant.permission.key}: it reads ${context.join(", ")}, which is not in the token`,
       );
       return undefined;
     }
     throw new Error(
-      `PermDock CLI: grant ${label}/${grant.permission.key} reads ${context.join(', ')}; request context is not in the token, so RLS cannot compile it. Move the value to a server-set claim (principal.claims.*) or pass --skip-closures (permdock doctor PD027)`,
+      `PermDock CLI: grant ${label}/${grant.permission.key} reads ${context.join(", ")}; request context is not in the token, so RLS cannot compile it. Move the value to a server-set claim (principal.claims.*) or pass --skip-closures (permdock doctor PD027)`,
     );
   }
   if (requiresApproval(grant.approval)) {
@@ -268,11 +268,11 @@ function prepare(
     return undefined;
   }
   const table = tableFor(grant.permission.resource, tables);
-  const using = command === 'insert' ? undefined : item.where;
+  const using = command === "insert" ? undefined : item.where;
   const check =
-    command === 'insert'
+    command === "insert"
       ? (grant.check ?? item.where)
-      : command === 'update'
+      : command === "update"
         ? (grant.check ?? item.where)
         : undefined;
   return {
@@ -307,7 +307,7 @@ function assignKeys(
 ): Map<Prepared, string> {
   const groups = new Map<string, Map<string, Prepared[]>>();
   for (const entry of entries) {
-    if (entry.item.access.kind !== 'role') {
+    if (entry.item.access.kind !== "role") {
       continue;
     }
     const key = entry.item.grant.permission.key;
@@ -347,12 +347,12 @@ function noteConditions(entry: Prepared, warnings: string[]): void {
   ];
   if (names.length > 0) {
     warnings.push(
-      `sqlFunction ${[...new Set(names)].join(', ')} on ${label}/${grant.permission.key} is portable via twin`,
+      `sqlFunction ${[...new Set(names)].join(", ")} on ${label}/${grant.permission.key} is portable via twin`,
     );
   }
   if (
-    hasConditionOp(entry.using, 'opaque') ||
-    hasConditionOp(entry.check, 'opaque')
+    hasConditionOp(entry.using, "opaque") ||
+    hasConditionOp(entry.check, "opaque")
   ) {
     warnings.push(
       `opaque SQL on ${label}/${grant.permission.key} is untestable app-side`,
@@ -380,7 +380,7 @@ export function compileGrants(
     const entry = prepare(item, tables, warnings, skipClosures);
     return entry === undefined ? [] : [entry];
   });
-  const keys = assignKeys(entries, ctx.fields === 'views');
+  const keys = assignKeys(entries, ctx.fields === "views");
   const rows = new Map<string, RolePermission>();
   for (const item of items) {
     const holder =
@@ -430,9 +430,9 @@ export function compileGrants(
     }
     const grantKey = keys.get(entry);
     let accessExpr: string | undefined;
-    if (access.kind === 'role' && grantKey !== undefined) {
+    if (access.kind === "role" && grantKey !== undefined) {
       const column =
-        access.scope === 'global'
+        access.scope === "global"
           ? undefined
           : policy.scopes.find((scope) => scope.name === access.scope)?.key;
       accessExpr = accessSql(ctx, access.scope, grantKey, column);
@@ -449,13 +449,13 @@ export function compileGrants(
       rows.set(`${row.role}\u0000${row.grantKey}\u0000${row.scope}`, row);
     }
     const linkOnly =
-      access.kind === 'resource' &&
+      access.kind === "resource" &&
       ctx.capabilities === true &&
       ctx.memberships?.resource?.[access.resource] === undefined;
-    if (access.kind === 'actor') {
-      accessExpr = `${subjectClaimSql(ctx, 'client_id')} is not null or ${subjectClaimJsonSql(ctx, 'act')} is not null`;
+    if (access.kind === "actor") {
+      accessExpr = `${subjectClaimSql(ctx, "client_id")} is not null or ${subjectClaimJsonSql(ctx, "act")} is not null`;
     }
-    if (access.kind === 'resource' && !linkOnly) {
+    if (access.kind === "resource" && !linkOnly) {
       accessExpr = compileConditionSql(
         resourceCondition(item, policy, ctx),
         ctx,
@@ -468,7 +468,7 @@ export function compileGrants(
     }
     const validity = validitySql(grant.validity);
     accessExpr = andSql(accessExpr, validity);
-    if (ctx.anonymousSignIns === 'deny' && access.kind !== 'anyone') {
+    if (ctx.anonymousSignIns === "deny" && access.kind !== "anyone") {
       accessExpr = andSql(accessExpr, PERMANENT_USER);
     }
     const using = compileOptional(entry.using, rowCtx);
@@ -480,9 +480,9 @@ export function compileGrants(
         command,
         effect: grant.effect,
         roles:
-          access.kind === 'anyone'
-            ? ['anon', 'authenticated']
-            : ['authenticated'],
+          access.kind === "anyone"
+            ? ["anon", "authenticated"]
+            : ["authenticated"],
         label,
         resource: grant.permission.resource,
         permissionKey: grant.permission.key,
@@ -502,7 +502,7 @@ export function compileGrants(
         table,
         command,
         effect: grant.effect,
-        roles: ['anon'],
+        roles: ["anon"],
         label,
         resource: grant.permission.resource,
         permissionKey: grant.permission.key,
@@ -532,20 +532,20 @@ function ensureSelectCoverage(
   const extra: CompiledBranch[] = [];
   const readable = new Set(
     branches
-      .filter((item) => item.command === 'select' && item.effect === 'allow')
+      .filter((item) => item.command === "select" && item.effect === "allow")
       .map((item) => item.table),
   );
   const covered = new Set<string>();
   for (const item of branches) {
     if (
-      item.effect !== 'allow' ||
-      (item.command !== 'update' && item.command !== 'delete') ||
+      item.effect !== "allow" ||
+      (item.command !== "update" && item.command !== "delete") ||
       readable.has(item.table)
     ) {
       continue;
     }
     const { check: _check, ...rest } = item;
-    extra.push({ ...rest, command: 'select', coverage: true });
+    extra.push({ ...rest, command: "select", coverage: true });
     if (!covered.has(item.table)) {
       covered.add(item.table);
       warnings.push(
@@ -558,7 +558,7 @@ function ensureSelectCoverage(
 
 /** True when `sql` is one parenthesised expression, so AND / OR need not wrap it again. */
 function isWrapped(sql: string): boolean {
-  if (!sql.startsWith('(') || !sql.endsWith(')')) {
+  if (!sql.startsWith("(") || !sql.endsWith(")")) {
     return false;
   }
   let depth = 0;
@@ -567,9 +567,9 @@ function isWrapped(sql: string): boolean {
     const ch = sql[index];
     if (ch === "'") {
       quoted = !quoted;
-    } else if (!quoted && ch === '(') {
+    } else if (!quoted && ch === "(") {
       depth += 1;
-    } else if (!quoted && ch === ')') {
+    } else if (!quoted && ch === ")") {
       depth -= 1;
       if (depth === 0 && index < sql.length - 1) {
         return false;
@@ -605,12 +605,12 @@ export function andSql(
   ...parts: readonly (string | undefined)[]
 ): string | undefined {
   const present = parts.filter(
-    (part): part is string => part !== undefined && part !== 'true',
+    (part): part is string => part !== undefined && part !== "true",
   );
   if (present.length === 0) {
     return undefined;
   }
-  return present.length === 1 ? present[0] : present.map(wrapSql).join(' and ');
+  return present.length === 1 ? present[0] : present.map(wrapSql).join(" and ");
 }
 
 /** `USING` and `WITH CHECK` for a branch: its access check ANDed with its row conditions. */
@@ -619,12 +619,12 @@ export function branchClauses(branch: CompiledBranch): {
   readonly check?: string;
 } {
   const using =
-    branch.command === 'insert'
+    branch.command === "insert"
       ? undefined
-      : (andSql(branch.access, branch.using) ?? 'true');
+      : (andSql(branch.access, branch.using) ?? "true");
   const check =
-    branch.command === 'insert' || branch.command === 'update'
-      ? (andSql(branch.access, branch.check) ?? 'true')
+    branch.command === "insert" || branch.command === "update"
+      ? (andSql(branch.access, branch.check) ?? "true")
       : undefined;
   return {
     ...(using === undefined ? {} : { using }),

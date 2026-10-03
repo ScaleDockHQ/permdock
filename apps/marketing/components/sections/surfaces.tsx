@@ -1,22 +1,22 @@
-import { surfaceSnippets } from '@/lib/snippets';
+import { surfaceSnippets } from "@/lib/snippets";
 import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
-} from '@permdock/ui/components/tabs';
+} from "@permdock/ui/components/tabs";
 import {
   CodeBlock,
   CodeBlockCopyButton,
-} from '@permdock/ui/reui/code-block/code-block';
+} from "@permdock/ui/reui/code-block/code-block";
 import {
   Frame,
   FrameHeader,
   FramePanel,
   FrameTitle,
-} from '@permdock/ui/reui/frame';
+} from "@permdock/ui/reui/frame";
 
-import { Section } from './section';
+import { Section } from "./section";
 
 export function Surfaces() {
   const first = surfaceSnippets[0];

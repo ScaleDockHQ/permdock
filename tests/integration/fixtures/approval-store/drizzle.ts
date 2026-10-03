@@ -1,23 +1,23 @@
-import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type {
   ApprovalListQuery,
   ApprovalRequest,
   ApprovalStatus,
   ApprovalStore,
-} from 'permdock/approvals';
+} from "permdock/approvals";
 
-import { and, eq, gt, isNull, lte, sql } from 'drizzle-orm';
-import { jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
-import { ApprovalError, applyApprovalVerdict } from 'permdock/approvals';
+import { and, eq, gt, isNull, lte, sql } from "drizzle-orm";
+import { jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { ApprovalError, applyApprovalVerdict } from "permdock/approvals";
 
 // The recipe on adapters/approvals.mdx; keep the two in step.
-export const approvals = pgTable('permdock_approvals', {
-  token: text('token').primaryKey(),
-  body: jsonb('body').$type<ApprovalRequest>().notNull(),
-  status: text('status').$type<ApprovalStatus>().notNull(),
-  tenant: text('tenant'),
-  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
-  consumedAt: timestamp('consumed_at', { withTimezone: true }),
+export const approvals = pgTable("permdock_approvals", {
+  token: text("token").primaryKey(),
+  body: jsonb("body").$type<ApprovalRequest>().notNull(),
+  status: text("status").$type<ApprovalStatus>().notNull(),
+  tenant: text("tenant"),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  consumedAt: timestamp("consumed_at", { withTimezone: true }),
 });
 
 export const approvalsDdl = `
@@ -56,14 +56,14 @@ export function drizzleApprovalStore(db: NodePgDatabase): ApprovalStore {
         .onConflictDoUpdate({
           target: approvals.token,
           set: values,
-          setWhere: sql`${eq(approvals.status, 'expired')} or ${lte(approvals.expiresAt, new Date())}`,
+          setWhere: sql`${eq(approvals.status, "expired")} or ${lte(approvals.expiresAt, new Date())}`,
         });
     },
     get,
     async resolve(token, verdict) {
       const current = await get(token);
       if (current === null) {
-        throw new ApprovalError('approval-not-found', 'approval was not found');
+        throw new ApprovalError("approval-not-found", "approval was not found");
       }
       const next = applyApprovalVerdict(current, verdict);
       // Write only over the row this verdict was computed from, so two
@@ -75,7 +75,7 @@ export function drizzleApprovalStore(db: NodePgDatabase): ApprovalStore {
         .where(
           and(
             eq(approvals.token, token),
-            eq(approvals.status, 'pending'),
+            eq(approvals.status, "pending"),
             gt(approvals.expiresAt, new Date()),
             sql`coalesce(jsonb_array_length(${approvals.body} -> 'approvals'), 0) = ${seen}`,
           ),
@@ -83,8 +83,8 @@ export function drizzleApprovalStore(db: NodePgDatabase): ApprovalStore {
         .returning({ body: approvals.body });
       if (row === undefined) {
         throw new ApprovalError(
-          'approval-not-pending',
-          'approval is not pending',
+          "approval-not-pending",
+          "approval is not pending",
         );
       }
       return row.body;
@@ -99,7 +99,7 @@ export function drizzleApprovalStore(db: NodePgDatabase): ApprovalStore {
         .where(
           and(
             eq(approvals.token, token),
-            eq(approvals.status, 'approved'),
+            eq(approvals.status, "approved"),
             isNull(approvals.consumedAt),
             gt(approvals.expiresAt, now),
           ),
@@ -115,8 +115,8 @@ export function drizzleApprovalStore(db: NodePgDatabase): ApprovalStore {
           const parsed: unknown = JSON.parse(query.cursor);
           if (
             !Array.isArray(parsed) ||
-            typeof parsed[0] !== 'string' ||
-            typeof parsed[1] !== 'string'
+            typeof parsed[0] !== "string" ||
+            typeof parsed[1] !== "string"
           ) {
             return { items: [] };
           }
@@ -163,11 +163,11 @@ export function drizzleApprovalStore(db: NodePgDatabase): ApprovalStore {
       const rows = await db
         .update(approvals)
         .set({
-          status: 'expired',
+          status: "expired",
           body: sql`${approvals.body} || '{"status":"expired"}'::jsonb`,
         })
         .where(
-          and(eq(approvals.status, 'pending'), lte(approvals.expiresAt, now)),
+          and(eq(approvals.status, "pending"), lte(approvals.expiresAt, now)),
         )
         .returning({ token: approvals.token });
       return rows.length;

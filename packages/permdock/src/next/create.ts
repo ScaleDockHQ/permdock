@@ -1,14 +1,14 @@
-import { io } from 'next/cache';
-import { forbidden, unauthorized, unstable_rethrow } from 'next/navigation';
-import { after } from 'next/server';
-import { cache, type ReactElement } from 'react';
+import { io } from "next/cache";
+import { forbidden, unauthorized, unstable_rethrow } from "next/navigation";
+import { after } from "next/server";
+import { cache, type ReactElement } from "react";
 
-import type { Decision } from '../core/decision.ts';
-import type { DecisionSink, Snapshot } from '../core/interfaces.ts';
-import type { DecideOptions, PermDock } from '../core/permdock.ts';
-import type { Permission } from '../core/permissions.ts';
-import type { Policy, PolicyVocabulary } from '../core/policy.ts';
-import type { Principal } from '../core/subject.ts';
+import type { Decision } from "../core/decision.ts";
+import type { DecisionSink, Snapshot } from "../core/interfaces.ts";
+import type { DecideOptions, PermDock } from "../core/permdock.ts";
+import type { Permission } from "../core/permissions.ts";
+import type { Policy, PolicyVocabulary } from "../core/policy.ts";
+import type { Principal } from "../core/subject.ts";
 import type {
   GetPermDockQuery,
   NextPermDock,
@@ -17,19 +17,19 @@ import type {
   RequireAccessInput,
   ServerPermissionState,
   ServerPermDockProviderProps,
-} from './types.ts';
+} from "./types.ts";
 
-import { compact } from '../core/compact.ts';
-import { emptySnapshot } from '../core/from-snapshot.ts';
-import { createPermDock as createCorePermDock } from '../core/permdock.ts';
-import { createEvaluationsHandler } from './handler.ts';
-import { renderClientProvider } from './provider.tsx';
+import { compact } from "../core/compact.ts";
+import { emptySnapshot } from "../core/from-snapshot.ts";
+import { createPermDock as createCorePermDock } from "../core/permdock.ts";
+import { createEvaluationsHandler } from "./handler.ts";
+import { renderClientProvider } from "./provider.tsx";
 
-type GrantedDecision = Extract<Decision, { readonly outcome: 'granted' }>;
+type GrantedDecision = Extract<Decision, { readonly outcome: "granted" }>;
 
 const DENIED: Decision = {
-  outcome: 'denied',
-  denials: [{ role: null, reason: 'no-grant' }],
+  outcome: "denied",
+  denials: [{ role: null, reason: "no-grant" }],
   alternatives: [],
 };
 
@@ -40,15 +40,15 @@ function assertServerOnly(): void {
   };
   if (globals.document !== undefined) {
     throw new TypeError(
-      'permdock/next is server-only. Import hooks and Protected from permdock/react.',
+      "permdock/next is server-only. Import hooks and Protected from permdock/react.",
     );
   }
 }
 
 async function readTenant(
-  tenant: NextPermDockOptions['tenant'],
+  tenant: NextPermDockOptions["tenant"],
 ): Promise<string | undefined> {
-  if (tenant === undefined || typeof tenant === 'string') {
+  if (tenant === undefined || typeof tenant === "string") {
     return tenant;
   }
   try {
@@ -98,7 +98,7 @@ function afterResponse(sink: DecisionSink): DecisionSink {
 
 function wrapInstance<V extends PolicyVocabulary>(
   permdock: PermDock<V>,
-  onDenied: NextPermDockOptions['onDenied'],
+  onDenied: NextPermDockOptions["onDenied"],
 ): PermDock<V> {
   if (onDenied === undefined) {
     return permdock;
@@ -114,7 +114,7 @@ function wrapInstance<V extends PolicyVocabulary>(
         next: Permission,
         row?: unknown,
         nextOptions?: DecideOptions,
-      ) => ReturnType<PermDock<V>['assert']>
+      ) => ReturnType<PermDock<V>["assert"]>
     )(
       permission,
       data,
@@ -122,7 +122,7 @@ function wrapInstance<V extends PolicyVocabulary>(
         ...options,
         onDenied: options?.onDenied ?? onDenied,
       }),
-    )) as PermDock<V>['assert'];
+    )) as PermDock<V>["assert"];
   return { ...permdock, assert };
 }
 
@@ -153,7 +153,7 @@ export function createPermDock<
   );
 
   const instantiate = cache(async (tenantKey: string): Promise<PermDock<V>> => {
-    const tenant = tenantKey === '' ? undefined : tenantKey;
+    const tenant = tenantKey === "" ? undefined : tenantKey;
     const user = await resolveSubject();
     // Decisions read the clock (membership and token expiry), so the instance
     // is created past a dynamic boundary; inside a cache scope this resolves at once.
@@ -180,7 +180,7 @@ export function createPermDock<
     query?: GetPermDockQuery,
   ): Promise<PermDock<V>> => {
     const tenant = query?.tenant ?? (await resolveFallbackTenant());
-    return instantiate(tenant ?? '');
+    return instantiate(tenant ?? "");
   };
 
   const getPermission = async (
@@ -194,12 +194,12 @@ export function createPermDock<
         permdock.decide as (next: Permission, row?: unknown) => Decision
       )(permission, data);
       return {
-        allowed: decision.outcome === 'granted',
-        status: 'ready',
+        allowed: decision.outcome === "granted",
+        status: "ready",
         decision,
       };
     } catch {
-      return { allowed: false, status: 'ready', decision: DENIED };
+      return { allowed: false, status: "ready", decision: DENIED };
     }
   };
 
@@ -218,8 +218,8 @@ export function createPermDock<
     return assert(input.permission, input.data, {
       onDenied: (decision) => {
         if (
-          decision.outcome !== 'denied' ||
-          decision.denials.some((denial) => denial.reason === 'validation')
+          decision.outcome !== "denied" ||
+          decision.denials.some((denial) => denial.reason === "validation")
         ) {
           return;
         }
@@ -249,7 +249,7 @@ export function createPermDock<
     return renderClientProvider(
       compact({
         snapshotPromise,
-        endpoint: props.endpoint ?? options.endpoint ?? '/api/permdock',
+        endpoint: props.endpoint ?? options.endpoint ?? "/api/permdock",
         tenant: props.tenant,
         children: props.children,
       }),

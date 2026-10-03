@@ -1,20 +1,20 @@
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { run } from 'permdock/cli';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { run } from "permdock/cli";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import type { Postgres } from './support/postgres.ts';
+import type { Postgres } from "./support/postgres.ts";
 
-import { startPostgres } from './support/postgres.ts';
+import { startPostgres } from "./support/postgres.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const FIXTURE = join(HERE, '../fixtures/supabase-sources');
+const FIXTURE = join(HERE, "../fixtures/supabase-sources");
 
-const OWNER = '00000000-0000-4000-8000-0000000000b1';
-const CONTACT = '00000000-0000-4000-8000-0000000000b2';
-const SUSPENDED = '00000000-0000-4000-8000-0000000000b3';
+const OWNER = "00000000-0000-4000-8000-0000000000b1";
+const CONTACT = "00000000-0000-4000-8000-0000000000b2";
+const SUSPENDED = "00000000-0000-4000-8000-0000000000b3";
 const USERS = [OWNER, CONTACT, SUSPENDED];
 
 const SETUP = `
@@ -34,7 +34,7 @@ grant usage on schema auth to supabase_auth_admin, authenticated, anon;
 grant execute on all functions in schema auth to authenticated, anon;
 grant select on auth.users to supabase_auth_admin;
 grant usage on schema public to authenticated, anon;
-insert into auth.users (id) values ${USERS.map((id) => `('${id}')`).join(', ')};
+insert into auth.users (id) values ${USERS.map((id) => `('${id}')`).join(", ")};
 create table memberships (
   user_id uuid not null, scope text not null, scope_id text not null, role text not null,
   via text, expires_at timestamptz, managed_by text, seats text[]
@@ -70,60 +70,60 @@ async function generate(
   args: readonly string[],
   files: readonly string[],
 ): Promise<string[]> {
-  const dir = mkdtempSync(join(tmpdir(), 'permdock-member-for-'));
-  const placed = args.map((arg) => arg.replaceAll('{dir}', dir));
+  const dir = mkdtempSync(join(tmpdir(), "permdock-member-for-"));
+  const placed = args.map((arg) => arg.replaceAll("{dir}", dir));
   try {
     const result = await run(placed, { cwd: FIXTURE });
     if (result.code !== 0) {
-      throw new Error(`${args.join(' ')}: ${result.stdout}${result.stderr}`);
+      throw new Error(`${args.join(" ")}: ${result.stdout}${result.stderr}`);
     }
-    return files.map((file) => readFileSync(join(dir, file), 'utf8'));
+    return files.map((file) => readFileSync(join(dir, file), "utf8"));
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 }
 
-describe('member_<scope>_ids_for against Postgres', () => {
+describe("member_<scope>_ids_for against Postgres", () => {
   let db: Postgres | undefined;
 
   const rls = (authorize: string, schema: string): Promise<string[]> =>
     generate(
       [
-        'rls',
-        'generate',
-        '--target',
-        'sql',
-        '--rbac',
-        'supabase',
-        '--authorize',
+        "rls",
+        "generate",
+        "--target",
+        "sql",
+        "--rbac",
+        "supabase",
+        "--authorize",
         authorize,
-        '--rbac-schema',
+        "--rbac-schema",
         schema,
-        '--tenant-type',
-        'text',
-        '--split',
-        'helpers,policies',
-        '--out',
-        '{dir}/{part}.sql',
+        "--tenant-type",
+        "text",
+        "--split",
+        "helpers,policies",
+        "--out",
+        "{dir}/{part}.sql",
       ],
-      ['helpers.sql'],
+      ["helpers.sql"],
     );
 
   beforeAll(async () => {
     const [jwt, database, hook] = await Promise.all([
-      rls('jwt', 'permdock'),
-      rls('database', 'pd_db'),
+      rls("jwt", "permdock"),
+      rls("database", "pd_db"),
       generate(
         [
-          'supabase',
-          'hook',
-          'generate',
-          '--out',
-          '{dir}/hook.sql',
-          '--grants-out',
-          '{dir}/grants.sql',
+          "supabase",
+          "hook",
+          "generate",
+          "--out",
+          "{dir}/hook.sql",
+          "--grants-out",
+          "{dir}/grants.sql",
         ],
-        ['hook.sql', 'grants.sql'],
+        ["hook.sql", "grants.sql"],
       ),
     ]);
     db = await startPostgres([
@@ -132,8 +132,8 @@ describe('member_<scope>_ids_for against Postgres', () => {
       ...database,
       FEATURE_CLAIMS,
       ...hook,
-      'grant usage on schema pd_db to supabase_auth_admin',
-      'grant execute on function pd_db.member_organization_ids_for(uuid) to supabase_auth_admin',
+      "grant usage on schema pd_db to supabase_auth_admin",
+      "grant execute on function pd_db.member_organization_ids_for(uuid) to supabase_auth_admin",
     ]);
   }, 180_000);
 
@@ -142,12 +142,12 @@ describe('member_<scope>_ids_for against Postgres', () => {
   });
 
   function idsFor(
-    dbRole: 'authenticated' | 'supabase_auth_admin',
+    dbRole: "authenticated" | "supabase_auth_admin",
     fn: string,
     user: string,
   ): Promise<string[]> {
     if (db === undefined) {
-      throw new Error('PermDock: Postgres was not started');
+      throw new Error("PermDock: Postgres was not started");
     }
     const tester = db.tester;
     return db.as({ role: dbRole }, async () =>
@@ -160,98 +160,98 @@ describe('member_<scope>_ids_for against Postgres', () => {
     );
   }
 
-  it('reads the sources as supabase_auth_admin with no request.jwt.claims', async () => {
-    const fn = 'permdock.member_organization_ids_for';
-    expect(await idsFor('supabase_auth_admin', fn, OWNER)).toEqual(['B', 'T']);
-    expect(await idsFor('supabase_auth_admin', fn, CONTACT)).toEqual([]);
-    expect(await idsFor('supabase_auth_admin', fn, SUSPENDED)).toEqual([]);
+  it("reads the sources as supabase_auth_admin with no request.jwt.claims", async () => {
+    const fn = "permdock.member_organization_ids_for";
+    expect(await idsFor("supabase_auth_admin", fn, OWNER)).toEqual(["B", "T"]);
+    expect(await idsFor("supabase_auth_admin", fn, CONTACT)).toEqual([]);
+    expect(await idsFor("supabase_auth_admin", fn, SUSPENDED)).toEqual([]);
     expect(
       await idsFor(
-        'supabase_auth_admin',
-        'permdock.member_customer_ids_for',
+        "supabase_auth_admin",
+        "permdock.member_customer_ids_for",
         CONTACT,
       ),
-    ).toEqual(['A']);
+    ).toEqual(["A"]);
   });
 
-  it('agrees with member_<scope>_ids() in database mode', async () => {
+  it("agrees with member_<scope>_ids() in database mode", async () => {
     if (db === undefined) {
-      throw new Error('PermDock: Postgres was not started');
+      throw new Error("PermDock: Postgres was not started");
     }
     const tester = db.tester;
     for (const user of USERS) {
       const own = await db.as(
         {
-          role: 'authenticated',
+          role: "authenticated",
           settings: {
-            'request.jwt.claims': JSON.stringify({
+            "request.jwt.claims": JSON.stringify({
               sub: user,
-              role: 'authenticated',
+              role: "authenticated",
             }),
           },
         },
         async () =>
           (
             await tester.query<{ id: string }>(
-              'select id from pd_db.member_organization_ids() id order by id',
+              "select id from pd_db.member_organization_ids() id order by id",
             )
           ).rows.map((row) => row.id),
       );
       expect(
         await idsFor(
-          'supabase_auth_admin',
-          'pd_db.member_organization_ids_for',
+          "supabase_auth_admin",
+          "pd_db.member_organization_ids_for",
           user,
         ),
       ).toEqual(own);
       expect(
         await idsFor(
-          'supabase_auth_admin',
-          'permdock.member_organization_ids_for',
+          "supabase_auth_admin",
+          "permdock.member_organization_ids_for",
           user,
         ),
       ).toEqual(own);
     }
   });
 
-  it('feeds a hook.claims function inside the token hook', async () => {
+  it("feeds a hook.claims function inside the token hook", async () => {
     if (db === undefined) {
-      throw new Error('PermDock: Postgres was not started');
+      throw new Error("PermDock: Postgres was not started");
     }
     const tester = db.tester;
     const mint = (user: string): Promise<Record<string, unknown>> =>
-      db?.as({ role: 'supabase_auth_admin' }, async () => {
+      db?.as({ role: "supabase_auth_admin" }, async () => {
         const result = await tester.query<{
           event: { claims: Record<string, unknown> };
-        }>('select permdock.custom_access_token_hook($1::jsonb) as event', [
+        }>("select permdock.custom_access_token_hook($1::jsonb) as event", [
           JSON.stringify({
             user_id: user,
-            claims: { sub: user, role: 'authenticated' },
+            claims: { sub: user, role: "authenticated" },
           }),
         ]);
         return result.rows[0]?.event.claims ?? {};
       }) ?? Promise.resolve({});
-    expect((await mint(OWNER))['features']).toEqual({
-      B: ['export'],
-      T: ['export'],
+    expect((await mint(OWNER))["features"]).toEqual({
+      B: ["export"],
+      T: ["export"],
     });
-    expect(await mint(CONTACT)).not.toHaveProperty('features');
+    expect(await mint(CONTACT)).not.toHaveProperty("features");
   });
 
-  it('denies authenticated and anon', async () => {
-    for (const dbRole of ['authenticated', 'anon'] as const) {
+  it("denies authenticated and anon", async () => {
+    for (const dbRole of ["authenticated", "anon"] as const) {
       if (db === undefined) {
-        throw new Error('PermDock: Postgres was not started');
+        throw new Error("PermDock: Postgres was not started");
       }
       const tester = db.tester;
       await expect(
         db.as({ role: dbRole }, () =>
           tester.query(
-            'select permdock.member_organization_ids_for($1::uuid)',
+            "select permdock.member_organization_ids_for($1::uuid)",
             [OWNER],
           ),
         ),
-      ).rejects.toMatchObject({ code: '42501' });
+      ).rejects.toMatchObject({ code: "42501" });
     }
   });
 });

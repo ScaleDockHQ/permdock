@@ -1,5 +1,5 @@
-import { definePermissions, resource } from 'permdock';
-import { z } from 'zod';
+import { definePermissions, resource } from "permdock";
+import { z } from "zod";
 
 export const Project = z.object({
   id: z.string(),
@@ -16,13 +16,13 @@ export const Task = z.object({
 
 export const permissions = definePermissions({
   project: resource(Project, {
-    actions: ['read', 'update', 'delete'],
-    collection: ['list', 'create'],
-    relations: { org: { field: 'orgId', memberOf: 'tenant' } },
+    actions: ["read", "update", "delete"],
+    collection: ["list", "create"],
+    relations: { org: { field: "orgId", memberOf: "tenant" } },
   }),
   task: resource(Task, {
-    actions: ['read', 'update', 'delete'],
-    collection: ['list', 'create'],
-    relations: { org: { field: 'orgId', memberOf: 'tenant' } },
+    actions: ["read", "update", "delete"],
+    collection: ["list", "create"],
+    relations: { org: { field: "orgId", memberOf: "tenant" } },
   }),
 });

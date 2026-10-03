@@ -22,19 +22,28 @@ Two things Web Bot Auth does not provide, and PermDock does not infer from it: t
 ## How PermDock uses it
 
 ```ts
-import { createPermDock, discoverViaSignatureAgent, verifyWebBotAuth } from 'permdock/hono'
+import {
+  createPermDock,
+  discoverViaSignatureAgent,
+  verifyWebBotAuth,
+} from "permdock/hono";
 
-const keys = discoverViaSignatureAgent({ allow: ['agents.example.com'] }) // key discovery policy
+const keys = discoverViaSignatureAgent({ allow: ["agents.example.com"] }); // key discovery policy
 
 export const { permdock, protect } = createPermDock(policy, {
-  subject: (c) => c.get('user'),
-  webBotAuth: (request) => verifyWebBotAuth(request, {
-    keys,
-    required: false,                               // unsigned requests are still allowed, with no actor
-  }),
-})
-app.use(permdock())
-app.delete('/posts/:id', protect(permissions.post.delete, (c) => loadPost(c.req.param('id'))), handler)
+  subject: (c) => c.get("user"),
+  webBotAuth: (request) =>
+    verifyWebBotAuth(request, {
+      keys,
+      required: false, // unsigned requests are still allowed, with no actor
+    }),
+});
+app.use(permdock());
+app.delete(
+  "/posts/:id",
+  protect(permissions.post.delete, (c) => loadPost(c.req.param("id"))),
+  handler,
+);
 // A verified signature sets actor = { id: <signer key id>, kind: 'web-bot-auth' } on the request-scoped PermDock
 ```
 
@@ -58,29 +67,29 @@ Behaviour in the [HTTP adapters](/docs/adapters/server-kernel):
 ### Policy examples
 
 ```ts
-const member = role('member', [
+const member = role("member", [
   allow(permissions.post.read),
   allow(permissions.post.update, { where: { authorId: principal.id } }),
-  deny(permissions.post.publish, { to: actor('web-bot-auth') }), // agents may draft, humans publish
-])
+  deny(permissions.post.publish, { to: actor("web-bot-auth") }), // agents may draft, humans publish
+]);
 ```
 
 `actor(kind)` is a grantee, not a condition: it matches when the subject's `actor.kind` equals the kind, so a deny with `to: actor('web-bot-auth')` blocks signed agent traffic whatever principal it carries. A verified actor never becomes a principal; an agent acting on its own behalf authenticates as a principal with `kind: 'service'` and its own roles ([OAuth for agent delegation](/docs/standards/oauth-agent-delegation)).
 
 ## Mapping table
 
-| Web Bot Auth / RFC 9421 concept | PermDock concept |
-| --- | --- |
-| `Signature`, `Signature-Input` headers | Verified by the HTTP adapter when `webBotAuth` is set |
-| `Signature-Agent` key discovery | The `keys` option of `verifyWebBotAuth`: a discovery policy with an allow-list of directories |
-| Signer key identifier | `actor.id` |
-| Signature scheme | `actor.kind: 'web-bot-auth'` |
-| Unsigned request | No `actor`; principal from the session as usual |
-| Failed verification | Rejected before authorization (fail closed) |
-| Verified agent without a token or session | `actor` set, anonymous principal, every check denied |
-| Verified agent with a user token | Two-principal subject; decision = principal grants ∩ delegation |
-| `actor('web-bot-auth')` grantee | Policy can distinguish agent-driven from human-driven calls |
-| Audit | `actor` included in `on('decision')` events and OTel attributes |
+| Web Bot Auth / RFC 9421 concept           | PermDock concept                                                                              |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `Signature`, `Signature-Input` headers    | Verified by the HTTP adapter when `webBotAuth` is set                                         |
+| `Signature-Agent` key discovery           | The `keys` option of `verifyWebBotAuth`: a discovery policy with an allow-list of directories |
+| Signer key identifier                     | `actor.id`                                                                                    |
+| Signature scheme                          | `actor.kind: 'web-bot-auth'`                                                                  |
+| Unsigned request                          | No `actor`; principal from the session as usual                                               |
+| Failed verification                       | Rejected before authorization (fail closed)                                                   |
+| Verified agent without a token or session | `actor` set, anonymous principal, every check denied                                          |
+| Verified agent with a user token          | Two-principal subject; decision = principal grants ∩ delegation                               |
+| `actor('web-bot-auth')` grantee           | Policy can distinguish agent-driven from human-driven calls                                   |
+| Audit                                     | `actor` included in `on('decision')` events and OTel attributes                               |
 
 ## Sources
 

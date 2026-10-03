@@ -1,5 +1,5 @@
-import type { Decision, ExplainedDecision } from './decision.ts';
-import type { GranteeMatch } from './grantee.ts';
+import type { Decision, ExplainedDecision } from "./decision.ts";
+import type { GranteeMatch } from "./grantee.ts";
 import type {
   AuthEvent,
   DecisionSink,
@@ -8,47 +8,47 @@ import type {
   RelationSource,
   RoleSource,
   Snapshot,
-} from './interfaces.ts';
+} from "./interfaces.ts";
 import type {
   DecideOptions,
   PermDock,
   SimulateOptions,
   WhereResult,
-} from './permdock.ts';
-import type { Permission } from './permissions.ts';
-import type { Grant, Policy } from './policy.ts';
-import type { CustomRole, Membership, Principal, Subject } from './subject.ts';
-import type { Role } from './vocabulary.ts';
+} from "./permdock.ts";
+import type { Permission } from "./permissions.ts";
+import type { Grant, Policy } from "./policy.ts";
+import type { CustomRole, Membership, Principal, Subject } from "./subject.ts";
+import type { Role } from "./vocabulary.ts";
 
-import { hasConditionOp } from '../conditions/ast.ts';
+import { hasConditionOp } from "../conditions/ast.ts";
 import {
   type ArazzoPlan,
   type ArazzoSimulateInput,
   isArazzoSimulateInput,
   simulateArazzo,
-} from './arazzo.ts';
-import { compact, isReadonlyArray } from './compact.ts';
+} from "./arazzo.ts";
+import { compact, isReadonlyArray } from "./compact.ts";
 import {
   type CustomGrant,
   ceilingGrants,
   customGrantsFor,
   holdsCustomRole,
   roleAllowKeys,
-} from './custom-roles.ts';
-import { delegatedPermissions } from './delegation.ts';
-import { type ActivateInput, activate } from './elevated.ts';
+} from "./custom-roles.ts";
+import { delegatedPermissions } from "./delegation.ts";
+import { type ActivateInput, activate } from "./elevated.ts";
 import {
   PermDockApprovalRequiredError,
   PermDockDeniedError,
   PermDockValidationError,
   approvalMessage,
   deniedMessage,
-} from './errors.ts';
-import { declaredRoleNames, evaluate, expandRoleNames } from './evaluate.ts';
-import { type EvalEnv, emitSafe, emptyListeners, finish } from './events.ts';
-import { pickVisible } from './fields.ts';
-import { freezeDeep } from './freeze.ts';
-import { combineWhere, flattenGrantee, matchGrantee } from './grantee.ts';
+} from "./errors.ts";
+import { declaredRoleNames, evaluate, expandRoleNames } from "./evaluate.ts";
+import { type EvalEnv, emitSafe, emptyListeners, finish } from "./events.ts";
+import { pickVisible } from "./fields.ts";
+import { freezeDeep } from "./freeze.ts";
+import { combineWhere, flattenGrantee, matchGrantee } from "./grantee.ts";
 import {
   type RoleChange,
   type RoleChangeDecision,
@@ -59,26 +59,26 @@ import {
   rankRoles,
   roleMeta,
   usesAssigns,
-} from './ownership.ts';
+} from "./ownership.ts";
 import {
   getResource,
   isPrincipalRelation,
   listPermissions,
-} from './permissions.ts';
-import { grantList } from './policy.ts';
+} from "./permissions.ts";
+import { grantList } from "./policy.ts";
 import {
   type RelationCache,
   pendingRelations,
   relationReader,
-} from './relations.ts';
+} from "./relations.ts";
 import {
   normalizeMemberships,
   resolveScope,
   rootScope,
   scopeList,
   tenantOf,
-} from './scopes.ts';
-import { buildSnapshot, signSnapshot, snapshotGrant } from './snapshot.ts';
+} from "./scopes.ts";
+import { buildSnapshot, signSnapshot, snapshotGrant } from "./snapshot.ts";
 import {
   isMembershipExpired,
   nowSeconds,
@@ -86,10 +86,10 @@ import {
   relatesTo,
   resolveActiveTenant,
   tenantsOf,
-} from './tenancy.ts';
-import { findRole, listRoles, synthesiseRole } from './vocabulary.ts';
-import { whereFromGrants } from './where-scope.ts';
-import { whoCan } from './who-can.ts';
+} from "./tenancy.ts";
+import { findRole, listRoles, synthesiseRole } from "./vocabulary.ts";
+import { whereFromGrants } from "./where-scope.ts";
+import { whoCan } from "./who-can.ts";
 
 /** Each round reads one more layer: link hops, then the chain, then nested groups. */
 const LOAD_ROUNDS = 48;
@@ -98,7 +98,7 @@ const LOAD_ROUNDS = 48;
 function periodBound(policy: Policy, grant: Grant): boolean {
   const relations = policy.resources.get(grant.permission.resource)?.relations;
   return flattenGrantee(grant.to).some((item) => {
-    if (item.kind !== 'relation') {
+    if (item.kind !== "relation") {
       return false;
     }
     const spec = relations?.[item.relation];
@@ -115,18 +115,18 @@ function includePrefixes(
     return undefined;
   }
   return include.map((item) => {
-    if ('key' in item && typeof item.key === 'string') {
+    if ("key" in item && typeof item.key === "string") {
       return item.key;
     }
     // SAFETY: include takes leaves or resource nodes, the shapes listPermissions walks.
     const leaves = listPermissions(item as never);
     const first = leaves[0];
     if (first === undefined) {
-      return '';
+      return "";
     }
-    const parts = first.key.split('.');
+    const parts = first.key.split(".");
     parts.pop();
-    return parts.join('.');
+    return parts.join(".");
   });
 }
 
@@ -180,7 +180,7 @@ function roleLeaf(policy: Policy, name: string): Role {
     synthesiseRole(
       name,
       compact({
-        on: typeof binding?.on === 'string' ? binding.on : undefined,
+        on: typeof binding?.on === "string" ? binding.on : undefined,
         assignable: binding?.assignable,
         meta: binding?.meta,
       }),
@@ -193,9 +193,9 @@ function roleLeaf(policy: Policy, name: string): Role {
  * `RelationSource`, which snapshots and `where()` do not carry, so the grant
  * becomes server-only (`portable: false`) there.
  */
-function graphAware(grant: Grant, where: Grant['where']): Grant {
+function graphAware(grant: Grant, where: Grant["where"]): Grant {
   const combined = combineWhere(grant.where, where);
-  const graph = hasConditionOp(combined, 'related');
+  const graph = hasConditionOp(combined, "related");
   return freezeDeep(
     compact({
       ...grant,
@@ -227,14 +227,14 @@ export function collectSnapshotGrants(
   customRoles: readonly CustomRole[],
   now: number = nowSeconds(),
   customGrants: readonly CustomGrant[] = customGrantsFor(policy, customRoles),
-  mode: 'held' | 'not-entitled' = 'held',
+  mode: "held" | "not-entitled" = "held",
 ): readonly { readonly grant: Grant; readonly membership?: Membership }[] {
   const skip = (grant: Grant, match: GranteeMatch): boolean =>
-    mode === 'held'
+    mode === "held"
       ? !match.matched
       : match.matched ||
-        match.reason !== 'not-entitled' ||
-        grant.effect !== 'allow';
+        match.reason !== "not-entitled" ||
+        grant.effect !== "allow";
   const scopes = scopeList(policy.scopes);
   const declared = declaredRoleNames(policy);
   const global = expandRoleNames(
@@ -257,10 +257,10 @@ export function collectSnapshotGrants(
   // No cascade: a scoped role counts only on a membership of its own scope.
   const holds = (
     entry: (typeof held)[number],
-    item: { readonly role: string; readonly scope: Grant['scope'] },
+    item: { readonly role: string; readonly scope: Grant["scope"] },
   ): boolean =>
     entry.roles.has(item.role) &&
-    (typeof item.scope === 'string'
+    (typeof item.scope === "string"
       ? entry.membership.scope === item.scope
       : entry.membership.on !== undefined);
   const out: { readonly grant: Grant; readonly membership?: Membership }[] = [];
@@ -278,25 +278,25 @@ export function collectSnapshotGrants(
       continue;
     }
     const roleItems = flattenGrantee(grant.to).filter(
-      (item) => item.kind === 'role',
+      (item) => item.kind === "role",
     );
     if (roleItems.length > 0 && subject.principal === null) {
       continue;
     }
     const globalOk = roleItems.every(
-      (item) => item.scope !== 'global' || global.roles.includes(item.role),
+      (item) => item.scope !== "global" || global.roles.includes(item.role),
     );
     if (!globalOk) {
       continue;
     }
     const merged: Grant = graphAware(grant, match.where);
-    const scoped = roleItems.filter((item) => item.scope !== 'global');
+    const scoped = roleItems.filter((item) => item.scope !== "global");
     if (scoped.length === 0) {
       out.push({ grant: merged });
       continue;
     }
     for (const entry of held) {
-      if (scoped.every((item) => item.kind === 'role' && holds(entry, item))) {
+      if (scoped.every((item) => item.kind === "role" && holds(entry, item))) {
         out.push({ grant: merged, membership: entry.membership });
       }
     }
@@ -326,10 +326,10 @@ export function collectSnapshotGrants(
     }
   }
   const fresh = policy.fresh ?? [];
-  if (mode === 'held' && subject.stale === true && fresh.length > 0) {
+  if (mode === "held" && subject.stale === true && fresh.length > 0) {
     return out.filter(
       ({ grant }) =>
-        grant.effect === 'deny' || !fresh.includes(grant.permission.key),
+        grant.effect === "deny" || !fresh.includes(grant.permission.key),
     );
   }
   return out;
@@ -399,7 +399,7 @@ function assignableIn(
     collectSnapshotGrants(policy, scoped, customRoles, now, customGrants)
       .filter(
         (item) =>
-          item.grant.effect === 'allow' &&
+          item.grant.effect === "allow" &&
           (item.membership === undefined ||
             (tenantOf(item.membership, scopes) === tenant &&
               !isMembershipExpired(item.membership, now))),
@@ -429,9 +429,9 @@ function assignableIn(
           scoped,
           leaf,
           undefined,
-          { source: 'simulate', trusted: true, now },
+          { source: "simulate", trusted: true, now },
           quiet,
-        ).outcome === 'granted',
+        ).outcome === "granted",
     );
   const narrowed = allowed === undefined ? undefined : new Set<string>(allowed);
   const candidates = assignableCandidates(policy).filter(
@@ -486,7 +486,7 @@ export function snapshotOf(
     /** Role names `RoleSource.assignable` returned, per tenant. */
     readonly assignable?: ReadonlyMap<string, readonly string[]>;
     readonly include?: SnapshotInclude;
-    readonly tenants?: 'all';
+    readonly tenants?: "all";
     readonly simulated?: boolean;
     readonly now?: number;
   },
@@ -513,7 +513,7 @@ export function snapshotOf(
         options.customRoles,
         now,
         customGrants,
-        'not-entitled',
+        "not-entitled",
       ),
       grants: collectSnapshotGrants(
         policy,
@@ -561,7 +561,7 @@ export function snapshotOf(
 }
 
 /** The policy's scopes as snapshots and `permdock cloud push` carry them, with the resources each partitions. */
-export function snapshotScopes(policy: Policy): Snapshot['scopes'] {
+export function snapshotScopes(policy: Policy): Snapshot["scopes"] {
   if (policy.scopes.length === 0) {
     return undefined;
   }
@@ -570,9 +570,9 @@ export function snapshotScopes(policy: Policy): Snapshot['scopes'] {
     const partitioned = resources
       .filter((node) => partitionsOf(node, policy.scopes).includes(scope.name))
       .map((node) => node.name);
-    return compact<NonNullable<Snapshot['scopes']>[number]>({
+    return compact<NonNullable<Snapshot["scopes"]>[number]>({
       name: scope.name,
-      key: scope.key ?? '',
+      key: scope.key ?? "",
       within: scope.within,
       resources: partitioned.length === 0 ? undefined : partitioned,
     });
@@ -641,18 +641,18 @@ export function buildInstance(
   ): void => {
     const counts = { granted: 0, denied: 0, approvalRequired: 0 };
     for (const [, , decision] of evaluated) {
-      if (decision.outcome === 'granted') {
+      if (decision.outcome === "granted") {
         counts.granted += 1;
-      } else if (decision.outcome === 'approval-required') {
+      } else if (decision.outcome === "approval-required") {
         counts.approvalRequired += 1;
       } else {
         counts.denied += 1;
       }
     }
     const worst =
-      evaluated.find(([, , decision]) => decision.outcome === 'denied') ??
+      evaluated.find(([, , decision]) => decision.outcome === "denied") ??
       evaluated.find(
-        ([, , decision]) => decision.outcome === 'approval-required',
+        ([, , decision]) => decision.outcome === "approval-required",
       ) ??
       evaluated[0];
     if (worst === undefined) {
@@ -665,7 +665,7 @@ export function buildInstance(
       permission,
       data,
       decision,
-      { source: 'simulate', trusted: true },
+      { source: "simulate", trusted: true },
       { ...envFor(false), emit: true },
       true,
       undefined,
@@ -684,17 +684,17 @@ export function buildInstance(
       permission,
       data,
       options ?? {},
-      envFor(options?.source !== 'simulate', options?.source === 'can'),
+      envFor(options?.source !== "simulate", options?.source === "can"),
     );
 
   const explainImpl = (
     permission: Permission,
     data?: unknown,
-    options?: Omit<DecideOptions, 'explain'>,
+    options?: Omit<DecideOptions, "explain">,
   ): ExplainedDecision => {
     const decision = decideImpl(permission, data, {
       ...options,
-      source: options?.source ?? 'explain',
+      source: options?.source ?? "explain",
       explain: true,
     });
     // SAFETY: evaluate attaches a trace to every decision made with explain: true.
@@ -710,8 +710,8 @@ export function buildInstance(
       return (
         decideImpl(permission, data, {
           ...options,
-          source: options?.source ?? 'can',
-        }).outcome === 'granted'
+          source: options?.source ?? "can",
+        }).outcome === "granted"
       );
     } catch {
       return false;
@@ -722,12 +722,12 @@ export function buildInstance(
     permission: Permission,
     data?: unknown,
     options?: DecideOptions,
-  ): Extract<Decision, { readonly outcome: 'granted' }> => {
+  ): Extract<Decision, { readonly outcome: "granted" }> => {
     const decision = decideImpl(permission, data, {
       ...options,
-      source: options?.source ?? 'assert',
+      source: options?.source ?? "assert",
     });
-    if (decision.outcome === 'granted') {
+    if (decision.outcome === "granted") {
       return decision;
     }
     const onDenied = options?.onDenied ?? policy.onDenied;
@@ -737,8 +737,8 @@ export function buildInstance(
     const resource = getResource(policy.permissions, permission.resource);
     // SAFETY: data is a non-null object checked in the condition; the read value stays unknown.
     const resourceId =
-      data !== null && typeof data === 'object'
-        ? (data as Record<string, unknown>)[resource?.id ?? 'id']
+      data !== null && typeof data === "object"
+        ? (data as Record<string, unknown>)[resource?.id ?? "id"]
         : undefined;
     const resourceRef = compact<{
       readonly type: string;
@@ -747,7 +747,7 @@ export function buildInstance(
       type: permission.resource,
       id: resourceId === undefined ? undefined : String(resourceId),
     });
-    if (decision.outcome === 'approval-required') {
+    if (decision.outcome === "approval-required") {
       throw new PermDockApprovalRequiredError({
         decision,
         permission: permission.key,
@@ -760,7 +760,7 @@ export function buildInstance(
         ),
       });
     }
-    if (decision.denials.some((denial) => denial.reason === 'validation')) {
+    if (decision.denials.some((denial) => denial.reason === "validation")) {
       const detail = decision.denials[0]?.detail;
       if (detail instanceof PermDockValidationError) {
         throw detail;
@@ -783,15 +783,15 @@ export function buildInstance(
 
   // SAFETY: canImpl, decideImpl, assertImpl and explainImpl each implement every overload of their member.
   const instance: PermDock = {
-    can: canImpl as PermDock['can'],
-    decide: decideImpl as PermDock['decide'],
-    assert: assertImpl as PermDock['assert'],
-    explain: explainImpl as PermDock['explain'],
+    can: canImpl as PermDock["can"],
+    decide: decideImpl as PermDock["decide"],
+    assert: assertImpl as PermDock["assert"],
+    explain: explainImpl as PermDock["explain"],
     permissions: policy.permissions,
     roles: policy.vocabulary?.roles ?? {},
     plans: policy.vocabulary?.plans ?? {},
     filter<T>(
-      permission: Permission<string, T, 'instance'>,
+      permission: Permission<string, T, "instance">,
       rows: readonly T[],
       options?: DecideOptions,
     ): T[] {
@@ -803,7 +803,7 @@ export function buildInstance(
       const trusted = options?.trusted ?? true;
       const decideOptions: DecideOptions = {
         ...options,
-        source: 'filter',
+        source: "filter",
         trusted,
       };
       for (const row of rows) {
@@ -815,10 +815,10 @@ export function buildInstance(
           decideOptions,
           quiet,
         );
-        if (decision.outcome === 'granted') {
+        if (decision.outcome === "granted") {
           allowed.push(row);
           granted += 1;
-        } else if (decision.outcome === 'approval-required') {
+        } else if (decision.outcome === "approval-required") {
           approvalRequired += 1;
         } else {
           denied += 1;
@@ -827,17 +827,17 @@ export function buildInstance(
       const summary: Decision =
         granted > 0
           ? freezeDeep({
-              outcome: 'granted',
+              outcome: "granted",
               subject,
               matched: {
-                role: '*',
+                role: "*",
                 permission: permission.key,
               },
-              token: 'pd1.filter',
+              token: "pd1.filter",
             })
           : freezeDeep({
-              outcome: 'denied',
-              denials: [{ role: null, reason: 'no-grant' }],
+              outcome: "denied",
+              denials: [{ role: null, reason: "no-grant" }],
               alternatives: [],
             });
       finish(
@@ -855,11 +855,11 @@ export function buildInstance(
       return allowed;
     },
     pick<T>(
-      permission: Permission<string, T, 'instance'>,
+      permission: Permission<string, T, "instance">,
       row: T,
       options?: DecideOptions,
     ): Partial<T> {
-      if (row === null || typeof row !== 'object') {
+      if (row === null || typeof row !== "object") {
         return {};
       }
       if (canImpl(permission, row, options) !== true) {
@@ -911,7 +911,7 @@ export function buildInstance(
       const leaves =
         fromTree.length > 0
           ? fromTree
-          : 'resource' in resource && typeof resource.resource === 'string'
+          : "resource" in resource && typeof resource.resource === "string"
             ? listPermissions(policy.permissions).filter(
                 (item) => item.resource === resource.resource,
               )
@@ -937,7 +937,7 @@ export function buildInstance(
             subject,
             permission,
             row,
-            { source: 'simulate', trusted: true },
+            { source: "simulate", trusted: true },
             quiet,
           );
         }
@@ -981,7 +981,7 @@ export function buildInstance(
           permission,
           data,
           compact<DecideOptions>({
-            source: 'simulate',
+            source: "simulate",
             trusted: true,
             now: options?.now,
           }),
@@ -1013,7 +1013,7 @@ export function buildInstance(
         readonly tenant?: string;
       };
       const previewRoles = preview.roles?.map((item) =>
-        typeof item === 'string' ? item : item.key,
+        typeof item === "string" ? item : item.key,
       );
       const kinds =
         subject.principal === null
@@ -1053,7 +1053,7 @@ export function buildInstance(
         { ...envBase, simulated: true, relationCache },
         team,
       );
-    }) as PermDock['simulate'],
+    }) as PermDock["simulate"],
     snapshot(options) {
       const snapshot = snapshotOf(
         policy,
@@ -1076,7 +1076,7 @@ export function buildInstance(
       // SAFETY: on() types handler by event name, so each set only receives matching handlers.
       const set = listeners[event] as Set<(payload: unknown) => void>;
       set.add(handler);
-      if (event === 'auth') {
+      if (event === "auth") {
         for (const queued of queuedAuth) {
           try {
             // SAFETY: event is 'auth' here, so handler is the auth handler on() was typed with.
@@ -1086,7 +1086,7 @@ export function buildInstance(
           }
         }
       }
-      if (event === 'error') {
+      if (event === "error") {
         for (const queued of queuedErrors) {
           try {
             handler(queued);

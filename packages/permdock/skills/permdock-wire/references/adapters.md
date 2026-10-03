@@ -7,8 +7,8 @@ Every server adapter exports `createPermDock`. The import path names the framewo
 File: `src/permdock/server.ts`
 
 ```ts
-import { createPermDock } from 'permdock/next';
-import { policy } from '../policy';
+import { createPermDock } from "permdock/next";
+import { policy } from "../policy";
 
 export const {
   getPermDock,
@@ -49,15 +49,15 @@ After a role change: `updateTag(snapshotTag(user))` in the Server Action; `reval
 ## Hono — `permdock/hono`
 
 ```ts
-import { createPermDock } from 'permdock/hono';
+import { createPermDock } from "permdock/hono";
 
 export const { permdock, protect, permdockHandler } = createPermDock(policy, {
-  subject: (c) => c.get('user'),
+  subject: (c) => c.get("user"),
 });
 
-app.use('*', permdock());
+app.use("*", permdock());
 app.delete(
-  '/posts/:id',
+  "/posts/:id",
   protect(permissions.post.delete, (c) => loadPost(c)),
   handler,
 );
@@ -69,12 +69,12 @@ Streams and sockets: pass `revocations: memoryRevocationFeed()` (from `permdock`
 
 ```ts
 app.get(
-  '/projects/:id/events',
+  "/projects/:id/events",
   protect(permissions.project.read, loadProject),
   async (c) => {
     const conn = await connection(c, {
       permission: permissions.project.read,
-      data: c.get('permdockData'),
+      data: c.get("permdockData"),
     });
     return streamSSE(c, async (stream) => {
       await sse(conn, stream, projectEvents(conn.signal), {
@@ -92,7 +92,7 @@ Publish `revocations.revoke({ principal, tenant, kind: 'changed' })` from your r
 No factory. The server builds a snapshot (`permdock.snapshot()` or `fromSnapshot` on snapshot JSON) and the client wraps the tree:
 
 ```ts
-import { PermDockProvider, Protected, usePermission } from 'permdock/react';
+import { PermDockProvider, Protected, usePermission } from "permdock/react";
 ```
 
 `permissions.ts` may be imported on the client. `policy.ts` may not.
@@ -100,7 +100,7 @@ import { PermDockProvider, Protected, usePermission } from 'permdock/react';
 ## AuthZEN — `permdock/authzen`
 
 ```ts
-import { createPermDock } from 'permdock/authzen';
+import { createPermDock } from "permdock/authzen";
 
 export const { permdockHandler } = createPermDock(policy, {
   subject: fromBearer,
@@ -115,11 +115,11 @@ One Fetch handler serves `POST /access/v1/evaluation`, `/evaluations`, `/search/
 ## OpenAPI — `permdock/openapi`
 
 ```ts
-import { createPermDock } from 'permdock/openapi';
+import { createPermDock } from "permdock/openapi";
 
 const { describe, securitySchemes, overlay } = createPermDock(policy, {
-  scheme: { name: 'oauth', type: 'oauth2', flows: { authorizationCode: {} } },
-  target: '3.2',
+  scheme: { name: "oauth", type: "oauth2", flows: { authorizationCode: {} } },
+  target: "3.2",
 });
 ```
 
@@ -130,7 +130,7 @@ const { describe, securitySchemes, overlay } = createPermDock(policy, {
 No factory. Same hooks and `<Protected>` as `permdock/react`, plus `storage` so Expo Router `Stack.Protected` can answer on the first frame:
 
 ```ts
-import { PermDockProvider, usePermission } from 'permdock/react-native';
+import { PermDockProvider, usePermission } from "permdock/react-native";
 ```
 
 `storage` is `{ getItem, setItem, removeItem }` (MMKV, SecureStore, AsyncStorage). `snapshotUrl` revalidates in the background. `permdock.clear()` drops the persisted snapshot on sign-out. Do not import `policy.ts` on the client.
@@ -138,7 +138,7 @@ import { PermDockProvider, usePermission } from 'permdock/react-native';
 ## Express — `permdock/express`
 
 ```ts
-import { createPermDock } from 'permdock/express';
+import { createPermDock } from "permdock/express";
 
 export const { permdock, protect, errorHandler } = createPermDock(policy, {
   subject: (req) => req.user ?? null,
@@ -146,7 +146,7 @@ export const { permdock, protect, errorHandler } = createPermDock(policy, {
 
 app.use(permdock());
 app.delete(
-  '/posts/:id',
+  "/posts/:id",
   protect(permissions.post.delete, (req) => loadPost(req.params.id)),
   handler,
 );
@@ -158,7 +158,7 @@ Converts `IncomingMessage` to Fetch, then delegates to `permdock/server`. Denial
 ## Fastify — `permdock/fastify`
 
 ```ts
-import { createPermDock } from 'permdock/fastify';
+import { createPermDock } from "permdock/fastify";
 
 export const { permdock, protect } = createPermDock(policy, {
   subject: (request) => request.user ?? null,
@@ -166,7 +166,7 @@ export const { permdock, protect } = createPermDock(policy, {
 
 await app.register(permdock);
 app.delete(
-  '/posts/:id',
+  "/posts/:id",
   {
     preHandler: protect(permissions.post.delete, (request) =>
       loadPost(request.params.id),
@@ -181,13 +181,13 @@ Registers a `fastify-plugin`-style root plugin (`skip-override`) that decorates 
 ## Elysia — `permdock/elysia`
 
 ```ts
-import { createPermDock } from 'permdock/elysia';
+import { createPermDock } from "permdock/elysia";
 
 export const { permdock, protect } = createPermDock(policy, {
   subject: ({ store }) => store.user ?? null,
 });
 
-const app = new Elysia().use(permdock()).delete('/posts/:id', handler, {
+const app = new Elysia().use(permdock()).delete("/posts/:id", handler, {
   beforeHandle: protect(permissions.post.delete, ({ params }) =>
     loadPost(params.id),
   ),
@@ -199,7 +199,7 @@ Fetch-native plugin via `derive`. Denials are `403 application/problem+json`; an
 ## Nest — `permdock/nest`
 
 ```ts
-import { createPermDock } from 'permdock/nest';
+import { createPermDock } from "permdock/nest";
 
 export const { PermDockModule, PermDockGuard, Protect, InjectPermDock } =
   createPermDock(policy, {
@@ -212,7 +212,7 @@ Register `PermDockGuard` as `APP_GUARD` with `useExisting`. `Protect` attaches a
 ## Node — `permdock/node`
 
 ```ts
-import { createPermDock } from 'permdock/node';
+import { createPermDock } from "permdock/node";
 
 export const { permdock, protect, send, permdockHandler } = createPermDock(
   policy,
@@ -227,7 +227,7 @@ Converts `IncomingMessage` to Fetch, then delegates to `permdock/server`. Denial
 ## tRPC — `permdock/trpc`
 
 ```ts
-import { createPermDock } from 'permdock/trpc';
+import { createPermDock } from "permdock/trpc";
 
 export const { permdock, protect, permdockHandler } = createPermDock(policy, {
   subject: (opts) => opts.ctx.user ?? null,
@@ -245,7 +245,7 @@ procedure
 ## oRPC — `permdock/orpc`
 
 ```ts
-import { createPermDock } from 'permdock/orpc';
+import { createPermDock } from "permdock/orpc";
 
 export const { permdock, protect, permdockHandler } = createPermDock(policy, {
   subject: ({ context }) => context.user ?? null,
@@ -263,9 +263,9 @@ base
 ## Vue — `permdock/vue`
 
 ```ts
-import { permdockPlugin, Protected, usePermission } from 'permdock/vue';
+import { permdockPlugin, Protected, usePermission } from "permdock/vue";
 
-createApp(App).use(permdockPlugin, { snapshot, endpoint: '/api/permdock' });
+createApp(App).use(permdockPlugin, { snapshot, endpoint: "/api/permdock" });
 ```
 
 Composables return refs (`allowed`, `status`, `decision`). Do not import `policy.ts` on the client.
@@ -273,9 +273,9 @@ Composables return refs (`allowed`, `status`, `decision`). Do not import `policy
 ## Svelte — `permdock/svelte`
 
 ```ts
-import { setPermDock, permission, Protected } from 'permdock/svelte';
+import { setPermDock, permission, Protected } from "permdock/svelte";
 
-setPermDock({ snapshot, endpoint: '/api/permdock' });
+setPermDock({ snapshot, endpoint: "/api/permdock" });
 const canEdit = permission(permissions.post.update, () => post);
 ```
 
@@ -296,7 +296,7 @@ import { PermDockProvider, Protected, usePermission } from 'permdock/solid';
 ## OpenTelemetry — `permdock/otel`
 
 ```ts
-import { instrument } from 'permdock/otel';
+import { instrument } from "permdock/otel";
 
 instrument(permdock, {
   logger: { info: console.info, warn: console.warn },
@@ -315,13 +315,13 @@ import {
   memoryDirectoryStore,
   directoryMembershipSource,
   tenantFromPath,
-} from 'permdock/scim';
+} from "permdock/scim";
 
 const directory = memoryDirectoryStore();
 export const scim = scimHandler({
   store: directory,
   tenant: (request) => tenantFromPath(request),
-  token: { hash: 'sha256', lookup: (tenant) => hashFor(tenant) },
+  token: { hash: "sha256", lookup: (tenant) => hashFor(tenant) },
 });
 ```
 
@@ -332,7 +332,7 @@ The handler writes users and groups. It never decides. Unknown or non-assignable
 No factory for a `PermDock`. `cloud({ url, key, environment })` returns `approvals`, `sink`, `snapshots` and `policies` to pass into any adapter, plus the environment `issuer` (`<url>/v1/environments/<environment>`) and its `jwks` URL; `cloudEndpoints({ url, environment })` computes the same two without a key. It never implements `MembershipSource` or `RoleSource` and never decides.
 
 ```ts
-import { cloud } from 'permdock/cloud';
+import { cloud } from "permdock/cloud";
 
 const permdockCloud = cloud({
   url: process.env.PERMDOCK_CLOUD_URL,
@@ -357,7 +357,7 @@ Hosted grants are opt-in per permission. List the permissions a Cloud admin may 
 import {
   subjectFromBetterAuth,
   betterAuthRoleSource,
-} from 'permdock/better-auth';
+} from "permdock/better-auth";
 
 const session = await auth.api.getSession({ headers });
 const subject = await subjectFromBetterAuth(auth, session);
@@ -371,7 +371,7 @@ Pass the server `getSession` result only. A null session is anonymous. Never cal
 ## Clerk — `permdock/clerk`
 
 ```ts
-import { subjectFromClerk } from 'permdock/clerk';
+import { subjectFromClerk } from "permdock/clerk";
 
 export const { getPermDock } = createPermDock(policy, {
   subject: async () => subjectFromClerk(await auth()),
@@ -383,13 +383,13 @@ Pass `auth()` or a verified session payload only. A plain `{ userId }` object is
 ## Supabase — `permdock/supabase`
 
 ```ts
-import { subjectFromSupabase, authorizeSql } from 'permdock/supabase';
+import { subjectFromSupabase, authorizeSql } from "permdock/supabase";
 
 const subject = subjectFromSupabase(claims, {
-  roles: 'user_role',
-  tenant: 'tenant_id',
-  memberships: 'memberships',
-  declared: ['member', 'admin'],
+  roles: "user_role",
+  tenant: "tenant_id",
+  memberships: "memberships",
+  declared: ["member", "admin"],
 });
 ```
 
@@ -412,16 +412,16 @@ Supabase specifics for generated RLS (the generic flags and parity checks are in
 ## Supabase middleware pipeline — `permdock/supabase/middleware`
 
 ```ts
-import { pipeline } from '@supabase/middleware';
-import { withClaims } from '@supabase/server/middleware/claims';
-import { subjectFromSupabase } from 'permdock/supabase';
-import { createPermDock } from 'permdock/supabase/middleware';
+import { pipeline } from "@supabase/middleware";
+import { withClaims } from "@supabase/server/middleware/claims";
+import { subjectFromSupabase } from "permdock/supabase";
+import { createPermDock } from "permdock/supabase/middleware";
 
 const { withPermDock, permdockHandler } = createPermDock(policy, {
   subject: (ctx) =>
     subjectFromSupabase(ctx.jwtClaims, {
-      roles: 'user_role',
-      declared: ['member', 'admin'],
+      roles: "user_role",
+      declared: ["member", "admin"],
     }),
 });
 
@@ -455,7 +455,7 @@ pipeline([withClaims()], permdockHandler());
 ## Remote PDP — `permdock/pdp`
 
 ```ts
-import { createPermDock, remotePdp } from 'permdock/pdp';
+import { createPermDock, remotePdp } from "permdock/pdp";
 
 const policy = definePolicy(permissions, {
   roles: [member],

@@ -1,4 +1,4 @@
-export { createPermDock } from './create.ts';
+export { createPermDock } from "./create.ts";
 export type {
   A2aAgentCard,
   A2aAgentCardSignature,
@@ -12,4 +12,4 @@ export type {
   A2aSkillConfig,
   A2aTaskOutcome,
   A2aWireSecurityScheme,
-} from './types.ts';
+} from "./types.ts";

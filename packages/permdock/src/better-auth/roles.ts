@@ -1,7 +1,7 @@
-import type { DecisionSink, RoleSource } from '../core/interfaces.ts';
-import type { PermissionTree } from '../core/permissions.ts';
-import type { RoleBinding } from '../core/policy.ts';
-import type { CustomRole } from '../core/subject.ts';
+import type { DecisionSink, RoleSource } from "../core/interfaces.ts";
+import type { PermissionTree } from "../core/permissions.ts";
+import type { RoleBinding } from "../core/policy.ts";
+import type { CustomRole } from "../core/subject.ts";
 import type {
   BetterAuthAccessControl,
   BetterAuthLike,
@@ -9,25 +9,25 @@ import type {
   BetterAuthRoleSourceOptions,
   BetterAuthStatements,
   BetterAuthUnmatchedStatement,
-} from './types.ts';
+} from "./types.ts";
 
-import { compact } from '../core/compact.ts';
-import { freezeDeep } from '../core/freeze.ts';
-import { listPermissions } from '../core/permissions.ts';
-import { allow, role } from '../core/policy.ts';
-import { membershipEvent } from '../core/sink.ts';
+import { compact } from "../core/compact.ts";
+import { freezeDeep } from "../core/freeze.ts";
+import { listPermissions } from "../core/permissions.ts";
+import { allow, role } from "../core/policy.ts";
+import { membershipEvent } from "../core/sink.ts";
 import {
   asStatements,
   parseOrganizationRoles,
   statementsCover,
-} from './parse.ts';
+} from "./parse.ts";
 
-export type SeededRoles = RoleBinding<'tenant'>[] & {
+export type SeededRoles = RoleBinding<"tenant">[] & {
   readonly unmatched: readonly BetterAuthUnmatchedStatement[];
 };
 
 function statementsOf(
-  accessRole: BetterAuthAccessControl['roles'][string],
+  accessRole: BetterAuthAccessControl["roles"][string],
 ): BetterAuthStatements {
   return asStatements(accessRole.statements ?? accessRole.permissions);
 }
@@ -35,11 +35,11 @@ function statementsOf(
 export function rolesFromAccessControl(
   access: BetterAuthAccessControl,
   permissions: PermissionTree,
-  options: { readonly on?: 'tenant' | 'global' } = {},
+  options: { readonly on?: "tenant" | "global" } = {},
 ): SeededRoles {
   const leaves = listPermissions(permissions);
   const unmatched: BetterAuthUnmatchedStatement[] = [];
-  const roles: RoleBinding<'tenant'>[] = [];
+  const roles: RoleBinding<"tenant">[] = [];
   for (const [name, accessRole] of Object.entries(access.roles)) {
     const statements = statementsOf(accessRole);
     const grants = [];
@@ -56,8 +56,8 @@ export function rolesFromAccessControl(
       }
     }
     roles.push(
-      options.on === 'tenant'
-        ? role(name, grants, { on: 'tenant' })
+      options.on === "tenant"
+        ? role(name, grants, { on: "tenant" })
         : role(name, grants),
     );
   }
@@ -111,8 +111,8 @@ function scopeOfChange(event: BetterAuthRoleChangeEvent): {
     return {};
   }
   return event.teamId === undefined
-    ? { scope: 'tenant', id: tenant }
-    : { scope: 'team', id: event.teamId, within: { tenant } };
+    ? { scope: "tenant", id: tenant }
+    : { scope: "team", id: event.teamId, within: { tenant } };
 }
 
 export function onRoleChange(
@@ -135,15 +135,15 @@ export function onRoleChange(
         : [];
     const operation =
       event.previousRole === undefined
-        ? 'added'
+        ? "added"
         : event.role === undefined
-          ? 'removed'
-          : 'changed';
+          ? "removed"
+          : "changed";
     try {
       await sink.write([
         membershipEvent(
           compact<Parameters<typeof membershipEvent>[0]>({
-            source: 'better-auth',
+            source: "better-auth",
             operation,
             principal: { id: event.userId },
             ...scopeOfChange(event),

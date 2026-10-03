@@ -1,34 +1,34 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import type { ApprovalStore } from '../approvals/index.ts';
+import type { ApprovalStore } from "../approvals/index.ts";
 import type {
   LimitStore,
   Principal,
   RevocationFeed,
   RoleSource,
   Subject,
-} from '../index.ts';
-import type { SaasProject } from './saas/permissions.ts';
+} from "../index.ts";
+import type { SaasProject } from "./saas/permissions.ts";
 
 import {
   APPROVAL_HEADER,
   memoryApprovalStore,
   resolveApproval,
-} from '../approvals/index.ts';
+} from "../approvals/index.ts";
 import {
   createPermDock,
   memoryLimitStore,
   memoryRevocationFeed,
   memoryRoleSource,
-} from '../index.ts';
-import { saasPolicy } from './saas/policy.ts';
+} from "../index.ts";
+import { saasPolicy } from "./saas/policy.ts";
 import {
   saasCustomRoles,
   saasOrg,
   saasPrincipal,
   saasSeed,
-} from './saas/seed.ts';
-import { signSaasToken, verifySaasSession } from './saas/tokens.ts';
+} from "./saas/seed.ts";
+import { signSaasToken, verifySaasSession } from "./saas/tokens.ts";
 
 /**
  * What a mount wires into its framework. Every value is server-side: the
@@ -71,26 +71,26 @@ export type HttpScenarioDomain = {
 };
 
 export type HttpOp =
-  | { readonly op: 'project.get'; readonly org: string; readonly id: string }
-  | { readonly op: 'project.update'; readonly org: string; readonly id: string }
+  | { readonly op: "project.get"; readonly org: string; readonly id: string }
+  | { readonly op: "project.update"; readonly org: string; readonly id: string }
   | {
-      readonly op: 'project.create';
+      readonly op: "project.create";
       readonly org: string;
       readonly body: unknown;
     }
-  | { readonly op: 'project.delete'; readonly org: string; readonly id: string }
+  | { readonly op: "project.delete"; readonly org: string; readonly id: string }
   | {
-      readonly op: 'project.upload';
+      readonly op: "project.upload";
       readonly org: string;
       readonly id: string;
       readonly file: { readonly name: string; readonly content: string };
     }
-  | { readonly op: 'analytics.read'; readonly org: string }
-  | { readonly op: 'apiKey.create'; readonly org: string }
-  | { readonly op: 'apiKey.revokeAll'; readonly org: string }
-  | { readonly op: 'admin.members'; readonly org: string }
+  | { readonly op: "analytics.read"; readonly org: string }
+  | { readonly op: "apiKey.create"; readonly org: string }
+  | { readonly op: "apiKey.revokeAll"; readonly org: string }
+  | { readonly op: "admin.members"; readonly org: string }
   | {
-      readonly op: 'evaluations';
+      readonly op: "evaluations";
       readonly org: string;
       readonly body: unknown;
     };
@@ -138,24 +138,24 @@ export type HttpMounted = {
 };
 
 export type HttpScenarioName =
-  | 'tenant'
-  | 'roles'
-  | 'custom-roles'
-  | 'plans'
-  | 'expired'
-  | 'limits'
-  | 'validation'
-  | 'assert'
-  | 'approval'
-  | 'stale-approval'
-  | 'evaluations'
-  | 'upload'
-  | 'sub-app'
-  | 'parallel'
-  | 'stream-revoked'
-  | 'stream-demoted'
-  | 'stream-filter'
-  | 'stream-expired';
+  | "tenant"
+  | "roles"
+  | "custom-roles"
+  | "plans"
+  | "expired"
+  | "limits"
+  | "validation"
+  | "assert"
+  | "approval"
+  | "stale-approval"
+  | "evaluations"
+  | "upload"
+  | "sub-app"
+  | "parallel"
+  | "stream-revoked"
+  | "stream-demoted"
+  | "stream-filter"
+  | "stream-expired";
 
 export type HttpAdapterOptions = {
   readonly name: string;
@@ -177,7 +177,7 @@ function project(id: string): SaasProject {
 }
 
 function bearerToken(authorization: string | null | undefined): string | null {
-  if (typeof authorization !== 'string') {
+  if (typeof authorization !== "string") {
     return null;
   }
   const match = /^Bearer (\S+)$/u.exec(authorization);
@@ -185,7 +185,7 @@ function bearerToken(authorization: string | null | undefined): string | null {
 }
 
 function orgOf(path: string): string | undefined {
-  const [segment] = path.replace(/^\/+/u, '').split('/');
+  const [segment] = path.replace(/^\/+/u, "").split("/");
   return segment === undefined || segment.length === 0
     ? undefined
     : saasOrg(segment)?.id;
@@ -196,10 +196,10 @@ async function pause(ms: number, signal: AbortSignal): Promise<void> {
     const timer = setTimeout(done, ms);
     function done(): void {
       clearTimeout(timer);
-      signal.removeEventListener('abort', done);
+      signal.removeEventListener("abort", done);
       resolve();
     }
-    signal.addEventListener('abort', done, { once: true });
+    signal.addEventListener("abort", done, { once: true });
   });
 }
 
@@ -282,13 +282,13 @@ function createDomain(): HttpScenarioDomain & Demotions {
 function restRequest(base: string, call: HttpCall): Request {
   const headers = new Headers();
   if (call.authorization !== null) {
-    headers.set('authorization', call.authorization);
+    headers.set("authorization", call.authorization);
   }
   if (call.approval !== undefined) {
     headers.set(APPROVAL_HEADER, call.approval);
   }
   const json = (method: string, path: string, body: unknown): Request => {
-    headers.set('content-type', 'application/json');
+    headers.set("content-type", "application/json");
     return new Request(`${base}${path}`, {
       method,
       headers,
@@ -298,36 +298,36 @@ function restRequest(base: string, call: HttpCall): Request {
   const plain = (method: string, path: string): Request =>
     new Request(`${base}${path}`, { method, headers });
   switch (call.op) {
-    case 'project.get':
-      return plain('GET', `/${call.org}/projects/${call.id}`);
-    case 'project.update':
-      return json('PATCH', `/${call.org}/projects/${call.id}`, {
-        name: 'Renamed',
+    case "project.get":
+      return plain("GET", `/${call.org}/projects/${call.id}`);
+    case "project.update":
+      return json("PATCH", `/${call.org}/projects/${call.id}`, {
+        name: "Renamed",
       });
-    case 'project.create':
-      return json('POST', `/${call.org}/projects`, call.body);
-    case 'project.delete':
-      return plain('DELETE', `/${call.org}/projects/${call.id}`);
-    case 'project.upload': {
+    case "project.create":
+      return json("POST", `/${call.org}/projects`, call.body);
+    case "project.delete":
+      return plain("DELETE", `/${call.org}/projects/${call.id}`);
+    case "project.upload": {
       const form = new FormData();
-      form.set('file', new Blob([call.file.content]), call.file.name);
+      form.set("file", new Blob([call.file.content]), call.file.name);
       return new Request(`${base}/${call.org}/projects/${call.id}/files`, {
-        method: 'POST',
+        method: "POST",
         headers,
         body: form,
       });
     }
-    case 'analytics.read':
-      return plain('GET', `/${call.org}/analytics`);
-    case 'apiKey.create':
-      return plain('POST', `/${call.org}/api-keys`);
-    case 'apiKey.revokeAll':
-      return plain('POST', `/${call.org}/api-keys/revoke-all`);
-    case 'admin.members':
-      return plain('GET', `/${call.org}/admin/members`);
-    case 'evaluations':
+    case "analytics.read":
+      return plain("GET", `/${call.org}/analytics`);
+    case "apiKey.create":
+      return plain("POST", `/${call.org}/api-keys`);
+    case "apiKey.revokeAll":
+      return plain("POST", `/${call.org}/api-keys/revoke-all`);
+    case "admin.members":
+      return plain("GET", `/${call.org}/admin/members`);
+    case "evaluations":
       return json(
-        'POST',
+        "POST",
         `/${call.org}/permdock/access/v1/evaluations`,
         call.body,
       );
@@ -353,15 +353,15 @@ async function readResult(response: Response): Promise<HttpResult> {
 
 function field(body: unknown, key: string): unknown {
   // SAFETY: body was checked to be a non-null object; the field stays unknown.
-  return body !== null && typeof body === 'object'
+  return body !== null && typeof body === "object"
     ? (body as Record<string, unknown>)[key]
     : undefined;
 }
 
 function reasonsOf(body: unknown): readonly unknown[] {
-  const denials = field(body, 'denials');
+  const denials = field(body, "denials");
   return Array.isArray(denials)
-    ? denials.map((denial: unknown) => field(denial, 'reason'))
+    ? denials.map((denial: unknown) => field(denial, "reason"))
     : [];
 }
 
@@ -382,16 +382,16 @@ const PARALLEL: readonly {
   readonly id: string;
   readonly status: number;
 }[] = [
-  { user: 'alice', org: 'acme', id: 'p1', status: 200 },
-  { user: 'alice', org: 'globex', id: 'g1', status: 200 },
-  { user: 'alice', org: 'acme', id: 'g1', status: 403 },
-  { user: 'bob', org: 'acme', id: 'p1', status: 200 },
-  { user: 'bob', org: 'globex', id: 'g1', status: 403 },
-  { user: 'hank', org: 'acme', id: 'p3', status: 200 },
-  { user: 'mallory', org: 'acme', id: 'p1', status: 403 },
-  { user: null, org: 'acme', id: 'p1', status: 401 },
-  { user: 'erin', org: 'globex', id: 'g1', status: 200 },
-  { user: 'frank', org: 'acme', id: 'p1', status: 403 },
+  { user: "alice", org: "acme", id: "p1", status: 200 },
+  { user: "alice", org: "globex", id: "g1", status: 200 },
+  { user: "alice", org: "acme", id: "g1", status: 403 },
+  { user: "bob", org: "acme", id: "p1", status: 200 },
+  { user: "bob", org: "globex", id: "g1", status: 403 },
+  { user: "hank", org: "acme", id: "p3", status: 200 },
+  { user: "mallory", org: "acme", id: "p1", status: 403 },
+  { user: null, org: "acme", id: "p1", status: 401 },
+  { user: "erin", org: "globex", id: "g1", status: 200 },
+  { user: "frank", org: "acme", id: "p1", status: 403 },
 ];
 
 type Frame = { readonly event: string; readonly data: string };
@@ -420,23 +420,23 @@ async function within<T>(promise: Promise<T>, what: string): Promise<T> {
 }
 
 function parseFrame(raw: string): Frame | undefined {
-  let event = 'message';
+  let event = "message";
   const data: string[] = [];
   for (const line of raw.split(/\r?\n/u)) {
-    if (line.startsWith('event:')) {
-      event = line.slice('event:'.length).trim();
-    } else if (line.startsWith('data:')) {
-      data.push(line.slice('data:'.length).trimStart());
+    if (line.startsWith("event:")) {
+      event = line.slice("event:".length).trim();
+    } else if (line.startsWith("data:")) {
+      data.push(line.slice("data:".length).trimStart());
     }
   }
-  return data.length === 0 ? undefined : { event, data: data.join('\n') };
+  return data.length === 0 ? undefined : { event, data: data.join("\n") };
 }
 
 function eventStream(response: Response): EventStream {
   const reader = response.body
     ?.pipeThrough(new TextDecoderStream())
     .getReader();
-  let buffer = '';
+  let buffer = "";
   const next = async (): Promise<Frame | undefined> => {
     if (reader === undefined) {
       return undefined;
@@ -451,7 +451,7 @@ function eventStream(response: Response): EventStream {
         }
         continue;
       }
-      const chunk = await within(reader.read(), 'an SSE frame');
+      const chunk = await within(reader.read(), "an SSE frame");
       if (chunk.done) {
         return undefined;
       }
@@ -476,7 +476,7 @@ async function untilEnd(
     if (frame === undefined) {
       return { problem: undefined, ended: true };
     }
-    if (frame.event === 'permdock') {
+    if (frame.event === "permdock") {
       const problem: unknown = JSON.parse(frame.data);
       return { problem, ended: (await stream.next()) === undefined };
     }
@@ -497,8 +497,8 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
   ): void => {
     const reason =
       options.skip?.[name] ??
-      (name.startsWith('stream-') && options.streams !== true
-        ? 'no events stream'
+      (name.startsWith("stream-") && options.streams !== true
+        ? "no events stream"
         : undefined);
     it.skipIf(reason !== undefined)(
       reason === undefined ? title : `${title} (${reason})`,
@@ -515,14 +515,14 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
     beforeAll(async () => {
       mounted = await options.mount(domain);
       for (const user of [
-        'alice',
-        'bob',
-        'carol',
-        'dave',
-        'erin',
-        'frank',
-        'hank',
-        'mallory',
+        "alice",
+        "bob",
+        "carol",
+        "dave",
+        "erin",
+        "frank",
+        "hank",
+        "mallory",
       ]) {
         tokens.set(
           user,
@@ -554,7 +554,7 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
         );
       }
       return readResult(
-        await mounted.fetch(restRequest('http://app.test', call)),
+        await mounted.fetch(restRequest("http://app.test", call)),
       );
     };
 
@@ -566,9 +566,9 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
       if (mounted.fetch === undefined) {
         throw new Error(`${options.name}: streams need a fetch mount`);
       }
-      const headers = new Headers({ accept: 'text/event-stream' });
+      const headers = new Headers({ accept: "text/event-stream" });
       if (authorization !== null) {
-        headers.set('authorization', authorization);
+        headers.set("authorization", authorization);
       }
       return eventStream(
         await mounted.fetch(
@@ -580,152 +580,152 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
     };
 
     scenario(
-      'tenant',
-      'resolves the tenant from the path on every protect',
+      "tenant",
+      "resolves the tenant from the path on every protect",
       async () => {
         expect(
-          (await send('alice', { op: 'project.get', org: 'acme', id: 'p2' }))
+          (await send("alice", { op: "project.get", org: "acme", id: "p2" }))
             .status,
         ).toBe(200);
         expect(
-          (await send('alice', { op: 'project.get', org: 'globex', id: 'g1' }))
+          (await send("alice", { op: "project.get", org: "globex", id: "g1" }))
             .status,
         ).toBe(200);
         expect(
-          (await send('alice', { op: 'project.get', org: 'acme', id: 'g1' }))
+          (await send("alice", { op: "project.get", org: "acme", id: "g1" }))
             .status,
         ).toBe(403);
         expect(
-          (await send('mallory', { op: 'project.get', org: 'acme', id: 'p1' }))
+          (await send("mallory", { op: "project.get", org: "acme", id: "p1" }))
             .status,
         ).toBe(403);
         expect(
-          (await send(null, { op: 'project.get', org: 'acme', id: 'p1' }))
+          (await send(null, { op: "project.get", org: "acme", id: "p1" }))
             .status,
         ).toBe(401);
       },
     );
 
     scenario(
-      'roles',
-      'applies the role held in the requested org',
+      "roles",
+      "applies the role held in the requested org",
       async () => {
         expect(
-          (await send('alice', { op: 'project.update', org: 'acme', id: 'p1' }))
+          (await send("alice", { op: "project.update", org: "acme", id: "p1" }))
             .status,
         ).toBe(200);
         expect(
           (
-            await send('alice', {
-              op: 'project.update',
-              org: 'globex',
-              id: 'g1',
+            await send("alice", {
+              op: "project.update",
+              org: "globex",
+              id: "g1",
             })
           ).status,
         ).toBe(403);
         expect(
-          (await send('bob', { op: 'project.update', org: 'acme', id: 'p1' }))
+          (await send("bob", { op: "project.update", org: "acme", id: "p1" }))
             .status,
         ).toBe(200);
         expect(
-          (await send('bob', { op: 'project.update', org: 'acme', id: 'p2' }))
+          (await send("bob", { op: "project.update", org: "acme", id: "p2" }))
             .status,
         ).toBe(403);
       },
     );
 
-    scenario('custom-roles', 'grants through an org custom role', async () => {
+    scenario("custom-roles", "grants through an org custom role", async () => {
       const body = {
-        id: 'c1',
-        orgId: 'acme',
-        ownerId: 'dave',
-        name: 'Contract',
+        id: "c1",
+        orgId: "acme",
+        ownerId: "dave",
+        name: "Contract",
         archived: false,
       };
       expect(
-        (await send('dave', { op: 'project.create', org: 'acme', body }))
+        (await send("dave", { op: "project.create", org: "acme", body }))
           .status,
       ).toBe(201);
       expect(
-        (await send('hank', { op: 'project.create', org: 'acme', body }))
+        (await send("hank", { op: "project.create", org: "acme", body }))
           .status,
       ).toBe(403);
     });
 
     scenario(
-      'plans',
-      'gates a feature on the plan of the requested org',
+      "plans",
+      "gates a feature on the plan of the requested org",
       async () => {
         expect(
-          (await send('erin', { op: 'analytics.read', org: 'globex' })).status,
+          (await send("erin", { op: "analytics.read", org: "globex" })).status,
         ).toBe(200);
-        const upgrade = await send('erin', {
-          op: 'analytics.read',
-          org: 'acme',
+        const upgrade = await send("erin", {
+          op: "analytics.read",
+          org: "acme",
         });
         expect(upgrade.status).toBe(403);
         expect(new Set(reasonsOf(upgrade.body))).toEqual(
-          new Set(['not-entitled']),
+          new Set(["not-entitled"]),
         );
       },
     );
 
-    scenario('expired', 'ignores an expired membership', async () => {
+    scenario("expired", "ignores an expired membership", async () => {
       expect(
-        (await send('frank', { op: 'project.get', org: 'acme', id: 'p1' }))
+        (await send("frank", { op: "project.get", org: "acme", id: "p1" }))
           .status,
       ).toBe(403);
     });
 
-    scenario('limits', 'counts a quota per subject and tenant', async () => {
+    scenario("limits", "counts a quota per subject and tenant", async () => {
       for (let index = 0; index < 5; index += 1) {
         expect(
-          (await send('erin', { op: 'apiKey.create', org: 'acme' })).status,
+          (await send("erin", { op: "apiKey.create", org: "acme" })).status,
         ).toBe(201);
       }
-      const exhausted = await send('erin', {
-        op: 'apiKey.create',
-        org: 'acme',
+      const exhausted = await send("erin", {
+        op: "apiKey.create",
+        org: "acme",
       });
       expect(exhausted.status).toBe(429);
-      expect(reasonsOf(exhausted.body)).toContain('limit');
+      expect(reasonsOf(exhausted.body)).toContain("limit");
       expect(
-        (await send('erin', { op: 'apiKey.create', org: 'globex' })).status,
+        (await send("erin", { op: "apiKey.create", org: "globex" })).status,
       ).toBe(201);
     });
 
     scenario(
-      'validation',
-      'validates an untrusted body before the check',
+      "validation",
+      "validates an untrusted body before the check",
       async () => {
         const valid = {
-          id: 'n2',
-          orgId: 'acme',
-          ownerId: 'bob',
-          name: 'New',
+          id: "n2",
+          orgId: "acme",
+          ownerId: "bob",
+          name: "New",
           archived: false,
         };
         expect(
           (
-            await send('bob', {
-              op: 'project.create',
-              org: 'acme',
+            await send("bob", {
+              op: "project.create",
+              org: "acme",
               body: valid,
             })
           ).status,
         ).toBe(201);
-        const invalid = await send('bob', {
-          op: 'project.create',
-          org: 'acme',
+        const invalid = await send("bob", {
+          op: "project.create",
+          org: "acme",
           body: { ...valid, name: 42 },
         });
         expect(invalid.status).toBe(400);
         expect(
           (
-            await send('bob', {
-              op: 'project.create',
-              org: 'acme',
-              body: { ...valid, orgId: 'globex' },
+            await send("bob", {
+              op: "project.create",
+              org: "acme",
+              body: { ...valid, orgId: "globex" },
             })
           ).status,
         ).toBe(403);
@@ -733,52 +733,52 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
     );
 
     scenario(
-      'assert',
-      'maps assert inside a handler to a 403 Problem',
+      "assert",
+      "maps assert inside a handler to a 403 Problem",
       async () => {
-        const denied = await send('bob', {
-          op: 'project.delete',
-          org: 'acme',
-          id: 'p2',
+        const denied = await send("bob", {
+          op: "project.delete",
+          org: "acme",
+          id: "p2",
         });
         expect(denied.status).toBe(403);
-        expect(field(denied.body, 'type')).toBe(
-          'https://permdock.dev/problems/denied',
+        expect(field(denied.body, "type")).toBe(
+          "https://permdock.dev/problems/denied",
         );
         expect(
-          (await send('bob', { op: 'project.delete', org: 'acme', id: 'p3' }))
+          (await send("bob", { op: "project.delete", org: "acme", id: "p3" }))
             .status,
         ).toBe(204);
         expect(
-          (await send('bob', { op: 'project.delete', org: 'acme', id: 'p4' }))
+          (await send("bob", { op: "project.delete", org: "acme", id: "p4" }))
             .status,
         ).toBe(403);
       },
     );
 
     scenario(
-      'approval',
-      'asks for approval, resumes once and refuses a replay',
+      "approval",
+      "asks for approval, resumes once and refuses a replay",
       async () => {
-        const asked = await send('alice', {
-          op: 'apiKey.revokeAll',
-          org: 'acme',
+        const asked = await send("alice", {
+          op: "apiKey.revokeAll",
+          org: "acme",
         });
         expect(asked.status).toBe(403);
-        expect(field(asked.body, 'type')).toBe(
-          'https://permdock.dev/problems/approval-required',
+        expect(field(asked.body, "type")).toBe(
+          "https://permdock.dev/problems/approval-required",
         );
-        const token = field(asked.body, 'token');
-        expect(typeof token).toBe('string');
+        const token = field(asked.body, "token");
+        expect(typeof token).toBe("string");
         await resolveApproval(domain.store, String(token), {
-          status: 'approved',
-          by: await approverSubject('carol', 'acme'),
+          status: "approved",
+          by: await approverSubject("carol", "acme"),
         });
         expect(
           (
             await send(
-              'alice',
-              { op: 'apiKey.revokeAll', org: 'acme' },
+              "alice",
+              { op: "apiKey.revokeAll", org: "acme" },
               String(token),
             )
           ).status,
@@ -786,28 +786,28 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
         expect(
           (
             await send(
-              'alice',
-              { op: 'apiKey.revokeAll', org: 'acme' },
+              "alice",
+              { op: "apiKey.revokeAll", org: "acme" },
               String(token),
             )
           ).status,
         ).toBe(403);
         expect(
-          (await send('carol', { op: 'apiKey.revokeAll', org: 'acme' })).status,
+          (await send("carol", { op: "apiKey.revokeAll", org: "acme" })).status,
         ).toBe(204);
       },
     );
 
     scenario(
-      'stale-approval',
-      'ignores an approval header meant for another request',
+      "stale-approval",
+      "ignores an approval header meant for another request",
       async () => {
         expect(
           (
             await send(
-              'bob',
-              { op: 'project.get', org: 'acme', id: 'p1' },
-              'pd1.not-a-real-token',
+              "bob",
+              { op: "project.get", org: "acme", id: "p1" },
+              "pd1.not-a-real-token",
             )
           ).status,
         ).toBe(200);
@@ -815,62 +815,62 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
     );
 
     scenario(
-      'evaluations',
-      'answers the decision endpoint in the path tenant',
+      "evaluations",
+      "answers the decision endpoint in the path tenant",
       async () => {
-        const result = await send('bob', {
-          op: 'evaluations',
-          org: 'acme',
+        const result = await send("bob", {
+          op: "evaluations",
+          org: "acme",
           body: {
             evaluations: [
               {
-                action: { name: 'project.update' },
+                action: { name: "project.update" },
                 resource: {
-                  type: 'project',
-                  id: 'p1',
-                  properties: project('p1'),
+                  type: "project",
+                  id: "p1",
+                  properties: project("p1"),
                 },
               },
               {
-                action: { name: 'project.update' },
+                action: { name: "project.update" },
                 resource: {
-                  type: 'project',
-                  id: 'p2',
-                  properties: project('p2'),
+                  type: "project",
+                  id: "p2",
+                  properties: project("p2"),
                 },
               },
             ],
           },
         });
         expect(result.status).toBe(200);
-        const rows = field(result.body, 'evaluations');
+        const rows = field(result.body, "evaluations");
         expect(
           Array.isArray(rows)
-            ? rows.map((row: unknown) => field(row, 'decision'))
+            ? rows.map((row: unknown) => field(row, "decision"))
             : rows,
         ).toEqual([true, false]);
       },
     );
 
     scenario(
-      'upload',
-      'leaves a multipart body to the framework parser',
+      "upload",
+      "leaves a multipart body to the framework parser",
       async () => {
-        const file = { name: 'notes.txt', content: 'hello' };
-        const uploaded = await send('bob', {
-          op: 'project.upload',
-          org: 'acme',
-          id: 'p1',
+        const file = { name: "notes.txt", content: "hello" };
+        const uploaded = await send("bob", {
+          op: "project.upload",
+          org: "acme",
+          id: "p1",
           file,
         });
         expect(uploaded.status).toBe(201);
-        expect(uploaded.body).toEqual({ name: 'notes.txt', size: 5 });
+        expect(uploaded.body).toEqual({ name: "notes.txt", size: 5 });
         expect(
           (
-            await send('bob', {
-              op: 'project.upload',
-              org: 'acme',
-              id: 'p2',
+            await send("bob", {
+              op: "project.upload",
+              org: "acme",
+              id: "p2",
               file,
             })
           ).status,
@@ -878,23 +878,23 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
       },
     );
 
-    scenario('sub-app', 'protects a route inside a sub-app', async () => {
+    scenario("sub-app", "protects a route inside a sub-app", async () => {
       expect(
-        (await send('alice', { op: 'admin.members', org: 'acme' })).status,
+        (await send("alice", { op: "admin.members", org: "acme" })).status,
       ).toBe(200);
       expect(
-        (await send('bob', { op: 'admin.members', org: 'acme' })).status,
+        (await send("bob", { op: "admin.members", org: "acme" })).status,
       ).toBe(403);
     });
 
     scenario(
-      'parallel',
-      'keeps 50 parallel requests with mixed subjects apart',
+      "parallel",
+      "keeps 50 parallel requests with mixed subjects apart",
       async () => {
         const calls = Array.from({ length: 50 }, (_, index) => {
           const entry = PARALLEL[(index * 7) % PARALLEL.length];
           if (entry === undefined) {
-            throw new Error('parallel table is empty');
+            throw new Error("parallel table is empty");
           }
           return entry;
         });
@@ -903,7 +903,7 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
             async (entry) =>
               (
                 await send(entry.user, {
-                  op: 'project.get',
+                  op: "project.get",
                   org: entry.org,
                   id: entry.id,
                 })
@@ -915,27 +915,27 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
     );
 
     scenario(
-      'stream-revoked',
-      'closes an open stream when the session is revoked',
+      "stream-revoked",
+      "closes an open stream when the session is revoked",
       async () => {
-        expect((await openStream(null, 'acme', 'p1')).status).toBe(401);
+        expect((await openStream(null, "acme", "p1")).status).toBe(401);
         const stream = await openStream(
-          tokens.get('bob') ?? null,
-          'acme',
-          'p1',
+          tokens.get("bob") ?? null,
+          "acme",
+          "p1",
         );
         try {
           expect(stream.status).toBe(200);
-          expect((await stream.next())?.event).toBe('message');
+          expect((await stream.next())?.event).toBe("message");
           await domain.revocations.revoke({
-            principal: 'bob',
-            kind: 'session-revoked',
+            principal: "bob",
+            kind: "session-revoked",
           });
           const end = await untilEnd(stream);
           expect(end.problem).toMatchObject({
-            type: 'https://permdock.dev/problems/unauthenticated',
+            type: "https://permdock.dev/problems/unauthenticated",
             status: 401,
-            detail: 'session-revoked',
+            detail: "session-revoked",
           });
           expect(end.ended).toBe(true);
         } finally {
@@ -945,26 +945,26 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
     );
 
     scenario(
-      'stream-demoted',
-      'closes an open stream when a membership change re-denies it',
+      "stream-demoted",
+      "closes an open stream when a membership change re-denies it",
       async () => {
         const stream = await openStream(
-          tokens.get('bob') ?? null,
-          'acme',
-          'p1',
+          tokens.get("bob") ?? null,
+          "acme",
+          "p1",
         );
-        const restore = domain.demote('bob', 'acme');
+        const restore = domain.demote("bob", "acme");
         try {
           expect(stream.status).toBe(200);
-          expect((await stream.next())?.event).toBe('message');
+          expect((await stream.next())?.event).toBe("message");
           await domain.revocations.revoke({
-            principal: 'bob',
-            tenant: 'acme',
-            kind: 'changed',
+            principal: "bob",
+            tenant: "acme",
+            kind: "changed",
           });
           const end = await untilEnd(stream);
           expect(end.problem).toMatchObject({
-            type: 'https://permdock.dev/problems/denied',
+            type: "https://permdock.dev/problems/denied",
             status: 403,
           });
           expect(end.ended).toBe(true);
@@ -976,23 +976,23 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
     );
 
     scenario(
-      'stream-filter',
-      'drops the items a subscriber cannot read and keeps the stream open',
+      "stream-filter",
+      "drops the items a subscriber cannot read and keeps the stream open",
       async () => {
         const stream = await openStream(
-          tokens.get('bob') ?? null,
-          'acme',
-          'p1',
+          tokens.get("bob") ?? null,
+          "acme",
+          "p1",
         );
         try {
           expect(stream.status).toBe(200);
           const ids: string[] = [];
           while (ids.length < 7) {
             const frame = await stream.next();
-            expect(frame?.event).toBe('message');
-            ids.push(String(field(JSON.parse(frame?.data ?? '{}'), 'id')));
+            expect(frame?.event).toBe("message");
+            ids.push(String(field(JSON.parse(frame?.data ?? "{}"), "id")));
           }
-          expect(new Set(ids)).toEqual(new Set(['p1', 'p3', 'p4']));
+          expect(new Set(ids)).toEqual(new Set(["p1", "p3", "p4"]));
         } finally {
           await stream.cancel();
         }
@@ -1000,21 +1000,21 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
     );
 
     scenario(
-      'stream-expired',
-      'closes an open stream when the token expires',
+      "stream-expired",
+      "closes an open stream when the token expires",
       async () => {
         const stream = await openStream(
-          `Bearer ${await signSaasToken('bob', { memberships: false, ttl: 2 })}`,
-          'acme',
-          'p1',
+          `Bearer ${await signSaasToken("bob", { memberships: false, ttl: 2 })}`,
+          "acme",
+          "p1",
         );
         try {
           expect(stream.status).toBe(200);
-          expect((await stream.next())?.event).toBe('message');
+          expect((await stream.next())?.event).toBe("message");
           const end = await untilEnd(stream);
           expect(end.problem).toMatchObject({
-            type: 'https://permdock.dev/problems/unauthenticated',
-            detail: 'expired',
+            type: "https://permdock.dev/problems/unauthenticated",
+            detail: "expired",
           });
           expect(end.ended).toBe(true);
         } finally {

@@ -1,4 +1,4 @@
-import { noStore, kernel, signer } from '../../lib/server';
+import { noStore, kernel, signer } from "../../lib/server";
 
 /** The signed snapshot: a JSON string holding a `permdock-snapshot+jwt` JWS. */
 export async function GET(request: Request): Promise<Response> {

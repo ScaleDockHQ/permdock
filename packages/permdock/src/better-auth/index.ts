@@ -2,9 +2,9 @@ export {
   onRoleChange,
   betterAuthRoleSource,
   rolesFromAccessControl,
-} from './roles.ts';
-export type { SeededRoles } from './roles.ts';
-export { subjectFromBetterAuth } from './subject.ts';
+} from "./roles.ts";
+export type { SeededRoles } from "./roles.ts";
+export { subjectFromBetterAuth } from "./subject.ts";
 export type {
   BetterAuthAccessControl,
   BetterAuthAccessRole,
@@ -16,4 +16,4 @@ export type {
   BetterAuthStatements,
   BetterAuthSubjectOptions,
   BetterAuthUnmatchedStatement,
-} from './types.ts';
+} from "./types.ts";

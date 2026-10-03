@@ -10,75 +10,75 @@ packages:
   - tests/types/*
 
 catalog:
-  '@ai-sdk/react': 4.0.130
-  '@anthropic-ai/claude-agent-sdk': 0.3.287
-  '@modelcontextprotocol/client': 2.2.0
-  '@modelcontextprotocol/server': 2.2.0
-  '@openai/agents': 0.18.0
-  '@nestjs/common': 12.1.2
-  '@nestjs/core': 12.1.2
-  '@nestjs/platform-express': 12.1.2
-  '@nestjs/platform-fastify': 12.1.2
-  '@fastify/multipart': 10.1.2
-  '@hono/node-server': 2.1.3
-  '@arethetypeswrong/cli': 0.18.5
-  '@expo/log-box': 57.0.4
-  '@expo/metro-runtime': 57.0.16
-  '@react-native/metro-config': 0.87.1
-  '@sveltejs/vite-plugin-svelte': 7.3.1
-  '@sveltejs/kit': 2.70.3
-  '@sveltejs/adapter-node': 5.5.7
+  "@ai-sdk/react": 4.0.130
+  "@anthropic-ai/claude-agent-sdk": 0.3.287
+  "@modelcontextprotocol/client": 2.2.0
+  "@modelcontextprotocol/server": 2.2.0
+  "@openai/agents": 0.18.0
+  "@nestjs/common": 12.1.2
+  "@nestjs/core": 12.1.2
+  "@nestjs/platform-express": 12.1.2
+  "@nestjs/platform-fastify": 12.1.2
+  "@fastify/multipart": 10.1.2
+  "@hono/node-server": 2.1.3
+  "@arethetypeswrong/cli": 0.18.5
+  "@expo/log-box": 57.0.4
+  "@expo/metro-runtime": 57.0.16
+  "@react-native/metro-config": 0.87.1
+  "@sveltejs/vite-plugin-svelte": 7.3.1
+  "@sveltejs/kit": 2.70.3
+  "@sveltejs/adapter-node": 5.5.7
   nuxt: 4.5.2
-  '@tanstack/react-start': 1.168.60
-  '@tanstack/react-router': 1.170.41
-  '@solidjs/start': 2.0.5
-  '@solidjs/router': 1.0.0
+  "@tanstack/react-start": 1.168.60
+  "@tanstack/react-router": 1.170.41
+  "@solidjs/start": 2.0.5
+  "@solidjs/router": 1.0.0
   nitro: 3.0.260903-beta
-  '@react-native-async-storage/async-storage': 3.1.1
-  '@vitejs/plugin-react': 6.1.1
-  '@vitejs/plugin-vue': 6.0.9
+  "@react-native-async-storage/async-storage": 3.1.1
+  "@vitejs/plugin-react": 6.1.1
+  "@vitejs/plugin-vue": 6.0.9
   ai: 7.0.127
-  '@changesets/cli': 3.0.3
-  '@fumadocs/local-md': 0.3.5
-  '@types/mdast': 4.0.4
+  "@changesets/cli": 3.0.3
+  "@fumadocs/local-md": 0.3.5
+  "@types/mdast": 4.0.4
   mdast-util-mdx-jsx: 3.2.0
   unist-util-visit: 5.1.0
-  '@sentry/nextjs': 11.3.0
-  '@t3-oss/env-nextjs': 0.13.11
-  '@vercel/analytics': 2.0.1
-  '@vercel/speed-insights': 2.0.0
+  "@sentry/nextjs": 11.3.0
+  "@t3-oss/env-nextjs": 0.13.11
+  "@vercel/analytics": 2.0.1
+  "@vercel/speed-insights": 2.0.0
   valibot: 1.5.0
-  '@changesets/assemble-release-plan': 7.0.0
-  '@changesets/config': 4.0.1
-  '@changesets/pre': 3.0.0
-  '@changesets/read': 1.0.1
-  '@manypkg/get-packages': 3.1.0
-  '@commitlint/cli': 21.2.3
-  '@commitlint/config-conventional': 21.2.3
-  '@commitlint/types': 21.2.3
-  '@orpc/server': 2.0.0-beta.41
-  '@orpc/client': 2.0.0-beta.41
+  "@changesets/assemble-release-plan": 7.0.0
+  "@changesets/config": 4.0.1
+  "@changesets/pre": 3.0.0
+  "@changesets/read": 1.0.1
+  "@manypkg/get-packages": 3.1.0
+  "@commitlint/cli": 21.2.3
+  "@commitlint/config-conventional": 21.2.3
+  "@commitlint/types": 21.2.3
+  "@orpc/server": 2.0.0-beta.41
+  "@orpc/client": 2.0.0-beta.41
   vue: 3.5.43
   svelte: 5.57.1
-  'solid-js': 1.9.15
-  '@base-ui/react': 1.8.0
-  '@standard-schema/spec': 1.1.0
-  '@supabase/middleware': 1.0.0
-  '@supabase/server': 1.9.0
-  '@supabase/supabase-js': 2.117.2
-  '@testcontainers/postgresql': 12.2.0
-  '@trpc/server': 11.19.0
-  '@trpc/client': 11.19.0
-  '@tailwindcss/postcss': 4.3.3
-  '@types/express': 5.0.6
-  '@types/multer': 2.3.0
-  '@types/mdx': 2.0.14
-  '@types/node': 24.19.1
-  '@types/pg': 8.23.1
-  '@types/react': 19.3.0
-  '@types/react-dom': 19.3.0
-  '@types/ws': 8.18.2
-  '@vitest/coverage-v8': 5.0.3
+  "solid-js": 1.9.15
+  "@base-ui/react": 1.8.0
+  "@standard-schema/spec": 1.1.0
+  "@supabase/middleware": 1.0.0
+  "@supabase/server": 1.9.0
+  "@supabase/supabase-js": 2.117.2
+  "@testcontainers/postgresql": 12.2.0
+  "@trpc/server": 11.19.0
+  "@trpc/client": 11.19.0
+  "@tailwindcss/postcss": 4.3.3
+  "@types/express": 5.0.6
+  "@types/multer": 2.3.0
+  "@types/mdx": 2.0.14
+  "@types/node": 24.19.1
+  "@types/pg": 8.23.1
+  "@types/react": 19.3.0
+  "@types/react-dom": 19.3.0
+  "@types/ws": 8.18.2
+  "@vitest/coverage-v8": 5.0.3
   class-variance-authority: 0.7.1
   cn: 0.4.0
   babel-preset-expo: 57.0.13
@@ -86,10 +86,10 @@ catalog:
   elysia: 1.4.30
   esbuild: 0.28.2
   drizzle-orm: 1.0.0-rc.4
-  '@electric-sql/pglite': 0.5.8
-  '@electric-sql/pglite-socket': 0.2.11
-  '@prisma/adapter-pg': 7.10.0
-  '@prisma/client': 7.10.0
+  "@electric-sql/pglite": 0.5.8
+  "@electric-sql/pglite-socket": 0.2.11
+  "@prisma/adapter-pg": 7.10.0
+  "@prisma/client": 7.10.0
   prisma: 7.10.0
   eve: 0.70.0
   expo: 57.0.26
@@ -117,16 +117,16 @@ catalog:
   next-themes: 0.4.6
   ajv: 8.20.0
   oxc-parser: 0.152.0
-  '@oxlint/plugins': 1.86.0
+  "@oxlint/plugins": 1.86.0
   eslint-plugin-turbo: 2.11.6
   eslint-plugin-playwright: 2.12.0
   oxlint-plugin-react-doctor: 0.9.14
-  '@shadcn/lint': 0.2.0
+  "@shadcn/lint": 0.2.0
   oxfmt: 0.71.0
   oxlint: 1.86.0
   oxlint-tsgolint: 7.0.2003
-  '@next/playwright': 16.3.8
-  '@playwright/test': 1.63.0
+  "@next/playwright": 16.3.8
+  "@playwright/test": 1.63.0
   pgsql-parser: 18.2.8
   pg: 8.23.1
   postcss: 8.5.28
@@ -158,26 +158,26 @@ catalog:
   zod: 4.6.5
   motion: 14.0.0
   sonner: 2.0.8
-  '@streamdown/cjk': 1.0.4
-  '@streamdown/code': 2.0.0
-  '@streamdown/math': 1.0.3
-  '@streamdown/mermaid': 1.0.3
+  "@streamdown/cjk": 1.0.4
+  "@streamdown/code": 2.0.0
+  "@streamdown/math": 1.0.3
+  "@streamdown/mermaid": 1.0.3
   streamdown: 2.7.0
   use-stick-to-bottom: 1.1.6
-  '@ai-sdk/otel': 1.0.127
+  "@ai-sdk/otel": 1.0.127
   dotenv-cli: 11.0.0
   portless: 0.15.7
-  '@axe-core/playwright': 4.13.0
+  "@axe-core/playwright": 4.13.0
   better-supabase: 0.4.0
   supabase: 2.119.0
   server-only: 0.0.1
-  '@clack/prompts': 1.8.1
+  "@clack/prompts": 1.8.1
   citty: 0.2.2
   jiti: 2.7.0
   package-manager-detector: 1.8.0
   smol-toml: 1.9.0
   diff: 9.0.0
-  '@vercel/firewall': 1.2.5
+  "@vercel/firewall": 1.2.5
   botid: 1.5.11
 
 catalogs:
@@ -186,36 +186,36 @@ catalogs:
   ts6:
     typescript: 6.0.3
   peers:
-    '@anthropic-ai/claude-agent-sdk': '>=0.2'
-    '@modelcontextprotocol/server': '>=2'
-    '@nestjs/common': '>=12'
-    '@nestjs/core': '>=12'
-    '@nestjs/platform-express': '>=12'
-    '@openai/agents': '>=0.1'
-    '@opentelemetry/api': '>=1'
-    '@orpc/server': '>=2.0.0-0'
-    '@supabase/middleware': '>=1'
-    '@trpc/server': '>=11'
-    ai: '>=5'
-    drizzle-orm: '>=0.40 || >=1.0.0-rc.0'
-    elysia: '>=1'
-    eve: '>=0.40'
-    express: '>=4'
-    fastify: '>=5'
-    hono: '>=4'
-    jose: '^6'
-    kysely: '>=0.27'
-    next: '>=16.3'
-    pg: '>=8'
-    pgsql-parser: '>=18'
-    react: '^19'
-    reflect-metadata: '>=0.1'
-    rxjs: '>=7'
-    'solid-js': '>=1.9'
-    svelte: '>=5'
-    unplugin: '>=2'
-    vitest: '>=3'
-    vue: '>=3'
+    "@anthropic-ai/claude-agent-sdk": ">=0.2"
+    "@modelcontextprotocol/server": ">=2"
+    "@nestjs/common": ">=12"
+    "@nestjs/core": ">=12"
+    "@nestjs/platform-express": ">=12"
+    "@openai/agents": ">=0.1"
+    "@opentelemetry/api": ">=1"
+    "@orpc/server": ">=2.0.0-0"
+    "@supabase/middleware": ">=1"
+    "@trpc/server": ">=11"
+    ai: ">=5"
+    drizzle-orm: ">=0.40 || >=1.0.0-rc.0"
+    elysia: ">=1"
+    eve: ">=0.40"
+    express: ">=4"
+    fastify: ">=5"
+    hono: ">=4"
+    jose: "^6"
+    kysely: ">=0.27"
+    next: ">=16.3"
+    pg: ">=8"
+    pgsql-parser: ">=18"
+    react: "^19"
+    reflect-metadata: ">=0.1"
+    rxjs: ">=7"
+    "solid-js": ">=1.9"
+    svelte: ">=5"
+    unplugin: ">=2"
+    vitest: ">=3"
+    vue: ">=3"
 
 catalogMode: strict
 catalogPrune: true
@@ -225,9 +225,9 @@ minimumReleaseAgeExclude:
   # First-party ScaleDockHQ release, adopted on publish day; remove after 2026-10-04 13:52 UTC.
   - better-supabase@0.4.0
 nodeLinker: isolated
-nodeOptions: '${NODE_OPTIONS:- } --disable-warning=MODULE_TYPELESS_PACKAGE_JSON'
+nodeOptions: "${NODE_OPTIONS:- } --disable-warning=MODULE_TYPELESS_PACKAGE_JSON"
 saveExact: true
-savePrefix: ''
+savePrefix: ""
 strictDepBuilds: true
 strictPeerDependencies: true
 trustPolicy: no-downgrade
@@ -241,16 +241,16 @@ trustPolicyExclude:
 peerDependencyRules:
   allowedVersions:
     # Only its optional Nest integration needs the peer; tests/integration runs Nest 12.
-    '@supabase/server>@nestjs/common': '12'
+    "@supabase/server>@nestjs/common": "12"
     # Only `svelte-kit sync` type generation reads it; the e2e fixture builds with Vite.
-    '@sveltejs/kit>typescript': '7'
+    "@sveltejs/kit>typescript": "7"
     # Pins oxfmt 0.66.0 exactly; better-supabase, its only parent, accepts >=0.66.
-    '@supabase/postgrest-typegen>oxfmt': '0.71'
+    "@supabase/postgrest-typegen>oxfmt": "0.71"
 
 # The VS Code TypeScript native preview looks for `@typescript/typescript-<platform>`
 # next to `node_modules/typescript` without following pnpm's symlinks.
 publicHoistPattern:
-  - '@typescript/*'
+  - "@typescript/*"
 
 packageExtensions:
   # Oxlint loads these plugins through `jsPlugins`; they import only ESLint types.
@@ -263,38 +263,38 @@ packageExtensions:
       eslint:
         optional: true
   # Oxlint parses the files itself, so neither ESLint nor its TypeScript parser loads.
-  '@shadcn/lint':
+  "@shadcn/lint":
     peerDependenciesMeta:
       eslint:
         optional: true
-      '@typescript-eslint/parser':
+      "@typescript-eslint/parser":
         optional: true
 
 # No `typescript: 'catalog:'` override: tests/types pins TypeScript 5.9 and 6
 # through `catalog:ts59` and `catalog:ts6`, and an override would force them to 7.
 overrides:
   # drizzle-orm takes kysely as an optional peer; one kysely keeps one drizzle-orm variant, so its `SQL` type matches between permdock and the examples.
-  kysely: 'catalog:'
+  kysely: "catalog:"
   # drizzle-orm also takes pg as an optional peer; @prisma/adapter-pg and @supabase/server pin an older patch.
-  pg: 'catalog:'
+  pg: "catalog:"
   # One React, React DOM and Next.js everywhere, so hooks and server components never see two copies.
-  next: 'catalog:'
-  react: 'catalog:'
-  react-dom: 'catalog:'
+  next: "catalog:"
+  react: "catalog:"
+  react-dom: "catalog:"
   # Expo SDK 57 packages ask for their own copies; one version keeps the Expo example and fixture on one Metro and worklets runtime.
-  '@react-native/metro-config': 'catalog:'
-  react-native-worklets: 'catalog:'
+  "@react-native/metro-config": "catalog:"
+  react-native-worklets: "catalog:"
   # Patched releases for exact pins whose parent has no fixed stable release; drop each once the parent ships one.
-  'miniflare>undici': 7.30.0
-  'miniflare>sharp': 0.35.5
-  'eve>undici': 8.11.2
-  'openai>undici': 8.11.2
+  "miniflare>undici": 7.30.0
+  "miniflare>sharp": 0.35.5
+  "eve>undici": 8.11.2
+  "openai>undici": 8.11.2
   mysql2: 3.24.5
-  '@prisma/config>deepmerge-ts': 8.0.2
+  "@prisma/config>deepmerge-ts": 8.0.2
 
 allowBuilds:
   # Engine downloads are for `prisma migrate`; tests/integration creates tables with SQL.
-  '@prisma/engines': false
+  "@prisma/engines": false
   prisma: false
   # testcontainers talks to Docker through dockerode, which compiles ssh2 and its cpu-features helper.
   cpu-features: true

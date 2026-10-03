@@ -1,9 +1,9 @@
-import type { TokenFailureCause } from '../core/interfaces.ts';
+import type { TokenFailureCause } from "../core/interfaces.ts";
 import type {
   DiscoveryInput,
   JsonWebKeySet,
   JoseTokenVerifierOptions,
-} from './types.ts';
+} from "./types.ts";
 
 import {
   DEFAULT_JWKS_COOLDOWN,
@@ -11,7 +11,7 @@ import {
   DEFAULT_JWKS_MIN_TTL,
   DEFAULT_JWKS_TIMEOUT,
   issuerFromDiscovery,
-} from './config.ts';
+} from "./config.ts";
 
 export type ResolvedKeys =
   | { readonly ok: true; readonly jwks: JsonWebKeySet }
@@ -47,17 +47,17 @@ function cacheControlMaxAge(header: string | null): number | undefined {
 }
 
 function isHttpsUrl(value: unknown): value is string {
-  return typeof value === 'string' && URL.parse(value)?.protocol === 'https:';
+  return typeof value === "string" && URL.parse(value)?.protocol === "https:";
 }
 
 function discoveryUrls(issuer: string): readonly string[] {
   const url = new URL(issuer);
-  const oidc = new URL('/.well-known/openid-configuration', url.origin);
-  if (url.pathname !== '/' && url.pathname !== '') {
-    oidc.pathname = `${url.pathname.replace(/\/$/u, '')}/.well-known/openid-configuration`;
+  const oidc = new URL("/.well-known/openid-configuration", url.origin);
+  if (url.pathname !== "/" && url.pathname !== "") {
+    oidc.pathname = `${url.pathname.replace(/\/$/u, "")}/.well-known/openid-configuration`;
   }
   const rfc8414 = new URL(url.href);
-  const path = url.pathname === '/' ? '' : url.pathname.replace(/\/$/u, '');
+  const path = url.pathname === "/" ? "" : url.pathname.replace(/\/$/u, "");
   rfc8414.pathname = `/.well-known/oauth-authorization-server${path}`;
   return [oidc.href, rfc8414.href];
 }
@@ -91,7 +91,7 @@ export function createKeyCache(options: JoseTokenVerifierOptions): KeyCache {
   > => {
     try {
       const response = await fetchImpl(href, {
-        headers: { accept: 'application/json' },
+        headers: { accept: "application/json" },
         signal: AbortSignal.timeout(timeout),
       });
       if (!response.ok) {
@@ -103,14 +103,14 @@ export function createKeyCache(options: JoseTokenVerifierOptions): KeyCache {
         readonly jwks_uri?: string;
       };
       if (body.issuer !== issuer) {
-        discoveryCause = 'discovery-mismatch';
-        return { ok: false, cause: 'discovery-mismatch' };
+        discoveryCause = "discovery-mismatch";
+        return { ok: false, cause: "discovery-mismatch" };
       }
       if (!isHttpsUrl(body.jwks_uri)) {
         return undefined;
       }
       const ttl = clampTtl(
-        cacheControlMaxAge(response.headers.get('cache-control')) ?? maxTtl,
+        cacheControlMaxAge(response.headers.get("cache-control")) ?? maxTtl,
         minTtl,
         maxTtl,
       );
@@ -133,7 +133,7 @@ export function createKeyCache(options: JoseTokenVerifierOptions): KeyCache {
     | { readonly ok: false; readonly cause: TokenFailureCause }
   > => {
     if (
-      typeof discovery !== 'string' &&
+      typeof discovery !== "string" &&
       discovery.metadata?.jwks_uri !== undefined
     ) {
       const issuer = issuerFromDiscovery(discovery);
@@ -141,8 +141,8 @@ export function createKeyCache(options: JoseTokenVerifierOptions): KeyCache {
         discovery.metadata.issuer !== undefined &&
         discovery.metadata.issuer !== issuer
       ) {
-        discoveryCause = 'discovery-mismatch';
-        return Promise.resolve({ ok: false, cause: 'discovery-mismatch' });
+        discoveryCause = "discovery-mismatch";
+        return Promise.resolve({ ok: false, cause: "discovery-mismatch" });
       }
       return Promise.resolve({
         ok: true,
@@ -180,7 +180,7 @@ export function createKeyCache(options: JoseTokenVerifierOptions): KeyCache {
     if (discoveryCache !== undefined) {
       return { ok: true, ...discoveryCache.value };
     }
-    return { ok: false, cause: discoveryCause ?? 'discovery-unavailable' };
+    return { ok: false, cause: discoveryCause ?? "discovery-unavailable" };
   };
 
   const loadJwks = (
@@ -208,19 +208,19 @@ export function createKeyCache(options: JoseTokenVerifierOptions): KeyCache {
   ): Promise<ResolvedKeys> => {
     try {
       const response = await fetchImpl(href, {
-        headers: { accept: 'application/jwk-set+json, application/json' },
+        headers: { accept: "application/jwk-set+json, application/json" },
         signal: AbortSignal.timeout(timeout),
       });
       if (!response.ok) {
-        throw new Error('jwks fetch failed');
+        throw new Error("jwks fetch failed");
       }
       // SAFETY: keys is checked to be a non-empty array next; jose validates each key on import.
       const body = (await response.json()) as JsonWebKeySet;
       if (!Array.isArray(body.keys) || body.keys.length === 0) {
-        throw new Error('empty jwks');
+        throw new Error("empty jwks");
       }
       const ttl = clampTtl(
-        cacheControlMaxAge(response.headers.get('cache-control')) ?? maxTtl,
+        cacheControlMaxAge(response.headers.get("cache-control")) ?? maxTtl,
         minTtl,
         maxTtl,
       );
@@ -230,7 +230,7 @@ export function createKeyCache(options: JoseTokenVerifierOptions): KeyCache {
       if (jwksCache !== undefined && jwksCache.expiresAt > now) {
         return { ok: true, jwks: jwksCache.value };
       }
-      return { ok: false, cause: 'jwks-unavailable' };
+      return { ok: false, cause: "jwks-unavailable" };
     }
   };
 
@@ -242,18 +242,18 @@ export function createKeyCache(options: JoseTokenVerifierOptions): KeyCache {
     if (options.jwks instanceof URL) {
       return loadJwks(options.jwks.href, now, force);
     }
-    if (typeof options.jwks === 'string') {
+    if (typeof options.jwks === "string") {
       return loadJwks(options.jwks, now, force);
     }
     if (
       options.jwks !== undefined &&
-      typeof options.jwks === 'object' &&
-      'keys' in options.jwks
+      typeof options.jwks === "object" &&
+      "keys" in options.jwks
     ) {
       return { ok: true, jwks: options.jwks };
     }
     if (options.discovery === undefined) {
-      return { ok: false, cause: 'jwks-unavailable' };
+      return { ok: false, cause: "jwks-unavailable" };
     }
     const discovered = await loadDiscovery(options.discovery, now);
     if (!discovered.ok) {

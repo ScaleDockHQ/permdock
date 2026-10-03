@@ -1,10 +1,10 @@
-import { spawnSync } from 'node:child_process';
-import path from 'node:path';
+import { spawnSync } from "node:child_process";
+import path from "node:path";
 
-import { startDatabase } from './database.ts';
+import { startDatabase } from "./database.ts";
 
-const cwd = path.join(import.meta.dirname, '..');
-const bin = path.join(cwd, 'node_modules/.bin/better-supabase');
+const cwd = path.join(import.meta.dirname, "..");
+const bin = path.join(cwd, "node_modules/.bin/better-supabase");
 
 /**
  * Runs `better-supabase <args>` against a fresh database with the migrations
@@ -16,7 +16,7 @@ const database = await startDatabase();
 try {
   const result = spawnSync(bin, args, {
     cwd,
-    stdio: 'inherit',
+    stdio: "inherit",
     env: {
       ...process.env,
       SUPABASE_DB_URL: database.url,

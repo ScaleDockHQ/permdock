@@ -1,14 +1,14 @@
-import type { APIRequestContext } from '@playwright/test';
+import type { APIRequestContext } from "@playwright/test";
 
-import { expect, test } from '@playwright/test';
-import { execFileSync } from 'node:child_process';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { expect, test } from "@playwright/test";
+import { execFileSync } from "node:child_process";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import {
   CONTRACT_ENV_VARIABLE,
   readContractEnv,
-} from '@permdock/e2e-cloud-contract/contract-env';
+} from "@permdock/e2e-cloud-contract/contract-env";
 
 /**
  * The contract between this repository's wire formats and a running
@@ -17,25 +17,25 @@ import {
  * permdock-cloud's `pnpm dev:contract` writes.
  */
 const env = readContractEnv();
-const APP = 'http://127.0.0.1:3511';
+const APP = "http://127.0.0.1:3511";
 const FIXTURE = join(
   dirname(fileURLToPath(import.meta.url)),
-  '../fixtures/cloud-contract',
+  "../fixtures/cloud-contract",
 );
-const USER_SCHEMA = 'urn:ietf:params:scim:schemas:core:2.0:User';
-const PATCH = 'urn:ietf:params:scim:api:messages:2.0:PatchOp';
-const TOKEN_EXCHANGE = 'urn:ietf:params:oauth:grant-type:token-exchange';
-const ID_TOKEN = 'urn:ietf:params:oauth:token-type:id_token';
-const ACCESS_TOKEN = 'urn:ietf:params:oauth:token-type:access_token';
+const USER_SCHEMA = "urn:ietf:params:scim:schemas:core:2.0:User";
+const PATCH = "urn:ietf:params:scim:api:messages:2.0:PatchOp";
+const TOKEN_EXCHANGE = "urn:ietf:params:oauth:grant-type:token-exchange";
+const ID_TOKEN = "urn:ietf:params:oauth:token-type:id_token";
+const ACCESS_TOKEN = "urn:ietf:params:oauth:token-type:access_token";
 
-test.describe.configure({ mode: 'serial' });
+test.describe.configure({ mode: "serial" });
 test.skip(
   env === undefined,
   `set ${CONTRACT_ENV_VARIABLE} to the .contract/env.json of a running permdock-cloud dev:contract`,
 );
 
-const auditor = { id: 'u_auditor', roles: ['auditor'] };
-const log = { id: 'log_1', orgId: 'acme' };
+const auditor = { id: "u_auditor", roles: ["auditor"] };
+const log = { id: "log_1", orgId: "acme" };
 
 function contract() {
   if (env === undefined) {
@@ -46,28 +46,28 @@ function contract() {
 
 async function cloudApi(
   request: APIRequestContext,
-  method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
+  method: "GET" | "POST" | "PATCH" | "DELETE",
   url: string,
   key: string,
   data?: unknown,
-  contentType = 'application/json',
+  contentType = "application/json",
 ) {
   const response = await request.fetch(url, {
     method,
-    headers: { authorization: `Bearer ${key}`, 'content-type': contentType },
+    headers: { authorization: `Bearer ${key}`, "content-type": contentType },
     ...(data === undefined ? {} : { data }),
   });
   const text = await response.text();
   return {
     status: response.status(),
     // SAFETY: Cloud API responses are JSON objects; an empty body becomes {}
-    body: (text === '' ? {} : JSON.parse(text)) as Record<string, unknown>,
+    body: (text === "" ? {} : JSON.parse(text)) as Record<string, unknown>,
   };
 }
 
 function admin(
   request: APIRequestContext,
-  method: 'GET' | 'POST' | 'DELETE',
+  method: "GET" | "POST" | "DELETE",
   path: string,
   data?: unknown,
 ) {
@@ -101,9 +101,9 @@ async function decide(
   };
 }
 
-let grantId = '';
+let grantId = "";
 
-test('the fixture resolves the environment URL the Cloud issues from', async ({
+test("the fixture resolves the environment URL the Cloud issues from", async ({
   request,
 }) => {
   // SAFETY: the fixture's /api/health route answers this shape
@@ -116,14 +116,14 @@ test('the fixture resolves the environment URL the Cloud issues from', async ({
   );
 });
 
-test('cloud push publishes the catalog', () => {
+test("cloud push publishes the catalog", () => {
   const { url, clientKey, environment } = contract();
   const output = execFileSync(
-    'pnpm',
-    ['exec', 'permdock', 'cloud', 'push', '--json'],
+    "pnpm",
+    ["exec", "permdock", "cloud", "push", "--json"],
     {
       cwd: FIXTURE,
-      encoding: 'utf8',
+      encoding: "utf8",
       env: {
         ...process.env,
         PERMDOCK_CLOUD_URL: url,
@@ -138,31 +138,31 @@ test('cloud push publishes the catalog', () => {
     readonly hostable: readonly string[];
     readonly status: string;
   };
-  expect(pushed.hostable).toEqual(['auditLog.read']);
-  expect(pushed.status).toBe('pushed');
-  expect(pushed.fingerprint).not.toBe('');
+  expect(pushed.hostable).toEqual(["auditLog.read"]);
+  expect(pushed.status).toBe("pushed");
+  expect(pushed.fingerprint).not.toBe("");
 });
 
-test('a hosted grant is bounded by hostable and reaches a local decision', async ({
+test("a hosted grant is bounded by hostable and reaches a local decision", async ({
   request,
 }) => {
-  expect((await decide(request, auditor, 'auditLog.read', log)).outcome).toBe(
-    'denied',
+  expect((await decide(request, auditor, "auditLog.read", log)).outcome).toBe(
+    "denied",
   );
 
-  const refused = await admin(request, 'POST', '/hosted-grants', {
-    permission: 'invoice.refund',
-    to: { kind: 'role', role: 'auditor' },
+  const refused = await admin(request, "POST", "/hosted-grants", {
+    permission: "invoice.refund",
+    to: { kind: "role", role: "auditor" },
   });
   expect(refused.status).toBe(422);
-  expect(refused.body['reason']).toBe('not-hostable');
+  expect(refused.body["reason"]).toBe("not-hostable");
 
-  const created = await admin(request, 'POST', '/hosted-grants', {
-    permission: 'auditLog.read',
-    to: { kind: 'role', role: 'auditor' },
+  const created = await admin(request, "POST", "/hosted-grants", {
+    permission: "auditLog.read",
+    to: { kind: "role", role: "auditor" },
   });
   expect(created.status).toBe(201);
-  grantId = String(created.body['id']);
+  grantId = String(created.body["id"]);
 
   const refreshed = await request.post(`${APP}/api/test/refresh`);
   expect(
@@ -170,12 +170,12 @@ test('a hosted grant is bounded by hostable and reaches a local decision', async
     ((await refreshed.json()) as { fingerprint: string | null }).fingerprint,
   ).not.toBeNull();
 
-  const decision = await decide(request, auditor, 'auditLog.read', log);
-  expect(decision.outcome).toBe('granted');
+  const decision = await decide(request, auditor, "auditLog.read", log);
+  expect(decision.outcome).toBe("granted");
   expect(decision.matched?.hosted?.grant).toBe(grantId);
 });
 
-test('the signed decision log records the hosted grant that matched', async ({
+test("the signed decision log records the hosted grant that matched", async ({
   request,
 }) => {
   await expect
@@ -195,9 +195,9 @@ test('the signed decision log records the hosted grant that matched', async ({
     .toBe(true);
 });
 
-test('approvals page with limit and an opaque cursor', async ({ request }) => {
+test("approvals page with limit and an opaque cursor", async ({ request }) => {
   const principal = `u_pager_${String(Date.now())}`;
-  const tokens = ['a', 'b', 'c'].map((suffix) => `${principal}-${suffix}`);
+  const tokens = ["a", "b", "c"].map((suffix) => `${principal}-${suffix}`);
   const seeded = await request.post(`${APP}/api/test/approvals`, {
     data: { tokens, principal },
   });
@@ -211,24 +211,24 @@ test('approvals page with limit and an opaque cursor', async ({ request }) => {
   expect(pages.flat().toSorted()).toEqual(tokens.toSorted());
 });
 
-test('webhooks are signed and verified against the environment JWKS', async ({
+test("webhooks are signed and verified against the environment JWKS", async ({
   request,
 }) => {
   const unsigned = await request.post(`${APP}/webhooks/permdock`, {
-    data: { type: 'dev.permdock.decision' },
+    data: { type: "dev.permdock.decision" },
   });
   expect(unsigned.status()).toBe(401);
 
-  const connector = await admin(request, 'POST', '/connectors', {
-    kind: 'webhook',
+  const connector = await admin(request, "POST", "/connectors", {
+    kind: "webhook",
     name: `contract-${String(Date.now())}`,
     config: {
       url: `${APP}/webhooks/permdock`,
-      types: ['dev.permdock.decision'],
+      types: ["dev.permdock.decision"],
     },
   });
   expect(connector.status).toBe(201);
-  await decide(request, auditor, 'auditLog.read', log);
+  await decide(request, auditor, "auditLog.read", log);
   await expect
     .poll(async () => {
       await runDeliveries(request);
@@ -236,19 +236,19 @@ test('webhooks are signed and verified against the environment JWKS', async ({
       const received = (await (
         await request.get(`${APP}/api/test/webhooks`)
       ).json()) as readonly { readonly type: string }[];
-      return received.some((event) => event.type === 'dev.permdock.decision');
+      return received.some((event) => event.type === "dev.permdock.decision");
     })
     .toBe(true);
 });
 
-test('SCIM deactivation relayed by the Cloud ends open connections', async ({
+test("SCIM deactivation relayed by the Cloud ends open connections", async ({
   request,
 }) => {
   const { scim } = contract();
   const externalId = `ext_${String(Date.now())}`;
   const created = await cloudApi(
     request,
-    'POST',
+    "POST",
     `${scim.url}/Users`,
     scim.token,
     {
@@ -257,19 +257,19 @@ test('SCIM deactivation relayed by the Cloud ends open connections', async ({
       externalId,
       active: true,
     },
-    'application/scim+json',
+    "application/scim+json",
   );
   expect(created.status).toBe(201);
   const deactivated = await cloudApi(
     request,
-    'PATCH',
-    `${scim.url}/Users/${String(created.body['id'])}`,
+    "PATCH",
+    `${scim.url}/Users/${String(created.body["id"])}`,
     scim.token,
     {
       schemas: [PATCH],
-      Operations: [{ op: 'replace', path: 'active', value: false }],
+      Operations: [{ op: "replace", path: "active", value: false }],
     },
-    'application/scim+json',
+    "application/scim+json",
   );
   expect(deactivated.status).toBeLessThan(300);
   await expect
@@ -284,27 +284,27 @@ test('SCIM deactivation relayed by the Cloud ends open connections', async ({
       }[];
       return events.some(
         (event) =>
-          event.principal === externalId && event.kind === 'session-revoked',
+          event.principal === externalId && event.kind === "session-revoked",
       );
     })
     .toBe(true);
 });
 
-test('a token-exchanged Cloud-native access token is decided locally', async ({
+test("a token-exchanged Cloud-native access token is decided locally", async ({
   request,
 }) => {
   const { environmentUrl, oauthClient, trustedIssuer, scim } = contract();
   const subject = `native_${String(Date.now())}`;
-  const principal = await admin(request, 'POST', '/directory/principals', {
+  const principal = await admin(request, "POST", "/directory/principals", {
     subject,
     issuer: trustedIssuer.issuer,
   });
   expect(principal.status).toBe(201);
-  const principalId = String(principal.body['id']);
-  const assigned = await admin(request, 'POST', '/directory/assignments', {
+  const principalId = String(principal.body["id"]);
+  const assigned = await admin(request, "POST", "/directory/assignments", {
     principal: principalId,
     tenant: scim.tenant,
-    role: 'member',
+    role: "member",
   });
   expect(assigned.status).toBe(201);
 
@@ -314,7 +314,7 @@ test('a token-exchanged Cloud-native access token is decided locally', async ({
   ).json()) as { readonly id_token: string };
   const exchanged = await request.post(`${environmentUrl}/oauth/token`, {
     headers: {
-      authorization: `Basic ${Buffer.from(`${oauthClient.id}:${oauthClient.secret}`).toString('base64')}`,
+      authorization: `Basic ${Buffer.from(`${oauthClient.id}:${oauthClient.secret}`).toString("base64")}`,
     },
     form: {
       grant_type: TOKEN_EXCHANGE,
@@ -332,7 +332,7 @@ test('a token-exchanged Cloud-native access token is decided locally', async ({
     readonly token_type: string;
   };
   expect(body.issued_token_type).toBe(ACCESS_TOKEN);
-  expect(body.token_type.toLowerCase()).toBe('bearer');
+  expect(body.token_type.toLowerCase()).toBe("bearer");
   const token = body.access_token;
 
   const decided = await request.post(`${APP}/api/test/token-decide`, {
@@ -340,17 +340,17 @@ test('a token-exchanged Cloud-native access token is decided locally', async ({
   });
   expect(await decided.json()).toMatchObject({
     principal: principalId,
-    roles: ['member'],
-    outcome: 'granted',
+    roles: ["member"],
+    outcome: "granted",
   });
 
-  const [head = '', payload = '', signature = ''] = token.split('.');
+  const [head = "", payload = "", signature = ""] = token.split(".");
   const tampered = `${head}.${payload}.${signature.slice(0, -2)}AA`;
   const rejected = await request.post(`${APP}/api/test/token-decide`, {
     headers: { authorization: `Bearer ${tampered}` },
   });
   expect(await rejected.json()).toMatchObject({
     principal: null,
-    outcome: 'denied',
+    outcome: "denied",
   });
 });

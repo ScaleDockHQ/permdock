@@ -4,20 +4,20 @@ import {
   readdirSync,
   realpathSync,
   statSync,
-} from 'node:fs';
-import { basename, extname, join, relative, resolve } from 'node:path';
+} from "node:fs";
+import { basename, extname, join, relative, resolve } from "node:path";
 
-const SOURCE_EXT = new Set(['.ts', '.tsx', '.js', '.jsx', '.mts', '.cts']);
+const SOURCE_EXT = new Set([".ts", ".tsx", ".js", ".jsx", ".mts", ".cts"]);
 const SKIP_DIRS = new Set([
-  'node_modules',
-  'dist',
-  '.next',
-  '.turbo',
-  'coverage',
-  '.git',
+  "node_modules",
+  "dist",
+  ".next",
+  ".turbo",
+  "coverage",
+  ".git",
 ]);
 
-const PACKAGE_SKIP_DIRS = new Set(['node_modules', '.git']);
+const PACKAGE_SKIP_DIRS = new Set(["node_modules", ".git"]);
 
 export function listSourceFiles(
   cwd: string,
@@ -42,12 +42,12 @@ export function listSourceFiles(
 }
 
 function segments(path: string): readonly string[] {
-  return path.split(/[\\/]/u).filter((part) => part !== '' && part !== '.');
+  return path.split(/[\\/]/u).filter((part) => part !== "" && part !== ".");
 }
 
 /** Installed packages often ship only `dist`; their own dependencies are never walked. */
 function skipDirsFor(path: string): ReadonlySet<string> {
-  return segments(path).includes('node_modules')
+  return segments(path).includes("node_modules")
     ? PACKAGE_SKIP_DIRS
     : SKIP_DIRS;
 }
@@ -99,7 +99,7 @@ function walkDir(
   skip: ReadonlySet<string>,
 ): void {
   for (const name of readdirSync(dir)) {
-    if (name.startsWith('.') && name !== '.agents') {
+    if (name.startsWith(".") && name !== ".agents") {
       continue;
     }
     if (skip.has(name)) {
@@ -114,7 +114,7 @@ function walkDir(
       walkDir(full, out, skip);
       continue;
     }
-    if (SOURCE_EXT.has(extname(name)) && !name.endsWith('.generated.ts')) {
+    if (SOURCE_EXT.has(extname(name)) && !name.endsWith(".generated.ts")) {
       out.add(full);
     }
   }
@@ -128,7 +128,7 @@ function walkDir(
 export function sqlFiles(
   cwd: string,
   entries: readonly string[],
-  options: { readonly order?: 'path' | 'entry' } = {},
+  options: { readonly order?: "path" | "entry" } = {},
 ): string[] {
   const seen = new Set<string>();
   const ordered: string[] = [];
@@ -145,19 +145,19 @@ export function sqlFiles(
     const pattern = isGlob ? entry : `${entry}/**/*.sql`;
     for (const match of globSync(pattern, { cwd }).toSorted()) {
       const path = resolve(cwd, match);
-      if (path.endsWith('.sql') && !seen.has(path)) {
+      if (path.endsWith(".sql") && !seen.has(path)) {
         seen.add(path);
         ordered.push(path);
       }
     }
   }
-  return options.order === 'entry' ? ordered : ordered.toSorted();
+  return options.order === "entry" ? ordered : ordered.toSorted();
 }
 
 export function rel(cwd: string, abs: string): string {
-  return relative(cwd, abs).split('\\').join('/');
+  return relative(cwd, abs).split("\\").join("/");
 }
 
 export function defaultSrcPath(): readonly string[] {
-  return ['./src'];
+  return ["./src"];
 }

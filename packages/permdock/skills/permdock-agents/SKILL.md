@@ -44,7 +44,7 @@ An agent call has a principal (the user whose grants are evaluated), an actor (t
      delegations: [
        {
          from: roles.member,
-         to: actor('eve'),
+         to: actor("eve"),
          permissions: [permissions.post.read, permissions.post.update],
        },
      ],

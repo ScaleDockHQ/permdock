@@ -1,15 +1,15 @@
-import type { Membership, Permission, Principal } from 'permdock';
-import type { RlsParityFixture, RlsQueryFn } from 'permdock/testing';
+import type { Membership, Permission, Principal } from "permdock";
+import type { RlsParityFixture, RlsQueryFn } from "permdock/testing";
 
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { run } from 'permdock/cli';
-import { rlsParity } from 'permdock/testing';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { run } from "permdock/cli";
+import { rlsParity } from "permdock/testing";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import type { Postgres } from './support/postgres.ts';
+import type { Postgres } from "./support/postgres.ts";
 
 import {
   assets,
@@ -17,16 +17,16 @@ import {
   permissions,
   personas,
   policy,
-} from '../fixtures/named-scopes/policy.ts';
-import { startPostgres } from './support/postgres.ts';
+} from "../fixtures/named-scopes/policy.ts";
+import { startPostgres } from "./support/postgres.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const FIXTURE = join(HERE, '../fixtures/named-scopes/suspended');
+const FIXTURE = join(HERE, "../fixtures/named-scopes/suspended");
 
 const values = (rows: readonly Record<string, string>[], keys: string[]) =>
   rows
-    .map((row) => `(${keys.map((key) => `'${row[key] ?? ''}'`).join(', ')})`)
-    .join(', ');
+    .map((row) => `(${keys.map((key) => `'${row[key] ?? ""}'`).join(", ")})`)
+    .join(", ");
 
 // Organization B is disabled, customer G is archived, and the platform admin's profile is disabled.
 const SETUP = `
@@ -55,29 +55,29 @@ insert into profiles values
 create table quote (id text primary key, organization_id text not null, customer_id text not null, status text not null);
 create table invoice (id text primary key, organization_id text not null, customer_id text not null, status text not null);
 create table asset (id text primary key, organization_id text not null, customer_id text not null);
-insert into quote values ${values(documents, ['id', 'organization_id', 'customer_id', 'status'])};
-insert into invoice values ${values(documents, ['id', 'organization_id', 'customer_id', 'status'])};
-insert into asset values ${values(assets, ['id', 'organization_id', 'customer_id'])};
+insert into quote values ${values(documents, ["id", "organization_id", "customer_id", "status"])};
+insert into invoice values ${values(documents, ["id", "organization_id", "customer_id", "status"])};
+insert into asset values ${values(assets, ["id", "organization_id", "customer_id"])};
 grant select, insert, update, delete on quote, invoice, asset to authenticated;
 `;
 
-type Subject = RlsParityFixture['subject'];
+type Subject = RlsParityFixture["subject"];
 
-const SUSPENDED_ORGS = new Set(['B']);
-const SUSPENDED_CUSTOMERS = new Set(['G']);
-const SUSPENDED_USERS = new Set(['u_platform_admin']);
+const SUSPENDED_ORGS = new Set(["B"]);
+const SUSPENDED_CUSTOMERS = new Set(["G"]);
+const SUSPENDED_USERS = new Set(["u_platform_admin"]);
 
 /** What a membership source that honours suspension returns for the persona. */
 function active(membership: Membership): boolean {
   const organization =
-    membership.scope === 'organization'
+    membership.scope === "organization"
       ? membership.id
-      : membership.within?.['organization'];
+      : membership.within?.["organization"];
   if (organization !== undefined && SUSPENDED_ORGS.has(organization)) {
     return false;
   }
   return !(
-    membership.scope === 'customer' &&
+    membership.scope === "customer" &&
     membership.id !== undefined &&
     SUSPENDED_CUSTOMERS.has(membership.id)
   );
@@ -96,27 +96,27 @@ function subjectOf(principal: Principal, tenant?: string): Subject {
 
 const subjects: Readonly<Record<string, Subject>> = {
   owner: subjectOf(personas.owner),
-  ownerInB: subjectOf(personas.owner, 'B'),
+  ownerInB: subjectOf(personas.owner, "B"),
   viewer: subjectOf(personas.viewer),
   privateContact: subjectOf(personas.privateContact),
   businessContact: subjectOf(personas.businessContact),
   staffContact: subjectOf(personas.staffContact),
-  staffContactInB: subjectOf(personas.staffContact, 'B'),
+  staffContactInB: subjectOf(personas.staffContact, "B"),
   platformAdmin: subjectOf(personas.platformAdmin),
 };
 
 const leaves: readonly (readonly [Permission, string])[] = [
-  [permissions.quote.read, 'quote'],
-  [permissions.quote.update, 'quote'],
-  [permissions.invoice.read, 'invoice'],
-  [permissions.asset.read, 'asset'],
-  [permissions.asset.delete, 'asset'],
+  [permissions.quote.read, "quote"],
+  [permissions.quote.update, "quote"],
+  [permissions.invoice.read, "invoice"],
+  [permissions.asset.read, "asset"],
+  [permissions.asset.delete, "asset"],
 ];
 
 const fixtures: readonly RlsParityFixture[] = Object.entries(subjects).flatMap(
   ([name, subject]) =>
     leaves.flatMap(([permission, table]) =>
-      (table === 'asset' ? assets : documents).map((row) => ({
+      (table === "asset" ? assets : documents).map((row) => ({
         name: `${name} ${permission.key} ${row.id}`,
         subject,
         permission,
@@ -127,16 +127,16 @@ const fixtures: readonly RlsParityFixture[] = Object.entries(subjects).flatMap(
 );
 
 async function generate(cwd: string): Promise<string> {
-  const dir = mkdtempSync(join(tmpdir(), 'permdock-suspension-'));
-  const out = join(dir, 'rls.sql');
+  const dir = mkdtempSync(join(tmpdir(), "permdock-suspension-"));
+  const out = join(dir, "rls.sql");
   const result = await run(
-    ['rls', 'generate', '--target', 'sql', '--dialect', 'guc', '--out', out],
+    ["rls", "generate", "--target", "sql", "--dialect", "guc", "--out", out],
     { cwd },
   );
   if (result.code !== 0) {
     throw new Error(`rls generate: ${result.stdout}${result.stderr}`);
   }
-  const sql = readFileSync(out, 'utf8');
+  const sql = readFileSync(out, "utf8");
   rmSync(dir, { recursive: true, force: true });
   return sql;
 }
@@ -145,16 +145,16 @@ const USER_ROLES = `insert into permdock.user_roles values
   ('u_platform_admin', 'platform-admin'), ('u_platform_support', 'platform-support')`;
 
 describe.each([
-  { mode: 'database', cwd: FIXTURE },
-  { mode: 'jwt', cwd: join(FIXTURE, 'jwt') },
-])('suspension in generated RLS ($mode mode)', ({ mode, cwd }) => {
+  { mode: "database", cwd: FIXTURE },
+  { mode: "jwt", cwd: join(FIXTURE, "jwt") },
+])("suspension in generated RLS ($mode mode)", ({ mode, cwd }) => {
   let db: Postgres | undefined;
 
   beforeAll(async () => {
     db = await startPostgres([
       SETUP,
       await generate(cwd),
-      ...(mode === 'database' ? [USER_ROLES] : []),
+      ...(mode === "database" ? [USER_ROLES] : []),
     ]);
   }, 120_000);
 
@@ -164,7 +164,7 @@ describe.each([
 
   const query: RlsQueryFn = async (sql, params) => {
     if (db === undefined) {
-      throw new Error('PermDock: Postgres was not started');
+      throw new Error("PermDock: Postgres was not started");
     }
     try {
       const result = await db.tester.query(
@@ -175,12 +175,12 @@ describe.each([
     } catch (error) {
       const code =
         error !== null &&
-        typeof error === 'object' &&
-        'code' in error &&
-        typeof error.code === 'string'
+        typeof error === "object" &&
+        "code" in error &&
+        typeof error.code === "string"
           ? error.code
           : undefined;
-      if (code === '42501') {
+      if (code === "42501") {
         return { rows: [], rowCount: 0, code };
       }
       throw error;
@@ -194,18 +194,18 @@ describe.each([
     params: readonly unknown[],
   ): Promise<string[]> {
     if (db === undefined) {
-      throw new Error('PermDock: Postgres was not started');
+      throw new Error("PermDock: Postgres was not started");
     }
     const client = db.tester;
     return db.as(
       {
-        role: 'authenticated',
+        role: "authenticated",
         settings: {
-          'app.user_id': principal.id,
-          'app.user_role': (principal.roles ?? []).join(','),
-          'app.tenant_id': tenant,
+          "app.user_id": principal.id,
+          "app.user_role": (principal.roles ?? []).join(","),
+          "app.tenant_id": tenant,
           // The unfiltered memberships: a token minted before the suspension.
-          'app.memberships': JSON.stringify(principal.memberships ?? []),
+          "app.memberships": JSON.stringify(principal.memberships ?? []),
         },
       },
       async () =>
@@ -215,9 +215,9 @@ describe.each([
     );
   }
 
-  it('agrees with decide over the memberships a suspension-aware source returns', async () => {
+  it("agrees with decide over the memberships a suspension-aware source returns", async () => {
     const report = await rlsParity(policy, {
-      dialect: 'guc',
+      dialect: "guc",
       fixtures,
       query,
       snapshot: true,
@@ -227,15 +227,15 @@ describe.each([
       report.results
         .filter((item) => item.name.startsWith(`${name} `) && item.granted)
         .map((item) => item.name.slice(name.length + 1));
-    expect(allowed('privateContact')).toContain('quote.read d_a_sent');
-    expect(allowed('owner')).toContain('asset.delete a_g_sent');
-    expect(allowed('ownerInB')).toEqual([]);
-    expect(allowed('viewer')).toEqual([]);
-    expect(allowed('businessContact')).toEqual([]);
-    expect(allowed('staffContactInB')).toEqual([]);
+    expect(allowed("privateContact")).toContain("quote.read d_a_sent");
+    expect(allowed("owner")).toContain("asset.delete a_g_sent");
+    expect(allowed("ownerInB")).toEqual([]);
+    expect(allowed("viewer")).toEqual([]);
+    expect(allowed("businessContact")).toEqual([]);
+    expect(allowed("staffContactInB")).toEqual([]);
   });
 
-  it('drops a suspended instance even when the memberships still name it', async () => {
+  it("drops a suspended instance even when the memberships still name it", async () => {
     const keysOf = async (scope: string): Promise<string[]> =>
       (
         await db!.admin.query<{ readonly v: string }>(
@@ -243,7 +243,7 @@ describe.each([
           [scope],
         )
       ).rows.map((row) => row.v);
-    const organizationKeys = await keysOf('organization');
+    const organizationKeys = await keysOf("organization");
     const organizations = (principal: Principal, tenant: string) =>
       helper(
         principal,
@@ -251,28 +251,28 @@ describe.each([
         `select distinct v from unnest($1::text[]) k, permdock.permitted_organization_ids(k) v`,
         [organizationKeys],
       );
-    expect(await organizations(personas.owner, 'T')).toEqual(['T']);
-    expect(await organizations(personas.owner, 'B')).toEqual([]);
-    expect(await organizations(personas.viewer, 'B')).toEqual([]);
-    const keys = await keysOf('customer');
+    expect(await organizations(personas.owner, "T")).toEqual(["T"]);
+    expect(await organizations(personas.owner, "B")).toEqual([]);
+    expect(await organizations(personas.viewer, "B")).toEqual([]);
+    const keys = await keysOf("customer");
     const customers = await helper(
       personas.businessContact,
-      'T',
+      "T",
       `select distinct v from unnest($1::text[]) k, permdock.permitted_customer_ids(k) v`,
       [keys],
     );
     expect(customers).toEqual([]);
   });
 
-  it('takes no global roles from a suspended user', async () => {
+  it("takes no global roles from a suspended user", async () => {
     const has = (principal: Principal) =>
       helper(
         principal,
-        '',
+        "",
         `select permdock.permdock_has('organization.read')::text as v`,
         [],
       );
-    expect(await has(personas.platformSupport)).toEqual(['true']);
-    expect(await has(personas.platformAdmin)).toEqual(['false']);
+    expect(await has(personas.platformSupport)).toEqual(["true"]);
+    expect(await has(personas.platformAdmin)).toEqual(["false"]);
   });
 });

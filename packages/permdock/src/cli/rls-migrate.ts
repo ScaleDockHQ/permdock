@@ -1,14 +1,14 @@
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { relative, resolve } from 'node:path';
-import { parse } from 'pgsql-parser';
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { relative, resolve } from "node:path";
+import { parse } from "pgsql-parser";
 
-import type { GenerateOutcome } from './rls-generate.ts';
-import type { RlsMigrateConfig, RlsMigrateHelper } from './types.ts';
+import type { GenerateOutcome } from "./rls-generate.ts";
+import type { RlsMigrateConfig, RlsMigrateHelper } from "./types.ts";
 
-import { escapeSqlIdent, quoteSqlLiteral } from '../core/sql.ts';
-import { PERMDOCK_SCHEMA } from '../supabase/sources.ts';
-import { sqlFiles } from './files.ts';
-import { HELPERS } from './rls-helpers.ts';
+import { escapeSqlIdent, quoteSqlLiteral } from "../core/sql.ts";
+import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
+import { sqlFiles } from "./files.ts";
+import { HELPERS } from "./rls-helpers.ts";
 
 /** One call `rls migrate` rewrote, or would with `--write`. */
 export type MigrateRewrite = {
@@ -20,16 +20,16 @@ export type MigrateRewrite = {
 
 /** Why a call was left as written. */
 export type MigrateSkipReason =
-  | 'unknown-key'
-  | 'row-conditions'
-  | 'not-granted-on-scope'
-  | 'missing-helper'
-  | 'dynamic-key'
-  | 'not-a-column'
-  | 'unknown-scope'
-  | 'function-body'
-  | 'not-in-policy'
-  | 'unparsed';
+  | "unknown-key"
+  | "row-conditions"
+  | "not-granted-on-scope"
+  | "missing-helper"
+  | "dynamic-key"
+  | "not-a-column"
+  | "unknown-scope"
+  | "function-body"
+  | "not-in-policy"
+  | "unparsed";
 
 export type MigrateSkip = {
   readonly file: string;
@@ -57,7 +57,7 @@ export type MigrateTarget = {
 export function migrateTarget(generated: GenerateOutcome): MigrateTarget {
   const granted = new Map<string, Set<string>>();
   for (const row of generated.seeds ?? []) {
-    if (row.effect !== 'allow') {
+    if (row.effect !== "allow") {
       continue;
     }
     let keys = granted.get(row.scope);
@@ -79,7 +79,7 @@ export function migrateTarget(generated: GenerateOutcome): MigrateTarget {
 type Node = Readonly<Record<string, unknown>>;
 
 function isNode(value: unknown): value is Node {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function child(node: unknown, key: string): unknown {
@@ -122,19 +122,19 @@ function callEnd(text: string, start: number): number {
       index = close;
       continue;
     }
-    if (char === '-' && text[index + 1] === '-') {
-      const close = text.indexOf('\n', index);
+    if (char === "-" && text[index + 1] === "-") {
+      const close = text.indexOf("\n", index);
       index = close === -1 ? text.length : close;
       continue;
     }
-    if (char === '/' && text[index + 1] === '*') {
-      const close = text.indexOf('*/', index + 2);
+    if (char === "/" && text[index + 1] === "*") {
+      const close = text.indexOf("*/", index + 2);
       index = close === -1 ? text.length : close + 1;
       continue;
     }
-    if (char === '(') {
+    if (char === "(") {
       depth += 1;
-    } else if (char === ')') {
+    } else if (char === ")") {
       depth -= 1;
       if (depth === 0) {
         return index + 1;
@@ -147,7 +147,7 @@ function callEnd(text: string, start: number): number {
 const IDENTIFIER = String.raw`(?:"(?:[^"]|"")+"|[A-Za-z_][\w$]*)`;
 const COLUMN = new RegExp(
   String.raw`${IDENTIFIER}(?:\s*\.\s*${IDENTIFIER})*`,
-  'uy',
+  "uy",
 );
 
 function columnText(text: string, start: number): string | undefined {
@@ -157,20 +157,20 @@ function columnText(text: string, start: number): string | undefined {
 
 function lineOf(text: string, index: number): number {
   let line = 1;
-  for (let at = text.indexOf('\n'); at !== -1 && at < index;) {
+  for (let at = text.indexOf("\n"); at !== -1 && at < index;) {
     line += 1;
-    at = text.indexOf('\n', at + 1);
+    at = text.indexOf("\n", at + 1);
   }
   return line;
 }
 
 function stringConst(node: unknown): string | undefined {
-  const value = child(child(child(node, 'A_Const'), 'sval'), 'sval');
-  return typeof value === 'string' ? value : undefined;
+  const value = child(child(child(node, "A_Const"), "sval"), "sval");
+  return typeof value === "string" ? value : undefined;
 }
 
 function isNullConst(node: unknown): boolean {
-  return child(child(node, 'A_Const'), 'isnull') === true;
+  return child(child(node, "A_Const"), "isnull") === true;
 }
 
 const literal = quoteSqlLiteral;
@@ -186,7 +186,7 @@ export function mapKey(config: RlsMigrateConfig, key: string): string {
     .toSorted((a, b) => b.length - a.length)[0];
   return prefix === undefined
     ? key
-    : `${config.prefixes?.[prefix] ?? ''}${key.slice(prefix.length)}`;
+    : `${config.prefixes?.[prefix] ?? ""}${key.slice(prefix.length)}`;
 }
 
 type Call = {
@@ -237,20 +237,20 @@ class Rewriter {
     const legacy = stringConst(arg);
     if (legacy === undefined) {
       return skip(
-        'dynamic-key',
-        'the key is not a string literal; map it by hand',
+        "dynamic-key",
+        "the key is not a string literal; map it by hand",
       );
     }
     const key = mapKey(this.#config, legacy);
     if (!this.#target.permissions.has(key)) {
       return skip(
-        'unknown-key',
+        "unknown-key",
         `${legacy} maps to ${key}, which the policy does not declare; add it to rls.migrate.keys or the vocabulary`,
       );
     }
     if (this.#target.rowConditions.has(key)) {
       return skip(
-        'row-conditions',
+        "row-conditions",
         `${key} has row conditions the helper cannot apply; let rls generate write this table's policy`,
       );
     }
@@ -259,7 +259,7 @@ class Rewriter {
         keys.has(key),
       );
       return skip(
-        'not-granted-on-scope',
+        "not-granted-on-scope",
         seeded
           ? `no role grants ${key} on ${scope}, so the helper would always deny`
           : `${key} has no role_permissions row: rls generate seeds only read, list, get, create, update and delete grants`,
@@ -269,17 +269,17 @@ class Rewriter {
   }
 
   #column(arg: unknown): Outcome {
-    const ref = child(arg, 'ColumnRef');
-    const location = child(ref, 'location');
-    if (typeof location !== 'number') {
+    const ref = child(arg, "ColumnRef");
+    const location = child(ref, "location");
+    if (typeof location !== "number") {
       return skip(
-        'not-a-column',
-        'the id is an expression, not a plain column; rewrite it by hand',
+        "not-a-column",
+        "the id is an expression, not a plain column; rewrite it by hand",
       );
     }
     const text = columnText(this.#text, this.#at(location));
     return text === undefined
-      ? skip('not-a-column', 'the id could not be read as a column')
+      ? skip("not-a-column", "the id could not be read as a column")
       : { to: text };
   }
 
@@ -287,30 +287,30 @@ class Rewriter {
     const helper = this.#helper(`permitted_${scope}_ids`);
     if (helper === undefined) {
       return skip(
-        'missing-helper',
+        "missing-helper",
         `rls generate writes no permitted_${scope}_ids for this policy`,
       );
     }
     const key = this.#key(keyArg, scope);
-    return 'to' in key ? { to: `${helper}(${key.to})` } : key;
+    return "to" in key ? { to: `${helper}(${key.to})` } : key;
   }
 
   #row(scope: string, idArg: unknown, keyArg: unknown): Outcome {
     const column = this.#column(idArg);
-    if (!('to' in column)) {
+    if (!("to" in column)) {
       return column;
     }
     const ids = this.#ids(scope, keyArg);
-    return 'to' in ids ? { to: `(${column.to} in (select ${ids.to}))` } : ids;
+    return "to" in ids ? { to: `(${column.to} in (select ${ids.to}))` } : ids;
   }
 
   #global(keyArg: unknown, selected: boolean): Outcome {
     const helper = this.#helper(HELPERS.has);
     if (helper === undefined) {
-      return skip('missing-helper', `rls generate writes no ${HELPERS.has}`);
+      return skip("missing-helper", `rls generate writes no ${HELPERS.has}`);
     }
-    const key = this.#key(keyArg, 'global');
-    if (!('to' in key)) {
+    const key = this.#key(keyArg, "global");
+    if (!("to" in key)) {
       return key;
     }
     const call = `${helper}(${key.to})`;
@@ -321,12 +321,12 @@ class Rewriter {
     const helper = this.#helper(`member_${scope}_ids`);
     if (helper === undefined) {
       return skip(
-        'missing-helper',
+        "missing-helper",
         `rls generate writes no member_${scope}_ids: ${scope} has no membership source`,
       );
     }
     const column = this.#column(idArg);
-    return 'to' in column
+    return "to" in column
       ? { to: `(${column.to} in (select ${helper}()))` }
       : column;
   }
@@ -336,8 +336,8 @@ class Rewriter {
     const named = stringConst(scopeArg);
     if (named === undefined) {
       return skip(
-        'unknown-scope',
-        'the scope is not a string literal; rewrite it by hand',
+        "unknown-scope",
+        "the scope is not a string literal; rewrite it by hand",
       );
     }
     if (
@@ -353,15 +353,15 @@ class Rewriter {
   public rewrite(call: Call, selected: boolean): Outcome {
     const { helper, args } = call;
     switch (helper.form) {
-      case 'ids':
+      case "ids":
         return this.#ids(helper.scope, args[0]);
-      case 'row':
+      case "row":
         return this.#row(helper.scope, args[0], args[1]);
-      case 'membership':
+      case "membership":
         return this.#membership(helper.scope, args[0]);
-      case 'scoped':
+      case "scoped":
         return this.#scoped(args, selected);
-      case 'global':
+      case "global":
         return this.#global(args[0], selected);
       default: {
         const unhandled: never = helper;
@@ -371,11 +371,11 @@ class Rewriter {
   }
 
   public call(node: Node): Call | undefined {
-    const name = list(node['funcname'])
-      .map((part) => child(child(part, 'String'), 'sval'))
+    const name = list(node["funcname"])
+      .map((part) => child(child(part, "String"), "sval"))
       .at(-1);
-    const location = node['location'];
-    if (typeof name !== 'string' || typeof location !== 'number') {
+    const location = node["location"];
+    if (typeof name !== "string" || typeof location !== "number") {
       return undefined;
     }
     const helper = this.#config.helpers[name];
@@ -386,37 +386,37 @@ class Rewriter {
     return {
       name,
       helper,
-      args: list(node['args']),
+      args: list(node["args"]),
       start,
       end: callEnd(this.#text, start),
     };
   }
 }
 
-const POLICY_STATEMENTS = new Set(['CreatePolicyStmt', 'AlterPolicyStmt']);
-const BODY_STATEMENTS = new Set(['CreateFunctionStmt', 'DoStmt']);
+const POLICY_STATEMENTS = new Set(["CreatePolicyStmt", "AlterPolicyStmt"]);
+const BODY_STATEMENTS = new Set(["CreateFunctionStmt", "DoStmt"]);
 
 function bodyStrings(statement: unknown): readonly string[] {
   const options = [
-    ...list(child(statement, 'options')),
-    ...list(child(statement, 'args')),
+    ...list(child(statement, "options")),
+    ...list(child(statement, "args")),
   ];
   const found: string[] = [];
   for (const option of options) {
-    const element = child(option, 'DefElem');
-    if (child(element, 'defname') !== 'as') {
+    const element = child(option, "DefElem");
+    if (child(element, "defname") !== "as") {
       continue;
     }
-    const arg = child(element, 'arg');
+    const arg = child(element, "arg");
     const items = [
-      child(arg, 'String'),
-      ...list(child(child(arg, 'List'), 'items')).map((item) =>
-        child(item, 'String'),
+      child(arg, "String"),
+      ...list(child(child(arg, "List"), "items")).map((item) =>
+        child(item, "String"),
       ),
     ];
     for (const item of items) {
-      const value = child(item, 'sval');
-      if (typeof value === 'string') {
+      const value = child(item, "sval");
+      if (typeof value === "string") {
         found.push(value);
       }
     }
@@ -444,8 +444,8 @@ async function migrateSql(
     skipped.push({
       file,
       line: 1,
-      call: '',
-      reason: 'unparsed',
+      call: "",
+      reason: "unparsed",
       detail: `the file does not parse: ${cause instanceof Error ? cause.message : String(cause)}`,
     });
     return { rewrites, skipped, text };
@@ -454,8 +454,8 @@ async function migrateSql(
   const at = charIndex(text);
   const edits: { start: number; end: number; to: string }[] = [];
   const called = new RegExp(
-    String.raw`\b(${names.map((name) => name.replaceAll(/[$]/gu, String.raw`\$`)).join('|')})\s*\(`,
-    'gu',
+    String.raw`\b(${names.map((name) => name.replaceAll(/[$]/gu, String.raw`\$`)).join("|")})\s*\(`,
+    "gu",
   );
 
   const visit = (node: unknown, inPolicy: boolean, selected = false): void => {
@@ -469,7 +469,7 @@ async function migrateSql(
       return;
     }
     for (const [kind, value] of Object.entries(node)) {
-      if (kind === 'FuncCall' && isNode(value)) {
+      if (kind === "FuncCall" && isNode(value)) {
         const call = rewriter.call(value);
         if (call !== undefined) {
           const source =
@@ -480,17 +480,17 @@ async function migrateSql(
               file,
               line,
               call: source,
-              reason: 'not-in-policy',
+              reason: "not-in-policy",
               detail:
-                'the call is outside a create or alter policy; rewrite it by hand',
+                "the call is outside a create or alter policy; rewrite it by hand",
             });
             continue;
           }
           const outcome =
             call.end === -1
-              ? skip('not-a-column', 'the call could not be delimited')
+              ? skip("not-a-column", "the call could not be delimited")
               : rewriter.rewrite(call, selected);
-          if ('to' in outcome) {
+          if ("to" in outcome) {
             edits.push({ start: call.start, end: call.end, to: outcome.to });
             rewrites.push({ file, line, from: source, to: outcome.to });
           } else {
@@ -502,15 +502,15 @@ async function migrateSql(
       visit(
         value,
         inPolicy || POLICY_STATEMENTS.has(kind),
-        kind === 'ResTarget' || (selected && kind === 'val'),
+        kind === "ResTarget" || (selected && kind === "val"),
       );
     }
   };
 
-  for (const raw of list(child(tree, 'stmts'))) {
-    const statement = child(raw, 'stmt');
-    const offset = child(raw, 'stmt_location');
-    const statementStart = at(typeof offset === 'number' ? offset : 0);
+  for (const raw of list(child(tree, "stmts"))) {
+    const statement = child(raw, "stmt");
+    const offset = child(raw, "stmt_location");
+    const statementStart = at(typeof offset === "number" ? offset : 0);
     const kind = isNode(statement) ? Object.keys(statement)[0] : undefined;
     if (kind !== undefined && BODY_STATEMENTS.has(kind)) {
       for (const body of bodyStrings(child(statement, kind))) {
@@ -523,10 +523,10 @@ async function migrateSql(
               (bodyStart === -1 ? statementStart : bodyStart) +
                 (match.index ?? 0),
             ),
-            call: match[1] ?? '',
-            reason: 'function-body',
+            call: match[1] ?? "",
+            reason: "function-body",
             detail:
-              'the call is inside a function body, which runs with its own privileges; rewrite it by hand',
+              "the call is inside a function body, which runs with its own privileges; rewrite it by hand",
           });
         }
       }
@@ -564,12 +564,12 @@ function describe(report: MigrateReport, write: boolean): string {
   ];
   const files = new Set(report.rewrites.map((item) => item.file)).size;
   const unknown = report.skipped.filter(
-    (item) => item.reason === 'unknown-key',
+    (item) => item.reason === "unknown-key",
   ).length;
   lines.push(
-    `rls migrate: ${write ? 'rewrote' : 'would rewrite'} ${String(report.rewrites.length)} call(s) in ${String(files)} file(s), skipped ${String(report.skipped.length)}${unknown === 0 ? '' : `, ${String(unknown)} with an unknown key`}${write ? '' : '; --write applies them'}`,
+    `rls migrate: ${write ? "rewrote" : "would rewrite"} ${String(report.rewrites.length)} call(s) in ${String(files)} file(s), skipped ${String(report.skipped.length)}${unknown === 0 ? "" : `, ${String(unknown)} with an unknown key`}${write ? "" : "; --write applies them"}`,
   );
-  return lines.join('\n');
+  return lines.join("\n");
 }
 
 /** `permdock rls migrate`: a dry run unless `write`; exits 1 while a key is unknown. */
@@ -583,12 +583,12 @@ export async function runRlsMigrate(
       output: `rls migrate --sql: ${input.sql} does not exist`,
     };
   }
-  const files = sqlFiles(root, ['.']);
+  const files = sqlFiles(root, ["."]);
   const rewrites: MigrateRewrite[] = [];
   const skipped: MigrateSkip[] = [];
   for (const path of files) {
     const file = relative(input.cwd, path);
-    const text = readFileSync(path, 'utf8');
+    const text = readFileSync(path, "utf8");
     const result = await migrateSql(file, text, input.config, input.target);
     rewrites.push(...result.rewrites);
     skipped.push(...result.skipped);
@@ -597,7 +597,7 @@ export async function runRlsMigrate(
     }
   }
   const report = { rewrites, skipped };
-  const code = skipped.some((item) => item.reason === 'unknown-key') ? 1 : 0;
+  const code = skipped.some((item) => item.reason === "unknown-key") ? 1 : 0;
   return {
     code,
     output: input.json

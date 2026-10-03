@@ -1,18 +1,18 @@
-import type { StandardSchemaV1 } from '@standard-schema/spec';
+import type { StandardSchemaV1 } from "@standard-schema/spec";
 
-import { compact, isReadonlyArray } from './compact.ts';
-import { freezeDeep } from './freeze.ts';
+import { compact, isReadonlyArray } from "./compact.ts";
+import { freezeDeep } from "./freeze.ts";
 import {
   assertSafeKey,
   isForbiddenKey,
   MAX_GROUP_DEPTH,
   ownKeys,
-} from './paths.ts';
+} from "./paths.ts";
 
-const RESOURCE_BRAND: unique symbol = Symbol.for('permdock.resource');
-const TREE_REGISTRY: unique symbol = Symbol.for('permdock.registry');
-const NODE_RESOURCE: unique symbol = Symbol.for('permdock.resource');
-const TREE_LEAVES: unique symbol = Symbol.for('permdock.leaves');
+const RESOURCE_BRAND: unique symbol = Symbol.for("permdock.resource");
+const TREE_REGISTRY: unique symbol = Symbol.for("permdock.registry");
+const NODE_RESOURCE: unique symbol = Symbol.for("permdock.resource");
+const TREE_LEAVES: unique symbol = Symbol.for("permdock.leaves");
 
 export type ActionMeta = {
   readonly title?: string;
@@ -32,7 +32,7 @@ export type ActionMeta = {
   readonly inferredFrom?: string;
 };
 
-export type PermissionKind = 'instance' | 'collection';
+export type PermissionKind = "instance" | "collection";
 
 export type Permission<
   K extends string = string,
@@ -125,19 +125,19 @@ export type ResourceLink = {
 export function isFieldRelation(
   relation: ResourceRelation | undefined,
 ): relation is FieldRelation {
-  return relation !== undefined && 'field' in relation;
+  return relation !== undefined && "field" in relation;
 }
 
 export function isEdgeRelation(
   relation: ResourceRelation | undefined,
 ): relation is EdgeRelation {
-  return relation !== undefined && 'edge' in relation;
+  return relation !== undefined && "edge" in relation;
 }
 
 export function isPrincipalRelation(
   relation: ResourceRelation | undefined,
 ): relation is PrincipalRelation {
-  return relation !== undefined && 'principal' in relation;
+  return relation !== undefined && "principal" in relation;
 }
 
 export function isComputedRelation(
@@ -145,9 +145,9 @@ export function isComputedRelation(
 ): relation is ComputedRelation {
   return (
     relation !== undefined &&
-    !('field' in relation) &&
-    !('edge' in relation) &&
-    !('principal' in relation)
+    !("field" in relation) &&
+    !("edge" in relation) &&
+    !("principal" in relation)
   );
 }
 
@@ -213,7 +213,7 @@ export type ResourceOptions<
    * `'hide'`: a denied check on a loaded row answers as if the row did not
    * exist (HTTP `404`), so an id never confirms a row the caller cannot read.
    */
-  readonly disclosure?: 'hide' | 'reveal';
+  readonly disclosure?: "hide" | "reveal";
 };
 
 export type ResourceInit<
@@ -236,7 +236,7 @@ export type ResourceNode<T = unknown> = {
   readonly relations: Readonly<Record<string, ResourceRelation>>;
   readonly version: string | undefined;
   readonly restricted: string | undefined;
-  readonly disclosure: 'hide' | 'reveal';
+  readonly disclosure: "hide" | "reveal";
   readonly instanceActions: ReadonlySet<string>;
   readonly collectionActions: ReadonlySet<string>;
 };
@@ -265,7 +265,7 @@ type LeavesFrom<
   ? object
   : {
       readonly [K in Names]: Permission<
-        Prefix extends '' ? K : `${Prefix}.${K}`,
+        Prefix extends "" ? K : `${Prefix}.${K}`,
         T,
         Kind
       >;
@@ -273,20 +273,20 @@ type LeavesFrom<
 
 export type InferResourceLeaves<R extends ResourceInit, Prefix extends string> =
   R extends ResourceInit<infer T, infer A, infer C>
-    ? LeavesFrom<Prefix, ActionNames<A>, T, 'instance'> &
-        LeavesFrom<Prefix, ActionNames<C>, T, 'collection'>
+    ? LeavesFrom<Prefix, ActionNames<A>, T, "instance"> &
+        LeavesFrom<Prefix, ActionNames<C>, T, "collection">
     : object;
 
 export type InferPermissionTree<
   Input,
-  Prefix extends string = '',
+  Prefix extends string = "",
 > = Input extends ResourceInit
   ? InferResourceLeaves<Input, Prefix>
   : Input extends Record<string, unknown>
     ? {
         readonly [K in keyof Input & string]: InferPermissionTree<
           Input[K],
-          Prefix extends '' ? K : `${Prefix}.${K}`
+          Prefix extends "" ? K : `${Prefix}.${K}`
         >;
       }
     : never;
@@ -295,18 +295,18 @@ function isStandardSchema(value: unknown): value is StandardSchemaV1 {
   // SAFETY: '~standard' is checked to be a key; the optional chain reads version defensively.
   return (
     value !== null &&
-    typeof value === 'object' &&
-    '~standard' in value &&
-    typeof (value as { readonly '~standard'?: { readonly version?: unknown } })[
-      '~standard'
-    ]?.version === 'number'
+    typeof value === "object" &&
+    "~standard" in value &&
+    typeof (value as { readonly "~standard"?: { readonly version?: unknown } })[
+      "~standard"
+    ]?.version === "number"
   );
 }
 
 function isResourceInit(value: unknown): value is ResourceInit {
   return (
     value !== null &&
-    typeof value === 'object' &&
+    typeof value === "object" &&
     RESOURCE_BRAND in value &&
     value[RESOURCE_BRAND] === true
   );
@@ -315,7 +315,7 @@ function isResourceInit(value: unknown): value is ResourceInit {
 function isResourceOptions(value: unknown): value is ResourceOptions {
   return (
     value !== null &&
-    typeof value === 'object' &&
+    typeof value === "object" &&
     !Array.isArray(value) &&
     !isStandardSchema(value)
   );
@@ -344,7 +344,7 @@ export function annotationsFor(permission: Permission): ToolHints {
   const { meta } = permission;
   const readOnlyHint =
     meta.readOnly ??
-    (permission.action === 'read' || permission.action === 'list');
+    (permission.action === "read" || permission.action === "list");
   return compact<ToolHints>({
     readOnlyHint,
     destructiveHint: readOnlyHint ? undefined : meta.destructive,
@@ -363,7 +363,7 @@ function actionNames(list: ActionList | undefined): readonly string[] {
 }
 
 function keyToScope(key: string): string {
-  return key.replaceAll('.', ':');
+  return key.replaceAll(".", ":");
 }
 
 function makeLeaf<K extends string, T, Kind extends PermissionKind>(
@@ -381,7 +381,7 @@ function makeLeaf<K extends string, T, Kind extends PermissionKind>(
     action,
     meta,
   } as Permission<K, T, Kind>;
-  Object.defineProperty(leaf, 'kind', {
+  Object.defineProperty(leaf, "kind", {
     value: kind,
     enumerable: false,
     writable: false,
@@ -407,7 +407,7 @@ export function resource(
   options?: ResourceOptions,
 ): ResourceInit {
   if (schemaOrOptions === undefined && options === undefined) {
-    throw new Error('PermDock: resource() requires a schema or options');
+    throw new Error("PermDock: resource() requires a schema or options");
   }
   if (isStandardSchema(schemaOrOptions)) {
     return {
@@ -424,7 +424,7 @@ export function resource(
     };
   }
   throw new Error(
-    'PermDock: resource() first argument must be a schema or options',
+    "PermDock: resource() first argument must be a schema or options",
   );
 }
 
@@ -435,13 +435,13 @@ function normaliseRelation(
   relationName: string,
   spec: ResourceRelationInput,
 ): ResourceRelation {
-  if (typeof spec === 'string') {
-    assertSafeKey(spec, 'relation field');
+  if (typeof spec === "string") {
+    assertSafeKey(spec, "relation field");
     return { field: spec };
   }
   const label = `relation '${relationName}' on '${resourceName}'`;
   const includes = normaliseIncludes(label, spec.includes);
-  const kinds = ['field', 'edge', 'principal'].filter((kind) => kind in spec);
+  const kinds = ["field", "edge", "principal"].filter((kind) => kind in spec);
   if (kinds.length === 0 && includes !== undefined) {
     return { includes };
   }
@@ -459,7 +459,7 @@ function normaliseRelation(
     }
     for (const column of [spec.object, spec.subject, spec.expiresAt]) {
       if (column !== undefined) {
-        assertSafeKey(column, 'edge column');
+        assertSafeKey(column, "edge column");
       }
     }
     return {
@@ -477,10 +477,10 @@ function normaliseRelation(
     };
   }
   if (isPrincipalRelation(spec)) {
-    assertSafeKey(spec.principal, 'relation principal');
+    assertSafeKey(spec.principal, "relation principal");
     for (const column of [spec.period?.startsAt, spec.period?.expiresAt]) {
       if (column !== undefined) {
-        assertSafeKey(column, 'relation period');
+        assertSafeKey(column, "relation period");
       }
     }
     return spec.period === undefined
@@ -493,7 +493,7 @@ function normaliseRelation(
   }
   // SAFETY: exactly one kind key is present and edge and principal returned above, so it is field.
   const field = spec as FieldRelation;
-  assertSafeKey(field.field, 'relation field');
+  assertSafeKey(field.field, "relation field");
   if (field.memberOf !== undefined && includes !== undefined) {
     throw new Error(
       `PermDock: ${label} is a memberOf relation and cannot include others`,
@@ -518,10 +518,10 @@ function normaliseIncludes(
   }
   // SAFETY: a widening from any, so each name is checked as a string below.
   for (const name of includes as readonly unknown[]) {
-    if (typeof name !== 'string') {
+    if (typeof name !== "string") {
       throw new TypeError(`PermDock: ${label} includes a non-string name`);
     }
-    assertSafeKey(name, 'included relation');
+    assertSafeKey(name, "included relation");
   }
   // SAFETY: the loop above throws unless every name is a string.
   return [...new Set(includes as readonly string[])];
@@ -534,12 +534,12 @@ function normaliseMatch(label: string, match: EdgeMatch): EdgeMatch {
     throw new Error(`PermDock: ${label} match needs at least one column`);
   }
   for (const column of columns) {
-    assertSafeKey(column, 'edge match column');
+    assertSafeKey(column, "edge match column");
     const value = match[column];
     if (
-      typeof value !== 'string' &&
-      typeof value !== 'boolean' &&
-      !(typeof value === 'number' && Number.isFinite(value))
+      typeof value !== "string" &&
+      typeof value !== "boolean" &&
+      !(typeof value === "number" && Number.isFinite(value))
     ) {
       throw new Error(
         `PermDock: ${label} match '${column}' must be a string, a finite number or a boolean`,
@@ -551,21 +551,21 @@ function normaliseMatch(label: string, match: EdgeMatch): EdgeMatch {
 }
 
 function normaliseGroups(label: string, groups: EdgeGroups): EdgeGroups {
-  assertSafeKey(groups.column, 'edge groups column');
+  assertSafeKey(groups.column, "edge groups column");
   const resources: Record<string, string> = {};
   const names = Object.keys(groups.resources);
   if (names.length === 0) {
     throw new Error(`PermDock: ${label} groups needs at least one resource`);
   }
   for (const name of names) {
-    assertSafeKey(name, 'group resource');
+    assertSafeKey(name, "group resource");
     const relationName = groups.resources[name];
-    if (typeof relationName !== 'string') {
+    if (typeof relationName !== "string") {
       throw new TypeError(
         `PermDock: ${label} groups '${name}' must name a relation`,
       );
     }
-    assertSafeKey(relationName, 'group relation');
+    assertSafeKey(relationName, "group relation");
     resources[name] = relationName;
   }
   if (groups.direct !== undefined && groups.direct in resources) {
@@ -580,17 +580,17 @@ function normaliseGroups(label: string, groups: EdgeGroups): EdgeGroups {
 
 /** An included relation must exist on the same resource, be tenancy-free and never include itself back. */
 function assertIncludes(node: ResourceNode): void {
-  const state = new Map<string, 'visiting' | 'done'>();
+  const state = new Map<string, "visiting" | "done">();
   const visit = (name: string, path: readonly string[]): void => {
-    if (state.get(name) === 'done') {
+    if (state.get(name) === "done") {
       return;
     }
-    if (state.get(name) === 'visiting') {
+    if (state.get(name) === "visiting") {
       throw new Error(
-        `PermDock: relation includes on '${node.name}' form a cycle: ${[...path, name].join(' -> ')}`,
+        `PermDock: relation includes on '${node.name}' form a cycle: ${[...path, name].join(" -> ")}`,
       );
     }
-    state.set(name, 'visiting');
+    state.set(name, "visiting");
     for (const included of node.relations[name]?.includes ?? []) {
       const target = node.relations[included];
       if (target === undefined) {
@@ -605,7 +605,7 @@ function assertIncludes(node: ResourceNode): void {
       }
       visit(included, [...path, name]);
     }
-    state.set(name, 'done');
+    state.set(name, "done");
   };
   for (const name of Object.keys(node.relations)) {
     visit(name, []);
@@ -681,21 +681,21 @@ function assertGraphTargets(registry: ReadonlyMap<string, ResourceNode>): void {
       }
     }
   }
-  const state = new Map<string, 'visiting' | 'done'>();
+  const state = new Map<string, "visiting" | "done">();
   const visit = (name: string): void => {
-    if (state.get(name) === 'done') {
+    if (state.get(name) === "done") {
       return;
     }
-    if (state.get(name) === 'visiting') {
+    if (state.get(name) === "visiting") {
       throw new Error(
         `PermDock: edge groups form a cycle across resources through '${name}'`,
       );
     }
-    state.set(name, 'visiting');
+    state.set(name, "visiting");
     for (const next of edges.get(name) ?? []) {
       visit(next);
     }
-    state.set(name, 'done');
+    state.set(name, "done");
   };
   for (const name of edges.keys()) {
     visit(name);
@@ -711,14 +711,14 @@ function materialiseResource(
   const name = path.at(-1);
   if (name === undefined) {
     throw new Error(
-      'PermDock: resource() cannot be the root of definePermissions',
+      "PermDock: resource() cannot be the root of definePermissions",
     );
   }
-  assertSafeKey(name, 'resource');
+  assertSafeKey(name, "resource");
   if (registry.has(name)) {
     throw new Error(`PermDock: duplicate resource name '${name}'`);
   }
-  const prefix = path.join('.');
+  const prefix = path.join(".");
   const instanceNames = actionNames(init.options.actions);
   const collectionNames = actionNames(init.options.collection);
   if (instanceNames.length === 0 && collectionNames.length === 0) {
@@ -730,7 +730,7 @@ function materialiseResource(
   const collectionSet = new Set<string>();
   const node: Record<string, Permission> = {};
   for (const action of instanceNames) {
-    assertSafeKey(action, 'action');
+    assertSafeKey(action, "action");
     if (instanceSet.has(action)) {
       throw new Error(`PermDock: duplicate action '${action}' on '${name}'`);
     }
@@ -741,13 +741,13 @@ function materialiseResource(
       name,
       action,
       metaFor(init.options.actions, action),
-      'instance',
+      "instance",
     );
     node[action] = leaf;
     leaves.push(leaf);
   }
   for (const action of collectionNames) {
-    assertSafeKey(action, 'action');
+    assertSafeKey(action, "action");
     if (instanceSet.has(action) || collectionSet.has(action)) {
       throw new Error(`PermDock: duplicate action '${action}' on '${name}'`);
     }
@@ -758,26 +758,26 @@ function materialiseResource(
       name,
       action,
       metaFor(init.options.collection, action),
-      'collection',
+      "collection",
     );
     node[action] = leaf;
     leaves.push(leaf);
   }
   const parent = init.options.parent;
   if (parent !== undefined) {
-    assertSafeKey(parent.field, 'parent field');
-    assertSafeKey(parent.resource, 'parent resource');
+    assertSafeKey(parent.field, "parent field");
+    assertSafeKey(parent.resource, "parent resource");
   }
   const version = init.options.version;
   if (version !== undefined) {
-    assertSafeKey(version, 'version field');
+    assertSafeKey(version, "version field");
   }
   const restricted = init.options.restricted;
   if (restricted !== undefined) {
-    assertSafeKey(restricted, 'restricted field');
+    assertSafeKey(restricted, "restricted field");
   }
-  const disclosure = init.options.disclosure ?? 'reveal';
-  if (disclosure !== 'hide' && disclosure !== 'reveal') {
+  const disclosure = init.options.disclosure ?? "reveal";
+  if (disclosure !== "hide" && disclosure !== "reveal") {
     throw new Error(
       `PermDock: resource "${name}" disclosure must be 'hide' or 'reveal'`,
     );
@@ -786,21 +786,21 @@ function materialiseResource(
   for (const [relationName, spec] of Object.entries(
     init.options.relations ?? {},
   )) {
-    assertSafeKey(relationName, 'relation');
+    assertSafeKey(relationName, "relation");
     relations[relationName] = freezeDeep(
       normaliseRelation(name, relationName, spec),
     );
   }
   const links: Record<string, ResourceLink> = {};
   for (const [linkName, link] of Object.entries(init.options.links ?? {})) {
-    assertSafeKey(linkName, 'link');
-    if (linkName === 'parent') {
+    assertSafeKey(linkName, "link");
+    if (linkName === "parent") {
       throw new Error(
         `PermDock: link 'parent' on '${name}' is reserved; declare it as parent`,
       );
     }
-    assertSafeKey(link.field, 'link field');
-    assertSafeKey(link.resource, 'link resource');
+    assertSafeKey(link.field, "link field");
+    assertSafeKey(link.resource, "link resource");
     links[linkName] = freezeDeep({
       field: link.field,
       resource: link.resource,
@@ -810,7 +810,7 @@ function materialiseResource(
     name,
     path: prefix,
     schema: init.schema,
-    id: init.options.id ?? 'id',
+    id: init.options.id ?? "id",
     parent: parent === undefined ? undefined : freezeDeep({ ...parent }),
     links: freezeDeep(links),
     relations: freezeDeep(relations),
@@ -845,9 +845,9 @@ export function resourceOfNode(
 function isResourceNode(value: unknown): value is ResourceNode {
   return (
     value !== null &&
-    typeof value === 'object' &&
-    'name' in value &&
-    'instanceActions' in value
+    typeof value === "object" &&
+    "name" in value &&
+    "instanceActions" in value
   );
 }
 
@@ -866,14 +866,14 @@ function walk(
   if (isResourceInit(input)) {
     return materialiseResource(input, path, registry, leaves);
   }
-  if (input === null || typeof input !== 'object' || Array.isArray(input)) {
+  if (input === null || typeof input !== "object" || Array.isArray(input)) {
     throw new Error(
-      `PermDock: definePermissions expected a group or resource at '${path.join('.')}'`,
+      `PermDock: definePermissions expected a group or resource at '${path.join(".")}'`,
     );
   }
   const group: Record<string, PermissionTree | Permission> = {};
   for (const key of Object.keys(input)) {
-    assertSafeKey(key, 'group');
+    assertSafeKey(key, "group");
     // SAFETY: input is a non-null, non-array object checked above; key is one of its own keys.
     group[key] = walk(
       (input as Record<string, unknown>)[key],
@@ -916,7 +916,7 @@ export function getRegistry(
   tree: PermissionTree,
 ): ReadonlyMap<string, ResourceNode> {
   if (!isRegistryTree(tree)) {
-    throw new Error('PermDock: permission tree is missing its registry');
+    throw new Error("PermDock: permission tree is missing its registry");
   }
   return tree[TREE_REGISTRY];
 }
@@ -953,7 +953,7 @@ export function definePermissions<const Input>(
 }
 
 function collectLeaves(node: PermissionTree | Permission): Permission[] {
-  if ('key' in node && 'scope' in node && 'action' in node) {
+  if ("key" in node && "scope" in node && "action" in node) {
     // SAFETY: a leaf carries key, scope and action; a group built by walk has no such trio.
     return [node as Permission];
   }
@@ -1001,28 +1001,28 @@ export function findPermission(
  * without it; when present it must be `instance` or `collection`.
  */
 export function isPermission(value: unknown): value is Permission {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
     return false;
   }
-  for (const field of ['key', 'scope', 'resource', 'action'] as const) {
+  for (const field of ["key", "scope", "resource", "action"] as const) {
     if (
       !Object.hasOwn(value, field) ||
-      typeof Reflect.get(value, field) !== 'string'
+      typeof Reflect.get(value, field) !== "string"
     ) {
       return false;
     }
   }
-  const meta: unknown = Object.hasOwn(value, 'meta')
-    ? Reflect.get(value, 'meta')
+  const meta: unknown = Object.hasOwn(value, "meta")
+    ? Reflect.get(value, "meta")
     : undefined;
-  if (meta === null || typeof meta !== 'object' || Array.isArray(meta)) {
+  if (meta === null || typeof meta !== "object" || Array.isArray(meta)) {
     return false;
   }
-  if (!Object.hasOwn(value, 'kind')) {
+  if (!Object.hasOwn(value, "kind")) {
     return true;
   }
-  const kind: unknown = Reflect.get(value, 'kind');
-  return kind === 'instance' || kind === 'collection';
+  const kind: unknown = Reflect.get(value, "kind");
+  return kind === "instance" || kind === "collection";
 }
 
 function mergeNodes(
@@ -1033,7 +1033,7 @@ function mergeNodes(
   sourceRegistry: ReadonlyMap<string, ResourceNode> | undefined,
 ): void {
   for (const key of ownKeys(source)) {
-    assertSafeKey(key, 'group');
+    assertSafeKey(key, "group");
     const incoming = source[key];
     if (incoming === undefined) {
       /* v8 ignore next */
@@ -1082,7 +1082,7 @@ export function mergePermissions<const Trees extends readonly PermissionTree[]>(
   ...trees: Trees
 ): PermissionTree {
   if (trees.length === 0) {
-    throw new Error('PermDock: mergePermissions() requires at least one tree');
+    throw new Error("PermDock: mergePermissions() requires at least one tree");
   }
   const merged: Record<string, PermissionTree | Permission> = {};
   const keys = new Set<string>();

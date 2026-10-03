@@ -1,8 +1,8 @@
-import { ORPCError, type Middleware } from '@orpc/server';
+import { ORPCError, type Middleware } from "@orpc/server";
 
-import type { ApprovalStore } from '../approvals/types.ts';
-import type { PermDockRevokedError } from '../core/errors.ts';
-import type { PolicySource } from '../core/hosted.ts';
+import type { ApprovalStore } from "../approvals/types.ts";
+import type { PermDockRevokedError } from "../core/errors.ts";
+import type { PolicySource } from "../core/hosted.ts";
 import type {
   DecisionSink,
   EntitlementSource,
@@ -11,27 +11,27 @@ import type {
   RelationSource,
   RoleSource,
   SnapshotSource,
-} from '../core/interfaces.ts';
-import type { PermDock } from '../core/permdock.ts';
-import type { Permission } from '../core/permissions.ts';
-import type { Policy, PolicyVocabulary } from '../core/policy.ts';
-import type { RevocationFeed } from '../core/revocations.ts';
-import type { Principal } from '../core/subject.ts';
-import type { PdpFactory } from '../pdp/types.ts';
-import type { Connection, ConnectionOptions } from '../server/connection.ts';
+} from "../core/interfaces.ts";
+import type { PermDock } from "../core/permdock.ts";
+import type { Permission } from "../core/permissions.ts";
+import type { Policy, PolicyVocabulary } from "../core/policy.ts";
+import type { RevocationFeed } from "../core/revocations.ts";
+import type { Principal } from "../core/subject.ts";
+import type { PdpFactory } from "../pdp/types.ts";
+import type { Connection, ConnectionOptions } from "../server/connection.ts";
 import type {
   OpenApiHooks,
   TenantOption,
   TenantScope,
-} from '../server/create.ts';
-import type { StreamProtectOptions } from '../server/stream.ts';
-import type { WebBotAuthVerifier } from '../server/web-bot-auth.ts';
+} from "../server/create.ts";
+import type { StreamProtectOptions } from "../server/stream.ts";
+import type { WebBotAuthVerifier } from "../server/web-bot-auth.ts";
 
-import { compact } from '../core/compact.ts';
-import { createKernel, tenantScope } from '../server/create.ts';
-import { problemFromError } from '../server/map-error.ts';
-import { guardIterable, isAsyncIterable } from '../server/stream.ts';
-import { invalidSignatureResponse } from '../server/web-bot-auth.ts';
+import { compact } from "../core/compact.ts";
+import { createKernel, tenantScope } from "../server/create.ts";
+import { problemFromError } from "../server/map-error.ts";
+import { guardIterable, isAsyncIterable } from "../server/stream.ts";
+import { invalidSignatureResponse } from "../server/web-bot-auth.ts";
 
 export type OrpcMiddlewareOpts<
   TCtx extends object = object,
@@ -98,9 +98,9 @@ export type OrpcOpenApiHooks<
   ) => OrpcMiddleware<TCtx, unknown, V>;
   readonly security: (permission: Permission) => {
     readonly security: readonly Record<string, readonly string[]>[];
-    readonly 'x-permdock-permissions': readonly string[];
+    readonly "x-permdock-permissions": readonly string[];
   };
-  readonly securitySchemes: OpenApiHooks['securitySchemes'];
+  readonly securitySchemes: OpenApiHooks["securitySchemes"];
 };
 
 export type OrpcPermDock<
@@ -125,17 +125,17 @@ export type OrpcPermDock<
 function hasBoundPermDock(context: unknown): boolean {
   return (
     context !== null &&
-    typeof context === 'object' &&
-    'permdock' in context &&
+    typeof context === "object" &&
+    "permdock" in context &&
     context.permdock !== undefined
   );
 }
 
 function requestFromCtx(ctx: object): Request | undefined {
-  if ('request' in ctx && ctx.request instanceof Request) {
+  if ("request" in ctx && ctx.request instanceof Request) {
     return ctx.request;
   }
-  if ('req' in ctx && ctx.req instanceof Request) {
+  if ("req" in ctx && ctx.req instanceof Request) {
     return ctx.req;
   }
   return undefined;
@@ -157,9 +157,9 @@ function toOpts<TCtx extends object>(
 function problemMessage(cause: unknown, fallback: string): string {
   if (
     cause !== null &&
-    typeof cause === 'object' &&
-    'detail' in cause &&
-    typeof cause.detail === 'string' &&
+    typeof cause === "object" &&
+    "detail" in cause &&
+    typeof cause.detail === "string" &&
     cause.detail.length > 0
   ) {
     return cause.detail;
@@ -170,17 +170,17 @@ function problemMessage(cause: unknown, fallback: string): string {
 function orpcCode(status: number): string {
   switch (status) {
     case 400:
-      return 'BAD_REQUEST';
+      return "BAD_REQUEST";
     case 401:
-      return 'UNAUTHORIZED';
+      return "UNAUTHORIZED";
     case 404:
-      return 'NOT_FOUND';
+      return "NOT_FOUND";
     case 429:
-      return 'TOO_MANY_REQUESTS';
+      return "TOO_MANY_REQUESTS";
     case 503:
-      return 'SERVICE_UNAVAILABLE';
+      return "SERVICE_UNAVAILABLE";
     default:
-      return 'FORBIDDEN';
+      return "FORBIDDEN";
   }
 }
 
@@ -250,7 +250,7 @@ export function createPermDock<
       pdp: options.pdp,
       webBotAuth: options.webBotAuth,
       revocations: options.revocations,
-      adapter: 'orpc',
+      adapter: "orpc",
     }),
   );
 
@@ -276,10 +276,10 @@ export function createPermDock<
     if (hit !== undefined) {
       return hit;
     }
-    const path = opts.path?.join('.') ?? 'orpc';
+    const path = opts.path?.join(".") ?? "orpc";
     const request =
       requestOf(opts.context) ??
-      new Request(`http://localhost/orpc/${path}`, { method: 'POST' });
+      new Request(`http://localhost/orpc/${path}`, { method: "POST" });
     requestByCtx.set(ctx, request);
     if (!optsByRequest.has(request)) {
       optsByRequest.set(request, opts);
@@ -348,7 +348,7 @@ export function createPermDock<
     protectOptions: StreamProtectOptions | undefined,
   ): Promise<unknown> => {
     const output =
-      result !== null && typeof result === 'object' && 'output' in result
+      result !== null && typeof result === "object" && "output" in result
         ? result.output
         : undefined;
     if (!isAsyncIterable(output)) {
@@ -415,14 +415,14 @@ export function createPermDock<
     // SAFETY: the handler route runs outside oRPC, so its only context is the request as req.
     const opts = {
       context: { req: request } as TCtx,
-      path: ['permdock'],
+      path: ["permdock"],
       next: (nextOpts?: { readonly context: TCtx }): Promise<unknown> =>
         Promise.resolve(nextOpts ?? { context: { req: request } as TCtx }),
     } satisfies OrpcMiddlewareOpts<TCtx>;
     bind(opts);
     const { POST, GET } = kernel.permdockHandler(() => scopeOf(opts));
     return Promise.resolve(
-      request.method === 'GET' ? GET(request) : POST(request),
+      request.method === "GET" ? GET(request) : POST(request),
     );
   };
 

@@ -1,7 +1,7 @@
-import Link from 'next/link';
-import { Suspense } from 'react';
+import Link from "next/link";
+import { Suspense } from "react";
 
-import { QuoteSkeleton, QuoteView } from '../../../../quotes.tsx';
+import { QuoteSkeleton, QuoteView } from "../../../../quotes.tsx";
 
 export const instant = true;
 

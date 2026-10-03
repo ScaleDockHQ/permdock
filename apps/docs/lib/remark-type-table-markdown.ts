@@ -1,8 +1,8 @@
-import type { Root } from 'mdast';
-import type { MdxJsxFlowElement } from 'mdast-util-mdx-jsx';
+import type { Root } from "mdast";
+import type { MdxJsxFlowElement } from "mdast-util-mdx-jsx";
 
-import { visit } from 'unist-util-visit';
-import * as v from 'valibot';
+import { visit } from "unist-util-visit";
+import * as v from "valibot";
 
 const TypeDoc = v.object({
   entries: v.array(
@@ -16,15 +16,15 @@ const TypeDoc = v.object({
 });
 
 function cell(text: string): string {
-  return text.replaceAll('|', String.raw`\|`).replaceAll('\n', ' ');
+  return text.replaceAll("|", String.raw`\|`).replaceAll("\n", " ");
 }
 
 function toMarkdown(node: MdxJsxFlowElement): string | undefined {
   for (const attribute of node.attributes) {
     if (
-      attribute.type !== 'mdxJsxAttribute' ||
-      attribute.name !== 'type' ||
-      typeof attribute.value !== 'object' ||
+      attribute.type !== "mdxJsxAttribute" ||
+      attribute.name !== "type" ||
+      typeof attribute.value !== "object" ||
       attribute.value === null
     ) {
       continue;
@@ -35,13 +35,13 @@ function toMarkdown(node: MdxJsxFlowElement): string | undefined {
     }
     const rows = parsed.output.entries.map(
       (entry) =>
-        `| \`${entry.name}${entry.required ? '' : '?'}\` | \`${cell(entry.type)}\` | ${cell(entry.description)} |`,
+        `| \`${entry.name}${entry.required ? "" : "?"}\` | \`${cell(entry.type)}\` | ${cell(entry.description)} |`,
     );
     return [
-      '| Name | Type | Description |',
-      '| --- | --- | --- |',
+      "| Name | Type | Description |",
+      "| --- | --- | --- |",
       ...rows,
-    ].join('\n');
+    ].join("\n");
   }
   return undefined;
 }
@@ -49,8 +49,8 @@ function toMarkdown(node: MdxJsxFlowElement): string | undefined {
 /** Gives each generated `TypeTable` a Markdown table as its `.md` and `llms.txt` form. */
 export function remarkTypeTableMarkdown() {
   return (tree: Root) => {
-    visit(tree, 'mdxJsxFlowElement', (node: MdxJsxFlowElement) => {
-      if (node.name !== 'TypeTable') {
+    visit(tree, "mdxJsxFlowElement", (node: MdxJsxFlowElement) => {
+      if (node.name !== "TypeTable") {
         return;
       }
       const text = toMarkdown(node);

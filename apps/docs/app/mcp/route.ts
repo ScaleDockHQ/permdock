@@ -1,6 +1,6 @@
-import { createDocsMcpHandler, withCors } from '@/lib/docs-mcp';
-import { searchServer } from '@/lib/search';
-import { docsLlms, source } from '@/lib/source';
+import { createDocsMcpHandler, withCors } from "@/lib/docs-mcp";
+import { searchServer } from "@/lib/search";
+import { docsLlms, source } from "@/lib/source";
 
 const handler = createDocsMcpHandler({
   source,

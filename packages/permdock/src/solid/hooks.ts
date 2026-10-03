@@ -1,10 +1,10 @@
-import { createMemo, createSignal, onCleanup, type Accessor } from 'solid-js';
+import { createMemo, createSignal, onCleanup, type Accessor } from "solid-js";
 
-import type { Decision } from '../core/decision.ts';
-import type { Permission } from '../core/permissions.ts';
-import type { Membership } from '../core/subject.ts';
-import type { Role } from '../core/vocabulary.ts';
-import type { ClientStore } from '../react/store.ts';
+import type { Decision } from "../core/decision.ts";
+import type { Permission } from "../core/permissions.ts";
+import type { Membership } from "../core/subject.ts";
+import type { Role } from "../core/vocabulary.ts";
+import type { ClientStore } from "../react/store.ts";
 import type {
   ApprovalHandle,
   ApprovalState,
@@ -15,9 +15,9 @@ import type {
   SubjectView,
   TenantView,
   UseRolesOptions,
-} from './types.ts';
+} from "./types.ts";
 
-import { useStore } from './context.ts';
+import { useStore } from "./context.ts";
 
 function useVersion(store: ClientStore): Accessor<number> {
   const [tick, setTick] = createSignal(0);
@@ -50,7 +50,7 @@ export function usePermission(
   return createMemo(() => {
     version();
     const current =
-      typeof permission === 'function' ? permission() : permission;
+      typeof permission === "function" ? permission() : permission;
     return store.permissionState(current, data?.());
   });
 }
@@ -80,7 +80,7 @@ export function usePermissions(
     };
     return new Proxy(base, {
       get(target, prop, receiver): unknown {
-        if (typeof prop === 'string' && Object.hasOwn(byKey, prop)) {
+        if (typeof prop === "string" && Object.hasOwn(byKey, prop)) {
           return byKey[prop];
         }
         return Reflect.get(target, prop, receiver);
@@ -90,7 +90,7 @@ export function usePermissions(
 }
 
 export function useFilter<T>(
-  permission: Permission<string, T, 'instance'>,
+  permission: Permission<string, T, "instance">,
   rows: Accessor<readonly T[]>,
 ): Accessor<FilterResult<T>> {
   const permdock = usePermDock();
@@ -152,9 +152,9 @@ export function useSubject(): Accessor<SubjectView> {
   return createMemo(() => {
     const snapshot = permdock.snapshot();
     const simulated =
-      typeof snapshot === 'object' &&
+      typeof snapshot === "object" &&
       snapshot !== null &&
-      'simulated' in snapshot &&
+      "simulated" in snapshot &&
       snapshot.simulated === true;
     return {
       principal: permdock.subject.principal,
@@ -177,7 +177,7 @@ export function useApproval(
     const state: ApprovalState = store.approvalState(next);
     return {
       state,
-      token: next.outcome === 'approval-required' ? next.token : undefined,
+      token: next.outcome === "approval-required" ? next.token : undefined,
       request: (note?: string) => store.requestApproval(next, note),
     };
   });

@@ -1,34 +1,34 @@
-import type { SQL } from 'drizzle-orm';
-import type { Permission, Principal, WhereResult } from 'permdock';
-import type { MembershipsMapping } from 'permdock/drizzle';
+import type { SQL } from "drizzle-orm";
+import type { Permission, Principal, WhereResult } from "permdock";
+import type { MembershipsMapping } from "permdock/drizzle";
 
-import { PGlite } from '@electric-sql/pglite';
-import { PrismaPg } from '@prisma/adapter-pg';
-import { eq } from 'drizzle-orm';
-import { drizzle as drizzlePg } from 'drizzle-orm/node-postgres';
-import { drizzle as drizzlePglite } from 'drizzle-orm/pglite';
-import { Kysely, PostgresDialect } from 'kysely';
-import { readFileSync } from 'node:fs';
-import { createPermDock, memoryRoleSource } from 'permdock';
+import { PGlite } from "@electric-sql/pglite";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { eq } from "drizzle-orm";
+import { drizzle as drizzlePg } from "drizzle-orm/node-postgres";
+import { drizzle as drizzlePglite } from "drizzle-orm/pglite";
+import { Kysely, PostgresDialect } from "kysely";
+import { readFileSync } from "node:fs";
+import { createPermDock, memoryRoleSource } from "permdock";
 import {
   checkRow as drizzleCheckRow,
   toWhere as drizzleWhere,
-} from 'permdock/drizzle';
+} from "permdock/drizzle";
 import {
   checkRow as kyselyCheckRow,
   toWhere as kyselyWhere,
-} from 'permdock/kysely';
+} from "permdock/kysely";
 import {
   checkRow as prismaCheckRow,
   permdockExtension,
   prismaModelFields,
   toWhere as prismaWhere,
-} from 'permdock/prisma';
+} from "permdock/prisma";
 import {
   type OrmParityCase,
   type OrmParityScenario,
   ormParity,
-} from 'permdock/testing';
+} from "permdock/testing";
 import {
   saasCustomRoles,
   saasMemberships as saasMembershipsOf,
@@ -39,12 +39,12 @@ import {
   saasSeed,
   saasSeedSql,
   saasUsers,
-} from 'permdock/testing/saas';
-import { Pool } from 'pg';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+} from "permdock/testing/saas";
+import { Pool } from "pg";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import type { OrmDatabase } from './support/orm-tables.ts';
-import type { Postgres } from './support/postgres.ts';
+import type { OrmDatabase } from "./support/orm-tables.ts";
+import type { Postgres } from "./support/postgres.ts";
 
 import {
   type ItemAction,
@@ -55,22 +55,22 @@ import {
   itemPrincipal,
   itemRows,
   itemUsers,
-} from '../fixtures/items/policy.ts';
-import { itemSchemaSql, itemSeedSql } from '../fixtures/items/sql.ts';
+} from "../fixtures/items/policy.ts";
+import { itemSchemaSql, itemSeedSql } from "../fixtures/items/sql.ts";
 import {
   docTable,
   itemTable,
   projectTable,
   saasMemberships,
-} from './support/orm-tables.ts';
-import { startPostgres } from './support/postgres.ts';
-import { PrismaClient } from './support/prisma/client.ts';
+} from "./support/orm-tables.ts";
+import { startPostgres } from "./support/postgres.ts";
+import { PrismaClient } from "./support/prisma/client.ts";
 
-type Resource = 'item' | 'project' | 'doc';
+type Resource = "item" | "project" | "doc";
 
 const PRISMA_SCHEMA = readFileSync(
-  new URL('../prisma/schema.prisma', import.meta.url),
-  'utf8',
+  new URL("../prisma/schema.prisma", import.meta.url),
+  "utf8",
 );
 
 type Engine = {
@@ -99,7 +99,7 @@ type DrizzleDb = {
   };
 };
 
-function drizzleRun(db: DrizzleDb): Engine['run'] {
+function drizzleRun(db: DrizzleDb): Engine["run"] {
   return async (resource, where, memberships) => {
     const table = drizzleTables[resource];
     const rows = await db
@@ -144,41 +144,41 @@ function saasScenarios(): OrmParityScenario<Principal | null>[] {
           membership.tenant === undefined ? [] : [membership.tenant],
         ),
       ),
-      'globex',
+      "globex",
     ];
     return tenants.flatMap((tenant) =>
       saasChecks.map((permission) => ({
-        name: `${user}@${tenant ?? '-'} ${permission.key}`,
+        name: `${user}@${tenant ?? "-"} ${permission.key}`,
         user: principalFor(user, tenant),
         options: {
           ...(tenant === undefined ? {} : { tenant }),
           customRoles: saasRoleSource,
         },
         // SAFETY: every saas check is an instance permission; the scenario type erases its generics
-        permission: permission as Permission<string, unknown, 'instance'>,
+        permission: permission as Permission<string, unknown, "instance">,
         rows:
-          permission.resource === 'project' ? saasSeed.projects : saasSeed.docs,
+          permission.resource === "project" ? saasSeed.projects : saasSeed.docs,
       })),
     );
   });
 }
 
 const itemTenants: Readonly<Record<string, readonly (string | undefined)[]>> = {
-  alice: ['acme', undefined, 'globex'],
-  bob: ['acme', 'globex'],
-  'user-2': ['org-1'],
-  mallory: [undefined, 'acme'],
+  alice: ["acme", undefined, "globex"],
+  bob: ["acme", "globex"],
+  "user-2": ["org-1"],
+  mallory: [undefined, "acme"],
 };
 
 function itemScenarios(): OrmParityScenario<Principal | null>[] {
   // SAFETY: itemActions lists every ItemAction, so the resource has one instance permission per action
   const item = itemPermissions.item as unknown as Readonly<
-    Record<ItemAction, Permission<string, unknown, 'instance'>>
+    Record<ItemAction, Permission<string, unknown, "instance">>
   >;
   return itemUsers.flatMap((user) =>
     (itemTenants[user] ?? [undefined]).flatMap((tenant) =>
       itemActions.map((action) => ({
-        name: `${user}@${tenant ?? '-'} item.${action}`,
+        name: `${user}@${tenant ?? "-"} item.${action}`,
         user: itemPrincipal(user),
         options: tenant === undefined ? {} : { tenant },
         permission: item[action],
@@ -193,17 +193,17 @@ function failures(results: readonly OrmParityCase[]): readonly string[] {
     .filter((result) => !result.ok)
     .map(
       (result) =>
-        `${result.name}: expected [${result.expected.join(',')}] got [${result.actual.join(',')}]${result.error === undefined ? '' : ` (${result.error})`}`,
+        `${result.name}: expected [${result.expected.join(",")}] got [${result.actual.join(",")}]${result.error === undefined ? "" : ` (${result.error})`}`,
     );
 }
 
 type Checker = (
   permdock: Awaited<ReturnType<typeof createPermDock>>,
-  permission: Permission<string, unknown, 'instance'>,
+  permission: Permission<string, unknown, "instance">,
   id: string,
 ) => Promise<{ readonly found: boolean; readonly granted?: boolean }>;
 
-describe('ORM parity: filter() in memory equals toWhere(where()) in Postgres', () => {
+describe("ORM parity: filter() in memory equals toWhere(where()) in Postgres", () => {
   let db: Postgres | undefined;
   let lite: PGlite | undefined;
   let pool: Pool | undefined;
@@ -215,7 +215,7 @@ describe('ORM parity: filter() in memory equals toWhere(where()) in Postgres', (
   beforeAll(async () => {
     db = await startPostgres(SETUP);
     lite = new PGlite();
-    await lite.exec(SETUP.join(';\n'));
+    await lite.exec(SETUP.join(";\n"));
     pool = new Pool({ connectionString: db.uri });
     const kyselyDb = new Kysely<OrmDatabase>({
       dialect: new PostgresDialect({ pool }),
@@ -235,19 +235,19 @@ describe('ORM parity: filter() in memory equals toWhere(where()) in Postgres', (
       drizzlePglite({ client: lite }) as unknown as DrizzleDb,
     );
     const listFieldsOf: Readonly<Record<Resource, readonly string[]>> = {
-      item: ['tags'],
+      item: ["tags"],
       project: [],
       doc: [],
     };
     const requiredFieldsOf: Readonly<Record<Resource, readonly string[]>> = {
-      item: ['id', 'orgId', 'title'],
-      project: ['id', 'orgId', 'ownerId', 'name', 'archived'],
-      doc: ['id', 'orgId', 'title', 'locked'],
+      item: ["id", "orgId", "title"],
+      project: ["id", "orgId", "ownerId", "name", "archived"],
+      doc: ["id", "orgId", "title", "locked"],
     };
-    const kyselyRun: Engine['run'] = async (resource, where, memberships) => {
+    const kyselyRun: Engine["run"] = async (resource, where, memberships) => {
       const rows = await kyselyDb
         .selectFrom(resource)
-        .select('id')
+        .select("id")
         .where(
           // SAFETY: kyselyWhere compiles for this db's resource table; Kysely's generic filter type is erased
           kyselyWhere(where, resource, {
@@ -270,7 +270,7 @@ describe('ORM parity: filter() in memory equals toWhere(where()) in Postgres', (
         }
       >
     >;
-    const prismaRun: Engine['run'] = async (resource, where) => {
+    const prismaRun: Engine["run"] = async (resource, where) => {
       const rows = await models[resource].findMany({
         where: prismaWhere(where, {
           listFields: listFieldsOf[resource],
@@ -280,7 +280,7 @@ describe('ORM parity: filter() in memory equals toWhere(where()) in Postgres', (
       });
       return rows.map((row) => row.id);
     };
-    const prismaSchemaRun: Engine['run'] = async (resource, where) => {
+    const prismaSchemaRun: Engine["run"] = async (resource, where) => {
       const rows = await models[resource].findMany({
         where: prismaWhere(where, {
           model: prismaModelFields(PRISMA_SCHEMA, resource),
@@ -301,34 +301,34 @@ describe('ORM parity: filter() in memory equals toWhere(where()) in Postgres', (
       async (permdock, permission, id) =>
         kyselyCheckRow(
           kyselyDb as never,
-          'item',
+          "item",
           permdock.where(permission),
-          (eb) => eb('id', '=', id),
-          { listFields: ['tags'] },
+          (eb) => eb("id", "=", id),
+          { listFields: ["tags"] },
         ),
       async (permdock, permission, id) =>
         prismaCheckRow(
           models.item as never,
           permdock.where(permission),
           { id },
-          { model: prismaModelFields(PRISMA_SCHEMA, 'item') },
+          { model: prismaModelFields(PRISMA_SCHEMA, "item") },
         ),
     );
 
     engines.push(
-      { name: 'drizzle (node-postgres)', exists: false, run: drizzleOnPg },
+      { name: "drizzle (node-postgres)", exists: false, run: drizzleOnPg },
       {
-        name: 'drizzle (node-postgres, exists)',
+        name: "drizzle (node-postgres, exists)",
         exists: true,
         run: drizzleOnPg,
       },
-      { name: 'drizzle (pglite)', exists: false, run: drizzleOnLite },
-      { name: 'drizzle (pglite, exists)', exists: true, run: drizzleOnLite },
-      { name: 'kysely (pg)', exists: false, run: kyselyRun },
-      { name: 'kysely (pg, exists)', exists: true, run: kyselyRun },
-      { name: 'prisma 7 (adapter-pg)', exists: false, run: prismaRun },
+      { name: "drizzle (pglite)", exists: false, run: drizzleOnLite },
+      { name: "drizzle (pglite, exists)", exists: true, run: drizzleOnLite },
+      { name: "kysely (pg)", exists: false, run: kyselyRun },
+      { name: "kysely (pg, exists)", exists: true, run: kyselyRun },
+      { name: "prisma 7 (adapter-pg)", exists: false, run: prismaRun },
       {
-        name: 'prisma 7 (schema fields)',
+        name: "prisma 7 (schema fields)",
         exists: false,
         run: prismaSchemaRun,
       },
@@ -343,14 +343,14 @@ describe('ORM parity: filter() in memory equals toWhere(where()) in Postgres', (
   });
 
   const names = [
-    'drizzle (node-postgres)',
-    'drizzle (node-postgres, exists)',
-    'drizzle (pglite)',
-    'drizzle (pglite, exists)',
-    'kysely (pg)',
-    'kysely (pg, exists)',
-    'prisma 7 (adapter-pg)',
-    'prisma 7 (schema fields)',
+    "drizzle (node-postgres)",
+    "drizzle (node-postgres, exists)",
+    "drizzle (pglite)",
+    "drizzle (pglite, exists)",
+    "kysely (pg)",
+    "kysely (pg, exists)",
+    "prisma 7 (adapter-pg)",
+    "prisma 7 (schema fields)",
   ];
 
   for (const name of names) {
@@ -367,7 +367,7 @@ describe('ORM parity: filter() in memory equals toWhere(where()) in Postgres', (
       const report = await ormParity(itemPolicy, itemScenarios(), {
         run: ({ where }) =>
           engine.run(
-            'item',
+            "item",
             where,
             engine.exists ? itemMemberships : undefined,
           ),
@@ -391,10 +391,10 @@ describe('ORM parity: filter() in memory equals toWhere(where()) in Postgres', (
     });
   }
 
-  it('checkRow in Drizzle, Kysely and Prisma answers can() for each row', async () => {
+  it("checkRow in Drizzle, Kysely and Prisma answers can() for each row", async () => {
     const mismatches: string[] = [];
     const scenarios = itemScenarios().filter((scenario) =>
-      ['read', 'update'].some((action) =>
+      ["read", "update"].some((action) =>
         scenario.name.endsWith(`item.${action}`),
       ),
     );
@@ -404,10 +404,10 @@ describe('ORM parity: filter() in memory equals toWhere(where()) in Postgres', (
         scenario.user,
         scenario.options,
       );
-      for (const row of [...itemRows, { id: 'missing' }]) {
+      for (const row of [...itemRows, { id: "missing" }]) {
         const id = row.id;
         const want =
-          row.id === 'missing'
+          row.id === "missing"
             ? { found: false }
             : {
                 found: true,
@@ -418,7 +418,7 @@ describe('ORM parity: filter() in memory equals toWhere(where()) in Postgres', (
           const got = await check(permdock, scenario.permission, id);
           if (JSON.stringify(got) !== JSON.stringify(want)) {
             mismatches.push(
-              `${['drizzle', 'kysely', 'prisma'][index] ?? ''} ${scenario.name} ${id}: ${JSON.stringify(got)} want ${JSON.stringify(want)}`,
+              `${["drizzle", "kysely", "prisma"][index] ?? ""} ${scenario.name} ${id}: ${JSON.stringify(got)} want ${JSON.stringify(want)}`,
             );
           }
         }

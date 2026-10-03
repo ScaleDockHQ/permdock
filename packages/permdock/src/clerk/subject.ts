@@ -1,36 +1,36 @@
-import type { StandardSchemaV1 } from '@standard-schema/spec';
+import type { StandardSchemaV1 } from "@standard-schema/spec";
 
-import type { Membership, Subject } from '../core/subject.ts';
+import type { Membership, Subject } from "../core/subject.ts";
 import type {
   ClerkAuthObject,
   ClerkBackend,
   ClerkGlobalRoles,
   ClerkPrincipal,
   ClerkSubjectOptions,
-} from './types.ts';
+} from "./types.ts";
 
-import { compact } from '../core/compact.ts';
-import { freezeDeep } from '../core/freeze.ts';
-import { anonymousSubject } from '../core/subject.ts';
-import { ignoreRejection } from '../core/thenable.ts';
+import { compact } from "../core/compact.ts";
+import { freezeDeep } from "../core/freeze.ts";
+import { anonymousSubject } from "../core/subject.ts";
+import { ignoreRejection } from "../core/thenable.ts";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function asRoles(value: unknown): readonly string[] {
-  if (typeof value === 'string') {
-    return value === '' ? [] : [value];
+  if (typeof value === "string") {
+    return value === "" ? [] : [value];
   }
   if (!Array.isArray(value)) {
     return [];
   }
-  return value.filter((item): item is string => typeof item === 'string');
+  return value.filter((item): item is string => typeof item === "string");
 }
 
 function readPath(record: Record<string, unknown>, path: string): unknown {
   let current: unknown = record;
-  for (const part of path.split('.')) {
+  for (const part of path.split(".")) {
     if (!isRecord(current) || !Object.hasOwn(current, part)) {
       return undefined;
     }
@@ -43,12 +43,12 @@ function validateClaims(
   extra: Record<string, unknown>,
   schema: StandardSchemaV1,
 ): Record<string, unknown> | undefined {
-  const result = schema['~standard'].validate(extra);
+  const result = schema["~standard"].validate(extra);
   if (result instanceof Promise) {
     ignoreRejection(result);
     return undefined;
   }
-  if ('issues' in result && result.issues !== undefined) {
+  if ("issues" in result && result.issues !== undefined) {
     return undefined;
   }
   // SAFETY: a synchronous result without issues is the Standard Schema success result, which has value.
@@ -57,28 +57,28 @@ function validateClaims(
 }
 
 const REGISTERED_CLAIMS = new Set([
-  'iss',
-  'sub',
-  'aud',
-  'exp',
-  'nbf',
-  'iat',
-  'jti',
-  'sid',
-  'org_id',
-  'org_role',
-  'org_permissions',
-  'org_slug',
-  'pla',
-  'fea',
-  'o',
-  'v',
+  "iss",
+  "sub",
+  "aud",
+  "exp",
+  "nbf",
+  "iat",
+  "jti",
+  "sid",
+  "org_id",
+  "org_role",
+  "org_permissions",
+  "org_slug",
+  "pla",
+  "fea",
+  "o",
+  "v",
 ]);
 
 function extraClaims(claims: Record<string, unknown>): Record<string, unknown> {
   const extra: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(claims)) {
-    if (REGISTERED_CLAIMS.has(key) || key === 'unsafeMetadata') {
+    if (REGISTERED_CLAIMS.has(key) || key === "unsafeMetadata") {
       continue;
     }
     extra[key] = value;
@@ -96,18 +96,18 @@ function planSlugs(pla: unknown): {
 } {
   const org: string[] = [];
   const user: string[] = [];
-  if (typeof pla !== 'string' || pla === '') {
+  if (typeof pla !== "string" || pla === "") {
     return { org, user };
   }
-  for (const raw of pla.split(',')) {
+  for (const raw of pla.split(",")) {
     const token = raw.trim();
-    if (token === '') {
+    if (token === "") {
       continue;
     }
     const prefixed = /^([ou]):(.+)$/u.exec(token);
     const slug = prefixed?.[2] ?? token;
-    if (slug !== '') {
-      (prefixed?.[1] === 'o' ? org : user).push(slug);
+    if (slug !== "") {
+      (prefixed?.[1] === "o" ? org : user).push(slug);
     }
   }
   return { org, user };
@@ -119,28 +119,28 @@ function featureRoles(
 ): {
   readonly org: readonly string[];
   readonly user: readonly string[];
-  readonly sources: Readonly<Record<string, 'o' | 'u'>>;
+  readonly sources: Readonly<Record<string, "o" | "u">>;
 } {
-  if (map === undefined || typeof fea !== 'string' || fea === '') {
+  if (map === undefined || typeof fea !== "string" || fea === "") {
     return { org: [], user: [], sources: {} };
   }
   const org: string[] = [];
   const user: string[] = [];
-  const sources: Record<string, 'o' | 'u'> = {};
-  for (const raw of fea.split(',')) {
+  const sources: Record<string, "o" | "u"> = {};
+  for (const raw of fea.split(",")) {
     const token = raw.trim();
-    if (token === '') {
+    if (token === "") {
       continue;
     }
     const prefixed = /^([ou]):(.+)$/u.exec(token);
     const slug = prefixed?.[2] ?? token;
     const source =
-      prefixed?.[1] === 'o' || prefixed?.[1] === 'u' ? prefixed[1] : undefined;
+      prefixed?.[1] === "o" || prefixed?.[1] === "u" ? prefixed[1] : undefined;
     const role = map[slug];
     if (role === undefined) {
       continue;
     }
-    (source === 'o' ? org : user).push(role);
+    (source === "o" ? org : user).push(role);
     if (source !== undefined) {
       sources[role] = source;
     }
@@ -155,7 +155,7 @@ function globalRolesFrom(
   if (option === undefined) {
     return [];
   }
-  if (typeof option === 'function') {
+  if (typeof option === "function") {
     try {
       return asRoles(option(claims));
     } catch {
@@ -172,11 +172,11 @@ type OrgClaims = {
 };
 
 function splitList(value: unknown): readonly string[] {
-  return typeof value === 'string'
+  return typeof value === "string"
     ? value
-        .split(',')
+        .split(",")
         .map((item) => item.trim())
-        .filter((item) => item !== '')
+        .filter((item) => item !== "")
     : [];
 }
 
@@ -192,19 +192,19 @@ function orgFeatures(fea: unknown): readonly string[] {
  * `per[i]`, so a permission key is `org:<feature>:<per[i]>`.
  */
 function orgClaimsV2(claims: Record<string, unknown>): OrgClaims | undefined {
-  const org = claims['o'];
-  if (!isRecord(org) || typeof org['id'] !== 'string' || org['id'] === '') {
+  const org = claims["o"];
+  if (!isRecord(org) || typeof org["id"] !== "string" || org["id"] === "") {
     return undefined;
   }
   const role =
-    typeof org['rol'] === 'string' && org['rol'] !== ''
-      ? org['rol'].startsWith('org:')
-        ? org['rol']
-        : `org:${org['rol']}`
+    typeof org["rol"] === "string" && org["rol"] !== ""
+      ? org["rol"].startsWith("org:")
+        ? org["rol"]
+        : `org:${org["rol"]}`
       : undefined;
-  const actions = splitList(org['per']);
-  const features = orgFeatures(claims['fea']);
-  const masks = splitList(org['fpm']).map(Number);
+  const actions = splitList(org["per"]);
+  const features = orgFeatures(claims["fea"]);
+  const masks = splitList(org["fpm"]).map(Number);
   const orgPermissions: string[] = [];
   for (const [index, feature] of features.entries()) {
     const mask = masks[index];
@@ -217,15 +217,15 @@ function orgClaimsV2(claims: Record<string, unknown>): OrgClaims | undefined {
       }
     }
   }
-  return { tenant: org['id'], orgRole: role, orgPermissions };
+  return { tenant: org["id"], orgRole: role, orgPermissions };
 }
 
 function orgClaimsV1(claims: Record<string, unknown>): OrgClaims {
   return {
-    tenant: typeof claims['org_id'] === 'string' ? claims['org_id'] : undefined,
+    tenant: typeof claims["org_id"] === "string" ? claims["org_id"] : undefined,
     orgRole:
-      typeof claims['org_role'] === 'string' ? claims['org_role'] : undefined,
-    orgPermissions: asRoles(claims['org_permissions']),
+      typeof claims["org_role"] === "string" ? claims["org_role"] : undefined,
+    orgPermissions: asRoles(claims["org_permissions"]),
   };
 }
 
@@ -237,20 +237,20 @@ function isAuthObject(value: unknown): value is ClerkAuthObject {
   if (!isRecord(value)) {
     return false;
   }
-  return typeof value['has'] === 'function' || isRecord(value['sessionClaims']);
+  return typeof value["has"] === "function" || isRecord(value["sessionClaims"]);
 }
 
 function isVerifiedPayload(value: unknown): value is Record<string, unknown> {
   if (!isRecord(value)) {
     return false;
   }
-  if (typeof value['sub'] !== 'string' || value['sub'] === '') {
+  if (typeof value["sub"] !== "string" || value["sub"] === "") {
     return false;
   }
   return (
-    typeof value['sid'] === 'string' ||
-    typeof value['azp'] === 'string' ||
-    typeof value['org_id'] === 'string' ||
+    typeof value["sid"] === "string" ||
+    typeof value["azp"] === "string" ||
+    typeof value["org_id"] === "string" ||
     orgClaimsV2(value) !== undefined
   );
 }
@@ -266,24 +266,24 @@ function fromAuthObject(auth: ClerkAuthObject): {
   const claims = isRecord(auth.sessionClaims) ? { ...auth.sessionClaims } : {};
   const fromClaims = orgClaims(claims);
   const id =
-    typeof auth.userId === 'string'
+    typeof auth.userId === "string"
       ? auth.userId
-      : typeof claims['sub'] === 'string'
-        ? claims['sub']
+      : typeof claims["sub"] === "string"
+        ? claims["sub"]
         : undefined;
   const tenant =
-    typeof auth.orgId === 'string' ? auth.orgId : fromClaims.tenant;
+    typeof auth.orgId === "string" ? auth.orgId : fromClaims.tenant;
   const orgRole =
-    typeof auth.orgRole === 'string' ? auth.orgRole : fromClaims.orgRole;
+    typeof auth.orgRole === "string" ? auth.orgRole : fromClaims.orgRole;
   const orgPermissions =
     auth.orgPermissions !== undefined && auth.orgPermissions !== null
       ? asRoles(auth.orgPermissions)
       : fromClaims.orgPermissions;
   const session =
-    typeof auth.sessionId === 'string'
+    typeof auth.sessionId === "string"
       ? auth.sessionId
-      : typeof claims['sid'] === 'string'
-        ? claims['sid']
+      : typeof claims["sid"] === "string"
+        ? claims["sid"]
         : undefined;
   return { id, tenant, orgRole, orgPermissions, claims, session };
 }
@@ -297,10 +297,10 @@ function fromPayload(claims: Record<string, unknown>): {
   readonly session: string | undefined;
 } {
   return {
-    id: typeof claims['sub'] === 'string' ? claims['sub'] : undefined,
+    id: typeof claims["sub"] === "string" ? claims["sub"] : undefined,
     ...orgClaims(claims),
     claims,
-    session: typeof claims['sid'] === 'string' ? claims['sid'] : undefined,
+    session: typeof claims["sid"] === "string" ? claims["sid"] : undefined,
   };
 }
 
@@ -311,22 +311,22 @@ function membershipRow(item: unknown, userId: string): Membership | undefined {
   if (!isRecord(item)) {
     return undefined;
   }
-  const owner = isRecord(item['publicUserData'])
-    ? item['publicUserData']['userId']
+  const owner = isRecord(item["publicUserData"])
+    ? item["publicUserData"]["userId"]
     : undefined;
-  if (typeof owner === 'string' && owner !== userId) {
+  if (typeof owner === "string" && owner !== userId) {
     return undefined;
   }
-  const organization = isRecord(item['organization'])
-    ? item['organization']
+  const organization = isRecord(item["organization"])
+    ? item["organization"]
     : undefined;
   const tenant =
-    typeof item['organizationId'] === 'string'
-      ? item['organizationId']
-      : typeof organization?.['id'] === 'string'
-        ? organization['id']
+    typeof item["organizationId"] === "string"
+      ? item["organizationId"]
+      : typeof organization?.["id"] === "string"
+        ? organization["id"]
         : undefined;
-  const roles = asRoles(item['role']);
+  const roles = asRoles(item["role"]);
   if (tenant === undefined || roles.length === 0) {
     return undefined;
   }
@@ -359,7 +359,7 @@ async function extraMemberships(
         }
       }
       const total =
-        isRecord(raw) && typeof raw.totalCount === 'number'
+        isRecord(raw) && typeof raw.totalCount === "number"
           ? raw.totalCount
           : undefined;
       if (
@@ -389,7 +389,7 @@ export async function subjectFromClerk(
     const mapped = trustedObject
       ? fromAuthObject(authObject)
       : fromPayload(authObject as Record<string, unknown>);
-    if (mapped.id === undefined || mapped.id === '') {
+    if (mapped.id === undefined || mapped.id === "") {
       return anonymousSubject();
     }
     const declared = options.declared;
@@ -401,8 +401,8 @@ export async function subjectFromClerk(
     const permissionRoles = Object.keys(options.permissions ?? {}).filter(
       (key) => mapped.orgPermissions.includes(key),
     );
-    const features = featureRoles(mapped.claims['fea'], options.features);
-    const plans = planSlugs(mapped.claims['pla']);
+    const features = featureRoles(mapped.claims["fea"], options.features);
+    const plans = planSlugs(mapped.claims["pla"]);
     const membershipRoles = [
       ...(orgRole === undefined ? [] : [orgRole]),
       ...permissionRoles,
@@ -420,7 +420,7 @@ export async function subjectFromClerk(
           ]
         : [];
     const loaded =
-      options.memberships === 'all'
+      options.memberships === "all"
         ? await extraMemberships(options.backend, mapped.id)
         : [];
     const seen = new Set(sessionMembership.map((item) => item.tenant));
@@ -442,10 +442,10 @@ export async function subjectFromClerk(
       ...globalRolesFrom(mapped.claims, options.globalRoles),
       ...features.user,
     ];
-    const exp = mapped.claims['exp'];
+    const exp = mapped.claims["exp"];
     const principal = compact<ClerkPrincipal>({
       id: mapped.id,
-      kind: 'user',
+      kind: "user",
       tenant: mapped.tenant,
       roles: global,
       plans: plans.user.length === 0 ? undefined : plans.user,
@@ -462,7 +462,7 @@ export async function subjectFromClerk(
         principal,
         context: {},
         session: mapped.session,
-        expiresAt: typeof exp === 'number' ? exp : undefined,
+        expiresAt: typeof exp === "number" ? exp : undefined,
       }),
     );
   } catch {

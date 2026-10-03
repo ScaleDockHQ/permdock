@@ -1,9 +1,9 @@
-import { createComponent } from 'solid-js';
-import { renderToString } from 'solid-js/web';
-import { describe, expect, it } from 'vitest';
+import { createComponent } from "solid-js";
+import { renderToString } from "solid-js/web";
+import { describe, expect, it } from "vitest";
 
-import { createPermDock } from '../../src/core/permdock.ts';
-import { approvalHeaders } from '../../src/react/headers.ts';
+import { createPermDock } from "../../src/core/permdock.ts";
+import { approvalHeaders } from "../../src/react/headers.ts";
 import {
   useFilter,
   useMemberships,
@@ -13,23 +13,23 @@ import {
   useRoles,
   useSubject,
   useTenant,
-} from '../../src/solid/hooks.ts';
-import { Protected } from '../../src/solid/protected.ts';
-import { PermDockProvider } from '../../src/solid/provider.ts';
+} from "../../src/solid/hooks.ts";
+import { Protected } from "../../src/solid/protected.ts";
+import { PermDockProvider } from "../../src/solid/provider.ts";
 import {
   memberUser,
   otherPost,
   ownPost,
   permissions,
   policy,
-} from '../fixtures/quick-start.ts';
+} from "../fixtures/quick-start.ts";
 
 async function memberSnapshot() {
   // SAFETY: memberUser is the quick-start policy's own user fixture; only the generic is erased.
   const server = await createPermDock(policy as never, memberUser);
   const snapshot = server.snapshot();
   if (snapshot instanceof Promise) {
-    throw new Error('expected JSON snapshot');
+    throw new Error("expected JSON snapshot");
   }
   return snapshot;
 }
@@ -49,13 +49,13 @@ function Probe(): string {
   const roles = useRoles();
   const subject = useSubject();
   const permdock = usePermDock();
-  return `${allowed().allowed}:${actions().granted.length}:${editable().length}:${editable().partial}:${tenant().tenant ?? 'none'}:${memberships().length}:${roles()
+  return `${allowed().allowed}:${actions().granted.length}:${editable().length}:${editable().partial}:${tenant().tenant ?? "none"}:${memberships().length}:${roles()
     .roles.map((item) => item.key)
-    .join(',')}:${subject().simulated}:${permdock.status()}`;
+    .join(",")}:${subject().simulated}:${permdock.status()}`;
 }
 
-describe('permdock/solid', () => {
-  it('renders portable grants from the snapshot without flashing deny', async () => {
+describe("permdock/solid", () => {
+  it("renders portable grants from the snapshot without flashing deny", async () => {
     const snapshot = await memberSnapshot();
     const html = renderToString(() =>
       createComponent(PermDockProvider, {
@@ -65,24 +65,24 @@ describe('permdock/solid', () => {
             createComponent(Protected, {
               permission: permissions.post.update,
               data: ownPost,
-              fallback: 'locked',
-              children: 'edit',
+              fallback: "locked",
+              children: "edit",
             }),
             createComponent(Protected, {
               permission: permissions.post.update,
               data: otherPost,
-              fallback: 'locked',
-              children: 'edit',
+              fallback: "locked",
+              children: "edit",
             }),
           ];
         },
       }),
     );
-    expect(html).toContain('edit');
-    expect(html).toContain('locked');
+    expect(html).toContain("edit");
+    expect(html).toContain("locked");
   });
 
-  it('exposes snapshot introspection through accessors', async () => {
+  it("exposes snapshot introspection through accessors", async () => {
     const snapshot = await memberSnapshot();
     const html = renderToString(() =>
       createComponent(PermDockProvider, {
@@ -92,14 +92,14 @@ describe('permdock/solid', () => {
         },
       }),
     );
-    expect(html).toContain('true:1:1:false');
-    expect(html).toContain('member');
-    expect(html).toContain('false:ready');
+    expect(html).toContain("true:1:1:false");
+    expect(html).toContain("member");
+    expect(html).toContain("false:ready");
   });
 
-  it('builds the approval resume header', () => {
-    expect(approvalHeaders('pd1.abc')).toEqual({
-      'PermDock-Approval': 'pd1.abc',
+  it("builds the approval resume header", () => {
+    expect(approvalHeaders("pd1.abc")).toEqual({
+      "PermDock-Approval": "pd1.abc",
     });
   });
 });

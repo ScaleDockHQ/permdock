@@ -1,27 +1,27 @@
-import type { SearchServer } from 'fumadocs-core/search/server';
+import type { SearchServer } from "fumadocs-core/search/server";
 import type {
   LLMsWithPages,
   LoaderConfig,
   LoaderOutput,
-} from 'fumadocs-core/source';
+} from "fumadocs-core/source";
 
 import {
   createMcpHandler,
   McpServer,
   type McpHttpHandler,
-} from '@modelcontextprotocol/server';
-import { registerSearchTool, registerSourceTools } from 'fumadocs-core/mcp';
+} from "@modelcontextprotocol/server";
+import { registerSearchTool, registerSourceTools } from "fumadocs-core/mcp";
 
-import packageJson from '../package.json' with { type: 'json' };
+import packageJson from "../package.json" with { type: "json" };
 
 export type DocsMcpSources<C extends LoaderConfig> = {
   readonly source: LoaderOutput<C>;
   readonly search: SearchServer;
-  readonly llms: LLMsWithPages<C['page']>;
+  readonly llms: LLMsWithPages<C["page"]>;
 };
 
 const instructions =
-  'Public PermDock documentation. Tools are read-only. Never send a subject, token or policy.';
+  "Public PermDock documentation. Tools are read-only. Never send a subject, token or policy.";
 
 /** The public docs MCP: `search`, `list_pages` and `get_page`, one server per request. */
 export function createDocsMcpHandler<C extends LoaderConfig>(
@@ -29,7 +29,7 @@ export function createDocsMcpHandler<C extends LoaderConfig>(
 ): McpHttpHandler {
   return createMcpHandler(() => {
     const server = new McpServer(
-      { name: 'permdock-docs', version: packageJson.version },
+      { name: "permdock-docs", version: packageJson.version },
       { instructions },
     );
     registerSearchTool(server, sources.search);
@@ -39,12 +39,12 @@ export function createDocsMcpHandler<C extends LoaderConfig>(
 }
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, GET, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers':
-    'Content-Type, Accept, MCP-Protocol-Version, Mcp-Session-Id',
-  'Access-Control-Expose-Headers': 'MCP-Protocol-Version, Mcp-Session-Id',
-  'Access-Control-Max-Age': '86400',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, GET, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers":
+    "Content-Type, Accept, MCP-Protocol-Version, Mcp-Session-Id",
+  "Access-Control-Expose-Headers": "MCP-Protocol-Version, Mcp-Session-Id",
+  "Access-Control-Max-Age": "86400",
 } as const;
 
 /** Copies `response` with the CORS headers browser-based MCP clients need. */

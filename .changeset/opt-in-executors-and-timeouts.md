@@ -1,5 +1,5 @@
 ---
-'permdock': patch
+"permdock": patch
 ---
 
 Smaller server bundles, bounded network calls and a faster policy lookup.

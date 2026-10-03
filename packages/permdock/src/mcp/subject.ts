@@ -1,20 +1,20 @@
-import type { JwtClaims } from '../core/interfaces.ts';
-import type { Subject } from '../core/subject.ts';
-import type { JwtSubjectOptions } from '../jwt/types.ts';
-import type { McpAuthInfo, McpPrincipal } from './types.ts';
+import type { JwtClaims } from "../core/interfaces.ts";
+import type { Subject } from "../core/subject.ts";
+import type { JwtSubjectOptions } from "../jwt/types.ts";
+import type { McpAuthInfo, McpPrincipal } from "./types.ts";
 
-import { compact } from '../core/compact.ts';
-import { freezeDeep } from '../core/freeze.ts';
-import { anonymousSubject } from '../core/subject.ts';
-import { mapClaimsToSubject } from '../jwt/map-claims.ts';
+import { compact } from "../core/compact.ts";
+import { freezeDeep } from "../core/freeze.ts";
+import { anonymousSubject } from "../core/subject.ts";
+import { mapClaimsToSubject } from "../jwt/map-claims.ts";
 
 export type McpSubjectOptions = Pick<
   JwtSubjectOptions,
-  'claims' | 'groupRoles' | 'schema' | 'delegation'
+  "claims" | "groupRoles" | "schema" | "delegation"
 >;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 /**
@@ -35,9 +35,9 @@ export function subjectFromMcp(
     const claims = compact<JwtClaims>({
       ...(authInfo.extra as JwtClaims),
       authorization_details:
-        authInfo.extra['authorizationDetails'] ??
-        authInfo.extra['authorization_details'],
-      scope: authInfo.scopes?.join(' '),
+        authInfo.extra["authorizationDetails"] ??
+        authInfo.extra["authorization_details"],
+      scope: authInfo.scopes?.join(" "),
       client_id: authInfo.clientId,
       exp: authInfo.expiresAt,
     });
@@ -55,8 +55,8 @@ export function subjectFromMcp(
       compact({
         ...mapped.subject,
         actor:
-          typeof clientId === 'string' && clientId !== ''
-            ? { id: clientId, kind: 'mcp-client' as const }
+          typeof clientId === "string" && clientId !== ""
+            ? { id: clientId, kind: "mcp-client" as const }
             : mapped.subject.actor,
       }),
     ) as Subject<McpPrincipal>;

@@ -29,15 +29,15 @@ The user-facing overview with code for every surface is the [npm README](./packa
 
 ## What ships
 
-| Surface | Entries |
-| --- | --- |
-| UI | `permdock/react`, `react-native`, `vue`, `svelte`, `solid` |
-| Full-stack and HTTP | `permdock/next`, `server`, `hono`, `express`, `fastify`, `elysia`, `nest`, `node`, `trpc`, `orpc`, `terminal` |
-| Agents | `permdock/mcp`, `ai-sdk`, `claude-agent`, `eve`, `openai`, `webmcp`, `a2a` |
-| Decision plane | `permdock/authzen`, `approvals`, `cloud`, `scim`, `ssf`, `openapi`, `otel`, `pdp` |
-| Data | `permdock/drizzle`, `prisma`, `kysely`, and `permdock rls generate / import / verify` |
-| Auth providers | `permdock/jwt`, `supabase`, `supabase/middleware`, `better-auth`, `clerk`, `convex` |
-| Tooling | the `permdock` CLI, `permdock/testing`, `permdock/next/plugin`, `permdock/unplugin`, the `permdock` and `permdock-*` agent skills |
+| Surface             | Entries                                                                                                                           |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| UI                  | `permdock/react`, `react-native`, `vue`, `svelte`, `solid`                                                                        |
+| Full-stack and HTTP | `permdock/next`, `server`, `hono`, `express`, `fastify`, `elysia`, `nest`, `node`, `trpc`, `orpc`, `terminal`                     |
+| Agents              | `permdock/mcp`, `ai-sdk`, `claude-agent`, `eve`, `openai`, `webmcp`, `a2a`                                                        |
+| Decision plane      | `permdock/authzen`, `approvals`, `cloud`, `scim`, `ssf`, `openapi`, `otel`, `pdp`                                                 |
+| Data                | `permdock/drizzle`, `prisma`, `kysely`, and `permdock rls generate / import / verify`                                             |
+| Auth providers      | `permdock/jwt`, `supabase`, `supabase/middleware`, `better-auth`, `clerk`, `convex`                                               |
+| Tooling             | the `permdock` CLI, `permdock/testing`, `permdock/next/plugin`, `permdock/unplugin`, the `permdock` and `permdock-*` agent skills |
 
 Every entry has a page under [`apps/docs/content/docs/adapters`](./apps/docs/content/docs/adapters/index.mdx) and, where it has a runtime, an app under [`apps/examples`](./apps/examples).
 
@@ -74,45 +74,45 @@ No environment variables are needed for build, verify or test; `.env.example` li
 
 `pnpm dev:portless` runs both apps through [Portless](https://portless.sh), which serves named HTTPS URLs from a local proxy. The first run asks for `sudo` to bind port 443 and trust its local CA.
 
-| App | URL |
-| --- | --- |
-| Marketing | `https://permdock.localhost` |
-| Docs | `https://permdock.localhost/docs` (served by `https://docs.permdock.localhost`) |
-| Docs MCP | `https://permdock.localhost/mcp` |
+| App       | URL                                                                             |
+| --------- | ------------------------------------------------------------------------------- |
+| Marketing | `https://permdock.localhost`                                                    |
+| Docs      | `https://permdock.localhost/docs` (served by `https://docs.permdock.localhost`) |
+| Docs MCP  | `https://permdock.localhost/mcp`                                                |
 
 In a git worktree the branch is prefixed: `https://<branch>.permdock.localhost`. Without Portless, `pnpm marketing:dev` serves `http://localhost:3000` with docs on `:3001`.
 
 ## Common Commands
 
-| Command | What it does |
-| --- | --- |
-| `pnpm build` | `turbo run build` (tsdown for `permdock`, `next build` for the apps) |
-| `pnpm verify` | `format:check`, `lint`, `typecheck`, `typecheck:tooling`, `knip`, `boundaries`, `test` and `docs:drift` |
-| `pnpm test` | Vitest unit and type tests across the workspace |
-| `pnpm test:e2e` | Playwright across `apps/examples` and `tests/e2e/fixtures` |
-| `pnpm test:integration` | Postgres via testcontainers: RLS parity and providers |
-| `pnpm test:runtimes` | The WinterTC app on Bun, Deno and workerd |
-| `pnpm size` | Per-entry min+gzip against the recorded baseline |
-| `pnpm check:publish` | publint and arethetypeswrong on the published package |
-| `pnpm docs:drift` | Docs mention every doctor code and package entry; every page is in `meta.json`. CLI flags are checked against their pages by `tests/cli/docs-flags.test.ts` |
-| `pnpm dev:portless` | Marketing and docs at the Portless URLs above, with `.env.local` and `.env.development.local` loaded |
-| `pnpm dev:cleanup` | `portless prune`: stops dev servers orphaned by a crashed session |
-| `pnpm docs:dev` / `pnpm marketing:dev` | Docs on `:3001`; marketing on `:3000` with `/docs` proxied |
-| `pnpm env:pull` | `.env.development.local`, `.env.preview.local` and `.env.production.local` from Vercel |
-| `pnpm format` / `pnpm lint` | Oxfmt over the whole repository; Oxlint per workspace |
-| `pnpm knip` | Unused files, exports and dependencies |
-| `pnpm boundaries` | `turbo boundaries`: workspace dependency rules by tag |
-| `pnpm audit:high` | `pnpm audit` failing on high and critical advisories |
-| `pnpm openapi:generate` | Refresh the vendored OpenAPI and Overlay schemas |
-| `pnpm standards:fixtures` | Refresh the upstream schemas and RFC vectors `tests/standards` checks against |
-| `pnpm changeset` | Record a user-visible change |
+| Command                                | What it does                                                                                                                                                |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm build`                           | `turbo run build` (tsdown for `permdock`, `next build` for the apps)                                                                                        |
+| `pnpm verify`                          | `format:check`, `lint`, `typecheck`, `typecheck:tooling`, `knip`, `boundaries`, `test` and `docs:drift`                                                     |
+| `pnpm test`                            | Vitest unit and type tests across the workspace                                                                                                             |
+| `pnpm test:e2e`                        | Playwright across `apps/examples` and `tests/e2e/fixtures`                                                                                                  |
+| `pnpm test:integration`                | Postgres via testcontainers: RLS parity and providers                                                                                                       |
+| `pnpm test:runtimes`                   | The WinterTC app on Bun, Deno and workerd                                                                                                                   |
+| `pnpm size`                            | Per-entry min+gzip against the recorded baseline                                                                                                            |
+| `pnpm check:publish`                   | publint and arethetypeswrong on the published package                                                                                                       |
+| `pnpm docs:drift`                      | Docs mention every doctor code and package entry; every page is in `meta.json`. CLI flags are checked against their pages by `tests/cli/docs-flags.test.ts` |
+| `pnpm dev:portless`                    | Marketing and docs at the Portless URLs above, with `.env.local` and `.env.development.local` loaded                                                        |
+| `pnpm dev:cleanup`                     | `portless prune`: stops dev servers orphaned by a crashed session                                                                                           |
+| `pnpm docs:dev` / `pnpm marketing:dev` | Docs on `:3001`; marketing on `:3000` with `/docs` proxied                                                                                                  |
+| `pnpm env:pull`                        | `.env.development.local`, `.env.preview.local` and `.env.production.local` from Vercel                                                                      |
+| `pnpm format` / `pnpm lint`            | Oxfmt over the whole repository; Oxlint per workspace                                                                                                       |
+| `pnpm knip`                            | Unused files, exports and dependencies                                                                                                                      |
+| `pnpm boundaries`                      | `turbo boundaries`: workspace dependency rules by tag                                                                                                       |
+| `pnpm audit:high`                      | `pnpm audit` failing on high and critical advisories                                                                                                        |
+| `pnpm openapi:generate`                | Refresh the vendored OpenAPI and Overlay schemas                                                                                                            |
+| `pnpm standards:fixtures`              | Refresh the upstream schemas and RFC vectors `tests/standards` checks against                                                                               |
+| `pnpm changeset`                       | Record a user-visible change                                                                                                                                |
 
 ## Code Standards
 
 - Fifteen invariants (fail-closed, deny overrides allow, no string keys, frozen JSON leaves, zero runtime dependencies beyond `@standard-schema/spec`, authentication upstream, the Cloud optional, and more) are listed in [`AGENTS.md`](./AGENTS.md) and spelled out in [`.agents/rules/invariants.mdc`](./.agents/rules/invariants.mdc). A PR that breaks one is wrong.
 - The naming convention is public API: every adapter exports `createPermDock`, every provider is `subjectFrom*`. See [`.agents/rules/naming.mdc`](./.agents/rules/naming.mdc) and the [naming page](./apps/docs/content/docs/getting-started/naming.mdx).
 - TypeScript 7 in strict mode with `exactOptionalPropertyTypes`, `isolatedDeclarations` and `erasableSyntaxOnly`; presets in `packages/typescript-config`.
-- Oxlint with type-aware rules and Oxfmt (single quotes, semicolons, width 80); config in `packages/ox-config`.
+- Oxlint with type-aware rules and Oxfmt (double quotes, semicolons, width 80, sorted Tailwind classes, Markdown and MDX included); config in `packages/ox-config`.
 - Exact dependency pins from the pnpm catalog, `trustPolicy: no-downgrade`, and a one-day minimum release age.
 - Conventional commits, enforced by commitlint on `commit-msg`. Prose follows [`.agents/rules/writing.mdc`](./.agents/rules/writing.mdc).
 
@@ -120,6 +120,7 @@ In a git worktree the branch is prefixed: `https://<branch>.permdock.localhost`.
 
 - `ci.yml` runs on pushes to `main` and `develop`, on pull requests, and nightly with every e2e test repeated three times. It calls `verify.yml`, a matrix of format, lint, Knip, typecheck (with the TypeScript 5.9 / 6 / 7 type matrix), unit tests, boundaries, `audit:high`, catalog, docs and OpenAPI drift, `permdock doctor` over the examples, bundle size and publish checks, affected-only on pull requests. Integration, runtimes and sharded Playwright e2e run against the built `dist/`.
 - `release.yml` runs `verify` and Changesets on `main`. Pending changesets open a version pull request (`pnpm version-packages` also updates the root `CHANGELOG.md`); merging it publishes `permdock` to npm with trusted publishing (OIDC and provenance, no npm token) once the `NPM_PUBLISH` repository variable is `true`.
+
 ## Deploy
 
 The marketing and docs apps deploy as two Vercel Services of one project, declared in `vercel.json`: marketing owns `/` and docs owns `/docs`, `/mcp` and the `llms` routes on the same origin. Only `main` deploys (`git.deploymentEnabled`); other branches, including `changeset-release/*`, do not. Each service builds only when `turbo query affected` reports it changed. Functions run in `fra1`, and Ask AI reaches the AI Gateway through Vercel OIDC, with no API key. Route ownership and the build commands are in [`.agents/rules/deployment.mdc`](./.agents/rules/deployment.mdc); the exceptions to the repo standard are in [`docs/decisions`](./docs/decisions/README.md).
@@ -132,31 +133,31 @@ Read [`CONTRIBUTING.md`](./CONTRIBUTING.md). Public API changes start as an RFC 
 
 ### Packages
 
-| Path | Contents |
-| --- | --- |
-| [`packages/permdock`](./packages/permdock) | npm `permdock`: `src/core`, `src/conditions`, one folder per adapter, `src/cli` (the `permdock` bin), `src/testing` (`permdock/testing`), JSON schemas, the OpenAPI lint ruleset and the consumer skills |
-| [`packages/typescript-config`](./packages/typescript-config) | Private tsconfig presets: `base`, `library`, `react-library`, `next` |
-| [`packages/ox-config`](./packages/ox-config) | Private Oxlint and Oxfmt configuration |
-| [`packages/next-config`](./packages/next-config) | Private `createNextConfig()`: security headers, dev origins, Sentry options |
-| [`packages/ui`](./packages/ui) | Private vendored shadcn/ui, ReUI and AI Elements components, one export per file |
+| Path                                                         | Contents                                                                                                                                                                                                 |
+| ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`packages/permdock`](./packages/permdock)                   | npm `permdock`: `src/core`, `src/conditions`, one folder per adapter, `src/cli` (the `permdock` bin), `src/testing` (`permdock/testing`), JSON schemas, the OpenAPI lint ruleset and the consumer skills |
+| [`packages/typescript-config`](./packages/typescript-config) | Private tsconfig presets: `base`, `library`, `react-library`, `next`                                                                                                                                     |
+| [`packages/ox-config`](./packages/ox-config)                 | Private Oxlint and Oxfmt configuration                                                                                                                                                                   |
+| [`packages/next-config`](./packages/next-config)             | Private `createNextConfig()`: security headers, dev origins, Sentry options                                                                                                                              |
+| [`packages/ui`](./packages/ui)                               | Private vendored shadcn/ui, ReUI and AI Elements components, one export per file                                                                                                                         |
 
 ### Apps
 
-| Path | Contents |
-| --- | --- |
-| [`apps/docs`](./apps/docs) | Fumadocs on Next.js 16.3; content in `apps/docs/content/docs`; served at `/docs` |
-| [`apps/marketing`](./apps/marketing) | Next.js 16.3 marketing site; served at `/` |
-| [`apps/examples`](./apps/examples) | One app per adapter: `next`, `react-vite`, `expo`, `vue`, `svelte`, `solid`, `hono`, `express`, `fastify`, `elysia`, `nest`, `terminal`, `trpc`, `orpc`, `mcp-server`, `ai-sdk-agent`, `claude-agent`, `eve-agent`, `openai-agent`, `webmcp`, `a2a-agent`, `authzen-pdp`, `scim`, `supabase-rls`, `supabase-middleware`, `drizzle`, `prisma`, `better-auth`, `clerk`, `convex`, `monorepo` |
+| Path                                 | Contents                                                                                                                                                                                                                                                                                                                                                                                   |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [`apps/docs`](./apps/docs)           | Fumadocs on Next.js 16.3; content in `apps/docs/content/docs`; served at `/docs`                                                                                                                                                                                                                                                                                                           |
+| [`apps/marketing`](./apps/marketing) | Next.js 16.3 marketing site; served at `/`                                                                                                                                                                                                                                                                                                                                                 |
+| [`apps/examples`](./apps/examples)   | One app per adapter: `next`, `react-vite`, `expo`, `vue`, `svelte`, `solid`, `hono`, `express`, `fastify`, `elysia`, `nest`, `terminal`, `trpc`, `orpc`, `mcp-server`, `ai-sdk-agent`, `claude-agent`, `eve-agent`, `openai-agent`, `webmcp`, `a2a-agent`, `authzen-pdp`, `scim`, `supabase-rls`, `supabase-middleware`, `drizzle`, `prisma`, `better-auth`, `clerk`, `convex`, `monorepo` |
 
 ### Tests
 
-| Path | Contents |
-| --- | --- |
-| [`tests/e2e`](./tests/e2e) | Playwright over the examples, plus scenario fixture apps (Next, SvelteKit, Nuxt, TanStack Start, SolidStart, Expo, MCP OAuth, AI chat, realtime, Turborepo, SCIM, Cloud contract) |
-| [`tests/integration`](./tests/integration) | Postgres via testcontainers: RLS parity and providers |
-| [`tests/runtimes`](./tests/runtimes) | Bun, Deno and workerd |
-| [`tests/types`](./tests/types) | The public types under TypeScript 5.9, 6 and 7 |
-| [`tests/bundle`](./tests/bundle) | Per-entry size baseline and client-entry assertions |
+| Path                                       | Contents                                                                                                                                                                          |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`tests/e2e`](./tests/e2e)                 | Playwright over the examples, plus scenario fixture apps (Next, SvelteKit, Nuxt, TanStack Start, SolidStart, Expo, MCP OAuth, AI chat, realtime, Turborepo, SCIM, Cloud contract) |
+| [`tests/integration`](./tests/integration) | Postgres via testcontainers: RLS parity and providers                                                                                                                             |
+| [`tests/runtimes`](./tests/runtimes)       | Bun, Deno and workerd                                                                                                                                                             |
+| [`tests/types`](./tests/types)             | The public types under TypeScript 5.9, 6 and 7                                                                                                                                    |
+| [`tests/bundle`](./tests/bundle)           | Per-entry size baseline and client-entry assertions                                                                                                                               |
 
 ## Architecture At A Glance
 

@@ -1,33 +1,33 @@
-'use client';
+"use client";
 
-import type { KeyboardEvent, SubmitEvent } from 'react';
+import type { KeyboardEvent, SubmitEvent } from "react";
 
-import { useChat } from '@ai-sdk/react';
-import { DefaultChatTransport } from 'ai';
-import { ArrowUpIcon, SquareIcon } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useChat } from "@ai-sdk/react";
+import { DefaultChatTransport } from "ai";
+import { ArrowUpIcon, SquareIcon } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
-import { chatRoute } from '@/lib/shared';
+import { chatRoute } from "@/lib/shared";
 import {
   Conversation,
   ConversationContent,
   ConversationEmptyState,
   ConversationScrollButton,
-} from '@permdock/ui/components/ai-elements/conversation';
+} from "@permdock/ui/components/ai-elements/conversation";
 import {
   Message,
   MessageContent,
   MessageResponse,
-} from '@permdock/ui/components/ai-elements/message';
+} from "@permdock/ui/components/ai-elements/message";
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupButton,
   InputGroupTextarea,
-} from '@permdock/ui/components/input-group';
+} from "@permdock/ui/components/input-group";
 
 export function AskAiChat() {
-  const [input, setInput] = useState('');
+  const [input, setInput] = useState("");
   const [transport] = useState(
     () => new DefaultChatTransport({ api: chatRoute }),
   );
@@ -36,23 +36,23 @@ export function AskAiChat() {
     textarea.current?.focus();
   }, []);
   const { messages, sendMessage, status, stop, error } = useChat({
-    id: 'docs-ask-ai',
+    id: "docs-ask-ai",
     transport,
   });
-  const busy = status === 'submitted' || status === 'streaming';
+  const busy = status === "submitted" || status === "streaming";
 
   function submit(event?: SubmitEvent<HTMLFormElement>) {
     event?.preventDefault();
     const text = input.trim();
-    if (text === '' || busy) {
+    if (text === "" || busy) {
       return;
     }
     void sendMessage({ text });
-    setInput('');
+    setInput("");
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-    if (event.key === 'Enter' && !event.shiftKey) {
+    if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
       submit();
     }
@@ -72,7 +72,7 @@ export function AskAiChat() {
             <Message from={message.role} key={message.id}>
               <MessageContent>
                 {message.parts.map((part, index) =>
-                  part.type === 'text' ? (
+                  part.type === "text" ? (
                     <MessageResponse key={`${message.id}-${String(index)}`}>
                       {part.text}
                     </MessageResponse>
@@ -81,8 +81,8 @@ export function AskAiChat() {
               </MessageContent>
             </Message>
           ))}
-          {status === 'submitted' ? (
-            <p className="text-muted-foreground text-sm">Searching the docs…</p>
+          {status === "submitted" ? (
+            <p className="text-sm text-muted-foreground">Searching the docs…</p>
           ) : null}
           {error ? (
             <p className="text-sm text-destructive">
@@ -124,7 +124,7 @@ export function AskAiChat() {
                 size="icon-sm"
                 variant="default"
                 className="ml-auto"
-                disabled={input.trim() === ''}
+                disabled={input.trim() === ""}
               >
                 <ArrowUpIcon />
               </InputGroupButton>

@@ -1,19 +1,19 @@
-import { randomUUID } from 'node:crypto';
+import { randomUUID } from "node:crypto";
 
-import type { MemoryEdge } from '../core/relations.ts';
-import type { Policy, ResourceNode } from '../index.ts';
-import type { PermDockConfig } from './types.ts';
+import type { MemoryEdge } from "../core/relations.ts";
+import type { Policy, ResourceNode } from "../index.ts";
+import type { PermDockConfig } from "./types.ts";
 
 import {
   isEdgeRelation,
   isFieldRelation,
   isPrincipalRelation,
-} from '../core/permissions.ts';
-import { createPermDock, listPermissions, memoryRelations } from '../index.ts';
-import { jsonSchemaOf } from './catalog-doc.ts';
-import { commandFor } from './rls-compile.ts';
-import { graphPlan } from './rls-graph.ts';
-import { columnTypesOf, quoteIdent, quoteTable } from './rls-sql.ts';
+} from "../core/permissions.ts";
+import { createPermDock, listPermissions, memoryRelations } from "../index.ts";
+import { jsonSchemaOf } from "./catalog-doc.ts";
+import { commandFor } from "./rls-compile.ts";
+import { graphPlan } from "./rls-graph.ts";
+import { columnTypesOf, quoteIdent, quoteTable } from "./rls-sql.ts";
 
 type Row = Readonly<Record<string, unknown>>;
 
@@ -32,13 +32,13 @@ type TreeNode = {
 const SUBJECTS = 3;
 
 function tableSql(name: string): string {
-  return quoteTable(name.includes('.') ? name : `public.${name}`);
+  return quoteTable(name.includes(".") ? name : `public.${name}`);
 }
 
 function idFactory(node: ResourceNode): () => string | number {
   const type = columnTypesOf(jsonSchemaOf(node))[node.id];
   let next = 900_000;
-  return type === 'numeric'
+  return type === "numeric"
     ? () => {
         next += 1;
         return next;
@@ -91,10 +91,10 @@ function insertSql(
           values.push(row[column]);
           return `$${String(values.length)}`;
         })
-        .join(', ')})`,
+        .join(", ")})`,
   );
   return {
-    sql: `insert into ${tableSql(table)} (${columns.map(quoteIdent).join(', ')}) values ${tuples.join(', ')} returning *`,
+    sql: `insert into ${tableSql(table)} (${columns.map(quoteIdent).join(", ")}) values ${tuples.join(", ")} returning *`,
     values,
   };
 }
@@ -121,34 +121,34 @@ where a.attrelid = $1::regclass and a.attnum > 0 and not a.attisdropped
   and a.attidentity = '' and a.attgenerated = ''`;
 
 function placeholder(type: string): unknown {
-  if (type === 'uuid') {
+  if (type === "uuid") {
     return randomUUID();
   }
-  if (type === 'boolean') {
+  if (type === "boolean") {
     return false;
   }
   if (/^(smallint|integer|bigint|numeric|real|double precision)/u.test(type)) {
     return 0;
   }
-  if (type.startsWith('timestamp') || type === 'date') {
+  if (type.startsWith("timestamp") || type === "date") {
     return new Date().toISOString();
   }
-  if (type === 'json' || type === 'jsonb') {
+  if (type === "json" || type === "jsonb") {
     return {};
   }
-  return 'permdock-tree';
+  return "permdock-tree";
 }
 
 function asRequiredColumn(row: Row): RequiredColumn | undefined {
   const { name, type, refTable, refColumn } = row;
-  if (typeof name !== 'string' || typeof type !== 'string') {
+  if (typeof name !== "string" || typeof type !== "string") {
     return undefined;
   }
   return {
     name,
     type,
-    refTable: typeof refTable === 'string' ? refTable : null,
-    refColumn: typeof refColumn === 'string' ? refColumn : null,
+    refTable: typeof refTable === "string" ? refTable : null,
+    refColumn: typeof refColumn === "string" ? refColumn : null,
   };
 }
 
@@ -174,7 +174,7 @@ async function requiredValues(
       const existing = await query(
         `select ${quoteIdent(column.refColumn)} as value from ${column.refTable} limit 1`,
       );
-      values[column.name] = existing.rows[0]?.['value'] ?? null;
+      values[column.name] = existing.rows[0]?.["value"] ?? null;
     } else {
       values[column.name] = placeholder(column.type);
     }
@@ -232,7 +232,7 @@ export async function verifyTree(input: {
       checked: 0,
       granted: 0,
       mismatches: [],
-      notes: ['no graph grant walks a self-parented resource'],
+      notes: ["no graph grant walks a self-parented resource"],
     };
   }
   const subjects: string[] = Array.from({ length: SUBJECTS }, () =>
@@ -297,7 +297,7 @@ export async function verifyTree(input: {
         continue;
       }
       const object = spec.object ?? `${node.name}_id`;
-      const subject = spec.subject ?? 'user_id';
+      const subject = spec.subject ?? "user_id";
       const list: MemoryEdge[] = [];
       const edgeRows: Row[] = [];
       for (const [index, item] of tree.entries()) {
@@ -335,7 +335,7 @@ export async function verifyTree(input: {
       const childRows = tree.map((item, index) => {
         const row: Record<string, unknown> = {
           [child.id]: make(),
-          [child.parent?.field ?? '']: item.id,
+          [child.parent?.field ?? ""]: item.id,
         };
         if (child.restricted !== undefined) {
           row[child.restricted] = index % 7 === 3;
@@ -357,8 +357,8 @@ export async function verifyTree(input: {
   let granted = 0;
   const reads = listPermissions(policy.permissions).filter(
     (leaf) =>
-      leaf.kind === 'instance' &&
-      commandFor(leaf.action) === 'select' &&
+      leaf.kind === "instance" &&
+      commandFor(leaf.action) === "select" &&
       rows[leaf.resource] !== undefined,
   );
   for (const subject of subjects) {
@@ -379,7 +379,7 @@ export async function verifyTree(input: {
         `select ${quoteIdent(node.id)}::text as id from ${tableSql(tables?.[node.name] ?? node.name)} where ${quoteIdent(node.id)} = any($1)`,
         [ids],
       );
-      const seen = new Set(visible.rows.map((row) => String(row['id'])));
+      const seen = new Set(visible.rows.map((row) => String(row["id"])));
       for (const row of list) {
         checked += 1;
         const id = String(row[node.id]);
@@ -387,7 +387,7 @@ export async function verifyTree(input: {
         const allowed = permdock.can(permission as never, row);
         if (allowed !== seen.has(id)) {
           mismatches.push(
-            `${permission.key} ${id}: in-process ${allowed ? 'granted' : 'denied'}, database ${seen.has(id) ? 'allowed' : 'filtered'}`,
+            `${permission.key} ${id}: in-process ${allowed ? "granted" : "denied"}, database ${seen.has(id) ? "allowed" : "filtered"}`,
           );
         } else if (allowed) {
           granted += 1;

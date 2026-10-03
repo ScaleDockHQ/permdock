@@ -12,22 +12,22 @@ Kysely users write queries by hand, which makes them the group most likely to fo
 ## API
 
 ```ts
-import { toWhere, withSubject } from 'permdock/kysely'
+import { toWhere, withSubject } from "permdock/kysely";
 
 const rows = await db
-  .selectFrom('posts')
+  .selectFrom("posts")
   .selectAll()
-  .where(toWhere(permdock.where(permissions.post.read), 'posts'))
-  .where('published', '=', true)
-  .execute()
+  .where(toWhere(permdock.where(permissions.post.read), "posts"))
+  .where("published", "=", true)
+  .execute();
 
 // column mapping when schema fields differ from column names
-toWhere(condition, 'posts', { columns: { authorId: 'author_id' } })
+toWhere(condition, "posts", { columns: { authorId: "author_id" } });
 
 // RLS instead of app-side filtering: run the query under the caller's role and claims
 await withSubject(db, permdock, async (trx) => {
-  return trx.selectFrom('posts').selectAll().execute()   // policies from `permdock rls generate --target sql` apply
-})
+  return trx.selectFrom("posts").selectAll().execute(); // policies from `permdock rls generate --target sql` apply
+});
 ```
 
 - `toWhere(condition, table, options?)` returns `(eb) => Expression<SqlBool>`; fields map to `table.column` references, operators map to Kysely binary operators and `eb.and` / `eb.or` / `eb.not`, `in` / `notIn` to `in` / `not in`, `isNull` to `is null`, `contains` to `@>` with a one-element array for fields in `options.listFields` and to `like` (with `%`, `_` and `\` escaped) for strings. `kysely` is an optional peer; the callback is typed structurally so tests need no install.
@@ -48,13 +48,13 @@ The preamble, in order:
 
 Operator mapping:
 
-| Portable operator | Kysely |
-|---|---|
-| `eq`, `ne`, `gt`, `gte`, `lt`, `lte` | `eb(col, '=' / '!=' / '>' / '>=' / '<' / '<=', eb.val(v))` |
-| `in`, `notIn` | `eb(col, 'in', values)` / `eb(col, 'not in', values)` |
-| `isNull` | `eb(col, 'is', null)` |
-| `contains` | `eb(col, '@>', eb.val([v]))` for `options.listFields`, `like` with escaped wildcards for text |
-| `and`, `or`, `not` | `eb.and([...])`, `eb.or([...])`, `eb.not(...)` |
+| Portable operator                    | Kysely                                                                                        |
+| ------------------------------------ | --------------------------------------------------------------------------------------------- |
+| `eq`, `ne`, `gt`, `gte`, `lt`, `lte` | `eb(col, '=' / '!=' / '>' / '>=' / '<' / '<=', eb.val(v))`                                    |
+| `in`, `notIn`                        | `eb(col, 'in', values)` / `eb(col, 'not in', values)`                                         |
+| `isNull`                             | `eb(col, 'is', null)`                                                                         |
+| `contains`                           | `eb(col, '@>', eb.val([v]))` for `options.listFields`, `like` with escaped wildcards for text |
+| `and`, `or`, `not`                   | `eb.and([...])`, `eb.or([...])`, `eb.not(...)`                                                |
 
 ## Request lifecycle
 

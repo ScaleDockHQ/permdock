@@ -4,7 +4,7 @@ import {
   type Permission,
   type Policy,
   type WhereResult,
-} from '../index.ts';
+} from "../index.ts";
 
 export type OrmParityScenario<TUser = unknown> = {
   readonly name: string;
@@ -13,7 +13,7 @@ export type OrmParityScenario<TUser = unknown> = {
   /** The active tenant and role sources, as in `createPermDock(policy, user, options)`. */
   readonly options?: PermDockOptions;
   /** An instance permission; its `where()` filters the table. */
-  readonly permission: Permission<string, unknown, 'instance'>;
+  readonly permission: Permission<string, unknown, "instance">;
   /** Every row of the table, exactly as the database holds them. */
   readonly rows: readonly Readonly<Record<string, unknown>>[];
 };
@@ -71,7 +71,7 @@ export async function ormParity<TUser>(
   scenarios: readonly OrmParityScenario<TUser>[],
   options: OrmParityOptions<TUser>,
 ): Promise<OrmParityReport> {
-  const idField = options.id ?? 'id';
+  const idField = options.id ?? "id";
 
   async function runCase(
     scenario: OrmParityScenario<TUser>,

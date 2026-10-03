@@ -1,14 +1,14 @@
-import type { ApprovalStore } from '../approvals/types.ts';
-import type { TokenFailureCause, TokenVerifier } from '../core/interfaces.ts';
-import type { RevocationFeed } from '../core/revocations.ts';
-import type { DiscoveryInput, JwtJwks } from '../jwt/types.ts';
+import type { ApprovalStore } from "../approvals/types.ts";
+import type { TokenFailureCause, TokenVerifier } from "../core/interfaces.ts";
+import type { RevocationFeed } from "../core/revocations.ts";
+import type { DiscoveryInput, JwtJwks } from "../jwt/types.ts";
 
 export type CaepEventName =
-  | 'session-revoked'
-  | 'credential-change'
-  | 'assurance-level-change'
-  | 'token-claims-change'
-  | 'device-compliance-change';
+  | "session-revoked"
+  | "credential-change"
+  | "assurance-level-change"
+  | "token-claims-change"
+  | "device-compliance-change";
 
 export type SetSubject = {
   readonly format: string;
@@ -44,7 +44,7 @@ export type SsfEventHandler = (input: SsfEventInput) => void | Promise<void>;
 export type SsfOnEvent = {
   readonly [K in CaepEventName]?: SsfEventHandler;
 } & {
-  readonly '*'?: SsfEventHandler;
+  readonly "*"?: SsfEventHandler;
 };
 
 /**
@@ -68,7 +68,7 @@ export type SsfAuditEvent = {
   readonly jti?: string;
   readonly replayed?: true;
   readonly cancelled?: number;
-  readonly unknown?: 'event' | 'subject';
+  readonly unknown?: "event" | "subject";
   readonly err?: string;
   readonly cause?: TokenFailureCause;
 };
@@ -114,7 +114,7 @@ export type SsfReceiver = {
   push(request: Request): Promise<Response>;
   logout(request: Request): Promise<Response>;
   poll(options: PollOptions): Promise<PollResult> | PollHandle;
-  on(event: 'event', handler: SsfEventListener): () => void;
+  on(event: "event", handler: SsfEventListener): () => void;
 };
 
 export type SsfPermDock = {

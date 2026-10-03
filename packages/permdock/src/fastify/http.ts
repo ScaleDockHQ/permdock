@@ -1,11 +1,11 @@
-import type { FastifyReply, FastifyRequest } from 'fastify';
+import type { FastifyReply, FastifyRequest } from "fastify";
 
 export function toRequest(request: FastifyRequest): Request {
-  const host = headerValue(request.headers.host) ?? 'localhost';
+  const host = headerValue(request.headers.host) ?? "localhost";
   const url = `${request.protocol}://${host}${request.url}`;
   const headers = new Headers();
   for (const [key, value] of Object.entries(request.headers)) {
-    if (typeof value === 'string') {
+    if (typeof value === "string") {
       headers.set(key, value);
       continue;
     }
@@ -16,7 +16,7 @@ export function toRequest(request: FastifyRequest): Request {
     }
   }
   const method = request.method;
-  if (method === 'GET' || method === 'HEAD') {
+  if (method === "GET" || method === "HEAD") {
     return new Request(url, { method, headers });
   }
   const body = bodyOf(request, headers);
@@ -27,10 +27,10 @@ export function toRequest(request: FastifyRequest): Request {
 }
 
 function headerValue(value: string | string[] | undefined): string | undefined {
-  if (typeof value === 'string' && value.length > 0) {
+  if (typeof value === "string" && value.length > 0) {
     return value;
   }
-  if (Array.isArray(value) && typeof value[0] === 'string') {
+  if (Array.isArray(value) && typeof value[0] === "string") {
     return value[0];
   }
   return undefined;
@@ -40,11 +40,11 @@ function bodyOf(request: FastifyRequest, headers: Headers): string | undefined {
   if (request.body === undefined) {
     return undefined;
   }
-  if (typeof request.body === 'string') {
+  if (typeof request.body === "string") {
     return request.body;
   }
-  if (!headers.has('content-type')) {
-    headers.set('content-type', 'application/json');
+  if (!headers.has("content-type")) {
+    headers.set("content-type", "application/json");
   }
   return JSON.stringify(request.body);
 }

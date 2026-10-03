@@ -1,8 +1,8 @@
-import { saasPermissions as p } from 'permdock/testing/saas/permissions';
+import { saasPermissions as p } from "permdock/testing/saas/permissions";
 
-import { projectsOf } from '@permdock/e2e-saas-kit';
+import { projectsOf } from "@permdock/e2e-saas-kit";
 
-import { noStore, orgOf, kernel } from '../../lib/server';
+import { noStore, orgOf, kernel } from "../../lib/server";
 
 export async function GET(request: Request): Promise<Response> {
   const permdock = await kernel.permdock(request);

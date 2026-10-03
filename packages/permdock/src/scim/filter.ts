@@ -1,10 +1,10 @@
-import type { DirectoryGroup, DirectoryUser, ScimFilter } from './types.ts';
+import type { DirectoryGroup, DirectoryUser, ScimFilter } from "./types.ts";
 
-const COMPARE = new Set(['eq', 'ne', 'co', 'sw']);
+const COMPARE = new Set(["eq", "ne", "co", "sw"]);
 
 function skipSpace(input: string, index: number): number {
   let cursor = index;
-  while (cursor < input.length && input[cursor] === ' ') {
+  while (cursor < input.length && input[cursor] === " ") {
     cursor += 1;
   }
   return cursor;
@@ -15,11 +15,11 @@ function readIdent(
   index: number,
 ): { readonly value: string; readonly next: number } | undefined {
   const start = skipSpace(input, index);
-  if (!/[A-Za-z]/u.test(input[start] ?? '')) {
+  if (!/[A-Za-z]/u.test(input[start] ?? "")) {
     return undefined;
   }
   let cursor = start;
-  while (cursor < input.length && /[A-Za-z0-9._]/u.test(input[cursor] ?? '')) {
+  while (cursor < input.length && /[A-Za-z0-9._]/u.test(input[cursor] ?? "")) {
     cursor += 1;
   }
   return { value: input.slice(start, cursor), next: cursor };
@@ -34,11 +34,11 @@ function readString(
     return undefined;
   }
   let cursor = start + 1;
-  let value = '';
+  let value = "";
   while (cursor < input.length) {
     const char = input[cursor];
-    if (char === '\\') {
-      value += input[cursor + 1] ?? '';
+    if (char === "\\") {
+      value += input[cursor + 1] ?? "";
       cursor += 2;
       continue;
     }
@@ -63,10 +63,10 @@ function readLiteral(
   if (ident === undefined) {
     return undefined;
   }
-  if (ident.value.toLowerCase() === 'true') {
+  if (ident.value.toLowerCase() === "true") {
     return { value: true, next: ident.next };
   }
-  if (ident.value.toLowerCase() === 'false') {
+  if (ident.value.toLowerCase() === "false") {
     return { value: false, next: ident.next };
   }
   return { value: ident.value, next: ident.next };
@@ -77,13 +77,13 @@ function parsePrimary(
   index: number,
 ): { readonly filter: ScimFilter; readonly next: number } | undefined {
   const start = skipSpace(input, index);
-  if (input[start] === '(') {
+  if (input[start] === "(") {
     const inner = parseOr(input, start + 1);
     if (inner === undefined) {
       return undefined;
     }
     const close = skipSpace(input, inner.next);
-    if (input[close] !== ')') {
+    if (input[close] !== ")") {
       return undefined;
     }
     return { filter: inner.filter, next: close + 1 };
@@ -97,9 +97,9 @@ function parsePrimary(
     return undefined;
   }
   const op = opToken.value.toLowerCase();
-  if (op === 'pr') {
+  if (op === "pr") {
     return {
-      filter: { op: 'pr', attribute: attribute.value },
+      filter: { op: "pr", attribute: attribute.value },
       next: opToken.next,
     };
   }
@@ -113,7 +113,7 @@ function parsePrimary(
   // SAFETY: COMPARE.has(op) above admits only eq, ne, co and sw.
   return {
     filter: {
-      op: op as 'eq' | 'ne' | 'co' | 'sw',
+      op: op as "eq" | "ne" | "co" | "sw",
       attribute: attribute.value,
       value: value.value,
     },
@@ -133,7 +133,7 @@ function parseAnd(
   let cursor = first.next;
   for (;;) {
     const nextOp = readIdent(input, cursor);
-    if (nextOp?.value.toLowerCase() !== 'and') {
+    if (nextOp?.value.toLowerCase() !== "and") {
       break;
     }
     const next = parsePrimary(input, nextOp.next);
@@ -146,7 +146,7 @@ function parseAnd(
   if (filters.length === 1) {
     return { filter: first.filter, next: cursor };
   }
-  return { filter: { op: 'and', filters }, next: cursor };
+  return { filter: { op: "and", filters }, next: cursor };
 }
 
 function parseOr(
@@ -161,7 +161,7 @@ function parseOr(
   let cursor = first.next;
   for (;;) {
     const nextOp = readIdent(input, cursor);
-    if (nextOp?.value.toLowerCase() !== 'or') {
+    if (nextOp?.value.toLowerCase() !== "or") {
       break;
     }
     const next = parseAnd(input, nextOp.next);
@@ -174,12 +174,12 @@ function parseOr(
   if (filters.length === 1) {
     return { filter: first.filter, next: cursor };
   }
-  return { filter: { op: 'or', filters }, next: cursor };
+  return { filter: { op: "or", filters }, next: cursor };
 }
 
 export function parseScimFilter(input: string): ScimFilter | undefined {
   const trimmed = input.trim();
-  if (trimmed === '') {
+  if (trimmed === "") {
     return undefined;
   }
   const parsed = parseOr(trimmed, 0);
@@ -196,23 +196,23 @@ function readAttribute(
   target: Record<string, unknown>,
   attribute: string,
 ): unknown {
-  if (attribute === 'members.value') {
-    const members = target['members'];
+  if (attribute === "members.value") {
+    const members = target["members"];
     if (!Array.isArray(members)) {
       return undefined;
     }
     return members.map((member) => {
-      if (member !== null && typeof member === 'object' && 'value' in member) {
+      if (member !== null && typeof member === "object" && "value" in member) {
         // SAFETY: checked just above to be a non-null object that has a value key.
         return (member as { value?: unknown }).value;
       }
       return undefined;
     });
   }
-  const parts = attribute.split('.');
+  const parts = attribute.split(".");
   let current: unknown = target;
   for (const part of parts) {
-    if (current === null || typeof current !== 'object') {
+    if (current === null || typeof current !== "object") {
       return undefined;
     }
     // SAFETY: checked just above to be a non-null object.
@@ -222,38 +222,38 @@ function readAttribute(
 }
 
 function asString(value: unknown): string {
-  if (typeof value === 'boolean') {
-    return value ? 'true' : 'false';
+  if (typeof value === "boolean") {
+    return value ? "true" : "false";
   }
   return String(value);
 }
 
 function matchCompare(
   actual: unknown,
-  op: 'eq' | 'ne' | 'co' | 'sw',
+  op: "eq" | "ne" | "co" | "sw",
   expected: string | boolean,
 ): boolean {
   if (Array.isArray(actual)) {
     return actual.some((item) => matchCompare(item, op, expected));
   }
   if (actual === undefined || actual === null) {
-    return op === 'ne';
+    return op === "ne";
   }
-  if (typeof expected === 'boolean' || typeof actual === 'boolean') {
+  if (typeof expected === "boolean" || typeof actual === "boolean") {
     const left = asString(actual).toLowerCase();
     const right = asString(expected).toLowerCase();
-    return op === 'eq' ? left === right : op === 'ne' ? left !== right : false;
+    return op === "eq" ? left === right : op === "ne" ? left !== right : false;
   }
   const left = asString(actual);
   const right = asString(expected);
   switch (op) {
-    case 'eq':
+    case "eq":
       return left === right;
-    case 'ne':
+    case "ne":
       return left !== right;
-    case 'co':
+    case "co":
       return left.includes(right);
-    case 'sw':
+    case "sw":
       return left.startsWith(right);
     default: {
       const exhaustive: never = op;
@@ -267,7 +267,7 @@ function present(value: unknown): boolean {
   if (Array.isArray(value)) {
     return value.some(present);
   }
-  return value !== undefined && value !== null && value !== '';
+  return value !== undefined && value !== null && value !== "";
 }
 
 export function matchFilter(
@@ -280,16 +280,16 @@ export function matchFilter(
   // SAFETY: directory users and groups are plain records; attributes are only read, never assumed.
   const record = target as Record<string, unknown>;
   switch (filter.op) {
-    case 'and':
+    case "and":
       return filter.filters.every((item) => matchFilter(target, item));
-    case 'or':
+    case "or":
       return filter.filters.some((item) => matchFilter(target, item));
-    case 'pr':
+    case "pr":
       return present(readAttribute(record, filter.attribute));
-    case 'eq':
-    case 'ne':
-    case 'co':
-    case 'sw':
+    case "eq":
+    case "ne":
+    case "co":
+    case "sw":
       return matchCompare(
         readAttribute(record, filter.attribute),
         filter.op,
@@ -303,24 +303,24 @@ export function matchFilter(
 }
 
 const SUPPORTED_FILTER_ATTRIBUTES: ReadonlySet<string> = new Set([
-  'id',
-  'userName',
-  'externalId',
-  'active',
-  'displayName',
-  'members.value',
+  "id",
+  "userName",
+  "externalId",
+  "active",
+  "displayName",
+  "members.value",
 ]);
 
 export function filterSupported(filter: ScimFilter): boolean {
   switch (filter.op) {
-    case 'and':
-    case 'or':
+    case "and":
+    case "or":
       return filter.filters.every(filterSupported);
-    case 'pr':
-    case 'eq':
-    case 'ne':
-    case 'co':
-    case 'sw':
+    case "pr":
+    case "eq":
+    case "ne":
+    case "co":
+    case "sw":
       return SUPPORTED_FILTER_ATTRIBUTES.has(filter.attribute);
     default: {
       const exhaustive: never = filter;

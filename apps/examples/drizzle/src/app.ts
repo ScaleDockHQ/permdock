@@ -1,18 +1,18 @@
-import { and, eq } from 'drizzle-orm';
-import { Hono } from 'hono';
-import { createPermDock } from 'permdock';
-import { toWhere } from 'permdock/drizzle';
+import { and, eq } from "drizzle-orm";
+import { Hono } from "hono";
+import { createPermDock } from "permdock";
+import { toWhere } from "permdock/drizzle";
 
-import { db, ready } from './db.ts';
-import { permissions } from './permissions.ts';
-import { memberUser, policy } from './policy.ts';
-import { posts } from './schema.ts';
+import { db, ready } from "./db.ts";
+import { permissions } from "./permissions.ts";
+import { memberUser, policy } from "./policy.ts";
+import { posts } from "./schema.ts";
 
 export const app = new Hono();
 
-app.get('/health', (c) => c.json({ ok: true }));
+app.get("/health", (c) => c.json({ ok: true }));
 
-app.get('/posts', async (c) => {
+app.get("/posts", async (c) => {
   await ready;
   const permdock = await createPermDock(policy, memberUser);
   const rows = await db
@@ -23,15 +23,15 @@ app.get('/posts', async (c) => {
   return c.json({ ok: true, posts: rows.map((row) => row.id) });
 });
 
-app.patch('/posts/:id', async (c) => {
+app.patch("/posts/:id", async (c) => {
   await ready;
   const permdock = await createPermDock(policy, memberUser);
   const updated = await db
     .update(posts)
-    .set({ title: 'Edited' })
+    .set({ title: "Edited" })
     .where(
       and(
-        eq(posts.id, c.req.param('id')),
+        eq(posts.id, c.req.param("id")),
         toWhere(permdock.where(permissions.post.update), posts),
       ),
     )
@@ -42,10 +42,10 @@ app.patch('/posts/:id', async (c) => {
   return c.json({ ok: true, id: updated[0]?.id });
 });
 
-app.post('/posts/:id/publish', async (c) => {
+app.post("/posts/:id/publish", async (c) => {
   const permdock = await createPermDock(policy, memberUser);
   const post = {
-    id: c.req.param('id'),
+    id: c.req.param("id"),
     authorId: memberUser.id,
     orgId: memberUser.orgId,
     published: false,

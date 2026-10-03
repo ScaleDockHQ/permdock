@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from "zod";
 
 import {
   allow,
@@ -11,7 +11,7 @@ import {
   deny,
   principal,
   resource,
-} from '../../src/index.ts';
+} from "../../src/index.ts";
 
 const Project = z.object({
   id: z.string(),
@@ -23,24 +23,24 @@ const Project = z.object({
 export const permissions = definePermissions({
   project: resource(
     Project,
-    crud({ relations: { org: { field: 'orgId', memberOf: 'tenant' } } }),
+    crud({ relations: { org: { field: "orgId", memberOf: "tenant" } } }),
   ),
   member: resource({
-    actions: ['assignRole'],
-    collection: ['list', 'invite'],
-    relations: { org: { field: 'orgId', memberOf: 'tenant' } },
+    actions: ["assignRole"],
+    collection: ["list", "invite"],
+    relations: { org: { field: "orgId", memberOf: "tenant" } },
   }),
-  billing: resource({ collection: ['read', 'manage'] }),
-  settings: resource({ collection: ['manage'] }),
-  audit: resource({ collection: ['read'] }),
-  analytics: resource({ collection: ['read'] }),
+  billing: resource({ collection: ["read", "manage"] }),
+  settings: resource({ collection: ["manage"] }),
+  audit: resource({ collection: ["read"] }),
+  analytics: resource({ collection: ["read"] }),
 });
 
 const roles = defineRoles({
-  owner: { on: 'tenant', assignable: true },
-  admin: { on: 'tenant', assignable: true },
-  member: { on: 'tenant', assignable: true },
-  viewer: { on: 'tenant', assignable: true },
+  owner: { on: "tenant", assignable: true },
+  admin: { on: "tenant", assignable: true },
+  member: { on: "tenant", assignable: true },
+  viewer: { on: "tenant", assignable: true },
 });
 
 const plans = definePlans({ free: {}, pro: {} });
@@ -67,7 +67,7 @@ function each(
 export const policy = definePolicy(
   { permissions, roles, plans },
   {
-    scopes: { tenant: { key: 'orgId' } },
+    scopes: { tenant: { key: "orgId" } },
     subject: (user: SaasUser | null) => user,
     grants: [
       ...each(readers, (to) => allow(permissions.project.read, { to })),
@@ -104,28 +104,28 @@ export const policy = definePolicy(
 );
 
 export const alice: SaasUser = {
-  id: 'alice',
+  id: "alice",
   memberships: [
-    { tenant: 'acme', roles: ['admin'] },
-    { tenant: 'globex', roles: ['viewer'] },
+    { tenant: "acme", roles: ["admin"] },
+    { tenant: "globex", roles: ["viewer"] },
   ],
 };
 
 export const bob: SaasUser = {
-  id: 'bob',
-  memberships: [{ tenant: 'acme', roles: ['member'] }],
+  id: "bob",
+  memberships: [{ tenant: "acme", roles: ["member"] }],
 };
 
 export const ownProject = {
-  id: 'p1',
-  orgId: 'acme',
-  ownerId: 'bob',
+  id: "p1",
+  orgId: "acme",
+  ownerId: "bob",
   archived: false,
 };
 
 export const otherProject = {
-  id: 'p2',
-  orgId: 'acme',
-  ownerId: 'alice',
+  id: "p2",
+  orgId: "acme",
+  ownerId: "alice",
   archived: false,
 };

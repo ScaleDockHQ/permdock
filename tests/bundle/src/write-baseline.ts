@@ -1,9 +1,9 @@
-import { writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-import { measureConsumers } from './consumers.ts';
-import { ENTRIES, exportNames, gzipGraph, walk } from './graph.ts';
+import { measureConsumers } from "./consumers.ts";
+import { ENTRIES, exportNames, gzipGraph, walk } from "./graph.ts";
 
 export function measureSizes(): Record<string, number> {
   const measured: Record<string, number> = {};
@@ -24,15 +24,15 @@ export function measureExports(): Record<string, readonly string[]> {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const dir = dirname(fileURLToPath(import.meta.url));
   writeFileSync(
-    join(dir, 'baseline.json'),
+    join(dir, "baseline.json"),
     `${JSON.stringify(measureSizes(), null, 2)}\n`,
   );
   writeFileSync(
-    join(dir, 'exports.json'),
+    join(dir, "exports.json"),
     `${JSON.stringify(measureExports(), null, 2)}\n`,
   );
   writeFileSync(
-    join(dir, 'consumers.json'),
+    join(dir, "consumers.json"),
     `${JSON.stringify(await measureConsumers(), null, 2)}\n`,
   );
 }

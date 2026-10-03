@@ -1,7 +1,7 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
-import type { Policy } from '../index.ts';
+import type { Policy } from "../index.ts";
 import type {
   CatalogDelegation,
   CatalogDocument,
@@ -9,27 +9,27 @@ import type {
   CliIo,
   PermDockConfig,
   ScanResult,
-} from './types.ts';
+} from "./types.ts";
 
-import { parseCatalog } from '../catalog/parse.ts';
-import { canonicalJson } from '../core/canonical-json.ts';
-import { createPermDock, findPermission, memoryRoleSource } from '../index.ts';
-import { buildCatalog } from './catalog-doc.ts';
-import { usageResult } from './errors.ts';
-import { fixtureRow, fixtureSubject, loadFixtures } from './fixtures.ts';
-import { asPolicy, loadModule, pickNamed } from './load.ts';
+import { parseCatalog } from "../catalog/parse.ts";
+import { canonicalJson } from "../core/canonical-json.ts";
+import { createPermDock, findPermission, memoryRoleSource } from "../index.ts";
+import { buildCatalog } from "./catalog-doc.ts";
+import { usageResult } from "./errors.ts";
+import { fixtureRow, fixtureSubject, loadFixtures } from "./fixtures.ts";
+import { asPolicy, loadModule, pickNamed } from "./load.ts";
 
 export type BreakingKind =
-  | 'permission-removed'
-  | 'scope-removed'
-  | 'role-removed'
-  | 'allow-removed'
-  | 'allow-narrowed'
-  | 'deny-added'
-  | 'deny-changed'
-  | 'delegation-removed'
-  | 'delegation-narrowed'
-  | 'access-lost';
+  | "permission-removed"
+  | "scope-removed"
+  | "role-removed"
+  | "allow-removed"
+  | "allow-narrowed"
+  | "deny-added"
+  | "deny-changed"
+  | "delegation-removed"
+  | "delegation-narrowed"
+  | "access-lost";
 
 export type BreakingChange = {
   readonly kind: BreakingKind;
@@ -56,8 +56,8 @@ export type ImpactRow = {
   readonly action: string;
   readonly subject: string;
   readonly tenant?: string;
-  readonly before: 'granted' | 'denied' | 'approval-required' | 'unknown';
-  readonly after: 'granted' | 'denied' | 'approval-required' | 'unknown';
+  readonly before: "granted" | "denied" | "approval-required" | "unknown";
+  readonly after: "granted" | "denied" | "approval-required" | "unknown";
 };
 
 export type CatalogDiff = {
@@ -115,14 +115,14 @@ async function loadSide(cwd: string, source: string, now: Date): Promise<Side> {
   if (!existsSync(abs)) {
     throw new Error(`PermDock CLI: not found: ${source}`);
   }
-  if (abs.endsWith('.json')) {
+  if (abs.endsWith(".json")) {
     return {
       source,
-      catalog: parseCatalog(readFileSync(abs, 'utf8')),
+      catalog: parseCatalog(readFileSync(abs, "utf8")),
       policy: undefined,
     };
   }
-  const policy = asPolicy(pickNamed(await loadModule(abs), ['policy']));
+  const policy = asPolicy(pickNamed(await loadModule(abs), ["policy"]));
   return {
     source,
     policy,
@@ -171,28 +171,28 @@ function grantChanges(
   if (!same(before.where, after.where)) {
     out.push(
       before.where === undefined
-        ? 'where added'
+        ? "where added"
         : after.where === undefined
-          ? 'where removed'
-          : 'where changed',
+          ? "where removed"
+          : "where changed",
     );
   }
   if (!same(before.check, after.check)) {
     out.push(
       before.check === undefined
-        ? 'check added'
+        ? "check added"
         : after.check === undefined
-          ? 'check removed'
-          : 'check changed',
+          ? "check removed"
+          : "check changed",
     );
   }
   if (!same(before.approval, after.approval)) {
     out.push(
       before.approval === undefined
-        ? 'approval added'
+        ? "approval added"
         : after.approval === undefined
-          ? 'approval removed'
-          : 'approval changed',
+          ? "approval removed"
+          : "approval changed",
     );
   }
   if (!same(before.fields, after.fields)) {
@@ -204,20 +204,20 @@ function grantChanges(
   if (!same(before.limit, after.limit)) {
     out.push(
       before.limit === undefined
-        ? 'limit added'
+        ? "limit added"
         : after.limit === undefined
-          ? 'limit removed'
-          : 'limit changed',
+          ? "limit removed"
+          : "limit changed",
     );
   }
   if (!same(before.purpose, after.purpose)) {
-    out.push('purpose changed');
+    out.push("purpose changed");
   }
   if (before.name !== after.name) {
-    out.push('name changed');
+    out.push("name changed");
   }
   if (before.portable !== after.portable) {
-    out.push(after.portable === false ? 'portable: false' : 'portable');
+    out.push(after.portable === false ? "portable: false" : "portable");
   }
   return out;
 }
@@ -227,54 +227,54 @@ function fieldsChange(
   after: readonly string[] | undefined,
 ): string {
   if (before === undefined) {
-    return 'fields narrowed';
+    return "fields narrowed";
   }
   if (after === undefined) {
-    return 'fields widened';
+    return "fields widened";
   }
   const kept = new Set(after);
   return before.every((field) => kept.has(field))
-    ? 'fields widened'
-    : 'fields narrowed';
+    ? "fields widened"
+    : "fields narrowed";
 }
 
-const validFrom = (value: CatalogGrant['validity']): number =>
+const validFrom = (value: CatalogGrant["validity"]): number =>
   value?.from ?? Number.NEGATIVE_INFINITY;
-const validUntil = (value: CatalogGrant['validity']): number =>
+const validUntil = (value: CatalogGrant["validity"]): number =>
   value?.until ?? Number.POSITIVE_INFINITY;
 
 /** Narrowed when the window starts later or ends earlier than before; a new window on an open grant narrows it. */
 function validityChange(
-  before: CatalogGrant['validity'],
-  after: CatalogGrant['validity'],
+  before: CatalogGrant["validity"],
+  after: CatalogGrant["validity"],
 ): string {
   return validFrom(after) > validFrom(before) ||
     validUntil(after) < validUntil(before)
-    ? 'validity narrowed'
-    : 'validity widened';
+    ? "validity narrowed"
+    : "validity widened";
 }
 
 const NARROWING = new Set([
-  'where added',
-  'where changed',
-  'check added',
-  'check changed',
-  'approval added',
-  'approval changed',
-  'fields narrowed',
-  'validity narrowed',
-  'limit added',
-  'limit changed',
-  'purpose changed',
-  'portable: false',
+  "where added",
+  "where changed",
+  "check added",
+  "check changed",
+  "approval added",
+  "approval changed",
+  "fields narrowed",
+  "validity narrowed",
+  "limit added",
+  "limit changed",
+  "purpose changed",
+  "portable: false",
 ]);
 
 function describeGrant(grant: CatalogGrant): string {
-  const role = grant.role === null ? 'top-level' : `role ${grant.role}`;
+  const role = grant.role === null ? "top-level" : `role ${grant.role}`;
   const scope =
-    grant.scope === 'global'
-      ? ''
-      : typeof grant.scope === 'string'
+    grant.scope === "global"
+      ? ""
+      : typeof grant.scope === "string"
         ? ` in ${grant.scope}`
         : ` on ${grant.scope.resource}`;
   return `${grant.effect} ${grant.permission} (${role}${scope})`;
@@ -289,7 +289,7 @@ function describeDelegation(delegation: CatalogDelegation): string {
     delegation.to.id === undefined
       ? delegation.to.kind
       : `${delegation.to.kind} ${delegation.to.id}`;
-  return `delegation ${canonicalJson(delegation.from)} → ${to} (${delegation.permissions.join(', ')})`;
+  return `delegation ${canonicalJson(delegation.from)} → ${to} (${delegation.permissions.join(", ")})`;
 }
 
 function delegationChanges(
@@ -304,10 +304,10 @@ function delegationChanges(
     (key) => !before.permissions.includes(key),
   );
   if (lost.length > 0) {
-    changes.push(`permissions removed: ${lost.join(', ')}`);
+    changes.push(`permissions removed: ${lost.join(", ")}`);
   }
   if (gained.length > 0) {
-    changes.push(`permissions added: ${gained.join(', ')}`);
+    changes.push(`permissions added: ${gained.join(", ")}`);
   }
   if (!same(before.validity, after.validity)) {
     changes.push(validityChange(before.validity, after.validity));
@@ -319,7 +319,7 @@ function diffDelegations(
   a: readonly CatalogDelegation[],
   b: readonly CatalogDelegation[],
   breaking: BreakingChange[],
-): NonNullable<CatalogDiff['delegations']> {
+): NonNullable<CatalogDiff["delegations"]> {
   const byIdentityA = new Map(
     a.map((item) => [delegationIdentity(item), item]),
   );
@@ -334,7 +334,7 @@ function diffDelegations(
     if (after === undefined) {
       removed.push(before);
       breaking.push({
-        kind: 'delegation-removed',
+        kind: "delegation-removed",
         detail: `${describeDelegation(before)} removed`,
       });
       continue;
@@ -346,12 +346,12 @@ function diffDelegations(
     changed.push({ before, after, changes });
     const narrowing = changes.filter(
       (item) =>
-        item.startsWith('permissions removed') || item === 'validity narrowed',
+        item.startsWith("permissions removed") || item === "validity narrowed",
     );
     if (narrowing.length > 0) {
       breaking.push({
-        kind: 'delegation-narrowed',
-        detail: `${describeDelegation(after)}: ${narrowing.join(', ')}`,
+        kind: "delegation-narrowed",
+        detail: `${describeDelegation(after)}: ${narrowing.join(", ")}`,
       });
     }
   }
@@ -369,7 +369,7 @@ function roleEntries(catalog: CatalogDocument): ReadonlyMap<string, string> {
   );
 }
 
-function sideRef(side: Side): CatalogDiff['a'] {
+function sideRef(side: Side): CatalogDiff["a"] {
   return side.catalog.fingerprint === undefined
     ? { source: side.source }
     : { source: side.source, fingerprint: side.catalog.fingerprint };
@@ -383,7 +383,7 @@ export function diffCatalogs(a: Side, b: Side): CatalogDiff {
   );
   for (const key of permissions.removed) {
     breaking.push({
-      kind: 'permission-removed',
+      kind: "permission-removed",
       permission: key,
       detail: `${key} no longer exists`,
     });
@@ -394,7 +394,7 @@ export function diffCatalogs(a: Side, b: Side): CatalogDiff {
   );
   for (const name of scopes.removed) {
     breaking.push({
-      kind: 'scope-removed',
+      kind: "scope-removed",
       detail: `scope ${name} no longer exists`,
     });
   }
@@ -406,14 +406,14 @@ export function diffCatalogs(a: Side, b: Side): CatalogDiff {
     .toSorted();
   for (const name of roleNames.removed) {
     breaking.push({
-      kind: 'role-removed',
+      kind: "role-removed",
       role: name,
       detail: `role ${name} no longer exists`,
     });
   }
   const removedPermissions = new Set(permissions.removed);
   const removedRoles = new Set(roleNames.removed);
-  let grants: CatalogDiff['grants'];
+  let grants: CatalogDiff["grants"];
   if (a.catalog.grants !== undefined && b.catalog.grants !== undefined) {
     const byIdentityA = new Map(
       a.catalog.grants.map((grant) => [grantIdentity(grant), grant]),
@@ -441,7 +441,7 @@ export function diffCatalogs(a: Side, b: Side): CatalogDiff {
       }
     }
     for (const grant of removed) {
-      if (grant.effect !== 'allow') {
+      if (grant.effect !== "allow") {
         continue;
       }
       // A removed permission or role already explains these.
@@ -452,16 +452,16 @@ export function diffCatalogs(a: Side, b: Side): CatalogDiff {
         continue;
       }
       breaking.push({
-        kind: 'allow-removed',
+        kind: "allow-removed",
         permission: grant.permission,
         role: grant.role,
         detail: `${describeGrant(grant)} removed`,
       });
     }
     for (const grant of added) {
-      if (grant.effect === 'deny') {
+      if (grant.effect === "deny") {
         breaking.push({
-          kind: 'deny-added',
+          kind: "deny-added",
           permission: grant.permission,
           role: grant.role,
           detail: `${describeGrant(grant)} added`,
@@ -469,22 +469,22 @@ export function diffCatalogs(a: Side, b: Side): CatalogDiff {
       }
     }
     for (const change of changed) {
-      if (change.after.effect === 'deny') {
+      if (change.after.effect === "deny") {
         breaking.push({
-          kind: 'deny-changed',
+          kind: "deny-changed",
           permission: change.after.permission,
           role: change.after.role,
-          detail: `${describeGrant(change.after)}: ${change.changes.join(', ')}`,
+          detail: `${describeGrant(change.after)}: ${change.changes.join(", ")}`,
         });
         continue;
       }
       const narrowing = change.changes.filter((item) => NARROWING.has(item));
       if (narrowing.length > 0) {
         breaking.push({
-          kind: 'allow-narrowed',
+          kind: "allow-narrowed",
           permission: change.after.permission,
           role: change.after.role,
-          detail: `${describeGrant(change.after)}: ${narrowing.join(', ')}`,
+          detail: `${describeGrant(change.after)}: ${narrowing.join(", ")}`,
         });
       }
     }
@@ -528,10 +528,10 @@ async function impactOf(input: {
   const outcome = async (
     policy: Policy,
     fixture: (typeof fixtures)[number],
-  ): Promise<ImpactRow['before']> => {
+  ): Promise<ImpactRow["before"]> => {
     const permission = findPermission(policy.permissions, fixture.action);
     if (permission === undefined) {
-      return 'unknown';
+      return "unknown";
     }
     const permdock = await createPermDock(
       policy,
@@ -544,7 +544,7 @@ async function impactOf(input: {
       [[permission, fixtureRow(fixture, permission.kind)]],
       { now },
     );
-    return decision?.outcome ?? 'denied';
+    return decision?.outcome ?? "denied";
   };
   const rows: ImpactRow[] = [];
   const breaking: BreakingChange[] = [];
@@ -565,9 +565,9 @@ async function impactOf(input: {
       before,
       after,
     });
-    if (before === 'granted' && after !== 'granted') {
+    if (before === "granted" && after !== "granted") {
       breaking.push({
-        kind: 'access-lost',
+        kind: "access-lost",
         permission: fixture.action,
         detail: `${fixture.subject.id} loses ${fixture.action}: ${before} → ${after}`,
       });
@@ -598,55 +598,55 @@ function formatText(diff: CatalogDiff): string {
       lines.push(`  ~ ${item}`);
     }
   };
-  section('permissions', diff.permissions.added, diff.permissions.removed);
-  section('scopes', diff.scopes.added, diff.scopes.removed);
+  section("permissions", diff.permissions.added, diff.permissions.removed);
+  section("scopes", diff.scopes.added, diff.scopes.removed);
   section(
-    'roles',
+    "roles",
     diff.roles.added,
     diff.roles.removed,
     diff.roles.changed.map((name) => `${name}: declaration changed`),
   );
   if (diff.grants === undefined) {
     lines.push(
-      'grants: not compared (a catalog was built without its policy; run `permdock collect` with `policy` configured)',
+      "grants: not compared (a catalog was built without its policy; run `permdock collect` with `policy` configured)",
     );
   } else {
     section(
-      'grants',
+      "grants",
       diff.grants.added.map(describeGrant),
       diff.grants.removed.map(describeGrant),
       diff.grants.changed.map(
         (change) =>
-          `${describeGrant(change.after)}: ${change.changes.join(', ')}`,
+          `${describeGrant(change.after)}: ${change.changes.join(", ")}`,
       ),
     );
   }
   if (diff.delegations !== undefined) {
     section(
-      'delegations',
+      "delegations",
       diff.delegations.added.map(describeDelegation),
       diff.delegations.removed.map(describeDelegation),
       diff.delegations.changed.map(
         (change) =>
-          `${describeDelegation(change.after)}: ${change.changes.join(', ')}`,
+          `${describeDelegation(change.after)}: ${change.changes.join(", ")}`,
       ),
     );
   }
   if (diff.impact !== undefined) {
     lines.push(
       diff.impact.length === 0
-        ? 'impact: no fixture changes outcome'
+        ? "impact: no fixture changes outcome"
         : `impact (${String(diff.impact.length)} fixture(s) change outcome)`,
     );
     for (const row of diff.impact) {
-      const where = row.tenant === undefined ? '' : ` in ${row.tenant}`;
+      const where = row.tenant === undefined ? "" : ` in ${row.tenant}`;
       lines.push(
         `  ${row.subject}${where} ${row.action}: ${row.before} → ${row.after}`,
       );
     }
   }
   if (lines.length === 0) {
-    lines.push('no changes');
+    lines.push("no changes");
   }
   if (diff.breaking.length > 0) {
     lines.push(`breaking (${String(diff.breaking.length)})`);
@@ -654,7 +654,7 @@ function formatText(diff: CatalogDiff): string {
       lines.push(`  ${change.kind}: ${change.detail}`);
     }
   }
-  return `${lines.join('\n')}\n`;
+  return `${lines.join("\n")}\n`;
 }
 
 export async function runDiff(input: {
@@ -672,7 +672,7 @@ export async function runDiff(input: {
     return {
       code: 2,
       output:
-        'PermDock CLI: diff takes two inputs, each a permissions.catalog.json or a module exporting policy',
+        "PermDock CLI: diff takes two inputs, each a permissions.catalog.json or a module exporting policy",
     };
   }
   let a: Side;
@@ -691,11 +691,11 @@ export async function runDiff(input: {
       return {
         code: 2,
         output:
-          'PermDock CLI: diff --impact needs two policy modules; a catalog file cannot be evaluated',
+          "PermDock CLI: diff --impact needs two policy modules; a catalog file cannot be evaluated",
       };
     }
     const fixtures =
-      input.fixtures ?? input.config.rls?.fixtures ?? 'rls.fixtures.json';
+      input.fixtures ?? input.config.rls?.fixtures ?? "rls.fixtures.json";
     try {
       const impact = await impactOf({
         cwd: input.cwd,

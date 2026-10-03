@@ -1,6 +1,6 @@
-import { allow, definePolicy, deny, principal, relation, role } from 'permdock';
+import { allow, definePolicy, deny, principal, relation, role } from "permdock";
 
-import { permissions, roles } from './permissions.ts';
+import { permissions, roles } from "./permissions.ts";
 
 export type User = {
   readonly id: string;
@@ -13,11 +13,11 @@ const member = role(roles.member, [
   allow(permissions.post.list),
   allow(permissions.post.create),
   allow(permissions.post.update, {
-    to: relation(permissions.post, 'author'),
+    to: relation(permissions.post, "author"),
   }),
   allow(permissions.post.delete, {
     where: { authorId: principal.id },
-    approval: 'human',
+    approval: "human",
   }),
 ]);
 
@@ -37,8 +37,8 @@ export const policy = definePolicy(
       user === null
         ? null
         : { id: user.id, orgId: user.orgId, roles: user.roles },
-    validate: 'boundary',
+    validate: "boundary",
   },
 );
 
-export const memberUser: User = { id: 'u1', orgId: 'o1', roles: ['member'] };
+export const memberUser: User = { id: "u1", orgId: "o1", roles: ["member"] };

@@ -1,3 +1,3 @@
-'use client';
+"use client";
 
-export { PermDockProvider } from './provider.tsx';
+export { PermDockProvider } from "./provider.tsx";

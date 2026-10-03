@@ -1,8 +1,8 @@
-import { definePolicy } from 'permdock';
+import { definePolicy } from "permdock";
 
-import { billingRoles } from '../packages/billing/src/policy.ts';
-import { postRoles } from '../packages/posts/src/policy.ts';
-import { permissions } from './permissions.ts';
+import { billingRoles } from "../packages/billing/src/policy.ts";
+import { postRoles } from "../packages/posts/src/policy.ts";
+import { permissions } from "./permissions.ts";
 
 export type User = {
   readonly id: string;
@@ -16,5 +16,5 @@ export const policy = definePolicy(permissions, {
     user === null
       ? null
       : { id: user.id, orgId: user.orgId, roles: user.roles },
-  validate: 'boundary',
+  validate: "boundary",
 });

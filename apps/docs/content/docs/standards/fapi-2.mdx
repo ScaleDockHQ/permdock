@@ -42,22 +42,25 @@ The profile also gives PermDock a concrete, externally defined bar for "high sec
 ### `permdock/jwt` with `profile: 'fapi2'`
 
 ```ts
-import { createPermDock } from 'permdock/hono'
-import { createJwtSubjectResolver } from 'permdock/jwt'
+import { createPermDock } from "permdock/hono";
+import { createJwtSubjectResolver } from "permdock/jwt";
 
 const resolve = createJwtSubjectResolver({
-  jwks: new URL('https://as.bank.example/.well-known/jwks.json'),
-  issuer: 'https://as.bank.example',
-  audience: 'https://api.bank.example',
-  claims: { id: 'sub', roles: 'roles' },
-  delegation: { scopes: 'scope', authorizationDetails: 'authorization_details' },
-  profile: 'fapi2',          // turns the 5.3.4 / 5.4.1 rules on
-  sender: 'dpop',            // or 'mtls'; 'none' is not accepted under this profile
-})
+  jwks: new URL("https://as.bank.example/.well-known/jwks.json"),
+  issuer: "https://as.bank.example",
+  audience: "https://api.bank.example",
+  claims: { id: "sub", roles: "roles" },
+  delegation: {
+    scopes: "scope",
+    authorizationDetails: "authorization_details",
+  },
+  profile: "fapi2", // turns the 5.3.4 / 5.4.1 rules on
+  sender: "dpop", // or 'mtls'; 'none' is not accepted under this profile
+});
 
 export const { permdock, protect } = createPermDock(policy, {
   subject: (c) => resolve(bearerFrom(c.req.raw.headers), c.req.raw), // the request carries the DPoP proof
-})
+});
 ```
 
 `subjectFromJwt(token, { profile: 'fapi2', sender: 'dpop' })` is the one-shot form of the same resolver. `profile: 'fapi2'` is a preset over the individual options and cannot be relaxed option by option: a deployment that needs to accept, say, a query-string token is not FAPI 2.0 and should not claim the profile. The `sender` option names which sender-constraint mechanism the deployment uses, so the adapter knows whether to look for `cnf.jkt` (DPoP) or `cnf.x5t#S256` (mTLS) and which transport evidence (the `DPoP` proof header, the client certificate the platform exposes) to check it against. The verified binding is attached to the subject as `binding` so audit can show which key the request was bound to.
@@ -66,16 +69,16 @@ A DPoP proof is self-contained, so it reaches the resolver on the `Request`. For
 
 ### What PermDock enforces
 
-| FAPI 2.0 requirement | Behaviour under `profile: 'fapi2'` | Failure |
-| --- | --- | --- |
-| 5.3.4 (1) token in the `Authorization` header, bearer or DPoP | The resolver reads only the `Authorization` header; the scheme must be `Bearer` or `DPoP` and must match `sender` | Anonymous subject (`principal: null`); a missing header produces no audit event, a wrong scheme is logged |
-| 5.3.4 (2) no tokens in query parameters | A token found in the query string is rejected, even if it would otherwise verify | Anonymous subject, audit cause `token-in-query` |
-| 5.3.4 (3) validity, integrity, expiration, revocation | Signature against `jwks`, `iss` equals `issuer`, `aud` contains `audience`, `exp`, `nbf` and `iat` honoured within `clockTolerance`; revocation arrives as a CAEP `session-revoked` event through [`permdock/ssf`](/docs/adapters/ssf), which invalidates the subject's snapshot; a deployment without an SSF transmitter uses short `exp` or a per-token check through `subjectFromIntrospection` | Anonymous subject, audit reason `invalid-token` with a cause naming the failed claim |
-| 5.3.4 (4) authorization sufficiency | The `decide` call. `delegation.scopes` and `delegation.authorizationDetails` are filled from the token and intersected with the principal's grants | `denied` Decision with reason `not-delegated`; HTTP adapters answer 403 with `WWW-Authenticate: Bearer error="insufficient_scope", scope="post:update"` and a Problem Details body whose `alternatives` lists what the token would have allowed |
-| 5.3.4 (5) sender-constrained tokens | A token without a `cnf` claim is rejected; with `sender: 'dpop'` the `DPoP` proof is verified against `cnf.jkt` (RFC 9449 section 7.1); with `sender: 'mtls'` the client certificate thumbprint is compared with `cnf.x5t#S256` (RFC 8705); `sender: 'none'` is not accepted under the profile | Anonymous subject, audit cause `sender-constraint-required`, `dpop-proof-invalid` or `mtls-binding-mismatch` |
-| 5.4.1 algorithms | `algorithms` is restricted to `PS256`, `ES256` and `Ed25519` (RFC 9864); `EdDSA` is accepted only for an `OKP` / `crv: Ed25519` key and reported by `permdock doctor`; `none`, `RSA1_5` and the `HS*` and `RS*` families are refused before signature verification | Anonymous subject, audit cause `alg-not-allowed` or `alg-none` |
-| 5.4.1 key sizes | JWKS keys below 2048 bits (RSA) or 224 bits (EC) are skipped when the key set is loaded | Tokens signed with a skipped key fail as `unknown-kid`; `permdock doctor` warns about the skipped keys |
-| RFC 8725 practices | `alg` comes from the allow-list, never from the header alone; `kid` selects a key from the configured JWKS only; `jku`, `x5u` and `jwk` headers are ignored | Anonymous subject |
+| FAPI 2.0 requirement                                          | Behaviour under `profile: 'fapi2'`                                                                                                                                                                                                                                                                                                                                                                 | Failure                                                                                                                                                                                                                                         |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 5.3.4 (1) token in the `Authorization` header, bearer or DPoP | The resolver reads only the `Authorization` header; the scheme must be `Bearer` or `DPoP` and must match `sender`                                                                                                                                                                                                                                                                                  | Anonymous subject (`principal: null`); a missing header produces no audit event, a wrong scheme is logged                                                                                                                                       |
+| 5.3.4 (2) no tokens in query parameters                       | A token found in the query string is rejected, even if it would otherwise verify                                                                                                                                                                                                                                                                                                                   | Anonymous subject, audit cause `token-in-query`                                                                                                                                                                                                 |
+| 5.3.4 (3) validity, integrity, expiration, revocation         | Signature against `jwks`, `iss` equals `issuer`, `aud` contains `audience`, `exp`, `nbf` and `iat` honoured within `clockTolerance`; revocation arrives as a CAEP `session-revoked` event through [`permdock/ssf`](/docs/adapters/ssf), which invalidates the subject's snapshot; a deployment without an SSF transmitter uses short `exp` or a per-token check through `subjectFromIntrospection` | Anonymous subject, audit reason `invalid-token` with a cause naming the failed claim                                                                                                                                                            |
+| 5.3.4 (4) authorization sufficiency                           | The `decide` call. `delegation.scopes` and `delegation.authorizationDetails` are filled from the token and intersected with the principal's grants                                                                                                                                                                                                                                                 | `denied` Decision with reason `not-delegated`; HTTP adapters answer 403 with `WWW-Authenticate: Bearer error="insufficient_scope", scope="post:update"` and a Problem Details body whose `alternatives` lists what the token would have allowed |
+| 5.3.4 (5) sender-constrained tokens                           | A token without a `cnf` claim is rejected; with `sender: 'dpop'` the `DPoP` proof is verified against `cnf.jkt` (RFC 9449 section 7.1); with `sender: 'mtls'` the client certificate thumbprint is compared with `cnf.x5t#S256` (RFC 8705); `sender: 'none'` is not accepted under the profile                                                                                                     | Anonymous subject, audit cause `sender-constraint-required`, `dpop-proof-invalid` or `mtls-binding-mismatch`                                                                                                                                    |
+| 5.4.1 algorithms                                              | `algorithms` is restricted to `PS256`, `ES256` and `Ed25519` (RFC 9864); `EdDSA` is accepted only for an `OKP` / `crv: Ed25519` key and reported by `permdock doctor`; `none`, `RSA1_5` and the `HS*` and `RS*` families are refused before signature verification                                                                                                                                 | Anonymous subject, audit cause `alg-not-allowed` or `alg-none`                                                                                                                                                                                  |
+| 5.4.1 key sizes                                               | JWKS keys below 2048 bits (RSA) or 224 bits (EC) are skipped when the key set is loaded                                                                                                                                                                                                                                                                                                            | Tokens signed with a skipped key fail as `unknown-kid`; `permdock doctor` warns about the skipped keys                                                                                                                                          |
+| RFC 8725 practices                                            | `alg` comes from the allow-list, never from the header alone; `kid` selects a key from the configured JWKS only; `jku`, `x5u` and `jwk` headers are ignored                                                                                                                                                                                                                                        | Anonymous subject                                                                                                                                                                                                                               |
 
 Two consequences follow from the fail-closed rule:
 
@@ -144,16 +147,16 @@ FAPI 2.0 Message Signing (signed authorization requests and responses via JAR an
 
 ## Mapping table
 
-| FAPI 2.0 concept | PermDock concept |
-| --- | --- |
-| Resource server | The application process running `createPermDock`; `permdock/jwt` is its token-to-subject step |
+| FAPI 2.0 concept                                                    | PermDock concept                                                                                                                                           |
+| ------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Resource server                                                     | The application process running `createPermDock`; `permdock/jwt` is its token-to-subject step                                                              |
 | Access token (`sub`, `client_id`, `scope`, `authorization_details`) | `principal` from `sub` and issuer claims, `actor` from `client_id` when it differs from the subject, `delegation` from `scope` and `authorization_details` |
-| Sender constraint (`cnf.jkt`, `cnf.x5t#S256`) | `sender: 'dpop'` or `'mtls'`; the verified binding is recorded on the subject for audit |
-| Authorization sufficiency (5.3.4 item 4) | `permdock.decide(permission, data)` |
-| RFC 6750 `insufficient_scope` | `denied` Decision rendered as `WWW-Authenticate` plus Problem Details with `alternatives` |
-| RAR recommendation | `delegation.authorizationDetails`, one type per permission |
-| Grant Management `grant_id` | Approval token and `delegation`, tracking only |
-| 5.4.1 algorithm list | The `alg` allow-list fixed by the profile: `PS256`, `ES256`, `Ed25519` |
+| Sender constraint (`cnf.jkt`, `cnf.x5t#S256`)                       | `sender: 'dpop'` or `'mtls'`; the verified binding is recorded on the subject for audit                                                                    |
+| Authorization sufficiency (5.3.4 item 4)                            | `permdock.decide(permission, data)`                                                                                                                        |
+| RFC 6750 `insufficient_scope`                                       | `denied` Decision rendered as `WWW-Authenticate` plus Problem Details with `alternatives`                                                                  |
+| RAR recommendation                                                  | `delegation.authorizationDetails`, one type per permission                                                                                                 |
+| Grant Management `grant_id`                                         | Approval token and `delegation`, tracking only                                                                                                             |
+| 5.4.1 algorithm list                                                | The `alg` allow-list fixed by the profile: `PS256`, `ES256`, `Ed25519`                                                                                     |
 
 ## Sources
 

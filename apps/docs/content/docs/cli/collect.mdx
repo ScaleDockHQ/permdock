@@ -55,13 +55,13 @@ The [Next.js plugin](/docs/cli/next-plugin) runs `collect` during `next dev` and
 
 ```ts
 // next.config.ts
-import { createPermDockPlugin } from 'permdock/next/plugin'
+import { createPermDockPlugin } from "permdock/next/plugin";
 
 const permdockPlugin = createPermDockPlugin({
-  collect: { srcPath: ['./src', '../ui/src', './node_modules/@acme/*'] },
-})
+  collect: { srcPath: ["./src", "../ui/src", "./node_modules/@acme/*"] },
+});
 
-export default permdockPlugin({})
+export default permdockPlugin({});
 ```
 
 The plugin is a build hook only; it never wires the API or augments module types. See [Next.js plugin](/docs/cli/next-plugin).
@@ -70,15 +70,15 @@ The plugin is a build hook only; it never wires the API or augments module types
 
 next-intl's `useExtracted` solved the same shape of problem for translations: many colocated typed declarations, one central artifact, client and server consumers. A central string catalog that usages reference by name puts the declaration far from the code, lets keys drift and accumulates dead entries. Extraction flips it, and PermDock takes the same properties:
 
-| next-intl | PermDock |
-| --- | --- |
-| `useExtracted()` declaration in a component | `definePermissions()` in a feature folder |
-| Build-time loader | `permdock collect`, `createPermDockPlugin({ collect })` |
-| `messages/*.json` as a committed compile output | `permissions.catalog.json`, checked with `--check` |
-| Namespaces for shared packages | Nested resource groups merged by `mergePermissions` (`permissions.billing.invoice.pay`) |
-| `useExtracted` / `getExtracted` | `usePermission` / `getPermission`, `usePermDock` / `getPermDock` |
-| Passing one message namespace to the client | `snapshot({ include: [permissions.post] })` |
-| Works in tests without the loader | Works in tests without `collect` |
+| next-intl                                       | PermDock                                                                                |
+| ----------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `useExtracted()` declaration in a component     | `definePermissions()` in a feature folder                                               |
+| Build-time loader                               | `permdock collect`, `createPermDockPlugin({ collect })`                                 |
+| `messages/*.json` as a committed compile output | `permissions.catalog.json`, checked with `--check`                                      |
+| Namespaces for shared packages                  | Nested resource groups merged by `mergePermissions` (`permissions.billing.invoice.pay`) |
+| `useExtracted` / `getExtracted`                 | `usePermission` / `getPermission`, `usePermDock` / `getPermDock`                        |
+| Passing one message namespace to the client     | `snapshot({ include: [permissions.post] })`                                             |
+| Works in tests without the loader               | Works in tests without `collect`                                                        |
 
 The analogy stops in three places. next-intl must extract because a string literal is not a queryable runtime value; PermDock's definitions exist at runtime, so the scan is for usage coverage and cross-package discovery, and a failed scan only leaves the catalog stale. Translations sync target locales; permissions have a policy instead, and `permdock usage` reports the gap (granted-by-no-role, used-but-ungranted) rather than syncing anything. next-intl's loader rewrites source; PermDock only reads it. Generated definitions (`permdock rls import`, `permdock openapi import`) merge through `mergePermissions` like any hand-written feature file.
 

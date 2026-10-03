@@ -4,10 +4,10 @@ import {
   parseArgs,
   renderUsage,
   runCommand,
-} from 'citty';
-import { stripVTControlCharacters } from 'node:util';
+} from "citty";
+import { stripVTControlCharacters } from "node:util";
 
-import type { CliIo, PermDockConfig, RunResult } from './types.ts';
+import type { CliIo, PermDockConfig, RunResult } from "./types.ts";
 
 import {
   type CliContext,
@@ -16,21 +16,21 @@ import {
   globalArgs,
   resolveArgs,
   stringArg,
-} from './commands/context.ts';
+} from "./commands/context.ts";
 import {
   COMMAND_DESCRIPTIONS,
   type CommandName,
   commands,
   isCommand,
-} from './commands/index.ts';
-import { loadConfig, resolveCwd } from './config.ts';
+} from "./commands/index.ts";
+import { loadConfig, resolveCwd } from "./config.ts";
 import {
   type CliErrorKind,
   cliErrorKind,
   cliProblem,
   exitCodeOf,
-} from './errors.ts';
-import { cliVersion } from './version.ts';
+} from "./errors.ts";
+import { cliVersion } from "./version.ts";
 
 const NAMES = Object.keys(commands).filter(isCommand);
 
@@ -67,8 +67,8 @@ export async function run(
   };
   const done = (code: 0 | 1 | 2): RunResult => ({
     code,
-    stdout: stdoutChunks.join(''),
-    stderr: stderrChunks.join(''),
+    stdout: stdoutChunks.join(""),
+    stderr: stderrChunks.join(""),
   });
 
   const flags = beforeSeparator(argv);
@@ -77,9 +77,9 @@ export async function run(
   const color = io.color === true && globals.color !== false;
   const plain = (text: string): string =>
     color ? text : stripVTControlCharacters(text);
-  const askedHelp = flags.includes('--help') || flags.includes('-h');
+  const askedHelp = flags.includes("--help") || flags.includes("-h");
   const first = globals._[0];
-  const name = first === 'help' ? globals._[1] : first;
+  const name = first === "help" ? globals._[1] : first;
 
   let result: CommandResult | undefined;
   const contextFor = (cwd: string, config: PermDockConfig): CliContext => ({
@@ -111,18 +111,18 @@ export async function run(
 
   if (name !== undefined && !isCommand(name)) {
     return fail(
-      'usage',
-      `unknown command '${name}'. Use ${new Intl.ListFormat('en-GB', { type: 'disjunction' }).format(NAMES)}.`,
+      "usage",
+      `unknown command '${name}'. Use ${new Intl.ListFormat("en-GB", { type: "disjunction" }).format(NAMES)}.`,
     );
   }
   if (
     name === undefined &&
-    (flags.includes('--version') || flags.includes('-v'))
+    (flags.includes("--version") || flags.includes("-v"))
   ) {
     writeOut(cliVersion());
     return done(0);
   }
-  if (askedHelp || first === 'help' || name === undefined) {
+  if (askedHelp || first === "help" || name === undefined) {
     const root = rootCommand();
     const usage =
       name === undefined
@@ -131,7 +131,7 @@ export async function run(
             await load(name, contextFor(options?.cwd ?? process.cwd(), {})),
             root,
           );
-    if (name === undefined && !askedHelp && first !== 'help') {
+    if (name === undefined && !askedHelp && first !== "help") {
       writeErr(plain(usage));
       return done(2);
     }
@@ -157,11 +157,11 @@ export async function run(
     });
   } catch (error) {
     if (!(error instanceof Error)) {
-      return fail('usage', String(error), name);
+      return fail("usage", String(error), name);
     }
-    if (error.name === 'CLIError') {
+    if (error.name === "CLIError") {
       return fail(
-        'usage',
+        "usage",
         `${name}: ${stripVTControlCharacters(error.message)}`,
         name,
       );
@@ -179,16 +179,16 @@ export async function run(
 function rootCommand(): Command {
   return defineCommand({
     meta: {
-      name: 'permdock',
+      name: "permdock",
       description:
-        'Collect, export, diff and check the permissions a PermDock policy declares',
+        "Collect, export, diff and check the permissions a PermDock policy declares",
     },
     args: {
       ...globalArgs,
       version: {
-        type: 'boolean',
-        alias: 'v',
-        description: 'Print the permdock version',
+        type: "boolean",
+        alias: "v",
+        description: "Print the permdock version",
       },
     },
     subCommands: Object.fromEntries(
@@ -207,11 +207,11 @@ async function load(name: CommandName, ctx: CliContext): Promise<Command> {
 }
 
 function lined(text: string): string {
-  return text.endsWith('\n') ? text : `${text}\n`;
+  return text.endsWith("\n") ? text : `${text}\n`;
 }
 
 function beforeSeparator(argv: readonly string[]): readonly string[] {
-  const end = argv.indexOf('--');
+  const end = argv.indexOf("--");
   return end === -1 ? argv : argv.slice(0, end);
 }
 
@@ -219,7 +219,7 @@ function beforeSeparator(argv: readonly string[]): readonly string[] {
 function withoutCommand(argv: readonly string[], name: string): string[] {
   const index = argv.findIndex(
     (token, i) =>
-      token === name && argv[i - 1] !== '--cwd' && argv[i - 1] !== '--config',
+      token === name && argv[i - 1] !== "--cwd" && argv[i - 1] !== "--config",
   );
   return argv.filter((_, i) => i !== index);
 }
@@ -233,17 +233,17 @@ function withoutCommand(argv: readonly string[], name: string): string[] {
 function normaliseValues(rawArgs: readonly string[], def: ArgsDef): string[] {
   const out: string[] = [];
   for (const [i, token] of rawArgs.entries()) {
-    if (token === '--') {
+    if (token === "--") {
       out.push(...rawArgs.slice(i));
       break;
     }
-    const arg = token.startsWith('--') ? def[token.slice(2)] : undefined;
+    const arg = token.startsWith("--") ? def[token.slice(2)] : undefined;
     const next = rawArgs[i + 1];
-    const bare = next === undefined || (next !== '-' && next.startsWith('-'));
-    if (arg?.type === 'enum' && bare) {
+    const bare = next === undefined || (next !== "-" && next.startsWith("-"));
+    if (arg?.type === "enum" && bare) {
       continue;
     }
-    out.push(arg?.type === 'string' && bare ? `${token}=` : token);
+    out.push(arg?.type === "string" && bare ? `${token}=` : token);
   }
   return out;
 }

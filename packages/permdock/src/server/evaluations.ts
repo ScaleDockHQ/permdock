@@ -1,24 +1,24 @@
-import type { ApprovalStore } from '../approvals/types.ts';
-import type { Decision } from '../core/decision.ts';
-import type { DecideOptions, PermDock } from '../core/permdock.ts';
-import type { Permission, PermissionTree } from '../core/permissions.ts';
-import type { Policy } from '../core/policy.ts';
-import type { WireDecision } from '../core/wire-denial.ts';
+import type { ApprovalStore } from "../approvals/types.ts";
+import type { Decision } from "../core/decision.ts";
+import type { DecideOptions, PermDock } from "../core/permdock.ts";
+import type { Permission, PermissionTree } from "../core/permissions.ts";
+import type { Policy } from "../core/policy.ts";
+import type { WireDecision } from "../core/wire-denial.ts";
 
-import { readApprovalHeader, resumeDecision } from '../approvals/helpers.ts';
-import { compact } from '../core/compact.ts';
-import { findPermission, listPermissions } from '../core/permissions.ts';
-import { wireDenials } from '../core/wire-denial.ts';
+import { readApprovalHeader, resumeDecision } from "../approvals/helpers.ts";
+import { compact } from "../core/compact.ts";
+import { findPermission, listPermissions } from "../core/permissions.ts";
+import { wireDenials } from "../core/wire-denial.ts";
 import {
   DEFAULT_MAX_EVALUATIONS,
   batchTooLarge,
   validationProblem,
-} from './problem.ts';
-import { InvalidSignatureError } from './web-bot-auth.ts';
+} from "./problem.ts";
+import { InvalidSignatureError } from "./web-bot-auth.ts";
 
 const DENIED: Decision = {
-  outcome: 'denied',
-  denials: [{ role: null, reason: 'no-grant' }],
+  outcome: "denied",
+  denials: [{ role: null, reason: "no-grant" }],
   alternatives: [],
 };
 
@@ -36,7 +36,7 @@ function permissionOf(
   item: EvaluationItem,
 ): Permission | undefined {
   const action =
-    typeof item.action?.name === 'string' ? item.action.name : undefined;
+    typeof item.action?.name === "string" ? item.action.name : undefined;
   if (action === undefined) {
     return undefined;
   }
@@ -45,7 +45,7 @@ function permissionOf(
     return byKey;
   }
   const resource =
-    typeof item.resource?.type === 'string' ? item.resource.type : undefined;
+    typeof item.resource?.type === "string" ? item.resource.type : undefined;
   if (resource === undefined) {
     return undefined;
   }
@@ -60,11 +60,11 @@ function permissionOf(
 
 function resourceData(item: EvaluationItem): unknown {
   const properties = item.resource?.properties;
-  if (properties !== null && typeof properties === 'object') {
+  if (properties !== null && typeof properties === "object") {
     return properties;
   }
   const id = item.resource?.id;
-  if (typeof id === 'string' || typeof id === 'number') {
+  if (typeof id === "string" || typeof id === "number") {
     return { id: String(id) };
   }
   return undefined;
@@ -76,14 +76,14 @@ function resourceRef(
   data: unknown,
 ): { readonly type: string; readonly id?: string } {
   const fromRow =
-    data !== null && typeof data === 'object' && 'id' in data
+    data !== null && typeof data === "object" && "id" in data
       ? data.id
       : undefined;
   const fromWire = item.resource?.id;
   const id =
-    typeof fromRow === 'string' || typeof fromRow === 'number'
+    typeof fromRow === "string" || typeof fromRow === "number"
       ? String(fromRow)
-      : typeof fromWire === 'string' || typeof fromWire === 'number'
+      : typeof fromWire === "string" || typeof fromWire === "number"
         ? String(fromWire)
         : undefined;
   return compact({ type: permission.resource, id });
@@ -92,28 +92,28 @@ function resourceRef(
 function evaluationRow(decision: Decision): {
   readonly decision: boolean;
   readonly context: {
-    readonly outcome: Decision['outcome'];
+    readonly outcome: Decision["outcome"];
     readonly permdock: WireDecision;
   };
 } {
   switch (decision.outcome) {
-    case 'granted':
+    case "granted":
       return {
         decision: true,
-        context: { outcome: 'granted', permdock: decision },
+        context: { outcome: "granted", permdock: decision },
       };
-    case 'denied':
+    case "denied":
       return {
         decision: false,
         context: {
-          outcome: 'denied',
+          outcome: "denied",
           permdock: { ...decision, denials: wireDenials(decision.denials) },
         },
       };
-    case 'approval-required':
+    case "approval-required":
       return {
         decision: false,
-        context: { outcome: 'approval-required', permdock: decision },
+        context: { outcome: "approval-required", permdock: decision },
       };
     default: {
       const exhausted: never = decision;
@@ -165,10 +165,10 @@ function evaluateOne(
     permission,
     data,
     compact<DecideOptions>({
-      source: 'endpoint',
+      source: "endpoint",
       adapter,
       trusted: false,
-      boundary: 'decision-endpoint',
+      boundary: "decision-endpoint",
     }),
   );
   return resumeDecision({
@@ -200,7 +200,7 @@ async function resolvePermdock(
   if (options.getPermDock !== undefined) {
     return options.getPermDock(tenant === undefined ? undefined : { tenant });
   }
-  throw new TypeError('evaluations handler needs resolve or getPermDock');
+  throw new TypeError("evaluations handler needs resolve or getPermDock");
 }
 
 export function createEvaluationsHandler(options: {
@@ -217,26 +217,26 @@ export function createEvaluationsHandler(options: {
   readonly POST: (request: Request) => Promise<Response>;
   readonly GET: (request: Request) => Promise<Response>;
 } {
-  const adapter = options.adapter ?? 'server';
+  const adapter = options.adapter ?? "server";
   const maxEvaluations = options.maxEvaluations ?? DEFAULT_MAX_EVALUATIONS;
   const POST = async (request: Request): Promise<Response> => {
     let body: unknown;
     try {
       body = await request.json();
     } catch {
-      return validationProblem('evaluations body was not valid JSON');
+      return validationProblem("evaluations body was not valid JSON");
     }
-    if (body === null || typeof body !== 'object' || Array.isArray(body)) {
-      return validationProblem('evaluations body must be an object');
+    if (body === null || typeof body !== "object" || Array.isArray(body)) {
+      return validationProblem("evaluations body must be an object");
     }
     // SAFETY: body was checked to be a non-array object above; evaluations stays unknown.
     const evaluations = (body as { readonly evaluations?: unknown })
       .evaluations;
     if (evaluations === undefined) {
-      return validationProblem('evaluations array is required');
+      return validationProblem("evaluations array is required");
     }
     if (!Array.isArray(evaluations)) {
-      return validationProblem('evaluations must be an array');
+      return validationProblem("evaluations must be an array");
     }
     if (evaluations.length > maxEvaluations) {
       return batchTooLarge(maxEvaluations);
@@ -256,7 +256,7 @@ export function createEvaluationsHandler(options: {
       evaluations.map(async (item) => {
         // SAFETY: every EvaluationItem field is optional and read through ?. and typeof checks.
         const entry =
-          item !== null && typeof item === 'object'
+          item !== null && typeof item === "object"
             ? (item as EvaluationItem)
             : {};
         return evaluationRow(
@@ -276,7 +276,7 @@ export function createEvaluationsHandler(options: {
 
   const GET = async (request: Request): Promise<Response> => {
     const url = new URL(request.url);
-    if (url.pathname.includes('authzen-configuration')) {
+    if (url.pathname.includes("authzen-configuration")) {
       const origin = url.origin;
       return Response.json({
         policy_decision_point: origin,
@@ -284,7 +284,7 @@ export function createEvaluationsHandler(options: {
         access_evaluations_endpoint: `${origin}/access/v1/evaluations`,
       });
     }
-    const tenant = url.searchParams.get('tenant') ?? undefined;
+    const tenant = url.searchParams.get("tenant") ?? undefined;
     let permdock: PermDock;
     try {
       permdock = await resolvePermdock(options, request, tenant);

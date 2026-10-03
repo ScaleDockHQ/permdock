@@ -1,9 +1,9 @@
-import 'server-only';
-import { createNext } from 'better-supabase/next';
-import { createPostgres } from 'better-supabase/postgres';
+import "server-only";
+import { createNext } from "better-supabase/next";
+import { createPostgres } from "better-supabase/postgres";
 
-import { env } from '../../env.ts';
-import { audience, betterSupabase, cookieName } from './index.ts';
+import { env } from "../../env.ts";
+import { audience, betterSupabase, cookieName } from "./index.ts";
 
 /** Direct Postgres: `bs.cached()` hands out `sql`, typed repositories that run as the caller, so RLS applies. */
 export const postgres = createPostgres({ connectionString: env.databaseUrl });

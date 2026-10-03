@@ -1,23 +1,23 @@
-import { CircleHelpIcon, LifeBuoyIcon, MailIcon } from 'lucide-react';
+import { CircleHelpIcon, LifeBuoyIcon, MailIcon } from "lucide-react";
 
-import { ButtonLink } from '@/components/site/button-link';
-import { faqItems } from '@/lib/faq';
-import { site } from '@/lib/site';
+import { ButtonLink } from "@/components/site/button-link";
+import { faqItems } from "@/lib/faq";
+import { site } from "@/lib/site";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from '@permdock/ui/components/accordion';
-import { Card, CardContent } from '@permdock/ui/components/card';
-import { Badge } from '@permdock/ui/reui/badge';
+} from "@permdock/ui/components/accordion";
+import { Card, CardContent } from "@permdock/ui/components/card";
+import { Badge } from "@permdock/ui/reui/badge";
 
 export function FaqSection() {
   const first = faqItems[0];
   const defaultValue =
     first === undefined
       ? []
-      : [first.question.toLowerCase().replaceAll(' ', '-')];
+      : [first.question.toLowerCase().replaceAll(" ", "-")];
 
   return (
     <section
@@ -29,10 +29,10 @@ export function FaqSection() {
           <CircleHelpIcon aria-hidden="true" />
           FAQ
         </Badge>
-        <h2 className="text-foreground text-2xl font-semibold tracking-tight sm:text-3xl">
+        <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
           Before you adopt
         </h2>
-        <p className="text-muted-foreground max-w-md text-base">
+        <p className="max-w-md text-base text-muted-foreground">
           Licensing, network, fail-closed, and where authentication lives.
         </p>
       </div>
@@ -41,19 +41,19 @@ export function FaqSection() {
           <CardContent className="px-6 py-2">
             <Accordion multiple={false} defaultValue={defaultValue}>
               {faqItems.map((item) => {
-                const id = item.question.toLowerCase().replaceAll(' ', '-');
+                const id = item.question.toLowerCase().replaceAll(" ", "-");
                 return (
                   <AccordionItem
                     key={id}
                     value={id}
-                    className="border-border/60 border-b last:border-b-0"
+                    className="border-b border-border/60 last:border-b-0"
                   >
                     <AccordionTrigger className="items-start gap-4 py-4 text-left text-base font-medium hover:no-underline [&>svg]:my-auto">
                       <span className="min-w-0 text-pretty">
                         {item.question}
                       </span>
                     </AccordionTrigger>
-                    <AccordionContent className="text-muted-foreground pb-4 text-sm leading-6">
+                    <AccordionContent className="pb-4 text-sm leading-6 text-muted-foreground">
                       <p>{item.answer}</p>
                     </AccordionContent>
                   </AccordionItem>
@@ -63,21 +63,21 @@ export function FaqSection() {
           </CardContent>
         </Card>
         <aside className="lg:sticky lg:top-20">
-          <Card className="bg-muted/40 gap-4 border-dashed p-6 shadow-none">
+          <Card className="gap-4 border-dashed bg-muted/40 p-6 shadow-none">
             <CardContent className="flex flex-col gap-4 p-0">
-              <span className="bg-muted flex size-10 items-center justify-center rounded-lg">
+              <span className="flex size-10 items-center justify-center rounded-lg bg-muted">
                 <LifeBuoyIcon aria-hidden="true" />
               </span>
               <p className="text-base font-semibold">Still have questions?</p>
-              <p className="text-muted-foreground text-sm leading-6">
+              <p className="text-sm leading-6 text-muted-foreground">
                 Read the threat model, or email us. No invented SLA.
               </p>
               <ButtonLink href="/docs/security/threat-model" className="w-full">
                 Threat model
               </ButtonLink>
-              <div className="border-border/60 flex items-center gap-2.5 border-t pt-4 text-sm">
+              <div className="flex items-center gap-2.5 border-t border-border/60 pt-4 text-sm">
                 <MailIcon
-                  className="text-muted-foreground size-4"
+                  className="size-4 text-muted-foreground"
                   aria-hidden="true"
                 />
                 <a

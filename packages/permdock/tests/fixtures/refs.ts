@@ -1,4 +1,4 @@
-import type { SubjectRef } from '../../src/conditions/refs.ts';
+import type { SubjectRef } from "../../src/conditions/refs.ts";
 
 /**
  * `base[key]` as a `SubjectRef`: the ref proxy answers every safe key, but

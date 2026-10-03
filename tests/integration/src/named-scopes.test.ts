@@ -1,15 +1,15 @@
-import type { Permission, Principal } from 'permdock';
-import type { RlsParityFixture, RlsQueryFn } from 'permdock/testing';
+import type { Permission, Principal } from "permdock";
+import type { RlsParityFixture, RlsQueryFn } from "permdock/testing";
 
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { run } from 'permdock/cli';
-import { rlsParity } from 'permdock/testing';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { run } from "permdock/cli";
+import { rlsParity } from "permdock/testing";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import type { Postgres } from './support/postgres.ts';
+import type { Postgres } from "./support/postgres.ts";
 
 import {
   assets,
@@ -17,16 +17,16 @@ import {
   permissions,
   personas,
   policy,
-} from '../fixtures/named-scopes/policy.ts';
-import { startPostgres } from './support/postgres.ts';
+} from "../fixtures/named-scopes/policy.ts";
+import { startPostgres } from "./support/postgres.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const FIXTURE = join(HERE, '../fixtures/named-scopes');
+const FIXTURE = join(HERE, "../fixtures/named-scopes");
 
 const values = (rows: readonly Record<string, string>[], keys: string[]) =>
   rows
-    .map((row) => `(${keys.map((key) => `'${row[key] ?? ''}'`).join(', ')})`)
-    .join(', ');
+    .map((row) => `(${keys.map((key) => `'${row[key] ?? ""}'`).join(", ")})`)
+    .join(", ");
 
 const SETUP = `
 create role authenticated nologin;
@@ -64,13 +64,13 @@ create table invoice (
 create table asset (id text primary key, organization_id text not null, customer_id text not null);
 create table organization (id text primary key);
 insert into organization values ('T'), ('B');
-insert into quote values ${values(documents, ['id', 'organization_id', 'customer_id', 'status'])};
-insert into invoice values ${values(documents, ['id', 'organization_id', 'customer_id', 'status'])};
-insert into asset values ${values(assets, ['id', 'organization_id', 'customer_id'])};
+insert into quote values ${values(documents, ["id", "organization_id", "customer_id", "status"])};
+insert into invoice values ${values(documents, ["id", "organization_id", "customer_id", "status"])};
+insert into asset values ${values(assets, ["id", "organization_id", "customer_id"])};
 grant select, insert, update, delete on quote, invoice, asset to authenticated;
 `;
 
-type Subject = RlsParityFixture['subject'];
+type Subject = RlsParityFixture["subject"];
 
 function subjectOf(principal: Principal, tenant?: string): Subject {
   const active = tenant ?? principal.tenant;
@@ -83,39 +83,39 @@ function subjectOf(principal: Principal, tenant?: string): Subject {
 }
 
 const sneaky: Principal = {
-  id: 'u_sneaky',
-  tenant: 'T',
+  id: "u_sneaky",
+  tenant: "T",
   memberships: [
-    { scope: 'organization', id: 'T', roles: ['admin'], via: 'contact' },
+    { scope: "organization", id: "T", roles: ["admin"], via: "contact" },
   ],
 };
 
 const subjects: Readonly<Record<string, Subject>> = {
   owner: subjectOf(personas.owner),
-  ownerInB: subjectOf(personas.owner, 'B'),
+  ownerInB: subjectOf(personas.owner, "B"),
   admin: subjectOf(personas.admin),
   sneaky: subjectOf(sneaky),
   viewer: subjectOf(personas.viewer),
   privateContact: subjectOf(personas.privateContact),
   businessContact: subjectOf(personas.businessContact),
   staffContact: subjectOf(personas.staffContact),
-  staffContactInB: subjectOf(personas.staffContact, 'B'),
+  staffContactInB: subjectOf(personas.staffContact, "B"),
   platformAdmin: subjectOf(personas.platformAdmin),
 };
 
 const leaves: readonly (readonly [Permission, string])[] = [
-  [permissions.quote.read, 'quote'],
-  [permissions.quote.update, 'quote'],
-  [permissions.invoice.read, 'invoice'],
-  [permissions.asset.read, 'asset'],
-  [permissions.asset.update, 'asset'],
-  [permissions.asset.delete, 'asset'],
+  [permissions.quote.read, "quote"],
+  [permissions.quote.update, "quote"],
+  [permissions.invoice.read, "invoice"],
+  [permissions.asset.read, "asset"],
+  [permissions.asset.update, "asset"],
+  [permissions.asset.delete, "asset"],
 ];
 
 const fixtures: readonly RlsParityFixture[] = Object.entries(subjects).flatMap(
   ([name, subject]) =>
     leaves.flatMap(([permission, table]) =>
-      (table === 'asset' ? assets : documents).map((row) => ({
+      (table === "asset" ? assets : documents).map((row) => ({
         name: `${name} ${permission.key} ${row.id}`,
         subject,
         permission,
@@ -126,26 +126,26 @@ const fixtures: readonly RlsParityFixture[] = Object.entries(subjects).flatMap(
 );
 
 async function generate(cwd: string): Promise<string> {
-  const dir = mkdtempSync(join(tmpdir(), 'permdock-scopes-'));
-  const out = join(dir, 'rls.sql');
+  const dir = mkdtempSync(join(tmpdir(), "permdock-scopes-"));
+  const out = join(dir, "rls.sql");
   const result = await run(
-    ['rls', 'generate', '--target', 'sql', '--dialect', 'guc', '--out', out],
+    ["rls", "generate", "--target", "sql", "--dialect", "guc", "--out", out],
     { cwd },
   );
   if (result.code !== 0) {
     throw new Error(`rls generate: ${result.stdout}${result.stderr}`);
   }
-  const sql = readFileSync(out, 'utf8');
+  const sql = readFileSync(out, "utf8");
   rmSync(dir, { recursive: true, force: true });
   return sql;
 }
 
 describe.each([
-  { mode: 'database', cwd: FIXTURE },
-  { mode: 'jwt', cwd: join(FIXTURE, 'jwt') },
-])('named scopes in generated RLS ($mode mode)', ({ mode, cwd }) => {
+  { mode: "database", cwd: FIXTURE },
+  { mode: "jwt", cwd: join(FIXTURE, "jwt") },
+])("named scopes in generated RLS ($mode mode)", ({ mode, cwd }) => {
   let db: Postgres | undefined;
-  let generated = '';
+  let generated = "";
 
   beforeAll(async () => {
     generated = await generate(cwd);
@@ -158,7 +158,7 @@ describe.each([
 
   const query: RlsQueryFn = async (sql, params) => {
     if (db === undefined) {
-      throw new Error('PermDock: Postgres was not started');
+      throw new Error("PermDock: Postgres was not started");
     }
     try {
       const result = await db.tester.query(
@@ -169,28 +169,28 @@ describe.each([
     } catch (error) {
       const code =
         error !== null &&
-        typeof error === 'object' &&
-        'code' in error &&
-        typeof error.code === 'string'
+        typeof error === "object" &&
+        "code" in error &&
+        typeof error.code === "string"
           ? error.code
           : undefined;
-      if (code === '42501') {
+      if (code === "42501") {
         return { rows: [], rowCount: 0, code };
       }
       throw error;
     }
   };
 
-  it('emits one permitted_<scope>_ids helper per declared scope', () => {
-    expect(generated).toContain('permitted_organization_ids(p_grant text)');
-    expect(generated).toContain('permitted_customer_ids(p_grant text)');
-    expect(generated).not.toContain('permitted_tenant_ids');
+  it("emits one permitted_<scope>_ids helper per declared scope", () => {
+    expect(generated).toContain("permitted_organization_ids(p_grant text)");
+    expect(generated).toContain("permitted_customer_ids(p_grant text)");
+    expect(generated).not.toContain("permitted_tenant_ids");
     expect(generated).not.toMatch(/service_role/i);
   });
 
-  it('agrees with decide and the snapshot for every persona, permission and row', async () => {
+  it("agrees with decide and the snapshot for every persona, permission and row", async () => {
     const report = await rlsParity(policy, {
-      dialect: 'guc',
+      dialect: "guc",
       fixtures,
       query,
       snapshot: true,
@@ -200,79 +200,79 @@ describe.each([
       report.results
         .filter((item) => item.name.startsWith(`${name} `) && item.granted)
         .map((item) => item.name.slice(name.length + 1));
-    expect(allowed('privateContact')).toEqual([
-      'quote.read d_a_sent',
-      'quote.read d_a_accepted',
-      'invoice.read d_a_sent',
-      'invoice.read d_a_accepted',
-      'asset.read a_a_sent',
-      'asset.read a_a_draft',
-      'asset.read a_a_accepted',
+    expect(allowed("privateContact")).toEqual([
+      "quote.read d_a_sent",
+      "quote.read d_a_accepted",
+      "invoice.read d_a_sent",
+      "invoice.read d_a_accepted",
+      "asset.read a_a_sent",
+      "asset.read a_a_draft",
+      "asset.read a_a_accepted",
     ]);
-    expect(allowed('staffContactInB')).toEqual([
-      'quote.read d_c_sent',
-      'invoice.read d_c_sent',
-      'asset.read a_c_sent',
+    expect(allowed("staffContactInB")).toEqual([
+      "quote.read d_c_sent",
+      "invoice.read d_c_sent",
+      "asset.read a_c_sent",
     ]);
-    expect(allowed('platformAdmin')).toEqual([]);
-    expect(allowed('sneaky')).toEqual([]);
+    expect(allowed("platformAdmin")).toEqual([]);
+    expect(allowed("sneaky")).toEqual([]);
   });
 
   const claimsOf = (principal: Principal): Record<string, string> => ({
-    'app.user_id': principal.id,
-    'app.user_role': '',
-    'app.tenant_id': principal.tenant ?? '',
-    'app.memberships': JSON.stringify(principal.memberships ?? []),
+    "app.user_id": principal.id,
+    "app.user_role": "",
+    "app.tenant_id": principal.tenant ?? "",
+    "app.memberships": JSON.stringify(principal.memberships ?? []),
   });
 
-  it('answers permdock_can_assign from the assigns graph', async () => {
+  it("answers permdock_can_assign from the assigns graph", async () => {
     const can = (principal: Principal, role: string, id: string) =>
       db!.as(
-        { role: 'authenticated', settings: claimsOf(principal) },
+        { role: "authenticated", settings: claimsOf(principal) },
         async () =>
           (
             await db!.tester.query<{ readonly ok: boolean }>(
-              'select permdock.permdock_can_assign($1, $2) as ok',
+              "select permdock.permdock_can_assign($1, $2) as ok",
               [role, id],
             )
           ).rows[0]?.ok,
       );
-    expect(await can(personas.owner, 'owner', 'T')).toBe(true);
-    expect(await can(personas.admin, 'owner', 'T')).toBe(false);
-    expect(await can(personas.admin, 'member', 'T')).toBe(true);
-    expect(await can(personas.admin, 'contact', 'T')).toBe(true);
-    expect(await can(personas.admin, 'member', 'B')).toBe(false);
-    expect(await can(personas.viewer, 'member', 'B')).toBe(false);
-    expect(await can(sneaky, 'member', 'T')).toBe(false);
+    expect(await can(personas.owner, "owner", "T")).toBe(true);
+    expect(await can(personas.admin, "owner", "T")).toBe(false);
+    expect(await can(personas.admin, "member", "T")).toBe(true);
+    expect(await can(personas.admin, "contact", "T")).toBe(true);
+    expect(await can(personas.admin, "member", "B")).toBe(false);
+    expect(await can(personas.viewer, "member", "B")).toBe(false);
+    expect(await can(sneaky, "member", "T")).toBe(false);
   });
 
-  it.runIf(mode === 'database')(
-    'keeps an owner per organization at commit and lets a transfer through',
+  it.runIf(mode === "database")(
+    "keeps an owner per organization at commit and lets a transfer through",
     async () => {
       const admin = db!.admin;
       const attempt = async (statements: string): Promise<string | null> => {
-        await admin.query('begin');
+        await admin.query("begin");
         try {
           await admin.query(statements);
-          await admin.query('set constraints all immediate');
+          await admin.query("set constraints all immediate");
           return null;
         } catch (error) {
           // SAFETY: a Postgres error may carry a hint; String(error) covers any other value
           return (error as { readonly hint?: string }).hint ?? String(error);
         } finally {
-          await admin.query('rollback');
+          await admin.query("rollback");
         }
       };
       expect(
         await attempt(
           "delete from organization_users where organization_id = 'T' and role = 'owner'",
         ),
-      ).toBe('last-holder');
+      ).toBe("last-holder");
       expect(
         await attempt(
           "update organization_users set role = 'admin' where organization_id = 'T' and user_id = 'u_owner'",
         ),
-      ).toBe('last-holder');
+      ).toBe("last-holder");
       expect(
         await attempt(`
           update organization_users set role = 'owner' where organization_id = 'T' and user_id = 'u_admin';
@@ -288,19 +288,19 @@ describe.each([
         await attempt(
           "update organization_users set via = 'contact' where organization_id = 'T' and user_id = 'u_owner'",
         ),
-      ).toBe('last-holder');
+      ).toBe("last-holder");
     },
   );
 
-  it('gives an owner organization ids and no customer ids (no cascade)', async () => {
+  it("gives an owner organization ids and no customer ids (no cascade)", async () => {
     if (db === undefined) {
-      throw new Error('PermDock: Postgres was not started');
+      throw new Error("PermDock: Postgres was not started");
     }
     const claims = {
-      'app.user_id': 'u_owner',
-      'app.user_role': '',
-      'app.tenant_id': 'T',
-      'app.memberships': JSON.stringify(personas.owner.memberships),
+      "app.user_id": "u_owner",
+      "app.user_role": "",
+      "app.tenant_id": "T",
+      "app.memberships": JSON.stringify(personas.owner.memberships),
     };
     const keys = (
       await db.admin.query<{ readonly grant_key: string }>(
@@ -308,14 +308,14 @@ describe.each([
       )
     ).rows.map((row) => row.grant_key);
     const ids = async (helper: string): Promise<string[]> =>
-      db!.as({ role: 'authenticated', settings: claims }, async () => {
+      db!.as({ role: "authenticated", settings: claims }, async () => {
         const result = await db!.tester.query<{ readonly id: string }>(
           `select distinct id from unnest($1::text[]) k, permdock.${helper}(k) id`,
           [keys],
         );
         return result.rows.map((row) => row.id);
       });
-    expect(await ids('permitted_organization_ids')).toEqual(['T']);
-    expect(await ids('permitted_customer_ids')).toEqual([]);
+    expect(await ids("permitted_organization_ids")).toEqual(["T"]);
+    expect(await ids("permitted_customer_ids")).toEqual([]);
   });
 });

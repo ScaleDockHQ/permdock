@@ -1,13 +1,13 @@
-import type { Policy } from '../index.ts';
-import type { RlsSqlContext } from './rls-sql.ts';
+import type { Policy } from "../index.ts";
+import type { RlsSqlContext } from "./rls-sql.ts";
 
-import { tableFor } from './rls-compile.ts';
+import { tableFor } from "./rls-compile.ts";
 import {
   breakGlassHolder,
   breakGlassKey,
   collectGrants,
-} from './rls-grants.ts';
-import { accessSql, qualified } from './rls-helpers.ts';
+} from "./rls-grants.ts";
+import { accessSql, qualified } from "./rls-helpers.ts";
 import {
   memberIdsHelper,
   quoteIdent,
@@ -15,10 +15,10 @@ import {
   quoteTable,
   subjectClaimJsonSql,
   subjectIdSql,
-} from './rls-sql.ts';
+} from "./rls-sql.ts";
 
 /** The audit table every generated break-glass read writes to. Part of the SQL contract. */
-const BREAK_GLASS_AUDIT = 'permdock_break_glass_audit';
+const BREAK_GLASS_AUDIT = "permdock_break_glass_audit";
 
 const IDENT = /^[a-z][a-z0-9_]*$/u;
 
@@ -64,7 +64,7 @@ export function breakGlassEntries(
       const root = policy.scopes[0];
       grants.push({
         permission: grant.permission.key,
-        scope: 'anyone',
+        scope: "anyone",
         column: root?.key,
         ...(root === undefined ? {} : { root: root.name }),
       });
@@ -74,7 +74,7 @@ export function breakGlassEntries(
       permission: grant.permission.key,
       scope: holder.scope,
       column:
-        holder.scope === 'global'
+        holder.scope === "global"
           ? undefined
           : policy.scopes.find((scope) => scope.name === holder.scope)?.key,
     });
@@ -95,7 +95,7 @@ export function breakGlassEntries(
 function rowsFilter(ctx: RlsSqlContext, entry: BreakGlassEntry): string {
   const arms = entry.grants.flatMap((grant) => {
     const asked = `p_permission = ${quoteLiteral(grant.permission)}`;
-    if (grant.scope === 'anyone') {
+    if (grant.scope === "anyone") {
       if (grant.root === undefined) {
         return [`(${asked})`];
       }
@@ -105,14 +105,14 @@ function rowsFilter(ctx: RlsSqlContext, entry: BreakGlassEntry): string {
             `(${asked} and ${quoteIdent(grant.column)} in (select ${qualified(ctx, memberIdsHelper(grant.root))}()))`,
           ];
     }
-    if (grant.scope !== 'global' && grant.column === undefined) {
+    if (grant.scope !== "global" && grant.column === undefined) {
       return [];
     }
     return [
       `(${asked} and ${accessSql(ctx, grant.scope, breakGlassKey(grant.permission), grant.column)})`,
     ];
   });
-  return arms.length === 0 ? 'false' : [...new Set(arms)].join('\n    or ');
+  return arms.length === 0 ? "false" : [...new Set(arms)].join("\n    or ");
 }
 
 function functionName(resource: string): string {
@@ -123,7 +123,7 @@ function functionName(resource: string): string {
 }
 
 function qualifiedTable(name: string): string {
-  return quoteTable(name.includes('.') ? name : `public.${name}`);
+  return quoteTable(name.includes(".") ? name : `public.${name}`);
 }
 
 function auditSql(ctx: RlsSqlContext): string {
@@ -146,7 +146,7 @@ function readFunctionSql(ctx: RlsSqlContext, entry: BreakGlassEntry): string {
   const fn = qualified(ctx, functionName(entry.resource));
   const audit = qualified(ctx, quoteIdent(BREAK_GLASS_AUDIT));
   const table = qualifiedTable(entry.table);
-  const session = subjectClaimJsonSql(ctx, 'break_glass');
+  const session = subjectClaimJsonSql(ctx, "break_glass");
   const subject = subjectIdSql(ctx);
   return `-- ${entry.resource}: reads restricted rows through a checked, audited break-glass session
 create or replace function ${fn}(p_permission text)
@@ -197,10 +197,10 @@ export function breakGlassSql(
   entries: readonly BreakGlassEntry[],
 ): string {
   if (entries.length === 0) {
-    return '';
+    return "";
   }
   return [
     auditSql(ctx),
     ...entries.map((entry) => readFunctionSql(ctx, entry)),
-  ].join('\n\n');
+  ].join("\n\n");
 }

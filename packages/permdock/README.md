@@ -48,20 +48,25 @@ Importable everywhere: server, client, React Native, MCP, tests.
 
 ```ts
 // src/permissions.ts
-import { definePermissions, defineRoles, resource } from 'permdock';
-import { z } from 'zod'; // or valibot / arktype / effect
+import { definePermissions, defineRoles, resource } from "permdock";
+import { z } from "zod"; // or valibot / arktype / effect
 
-const Post = z.object({ id: z.string(), authorId: z.string(), orgId: z.string(), published: z.boolean() });
+const Post = z.object({
+  id: z.string(),
+  authorId: z.string(),
+  orgId: z.string(),
+  published: z.boolean(),
+});
 
 export const permissions = definePermissions({
   post: resource(Post, {
-    id: 'id',                                          // identity field: cache keys, filter, RLS
-    actions: ['read', 'update', 'delete', 'publish'],  // take an instance
-    collection: ['create', 'list'],                    // do not
+    id: "id", // identity field: cache keys, filter, RLS
+    actions: ["read", "update", "delete", "publish"], // take an instance
+    collection: ["create", "list"], // do not
   }),
 });
 
-export const roles = defineRoles({ member: {}, admin: { on: 'tenant' } });
+export const roles = defineRoles({ member: {}, admin: { on: "tenant" } });
 
 permissions.post.update.key; // 'post.update'
 ```
@@ -72,25 +77,40 @@ Server-only. Roles are data; conditions are portable.
 
 ```ts
 // src/policy.ts
-import { allow, definePolicy, principal, relation, role } from 'permdock';
-import { permissions, roles } from './permissions';
+import { allow, definePolicy, principal, relation, role } from "permdock";
+import { permissions, roles } from "./permissions";
 
 const member = role(roles.member, [
   allow(permissions.post.read),
   allow(permissions.post.create),
-  allow(permissions.post.update, { to: relation(permissions.post, 'author') }),
-  allow(permissions.post.delete, { where: { authorId: principal.id }, approval: 'human' }),
+  allow(permissions.post.update, { to: relation(permissions.post, "author") }),
+  allow(permissions.post.delete, {
+    where: { authorId: principal.id },
+    approval: "human",
+  }),
 ]);
 
-const admin = role(roles.admin, [...member.grants, allow(permissions.post.delete)], { on: 'tenant' });
+const admin = role(
+  roles.admin,
+  [...member.grants, allow(permissions.post.delete)],
+  { on: "tenant" },
+);
 
-export const policy = definePolicy({ permissions, roles }, {
-  roles: [member, admin],
-  scopes: { tenant: { key: 'orgId' } },
-  principal: (user: User | null) =>
-    user && { id: user.id, roles: user.roles, tenant: user.activeOrgId, memberships: user.memberships },
-  validate: 'boundary',
-});
+export const policy = definePolicy(
+  { permissions, roles },
+  {
+    roles: [member, admin],
+    scopes: { tenant: { key: "orgId" } },
+    principal: (user: User | null) =>
+      user && {
+        id: user.id,
+        roles: user.roles,
+        tenant: user.activeOrgId,
+        memberships: user.memberships,
+      },
+    validate: "boundary",
+  },
+);
 ```
 
 `subjectFromClerk`, `subjectFromBetterAuth`, `subjectFromSupabase` and `subjectFromJwt` produce `memberships` from the provider you already use.
@@ -98,23 +118,27 @@ export const policy = definePolicy({ permissions, roles }, {
 ### 3. Decide
 
 ```ts
-import { createPermDock } from 'permdock';
+import { createPermDock } from "permdock";
 
 const permdock = await createPermDock(policy, user); // frozen, request-scoped, never throws
-permdock.can(permissions.post.update, post);          // boolean
-permdock.decide(permissions.post.delete, post);       // { outcome: 'granted' | 'denied' | 'approval-required', ... }
-permdock.filter(permissions.post.read, posts);        // Post[]
-permdock.where(permissions.post.read);                // portable condition for Drizzle / Prisma / Kysely / SQL
-permdock.snapshot({ include: [permissions.post] });   // JSON for the client
+permdock.can(permissions.post.update, post); // boolean
+permdock.decide(permissions.post.delete, post); // { outcome: 'granted' | 'denied' | 'approval-required', ... }
+permdock.filter(permissions.post.read, posts); // Post[]
+permdock.where(permissions.post.read); // portable condition for Drizzle / Prisma / Kysely / SQL
+permdock.snapshot({ include: [permissions.post] }); // JSON for the client
 ```
 
 ### React
 
 ```tsx
-import { PermDockProvider, Protected, usePermission } from 'permdock/react';
+import { PermDockProvider, Protected, usePermission } from "permdock/react";
 
 <PermDockProvider snapshot={snapshot} endpoint="/api/permdock">
-  <Protected permission={permissions.post.update} data={post} fallback={<Locked />}>
+  <Protected
+    permission={permissions.post.update}
+    data={post}
+    fallback={<Locked />}
+  >
     <EditButton />
   </Protected>
 </PermDockProvider>;
@@ -128,11 +152,14 @@ The same hook names exist in React Native, Vue, Svelte and Solid. Read [building
 
 ```ts
 // src/permdock/server.ts
-import { createPermDock } from 'permdock/next';
+import { createPermDock } from "permdock/next";
 
-export const { getPermDock, requireAccess, permdockHandler } = createPermDock(policy, {
-  subject: async () => getUser(await cookies()),
-});
+export const { getPermDock, requireAccess, permdockHandler } = createPermDock(
+  policy,
+  {
+    subject: async () => getUser(await cookies()),
+  },
+);
 
 // in a page or Server Action
 await requireAccess({ permission: permissions.post.update, data: post }); // forbidden() / unauthorized() on a denial
@@ -143,23 +170,35 @@ await requireAccess({ permission: permissions.post.update, data: post }); // for
 Express, Fastify, Elysia, Nest, Node, tRPC and oRPC have the same shape.
 
 ```ts
-import { createPermDock } from 'permdock/hono';
+import { createPermDock } from "permdock/hono";
 
-export const { permdock, protect } = createPermDock(policy, { subject: (c) => c.get('user') });
+export const { permdock, protect } = createPermDock(policy, {
+  subject: (c) => c.get("user"),
+});
 app.use(permdock());
-app.delete('/posts/:id', protect(permissions.post.delete, (c) => loadPost(c.req.param('id'))), handler);
+app.delete(
+  "/posts/:id",
+  protect(permissions.post.delete, (c) => loadPost(c.req.param("id"))),
+  handler,
+);
 // deny → 403 application/problem+json with permission, denials and alternatives
 ```
 
 ### MCP
 
 ```ts
-import { createPermDock } from 'permdock/mcp';
+import { createPermDock } from "permdock/mcp";
 
-const { protectServer } = createPermDock(policy, { subject: (authInfo) => userFrom(authInfo) });
+const { protectServer } = createPermDock(policy, {
+  subject: (authInfo) => userFrom(authInfo),
+});
 protectServer(server).registerTool(
-  'delete_post',
-  { permission: permissions.post.delete, inputSchema, data: (args) => loadPost(args.id) },
+  "delete_post",
+  {
+    permission: permissions.post.delete,
+    inputSchema,
+    data: (args) => loadPost(args.id),
+  },
   handler,
 );
 // tools filtered per caller, args validated, refusals carry reasons and alternatives
@@ -168,12 +207,20 @@ protectServer(server).registerTool(
 ### AI SDK
 
 ```ts
-import { createPermDock } from 'permdock/ai-sdk';
+import { createPermDock } from "permdock/ai-sdk";
 
 const { toolApproval } = createPermDock(policy, {
   subject: ({ runtimeContext }) => runtimeContext.user,
-  actor: ({ runtimeContext }) => ({ id: runtimeContext.agentId, kind: 'ai-sdk' }),
-  tools: { delete_post: { permission: permissions.post.delete, data: (args) => loadPost(args.id) } },
+  actor: ({ runtimeContext }) => ({
+    id: runtimeContext.agentId,
+    kind: "ai-sdk",
+  }),
+  tools: {
+    delete_post: {
+      permission: permissions.post.delete,
+      data: (args) => loadPost(args.id),
+    },
+  },
 });
 generateText({ model, tools, toolApproval }); // granted → approved, denied → denied, approval-required → user-approval
 ```
@@ -189,19 +236,19 @@ permdock rls verify --db $DATABASE_URL                      # can() vs database 
 
 Any Standard Schema validator: Zod, Valibot, ArkType, Effect Schema. One import path per target:
 
-| Group | Entries |
-| --- | --- |
-| UI | `permdock/react` · `permdock/react-native` · `permdock/vue` · `permdock/svelte` · `permdock/solid` |
-| Full-stack | `permdock/next` |
-| HTTP | `permdock/server` · `permdock/hono` · `permdock/express` · `permdock/fastify` · `permdock/elysia` · `permdock/nest` · `permdock/node` |
-| Terminal | `permdock/terminal` for your own CLI (not the `permdock` binary) |
-| RPC | `permdock/trpc` · `permdock/orpc` |
-| Agents | `permdock/mcp` · `permdock/ai-sdk` · `permdock/claude-agent` · `permdock/eve` · `permdock/openai` · `permdock/webmcp` · `permdock/a2a` |
-| Decision plane | `permdock/authzen` · `permdock/approvals` · `permdock/cloud` · `permdock/scim` · `permdock/ssf` · `permdock/openapi` · `permdock/otel` · `permdock/pdp` |
-| Data | `permdock/drizzle` · `permdock/prisma` · `permdock/kysely` · `permdock rls` |
-| Auth and providers | `permdock/jwt` · `permdock/supabase` · `permdock/supabase/middleware` · `permdock/better-auth` · `permdock/clerk` · `permdock/convex` |
-| Build | `permdock/next/plugin` · `permdock/unplugin` |
-| Testing | `permdock/testing` |
+| Group              | Entries                                                                                                                                                 |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| UI                 | `permdock/react` · `permdock/react-native` · `permdock/vue` · `permdock/svelte` · `permdock/solid`                                                      |
+| Full-stack         | `permdock/next`                                                                                                                                         |
+| HTTP               | `permdock/server` · `permdock/hono` · `permdock/express` · `permdock/fastify` · `permdock/elysia` · `permdock/nest` · `permdock/node`                   |
+| Terminal           | `permdock/terminal` for your own CLI (not the `permdock` binary)                                                                                        |
+| RPC                | `permdock/trpc` · `permdock/orpc`                                                                                                                       |
+| Agents             | `permdock/mcp` · `permdock/ai-sdk` · `permdock/claude-agent` · `permdock/eve` · `permdock/openai` · `permdock/webmcp` · `permdock/a2a`                  |
+| Decision plane     | `permdock/authzen` · `permdock/approvals` · `permdock/cloud` · `permdock/scim` · `permdock/ssf` · `permdock/openapi` · `permdock/otel` · `permdock/pdp` |
+| Data               | `permdock/drizzle` · `permdock/prisma` · `permdock/kysely` · `permdock rls`                                                                             |
+| Auth and providers | `permdock/jwt` · `permdock/supabase` · `permdock/supabase/middleware` · `permdock/better-auth` · `permdock/clerk` · `permdock/convex`                   |
+| Build              | `permdock/next/plugin` · `permdock/unplugin`                                                                                                            |
+| Testing            | `permdock/testing`                                                                                                                                      |
 
 Nuxt, Astro, React Router, TanStack Start and Effect use these entries plus `permdock/unplugin`. The full matrix with example apps and related standards is on the [adapters page](https://permdock.dev/docs/adapters).
 

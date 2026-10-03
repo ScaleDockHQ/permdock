@@ -1,5 +1,5 @@
 ---
-'permdock': minor
+"permdock": minor
 ---
 
 Elevated access: just-in-time role activation, break-glass and support access with tenant consent. Memberships gain `grantedBy` (the principal id that wrote the row) and `reason` (free text); both round-trip through the Supabase custom access token hook claim, the snapshot and every event. `Membership` also gains `eligible` (roles a holder may activate but does not hold) and `member: { group }` (a subgroup inside the instance).

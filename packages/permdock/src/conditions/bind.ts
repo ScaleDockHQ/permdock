@@ -1,18 +1,18 @@
-import type { Subject } from '../core/subject.ts';
+import type { Subject } from "../core/subject.ts";
 
 import {
   type Condition,
   type ConditionValue,
   type SqlFunctionArg,
   isConditionRef,
-} from './ast.ts';
-import { resolveConditionRef } from './refs.ts';
+} from "./ast.ts";
+import { resolveConditionRef } from "./refs.ts";
 
 function isPrimitive(value: unknown): value is string | number | boolean {
   return (
-    typeof value === 'string' ||
-    typeof value === 'number' ||
-    typeof value === 'boolean'
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean"
   );
 }
 
@@ -46,8 +46,8 @@ function bindArg(
 ): SqlFunctionArg {
   // SAFETY: the field-reference form takes the first branch, so the second sees a ConditionValue.
   return arg !== null &&
-    typeof arg === 'object' &&
-    'field' in arg &&
+    typeof arg === "object" &&
+    "field" in arg &&
     !isConditionRef(arg)
     ? arg
     : bindValue(arg as ConditionValue, subject, only);
@@ -65,21 +65,21 @@ export function bindConditionRefs(
   only?: RefFilter,
 ): Condition {
   switch (condition.op) {
-    case 'and':
-    case 'or':
+    case "and":
+    case "or":
       return {
         op: condition.op,
         conditions: condition.conditions.map((child) =>
           bindConditionRefs(child, subject, only),
         ),
       };
-    case 'not':
+    case "not":
       return {
-        op: 'not',
+        op: "not",
         condition: bindConditionRefs(condition.condition, subject, only),
       };
-    case 'in':
-    case 'notIn': {
+    case "in":
+    case "notIn": {
       const value: ConditionValue = condition.value;
       if (isConditionRef(value) && only !== undefined && !only(value.ref)) {
         return condition;
@@ -90,27 +90,27 @@ export function bindConditionRefs(
         value: Array.isArray(bound) ? bound : [],
       };
     }
-    case 'eq':
-    case 'ne':
-    case 'gt':
-    case 'gte':
-    case 'lt':
-    case 'lte':
-    case 'contains':
+    case "eq":
+    case "ne":
+    case "gt":
+    case "gte":
+    case "lt":
+    case "lte":
+    case "contains":
       return {
         ...condition,
         value: bindValue(condition.value, subject, only),
       };
-    case 'sqlFunction':
+    case "sqlFunction":
       return {
         ...condition,
         args: condition.args.map((arg) => bindArg(arg, subject, only)),
         twin: bindConditionRefs(condition.twin, subject, only),
       };
-    case 'isNull':
-    case 'memberOf':
-    case 'related':
-    case 'opaque':
+    case "isNull":
+    case "memberOf":
+    case "related":
+    case "opaque":
       return condition;
     default: {
       const exhaustive: never = condition;

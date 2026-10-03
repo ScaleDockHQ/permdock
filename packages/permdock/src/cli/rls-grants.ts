@@ -1,27 +1,27 @@
-import type { Condition, Grant, Grantee, Policy } from '../index.ts';
+import type { Condition, Grant, Grantee, Policy } from "../index.ts";
 
-import { relationCondition } from '../core/grantee.ts';
-import { scopeList } from '../core/scopes.ts';
-import { listRoles } from '../index.ts';
-import { andConditions } from './rls-sql.ts';
+import { relationCondition } from "../core/grantee.ts";
+import { scopeList } from "../core/scopes.ts";
+import { listRoles } from "../index.ts";
+import { andConditions } from "./rls-sql.ts";
 
 /** Who a grant reaches before any row condition applies. */
 export type RlsAccess =
-  | { readonly kind: 'anyone' }
-  | { readonly kind: 'authenticated' }
+  | { readonly kind: "anyone" }
+  | { readonly kind: "authenticated" }
   | {
-      readonly kind: 'role';
+      readonly kind: "role";
       readonly role: string;
       /** `'global'` or a scope name. */
       readonly scope: string;
     }
   | {
-      readonly kind: 'resource';
+      readonly kind: "resource";
       readonly role: string;
       readonly resource: string;
     }
   /** A `deny` for delegated `oauth-client` actors: a token with `client_id` or `act`. */
-  | { readonly kind: 'actor'; readonly actor: 'oauth-client' };
+  | { readonly kind: "actor"; readonly actor: "oauth-client" };
 
 /**
  * The `role_permissions` grant key of a break-glass grant. It differs from
@@ -39,11 +39,11 @@ export function breakGlassKey(permission: string): string {
 export function breakGlassHolder(
   item: RlsGrant,
 ): { readonly role: string; readonly scope: string } | undefined {
-  if (item.access.kind === 'role') {
+  if (item.access.kind === "role") {
     return { role: item.access.role, scope: item.access.scope };
   }
   const { role, scope } = item.grant;
-  return role === null || typeof scope !== 'string'
+  return role === null || typeof scope !== "string"
     ? undefined
     : { role, scope };
 }
@@ -57,7 +57,7 @@ export type RlsGrant = {
   readonly where?: Condition;
 };
 
-function granteeItems(to: Grant['to']): readonly Grantee[] {
+function granteeItems(to: Grant["to"]): readonly Grantee[] {
   // SAFETY: to is Grantee | readonly Grantee[]; Array.isArray does not narrow readonly arrays.
   return Array.isArray(to) ? (to as readonly Grantee[]) : [to as Grantee];
 }
@@ -65,12 +65,12 @@ function granteeItems(to: Grant['to']): readonly Grantee[] {
 function relationWhere(
   policy: Policy,
   grant: Grant,
-  grantee: Extract<Grantee, { readonly kind: 'relation' }>,
+  grantee: Extract<Grantee, { readonly kind: "relation" }>,
 ): Condition {
   const node = policy.resources.get(grant.permission.resource);
   const where = relationCondition(grantee, node, scopeList(policy.scopes), {
     resources: policy.resources,
-    now: { ref: 'now' },
+    now: { ref: "now" },
   });
   if (where === undefined) {
     throw new Error(
@@ -83,43 +83,43 @@ function relationWhere(
 /** Only a deny for `oauth-client` actors compiles: Postgres sees `client_id` and `act`, not other actor kinds. */
 function actorAccess(
   grant: Grant,
-  grantee: Extract<Grantee, { readonly kind: 'actor' }>,
+  grantee: Extract<Grantee, { readonly kind: "actor" }>,
   others: number,
 ): RlsAccess {
   if (
-    grant.effect !== 'deny' ||
-    grantee.actor !== 'oauth-client' ||
+    grant.effect !== "deny" ||
+    grantee.actor !== "oauth-client" ||
     others > 0
   ) {
     throw new Error(
       `PermDock CLI: grant ${grant.permission.key} is limited to an actor grantee; RLS compiles only deny(…, { to: actor('oauth-client') }) on its own, so enforce it in the application`,
     );
   }
-  return { kind: 'actor', actor: 'oauth-client' };
+  return { kind: "actor", actor: "oauth-client" };
 }
 
 function accessOf(
   grant: Grant,
-  roles: readonly Extract<Grantee, { readonly kind: 'role' }>[],
+  roles: readonly Extract<Grantee, { readonly kind: "role" }>[],
   anyone: boolean,
 ): RlsAccess {
   const [held, ...more] = roles;
   if (more.length > 0) {
     throw new Error(
-      `PermDock CLI: grant ${grant.permission.key} requires several roles at once (${roles.map((item) => item.role).join(', ')}); RLS compiles one role per grant`,
+      `PermDock CLI: grant ${grant.permission.key} requires several roles at once (${roles.map((item) => item.role).join(", ")}); RLS compiles one role per grant`,
     );
   }
   if (held === undefined) {
-    return anyone ? { kind: 'anyone' } : { kind: 'authenticated' };
+    return anyone ? { kind: "anyone" } : { kind: "authenticated" };
   }
-  if (typeof held.scope === 'object') {
+  if (typeof held.scope === "object") {
     return {
-      kind: 'resource',
+      kind: "resource",
       role: held.role,
       resource: held.scope.resource,
     };
   }
-  return { kind: 'role', role: held.role, scope: held.scope };
+  return { kind: "role", role: held.role, scope: held.scope };
 }
 
 /**
@@ -130,29 +130,29 @@ function accessOf(
 export function collectGrants(policy: Policy): readonly RlsGrant[] {
   return policy.grants.map((grant) => {
     const items = granteeItems(grant.to);
-    const roles: Extract<Grantee, { readonly kind: 'role' }>[] = [];
+    const roles: Extract<Grantee, { readonly kind: "role" }>[] = [];
     let anyone = true;
     let where = grant.where;
     let delegated: RlsAccess | undefined;
     for (const item of items) {
       switch (item.kind) {
-        case 'role':
+        case "role":
           roles.push(item);
           break;
-        case 'anyone':
+        case "anyone":
           break;
-        case 'authenticated':
+        case "authenticated":
           anyone = false;
           break;
-        case 'relation':
+        case "relation":
           anyone = false;
           where = andConditions(where, relationWhere(policy, grant, item));
           break;
-        case 'actor':
+        case "actor":
           delegated = actorAccess(grant, item, items.length - 1);
           break;
-        case 'plan':
-        case 'assurance':
+        case "plan":
+        case "assurance":
           throw new Error(
             `PermDock CLI: grant ${grant.permission.key} is limited to a ${item.kind} grantee, which RLS cannot compile; enforce it in the application`,
           );
@@ -164,7 +164,7 @@ export function collectGrants(policy: Policy): readonly RlsGrant[] {
     }
     const access = delegated ?? accessOf(grant, roles, anyone);
     const label =
-      access.kind === 'role' || access.kind === 'resource'
+      access.kind === "role" || access.kind === "resource"
         ? access.role
         : access.kind;
     return where === undefined
@@ -180,7 +180,7 @@ export function roleNames(policy: Policy): readonly string[] {
     names.add(leaf.key);
   }
   for (const item of collectGrants(policy)) {
-    if (item.access.kind === 'role' || item.access.kind === 'resource') {
+    if (item.access.kind === "role" || item.access.kind === "resource") {
       names.add(item.access.role);
     }
   }

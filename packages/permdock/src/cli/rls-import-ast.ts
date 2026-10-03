@@ -1,17 +1,17 @@
-import { createHash } from 'node:crypto';
-import { deparse, parse } from 'pgsql-parser';
+import { createHash } from "node:crypto";
+import { deparse, parse } from "pgsql-parser";
 
-import type { Condition, ConditionValue, SqlFunctionArg } from '../index.ts';
-import type { HelperScope, RolePermission } from './rls-helpers.ts';
-import type { RlsFunctionMapping, RlsMemberships } from './types.ts';
+import type { Condition, ConditionValue, SqlFunctionArg } from "../index.ts";
+import type { HelperScope, RolePermission } from "./rls-helpers.ts";
+import type { RlsFunctionMapping, RlsMemberships } from "./types.ts";
 
-import { quoteSqlLiteral } from '../core/sql.ts';
-import { HELPERS } from './rls-helpers.ts';
+import { quoteSqlLiteral } from "../core/sql.ts";
+import { HELPERS } from "./rls-helpers.ts";
 
 type PgNode = Record<string, unknown>;
 
 function asNode(value: unknown): PgNode | undefined {
-  if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+  if (value !== null && typeof value === "object" && !Array.isArray(value)) {
     // SAFETY: checked to be a non-null, non-array object, which is all PgNode claims.
     return value as PgNode;
   }
@@ -23,20 +23,20 @@ function stringVal(value: unknown): string | undefined {
   if (node === undefined) {
     return undefined;
   }
-  const inner = asNode(node['String']);
+  const inner = asNode(node["String"]);
   if (inner !== undefined) {
-    if (typeof inner['sval'] === 'string') {
-      return inner['sval'];
+    if (typeof inner["sval"] === "string") {
+      return inner["sval"];
     }
-    if (typeof inner['str'] === 'string') {
-      return inner['str'];
+    if (typeof inner["str"] === "string") {
+      return inner["str"];
     }
   }
-  if (typeof node['str'] === 'string') {
-    return node['str'];
+  if (typeof node["str"] === "string") {
+    return node["str"];
   }
-  if (typeof node['sval'] === 'string') {
-    return node['sval'];
+  if (typeof node["sval"] === "string") {
+    return node["sval"];
   }
   return undefined;
 }
@@ -46,17 +46,17 @@ function unwrap(value: unknown): unknown {
   if (node === undefined) {
     return value;
   }
-  const cast = asNode(node['TypeCast']);
+  const cast = asNode(node["TypeCast"]);
   if (cast !== undefined) {
-    return unwrap(cast['arg']);
+    return unwrap(cast["arg"]);
   }
   return value;
 }
 
 function columnName(value: unknown): string | undefined {
   const node = asNode(unwrap(value));
-  const ref = asNode(node?.['ColumnRef']);
-  const fields = ref?.['fields'];
+  const ref = asNode(node?.["ColumnRef"]);
+  const fields = ref?.["fields"];
   if (!Array.isArray(fields) || fields.length === 0) {
     return undefined;
   }
@@ -65,23 +65,23 @@ function columnName(value: unknown): string | undefined {
 
 function funcName(value: unknown): string | undefined {
   const node = asNode(unwrap(value));
-  const call = asNode(node?.['FuncCall']);
-  const names = call?.['funcname'];
+  const call = asNode(node?.["FuncCall"]);
+  const names = call?.["funcname"];
   if (!Array.isArray(names) || names.length === 0) {
     return undefined;
   }
-  return names.map((item) => stringVal(item) ?? '').join('.');
+  return names.map((item) => stringVal(item) ?? "").join(".");
 }
 
 /** The expression of a scalar `(select <expr>)`, the InitPlan form generate writes. */
 function scalarSubselect(value: unknown): unknown {
-  const sub = asNode(asNode(unwrap(value))?.['SubLink']);
-  const select = asNode(asNode(sub?.['subselect'])?.['SelectStmt']);
-  const targets = select?.['targetList'];
+  const sub = asNode(asNode(unwrap(value))?.["SubLink"]);
+  const select = asNode(asNode(sub?.["subselect"])?.["SelectStmt"]);
+  const targets = select?.["targetList"];
   if (!Array.isArray(targets) || targets[0] === undefined) {
     return undefined;
   }
-  return asNode(asNode(targets[0])?.['ResTarget'])?.['val'];
+  return asNode(asNode(targets[0])?.["ResTarget"])?.["val"];
 }
 
 function isAuthUid(value: unknown): boolean {
@@ -91,10 +91,10 @@ function isAuthUid(value: unknown): boolean {
   }
   const name = funcName(value);
   return (
-    name === 'auth.uid' ||
-    name === 'auth.user_id' ||
-    name === 'uid' ||
-    name === 'user_id'
+    name === "auth.uid" ||
+    name === "auth.user_id" ||
+    name === "uid" ||
+    name === "user_id"
   );
 }
 
@@ -104,63 +104,63 @@ function isCurrentSettingUserId(value: unknown): boolean {
     return isCurrentSettingUserId(inner);
   }
   const name = funcName(value);
-  if (name !== 'current_setting') {
+  if (name !== "current_setting") {
     return false;
   }
   const node = asNode(unwrap(value));
-  const args = asNode(node?.['FuncCall'])?.['args'];
+  const args = asNode(node?.["FuncCall"])?.["args"];
   if (!Array.isArray(args) || args[0] === undefined) {
     return false;
   }
   const literal = constValue(args[0]);
-  return typeof literal === 'string' && literal.endsWith('.user_id');
+  return typeof literal === "string" && literal.endsWith(".user_id");
 }
 
 function constValue(value: unknown): ConditionValue | undefined {
   const node = asNode(unwrap(value));
-  const constant = asNode(node?.['A_Const']);
+  const constant = asNode(node?.["A_Const"]);
   if (constant === undefined) {
     return undefined;
   }
-  if (constant['isnull'] === true) {
+  if (constant["isnull"] === true) {
     return null;
   }
-  const sval = asNode(constant['sval']);
-  if (sval !== undefined && typeof sval['sval'] === 'string') {
-    return sval['sval'];
+  const sval = asNode(constant["sval"]);
+  if (sval !== undefined && typeof sval["sval"] === "string") {
+    return sval["sval"];
   }
-  if (typeof constant['sval'] === 'string') {
-    return constant['sval'];
+  if (typeof constant["sval"] === "string") {
+    return constant["sval"];
   }
   // The parser omits a protobuf default, so `0` and `false` arrive as `{}`.
-  const ival = asNode(constant['ival']);
+  const ival = asNode(constant["ival"]);
   if (ival !== undefined) {
-    const number = ival['ival'] ?? 0;
-    return typeof number === 'number' ? number : undefined;
+    const number = ival["ival"] ?? 0;
+    return typeof number === "number" ? number : undefined;
   }
-  if (typeof constant['ival'] === 'number') {
-    return constant['ival'];
+  if (typeof constant["ival"] === "number") {
+    return constant["ival"];
   }
-  const boolval = asNode(constant['boolval']);
+  const boolval = asNode(constant["boolval"]);
   if (boolval !== undefined) {
-    const flag = boolval['boolval'] ?? false;
-    return typeof flag === 'boolean' ? flag : undefined;
+    const flag = boolval["boolval"] ?? false;
+    return typeof flag === "boolean" ? flag : undefined;
   }
-  if (typeof constant['boolval'] === 'boolean') {
-    return constant['boolval'];
+  if (typeof constant["boolval"] === "boolean") {
+    return constant["boolval"];
   }
   return undefined;
 }
 
 function selectFromTable(selectNode: unknown): string | undefined {
-  const select = asNode(asNode(selectNode)?.['SelectStmt']);
-  const from = select?.['fromClause'];
+  const select = asNode(asNode(selectNode)?.["SelectStmt"]);
+  const from = select?.["fromClause"];
   if (!Array.isArray(from) || from[0] === undefined) {
     return undefined;
   }
-  const range = asNode(asNode(from[0])?.['RangeVar']);
-  const relname = range?.['relname'];
-  return typeof relname === 'string' ? relname : undefined;
+  const range = asNode(asNode(from[0])?.["RangeVar"]);
+  const relname = range?.["relname"];
+  return typeof relname === "string" ? relname : undefined;
 }
 
 function sublinkTable(
@@ -168,71 +168,71 @@ function sublinkTable(
   kinds: ReadonlySet<string | number>,
 ): string | undefined {
   const node = asNode(unwrap(value));
-  const sub = asNode(node?.['SubLink']);
+  const sub = asNode(node?.["SubLink"]);
   if (sub === undefined) {
     return undefined;
   }
-  const kind = sub['subLinkType'];
+  const kind = sub["subLinkType"];
   // SAFETY: Set.has only compares by identity, so a kind of any other type just misses.
   if (kind === undefined || !kinds.has(kind as string | number)) {
     return undefined;
   }
-  return selectFromTable(sub['subselect']);
+  return selectFromTable(sub["subselect"]);
 }
 
 function membershipTable(value: unknown): string | undefined {
-  const exists = sublinkTable(value, new Set(['EXISTS_SUBLINK', 0]));
+  const exists = sublinkTable(value, new Set(["EXISTS_SUBLINK", 0]));
   if (exists !== undefined) {
     return exists;
   }
   const anyDirect = sublinkTable(
     value,
-    new Set(['ANY_SUBLINK', 'IN_SUBLINK', 2]),
+    new Set(["ANY_SUBLINK", "IN_SUBLINK", 2]),
   );
   if (anyDirect !== undefined) {
     return anyDirect;
   }
   const node = asNode(unwrap(value));
-  const expr = asNode(node?.['A_Expr']);
+  const expr = asNode(node?.["A_Expr"]);
   if (expr === undefined) {
     return undefined;
   }
-  const right = unwrap(expr['rexpr']);
+  const right = unwrap(expr["rexpr"]);
   const fromRight = sublinkTable(
     right,
-    new Set(['ANY_SUBLINK', 'IN_SUBLINK', 'EXISTS_SUBLINK', 0, 2]),
+    new Set(["ANY_SUBLINK", "IN_SUBLINK", "EXISTS_SUBLINK", 0, 2]),
   );
   if (fromRight !== undefined) {
     return fromRight;
   }
-  if (Array.isArray(expr['rexpr']) && expr['rexpr'][0] !== undefined) {
-    return selectFromTable(expr['rexpr'][0]);
+  if (Array.isArray(expr["rexpr"]) && expr["rexpr"][0] !== undefined) {
+    return selectFromTable(expr["rexpr"][0]);
   }
   return undefined;
 }
 
 function operatorName(value: unknown): string | undefined {
   const node = asNode(unwrap(value));
-  const expr = asNode(node?.['A_Expr']);
-  const names = expr?.['name'];
+  const expr = asNode(node?.["A_Expr"]);
+  const names = expr?.["name"];
   if (!Array.isArray(names) || names[0] === undefined) {
     return undefined;
   }
   return stringVal(names[0]);
 }
 
-function boolOp(value: unknown): 'and' | 'or' | 'not' | undefined {
+function boolOp(value: unknown): "and" | "or" | "not" | undefined {
   const node = asNode(unwrap(value));
-  const expr = asNode(node?.['BoolExpr']);
-  const op = expr?.['boolop'];
-  if (op === 'AND_EXPR' || op === 0) {
-    return 'and';
+  const expr = asNode(node?.["BoolExpr"]);
+  const op = expr?.["boolop"];
+  if (op === "AND_EXPR" || op === 0) {
+    return "and";
   }
-  if (op === 'OR_EXPR' || op === 1) {
-    return 'or';
+  if (op === "OR_EXPR" || op === 1) {
+    return "or";
   }
-  if (op === 'NOT_EXPR' || op === 2) {
-    return 'not';
+  if (op === "NOT_EXPR" || op === 2) {
+    return "not";
   }
   return undefined;
 }
@@ -247,8 +247,8 @@ function functionLookupName(
   if (functions[name] !== undefined) {
     return functions[name];
   }
-  const short = name.includes('.')
-    ? name.slice(name.lastIndexOf('.') + 1)
+  const short = name.includes(".")
+    ? name.slice(name.lastIndexOf(".") + 1)
     : name;
   return functions[short];
 }
@@ -259,7 +259,7 @@ function argFromNode(value: unknown): SqlFunctionArg | undefined {
     return { field };
   }
   if (isAuthUid(value) || isCurrentSettingUserId(value)) {
-    return { ref: 'principal.id' };
+    return { ref: "principal.id" };
   }
   return constValue(value);
 }
@@ -277,8 +277,8 @@ function asStmts(parsed: unknown): readonly unknown[] {
     return parsed;
   }
   const node = asNode(parsed);
-  if (Array.isArray(node?.['stmts'])) {
-    return node['stmts'];
+  if (Array.isArray(node?.["stmts"])) {
+    return node["stmts"];
   }
   return [];
 }
@@ -287,11 +287,11 @@ export async function fingerprintSql(sql: string): Promise<string> {
   try {
     const parsed = await parse(`SELECT 1 WHERE (${sql})`);
     const deparsed = await deparse(parsed);
-    return createHash('sha256').update(deparsed).digest('hex').slice(0, 16);
+    return createHash("sha256").update(deparsed).digest("hex").slice(0, 16);
   } catch {
-    return createHash('sha256')
-      .update(sql.replaceAll(/\s+/g, ' ').trim().toLowerCase())
-      .digest('hex')
+    return createHash("sha256")
+      .update(sql.replaceAll(/\s+/g, " ").trim().toLowerCase())
+      .digest("hex")
       .slice(0, 16);
   }
 }
@@ -304,12 +304,12 @@ export async function conditionFromAst(
   joins: string[] = [],
   seeds: readonly RolePermission[] = [],
 ): Promise<unknown> {
-  if (sql === undefined || sql.trim() === '' || sql.trim() === 'true') {
-    return { op: 'eq', field: '_', value: true };
+  if (sql === undefined || sql.trim() === "" || sql.trim() === "true") {
+    return { op: "eq", field: "_", value: true };
   }
   const where = await whereOf(sql);
   if (where === undefined) {
-    return { op: 'opaque', sql, fingerprint: await fingerprintSql(sql) };
+    return { op: "opaque", sql, fingerprint: await fingerprintSql(sql) };
   }
   const mapped = mapNode(where, {
     memberships,
@@ -319,7 +319,7 @@ export async function conditionFromAst(
     seeds,
   });
   if (mapped === undefined) {
-    return { op: 'opaque', sql, fingerprint: await fingerprintSql(sql) };
+    return { op: "opaque", sql, fingerprint: await fingerprintSql(sql) };
   }
   return mapped;
 }
@@ -329,7 +329,7 @@ async function whereOf(sql: string): Promise<unknown> {
     const parsed = await parse(`SELECT 1 WHERE (${sql})`);
     const first = asNode(asStmts(parsed)[0]);
     const raw = asNode(nodeStmt(first));
-    return asNode(raw?.['SelectStmt'])?.['whereClause'];
+    return asNode(raw?.["SelectStmt"])?.["whereClause"];
   } catch {
     return undefined;
   }
@@ -356,48 +356,48 @@ function helperScope(name: string | undefined): HelperScope | undefined {
   if (name === undefined) {
     return undefined;
   }
-  const bare = name.slice(name.lastIndexOf('.') + 1);
+  const bare = name.slice(name.lastIndexOf(".") + 1);
   if (bare === HELPERS.has) {
-    return 'global';
+    return "global";
   }
   return PERMITTED.exec(bare)?.[1];
 }
 
 function helperKey(call: unknown): string | undefined {
-  const args = asNode(asNode(unwrap(call))?.['FuncCall'])?.['args'];
+  const args = asNode(asNode(unwrap(call))?.["FuncCall"])?.["args"];
   if (!Array.isArray(args) || args.length !== 1) {
     return undefined;
   }
   const key = constValue(args[0]);
-  return typeof key === 'string' ? key : undefined;
+  return typeof key === "string" ? key : undefined;
 }
 
 function helperCall(value: unknown): HelperCall | undefined {
   const node = asNode(unwrap(value));
-  const sub = asNode(node?.['SubLink']);
+  const sub = asNode(node?.["SubLink"]);
   if (sub === undefined) {
     const scope = helperScope(funcName(node));
     const key = helperKey(node);
-    return scope === 'global' && key !== undefined ? { scope, key } : undefined;
+    return scope === "global" && key !== undefined ? { scope, key } : undefined;
   }
-  const targets = asNode(asNode(sub['subselect'])?.['SelectStmt'])?.[
-    'targetList'
+  const targets = asNode(asNode(sub["subselect"])?.["SelectStmt"])?.[
+    "targetList"
   ];
   if (!Array.isArray(targets) || targets.length !== 1) {
     return undefined;
   }
-  const call = asNode(asNode(targets[0])?.['ResTarget'])?.['val'];
+  const call = asNode(asNode(targets[0])?.["ResTarget"])?.["val"];
   const scope = helperScope(funcName(call));
   const key = helperKey(call);
   if (scope === undefined || key === undefined) {
     return undefined;
   }
-  const kind = sub['subLinkType'];
-  if (scope === 'global') {
-    return kind === 'EXPR_SUBLINK' || kind === 4 ? { scope, key } : undefined;
+  const kind = sub["subLinkType"];
+  if (scope === "global") {
+    return kind === "EXPR_SUBLINK" || kind === 4 ? { scope, key } : undefined;
   }
-  const column = columnName(sub['testexpr']);
-  return (kind === 'ANY_SUBLINK' || kind === 2) && column !== undefined
+  const column = columnName(sub["testexpr"]);
+  return (kind === "ANY_SUBLINK" || kind === 2) && column !== undefined
     ? { scope, key, column }
     : undefined;
 }
@@ -408,25 +408,25 @@ const MEMBER = /^member_([a-z][a-z0-9_]*)_ids$/u;
 function memberCall(
   value: unknown,
 ): { readonly scope: string; readonly column: string } | undefined {
-  const sub = asNode(asNode(unwrap(value))?.['SubLink']);
-  const kind = sub?.['subLinkType'];
-  if (sub === undefined || (kind !== 'ANY_SUBLINK' && kind !== 2)) {
+  const sub = asNode(asNode(unwrap(value))?.["SubLink"]);
+  const kind = sub?.["subLinkType"];
+  if (sub === undefined || (kind !== "ANY_SUBLINK" && kind !== 2)) {
     return undefined;
   }
-  const targets = asNode(asNode(sub['subselect'])?.['SelectStmt'])?.[
-    'targetList'
+  const targets = asNode(asNode(sub["subselect"])?.["SelectStmt"])?.[
+    "targetList"
   ];
   if (!Array.isArray(targets) || targets.length !== 1) {
     return undefined;
   }
-  const call = asNode(asNode(targets[0])?.['ResTarget'])?.['val'];
+  const call = asNode(asNode(targets[0])?.["ResTarget"])?.["val"];
   const name = funcName(asNode(unwrap(call)));
-  const args = asNode(asNode(unwrap(call))?.['FuncCall'])?.['args'];
+  const args = asNode(asNode(unwrap(call))?.["FuncCall"])?.["args"];
   const scope =
     name === undefined
       ? undefined
-      : MEMBER.exec(name.slice(name.lastIndexOf('.') + 1))?.[1];
-  const column = columnName(sub['testexpr']);
+      : MEMBER.exec(name.slice(name.lastIndexOf(".") + 1))?.[1];
+  const column = columnName(sub["testexpr"]);
   return scope === undefined ||
     column === undefined ||
     (Array.isArray(args) && args.length > 0)
@@ -453,17 +453,17 @@ function helperCondition(
   seeds: readonly RolePermission[],
 ): Condition {
   const roles = rolesFor(seeds, call.key, call.scope);
-  if (call.scope === 'global' || call.column === undefined) {
+  if (call.scope === "global" || call.column === undefined) {
     // A global role has no row form: keep it verbatim, and name its roles in `grants`.
     const sql = `(select ${HELPERS.has}(${quoteSqlLiteral(call.key)}))`;
     return {
-      op: 'opaque',
+      op: "opaque",
       sql,
-      fingerprint: createHash('sha256').update(sql).digest('hex').slice(0, 16),
+      fingerprint: createHash("sha256").update(sql).digest("hex").slice(0, 16),
     };
   }
   return {
-    op: 'memberOf',
+    op: "memberOf",
     scope: call.scope,
     field: call.column,
     roles: [...roles],
@@ -479,16 +479,16 @@ export type ImportedGrant = {
   readonly where?: Condition;
 };
 
-function flatten(value: unknown, op: 'and' | 'or'): readonly unknown[] {
+function flatten(value: unknown, op: "and" | "or"): readonly unknown[] {
   if (boolOp(value) !== op) {
     return [value];
   }
-  const args = asNode(asNode(unwrap(value))?.['BoolExpr'])?.['args'];
+  const args = asNode(asNode(unwrap(value))?.["BoolExpr"])?.["args"];
   return Array.isArray(args) ? args.flatMap((arg) => flatten(arg, op)) : [];
 }
 
 function helperCalls(conjunct: unknown): readonly HelperCall[] | undefined {
-  const calls = flatten(conjunct, 'or').map(helperCall);
+  const calls = flatten(conjunct, "or").map(helperCall);
   // SAFETY: every() above checked that no call is undefined.
   return calls.every((call) => call !== undefined)
     ? (calls as readonly HelperCall[])
@@ -511,18 +511,18 @@ export async function helperGrants(
     return [];
   }
   let where = await whereOf(sql);
-  if (boolOp(where) === 'not') {
-    where = asNode(asNode(unwrap(where))?.['BoolExpr'])?.['args'];
+  if (boolOp(where) === "not") {
+    where = asNode(asNode(unwrap(where))?.["BoolExpr"])?.["args"];
     where = Array.isArray(where) ? where[0] : undefined;
   }
   const unportable: Condition = {
-    op: 'opaque',
+    op: "opaque",
     sql,
     fingerprint: await fingerprintSql(sql),
   };
   const grants: ImportedGrant[] = [];
-  for (const branch of flatten(where, 'or')) {
-    const conjuncts = flatten(branch, 'and');
+  for (const branch of flatten(where, "or")) {
+    const conjuncts = flatten(branch, "and");
     const calls: HelperCall[] = [];
     const rest: Condition[] = [];
     let portable = true;
@@ -554,11 +554,11 @@ export async function helperGrants(
         ? undefined
         : rest.length === 1
           ? rest[0]
-          : { op: 'and', conditions: rest };
+          : { op: "and", conditions: rest };
     for (const call of calls) {
       const permission =
         seeds.find((seed) => seed.grantKey === call.key)?.permission ??
-        call.key.replace(/#\d+$/u, '');
+        call.key.replace(/#\d+$/u, "");
       grants.push({
         key: call.key,
         permission,
@@ -572,15 +572,15 @@ export async function helperGrants(
 }
 
 const SEED_COLUMNS = [
-  'role',
-  'permission',
-  'grant_key',
-  'scope',
-  'effect',
+  "role",
+  "permission",
+  "grant_key",
+  "scope",
+  "effect",
 ] as const;
 
 function asScope(value: unknown): HelperScope | undefined {
-  return typeof value === 'string' && /^[a-z][a-z0-9_]*$/u.test(value)
+  return typeof value === "string" && /^[a-z][a-z0-9_]*$/u.test(value)
     ? value
     : undefined;
 }
@@ -588,21 +588,21 @@ function asScope(value: unknown): HelperScope | undefined {
 export function seedFromRow(
   row: Readonly<Record<string, unknown>>,
 ): RolePermission | undefined {
-  const scope = asScope(row['scope']);
+  const scope = asScope(row["scope"]);
   if (
-    typeof row['role'] !== 'string' ||
-    typeof row['permission'] !== 'string' ||
-    typeof row['grant_key'] !== 'string' ||
+    typeof row["role"] !== "string" ||
+    typeof row["permission"] !== "string" ||
+    typeof row["grant_key"] !== "string" ||
     scope === undefined
   ) {
     return undefined;
   }
   return {
-    role: row['role'],
-    permission: row['permission'],
-    grantKey: row['grant_key'],
+    role: row["role"],
+    permission: row["permission"],
+    grantKey: row["grant_key"],
     scope,
-    effect: row['effect'] === 'deny' ? 'deny' : 'allow',
+    effect: row["effect"] === "deny" ? "deny" : "allow",
   };
 }
 
@@ -618,30 +618,30 @@ export async function seedsFromSql(
   }
   const seeds: RolePermission[] = [];
   for (const item of asStmts(parsed)) {
-    const insert = asNode(asNode(nodeStmt(asNode(item)))?.['InsertStmt']);
-    if (asNode(insert?.['relation'])?.['relname'] !== 'role_permissions') {
+    const insert = asNode(asNode(nodeStmt(asNode(item)))?.["InsertStmt"]);
+    if (asNode(insert?.["relation"])?.["relname"] !== "role_permissions") {
       continue;
     }
-    const cols = Array.isArray(insert?.['cols'])
-      ? insert['cols'].map(
-          (col) => asNode(asNode(col)?.['ResTarget'])?.['name'],
+    const cols = Array.isArray(insert?.["cols"])
+      ? insert["cols"].map(
+          (col) => asNode(asNode(col)?.["ResTarget"])?.["name"],
         )
       : [];
-    const values = asNode(asNode(insert?.['selectStmt'])?.['SelectStmt'])?.[
-      'valuesLists'
+    const values = asNode(asNode(insert?.["selectStmt"])?.["SelectStmt"])?.[
+      "valuesLists"
     ];
     if (!Array.isArray(values)) {
       continue;
     }
     for (const list of values) {
-      const items = asNode(asNode(list)?.['List'])?.['items'];
+      const items = asNode(asNode(list)?.["List"])?.["items"];
       if (!Array.isArray(items)) {
         continue;
       }
       const row: Record<string, unknown> = {};
       for (const [index, col] of cols.entries()) {
         if (
-          typeof col === 'string' &&
+          typeof col === "string" &&
           // SAFETY: widening the column union to string only lets includes() accept a parsed name.
           (SEED_COLUMNS as readonly string[]).includes(col)
         ) {
@@ -658,11 +658,11 @@ export async function seedsFromSql(
 }
 
 function nodeStmt(first: PgNode | undefined): unknown {
-  const raw = asNode(first?.['RawStmt']);
+  const raw = asNode(first?.["RawStmt"]);
   if (raw !== undefined) {
-    return raw['stmt'];
+    return raw["stmt"];
   }
-  return first?.['stmt'];
+  return first?.["stmt"];
 }
 
 function mapNode(value: unknown, ctx: MapContext): Condition | undefined {
@@ -677,7 +677,7 @@ function mapNode(value: unknown, ctx: MapContext): Condition | undefined {
   const member = memberCall(node);
   if (member !== undefined) {
     return {
-      op: 'memberOf',
+      op: "memberOf",
       scope: member.scope,
       field: member.column,
       roles: [],
@@ -687,28 +687,28 @@ function mapNode(value: unknown, ctx: MapContext): Condition | undefined {
   if (helper !== undefined) {
     return helperCondition(helper, ctx.seeds);
   }
-  const nullTest = asNode(node['NullTest']);
+  const nullTest = asNode(node["NullTest"]);
   if (nullTest !== undefined) {
-    const field = columnName(nullTest['arg']);
+    const field = columnName(nullTest["arg"]);
     if (field === undefined) {
       return undefined;
     }
     const isNull =
-      nullTest['nulltesttype'] === 'IS_NULL' ||
-      nullTest['nulltesttype'] === 0 ||
-      nullTest['nulltesttype'] === undefined;
-    return { op: 'isNull', field, value: isNull };
+      nullTest["nulltesttype"] === "IS_NULL" ||
+      nullTest["nulltesttype"] === 0 ||
+      nullTest["nulltesttype"] === undefined;
+    return { op: "isNull", field, value: isNull };
   }
   const compound = boolOp(node);
   if (compound !== undefined) {
-    const expr = asNode(node['BoolExpr']);
-    const args = expr?.['args'];
+    const expr = asNode(node["BoolExpr"]);
+    const args = expr?.["args"];
     if (!Array.isArray(args)) {
       return undefined;
     }
-    if (compound === 'not') {
+    if (compound === "not") {
       const inner = mapNode(args[0], ctx);
-      return inner === undefined ? undefined : { op: 'not', condition: inner };
+      return inner === undefined ? undefined : { op: "not", condition: inner };
     }
     const children = args
       .map((arg) => mapNode(arg, ctx))
@@ -723,22 +723,22 @@ function mapNode(value: unknown, ctx: MapContext): Condition | undefined {
     for (const [scope, mapped] of Object.entries(memberships?.scopes ?? {})) {
       const column = mapped.columns?.[scope];
       if (mapped.table === table && column !== undefined) {
-        return { op: 'memberOf', scope, field: column, roles: [] };
+        return { op: "memberOf", scope, field: column, roles: [] };
       }
     }
     if (memberships?.tenant?.table === table) {
       return {
-        op: 'memberOf',
-        scope: 'tenant',
-        field: memberships.tenant.tenant ?? 'tenant_id',
+        op: "memberOf",
+        scope: "tenant",
+        field: memberships.tenant.tenant ?? "tenant_id",
         roles: [],
       };
     }
     if (memberships?.team?.table === table) {
       return {
-        op: 'memberOf',
-        scope: 'team',
-        field: memberships.team.team ?? 'team_id',
+        op: "memberOf",
+        scope: "team",
+        field: memberships.team.team ?? "team_id",
         roles: [],
       };
     }
@@ -746,14 +746,14 @@ function mapNode(value: unknown, ctx: MapContext): Condition | undefined {
     return undefined;
   }
   const name = funcName(node);
-  if (name !== undefined && !isAuthUid(node) && name !== 'current_setting') {
+  if (name !== undefined && !isAuthUid(node) && name !== "current_setting") {
     const mapping = functionLookupName(name, functions);
     if (mapping === undefined) {
       unmapped.push(name);
       return undefined;
     }
-    const call = asNode(node['FuncCall']);
-    const rawArgs = Array.isArray(call?.['args']) ? call['args'] : [];
+    const call = asNode(node["FuncCall"]);
+    const rawArgs = Array.isArray(call?.["args"]) ? call["args"] : [];
     const args: SqlFunctionArg[] =
       mapping.args?.map((field) => ({ field })) ??
       rawArgs
@@ -761,43 +761,43 @@ function mapNode(value: unknown, ctx: MapContext): Condition | undefined {
         .filter((item): item is SqlFunctionArg => item !== undefined);
     // SAFETY: twin comes from the project's own rls.functions config, which documents it as a Condition.
     return {
-      op: 'sqlFunction',
+      op: "sqlFunction",
       name,
       args,
       twin: mapping.twin as Condition,
     };
   }
   const op = operatorName(node);
-  const expr = asNode(node['A_Expr']);
+  const expr = asNode(node["A_Expr"]);
   if (
-    op === '=' ||
-    op === '<>' ||
-    op === '>' ||
-    op === '>=' ||
-    op === '<' ||
-    op === '<='
+    op === "=" ||
+    op === "<>" ||
+    op === ">" ||
+    op === ">=" ||
+    op === "<" ||
+    op === "<="
   ) {
-    const left = columnName(expr?.['lexpr']) ?? columnName(expr?.['rexpr']);
-    const right = expr?.['lexpr'];
-    const leftIsColumn = columnName(expr?.['lexpr']) !== undefined;
-    const other = leftIsColumn ? expr?.['rexpr'] : right;
+    const left = columnName(expr?.["lexpr"]) ?? columnName(expr?.["rexpr"]);
+    const right = expr?.["lexpr"];
+    const leftIsColumn = columnName(expr?.["lexpr"]) !== undefined;
+    const other = leftIsColumn ? expr?.["rexpr"] : right;
     if (left === undefined) {
       return undefined;
     }
     const comparison =
-      op === '='
-        ? 'eq'
-        : op === '<>'
-          ? 'ne'
-          : op === '>'
-            ? 'gt'
-            : op === '>='
-              ? 'gte'
-              : op === '<'
-                ? 'lt'
-                : 'lte';
+      op === "="
+        ? "eq"
+        : op === "<>"
+          ? "ne"
+          : op === ">"
+            ? "gt"
+            : op === ">="
+              ? "gte"
+              : op === "<"
+                ? "lt"
+                : "lte";
     if (isAuthUid(other) || isCurrentSettingUserId(other)) {
-      return { op: comparison, field: left, value: { ref: 'principal.id' } };
+      return { op: comparison, field: left, value: { ref: "principal.id" } };
     }
     const literal = constValue(other);
     if (literal === undefined) {
@@ -818,16 +818,16 @@ function mapNode(value: unknown, ctx: MapContext): Condition | undefined {
 
 function jwtClaim(value: unknown): string | undefined {
   const node = asNode(unwrap(value));
-  const expr = asNode(node?.['A_Expr']);
+  const expr = asNode(node?.["A_Expr"]);
   if (expr === undefined) {
     return undefined;
   }
   const name = operatorName(node);
-  if ((name !== '->>' && name !== '->') || !isJwtCall(expr['lexpr'])) {
+  if ((name !== "->>" && name !== "->") || !isJwtCall(expr["lexpr"])) {
     return undefined;
   }
-  const claim = constValue(expr['rexpr']);
-  return typeof claim === 'string' ? claim : undefined;
+  const claim = constValue(expr["rexpr"]);
+  return typeof claim === "string" ? claim : undefined;
 }
 
 /** `auth.jwt()` / `auth.session()`, bare or as a scalar `(select …)`; a column's `->>` is row data, not a claim. */
@@ -837,5 +837,5 @@ function isJwtCall(value: unknown): boolean {
     return isJwtCall(inner);
   }
   const name = funcName(value);
-  return name === 'auth.jwt' || name === 'auth.session';
+  return name === "auth.jwt" || name === "auth.session";
 }

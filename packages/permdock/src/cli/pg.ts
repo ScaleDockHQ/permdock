@@ -1,7 +1,7 @@
-import type * as Pg from 'pg';
+import type * as Pg from "pg";
 
-import { CliError } from './errors.ts';
-import { requirePeer } from './peer.ts';
+import { CliError } from "./errors.ts";
+import { requirePeer } from "./peer.ts";
 
 /** The part of a `pg` client or pool the `--db` commands use. */
 export type SqlClient = {
@@ -23,7 +23,7 @@ const STATEMENT_TIMEOUT_MS = 60_000;
 
 function loadPg(command: string): Promise<typeof Pg> {
   // Lazy: pg is an optional peer that only the --db commands need.
-  return requirePeer(() => import('pg'), 'pg', command);
+  return requirePeer(() => import("pg"), "pg", command);
 }
 
 function options(db: string): Pg.ClientConfig {
@@ -40,17 +40,17 @@ function endOnInterrupt(end: () => Promise<void>): () => Promise<void> {
     void end().catch(() => undefined);
     process.exitCode = 130;
   };
-  process.once('SIGINT', interrupt);
+  process.once("SIGINT", interrupt);
   return async () => {
-    process.off('SIGINT', interrupt);
+    process.off("SIGINT", interrupt);
     await end();
   };
 }
 
 function unreachable(command: string, cause: unknown): CliError {
   return new CliError(
-    'unavailable',
-    `PermDock CLI: ${command.replace(/^permdock /u, '')} could not connect`,
+    "unavailable",
+    `PermDock CLI: ${command.replace(/^permdock /u, "")} could not connect`,
     {
       cause,
     },

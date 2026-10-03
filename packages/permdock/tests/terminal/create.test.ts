@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from "vitest";
 
 import {
   allow,
@@ -7,26 +7,26 @@ import {
   definePolicy,
   resource,
   role,
-} from '../../src/index.ts';
-import { createPermDock, TerminalExit } from '../../src/terminal/index.ts';
+} from "../../src/index.ts";
+import { createPermDock, TerminalExit } from "../../src/terminal/index.ts";
 import {
   memberUser,
   ownPost,
   permissions,
   policy,
-} from '../fixtures/quick-start.ts';
+} from "../fixtures/quick-start.ts";
 
 function throwExit(code: number): never {
   throw new TerminalExit(code);
 }
 
 const deploys = definePermissions({
-  environment: resource(crud({ collection: ['deploy'] })),
+  environment: resource(crud({ collection: ["deploy"] })),
 });
 
 const selfApproved = definePolicy(deploys, {
   roles: [
-    role('operator', [
+    role("operator", [
       allow(deploys.environment.delete, { approval: { distinct: false } }),
       allow(deploys.environment.update, { approval: { distinct: false } }),
       allow(deploys.environment.deploy),
@@ -34,11 +34,11 @@ const selfApproved = definePolicy(deploys, {
     ]),
   ],
   subject: (user: { readonly id: string } | null) =>
-    user === null ? null : { id: user.id, roles: ['operator'] },
+    user === null ? null : { id: user.id, roles: ["operator"] },
 });
 
 function quiet(
-  extra: Partial<Parameters<typeof createPermDock>[1]['runtime']> = {},
+  extra: Partial<Parameters<typeof createPermDock>[1]["runtime"]> = {},
 ) {
   const lines: string[] = [];
   return {
@@ -54,15 +54,15 @@ function quiet(
   };
 }
 
-describe('terminal interactivity', () => {
-  it('treats a TTY outside CI as interactive and asks the confirm prompt', async () => {
+describe("terminal interactivity", () => {
+  it("treats a TTY outside CI as interactive and asks the confirm prompt", async () => {
     const asked: string[] = [];
     const { runtime } = quiet({ stdoutIsTTY: true, env: {} });
     const { protect } = createPermDock(selfApproved, {
-      subject: () => ({ id: 'u1' }),
+      subject: () => ({ id: "u1" }),
       interactive: {
         confirm: async ({ permission, resource: ref }) => {
-          asked.push(`${permission}:${ref.type}:${ref.id ?? ''}`);
+          asked.push(`${permission}:${ref.type}:${ref.id ?? ""}`);
           return true;
         },
       },
@@ -72,46 +72,46 @@ describe('terminal interactivity', () => {
       protect(deploys.environment.update, () => ({ id: 42 }))(
         async ({ decision }) => decision.outcome,
       )(),
-    ).resolves.toBe('granted');
-    expect(asked).toEqual(['environment.update:environment:42']);
+    ).resolves.toBe("granted");
+    expect(asked).toEqual(["environment.update:environment:42"]);
   });
 
-  it('exits 75 for a self-approvable grant when not interactive', async () => {
+  it("exits 75 for a self-approvable grant when not interactive", async () => {
     for (const runtimeExtra of [
-      { stdoutIsTTY: true, env: { CI: 'true' } },
+      { stdoutIsTTY: true, env: { CI: "true" } },
       { stdoutIsTTY: false, env: {} },
     ]) {
       const { lines, runtime } = quiet(runtimeExtra);
       const { protect } = createPermDock(selfApproved, {
-        subject: () => ({ id: 'u1' }),
+        subject: () => ({ id: "u1" }),
         runtime,
       });
       await expect(
-        protect(deploys.environment.update, () => ({ id: 'staging' }))(
-          async () => 'ran',
+        protect(deploys.environment.update, () => ({ id: "staging" }))(
+          async () => "ran",
         )(),
       ).rejects.toMatchObject({ code: 75 });
-      expect(lines.join('')).not.toBe('');
+      expect(lines.join("")).not.toBe("");
     }
   });
 
-  it('exits 77 when interactive is true but confirm is declined', async () => {
+  it("exits 77 when interactive is true but confirm is declined", async () => {
     const { protect } = createPermDock(selfApproved, {
-      subject: () => ({ id: 'u1' }),
+      subject: () => ({ id: "u1" }),
       interactive: { confirm: async () => false },
       runtime: quiet().runtime,
     });
     await expect(
-      protect(deploys.environment.update, () => ({ id: 'staging' }))(
-        async () => 'ran',
+      protect(deploys.environment.update, () => ({ id: "staging" }))(
+        async () => "ran",
       )(),
     ).rejects.toMatchObject({ code: 77 });
   });
 
-  it('asks the typed prompt with the permission key when the row has no id', async () => {
+  it("asks the typed prompt with the permission key when the row has no id", async () => {
     const expected: string[] = [];
     const { protect } = createPermDock(selfApproved, {
-      subject: () => ({ id: 'u1' }),
+      subject: () => ({ id: "u1" }),
       interactive: {
         confirm: async () => true,
         typed: async (input) => {
@@ -122,45 +122,45 @@ describe('terminal interactivity', () => {
       runtime: quiet().runtime,
     });
     await expect(
-      protect(deploys.environment.delete, () => ({ name: 'staging' }))(
-        async () => 'ran',
+      protect(deploys.environment.delete, () => ({ name: "staging" }))(
+        async () => "ran",
       )(),
-    ).resolves.toBe('ran');
-    expect(expected).toEqual(['environment.delete']);
+    ).resolves.toBe("ran");
+    expect(expected).toEqual(["environment.delete"]);
   });
 
-  it('skips the typed prompt with -y in argv', async () => {
+  it("skips the typed prompt with -y in argv", async () => {
     const { protect } = createPermDock(selfApproved, {
-      subject: () => ({ id: 'u1' }),
+      subject: () => ({ id: "u1" }),
       interactive: { confirm: async () => true },
-      runtime: quiet({ argv: ['node', 'ops', '-y'] }).runtime,
+      runtime: quiet({ argv: ["node", "ops", "-y"] }).runtime,
     });
     await expect(
-      protect(deploys.environment.delete, () => ({ id: 'staging' }))(
-        async () => 'ran',
+      protect(deploys.environment.delete, () => ({ id: "staging" }))(
+        async () => "ran",
       )(),
-    ).resolves.toBe('ran');
+    ).resolves.toBe("ran");
   });
 });
 
-describe('terminal output', () => {
-  it('reads --json from argv for dry runs and denials', async () => {
-    const { lines, runtime } = quiet({ argv: ['node', 'ops', '--json'] });
+describe("terminal output", () => {
+  it("reads --json from argv for dry runs and denials", async () => {
+    const { lines, runtime } = quiet({ argv: ["node", "ops", "--json"] });
     const { protect } = createPermDock(policy, {
       subject: () => memberUser,
       dryRun: true,
       runtime,
     });
     await expect(
-      protect(permissions.post.publish, () => ownPost)(async () => 'ran')(),
+      protect(permissions.post.publish, () => ownPost)(async () => "ran")(),
     ).rejects.toMatchObject({ code: 77 });
-    expect(JSON.parse(lines.join(''))).toMatchObject({
+    expect(JSON.parse(lines.join(""))).toMatchObject({
       status: 403,
-      permission: 'post.publish',
+      permission: "post.publish",
     });
   });
 
-  it('prints the text dry run for a granted collection permission', async () => {
+  it("prints the text dry run for a granted collection permission", async () => {
     const { lines, runtime } = quiet();
     const { protect } = createPermDock(policy, {
       subject: () => memberUser,
@@ -168,28 +168,28 @@ describe('terminal output', () => {
       runtime,
     });
     await expect(
-      protect(permissions.post.list)(async () => 'ran')(),
+      protect(permissions.post.list)(async () => "ran")(),
     ).rejects.toMatchObject({ code: 0 });
-    expect(lines.join('')).toBe(
-      'dry run: post.list on post is granted; nothing ran\n',
+    expect(lines.join("")).toBe(
+      "dry run: post.list on post is granted; nothing ran\n",
     );
   });
 
-  it('formats a granted decision as JSON only when asked', async () => {
+  it("formats a granted decision as JSON only when asked", async () => {
     const { permdock: permdockFor, format } = createPermDock(policy, {
       subject: () => memberUser,
       runtime: quiet().runtime,
     });
     const permdock = await permdockFor();
     const decision = permdock.decide(permissions.post.read, ownPost);
-    expect(format(decision)).toBe('');
+    expect(format(decision)).toBe("");
     expect(JSON.parse(format(decision, { json: true }))).toEqual({
-      outcome: 'granted',
-      permission: 'post.read',
+      outcome: "granted",
+      permission: "post.read",
     });
   });
 
-  it('writes the store hint in text mode only', async () => {
+  it("writes the store hint in text mode only", async () => {
     for (const json of [false, true]) {
       const { lines, runtime } = quiet();
       const { protect } = createPermDock(policy, {
@@ -199,47 +199,47 @@ describe('terminal output', () => {
         runtime,
       });
       await expect(
-        protect(permissions.post.delete, () => ownPost)(async () => 'ran')(),
+        protect(permissions.post.delete, () => ownPost)(async () => "ran")(),
       ).rejects.toMatchObject({ code: 77 });
       expect({
         json,
-        hint: lines.join('').includes('pass a store'),
+        hint: lines.join("").includes("pass a store"),
       }).toEqual({ json, hint: !json });
     }
   });
 });
 
-describe('terminal subject and actor resolution', () => {
-  it('falls back to the anonymous subject when subject throws', async () => {
+describe("terminal subject and actor resolution", () => {
+  it("falls back to the anonymous subject when subject throws", async () => {
     const { permdock: permdockFor } = createPermDock(policy, {
       subject: () => {
-        throw new Error('no session');
+        throw new Error("no session");
       },
       runtime: quiet().runtime,
     });
     expect((await permdockFor()).subject.principal).toBeNull();
   });
 
-  it('caches the instance until refresh and reads --as from argv', async () => {
+  it("caches the instance until refresh and reads --as from argv", async () => {
     const profiles: string[] = [];
     const { permdock: permdockFor } = createPermDock(policy, {
       subject: ({ profile }) => {
         profiles.push(profile);
         return memberUser;
       },
-      runtime: quiet({ argv: ['node', 'ops', '--as', 'work'] }).runtime,
+      runtime: quiet({ argv: ["node", "ops", "--as", "work"] }).runtime,
     });
     const first = await permdockFor();
     expect(await permdockFor()).toBe(first);
-    await permdockFor({ refresh: true, as: 'home' });
-    expect(profiles).toEqual(['work', 'home']);
+    await permdockFor({ refresh: true, as: "home" });
+    expect(profiles).toEqual(["work", "home"]);
   });
 
-  it('ignores --as without a value', async () => {
+  it("ignores --as without a value", async () => {
     const profiles: string[] = [];
     for (const argv of [
-      ['node', 'ops', '--as'],
-      ['node', 'ops', '--as', '--json'],
+      ["node", "ops", "--as"],
+      ["node", "ops", "--as", "--json"],
     ]) {
       const { permdock: permdockFor } = createPermDock(policy, {
         subject: ({ profile }) => {
@@ -250,43 +250,43 @@ describe('terminal subject and actor resolution', () => {
       });
       await permdockFor();
     }
-    expect(profiles).toEqual(['default', 'default']);
+    expect(profiles).toEqual(["default", "default"]);
   });
 
-  it('maps every actor shape', async () => {
+  it("maps every actor shape", async () => {
     const cases: readonly {
       readonly label: string;
       readonly value: unknown;
       readonly actor: unknown;
     }[] = [
-      { label: 'null', value: null, actor: undefined },
-      { label: 'undefined', value: undefined, actor: undefined },
+      { label: "null", value: null, actor: undefined },
+      { label: "undefined", value: undefined, actor: undefined },
       {
-        label: 'plain actor',
-        value: { id: 'bot', kind: 'service' },
-        actor: { id: 'bot', kind: 'service' },
+        label: "plain actor",
+        value: { id: "bot", kind: "service" },
+        actor: { id: "bot", kind: "service" },
       },
       {
-        label: 'actor with a non-string id',
-        value: { id: 1, kind: 'service' },
+        label: "actor with a non-string id",
+        value: { id: 1, kind: "service" },
         actor: undefined,
       },
-      { label: 'string', value: 'bot', actor: undefined },
+      { label: "string", value: "bot", actor: undefined },
       {
-        label: 'subject without actor',
-        value: { principal: { id: 'svc', roles: [] }, context: {} },
-        actor: { id: 'svc', kind: 'oauth-client' },
+        label: "subject without actor",
+        value: { principal: { id: "svc", roles: [] }, context: {} },
+        actor: { id: "svc", kind: "oauth-client" },
       },
       {
-        label: 'subject with a principal kind',
+        label: "subject with a principal kind",
         value: {
-          principal: { id: 'svc', roles: [], kind: 'service' },
+          principal: { id: "svc", roles: [], kind: "service" },
           context: {},
         },
-        actor: { id: 'svc', kind: 'service' },
+        actor: { id: "svc", kind: "service" },
       },
       {
-        label: 'anonymous subject',
+        label: "anonymous subject",
         value: { principal: null, context: {} },
         actor: undefined,
       },
@@ -305,11 +305,11 @@ describe('terminal subject and actor resolution', () => {
     }
   });
 
-  it('drops the actor when the actor callback throws', async () => {
+  it("drops the actor when the actor callback throws", async () => {
     const { permdock: permdockFor } = createPermDock(policy, {
       subject: () => memberUser,
       actor: () => {
-        throw new Error('bad token');
+        throw new Error("bad token");
       },
       runtime: quiet().runtime,
     });
@@ -317,59 +317,59 @@ describe('terminal subject and actor resolution', () => {
     expect({
       principal: permdock.subject.principal?.id,
       actor: permdock.subject.actor,
-    }).toEqual({ principal: 'u1', actor: undefined });
+    }).toEqual({ principal: "u1", actor: undefined });
   });
 });
 
-describe('terminal filterCommands and logout', () => {
+describe("terminal filterCommands and logout", () => {
   const entries = [
     {
-      name: 'list',
+      name: "list",
       permission: permissions.post.list,
-      description: 'List posts',
+      description: "List posts",
     },
     {
-      name: 'read',
+      name: "read",
       permission: permissions.post.read,
-      description: 'Read a post',
+      description: "Read a post",
     },
     {
-      name: 'publish',
+      name: "publish",
       permission: permissions.post.publish,
-      description: 'Publish a post',
+      description: "Publish a post",
     },
   ];
 
-  it('hides every command before an instance exists, or annotates all of them', () => {
+  it("hides every command before an instance exists, or annotates all of them", () => {
     const { filterCommands } = createPermDock(policy, {
       subject: () => memberUser,
       runtime: quiet().runtime,
     });
     expect(filterCommands(entries)).toEqual([]);
     expect(
-      filterCommands(entries, { mode: 'annotate' }).map(
+      filterCommands(entries, { mode: "annotate" }).map(
         (entry) => entry.description,
       ),
     ).toEqual([
-      'List posts (requires post:list)',
-      'Read a post (requires post:read)',
-      'Publish a post (requires post:publish)',
+      "List posts (requires post:list)",
+      "Read a post (requires post:read)",
+      "Publish a post (requires post:publish)",
     ]);
   });
 
-  it('defaults to hide and reads instance permissions from the snapshot', async () => {
+  it("defaults to hide and reads instance permissions from the snapshot", async () => {
     const { permdock: permdockFor, filterCommands } = createPermDock(policy, {
       subject: () => memberUser,
       runtime: quiet().runtime,
     });
     await permdockFor();
     expect(filterCommands(entries).map((entry) => entry.name)).toEqual([
-      'list',
-      'read',
+      "list",
+      "read",
     ]);
   });
 
-  it('logs out without storage as a no-op', async () => {
+  it("logs out without storage as a no-op", async () => {
     const { permdock: permdockFor, logout } = createPermDock(policy, {
       subject: () => memberUser,
       runtime: quiet().runtime,

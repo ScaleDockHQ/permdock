@@ -29,16 +29,16 @@ Without `--agent`, `install` and `update` on a terminal ask which agents to inst
 
 Every skill has the same shape: the inputs to find out first, numbered invariants, a numbered workflow whose steps each end in a check, a "Verify before done" list and a reference index. Longer material sits in `references/` next to `SKILL.md`. Protocol rules (OAuth, JWT, MCP authorization, A2A, Problem Details) are deferred to the matching skill in `ScaleDockHQ/scaledock-skills` rather than repeated.
 
-| Skill | Use it for |
-| --- | --- |
-| `permdock` | The mental model and invariants, reading a `Decision`, `explain` for an unexpected denial, `doctor`, the docs MCP, and which skill to load next |
-| `permdock-wire` | Adding PermDock to an app: detect the framework and validator, `permissions.ts`, `policy.ts`, the factory file, the first check and UI guard, CLI checks in CI; one reference section per framework adapter |
-| `permdock-audit` | Reviewing an installation or a pull request: ungranted and unused leaves, validation and identity, test gaps, the ASI02 and ASI03 mapping, and each topic skill's Verify list |
-| `permdock-agents` | Agent tool calls: principal and actor, policy `delegations`, one permission per tool, AI SDK, Claude Agent SDK, Eve, OpenAI, MCP, A2A, WebMCP and Web Bot Auth ([delegation](/docs/security/delegation)) |
-| `permdock-approvals` | Human approval: `approval` options, quorum and distinct approvers, `version` and `staleOn`, the store and handler, resuming with the token ([approvals](/docs/security/approvals)) |
-| `permdock-tenancy` | Named scopes, memberships, ownership and `decideRoleChange`, custom roles from a `RoleSource` ([scopes](/docs/concepts/scopes)) |
-| `permdock-data` | `where()` and `toWhere` for Drizzle, Prisma, Kysely and Convex, generated or adopted RLS, relationship graphs, `ormParity` and `rlsParity` ([RLS](/docs/adapters/rls)) |
-| `permdock-credentials` | `subjectFromJwt` and introspection, API keys through `decideCredential`, service accounts, share links ([authentication](/docs/concepts/authentication)) |
+| Skill                  | Use it for                                                                                                                                                                                                  |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `permdock`             | The mental model and invariants, reading a `Decision`, `explain` for an unexpected denial, `doctor`, the docs MCP, and which skill to load next                                                             |
+| `permdock-wire`        | Adding PermDock to an app: detect the framework and validator, `permissions.ts`, `policy.ts`, the factory file, the first check and UI guard, CLI checks in CI; one reference section per framework adapter |
+| `permdock-audit`       | Reviewing an installation or a pull request: ungranted and unused leaves, validation and identity, test gaps, the ASI02 and ASI03 mapping, and each topic skill's Verify list                               |
+| `permdock-agents`      | Agent tool calls: principal and actor, policy `delegations`, one permission per tool, AI SDK, Claude Agent SDK, Eve, OpenAI, MCP, A2A, WebMCP and Web Bot Auth ([delegation](/docs/security/delegation))    |
+| `permdock-approvals`   | Human approval: `approval` options, quorum and distinct approvers, `version` and `staleOn`, the store and handler, resuming with the token ([approvals](/docs/security/approvals))                          |
+| `permdock-tenancy`     | Named scopes, memberships, ownership and `decideRoleChange`, custom roles from a `RoleSource` ([scopes](/docs/concepts/scopes))                                                                             |
+| `permdock-data`        | `where()` and `toWhere` for Drizzle, Prisma, Kysely and Convex, generated or adopted RLS, relationship graphs, `ormParity` and `rlsParity` ([RLS](/docs/adapters/rls))                                      |
+| `permdock-credentials` | `subjectFromJwt` and introspection, API keys through `decideCredential`, service accounts, share links ([authentication](/docs/concepts/authentication))                                                    |
 
 `permdock-wire` states the invariants an agent must not violate while wiring: never string keys in public APIs, never import the policy in a client entry, never trust a model-supplied subject. `permdock-audit` writes its report as a Markdown checklist an agent can turn into pull requests; its pull request step compares `usage` and `collect` between the base and head branches, asks for a `describePolicy` row for every widened grant, and posts one comment per finding on the changed line.
 

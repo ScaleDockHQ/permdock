@@ -4,8 +4,8 @@ import type {
   ExceptionFilter,
   ExecutionContext,
   Type,
-} from '@nestjs/common';
-import type { IncomingMessage } from 'node:http';
+} from "@nestjs/common";
+import type { IncomingMessage } from "node:http";
 
 import {
   Catch,
@@ -18,11 +18,11 @@ import {
   Req,
   Res,
   createParamDecorator,
-} from '@nestjs/common';
-import { APP_FILTER, Reflector } from '@nestjs/core';
+} from "@nestjs/common";
+import { APP_FILTER, Reflector } from "@nestjs/core";
 
-import type { ApprovalStore } from '../approvals/types.ts';
-import type { PolicySource } from '../core/hosted.ts';
+import type { ApprovalStore } from "../approvals/types.ts";
+import type { PolicySource } from "../core/hosted.ts";
 import type {
   DecisionSink,
   EntitlementSource,
@@ -31,36 +31,36 @@ import type {
   RelationSource,
   RoleSource,
   SnapshotSource,
-} from '../core/interfaces.ts';
-import type { PermDock } from '../core/permdock.ts';
-import type { Permission } from '../core/permissions.ts';
-import type { Policy } from '../core/policy.ts';
-import type { RevocationFeed } from '../core/revocations.ts';
-import type { Principal } from '../core/subject.ts';
-import type { OtelWrap } from '../otel/types.ts';
-import type { PdpFactory } from '../pdp/types.ts';
-import type { Connection, ConnectionOptions } from '../server/connection.ts';
+} from "../core/interfaces.ts";
+import type { PermDock } from "../core/permdock.ts";
+import type { Permission } from "../core/permissions.ts";
+import type { Policy } from "../core/policy.ts";
+import type { RevocationFeed } from "../core/revocations.ts";
+import type { Principal } from "../core/subject.ts";
+import type { OtelWrap } from "../otel/types.ts";
+import type { PdpFactory } from "../pdp/types.ts";
+import type { Connection, ConnectionOptions } from "../server/connection.ts";
 import type {
   OpenApiHooks,
   ProtectOptions,
   TenantOption,
   TenantScope,
-} from '../server/create.ts';
-import type { WebBotAuthVerifier } from '../server/web-bot-auth.ts';
+} from "../server/create.ts";
+import type { WebBotAuthVerifier } from "../server/web-bot-auth.ts";
 
-import { compact } from '../core/compact.ts';
+import { compact } from "../core/compact.ts";
 import {
   PermDockApprovalRequiredError,
   PermDockDeniedError,
   PermDockValidationError,
-} from '../core/errors.ts';
-import { createKernel, tenantScope } from '../server/create.ts';
-import { problemFromError } from '../server/map-error.ts';
-import { POLICY_VIOLATION, onRevoked } from '../server/stream.ts';
-import { InvalidSignatureError } from '../server/web-bot-auth.ts';
-import { sendNestResponse, toRequest, type NestHttpRequest } from './http.ts';
+} from "../core/errors.ts";
+import { createKernel, tenantScope } from "../server/create.ts";
+import { problemFromError } from "../server/map-error.ts";
+import { POLICY_VIOLATION, onRevoked } from "../server/stream.ts";
+import { InvalidSignatureError } from "../server/web-bot-auth.ts";
+import { sendNestResponse, toRequest, type NestHttpRequest } from "./http.ts";
 
-const PROTECT_KEY = 'permdock:protect';
+const PROTECT_KEY = "permdock:protect";
 
 export type NestRequest = NestHttpRequest & {
   readonly params?: Readonly<Record<string, string>>;
@@ -148,11 +148,11 @@ type ReflectMeta = {
 };
 
 class PermDockHttpError extends Error {
-  public override readonly name = 'PermDockHttpError' as const;
+  public override readonly name = "PermDockHttpError" as const;
   public readonly response: Response;
 
   public constructor(response: Response) {
-    super('permdock denied');
+    super("permdock denied");
     this.response = response;
   }
 }
@@ -161,10 +161,10 @@ function reflectMeta(): ReflectMeta {
   // SAFETY: reflect-metadata adds these methods to Reflect; both are typeof-checked below.
   const ref = Reflect as unknown as ReflectMeta;
   if (
-    typeof ref.getMetadata !== 'function' ||
-    typeof ref.defineMetadata !== 'function'
+    typeof ref.getMetadata !== "function" ||
+    typeof ref.defineMetadata !== "function"
   ) {
-    throw new TypeError('reflect-metadata is required for permdock/nest');
+    throw new TypeError("reflect-metadata is required for permdock/nest");
   }
   return ref;
 }
@@ -195,9 +195,9 @@ function hasEmit(
 ): value is { emit(event: string, payload: unknown): unknown } {
   // SAFETY: checked to be a non-null object first; emit is only typeof-checked.
   return (
-    typeof value === 'object' &&
+    typeof value === "object" &&
     value !== null &&
-    typeof (value as { readonly emit?: unknown }).emit === 'function'
+    typeof (value as { readonly emit?: unknown }).emit === "function"
   );
 }
 
@@ -224,10 +224,10 @@ const Protect: NestProtect = (permission, loadData, protectOptions) => {
   ): void => {
     const store: unknown = descriptor === undefined ? target : descriptor.value;
     if (
-      typeof store !== 'function' &&
-      (typeof store !== 'object' || store === null)
+      typeof store !== "function" &&
+      (typeof store !== "object" || store === null)
     ) {
-      throw new TypeError('Protect requires a class or method');
+      throw new TypeError("Protect requires a class or method");
     }
     const existing = rulesOf(store);
     reflectMeta().defineMetadata(PROTECT_KEY, [...existing, rule], store);
@@ -258,7 +258,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       pdp: options.pdp,
       webBotAuth: options.webBotAuth,
       revocations: options.revocations,
-      adapter: 'nest',
+      adapter: "nest",
       wrap: options.otel,
     }),
   );
@@ -319,8 +319,8 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         await scopeOf(req),
       );
       onRevoked(conn, (problem) => {
-        client.emit?.('permdock:error', problem);
-        if (typeof client.disconnect === 'function') {
+        client.emit?.("permdock:error", problem);
+        if (typeof client.disconnect === "function") {
           client.disconnect(true);
         } else {
           client.close?.(POLICY_VIOLATION, problem.type);
@@ -353,7 +353,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         data,
         rule.options?.trusted === true ? { trusted: true } : undefined,
       );
-      if (decision.outcome !== 'granted') {
+      if (decision.outcome !== "granted") {
         throw new PermDockHttpError(
           kernel.problem(decision, { permission: rule.permission }),
         );
@@ -370,7 +370,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
 
     public async canActivate(context: ExecutionContext): Promise<boolean> {
       const rules = this.rulesFor(context);
-      if (context.getType() === 'ws' && rules.length > 0) {
+      if (context.getType() === "ws" && rules.length > 0) {
         const opened = sockets.get(context.switchToWs().getClient<object>());
         if (opened !== undefined) {
           await checkMessage(rules, await opened, options.request?.(context));
@@ -378,7 +378,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         }
       }
       const req =
-        context.getType() === 'http'
+        context.getType() === "http"
           ? context.switchToHttp().getRequest<NestRequest>()
           : rules.length === 0
             ? undefined
@@ -422,22 +422,22 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
           ? exception.response
           : problemFromError(exception);
       if (problem === undefined) {
-        throw new TypeError('unhandled permdock exception');
+        throw new TypeError("unhandled permdock exception");
       }
-      if (host.getType() === 'http') {
+      if (host.getType() === "http") {
         await this.send(host.switchToHttp().getResponse<unknown>(), problem);
         return;
       }
       const client: unknown =
-        host.getType() === 'ws' ? host.switchToWs().getClient<unknown>() : null;
+        host.getType() === "ws" ? host.switchToWs().getClient<unknown>() : null;
       if (!hasEmit(client)) {
         throw exception;
       }
       // SAFETY: problem is a Problem Details JSON object PermDock built; title is typeof-checked below.
       const body = (await problem.json()) as { readonly title?: unknown };
-      client.emit('exception', {
-        status: 'error',
-        message: typeof body.title === 'string' ? body.title : 'Forbidden',
+      client.emit("exception", {
+        status: "error",
+        message: typeof body.title === "string" ? body.title : "Forbidden",
         problem: body,
       });
     }
@@ -452,7 +452,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
   Injectable()(PermDockExceptionFilter);
 
   class PermDockRoot {
-    public static readonly adapter = 'nest' as const;
+    public static readonly adapter = "nest" as const;
   }
   Module({
     providers: [
@@ -477,7 +477,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
 
   const injectPermDock = createParamDecorator(
     (_data: unknown, ctx: ExecutionContext): PermDock | undefined => {
-      if (ctx.getType() !== 'http') {
+      if (ctx.getType() !== "http") {
         return undefined;
       }
       return ctx.switchToHttp().getRequest<NestRequest>().permdock;
@@ -506,20 +506,20 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         await this.send(res, await GET(bind(req)));
       }
     }
-    Controller(handlerOptions.path ?? 'api/permdock')(EvaluationsController);
-    applyMethod(EvaluationsController, 'post', Post());
-    applyMethod(EvaluationsController, 'get', Get());
-    applyParameter(EvaluationsController, 'post', 0, Req());
+    Controller(handlerOptions.path ?? "api/permdock")(EvaluationsController);
+    applyMethod(EvaluationsController, "post", Post());
+    applyMethod(EvaluationsController, "get", Get());
+    applyParameter(EvaluationsController, "post", 0, Req());
     applyParameter(
       EvaluationsController,
-      'post',
+      "post",
       1,
       Res({ passthrough: false }),
     );
-    applyParameter(EvaluationsController, 'get', 0, Req());
+    applyParameter(EvaluationsController, "get", 0, Req());
     applyParameter(
       EvaluationsController,
-      'get',
+      "get",
       1,
       Res({ passthrough: false }),
     );

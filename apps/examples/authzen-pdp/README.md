@@ -6,5 +6,5 @@
 - `POST /access/v1/evaluation` with `Authorization: Bearer test` — grants `post.update`, denies `post.publish`
 
 ```ts
-import { createPermDock } from 'permdock/authzen'
+import { createPermDock } from "permdock/authzen";
 ```

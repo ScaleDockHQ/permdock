@@ -1,21 +1,21 @@
-import type { Denial } from './decision.ts';
-import type { Policy, RoleBinding } from './policy.ts';
-import type { Membership, Principal } from './subject.ts';
-import type { Role, RoleMeta } from './vocabulary.ts';
+import type { Denial } from "./decision.ts";
+import type { Policy, RoleBinding } from "./policy.ts";
+import type { Membership, Principal } from "./subject.ts";
+import type { Role, RoleMeta } from "./vocabulary.ts";
 
-import { compact, isReadonlyArray } from './compact.ts';
-import { freezeDeep } from './freeze.ts';
-import { isExternallyManaged } from './memberships.ts';
-import { declaredRoleNames } from './policy.ts';
+import { compact, isReadonlyArray } from "./compact.ts";
+import { freezeDeep } from "./freeze.ts";
+import { isExternallyManaged } from "./memberships.ts";
+import { declaredRoleNames } from "./policy.ts";
 import {
   type Scope,
   resolveScope,
   scopeChain,
   scopeIdOf,
   tenantOf,
-} from './scopes.ts';
-import { isMembershipExpired } from './tenancy.ts';
-import { findRole, listRoles } from './vocabulary.ts';
+} from "./scopes.ts";
+import { isMembershipExpired } from "./tenancy.ts";
+import { findRole, listRoles } from "./vocabulary.ts";
 
 /** Who a role change is about: their principal id and their membership in the scope instance. */
 export type RoleChangeTarget = {
@@ -25,11 +25,11 @@ export type RoleChangeTarget = {
   /** The roles the target holds in the instance now. */
   readonly roles?: readonly string[];
   /** `idp` when the identity provider owns the target's membership: the application cannot change it. */
-  readonly managedBy?: 'idp';
+  readonly managedBy?: "idp";
 };
 
 export type RoleChange = {
-  readonly kind: 'assign' | 'revoke' | 'transfer';
+  readonly kind: "assign" | "revoke" | "transfer";
   readonly role: string | Role;
   /** The scope the role is held at (a declared name or alias). */
   readonly scope: string;
@@ -53,12 +53,12 @@ export type RoleChange = {
  */
 export type RoleChangeDecision =
   | {
-      readonly outcome: 'granted';
+      readonly outcome: "granted";
       readonly change: RoleChange;
       readonly role: string | null;
     }
   | {
-      readonly outcome: 'denied';
+      readonly outcome: "denied";
       readonly change: RoleChange;
       readonly denials: readonly Denial[];
     };
@@ -214,7 +214,7 @@ export function audiencesOf(
   const out: string[] = [];
   for (const name of rankRoles(policy, names)) {
     const audience = roleMeta(policy, name)?.audience;
-    if (typeof audience === 'string' && !out.includes(audience)) {
+    if (typeof audience === "string" && !out.includes(audience)) {
       out.push(audience);
     }
   }
@@ -310,7 +310,7 @@ function countRules(
   role: string,
   holders: number | undefined,
   delta: -1 | 0 | 1,
-  deny: (reason: Denial['reason'], detail?: unknown) => void,
+  deny: (reason: Denial["reason"], detail?: unknown) => void,
 ): void {
   if (binding === undefined || delta === 0) {
     return;
@@ -326,23 +326,23 @@ function countRules(
   if (!known) {
     const reason =
       delta < 0 && min > 0
-        ? 'last-holder'
+        ? "last-holder"
         : delta > 0 && binding.max !== undefined
-          ? 'max-holders'
-          : 'transfer-only';
+          ? "max-holders"
+          : "transfer-only";
     deny(reason, { role, holders: null });
     return;
   }
   const after = holders + delta;
   if (delta < 0 && min > 0 && after < min) {
-    deny('last-holder', { role, min, holders });
+    deny("last-holder", { role, min, holders });
   }
   if (delta > 0 && binding.max !== undefined && after > binding.max) {
-    deny('max-holders', { role, max: binding.max, holders });
+    deny("max-holders", { role, max: binding.max, holders });
   }
   // Creating the first holder and removing the last are not transfers; `min` guards the latter.
   if (binding.transferOnly === true && holders > 0 && after > 0) {
-    deny('transfer-only', { role, holders });
+    deny("transfer-only", { role, holders });
   }
 }
 
@@ -398,46 +398,46 @@ export function decideRoleChange(
   options: RoleChangeOptions = {},
 ): RoleChangeDecision {
   const name =
-    typeof change?.role === 'string' ? change.role : change?.role?.key;
+    typeof change?.role === "string" ? change.role : change?.role?.key;
   const denials: Denial[] = [];
-  const deny = (reason: Denial['reason'], detail?: unknown): void => {
+  const deny = (reason: Denial["reason"], detail?: unknown): void => {
     denials.push(compact<Denial>({ role: name ?? null, reason, detail }));
   };
   const done = (role: string | null): RoleChangeDecision =>
     freezeDeep(
       denials.length === 0
-        ? { outcome: 'granted' as const, change, role }
-        : { outcome: 'denied' as const, change, denials },
+        ? { outcome: "granted" as const, change, role }
+        : { outcome: "denied" as const, change, denials },
     );
   if (principal === null) {
-    deny('anonymous');
+    deny("anonymous");
     return done(null);
   }
   const kind = change?.kind;
   const target = change?.target;
   if (
-    typeof name !== 'string' ||
-    (kind !== 'assign' && kind !== 'revoke' && kind !== 'transfer') ||
-    typeof change.id !== 'string' ||
-    change.id === '' ||
+    typeof name !== "string" ||
+    (kind !== "assign" && kind !== "revoke" && kind !== "transfer") ||
+    typeof change.id !== "string" ||
+    change.id === "" ||
     target === null ||
-    typeof target !== 'object' ||
-    typeof target.id !== 'string' ||
-    target.id === ''
+    typeof target !== "object" ||
+    typeof target.id !== "string" ||
+    target.id === ""
   ) {
-    deny('validation');
+    deny("validation");
     return done(null);
   }
   const binding = bindingOf(policy, name);
   if (!declaredRoleNames(policy).has(name)) {
-    deny('unknown-role');
+    deny("unknown-role");
     return done(null);
   }
   const scope = resolveScope(scopes, change.scope);
   const on = binding?.on ?? findRole(policy.vocabulary?.roles, name)?.on;
-  const heldAt = typeof on === 'string' ? resolveScope(scopes, on) : undefined;
+  const heldAt = typeof on === "string" ? resolveScope(scopes, on) : undefined;
   if (scope === undefined || heldAt === undefined || heldAt !== scope) {
-    deny('scope', { expected: heldAt ?? null });
+    deny("scope", { expected: heldAt ?? null });
     return done(null);
   }
   const root = scopes[0]?.name;
@@ -462,11 +462,11 @@ export function decideRoleChange(
     }
   }
   if (tenant === undefined) {
-    deny('no-membership', { scope, id: change.id });
+    deny("no-membership", { scope, id: change.id });
     return done(null);
   }
-  if (target.managedBy === 'idp') {
-    deny('externally-managed');
+  if (target.managedBy === "idp") {
+    deny("externally-managed");
     return done(null);
   }
   const self = target.id === principal.id;
@@ -474,24 +474,24 @@ export function decideRoleChange(
   const already = targetRoles.includes(name);
   let by: string | null = null;
 
-  if (kind === 'transfer') {
+  if (kind === "transfer") {
     if (self) {
-      deny('self-demotion');
+      deny("self-demotion");
     }
     if (holdsAt(principal, name, scope, change.id, now)) {
       by = name;
     } else {
-      deny('not-assignable-by', { holds: false });
+      deny("not-assignable-by", { holds: false });
     }
   } else {
     if (self) {
-      deny(kind === 'revoke' ? 'self-demotion' : 'not-assignable-by', {
+      deny(kind === "revoke" ? "self-demotion" : "not-assignable-by", {
         self: true,
       });
     }
     const allowed = authority(tenant);
     if (!allowed.assignable.has(name)) {
-      deny('not-assignable-by');
+      deny("not-assignable-by");
     } else if (usesAssigns(policy) && !allowed.manage) {
       const held = rolesAtInstance(
         policy,
@@ -507,14 +507,14 @@ export function decideRoleChange(
           (role) => bindingOf(policy, role)?.assigns?.includes(name) === true,
         ) ?? null;
       if (by === null) {
-        deny('not-assignable-by', { held });
+        deny("not-assignable-by", { held });
       }
     }
   }
 
-  if (kind !== 'revoke' && !already) {
+  if (kind !== "revoke" && !already) {
     if (!mayHoldVia(policy, name, target.via)) {
-      deny('not-allowed-for-membership', {
+      deny("not-allowed-for-membership", {
         via: target.via ?? null,
         for: binding?.for,
       });
@@ -522,16 +522,16 @@ export function decideRoleChange(
     const conflicts = conflictsWith(policy, name);
     const clash = targetRoles.filter((role) => conflicts.has(role));
     if (clash.length > 0) {
-      deny('conflicting-role', { with: clash });
+      deny("conflicting-role", { with: clash });
     }
   }
 
   const delta: -1 | 0 | 1 =
-    kind === 'assign'
+    kind === "assign"
       ? already
         ? 0
         : 1
-      : kind === 'revoke'
+      : kind === "revoke"
         ? targetRoles.length > 0 && !already
           ? 0
           : -1

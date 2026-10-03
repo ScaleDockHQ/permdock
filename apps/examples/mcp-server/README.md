@@ -6,5 +6,5 @@
 - `delete_post` — `approval-required`
 
 ```ts
-import { createPermDock } from 'permdock/mcp'
+import { createPermDock } from "permdock/mcp";
 ```

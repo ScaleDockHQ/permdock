@@ -1,8 +1,8 @@
-import Fastify from 'fastify';
-import { createPermDock } from 'permdock/fastify';
+import Fastify from "fastify";
+import { createPermDock } from "permdock/fastify";
 
-import { ownPost, permissions } from './permissions.ts';
-import { memberUser, policy } from './policy.ts';
+import { ownPost, permissions } from "./permissions.ts";
+import { memberUser, policy } from "./policy.ts";
 
 const { permdock, protect } = createPermDock(policy, {
   subject: () => memberUser,
@@ -12,10 +12,10 @@ export const app = Fastify();
 
 await app.register(permdock);
 
-app.get('/health', () => ({ ok: true }));
+app.get("/health", () => ({ ok: true }));
 
 app.patch(
-  '/posts/:id',
+  "/posts/:id",
   {
     preHandler: protect(permissions.post.update, () => ownPost),
   },
@@ -23,7 +23,7 @@ app.patch(
 );
 
 app.post(
-  '/posts/:id/publish',
+  "/posts/:id/publish",
   {
     preHandler: protect(permissions.post.publish, () => ownPost),
   },

@@ -1,8 +1,8 @@
 function blankComments(sql: string): string {
   return sql
-    .replaceAll(/--[^\n]*/gu, (comment) => ' '.repeat(comment.length))
+    .replaceAll(/--[^\n]*/gu, (comment) => " ".repeat(comment.length))
     .replaceAll(/\/\*[\s\S]*?\*\//gu, (comment) =>
-      comment.replaceAll(/[^\n]/gu, ' '),
+      comment.replaceAll(/[^\n]/gu, " "),
     );
 }
 
@@ -16,9 +16,9 @@ export function sqlStatements(
     const body = text.slice(start, end);
     const lead = body.length - body.trimStart().length;
     const trimmed = body.trim();
-    if (trimmed !== '') {
+    if (trimmed !== "") {
       statements.push({
-        line: text.slice(0, start + lead).split('\n').length,
+        line: text.slice(0, start + lead).split("\n").length,
         text: trimmed,
       });
     }
@@ -32,7 +32,7 @@ export function sqlStatements(
       index = end === -1 ? text.length : end + 1;
       continue;
     }
-    if (char === '$') {
+    if (char === "$") {
       const tag = /^\$[A-Za-z_]*\$/u.exec(text.slice(index, index + 64));
       if (tag !== null) {
         const end = text.indexOf(tag[0], index + tag[0].length);
@@ -40,7 +40,7 @@ export function sqlStatements(
         continue;
       }
     }
-    if (char === ';') {
+    if (char === ";") {
       push(start, index);
       start = index + 1;
     }
@@ -55,5 +55,5 @@ export function group(
   match: RegExpExecArray | RegExpMatchArray,
   index: number,
 ): string {
-  return match[index] ?? '';
+  return match[index] ?? "";
 }

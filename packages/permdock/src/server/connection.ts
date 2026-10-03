@@ -1,11 +1,11 @@
-import type { Decision } from '../core/decision.ts';
-import type { RevokedCode } from '../core/errors.ts';
-import type { DecideOptions, PermDock } from '../core/permdock.ts';
-import type { Permission } from '../core/permissions.ts';
-import type { RevocationEvent, RevocationFeed } from '../core/revocations.ts';
+import type { Decision } from "../core/decision.ts";
+import type { RevokedCode } from "../core/errors.ts";
+import type { DecideOptions, PermDock } from "../core/permdock.ts";
+import type { Permission } from "../core/permissions.ts";
+import type { RevocationEvent, RevocationFeed } from "../core/revocations.ts";
 
-import { compact } from '../core/compact.ts';
-import { PermDockRevokedError } from '../core/errors.ts';
+import { compact } from "../core/compact.ts";
+import { PermDockRevokedError } from "../core/errors.ts";
 
 /** `setTimeout` stores delays in a signed 32-bit integer. */
 const MAX_DELAY = 2_147_483_647;
@@ -38,7 +38,7 @@ export type Connection = {
     options?: { readonly trusted?: boolean },
   ) => Decision;
   readonly filter: <T>(
-    permission: Permission<string, T, 'instance'>,
+    permission: Permission<string, T, "instance">,
     items: readonly T[],
   ) => T[];
   /** Stops timers and the feed subscription. Call it when the transport closes. */
@@ -57,12 +57,12 @@ type OpenInput<T> = {
 };
 
 const REVOKED: Decision = Object.freeze({
-  outcome: 'denied',
+  outcome: "denied",
   denials: Object.freeze([
     Object.freeze({
       role: null,
-      reason: 'no-grant' as const,
-      detail: 'connection-revoked',
+      reason: "no-grant" as const,
+      detail: "connection-revoked",
     }),
   ]),
   alternatives: Object.freeze([]),
@@ -92,7 +92,7 @@ async function loadData<T>(
   if (data === undefined) {
     return { ok: true, value: undefined };
   }
-  if (typeof data !== 'function') {
+  if (typeof data !== "function") {
     return { ok: true, value: data };
   }
   // SAFETY: data is a value or a loader, and the value case returned above.
@@ -121,7 +121,7 @@ function matches(
     return false;
   }
   return !(
-    event.kind === 'changed' &&
+    event.kind === "changed" &&
     event.tenant !== undefined &&
     tenant !== undefined &&
     event.tenant !== tenant
@@ -135,7 +135,7 @@ export async function openConnection<T>(
   const controller = new AbortController();
   const timers = new Set<ReturnType<typeof setTimeout>>();
   const decideOptions = compact<DecideOptions>({
-    source: 'adapter',
+    source: "adapter",
     adapter: input.adapter,
   });
   let unsubscribe: (() => void) | undefined;
@@ -154,7 +154,7 @@ export async function openConnection<T>(
 
   const abort = (
     code: RevokedCode,
-    decision?: Exclude<Decision, { readonly outcome: 'granted' }>,
+    decision?: Exclude<Decision, { readonly outcome: "granted" }>,
   ): void => {
     if (controller.signal.aborted) {
       return;
@@ -186,7 +186,7 @@ export async function openConnection<T>(
     }
     const loaded = await loadData(input.options.data);
     if (!loaded.ok) {
-      abort('denied');
+      abort("denied");
       return false;
     }
     // SAFETY: decide's generics only tie the row type to the permission; it accepts any row.
@@ -197,8 +197,8 @@ export async function openConnection<T>(
         options?: DecideOptions,
       ) => Decision
     )(permission, loaded.value, decideOptions);
-    if (decision.outcome !== 'granted') {
-      abort('denied', decision);
+    if (decision.outcome !== "granted") {
+      abort("denied", decision);
       return false;
     }
     return true;
@@ -216,7 +216,7 @@ export async function openConnection<T>(
         try {
           next = await input.rebuild();
         } catch {
-          abort('subject-changed');
+          abort("subject-changed");
           return;
         }
         const id = principalId(next);
@@ -225,7 +225,7 @@ export async function openConnection<T>(
           current === undefined ||
           id !== principalId(current)
         ) {
-          abort('subject-changed');
+          abort("subject-changed");
           return;
         }
         if (!(await admits(next))) {
@@ -239,7 +239,7 @@ export async function openConnection<T>(
         schedule?.(next);
       })
       .catch(() => {
-        abort('subject-changed');
+        abort("subject-changed");
       });
   };
 
@@ -248,7 +248,7 @@ export async function openConnection<T>(
     const expiresAt = permdock.subject.expiresAt;
     if (expiresAt !== undefined) {
       if (expiresAt <= now) {
-        abort('expired');
+        abort("expired");
         return;
       }
       const wait = (expiresAt - now) * 1000;
@@ -257,7 +257,7 @@ export async function openConnection<T>(
           schedule?.(current ?? permdock);
           return;
         }
-        abort('expired');
+        abort("expired");
       });
     }
     const membership = nextMembershipExpiry(permdock, now);
@@ -273,7 +273,7 @@ export async function openConnection<T>(
   try {
     current = await input.open();
   } catch {
-    abort('denied');
+    abort("denied");
   }
   if (
     current !== undefined &&
@@ -287,14 +287,14 @@ export async function openConnection<T>(
           if (current === undefined || !matches(event, current, input.tenant)) {
             return;
           }
-          if (event.kind === 'session-revoked') {
-            abort('session-revoked');
+          if (event.kind === "session-revoked") {
+            abort("session-revoked");
           } else {
             revalidate();
           }
         });
       } catch {
-        abort('expired');
+        abort("expired");
       }
     }
   }
@@ -305,7 +305,7 @@ export async function openConnection<T>(
   return Object.freeze({
     get permdock(): PermDock {
       if (current === undefined) {
-        throw new PermDockRevokedError({ code: 'denied' });
+        throw new PermDockRevokedError({ code: "denied" });
       }
       return current;
     },
@@ -331,11 +331,11 @@ export async function openConnection<T>(
         data,
         checkOptions?.trusted === true
           ? { ...decideOptions, trusted: true }
-          : { ...decideOptions, trusted: false, boundary: 'manual' },
+          : { ...decideOptions, trusted: false, boundary: "manual" },
       );
     },
     filter<U>(
-      permission: Permission<string, U, 'instance'>,
+      permission: Permission<string, U, "instance">,
       items: readonly U[],
     ): U[] {
       const permdock = live();

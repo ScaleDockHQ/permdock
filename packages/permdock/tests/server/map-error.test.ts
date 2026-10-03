@@ -1,19 +1,19 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from "vitest";
 
 import {
   PermDockRevokedError,
   PermDockValidationError,
-} from '../../src/core/errors.ts';
-import { createPermDock } from '../../src/core/permdock.ts';
-import { problemFromError } from '../../src/server/map-error.ts';
-import { InvalidSignatureError } from '../../src/server/web-bot-auth.ts';
+} from "../../src/core/errors.ts";
+import { createPermDock } from "../../src/core/permdock.ts";
+import { problemFromError } from "../../src/server/map-error.ts";
+import { InvalidSignatureError } from "../../src/server/web-bot-auth.ts";
 import {
   memberUser,
   otherPost,
   ownPost,
   permissions,
   policy,
-} from '../fixtures/quick-start.ts';
+} from "../fixtures/quick-start.ts";
 
 async function thrown(work: () => Promise<unknown>): Promise<unknown> {
   try {
@@ -21,23 +21,23 @@ async function thrown(work: () => Promise<unknown>): Promise<unknown> {
   } catch (error) {
     return error;
   }
-  throw new Error('expected a throw');
+  throw new Error("expected a throw");
 }
 
-describe('problemFromError', () => {
-  it('maps a denial to a 403 problem', async () => {
+describe("problemFromError", () => {
+  it("maps a denial to a 403 problem", async () => {
     const permdock = await createPermDock(policy, memberUser);
     const error = await thrown(() =>
       Promise.resolve(permdock.assert(permissions.post.update, otherPost)),
     );
     const response = problemFromError(error);
     expect(response?.status).toBe(403);
-    expect(response?.headers.get('content-type')).toBe(
-      'application/problem+json',
+    expect(response?.headers.get("content-type")).toBe(
+      "application/problem+json",
     );
   });
 
-  it('maps an approval requirement to its approval problem', async () => {
+  it("maps an approval requirement to its approval problem", async () => {
     const permdock = await createPermDock(policy, memberUser);
     const error = await thrown(() =>
       Promise.resolve(permdock.assert(permissions.post.delete, ownPost)),
@@ -46,40 +46,40 @@ describe('problemFromError', () => {
     expect(response?.status).toBe(403);
     // SAFETY: Problem Details JSON produced by problemFromError under test.
     const body = (await response?.json()) as { readonly type: string };
-    expect(body.type).toContain('approval-required');
+    expect(body.type).toContain("approval-required");
   });
 
-  it('maps a validation failure to a 400 problem', () => {
+  it("maps a validation failure to a 400 problem", () => {
     const response = problemFromError(
       new PermDockValidationError({
-        code: 'invalid-data',
-        permission: 'post.update',
-        resource: 'post',
-        boundary: 'http',
-        message: 'invalid post',
+        code: "invalid-data",
+        permission: "post.update",
+        resource: "post",
+        boundary: "http",
+        message: "invalid post",
       }),
     );
     expect(response?.status).toBe(400);
   });
 
-  it('maps an ended connection to a 401 problem, or 403 when re-denied', async () => {
+  it("maps an ended connection to a 401 problem, or 403 when re-denied", async () => {
     const expired = problemFromError(
-      new PermDockRevokedError({ code: 'expired' }),
+      new PermDockRevokedError({ code: "expired" }),
     );
     expect(expired?.status).toBe(401);
-    expect(await expired?.json()).toMatchObject({ detail: 'expired' });
+    expect(await expired?.json()).toMatchObject({ detail: "expired" });
     expect(
-      problemFromError(new PermDockRevokedError({ code: 'denied' }))?.status,
+      problemFromError(new PermDockRevokedError({ code: "denied" }))?.status,
     ).toBe(403);
   });
 
-  it('returns the response an InvalidSignatureError carries', () => {
+  it("returns the response an InvalidSignatureError carries", () => {
     const carried = new Response(null, { status: 401 });
     expect(problemFromError(new InvalidSignatureError(carried))).toBe(carried);
   });
 
-  it('leaves anything else to the framework', () => {
-    expect(problemFromError(new Error('boom'))).toBeUndefined();
-    expect(problemFromError('boom')).toBeUndefined();
+  it("leaves anything else to the framework", () => {
+    expect(problemFromError(new Error("boom"))).toBeUndefined();
+    expect(problemFromError("boom")).toBeUndefined();
   });
 });

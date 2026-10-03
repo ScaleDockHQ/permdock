@@ -1,19 +1,19 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from "vitest";
 
-import { compileConditionSql } from '../../src/cli/rls-sql.ts';
-import { scopeList } from '../../src/core/scopes.ts';
+import { compileConditionSql } from "../../src/cli/rls-sql.ts";
+import { scopeList } from "../../src/core/scopes.ts";
 
 const ctx = {
-  dialect: 'supabase',
+  dialect: "supabase",
   scopes: scopeList(undefined),
-  tenantClaim: 'tenant_id',
-  gucPrefix: 'app',
+  tenantClaim: "tenant_id",
+  gucPrefix: "app",
 } as const;
 
-describe('contains in generated SQL', () => {
-  it('matches %, _ and backslash literally, like the in-process where', () => {
+describe("contains in generated SQL", () => {
+  it("matches %, _ and backslash literally, like the in-process where", () => {
     const sql = compileConditionSql(
-      { op: 'contains', field: 'title', value: '50%_off\\' },
+      { op: "contains", field: "title", value: "50%_off\\" },
       ctx,
     );
     expect(sql).toBe(
@@ -21,13 +21,13 @@ describe('contains in generated SQL', () => {
     );
   });
 
-  it('escapes a claim value the same way', () => {
+  it("escapes a claim value the same way", () => {
     expect(
       compileConditionSql(
         {
-          op: 'contains',
-          field: 'title',
-          value: { ref: 'principal.claims.q' },
+          op: "contains",
+          field: "title",
+          value: { ref: "principal.claims.q" },
         },
         ctx,
       ),

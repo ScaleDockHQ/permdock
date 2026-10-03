@@ -1,9 +1,9 @@
-import { requireAccess } from '../../../permdock/server.ts';
-import { permissions } from '../../../permissions.ts';
+import { requireAccess } from "../../../permdock/server.ts";
+import { permissions } from "../../../permissions.ts";
 
 // A rarely visited admin page: never prefetched, and allowed to block, because
 // it checks access at request time before rendering anything.
-export const prefetch = 'force-disabled';
+export const prefetch = "force-disabled";
 export const instant = false;
 
 export default async function Settings(props: {

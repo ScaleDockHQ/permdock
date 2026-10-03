@@ -4,18 +4,18 @@ import {
   statSync,
   unlinkSync,
   writeFileSync,
-} from 'node:fs';
-import { homedir } from 'node:os';
-import path from 'node:path';
+} from "node:fs";
+import { homedir } from "node:os";
+import path from "node:path";
 
 import type {
   KeyringEntry,
   StoredCredential,
   TerminalRuntime,
   TerminalStorageOptions,
-} from './types.ts';
+} from "./types.ts";
 
-import { compact } from '../core/compact.ts';
+import { compact } from "../core/compact.ts";
 
 const FILE_MODE = 0o600;
 const DIR_MODE = 0o700;
@@ -26,37 +26,37 @@ export function credentialsPath(
   runtime: TerminalRuntime,
 ): string {
   if (runtime.configDir !== undefined) {
-    return path.join(runtime.configDir, 'credentials.json');
+    return path.join(runtime.configDir, "credentials.json");
   }
   const home = runtime.homedir ?? homedir;
   const env = runtime.env ?? process.env;
   const platform = runtime.platform ?? process.platform;
-  if (platform === 'win32') {
-    const appData = env['APPDATA'] ?? path.join(home(), 'AppData', 'Roaming');
-    return path.join(appData, service, 'credentials.json');
+  if (platform === "win32") {
+    const appData = env["APPDATA"] ?? path.join(home(), "AppData", "Roaming");
+    return path.join(appData, service, "credentials.json");
   }
-  const xdg = env['XDG_CONFIG_HOME'] ?? path.join(home(), '.config');
-  return path.join(xdg, service, 'credentials.json');
+  const xdg = env["XDG_CONFIG_HOME"] ?? path.join(home(), ".config");
+  return path.join(xdg, service, "credentials.json");
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function parseCredential(value: unknown): StoredCredential | null {
-  if (!isRecord(value) || typeof value['access_token'] !== 'string') {
+  if (!isRecord(value) || typeof value["access_token"] !== "string") {
     return null;
   }
   return compact<StoredCredential>({
-    access_token: value['access_token'],
+    access_token: value["access_token"],
     refresh_token:
-      typeof value['refresh_token'] === 'string'
-        ? value['refresh_token']
+      typeof value["refresh_token"] === "string"
+        ? value["refresh_token"]
         : undefined,
     expires_at:
-      typeof value['expires_at'] === 'number' ? value['expires_at'] : undefined,
+      typeof value["expires_at"] === "number" ? value["expires_at"] : undefined,
     token_type:
-      typeof value['token_type'] === 'string' ? value['token_type'] : undefined,
+      typeof value["token_type"] === "string" ? value["token_type"] : undefined,
   });
 }
 
@@ -84,7 +84,7 @@ function readKeyring(
   }
   try {
     const raw = entry.getPassword();
-    return typeof raw === 'string' ? parseCredential(JSON.parse(raw)) : null;
+    return typeof raw === "string" ? parseCredential(JSON.parse(raw)) : null;
   } catch {
     return null;
   }
@@ -110,19 +110,19 @@ function readFile(
   try {
     const stat = statSync(file);
     const platform = runtime.platform ?? process.platform;
-    if (platform !== 'win32' && (stat.mode & GROUP_OR_WORLD) !== 0) {
+    if (platform !== "win32" && (stat.mode & GROUP_OR_WORLD) !== 0) {
       return null;
     }
-    raw = readFileSync(file, 'utf8');
+    raw = readFileSync(file, "utf8");
   } catch {
     return null;
   }
   try {
     const parsed: unknown = JSON.parse(raw);
-    if (!isRecord(parsed) || !isRecord(parsed['profiles'])) {
+    if (!isRecord(parsed) || !isRecord(parsed["profiles"])) {
       return null;
     }
-    return parseCredential(parsed['profiles'][profile]);
+    return parseCredential(parsed["profiles"][profile]);
   } catch {
     return null;
   }
@@ -158,17 +158,17 @@ function writeFile(
   mkdirSync(path.dirname(file), { recursive: true, mode: DIR_MODE });
   let profiles: Record<string, StoredCredential> = {};
   try {
-    const existing: unknown = JSON.parse(readFileSync(file, 'utf8'));
-    if (isRecord(existing) && isRecord(existing['profiles'])) {
+    const existing: unknown = JSON.parse(readFileSync(file, "utf8"));
+    if (isRecord(existing) && isRecord(existing["profiles"])) {
       // SAFETY: the file is written only by writeFile; entries are just copied back unread.
-      profiles = existing['profiles'] as Record<string, StoredCredential>;
+      profiles = existing["profiles"] as Record<string, StoredCredential>;
     }
   } catch {
     profiles = {};
   }
   profiles[profile] = credential;
   writeFileSync(file, `${JSON.stringify({ profiles }, null, 2)}\n`, {
-    encoding: 'utf8',
+    encoding: "utf8",
     mode: FILE_MODE,
   });
 }
@@ -197,17 +197,17 @@ function deleteFile(
   const file = credentialsPath(service, runtime);
   let parsed: unknown;
   try {
-    parsed = JSON.parse(readFileSync(file, 'utf8'));
+    parsed = JSON.parse(readFileSync(file, "utf8"));
   } catch {
     return;
   }
-  if (!isRecord(parsed) || !isRecord(parsed['profiles'])) {
+  if (!isRecord(parsed) || !isRecord(parsed["profiles"])) {
     return;
   }
   const profiles: Record<string, unknown> = {};
-  for (const key of Object.keys(parsed['profiles'])) {
+  for (const key of Object.keys(parsed["profiles"])) {
     if (key !== profile) {
-      profiles[key] = parsed['profiles'][key];
+      profiles[key] = parsed["profiles"][key];
     }
   }
   if (Object.keys(profiles).length === 0) {
@@ -219,7 +219,7 @@ function deleteFile(
     return;
   }
   writeFileSync(file, `${JSON.stringify({ profiles }, null, 2)}\n`, {
-    encoding: 'utf8',
+    encoding: "utf8",
     mode: FILE_MODE,
   });
 }

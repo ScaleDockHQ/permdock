@@ -1,7 +1,7 @@
-import { describe, expect, it } from 'vitest';
-import { z } from 'zod';
+import { describe, expect, it } from "vitest";
+import { z } from "zod";
 
-import { createAgentKernel } from '../../src/agent/kernel.ts';
+import { createAgentKernel } from "../../src/agent/kernel.ts";
 import {
   allow,
   createPermDock,
@@ -10,16 +10,16 @@ import {
   deny,
   resource,
   role,
-} from '../../src/index.ts';
-import { reasonOf } from '../fixtures/decisions.ts';
+} from "../../src/index.ts";
+import { reasonOf } from "../fixtures/decisions.ts";
 
 const Invoice = z.object({ id: z.string(), amount: z.number() });
 const permissions = definePermissions({
-  invoice: resource(Invoice, { id: 'id', collection: ['create'] }),
+  invoice: resource(Invoice, { id: "id", collection: ["create"] }),
 });
 const policy = definePolicy(permissions, {
   roles: [
-    role('member', [
+    role("member", [
       allow(permissions.invoice.create),
       deny(permissions.invoice.create, { check: { amount: { gt: 1000 } } }),
     ]),
@@ -27,13 +27,13 @@ const policy = definePolicy(permissions, {
   subject: (
     user: { readonly id: string; readonly roles: readonly string[] } | null,
   ) => (user === null ? null : { id: user.id, roles: user.roles }),
-  validate: 'boundary',
+  validate: "boundary",
 });
-const user = { id: 'u1', roles: ['member'] };
+const user = { id: "u1", roles: ["member"] };
 
-describe('tool arguments are boundary data', () => {
+describe("tool arguments are boundary data", () => {
   const kernel = createAgentKernel(policy, {
-    adapter: 'test',
+    adapter: "test",
     subject: () => user,
     tools: {
       create_invoice: {
@@ -43,36 +43,36 @@ describe('tool arguments are boundary data', () => {
     },
   });
 
-  it('denies a schema-invalid object built from tool arguments', async () => {
+  it("denies a schema-invalid object built from tool arguments", async () => {
     const result = await kernel.decideTool(
-      'create_invoice',
-      { id: 'i1', amount: '50000' },
+      "create_invoice",
+      { id: "i1", amount: "50000" },
       {},
     );
-    expect(result.outcome).toBe('denied');
+    expect(result.outcome).toBe("denied");
     expect(
       result.decision === null ? undefined : reasonOf(result.decision),
-    ).toBe('validation');
+    ).toBe("validation");
   });
 
-  it('still applies the deny to a valid object', async () => {
+  it("still applies the deny to a valid object", async () => {
     const result = await kernel.decideTool(
-      'create_invoice',
-      { id: 'i1', amount: 50_000 },
+      "create_invoice",
+      { id: "i1", amount: 50_000 },
       {},
     );
-    expect(result.outcome).toBe('denied');
+    expect(result.outcome).toBe("denied");
     expect(
       result.decision === null ? undefined : reasonOf(result.decision),
-    ).toBe('deny');
+    ).toBe("deny");
   });
 
-  it('matches a direct decide on untrusted data', async () => {
+  it("matches a direct decide on untrusted data", async () => {
     const permdock = await createPermDock(policy, user);
     const decision = permdock.decide(permissions.invoice.create, {
-      id: 'i1',
-      amount: '50000',
+      id: "i1",
+      amount: "50000",
     });
-    expect(reasonOf(decision)).toBe('validation');
+    expect(reasonOf(decision)).toBe("validation");
   });
 });

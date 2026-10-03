@@ -1,19 +1,19 @@
 <script setup lang="ts">
-import type { Snapshot } from 'permdock';
+import type { Snapshot } from "permdock";
 
-import { navItems, orgs } from '@permdock/e2e-saas-kit/nav';
+import { navItems, orgs } from "@permdock/e2e-saas-kit/nav";
 
 const route = useRoute();
 const org = computed(() => String(route.params.org));
 const requestFetch = useRequestFetch();
-const snapshot = useState<Snapshot | null>('permdock:snapshot');
+const snapshot = useState<Snapshot | null>("permdock:snapshot");
 
 const { data: fetched, error } = await useAsyncData(
   () => `snapshot:${org.value}`,
-  () => requestFetch<Snapshot>('/api/snapshot', { query: { org: org.value } }),
+  () => requestFetch<Snapshot>("/api/snapshot", { query: { org: org.value } }),
 );
 if (error.value?.statusCode === 401) {
-  await navigateTo('/login');
+  await navigateTo("/login");
 }
 watch(
   fetched,
@@ -26,7 +26,7 @@ const { data: view } = await useAsyncData(
   () => `org:${org.value}`,
   () =>
     requestFetch<{ id: string; name: string; plan: string } | null>(
-      '/api/org',
+      "/api/org",
       {
         query: { org: org.value },
       },
@@ -41,7 +41,7 @@ onMounted(() => {
     if ((window as { saasPausePoll?: boolean }).saasPausePoll === true) {
       return;
     }
-    $fetch<{ changedAt: number }>('/api/version', { query: { org: org.value } })
+    $fetch<{ changedAt: number }>("/api/version", { query: { org: org.value } })
       .then((body) =>
         body.changedAt >= (snapshot.value?.issuedAt ?? Infinity)
           ? refreshNuxtData()

@@ -1,7 +1,7 @@
-import type { ApprovalStore } from '../approvals/types.ts';
-import type { Decision } from '../core/decision.ts';
-import type { ApprovalHint } from '../core/errors.ts';
-import type { PolicySource } from '../core/hosted.ts';
+import type { ApprovalStore } from "../approvals/types.ts";
+import type { Decision } from "../core/decision.ts";
+import type { ApprovalHint } from "../core/errors.ts";
+import type { PolicySource } from "../core/hosted.ts";
 import type {
   DecisionSink,
   EntitlementSource,
@@ -10,31 +10,31 @@ import type {
   RelationSource,
   RoleSource,
   SnapshotSource,
-} from '../core/interfaces.ts';
-import type { DecideOptions, PermDock } from '../core/permdock.ts';
-import type { Permission } from '../core/permissions.ts';
-import type { Policy, PolicyVocabulary } from '../core/policy.ts';
-import type { RevocationFeed } from '../core/revocations.ts';
-import type { Actor, Principal, Subject } from '../core/subject.ts';
-import type { PdpFactory, PdpPermDock } from '../pdp/types.ts';
-import type { Connection, ConnectionOptions } from './connection.ts';
-import type { WebBotAuthVerifier } from './web-bot-auth.ts';
+} from "../core/interfaces.ts";
+import type { DecideOptions, PermDock } from "../core/permdock.ts";
+import type { Permission } from "../core/permissions.ts";
+import type { Policy, PolicyVocabulary } from "../core/policy.ts";
+import type { RevocationFeed } from "../core/revocations.ts";
+import type { Actor, Principal, Subject } from "../core/subject.ts";
+import type { PdpFactory, PdpPermDock } from "../pdp/types.ts";
+import type { Connection, ConnectionOptions } from "./connection.ts";
+import type { WebBotAuthVerifier } from "./web-bot-auth.ts";
 
-import { compact } from '../core/compact.ts';
-import { createPermDock as createCorePermDock } from '../core/permdock.ts';
-import { listPermissions } from '../core/permissions.ts';
-import { isActor } from '../core/subject.ts';
+import { compact } from "../core/compact.ts";
+import { createPermDock as createCorePermDock } from "../core/permdock.ts";
+import { listPermissions } from "../core/permissions.ts";
+import { isActor } from "../core/subject.ts";
 import {
   applyApprovalResume,
   createEvaluationsHandler,
-} from './evaluations.ts';
+} from "./evaluations.ts";
 import {
   PROBLEM_BASE,
   notFoundProblem,
   problemFromDecision,
   problemResponse,
-} from './problem.ts';
-import { InvalidSignatureError } from './web-bot-auth.ts';
+} from "./problem.ts";
+import { InvalidSignatureError } from "./web-bot-auth.ts";
 
 export type ServerPermDockOptions<TUser = unknown> = {
   /** The user, or a full `Subject` (core then skips `policy.subject`); `null` is anonymous. */
@@ -75,7 +75,7 @@ export type Guard<T = unknown, V extends PolicyVocabulary = PolicyVocabulary> =
   | {
       readonly ok: true;
       readonly permdock: PermDock<V>;
-      readonly decision: Extract<Decision, { readonly outcome: 'granted' }>;
+      readonly decision: Extract<Decision, { readonly outcome: "granted" }>;
       readonly data: T;
     }
   | { readonly ok: false; readonly response: Response };
@@ -83,7 +83,7 @@ export type Guard<T = unknown, V extends PolicyVocabulary = PolicyVocabulary> =
 export type OpenApiHooks = {
   readonly security: (permission: Permission) => {
     readonly security: readonly Record<string, readonly string[]>[];
-    readonly 'x-permdock-permissions': readonly string[];
+    readonly "x-permdock-permissions": readonly string[];
   };
   readonly securitySchemes: () => Readonly<Record<string, unknown>>;
 };
@@ -112,7 +112,7 @@ export async function tenantScope<TContext>(
   option: TenantOption<TContext> | undefined,
   context: TContext,
 ): Promise<TenantScope> {
-  if (option === undefined || typeof option === 'string') {
+  if (option === undefined || typeof option === "string") {
     return { tenant: option };
   }
   try {
@@ -139,7 +139,7 @@ export type Kernel<V extends PolicyVocabulary = PolicyVocabulary> = {
     options?: ConnectionOptions<T>,
     scope?: TenantScope,
   ) => Promise<Connection>;
-  readonly problem: ServerPermDock<V>['problem'];
+  readonly problem: ServerPermDock<V>["problem"];
   readonly openapi: OpenApiHooks;
   readonly permdockHandler: (
     scope?: (request: Request) => TenantScope | Promise<TenantScope>,
@@ -200,7 +200,7 @@ type Resolved<TUser> = {
   readonly actor: Actor | undefined;
 };
 
-const NO_TENANT = '\u0000';
+const NO_TENANT = "\u0000";
 
 export function createPermDock<
   TUser,
@@ -228,7 +228,7 @@ function problemFor(
   }
   return problemResponse({
     type: `${PROBLEM_BASE}/denied`,
-    title: 'Permission denied',
+    title: "Permission denied",
     status: 403,
     detail: decision.outcome,
   });
@@ -250,7 +250,7 @@ export function createKernel<
     readonly adapter?: string;
   },
 ): Kernel<V> {
-  const adapter = options.adapter ?? 'server';
+  const adapter = options.adapter ?? "server";
   const subjects = new WeakMap<Request, Promise<Resolved<TUser>>>();
   const instances = new WeakMap<Request, Map<string, Promise<Built<V>>>>();
 
@@ -336,7 +336,7 @@ export function createKernel<
   ): Promise<Connection> => {
     const { tenant } = scope ?? (await tenantScope(options.tenant, request));
     // Lazy: only apps that open connections bundle the revalidation loop.
-    const { openConnection } = await import('./connection.ts');
+    const { openConnection } = await import("./connection.ts");
     return openConnection<T>({
       open: async (): Promise<PermDock<V>> =>
         (await build(request, { tenant })).permdock,
@@ -384,11 +384,11 @@ export function createKernel<
         data = loaded;
       }
       const decideOptions = compact<DecideOptions>({
-        source: 'adapter',
+        source: "adapter",
         adapter,
         ...(protectOptions.trusted === true
           ? { trusted: true }
-          : { trusted: false, boundary: 'http-body' as const }),
+          : { trusted: false, boundary: "http-body" as const }),
       });
       // SAFETY: decide's generics only tie the row type to the permission; it accepts any row.
       const raw =
@@ -403,8 +403,8 @@ export function createKernel<
           : await remote
               .decide(permission, data, decideOptions)
               .catch((): Decision => ({
-                outcome: 'denied',
-                denials: [{ role: null, reason: 'pdp-unavailable' }],
+                outcome: "denied",
+                denials: [{ role: null, reason: "pdp-unavailable" }],
                 alternatives: [],
               }));
       const decision = await applyApprovalResume(
@@ -417,15 +417,15 @@ export function createKernel<
           type: permission.resource,
           id:
             data !== null &&
-            typeof data === 'object' &&
-            'id' in data &&
-            (typeof data.id === 'string' || typeof data.id === 'number')
+            typeof data === "object" &&
+            "id" in data &&
+            (typeof data.id === "string" || typeof data.id === "number")
               ? String(data.id)
               : undefined,
         }),
         adapter,
       );
-      if (decision.outcome === 'granted') {
+      if (decision.outcome === "granted") {
         // SAFETY: T is loadData's result type; data is undefined only when no loadData was passed.
         return {
           ok: true,
@@ -442,7 +442,7 @@ export function createKernel<
           instance.subject,
           compact({
             approval: options.approval,
-            credentials: request.headers.has('authorization'),
+            credentials: request.headers.has("authorization"),
             disclosure:
               data === undefined
                 ? undefined
@@ -455,7 +455,7 @@ export function createKernel<
   const openapi: OpenApiHooks = {
     security: (permission: Permission) => ({
       security: [{ oauth2: [permission.scope] }],
-      'x-permdock-permissions': [permission.key],
+      "x-permdock-permissions": [permission.key],
     }),
     securitySchemes: () => {
       const scopes: Record<string, string> = {};
@@ -464,7 +464,7 @@ export function createKernel<
       }
       return {
         oauth2: {
-          type: 'oauth2',
+          type: "oauth2",
           flows: {},
           scopes,
         },

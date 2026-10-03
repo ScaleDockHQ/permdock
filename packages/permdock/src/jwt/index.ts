@@ -1,18 +1,18 @@
-export { subjectFromCapability } from './capability.ts';
+export { subjectFromCapability } from "./capability.ts";
 export type {
   CapabilityFailureCause,
   CapabilitySubjectOptions,
-} from './capability.ts';
-export { subjectFromCiOidc } from './ci-oidc.ts';
+} from "./capability.ts";
+export { subjectFromCiOidc } from "./ci-oidc.ts";
 export type {
   CiOidcPrincipal,
   CiOidcProvider,
   CiOidcSubjectOptions,
-} from './ci-oidc.ts';
-export { verifyDpopProof } from './dpop.ts';
-export { subjectFromIntrospection } from './introspection.ts';
-export { joseTokenSigner } from './signer.ts';
-export { createJwtSubjectResolver, subjectFromJwt } from './subject.ts';
+} from "./ci-oidc.ts";
+export { verifyDpopProof } from "./dpop.ts";
+export { subjectFromIntrospection } from "./introspection.ts";
+export { joseTokenSigner } from "./signer.ts";
+export { createJwtSubjectResolver, subjectFromJwt } from "./subject.ts";
 export type {
   DiscoveryInput,
   DpopProofResult,
@@ -25,5 +25,5 @@ export type {
   JwtPrincipal,
   JwtSubjectOptions,
   MappedSubject,
-} from './types.ts';
-export { joseTokenVerifier } from './verifier.ts';
+} from "./types.ts";
+export { joseTokenVerifier } from "./verifier.ts";

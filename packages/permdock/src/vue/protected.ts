@@ -3,13 +3,13 @@ import {
   type DefineComponent,
   type PropType,
   type VNode,
-} from 'vue';
+} from "vue";
 
-import type { Decision } from '../core/decision.ts';
-import type { Permission } from '../core/permissions.ts';
-import type { ClientStatus } from './types.ts';
+import type { Decision } from "../core/decision.ts";
+import type { Permission } from "../core/permissions.ts";
+import type { ClientStatus } from "./types.ts";
 
-import { usePermission, usePermDock } from './composables.ts';
+import { usePermission, usePermDock } from "./composables.ts";
 
 type ScopedView = {
   readonly allowed: boolean;
@@ -28,7 +28,7 @@ type ProtectedProps = {
 };
 
 export const Protected: DefineComponent<ProtectedProps> = defineComponent({
-  name: 'Protected',
+  name: "Protected",
   props: {
     permission: {
       // SAFETY: Vue's PropType idiom; the runtime check is Object and the static type a permission leaf.
@@ -65,13 +65,13 @@ export const Protected: DefineComponent<ProtectedProps> = defineComponent({
               props.permission,
               props.data,
             );
-      if (scoped.status === 'pending') {
-        return slots['pending']?.() ?? null;
+      if (scoped.status === "pending") {
+        return slots["pending"]?.() ?? null;
       }
-      if (!scoped.allowed || scoped.decision.outcome !== 'granted') {
-        return slots['fallback']?.({ decision: scoped.decision }) ?? null;
+      if (!scoped.allowed || scoped.decision.outcome !== "granted") {
+        return slots["fallback"]?.({ decision: scoped.decision }) ?? null;
       }
-      return slots['default']?.({ decision: scoped.decision }) ?? null;
+      return slots["default"]?.({ decision: scoped.decision }) ?? null;
     };
   },
 });
@@ -83,8 +83,8 @@ function tenantView(
 ): ScopedView {
   const decision = permdock.decide(permission, data);
   return {
-    allowed: decision.outcome === 'granted',
-    status: 'ready',
+    allowed: decision.outcome === "granted",
+    status: "ready",
     decision,
   };
 }

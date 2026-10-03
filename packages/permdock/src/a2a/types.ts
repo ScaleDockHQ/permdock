@@ -1,6 +1,6 @@
-import type { ApprovalStore } from '../approvals/types.ts';
-import type { ProblemDetails } from '../core/errors.ts';
-import type { PolicySource } from '../core/hosted.ts';
+import type { ApprovalStore } from "../approvals/types.ts";
+import type { ProblemDetails } from "../core/errors.ts";
+import type { PolicySource } from "../core/hosted.ts";
 import type {
   DecisionSink,
   EntitlementSource,
@@ -9,9 +9,9 @@ import type {
   RelationSource,
   RoleSource,
   SnapshotSource,
-} from '../core/interfaces.ts';
-import type { Permission } from '../core/permissions.ts';
-import type { AuthorizationDetail } from '../core/subject.ts';
+} from "../core/interfaces.ts";
+import type { Permission } from "../core/permissions.ts";
+import type { AuthorizationDetail } from "../core/subject.ts";
 
 export type A2aAuth = {
   readonly clientId?: string;
@@ -25,25 +25,25 @@ export type A2aAuth = {
 /** OpenAPI-style input; the card carries the A2A 1.0 union form. */
 export type A2aSecurityScheme =
   | {
-      readonly type: 'oauth2';
+      readonly type: "oauth2";
       readonly oauth2MetadataUrl: string;
       readonly description?: string;
     }
   | {
-      readonly type: 'http';
+      readonly type: "http";
       readonly scheme: string;
       readonly bearerFormat?: string;
       readonly description?: string;
     }
   | {
-      readonly type: 'openIdConnect';
+      readonly type: "openIdConnect";
       readonly openIdConnectUrl: string;
       readonly description?: string;
     }
-  | { readonly type: 'mutualTLS'; readonly description?: string }
+  | { readonly type: "mutualTLS"; readonly description?: string }
   | {
-      readonly type: 'apiKey';
-      readonly in: 'query' | 'header' | 'cookie';
+      readonly type: "apiKey";
+      readonly in: "query" | "header" | "cookie";
       readonly name: string;
       readonly description?: string;
     };
@@ -72,7 +72,7 @@ export type A2aWireSecurityScheme =
   | { readonly mtlsSecurityScheme: { readonly description?: string } }
   | {
       readonly apiKeySecurityScheme: {
-        readonly location: 'query' | 'header' | 'cookie';
+        readonly location: "query" | "header" | "cookie";
         readonly name: string;
         readonly description?: string;
       };
@@ -86,7 +86,7 @@ export type A2aCardInfo = {
   readonly url: string;
   readonly version: string;
   /** Defaults to `JSONRPC`. */
-  readonly protocolBinding?: 'JSONRPC' | 'GRPC' | 'HTTP+JSON';
+  readonly protocolBinding?: "JSONRPC" | "GRPC" | "HTTP+JSON";
   readonly provider?: { readonly organization: string; readonly url: string };
   readonly documentationUrl?: string;
   readonly iconUrl?: string;
@@ -133,7 +133,7 @@ export type A2aAgentCard = {
   readonly supportedInterfaces: readonly {
     readonly url: string;
     readonly protocolBinding: string;
-    readonly protocolVersion: '1.0';
+    readonly protocolVersion: "1.0";
   }[];
   readonly provider?: { readonly organization: string; readonly url: string };
   readonly documentationUrl?: string;
@@ -155,7 +155,7 @@ export type A2aTaskOutcome =
   | {
       readonly ok: false;
       readonly status: 401 | 403;
-      readonly state: 'failed' | 'input-required';
+      readonly state: "failed" | "input-required";
       readonly problem: ProblemDetails;
       readonly wwwAuthenticate?: string;
     };

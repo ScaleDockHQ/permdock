@@ -1,10 +1,10 @@
-import type { ActionMeta } from './permissions.ts';
+import type { ActionMeta } from "./permissions.ts";
 
-import { freezeDeep } from './freeze.ts';
-import { assertSafeKey, isForbiddenKey, ownKeys } from './paths.ts';
+import { freezeDeep } from "./freeze.ts";
+import { assertSafeKey, isForbiddenKey, ownKeys } from "./paths.ts";
 
-export const ROLE_KIND = 'role' as const;
-export const PLAN_KIND = 'plan' as const;
+export const ROLE_KIND = "role" as const;
+export const PLAN_KIND = "plan" as const;
 
 /**
  * A role's metadata. `audience` names the surface its holders use (`'staff'`,
@@ -64,7 +64,7 @@ type InferPlanTree<Input> = {
 };
 
 function makeRole<K extends string>(key: K, init: RoleInit): Role<K> {
-  assertSafeKey(key, 'role');
+  assertSafeKey(key, "role");
   const on = init.on;
   const assignable = init.assignable ?? on !== undefined;
   // SAFETY: on is assigned when set and kind is defined on the leaf right below.
@@ -76,7 +76,7 @@ function makeRole<K extends string>(key: K, init: RoleInit): Role<K> {
   if (on !== undefined) {
     Object.assign(leaf, { on });
   }
-  Object.defineProperty(leaf, 'kind', {
+  Object.defineProperty(leaf, "kind", {
     value: ROLE_KIND,
     enumerable: false,
     writable: false,
@@ -86,13 +86,13 @@ function makeRole<K extends string>(key: K, init: RoleInit): Role<K> {
 }
 
 function makePlan<K extends string>(key: K, init: PlanInit): Plan<K> {
-  assertSafeKey(key, 'plan');
+  assertSafeKey(key, "plan");
   // SAFETY: kind is defined on the leaf right below.
   const leaf = {
     key,
     meta: freezeDeep({ ...init.meta }),
   } as Plan<K>;
-  Object.defineProperty(leaf, 'kind', {
+  Object.defineProperty(leaf, "kind", {
     value: PLAN_KIND,
     enumerable: false,
     writable: false,
@@ -105,9 +105,9 @@ export function isRole(value: unknown): value is Role {
   // SAFETY: value is a non-null object; reading a missing kind gives undefined, never ROLE_KIND.
   return (
     value !== null &&
-    typeof value === 'object' &&
-    'key' in value &&
-    typeof value.key === 'string' &&
+    typeof value === "object" &&
+    "key" in value &&
+    typeof value.key === "string" &&
     (value as Role).kind === ROLE_KIND
   );
 }
@@ -116,9 +116,9 @@ export function isPlan(value: unknown): value is Plan {
   // SAFETY: value is a non-null object; reading a missing kind gives undefined, never PLAN_KIND.
   return (
     value !== null &&
-    typeof value === 'object' &&
-    'key' in value &&
-    typeof value.key === 'string' &&
+    typeof value === "object" &&
+    "key" in value &&
+    typeof value.key === "string" &&
     (value as Plan).kind === PLAN_KIND
   );
 }

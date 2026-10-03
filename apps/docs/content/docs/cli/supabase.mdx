@@ -12,15 +12,15 @@ permdock supabase inspect [--json] [--out [permdock.manifest.json]] [--check]
 
 Reads `supabase.hook` from `permdock.config.ts` and the policy's scopes, and writes one idempotent SQL migration: `custom_access_token_hook(jsonb)`, the `supabase_auth_admin` grants and revokes, the `permdock_authz_version` table with its triggers, and the `permdock_protect_managed` trigger for IdP-owned rows. It prints the `config.toml` block (`jwt_expiry = 900` and the hook `uri`) to add. It never grants anything to `service_role`. The [Supabase token hook](/docs/adapters/supabase-hook) page covers the claims and the runtime side.
 
-| Flag | Values | Default | Effect |
-| --- | --- | --- | --- |
-| `--out` | a path | `supabase.hook.out`, else `supabase/permdock-hook.sql` | Where the migration is written |
-| `--check` | flag | off | Exit `1` when the file on disk differs from what would be written; the message names the marker fields that changed (`budget 2048 -> 1024`) or a missing marker line |
-| `--active-from` | `app_metadata.<key>`, `<table>.<column>` | `supabase.hook.activeFrom`, else `app_metadata.active_<first scope>` | Where the active first-scope id comes from; its memberships go first and it becomes the tenant claim when the user holds one there |
-| `--budget` | a positive integer | `supabase.hook.budget`, else `supabaseMembershipsBudget` (1024) | Bytes of JSON the `memberships` claim may use before it is truncated and `memberships_truncated: true` is set |
-| `--schema` | a Postgres identifier | `supabase.hook.schema`, `rls.schema`, else `public` | Schema of the hook, its trigger functions and the version table |
-| `--grants-out` | a path, or `-` for stdout | none | Write the `supabase_auth_admin` grants, the execute revoke and the `permdock_auth_admin_read_*` policies to this file instead of the hook migration, for [declarative schemas](/docs/cli/rls#declarative-schemas); `--check` compares it too |
-| `--db` | a Postgres URL | none | Look for the SQL helpers in this database instead of in `rls.out` and the migration folders; needs the optional `pg` peer |
+| Flag            | Values                                   | Default                                                              | Effect                                                                                                                                                                                                                                       |
+| --------------- | ---------------------------------------- | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--out`         | a path                                   | `supabase.hook.out`, else `supabase/permdock-hook.sql`               | Where the migration is written                                                                                                                                                                                                               |
+| `--check`       | flag                                     | off                                                                  | Exit `1` when the file on disk differs from what would be written; the message names the marker fields that changed (`budget 2048 -> 1024`) or a missing marker line                                                                         |
+| `--active-from` | `app_metadata.<key>`, `<table>.<column>` | `supabase.hook.activeFrom`, else `app_metadata.active_<first scope>` | Where the active first-scope id comes from; its memberships go first and it becomes the tenant claim when the user holds one there                                                                                                           |
+| `--budget`      | a positive integer                       | `supabase.hook.budget`, else `supabaseMembershipsBudget` (1024)      | Bytes of JSON the `memberships` claim may use before it is truncated and `memberships_truncated: true` is set                                                                                                                                |
+| `--schema`      | a Postgres identifier                    | `supabase.hook.schema`, `rls.schema`, else `public`                  | Schema of the hook, its trigger functions and the version table                                                                                                                                                                              |
+| `--grants-out`  | a path, or `-` for stdout                | none                                                                 | Write the `supabase_auth_admin` grants, the execute revoke and the `permdock_auth_admin_read_*` policies to this file instead of the hook migration, for [declarative schemas](/docs/cli/rls#declarative-schemas); `--check` compares it too |
+| `--db`          | a Postgres URL                           | none                                                                 | Look for the SQL helpers in this database instead of in `rls.out` and the migration folders; needs the optional `pg` peer                                                                                                                    |
 
 `supabase.hook` also takes `memberships` (the sources, required), `roles` (the global roles table, `false` for none), `attrs` (`{ table?, id?, columns }`: server-owned columns and `app_metadata.<key>` entries copied into the `attrs` claim; `user_metadata` and client-writable columns are refused), `claims` (`{ <claim>: '<schema>.<function>' }`: claims other packages own, each the result of a `(uuid) returns jsonb` function, outside the budget), `version: false` (no `authz_ver`), `jwtExpiry` and `suspension` (defaults to `rls.suspension`; a suspended user gets empty claims). Exit `2` on a missing `supabase.hook`, a source whose scope the policy does not declare, a single-scope source missing an ancestor's `within` column, a non-positive budget, an unsafe identifier, or an `attrs` entry that is `user_metadata`, an `auth.users` column, a prototype key or a duplicate, or a `claims` entry that names a claim PermDock or Supabase Auth writes or an unqualified function. The generated migration also refuses to install while `anon` or `authenticated` can insert or update an `attrs` column.
 
@@ -33,10 +33,10 @@ The migration's first line is a stable marker, `-- permdock:hook v1 schema=<sche
 `permdock/cli` exports the two readers, so another tool's doctor recognises PermDock's migrations without copying the format:
 
 ```ts
-import { parseGrantsMarker, parseHookMarker } from 'permdock/cli'
+import { parseGrantsMarker, parseHookMarker } from "permdock/cli";
 
-parseHookMarker(sql)   // { version: 1, schema, tenantClaim, budget, claims } | undefined
-parseGrantsMarker(sql) // { version: 1, schema } | undefined
+parseHookMarker(sql); // { version: 1, schema, tenantClaim, budget, claims } | undefined
+parseGrantsMarker(sql); // { version: 1, schema } | undefined
 ```
 
 Both read only the first line of `sql` and return `undefined` when it is not a marker. Their results are typed `SupabaseHookMarker` and `SupabaseGrantsMarker`, also exported from `permdock/cli`. `version` is the marker's major; a reader that knows only `v1` treats any other value as unknown.
@@ -45,11 +45,11 @@ Both read only the first line of `sql` and return `undefined` when it is not a m
 
 `permdock supabase inspect` prints what the hook and the SQL helpers expect: the hook's schema and output file, the helper schema and function names, the tenant claim, the budget and the SQL it measures, every claim the hook writes with its source and whether it counts toward the budget, and whether `authz_ver` is on. `--json` prints the [manifest](/docs/concepts/wire-formats#supabase-hook-manifest) (`version: 1`, `schemas/supabase-manifest-v1.json`), which adds the membership sources, the helpers' signatures and grants, the RLS mode and scope types, and the columns that decide a membership. better-supabase reads it to write Storage and Realtime policies against the same helpers and claims.
 
-| Flag | Values | Default | Effect |
-| --- | --- | --- | --- |
-| `--json` | flag | off | Print the manifest as JSON instead of text |
-| `--out` | a path, or none | `permdock.manifest.json` | Write the manifest as JSON to this file instead of printing it |
-| `--check` | flag | off | Exit `1` when the `--out` file (`permdock.manifest.json` without `--out`) is missing or its JSON differs from the manifest, naming the fields that differ; formatting is ignored |
+| Flag      | Values          | Default                  | Effect                                                                                                                                                                           |
+| --------- | --------------- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--json`  | flag            | off                      | Print the manifest as JSON instead of text                                                                                                                                       |
+| `--out`   | a path, or none | `permdock.manifest.json` | Write the manifest as JSON to this file instead of printing it                                                                                                                   |
+| `--check` | flag            | off                      | Exit `1` when the `--out` file (`permdock.manifest.json` without `--out`) is missing or its JSON differs from the manifest, naming the fields that differ; formatting is ignored |
 
 It takes `--budget`, `--schema` and `--active-from` like `hook generate`, reads the hook's output file from `supabase.hook.out`, and exits `2` on the same configuration errors. Without `--out` or `--check` it prints and writes nothing. A package that reads the manifest finds it at `permdock.manifest.json` next to `permdock.config.ts` without being told the path.
 

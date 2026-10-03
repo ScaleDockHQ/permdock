@@ -9,19 +9,19 @@ A PermDock subject has two halves. `principal` is the human or service whose gra
 
 ```ts
 const permdock = await createPermDock(policy, user, {
-  actor: { id: 'https://agent.example/cimd.json', kind: 'mcp-client' },
+  actor: { id: "https://agent.example/cimd.json", kind: "mcp-client" },
   delegation: {
-    scopes: ['post:read', 'post:update'],
-    authorizationDetails: [{ type: 'post', actions: ['update'] }],
+    scopes: ["post:read", "post:update"],
+    authorizationDetails: [{ type: "post", actions: ["update"] }],
   },
-})
+});
 ```
 
-| Part | Who supplies it | What it is | Trust |
-| --- | --- | --- | --- |
-| `principal` | `definePolicy`'s `subject` function from the verified session or token | The user's id, org, roles and other values behind `subject.*` | Trusted after authentication |
-| `actor` | The adapter, from `authInfo.clientId`, runtime context, signature or Agent Card | Who is making the call | Trusted after the runtime verified it; never from prompt content |
-| `delegation` | The adapter, from token scopes, `authorization_details`, a GNAP `access` array or a delegation chain | What the principal allowed the actor to do | Trusted after token verification; intersected, never added to |
+| Part         | Who supplies it                                                                                      | What it is                                                    | Trust                                                            |
+| ------------ | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `principal`  | `definePolicy`'s `subject` function from the verified session or token                               | The user's id, org, roles and other values behind `subject.*` | Trusted after authentication                                     |
+| `actor`      | The adapter, from `authInfo.clientId`, runtime context, signature or Agent Card                      | Who is making the call                                        | Trusted after the runtime verified it; never from prompt content |
+| `delegation` | The adapter, from token scopes, `authorization_details`, a GNAP `access` array or a delegation chain | What the principal allowed the actor to do                    | Trusted after token verification; intersected, never added to    |
 
 A call with no `actor` is a human call and behaves exactly as `createPermDock(policy, user)`. A call with an `actor` and no `delegation` (or a `delegation` with no `scopes`, `authorizationDetails` or `access`) has no delegated authority unless a [policy delegation](#policy-delegations) covers the actor: every check is `denied` with reason `no-delegation`, and the snapshot carries an empty `scopes` list so a client ceiling agrees. Token-based adapters supply the token's scopes; in-process agent adapters take a `delegation` option from the application and apply none by default.
 
@@ -43,15 +43,19 @@ const policy = definePolicy(permissions, {
   roles: [member, admin],
   delegations: [
     {
-      from: roles.member,                         // who hands over: the same selectors as approval.by
-      to: actor('eve'),                           // which actor kind; { kind, id } names one agent
+      from: roles.member, // who hands over: the same selectors as approval.by
+      to: actor("eve"), // which actor kind; { kind, id } names one agent
       permissions: [permissions.post.read, permissions.post.update],
-      validUntil: '2027-06-01T00:00:00Z',         // optional, as on a grant
+      validUntil: "2027-06-01T00:00:00Z", // optional, as on a grant
     },
-    { from: roles.admin, to: { kind: 'eve', id: 'agent-billing' }, permissions: [permissions.invoice] },
+    {
+      from: roles.admin,
+      to: { kind: "eve", id: "agent-billing" },
+      permissions: [permissions.invoice],
+    },
   ],
   subject,
-})
+});
 ```
 
 Each entry is normalised to `{ from, to: { kind, id? }, permissions: string[], validity? }` on `policy.delegations`, in the fingerprint, and in the catalog's `delegations` section, so `permdock diff` reports a removed or narrowed one as breaking. `from` takes a role, `authenticated()`, a plan or `assurance()`; `relation()` and `actor()` are refused, because a delegation is matched without a row and the actor is `to`. `permissions` names leaves or subtrees of the policy's own tree.
@@ -82,17 +86,17 @@ A PDP outside PermDock core, such as the PermDock Cloud AuthZEN endpoint, calls 
 
 ## How adapters fill `actor` and `delegation`
 
-| Adapter | `actor` | `delegation` |
-| --- | --- | --- |
-| `permdock/mcp` | `authInfo.clientId` (an OAuth client id or a CIMD URL), `kind: 'mcp-client'` | `authInfo.scopes`; `authorization_details` when the token carries them (including ID-JAG-derived tokens under Enterprise-Managed Authorization) |
-| `permdock/ai-sdk` | `actor: ({ runtimeContext }) => ({ id: runtimeContext.agentId, kind: 'ai-sdk' })` | The `delegation` option, resolved per call by the application; none by default, so an agent without it is denied |
-| `permdock/claude-agent` | The Claude Agent SDK session, `kind: 'claude-agent'` | The `delegation` option, resolved per session; none by default. The `tools` map separately bounds what the agent can even ask for |
-| `permdock/openai` | The `actor` option, from the run context | The `delegation` option, from the run context; none by default |
-| `permdock/eve` | `actorFromSession`: the current principal when it differs from the initiator, otherwise `eve:app`, `kind: 'eve'` | The `delegation` option, from the session; none by default |
-| `permdock/a2a` | The calling agent's identity from its card or token, `kind: 'a2a'` | Caller's token scopes and `authorization_details` |
-| HTTP adapters with Web Bot Auth | Verified RFC 9421 signer key id, `kind: 'web-bot-auth'` | From the bearer token on the same request, if any; otherwise empty |
-| `permdock/webmcp` | The page's agent context, if the browser exposes one | The client snapshot is the ceiling; the server re-checks with the real delegation |
-| Human-only adapters (`permdock/next`, `permdock/react`) | None | None; principal grants apply directly |
+| Adapter                                                 | `actor`                                                                                                          | `delegation`                                                                                                                                    |
+| ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `permdock/mcp`                                          | `authInfo.clientId` (an OAuth client id or a CIMD URL), `kind: 'mcp-client'`                                     | `authInfo.scopes`; `authorization_details` when the token carries them (including ID-JAG-derived tokens under Enterprise-Managed Authorization) |
+| `permdock/ai-sdk`                                       | `actor: ({ runtimeContext }) => ({ id: runtimeContext.agentId, kind: 'ai-sdk' })`                                | The `delegation` option, resolved per call by the application; none by default, so an agent without it is denied                                |
+| `permdock/claude-agent`                                 | The Claude Agent SDK session, `kind: 'claude-agent'`                                                             | The `delegation` option, resolved per session; none by default. The `tools` map separately bounds what the agent can even ask for               |
+| `permdock/openai`                                       | The `actor` option, from the run context                                                                         | The `delegation` option, from the run context; none by default                                                                                  |
+| `permdock/eve`                                          | `actorFromSession`: the current principal when it differs from the initiator, otherwise `eve:app`, `kind: 'eve'` | The `delegation` option, from the session; none by default                                                                                      |
+| `permdock/a2a`                                          | The calling agent's identity from its card or token, `kind: 'a2a'`                                               | Caller's token scopes and `authorization_details`                                                                                               |
+| HTTP adapters with Web Bot Auth                         | Verified RFC 9421 signer key id, `kind: 'web-bot-auth'`                                                          | From the bearer token on the same request, if any; otherwise empty                                                                              |
+| `permdock/webmcp`                                       | The page's agent context, if the browser exposes one                                                             | The client snapshot is the ceiling; the server re-checks with the real delegation                                                               |
+| Human-only adapters (`permdock/next`, `permdock/react`) | None                                                                                                             | None; principal grants apply directly                                                                                                           |
 
 The AI SDK case deserves a note: the SDK gives PermDock the agent's identity but not a token, so what the agent is delegated is an application decision, stated in the `delegation` option of `createPermDock`. There is deliberately no default: an in-process agent with no `delegation` is denied every check with reason `no-delegation`, so an application that wants the agent to act as the user lists those scopes explicitly. See the [ai-sdk adapter](/docs/adapters/ai-sdk).
 

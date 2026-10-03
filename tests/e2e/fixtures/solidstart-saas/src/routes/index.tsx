@@ -1,6 +1,6 @@
-import { For } from 'solid-js';
+import { For } from "solid-js";
 
-import { orgs } from '@permdock/e2e-saas-kit/nav';
+import { orgs } from "@permdock/e2e-saas-kit/nav";
 
 export default function Home() {
   return (

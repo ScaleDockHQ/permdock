@@ -8,17 +8,17 @@ For agents and humans changing this repository. Consumers get the `permdock` and
 
 Topic rules live in `.agents/rules/*.mdc`. Cursor loads them through the `.cursor/rules` symlink and Claude Code through the `.claude/rules/<name>.md` symlinks; both attach a rule when you touch a file matching its globs. If your tool loads neither, read the rule for the area you touch.
 
-| Rule | Read it when |
-| --- | --- |
-| `invariants.mdc` | Changing `packages/permdock/src`, `tests` or `apps/examples`: the full text of the invariants below |
-| `naming.mdc` | Adding or renaming a public identifier, option, flag, denial reason or wire field |
-| `change-checklist.mdc` | Before opening a PR: what else to update when you change X |
-| `docs.mdc` | Editing `apps/docs/content/docs` |
-| `testing.mdc` | Writing tests, runners, fixtures or examples |
-| `deployment.mdc` | Touching `apps/marketing`, the docs app code, `packages/{ui,next-config}` or `vercel.json` |
-| `local-dev-portless-agent-browser.mdc` | Running or checking the apps locally |
-| `skills.mdc` | Touching `packages/permdock/skills`, `.claude-plugin`, vendored skills or `skills-lock.json` |
-| `writing.mdc` | Writing any prose: docs, READMEs, skills, changesets, comments, commits, PRs |
+| Rule                                   | Read it when                                                                                        |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `invariants.mdc`                       | Changing `packages/permdock/src`, `tests` or `apps/examples`: the full text of the invariants below |
+| `naming.mdc`                           | Adding or renaming a public identifier, option, flag, denial reason or wire field                   |
+| `change-checklist.mdc`                 | Before opening a PR: what else to update when you change X                                          |
+| `docs.mdc`                             | Editing `apps/docs/content/docs`                                                                    |
+| `testing.mdc`                          | Writing tests, runners, fixtures or examples                                                        |
+| `deployment.mdc`                       | Touching `apps/marketing`, the docs app code, `packages/{ui,next-config}` or `vercel.json`          |
+| `local-dev-portless-agent-browser.mdc` | Running or checking the apps locally                                                                |
+| `skills.mdc`                           | Touching `packages/permdock/skills`, `.claude-plugin`, vendored skills or `skills-lock.json`        |
+| `writing.mdc`                          | Writing any prose: docs, READMEs, skills, changesets, comments, commits, PRs                        |
 
 A new rule gets `description`, `globs` and `alwaysApply` (Cursor) plus `paths` (Claude Code) frontmatter, a row in this table, and a `.claude/rules/<name>.md` symlink (Claude Code ignores `.mdc`).
 
@@ -84,15 +84,15 @@ Run `pnpm exec portless list` first and reuse a running PermDock route. The Port
 
 ## When you change X, also update Y
 
-| Change | Also update |
-| --- | --- |
-| Env key | The app's `env.ts`, `.env.example`, the task `env` in `turbo.json`, Vercel for each environment |
-| Route | The app's `sitemap.ts`, `deployment.mdc` route ownership, a `redirects()` entry for a moved URL |
-| UI primitive | Vendor it into `packages/ui` with the shadcn CLI, then `DESIGN.md` if it adds a token or pattern |
-| Dependency | Catalog pin (`docs/agents/pnpm-catalog.md`), the installed docs for any config it touches |
-| User-visible change | A changeset; the owning docs page |
-| Exception to the repo standard | A record in `docs/decisions` |
-| `permdock`, docs or examples | The rows in `change-checklist.mdc` |
+| Change                         | Also update                                                                                      |
+| ------------------------------ | ------------------------------------------------------------------------------------------------ |
+| Env key                        | The app's `env.ts`, `.env.example`, the task `env` in `turbo.json`, Vercel for each environment  |
+| Route                          | The app's `sitemap.ts`, `deployment.mdc` route ownership, a `redirects()` entry for a moved URL  |
+| UI primitive                   | Vendor it into `packages/ui` with the shadcn CLI, then `DESIGN.md` if it adds a token or pattern |
+| Dependency                     | Catalog pin (`docs/agents/pnpm-catalog.md`), the installed docs for any config it touches        |
+| User-visible change            | A changeset; the owning docs page                                                                |
+| Exception to the repo standard | A record in `docs/decisions`                                                                     |
+| `permdock`, docs or examples   | The rows in `change-checklist.mdc`                                                               |
 
 ## Hard rules
 

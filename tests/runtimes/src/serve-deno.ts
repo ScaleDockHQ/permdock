@@ -1,4 +1,4 @@
-import { app } from './app.ts';
+import { app } from "./app.ts";
 
 declare const Deno: {
   serve(
@@ -9,6 +9,6 @@ declare const Deno: {
 };
 
 Deno.serve(
-  { port: Number(Deno.env.get('PORT')), hostname: '127.0.0.1' },
+  { port: Number(Deno.env.get("PORT")), hostname: "127.0.0.1" },
   (request) => app.fetch(request),
 );

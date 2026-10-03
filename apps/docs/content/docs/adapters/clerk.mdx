@@ -13,13 +13,14 @@ Clerk's authorization primitives (`has()`, `auth.protect()`, `Protect`) check or
 
 ```ts
 // src/permdock/server.ts
-import { createPermDock } from 'permdock/next'
-import { auth } from '@clerk/nextjs/server'
-import { subjectFromClerk } from 'permdock/clerk'
+import { createPermDock } from "permdock/next";
+import { auth } from "@clerk/nextjs/server";
+import { subjectFromClerk } from "permdock/clerk";
 
-export const { getPermDock, getPermission, PermDockProvider, permdockHandler } = createPermDock(policy, {
-  subject: async () => subjectFromClerk(await auth()),
-})
+export const { getPermDock, getPermission, PermDockProvider, permdockHandler } =
+  createPermDock(policy, {
+    subject: async () => subjectFromClerk(await auth()),
+  });
 // subject.principal = {
 //   id: userId,
 //   tenant: orgId,                                              // the active organization
@@ -32,11 +33,22 @@ export const { getPermDock, getPermission, PermDockProvider, permdockHandler } =
 // policy: Clerk organization roles are tenant-scoped roles
 export const policy = definePolicy(permissions, {
   roles: [
-    role('org:admin',  [allow(permissions.post.delete), allow(permissions.billing.plan.change)], { on: 'tenant' }),
-    role('org:member', [allow(permissions.post.read), allow(permissions.post.update, { where: { authorId: principal.id } })], { on: 'tenant' }),
+    role(
+      "org:admin",
+      [allow(permissions.post.delete), allow(permissions.billing.plan.change)],
+      { on: "tenant" },
+    ),
+    role(
+      "org:member",
+      [
+        allow(permissions.post.read),
+        allow(permissions.post.update, { where: { authorId: principal.id } }),
+      ],
+      { on: "tenant" },
+    ),
   ],
-  scopes: { tenant: { key: 'orgId' } },
-})
+  scopes: { tenant: { key: "orgId" } },
+});
 ```
 
 - `subjectFromClerk(authObject, options?)` accepts the result of `auth()` (Next.js), `getAuth(req)` (other frameworks) or a verified session token payload, and returns a principal whose `id` is `userId`, whose `tenant` is the active `orgId`, and whose `memberships` hold one entry for the active organization with `orgRole` as its role. `clerkPermissions` (custom permissions from the session claims) and selected `sessionClaims` sit next to them. No `subject` mapper is needed in `definePolicy`; the provider's output already is the principal shape ([tenancy](/docs/concepts/tenancy)).
@@ -49,16 +61,16 @@ export const policy = definePolicy(permissions, {
 
 Field mapping:
 
-| Clerk auth object | PermDock subject |
-|---|---|
-| `userId` | `principal.id` |
-| `orgId` | `principal.tenant` (active tenant) and the `tenant` of the session membership |
-| `orgRole` | `memberships[0].roles`, a tenant-scoped role in the policy; global roles only through `options.globalRoles` (a claim path or a function over the verified claims) |
-| `orgPermissions` | `clerkPermissions`, turned into tenant-scoped grants through `options.permissions` |
-| Backend API organization memberships (`options.memberships: 'all'`) | One `{ tenant, roles }` membership per organization |
-| `sessionClaims.*` | `claims.*` (custom claims configured in the Clerk session token template; typed through `options.schema`) |
-| `sessionClaims.pla` | `o:` plans: `entitlements` on the session organization's membership; `u:` plans: `principal.plans` (prefix stripped) |
-| `sessionClaims.fea` | `roles` entries through `options.features` (below): `o:` features on the session organization's membership, `u:` features on `principal.roles`; never grants on their own |
+| Clerk auth object                                                   | PermDock subject                                                                                                                                                          |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `userId`                                                            | `principal.id`                                                                                                                                                            |
+| `orgId`                                                             | `principal.tenant` (active tenant) and the `tenant` of the session membership                                                                                             |
+| `orgRole`                                                           | `memberships[0].roles`, a tenant-scoped role in the policy; global roles only through `options.globalRoles` (a claim path or a function over the verified claims)         |
+| `orgPermissions`                                                    | `clerkPermissions`, turned into tenant-scoped grants through `options.permissions`                                                                                        |
+| Backend API organization memberships (`options.memberships: 'all'`) | One `{ tenant, roles }` membership per organization                                                                                                                       |
+| `sessionClaims.*`                                                   | `claims.*` (custom claims configured in the Clerk session token template; typed through `options.schema`)                                                                 |
+| `sessionClaims.pla`                                                 | `o:` plans: `entitlements` on the session organization's membership; `u:` plans: `principal.plans` (prefix stripped)                                                      |
+| `sessionClaims.fea`                                                 | `roles` entries through `options.features` (below): `o:` features on the session organization's membership, `u:` features on `principal.roles`; never grants on their own |
 
 Clerk Billing puts the active plan (`pla`, for example `u:pro` or `o:enterprise`) and the enabled features (`fea`, for example `o:reporting,u:api_access`) in the session token, and Clerk's own `has({ feature })` and `has({ plan })` read them. A user plan lands on `principal.plans`; an organization plan lands on the session organization's membership as `entitlements`, so `to: plans.pro` matches it only while that organization is the active tenant. Features stay role fragments: `options.features: { reporting: 'reporting' }` adds the `reporting` role to subjects whose `fea` claim carries that feature, and the policy grants under `role('reporting', [...])`. A feature the plan does not include therefore has no grants, which is the same outcome Clerk's `has({ permission })` produces when a plan lacks the feature, expressed once in the policy instead of in every guard.
 
@@ -87,19 +99,23 @@ On Expo, Clerk's SDK feeds the same snapshot path through [React Native](/docs/a
 ### Membership events
 
 ```ts
-import { membershipEvent } from 'permdock'
+import { membershipEvent } from "permdock";
 
 // inside organizationMembership.created | .updated | .deleted
 await sink.write([
   membershipEvent({
-    source: 'clerk',
-    operation: event.type.endsWith('deleted') ? 'removed' : event.type.endsWith('created') ? 'added' : 'changed',
+    source: "clerk",
+    operation: event.type.endsWith("deleted")
+      ? "removed"
+      : event.type.endsWith("created")
+        ? "added"
+        : "changed",
     principal: { id: data.public_user_id },
-    scope: 'tenant',
+    scope: "tenant",
     id: data.organization.id,
     roles: { added: data.role ? [data.role] : [], removed: [] },
   }),
-])
+]);
 ```
 
 ## Sessions and devices

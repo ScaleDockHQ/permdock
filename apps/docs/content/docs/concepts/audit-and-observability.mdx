@@ -8,9 +8,9 @@ An authorization library that cannot tell you what it decided, for whom, and why
 ## on('decision')
 
 ```ts
-const permdock = await createPermDock(policy, user, { actor, delegation })
+const permdock = await createPermDock(policy, user, { actor, delegation });
 
-permdock.on('decision', (event) => audit.write(event))
+permdock.on("decision", (event) => audit.write(event));
 ```
 
 Every `can`, `decide`, `assert`, `explain` and `filter` emits one event per evaluated check (`filter` emits one event with the counts, not one per row; `simulate` emits one `simulate` event carrying the worst decision of the batch and the counts). The event is a frozen JSON object carrying `outcome`, `permission`, `scope`, `resource`, the `subject` (principal, actor, delegation), the active `tenant`, the full `membership` that supplied the matched role, `via`, `matched`, `denials`, `alternatives`, `token`, `trusted`, `source` and `adapter`, never the `explain` trace; the full shape and an example are on [wire formats](/docs/concepts/wire-formats#decision-event). Events are emitted on the server and on the decision endpoint, never for client-side snapshot evaluations, so the audit log records only authoritative decisions.
@@ -28,7 +28,7 @@ For agent traffic the event distinguishes the human (`principal`) from the agent
 ### Example sink
 
 ```ts
-permdock.on('decision', (event) => {
+permdock.on("decision", (event) => {
   queue.push({
     at: event.at,
     outcome: event.outcome,
@@ -38,8 +38,8 @@ permdock.on('decision', (event) => {
     actorId: event.subject.actor?.id ?? null,
     reasons: event.denials?.map((d) => d.reason) ?? [],
     adapter: event.adapter,
-  })
-})
+  });
+});
 ```
 
 Register the handler once where you create the `PermDock` (the server factory file), or pass it to the adapter's `createPermDock` options so every request-scoped instance inherits it.
@@ -50,28 +50,28 @@ A handler is enough for one process. When events must leave the process, the ada
 
 ```ts
 interface DecisionSink {
-  write(events: readonly DecisionEvent[]): Promise<void> | void   // batched; never awaited by decide
-  flush?(): Promise<void>                                          // called at request end when the runtime has waitUntil
+  write(events: readonly DecisionEvent[]): Promise<void> | void; // batched; never awaited by decide
+  flush?(): Promise<void>; // called at request end when the runtime has waitUntil
 }
 
-import { memorySink } from 'permdock'
-const sink = memorySink({ capacity: 10_000, signer })   // ring buffer; `signer` signs each write as `permdock-decisions+jwt`
+import { memorySink } from "permdock";
+const sink = memorySink({ capacity: 10_000, signer }); // ring buffer; `signer` signs each write as `permdock-decisions+jwt`
 
-createPermDock(policy, { subject, sink })       // every request-scoped instance writes to it
+createPermDock(policy, { subject, sink }); // every request-scoped instance writes to it
 ```
 
 Implementations that ship or are documented:
 
-| Sink | Where | What it does |
-| --- | --- | --- |
-| `memorySink({ signer })` | core | Ring buffer; the default; optional `TokenSigner` signs each `write` (`typ: permdock-decisions+jwt`); what `permdock/testing` asserts against |
-| `permdock/otel` | optional entry | Spans and metrics from the same events (below) |
-| `permdock/cloud` | optional entry | Batched delivery to the PermDock Cloud decision log with retention and per-actor queries ([Cloud adapter](/docs/adapters/cloud)) |
-| Your own | a few lines | `write` inserts a batch into your database or queue; the recipe is the example sink above wrapped in the interface |
+| Sink                     | Where          | What it does                                                                                                                                 |
+| ------------------------ | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `memorySink({ signer })` | core           | Ring buffer; the default; optional `TokenSigner` signs each `write` (`typ: permdock-decisions+jwt`); what `permdock/testing` asserts against |
+| `permdock/otel`          | optional entry | Spans and metrics from the same events (below)                                                                                               |
+| `permdock/cloud`         | optional entry | Batched delivery to the PermDock Cloud decision log with retention and per-actor queries ([Cloud adapter](/docs/adapters/cloud))             |
+| Your own                 | a few lines    | `write` inserts a batch into your database or queue; the recipe is the example sink above wrapped in the interface                           |
 
 A sink receives `decision` events and the `approval` events that the store emits when a request is created and resolved; the three share `token`, so a sink can reconstruct an approval flow without a second log. A sink passed to [`scimHandler`](/docs/adapters/scim) also receives `directory` events (`type: 'directory'`, `source: 'scim'`: the provisioning operation, tenant, resource type and id, and the credential kind), which join to later decisions on `via: 'group:<id>'`. Group membership changes emit a `membership` event per affected user next to the directory event. `membershipEvent()` and `onRoleChange({ sink })` write the same shape for in-app role changes. API keys add `credential` events (`created`, `rotated` and `revoked` from `credentialEvent()` or `memoryCredentials({ sink })`, and `used` from `subjectFromApiKey({ sink, sample })`, always marked with the `sample` fraction it reports), and every decision a key makes names it in `subject.credential` ([API keys](/docs/concepts/credentials)). A failing sink is reported to `on('error')` and never changes an outcome.
 
-**Every event is written by default.** A sink receives all `granted`, `denied` and `approval-required` events. Sampling is opt-in per sink (`sample: { granted: 0.1 }` keeps one routine grant in ten and always writes the other two outcomes) and is meant for a metrics or debugging sink, never for the sink that serves as evidence: an access review asks what a principal or an agent was *allowed* to do, so a log that drops grants cannot answer it. Cost is controlled by retention, not by omission.
+**Every event is written by default.** A sink receives all `granted`, `denied` and `approval-required` events. Sampling is opt-in per sink (`sample: { granted: 0.1 }` keeps one routine grant in ten and always writes the other two outcomes) and is meant for a metrics or debugging sink, never for the sink that serves as evidence: an access review asks what a principal or an agent was _allowed_ to do, so a log that drops grants cannot answer it. Cost is controlled by retention, not by omission.
 
 **Signed batch export.** A sink that hands events to a party who must be able to prove where they came from (a SIEM in another trust domain, an auditor, a compliance tool reading an export file) can sign each batch. The batch becomes one compact JWS with `typ: permdock-decisions+jwt`, registered claims `iss`, `iat`, `exp`, `jti`, and the CloudEvents-enveloped events under the `events` claim ([wire formats](/docs/concepts/wire-formats), [JOSE](/docs/standards/jose)); the consumer verifies it with any JOSE library against the signer's JWK Set. In this package it is a `TokenSigner` handed to a sink, not a new sink: `memorySink({ signer, audience })` signs each `write`, `signDecisionBatch(events, signer)` is the same helper for your own sink, and `permdock/cloud`'s export endpoint serves signed batches. The recipe is `signer.sign({ events }, { typ: 'permdock-decisions+jwt' })` before `write` posts the batch. Events inside the JWS are the same objects a plain sink receives, so a consumer verifies, unwraps and applies the OCSF projection below unchanged. Signing is evidence for the reader; nothing in PermDock reads a batch back.
 
@@ -79,11 +79,11 @@ A sink receives `decision` events and the `approval` events that the store emits
 
 Sinks for Sentry, PostHog, Datadog, Axiom, Better Stack, a Postgres table or a queue are recipes, not entries: each is the interface above with `write` calling the vendor SDK or a driver ([adapters](/docs/adapters), the general rule). The destinations fall into three groups with three different ingestion shapes:
 
-| Destination | Examples | Ingests | Recipe |
-| --- | --- | --- | --- |
-| LLM observability | Langfuse, LangSmith, Braintrust, Datadog LLM Observability, Sentry AI monitoring, PostHog LLM analytics | OpenTelemetry GenAI spans (`execute_tool`, `gen_ai.tool.name`) | No sink at all: `permdock/otel` nests `permdock.decide` under the framework's `execute_tool` span, so the decision arrives with the trace ([OpenTelemetry adapter](/docs/adapters/otel)). The GenAI conventions are still at Development status; the two attribute names the adapter copies are pinned and revisited on stabilisation |
-| SIEM and security lake | Splunk, Microsoft Sentinel, Datadog Cloud SIEM, AWS Security Lake, Google SecOps, Elastic Security | OCSF, natively or through a mapping | A sink whose `write` applies the OCSF projection below and posts the batch; the projection is what makes one recipe serve all of them |
-| Compliance evidence | Vanta, Drata, Secureframe | Access-review evidence from connected systems, usually pulled from a queryable log | Query your own sink's table (or the Cloud export) for events by `subject.principal`, `actor` and `outcome` over the review window; the event already carries the fields an access review asks for |
+| Destination            | Examples                                                                                                | Ingests                                                                            | Recipe                                                                                                                                                                                                                                                                                                                                |
+| ---------------------- | ------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| LLM observability      | Langfuse, LangSmith, Braintrust, Datadog LLM Observability, Sentry AI monitoring, PostHog LLM analytics | OpenTelemetry GenAI spans (`execute_tool`, `gen_ai.tool.name`)                     | No sink at all: `permdock/otel` nests `permdock.decide` under the framework's `execute_tool` span, so the decision arrives with the trace ([OpenTelemetry adapter](/docs/adapters/otel)). The GenAI conventions are still at Development status; the two attribute names the adapter copies are pinned and revisited on stabilisation |
+| SIEM and security lake | Splunk, Microsoft Sentinel, Datadog Cloud SIEM, AWS Security Lake, Google SecOps, Elastic Security      | OCSF, natively or through a mapping                                                | A sink whose `write` applies the OCSF projection below and posts the batch; the projection is what makes one recipe serve all of them                                                                                                                                                                                                 |
+| Compliance evidence    | Vanta, Drata, Secureframe                                                                               | Access-review evidence from connected systems, usually pulled from a queryable log | Query your own sink's table (or the Cloud export) for events by `subject.principal`, `actor` and `outcome` over the review window; the event already carries the fields an access review asks for                                                                                                                                     |
 
 Two things make those recipes interchangeable:
 
@@ -98,19 +98,19 @@ The event never includes the resource object itself, the parsed schema output, t
 
 ## Evidence and governance
 
-"Audit" names the mechanism above. What the log is *for*, and what PermDock Cloud sells it as, is compliance evidence and agent governance: the decision event already carries the fields an access review or an agent-governance review asks for (`subject.principal`, `subject.actor`, `delegation`, `tenant`, `permission`, `outcome`, `matched`, `via`), so the work is queries and exports, not new data. The list below is the contract for any sink table and for the Cloud UI; a self-hoster's Postgres sink and the Cloud answer the same questions.
+"Audit" names the mechanism above. What the log is _for_, and what PermDock Cloud sells it as, is compliance evidence and agent governance: the decision event already carries the fields an access review or an agent-governance review asks for (`subject.principal`, `subject.actor`, `delegation`, `tenant`, `permission`, `outcome`, `matched`, `via`), so the work is queries and exports, not new data. The list below is the contract for any sink table and for the Cloud UI; a self-hoster's Postgres sink and the Cloud answer the same questions.
 
 ### Questions the log must answer
 
-| Review | Query over the events | Fields |
-| --- | --- | --- |
-| Access review: what could this person do, and what did they do, in this window | `subject.principal.id` and `tenant` over a time range, grouped by `permission` and `outcome`; joined with the roles and memberships in `matched` and `membership` | `principal`, `tenant`, `permission`, `outcome`, `matched.role`, `via` |
-| Agent activity: what did this agent do, for whom, under which authority | `subject.actor.id` over a time range, grouped by `subject.principal.id` and `permission`; `delegation.scopes` and `authorizationDetails` for the authority it used | `actor`, `principal`, `delegation`, `permission`, `outcome` |
-| Approval chain: who approved this action and what exactly was approved | The `approval` events (`phase: requested`, `phase: resolved`) and the resumed `decision` event sharing `token`; `resolvedBy` on the request record. Session revocation calls `cancelApprovals` and records `resolvedBy: 'system:ssf'` | `token`, `resolvedBy`, `permission`, `resource.id` |
-| Denials and drift: what is being refused, and did a policy change move outcomes | `outcome: denied` grouped by `denials[].reason` and `permission`; the catalog version in `adapter` metadata before and after a publish | `denials`, `permission`, `adapter` |
-| Tenant scope: everything that happened inside one customer's tenant | Filter on `tenant`; `membership` and `via` explain each grant | `tenant`, `membership`, `via` |
-| Provisioning: who gave this person that role | The `membership` events from SCIM, Better Auth, Clerk or `membershipEvent()` (roles added or removed, optional `by`) joined to later decisions on `via` | `membership` event, `via` |
-| Machine access: which API keys exist, who made them, and what they did | `credential` events (`created`, `rotated`, `revoked`, sampled `used`) joined to decisions on `subject.credential.id` | `credential` event, `subject.credential` |
+| Review                                                                          | Query over the events                                                                                                                                                                                                                 | Fields                                                                |
+| ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| Access review: what could this person do, and what did they do, in this window  | `subject.principal.id` and `tenant` over a time range, grouped by `permission` and `outcome`; joined with the roles and memberships in `matched` and `membership`                                                                     | `principal`, `tenant`, `permission`, `outcome`, `matched.role`, `via` |
+| Agent activity: what did this agent do, for whom, under which authority         | `subject.actor.id` over a time range, grouped by `subject.principal.id` and `permission`; `delegation.scopes` and `authorizationDetails` for the authority it used                                                                    | `actor`, `principal`, `delegation`, `permission`, `outcome`           |
+| Approval chain: who approved this action and what exactly was approved          | The `approval` events (`phase: requested`, `phase: resolved`) and the resumed `decision` event sharing `token`; `resolvedBy` on the request record. Session revocation calls `cancelApprovals` and records `resolvedBy: 'system:ssf'` | `token`, `resolvedBy`, `permission`, `resource.id`                    |
+| Denials and drift: what is being refused, and did a policy change move outcomes | `outcome: denied` grouped by `denials[].reason` and `permission`; the catalog version in `adapter` metadata before and after a publish                                                                                                | `denials`, `permission`, `adapter`                                    |
+| Tenant scope: everything that happened inside one customer's tenant             | Filter on `tenant`; `membership` and `via` explain each grant                                                                                                                                                                         | `tenant`, `membership`, `via`                                         |
+| Provisioning: who gave this person that role                                    | The `membership` events from SCIM, Better Auth, Clerk or `membershipEvent()` (roles added or removed, optional `by`) joined to later decisions on `via`                                                                               | `membership` event, `via`                                             |
+| Machine access: which API keys exist, who made them, and what they did          | `credential` events (`created`, `rotated`, `revoked`, sampled `used`) joined to decisions on `subject.credential.id`                                                                                                                  | `credential` event, `subject.credential`                              |
 
 ### Exports
 
@@ -150,18 +150,21 @@ A "freeze this agent" button in the Cloud is those two operations plus a recomme
 ## permdock/otel
 
 ```ts
-import { withOtel } from 'permdock/otel'
+import { withOtel } from "permdock/otel";
 
-const permdock = withOtel(await createPermDock(policy, user), { tracer, meter })
+const permdock = withOtel(await createPermDock(policy, user), {
+  tracer,
+  meter,
+});
 ```
 
 `permdock/otel` is an optional entry that subscribes to `on('decision')` and emits:
 
-| Signal | Name | Attributes |
-| --- | --- | --- |
-| Span (one per check) | `permdock.check` | `permdock.permission`, `permdock.outcome`, `permdock.resource.type`, `permdock.subject.id`, `permdock.actor.id`, `permdock.actor.kind`, `permdock.adapter`, `permdock.denials` (comma-joined reasons on `denied`) |
-| Counter | `permdock.checks` | `permdock.permission`, `permdock.outcome`, `permdock.adapter` |
-| Histogram | `permdock.check.duration` | same as the counter |
+| Signal               | Name                      | Attributes                                                                                                                                                                                                        |
+| -------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Span (one per check) | `permdock.check`          | `permdock.permission`, `permdock.outcome`, `permdock.resource.type`, `permdock.subject.id`, `permdock.actor.id`, `permdock.actor.kind`, `permdock.adapter`, `permdock.denials` (comma-joined reasons on `denied`) |
+| Counter              | `permdock.checks`         | `permdock.permission`, `permdock.outcome`, `permdock.adapter`                                                                                                                                                     |
+| Histogram            | `permdock.check.duration` | same as the counter                                                                                                                                                                                               |
 
 `@opentelemetry/api` is an optional peer of `permdock/otel`, never of core: `@zap-studio/permit` made it a required peer, which forces the dependency on every consumer; PermDock keeps core at zero runtime dependencies. The meter and tracer are resolved when `withOtel` is called so that module initialisation order relative to the SDK does not matter. The span is a child of whatever is active, so a check inside a Hono handler nests under the HTTP server span and a check inside an MCP tool nests under the tool call.
 
@@ -181,13 +184,13 @@ Model-readable text: the `detail` strings are written for an LLM as much as for 
 
 ## Putting it together
 
-| Question | Where the answer is |
-| --- | --- |
-| Was this specific request denied and why? | The Problem Details body, or the `decision` on the thrown `PermDockDeniedError` |
-| Which agent did what for which user last week? | Your `DecisionSink` (or the PermDock Cloud decision log), filtered on `subject.actor` |
-| What could this person do in this tenant during the review window, and did they? | The access-review query above over your sink or the Cloud export; signed batch or CSV for the compliance platform |
-| Who approved that deletion, and when? | The `approval` events sharing the decision's `token`, with `resolvedBy` on the request record |
-| Who gave this person the editor role? | The `membership` event whose `roles.added` includes `editor`, filtered by `tenant`, joined on `via` when the change came from a group |
-| How often is `post.delete` denied per adapter? | The `permdock.checks` counter |
-| Why is this page slow? | `permdock.check` spans nested in the request trace; a `pending` status on the client points at closure grants hitting the endpoint |
-| What changed in who can do what? | `permdock usage` and the policy matrix snapshot in `permdock/testing`, in review |
+| Question                                                                         | Where the answer is                                                                                                                   |
+| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Was this specific request denied and why?                                        | The Problem Details body, or the `decision` on the thrown `PermDockDeniedError`                                                       |
+| Which agent did what for which user last week?                                   | Your `DecisionSink` (or the PermDock Cloud decision log), filtered on `subject.actor`                                                 |
+| What could this person do in this tenant during the review window, and did they? | The access-review query above over your sink or the Cloud export; signed batch or CSV for the compliance platform                     |
+| Who approved that deletion, and when?                                            | The `approval` events sharing the decision's `token`, with `resolvedBy` on the request record                                         |
+| Who gave this person the editor role?                                            | The `membership` event whose `roles.added` includes `editor`, filtered by `tenant`, joined on `via` when the change came from a group |
+| How often is `post.delete` denied per adapter?                                   | The `permdock.checks` counter                                                                                                         |
+| Why is this page slow?                                                           | `permdock.check` spans nested in the request trace; a `pending` status on the client points at closure grants hitting the endpoint    |
+| What changed in who can do what?                                                 | `permdock usage` and the policy matrix snapshot in `permdock/testing`, in review                                                      |

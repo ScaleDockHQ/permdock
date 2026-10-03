@@ -1,17 +1,17 @@
-import { Hono } from 'hono';
-import { createPermDock } from 'permdock';
+import { Hono } from "hono";
+import { createPermDock } from "permdock";
 import {
   betterAuthRoleSource,
   subjectFromBetterAuth,
-} from 'permdock/better-auth';
+} from "permdock/better-auth";
 
-import { ownPost, permissions } from './permissions.ts';
-import { policy } from './policy.ts';
+import { ownPost, permissions } from "./permissions.ts";
+import { policy } from "./policy.ts";
 
 const session = {
-  user: { id: 'user-1', role: 'support', email: 'ada@example.com' },
-  session: { id: 'sess-1', activeOrganizationId: 'o_acme' },
-  members: [{ organizationId: 'o_acme', role: 'member' }],
+  user: { id: "user-1", role: "support", email: "ada@example.com" },
+  session: { id: "sess-1", activeOrganizationId: "o_acme" },
+  members: [{ organizationId: "o_acme", role: "member" }],
 };
 
 const auth = {
@@ -19,7 +19,7 @@ const auth = {
     listOrganizationRoles: async () => {
       await Promise.resolve();
       return [
-        { role: 'billing-admin', permission: { post: ['read', 'create'] } },
+        { role: "billing-admin", permission: { post: ["read", "create"] } },
       ];
     },
   },
@@ -30,7 +30,7 @@ async function permdockForSession() {
   const permdock = await createPermDock(policy, resolved, {
     customRoles: betterAuthRoleSource(auth, {
       assignable: [
-        { name: 'member', statements: { post: ['read', 'create'] } },
+        { name: "member", statements: { post: ["read", "create"] } },
       ],
     }),
   });
@@ -39,9 +39,9 @@ async function permdockForSession() {
 
 export const app = new Hono();
 
-app.get('/health', (c) => c.json({ ok: true }));
+app.get("/health", (c) => c.json({ ok: true }));
 
-app.patch('/posts/:id', async (c) => {
+app.patch("/posts/:id", async (c) => {
   const { permdock, resolved } = await permdockForSession();
   if (!permdock.can(permissions.post.update, ownPost)) {
     return c.json({ ok: false }, 403);
@@ -49,7 +49,7 @@ app.patch('/posts/:id', async (c) => {
   return c.json({ ok: true, tenant: resolved.principal?.tenant });
 });
 
-app.post('/posts/:id/delete', async (c) => {
+app.post("/posts/:id/delete", async (c) => {
   const { permdock } = await permdockForSession();
   if (!permdock.can(permissions.post.delete, ownPost)) {
     return c.json({ ok: false }, 403);

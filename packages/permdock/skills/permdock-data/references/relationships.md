@@ -7,18 +7,18 @@ Owning page: [relationships](https://permdock.dev/docs/concepts/relationships). 
 ```ts
 export const permissions = definePermissions({
   doc: resource(Doc, {
-    actions: ['read', 'update'],
-    parent: { field: 'folderId', resource: 'folder' },
-    relations: { owner: 'ownerId' },
+    actions: ["read", "update"],
+    parent: { field: "folderId", resource: "folder" },
+    relations: { owner: "ownerId" },
   }),
   folder: resource(Folder, {
-    actions: ['read', 'share'],
-    parent: { field: 'parentId', resource: 'folder' },
+    actions: ["read", "share"],
+    parent: { field: "parentId", resource: "folder" },
     relations: {
-      editor: { edge: 'folder_editors' },
-      viewer: { edge: 'folder_viewers', expiresAt: 'expires_at' },
+      editor: { edge: "folder_editors" },
+      viewer: { edge: "folder_viewers", expiresAt: "expires_at" },
     },
-    restricted: 'restricted',
+    restricted: "restricted",
   }),
 });
 ```

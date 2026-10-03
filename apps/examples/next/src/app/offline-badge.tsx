@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { useOffline } from 'next/offline';
+import { useOffline } from "next/offline";
 
 /** Snapshot-backed gates keep answering offline; the badge only says so. */
 export function OfflineBadge() {

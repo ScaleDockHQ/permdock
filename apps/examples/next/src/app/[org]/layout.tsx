@@ -1,12 +1,12 @@
-import type { ReactNode } from 'react';
+import type { ReactNode } from "react";
 
-import Link from 'next/link';
-import { PermDockProvider } from 'permdock/react';
-import { Suspense } from 'react';
+import Link from "next/link";
+import { PermDockProvider } from "permdock/react";
+import { Suspense } from "react";
 
-import { loadSnapshot } from '../../lib/access.ts';
-import { organizations } from '../../lib/store.ts';
-import { Nav, NavSkeleton } from './nav.tsx';
+import { loadSnapshot } from "../../lib/access.ts";
+import { organizations } from "../../lib/store.ts";
+import { Nav, NavSkeleton } from "./nav.tsx";
 
 // Synchronous: the layout is static, and only the gated nav waits for the
 // private-cached snapshot, which a prefetch already carries.

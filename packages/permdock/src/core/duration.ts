@@ -12,10 +12,10 @@ const UNITS: Readonly<Record<string, number>> = {
 };
 
 export function parseDuration(input: unknown): number | undefined {
-  if (typeof input === 'number') {
+  if (typeof input === "number") {
     return Number.isFinite(input) && input > 0 ? Math.floor(input) : undefined;
   }
-  if (typeof input !== 'string') {
+  if (typeof input !== "string") {
     return undefined;
   }
   const match = /^(\d+)(s|m|h|d|w)$/u.exec(input.trim());
@@ -23,7 +23,7 @@ export function parseDuration(input: unknown): number | undefined {
     return undefined;
   }
   const amount = Number(match[1]);
-  const unit = UNITS[match[2] ?? ''];
+  const unit = UNITS[match[2] ?? ""];
   if (unit === undefined || !Number.isFinite(amount) || amount <= 0) {
     return undefined;
   }

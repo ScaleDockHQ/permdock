@@ -1,16 +1,16 @@
-import { RuleTester } from 'oxlint/plugins-dev';
+import { RuleTester } from "oxlint/plugins-dev";
 
-import { noRuntimeTypeofRule } from '../../../src/anti-slop/rules/no-runtime-typeof.ts';
+import { noRuntimeTypeofRule } from "../../../src/anti-slop/rules/no-runtime-typeof.ts";
 
 const tester = new RuleTester({
-  languageOptions: { parserOptions: { lang: 'ts' } },
+  languageOptions: { parserOptions: { lang: "ts" } },
 });
-const error = { messageId: 'runtimeTypeof' };
+const error = { messageId: "runtimeTypeof" };
 const allowInTypeGuards = [{ allowInTypeGuards: true }];
 
-tester.run('anti-slop/no-runtime-typeof', noRuntimeTypeofRule, {
+tester.run("anti-slop/no-runtime-typeof", noRuntimeTypeofRule, {
   valid: [
-    'const value = input;',
+    "const value = input;",
     {
       code: 'function isString(value: unknown): value is string { return typeof value === "string"; }',
       options: allowInTypeGuards,

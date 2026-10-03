@@ -5,21 +5,21 @@ import type {
   SupabaseRlsConfig,
   SupabaseRlsOptions,
   SupabaseSuspension,
-} from './types.ts';
+} from "./types.ts";
 
-import { compact } from '../core/compact.ts';
-import { quoteSqlIdent, quoteSqlLiteral, quoteSqlTable } from '../core/sql.ts';
-import { supabaseTenantClaim } from './budget.ts';
-import { PERMDOCK_SCHEMA } from './sources.ts';
+import { compact } from "../core/compact.ts";
+import { quoteSqlIdent, quoteSqlLiteral, quoteSqlTable } from "../core/sql.ts";
+import { supabaseTenantClaim } from "./budget.ts";
+import { PERMDOCK_SCHEMA } from "./sources.ts";
 
 function isTable(
   value: unknown,
-): value is SupabaseRlsOptions['memberships'] & { readonly table: string } {
+): value is SupabaseRlsOptions["memberships"] & { readonly table: string } {
   return (
     value !== null &&
-    typeof value === 'object' &&
-    'table' in value &&
-    typeof value.table === 'string'
+    typeof value === "object" &&
+    "table" in value &&
+    typeof value.table === "string"
   );
 }
 
@@ -30,8 +30,8 @@ export function supabaseRls(
   const memberships =
     raw === undefined ? undefined : isTable(raw) ? { tenant: raw } : raw;
   return compact<SupabaseRlsConfig>({
-    dialect: 'supabase',
-    roleClaim: options.roleClaim ?? 'user_role',
+    dialect: "supabase",
+    roleClaim: options.roleClaim ?? "user_role",
     tenantClaim: options.tenantClaim ?? supabaseTenantClaim,
     tenantType: options.tenantType,
     memberships,
@@ -45,34 +45,34 @@ const literal = quoteSqlLiteral;
 
 // `authorize()` runs with `search_path = ''`, so a bare table name must be qualified.
 function qualifiedTable(name: string): string {
-  return table(name.includes('.') ? name : `public.${name}`);
+  return table(name.includes(".") ? name : `public.${name}`);
 }
 
 function textArray(values: readonly string[]): string {
   return values.length === 0
     ? `'{}'::text[]`
-    : `array[${values.map(literal).join(', ')}]::text[]`;
+    : `array[${values.map(literal).join(", ")}]::text[]`;
 }
 
 function activeRow(row: SupabaseActiveRow, id: string, text = false): string {
-  const parts = [`s.${ident(row.id)}${text ? '::text' : ''} = ${id}`];
+  const parts = [`s.${ident(row.id)}${text ? "::text" : ""} = ${id}`];
   if (row.disabledAt !== undefined) {
     parts.push(`s.${ident(row.disabledAt)} is null`);
   }
   if (row.status !== undefined) {
     if (row.active === undefined || row.active.length === 0) {
       throw new TypeError(
-        'PermDock: a suspension status column needs its active values',
+        "PermDock: a suspension status column needs its active values",
       );
     }
     parts.push(`s.${ident(row.status)}::text = any(${textArray(row.active)})`);
   }
   if (row.disabledAt === undefined && row.status === undefined) {
     throw new TypeError(
-      'PermDock: a suspension table needs disabledAt or status',
+      "PermDock: a suspension table needs disabledAt or status",
     );
   }
-  return `exists (select 1 from ${qualifiedTable(row.table)} s where ${parts.join(' and ')})`;
+  return `exists (select 1 from ${qualifiedTable(row.table)} s where ${parts.join(" and ")})`;
 }
 
 /** Early `return false` for a suspended user, or a tenant request for a suspended instance. */
@@ -90,11 +90,11 @@ function suspendedGuards(
   }
   const tenant = suspension?.scopes?.[scope];
   if (tenant !== undefined) {
-    lines.push(`  if requested_tenant is not null and not ${activeRow(tenant, 'requested_tenant', true)} then
+    lines.push(`  if requested_tenant is not null and not ${activeRow(tenant, "requested_tenant", true)} then
     return false; -- suspended ${scope}
   end if;`);
   }
-  return lines.map((line) => `\n${line}`).join('');
+  return lines.map((line) => `\n${line}`).join("");
 }
 
 function claimEntries(where: string, value: string): string {
@@ -110,11 +110,11 @@ function customHolds(
   includes: string,
 ): string {
   return `exists (
-          select 1 from ${q('role_permissions')} rp
+          select 1 from ${q("role_permissions")} rp
           where rp.permission = requested_permission::text
             and rp.scope = ${literal(scope)}
             and rp.effect = 'allow'
-            and rp.grant_key in (select ${q('permdock_custom_keys')}(
+            and rp.grant_key in (select ${q("permdock_custom_keys")}(
               ${allows},
               ${denies},
               ${includes},
@@ -139,23 +139,23 @@ function customDatabaseBranch(
         and m.${ident(memberships.tenant)} = v_member_tenant
         and not (m.${ident(memberships.role)}::text = any(${textArray(declared)}))${
           memberships.expiresAt === undefined
-            ? ''
+            ? ""
             : `\n        and (m.${ident(memberships.expiresAt)} is null or m.${ident(memberships.expiresAt)} > now())`
         }
         and ${customHolds(
           q,
           scope,
           rows(
-            'custom_role_permissions',
-            'permission',
+            "custom_role_permissions",
+            "permission",
             " and c.effect = 'allow'",
           ),
           rows(
-            'custom_role_permissions',
-            'permission',
+            "custom_role_permissions",
+            "permission",
             " and c.effect = 'deny'",
           ),
-          rows('custom_role_includes', 'include_role', ''),
+          rows("custom_role_includes", "include_role", ""),
         )}
     )`;
 }
@@ -165,23 +165,23 @@ function customDatabaseBranch(
  * row conditions (`grant_key = permission`): `authorize()` never sees the row.
  * A deny counts with or without them, so a conditional deny still denies.
  */
-function effectMatch(scope: string, effect: 'allow' | 'deny'): string {
+function effectMatch(scope: string, effect: "allow" | "deny"): string {
   return `rp.permission = requested_permission::text
         and rp.scope = ${scope}
-        and rp.effect = '${effect}'${effect === 'allow' ? '\n        and rp.grant_key = rp.permission' : ''}`;
+        and rp.effect = '${effect}'${effect === "allow" ? "\n        and rp.grant_key = rp.permission" : ""}`;
 }
 
 function databaseBody(
   q: (name: string) => string,
   scope: string,
   memberships: SupabaseMembershipTable | undefined,
-  custom: AuthorizeSqlOptions['customRoles'],
+  custom: AuthorizeSqlOptions["customRoles"],
   suspension: SupabaseSuspension | undefined,
 ): string {
-  const global = (effect: 'allow' | 'deny'): string => `exists (
+  const global = (effect: "allow" | "deny"): string => `exists (
       select 1
-      from ${q('user_roles')} ur
-      join ${q('role_permissions')} rp on rp.role = ur.role::text
+      from ${q("user_roles")} ur
+      join ${q("role_permissions")} rp on rp.role = ur.role::text
       where ur.user_id = uid
         and ${effectMatch(`'global'`, effect)}
     )`;
@@ -190,15 +190,15 @@ function databaseBody(
     return false; -- no memberships table configured
   end if;`;
   if (memberships !== undefined && tenantColumn !== undefined) {
-    const held = (effect: 'allow' | 'deny'): string => `exists (
+    const held = (effect: "allow" | "deny"): string => `exists (
       select 1
       from ${qualifiedTable(memberships.table)} m
-      join ${q('role_permissions')} rp on rp.role = m.${ident(memberships.role)}::text
+      join ${q("role_permissions")} rp on rp.role = m.${ident(memberships.role)}::text
       where m.${ident(memberships.user)} = v_member_user
         and m.${ident(tenantColumn)} = v_member_tenant
         and ${effectMatch(literal(scope), effect)}${
           memberships.expiresAt === undefined
-            ? ''
+            ? ""
             : `\n        and (m.${ident(memberships.expiresAt)} is null or m.${ident(memberships.expiresAt)} > now())`
         }
     )`;
@@ -209,9 +209,9 @@ function databaseBody(
     exception when invalid_text_representation or numeric_value_out_of_range then
       return false; -- not an id of the memberships table
     end;
-    return (${held('allow')}${custom === undefined ? '' : customDatabaseBranch(q, scope, { ...memberships, tenant: tenantColumn }, custom.declared)})
-    and not ${held('deny')}
-    and not ${global('deny')};
+    return (${held("allow")}${custom === undefined ? "" : customDatabaseBranch(q, scope, { ...memberships, tenant: tenantColumn }, custom.declared)})
+    and not ${held("deny")}
+    and not ${global("deny")};
   end if;`;
   }
   const typed =
@@ -219,16 +219,16 @@ function databaseBody(
       ? `
   v_member_user ${qualifiedTable(memberships.table)}.${ident(memberships.user)}%type;
   v_member_tenant ${qualifiedTable(memberships.table)}.${ident(tenantColumn)}%type;`
-      : '';
+      : "";
   return `declare
   uid uuid := (select auth.uid());${typed}
 begin
   if uid is null then
     return false;
-  end if;${suspendedGuards(suspension, scope, 'uid')}
+  end if;${suspendedGuards(suspension, scope, "uid")}
 ${tenantBranch}
-  return ${global('allow')}
-    and not ${global('deny')};
+  return ${global("allow")}
+    and not ${global("deny")};
 end;`;
 }
 
@@ -241,7 +241,7 @@ const CLAIM_UNEXPIRED = `case jsonb_typeof(m -> 'expiresAt')
 function jwtBody(
   q: (name: string) => string,
   scope: string,
-  custom: AuthorizeSqlOptions['customRoles'],
+  custom: AuthorizeSqlOptions["customRoles"],
   suspension: SupabaseSuspension | undefined,
 ): string {
   const memberships = `jsonb_array_elements(
@@ -255,7 +255,7 @@ function jwtBody(
       ) r(role)`;
   const customBranch =
     custom === undefined
-      ? ''
+      ? ""
       : ` or exists (
       select 1
       from ${memberships}
@@ -268,21 +268,21 @@ function jwtBody(
         and ${customHolds(
           q,
           scope,
-          claimEntries("left(e, 1) not in ('-', '@')", 'e'),
-          claimEntries("left(e, 1) = '-'", 'substr(e, 2)'),
-          claimEntries("left(e, 1) = '@'", 'substr(e, 2)'),
+          claimEntries("left(e, 1) not in ('-', '@')", "e"),
+          claimEntries("left(e, 1) = '-'", "substr(e, 2)"),
+          claimEntries("left(e, 1) = '@'", "substr(e, 2)"),
         )}
     )`;
-  const held = (effect: 'allow' | 'deny'): string => `exists (
+  const held = (effect: "allow" | "deny"): string => `exists (
       select 1
       from ${memberships}
-      join ${q('role_permissions')} rp on rp.role = r.role
+      join ${q("role_permissions")} rp on rp.role = r.role
       where m ->> 'scope' = ${literal(scope)}
         and m ->> 'id' = requested_tenant
         and ${CLAIM_UNEXPIRED}
         and ${effectMatch(literal(scope), effect)}
     )`;
-  const global = (effect: 'allow' | 'deny'): string => `exists (
+  const global = (effect: "allow" | "deny"): string => `exists (
       select 1
       from jsonb_array_elements_text(
         case jsonb_typeof(role_claim)
@@ -291,7 +291,7 @@ function jwtBody(
           else '[]'::jsonb
         end
       ) r(role)
-      join ${q('role_permissions')} rp on rp.role = r.role
+      join ${q("role_permissions")} rp on rp.role = r.role
       where ${effectMatch(`'global'`, effect)}
     )`;
   return `declare
@@ -300,16 +300,16 @@ function jwtBody(
 begin
   if claims is null or (select auth.uid()) is null then
     return false;
-  end if;${suspendedGuards(suspension, scope, '(select auth.uid())')}
+  end if;${suspendedGuards(suspension, scope, "(select auth.uid())")}
   -- a top-level null (no role row) falls back to app_metadata, like subjectFromSupabase
   role_claim := coalesce(nullif(claims -> 'user_role', 'null'::jsonb), claims -> 'app_metadata' -> 'user_role');
   if requested_tenant is not null then
-    return (${held('allow')}${customBranch})
-    and not ${held('deny')}
-    and not ${global('deny')};
+    return (${held("allow")}${customBranch})
+    and not ${held("deny")}
+    and not ${global("deny")};
   end if;
-  return ${global('allow')}
-    and not ${global('deny')};
+  return ${global("allow")}
+    and not ${global("deny")};
 end;`;
 }
 
@@ -328,13 +328,13 @@ export function authorizeSql(options: AuthorizeSqlOptions = {}): string {
   const schema = options.schema ?? PERMDOCK_SCHEMA;
   const q = (name: string): string => table(`${schema}.${name}`);
   const memberships =
-    typeof options.tenant === 'object' ? options.tenant : undefined;
-  const scope = options.scope ?? 'tenant';
+    typeof options.tenant === "object" ? options.tenant : undefined;
+  const scope = options.scope ?? "tenant";
   if (!/^[a-z][a-z0-9_]*$/u.test(scope)) {
     throw new TypeError(`PermDock: unsafe scope name '${scope}'`);
   }
   const body =
-    options.authorize === 'jwt'
+    options.authorize === "jwt"
       ? jwtBody(q, scope, options.customRoles, options.suspension)
       : databaseBody(
           q,
@@ -343,9 +343,9 @@ export function authorizeSql(options: AuthorizeSqlOptions = {}): string {
           options.customRoles,
           options.suspension,
         );
-  const signature = `${q('authorize')}(${q('app_permission')}, text)`;
-  return `create or replace function ${q('authorize')}(
-  requested_permission ${q('app_permission')},
+  const signature = `${q("authorize")}(${q("app_permission")}, text)`;
+  return `create or replace function ${q("authorize")}(
+  requested_permission ${q("app_permission")},
   requested_tenant text default null
 )
 returns boolean

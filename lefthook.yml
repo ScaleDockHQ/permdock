@@ -2,15 +2,15 @@ pre-commit:
   parallel: true
   commands:
     fmt:
-      glob: '*.{js,ts,tsx,mjs,cjs,json,jsonc,yml,yaml}'
+      glob: "*.{js,ts,tsx,mjs,cjs,json,jsonc,yml,yaml}"
       exclude:
-        - '{.agents,.cursor,.claude}/**'
-        - '**/permissions.catalog.json'
+        - "{.agents,.cursor,.claude}/**"
+        - "**/permissions.catalog.json"
       run: pnpm exec oxfmt {staged_files}
       stage_fixed: true
     lint:
-      glob: '*.{js,ts,tsx,mjs,cjs}'
-      exclude: '{.agents,.cursor,.claude}/**'
+      glob: "*.{js,ts,tsx,mjs,cjs}"
+      exclude: "{.agents,.cursor,.claude}/**"
       run: pnpm exec oxlint --fix --deny-warnings {staged_files}
       stage_fixed: true
 

@@ -1,9 +1,9 @@
-import type { Membership, Principal } from 'permdock';
+import type { Membership, Principal } from "permdock";
 
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   allow,
   claimsFirst,
@@ -12,35 +12,35 @@ import {
   definePolicy,
   plan,
   role,
-} from 'permdock';
-import { run } from 'permdock/cli';
+} from "permdock";
+import { run } from "permdock/cli";
 import {
   authzVersion,
   subjectFromSupabase,
   type SqlQuery,
-} from 'permdock/supabase';
-import { Client as PgClient, type Client } from 'pg';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+} from "permdock/supabase";
+import { Client as PgClient, type Client } from "pg";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import type { Postgres } from './support/postgres.ts';
+import type { Postgres } from "./support/postgres.ts";
 
-import { permissions, roles } from '../fixtures/named-scopes/policy.ts';
-import { sources } from '../fixtures/supabase-sources/sources.ts';
-import { startPostgres } from './support/postgres.ts';
+import { permissions, roles } from "../fixtures/named-scopes/policy.ts";
+import { sources } from "../fixtures/supabase-sources/sources.ts";
+import { startPostgres } from "./support/postgres.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const FIXTURE = join(HERE, '../fixtures/supabase-sources');
+const FIXTURE = join(HERE, "../fixtures/supabase-sources");
 
-const OWNER = '00000000-0000-4000-8000-0000000000a1';
-const CONTACT = '00000000-0000-4000-8000-0000000000a2';
-const SEATED = '00000000-0000-4000-8000-0000000000a3';
-const BIG = '00000000-0000-4000-8000-0000000000a4';
-const ADMIN = '00000000-0000-4000-8000-0000000000a5';
-const SUSPENDED = '00000000-0000-4000-8000-0000000000a6';
+const OWNER = "00000000-0000-4000-8000-0000000000a1";
+const CONTACT = "00000000-0000-4000-8000-0000000000a2";
+const SEATED = "00000000-0000-4000-8000-0000000000a3";
+const BIG = "00000000-0000-4000-8000-0000000000a4";
+const ADMIN = "00000000-0000-4000-8000-0000000000a5";
+const SUSPENDED = "00000000-0000-4000-8000-0000000000a6";
 const USERS = [OWNER, CONTACT, SEATED, BIG, ADMIN, SUSPENDED];
 const MANY = Array.from(
   { length: 40 },
-  (_, index) => `O${String(index).padStart(2, '0')}`,
+  (_, index) => `O${String(index).padStart(2, "0")}`,
 );
 
 const SETUP = `
@@ -59,7 +59,7 @@ $$;
 grant usage on schema auth to supabase_auth_admin;
 grant select on auth.users to supabase_auth_admin;
 grant usage on schema public to authenticated, anon;
-insert into auth.users (id) values ${USERS.map((id) => `('${id}')`).join(', ')};
+insert into auth.users (id) values ${USERS.map((id) => `('${id}')`).join(", ")};
 update auth.users set raw_app_meta_data = '{"active_organization": "B"}' where id = '${OWNER}';
 update auth.users set raw_app_meta_data = '{"active_organization": "O39"}' where id = '${BIG}';
 create table memberships (
@@ -74,7 +74,7 @@ insert into memberships values
   ('${SEATED}', 'organization', 'T', 'member', 'staff', '2100-01-01T00:00:00Z', null, '{dev-mode}'),
   ('${SUSPENDED}', 'organization', 'T', 'admin', 'staff', null, null, null);
 insert into memberships select '${BIG}', 'organization', o, 'viewer', 'staff', null, null, null
-  from unnest(array[${MANY.map((id) => `'${id}'`).join(', ')}]) o;
+  from unnest(array[${MANY.map((id) => `'${id}'`).join(", ")}]) o;
 create table customer_contacts (customer_id text not null, organization_id text not null, user_id uuid not null);
 insert into customer_contacts values ('A', 'T', '${CONTACT}'), ('C', 'X', '${CONTACT}');
 create schema permdock;
@@ -84,7 +84,7 @@ create table profiles (id uuid primary key, locale text, timezone text, secret t
 insert into profiles select id, 'nl-NL', 'Europe/Amsterdam', 'never-copied', null from auth.users;
 update profiles set disabled_at = now() where id = '${SUSPENDED}';
 create table organization (id text primary key, disabled_at timestamptz);
-insert into organization select o, null from unnest(array['T', 'B', ${MANY.map((id) => `'${id}'`).join(', ')}]) o;
+insert into organization select o, null from unnest(array['T', 'B', ${MANY.map((id) => `'${id}'`).join(", ")}]) o;
 insert into organization values ('X', now());
 grant select, insert, update, delete on memberships to authenticated;
 create schema better_supabase;
@@ -102,40 +102,40 @@ const byJson = (list: readonly unknown[]): unknown[] =>
     .toSorted()
     .map((text) => JSON.parse(text) as unknown);
 
-describe('permdock supabase hook generate against Postgres', () => {
+describe("permdock supabase hook generate against Postgres", () => {
   let db: Postgres | undefined;
-  let generated = '';
+  let generated = "";
   let query: SqlQuery = async () => [];
 
   beforeAll(async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'permdock-sources-'));
-    const out = join(dir, 'hook.sql');
+    const dir = mkdtempSync(join(tmpdir(), "permdock-sources-"));
+    const out = join(dir, "hook.sql");
     const helpers = await run(
       [
-        'rls',
-        'generate',
-        '--target',
-        'sql',
-        '--rbac',
-        'supabase',
-        '--split',
-        'helpers,policies',
-        '--out',
-        join(dir, '{part}.sql'),
+        "rls",
+        "generate",
+        "--target",
+        "sql",
+        "--rbac",
+        "supabase",
+        "--split",
+        "helpers,policies",
+        "--out",
+        join(dir, "{part}.sql"),
       ],
       { cwd: FIXTURE },
     );
     if (helpers.code !== 0) {
       throw new Error(`rls generate: ${helpers.stdout}${helpers.stderr}`);
     }
-    const result = await run(['supabase', 'hook', 'generate', '--out', out], {
+    const result = await run(["supabase", "hook", "generate", "--out", out], {
       cwd: FIXTURE,
     });
     if (result.code !== 0) {
       throw new Error(`hook generate: ${result.stdout}${result.stderr}`);
     }
-    generated = readFileSync(out, 'utf8');
-    const helpersSql = readFileSync(join(dir, 'helpers.sql'), 'utf8');
+    generated = readFileSync(out, "utf8");
+    const helpersSql = readFileSync(join(dir, "helpers.sql"), "utf8");
     rmSync(dir, { recursive: true, force: true });
     db = await startPostgres([SETUP, helpersSql, generated]);
     const admin = db.admin;
@@ -147,18 +147,18 @@ describe('permdock supabase hook generate against Postgres', () => {
   });
 
   function as<T>(
-    dbRole: 'authenticated' | 'anon' | 'supabase_auth_admin',
+    dbRole: "authenticated" | "anon" | "supabase_auth_admin",
     claims: Claims,
     work: (client: Client) => Promise<T>,
   ): Promise<T> {
     if (db === undefined) {
-      throw new Error('PermDock: Postgres was not started');
+      throw new Error("PermDock: Postgres was not started");
     }
     const client = db.tester;
     return db.as(
       {
         role: dbRole,
-        settings: { 'request.jwt.claims': JSON.stringify(claims) },
+        settings: { "request.jwt.claims": JSON.stringify(claims) },
       },
       () => work(client),
     );
@@ -167,25 +167,25 @@ describe('permdock supabase hook generate against Postgres', () => {
   /** Auth puts the user's `raw_app_meta_data` into the event's claims as `app_metadata`. */
   async function appMetadata(user: string): Promise<unknown> {
     if (db === undefined) {
-      throw new Error('PermDock: Postgres was not started');
+      throw new Error("PermDock: Postgres was not started");
     }
     const result = await db.admin.query<{ meta: unknown }>(
-      'select raw_app_meta_data as meta from auth.users where id = $1',
+      "select raw_app_meta_data as meta from auth.users where id = $1",
       [user],
     );
     return result.rows[0]?.meta ?? {};
   }
 
   async function mint(user: string): Promise<Claims> {
-    return as('supabase_auth_admin', {}, async (client) => {
+    return as("supabase_auth_admin", {}, async (client) => {
       const result = await client.query<{ event: { claims: Claims } }>(
-        'select permdock.custom_access_token_hook($1::jsonb) as event',
+        "select permdock.custom_access_token_hook($1::jsonb) as event",
         [
           JSON.stringify({
             user_id: user,
             claims: {
               sub: user,
-              role: 'authenticated',
+              role: "authenticated",
               app_metadata: await appMetadata(user),
             },
           }),
@@ -193,90 +193,90 @@ describe('permdock supabase hook generate against Postgres', () => {
       );
       const claims = result.rows[0]?.event.claims;
       if (claims === undefined) {
-        throw new Error('PermDock: the hook returned no claims');
+        throw new Error("PermDock: the hook returned no claims");
       }
       return claims;
     });
   }
 
-  it('writes roles, memberships with via, expiry, owner and seats, attrs and the active tenant', async () => {
+  it("writes roles, memberships with via, expiry, owner and seats, attrs and the active tenant", async () => {
     const owner = await mint(OWNER);
-    expect(owner['memberships']).toEqual([
+    expect(owner["memberships"]).toEqual([
       {
-        scope: 'organization',
-        id: 'B',
-        roles: ['member'],
-        via: 'staff',
-        managedBy: 'idp',
+        scope: "organization",
+        id: "B",
+        roles: ["member"],
+        via: "staff",
+        managedBy: "idp",
       },
-      { scope: 'organization', id: 'T', roles: ['owner'], via: 'staff' },
+      { scope: "organization", id: "T", roles: ["owner"], via: "staff" },
     ]);
-    expect(owner['tenant_id']).toBe('B');
-    expect(owner['attrs']).toEqual({
-      locale: 'nl-NL',
-      timezone: 'Europe/Amsterdam',
+    expect(owner["tenant_id"]).toBe("B");
+    expect(owner["attrs"]).toEqual({
+      locale: "nl-NL",
+      timezone: "Europe/Amsterdam",
     });
-    expect(owner['roles']).toEqual([]);
-    expect(owner['authz_ver']).toBeTypeOf('number');
-    expect(owner).not.toHaveProperty('memberships_truncated');
-    expect((await mint(CONTACT))['memberships']).toEqual([
+    expect(owner["roles"]).toEqual([]);
+    expect(owner["authz_ver"]).toBeTypeOf("number");
+    expect(owner).not.toHaveProperty("memberships_truncated");
+    expect((await mint(CONTACT))["memberships"]).toEqual([
       {
-        scope: 'customer',
-        id: 'A',
-        within: { organization: 'T' },
-        roles: ['contact'],
-        via: 'contact',
+        scope: "customer",
+        id: "A",
+        within: { organization: "T" },
+        roles: ["contact"],
+        via: "contact",
       },
     ]);
     const seated = await mint(SEATED);
-    expect(seated['memberships']).toEqual([
+    expect(seated["memberships"]).toEqual([
       {
-        scope: 'organization',
-        id: 'T',
-        roles: ['member'],
-        via: 'staff',
+        scope: "organization",
+        id: "T",
+        roles: ["member"],
+        via: "staff",
         expiresAt: 4102444800,
-        entitlements: ['dev-mode'],
+        entitlements: ["dev-mode"],
       },
     ]);
-    expect(seated).not.toHaveProperty('tenant_id');
+    expect(seated).not.toHaveProperty("tenant_id");
     const admin = await mint(ADMIN);
-    expect(admin['user_role']).toBe('platform-admin');
-    expect(admin['roles']).toEqual(['platform-admin']);
+    expect(admin["user_role"]).toBe("platform-admin");
+    expect(admin["roles"]).toEqual(["platform-admin"]);
   });
 
-  it('empties the claims of a suspended user', async () => {
+  it("empties the claims of a suspended user", async () => {
     const claims = await mint(SUSPENDED);
     expect(claims).toMatchObject({ user_role: [], roles: [], memberships: [] });
-    expect(claims).not.toHaveProperty('features');
+    expect(claims).not.toHaveProperty("features");
   });
 
-  it('writes extra claims with or without memberships and omits a null one', async () => {
-    expect((await mint(OWNER))['features']).toEqual({ T: ['export'] });
+  it("writes extra claims with or without memberships and omits a null one", async () => {
+    expect((await mint(OWNER))["features"]).toEqual({ T: ["export"] });
     const admin = await mint(ADMIN);
-    expect(admin['memberships']).toEqual([]);
-    expect(admin['features']).toEqual({ T: ['export'] });
-    expect(await mint(CONTACT)).not.toHaveProperty('features');
+    expect(admin["memberships"]).toEqual([]);
+    expect(admin["features"]).toEqual({ T: ["export"] });
+    expect(await mint(CONTACT)).not.toHaveProperty("features");
   });
 
-  it('resolves the same memberships at runtime as the hook writes', async () => {
+  it("resolves the same memberships at runtime as the hook writes", async () => {
     const composed = composeMemberships(sources(query));
     for (const user of [OWNER, CONTACT, SEATED]) {
       const claims = await mint(user);
       const live = await composed.membershipsFor({ id: user }, {});
       // SAFETY: the custom access token hook mints memberships as an array
-      expect(byJson(live)).toEqual(byJson(claims['memberships'] as unknown[]));
+      expect(byJson(live)).toEqual(byJson(claims["memberships"] as unknown[]));
     }
   });
 
-  it('puts the active scope first, truncates at the budget and falls back to the source', async () => {
+  it("puts the active scope first, truncates at the budget and falls back to the source", async () => {
     const claims = await mint(BIG);
     // SAFETY: the custom access token hook mints memberships as Membership objects
-    const kept = claims['memberships'] as Membership[];
-    expect(claims['memberships_truncated']).toBe(true);
+    const kept = claims["memberships"] as Membership[];
+    expect(claims["memberships_truncated"]).toBe(true);
     expect(kept.length).toBeLessThan(MANY.length);
-    expect(kept[0]?.id).toBe('O39');
-    expect(claims['tenant_id']).toBe('O39');
+    expect(kept[0]?.id).toBe("O39");
+    expect(claims["tenant_id"]).toBe("O39");
     expect(Buffer.byteLength(JSON.stringify(kept))).toBeLessThanOrEqual(1024);
     // SAFETY: minted claims always carry a subject, so the principal is set
     const principal = subjectFromSupabase(claims).principal as Principal;
@@ -285,12 +285,12 @@ describe('permdock supabase hook generate against Postgres', () => {
       { permissions, roles },
       {
         scopes: {
-          organization: { key: 'organization_id' },
-          customer: { key: 'customer_id', within: 'organization' },
+          organization: { key: "organization_id" },
+          customer: { key: "customer_id", within: "organization" },
         },
         roles: [
           role(roles.viewer, [allow(permissions.quote.read)], {
-            on: 'organization',
+            on: "organization",
           }),
         ],
         subject: (user: Principal | null) => user,
@@ -298,51 +298,51 @@ describe('permdock supabase hook generate against Postgres', () => {
     );
     const permdock = await createPermDock(policy, principal, {
       memberships: claimsFirst(sources(query)),
-      tenant: 'O00',
+      tenant: "O00",
     });
     expect(permdock.subject.principal?.memberships).toHaveLength(MANY.length);
     expect(
       permdock.can(permissions.quote.read, {
-        id: 'q',
-        organization_id: 'O00',
-        customer_id: 'c',
-        status: 'sent',
+        id: "q",
+        organization_id: "O00",
+        customer_id: "c",
+        status: "sent",
       }),
     ).toBe(true);
   });
 
-  it('bumps authz_ver on membership changes and denies fresh permissions on an older token', async () => {
+  it("bumps authz_ver on membership changes and denies fresh permissions on an older token", async () => {
     if (db === undefined) {
-      throw new Error('PermDock: Postgres was not started');
+      throw new Error("PermDock: Postgres was not started");
     }
     const policy = definePolicy(
       { permissions, roles },
       {
         scopes: {
-          organization: { key: 'organization_id' },
-          customer: { key: 'customer_id', within: 'organization' },
+          organization: { key: "organization_id" },
+          customer: { key: "customer_id", within: "organization" },
         },
         roles: [
           role(
             roles.owner,
             [allow([permissions.quote.read, permissions.quote.delete])],
             {
-              on: 'organization',
+              on: "organization",
             },
           ),
         ],
         grants: [
-          allow(permissions.organization.list, { to: plan('dev-mode') }),
+          allow(permissions.organization.list, { to: plan("dev-mode") }),
         ],
         fresh: [permissions.quote.delete],
         subject: (user: Principal | null) => user,
       },
     );
     const quote = {
-      id: 'q',
-      organization_id: 'T',
-      customer_id: 'c',
-      status: 'sent',
+      id: "q",
+      organization_id: "T",
+      customer_id: "c",
+      status: "sent",
     };
     const memberships = claimsFirst(sources(query), {
       version: authzVersion({ query }),
@@ -352,7 +352,7 @@ describe('permdock supabase hook generate against Postgres', () => {
       createPermDock(
         policy,
         // SAFETY: minted claims always carry a subject, so the principal is set
-        subjectFromSupabase({ ...claims, tenant_id: 'T' })
+        subjectFromSupabase({ ...claims, tenant_id: "T" })
           .principal as Principal,
         { memberships },
       );
@@ -364,101 +364,101 @@ describe('permdock supabase hook generate against Postgres', () => {
     );
     const stale = await permdockFor(before);
     expect(stale.decide(permissions.quote.delete, quote)).toMatchObject({
-      outcome: 'denied',
-      denials: [{ role: null, reason: 'stale-credentials' }],
+      outcome: "denied",
+      denials: [{ role: null, reason: "stale-credentials" }],
     });
     expect(stale.can(permissions.quote.read, quote)).toBe(true);
     const after = await mint(OWNER);
     // SAFETY: the custom access token hook mints authz_ver as a number
-    expect(after['authz_ver']).toBeGreaterThan(before['authz_ver'] as number);
+    expect(after["authz_ver"]).toBeGreaterThan(before["authz_ver"] as number);
     expect(
       (await permdockFor(after)).can(permissions.quote.delete, quote),
     ).toBe(true);
     const seated = await createPermDock(
       policy,
       // SAFETY: minted claims always carry a subject, so the principal is set
-      subjectFromSupabase({ ...(await mint(SEATED)), tenant_id: 'T' })
+      subjectFromSupabase({ ...(await mint(SEATED)), tenant_id: "T" })
         .principal as Principal,
       { memberships },
     );
     expect(seated.can(permissions.organization.list)).toBe(true);
   });
 
-  it('bumps authz_ver for a list of users through permdock_bump_authz_version_for', async () => {
+  it("bumps authz_ver for a list of users through permdock_bump_authz_version_for", async () => {
     if (db === undefined) {
-      throw new Error('PermDock: Postgres was not started');
+      throw new Error("PermDock: Postgres was not started");
     }
     const admin = db.admin;
     const version = async (user: string): Promise<number> =>
       Number(
         (
           await admin.query(
-            'select coalesce((select version from permdock.permdock_authz_version where user_id = $1), 0) as version',
+            "select coalesce((select version from permdock.permdock_authz_version where user_id = $1), 0) as version",
             [user],
           )
         ).rows[0]?.version,
       );
     const before = [await version(OWNER), await version(SEATED)];
     await admin.query(
-      'select permdock.permdock_bump_authz_version_for($1::uuid[])',
+      "select permdock.permdock_bump_authz_version_for($1::uuid[])",
       [[OWNER, SEATED, OWNER, null]],
     );
     expect([await version(OWNER), await version(SEATED)]).toEqual([
       (before[0] ?? 0) + 1,
       (before[1] ?? 0) + 1,
     ]);
-    for (const client of ['authenticated', 'anon'] as const) {
+    for (const client of ["authenticated", "anon"] as const) {
       await expect(
         as(client, { sub: OWNER, role: client }, (connection) =>
           connection.query(
-            'select permdock.permdock_bump_authz_version_for($1::uuid[])',
+            "select permdock.permdock_bump_authz_version_for($1::uuid[])",
             [[OWNER]],
           ),
         ),
-      ).rejects.toMatchObject({ code: '42501' });
+      ).rejects.toMatchObject({ code: "42501" });
     }
     expect(generated).toContain(
       'revoke execute on function "permdock".permdock_bump_authz_version_for(uuid[]) from public, anon, authenticated;',
     );
   });
 
-  it('lists the members of a scope instance', async () => {
+  it("lists the members of a scope instance", async () => {
     const composed = composeMemberships(sources(query));
-    const members = await composed.list?.({ scope: 'organization', id: 'T' });
+    const members = await composed.list?.({ scope: "organization", id: "T" });
     expect(members?.map((entry) => entry.principal.id).toSorted()).toEqual(
       [OWNER, SEATED].toSorted(),
     );
-    const contacts = await composed.list?.({ scope: 'customer', id: 'A' });
+    const contacts = await composed.list?.({ scope: "customer", id: "A" });
     expect(contacts).toEqual([
       {
         principal: { id: CONTACT },
         membership: {
-          scope: 'customer',
-          id: 'A',
-          within: { organization: 'T' },
-          roles: ['contact'],
-          via: 'contact',
+          scope: "customer",
+          id: "A",
+          within: { organization: "T" },
+          roles: ["contact"],
+          via: "contact",
         },
       },
     ]);
   });
 
-  it('refuses client writes to memberships the identity provider owns', async () => {
-    const claims = { sub: OWNER, role: 'authenticated' };
+  it("refuses client writes to memberships the identity provider owns", async () => {
+    const claims = { sub: OWNER, role: "authenticated" };
     await expect(
-      as('authenticated', claims, (client) =>
+      as("authenticated", claims, (client) =>
         client.query(
           `update public.memberships set role = 'owner' where scope_id = 'B'`,
         ),
       ),
-    ).rejects.toMatchObject({ code: '42501' });
+    ).rejects.toMatchObject({ code: "42501" });
     await expect(
-      as('authenticated', claims, (client) =>
+      as("authenticated", claims, (client) =>
         client.query(`delete from public.memberships where scope_id = 'B'`),
       ),
-    ).rejects.toMatchObject({ code: '42501' });
+    ).rejects.toMatchObject({ code: "42501" });
     const changed = await as(
-      'authenticated',
+      "authenticated",
       claims,
       async (client) =>
         (
@@ -471,25 +471,25 @@ describe('permdock supabase hook generate against Postgres', () => {
     expect(generated).not.toMatch(/service_role/iu);
   });
 
-  it('reports missing helpers from the database with --db (PD039)', async () => {
+  it("reports missing helpers from the database with --db (PD039)", async () => {
     if (db === undefined) {
-      throw new Error('PermDock: Postgres was not started');
+      throw new Error("PermDock: Postgres was not started");
     }
-    await db.admin.query('create database pd039');
+    await db.admin.query("create database pd039");
     const uri = new URL(db.uri);
-    uri.pathname = '/pd039';
+    uri.pathname = "/pd039";
     const empty = new PgClient({ connectionString: uri.href });
     await empty.connect();
-    const dir = mkdtempSync(join(tmpdir(), 'permdock-sources-db-'));
+    const dir = mkdtempSync(join(tmpdir(), "permdock-sources-db-"));
     const generate = () =>
       run(
         [
-          'supabase',
-          'hook',
-          'generate',
-          '--out',
-          join(dir, 'hook.sql'),
-          '--db',
+          "supabase",
+          "hook",
+          "generate",
+          "--out",
+          join(dir, "hook.sql"),
+          "--db",
           uri.href,
         ],
         { cwd: FIXTURE },
@@ -497,28 +497,28 @@ describe('permdock supabase hook generate against Postgres', () => {
     try {
       const installed = await run(
         [
-          'supabase',
-          'hook',
-          'generate',
-          '--out',
-          join(dir, 'hook.sql'),
-          '--db',
+          "supabase",
+          "hook",
+          "generate",
+          "--out",
+          join(dir, "hook.sql"),
+          "--db",
           db.uri,
         ],
         { cwd: FIXTURE },
       );
-      expect(installed.stdout).not.toContain('PD039');
+      expect(installed.stdout).not.toContain("PD039");
       const missing = await generate();
       expect(missing.code).toBe(0);
       expect(missing.stdout).toContain(
-        'PD039 schema permdock has no permdock_has, permitted_organization_ids, member_organization_ids, member_organization_ids_for, permitted_customer_ids, member_customer_ids, member_customer_ids_for',
+        "PD039 schema permdock has no permdock_has, permitted_organization_ids, member_organization_ids, member_organization_ids_for, permitted_customer_ids, member_customer_ids, member_customer_ids_for",
       );
       await empty.query(
-        'create schema permdock; create function permdock.permdock_has(p_grant text) returns boolean language sql as $$ select false $$',
+        "create schema permdock; create function permdock.permdock_has(p_grant text) returns boolean language sql as $$ select false $$",
       );
       const partial = await generate();
       expect(partial.stdout).toContain(
-        'PD039 schema permdock has no permitted_organization_ids, member_organization_ids, member_organization_ids_for, permitted_customer_ids, member_customer_ids, member_customer_ids_for',
+        "PD039 schema permdock has no permitted_organization_ids, member_organization_ids, member_organization_ids_for, permitted_customer_ids, member_customer_ids, member_customer_ids_for",
       );
     } finally {
       await empty.end();

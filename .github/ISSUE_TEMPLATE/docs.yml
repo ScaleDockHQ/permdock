@@ -1,7 +1,7 @@
 name: Docs
 description: Report a docs error or gap
-title: 'docs: '
-labels: ['docs']
+title: "docs: "
+labels: ["docs"]
 body:
   - type: input
     id: page

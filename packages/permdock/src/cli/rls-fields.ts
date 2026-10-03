@@ -1,28 +1,28 @@
-import type { Policy } from '../index.ts';
-import type { CompiledBranch } from './rls-compile.ts';
-import type { RlsSqlContext } from './rls-sql.ts';
+import type { Policy } from "../index.ts";
+import type { CompiledBranch } from "./rls-compile.ts";
+import type { RlsSqlContext } from "./rls-sql.ts";
 
-import { jsonSchemaOf } from './catalog-doc.ts';
-import { andSql, branchClauses, wrapSql } from './rls-compile.ts';
-import { signedIn } from './rls-helpers.ts';
-import { orSql } from './rls-policies.ts';
+import { jsonSchemaOf } from "./catalog-doc.ts";
+import { andSql, branchClauses, wrapSql } from "./rls-compile.ts";
+import { signedIn } from "./rls-helpers.ts";
+import { orSql } from "./rls-policies.ts";
 import {
   qualifiedTable,
   quoteIdent,
   quoteLiteral,
   quoteTable,
-} from './rls-sql.ts';
+} from "./rls-sql.ts";
 
 /** Names of the field-view objects. Part of the SQL contract. */
 export const FIELD_VIEWS = {
   /** `<table>_visible`: the `security_invoker` view clients read. */
-  view: '_visible',
+  view: "_visible",
   /** `<table>_visible_fields`: the owner-rights companion `--revoke-columns` adds. */
-  companion: '_visible_fields',
+  companion: "_visible_fields",
   /** The companion's row-key column, joined to the base table's key. */
-  key: 'permdock_key',
+  key: "permdock_key",
   /** Marks the companion so doctor PD022 knows it reads as its owner on purpose. */
-  comment: 'permdock:field-companion',
+  comment: "permdock:field-companion",
 } as const;
 
 export type FieldColumn = {
@@ -54,10 +54,10 @@ function covers(branch: CompiledBranch, column: string): boolean {
  * field views it leaves the row policy and lives in the view's masks.
  */
 function fieldOnly(branch: CompiledBranch): boolean {
-  if (branch.command !== 'select' || branch.fields === undefined) {
+  if (branch.command !== "select" || branch.fields === undefined) {
     return false;
   }
-  return branch.effect === 'deny' || branch.fields.length === 0;
+  return branch.effect === "deny" || branch.fields.length === 0;
 }
 
 /** Branches the row policies keep when field views compile. */
@@ -79,14 +79,14 @@ function audience(
   if (branch.access !== undefined || branch.roles.length !== 1) {
     return undefined;
   }
-  if (branch.roles[0] === 'authenticated') {
+  if (branch.roles[0] === "authenticated") {
     return signedIn(ctx);
   }
-  return branch.roles[0] === 'anon' ? `not (${signedIn(ctx)})` : undefined;
+  return branch.roles[0] === "anon" ? `not (${signedIn(ctx)})` : undefined;
 }
 
 function clause(ctx: RlsSqlContext, branch: CompiledBranch): string {
-  return andSql(audience(ctx, branch), branchClauses(branch).using) ?? 'true';
+  return andSql(audience(ctx, branch), branchClauses(branch).using) ?? "true";
 }
 
 /**
@@ -104,7 +104,7 @@ function maskSql(
     .filter((branch) => covers(branch, column))
     .map((branch) => clause(ctx, branch));
   if (allowed.length === 0) {
-    return 'false';
+    return "false";
   }
   const denied = denies
     .filter((branch) => covers(branch, column))
@@ -114,7 +114,7 @@ function maskSql(
     return allow;
   }
   const deny = orSql(denied);
-  return allow === 'true'
+  return allow === "true"
     ? `not ${wrapSql(deny)}`
     : `${wrapSql(allow)} and not ${wrapSql(deny)}`;
 }
@@ -127,10 +127,10 @@ function schemaColumns(
   const schema = node === undefined ? null : jsonSchemaOf(node);
   // SAFETY: schema was checked to be a non-null object; properties stays unknown.
   const properties =
-    schema !== null && typeof schema === 'object'
+    schema !== null && typeof schema === "object"
       ? (schema as { readonly properties?: unknown }).properties
       : undefined;
-  return properties !== null && typeof properties === 'object'
+  return properties !== null && typeof properties === "object"
     ? Object.keys(properties)
     : undefined;
 }
@@ -153,7 +153,7 @@ export function fieldViews(
 ): readonly FieldView[] {
   const byTable = new Map<string, CompiledBranch[]>();
   for (const branch of branches) {
-    if (branch.command !== 'select' || branch.coverage === true) {
+    if (branch.command !== "select" || branch.coverage === true) {
       continue;
     }
     byTable.set(branch.table, [...(byTable.get(branch.table) ?? []), branch]);
@@ -161,9 +161,9 @@ export function fieldViews(
   const views: FieldView[] = [];
   for (const [table, reads] of byTable) {
     const allows = reads.filter(
-      (branch) => branch.effect === 'allow' && branch.fields?.length !== 0,
+      (branch) => branch.effect === "allow" && branch.fields?.length !== 0,
     );
-    const denies = reads.filter((branch) => branch.effect === 'deny');
+    const denies = reads.filter((branch) => branch.effect === "deny");
     const limited = reads.some((branch) => branch.fields !== undefined);
     const resource = reads.find(
       (branch) => branch.resource !== undefined,
@@ -177,7 +177,7 @@ export function fieldViews(
         `PermDock CLI: --fields views needs the ${resource} schema's JSON Schema (Standard JSON Schema) to list the columns of ${table}`,
       );
     }
-    const key = policy.resources.get(resource)?.id ?? 'id';
+    const key = policy.resources.get(resource)?.id ?? "id";
     const restricted = (column: string): boolean =>
       column !== key &&
       (allows.some(
@@ -209,7 +209,7 @@ export function fieldViews(
       .map((column) => column.name);
     if (!options.revokeColumns) {
       warnings.push(
-        `field view ${view}: ${table} still returns ${hidden.join(', ')} to direct reads; add --revoke-columns so clients read through the view`,
+        `field view ${view}: ${table} still returns ${hidden.join(", ")} to direct reads; add --revoke-columns so clients read through the view`,
       );
     }
     views.push({
@@ -218,9 +218,9 @@ export function fieldViews(
       view,
       key,
       columns,
-      roles: reads.some((branch) => branch.roles.includes('anon'))
-        ? ['anon', 'authenticated']
-        : ['authenticated'],
+      roles: reads.some((branch) => branch.roles.includes("anon"))
+        ? ["anon", "authenticated"]
+        : ["authenticated"],
       ...(options.revokeColumns
         ? { companion: viewName(table, FIELD_VIEWS.companion) }
         : {}),
@@ -243,18 +243,18 @@ function restrictedColumns(view: FieldView): readonly string[] {
 }
 
 function columnList(names: readonly string[]): string {
-  return names.map(quoteIdent).join(', ');
+  return names.map(quoteIdent).join(", ");
 }
 
 function selectList(lines: readonly string[]): string {
-  return lines.map((line) => `  ${line}`).join(',\n');
+  return lines.map((line) => `  ${line}`).join(",\n");
 }
 
 function grantView(name: string, roles: readonly string[]): string {
   return [
     `revoke all on table ${quoteTable(qualifiedTable(name))} from anon, authenticated, public;`,
-    `grant select on table ${quoteTable(qualifiedTable(name))} to ${roles.join(', ')};`,
-  ].join('\n');
+    `grant select on table ${quoteTable(qualifiedTable(name))} to ${roles.join(", ")};`,
+  ].join("\n");
 }
 
 function inlineViewSql(view: FieldView): string {
@@ -278,7 +278,7 @@ function companionSql(view: FieldView, companion: string): string {
         `case when ${column.mask} then ${quoteIdent(column.name)} end as ${quoteIdent(column.name)}`,
     ),
   ];
-  const any = orSql(restricted.map((column) => column.mask ?? 'false'));
+  const any = orSql(restricted.map((column) => column.mask ?? "false"));
   return `create or replace view ${quoteTable(qualifiedTable(companion))} with (security_barrier = true) as
 select
 ${selectList(targets)}
@@ -318,13 +318,13 @@ export function columnRevokeSql(view: FieldView): string {
 export function fieldViewsSql(views: readonly FieldView[]): string {
   return views
     .map((view) => {
-      const head = `-- field view over ${view.table}: ${restrictedColumns(view).join(', ')} read as null unless a read grant covers the column for the row`;
+      const head = `-- field view over ${view.table}: ${restrictedColumns(view).join(", ")} read as null unless a read grant covers the column for the row`;
       if (view.companion === undefined) {
         return [
           head,
           inlineViewSql(view),
           grantView(view.view, view.roles),
-        ].join('\n');
+        ].join("\n");
       }
       return [
         head,
@@ -333,7 +333,7 @@ export function fieldViewsSql(views: readonly FieldView[]): string {
         grantView(view.companion, view.roles),
         joinedViewSql(view, view.companion),
         grantView(view.view, view.roles),
-      ].join('\n');
+      ].join("\n");
     })
-    .join('\n\n');
+    .join("\n\n");
 }

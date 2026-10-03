@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useParams, useRouter } from 'next/navigation';
-import { usePermDock } from 'permdock/react';
-import { useEffect } from 'react';
+import { useParams, useRouter } from "next/navigation";
+import { usePermDock } from "permdock/react";
+import { useEffect } from "react";
 
 declare global {
   interface Window {
@@ -11,9 +11,9 @@ declare global {
 }
 
 function issuedAtOf(snapshot: unknown): number {
-  return typeof snapshot === 'object' &&
+  return typeof snapshot === "object" &&
     snapshot !== null &&
-    'issuedAt' in snapshot
+    "issuedAt" in snapshot
     ? Number(snapshot.issuedAt)
     : 0;
 }
@@ -38,7 +38,7 @@ export function RefreshSignal() {
       const response = await fetch(
         `/api/version?org=${encodeURIComponent(org)}`,
         {
-          cache: 'no-store',
+          cache: "no-store",
         },
       );
       // SAFETY: the fixture's /api/version route answers { changedAt: number }

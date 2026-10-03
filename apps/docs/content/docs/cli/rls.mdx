@@ -27,27 +27,27 @@ Inputs: the policy module from `permdock.config.ts` (roles as data) and a mappin
 
 Targets:
 
-| `--target` | Output |
-| --- | --- |
-| `drizzle` | `pgPolicy(...).link(schema.<table>)` exports, using `drizzle-orm/supabase` helpers (`authenticatedRole`, `authUid`) when `--dialect supabase` and `pgRole(...).existing()` otherwise, plus `<out>.migration.sql` |
-| `sql` | `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` plus `CREATE POLICY` statements, the `REVOKE` / `GRANT` statements for the target role, one file, idempotent |
-| `prisma` | Prisma 8 native `policy_*` blocks, with a header naming the models that need `@@rls`, plus `<out>.migration.sql`; a deny grant fails generation |
+| `--target` | Output                                                                                                                                                                                                           |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `drizzle`  | `pgPolicy(...).link(schema.<table>)` exports, using `drizzle-orm/supabase` helpers (`authenticatedRole`, `authUid`) when `--dialect supabase` and `pgRole(...).existing()` otherwise, plus `<out>.migration.sql` |
+| `sql`      | `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` plus `CREATE POLICY` statements, the `REVOKE` / `GRANT` statements for the target role, one file, idempotent                                                         |
+| `prisma`   | Prisma 8 native `policy_*` blocks, with a header naming the models that need `@@rls`, plus `<out>.migration.sql`; a deny grant fails generation                                                                  |
 
 `<out>.migration.sql` holds what a policy object cannot: helpers, the closure table, grants, column privileges, `enable` / `force row level security` and field views. Config for the two targets:
 
-| Key | Meaning |
-| --- | --- |
-| `rls.drizzle.schema` | Import path of the module exporting the tables, default `./schema` |
+| Key                   | Meaning                                                               |
+| --------------------- | --------------------------------------------------------------------- |
+| `rls.drizzle.schema`  | Import path of the module exporting the tables, default `./schema`    |
 | `rls.drizzle.exports` | Table name to export name, when it is not the table name in camelCase |
-| `rls.prisma.models` | Table name to model name, when it is not the table name in PascalCase |
+| `rls.prisma.models`   | Table name to model name, when it is not the table name in PascalCase |
 
 Dialects decide how the subject reaches SQL. `--dialect` overrides `rls.dialect` from the config, and `supabase` is the default when neither is set:
 
-| `--dialect` | `principal.id` | claims / tenant |
-| --- | --- | --- |
-| `supabase` | `(select auth.uid())` | `auth.jwt() ->> 'claim'` |
-| `neon` | `(select auth.user_id())` | JWT claims via `pg_session_jwt`; the anonymous role is Neon's `anonymous` |
-| `guc` | `(select current_setting('app.user_id', true))` | `(select current_setting('app.<claim>', true))`; the prefix is configurable with `--guc-prefix` |
+| `--dialect` | `principal.id`                                  | claims / tenant                                                                                 |
+| ----------- | ----------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `supabase`  | `(select auth.uid())`                           | `auth.jwt() ->> 'claim'`                                                                        |
+| `neon`      | `(select auth.user_id())`                       | JWT claims via `pg_session_jwt`; the anonymous role is Neon's `anonymous`                       |
+| `guc`       | `(select current_setting('app.user_id', true))` | `(select current_setting('app.<claim>', true))`; the prefix is configurable with `--guc-prefix` |
 
 Semantics: `read` becomes `FOR SELECT USING`, `create` becomes `FOR INSERT WITH CHECK`, `update` becomes `FOR UPDATE USING (where) WITH CHECK (check)`, `delete` becomes `FOR DELETE USING`; `allow` grants are `PERMISSIVE`, `deny` grants are `RESTRICTIVE` with `NOT (condition)`; a `SELECT` policy is emitted whenever `UPDATE` or `DELETE` is, because Postgres needs it; the default target role is `authenticated` (`anyone()` grants also target `anon`, or `anonymous` on `neon`); `service_role` is never emitted. Grants come from `definePolicy({ roles })` and from top-level `definePolicy({ grants })`; a grant limited to a grantee Postgres cannot see (`plan()`, `actor()`, `assurance()`) or to several roles at once fails the command with the permission named.
 
@@ -55,12 +55,12 @@ Semantics: `read` becomes `FOR SELECT USING`, `create` becomes `FOR INSERT WITH 
 
 Every generated file starts with the helper functions and the table they read, all in one schema (`--rbac-schema`, `rls.schema`, default `public`): `permdock_has` for global roles and one `permitted_<scope>_ids` per [named scope](/docs/concepts/scopes) the policy declares (`permitted_tenant_ids` and `permitted_team_ids` for a policy that declares none):
 
-| Object | What it answers |
-| --- | --- |
-| `role_permissions (role, permission, grant_key, scope, effect)` | Which declared role holds which grant key at which scope (`global` or a scope name). Seeded by `generate` with an upsert; rows it no longer emits are deleted. |
-| `permdock_has(p_grant text) returns boolean` | Does the subject hold a global role with this grant key |
-| `permitted_<scope>_ids(p_grant text) returns setof <scope type>` | Which instances of the scope the subject holds this grant key in, through memberships of exactly that scope (no cascade) |
-| `member_<scope>_ids() returns setof <scope type>` | Which instances of the scope the subject holds any live membership of, whatever the role; no permission key, no cascade and no active-tenant narrowing |
+| Object                                                           | What it answers                                                                                                                                                                                                                                                |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `role_permissions (role, permission, grant_key, scope, effect)`  | Which declared role holds which grant key at which scope (`global` or a scope name). Seeded by `generate` with an upsert; rows it no longer emits are deleted.                                                                                                 |
+| `permdock_has(p_grant text) returns boolean`                     | Does the subject hold a global role with this grant key                                                                                                                                                                                                        |
+| `permitted_<scope>_ids(p_grant text) returns setof <scope type>` | Which instances of the scope the subject holds this grant key in, through memberships of exactly that scope (no cascade)                                                                                                                                       |
+| `member_<scope>_ids() returns setof <scope type>`                | Which instances of the scope the subject holds any live membership of, whatever the role; no permission key, no cascade and no active-tenant narrowing                                                                                                         |
 | `member_<scope>_ids_for(p_user uuid) returns setof <scope type>` | `supabase` only, for a scope with a membership source or mapped table: the same for `p_user`, read from the tables, for a [`supabase.hook.claims`](/docs/adapters/supabase-hook#claims-other-packages-own) function; only `supabase_auth_admin` may execute it |
 
 `member_<scope>_ids()` answers "which organizations am I in" for a policy that has no permission to name: an organization switcher, the `organizations` row a member may read, or a co-member check on `profiles`:
@@ -84,10 +84,10 @@ A grant key is the permission key. When roles grant one permission with differen
 
 `--authorize` chooses where the helpers read roles and memberships:
 
-| Mode | Global roles | Scope memberships |
-| --- | --- | --- |
+| Mode       | Global roles                                                                                                                                 | Scope memberships                                                                                                                                                                                                                                                                                                                     |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `database` | `rls.roles`, default `supabase.hook.roles`, else `<schema>.user_roles (user_id, role)`: the RBAC scaffold's table, or one `generate` creates | Each scope's table from `rls.memberships.scopes.<scope>` (`--memberships` and `rls.memberships.tenant` / `.team` for the first and second scope); otherwise the `fromTable` / `fromJunction` sources in `rls.membershipSources`, default `supabase.hook.memberships`; with neither, that helper returns no rows and the command warns |
-| `jwt` | The `rls.roleClaim` claim (default `user_role`, a string or an array; Supabase falls back to `app_metadata`) | The `memberships` claim, `[{ scope, id, within?, roles, expiresAt? }]`; each helper reads the entries whose `scope` is its own |
+| `jwt`      | The `rls.roleClaim` claim (default `user_role`, a string or an array; Supabase falls back to `app_metadata`)                                 | The `memberships` claim, `[{ scope, id, within?, roles, expiresAt? }]`; each helper reads the entries whose `scope` is its own                                                                                                                                                                                                        |
 
 When the app keeps its own global-roles table, name it in `rls.roles` (the same shape as `supabase.hook.roles`, which is the default). A role column that holds a foreign key is read through the roles table by key:
 
@@ -125,15 +125,24 @@ rls: {
 A membership table that holds every scope (`memberships (user_id, scope, scope_id, role)`) or a contact table with fixed roles has no per-scope mapping. Pass the [membership sources](/docs/adapters/supabase-hook#sources) instead: the helpers then run the same `select` the token hook and the application's `MembershipSource` run, so the three agree by construction. A row with a null user column is never a membership.
 
 ```ts
-import { fromJunction, fromTable } from 'permdock/supabase';
+import { fromJunction, fromTable } from "permdock/supabase";
 
 const memberships = [
-  fromTable({ table: 'memberships', columns: { via: 'via', expiresAt: 'expires_at' } }),
-  fromJunction({ table: 'contacts', scope: 'customer', within: { organization: 'organization_id' }, roles: ['contact'], via: 'contact' }),
+  fromTable({
+    table: "memberships",
+    columns: { via: "via", expiresAt: "expires_at" },
+  }),
+  fromJunction({
+    table: "contacts",
+    scope: "customer",
+    within: { organization: "organization_id" },
+    roles: ["contact"],
+    via: "contact",
+  }),
 ];
 
 export default {
-  rls: { authorize: 'database', membershipSources: memberships },
+  rls: { authorize: "database", membershipSources: memberships },
   supabase: { hook: { memberships } },
 };
 ```
@@ -168,19 +177,19 @@ Only portable conditions compile: equality against the subject, `in` / `notIn` m
 
 With `--rbac-scaffold` and `--dialect supabase`, the output also contains Supabase's recommended `app_role` / `app_permission` enums, `user_roles` and the `authorize('permission', tenant)` function over the shared `role_permissions`, so the named-permission catalog exists in the database too. It emits no token hook: [`permdock supabase hook generate`](/docs/cli/supabase) writes the one `custom_access_token_hook`, reading the same `user_roles` table ([Supabase provider](/docs/adapters/supabase)). Generated policies still call the helpers, never `authorize()` per row; `authorize()` is there for hand-written policies and RPCs, and it answers "does a role hold this permission" without row conditions or denies.
 
-| Flag | Values | Default | Effect |
-|---|---|---|---|
-| `--rbac` | `supabase` | off | Emit the RBAC scaffold (`--rbac-scaffold` is an equivalent spelling). Any other value exits 2; so does a dialect other than `supabase`. |
-| `--rbac-schema` | a Postgres identifier | `rls.schema`, `rls.rbac.schema`, or `public` | Schema for `role_permissions`, the helpers, and the RBAC scaffold. |
-| `--authorize` | `database`, `jwt` | `rls.authorize`, `rls.rbac.authorize`, else `database` with `--rbac` or a memberships table and `jwt` otherwise | Where the helpers (and `authorize()`) read roles and memberships. `jwt` needs no query but stays stale until the token refreshes (doctor PD019). |
-| `--memberships` | `<table>:tenant,user,role[,expires_at]` | `rls.memberships.tenant` | The first scope's memberships table `database` mode reads. Other scopes come from `rls.memberships.scopes`. |
-| `--tenant-type` | a Postgres type | `rls.tenantType`, or `uuid` | Type of the first scope's columns: the tenant claim is cast to it and its helper returns it. `rls.teamType` does the same for the second scope and defaults to the tenant type; `rls.scopeTypes` sets any scope by name. |
-| `--policy-per-role` | flag | `rls.policyPerRole`, off | One policy per role and permission (`{role}_{permission}`, the layout before the helpers), each still calling the helpers. |
-| `--policy-name` | template | `{table}_{op}`, or `{role}_{permission}` with `--policy-per-role` | Policy names from `{table}`, `{op}`, `{role}` and `{permission}`. A collapsed layout needs `{table}` and `{op}` and rejects `{role}` and `{permission}`. |
-| `--custom-roles` | flag | `rls.customRoles`, off | The scope helpers also resolve tenant-defined [custom roles](/docs/concepts/custom-roles), always intersected with the generated `permdock_ceiling` view. `database` mode adds the `custom_role_permissions` and `custom_role_includes` tables; `jwt` mode reads the `memberships[].grants` claim. With `--rbac`, `authorize()` answers tenant requests from custom roles too. |
-| `--fields` | `views` | `rls.fields`, off | Emit one `security_invoker` view `<table>_visible` per table whose read grants limit `fields` ([field views](#field-views)). Any other value exits 2. |
-| `--revoke-columns` | flag | `rls.revokeColumns`, off | With `--fields views`, grant `anon` and `authenticated` `select` on only the unrestricted columns of each such table, so restricted columns are read through `<table>_visible`. Breaks `select *` on the table. Without `--fields views` it exits 2. |
-| `--capabilities` | flag | `rls.capabilities`, off | [Link capabilities](/docs/concepts/capabilities) reach resource-scoped grants: adds `permdock_capability_ids(p_resource, p_role, p_permission)`, which reads the `capability` claim `exchangeCapability` mints, and one `anon` policy per resource-scoped grant. A resource role with no memberships table gets only the `anon` policy, with a warning, instead of failing. |
+| Flag                | Values                                  | Default                                                                                                         | Effect                                                                                                                                                                                                                                                                                                                                                                         |
+| ------------------- | --------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `--rbac`            | `supabase`                              | off                                                                                                             | Emit the RBAC scaffold (`--rbac-scaffold` is an equivalent spelling). Any other value exits 2; so does a dialect other than `supabase`.                                                                                                                                                                                                                                        |
+| `--rbac-schema`     | a Postgres identifier                   | `rls.schema`, `rls.rbac.schema`, or `public`                                                                    | Schema for `role_permissions`, the helpers, and the RBAC scaffold.                                                                                                                                                                                                                                                                                                             |
+| `--authorize`       | `database`, `jwt`                       | `rls.authorize`, `rls.rbac.authorize`, else `database` with `--rbac` or a memberships table and `jwt` otherwise | Where the helpers (and `authorize()`) read roles and memberships. `jwt` needs no query but stays stale until the token refreshes (doctor PD019).                                                                                                                                                                                                                               |
+| `--memberships`     | `<table>:tenant,user,role[,expires_at]` | `rls.memberships.tenant`                                                                                        | The first scope's memberships table `database` mode reads. Other scopes come from `rls.memberships.scopes`.                                                                                                                                                                                                                                                                    |
+| `--tenant-type`     | a Postgres type                         | `rls.tenantType`, or `uuid`                                                                                     | Type of the first scope's columns: the tenant claim is cast to it and its helper returns it. `rls.teamType` does the same for the second scope and defaults to the tenant type; `rls.scopeTypes` sets any scope by name.                                                                                                                                                       |
+| `--policy-per-role` | flag                                    | `rls.policyPerRole`, off                                                                                        | One policy per role and permission (`{role}_{permission}`, the layout before the helpers), each still calling the helpers.                                                                                                                                                                                                                                                     |
+| `--policy-name`     | template                                | `{table}_{op}`, or `{role}_{permission}` with `--policy-per-role`                                               | Policy names from `{table}`, `{op}`, `{role}` and `{permission}`. A collapsed layout needs `{table}` and `{op}` and rejects `{role}` and `{permission}`.                                                                                                                                                                                                                       |
+| `--custom-roles`    | flag                                    | `rls.customRoles`, off                                                                                          | The scope helpers also resolve tenant-defined [custom roles](/docs/concepts/custom-roles), always intersected with the generated `permdock_ceiling` view. `database` mode adds the `custom_role_permissions` and `custom_role_includes` tables; `jwt` mode reads the `memberships[].grants` claim. With `--rbac`, `authorize()` answers tenant requests from custom roles too. |
+| `--fields`          | `views`                                 | `rls.fields`, off                                                                                               | Emit one `security_invoker` view `<table>_visible` per table whose read grants limit `fields` ([field views](#field-views)). Any other value exits 2.                                                                                                                                                                                                                          |
+| `--revoke-columns`  | flag                                    | `rls.revokeColumns`, off                                                                                        | With `--fields views`, grant `anon` and `authenticated` `select` on only the unrestricted columns of each such table, so restricted columns are read through `<table>_visible`. Breaks `select *` on the table. Without `--fields views` it exits 2.                                                                                                                           |
+| `--capabilities`    | flag                                    | `rls.capabilities`, off                                                                                         | [Link capabilities](/docs/concepts/capabilities) reach resource-scoped grants: adds `permdock_capability_ids(p_resource, p_role, p_permission)`, which reads the `capability` claim `exchangeCapability` mints, and one `anon` policy per resource-scoped grant. A resource role with no memberships table gets only the `anon` policy, with a warning, instead of failing.    |
 
 `--force` (or `rls.force: true`) makes the table owner subject to the policies too. The `sql` target adds `ALTER TABLE ... FORCE ROW LEVEL SECURITY` after each `ENABLE`; `drizzle` and `prisma` write it to `<out>.migration.sql`. It is off by default because a migration or seed script that connects as the owner stops seeing rows ([RLS](/docs/adapters/rls)). `--emit` is an older spelling of `--format`.
 
@@ -190,11 +199,11 @@ With `--rbac`, the command prints a reminder to run `permdock supabase hook gene
 
 When a role declares [`min`, `max`, `transferOnly`, `assigns` or `for`](/docs/concepts/ownership), the output adds, next to the helpers:
 
-| Object | What it enforces |
-| --- | --- |
-| `permdock_holders_<scope>` (deferred constraint trigger and function) | `min` and `max` per instance of the scope, counted over live rows of its membership table (expiry and kind included), at commit. An instance with no membership rows left is being deleted and skips `min`. Errors are SQLSTATE `23514` with hint `last-holder` or `max-holders` |
-| `permdock_transfer_only_<scope>_insert` / `_update` / `_delete` (statement triggers over transition tables) | A `transferOnly` role's holder count in an instance that had holders before a statement and has some after it must not change: move it in one `UPDATE`, or delete the only holder and insert the next one in the same transaction. Hint `transfer-only` |
-| `permdock_can_assign(p_role text, p_scope_id text) returns boolean` | Whether the signed-in user holds, on a live membership of instance `p_scope_id` (the role's own scope or an ancestor's), a role whose `assigns` lists `p_role`; global assigners count everywhere. `stable security definer`, `search_path = ''`, `execute` for `authenticated` only |
+| Object                                                                                                      | What it enforces                                                                                                                                                                                                                                                                     |
+| ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `permdock_holders_<scope>` (deferred constraint trigger and function)                                       | `min` and `max` per instance of the scope, counted over live rows of its membership table (expiry and kind included), at commit. An instance with no membership rows left is being deleted and skips `min`. Errors are SQLSTATE `23514` with hint `last-holder` or `max-holders`     |
+| `permdock_transfer_only_<scope>_insert` / `_update` / `_delete` (statement triggers over transition tables) | A `transferOnly` role's holder count in an instance that had holders before a statement and has some after it must not change: move it in one `UPDATE`, or delete the only holder and insert the next one in the same transaction. Hint `transfer-only`                              |
+| `permdock_can_assign(p_role text, p_scope_id text) returns boolean`                                         | Whether the signed-in user holds, on a live membership of instance `p_scope_id` (the role's own scope or an ancestor's), a role whose `assigns` lists `p_role`; global assigners count everywhere. `stable security definer`, `search_path = ''`, `execute` for `authenticated` only |
 
 The triggers need the scope's membership table in `rls.memberships`; without one the output says so and only `decideRoleChange` checks the counts. PermDock generates no policies on your membership tables. Use the helper in your own:
 
@@ -209,12 +218,12 @@ create policy customer_contacts_insert on public.customer_contacts for insert to
 
 `--custom-roles` (or `rls.customRoles: true`) adds, next to the helpers:
 
-| Object | What it holds |
-| --- | --- |
+| Object                                                                           | What it holds                                                                                                                                                                                      |
+| -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `custom_role_permissions (tenant_id, scope, scope_id, role, permission, effect)` | `database` mode: one row per `CustomRole.grants` entry; `scope` is the scope the role is held at (default the first), `scope_id` pins it to one instance or is null, `effect` is `allow` or `deny` |
-| `custom_role_includes (tenant_id, scope, scope_id, role, include_role)` | `database` mode: one row per `CustomRole.includes` entry |
-| `permdock_ceiling` (view) | The `role_permissions` rows of declared roles marked `assignable`, in every non-global scope, plus those roles' denies on the same permissions |
-| `permdock_custom_keys(p_allow, p_deny, p_include, p_scope)` | The grant keys one custom role holds in a scope, computed from the ceiling exactly as `resolveCustomRole` does |
+| `custom_role_includes (tenant_id, scope, scope_id, role, include_role)`          | `database` mode: one row per `CustomRole.includes` entry                                                                                                                                           |
+| `permdock_ceiling` (view)                                                        | The `role_permissions` rows of declared roles marked `assignable`, in every non-global scope, plus those roles' denies on the same permissions                                                     |
+| `permdock_custom_keys(p_allow, p_deny, p_include, p_scope)`                      | The grant keys one custom role holds in a scope, computed from the ceiling exactly as `resolveCustomRole` does                                                                                     |
 
 The membership table (or claim) holds the custom role's name like any role; a declared role name never resolves as custom. Each `permitted_<scope>_ids` unions the declared branch with the custom one, so a policy needs no change. Both tables have RLS enabled and every privilege revoked from `anon`, `authenticated` and `public`; the application writes them from its own server connection, the same data its `RoleSource` reads. A row naming a permission outside the ceiling reaches no key, so writing to the tables directly can never widen access.
 
@@ -224,10 +233,10 @@ In `jwt` mode each membership may carry `grants`, a map from custom role name to
 
 `--capabilities` (or `rls.capabilities: true`) adds one helper and one `anon` branch per resource-scoped grant:
 
-| Object | What it does |
-| --- | --- |
+| Object                                                                     | What it does                                                                                                                                                                                                                                                                                                                           |
+| -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `permdock_capability_ids(p_resource text, p_role text, p_permission text)` | `stable`, `search_path = ''`, executable by `anon` and `authenticated`. Returns the resource id in the `capability` claim when its `v` is `1`, `holder` is `link`, `on.resource` is `p_resource`, `roles` includes `p_role`, `permissions` (when present) includes `p_permission` and `expiresAt` is in the future; nothing otherwise. |
-| `<table>_<op>_anon` policies | `to anon`: `"<field>"::text in (select permdock_capability_ids('<resource>', '<role>', '<permission>'))`, ANDed with the grant's row condition. `<field>` is the row's id for a role on the row's own resource, or the parent field for a role on an ancestor, exactly as `can()` matches a resource membership. |
+| `<table>_<op>_anon` policies                                               | `to anon`: `"<field>"::text in (select permdock_capability_ids('<resource>', '<role>', '<permission>'))`, ANDed with the grant's row condition. `<field>` is the row's id for a role on the row's own resource, or the parent field for a role on an ancestor, exactly as `can()` matches a resource membership.                       |
 
 The claim is the `Capability` object ([wire formats](/docs/concepts/wire-formats)) inside a short-lived Supabase access token with `role: 'anon'`, which the application's server mints with `exchangeCapability` after `subjectFromCapability` verified the link; no policy trusts a capability the server did not exchange. Privileges follow the policies: `anon` gets only the commands it has a policy for.
 
@@ -235,10 +244,10 @@ The claim is the `Capability` object ([wire formats](/docs/concepts/wire-formats
 
 `--fields views` (or `rls.fields: 'views'`) adds, after the policies, one view per table whose read grants (`read`, `get`, `list`) carry `fields`:
 
-| Object | What it holds |
-| --- | --- |
-| `<table>_visible` | `with (security_invoker = true)`: every column of the resource schema in order. A column some read allow leaves out of its list, or some read deny lists, is `case when <permitted> then "<col>" end`; every other column, and the row key, is the table's column unchanged. Granted `select` to `authenticated`, plus `anon` when an `anyone()` or link branch reads the table |
-| `<table>_visible_fields` | With `--revoke-columns` only: `with (security_barrier = true)`, owned by whoever runs the migration. The row key as `permdock_key` and each restricted column masked the same way, for the rows where one of them is readable. `<table>_visible` reads the table's rows as the caller and left-joins it on the key. Commented `permdock:field-companion <table>_visible` |
+| Object                   | What it holds                                                                                                                                                                                                                                                                                                                                                                   |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `<table>_visible`        | `with (security_invoker = true)`: every column of the resource schema in order. A column some read allow leaves out of its list, or some read deny lists, is `case when <permitted> then "<col>" end`; every other column, and the row key, is the table's column unchanged. Granted `select` to `authenticated`, plus `anon` when an `anyone()` or link branch reads the table |
+| `<table>_visible_fields` | With `--revoke-columns` only: `with (security_barrier = true)`, owned by whoever runs the migration. The row key as `permdock_key` and each restricted column masked the same way, for the rows where one of them is readable. `<table>_visible` reads the table's rows as the caller and left-joins it on the key. Commented `permdock:field-companion <table>_visible`        |
 
 `<permitted>` for a column is `can(permission, row, { field })` in SQL: the OR of the branches of read allows whose `fields` include the column (or have none), ANDed with `not` of the OR of covering read denies. Each branch is the row policy's own clause: the uncorrelated helper call (`permitted_<scope>_ids` or `permdock_has`) and the grant's row condition, so the helpers still run once per statement. A branch with no helper call (an `authenticated()` grant) adds the signed-in check its `to authenticated` policy gave it. Grant keys also split by field set, so `invoice.read#2` (finance, four fields) and `invoice.read#1` (admin, every field) reach different columns.
 
@@ -263,13 +272,13 @@ Doctor PD030 warns while field-limited columns stay readable on the table ([doct
 
 Supabase's [declarative schemas](https://supabase.com/docs/guides/local-development/declarative-database-schemas) keep the desired schema under `supabase/schemas`, and the CLI writes migrations from it. `--split` writes one file per part:
 
-| Part | Holds |
-| --- | --- |
-| `helpers` | `role_permissions` (and its seeds without the `seeds` part), `permdock_has`, `permitted_<scope>_ids`, `member_<scope>_ids`, the RBAC scaffold with `--rbac`, the closure and break-glass tables |
-| `seeds` | The `role_permissions` rows, starting with `-- permdock:seeds v1` |
-| `indexes` | `create index if not exists` for every column the policies filter on (scope keys and condition fields, through `and`, `or` and `not`) and for each membership table's user column, starting with `-- permdock:indexes v1` |
-| `policies` | `enable row level security`, the table grants and every `create policy` |
-| `hook` | The token hook from `permdock supabase hook generate`; needs `supabase.hook` |
+| Part       | Holds                                                                                                                                                                                                                     |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `helpers`  | `role_permissions` (and its seeds without the `seeds` part), `permdock_has`, `permitted_<scope>_ids`, `member_<scope>_ids`, the RBAC scaffold with `--rbac`, the closure and break-glass tables                           |
+| `seeds`    | The `role_permissions` rows, starting with `-- permdock:seeds v1`                                                                                                                                                         |
+| `indexes`  | `create index if not exists` for every column the policies filter on (scope keys and condition fields, through `and`, `or` and `not`) and for each membership table's user column, starting with `-- permdock:indexes v1` |
+| `policies` | `enable row level security`, the table grants and every `create policy`                                                                                                                                                   |
+| `hook`     | The token hook from `permdock supabase hook generate`; needs `supabase.hook`                                                                                                                                              |
 
 Give the parts in any order and any subset; they are written as `helpers`, `seeds`, `indexes`, `policies`, `hook`. Without the `indexes` part, each index is printed as an `index suggestion` warning instead. The part names its indexes `permdock_<table>_<columns>_idx`, so an index the project already has under another name is created twice: drop that line, or leave the part out and keep the indexes in your own schema files. Without `--split`, `--out` is one file as before. The `role_permissions` rows are data, which no schema diff carries, so the `seeds` part goes to `--seeds-out <file>` when it is set (a versioned migration; `-` prints it). Every policy change that changes a grant key needs a new seeds migration, and doctor PD054 warns when the last seeds in the migrations differ from what the policy compiles to. `--check` compares every part, the grants and the seeds file, and names each part that drifted (`rls generate drift: policies: missing supabase/schemas/public/policies/permdock.sql`).
 
@@ -277,12 +286,12 @@ Give the parts in any order and any subset; they are written as `helpers`, `seed
 
 With `[experimental.pgdelta] enabled = true` in `supabase/config.toml`, and no `--out` or `rls.out`, `--split` writes pg-delta's per-schema, unnumbered layout under `declarative_schema_path` (default `supabase/schemas`). pg-delta orders statements by their dependencies, so no file needs a number:
 
-| Part | File |
-| --- | --- |
-| `helpers` | `<schema>/helpers.sql` |
-| `indexes` | `<schema>/indexes.sql` |
-| `policies` | `public/policies/permdock.sql` |
-| `hook` | `<schema>/functions/custom_access_token_hook.sql` |
+| Part       | File                                              |
+| ---------- | ------------------------------------------------- |
+| `helpers`  | `<schema>/helpers.sql`                            |
+| `indexes`  | `<schema>/indexes.sql`                            |
+| `policies` | `public/policies/permdock.sql`                    |
+| `hook`     | `<schema>/functions/custom_access_token_hook.sql` |
 
 `<schema>` is the helper schema (`permdock` unless `rls.schema` says otherwise). pg-delta refuses a declarative file that inserts rows, so the `helpers` part needs the `seeds` part with `--seeds-out`. pg-delta keeps grants and policies, so the hook keeps its `supabase_auth_admin` grants and `--grants-out` is not needed. `permdock supabase hook generate` without `--out` writes the same hook path. An explicit `--out` with `{part}` overrides the layout.
 
@@ -341,28 +350,28 @@ rls: {
 },
 ```
 
-| Form | Before | After |
-| --- | --- | --- |
-| `ids` | `org_ids_with_permission('k')` | `permdock.permitted_organization_ids('k2')` |
-| `row` | `has_org_permission(col, 'k')` | `(col in (select permdock.permitted_organization_ids('k2')))` |
-| `scoped` | `authorize_scope('organization', col, 'k')` | the `row` form, on the named scope (`rls.migrate.scopes` renames a literal) |
-| `scoped`, global | `authorize_scope('system', null, 'k')` | `(select permdock.permdock_has('k2'))` |
-| `global` | `is_system_user_with('k')` | `(select permdock.permdock_has('k2'))`, without the `select` when the call already is one |
-| `membership` | `is_org_member(col)` | `(col in (select permdock.member_organization_ids()))` |
+| Form             | Before                                      | After                                                                                     |
+| ---------------- | ------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `ids`            | `org_ids_with_permission('k')`              | `permdock.permitted_organization_ids('k2')`                                               |
+| `row`            | `has_org_permission(col, 'k')`              | `(col in (select permdock.permitted_organization_ids('k2')))`                             |
+| `scoped`         | `authorize_scope('organization', col, 'k')` | the `row` form, on the named scope (`rls.migrate.scopes` renames a literal)               |
+| `scoped`, global | `authorize_scope('system', null, 'k')`      | `(select permdock.permdock_has('k2'))`                                                    |
+| `global`         | `is_system_user_with('k')`                  | `(select permdock.permdock_has('k2'))`, without the `select` when the call already is one |
+| `membership`     | `is_org_member(col)`                        | `(col in (select permdock.member_organization_ids()))`                                    |
 
 The rewritten forms are uncorrelated, so Postgres runs each helper once per statement. A call is reported and left as written, with its file, line and reason, when the rewrite could change what it admits:
 
-| Reason | When |
-| --- | --- |
-| `not-a-column` | The id is an expression, a function call or a parameter, not a plain column |
-| `dynamic-key` | The key is not a string literal |
-| `unknown-key` | The mapped key is not in the policy; the command exits `1` while one remains |
-| `row-conditions` | The key's grants carry row conditions the helpers do not apply; let `generate` write that table's policy |
+| Reason                 | When                                                                                                                                                                           |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `not-a-column`         | The id is an expression, a function call or a parameter, not a plain column                                                                                                    |
+| `dynamic-key`          | The key is not a string literal                                                                                                                                                |
+| `unknown-key`          | The mapped key is not in the policy; the command exits `1` while one remains                                                                                                   |
+| `row-conditions`       | The key's grants carry row conditions the helpers do not apply; let `generate` write that table's policy                                                                       |
 | `not-granted-on-scope` | No role holds an allow for the key on that scope (a deny seed does not count), or its action is not one `generate` seeds (`read`, `list`, `get`, `create`, `update`, `delete`) |
-| `missing-helper` | `generate` writes no such helper, such as `member_<scope>_ids` for a scope without a membership source |
-| `function-body` | The call is inside a `create function` or `do` body, which runs with its own privileges |
-| `not-in-policy` | The call is in a view, a trigger or any statement other than a policy |
-| `unparsed` | The file does not parse |
+| `missing-helper`       | `generate` writes no such helper, such as `member_<scope>_ids` for a scope without a membership source                                                                         |
+| `function-body`        | The call is inside a `create function` or `do` body, which runs with its own privileges                                                                                        |
+| `not-in-policy`        | The call is in a view, a trigger or any statement other than a policy                                                                                                          |
+| `unparsed`             | The file does not parse                                                                                                                                                        |
 
 ## import
 
@@ -413,9 +422,9 @@ When SQL is the authority, skip `generate`. Pin the TypeScript policy (with `sql
 ## CI
 
 ```yaml
-- run: pnpm exec permdock rls generate --target sql --dialect supabase --check   # generated migration up to date
+- run: pnpm exec permdock rls generate --target sql --dialect supabase --check # generated migration up to date
 # declarative schemas: the same --split, --out and --grants-out as the generate step, plus --check
-- run: pnpm exec permdock rls verify --db $DATABASE_URL                          # in the job with a Postgres service
+- run: pnpm exec permdock rls verify --db $DATABASE_URL # in the job with a Postgres service
 ```
 
 `tests/integration` in this repository runs `verify` against Postgres in testcontainers.

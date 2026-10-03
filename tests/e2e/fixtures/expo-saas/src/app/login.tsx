@@ -1,12 +1,12 @@
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, Text, View } from "react-native";
 
-import { loginUsers } from '@permdock/e2e-saas-kit/nav';
+import { loginUsers } from "@permdock/e2e-saas-kit/nav";
 
-import { post } from '../lib/session';
+import { post } from "../lib/session";
 
 async function signIn(user: string): Promise<void> {
-  await post('/api/login', { user });
-  window.location.assign('/');
+  await post("/api/login", { user });
+  window.location.assign("/");
 }
 
 export default function Login() {

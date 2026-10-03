@@ -1,24 +1,24 @@
-import type { CustomRole } from 'permdock';
+import type { CustomRole } from "permdock";
 
-import { joseTokenSigner } from 'permdock/jwt';
-import { createPermDock } from 'permdock/server';
-import { saasPolicy, saasPrivateJwk } from 'permdock/testing/saas';
+import { joseTokenSigner } from "permdock/jwt";
+import { createPermDock } from "permdock/server";
+import { saasPolicy, saasPrivateJwk } from "permdock/testing/saas";
 
-import { findOrg, readSession, saasSubject } from '@permdock/e2e-saas-kit';
+import { findOrg, readSession, saasSubject } from "@permdock/e2e-saas-kit";
 
 export const signer = joseTokenSigner({
   key: saasPrivateJwk,
-  alg: 'ES256',
-  kid: 'e2e',
+  alg: "ES256",
+  kid: "e2e",
 });
 
 export function sessionOf(request: Request) {
-  return readSession(request.headers.get('cookie'));
+  return readSession(request.headers.get("cookie"));
 }
 
 export function orgOf(request: Request): string {
   const params = new URL(request.url).searchParams;
-  return params.get('org') ?? params.get('tenant') ?? '';
+  return params.get("org") ?? params.get("tenant") ?? "";
 }
 
 /**
@@ -36,4 +36,4 @@ export const kernel = createPermDock(saasPolicy, {
   },
 });
 
-export const noStore = { 'cache-control': 'private, no-store' };
+export const noStore = { "cache-control": "private, no-store" };

@@ -10,34 +10,44 @@ Same model as [React](/docs/adapters/react): snapshot from the server, local eva
 ## API
 
 ```tsx
-import { PermDockProvider, usePermDock, usePermission, Protected } from 'permdock/solid'
-import { permissions } from '~/permissions'
+import {
+  PermDockProvider,
+  usePermDock,
+  usePermission,
+  Protected,
+} from "permdock/solid";
+import { permissions } from "~/permissions";
 
 <PermDockProvider snapshot={snapshot} endpoint="/api/permdock">
   <App />
-</PermDockProvider>
+</PermDockProvider>;
 
 function PostActions(props: { post: Post }) {
-  const permdock = usePermDock()                                            // can / decide / status / invalidate
-  const canEdit = usePermission(permissions.post.update, () => props.post) // accessor: () => { allowed, status, decision }
+  const permdock = usePermDock(); // can / decide / status / invalidate
+  const canEdit = usePermission(permissions.post.update, () => props.post); // accessor: () => { allowed, status, decision }
 
   return (
-    <Protected permission={permissions.post.update} data={props.post} pending={<Skeleton />} fallback={<Locked />}>
+    <Protected
+      permission={permissions.post.update}
+      data={props.post}
+      pending={<Skeleton />}
+      fallback={<Locked />}
+    >
       <EditButton />
     </Protected>
-  )
+  );
 }
 ```
 
-| Export | Role |
-|---|---|
-| `PermDockProvider` | Creates the client store once, validates the snapshot, provides it through Solid context. Options match the React provider. `snapshot` may be an accessor (a `createResource` result included: the store stays `pending` while it is `undefined`, then re-hydrates on every change) or a promise. `<Protected>` follows a changed `permission` and accepts JSX children. |
-| `usePermDock` | Returns the store: `can`, `decide`, `status` (accessor), `invalidate`, `refresh`. |
-| `usePermission` | Takes the reference and an accessor for the resource; returns an accessor of `allowed`, `status`, `decision`. Tracks the resource `id`, so a new post re-evaluates. |
-| `Protected` | Guard component with `permission`, `data`, optional `tenant`, `pending`, `fallback` props; children may be a function receiving the granted `Decision`. |
-| `usePermissions`, `useFilter` | Accessor-returning counterparts of the React hooks: several references against one accessor, and `filter` over an accessor of rows. |
-| `useTenant`, `useMemberships`, `useRoles`, `useAssignableRoles`, `useAssignablePermissions` | Accessors for the active tenant (`tenant()`, `tenants()`, `switchTo`), the membership list, roles held in a tenant, roles the subject may hand out and the custom-role ceiling permissions it may hand out ([UI](/docs/concepts/ui), [tenancy](/docs/concepts/tenancy)). |
-| `useApproval`, `useSubject` | The `approval-required` flow as an accessor of `{ state, token }` with `request()`, and the snapshot's subject summary (`simulated` included). |
+| Export                                                                                      | Role                                                                                                                                                                                                                                                                                                                                                                     |
+| ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `PermDockProvider`                                                                          | Creates the client store once, validates the snapshot, provides it through Solid context. Options match the React provider. `snapshot` may be an accessor (a `createResource` result included: the store stays `pending` while it is `undefined`, then re-hydrates on every change) or a promise. `<Protected>` follows a changed `permission` and accepts JSX children. |
+| `usePermDock`                                                                               | Returns the store: `can`, `decide`, `status` (accessor), `invalidate`, `refresh`.                                                                                                                                                                                                                                                                                        |
+| `usePermission`                                                                             | Takes the reference and an accessor for the resource; returns an accessor of `allowed`, `status`, `decision`. Tracks the resource `id`, so a new post re-evaluates.                                                                                                                                                                                                      |
+| `Protected`                                                                                 | Guard component with `permission`, `data`, optional `tenant`, `pending`, `fallback` props; children may be a function receiving the granted `Decision`.                                                                                                                                                                                                                  |
+| `usePermissions`, `useFilter`                                                               | Accessor-returning counterparts of the React hooks: several references against one accessor, and `filter` over an accessor of rows.                                                                                                                                                                                                                                      |
+| `useTenant`, `useMemberships`, `useRoles`, `useAssignableRoles`, `useAssignablePermissions` | Accessors for the active tenant (`tenant()`, `tenants()`, `switchTo`), the membership list, roles held in a tenant, roles the subject may hand out and the custom-role ceiling permissions it may hand out ([UI](/docs/concepts/ui), [tenancy](/docs/concepts/tenancy)).                                                                                                 |
+| `useApproval`, `useSubject`                                                                 | The `approval-required` flow as an accessor of `{ state, token }` with `request()`, and the snapshot's subject summary (`simulated` included).                                                                                                                                                                                                                           |
 
 The hooks keep the React names with accessor-returning semantics, and `usePermission` returns one accessor rather than a tuple. For SolidStart the snapshot is loaded in a server function from a request-scoped `PermDock` and the decision endpoint is an API route built on the [server kernel](/docs/adapters/server-kernel); there is no `permdock/solid-start` entry.
 

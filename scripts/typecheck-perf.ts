@@ -1,17 +1,17 @@
-import { spawnSync } from 'node:child_process';
-import { readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { spawnSync } from "node:child_process";
+import { readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const PERMDOCK = join(ROOT, 'packages', 'permdock');
-const BUDGET = join(ROOT, 'scripts', 'typecheck-perf.json');
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
+const PERMDOCK = join(ROOT, "packages", "permdock");
+const BUDGET = join(ROOT, "scripts", "typecheck-perf.json");
 /** Headroom over the recorded count before the gate fails. */
 const INSTANTIATION_SLACK = 1.1;
 
 const PROJECTS = {
-  src: 'tsconfig.json',
-  tests: 'tests/tsconfig.json',
+  src: "tsconfig.json",
+  tests: "tests/tsconfig.json",
 } as const;
 
 type Project = keyof typeof PROJECTS;
@@ -29,7 +29,7 @@ interface Measured {
 }
 
 function diagnostic(output: string, label: string): number {
-  const match = new RegExp(`^${label}:\\s+([\\d.]+)`, 'mu').exec(output);
+  const match = new RegExp(`^${label}:\\s+([\\d.]+)`, "mu").exec(output);
   if (match?.[1] === undefined) {
     throw new Error(`tsc --extendedDiagnostics printed no "${label}" line`);
   }
@@ -38,18 +38,18 @@ function diagnostic(output: string, label: string): number {
 
 function measure(project: Project): Measured {
   const result = spawnSync(
-    'pnpm',
+    "pnpm",
     [
-      'exec',
-      'tsc',
-      '--noEmit',
-      '--checkers',
-      '1',
-      '--extendedDiagnostics',
-      '-p',
+      "exec",
+      "tsc",
+      "--noEmit",
+      "--checkers",
+      "1",
+      "--extendedDiagnostics",
+      "-p",
       PROJECTS[project],
     ],
-    { cwd: PERMDOCK, encoding: 'utf8' },
+    { cwd: PERMDOCK, encoding: "utf8" },
   );
   if (result.status !== 0) {
     throw new Error(
@@ -57,22 +57,22 @@ function measure(project: Project): Measured {
     );
   }
   return {
-    instantiations: diagnostic(result.stdout, 'Instantiations'),
-    checkSeconds: diagnostic(result.stdout, 'Check time'),
+    instantiations: diagnostic(result.stdout, "Instantiations"),
+    checkSeconds: diagnostic(result.stdout, "Check time"),
   };
 }
 
 function readBudget(): Record<Project, Budget> {
   // SAFETY: the budget file is written by this script in this shape
-  return JSON.parse(readFileSync(BUDGET, 'utf8')) as Record<Project, Budget>;
+  return JSON.parse(readFileSync(BUDGET, "utf8")) as Record<Project, Budget>;
 }
 
-const write = process.argv.includes('--write');
+const write = process.argv.includes("--write");
 const budget = readBudget();
 const failures: string[] = [];
 const next: Record<string, Budget> = {};
 
-for (const project of ['src', 'tests'] as const) {
+for (const project of ["src", "tests"] as const) {
   const measured = measure(project);
   const limit = budget[project];
   next[project] = {
@@ -99,7 +99,7 @@ if (write) {
   process.stdout.write(`Recorded ${BUDGET}\n`);
 } else if (failures.length > 0) {
   process.stderr.write(
-    `${failures.join('\n')}\nFind the type that grew, or record the new count on purpose with \`pnpm typecheck:perf --write\`.\n`,
+    `${failures.join("\n")}\nFind the type that grew, or record the new count on purpose with \`pnpm typecheck:perf --write\`.\n`,
   );
   process.exitCode = 1;
 }

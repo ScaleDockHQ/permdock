@@ -1,16 +1,16 @@
-import type { Grantee } from '../core/grantee.ts';
-import type { Membership, Subject } from '../core/subject.ts';
+import type { Grantee } from "../core/grantee.ts";
+import type { Membership, Subject } from "../core/subject.ts";
 
-import { parseDuration } from '../core/duration.ts';
+import { parseDuration } from "../core/duration.ts";
 
-export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'expired';
+export type ApprovalStatus = "pending" | "approved" | "rejected" | "expired";
 
 export type ApprovalApprovers = {
   readonly by: Grantee | readonly Grantee[];
   /** `false` lets the request's principal approve it; absent means `true`. */
   readonly distinct?: boolean;
   /** Set when the approval no longer applies once the row's `version` changes. */
-  readonly staleOn?: 'resource-change';
+  readonly staleOn?: "resource-change";
   /** Distinct approvers needed before `status` becomes `approved`; absent means 1. */
   readonly quorum?: number;
   /** Who else may approve once the request has waited `after` (a duration such as `'4h'`) since `createdAt`. */
@@ -64,7 +64,7 @@ export type ApprovalRequest = {
 };
 
 export type ApprovalVerdict = {
-  readonly status: 'approved' | 'rejected';
+  readonly status: "approved" | "rejected";
   readonly by: Subject;
   readonly note?: string;
 };
@@ -123,17 +123,17 @@ export type ApprovalStore = {
 };
 
 export type ApprovalResumeFailure =
-  | 'approval-not-found'
-  | 'approval-pending'
-  | 'approval-rejected'
-  | 'approval-expired'
-  | 'approval-consumed';
+  | "approval-not-found"
+  | "approval-pending"
+  | "approval-rejected"
+  | "approval-expired"
+  | "approval-consumed";
 
 export type ApprovalInspectResult =
   | { readonly ok: true; readonly request: ApprovalRequest }
   | { readonly ok: false; readonly detail: ApprovalResumeFailure };
 
-export const APPROVAL_HEADER = 'PermDock-Approval' as const;
+export const APPROVAL_HEADER = "PermDock-Approval" as const;
 
 export const DEFAULT_APPROVAL_TTL_MS: number = 60 * 60 * 1000;
 

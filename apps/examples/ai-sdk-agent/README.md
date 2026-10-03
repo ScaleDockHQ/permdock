@@ -7,5 +7,5 @@ HTTP harness for `permdock/ai-sdk`. `pnpm start` listens on `127.0.0.1:3472` wit
 - `GET /delete_post` — `toolApproval` → `user-approval`
 
 ```ts
-import { createPermDock } from 'permdock/ai-sdk'
+import { createPermDock } from "permdock/ai-sdk";
 ```

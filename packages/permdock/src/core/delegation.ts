@@ -1,12 +1,12 @@
-import type { DenialReason } from './decision.ts';
-import type { Permission } from './permissions.ts';
-import type { PolicyDelegation } from './policy.ts';
-import type { Delegation, GnapAccess, Subject } from './subject.ts';
+import type { DenialReason } from "./decision.ts";
+import type { Permission } from "./permissions.ts";
+import type { PolicyDelegation } from "./policy.ts";
+import type { Delegation, GnapAccess, Subject } from "./subject.ts";
 
-import { flattenGrantee, matchGrantee } from './grantee.ts';
-import { isActive } from './validity.ts';
+import { flattenGrantee, matchGrantee } from "./grantee.ts";
+import { isActive } from "./validity.ts";
 
-type DelegatedPermission = Pick<Permission, 'scope' | 'resource' | 'action'>;
+type DelegatedPermission = Pick<Permission, "scope" | "resource" | "action">;
 
 /**
  * Whether a delegated caller may use a permission its principal holds, through
@@ -19,7 +19,7 @@ export function coveredByDelegation(
   resourceId?: string,
   hasActor = false,
 ): DenialReason | undefined {
-  const unscoped = hasActor ? 'no-delegation' : undefined;
+  const unscoped = hasActor ? "no-delegation" : undefined;
   if (delegation === undefined) {
     return unscoped;
   }
@@ -32,13 +32,13 @@ export function coveredByDelegation(
   const emptyScopes = hasScopes && (delegation.scopes?.length ?? 0) === 0;
   const emptyAccess = hasAccess && (delegation.access?.length ?? 0) === 0;
   if (emptyScopes && !hasDetails && !hasAccess) {
-    return 'no-delegation';
+    return "no-delegation";
   }
   if (emptyAccess && !hasScopes && !hasDetails) {
-    return 'no-delegation';
+    return "no-delegation";
   }
   if (emptyScopes && emptyAccess && !hasDetails) {
-    return 'no-delegation';
+    return "no-delegation";
   }
   const scopeOk = delegation.scopes?.includes(permission.scope) ?? false;
   const detailOk =
@@ -46,10 +46,10 @@ export function coveredByDelegation(
       if (detail.type !== permission.resource) {
         return false;
       }
-      const identifier: unknown = detail['identifier'];
+      const identifier: unknown = detail["identifier"];
       if (
         identifier !== undefined &&
-        (typeof identifier !== 'string' || identifier !== resourceId)
+        (typeof identifier !== "string" || identifier !== resourceId)
       ) {
         return false;
       }
@@ -63,7 +63,7 @@ export function coveredByDelegation(
   if (scopeOk || detailOk || accessOk) {
     return undefined;
   }
-  return 'not-delegated';
+  return "not-delegated";
 }
 
 function accessCovers(
@@ -75,28 +75,28 @@ function accessCovers(
     return false;
   }
   return access.some((entry) => {
-    if (typeof entry === 'string') {
+    if (typeof entry === "string") {
       return entry === permission.scope;
     }
-    if (entry === null || typeof entry !== 'object') {
+    if (entry === null || typeof entry !== "object") {
       return false;
     }
-    const type = entry['type'];
-    if (typeof type !== 'string' || !typeMatches(type, permission.resource)) {
+    const type = entry["type"];
+    if (typeof type !== "string" || !typeMatches(type, permission.resource)) {
       return false;
     }
     // A present field of the wrong type narrows nothing, so it covers nothing.
-    const actions = entry['actions'];
+    const actions = entry["actions"];
     if (
       actions !== undefined &&
       (!Array.isArray(actions) || !actions.includes(permission.action))
     ) {
       return false;
     }
-    const identifier = entry['identifier'];
+    const identifier = entry["identifier"];
     if (
       identifier !== undefined &&
-      (typeof identifier !== 'string' || identifier !== resourceId)
+      (typeof identifier !== "string" || identifier !== resourceId)
     ) {
       return false;
     }
@@ -112,11 +112,11 @@ function typeMatches(type: string, resource: string): boolean {
 }
 
 export function resourceIdOf(data: unknown): string | undefined {
-  if (data === null || typeof data !== 'object' || !('id' in data)) {
+  if (data === null || typeof data !== "object" || !("id" in data)) {
     return undefined;
   }
   const id = data.id;
-  return typeof id === 'string' || typeof id === 'number'
+  return typeof id === "string" || typeof id === "number"
     ? String(id)
     : undefined;
 }
@@ -138,10 +138,10 @@ function handsOver(
     return false;
   }
   return items.every((item) => {
-    if (item.kind === 'role') {
+    if (item.kind === "role") {
       return heldRoles.has(item.role);
     }
-    if (item.kind === 'relation') {
+    if (item.kind === "relation") {
       return false;
     }
     const match = matchGrantee(item, subject, now, undefined);

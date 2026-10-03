@@ -1,19 +1,19 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from "vitest";
 
-import type { OtelApi, StructuralLogger } from '../../src/otel/types.ts';
+import type { OtelApi, StructuralLogger } from "../../src/otel/types.ts";
 
-import { createPermDock } from '../../src/core/permdock.ts';
+import { createPermDock } from "../../src/core/permdock.ts";
 import {
   GENAI_SEMCONV_PIN,
   instrument,
   withOtel,
-} from '../../src/otel/instrument.ts';
+} from "../../src/otel/instrument.ts";
 import {
   memberUser,
   ownPost,
   permissions,
   policy,
-} from '../fixtures/quick-start.ts';
+} from "../fixtures/quick-start.ts";
 
 type RecordedSpan = {
   readonly name: string;
@@ -142,12 +142,12 @@ function fakeApi(parent?: Record<string, unknown>): {
   return { api, spans, counters, histograms };
 }
 
-describe('permdock/otel', () => {
-  it('pins the GenAI attribute names to semconv 1.37.0', () => {
-    expect(GENAI_SEMCONV_PIN).toBe('1.37.0');
+describe("permdock/otel", () => {
+  it("pins the GenAI attribute names to semconv 1.37.0", () => {
+    expect(GENAI_SEMCONV_PIN).toBe("1.37.0");
   });
 
-  it('writes a structured log and no spans when the API is absent', async () => {
+  it("writes a structured log and no spans when the API is absent", async () => {
     const lines: { readonly message: string; readonly attrs: unknown }[] = [];
     const logger: StructuralLogger = {
       info(message, attrs) {
@@ -161,78 +161,78 @@ describe('permdock/otel', () => {
     instrument(permdock, { logger });
     expect(permdock.can(permissions.post.read, ownPost)).toBe(true);
     expect(lines).toHaveLength(1);
-    expect(lines[0]?.message).toBe('permdock.decision');
+    expect(lines[0]?.message).toBe("permdock.decision");
     expect(lines[0]?.attrs).toMatchObject({
-      'permdock.outcome': 'granted',
-      'permdock.permission': permissions.post.read.key,
+      "permdock.outcome": "granted",
+      "permdock.permission": permissions.post.read.key,
     });
   });
 
-  it('records a span, counter and histogram per decide', async () => {
+  it("records a span, counter and histogram per decide", async () => {
     const { api, spans, counters, histograms } = fakeApi();
     const permdock = withOtel(await createPermDock(policy, memberUser), {
       api,
-      tracer: 'permdock-test',
+      tracer: "permdock-test",
     });
     permdock.decide(permissions.post.update, ownPost);
     expect(spans).toHaveLength(1);
-    expect(spans[0]?.name).toBe('permdock.decide');
+    expect(spans[0]?.name).toBe("permdock.decide");
     expect(spans[0]?.ended).toBe(true);
     expect(spans[0]?.attributes).toMatchObject({
-      'permdock.outcome': 'granted',
-      'permdock.permission': permissions.post.update.key,
-      'permdock.scope': permissions.post.update.scope,
-      'permdock.resource.type': 'post',
-      'permdock.resource.id': ownPost.id,
-      'permdock.subject.id': memberUser.id,
+      "permdock.outcome": "granted",
+      "permdock.permission": permissions.post.update.key,
+      "permdock.scope": permissions.post.update.scope,
+      "permdock.resource.type": "post",
+      "permdock.resource.id": ownPost.id,
+      "permdock.subject.id": memberUser.id,
     });
     expect(counters).toEqual([
       {
-        name: 'permdock.decisions',
+        name: "permdock.decisions",
         value: 1,
         attributes: {
-          'permdock.outcome': 'granted',
-          'permdock.permission': permissions.post.update.key,
+          "permdock.outcome": "granted",
+          "permdock.permission": permissions.post.update.key,
         },
       },
     ]);
-    expect(histograms[0]?.name).toBe('permdock.decide.duration');
+    expect(histograms[0]?.name).toBe("permdock.decide.duration");
   });
 
-  it('copies pinned GenAI tool attributes from the parent span', async () => {
+  it("copies pinned GenAI tool attributes from the parent span", async () => {
     const { api, spans } = fakeApi({
-      'gen_ai.tool.name': 'update_post',
-      'gen_ai.tool.call.id': 'call-1',
+      "gen_ai.tool.name": "update_post",
+      "gen_ai.tool.call.id": "call-1",
     });
     const permdock = await createPermDock(policy, memberUser);
     instrument(permdock, { api });
     expect(permdock.can(permissions.post.read, ownPost)).toBe(true);
-    expect(spans[0]?.attributes['gen_ai.tool.name']).toBe('update_post');
-    expect(spans[0]?.attributes['gen_ai.tool.call.id']).toBe('call-1');
+    expect(spans[0]?.attributes["gen_ai.tool.name"]).toBe("update_post");
+    expect(spans[0]?.attributes["gen_ai.tool.call.id"]).toBe("call-1");
   });
 
-  it('adds a denied event and leaves span status unset', async () => {
+  it("adds a denied event and leaves span status unset", async () => {
     const { api, spans } = fakeApi();
     const permdock = await createPermDock(policy, memberUser);
     instrument(permdock, { api });
     permdock.decide(permissions.post.publish, ownPost);
-    expect(spans[0]?.attributes['permdock.outcome']).toBe('denied');
+    expect(spans[0]?.attributes["permdock.outcome"]).toBe("denied");
     expect(spans[0]?.status).toBeUndefined();
-    expect(spans[0]?.events[0]?.name).toBe('permdock.denied');
+    expect(spans[0]?.events[0]?.name).toBe("permdock.denied");
   });
 
-  it('puts the approval token on an approval-required span', async () => {
+  it("puts the approval token on an approval-required span", async () => {
     const { api, spans } = fakeApi();
     const permdock = await createPermDock(policy, memberUser);
     instrument(permdock, { api });
     const decision = permdock.decide(permissions.post.delete, ownPost);
-    expect(decision.outcome).toBe('approval-required');
-    expect(spans[0]?.attributes['permdock.token']).toBe(
-      decision.outcome === 'approval-required' ? decision.token : undefined,
+    expect(decision.outcome).toBe("approval-required");
+    expect(spans[0]?.attributes["permdock.token"]).toBe(
+      decision.outcome === "approval-required" ? decision.token : undefined,
     );
   });
 
-  it('marks denied spans ERROR when errorOnDeny is set', async () => {
+  it("marks denied spans ERROR when errorOnDeny is set", async () => {
     const { api, spans } = fakeApi();
     const permdock = await createPermDock(policy, memberUser);
     instrument(permdock, { api, errorOnDeny: true });
@@ -240,14 +240,14 @@ describe('permdock/otel', () => {
     expect(spans[0]?.status).toEqual({ code: 2 });
   });
 
-  it('redacts extra attributes and warns on unmatched paths', async () => {
+  it("redacts extra attributes and warns on unmatched paths", async () => {
     const warns: string[] = [];
     const { api, spans } = fakeApi();
     const permdock = await createPermDock(policy, memberUser);
     instrument(permdock, {
       api,
-      attributes: () => ({ 'app.secret': 'hidden', 'app.ok': 'yes' }),
-      redact: ['app.secret', 'subject.email'],
+      attributes: () => ({ "app.secret": "hidden", "app.ok": "yes" }),
+      redact: ["app.secret", "subject.email"],
       logger: {
         info() {
           return undefined;
@@ -258,34 +258,34 @@ describe('permdock/otel', () => {
       },
     });
     expect(permdock.can(permissions.post.read, ownPost)).toBe(true);
-    expect(spans[0]?.attributes['app.secret']).toBeUndefined();
-    expect(spans[0]?.attributes['app.ok']).toBe('yes');
-    expect(warns.some((line) => line.includes('subject.email'))).toBe(true);
+    expect(spans[0]?.attributes["app.secret"]).toBeUndefined();
+    expect(spans[0]?.attributes["app.ok"]).toBe("yes");
+    expect(warns.some((line) => line.includes("subject.email"))).toBe(true);
   });
 
-  it('records filter totals on a single span', async () => {
+  it("records filter totals on a single span", async () => {
     const { api, spans } = fakeApi();
     const permdock = await createPermDock(policy, memberUser);
     instrument(permdock, { api });
     permdock.filter(permissions.post.update, [
       ownPost,
-      { ...ownPost, id: 'p2' },
+      { ...ownPost, id: "p2" },
     ]);
     expect(spans).toHaveLength(1);
-    expect(spans[0]?.attributes['permdock.filter.total']).toBe(2);
-    expect(spans[0]?.attributes['permdock.filter.kept']).toBe(2);
+    expect(spans[0]?.attributes["permdock.filter.total"]).toBe(2);
+    expect(spans[0]?.attributes["permdock.filter.kept"]).toBe(2);
   });
 
-  it('reads providers from the OpenTelemetry global registry without importing the API', async () => {
-    const { api, spans } = fakeApi({ 'gen_ai.tool.name': 'from_registry' });
-    const key = Symbol.for('opentelemetry.js.api.1');
-    const spanKey = Symbol.for('OpenTelemetry Context Key SPAN');
+  it("reads providers from the OpenTelemetry global registry without importing the API", async () => {
+    const { api, spans } = fakeApi({ "gen_ai.tool.name": "from_registry" });
+    const key = Symbol.for("opentelemetry.js.api.1");
+    const spanKey = Symbol.for("OpenTelemetry Context Key SPAN");
     const parent = api.trace.getActiveSpan?.();
     // SAFETY: globalThis is an ordinary object; the test writes and restores one symbol key.
     const registry = globalThis as Record<symbol, unknown>;
     const previous = registry[key];
     registry[key] = {
-      version: '1.9.0',
+      version: "1.9.0",
       trace: { getTracer: (name: string) => api.trace.getTracer(name) },
       metrics: api.metrics,
       context: {
@@ -300,42 +300,42 @@ describe('permdock/otel', () => {
       instrument(permdock, {});
       expect(permdock.can(permissions.post.read, ownPost)).toBe(true);
       expect(spans).toHaveLength(1);
-      expect(spans[0]?.attributes['gen_ai.tool.name']).toBe('from_registry');
+      expect(spans[0]?.attributes["gen_ai.tool.name"]).toBe("from_registry");
     } finally {
       registry[key] = previous;
     }
   });
 
-  it('does nothing when neither logger nor API is present', async () => {
+  it("does nothing when neither logger nor API is present", async () => {
     const permdock = await createPermDock(policy, memberUser);
     const off = instrument(permdock, {});
     expect(permdock.can(permissions.post.read, ownPost)).toBe(true);
     off();
   });
 
-  it('never throws from a failing logger', async () => {
+  it("never throws from a failing logger", async () => {
     const permdock = await createPermDock(policy, memberUser);
     instrument(permdock, {
       logger: {
         info() {
-          throw new Error('log failed');
+          throw new Error("log failed");
         },
         warn() {
-          throw new Error('warn failed');
+          throw new Error("warn failed");
         },
       },
     });
     expect(() => permdock.can(permissions.post.read, ownPost)).not.toThrow();
   });
 
-  it('times the span and histogram around the decision, in seconds', async () => {
+  it("times the span and histogram around the decision, in seconds", async () => {
     const { api, spans, histograms } = fakeApi();
     const permdock = withOtel(await createPermDock(policy, memberUser), {
       api,
     });
     permdock.can(permissions.post.update, ownPost);
     const [span] = spans;
-    expect(span?.startTime).toBeTypeOf('number');
+    expect(span?.startTime).toBeTypeOf("number");
     expect(span?.endTime).toBeGreaterThanOrEqual(span?.startTime ?? Infinity);
     expect(histograms[0]?.value).toBeGreaterThanOrEqual(0);
     expect(histograms[0]?.value).toBe(
@@ -343,13 +343,13 @@ describe('permdock/otel', () => {
     );
   });
 
-  it('instruments instances derived through tenant() and team()', async () => {
+  it("instruments instances derived through tenant() and team()", async () => {
     const { api, spans } = fakeApi();
     const permdock = withOtel(await createPermDock(policy, memberUser), {
       api,
     });
-    permdock.tenant('acme').can(permissions.post.update, ownPost);
-    permdock.team('red').tenant('acme').can(permissions.post.update, ownPost);
+    permdock.tenant("acme").can(permissions.post.update, ownPost);
+    permdock.team("red").tenant("acme").can(permissions.post.update, ownPost);
     expect(spans).toHaveLength(2);
     expect(spans.every((span) => span.startTime !== undefined)).toBe(true);
   });

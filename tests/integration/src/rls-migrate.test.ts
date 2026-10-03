@@ -1,21 +1,21 @@
-import type { Client } from 'pg';
+import type { Client } from "pg";
 
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { run } from 'permdock/cli';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { run } from "permdock/cli";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import type { Postgres } from './support/postgres.ts';
+import type { Postgres } from "./support/postgres.ts";
 
-import { startPostgres } from './support/postgres.ts';
+import { startPostgres } from "./support/postgres.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const FIXTURE = join(HERE, '../fixtures/centrakit-legacy');
+const FIXTURE = join(HERE, "../fixtures/centrakit-legacy");
 
 const id = (n: number) =>
-  `00000000-0000-4000-8000-${n.toString(16).padStart(12, '0')}`;
+  `00000000-0000-4000-8000-${n.toString(16).padStart(12, "0")}`;
 
 const PLATFORM = id(0xa1);
 const MEMBER = id(0xa4);
@@ -83,14 +83,14 @@ alter table public.quotes enable row level security;
 create policy quotes_select on public.quotes for select to authenticated using (false);
 `;
 
-describe('rls migrate on CentraKit, then verify --introspect with --helpers-only', () => {
+describe("rls migrate on CentraKit, then verify --introspect with --helpers-only", () => {
   let db: Postgres | undefined;
-  let dir = '';
-  let migrated = '';
-  let rewrote = '';
+  let dir = "";
+  let migrated = "";
+  let rewrote = "";
 
   const cli = async (args: readonly string[]) => {
-    const result = await run(['rls', ...args, '--rbac', 'supabase'], {
+    const result = await run(["rls", ...args, "--rbac", "supabase"], {
       cwd: FIXTURE,
     });
     return { code: result.code, out: `${result.stdout}${result.stderr}` };
@@ -99,26 +99,26 @@ describe('rls migrate on CentraKit, then verify --introspect with --helpers-only
   const succeed = async (args: readonly string[]) => {
     const result = await cli(args);
     if (result.code !== 0) {
-      throw new Error(`rls ${args.join(' ')}: ${result.out}`);
+      throw new Error(`rls ${args.join(" ")}: ${result.out}`);
     }
     return result.out;
   };
 
   beforeAll(async () => {
-    dir = mkdtempSync(join(tmpdir(), 'permdock-migrate-'));
-    writeFileSync(join(dir, 'legacy.sql'), LEGACY);
-    rewrote = await succeed(['migrate', '--sql', dir, '--write']);
-    migrated = readFileSync(join(dir, 'legacy.sql'), 'utf8');
+    dir = mkdtempSync(join(tmpdir(), "permdock-migrate-"));
+    writeFileSync(join(dir, "legacy.sql"), LEGACY);
+    rewrote = await succeed(["migrate", "--sql", dir, "--write"]);
+    migrated = readFileSync(join(dir, "legacy.sql"), "utf8");
     await succeed([
-      'generate',
-      '--target',
-      'sql',
-      '--out',
-      join(dir, 'helpers.sql'),
+      "generate",
+      "--target",
+      "sql",
+      "--out",
+      join(dir, "helpers.sql"),
     ]);
     db = await startPostgres([
       SETUP,
-      readFileSync(join(dir, 'helpers.sql'), 'utf8'),
+      readFileSync(join(dir, "helpers.sql"), "utf8"),
       migrated,
     ]);
   }, 180_000);
@@ -130,14 +130,14 @@ describe('rls migrate on CentraKit, then verify --introspect with --helpers-only
 
   function as<T>(sub: string, work: (client: Client) => Promise<T>) {
     if (db === undefined) {
-      throw new Error('PermDock: Postgres was not started');
+      throw new Error("PermDock: Postgres was not started");
     }
     const client = db.tester;
     return db.as(
       {
-        role: 'authenticated',
+        role: "authenticated",
         settings: {
-          'request.jwt.claims': JSON.stringify({ sub, role: 'authenticated' }),
+          "request.jwt.claims": JSON.stringify({ sub, role: "authenticated" }),
         },
       },
       () => work(client),
@@ -153,8 +153,8 @@ describe('rls migrate on CentraKit, then verify --introspect with --helpers-only
       ).rows.map((row) => row.id),
     );
 
-  it('calls only the generated helpers', () => {
-    expect(rewrote).toContain('rewrote 5 call(s) in 1 file(s), skipped 0');
+  it("calls only the generated helpers", () => {
+    expect(rewrote).toContain("rewrote 5 call(s) in 1 file(s), skipped 0");
     expect(migrated).not.toMatch(
       /org_ids_with_permission|has_org_permission|authorize_scope|is_system_user_with|is_org_member/u,
     );
@@ -162,35 +162,35 @@ describe('rls migrate on CentraKit, then verify --introspect with --helpers-only
       "(select permdock.permitted_organization_ids('customers.read'))",
     );
     expect(migrated).toContain(
-      '(organizations.id in (select permdock.member_organization_ids()))',
+      "(organizations.id in (select permdock.member_organization_ids()))",
     );
     expect(migrated).toContain(
       "(select permdock.permdock_has('organizations.read'))",
     );
   });
 
-  it('enforces the migrated policies', async () => {
-    expect(await ids(MEMBER, 'customers')).toEqual([CUST_A]);
-    expect(await ids(MEMBER, 'organizations')).toEqual([ORG_A]);
-    expect(await ids(PLATFORM, 'organizations')).toEqual([ORG_A, ORG_B]);
-    expect(await ids(PLATFORM, 'customers')).toEqual([]);
+  it("enforces the migrated policies", async () => {
+    expect(await ids(MEMBER, "customers")).toEqual([CUST_A]);
+    expect(await ids(MEMBER, "organizations")).toEqual([ORG_A]);
+    expect(await ids(PLATFORM, "organizations")).toEqual([ORG_A, ORG_B]);
+    expect(await ids(PLATFORM, "customers")).toEqual([]);
   });
 
-  it('finds no drift and names the table that calls no helper', async () => {
+  it("finds no drift and names the table that calls no helper", async () => {
     if (db === undefined) {
-      throw new Error('PermDock: Postgres was not started');
+      throw new Error("PermDock: Postgres was not started");
     }
-    const verified = await cli(['verify', '--introspect', '--db', db.uri]);
+    const verified = await cli(["verify", "--introspect", "--db", db.uri]);
     expect(verified).toMatchObject({ code: 0 });
     expect(verified.out).toContain(
-      'info: public.quotes: no policy calls a PermDock helper',
+      "info: public.quotes: no policy calls a PermDock helper",
     );
-    expect(verified.out).toContain('helpers only: no drift');
+    expect(verified.out).toContain("helpers only: no drift");
   });
 
-  it('fails on a seed or key the generator does not write', async () => {
+  it("fails on a seed or key the generator does not write", async () => {
     if (db === undefined) {
-      throw new Error('PermDock: Postgres was not started');
+      throw new Error("PermDock: Postgres was not started");
     }
     await db.admin.query(
       `insert into permdock.role_permissions (role, permission, grant_key, scope, effect)
@@ -198,13 +198,13 @@ describe('rls migrate on CentraKit, then verify --introspect with --helpers-only
        create policy quotes_typo on public.quotes for select to authenticated
          using (organization_id in (select permdock.permitted_organization_ids('quote.read')))`,
     );
-    const verified = await cli(['verify', '--introspect', '--db', db.uri]);
+    const verified = await cli(["verify", "--introspect", "--db", db.uri]);
     expect(verified.code).toBe(1);
     expect(verified.out).toContain(
-      'permdock.role_permissions: unexpected viewer allow customers.update on organization',
+      "permdock.role_permissions: unexpected viewer allow customers.update on organization",
     );
     expect(verified.out).toContain(
-      'public.quotes: policy quotes_typo passes quote.read, which the policy does not declare, so it always denies',
+      "public.quotes: policy quotes_typo passes quote.read, which the policy does not declare, so it always denies",
     );
   });
 });

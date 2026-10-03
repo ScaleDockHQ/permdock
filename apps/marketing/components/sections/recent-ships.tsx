@@ -1,7 +1,7 @@
-import type { ChangelogRelease } from '@/lib/changelog';
+import type { ChangelogRelease } from "@/lib/changelog";
 
-import { SiteLink } from '@/components/site/site-link';
-import { Badge } from '@permdock/ui/reui/badge';
+import { SiteLink } from "@/components/site/site-link";
+import { Badge } from "@permdock/ui/reui/badge";
 import {
   Timeline,
   TimelineContent,
@@ -11,9 +11,9 @@ import {
   TimelineItem,
   TimelineSeparator,
   TimelineTitle,
-} from '@permdock/ui/reui/timeline';
+} from "@permdock/ui/reui/timeline";
 
-import { Section } from './section';
+import { Section } from "./section";
 
 export function RecentShips({
   releases,
@@ -45,7 +45,7 @@ export function RecentShips({
               <TimelineIndicator />
             </TimelineHeader>
             <TimelineContent className="space-y-2.5">
-              <ul className="text-muted-foreground list-disc space-y-1 pl-4 text-sm leading-6">
+              <ul className="list-disc space-y-1 pl-4 text-sm leading-6 text-muted-foreground">
                 {release.changes.slice(0, 4).map((change) => (
                   <li key={change.text}>{change.text}</li>
                 ))}

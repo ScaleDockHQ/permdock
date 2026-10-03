@@ -1,19 +1,19 @@
-import type { SqlClient, SqlConnect } from './pg.ts';
-import type { CompiledPolicy } from './rls-compile.ts';
-import type { RolePermission } from './rls-helpers.ts';
-import type { IndexTarget } from './rls-indexes.ts';
+import type { SqlClient, SqlConnect } from "./pg.ts";
+import type { CompiledPolicy } from "./rls-compile.ts";
+import type { RolePermission } from "./rls-helpers.ts";
+import type { IndexTarget } from "./rls-indexes.ts";
 
-import { escapeSqlIdent } from '../core/sql.ts';
-import { callsHelper, HELPER_TABLES, helperCallKeys } from './helper-calls.ts';
-import { connectPgPool } from './pg.ts';
+import { escapeSqlIdent } from "../core/sql.ts";
+import { callsHelper, HELPER_TABLES, helperCallKeys } from "./helper-calls.ts";
+import { connectPgPool } from "./pg.ts";
 
-const ROLES = ['anon', 'authenticated'] as const;
+const ROLES = ["anon", "authenticated"] as const;
 /** Neon's `anonymous` is the role `rls generate` writes as `anon` for the other dialects. */
 function liveRole(role: string): string {
-  return role === 'anonymous' ? 'anon' : role;
+  return role === "anonymous" ? "anon" : role;
 }
 
-const PRIVILEGES = ['select', 'insert', 'update', 'delete'] as const;
+const PRIVILEGES = ["select", "insert", "update", "delete"] as const;
 
 type Privilege = (typeof PRIVILEGES)[number];
 
@@ -65,8 +65,8 @@ export type ActualRls = {
 
 /** `posts` and `"app"."posts"` as `public.posts` and `app.posts`. */
 export function qualified(table: string): string {
-  const parts = table.split('.').map((part) => part.replaceAll('"', ''));
-  return parts.length === 1 ? `public.${parts[0] ?? ''}` : parts.join('.');
+  const parts = table.split(".").map((part) => part.replaceAll('"', ""));
+  return parts.length === 1 ? `public.${parts[0] ?? ""}` : parts.join(".");
 }
 
 const FUNCTION_HEADER =
@@ -75,7 +75,7 @@ const FUNCTION_HEADER =
 function helpersOf(sql: string): readonly string[] {
   const found = new Set<string>();
   for (const match of sql.matchAll(FUNCTION_HEADER)) {
-    const [header = '', , schema = '', , name = ''] = match;
+    const [header = "", , schema = "", , name = ""] = match;
     if (/\bsecurity definer\b/u.test(header)) {
       found.add(`${schema}.${name}`);
     }
@@ -98,7 +98,7 @@ export function expectedRls(
           .filter(
             (item) =>
               qualified(item.table) === table &&
-              item.effect === 'allow' &&
+              item.effect === "allow" &&
               item.roles.includes(role),
           )
           .map((item) => item.command),
@@ -112,7 +112,7 @@ export function expectedRls(
       table: qualified(item.table),
       name: item.name,
       command: item.command,
-      permissive: item.effect === 'allow',
+      permissive: item.effect === "allow",
       roles: item.roles.toSorted(),
     })),
     tables,
@@ -173,12 +173,12 @@ export function diffRls(
     }
     if (have.permissive !== want.permissive) {
       out.push(
-        `${want.table}: policy ${want.name} is ${have.permissive ? 'permissive' : 'restrictive'}, expected ${want.permissive ? 'permissive' : 'restrictive'}`,
+        `${want.table}: policy ${want.name} is ${have.permissive ? "permissive" : "restrictive"}, expected ${want.permissive ? "permissive" : "restrictive"}`,
       );
     }
     if (!sameList(have.roles, want.roles)) {
       out.push(
-        `${want.table}: policy ${want.name} applies to ${have.roles.join(', ')}, expected ${want.roles.join(', ')}`,
+        `${want.table}: policy ${want.name} applies to ${have.roles.join(", ")}, expected ${want.roles.join(", ")}`,
       );
     }
   }
@@ -191,7 +191,7 @@ export function diffRls(
       !wanted.has(`${have.table}\u0000${have.name}`)
     ) {
       out.push(
-        `${have.table}: policy ${have.name} is not generated (${have.permissive ? 'permissive' : 'restrictive'} ${have.command}); a permissive one widens access`,
+        `${have.table}: policy ${have.name} is not generated (${have.permissive ? "permissive" : "restrictive"} ${have.command}); a permissive one widens access`,
       );
     }
   }
@@ -210,7 +210,7 @@ export function diffRls(
       for (const privilege of want) {
         if (
           !have.includes(privilege) &&
-          !(privilege === 'select' && options.columnGrants === true)
+          !(privilege === "select" && options.columnGrants === true)
         ) {
           out.push(
             `${table}: ${role} lacks ${privilege}, so the policy answers 42501 instead of filtering`,
@@ -272,12 +272,12 @@ join pg_attribute a on a.attrelid = i.indrelid and a.attnum = i.indkey[0]
 where i.indpred is null and n.nspname || '.' || c.relname = any($1::text[])`;
 
 function commandOf(cmd: unknown): string {
-  const text = String(cmd ?? '').toLowerCase();
-  return text === '*' ? 'all' : text;
+  const text = String(cmd ?? "").toLowerCase();
+  return text === "*" ? "all" : text;
 }
 
 function connectIntrospect(db: string): Promise<SqlClient> {
-  return connectPgPool(db, 'permdock rls verify --introspect');
+  return connectPgPool(db, "permdock rls verify --introspect");
 }
 
 /** Reads the catalogs for the tables and helpers `expected` names (postgres-meta's queries, trimmed). */
@@ -300,41 +300,41 @@ export async function introspectRls(
     ]);
     const leadingColumns: Record<string, string[]> = {};
     for (const row of indexes.rows) {
-      (leadingColumns[String(row['target'])] ??= []).push(
-        String(row['leading']),
+      (leadingColumns[String(row["target"])] ??= []).push(
+        String(row["leading"]),
       );
     }
     const byTable: Record<string, Record<string, string[]>> = {};
     for (const row of grants.rows) {
-      const table = String(row['target']);
-      const role = liveRole(String(row['grantee']));
+      const table = String(row["target"]);
+      const role = liveRole(String(row["grantee"]));
       const entry = (byTable[table] ??= {});
-      (entry[role] ??= []).push(String(row['privilege']));
+      (entry[role] ??= []).push(String(row["privilege"]));
     }
     return {
       policies: policies.rows.map((row) => ({
-        table: String(row['target']),
-        name: String(row['policyname']),
-        command: commandOf(row['cmd']),
-        permissive: String(row['permissive']).toUpperCase() === 'PERMISSIVE',
-        roles: Array.isArray(row['roles'])
-          ? row['roles'].map((role) => liveRole(String(role)))
+        table: String(row["target"]),
+        name: String(row["policyname"]),
+        command: commandOf(row["cmd"]),
+        permissive: String(row["permissive"]).toUpperCase() === "PERMISSIVE",
+        roles: Array.isArray(row["roles"])
+          ? row["roles"].map((role) => liveRole(String(role)))
           : [],
       })),
       rlsEnabled: Object.fromEntries(
         enabled.rows.map((row) => [
-          String(row['target']),
-          row['enabled'] === true,
+          String(row["target"]),
+          row["enabled"] === true,
         ]),
       ),
       grants: byTable,
       helpers: Object.fromEntries(
         helpers.rows.map((row) => [
-          String(row['target']),
+          String(row["target"]),
           {
-            securityDefiner: row['definer'] === true,
-            emptySearchPath: String(row['config'])
-              .split(',')
+            securityDefiner: row["definer"] === true,
+            emptySearchPath: String(row["config"])
+              .split(",")
               .some(
                 (item) =>
                   item === 'search_path=""' || item === "search_path=''",
@@ -369,30 +369,30 @@ export type ActualMixed = {
 };
 
 const SYSTEM_SCHEMAS = [
-  'pg_catalog',
-  'information_schema',
-  'pg_toast',
-  'auth',
-  'storage',
-  'realtime',
-  'extensions',
-  'graphql',
-  'graphql_public',
-  'vault',
-  'pgsodium',
-  'pgsodium_masks',
-  'net',
-  'cron',
-  'supabase_functions',
-  'supabase_migrations',
+  "pg_catalog",
+  "information_schema",
+  "pg_toast",
+  "auth",
+  "storage",
+  "realtime",
+  "extensions",
+  "graphql",
+  "graphql_public",
+  "vault",
+  "pgsodium",
+  "pgsodium_masks",
+  "net",
+  "cron",
+  "supabase_functions",
+  "supabase_migrations",
 ] as const;
 
 function inScope(table: string): boolean {
-  const schema = table.split('.')[0] ?? '';
+  const schema = table.split(".")[0] ?? "";
   return (
     HELPER_TABLES.some((item) => item === table) ||
     !(
-      SYSTEM_SCHEMAS.some((item) => item === schema) || schema.startsWith('pg_')
+      SYSTEM_SCHEMAS.some((item) => item === schema) || schema.startsWith("pg_")
     )
   );
 }
@@ -473,21 +473,21 @@ export async function introspectMixed(
     ]);
     return {
       seeds: seeds.rows.map((row) => ({
-        role: String(row['role']),
-        permission: String(row['permission']),
-        grantKey: String(row['grant_key']),
-        scope: String(row['scope']),
-        effect: String(row['effect']) === 'deny' ? 'deny' : 'allow',
+        role: String(row["role"]),
+        permission: String(row["permission"]),
+        grantKey: String(row["grant_key"]),
+        scope: String(row["scope"]),
+        effect: String(row["effect"]) === "deny" ? "deny" : "allow",
       })),
       policies: policies.rows
         .map((row) => ({
-          table: String(row['target']),
-          name: String(row['policyname']),
-          expression: String(row['expression']),
+          table: String(row["target"]),
+          name: String(row["policyname"]),
+          expression: String(row["expression"]),
         }))
         .filter((row) => inScope(row.table)),
       rlsTables: tables.rows
-        .map((row) => String(row['target']))
+        .map((row) => String(row["target"]))
         .filter(inScope)
         .toSorted(),
     };

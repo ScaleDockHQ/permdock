@@ -1,13 +1,13 @@
-export const HOOK_MARKER = '-- permdock:hook v1';
+export const HOOK_MARKER = "-- permdock:hook v1";
 
 /** The first line of a `--grants-out` file. */
-export const GRANTS_MARKER = '-- permdock:grants v1';
+export const GRANTS_MARKER = "-- permdock:grants v1";
 
 /** The first line of the `seeds` part: the `role_permissions` rows, a versioned migration. */
-export const SEEDS_MARKER = '-- permdock:seeds v1';
+export const SEEDS_MARKER = "-- permdock:seeds v1";
 
 /** The first line of the `indexes` part: the indexes the policies and helpers read through. */
-export const INDEXES_MARKER = '-- permdock:indexes v1';
+export const INDEXES_MARKER = "-- permdock:indexes v1";
 
 const HOOK_LINE = /^-- permdock:hook v(?<version>[1-9]\d*)(?: (?<rest>.*))?$/u;
 const GRANTS_LINE =
@@ -30,15 +30,15 @@ export type SupabaseGrantsMarker = {
 };
 
 function firstLine(sql: string): string {
-  return (sql.split('\n', 1)[0] ?? '').replace(/\r$/u, '');
+  return (sql.split("\n", 1)[0] ?? "").replace(/\r$/u, "");
 }
 
 /** The `key=value` pairs after the marker, in a prototype-less object. */
 function pairs(rest: string | undefined): Readonly<Record<string, string>> {
   // SAFETY: a fresh prototype-less object; only string values are assigned below.
   const fields = Object.create(null) as Record<string, string>;
-  for (const pair of (rest ?? '').split(' ')) {
-    const eq = pair.indexOf('=');
+  for (const pair of (rest ?? "").split(" ")) {
+    const eq = pair.indexOf("=");
     if (eq > 0) {
       fields[pair.slice(0, eq)] = pair.slice(eq + 1);
     }
@@ -65,20 +65,20 @@ export function parseHookMarker(sql: string): SupabaseHookMarker | undefined {
   if (match?.groups === undefined) {
     return undefined;
   }
-  const fields = pairs(match.groups['rest']);
-  const budget = Number(fields['budget']);
-  const claims = fields['claims'];
+  const fields = pairs(match.groups["rest"]);
+  const budget = Number(fields["budget"]);
+  const claims = fields["claims"];
   return Object.freeze({
-    version: Number(match.groups['version']),
-    ...(fields['schema'] === undefined ? {} : { schema: fields['schema'] }),
-    ...(fields['tenant'] === undefined
+    version: Number(match.groups["version"]),
+    ...(fields["schema"] === undefined ? {} : { schema: fields["schema"] }),
+    ...(fields["tenant"] === undefined
       ? {}
-      : { tenantClaim: fields['tenant'] }),
+      : { tenantClaim: fields["tenant"] }),
     ...(Number.isSafeInteger(budget) && budget > 0 ? { budget } : {}),
     claims: Object.freeze(
-      claims === undefined || claims === ''
+      claims === undefined || claims === ""
         ? []
-        : claims.split(',').filter((name) => name !== ''),
+        : claims.split(",").filter((name) => name !== ""),
     ),
   });
 }
@@ -94,9 +94,9 @@ export function parseGrantsMarker(
   if (match?.groups === undefined) {
     return undefined;
   }
-  const fields = pairs(match.groups['rest']);
+  const fields = pairs(match.groups["rest"]);
   return Object.freeze({
-    version: Number(match.groups['version']),
-    ...(fields['schema'] === undefined ? {} : { schema: fields['schema'] }),
+    version: Number(match.groups["version"]),
+    ...(fields["schema"] === undefined ? {} : { schema: fields["schema"] }),
   });
 }

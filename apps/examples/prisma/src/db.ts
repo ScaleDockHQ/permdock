@@ -1,9 +1,9 @@
-import { PGlite } from '@electric-sql/pglite';
-import { PGLiteSocketServer } from '@electric-sql/pglite-socket';
-import { PrismaPg } from '@prisma/adapter-pg';
-import { permdockExtension } from 'permdock/prisma';
+import { PGlite } from "@electric-sql/pglite";
+import { PGLiteSocketServer } from "@electric-sql/pglite-socket";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { permdockExtension } from "permdock/prisma";
 
-import { PrismaClient } from './generated/client.ts';
+import { PrismaClient } from "./generated/client.ts";
 
 async function connect() {
   const pglite = await PGlite.create();
@@ -31,4 +31,4 @@ async function connect() {
 
 export const db: ReturnType<typeof connect> = connect();
 
-export const requiredFields = ['id', 'authorId', 'orgId', 'title', 'published'];
+export const requiredFields = ["id", "authorId", "orgId", "title", "published"];

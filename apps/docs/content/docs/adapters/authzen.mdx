@@ -12,26 +12,33 @@ The [OpenID AuthZEN Authorization API 1.0](https://openid.net/specs/authorizatio
 ## API
 
 ```ts
-import { createPermDock } from 'permdock/authzen'
+import { createPermDock } from "permdock/authzen";
 
 export const { permdockHandler } = createPermDock(policy, {
-  subject: fromBearer,                          // (request) => principal | null; MUST be real authentication
-  resources: { post: { load: (id) => loadPost(id), list: ({ where }) => db.posts.where(where) } },
-})
+  subject: fromBearer, // (request) => principal | null; MUST be real authentication
+  resources: {
+    post: {
+      load: (id) => loadPost(id),
+      list: ({ where }) => db.posts.where(where),
+    },
+  },
+});
 
 // Fetch-first: mount under /access/v1 and /.well-known
-app.all('/access/v1/*', (c) => permdockHandler(c.req.raw))
-app.get('/.well-known/authzen-configuration', (c) => permdockHandler(c.req.raw))
+app.all("/access/v1/*", (c) => permdockHandler(c.req.raw));
+app.get("/.well-known/authzen-configuration", (c) =>
+  permdockHandler(c.req.raw),
+);
 ```
 
-| Endpoint | PermDock call | Certification level |
-|---|---|---|
-| `POST /access/v1/evaluation` | `decide(permission, resource)` | Basic |
-| `POST /access/v1/evaluations` | `simulate([[permission, resource], ...])` | Batch |
-| `POST /access/v1/search/action` | catalog of permitted actions on a resource for the subject ("what can I do") | Search |
-| `POST /access/v1/search/resource` | `filter` / `where` over a resource type, materialised via `resources.<type>.list`; results are `{ type, id }` entities | Search |
-| `POST /access/v1/search/subject` | subjects permitted for an action on a resource (requires a subject enumerator) | Search |
-| `GET /.well-known/authzen-configuration` | PDP metadata: endpoint URLs, supported features | Discovery |
+| Endpoint                                 | PermDock call                                                                                                          | Certification level |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------- |
+| `POST /access/v1/evaluation`             | `decide(permission, resource)`                                                                                         | Basic               |
+| `POST /access/v1/evaluations`            | `simulate([[permission, resource], ...])`                                                                              | Batch               |
+| `POST /access/v1/search/action`          | catalog of permitted actions on a resource for the subject ("what can I do")                                           | Search              |
+| `POST /access/v1/search/resource`        | `filter` / `where` over a resource type, materialised via `resources.<type>.list`; results are `{ type, id }` entities | Search              |
+| `POST /access/v1/search/subject`         | subjects permitted for an action on a resource (requires a subject enumerator)                                         | Search              |
+| `GET /.well-known/authzen-configuration` | PDP metadata: endpoint URLs, supported features                                                                        | Discovery           |
 
 - `permdockHandler` is a Fetch handler (`Request` to `Response`), so it mounts on Hono, Next.js route handlers, Node and any [server kernel](/docs/adapters/server-kernel) adapter.
 - The same handler is what PermDock Cloud runs as a hosted Authorization Decision Service: publish the policy, and Kong, Envoy, Tyk, Zuplo or a service in another language calls the hosted `/access/v1/evaluation` with a Vercel OIDC or client-credentials token and gets the same `context` (`outcome`, denial reasons, approval `token`) that the embedded handler produces. Running the handler yourself and using the Cloud are interchangeable; the decision semantics are one code path ([Cloud adapter](/docs/adapters/cloud), [PermDock Cloud](/docs/adapters/cloud)).
@@ -45,12 +52,12 @@ app.get('/.well-known/authzen-configuration', (c) => permdockHandler(c.req.raw))
 2. The AuthZEN request is validated: `subject`, `action`, `resource`, optional `context`, each with `type`, `id` and `properties`.
 3. Mapping to PermDock:
 
-| AuthZEN field | PermDock |
-|---|---|
-| `subject.type`, `subject.id`, `subject.properties` | principal, only for a PEP that `trustedPep` accepts; `properties.actor` and `properties.delegation` (scopes / `authorization_details`) fill the agent half of the subject under the same rule. Otherwise the authenticated caller from `subject` is the subject and the body's `subject` is ignored |
-| `action.name` | joined with `resource.type` to look up `findPermission(permissions, 'post.update')`; `action.properties.scope` accepted as an alternative |
-| `resource.type`, `resource.id`, `resource.properties` | the resource instance: `properties` used directly when complete, otherwise loaded via `resources.<type>.load` |
-| `context` | `context.<key>` values available to conditions |
+| AuthZEN field                                         | PermDock                                                                                                                                                                                                                                                                                            |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `subject.type`, `subject.id`, `subject.properties`    | principal, only for a PEP that `trustedPep` accepts; `properties.actor` and `properties.delegation` (scopes / `authorization_details`) fill the agent half of the subject under the same rule. Otherwise the authenticated caller from `subject` is the subject and the body's `subject` is ignored |
+| `action.name`                                         | joined with `resource.type` to look up `findPermission(permissions, 'post.update')`; `action.properties.scope` accepted as an alternative                                                                                                                                                           |
+| `resource.type`, `resource.id`, `resource.properties` | the resource instance: `properties` used directly when complete, otherwise loaded via `resources.<type>.load`                                                                                                                                                                                       |
+| `context`                                             | `context.<key>` values available to conditions                                                                                                                                                                                                                                                      |
 
 4. The decision runs; `evaluations` uses `simulate` so a plan is evaluated as one boxcar with shared subject resolution.
 5. The response is built: `decision: true|false` plus a `context` object carrying `outcome`, `denials` (role and reason only) and `token` for `approval-required`. Matched grants, conditions and `alternatives` are never included.

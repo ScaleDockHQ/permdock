@@ -50,12 +50,12 @@ tool({ ..., needsApproval: needsApproval(permissions.post.delete) })
 3. The adapter validates the arguments against the resource schema when `data` is declared (boundary validation), loads the resource, and calls `permdock.decide(permission, data)`.
 4. The Decision maps to the AI SDK vocabulary:
 
-| Decision outcome | `toolApproval` result | Notes |
-|---|---|---|
-| `granted` | `approved` | tool executes |
-| `denied` | `denied` | `reason` carries denials and alternatives for the model |
-| `approval-required` | `user-approval` | UI or workflow asks a human; `Decision.token` attached |
-| unmapped tool, validation error, thrown error | `denied` | fail closed |
+| Decision outcome                              | `toolApproval` result | Notes                                                   |
+| --------------------------------------------- | --------------------- | ------------------------------------------------------- |
+| `granted`                                     | `approved`            | tool executes                                           |
+| `denied`                                      | `denied`              | `reason` carries denials and alternatives for the model |
+| `approval-required`                           | `user-approval`       | UI or workflow asks a human; `Decision.token` attached  |
+| unmapped tool, validation error, thrown error | `denied`              | fail closed                                             |
 
 5. On `user-approval`, the human's answer returns as an approval response. AI SDK then calls `toolApproval` again for the same `toolCallId`; the adapter recognises this re-check from the `tool-approval-request` in `messages` and answers `denied` unless a matching approval is recorded in `store` (the SDK treats any other answer as approved). The adapter re-runs `decide` and compares `Decision.token` (hash of permission key, resource id, subject, actor) with the token issued in step 4; a mismatch is denied. This is the problem `experimental_toolApprovalSecret` addresses by signing approval payloads; PermDock adds the check that the approved call is the same call.
 6. Every step emits `on('decision')` so audit logging and `permdock/otel` see the same events as any other adapter.

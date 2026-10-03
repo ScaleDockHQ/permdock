@@ -1,5 +1,5 @@
-import vue from '@vitejs/plugin-vue';
-import { defineConfig, type Plugin } from 'vite';
+import vue from "@vitejs/plugin-vue";
+import { defineConfig, type Plugin } from "vite";
 
 type HealthRequest = { readonly url?: string };
 type HealthResponse = {
@@ -12,9 +12,9 @@ function healthHandle(
   res: HealthResponse,
   next: () => void,
 ): void {
-  if (req.url === '/health') {
+  if (req.url === "/health") {
     res.statusCode = 200;
-    res.end('ok');
+    res.end("ok");
     return;
   }
   next();
@@ -22,7 +22,7 @@ function healthHandle(
 
 function healthPlugin(): Plugin {
   return {
-    name: 'health',
+    name: "health",
     configureServer(server) {
       server.middlewares.use(healthHandle);
     },
@@ -35,12 +35,12 @@ function healthPlugin(): Plugin {
 export default defineConfig({
   plugins: [vue(), healthPlugin()],
   server: {
-    host: '127.0.0.1',
+    host: "127.0.0.1",
     port: 3481,
     strictPort: true,
   },
   preview: {
-    host: '127.0.0.1',
+    host: "127.0.0.1",
     port: 3481,
     strictPort: true,
   },

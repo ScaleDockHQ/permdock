@@ -24,7 +24,7 @@ function scorePage(
   }
   const title = tokensOf(page.title);
   const description = tokensOf(page.description);
-  const path = tokensOf(page.slugs.join(' '));
+  const path = tokensOf(page.slugs.join(" "));
   let score = 0;
   for (const token of queryTokens) {
     if (title.includes(token)) {
@@ -60,17 +60,17 @@ export function searchDocs(
 
 export function normalizeDocsPath(path: string): readonly string[] {
   const trimmed = path.trim();
-  const withoutHost = trimmed.replace(/^https?:\/\/[^/]+/u, '');
-  const withoutHash = withoutHost.split('#')[0] ?? withoutHost;
-  const withoutQuery = withoutHash.split('?')[0] ?? withoutHash;
+  const withoutHost = trimmed.replace(/^https?:\/\/[^/]+/u, "");
+  const withoutHash = withoutHost.split("#")[0] ?? withoutHost;
+  const withoutQuery = withoutHash.split("?")[0] ?? withoutHash;
   const withoutSuffix = withoutQuery
-    .replace(/\/+$/u, '')
-    .replace(/\.(md|mdx)$/u, '');
-  const parts = withoutSuffix.split('/').filter((part) => part.length > 0);
-  if (parts[0] === 'docs') {
+    .replace(/\/+$/u, "")
+    .replace(/\.(md|mdx)$/u, "");
+  const parts = withoutSuffix.split("/").filter((part) => part.length > 0);
+  if (parts[0] === "docs") {
     return parts.slice(1);
   }
-  if (parts[0] === 'llms.mdx' && parts[1] === 'docs') {
+  if (parts[0] === "llms.mdx" && parts[1] === "docs") {
     return parts.slice(2);
   }
   return parts;
@@ -81,6 +81,6 @@ export function findPage(
   path: string,
 ): DocsPageSummary | null {
   const slugs = normalizeDocsPath(path);
-  const key = slugs.join('/');
-  return pages.find((page) => page.slugs.join('/') === key) ?? null;
+  const key = slugs.join("/");
+  return pages.find((page) => page.slugs.join("/") === key) ?? null;
 }

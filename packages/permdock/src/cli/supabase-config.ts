@@ -1,8 +1,8 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { join, posix } from 'node:path';
-import { parse } from 'smol-toml';
+import { existsSync, readFileSync } from "node:fs";
+import { join, posix } from "node:path";
+import { parse } from "smol-toml";
 
-import type { DoctorFinding } from './doctor-types.ts';
+import type { DoctorFinding } from "./doctor-types.ts";
 
 /** The settings of `supabase/config.toml` doctor reads. */
 export type SupabaseConfig = {
@@ -26,10 +26,10 @@ export type SupabaseConfigRead =
   | { readonly ok: true; readonly config: SupabaseConfig }
   | { readonly ok: false; readonly error: string };
 
-const SUPABASE_CONFIG = 'supabase/config.toml';
+const SUPABASE_CONFIG = "supabase/config.toml";
 
 function table(value: unknown): Readonly<Record<string, unknown>> | undefined {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
     return undefined;
   }
   // SAFETY: a non-array object from the TOML parser is a TOML table.
@@ -38,7 +38,7 @@ function table(value: unknown): Readonly<Record<string, unknown>> | undefined {
 
 function strings(value: unknown): readonly string[] | undefined {
   return Array.isArray(value)
-    ? value.filter((item): item is string => typeof item === 'string')
+    ? value.filter((item): item is string => typeof item === "string")
     : undefined;
 }
 
@@ -52,34 +52,34 @@ export function readSupabaseConfig(
   }
   let root: Readonly<Record<string, unknown>>;
   try {
-    root = parse(readFileSync(file, 'utf8'));
+    root = parse(readFileSync(file, "utf8"));
   } catch (error) {
     return {
       ok: false,
       error: error instanceof Error ? error.message : String(error),
     };
   }
-  const expiry = table(root['auth'])?.['jwt_expiry'];
-  const paths = table(table(root['db'])?.['migrations'])?.['schema_paths'];
+  const expiry = table(root["auth"])?.["jwt_expiry"];
+  const paths = table(table(root["db"])?.["migrations"])?.["schema_paths"];
   const schemaPaths = strings(paths);
-  const apiSchemas = strings(table(root['api'])?.['schemas']);
-  const pgDelta = table(table(root['experimental'])?.['pgdelta']);
-  const schemaPath = pgDelta?.['declarative_schema_path'];
+  const apiSchemas = strings(table(root["api"])?.["schemas"]);
+  const pgDelta = table(table(root["experimental"])?.["pgdelta"]);
+  const schemaPath = pgDelta?.["declarative_schema_path"];
   return {
     ok: true,
     config: {
-      ...(typeof expiry === 'number' ? { jwtExpiry: expiry } : {}),
+      ...(typeof expiry === "number" ? { jwtExpiry: expiry } : {}),
       ...(schemaPaths === undefined ? {} : { schemaPaths }),
       ...(apiSchemas === undefined ? {} : { apiSchemas }),
-      ...(pgDelta?.['enabled'] === true
+      ...(pgDelta?.["enabled"] === true
         ? {
             pgDelta: {
               schemaDir: posix
                 .join(
-                  'supabase',
-                  typeof schemaPath === 'string' ? schemaPath : 'schemas',
+                  "supabase",
+                  typeof schemaPath === "string" ? schemaPath : "schemas",
                 )
-                .replace(/\/$/u, ''),
+                .replace(/\/$/u, ""),
             },
           }
         : {}),
@@ -101,9 +101,9 @@ export function pd045(cwd: string): readonly DoctorFinding[] {
   }
   return [
     {
-      code: 'PD045',
-      severity: 'warning',
-      message: `${SUPABASE_CONFIG} does not parse: ${read.error.replace(/\n[\s\S]*/u, '')}`,
+      code: "PD045",
+      severity: "warning",
+      message: `${SUPABASE_CONFIG} does not parse: ${read.error.replace(/\n[\s\S]*/u, "")}`,
       fix: `fix the TOML syntax in ${SUPABASE_CONFIG}; until then doctor assumes Supabase's defaults for jwt_expiry and schema_paths`,
     },
   ];

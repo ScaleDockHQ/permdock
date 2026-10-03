@@ -1,19 +1,19 @@
-import type { Decision } from '../core/decision.ts';
-import type { Snapshot, TokenVerifier } from '../core/interfaces.ts';
-import type { PermDock } from '../core/permdock.ts';
-import type { Permission } from '../core/permissions.ts';
+import type { Decision } from "../core/decision.ts";
+import type { Snapshot, TokenVerifier } from "../core/interfaces.ts";
+import type { PermDock } from "../core/permdock.ts";
+import type { Permission } from "../core/permissions.ts";
 import type {
   ApprovalState,
   ClientPermDock,
   ClientStatus,
   PermissionState,
-} from './types.ts';
+} from "./types.ts";
 
-import { compact } from '../core/compact.ts';
-import { emptySnapshot, fromSnapshot } from '../core/from-snapshot.ts';
-import { parseSnapshot } from '../core/snapshot.ts';
-import { nowSeconds } from '../core/tenancy.ts';
-import { timeoutSignal } from '../core/timeout.ts';
+import { compact } from "../core/compact.ts";
+import { emptySnapshot, fromSnapshot } from "../core/from-snapshot.ts";
+import { parseSnapshot } from "../core/snapshot.ts";
+import { nowSeconds } from "../core/tenancy.ts";
+import { timeoutSignal } from "../core/timeout.ts";
 
 /** Milliseconds a decision, refresh or approval request may take; a slower one is an error like a failed request. */
 const STORE_TIMEOUT_MS = 10_000;
@@ -50,54 +50,54 @@ type CacheEntry = {
 };
 
 function cacheKey(permission: Permission, data: unknown): string {
-  if (data === null || typeof data !== 'object') {
+  if (data === null || typeof data !== "object") {
     return `${permission.key}:*`;
   }
   // SAFETY: checked above to be a non-null object; id is typeof-checked below.
-  const id = (data as Record<string, unknown>)['id'];
-  return `${permission.key}:${typeof id === 'string' || typeof id === 'number' ? String(id) : '*'}`;
+  const id = (data as Record<string, unknown>)["id"];
+  return `${permission.key}:${typeof id === "string" || typeof id === "number" ? String(id) : "*"}`;
 }
 
 function withTenant(source: string, tenant: string | undefined): string {
   if (tenant === undefined) {
     return source;
   }
-  const hashAt = source.indexOf('#');
-  const hash = hashAt === -1 ? '' : source.slice(hashAt);
+  const hashAt = source.indexOf("#");
+  const hash = hashAt === -1 ? "" : source.slice(hashAt);
   const rest = hashAt === -1 ? source : source.slice(0, hashAt);
-  const queryAt = rest.indexOf('?');
+  const queryAt = rest.indexOf("?");
   const path = queryAt === -1 ? rest : rest.slice(0, queryAt);
   const params = new URLSearchParams(
-    queryAt === -1 ? '' : rest.slice(queryAt + 1),
+    queryAt === -1 ? "" : rest.slice(queryAt + 1),
   );
-  params.set('tenant', tenant);
+  params.set("tenant", tenant);
   return `${path}?${params.toString()}${hash}`;
 }
 
 function refKey(ref: Permission | { readonly [key: string]: unknown }): string {
-  if ('key' in ref && typeof ref.key === 'string') {
+  if ("key" in ref && typeof ref.key === "string") {
     return ref.key;
   }
-  return '';
+  return "";
 }
 
 function isJws(value: string): boolean {
-  const parts = value.split('.');
+  const parts = value.split(".");
   return parts.length === 3 && parts.every((part) => part.length > 0);
 }
 
-const CURRENT = Symbol.for('permdock.current');
+const CURRENT = Symbol.for("permdock.current");
 
 const SERVER_ONLY: Decision = {
-  outcome: 'denied',
-  denials: [{ role: null, reason: 'opaque-condition' }],
+  outcome: "denied",
+  denials: [{ role: null, reason: "opaque-condition" }],
   alternatives: [],
 };
 
 /** The client has no endpoint to ask (`endpoint: false`, or none given). */
 const NO_ENDPOINT: Decision = {
-  outcome: 'denied',
-  denials: [{ role: null, reason: 'server-only' }],
+  outcome: "denied",
+  denials: [{ role: null, reason: "server-only" }],
   alternatives: [],
 };
 
@@ -125,8 +125,8 @@ export type ClientStore = {
 
 function needsEndpoint(decision: Decision): boolean {
   return (
-    decision.outcome === 'denied' &&
-    decision.denials.some((denial) => denial.reason === 'opaque-condition')
+    decision.outcome === "denied" &&
+    decision.denials.some((denial) => denial.reason === "opaque-condition")
   );
 }
 
@@ -148,7 +148,7 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
   let snapshot = emptySnapshot();
   let tenant = options.tenant;
   // `ready`, or why the current snapshot cannot be trusted as fresh.
-  let base: 'ready' | 'stale' | 'server-only' = 'server-only';
+  let base: "ready" | "stale" | "server-only" = "server-only";
   let instance: PermDock = fromSnapshot(snapshot, compact({ tenant }));
   let cached: ClientPermDock;
   let verifying = false;
@@ -192,27 +192,27 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
     reset();
     snapshot = next;
     instance = fromSnapshot(snapshot, compact({ tenant }));
-    base = 'ready';
+    base = "ready";
     options.onSnapshot?.(next, tenant);
     emit();
   };
 
   const storeStatus = (): ClientStatus => {
     if (verifying || refreshing > 0 || following > 0) {
-      return 'pending';
+      return "pending";
     }
-    if (base === 'server-only') {
-      return 'server-only';
+    if (base === "server-only") {
+      return "server-only";
     }
-    if (base === 'stale' || isStale()) {
-      return 'stale';
+    if (base === "stale" || isStale()) {
+      return "stale";
     }
     for (const entry of answers.values()) {
-      if (entry.status === 'pending') {
-        return 'pending';
+      if (entry.status === "pending") {
+        return "pending";
       }
     }
-    return 'ready';
+    return "ready";
   };
 
   // Reads the clock only when there is something to compare: Cache Components
@@ -231,7 +231,7 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
 
   const serverOnly = (): void => {
     hydrate(emptySnapshot());
-    base = 'server-only';
+    base = "server-only";
     emit();
   };
 
@@ -250,9 +250,9 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
     }
     try {
       const verified = await options.verifier.verify(raw, {
-        typ: 'permdock-snapshot+jwt',
+        typ: "permdock-snapshot+jwt",
       });
-      return verified.ok ? verified.claims['snapshot'] : undefined;
+      return verified.ok ? verified.claims["snapshot"] : undefined;
     } catch {
       return undefined;
     }
@@ -299,35 +299,35 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
     const started = generation;
     if (snapshot.simulated === true) {
       for (const item of batch) {
-        answers.set(item.key, { decision: SERVER_ONLY, status: 'server-only' });
+        answers.set(item.key, { decision: SERVER_ONLY, status: "server-only" });
       }
       emit();
       return;
     }
     try {
       const response = await fetchImpl(options.endpoint, {
-        method: 'POST',
-        credentials: 'include',
+        method: "POST",
+        credentials: "include",
         signal: timeoutSignal(STORE_TIMEOUT_MS),
         headers: {
-          accept: 'application/json',
-          'content-type': 'application/json',
+          accept: "application/json",
+          "content-type": "application/json",
           ...options.headers,
         },
         body: JSON.stringify({
           evaluations: batch.map((item) => ({
             subject: {
-              type: instance.subject.principal?.kind ?? 'user',
-              id: instance.subject.principal?.id ?? '',
+              type: instance.subject.principal?.kind ?? "user",
+              id: instance.subject.principal?.id ?? "",
             },
             action: { name: item.permission.action },
             resource: {
               type: item.permission.resource,
               id:
                 item.data !== null &&
-                typeof item.data === 'object' &&
-                'id' in item.data
-                  ? String(item.data.id ?? '')
+                typeof item.data === "object" &&
+                "id" in item.data
+                  ? String(item.data.id ?? "")
                   : undefined,
               properties: item.data,
             },
@@ -335,7 +335,7 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
         }),
       });
       if (!response.ok) {
-        throw new Error('evaluations failed');
+        throw new Error("evaluations failed");
       }
       // SAFETY: the app's own PermDock evaluations endpoint answers in this AuthZEN shape.
       const body = (await response.json()) as {
@@ -350,14 +350,14 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
       for (const [index, item] of batch.entries()) {
         const row = body.evaluations?.[index];
         const decision = row?.context?.permdock ?? SERVER_ONLY;
-        answers.set(item.key, { decision, status: 'ready' });
+        answers.set(item.key, { decision, status: "ready" });
       }
     } catch {
       if (started !== generation) {
         return;
       }
       for (const item of batch) {
-        answers.set(item.key, { decision: SERVER_ONLY, status: 'server-only' });
+        answers.set(item.key, { decision: SERVER_ONLY, status: "server-only" });
       }
     }
     emit();
@@ -373,12 +373,12 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
       return;
     }
     if (options.endpoint === undefined) {
-      answers.set(key, { decision: NO_ENDPOINT, status: 'server-only' });
+      answers.set(key, { decision: NO_ENDPOINT, status: "server-only" });
       options.onServerOnly?.(permission);
       emitSoon();
       return;
     }
-    answers.set(key, { decision: SERVER_ONLY, status: 'pending' });
+    answers.set(key, { decision: SERVER_ONLY, status: "pending" });
     queued.push({ permission, data, key });
     emitSoon();
     scheduleFlush();
@@ -388,11 +388,11 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
     permission: Permission,
     data?: unknown,
   ): PermissionState => {
-    const key = `${tenant ?? ''}|${cacheKey(permission, data)}`;
+    const key = `${tenant ?? ""}|${cacheKey(permission, data)}`;
     const hit = answers.get(key);
     if (hit !== undefined) {
       return {
-        allowed: hit.decision.outcome === 'granted',
+        allowed: hit.decision.outcome === "granted",
         status: hit.status,
         decision: hit.decision,
       };
@@ -403,7 +403,7 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
     )(permission, data);
     if (needsEndpoint(decision)) {
       if (server && options.endpoint !== undefined) {
-        return { allowed: false, status: 'pending', decision: SERVER_ONLY };
+        return { allowed: false, status: "pending", decision: SERVER_ONLY };
       }
       enqueue(key, permission, data);
       const next = answers.get(key);
@@ -414,12 +414,12 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
           decision: next.decision,
         };
       }
-      return { allowed: false, status: 'server-only', decision: NO_ENDPOINT };
+      return { allowed: false, status: "server-only", decision: NO_ENDPOINT };
     }
     return {
-      allowed: decision.outcome === 'granted',
+      allowed: decision.outcome === "granted",
       status:
-        verifying || following > 0 ? 'pending' : isStale() ? 'stale' : 'ready',
+        verifying || following > 0 ? "pending" : isStale() ? "stale" : "ready",
       decision,
     };
   };
@@ -431,9 +431,9 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
   let approvalEpoch = 0;
 
   const TERMINAL: ReadonlySet<ApprovalState> = new Set([
-    'approved',
-    'rejected',
-    'expired',
+    "approved",
+    "rejected",
+    "expired",
   ]);
 
   const stopPolls = (): void => {
@@ -453,7 +453,7 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
       return;
     }
     const epoch = approvalEpoch;
-    const href = `${options.approvals.replace(/\/+$/u, '')}/${encodeURIComponent(token)}`;
+    const href = `${options.approvals.replace(/\/+$/u, "")}/${encodeURIComponent(token)}`;
     polls.set(
       token,
       setTimeout(() => {
@@ -461,23 +461,23 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
           let next: ApprovalState | undefined;
           try {
             const response = await fetchImpl(href, {
-              method: 'GET',
-              credentials: 'include',
+              method: "GET",
+              credentials: "include",
               signal: timeoutSignal(STORE_TIMEOUT_MS),
-              headers: { accept: 'application/json', ...options.headers },
+              headers: { accept: "application/json", ...options.headers },
             });
             if (response.status === 404) {
-              next = 'expired';
+              next = "expired";
             } else if (response.ok) {
               // SAFETY: status is only compared with the four literals; a null body throws into the catch.
               const body = (await response.json()) as {
                 readonly status?: unknown;
               };
               next =
-                body.status === 'pending' ||
-                body.status === 'approved' ||
-                body.status === 'rejected' ||
-                body.status === 'expired'
+                body.status === "pending" ||
+                body.status === "approved" ||
+                body.status === "rejected" ||
+                body.status === "expired"
                   ? body.status
                   : undefined;
             }
@@ -492,7 +492,7 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
             approvals.set(token, next);
             emit();
           }
-          if (!TERMINAL.has(approvals.get(token) ?? 'required')) {
+          if (!TERMINAL.has(approvals.get(token) ?? "required")) {
             schedulePoll(token);
           }
         })();
@@ -501,10 +501,10 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
   };
 
   const approvalState = (decision: Decision): ApprovalState => {
-    if (decision.outcome !== 'approval-required') {
-      return 'not-needed';
+    if (decision.outcome !== "approval-required") {
+      return "not-needed";
     }
-    const current = approvals.get(decision.token) ?? 'required';
+    const current = approvals.get(decision.token) ?? "required";
     if (!TERMINAL.has(current)) {
       schedulePoll(decision.token);
     }
@@ -533,9 +533,9 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
       invalidate(ref: Permission | { readonly [key: string]: unknown }): void {
         const prefix = refKey(ref);
         for (const key of answers.keys()) {
-          const unscoped = key.slice(key.indexOf('|') + 1);
+          const unscoped = key.slice(key.indexOf("|") + 1);
           if (
-            prefix === '' ||
+            prefix === "" ||
             unscoped === prefix ||
             unscoped.startsWith(`${prefix}:`) ||
             unscoped.startsWith(`${prefix}.`)
@@ -543,7 +543,7 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
             answers.delete(key);
           }
         }
-        base = 'stale';
+        base = "stale";
         emit();
       },
       async refresh(query?: { readonly tenant?: string }): Promise<void> {
@@ -569,11 +569,11 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
         let ok = false;
         try {
           const response = await fetchImpl(withTenant(source, requested), {
-            method: 'GET',
-            credentials: 'include',
+            method: "GET",
+            credentials: "include",
             signal: timeoutSignal(STORE_TIMEOUT_MS),
             headers: {
-              accept: 'application/json',
+              accept: "application/json",
               ...options.headers,
             },
           });
@@ -584,7 +584,7 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
         } catch {
           ok = false;
         }
-        if (ok && typeof body === 'string' && isJws(body)) {
+        if (ok && typeof body === "string" && isJws(body)) {
           body = await verifyJws(body);
           ok = body !== undefined;
         }
@@ -600,7 +600,7 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
           next = undefined;
         }
         if (next === undefined) {
-          base = 'stale';
+          base = "stale";
           emit();
           return;
         }
@@ -614,7 +614,7 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
         tenant = options.tenant;
         snapshot = emptySnapshot();
         instance = fromSnapshot(snapshot, compact({ tenant }));
-        base = 'server-only';
+        base = "server-only";
         approvalEpoch += 1;
         stopPolls();
         approvals.clear();
@@ -629,7 +629,7 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
   };
 
   const boot = (value: Snapshot | string): void => {
-    if (typeof value === 'string' && isJws(value)) {
+    if (typeof value === "string" && isJws(value)) {
       cached = wrap(instance);
       void bootJws(value);
     } else {
@@ -648,7 +648,7 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
     permissionState,
     approvalState,
     replace(value: unknown): void {
-      if (typeof value === 'string' && isJws(value)) {
+      if (typeof value === "string" && isJws(value)) {
         void bootJws(value);
         return;
       }
@@ -666,7 +666,7 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
         }
         if (next === undefined) {
           serverOnly();
-        } else if (typeof next === 'string' && isJws(next)) {
+        } else if (typeof next === "string" && isJws(next)) {
           void bootJws(next);
         } else {
           applyParsed(next);
@@ -695,7 +695,7 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
     },
     async requestApproval(decision: Decision, note?: string): Promise<void> {
       if (
-        decision.outcome !== 'approval-required' ||
+        decision.outcome !== "approval-required" ||
         snapshot.simulated === true
       ) {
         return;
@@ -705,12 +705,12 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
         return;
       }
       const response = await fetchImpl(href, {
-        method: 'POST',
-        credentials: 'include',
+        method: "POST",
+        credentials: "include",
         signal: timeoutSignal(STORE_TIMEOUT_MS),
         headers: {
-          accept: 'application/json',
-          'content-type': 'application/json',
+          accept: "application/json",
+          "content-type": "application/json",
           ...options.headers,
         },
         body: JSON.stringify({
@@ -721,9 +721,9 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
       });
       if (
         response.ok &&
-        !TERMINAL.has(approvals.get(decision.token) ?? 'required')
+        !TERMINAL.has(approvals.get(decision.token) ?? "required")
       ) {
-        approvals.set(decision.token, 'pending');
+        approvals.set(decision.token, "pending");
         emit();
       }
     },

@@ -1,5 +1,5 @@
 ---
-'permdock': minor
+"permdock": minor
 ---
 
 Relationship graph. A resource's `parent` may now name the resource itself (nested folders, sub-teams, reporting lines), `restricted: '<column>'` names a boolean column whose rows are reached only by grants on themselves, and relations take three shapes: a field (`owner: 'ownerId'`), an edge table (`{ edge, object?, subject?, expiresAt? }`, where an expired edge does not match) and, on a principal resource, `{ principal, period?: { startsAt?, expiresAt? } }`. `relation(resource, name, { through: 'parent', depth })` follows the row's parent chain upward to the relation's resource and then along its self-parent for up to `depth` hops (default 16, at most 32); `definePolicy` rejects a `through` grant that cannot reach its resource or walks a `memberOf` relation.

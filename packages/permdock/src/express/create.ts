@@ -4,12 +4,12 @@ import type {
   RequestHandler,
   Response,
   Router,
-} from 'express';
+} from "express";
 
-import express from 'express';
+import express from "express";
 
-import type { ApprovalStore } from '../approvals/types.ts';
-import type { PolicySource } from '../core/hosted.ts';
+import type { ApprovalStore } from "../approvals/types.ts";
+import type { PolicySource } from "../core/hosted.ts";
 import type {
   DecisionSink,
   EntitlementSource,
@@ -18,25 +18,25 @@ import type {
   RelationSource,
   RoleSource,
   SnapshotSource,
-} from '../core/interfaces.ts';
-import type { PermDock } from '../core/permdock.ts';
-import type { Permission } from '../core/permissions.ts';
-import type { Policy, PolicyVocabulary } from '../core/policy.ts';
-import type { Principal } from '../core/subject.ts';
-import type { OtelWrap } from '../otel/types.ts';
-import type { PdpFactory } from '../pdp/types.ts';
+} from "../core/interfaces.ts";
+import type { PermDock } from "../core/permdock.ts";
+import type { Permission } from "../core/permissions.ts";
+import type { Policy, PolicyVocabulary } from "../core/policy.ts";
+import type { Principal } from "../core/subject.ts";
+import type { OtelWrap } from "../otel/types.ts";
+import type { PdpFactory } from "../pdp/types.ts";
 import type {
   OpenApiHooks,
   ProtectOptions,
   TenantOption,
   TenantScope,
-} from '../server/create.ts';
-import type { WebBotAuthVerifier } from '../server/web-bot-auth.ts';
+} from "../server/create.ts";
+import type { WebBotAuthVerifier } from "../server/web-bot-auth.ts";
 
-import { compact } from '../core/compact.ts';
-import { createKernel, tenantScope } from '../server/create.ts';
-import { problemFromError } from '../server/map-error.ts';
-import { sendResponse, toRequest } from './http.ts';
+import { compact } from "../core/compact.ts";
+import { createKernel, tenantScope } from "../server/create.ts";
+import { problemFromError } from "../server/map-error.ts";
+import { sendResponse, toRequest } from "./http.ts";
 
 export type ExpressPermDockOptions<TUser = unknown> = {
   readonly subject: (req: Request) => TUser | Promise<TUser>;
@@ -146,7 +146,7 @@ export function createPermDock<
       limits: options.limits,
       pdp: options.pdp,
       webBotAuth: options.webBotAuth,
-      adapter: 'express',
+      adapter: "express",
       wrap: options.otel,
     }),
   );
@@ -218,12 +218,12 @@ export function createPermDock<
       ),
     );
     const router = express.Router({ mergeParams: true });
-    router.post('/', (req, res, next) => {
+    router.post("/", (req, res, next) => {
       run(async () => {
         await sendResponse(res, await POST(rebind(req)));
       }, next);
     });
-    router.get('/', (req, res, next) => {
+    router.get("/", (req, res, next) => {
       run(async () => {
         await sendResponse(res, await GET(bind(req)));
       }, next);

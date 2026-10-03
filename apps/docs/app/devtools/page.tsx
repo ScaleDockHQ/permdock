@@ -1,14 +1,14 @@
-import type { Metadata } from 'next';
+import type { Metadata } from "next";
 
-import Link from 'next/link';
+import Link from "next/link";
 
-import { DevtoolsPanel } from '@/components/devtools-panel';
-import { docsIndex } from '@/lib/shared';
+import { DevtoolsPanel } from "@/components/devtools-panel";
+import { docsIndex } from "@/lib/shared";
 
 export const metadata: Metadata = {
-  title: 'Devtools',
+  title: "Devtools",
   description:
-    'Explore PermDock decide outcomes against a canned policy. Not a package export.',
+    "Explore PermDock decide outcomes against a canned policy. Not a package export.",
 };
 
 export default function DevtoolsPage() {
@@ -19,7 +19,7 @@ export default function DevtoolsPage() {
           <Link href={docsIndex} className="underline">
             Docs
           </Link>
-          {' / '}
+          {" / "}
           <Link href="/docs/getting-started/devtools" className="underline">
             Getting started
           </Link>

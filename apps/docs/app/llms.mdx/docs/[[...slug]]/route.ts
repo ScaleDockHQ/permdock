@@ -1,8 +1,8 @@
-import { cacheLife } from 'next/cache';
-import { notFound } from 'next/navigation';
+import { cacheLife } from "next/cache";
+import { notFound } from "next/navigation";
 
-import { markdownHeaders } from '@/lib/shared';
-import { docsLlms, getPageMarkdownUrl, source } from '@/lib/source';
+import { markdownHeaders } from "@/lib/shared";
+import { docsLlms, getPageMarkdownUrl, source } from "@/lib/source";
 
 type MarkdownRouteContext = {
   params: Promise<{ slug?: string[] }>;
@@ -11,8 +11,8 @@ type MarkdownRouteContext = {
 async function pageMarkdown(
   slugs: readonly string[] | undefined,
 ): Promise<string | null> {
-  'use cache';
-  cacheLife('max');
+  "use cache";
+  cacheLife("max");
   const page = source.getPage(slugs === undefined ? undefined : [...slugs]);
   return page ? docsLlms.page(page) : null;
 }

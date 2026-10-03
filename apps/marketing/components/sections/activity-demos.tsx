@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import dynamic from 'next/dynamic';
+import dynamic from "next/dynamic";
 
 function Placeholder({ className }: { readonly className: string }) {
   return <div aria-hidden="true" className={className} />;
@@ -9,7 +9,7 @@ function Placeholder({ className }: { readonly className: string }) {
 /** The agent run demo, loaded after the page; the placeholder holds its height. */
 export const AgentRunDemo = dynamic(
   () =>
-    import('@/components/blocks/agent-activity-1/components/agent-activity').then(
+    import("@/components/blocks/agent-activity-1/components/agent-activity").then(
       (module) => module.AgentActivity,
     ),
   {
@@ -21,7 +21,7 @@ export const AgentRunDemo = dynamic(
 /** The MCP tool-call demo, loaded after the page; the placeholder holds its height. */
 export const McpRunDemo = dynamic(
   () =>
-    import('@/components/blocks/agent-activity-4/components/agent-activity').then(
+    import("@/components/blocks/agent-activity-4/components/agent-activity").then(
       (module) => module.AgentActivity,
     ),
   {

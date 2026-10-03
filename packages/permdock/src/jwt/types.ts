@@ -1,4 +1,4 @@
-import type { StandardSchemaV1 } from '@standard-schema/spec';
+import type { StandardSchemaV1 } from "@standard-schema/spec";
 
 import type {
   AuthEvent,
@@ -6,18 +6,18 @@ import type {
   MembershipSource,
   TokenFailureCause,
   TokenVerifier,
-} from '../core/interfaces.ts';
-import type { Actor, Principal, Subject } from '../core/subject.ts';
+} from "../core/interfaces.ts";
+import type { Actor, Principal, Subject } from "../core/subject.ts";
 
 export type JwtAlgorithm =
-  | 'ES256'
-  | 'PS256'
-  | 'Ed25519'
-  | 'RS256'
-  | 'HS256'
-  | 'EdDSA';
+  | "ES256"
+  | "PS256"
+  | "Ed25519"
+  | "RS256"
+  | "HS256"
+  | "EdDSA";
 
-export type JwtProfile = 'fapi2';
+export type JwtProfile = "fapi2";
 
 export type JsonWebKeySet = {
   readonly keys: readonly Record<string, unknown>[];
@@ -97,18 +97,18 @@ export type JwtDelegationPaths = {
 };
 
 export type JwtSubjectOptions = JoseTokenVerifierOptions & {
-  readonly accept?: 'access-token' | 'id-token';
+  readonly accept?: "access-token" | "id-token";
   readonly claims?: JwtClaimPaths;
   readonly groupRoles?: Readonly<Record<string, readonly string[]>>;
   readonly schema?: StandardSchemaV1;
   readonly delegation?: JwtDelegationPaths;
   readonly actor?:
     | {
-        readonly from?: 'act';
+        readonly from?: "act";
         readonly kind?: string;
       }
     | ((claims: JwtClaims) => Actor | undefined);
-  readonly sender?: 'none' | 'dpop' | 'mtls';
+  readonly sender?: "none" | "dpop" | "mtls";
   readonly memberships?: MembershipSource;
   readonly verifier?: TokenVerifier;
   readonly certificateThumbprint?: string;

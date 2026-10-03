@@ -1,52 +1,52 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from "vitest";
 
-import type { RlsSqlContext } from '../../src/cli/rls-sql.ts';
+import type { RlsSqlContext } from "../../src/cli/rls-sql.ts";
 
-import { compileGrants } from '../../src/cli/rls-compile.ts';
-import { helpersSql } from '../../src/cli/rls-helpers.ts';
-import { assemblePolicies } from '../../src/cli/rls-policies.ts';
-import { scopeList } from '../../src/core/scopes.ts';
+import { compileGrants } from "../../src/cli/rls-compile.ts";
+import { helpersSql } from "../../src/cli/rls-helpers.ts";
+import { assemblePolicies } from "../../src/cli/rls-policies.ts";
+import { scopeList } from "../../src/core/scopes.ts";
 import {
   allow,
   definePermissions,
   definePolicy,
   resource,
   role,
-} from '../../src/index.ts';
+} from "../../src/index.ts";
 
 const permissions = definePermissions({
   quote: resource({
-    actions: ['read', 'accept'],
-    relations: { org: { field: 'orgId', memberOf: 'tenant' } },
+    actions: ["read", "accept"],
+    relations: { org: { field: "orgId", memberOf: "tenant" } },
   }),
-  folder: resource({ actions: ['read'] }),
+  folder: resource({ actions: ["read"] }),
   file: resource({
-    parent: { field: 'folderId', resource: 'folder' },
-    actions: ['read', 'update'],
+    parent: { field: "folderId", resource: "folder" },
+    actions: ["read", "update"],
   }),
 });
 const policy = definePolicy(permissions, {
   subject: () => null,
-  scopes: { tenant: { key: 'orgId' } },
+  scopes: { tenant: { key: "orgId" } },
   roles: [
-    role('staff', [allow(permissions.quote.read)], { on: 'tenant' }),
+    role("staff", [allow(permissions.quote.read)], { on: "tenant" }),
     role(
-      'guest',
-      [allow(permissions.quote.read, { where: { status: 'sent' } })],
+      "guest",
+      [allow(permissions.quote.read, { where: { status: "sent" } })],
       {
         on: permissions.quote,
       },
     ),
-    role('commenter', [allow(permissions.file.read)], {
+    role("commenter", [allow(permissions.file.read)], {
       on: permissions.folder,
     }),
   ],
 });
 const base: RlsSqlContext = {
-  dialect: 'supabase',
-  tenantClaim: 'tenant_id',
+  dialect: "supabase",
+  tenantClaim: "tenant_id",
   scopes: scopeList(policy.scopes),
-  gucPrefix: 'app',
+  gucPrefix: "app",
 };
 
 function generate(ctx: RlsSqlContext) {
@@ -59,34 +59,34 @@ function generate(ctx: RlsSqlContext) {
   };
 }
 
-describe('rls generate --capabilities', () => {
-  it('reaches link-only resource roles through anon policies', () => {
+describe("rls generate --capabilities", () => {
+  it("reaches link-only resource roles through anon policies", () => {
     const { policies, helpers, warnings } = generate({
       ...base,
       capabilities: true,
     });
     expect(
-      policies.map((item) => [item.name, item.roles.join(','), item.using]),
+      policies.map((item) => [item.name, item.roles.join(","), item.using]),
     ).toEqual([
       [
-        'quote_select',
-        'authenticated',
+        "quote_select",
+        "authenticated",
         `"orgId" in (select "permdock".permitted_tenant_ids('quote.read'))`,
       ],
       [
-        'quote_select_anon',
-        'anon',
+        "quote_select_anon",
+        "anon",
         `("id"::text in (select "permdock".permdock_capability_ids('quote', 'guest', 'quote.read'))) and ("status" = 'sent')`,
       ],
       [
-        'file_select_anon',
-        'anon',
+        "file_select_anon",
+        "anon",
         `"folderId"::text in (select "permdock".permdock_capability_ids('folder', 'commenter', 'file.read'))`,
       ],
     ]);
     expect(warnings).toEqual([
-      'no quote memberships table: only link capabilities reach guest/quote.read',
-      'no folder memberships table: only link capabilities reach commenter/file.read',
+      "no quote memberships table: only link capabilities reach guest/quote.read",
+      "no folder memberships table: only link capabilities reach commenter/file.read",
     ]);
     expect(helpers).toContain(
       `create or replace function "permdock".permdock_capability_ids(p_resource text, p_role text, p_permission text)`,
@@ -98,76 +98,76 @@ describe('rls generate --capabilities', () => {
     expect(helpers).not.toMatch(/service_role/u);
   });
 
-  it('keeps member branches next to link branches when a table is mapped', () => {
+  it("keeps member branches next to link branches when a table is mapped", () => {
     const { policies, warnings } = generate({
       ...base,
       capabilities: true,
       memberships: {
         resource: {
           quote: {
-            table: 'quote_members',
-            id: 'quote_id',
-            user: 'user_id',
-            role: 'role',
+            table: "quote_members",
+            id: "quote_id",
+            user: "user_id",
+            role: "role",
           },
         },
       },
     });
-    const select = policies.find((item) => item.name === 'quote_select');
-    expect(select?.using).toContain('quote_members');
-    expect(policies.some((item) => item.name === 'quote_select_anon')).toBe(
+    const select = policies.find((item) => item.name === "quote_select");
+    expect(select?.using).toContain("quote_members");
+    expect(policies.some((item) => item.name === "quote_select_anon")).toBe(
       true,
     );
     expect(warnings).toEqual([
-      'no folder memberships table: only link capabilities reach commenter/file.read',
+      "no folder memberships table: only link capabilities reach commenter/file.read",
     ]);
   });
 
-  it('emits no capability objects without the flag', () => {
+  it("emits no capability objects without the flag", () => {
     expect(() => generate(base)).toThrow(/memberships table mapping/u);
     const { helpers, policies } = generate({
       ...base,
       memberships: {
         resource: {
           quote: {
-            table: 'quote_members',
-            id: 'quote_id',
-            user: 'user_id',
-            role: 'role',
+            table: "quote_members",
+            id: "quote_id",
+            user: "user_id",
+            role: "role",
           },
           folder: {
-            table: 'folder_members',
-            id: 'folder_id',
-            user: 'user_id',
-            role: 'role',
+            table: "folder_members",
+            id: "folder_id",
+            user: "user_id",
+            role: "role",
           },
         },
       },
     });
-    expect(helpers).not.toContain('permdock_capability_ids');
-    expect(policies.every((item) => !item.roles.includes('anon'))).toBe(true);
+    expect(helpers).not.toContain("permdock_capability_ids");
+    expect(policies.every((item) => !item.roles.includes("anon"))).toBe(true);
   });
 
-  it('gives no link branch to a role whose for omits link', () => {
+  it("gives no link branch to a role whose for omits link", () => {
     const anonNames = (kinds: readonly string[]) =>
       generate({
         ...base,
         capabilities: true,
         ownership: { kinds: { guest: kinds }, assigns: [], counted: [] },
       })
-        .policies.filter((item) => item.roles.includes('anon'))
+        .policies.filter((item) => item.roles.includes("anon"))
         .map((item) => item.name);
-    expect(anonNames(['staff'])).not.toContain('quote_select_anon');
-    expect(anonNames(['link'])).toContain('quote_select_anon');
+    expect(anonNames(["staff"])).not.toContain("quote_select_anon");
+    expect(anonNames(["link"])).toContain("quote_select_anon");
   });
 });
 
-describe('rls generate with resource roles that set for', () => {
+describe("rls generate with resource roles that set for", () => {
   const members = (via?: string) => ({
-    table: 'folder_members',
-    id: 'folder_id',
-    user: 'user_id',
-    role: 'role',
+    table: "folder_members",
+    id: "folder_id",
+    user: "user_id",
+    role: "role",
     ...(via === undefined ? {} : { via }),
   });
   const select = (via?: string) =>
@@ -175,43 +175,43 @@ describe('rls generate with resource roles that set for', () => {
       ...base,
       memberships: {
         resource: {
-          quote: { ...members(via), table: 'quote_members', id: 'quote_id' },
+          quote: { ...members(via), table: "quote_members", id: "quote_id" },
           folder: members(via),
         },
       },
       ownership: {
-        kinds: { commenter: ['staff'] },
+        kinds: { commenter: ["staff"] },
         assigns: [],
         counted: [],
       },
-    }).policies.find((item) => item.name === 'file_select')?.using;
+    }).policies.find((item) => item.name === "file_select")?.using;
 
-  it('checks the membership kind column', () => {
-    expect(select('via')).toContain(
+  it("checks the membership kind column", () => {
+    expect(select("via")).toContain(
       `coalesce(m."via"::text, '') = any(array['staff']::text[])`,
     );
   });
 
-  it('holds the role for nothing without a kind column', () => {
+  it("holds the role for nothing without a kind column", () => {
     expect(select()).toContain(`coalesce(null::text, '')`);
   });
 
-  it('leaves a resource role without for unfiltered', () => {
+  it("leaves a resource role without for unfiltered", () => {
     const quote = generate({
       ...base,
       memberships: {
         resource: {
-          quote: { ...members('via'), table: 'quote_members', id: 'quote_id' },
-          folder: members('via'),
+          quote: { ...members("via"), table: "quote_members", id: "quote_id" },
+          folder: members("via"),
         },
       },
       ownership: {
-        kinds: { commenter: ['staff'] },
+        kinds: { commenter: ["staff"] },
         assigns: [],
         counted: [],
       },
-    }).policies.find((item) => item.name === 'quote_select')?.using;
-    expect(quote).toContain('quote_members');
-    expect(quote).not.toContain('coalesce');
+    }).policies.find((item) => item.name === "quote_select")?.using;
+    expect(quote).toContain("quote_members");
+    expect(quote).not.toContain("coalesce");
   });
 });

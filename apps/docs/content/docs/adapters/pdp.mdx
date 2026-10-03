@@ -12,57 +12,75 @@ Organisations that already run a central PDP (Cerbos, Topaz, Keycloak, Axiomatic
 ## API
 
 ```ts
-import { createPermDock, remotePdp } from 'permdock/pdp'
+import { createPermDock, remotePdp } from "permdock/pdp";
 
 export const policy = definePolicy(permissions, {
-  roles: [member, admin],                       // local grants still apply
-  subject: (user) => user && { id: user.id, orgId: user.orgId, roles: user.roles },
+  roles: [member, admin], // local grants still apply
+  subject: (user) =>
+    user && { id: user.id, orgId: user.orgId, roles: user.roles },
   providers: [
     remotePdp({
-      url: 'https://pdp.example.com',           // discovers /.well-known/authzen-configuration
+      url: "https://pdp.example.com", // discovers /.well-known/authzen-configuration
       auth: { bearer: () => getServiceToken() },
-      permissions: [permissions.billing],       // which permissions are delegated; others stay local
+      permissions: [permissions.billing], // which permissions are delegated; others stay local
       mapping: {
-        subject:  (s) => ({ type: 'user', id: s.id, properties: { orgId: s.orgId, roles: s.roles } }),
-        resource: (permission, data) => ({ type: permission.resource, id: data?.id, properties: data }),
-        action:   (permission) => ({ name: permission.action }),
+        subject: (s) => ({
+          type: "user",
+          id: s.id,
+          properties: { orgId: s.orgId, roles: s.roles },
+        }),
+        resource: (permission, data) => ({
+          type: permission.resource,
+          id: data?.id,
+          properties: data,
+        }),
+        action: (permission) => ({ name: permission.action }),
       },
       timeout: 300,
-      cache: { ttl: '5s' },
+      cache: { ttl: "5s" },
     }),
   ],
-})
+});
 ```
 
 ### OpenFGA and SpiceDB
 
 ```ts
-import { openfga, spicedb } from 'permdock/pdp'
+import { openfga, spicedb } from "permdock/pdp";
 
 const fga = openfga({
-  url: 'https://fga.internal',
+  url: "https://fga.internal",
   storeId: process.env.FGA_STORE_ID,
   authorizationModelId: process.env.FGA_MODEL_ID, // optional
-  auth: { bearer: () => getFgaToken() },           // optional
+  auth: { bearer: () => getFgaToken() }, // optional
   map: [
-    [permissions.doc.read, (subject, doc) => ({
-      user: `user:${subject.principal.id}`, relation: 'viewer', type: 'document', id: doc?.id,
-    })],
+    [
+      permissions.doc.read,
+      (subject, doc) => ({
+        user: `user:${subject.principal.id}`,
+        relation: "viewer",
+        type: "document",
+        id: doc?.id,
+      }),
+    ],
   ],
-})
+});
 
 const spice = spicedb({
-  url: 'https://spicedb.internal:8443',             // the HTTP gateway (--http-enabled)
+  url: "https://spicedb.internal:8443", // the HTTP gateway (--http-enabled)
   token: process.env.SPICEDB_KEY,
-  consistency: 'minimize-latency',                   // or 'fully-consistent'
+  consistency: "minimize-latency", // or 'fully-consistent'
   map: [
-    [permissions.doc.read, (subject, doc) => ({
-      subject: { type: 'user', id: subject.principal.id },
-      permission: 'view',
-      resource: { type: 'document', id: doc?.id },
-    })],
+    [
+      permissions.doc.read,
+      (subject, doc) => ({
+        subject: { type: "user", id: subject.principal.id },
+        permission: "view",
+        resource: { type: "document", id: doc?.id },
+      }),
+    ],
   ],
-})
+});
 ```
 
 - `map` is one callback per delegated permission; permissions not in it stay local. The callback gets the row for a check and `undefined` for a listing. Returning `null` denies with `pdp-denied`; throwing denies with `pdp-invalid-response` and nothing is sent. A check without an `id` is `pdp-invalid-response`.
@@ -87,12 +105,12 @@ Every HTTP adapter and the [server kernel](/docs/adapters/server-kernel) take `p
 3. The request is sent with the configured auth and timeout; identical requests within `cache.ttl` are served from cache. The TTL is capped at 30 seconds; a larger value is clamped, and zero, a negative or an unparseable value disables the cache. The key is the mapped request plus the permission key, the principal's issuer, the tenant and the actor id and kind, so a changed row, another tenant or another agent is a new request. The cache holds at most 1000 entries, drops the oldest first and deletes an expired entry when it is read. A `mapping` function that throws is `pdp-invalid-response` and nothing is sent. Only answers are cached; unavailability never is.
 4. The response is mapped:
 
-| Remote response | PermDock Decision |
-|---|---|
-| `decision: true` | `granted` (matched: `provider: 'pdp'`) |
-| `decision: false` with `context.permdock.outcome: 'approval-required'` | `approval-required` with `context.permdock.token` when present |
-| `decision: false` | `denied`; `context.permdock.denials` copied when present, otherwise `reason: 'pdp-denied'` |
-| timeout, network error, non-2xx, unparseable body, unknown shape | `denied` with `reason: 'pdp-unavailable'` or `'pdp-invalid-response'` |
+| Remote response                                                        | PermDock Decision                                                                          |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `decision: true`                                                       | `granted` (matched: `provider: 'pdp'`)                                                     |
+| `decision: false` with `context.permdock.outcome: 'approval-required'` | `approval-required` with `context.permdock.token` when present                             |
+| `decision: false`                                                      | `denied`; `context.permdock.denials` copied when present, otherwise `reason: 'pdp-denied'` |
+| timeout, network error, non-2xx, unparseable body, unknown shape       | `denied` with `reason: 'pdp-unavailable'` or `'pdp-invalid-response'`                      |
 
 5. `on('decision')` fires with the provider name, latency, and whether the answer came from cache.
 

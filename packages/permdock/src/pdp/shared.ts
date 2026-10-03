@@ -1,9 +1,9 @@
-import type { Decision, DenialReason } from '../core/decision.ts';
-import type { Permission } from '../core/permissions.ts';
-import type { Subject } from '../core/subject.ts';
-import type { RemotePdpAuth, RemotePdpCache } from './types.ts';
+import type { Decision, DenialReason } from "../core/decision.ts";
+import type { Permission } from "../core/permissions.ts";
+import type { Subject } from "../core/subject.ts";
+import type { RemotePdpAuth, RemotePdpCache } from "./types.ts";
 
-import { decisionToken } from '../core/token.ts';
+import { decisionToken } from "../core/token.ts";
 
 export const DEFAULT_TIMEOUT_MS = 300;
 const MAX_CACHE_TTL_MS = 30_000;
@@ -15,9 +15,9 @@ export function ttlMs(cache: RemotePdpCache | undefined): number {
     return 0;
   }
   const raw =
-    typeof cache.ttl === 'number'
+    typeof cache.ttl === "number"
       ? cache.ttl
-      : cache.ttl.endsWith('ms')
+      : cache.ttl.endsWith("ms")
         ? Number(cache.ttl.slice(0, -2))
         : Number(cache.ttl.slice(0, -1)) * 1000;
   if (!Number.isFinite(raw) || raw <= 0) {
@@ -28,24 +28,24 @@ export function ttlMs(cache: RemotePdpCache | undefined): number {
 
 export function denied(reason: DenialReason): Decision {
   return {
-    outcome: 'denied',
+    outcome: "denied",
     denials: [{ role: null, reason }],
     alternatives: [],
   };
 }
 
-export function resourceIdOf(data: unknown, field = 'id'): string {
-  if (data === null || typeof data !== 'object') {
-    return '*';
+export function resourceIdOf(data: unknown, field = "id"): string {
+  if (data === null || typeof data !== "object") {
+    return "*";
   }
   // SAFETY: data was checked to be a non-null object above; the value stays unknown.
   const id = Object.hasOwn(data, field)
     ? (data as Record<string, unknown>)[field]
     : undefined;
-  if (typeof id === 'string' || typeof id === 'number') {
+  if (typeof id === "string" || typeof id === "number") {
     return String(id);
   }
-  return '*';
+  return "*";
 }
 
 export function granted(
@@ -56,10 +56,10 @@ export function granted(
 ): Decision {
   const principal = subject.principal;
   if (principal === null) {
-    return denied('anonymous');
+    return denied("anonymous");
   }
   return {
-    outcome: 'granted',
+    outcome: "granted",
     subject: { ...subject, principal },
     matched: {
       role: provider,
@@ -137,8 +137,8 @@ async function bearerOf(
   }
   try {
     const token =
-      typeof auth.bearer === 'function' ? await auth.bearer() : auth.bearer;
-    return token === '' ? null : token;
+      typeof auth.bearer === "function" ? await auth.bearer() : auth.bearer;
+    return token === "" ? null : token;
   } catch {
     return null;
   }
@@ -159,15 +159,15 @@ export async function postJson(
 ): Promise<PostResult> {
   const token = await bearerOf(options.auth);
   const headers: Record<string, string> = {
-    'content-type': 'application/json',
-    accept: 'application/json',
+    "content-type": "application/json",
+    accept: "application/json",
   };
   if (token !== null) {
-    headers['authorization'] = `Bearer ${token}`;
+    headers["authorization"] = `Bearer ${token}`;
   }
   try {
     const response = await fetcher(url, {
-      method: 'POST',
+      method: "POST",
       headers,
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(options.timeout),
@@ -179,9 +179,9 @@ export async function postJson(
 }
 
 export function joinUrl(base: string, path: string): string {
-  if (path.startsWith('http://') || path.startsWith('https://')) {
+  if (path.startsWith("http://") || path.startsWith("https://")) {
     return path;
   }
-  const trimmed = base.endsWith('/') ? base.slice(0, -1) : base;
-  return `${trimmed}${path.startsWith('/') ? path : `/${path}`}`;
+  const trimmed = base.endsWith("/") ? base.slice(0, -1) : base;
+  return `${trimmed}${path.startsWith("/") ? path : `/${path}`}`;
 }

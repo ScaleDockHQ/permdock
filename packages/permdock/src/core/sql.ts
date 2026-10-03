@@ -2,7 +2,7 @@
 export const SQL_IDENT: RegExp = /^[A-Za-z_][A-Za-z0-9_]*$/u;
 
 /** A validated, double-quoted identifier; anything outside `SQL_IDENT` throws. */
-export function quoteSqlIdent(name: string, prefix = 'PermDock'): string {
+export function quoteSqlIdent(name: string, prefix = "PermDock"): string {
   if (!SQL_IDENT.test(name)) {
     throw new TypeError(`${prefix}: unsafe SQL identifier '${name}'`);
   }
@@ -10,11 +10,11 @@ export function quoteSqlIdent(name: string, prefix = 'PermDock'): string {
 }
 
 /** A schema-qualified name, each part validated by `quoteSqlIdent`. */
-export function quoteSqlTable(name: string, prefix = 'PermDock'): string {
+export function quoteSqlTable(name: string, prefix = "PermDock"): string {
   return name
-    .split('.')
+    .split(".")
     .map((part) => quoteSqlIdent(part, prefix))
-    .join('.');
+    .join(".");
 }
 
 /** A single-quoted string literal with embedded quotes doubled. */

@@ -7,10 +7,10 @@ PermDock is pre-release; the first published version will be `0.1.0`. See the [r
 
 ## Packages
 
-| Package | Purpose | Required |
-| --- | --- | --- |
-| `permdock` | Core plus every adapter as a subpath export (`permdock/react`, `permdock/next`, `permdock/hono`, ...), and the `permdock` binary (`collect`, `catalog`, `usage`, `openapi`, `rls`, `doctor`, `skills`) | Yes |
-| `permdock/testing` | Subpath of `permdock`: policy matrix tests, snapshot fixtures, RLS parity runner, conformance runners; Vitest is an optional peer | Tests only |
+| Package            | Purpose                                                                                                                                                                                                | Required   |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- |
+| `permdock`         | Core plus every adapter as a subpath export (`permdock/react`, `permdock/next`, `permdock/hono`, ...), and the `permdock` binary (`collect`, `catalog`, `usage`, `openapi`, `rls`, `doctor`, `skills`) | Yes        |
+| `permdock/testing` | Subpath of `permdock`: policy matrix tests, snapshot fixtures, RLS parity runner, conformance runners; Vitest is an optional peer                                                                      | Tests only |
 
 ```bash
 pnpm add permdock
@@ -31,16 +31,16 @@ npm and yarn work the same way; the repository itself uses pnpm workspaces.
 
 Core uses only the [WinterTC Minimum Common API](https://min-common-api.proposal.wintertc.org/) (`fetch`, `Request`, `Response`, `URL`, `crypto.subtle`, `TextEncoder`, `structuredClone`) and no Node built-ins, no `AsyncLocalStorage`, no module-level state. That is by construction (invariants 7 and 12 in `AGENTS.md`) and a conformance test in `tests/bundle` asserts it: every client entry and `permdock/server` must load in a bare WinterTC-shaped global. The table lists what each runtime adds or lacks; nothing in it changes how a decision is made.
 
-| Runtime | Core, `permdock/server`, agent adapters | Notes |
-| --- | --- | --- |
-| Node.js 24 or later | Yes | The CLI and `permdock/node` need Node; `permdock/jwt` uses `jose`'s Node build |
-| Bun | Yes | Elysia's home runtime; `bun test` runs the policy matrix unchanged |
-| Deno, Deno Deploy | Yes | Import from npm specifiers or JSR once published; no Node built-ins to polyfill |
-| Cloudflare Workers | Yes | `memoryApprovalStore` is per isolate: use Durable Objects or KV behind `ApprovalStore` and `SnapshotSource` ([approvals](/docs/adapters/approvals)); D1 has no RLS, `where` compilers still apply ([RLS](/docs/adapters/rls)) |
-| Vercel Functions (Fluid), Edge | Yes | `permdock/next` targets the Node runtime for `React.cache` and `'use cache: private'`; the Fetch kernel runs on Edge too |
-| Netlify Functions and Edge | Yes | Same as Vercel Edge |
-| AWS Lambda | Yes | Through `permdock/node` or a Fetch adapter such as Hono's; approvals need an external `ApprovalStore` |
-| Browsers, React Native (Hermes) | Client entries only | `permdock/react`, `permdock/react-native`, `permdock/webmcp`; no policy code ships (invariant 8) |
+| Runtime                         | Core, `permdock/server`, agent adapters | Notes                                                                                                                                                                                                                         |
+| ------------------------------- | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Node.js 24 or later             | Yes                                     | The CLI and `permdock/node` need Node; `permdock/jwt` uses `jose`'s Node build                                                                                                                                                |
+| Bun                             | Yes                                     | Elysia's home runtime; `bun test` runs the policy matrix unchanged                                                                                                                                                            |
+| Deno, Deno Deploy               | Yes                                     | Import from npm specifiers or JSR once published; no Node built-ins to polyfill                                                                                                                                               |
+| Cloudflare Workers              | Yes                                     | `memoryApprovalStore` is per isolate: use Durable Objects or KV behind `ApprovalStore` and `SnapshotSource` ([approvals](/docs/adapters/approvals)); D1 has no RLS, `where` compilers still apply ([RLS](/docs/adapters/rls)) |
+| Vercel Functions (Fluid), Edge  | Yes                                     | `permdock/next` targets the Node runtime for `React.cache` and `'use cache: private'`; the Fetch kernel runs on Edge too                                                                                                      |
+| Netlify Functions and Edge      | Yes                                     | Same as Vercel Edge                                                                                                                                                                                                           |
+| AWS Lambda                      | Yes                                     | Through `permdock/node` or a Fetch adapter such as Hono's; approvals need an external `ApprovalStore`                                                                                                                         |
+| Browsers, React Native (Hermes) | Client entries only                     | `permdock/react`, `permdock/react-native`, `permdock/webmcp`; no policy code ships (invariant 8)                                                                                                                              |
 
 The one runtime-specific caveat is state: any store or sink that defaults to memory (`memoryApprovalStore`, `memorySink`) is per process or per isolate and resets on cold start. `permdock doctor` warns when the memory store is the configured `ApprovalStore` in a serverless target. Recipes for Durable Objects, KV, Redis and Postgres stores live on the [approvals](/docs/adapters/approvals) and [audit and observability](/docs/concepts/audit-and-observability) pages; none is a package.
 
@@ -60,37 +60,37 @@ PermDock never imports a validator itself. `resource(Post, ...)` reads `Post['~s
 
 All adapters live in the one `permdock` package. Import only what a bundle needs; nothing from a server entry is reachable from a client entry.
 
-| Import path | Contents |
-| --- | --- |
-| `permdock` | `definePermissions`, `resource`, `mergePermissions`, `listPermissions`, `findPermission`, `definePolicy`, `defineRoles`, `definePlans`, `role`, `allow`, `deny`, `principal`, `context`, `createPermDock`, errors |
-| `permdock/react` | `PermDockProvider`, `usePermDock`, `usePermission`, `<Protected>` |
-| `permdock/next` | `createPermDock` returning `getPermDock`, `getPermission`, `PermDockProvider`, `permdockHandler` |
-| `permdock/next/plugin` | `createPermDockPlugin` (build-time `collect` hook only) |
-| `permdock/unplugin` | `createPermDockUnplugin` (the same `collect` hook for Vite, Rollup, webpack, Rspack and esbuild; recipes for TanStack Start, React Router, Nuxt, Astro, Effect) |
-| `permdock/server` | Fetch-first kernel shared by the HTTP adapters |
-| `permdock/hono` | `createPermDock` returning `permdock` middleware and `protect` |
-| `permdock/express`, `permdock/fastify`, `permdock/elysia`, `permdock/nest`, `permdock/node` | Same shape as `permdock/hono` |
-| `permdock/jwt` | `subjectFromJwt`, `createJwtSubjectResolver`: JWKS verification and claim mapping to a subject (`jose` optional peer) |
-| `permdock/terminal` | `createPermDock` returning `permdock`, `protect`, `filterCommands`, `format` for your own CLI |
-| `permdock/trpc`, `permdock/orpc` | RPC middleware with OpenAPI hooks |
-| `permdock/mcp` | `createPermDock` returning `protectServer` |
-| `permdock/ai-sdk` | `createPermDock` returning `toolApproval`, `capabilityMiddleware`, `needsApproval` |
-| `permdock/claude-agent` | `createPermDock` returning `canUseTool`, `permissionRequestHook` |
-| `permdock/eve` | `createPermDock` returning `approval`, `approvalFor`, `permdock` for Eve `defineTool` |
-| `permdock/openai` | `createPermDock` returning `needsApproval`, `guardTools`, `resolveInterruptions`, `permdock` for the OpenAI Agents SDK |
-| `permdock/approvals` | `ApprovalStore` interface, `memoryApprovalStore`, `approvalsHandler`; the `store` option of every agent and HTTP adapter |
-| `permdock/cloud` | `cloud({ url, key })` returning `approvals`, `sink`, `snapshots` for PermDock Cloud; optional, server-only, never on the decision path |
-| `permdock/webmcp` | `registerTools` |
-| `permdock/a2a` | `createPermDock` returning `agentCard`, `extendedAgentCard` |
-| `permdock/authzen` | `createPermDock` returning the AuthZEN `permdockHandler` |
-| `permdock/ssf` | `createPermDock` returning the CAEP `receiver` |
-| `permdock/scim` | `scimHandler`, the `DirectoryStore` interface, `memoryDirectoryStore`, `directoryMembershipSource` |
-| `permdock/openapi` | OpenAPI emission (document or Overlay) and import |
-| `permdock/otel` | Span per check and a decision counter |
-| `permdock/react-native` | React adapter plus persisted `storage` |
-| `permdock/vue`, `permdock/svelte`, `permdock/solid` | UI adapters |
-| `permdock/drizzle`, `permdock/prisma`, `permdock/kysely` | `toWhere` condition compilers |
-| `permdock/supabase`, `permdock/better-auth`, `permdock/clerk`, `permdock/convex`, `permdock/pdp` | Subject providers |
+| Import path                                                                                      | Contents                                                                                                                                                                                                          |
+| ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `permdock`                                                                                       | `definePermissions`, `resource`, `mergePermissions`, `listPermissions`, `findPermission`, `definePolicy`, `defineRoles`, `definePlans`, `role`, `allow`, `deny`, `principal`, `context`, `createPermDock`, errors |
+| `permdock/react`                                                                                 | `PermDockProvider`, `usePermDock`, `usePermission`, `<Protected>`                                                                                                                                                 |
+| `permdock/next`                                                                                  | `createPermDock` returning `getPermDock`, `getPermission`, `PermDockProvider`, `permdockHandler`                                                                                                                  |
+| `permdock/next/plugin`                                                                           | `createPermDockPlugin` (build-time `collect` hook only)                                                                                                                                                           |
+| `permdock/unplugin`                                                                              | `createPermDockUnplugin` (the same `collect` hook for Vite, Rollup, webpack, Rspack and esbuild; recipes for TanStack Start, React Router, Nuxt, Astro, Effect)                                                   |
+| `permdock/server`                                                                                | Fetch-first kernel shared by the HTTP adapters                                                                                                                                                                    |
+| `permdock/hono`                                                                                  | `createPermDock` returning `permdock` middleware and `protect`                                                                                                                                                    |
+| `permdock/express`, `permdock/fastify`, `permdock/elysia`, `permdock/nest`, `permdock/node`      | Same shape as `permdock/hono`                                                                                                                                                                                     |
+| `permdock/jwt`                                                                                   | `subjectFromJwt`, `createJwtSubjectResolver`: JWKS verification and claim mapping to a subject (`jose` optional peer)                                                                                             |
+| `permdock/terminal`                                                                              | `createPermDock` returning `permdock`, `protect`, `filterCommands`, `format` for your own CLI                                                                                                                     |
+| `permdock/trpc`, `permdock/orpc`                                                                 | RPC middleware with OpenAPI hooks                                                                                                                                                                                 |
+| `permdock/mcp`                                                                                   | `createPermDock` returning `protectServer`                                                                                                                                                                        |
+| `permdock/ai-sdk`                                                                                | `createPermDock` returning `toolApproval`, `capabilityMiddleware`, `needsApproval`                                                                                                                                |
+| `permdock/claude-agent`                                                                          | `createPermDock` returning `canUseTool`, `permissionRequestHook`                                                                                                                                                  |
+| `permdock/eve`                                                                                   | `createPermDock` returning `approval`, `approvalFor`, `permdock` for Eve `defineTool`                                                                                                                             |
+| `permdock/openai`                                                                                | `createPermDock` returning `needsApproval`, `guardTools`, `resolveInterruptions`, `permdock` for the OpenAI Agents SDK                                                                                            |
+| `permdock/approvals`                                                                             | `ApprovalStore` interface, `memoryApprovalStore`, `approvalsHandler`; the `store` option of every agent and HTTP adapter                                                                                          |
+| `permdock/cloud`                                                                                 | `cloud({ url, key })` returning `approvals`, `sink`, `snapshots` for PermDock Cloud; optional, server-only, never on the decision path                                                                            |
+| `permdock/webmcp`                                                                                | `registerTools`                                                                                                                                                                                                   |
+| `permdock/a2a`                                                                                   | `createPermDock` returning `agentCard`, `extendedAgentCard`                                                                                                                                                       |
+| `permdock/authzen`                                                                               | `createPermDock` returning the AuthZEN `permdockHandler`                                                                                                                                                          |
+| `permdock/ssf`                                                                                   | `createPermDock` returning the CAEP `receiver`                                                                                                                                                                    |
+| `permdock/scim`                                                                                  | `scimHandler`, the `DirectoryStore` interface, `memoryDirectoryStore`, `directoryMembershipSource`                                                                                                                |
+| `permdock/openapi`                                                                               | OpenAPI emission (document or Overlay) and import                                                                                                                                                                 |
+| `permdock/otel`                                                                                  | Span per check and a decision counter                                                                                                                                                                             |
+| `permdock/react-native`                                                                          | React adapter plus persisted `storage`                                                                                                                                                                            |
+| `permdock/vue`, `permdock/svelte`, `permdock/solid`                                              | UI adapters                                                                                                                                                                                                       |
+| `permdock/drizzle`, `permdock/prisma`, `permdock/kysely`                                         | `toWhere` condition compilers                                                                                                                                                                                     |
+| `permdock/supabase`, `permdock/better-auth`, `permdock/clerk`, `permdock/convex`, `permdock/pdp` | Subject providers                                                                                                                                                                                                 |
 
 The full matrix with example apps and related standards is on the [adapters index](/docs/adapters).
 
@@ -98,16 +98,16 @@ The full matrix with example apps and related standards is on the [adapters inde
 
 Runtime entries have no dependency beyond `@standard-schema/spec`. A few entries verify material or talk to a vendor SDK and declare an optional peer instead of bundling it, and a few CLI commands do the same:
 
-| Entry | Optional peer | Why |
-| --- | --- | --- |
-| `permdock/jwt` | `jose` | JWS verification and JWKS fetching; see [JWT](/docs/adapters/jwt) |
-| `permdock/otel` | `@opentelemetry/api` | Span and metric emission |
+| Entry                                                                            | Optional peer                      | Why                                                                                                                                                                                                      |
+| -------------------------------------------------------------------------------- | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `permdock/jwt`                                                                   | `jose`                             | JWS verification and JWKS fetching; see [JWT](/docs/adapters/jwt)                                                                                                                                        |
+| `permdock/otel`                                                                  | `@opentelemetry/api`               | Span and metric emission                                                                                                                                                                                 |
 | `permdock/supabase`, `permdock/clerk`, `permdock/better-auth`, `permdock/convex` | The provider SDK, at the call site | The adapters take the values the provider's own SDK returned and declare no peer themselves; session and claim verification stays with the provider; see [authentication](/docs/concepts/authentication) |
-| `permdock/terminal` | An OS keychain binding | Token storage; falls back to a mode-0600 file |
-| `permdock/testing` | `vitest` | `describePolicy` and the runners register Vitest tests |
-| `permdock rls import` | `pgsql-parser` | Parses Postgres policies (WASM, about 2.8 MB installed); the command prints the install line when it is missing |
-| `permdock rls import --db`, `permdock rls verify --db` | `pg` | Talks to a live database |
-| `permdock/unplugin` | `unplugin` | The bundler adapter layer for Vite, Rollup, webpack, Rspack and esbuild |
+| `permdock/terminal`                                                              | An OS keychain binding             | Token storage; falls back to a mode-0600 file                                                                                                                                                            |
+| `permdock/testing`                                                               | `vitest`                           | `describePolicy` and the runners register Vitest tests                                                                                                                                                   |
+| `permdock rls import`                                                            | `pgsql-parser`                     | Parses Postgres policies (WASM, about 2.8 MB installed); the command prints the install line when it is missing                                                                                          |
+| `permdock rls import --db`, `permdock rls verify --db`                           | `pg`                               | Talks to a live database                                                                                                                                                                                 |
+| `permdock/unplugin`                                                              | `unplugin`                         | The bundler adapter layer for Vite, Rollup, webpack, Rspack and esbuild                                                                                                                                  |
 
 ### Why runtime entries have no dependencies
 
@@ -142,13 +142,13 @@ A minimal `tsconfig.json` that works with the subpath exports and keeps inferenc
 
 ## Where files go
 
-| File | Contents | Imported by |
-| --- | --- | --- |
-| `src/permissions.ts` | `definePermissions()` or `mergePermissions()`; no rules | Everything, including client bundles |
-| `src/policy.ts` | `definePolicy()` with roles | Server only |
-| `src/permdock/server.ts` | `createPermDock` from a server adapter | Server code |
-| `src/permissions.generated.ts` | Output of `permdock rls import` or `openapi import` | `src/permissions.ts` |
-| `permissions.catalog.json` | Output of `permdock collect`; committed | CI (`--check`), docs, OpenAPI |
+| File                           | Contents                                                | Imported by                          |
+| ------------------------------ | ------------------------------------------------------- | ------------------------------------ |
+| `src/permissions.ts`           | `definePermissions()` or `mergePermissions()`; no rules | Everything, including client bundles |
+| `src/policy.ts`                | `definePolicy()` with roles                             | Server only                          |
+| `src/permdock/server.ts`       | `createPermDock` from a server adapter                  | Server code                          |
+| `src/permissions.generated.ts` | Output of `permdock rls import` or `openapi import`     | `src/permissions.ts`                 |
+| `permissions.catalog.json`     | Output of `permdock collect`; committed                 | CI (`--check`), docs, OpenAPI        |
 
 The [quick start](/docs/getting-started/quick-start) fills in the first three.
 

@@ -12,54 +12,63 @@ permix adapters each copy request isolation onto the framework context; PermDock
 ## API
 
 ```ts
-import { createPermDock, discoverViaSignatureAgent, verifyWebBotAuth } from 'permdock/server'
-import { policy } from './policy'
+import {
+  createPermDock,
+  discoverViaSignatureAgent,
+  verifyWebBotAuth,
+} from "permdock/server";
+import { policy } from "./policy";
 
-export const { permdock, protect, connection, problem, openapi } = createPermDock(policy, {
-  subject: async (request) => userFromSession(request.headers.get('cookie')),
-  actor: async (request) => agentFrom(request),          // optional; Web Bot Auth fills this automatically when enabled
-  webBotAuth: (request) => verifyWebBotAuth(request, {   // optional RFC 9421 verification
-    keys: discoverViaSignatureAgent({ allow: ['agents.example.com'] }),
-    required: false,
-  }),
-  tenant: (request) => orgFromPath(request),            // optional; resolved again on every protect
-  limits: memoryLimitStore(),                           // optional LimitStore for quota grants
-})
+export const { permdock, protect, connection, problem, openapi } =
+  createPermDock(policy, {
+    subject: async (request) => userFromSession(request.headers.get("cookie")),
+    actor: async (request) => agentFrom(request), // optional; Web Bot Auth fills this automatically when enabled
+    webBotAuth: (request) =>
+      verifyWebBotAuth(request, {
+        // optional RFC 9421 verification
+        keys: discoverViaSignatureAgent({ allow: ["agents.example.com"] }),
+        required: false,
+      }),
+    tenant: (request) => orgFromPath(request), // optional; resolved again on every protect
+    limits: memoryLimitStore(), // optional LimitStore for quota grants
+  });
 
 // Plain Fetch handler
 export default async function handler(request: Request): Promise<Response> {
-  const guard = await protect(permissions.post.delete, (request) => loadPost(idFrom(request)))(request)
-  if (!guard.ok) return guard.response                  // 403 application/problem+json
-  const { permdock: instance, data: post } = guard
-  await deletePost(post)
-  return new Response(null, { status: 204 })
+  const guard = await protect(permissions.post.delete, (request) =>
+    loadPost(idFrom(request)),
+  )(request);
+  if (!guard.ok) return guard.response; // 403 application/problem+json
+  const { permdock: instance, data: post } = guard;
+  await deletePost(post);
+  return new Response(null, { status: 204 });
 }
 ```
 
-| Export | Role |
-|---|---|
-| `permdock(request)` | Resolves subject, actor and delegation once per `Request` (memoised in a `WeakMap`), builds the immutable `PermDock` for the request's tenant, returns it. One instance is cached per `(Request, tenant)` pair, so a global middleware that runs before routing and a later tenant-scoped `protect` never share an instance. Never throws for anonymous callers; `subject` returning `null` yields an anonymous instance. A request that claims a Web Bot Auth signature and fails verification throws `InvalidSignatureError` with a ready Problem Details `response`. |
-| `protect(permission, loadData?, options?)` | Returns `(request) => Promise<Guard>`. The `tenant` option is resolved for each call, so two routes of one request may decide in different tenants. The loader's result is validated unless `options.trusted: true` (`ProtectOptions`) marks it as a row the server loaded. Loads data when the permission is an instance action, validates it at the boundary, calls `decide`, and returns either `ok: true` with `permdock`, `decision` and `data`, or `ok: false` with a ready `Response`. |
-| `connection(request, options?)` | Opens a long-lived `Connection` for a stream or socket; see [Connections](#connections). |
-| `problem(decision, init?)` | Builds the RFC 9457 `Response` for a `denied` or `approval-required` decision. Adapters call it when they need to emit the body through their own response object. |
-| `openapi` | The hook contract: `openapi.security(permission)` returns the per-operation `security` requirement and `x-permdock-permissions` extension; `openapi.securitySchemes()` returns the scheme with all scopes from `listPermissions`. Framework hooks (`describeRoute`, `createRoute`, oRPC `openapi({ spec })`, `trpc-to-openapi`) call these. |
-| `PermDockDeniedError`, `PermDockApprovalRequiredError`, `PermDockValidationError`, `PermDockRevokedError` | Re-exported so applications can recognise what `assert` throws inside handlers. |
-| `problemFromError(error)` | Maps a thrown PermDock error (`assert`, boundary validation, an ended connection, a failed Web Bot Auth signature) to its Problem Details `Response`; returns `undefined` for any other error. Framework adapters call it from their error hook; a plain Fetch handler, `permdock/node` or a `@supabase/middleware` pipeline calls it in its own `catch`. |
+| Export                                                                                                    | Role                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| --------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `permdock(request)`                                                                                       | Resolves subject, actor and delegation once per `Request` (memoised in a `WeakMap`), builds the immutable `PermDock` for the request's tenant, returns it. One instance is cached per `(Request, tenant)` pair, so a global middleware that runs before routing and a later tenant-scoped `protect` never share an instance. Never throws for anonymous callers; `subject` returning `null` yields an anonymous instance. A request that claims a Web Bot Auth signature and fails verification throws `InvalidSignatureError` with a ready Problem Details `response`. |
+| `protect(permission, loadData?, options?)`                                                                | Returns `(request) => Promise<Guard>`. The `tenant` option is resolved for each call, so two routes of one request may decide in different tenants. The loader's result is validated unless `options.trusted: true` (`ProtectOptions`) marks it as a row the server loaded. Loads data when the permission is an instance action, validates it at the boundary, calls `decide`, and returns either `ok: true` with `permdock`, `decision` and `data`, or `ok: false` with a ready `Response`.                                                                           |
+| `connection(request, options?)`                                                                           | Opens a long-lived `Connection` for a stream or socket; see [Connections](#connections).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `problem(decision, init?)`                                                                                | Builds the RFC 9457 `Response` for a `denied` or `approval-required` decision. Adapters call it when they need to emit the body through their own response object.                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `openapi`                                                                                                 | The hook contract: `openapi.security(permission)` returns the per-operation `security` requirement and `x-permdock-permissions` extension; `openapi.securitySchemes()` returns the scheme with all scopes from `listPermissions`. Framework hooks (`describeRoute`, `createRoute`, oRPC `openapi({ spec })`, `trpc-to-openapi`) call these.                                                                                                                                                                                                                             |
+| `PermDockDeniedError`, `PermDockApprovalRequiredError`, `PermDockValidationError`, `PermDockRevokedError` | Re-exported so applications can recognise what `assert` throws inside handlers.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `problemFromError(error)`                                                                                 | Maps a thrown PermDock error (`assert`, boundary validation, an ended connection, a failed Web Bot Auth signature) to its Problem Details `Response`; returns `undefined` for any other error. Framework adapters call it from their error hook; a plain Fetch handler, `permdock/node` or a `@supabase/middleware` pipeline calls it in its own `catch`.                                                                                                                                                                                                               |
 
 ### Options
 
-| Option | Role |
-|---|---|
-| `subject`, `actor`, `webBotAuth` | As above. |
-| `tenant` | A tenant id or `(request) => string \| undefined`. Adapters pass their framework context instead of the `Request`. A throwing resolver is no tenant, never a default one. |
-| `memberships`, `customRoles` | `MembershipSource` and `RoleSource` ([tenancy](/docs/concepts/tenancy)). |
-| `store`, `sink` | `ApprovalStore` for the `PermDock-Approval` resume and `DecisionSink` for decision events. |
-| `limits` | `LimitStore` for quota grants. Without it a quota grant denies with `limit-unavailable`. |
-| `pdp` | `createPermDock` from [`permdock/pdp`](/docs/adapters/pdp). `protect` then decides delegated permissions through the provider; `can` on the instance stays synchronous and keeps denying them with `pdp-unavailable`. |
-| `snapshots` | Accepted so every adapter takes the same options; HTTP adapters do not read it. A `SnapshotSource` serves client snapshots, and the kernel builds decisions from the policy it was given. |
-| `approval` | An `ApprovalHint` (`{ at?, hint? }`) added as the `approval` member of every `approval-required` Problem Details: where to approve and what to tell the caller. The terminal adapter takes the same option. |
-| `otel` | [OpenTelemetry](/docs/adapters/otel) spans, counters and the duration histogram. |
-| `revocations` | A `RevocationFeed` ([extension interfaces](/docs/concepts/extension-interfaces)) that ends or revalidates open connections. Never a decision input. |
+| Option                           | Role                                                                                                                                                                                                                  |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `subject`, `actor`, `webBotAuth` | As above.                                                                                                                                                                                                             |
+| `tenant`                         | A tenant id or `(request) => string \| undefined`. Adapters pass their framework context instead of the `Request`. A throwing resolver is no tenant, never a default one.                                             |
+| `memberships`, `customRoles`     | `MembershipSource` and `RoleSource` ([tenancy](/docs/concepts/tenancy)).                                                                                                                                              |
+| `store`, `sink`                  | `ApprovalStore` for the `PermDock-Approval` resume and `DecisionSink` for decision events.                                                                                                                            |
+| `limits`                         | `LimitStore` for quota grants. Without it a quota grant denies with `limit-unavailable`.                                                                                                                              |
+| `pdp`                            | `createPermDock` from [`permdock/pdp`](/docs/adapters/pdp). `protect` then decides delegated permissions through the provider; `can` on the instance stays synchronous and keeps denying them with `pdp-unavailable`. |
+| `snapshots`                      | Accepted so every adapter takes the same options; HTTP adapters do not read it. A `SnapshotSource` serves client snapshots, and the kernel builds decisions from the policy it was given.                             |
+| `approval`                       | An `ApprovalHint` (`{ at?, hint? }`) added as the `approval` member of every `approval-required` Problem Details: where to approve and what to tell the caller. The terminal adapter takes the same option.           |
+| `otel`                           | [OpenTelemetry](/docs/adapters/otel) spans, counters and the duration histogram.                                                                                                                                      |
+| `revocations`                    | A `RevocationFeed` ([extension interfaces](/docs/concepts/extension-interfaces)) that ends or revalidates open connections. Never a decision input.                                                                   |
 
 ### Typed generics
 
@@ -77,12 +86,12 @@ export default async function handler(request: Request): Promise<Response> {
 
 The `subject` resolver is the kernel's trust boundary. `createPermDock(policy, { subject: async (request) => ... })` receives the raw `Request`, and whatever the resolver returns is taken as verified: the kernel does not re-verify sessions or tokens, so the resolver must only return material something has already checked ([Authentication and PermDock](/docs/concepts/authentication)).
 
-| Resolver returns | Kernel does |
-|---|---|
-| `null` or `undefined` | Builds an anonymous instance; no roles, no grants |
-| A principal object (`{ id, roles, ... }`) | Uses it as `principal`; `actor` and `delegation` come from the `actor` option, Web Bot Auth or nothing |
-| A full `Subject` (`principal`, `actor?`, `delegation?`, `expiresAt?`) as returned by `subjectFromJwt`, `subjectFromSupabase`, `subjectFromClerk`, `subjectFromBetterAuth`, `subjectFromApiKey` | Uses all parts as given; `binding` on principal or actor is passed through to the instance and audit events unchanged |
-| A thrown error | Caught; treated as `null` and reported through `on('auth')` with the error, so a broken resolver denies rather than crashes the route |
+| Resolver returns                                                                                                                                                                               | Kernel does                                                                                                                           |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `null` or `undefined`                                                                                                                                                                          | Builds an anonymous instance; no roles, no grants                                                                                     |
+| A principal object (`{ id, roles, ... }`)                                                                                                                                                      | Uses it as `principal`; `actor` and `delegation` come from the `actor` option, Web Bot Auth or nothing                                |
+| A full `Subject` (`principal`, `actor?`, `delegation?`, `expiresAt?`) as returned by `subjectFromJwt`, `subjectFromSupabase`, `subjectFromClerk`, `subjectFromBetterAuth`, `subjectFromApiKey` | Uses all parts as given; `binding` on principal or actor is passed through to the instance and audit events unchanged                 |
+| A thrown error                                                                                                                                                                                 | Caught; treated as `null` and reported through `on('auth')` with the error, so a broken resolver denies rather than crashes the route |
 
 Three consequences:
 
@@ -96,24 +105,27 @@ Three consequences:
 A WebSocket, an SSE stream or a subscription lives longer than one decision. `connection(request, options?)` resolves the subject from the request that opened it and returns a frozen `Connection`:
 
 ```ts
-const guard = await protect(permissions.project.read, loadProject)(request)
-if (!guard.ok) return guard.response
-const conn = await connection(request, { permission: permissions.project.read, data: guard.data })
+const guard = await protect(permissions.project.read, loadProject)(request);
+if (!guard.ok) return guard.response;
+const conn = await connection(request, {
+  permission: permissions.project.read,
+  data: guard.data,
+});
 
 for await (const event of projectEvents(conn.signal)) {
-  for (const row of conn.filter(permissions.project.read, [event])) send(row)
+  for (const row of conn.filter(permissions.project.read, [event])) send(row);
 }
 // conn.signal.reason is a PermDockRevokedError: send its toProblemDetails(), then close
-conn.close()
+conn.close();
 ```
 
-| Member | Role |
-|---|---|
-| `permdock` | The current instance; replaced, never mutated, after a revalidation. |
-| `signal` | Aborts when the connection must end. `signal.reason` is a `PermDockRevokedError` with `code` `session-revoked`, `expired`, `denied` (the opening permission was re-denied; the `Decision` is on the error) or `subject-changed`. |
-| `check(permission, data?, { trusted? })` | Per-message decision; never throws. Message data is validated first unless `trusted: true`. After the abort or `close()` it returns `denied` with `no-grant` and `detail: 'connection-revoked'`. |
-| `filter(permission, items)` | Drops outbound items the subscriber cannot read; `[]` after the abort or `close()`. |
-| `close()` | Stops the timers and the feed subscription. Call it when the transport closes. |
+| Member                                   | Role                                                                                                                                                                                                                             |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `permdock`                               | The current instance; replaced, never mutated, after a revalidation.                                                                                                                                                             |
+| `signal`                                 | Aborts when the connection must end. `signal.reason` is a `PermDockRevokedError` with `code` `session-revoked`, `expired`, `denied` (the opening permission was re-denied; the `Decision` is on the error) or `subject-changed`. |
+| `check(permission, data?, { trusted? })` | Per-message decision; never throws. Message data is validated first unless `trusted: true`. After the abort or `close()` it returns `denied` with `no-grant` and `detail: 'connection-revoked'`.                                 |
+| `filter(permission, items)`              | Drops outbound items the subscriber cannot read; `[]` after the abort or `close()`.                                                                                                                                              |
+| `close()`                                | Stops the timers and the feed subscription. Call it when the transport closes.                                                                                                                                                   |
 
 `ConnectionOptions` are `permission` and `data` (a value or a loader) for the permission that opened the connection, re-checked after every revalidation, and `revalidate` (milliseconds, off by default) for a periodic revalidation. The connection aborts with `expired` at the subject's `expiresAt`, and revalidates at the earliest membership expiry and on a `changed` event from `revocations`: `subject(request)` runs again on the original request, and a different or missing principal aborts with `subject-changed`. A `session-revoked` event aborts without revalidating.
 

@@ -1,5 +1,5 @@
 ---
-'permdock': patch
+"permdock": patch
 ---
 
 Arazzo `simulate` and `permdock arazzo check` follow the 1.0 and 1.1 specs more closely:

@@ -1,16 +1,16 @@
-import type { ProblemDetails } from '../core/errors.ts';
-import type { Actor, JsonWebKeyLike } from '../core/subject.ts';
+import type { ProblemDetails } from "../core/errors.ts";
+import type { Actor, JsonWebKeyLike } from "../core/subject.ts";
 
-import { compact } from '../core/compact.ts';
-import { timeoutSignal } from '../core/timeout.ts';
-import { PROBLEM_BASE, problemResponse } from './problem.ts';
+import { compact } from "../core/compact.ts";
+import { timeoutSignal } from "../core/timeout.ts";
+import { PROBLEM_BASE, problemResponse } from "./problem.ts";
 
 /** Milliseconds a key directory fetch may take before the signature counts as unverifiable. */
 const DIRECTORY_TIMEOUT_MS = 5000;
 
 const DEFAULT_MAX_AGE = 300;
 const FUTURE_SKEW = 60;
-const DIRECTORY_PATH = '/.well-known/http-message-signatures-directory';
+const DIRECTORY_PATH = "/.well-known/http-message-signatures-directory";
 
 export type WebBotAuthJwk = JsonWebKeyLike & {
   readonly kid?: string;
@@ -50,11 +50,11 @@ export type DiscoverViaSignatureAgentOptions = {
 };
 
 export class InvalidSignatureError extends Error {
-  public override readonly name = 'InvalidSignatureError' as const;
+  public override readonly name = "InvalidSignatureError" as const;
   public readonly response: Response;
 
   public constructor(response: Response) {
-    super('Web Bot Auth signature was rejected');
+    super("Web Bot Auth signature was rejected");
     this.response = response;
   }
 }
@@ -67,7 +67,7 @@ export function invalidSignatureProblem(detail: string): Response {
   return problemResponse(
     compact<ProblemDetails>({
       type: `${PROBLEM_BASE}/invalid-signature`,
-      title: 'Invalid signature',
+      title: "Invalid signature",
       status: 403,
       detail,
     }),
@@ -94,11 +94,11 @@ export function discoverViaSignatureAgent(
     } catch {
       return undefined;
     }
-    if (url.protocol !== 'https:' || !allow.has(url.hostname)) {
+    if (url.protocol !== "https:" || !allow.has(url.hostname)) {
       return undefined;
     }
     const directoryUrl =
-      url.pathname === '/' || url.pathname === ''
+      url.pathname === "/" || url.pathname === ""
         ? `${url.origin}${DIRECTORY_PATH}`
         : agent;
     let pending = cache.get(directoryUrl);
@@ -126,69 +126,69 @@ export async function verifyWebBotAuth(
   if (options === undefined || options.verify === false) {
     return undefined;
   }
-  const signatureInput = request.headers.get('Signature-Input');
+  const signatureInput = request.headers.get("Signature-Input");
   if (signatureInput === null) {
     if (options.required === true) {
       throw new InvalidSignatureError(
-        invalidSignatureProblem('Signature-Input is required'),
+        invalidSignatureProblem("Signature-Input is required"),
       );
     }
     return undefined;
   }
   const parsed = parseSignatureInput(signatureInput);
-  const signatureHeader = request.headers.get('Signature');
+  const signatureHeader = request.headers.get("Signature");
   if (parsed === undefined || signatureHeader === null) {
-    throw reject('Signature-Input could not be parsed');
+    throw reject("Signature-Input could not be parsed");
   }
   const signature = parseSignature(signatureHeader, parsed.label);
   if (signature === undefined) {
-    throw reject('Signature could not be parsed');
+    throw reject("Signature could not be parsed");
   }
   const now = options.now?.() ?? Math.floor(Date.now() / 1000);
   const maxAge = options.maxAge ?? DEFAULT_MAX_AGE;
-  if (typeof parsed.created !== 'number') {
-    throw reject('Signature-Input created is required');
+  if (typeof parsed.created !== "number") {
+    throw reject("Signature-Input created is required");
   }
   if (parsed.created > now + FUTURE_SKEW) {
-    throw reject('Signature-Input created is in the future');
+    throw reject("Signature-Input created is in the future");
   }
   if (now - parsed.created > maxAge) {
-    throw reject('Signature-Input created is too old');
+    throw reject("Signature-Input created is too old");
   }
-  if (typeof parsed.expires === 'number' && parsed.expires < now) {
-    throw reject('Signature-Input expires is in the past');
+  if (typeof parsed.expires === "number" && parsed.expires < now) {
+    throw reject("Signature-Input expires is in the past");
   }
   if (parsed.keyid === undefined) {
-    throw reject('Signature-Input keyid is required');
+    throw reject("Signature-Input keyid is required");
   }
   const agent = parseSignatureAgent(
-    request.headers.get('Signature-Agent'),
+    request.headers.get("Signature-Agent"),
     parsed.label,
   );
   const lookup =
-    typeof options.keys === 'function' ? options.keys : options.keys.lookup;
+    typeof options.keys === "function" ? options.keys : options.keys.lookup;
   let key: WebBotAuthJwk | undefined;
   try {
     key = await lookup({ request, keyid: parsed.keyid, agent });
   } catch {
-    throw reject('Web Bot Auth key lookup failed');
+    throw reject("Web Bot Auth key lookup failed");
   }
   if (key === undefined) {
-    throw reject('Web Bot Auth key was not found');
+    throw reject("Web Bot Auth key was not found");
   }
   const base = signatureBase(request, parsed);
   if (base === undefined) {
-    throw reject('signed components could not be covered');
+    throw reject("signed components could not be covered");
   }
   const alg = parsed.alg ?? algorithmFromJwk(key);
   if (alg === undefined) {
-    throw reject('signature algorithm is not supported');
+    throw reject("signature algorithm is not supported");
   }
   const ok = await verifyBytes(key, alg, signature, base);
   if (!ok) {
-    throw reject('HTTP Message Signature did not verify');
+    throw reject("HTTP Message Signature did not verify");
   }
-  return Object.freeze({ id: parsed.keyid, kind: 'web-bot-auth' });
+  return Object.freeze({ id: parsed.keyid, kind: "web-bot-auth" });
 }
 
 function reject(detail: string): InvalidSignatureError {
@@ -255,12 +255,12 @@ function parseSignatureAgent(
 function firstDictionaryMember(
   header: string,
 ): { readonly key: string; readonly value: string } | undefined {
-  const parts = splitTopLevel(header, ',');
+  const parts = splitTopLevel(header, ",");
   const first = parts[0];
   if (first === undefined) {
     return undefined;
   }
-  const eq = first.indexOf('=');
+  const eq = first.indexOf("=");
   if (eq <= 0) {
     return undefined;
   }
@@ -268,8 +268,8 @@ function firstDictionaryMember(
 }
 
 function dictionaryMember(header: string, label: string): string | undefined {
-  for (const part of splitTopLevel(header, ',')) {
-    const eq = part.indexOf('=');
+  for (const part of splitTopLevel(header, ",")) {
+    const eq = part.indexOf("=");
     if (eq <= 0) {
       continue;
     }
@@ -290,10 +290,10 @@ function parseInnerListAndParams(value: string):
     }
   | undefined {
   const trimmed = value.trim();
-  if (!trimmed.startsWith('(')) {
+  if (!trimmed.startsWith("(")) {
     return undefined;
   }
-  const close = trimmed.indexOf(')');
+  const close = trimmed.indexOf(")");
   if (close < 0) {
     return undefined;
   }
@@ -304,19 +304,19 @@ function parseInnerListAndParams(value: string):
   const params = parseParams(trimmed.slice(close + 1));
   return compact({
     components,
-    created: asUnix(params['created']),
-    expires: asUnix(params['expires']),
-    keyid: typeof params['keyid'] === 'string' ? params['keyid'] : undefined,
-    alg: typeof params['alg'] === 'string' ? params['alg'] : undefined,
+    created: asUnix(params["created"]),
+    expires: asUnix(params["expires"]),
+    keyid: typeof params["keyid"] === "string" ? params["keyid"] : undefined,
+    alg: typeof params["alg"] === "string" ? params["alg"] : undefined,
   });
 }
 
 function parseQuotedList(inner: string): readonly string[] | undefined {
   const items: string[] = [];
-  const parts = splitTopLevel(inner, ' ');
+  const parts = splitTopLevel(inner, " ");
   for (const part of parts) {
     const next = part.trim();
-    if (next === '') {
+    if (next === "") {
       continue;
     }
     if (!next.startsWith('"') || !next.endsWith('"')) {
@@ -335,12 +335,12 @@ function parseParams(
   suffix: string,
 ): Readonly<Record<string, string | number>> {
   const params: Record<string, string | number> = {};
-  for (const part of suffix.split(';')) {
+  for (const part of suffix.split(";")) {
     const next = part.trim();
-    if (next === '') {
+    if (next === "") {
       continue;
     }
-    const eq = next.indexOf('=');
+    const eq = next.indexOf("=");
     if (eq <= 0) {
       continue;
     }
@@ -360,7 +360,7 @@ function parseParams(
 }
 
 function asUnix(value: string | number | undefined): number | undefined {
-  return typeof value === 'number' && Number.isFinite(value)
+  return typeof value === "number" && Number.isFinite(value)
     ? value
     : undefined;
 }
@@ -378,29 +378,29 @@ function signatureBase(
     lines.push(`"${component}": ${value}`);
   }
   lines.push(`"@signature-params": ${parsed.innerListAndParams}`);
-  return new TextEncoder().encode(lines.join('\n'));
+  return new TextEncoder().encode(lines.join("\n"));
 }
 
 function componentValue(
   request: Request,
   component: string,
 ): string | undefined {
-  if (component.startsWith('@')) {
+  if (component.startsWith("@")) {
     const url = new URL(request.url);
     switch (component) {
-      case '@method':
+      case "@method":
         return request.method;
-      case '@authority':
+      case "@authority":
         return url.host;
-      case '@path':
+      case "@path":
         return url.pathname;
-      case '@query':
+      case "@query":
         return url.search;
-      case '@target-uri':
+      case "@target-uri":
         return url.href;
-      case '@scheme':
-        return url.protocol.replace(':', '');
-      case '@request-target':
+      case "@scheme":
+        return url.protocol.replace(":", "");
+      case "@request-target":
         return `${url.pathname}${url.search}`;
       default:
         return undefined;
@@ -410,11 +410,11 @@ function componentValue(
 }
 
 function algorithmFromJwk(key: WebBotAuthJwk): string | undefined {
-  if (key.kty === 'OKP' && key.crv === 'Ed25519') {
-    return 'ed25519';
+  if (key.kty === "OKP" && key.crv === "Ed25519") {
+    return "ed25519";
   }
-  if (key.kty === 'EC' && key.crv === 'P-256') {
-    return 'ecdsa-p256-sha256';
+  if (key.kty === "EC" && key.crv === "P-256") {
+    return "ecdsa-p256-sha256";
   }
   return undefined;
 }
@@ -426,35 +426,35 @@ async function verifyBytes(
   data: Uint8Array,
 ): Promise<boolean> {
   try {
-    if (alg === 'ed25519') {
+    if (alg === "ed25519") {
       // SAFETY: key is a JWK from the key directory; importKey rejects a bad one and the catch denies.
       const cryptoKey = await crypto.subtle.importKey(
-        'jwk',
+        "jwk",
         key as never,
-        'Ed25519',
+        "Ed25519",
         false,
-        ['verify'],
+        ["verify"],
       );
       // SAFETY: decodeSfBytes and TextEncoder build both arrays over plain ArrayBuffers.
       return await crypto.subtle.verify(
-        'Ed25519',
+        "Ed25519",
         cryptoKey,
         signature as Uint8Array<ArrayBuffer>,
         data as Uint8Array<ArrayBuffer>,
       );
     }
-    if (alg === 'ecdsa-p256-sha256') {
+    if (alg === "ecdsa-p256-sha256") {
       // SAFETY: key is a JWK from the key directory; importKey rejects a bad one and the catch denies.
       const cryptoKey = await crypto.subtle.importKey(
-        'jwk',
+        "jwk",
         key as never,
-        { name: 'ECDSA', namedCurve: 'P-256' },
+        { name: "ECDSA", namedCurve: "P-256" },
         false,
-        ['verify'],
+        ["verify"],
       );
       // SAFETY: decodeSfBytes and TextEncoder build both arrays over plain ArrayBuffers.
       return await crypto.subtle.verify(
-        { name: 'ECDSA', hash: 'SHA-256' },
+        { name: "ECDSA", hash: "SHA-256" },
         cryptoKey,
         signature as Uint8Array<ArrayBuffer>,
         data as Uint8Array<ArrayBuffer>,
@@ -473,15 +473,15 @@ async function loadDirectory(
   const response = await fetchFn(directoryUrl, {
     headers: {
       accept:
-        'application/http-message-signatures-directory+json, application/json',
+        "application/http-message-signatures-directory+json, application/json",
     },
     signal: timeoutSignal(DIRECTORY_TIMEOUT_MS),
   });
   if (!response.ok) {
-    throw new TypeError('directory fetch failed');
+    throw new TypeError("directory fetch failed");
   }
   const body: unknown = await response.json();
-  if (body === null || typeof body !== 'object' || Array.isArray(body)) {
+  if (body === null || typeof body !== "object" || Array.isArray(body)) {
     return [];
   }
   // SAFETY: body was checked to be a non-array object above; keys stays unknown.
@@ -493,12 +493,12 @@ async function loadDirectory(
 }
 
 function isWebBotAuthJwk(value: unknown): value is WebBotAuthJwk {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function splitTopLevel(input: string, separator: string): readonly string[] {
   const parts: string[] = [];
-  let current = '';
+  let current = "";
   let quotes = false;
   let depth = 0;
   for (const char of input) {
@@ -507,24 +507,24 @@ function splitTopLevel(input: string, separator: string): readonly string[] {
       current += char;
       continue;
     }
-    if (!quotes && char === '(') {
+    if (!quotes && char === "(") {
       depth += 1;
       current += char;
       continue;
     }
-    if (!quotes && char === ')' && depth > 0) {
+    if (!quotes && char === ")" && depth > 0) {
       depth -= 1;
       current += char;
       continue;
     }
     if (!quotes && depth === 0 && char === separator) {
       parts.push(current);
-      current = '';
+      current = "";
       continue;
     }
     current += char;
   }
-  if (current !== '') {
+  if (current !== "") {
     parts.push(current);
   }
   return parts;
@@ -543,8 +543,8 @@ function unquote(value: string): string | undefined {
 function decodeSfBytes(value: string): Uint8Array | undefined {
   const trimmed = value.trim();
   if (
-    !trimmed.startsWith(':') ||
-    !trimmed.endsWith(':') ||
+    !trimmed.startsWith(":") ||
+    !trimmed.endsWith(":") ||
     trimmed.length < 2
   ) {
     return undefined;

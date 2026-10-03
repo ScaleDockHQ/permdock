@@ -1,12 +1,12 @@
-import type { Grantee } from '../core/grantee.ts';
-import type { Subject } from '../core/subject.ts';
+import type { Grantee } from "../core/grantee.ts";
+import type { Subject } from "../core/subject.ts";
 
-import { compact } from '../core/compact.ts';
-import { freezeDeep } from '../core/freeze.ts';
-import { flattenGrantee, matchGrantee } from '../core/grantee.ts';
-import { rootMembershipId } from '../core/scopes.ts';
-import { ApprovalError } from './errors.ts';
-import { pageOf } from './page.ts';
+import { compact } from "../core/compact.ts";
+import { freezeDeep } from "../core/freeze.ts";
+import { flattenGrantee, matchGrantee } from "../core/grantee.ts";
+import { rootMembershipId } from "../core/scopes.ts";
+import { ApprovalError } from "./errors.ts";
+import { pageOf } from "./page.ts";
 import {
   type ApprovalCancelMeta,
   type ApprovalListFilter,
@@ -19,7 +19,7 @@ import {
   approvalQuorum,
   DEFAULT_APPROVAL_TTL_MS,
   escalationOpenAt,
-} from './types.ts';
+} from "./types.ts";
 
 function tenantOf(request: ApprovalRequest): string | undefined {
   return request.subject.principal?.tenant;
@@ -79,7 +79,7 @@ function matchesApprovers(
     return false;
   }
   for (const item of items) {
-    if (item.kind === 'role') {
+    if (item.kind === "role") {
       if (!holdsRole(subject, item.role, tenant)) {
         return false;
       }
@@ -87,7 +87,7 @@ function matchesApprovers(
     }
     // A relation needs a row and a relation reader the store does not have, so
     // it matches no approver; so does any grantee that narrows to rows.
-    if (item.kind === 'relation') {
+    if (item.kind === "relation") {
       return false;
     }
     const result = matchGrantee(item, subject, now, undefined);
@@ -144,8 +144,8 @@ export function assertApprover(
   const principal = by.principal;
   if (principal === null) {
     throw new ApprovalError(
-      'approver-unauthenticated',
-      'approver must be authenticated',
+      "approver-unauthenticated",
+      "approver must be authenticated",
     );
   }
   if (
@@ -153,8 +153,8 @@ export function assertApprover(
     principal.id === request.subject.actor.id
   ) {
     throw new ApprovalError(
-      'approver-is-actor',
-      'approver is the actor of this request',
+      "approver-is-actor",
+      "approver is the actor of this request",
     );
   }
   const distinct =
@@ -165,21 +165,21 @@ export function assertApprover(
     principal.id === request.subject.principal.id
   ) {
     throw new ApprovalError(
-      'approver-is-principal',
-      'approver is the principal of this request',
+      "approver-is-principal",
+      "approver is the principal of this request",
     );
   }
   const tenant = request.subject.principal?.tenant;
   if (tenant !== undefined && !belongsToTenant(by, tenant)) {
     throw new ApprovalError(
-      'approver-not-eligible',
-      'approver does not belong to the request tenant',
+      "approver-not-eligible",
+      "approver does not belong to the request tenant",
     );
   }
   if ((request.approvals ?? []).some((item) => item.by === principal.id)) {
     throw new ApprovalError(
-      'approver-repeated',
-      'approver has already approved this request',
+      "approver-repeated",
+      "approver has already approved this request",
     );
   }
   if (request.approvers === undefined) {
@@ -200,13 +200,13 @@ export function assertApprover(
     return;
   }
   throw new ApprovalError(
-    'approver-not-eligible',
-    'approver does not hold an eligible role',
+    "approver-not-eligible",
+    "approver does not hold an eligible role",
   );
 }
 
 function isSystemSubject(by: Subject): boolean {
-  return by.actor?.kind === 'system';
+  return by.actor?.kind === "system";
 }
 
 /**
@@ -225,24 +225,24 @@ export function applyApprovalVerdict(
   const principal = verdict.by.principal;
   if (principal === null) {
     throw new ApprovalError(
-      'approver-unauthenticated',
-      'approver must be authenticated',
+      "approver-unauthenticated",
+      "approver must be authenticated",
     );
   }
-  if (request.status !== 'pending') {
-    throw new ApprovalError('approval-not-pending', 'approval is not pending');
+  if (request.status !== "pending") {
+    throw new ApprovalError("approval-not-pending", "approval is not pending");
   }
   if (Date.parse(request.expiresAt) <= now.getTime()) {
-    throw new ApprovalError('approval-expired', 'approval has expired');
+    throw new ApprovalError("approval-expired", "approval has expired");
   }
-  if (!(verdict.status === 'rejected' && isSystemSubject(verdict.by))) {
+  if (!(verdict.status === "rejected" && isSystemSubject(verdict.by))) {
     assertApprover(request, verdict.by, false, now);
   }
-  if (verdict.status === 'rejected') {
+  if (verdict.status === "rejected") {
     return freezeDeep(
       compact<ApprovalRequest>({
         ...request,
-        status: 'rejected',
+        status: "rejected",
         resolvedAt: now.toISOString(),
         resolvedBy: principal.id,
         note: verdict.note ?? request.note,
@@ -266,7 +266,7 @@ export function applyApprovalVerdict(
   return freezeDeep(
     compact<ApprovalRequest>({
       ...request,
-      status: 'approved',
+      status: "approved",
       approvals,
       resolvedAt: now.toISOString(),
       resolvedBy: principal.id,
@@ -283,7 +283,7 @@ function rejectPending(
   return freezeDeep(
     compact<ApprovalRequest>({
       ...request,
-      status: 'rejected',
+      status: "rejected",
       resolvedAt: now.toISOString(),
       resolvedBy: `system:${meta.by}`,
       note: meta.note,
@@ -298,7 +298,7 @@ export type MemoryApprovalStore = ApprovalStore & {
 /** A request a new ask may replace: expired, or past its deadline. */
 function isStale(request: ApprovalRequest, now: Date): boolean {
   return (
-    request.status === 'expired' ||
+    request.status === "expired" ||
     Date.parse(request.expiresAt) <= now.getTime()
   );
 }
@@ -324,7 +324,7 @@ export function memoryApprovalStore(
     resolve(token: string, verdict: ApprovalVerdict): ApprovalRequest {
       const current = records.get(token);
       if (current === undefined) {
-        throw new ApprovalError('approval-not-found', 'approval was not found');
+        throw new ApprovalError("approval-not-found", "approval was not found");
       }
       const next = applyApprovalVerdict(current, verdict, new Date());
       records.set(token, next);
@@ -333,7 +333,7 @@ export function memoryApprovalStore(
     consume(token: string, now: Date = new Date()): ApprovalRequest | null {
       const current = records.get(token);
       if (
-        current?.status !== 'approved' ||
+        current?.status !== "approved" ||
         current.consumedAt !== undefined ||
         Date.parse(current.expiresAt) <= now.getTime()
       ) {
@@ -357,15 +357,15 @@ export function memoryApprovalStore(
       const instant = now.getTime();
       for (const [token, request] of records) {
         const deadline = Date.parse(request.expiresAt);
-        if (request.status !== 'pending' && deadline + ttl <= instant) {
+        if (request.status !== "pending" && deadline + ttl <= instant) {
           records.delete(token);
           continue;
         }
-        if (request.status === 'pending' && deadline <= instant) {
+        if (request.status === "pending" && deadline <= instant) {
           records.set(
             token,
             freezeDeep(
-              compact<ApprovalRequest>({ ...request, status: 'expired' }),
+              compact<ApprovalRequest>({ ...request, status: "expired" }),
             ),
           );
           count += 1;
@@ -377,7 +377,7 @@ export function memoryApprovalStore(
       const now = new Date();
       let count = 0;
       for (const [token, request] of records) {
-        if (request.status !== 'pending' || !matchesFilter(request, filter)) {
+        if (request.status !== "pending" || !matchesFilter(request, filter)) {
           continue;
         }
         records.set(token, rejectPending(request, meta, now));

@@ -1,35 +1,35 @@
-import type { DecisionEvent } from '../core/interfaces.ts';
-import type { PermDock } from '../core/permdock.ts';
-import type { PolicyVocabulary } from '../core/policy.ts';
+import type { DecisionEvent } from "../core/interfaces.ts";
+import type { PermDock } from "../core/permdock.ts";
+import type { PolicyVocabulary } from "../core/policy.ts";
 import type {
   OtelApi,
   OtelOptions,
   OtelSpan,
   OtelTracer,
   StructuralLogger,
-} from './types.ts';
+} from "./types.ts";
 
-import { compact } from '../core/compact.ts';
+import { compact } from "../core/compact.ts";
 import {
   GENAI_SEMCONV_PIN,
   GEN_AI_TOOL_CALL_ID,
   GEN_AI_TOOL_NAME,
-} from './types.ts';
+} from "./types.ts";
 
 export { GENAI_SEMCONV_PIN };
 
-const FORBIDDEN = new Set(['__proto__', 'constructor', 'prototype']);
+const FORBIDDEN = new Set(["__proto__", "constructor", "prototype"]);
 const SPAN_STATUS_ERROR = 2;
 
 // `@opentelemetry/api` 1.x keeps registered providers on this global, so
 // reading it needs neither the package nor a Node module loader.
-const OTEL_REGISTRY = Symbol.for('opentelemetry.js.api.1');
-const OTEL_SPAN_KEY = Symbol.for('OpenTelemetry Context Key SPAN');
+const OTEL_REGISTRY = Symbol.for("opentelemetry.js.api.1");
+const OTEL_SPAN_KEY = Symbol.for("OpenTelemetry Context Key SPAN");
 
 type OtelRegistry = {
-  readonly trace?: { readonly getTracer?: OtelApi['trace']['getTracer'] };
+  readonly trace?: { readonly getTracer?: OtelApi["trace"]["getTracer"] };
   readonly metrics?: {
-    readonly getMeter?: NonNullable<OtelApi['metrics']>['getMeter'];
+    readonly getMeter?: NonNullable<OtelApi["metrics"]>["getMeter"];
   };
   readonly context?: {
     readonly active?: () =>
@@ -42,7 +42,7 @@ function registry(): OtelRegistry | undefined {
   // SAFETY: reading one symbol key of globalThis; the value stays unknown until checked.
   const value = (globalThis as Record<symbol, unknown>)[OTEL_REGISTRY];
   // SAFETY: the object @opentelemetry/api registers there; every member is optional and read with ?.
-  return typeof value === 'object' && value !== null
+  return typeof value === "object" && value !== null
     ? (value as OtelRegistry)
     : undefined;
 }
@@ -83,7 +83,7 @@ function safeCall(fn: () => void, logger: StructuralLogger | undefined): void {
   } catch (error) {
     if (logger?.error !== undefined) {
       try {
-        logger.error('permdock.otel', { cause: String(error) });
+        logger.error("permdock.otel", { cause: String(error) });
       } catch {
         // A throwing logger must never surface to decide.
       }
@@ -104,7 +104,7 @@ function omitPath(
     }
     return { attributes: next, matched: true };
   }
-  const parts = path.split('.');
+  const parts = path.split(".");
   if (parts.some((part) => FORBIDDEN.has(part))) {
     return { attributes, matched: false };
   }
@@ -117,11 +117,11 @@ function omitPath(
     return { attributes, matched: false };
   }
   const nested = attributes[head];
-  if (nested === null || typeof nested !== 'object') {
+  if (nested === null || typeof nested !== "object") {
     return { attributes, matched: false };
   }
   // SAFETY: nested was checked to be a non-null object above; its values stay unknown.
-  const child = omitPath(nested as Record<string, unknown>, rest.join('.'));
+  const child = omitPath(nested as Record<string, unknown>, rest.join("."));
   if (!child.matched) {
     return { attributes, matched: false };
   }
@@ -139,27 +139,27 @@ function attributesOf(
   const extra =
     options.attributes === undefined ? {} : options.attributes(event);
   const attributes = compact<Record<string, unknown>>({
-    'permdock.outcome': event.outcome,
-    'permdock.permission': event.permission,
-    'permdock.scope': event.scope,
-    'permdock.resource.type': event.resource.type,
-    'permdock.resource.id': event.resource.id,
-    'permdock.subject.id': event.subject.principal?.id,
-    'permdock.actor.id': event.subject.actor?.id,
-    'permdock.actor.kind': event.subject.actor?.kind,
-    'permdock.delegation.scopes': event.subject.delegation?.scopes?.join(','),
-    'permdock.matched.role': event.matched?.role,
-    'permdock.denials.count': event.denials?.length,
-    'permdock.token': event.token,
-    'permdock.validate': event.trusted ? 'trusted' : 'boundary',
-    'permdock.adapter': event.adapter,
-    'permdock.filter.total':
+    "permdock.outcome": event.outcome,
+    "permdock.permission": event.permission,
+    "permdock.scope": event.scope,
+    "permdock.resource.type": event.resource.type,
+    "permdock.resource.id": event.resource.id,
+    "permdock.subject.id": event.subject.principal?.id,
+    "permdock.actor.id": event.subject.actor?.id,
+    "permdock.actor.kind": event.subject.actor?.kind,
+    "permdock.delegation.scopes": event.subject.delegation?.scopes?.join(","),
+    "permdock.matched.role": event.matched?.role,
+    "permdock.denials.count": event.denials?.length,
+    "permdock.token": event.token,
+    "permdock.validate": event.trusted ? "trusted" : "boundary",
+    "permdock.adapter": event.adapter,
+    "permdock.filter.total":
       event.counts === undefined
         ? undefined
         : event.counts.granted +
           event.counts.denied +
           event.counts.approvalRequired,
-    'permdock.filter.kept': event.counts?.granted,
+    "permdock.filter.kept": event.counts?.granted,
     [GEN_AI_TOOL_NAME]: parent?.attributes?.[GEN_AI_TOOL_NAME],
     [GEN_AI_TOOL_CALL_ID]: parent?.attributes?.[GEN_AI_TOOL_CALL_ID],
     ...extra,
@@ -176,7 +176,7 @@ function attributesOf(
   if (unmatched.length > 0) {
     safeCall(() => {
       options.logger?.warn(
-        `permdock.otel unmatched redact: ${unmatched.join(', ')}`,
+        `permdock.otel unmatched redact: ${unmatched.join(", ")}`,
       );
     }, options.logger);
   }
@@ -200,39 +200,39 @@ function recordSignals(
   const attributes = attributesOf(event, options, parent);
   if (options.logger !== undefined) {
     safeCall(() => {
-      options.logger?.info('permdock.decision', attributes);
+      options.logger?.info("permdock.decision", attributes);
     }, options.logger);
   }
   if (api === undefined) {
     return;
   }
-  const name = options.tracer ?? 'permdock';
+  const name = options.tracer ?? "permdock";
   const tracer = api.trace.getTracer(name);
   const span = tracer.startSpan(
-    'permdock.decide',
+    "permdock.decide",
     timing === undefined ? undefined : { startTime: timing.start },
   );
   if (span.isRecording?.() === false) {
     safeCall(() => {
       options.logger?.warn(
-        'permdock.otel: @opentelemetry/api is present but no provider is registered',
+        "permdock.otel: @opentelemetry/api is present but no provider is registered",
       );
     }, options.logger);
   }
   span.setAttributes?.(attributes);
-  if (event.outcome === 'denied') {
+  if (event.outcome === "denied") {
     span.addEvent?.(
-      'permdock.denied',
+      "permdock.denied",
       compact({
-        role: event.denials?.map((denial) => denial.role).join(','),
-        reason: event.denials?.map((denial) => denial.reason).join(','),
-        alternatives: event.alternatives?.join(','),
+        role: event.denials?.map((denial) => denial.role).join(","),
+        reason: event.denials?.map((denial) => denial.reason).join(","),
+        alternatives: event.alternatives?.join(","),
       }),
     );
     if (
-      event.denials?.some((denial) => denial.reason === 'validation') === true
+      event.denials?.some((denial) => denial.reason === "validation") === true
     ) {
-      span.recordException?.(new Error('validation'));
+      span.recordException?.(new Error("validation"));
     }
     if (options.errorOnDeny === true) {
       span.setStatus?.({ code: SPAN_STATUS_ERROR });
@@ -241,14 +241,14 @@ function recordSignals(
   span.end?.(timing?.end);
   const meter = api.metrics?.getMeter(name);
   const counterAttrs = compact<Record<string, unknown>>({
-    'permdock.outcome': event.outcome,
-    'permdock.permission': event.permission,
-    'permdock.adapter': event.adapter,
+    "permdock.outcome": event.outcome,
+    "permdock.permission": event.permission,
+    "permdock.adapter": event.adapter,
   });
-  meter?.createCounter('permdock.decisions').add(1, counterAttrs);
+  meter?.createCounter("permdock.decisions").add(1, counterAttrs);
   if (timing !== undefined) {
     meter
-      ?.createHistogram('permdock.decide.duration', { unit: 's' })
+      ?.createHistogram("permdock.decide.duration", { unit: "s" })
       .record((timing.end - timing.start) / 1000, counterAttrs);
   }
 }
@@ -259,7 +259,7 @@ function listen(
   api: OtelApi | undefined,
   startedAt: () => number | undefined,
 ): () => void {
-  return permdock.on('decision', (payload) => {
+  return permdock.on("decision", (payload) => {
     const end = now();
     const start = startedAt();
     // SAFETY: the instance emits a DecisionEvent as the payload of every 'decision' event.
@@ -314,12 +314,12 @@ function instrumented<V extends PolicyVocabulary>(
   // SAFETY: timed() forwards its arguments and result unchanged; the casts restore the overloads.
   return Object.freeze({
     ...permdock,
-    can: timed(permdock.can) as PermDock<V>['can'],
-    decide: timed(permdock.decide) as PermDock<V>['decide'],
-    assert: timed(permdock.assert) as PermDock<V>['assert'],
-    explain: timed(permdock.explain) as PermDock<V>['explain'],
-    filter: timed(permdock.filter) as PermDock<V>['filter'],
-    pick: timed(permdock.pick) as PermDock<V>['pick'],
+    can: timed(permdock.can) as PermDock<V>["can"],
+    decide: timed(permdock.decide) as PermDock<V>["decide"],
+    assert: timed(permdock.assert) as PermDock<V>["assert"],
+    explain: timed(permdock.explain) as PermDock<V>["explain"],
+    filter: timed(permdock.filter) as PermDock<V>["filter"],
+    pick: timed(permdock.pick) as PermDock<V>["pick"],
     actions: timed(permdock.actions),
     tenant: (id: string): PermDock<V> =>
       instrumented(permdock.tenant(id), options, api),

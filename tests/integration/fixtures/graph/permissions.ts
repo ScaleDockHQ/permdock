@@ -1,5 +1,5 @@
-import { definePermissions, resource } from 'permdock';
-import { z } from 'zod';
+import { definePermissions, resource } from "permdock";
+import { z } from "zod";
 
 const id = z.uuid();
 
@@ -12,10 +12,10 @@ export const permissions = definePermissions({
       restricted: z.boolean(),
     }),
     {
-      actions: ['read', 'update'],
-      parent: { field: 'folderId', resource: 'folder' },
-      relations: { owner: 'ownerId' },
-      restricted: 'restricted',
+      actions: ["read", "update"],
+      parent: { field: "folderId", resource: "folder" },
+      relations: { owner: "ownerId" },
+      restricted: "restricted",
     },
   ),
   folder: resource(
@@ -26,19 +26,19 @@ export const permissions = definePermissions({
       ownerId: id.nullable(),
     }),
     {
-      actions: ['read', 'update'],
-      parent: { field: 'parentId', resource: 'folder' },
+      actions: ["read", "update"],
+      parent: { field: "parentId", resource: "folder" },
       relations: {
-        viewer: { edge: 'folder_viewers', expiresAt: 'expires_at' },
-        editor: { edge: 'folder_editors' },
-        owner: 'ownerId',
+        viewer: { edge: "folder_viewers", expiresAt: "expires_at" },
+        editor: { edge: "folder_editors" },
+        owner: "ownerId",
       },
-      restricted: 'restricted',
+      restricted: "restricted",
     },
   ),
   employee: resource(z.object({ id, managerId: id.nullable() }), {
-    actions: ['read'],
-    parent: { field: 'managerId', resource: 'employee' },
-    relations: { manager: { principal: 'managerId' } },
+    actions: ["read"],
+    parent: { field: "managerId", resource: "employee" },
+    relations: { manager: { principal: "managerId" } },
   }),
 });

@@ -1,25 +1,25 @@
-import type { Membership } from 'permdock';
-import type { SqlQuery } from 'permdock/supabase';
-import type { Client } from 'pg';
+import type { Membership } from "permdock";
+import type { SqlQuery } from "permdock/supabase";
+import type { Client } from "pg";
 
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { composeMemberships } from 'permdock';
-import { run } from 'permdock/cli';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { composeMemberships } from "permdock";
+import { run } from "permdock/cli";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import type { Postgres } from './support/postgres.ts';
+import type { Postgres } from "./support/postgres.ts";
 
-import { sources } from '../fixtures/centrakit/sources.ts';
-import { startPostgres } from './support/postgres.ts';
+import { sources } from "../fixtures/centrakit/sources.ts";
+import { startPostgres } from "./support/postgres.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const FIXTURE = join(HERE, '../fixtures/centrakit');
+const FIXTURE = join(HERE, "../fixtures/centrakit");
 
 const id = (n: number) =>
-  `00000000-0000-4000-8000-${n.toString(16).padStart(12, '0')}`;
+  `00000000-0000-4000-8000-${n.toString(16).padStart(12, "0")}`;
 
 const PLATFORM = id(0xa1);
 const OWNER = id(0xa2);
@@ -68,7 +68,7 @@ grant usage on schema auth to supabase_auth_admin, authenticated, anon;
 grant execute on all functions in schema auth to authenticated, anon, supabase_auth_admin;
 grant select on auth.users to supabase_auth_admin;
 grant usage on schema public to authenticated, anon;
-insert into auth.users (id) values ${USERS.map((user) => `('${user}')`).join(', ')};
+insert into auth.users (id) values ${USERS.map((user) => `('${user}')`).join(", ")};
 create table organizations (id uuid primary key, slug text not null, disabled_at timestamptz);
 insert into organizations values
   ('${ORG_A}', 'acme', null), ('${ORG_B}', 'bolt', null), ('${ORG_OFF}', 'gone', now());
@@ -109,7 +109,7 @@ grant select on customers, quotes to authenticated;
 
 type Claims = Record<string, unknown>;
 
-const SCOPES = ['organization', 'customer'] as const;
+const SCOPES = ["organization", "customer"] as const;
 
 function byScope(list: readonly Membership[]): Membership[] {
   return list.toSorted((a, b) =>
@@ -122,7 +122,7 @@ const sorted = (ids: Iterable<string | undefined>): string[] =>
     .filter((value): value is string => value !== undefined)
     .toSorted();
 
-describe('CentraKit: hook claim, composeMemberships and the RLS helpers agree', () => {
+describe("CentraKit: hook claim, composeMemberships and the RLS helpers agree", () => {
   let db: Postgres | undefined;
   let query: SqlQuery = async () => [];
   /** `[role, grant, scope]` from the generated `role_permissions`. */
@@ -131,19 +131,19 @@ describe('CentraKit: hook claim, composeMemberships and the RLS helpers agree', 
   /** Runs a generate command with `{dir}` in `args` set to a temp directory and returns `files` from it. */
   async function generate(
     args: readonly string[],
-    files: readonly string[] = ['out.sql'],
+    files: readonly string[] = ["out.sql"],
   ): Promise<string[]> {
-    const dir = mkdtempSync(join(tmpdir(), 'permdock-centrakit-'));
-    const placed = args.map((arg) => arg.replaceAll('{dir}', dir));
-    const out = placed.includes('--out')
+    const dir = mkdtempSync(join(tmpdir(), "permdock-centrakit-"));
+    const placed = args.map((arg) => arg.replaceAll("{dir}", dir));
+    const out = placed.includes("--out")
       ? []
-      : ['--out', join(dir, files[0] ?? 'out.sql')];
+      : ["--out", join(dir, files[0] ?? "out.sql")];
     try {
       const result = await run([...placed, ...out], { cwd: FIXTURE });
       if (result.code !== 0) {
-        throw new Error(`${args.join(' ')}: ${result.stdout}${result.stderr}`);
+        throw new Error(`${args.join(" ")}: ${result.stdout}${result.stderr}`);
       }
-      return files.map((file) => readFileSync(join(dir, file), 'utf8'));
+      return files.map((file) => readFileSync(join(dir, file), "utf8"));
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -152,45 +152,45 @@ describe('CentraKit: hook claim, composeMemberships and the RLS helpers agree', 
   beforeAll(async () => {
     const database = await generate(
       [
-        'rls',
-        'generate',
-        '--target',
-        'sql',
-        '--rbac',
-        'supabase',
-        '--split',
-        'helpers,policies,hook',
-        '--out',
-        '{dir}/{part}.sql',
-        '--grants-out',
-        '{dir}/grants.sql',
+        "rls",
+        "generate",
+        "--target",
+        "sql",
+        "--rbac",
+        "supabase",
+        "--split",
+        "helpers,policies,hook",
+        "--out",
+        "{dir}/{part}.sql",
+        "--grants-out",
+        "{dir}/grants.sql",
       ],
-      ['helpers.sql', 'policies.sql', 'hook.sql', 'grants.sql'],
+      ["helpers.sql", "policies.sql", "hook.sql", "grants.sql"],
     );
     const jwt = await generate([
-      'rls',
-      'generate',
-      '--target',
-      'sql',
-      '--rbac',
-      'supabase',
-      '--authorize',
-      'jwt',
-      '--rbac-schema',
-      'pd_jwt',
+      "rls",
+      "generate",
+      "--target",
+      "sql",
+      "--rbac",
+      "supabase",
+      "--authorize",
+      "jwt",
+      "--rbac-schema",
+      "pd_jwt",
     ]);
     db = await startPostgres([
       SETUP,
       ...database,
       `insert into permdock.user_roles values ('${PLATFORM}', 'platform-admin'), ('${SUSPENDED}', 'platform-admin')`,
-      'create schema pd_jwt; grant usage on schema pd_jwt to authenticated',
+      "create schema pd_jwt; grant usage on schema pd_jwt to authenticated",
       ...jwt,
     ]);
     const admin = db.admin;
     query = async (text, values) => (await admin.query(text, [...values])).rows;
     grants = (
       await admin.query<{ role: string; grant_key: string; scope: string }>(
-        'select role, grant_key, scope from permdock.role_permissions',
+        "select role, grant_key, scope from permdock.role_permissions",
       )
     ).rows.map((row) => [row.role, row.grant_key, row.scope] as const);
   }, 180_000);
@@ -200,37 +200,37 @@ describe('CentraKit: hook claim, composeMemberships and the RLS helpers agree', 
   });
 
   function as<T>(
-    dbRole: 'authenticated' | 'supabase_auth_admin',
+    dbRole: "authenticated" | "supabase_auth_admin",
     claims: Claims,
     work: (client: Client) => Promise<T>,
   ): Promise<T> {
     if (db === undefined) {
-      throw new Error('PermDock: Postgres was not started');
+      throw new Error("PermDock: Postgres was not started");
     }
     const client = db.tester;
     return db.as(
       {
         role: dbRole,
-        settings: { 'request.jwt.claims': JSON.stringify(claims) },
+        settings: { "request.jwt.claims": JSON.stringify(claims) },
       },
       () => work(client),
     );
   }
 
   async function mint(user: string): Promise<Claims> {
-    return as('supabase_auth_admin', {}, async (client) => {
+    return as("supabase_auth_admin", {}, async (client) => {
       const result = await client.query<{ event: { claims: Claims } }>(
-        'select permdock.custom_access_token_hook($1::jsonb) as event',
+        "select permdock.custom_access_token_hook($1::jsonb) as event",
         [
           JSON.stringify({
             user_id: user,
-            claims: { sub: user, role: 'authenticated' },
+            claims: { sub: user, role: "authenticated" },
           }),
         ],
       );
       const claims = result.rows[0]?.event.claims;
       if (claims === undefined) {
-        throw new Error('PermDock: the hook returned no claims');
+        throw new Error("PermDock: the hook returned no claims");
       }
       return claims;
     });
@@ -238,7 +238,7 @@ describe('CentraKit: hook claim, composeMemberships and the RLS helpers agree', 
 
   // SAFETY: the custom access token hook mints memberships as Membership objects
   const membershipsOf = (claims: Claims) =>
-    claims['memberships'] as Membership[];
+    claims["memberships"] as Membership[];
 
   /** What `permitted_<scope>_ids(grant)` must return for these memberships, narrowed to the active organization. */
   function expected(
@@ -248,19 +248,19 @@ describe('CentraKit: hook claim, composeMemberships and the RLS helpers agree', 
     tenant: unknown,
   ): string[] {
     const kinds: Readonly<Record<string, string>> = {
-      owner: 'staff',
-      admin: 'staff',
-      member: 'staff',
-      viewer: 'staff',
-      contact: 'contact',
+      owner: "staff",
+      admin: "staff",
+      member: "staff",
+      viewer: "staff",
+      contact: "contact",
     };
     return sorted(
       memberships
         .filter((m) => m.scope === scope)
         .filter(
           (m) =>
-            typeof tenant !== 'string' ||
-            (m.scope === 'organization' ? m.id : m.within?.['organization']) ===
+            typeof tenant !== "string" ||
+            (m.scope === "organization" ? m.id : m.within?.["organization"]) ===
               tenant,
         )
         .filter((m) =>
@@ -280,7 +280,7 @@ describe('CentraKit: hook claim, composeMemberships and the RLS helpers agree', 
   function want(claims: Claims) {
     const memberships = membershipsOf(claims);
     // SAFETY: the custom access token hook mints roles as a string array
-    const roles = claims['roles'] as string[];
+    const roles = claims["roles"] as string[];
     const member: Record<string, string[]> = {};
     const permitted: Record<string, string[]> = {};
     const has: Record<string, boolean> = {};
@@ -290,16 +290,16 @@ describe('CentraKit: hook claim, composeMemberships and the RLS helpers agree', 
       );
     }
     for (const [, grant, scope] of grants) {
-      if (scope === 'global') {
+      if (scope === "global") {
         has[grant] = grants.some(
-          ([r, g, s]) => s === 'global' && g === grant && roles.includes(r),
+          ([r, g, s]) => s === "global" && g === grant && roles.includes(r),
         );
       } else {
         permitted[`${scope}:${grant}`] = expected(
           memberships,
           grant,
           scope,
-          claims['tenant_id'],
+          claims["tenant_id"],
         );
       }
     }
@@ -307,14 +307,14 @@ describe('CentraKit: hook claim, composeMemberships and the RLS helpers agree', 
   }
 
   async function helpers(
-    schema: 'permdock' | 'pd_jwt',
+    schema: "permdock" | "pd_jwt",
     claims: Claims,
   ): Promise<{
     readonly permitted: Readonly<Record<string, string[]>>;
     readonly member: Readonly<Record<string, string[]>>;
     readonly has: Readonly<Record<string, boolean>>;
   }> {
-    return as('authenticated', claims, async (client) => {
+    return as("authenticated", claims, async (client) => {
       const permitted: Record<string, string[]> = {};
       const member: Record<string, string[]> = {};
       const has: Record<string, boolean> = {};
@@ -339,7 +339,7 @@ describe('CentraKit: hook claim, composeMemberships and the RLS helpers agree', 
         }
       }
       for (const [, grant, s] of grants) {
-        if (s !== 'global') continue;
+        if (s !== "global") continue;
         has[grant] =
           (
             await client.query<{ ok: boolean }>(
@@ -352,32 +352,32 @@ describe('CentraKit: hook claim, composeMemberships and the RLS helpers agree', 
     });
   }
 
-  it('mints the claim CentraKit expects for every principal', async () => {
+  it("mints the claim CentraKit expects for every principal", async () => {
     expect(membershipsOf(await mint(OWNER))).toEqual([
-      { scope: 'organization', id: ORG_A, roles: ['owner'], via: 'staff' },
+      { scope: "organization", id: ORG_A, roles: ["owner"], via: "staff" },
     ]);
-    expect((await mint(OWNER))['tenant_id']).toBe(ORG_A);
+    expect((await mint(OWNER))["tenant_id"]).toBe(ORG_A);
     expect(membershipsOf(await mint(CONTACT))).toEqual([
       {
-        scope: 'customer',
+        scope: "customer",
         id: CUST_A1,
         within: { organization: ORG_A },
-        roles: ['contact'],
-        via: 'contact',
+        roles: ["contact"],
+        via: "contact",
       },
     ]);
     expect(
       byScope(membershipsOf(await mint(MIXED))).map((m) => [m.scope, m.id]),
     ).toEqual([
-      ['customer', CUST_A2],
-      ['organization', ORG_B],
+      ["customer", CUST_A2],
+      ["organization", ORG_B],
     ]);
     expect(membershipsOf(await mint(VIEWER))).toEqual([
-      { scope: 'organization', id: ORG_A, roles: ['viewer'], via: 'staff' },
+      { scope: "organization", id: ORG_A, roles: ["viewer"], via: "staff" },
     ]);
     const platform = await mint(PLATFORM);
-    expect(platform['roles']).toEqual(['platform-admin']);
-    expect(platform['memberships']).toEqual([]);
+    expect(platform["roles"]).toEqual(["platform-admin"]);
+    expect(platform["memberships"]).toEqual([]);
     expect(await mint(SUSPENDED)).toMatchObject({
       roles: [],
       memberships: [],
@@ -385,7 +385,7 @@ describe('CentraKit: hook claim, composeMemberships and the RLS helpers agree', 
     expect(membershipsOf(await mint(LATE))).toEqual([]);
   });
 
-  it('resolves the same memberships through composeMemberships', async () => {
+  it("resolves the same memberships through composeMemberships", async () => {
     const composed = composeMemberships(sources(query));
     for (const user of USERS) {
       const live = await composed.membershipsFor({ id: user }, {});
@@ -396,25 +396,25 @@ describe('CentraKit: hook claim, composeMemberships and the RLS helpers agree', 
     }
   });
 
-  it('returns from the database-mode and jwt-mode helpers what the claim grants', async () => {
-    const mixed = await helpers('permdock', {
+  it("returns from the database-mode and jwt-mode helpers what the claim grants", async () => {
+    const mixed = await helpers("permdock", {
       sub: MIXED,
-      role: 'authenticated',
+      role: "authenticated",
     });
     expect(mixed.member).toEqual({
       organization: [ORG_B],
       customer: [CUST_A2],
     });
     const views = grants.find(
-      ([r, g]) => r === 'contact' && g.startsWith('quotes.read'),
+      ([r, g]) => r === "contact" && g.startsWith("quotes.read"),
     );
     expect(views).toBeDefined();
-    expect(mixed.permitted[`customer:${views?.[1] ?? ''}`]).toEqual([CUST_A2]);
-    const platform = await helpers('pd_jwt', await mint(PLATFORM));
+    expect(mixed.permitted[`customer:${views?.[1] ?? ""}`]).toEqual([CUST_A2]);
+    const platform = await helpers("pd_jwt", await mint(PLATFORM));
     expect(Object.values(platform.has)).toContain(true);
     for (const user of USERS) {
       const claims = await mint(user);
-      for (const schema of ['permdock', 'pd_jwt'] as const) {
+      for (const schema of ["permdock", "pd_jwt"] as const) {
         expect({ schema, user, ...(await helpers(schema, claims)) }).toEqual({
           schema,
           user,
@@ -424,22 +424,22 @@ describe('CentraKit: hook claim, composeMemberships and the RLS helpers agree', 
     }
   });
 
-  it('bumps authz_ver when a contact gets a login and loses it', async () => {
+  it("bumps authz_ver when a contact gets a login and loses it", async () => {
     if (db === undefined) {
-      throw new Error('PermDock: Postgres was not started');
+      throw new Error("PermDock: Postgres was not started");
     }
     const admin = db.admin;
     const version = async () =>
       Number(
         (
           await admin.query<{ version: string }>(
-            'select version from permdock.permdock_authz_version where user_id = $1',
+            "select version from permdock.permdock_authz_version where user_id = $1",
             [LATE],
           )
         ).rows[0]?.version ?? 0,
       );
     const before = await version();
-    await admin.query('update contacts set user_id = $1 where id = $2', [
+    await admin.query("update contacts set user_id = $1 where id = $2", [
       LATE,
       OPEN_CONTACT,
     ]);
@@ -447,14 +447,14 @@ describe('CentraKit: hook claim, composeMemberships and the RLS helpers agree', 
     expect(linked).toBeGreaterThan(before);
     expect(membershipsOf(await mint(LATE))).toEqual([
       {
-        scope: 'customer',
+        scope: "customer",
         id: CUST_B1,
         within: { organization: ORG_B },
-        roles: ['contact'],
-        via: 'contact',
+        roles: ["contact"],
+        via: "contact",
       },
     ]);
-    await admin.query('update contacts set user_id = null where id = $1', [
+    await admin.query("update contacts set user_id = null where id = $1", [
       OPEN_CONTACT,
     ]);
     expect(await version()).toBeGreaterThan(linked);

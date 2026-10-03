@@ -1,4 +1,4 @@
-export { createPermDock } from './create.ts';
+export { createPermDock } from "./create.ts";
 export type {
   OpenAiContext,
   OpenAiInterruption,
@@ -6,4 +6,4 @@ export type {
   OpenAiPermDockOptions,
   OpenAiRunState,
   OpenAiTool,
-} from './create.ts';
+} from "./create.ts";

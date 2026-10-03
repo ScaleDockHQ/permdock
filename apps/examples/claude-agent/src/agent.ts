@@ -1,15 +1,15 @@
-import { memoryApprovalStore } from 'permdock/approvals';
-import { createPermDock } from 'permdock/claude-agent';
+import { memoryApprovalStore } from "permdock/approvals";
+import { createPermDock } from "permdock/claude-agent";
 
-import { ownPost, permissions } from './permissions.ts';
-import { memberUser, policy } from './policy.ts';
+import { ownPost, permissions } from "./permissions.ts";
+import { memberUser, policy } from "./policy.ts";
 
 export const store = memoryApprovalStore();
 
 export const { canUseTool, permissionRequestHook } = createPermDock(policy, {
   subject: () => memberUser,
   store,
-  actor: () => ({ id: 'claude', kind: 'claude-agent' }),
+  actor: () => ({ id: "claude", kind: "claude-agent" }),
   delegation: () => ({
     scopes: [permissions.post.list.scope, permissions.post.delete.scope],
   }),
@@ -25,6 +25,6 @@ export const { canUseTool, permissionRequestHook } = createPermDock(policy, {
 });
 
 export async function askDelete() {
-  const result = await canUseTool('delete_post', { id: ownPost.id });
+  const result = await canUseTool("delete_post", { id: ownPost.id });
   return result;
 }

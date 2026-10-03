@@ -1,52 +1,52 @@
-import type { Grantee } from './grantee.ts';
-import type { Permission } from './permissions.ts';
-import type { ApprovalRequirement, Grant, HostedGrantRef } from './policy.ts';
-import type { Membership, Subject } from './subject.ts';
+import type { Grantee } from "./grantee.ts";
+import type { Permission } from "./permissions.ts";
+import type { ApprovalRequirement, Grant, HostedGrantRef } from "./policy.ts";
+import type { Membership, Subject } from "./subject.ts";
 
 export type DenialReason =
-  | 'no-grant'
-  | 'condition'
-  | 'deny'
-  | 'inactive-grant'
-  | 'closure-error'
-  | 'opaque-condition'
-  | 'server-only'
-  | 'anonymous'
-  | 'not-delegated'
-  | 'no-delegation'
-  | 'insufficient-user-authentication'
-  | 'not-entitled'
-  | 'purpose'
-  | 'reason-required'
-  | 'actor-required'
-  | 'limit'
-  | 'limit-unavailable'
-  | 'relation-depth'
-  | 'relation-unavailable'
-  | 'validation'
-  | 'tenant-mismatch'
-  | 'no-membership'
-  | 'scope'
-  | 'expired-membership'
-  | 'stale-credentials'
-  | 'unknown-role'
-  | 'last-holder'
-  | 'max-holders'
-  | 'transfer-only'
-  | 'not-assignable-by'
-  | 'self-demotion'
-  | 'externally-managed'
-  | 'not-allowed-for-membership'
-  | 'conflicting-role'
-  | 'approval'
-  | 'stale-approval'
-  | 'pdp-denied'
-  | 'pdp-unavailable'
-  | 'pdp-invalid-response'
-  | 'undocumented'
-  | 'unsupported'
-  | 'exceeds-creator'
-  | 'credential-policy';
+  | "no-grant"
+  | "condition"
+  | "deny"
+  | "inactive-grant"
+  | "closure-error"
+  | "opaque-condition"
+  | "server-only"
+  | "anonymous"
+  | "not-delegated"
+  | "no-delegation"
+  | "insufficient-user-authentication"
+  | "not-entitled"
+  | "purpose"
+  | "reason-required"
+  | "actor-required"
+  | "limit"
+  | "limit-unavailable"
+  | "relation-depth"
+  | "relation-unavailable"
+  | "validation"
+  | "tenant-mismatch"
+  | "no-membership"
+  | "scope"
+  | "expired-membership"
+  | "stale-credentials"
+  | "unknown-role"
+  | "last-holder"
+  | "max-holders"
+  | "transfer-only"
+  | "not-assignable-by"
+  | "self-demotion"
+  | "externally-managed"
+  | "not-allowed-for-membership"
+  | "conflicting-role"
+  | "approval"
+  | "stale-approval"
+  | "pdp-denied"
+  | "pdp-unavailable"
+  | "pdp-invalid-response"
+  | "undocumented"
+  | "unsupported"
+  | "exceeds-creator"
+  | "credential-policy";
 
 export type Denial = {
   readonly role: string | null;
@@ -61,9 +61,9 @@ export type MatchedGrant = {
   /** The grant's declared `name`, when it has one. */
   readonly name?: string;
   readonly to?: Grantee | readonly Grantee[];
-  readonly where?: Grant['where'];
-  readonly check?: Grant['check'];
-  readonly approval?: 'human' | ApprovalRequirement;
+  readonly where?: Grant["where"];
+  readonly check?: Grant["check"];
+  readonly approval?: "human" | ApprovalRequirement;
   readonly provider?: string;
   /** The hosted policy document fingerprint and grant id, when a hosted grant matched. */
   readonly hosted?: HostedGrantRef;
@@ -78,8 +78,8 @@ export type MatchedGrant = {
  * `justify`: the break-glass reason, carried so audit records why.
  */
 export type Obligation =
-  | { readonly kind: 'over-limit' | 'near-limit' | 'notify' | 'review' }
-  | { readonly kind: 'justify'; readonly reason: string };
+  | { readonly kind: "over-limit" | "near-limit" | "notify" | "review" }
+  | { readonly kind: "justify"; readonly reason: string };
 
 /** What is left of the `limit` that applied; `resetsAt` is Unix seconds. */
 export type Quota = {
@@ -108,18 +108,18 @@ export type LimitDetail = {
  * asserted purpose).
  */
 export type TraceSkipReason =
-  | 'via-only'
-  | 'purpose'
-  | 'field'
-  | 'grantee'
-  | 'role'
-  | 'validity'
-  | 'break-glass-inactive';
+  | "via-only"
+  | "purpose"
+  | "field"
+  | "grantee"
+  | "role"
+  | "validity"
+  | "break-glass-inactive";
 
 export type TraceSkip = {
   readonly role: string | null;
   readonly permission: string;
-  readonly effect: 'allow' | 'deny';
+  readonly effect: "allow" | "deny";
   readonly why: TraceSkipReason;
 };
 
@@ -138,7 +138,7 @@ export type Trace = {
 };
 
 export type GrantedDecision = {
-  readonly outcome: 'granted';
+  readonly outcome: "granted";
   readonly subject: Subject;
   readonly matched: MatchedGrant;
   readonly token: string;
@@ -155,7 +155,7 @@ export type GrantedDecision = {
 };
 
 export type DeniedDecision = {
-  readonly outcome: 'denied';
+  readonly outcome: "denied";
   readonly denials: readonly Denial[];
   readonly alternatives: readonly Permission[];
   /** Present only with `explain: true`. */
@@ -163,9 +163,9 @@ export type DeniedDecision = {
 };
 
 export type ApprovalRequiredDecision = {
-  readonly outcome: 'approval-required';
+  readonly outcome: "approval-required";
   readonly grant: MatchedGrant;
-  readonly reason: 'human';
+  readonly reason: "human";
   readonly token: string;
   /** Present only with `explain: true`. */
   readonly trace?: Trace;

@@ -10,36 +10,42 @@ Some services run on `node:http` directly, on a framework without a PermDock ada
 ## API
 
 ```ts
-import { createServer } from 'node:http'
-import { createPermDock } from 'permdock/node'
-import { policy } from './policy'
-import { permissions } from './permissions'
+import { createServer } from "node:http";
+import { createPermDock } from "permdock/node";
+import { policy } from "./policy";
+import { permissions } from "./permissions";
 
-const { permdock, protect, send } = createPermDock(policy, { subject: (req) => userFromCookie(req.headers.cookie) })
+const { permdock, protect, send } = createPermDock(policy, {
+  subject: (req) => userFromCookie(req.headers.cookie),
+});
 
 createServer(async (req, res) => {
-  const instance = await permdock(req)
+  const instance = await permdock(req);
 
-  if (req.method === 'DELETE' && req.url?.startsWith('/posts/')) {
-    const guard = await protect(permissions.post.delete, () => loadPost(idFrom(req.url)))(req)
-    if (!guard.ok) return send(res, guard.response)
-    await deletePost(guard.data)
-    res.statusCode = 204
-    return res.end()
+  if (req.method === "DELETE" && req.url?.startsWith("/posts/")) {
+    const guard = await protect(permissions.post.delete, () =>
+      loadPost(idFrom(req.url)),
+    )(req);
+    if (!guard.ok) return send(res, guard.response);
+    await deletePost(guard.data);
+    res.statusCode = 204;
+    return res.end();
   }
 
-  res.statusCode = 200
-  res.end(JSON.stringify(instance.filter(permissions.post.read, await listPosts())))
-}).listen(3000)
+  res.statusCode = 200;
+  res.end(
+    JSON.stringify(instance.filter(permissions.post.read, await listPosts())),
+  );
+}).listen(3000);
 ```
 
-| Export | Role |
-|---|---|
-| `permdock(req)` | Converts the request once (headers, method, URL; body is streamed lazily), resolves the subject, builds the instance, memoises it in a `WeakMap` keyed by `req`. |
-| `protect(permission, loadData?, options?)` | Returns `(req) => Promise<Guard>`; same result shape as the kernel (`ok`, `permdock`, `decision`, `data` or `response`). The `tenant` option (`(req) => ...`) is resolved for each call. |
-| `send(res, response)` | Writes a Fetch `Response` to a `ServerResponse` (status, headers, body). Used for Problem Details and for the decision endpoint. |
-| `permdockHandler()` | `(req, res) => Promise<void>` implementing the AuthZEN-shaped decision endpoint for mounting under any path. |
-| `toRequest(req)` / `fromResponse(res, response)` | Exported converters so other adapters and custom frameworks can reuse them. |
+| Export                                           | Role                                                                                                                                                                                     |
+| ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `permdock(req)`                                  | Converts the request once (headers, method, URL; body is streamed lazily), resolves the subject, builds the instance, memoises it in a `WeakMap` keyed by `req`.                         |
+| `protect(permission, loadData?, options?)`       | Returns `(req) => Promise<Guard>`; same result shape as the kernel (`ok`, `permdock`, `decision`, `data` or `response`). The `tenant` option (`(req) => ...`) is resolved for each call. |
+| `send(res, response)`                            | Writes a Fetch `Response` to a `ServerResponse` (status, headers, body). Used for Problem Details and for the decision endpoint.                                                         |
+| `permdockHandler()`                              | `(req, res) => Promise<void>` implementing the AuthZEN-shaped decision endpoint for mounting under any path.                                                                             |
+| `toRequest(req)` / `fromResponse(res, response)` | Exported converters so other adapters and custom frameworks can reuse them.                                                                                                              |
 
 ## Request lifecycle
 

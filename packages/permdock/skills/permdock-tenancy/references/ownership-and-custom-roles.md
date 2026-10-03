@@ -5,24 +5,24 @@ Owning pages: [ownership](https://permdock.dev/docs/concepts/ownership) and [cus
 ## Role options
 
 ```ts
-const staff = { for: ['staff'], meta: { audience: 'staff' } } as const;
+const staff = { for: ["staff"], meta: { audience: "staff" } } as const;
 
 roles: [
   role(roles.owner, ownerGrants, {
-    on: 'organization',
+    on: "organization",
     ...staff,
     min: 1,
-    assigns: ['owner', 'admin', 'member', 'viewer', 'contact'],
+    assigns: ["owner", "admin", "member", "viewer", "contact"],
   }),
   role(roles.admin, adminGrants, {
-    on: 'organization',
+    on: "organization",
     ...staff,
-    assigns: ['member', 'viewer', 'contact'],
+    assigns: ["member", "viewer", "contact"],
   }),
   role(roles.contact, contactGrants, {
-    on: 'customer',
-    for: ['contact'],
-    meta: { audience: 'portal' },
+    on: "customer",
+    for: ["contact"],
+    meta: { audience: "portal" },
   }),
 ];
 ```
@@ -43,11 +43,11 @@ roles: [
 
 ```ts
 const result = permdock.decideRoleChange({
-  kind: 'assign', // 'assign' | 'revoke' | 'transfer'
+  kind: "assign", // 'assign' | 'revoke' | 'transfer'
   role: roles.admin,
-  scope: 'organization',
-  id: 'o_acme',
-  target: { id: 'u_bob', via: 'staff', roles: ['member'] }, // their membership there now
+  scope: "organization",
+  id: "o_acme",
+  target: { id: "u_bob", via: "staff", roles: ["member"] }, // their membership there now
   holders: 1, // how many hold the role in the instance now, from the app's store
 });
 // { outcome: 'granted', change, role } or { outcome: 'denied', change, denials }
@@ -68,7 +68,7 @@ type CustomRole = {
   id?: string; // pins it to one instance
   name: string;
   includes?: string[]; // declared roles to start from
-  grants?: { permission: string; effect?: 'allow' | 'deny' }[];
+  grants?: { permission: string; effect?: "allow" | "deny" }[];
 };
 ```
 

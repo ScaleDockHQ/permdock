@@ -1,7 +1,7 @@
-import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import Link from "next/link";
+import { notFound } from "next/navigation";
 
-import { blogSource } from '@/lib/source';
+import { blogSource } from "@/lib/source";
 
 type BlogPageProps = {
   params: Promise<{ slug: string }>;
@@ -16,7 +16,7 @@ export default async function BlogPostPage(props: BlogPageProps) {
   const MDX = page.data.body;
   return (
     <article className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 py-16 md:px-8">
-      <p className="text-muted-foreground text-sm">
+      <p className="text-sm text-muted-foreground">
         <Link href="/blog" className="underline-offset-4 hover:underline">
           Blog
         </Link>
@@ -25,7 +25,7 @@ export default async function BlogPostPage(props: BlogPageProps) {
         {page.data.title}
       </h1>
       {page.data.description ? (
-        <p className="text-muted-foreground text-base leading-7">
+        <p className="text-base leading-7 text-muted-foreground">
           {page.data.description}
         </p>
       ) : null}

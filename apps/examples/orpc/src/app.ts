@@ -1,9 +1,9 @@
-import { os } from '@orpc/server';
-import { createPermDock } from 'permdock/orpc';
-import { z } from 'zod';
+import { os } from "@orpc/server";
+import { createPermDock } from "permdock/orpc";
+import { z } from "zod";
 
-import { ownPost, permissions } from './permissions.ts';
-import { policy, type User } from './policy.ts';
+import { ownPost, permissions } from "./permissions.ts";
+import { policy, type User } from "./policy.ts";
 
 type Ctx = { readonly user: User };
 

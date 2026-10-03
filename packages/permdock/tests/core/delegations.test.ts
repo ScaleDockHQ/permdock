@@ -1,9 +1,9 @@
-import { describe, expect, it } from 'vitest';
-import { z } from 'zod';
+import { describe, expect, it } from "vitest";
+import { z } from "zod";
 
-import type { Permission, Snapshot } from '../../src/index.ts';
+import type { Permission, Snapshot } from "../../src/index.ts";
 
-import { catalogDelegations } from '../../src/cli/catalog-doc.ts';
+import { catalogDelegations } from "../../src/cli/catalog-doc.ts";
 import {
   actor,
   allow,
@@ -17,60 +17,60 @@ import {
   relation,
   resource,
   role,
-} from '../../src/index.ts';
+} from "../../src/index.ts";
 
 const Post = z.object({ id: z.string(), authorId: z.string() });
 const permissions = definePermissions({
   post: resource(Post, {
-    id: 'id',
-    actions: ['read', 'update', 'delete'],
-    relations: { owner: 'authorId' },
+    id: "id",
+    actions: ["read", "update", "delete"],
+    relations: { owner: "authorId" },
   }),
-  billing: resource({ actions: ['read'] }),
+  billing: resource({ actions: ["read"] }),
 });
-const post = { id: 'p1', authorId: 'u1' };
+const post = { id: "p1", authorId: "u1" };
 type User = { readonly id: string; readonly roles: readonly string[] };
 const subject = (user: User) => user;
 
-const UNTIL = Date.parse('2027-06-01T00:00:00Z') / 1000;
+const UNTIL = Date.parse("2027-06-01T00:00:00Z") / 1000;
 
 const policy = definePolicy(permissions, {
   roles: [
-    role('member', [
+    role("member", [
       allow(permissions.post.read),
       allow(permissions.post.update),
       allow(permissions.post.delete),
-      deny(permissions.post.delete, { where: { authorId: 'locked' } }),
+      deny(permissions.post.delete, { where: { authorId: "locked" } }),
     ]),
-    role('admin', [allow(permissions.billing.read)]),
+    role("admin", [allow(permissions.billing.read)]),
   ],
   delegations: [
     {
-      from: 'member',
-      to: actor('eve'),
+      from: "member",
+      to: actor("eve"),
       permissions: [permissions.post.read, permissions.post.update],
-      validUntil: '2027-06-01T00:00:00Z',
+      validUntil: "2027-06-01T00:00:00Z",
     },
     {
-      from: 'admin',
-      to: { kind: 'eve', id: 'agent-billing' },
+      from: "admin",
+      to: { kind: "eve", id: "agent-billing" },
       permissions: [permissions.billing],
     },
   ],
   subject,
 });
 
-const member: User = { id: 'u1', roles: ['member'] };
-const admin: User = { id: 'u2', roles: ['admin'] };
-const eve = { id: 'agent-1', kind: 'eve' };
-const billingAgent = { id: 'agent-billing', kind: 'eve' };
+const member: User = { id: "u1", roles: ["member"] };
+const admin: User = { id: "u2", roles: ["admin"] };
+const eve = { id: "agent-1", kind: "eve" };
+const billingAgent = { id: "agent-billing", kind: "eve" };
 
 type TestPermDock = Awaited<ReturnType<typeof createPermDock>>;
 
 function unsigned(permdock: TestPermDock): Snapshot {
   const snapshot = permdock.snapshot();
   if (snapshot instanceof Promise) {
-    throw new Error('unsigned snapshot expected');
+    throw new Error("unsigned snapshot expected");
   }
   return snapshot;
 }
@@ -82,7 +82,7 @@ function outcome(
 ) {
   // SAFETY: every leaf here belongs to the policy under test; decide() accepts any row at runtime.
   const decision = permdock.decide(permission as never, row as never);
-  return decision.outcome === 'denied'
+  return decision.outcome === "denied"
     ? decision.denials[0]?.reason
     : decision.outcome;
 }
@@ -90,84 +90,84 @@ function outcome(
 type Delegations = NonNullable<
   Parameters<
     typeof definePolicy<User, User, typeof permissions>
-  >[1]['delegations']
+  >[1]["delegations"]
 >;
 
 function define(delegations: Delegations) {
   return definePolicy(permissions, { subject, delegations });
 }
 
-describe('policy delegations', () => {
-  it('normalises from, to and permissions and refuses malformed ones', () => {
+describe("policy delegations", () => {
+  it("normalises from, to and permissions and refuses malformed ones", () => {
     expect(policy.delegations).toEqual([
       {
-        from: { kind: 'role', role: 'member', scope: 'global' },
-        to: { kind: 'eve' },
-        permissions: ['post.read', 'post.update'],
+        from: { kind: "role", role: "member", scope: "global" },
+        to: { kind: "eve" },
+        permissions: ["post.read", "post.update"],
         validity: { until: UNTIL },
       },
       {
-        from: { kind: 'role', role: 'admin', scope: 'global' },
-        to: { kind: 'eve', id: 'agent-billing' },
-        permissions: ['billing.read'],
+        from: { kind: "role", role: "admin", scope: "global" },
+        to: { kind: "eve", id: "agent-billing" },
+        permissions: ["billing.read"],
       },
     ]);
     expect(Object.isFrozen(policy.delegations?.[0])).toBe(true);
     expect(() =>
       define([
         {
-          from: relation(permissions.post, 'owner'),
-          to: 'eve',
+          from: relation(permissions.post, "owner"),
+          to: "eve",
           permissions: [permissions.post.read],
         },
       ]),
     ).toThrow(/delegations\[0\]\.from names a relation/u);
     expect(() =>
       define([
-        { from: actor('eve'), to: 'eve', permissions: [permissions.post.read] },
+        { from: actor("eve"), to: "eve", permissions: [permissions.post.read] },
       ]),
     ).toThrow(/from names an actor/u);
     expect(() =>
       define([
         {
-          from: 'member',
-          to: { kind: '' },
+          from: "member",
+          to: { kind: "" },
           permissions: [permissions.post.read],
         },
       ]),
     ).toThrow(/needs an actor kind/u);
     expect(() =>
-      define([{ from: 'member', to: 'eve', permissions: [] }]),
+      define([{ from: "member", to: "eve", permissions: [] }]),
     ).toThrow(/permissions is empty/u);
-    const other = definePermissions({ note: resource({ actions: ['read'] }) });
+    const other = definePermissions({ note: resource({ actions: ["read"] }) });
     expect(() =>
-      define([{ from: 'member', to: 'eve', permissions: [other.note.read] }]),
+      define([{ from: "member", to: "eve", permissions: [other.note.read] }]),
     ).toThrow(/unknown permission 'note\.read'/u);
     expect(() =>
       define([
         {
-          from: 'member',
-          to: 'eve',
+          from: "member",
+          to: "eve",
           permissions: [permissions.post.read],
-          validFrom: 'yesterday',
+          validFrom: "yesterday",
         },
       ]),
     ).toThrow(/validFrom on 'delegations\[0\]'/u);
   });
 
-  it('is part of the policy fingerprint', () => {
+  it("is part of the policy fingerprint", () => {
     const without = definePolicy(permissions, { roles: policy.roles, subject });
     const reordered = definePolicy(permissions, {
       roles: policy.roles,
       delegations: [
         {
-          from: 'admin',
-          to: { kind: 'eve', id: 'agent-billing' },
+          from: "admin",
+          to: { kind: "eve", id: "agent-billing" },
           permissions: [permissions.billing],
         },
         {
-          from: 'member',
-          to: actor('eve'),
+          from: "member",
+          to: actor("eve"),
           permissions: [permissions.post.update, permissions.post.read],
           validUntil: UNTIL,
         },
@@ -179,94 +179,94 @@ describe('policy delegations', () => {
     expect(catalogDelegations(reordered)).toEqual(catalogDelegations(policy));
   });
 
-  it('lets a matching actor use the delegated permissions without a token delegation', async () => {
+  it("lets a matching actor use the delegated permissions without a token delegation", async () => {
     const permdock = await createPermDock(policy, member, { actor: eve });
-    expect(outcome(permdock, permissions.post.read, post)).toBe('granted');
-    expect(outcome(permdock, permissions.post.update, post)).toBe('granted');
+    expect(outcome(permdock, permissions.post.read, post)).toBe("granted");
+    expect(outcome(permdock, permissions.post.update, post)).toBe("granted");
     expect(outcome(permdock, permissions.post.delete, post)).toBe(
-      'not-delegated',
+      "not-delegated",
     );
   });
 
-  it('never exceeds the principal and never delegates a deny away', async () => {
+  it("never exceeds the principal and never delegates a deny away", async () => {
     // The principal's grants decide first: a delegation adds nothing the user lacks.
     const permdock = await createPermDock(policy, member, { actor: eve });
-    expect(outcome(permdock, permissions.billing.read)).toBe('no-grant');
+    expect(outcome(permdock, permissions.billing.read)).toBe("no-grant");
     const asUser = await createPermDock(policy, member);
-    expect(outcome(asUser, permissions.billing.read)).toBe('no-grant');
+    expect(outcome(asUser, permissions.billing.read)).toBe("no-grant");
     const wide = definePolicy(permissions, {
       roles: policy.roles,
       delegations: [
-        { from: 'member', to: 'eve', permissions: [permissions.post] },
+        { from: "member", to: "eve", permissions: [permissions.post] },
       ],
       subject,
     });
     const agent = await createPermDock(wide, member, { actor: eve });
     expect(
-      outcome(agent, permissions.post.delete, { id: 'p2', authorId: 'locked' }),
-    ).toBe('deny');
-    expect(outcome(agent, permissions.post.delete, post)).toBe('granted');
+      outcome(agent, permissions.post.delete, { id: "p2", authorId: "locked" }),
+    ).toBe("deny");
+    expect(outcome(agent, permissions.post.delete, post)).toBe("granted");
   });
 
-  it('ignores delegations for another actor kind, another id, or a role the principal lacks', async () => {
+  it("ignores delegations for another actor kind, another id, or a role the principal lacks", async () => {
     const other = await createPermDock(policy, member, {
-      actor: { id: 'bot', kind: 'openai' },
+      actor: { id: "bot", kind: "openai" },
     });
-    expect(outcome(other, permissions.post.read, post)).toBe('no-delegation');
+    expect(outcome(other, permissions.post.read, post)).toBe("no-delegation");
     const asAdmin = await createPermDock(policy, admin, { actor: eve });
-    expect(outcome(asAdmin, permissions.billing.read)).toBe('no-delegation');
+    expect(outcome(asAdmin, permissions.billing.read)).toBe("no-delegation");
     const named = await createPermDock(policy, admin, { actor: billingAgent });
-    expect(outcome(named, permissions.billing.read)).toBe('granted');
+    expect(outcome(named, permissions.billing.read)).toBe("granted");
     const memberBilling = await createPermDock(policy, member, {
       actor: billingAgent,
     });
-    expect(outcome(memberBilling, permissions.billing.read)).toBe('no-grant');
+    expect(outcome(memberBilling, permissions.billing.read)).toBe("no-grant");
     // The kind-wide delegation still covers this eve agent for post.read.
-    expect(outcome(memberBilling, permissions.post.read, post)).toBe('granted');
+    expect(outcome(memberBilling, permissions.post.read, post)).toBe("granted");
   });
 
-  it('intersects with a token delegation: both must cover', async () => {
+  it("intersects with a token delegation: both must cover", async () => {
     const permdock = await createPermDock(policy, member, {
       actor: eve,
-      delegation: { scopes: ['post:read', 'post:delete'] },
+      delegation: { scopes: ["post:read", "post:delete"] },
     });
-    expect(outcome(permdock, permissions.post.read, post)).toBe('granted');
+    expect(outcome(permdock, permissions.post.read, post)).toBe("granted");
     expect(outcome(permdock, permissions.post.update, post)).toBe(
-      'not-delegated',
+      "not-delegated",
     );
     expect(outcome(permdock, permissions.post.delete, post)).toBe(
-      'not-delegated',
+      "not-delegated",
     );
   });
 
-  it('stops applying after validUntil', async () => {
+  it("stops applying after validUntil", async () => {
     const permdock = await createPermDock(policy, member, { actor: eve });
     const [during] = permdock.simulate([[permissions.post.read, post]], {
       now: UNTIL - 60,
     });
-    expect(during?.outcome).toBe('granted');
+    expect(during?.outcome).toBe("granted");
     const [expired] = permdock.simulate([[permissions.post.read, post]], {
       now: UNTIL + 60,
     });
-    expect(expired?.outcome === 'denied' && expired.denials[0]?.reason).toBe(
-      'no-delegation',
+    expect(expired?.outcome === "denied" && expired.denials[0]?.reason).toBe(
+      "no-delegation",
     );
   });
 
-  it('matches non-role from grantees against the subject', async () => {
+  it("matches non-role from grantees against the subject", async () => {
     const anyone = definePolicy(permissions, {
       roles: policy.roles,
       delegations: [
         {
           from: authenticated(),
-          to: 'eve',
+          to: "eve",
           permissions: [permissions.post.read],
         },
       ],
       subject,
     });
     const permdock = await createPermDock(anyone, member, { actor: eve });
-    expect(outcome(permdock, permissions.post.read, post)).toBe('granted');
+    expect(outcome(permdock, permissions.post.read, post)).toBe("granted");
     expect(
       delegatedPermissions(
         anyone.delegations,
@@ -277,23 +277,23 @@ describe('policy delegations', () => {
     ).toBeUndefined();
   });
 
-  it('carries the ceiling on the snapshot and the client evaluator agrees', async () => {
+  it("carries the ceiling on the snapshot and the client evaluator agrees", async () => {
     const permdock = await createPermDock(policy, member, { actor: eve });
     const snapshot = unsigned(permdock);
-    expect(snapshot.delegated).toEqual(['post.read', 'post.update']);
+    expect(snapshot.delegated).toEqual(["post.read", "post.update"]);
     expect(snapshot.subject.delegation).toBeUndefined();
     const client = fromSnapshot(snapshot);
     expect(client.can(permissions.post.read, post)).toBe(true);
     expect(client.can(permissions.post.delete, post)).toBe(false);
     const decision = client.decide(permissions.post.delete, post);
-    expect(decision.outcome === 'denied' && decision.denials[0]?.reason).toBe(
-      'not-delegated',
+    expect(decision.outcome === "denied" && decision.denials[0]?.reason).toBe(
+      "not-delegated",
     );
     const plain = unsigned(await createPermDock(policy, member));
     expect(plain.delegated).toBeUndefined();
     const other = unsigned(
       await createPermDock(policy, member, {
-        actor: { id: 'bot', kind: 'openai' },
+        actor: { id: "bot", kind: "openai" },
       }),
     );
     expect(other.delegated).toBeUndefined();

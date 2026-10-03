@@ -1,6 +1,6 @@
-import { Suspense } from 'react';
+import { Suspense } from "react";
 
-import { Section } from './section.tsx';
+import { Section } from "./section.tsx";
 
 export default function SectionPage() {
   return (
