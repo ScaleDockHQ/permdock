@@ -222,6 +222,22 @@ revoke all on profiles from public cascade;
     expect(pd028(cwd, config(['b']), plan)).toEqual([]);
   });
 
+  it('counts the Supabase default privileges on a public table until a migration revokes them', () => {
+    const plan = () => ({ table: 'profiles', columns: ['region'], errors: [] });
+    const create =
+      'create table public.profiles (id uuid primary key, region text);\n';
+    const cwd = project({
+      'a/001.sql': create,
+      'b/001.sql': `${create}revoke insert, update on public.profiles from anon, authenticated;\n`,
+      'c/001.sql': `alter default privileges in schema public revoke all on tables from anon, authenticated;\n${create}`,
+    });
+    expect(messages(pd028(cwd, config(['a']), plan))).toEqual([
+      'attrs reads region from public.profiles, which the migrations let anon or authenticated insert or update: a user could set their own attribute',
+    ]);
+    expect(pd028(cwd, config(['b']), plan)).toEqual([]);
+    expect(pd028(cwd, config(['c']), plan)).toEqual([]);
+  });
+
   it('reports the plan errors and skips the column check without a table', () => {
     const cwd = project({ 'a/001.sql': 'grant update on profiles to anon;\n' });
     const findings = pd028(cwd, config(['a']), () => ({

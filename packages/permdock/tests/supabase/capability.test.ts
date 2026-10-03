@@ -140,6 +140,19 @@ describe('exchangeCapability', () => {
     ).resolves.toBeUndefined();
   });
 
+  it('signs ES256 when no algorithm is named, and refuses the secret without HS256', async () => {
+    const { signing } = await es256();
+    const token = await exchangeCapability(linkSubject(), {
+      key: signing.key,
+      kid: signing.kid,
+      now: NOW,
+    });
+    expect(decodeProtectedHeader(token ?? '')['alg']).toBe('ES256');
+    await expect(
+      exchangeCapability(linkSubject(), { key: { secret: SECRET } }),
+    ).rejects.toThrow(/HS256 with \{ secret \} only/u);
+  });
+
   it('refuses a key that does not match the algorithm', async () => {
     await expect(
       exchangeCapability(linkSubject(), {

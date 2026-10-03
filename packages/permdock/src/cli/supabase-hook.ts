@@ -24,6 +24,7 @@ import {
 } from '../core/scopes.ts';
 import {
   AUTHZ_VERSION_TABLE,
+  PERMDOCK_SCHEMA,
   supabaseMembershipsBudget,
   supabaseTenantClaim,
 } from '../supabase/sources.ts';
@@ -238,7 +239,7 @@ type Parts = {
   readonly hook: SupabaseHookConfig;
   /** Global roles for `user_role` and `roles`; `undefined` with `roles: false`. */
   readonly roles: RoleRows | undefined;
-  readonly active: string;
+  readonly active: ReturnType<typeof activeFromSql>;
   readonly attrs: AttrsPlan | undefined;
   readonly extra: readonly ExtraClaim[];
   /** The `rls.schema` helpers, and the scopes `rls generate` emits `member_<scope>_ids_for` for. */
@@ -260,18 +261,23 @@ function positiveInteger(value: unknown, label: string): number {
   return number;
 }
 
-/** SQL for the active first-scope id, as text, for user `uid`. */
+/**
+ * SQL for the active first-scope id, as text, for user `uid`; a table source
+ * compares its id column with `v_active_user`, declared as `userType`.
+ */
 export function activeFromSql(
   input: SupabaseHookConfig['activeFrom'],
   root: string,
-): string {
+): { readonly sql: string; readonly userType?: string } {
   const spec = input ?? `app_metadata.active_${root}`;
   if (typeof spec === 'string' && spec.startsWith('app_metadata.')) {
     const key = spec.slice('app_metadata.'.length);
     if (!/^[A-Za-z_][A-Za-z0-9_]*$/u.test(key)) {
       throw new Error(`PermDock CLI: unsafe app_metadata key '${key}'`);
     }
-    return `(select u.raw_app_meta_data ->> ${quoteLiteral(key)} from auth.users u where u.id = uid::uuid)`;
+    return {
+      sql: `claims -> 'app_metadata' ->> ${quoteLiteral(key)}`,
+    };
   }
   const parsed =
     typeof spec === 'string'
@@ -286,7 +292,37 @@ export function activeFromSql(
         })()
       : spec;
   const id = 'id' in parsed && parsed.id !== undefined ? parsed.id : 'id';
-  return `(select a.${quoteIdent(parsed.column)}::text from ${table(parsed.table)} a where a.${quoteIdent(id)}::text = uid)`;
+  return {
+    sql: `(select a.${quoteIdent(parsed.column)}::text from ${table(parsed.table)} a where a.${quoteIdent(id)} = v_active_user)`,
+    userType: `${table(parsed.table)}.${quoteIdent(id)}%type`,
+  };
+}
+
+/**
+ * One variable per user-keyed table the hook reads, holding `uid` as that
+ * column's type, so each lookup compares the column uncast and its index applies.
+ */
+function typedUsers(parts: Parts): string {
+  const vars = [
+    ...parts.sources.map(
+      (source, index) =>
+        `v_user_${String(index)} ${source.sql.userType} := uid;`,
+    ),
+    ...(parts.roles === undefined
+      ? []
+      : [
+          `v_roles_user ${table(parts.roles.table)}.${quoteIdent(parts.roles.user)}%type := uid;`,
+        ]),
+    ...(parts.attrs?.table === undefined || parts.attrs.columns.length === 0
+      ? []
+      : [
+          `v_attrs_user ${table(parts.attrs.table)}.${quoteIdent(parts.attrs.id)}%type := uid;`,
+        ]),
+    ...(parts.active.userType === undefined
+      ? []
+      : [`v_active_user ${parts.active.userType} := uid;`]),
+  ];
+  return vars.map((line) => `\n  ${line}`).join('');
 }
 
 function checkSources(parts: {
@@ -347,7 +383,7 @@ function entriesSql(parts: Parts): string {
     'managedBy', s.managed_by, 'entitlements', s.seats
   )) as entry
 from (
-${source.sql.select('uid').replaceAll(/^/gmu, '  ')}
+${source.sql.select(`v_user_${String(index)}`).replaceAll(/^/gmu, '  ')}
 ) s`,
   );
   return selects.join('\nunion all\n');
@@ -363,7 +399,7 @@ function hookSql(parts: Parts): string {
       : `  select coalesce(jsonb_agg(distinct ${rows.roleSql} order by ${rows.roleSql}), '[]'::jsonb)
     into held
     from ${rows.from}
-    where ${rows.userSql}::text = uid;`;
+    where ${rows.userSql} = v_roles_user;`;
   const plan = parts.attrs;
   const fromTable =
     plan === undefined || plan.columns.length === 0 || plan.table === undefined
@@ -376,21 +412,17 @@ function hookSql(parts: Parts): string {
     .join(', ')}))
     into attrs
     from ${table(plan.table)} p
-    where p.${quoteIdent(plan.id)}::text = uid;`;
+    where p.${quoteIdent(plan.id)} = v_attrs_user;`;
   const fromMeta =
     plan === undefined || plan.meta.length === 0
       ? ''
       : `
-  attrs := coalesce(attrs, '{}'::jsonb) || coalesce((
-    select jsonb_strip_nulls(jsonb_build_object(${plan.meta
-      .map(
-        (key) =>
-          `${quoteLiteral(key)}, u.raw_app_meta_data -> ${quoteLiteral(key)}`,
-      )
-      .join(', ')}))
-    from auth.users u
-    where u.id = uid::uuid
-  ), '{}'::jsonb);`;
+  attrs := coalesce(attrs, '{}'::jsonb) || jsonb_strip_nulls(jsonb_build_object(${plan.meta
+    .map(
+      (key) =>
+        `${quoteLiteral(key)}, claims -> 'app_metadata' -> ${quoteLiteral(key)}`,
+    )
+    .join(', ')}));`;
   const attrs =
     plan === undefined
       ? ''
@@ -407,7 +439,7 @@ function hookSql(parts: Parts): string {
   const versionTable = `${schema}.${quoteIdent(AUTHZ_VERSION_TABLE)}`;
   const version = parts.version
     ? `
-  select v.version into ver from ${versionTable} v where v.user_id = uid;
+  select v.version into ver from ${versionTable} v where v.user_id = uid::uuid;
   claims := jsonb_set(claims, '{authz_ver}', to_jsonb(coalesce(ver, 0)));`
     : '';
   const dropExtra = parts.extra
@@ -431,7 +463,11 @@ function hookSql(parts: Parts): string {
     claims := claims || jsonb_build_object('user_role', '[]'::jsonb, 'roles', '[]'::jsonb, 'memberships', '[]'::jsonb);${version}
     return jsonb_set(event, '{claims}', claims);
   end if;`;
-  return `create or replace function ${fn}(event jsonb)
+  const create =
+    parts.schema === 'public'
+      ? ''
+      : `create schema if not exists ${schema};\nrevoke all on schema ${schema} from public;\n\n`;
+  return `${create}create or replace function ${fn}(event jsonb)
 returns jsonb
 language plpgsql
 stable
@@ -447,7 +483,7 @@ declare
   in_active boolean := false;
   budget integer := ${String(parts.budget)};
   used integer := 0;
-  item record;${plan === undefined ? '' : '\n  attrs jsonb;'}${parts.extra.length === 0 ? '' : '\n  extra jsonb;'}${parts.version ? '\n  ver bigint;' : ''}
+  item record;${typedUsers(parts)}${plan === undefined ? '' : '\n  attrs jsonb;'}${parts.extra.length === 0 ? '' : '\n  extra jsonb;'}${parts.version ? '\n  ver bigint;' : ''}
 begin${suspended}
   claims := claims - 'attrs'${dropExtra};
 ${roles}
@@ -457,7 +493,7 @@ ${roles}
   elsif jsonb_array_length(held) > 1 then
     claims := jsonb_set(claims, '{user_role}', held);
   end if;
-  active := ${parts.active};${attrs}
+  active := ${parts.active.sql};${attrs}
   for item in
     select x.entry, x.tenant is not distinct from active as current
     from (
@@ -617,7 +653,7 @@ create trigger ${quoteIdent(VERSION_TRIGGER)}
     .join('\n');
   return `-- the authorization version: bumped on every membership change, written to authz_ver
 create table if not exists ${versionTable} (
-  user_id text primary key,
+  user_id uuid primary key references auth.users on delete cascade,
   version bigint not null default 0
 );
 alter table ${versionTable} enable row level security;
@@ -638,7 +674,7 @@ begin
     case when tg_op <> 'DELETE' then to_jsonb(new) ->> column_name end
   ] loop
     if affected is not null then
-      insert into ${versionTable} as v (user_id, version) values (affected, 1)
+      insert into ${versionTable} as v (user_id, version) values (affected::uuid, 1)
       on conflict (user_id) do update set version = v.version + 1;
     end if;
   end loop;
@@ -674,7 +710,7 @@ begin
     return null;
   end if;
   insert into ${versionTable} as v (user_id, version)
-  select distinct h.${quoteIdent(parts.roles.user)}::text, 1
+  select distinct h.${quoteIdent(parts.roles.user)}::uuid, 1
   from ${table(parts.roles.table)} h
   where h.${quoteIdent(through.ref)} = old.${id}
   on conflict (user_id) do update set version = v.version + 1;
@@ -795,7 +831,7 @@ function hookParts(
     scopes,
   );
   const schema =
-    overrides.schema ?? hook.schema ?? config.rls?.schema ?? 'public';
+    overrides.schema ?? hook.schema ?? config.rls?.schema ?? PERMDOCK_SCHEMA;
   quoteIdent(schema);
   const tenantClaim = config.rls?.tenantClaim ?? supabaseTenantClaim;
   const extraPlan = extraClaimsPlan(hook.claims, tenantClaim);
@@ -831,7 +867,7 @@ function hookParts(
     attrs: hook.attrs === undefined ? undefined : attrsPlan(hook.attrs),
     extra: extraPlan.claims,
     helpers: {
-      schema: config.rls?.schema ?? 'public',
+      schema: config.rls?.schema ?? PERMDOCK_SCHEMA,
       memberFor: scopes
         .map((scope) => scope.name)
         .filter((name) =>
@@ -1195,7 +1231,7 @@ export async function runSupabase(input: {
       ? []
       : [{ part: 'grants', rel: input.grantsOut, text: grants }];
   const toml = configToml(
-    input.schema ?? hook?.schema ?? input.config.rls?.schema ?? 'public',
+    input.schema ?? hook?.schema ?? input.config.rls?.schema ?? PERMDOCK_SCHEMA,
     hook?.jwtExpiry ?? 900,
   );
   if (input.check) {

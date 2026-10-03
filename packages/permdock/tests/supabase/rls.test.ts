@@ -34,7 +34,7 @@ describe('authorizeSql', () => {
       schemaTable: authorizeSql({
         tenant: { ...members, table: 'auth_schema.members' },
       }).includes('from "auth_schema"."members" m'),
-    }).toEqual({ table: true, expiry: 2, schemaTable: true });
+    }).toEqual({ table: true, expiry: 3, schemaTable: true });
   });
 
   it('denies tenant requests when the membership table has no tenant column', () => {
@@ -115,5 +115,57 @@ describe('authorizeSql', () => {
       custom: sql.includes(`not (r.role = any('{}'::text[]))`),
       guard: sql.includes('s."id" = (select auth.uid())'),
     }).toEqual({ scope: true, custom: true, guard: true });
+  });
+
+  it('lives in the permdock schema and only authenticated may execute it', () => {
+    const sql = authorizeSql();
+    const signature =
+      '"permdock"."authorize"("permdock"."app_permission", text)';
+    expect({
+      create: sql.includes(
+        'create or replace function "permdock"."authorize"(',
+      ),
+      revoke: sql.includes(
+        `revoke execute on function ${signature} from public, anon;`,
+      ),
+      grant: sql.includes(
+        `grant execute on function ${signature} to authenticated;`,
+      ),
+      schema: authorizeSql({ schema: 'app' }).includes('"app"."authorize"('),
+    }).toEqual({ create: true, revoke: true, grant: true, schema: true });
+  });
+
+  for (const authorize of ['database', 'jwt'] as const) {
+    it(`lets a deny override every allow and ignores conditional allows (${authorize})`, () => {
+      const sql = authorizeSql({ authorize, tenant: members });
+      const allows = sql.match(/rp\.effect = 'allow'/gu)?.length ?? 0;
+      expect({
+        allows,
+        unconditional: sql.match(/rp\.grant_key = rp\.permission/gu)?.length,
+        tenantDeny: sql.includes(
+          `and rp.scope = 'tenant'\n        and rp.effect = 'deny'`,
+        ),
+        globalDeny: sql.match(
+          /rp\.scope = 'global'\n {8}and rp\.effect = 'deny'/gu,
+        )?.length,
+      }).toEqual({
+        allows: 2,
+        unconditional: 2,
+        tenantDeny: true,
+        globalDeny: 2,
+      });
+    });
+  }
+
+  it('drops a jwt membership whose expiresAt has passed', () => {
+    const sql = authorizeSql({
+      authorize: 'jwt',
+      customRoles: { declared: [] },
+    });
+    expect(
+      sql.match(
+        /when 'number' then \(m ->> 'expiresAt'\)::numeric > extract\(epoch from now\(\)\)/gu,
+      )?.length,
+    ).toBe(3);
   });
 });

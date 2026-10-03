@@ -3,6 +3,12 @@ export const HOOK_MARKER = '-- permdock:hook v1';
 /** The first line of a `--grants-out` file. */
 export const GRANTS_MARKER = '-- permdock:grants v1';
 
+/** The first line of the `seeds` part: the `role_permissions` rows, a versioned migration. */
+export const SEEDS_MARKER = '-- permdock:seeds v1';
+
+/** The first line of the `indexes` part: the indexes the policies and helpers read through. */
+export const INDEXES_MARKER = '-- permdock:indexes v1';
+
 const HOOK_LINE = /^-- permdock:hook v(?<version>[1-9]\d*)(?: (?<rest>.*))?$/u;
 const GRANTS_LINE =
   /^-- permdock:grants v(?<version>[1-9]\d*)(?: (?<rest>.*))?$/u;

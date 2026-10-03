@@ -11,6 +11,7 @@ import {
   isSelfParented,
 } from '../core/permissions.ts';
 import { scopeList } from '../core/scopes.ts';
+import { PERMDOCK_SCHEMA } from '../supabase/sources.ts';
 import {
   CLOSURE,
   activeUserSql,
@@ -24,7 +25,7 @@ import {
 } from './rls-sql.ts';
 
 function qualified(ctx: RlsSqlContext, name: string): string {
-  return `${quoteIdent(ctx.schema ?? 'public')}.${name}`;
+  return `${quoteIdent(ctx.schema ?? PERMDOCK_SCHEMA)}.${name}`;
 }
 
 function tableFor(

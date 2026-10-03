@@ -155,6 +155,7 @@ function asMembership(item: unknown): Membership | undefined {
     grantedBy:
       typeof item['grantedBy'] === 'string' ? item['grantedBy'] : undefined,
     reason: typeof item['reason'] === 'string' ? item['reason'] : undefined,
+    member: memberOf(item['member']),
     managedBy: item['managedBy'] === 'idp' ? 'idp' : undefined,
     entitlements: Array.isArray(item['entitlements'])
       ? item['entitlements'].filter(
@@ -162,6 +163,19 @@ function asMembership(item: unknown): Membership | undefined {
         )
       : undefined,
   });
+}
+
+function memberOf(value: unknown): { readonly group: string } | undefined {
+  if (
+    value === null ||
+    typeof value !== 'object' ||
+    !Object.hasOwn(value, 'group')
+  ) {
+    return undefined;
+  }
+  // SAFETY: an own property of a non-null object; its type is checked next.
+  const group = (value as { readonly group: unknown }).group;
+  return typeof group === 'string' && group !== '' ? { group } : undefined;
 }
 
 function asStrings(value: unknown): readonly string[] {

@@ -99,7 +99,7 @@ function reasons(
 describe('migrateTarget', () => {
   it('defaults the schema and keys of an outcome without them', () => {
     expect(migrateTarget({ code: 0, output: '', text: 'sql' })).toEqual({
-      schema: 'public',
+      schema: 'permdock',
       sql: 'sql',
       permissions: new Set(),
       rowConditions: new Set(),

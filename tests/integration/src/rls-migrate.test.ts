@@ -53,8 +53,9 @@ insert into memberships values ('${MEMBER}', 'organization', '${ORG_A}', 'member
 create table contacts (
   id uuid primary key, organization_id uuid not null, customer_id uuid not null, user_id uuid
 );
-create table user_roles (user_id uuid not null, role text not null);
-insert into user_roles values ('${PLATFORM}', 'platform-admin');
+create schema permdock;
+create table permdock.user_roles (user_id uuid not null, role text not null);
+insert into permdock.user_roles values ('${PLATFORM}', 'platform-admin');
 create table customers (id uuid primary key, organization_id uuid not null);
 insert into customers values ('${CUST_A}', '${ORG_A}'), ('${CUST_B}', '${ORG_B}');
 create table quotes (id uuid primary key, organization_id uuid not null, customer_id uuid not null);
@@ -158,13 +159,13 @@ describe('rls migrate on CentraKit, then verify --introspect with --helpers-only
       /org_ids_with_permission|has_org_permission|authorize_scope|is_system_user_with|is_org_member/u,
     );
     expect(migrated).toContain(
-      "(select public.permitted_organization_ids('customers.read'))",
+      "(select permdock.permitted_organization_ids('customers.read'))",
     );
     expect(migrated).toContain(
-      '(organizations.id in (select public.member_organization_ids()))',
+      '(organizations.id in (select permdock.member_organization_ids()))',
     );
     expect(migrated).toContain(
-      "(select public.permdock_has('organizations.read'))",
+      "(select permdock.permdock_has('organizations.read'))",
     );
   });
 
@@ -192,15 +193,15 @@ describe('rls migrate on CentraKit, then verify --introspect with --helpers-only
       throw new Error('PermDock: Postgres was not started');
     }
     await db.admin.query(
-      `insert into public.role_permissions (role, permission, grant_key, scope, effect)
+      `insert into permdock.role_permissions (role, permission, grant_key, scope, effect)
        values ('viewer', 'customers.update', 'customers.update', 'organization', 'allow');
        create policy quotes_typo on public.quotes for select to authenticated
-         using (organization_id in (select public.permitted_organization_ids('quote.read')))`,
+         using (organization_id in (select permdock.permitted_organization_ids('quote.read')))`,
     );
     const verified = await cli(['verify', '--introspect', '--db', db.uri]);
     expect(verified.code).toBe(1);
     expect(verified.out).toContain(
-      'public.role_permissions: unexpected viewer allow customers.update on organization',
+      'permdock.role_permissions: unexpected viewer allow customers.update on organization',
     );
     expect(verified.out).toContain(
       'public.quotes: policy quotes_typo passes quote.read, which the policy does not declare, so it always denies',

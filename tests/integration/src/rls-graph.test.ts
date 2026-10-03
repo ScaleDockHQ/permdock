@@ -265,7 +265,7 @@ describe('relationship graph in RLS (closure table)', () => {
       async () =>
         (
           await db!.tester.query<{ ancestor: string }>(
-            'select distinct ancestor from public.permdock_closure',
+            'select distinct ancestor from permdock.permdock_closure',
           )
         ).rows.map((row) => row.ancestor),
     );

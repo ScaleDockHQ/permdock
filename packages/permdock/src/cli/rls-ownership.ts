@@ -106,7 +106,7 @@ function holdersSql(
 ): string {
   const roleExpr = typeof role === 'string' ? quoteLiteral(role) : role.expr;
   const filters = [
-    `m.${quoteIdent(column)}::text = ${idExpr}`,
+    `m.${quoteIdent(column)} = ${idExpr}`,
     `m.${quoteIdent(table.role)}::text = ${roleExpr}`,
   ];
   if (table.expiresAt !== undefined) {
@@ -143,8 +143,8 @@ function holdersTriggerSql(
   const col = quoteIdent(column);
   const checks = counted.map((rule) => {
     const lines = [
-      `    select count(*) into v_total from ${membershipTable(table.table)} m where m.${col}::text = v_id;`,
-      `    ${holdersSql(ctx, table, column, 'v_id', rule.role, 'v_count')};`,
+      `    select count(*) into v_total from ${membershipTable(table.table)} m where m.${col} = v_key;`,
+      `    ${holdersSql(ctx, table, column, 'v_key', rule.role, 'v_count')};`,
     ];
     if (rule.min > 0) {
       lines.push(`    if v_total > 0 and v_count < ${String(rule.min)} then
@@ -174,6 +174,7 @@ as $$
 declare
   v_ids text[] := '{}';
   v_id text;
+  v_key ${membershipTable(table.table)}.${col}%type;
   v_total bigint;
   v_count bigint;
 begin
@@ -185,6 +186,7 @@ begin
   end if;
   foreach v_id in array v_ids loop
     continue when v_id is null;
+    v_key := v_id;
 ${checks.join('\n')}
   end loop;
   return null;
@@ -215,7 +217,7 @@ function transferTriggerSql(
   const role = quoteIdent(table.role);
   const list = `array[${roles.map(quoteLiteral).join(', ')}]::text[]`;
   const rows = (alias: string, source: string, delta: string): string =>
-    `select ${alias}.${col}::text as id, ${alias}.${role}::text as role, ${delta} as delta from ${source} ${alias} where ${alias}.${role}::text = any(${list})`;
+    `select ${alias}.${col} as id, ${alias}.${role}::text as role, ${delta} as delta from ${source} ${alias} where ${alias}.${role}::text = any(${list})`;
   const loop = (source: string): string => `    for v_change in
       select c.id, c.role, sum(c.delta) as delta
       from (${source}) c

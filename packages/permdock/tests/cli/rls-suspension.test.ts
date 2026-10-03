@@ -82,7 +82,7 @@ async function generate(
 }
 
 function helper(sql: string, name: string): string {
-  const start = sql.indexOf(`function "public".${name}(`);
+  const start = sql.indexOf(`function "permdock".${name}(`);
   return sql.slice(start, sql.indexOf('$$;', start));
 }
 
@@ -246,7 +246,9 @@ describe('the Supabase token hook', () => {
       },
       rbac,
     );
-    const authorize = sql.slice(sql.indexOf('function "public"."authorize"('));
+    const authorize = sql.slice(
+      sql.indexOf('function "permdock"."authorize"('),
+    );
     expect(authorize).toContain('return false; -- suspended user');
     expect(authorize).toContain(
       `if requested_tenant is not null and not exists (select 1 from "public"."organizations" s where s."id"::text = requested_tenant and s."disabled_at" is null) then`,

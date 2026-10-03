@@ -13,7 +13,7 @@ import { quoteIdent, quoteLiteral, quoteTable } from './rls-sql.ts';
 export type RbacAuthorizeMode = 'database' | 'jwt';
 
 export type RbacOptions = {
-  /** Postgres schema for the enums, tables and functions. Default `public`. */
+  /** Postgres schema for the enums, tables and functions. Default `permdock`. */
   readonly schema: string;
   /**
    * `database` reads `user_roles` (and the memberships table) on every statement: role changes
@@ -158,9 +158,5 @@ create table if not exists ${q('user_roles')} (
 alter table ${q('user_roles')} enable row level security;
 revoke all on table ${q('user_roles')} from authenticated, anon, public;
 `;
-  const tail = `${authorizeFn}
-revoke execute on function ${q('authorize')}(${q('app_permission')}, text) from public, anon;
-grant execute on function ${q('authorize')}(${q('app_permission')}, text) to authenticated;
-`;
-  return { head, tail, warnings: [] };
+  return { head, tail: authorizeFn, warnings: [] };
 }

@@ -45,7 +45,7 @@ async function hookClaims(
   const [row] = await postgres.transaction(async (client) => {
     await client.queryRaw('set local role supabase_auth_admin');
     return client.queryRaw<{ event: unknown }>(
-      'select public.custom_access_token_hook($1::jsonb) as event',
+      'select permdock.custom_access_token_hook($1::jsonb) as event',
       [JSON.stringify(event)],
     );
   });

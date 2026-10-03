@@ -107,9 +107,9 @@ describe('catalog rowConditions', () => {
     expect(flag('doc.share')).toBe(true);
   });
 
-  it('omits the flag without a policy', () => {
+  it('marks every permission true without a policy, since the conditions are unknown', () => {
     const catalog = buildCatalog(rows, scan, '2026-09-29T00:00:00Z');
-    expect(catalog.permissions[0]).not.toHaveProperty('rowConditions');
+    expect(catalog.permissions[0]?.rowConditions).toBe(true);
   });
 
   it('flags a grant whose grantee list includes a plan', () => {

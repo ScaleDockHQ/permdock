@@ -3,6 +3,7 @@ import type { RoleRows } from './global-roles.ts';
 import type { RlsSqlContext } from './rls-sql.ts';
 
 import { scopeColumn } from '../conditions/compile.ts';
+import { PERMDOCK_SCHEMA } from '../supabase/sources.ts';
 import { globalRoleSource } from './global-roles.ts';
 import {
   activeInstancesSql,
@@ -61,7 +62,7 @@ export type RolePermission = {
 };
 
 function helperSchema(ctx: RlsSqlContext): string {
-  return ctx.schema ?? 'public';
+  return ctx.schema ?? PERMDOCK_SCHEMA;
 }
 
 export function qualified(ctx: RlsSqlContext, name: string): string {
@@ -253,7 +254,7 @@ export function globalRoleRows(
         userSql: 'ur.user_id',
         roleSql: 'ur.role::text',
       }
-    : globalRoleSource(ctx.roles, helperSchema(ctx), 'ur');
+    : globalRoleSource(ctx.roles, 'public', 'ur');
 }
 
 function hasBody(ctx: RlsSqlContext): string {
@@ -568,15 +569,69 @@ revoke execute on function ${keys}(text[], text[], text[], text) from public, an
  * (`scope`, `id`, `within`, `roles`, `via`), with each source's own expiry
  * and suspension filters: the statements the token hook runs.
  */
-function sourceRows(
-  sources: readonly SqlMembershipSource[],
-  user: string,
-): string {
+function sourceRows(sources: readonly SqlMembershipSource[]): string {
   return sources
-    .map((source) =>
-      source.sql.select(`${user}::text`).replaceAll(/^/gmu, '    '),
+    .map((source, index) =>
+      source.sql.select(sourceUser(index)).replaceAll(/^/gmu, '    '),
     )
     .join('\n    union all\n');
+}
+
+function sourceUser(index: number): string {
+  return `v_user_${String(index)}`;
+}
+
+/**
+ * A helper body, and the PL/pgSQL variables it reads: one per membership
+ * source, holding `user` as that source's user column type so each `select`
+ * compares the column uncast and its index applies.
+ */
+type Body = {
+  readonly sql: string;
+  readonly vars: readonly string[];
+};
+
+function sqlBody(sql: string): Body {
+  return { sql, vars: [] };
+}
+
+function sourcesBodyOf(
+  sql: string,
+  sources: readonly SqlMembershipSource[],
+  user: string,
+): Body {
+  return {
+    sql,
+    vars: sources.map(
+      (source, index) =>
+        `${sourceUser(index)} ${source.sql.userType} := ${user};`,
+    ),
+  };
+}
+
+/** `language sql`, or `plpgsql` returning the query when the body declares variables. */
+function functionBody(body: Body): string {
+  if (body.vars.length === 0) {
+    return `language sql
+stable
+security definer
+set search_path = ''
+as $$
+${body.sql}
+$$;`;
+  }
+  return `language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+${body.vars.map((line) => `  ${line}`).join('\n')}
+begin
+  return query
+${body.sql};
+end;
+$$;`;
 }
 
 /**
@@ -601,7 +656,7 @@ function sourceFilters(
     .join('');
 }
 
-function sourcesBody(ctx: RlsSqlContext, scope: string, type: string): string {
+function sourcesBody(ctx: RlsSqlContext, scope: string, type: string): Body {
   if (ctx.customRoles !== undefined) {
     throw new Error(
       `PermDock CLI: --custom-roles in database mode needs rls.memberships.scopes.${scope}: the membership sources carry no custom roles`,
@@ -611,9 +666,11 @@ function sourcesBody(ctx: RlsSqlContext, scope: string, type: string): string {
   const narrow = underRoot(ctx, scope)
     ? `\n    and (${activeTenant(ctx)} is null or ${sourceIdOf(scope)(root)} = ${activeTenant(ctx)})`
     : '';
-  return `  select (ms.id)::${type}
+  const sources = scopeSources(ctx, scope);
+  return sourcesBodyOf(
+    `  select (ms.id)::${type}
   from (
-${sourceRows(scopeSources(ctx, scope), subjectIdSql(ctx))}
+${sourceRows(sources)}
   ) ms
   cross join lateral jsonb_array_elements_text(
     case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
@@ -622,16 +679,19 @@ ${sourceRows(scopeSources(ctx, scope), subjectIdSql(ctx))}
   where ${signedIn(ctx)}
     and ms.scope = ${quoteLiteral(scope)}
     and rp.grant_key = p_grant
-    and rp.scope = ${quoteLiteral(scope)}${andLine('    ', kindFilterSql(ctx, 'r.role', 'ms.via'))}${narrow}${sourceFilters(ctx, scope)}`;
+    and rp.scope = ${quoteLiteral(scope)}${andLine('    ', kindFilterSql(ctx, 'r.role', 'ms.via'))}${narrow}${sourceFilters(ctx, scope)}`,
+    sources,
+    subjectIdSql(ctx),
+  );
 }
 
-function scopedBody(ctx: RlsSqlContext, scope: string, type: string): string {
+function scopedBody(ctx: RlsSqlContext, scope: string, type: string): Body {
   if (ctx.authorize !== 'database') {
-    return claimBody(ctx, scope, type);
+    return sqlBody(claimBody(ctx, scope, type));
   }
   return scopeSources(ctx, scope).length > 0
     ? sourcesBody(ctx, scope, type)
-    : tableBody(ctx, scope, type);
+    : sqlBody(tableBody(ctx, scope, type));
 }
 
 /**
@@ -639,9 +699,9 @@ function scopedBody(ctx: RlsSqlContext, scope: string, type: string): string {
  * a live membership of, with any role. Not narrowed to the active tenant, and
  * no cascade: a membership of a child scope is not one of its parent.
  */
-function memberBody(ctx: RlsSqlContext, scope: string, type: string): string {
+function memberBody(ctx: RlsSqlContext, scope: string, type: string): Body {
   if (ctx.authorize !== 'database') {
-    return `  select distinct (m ->> 'id')::${type}
+    return sqlBody(`  select distinct (m ->> 'id')::${type}
   from jsonb_array_elements(
     case jsonb_typeof(${membershipClaim(ctx)}) when 'array' then ${membershipClaim(ctx)} else '[]'::jsonb end
   ) m
@@ -666,7 +726,7 @@ function memberBody(ctx: RlsSqlContext, scope: string, type: string): string {
       ),
     ]
       .map((line) => `\n${line}`)
-      .join('')}`;
+      .join('')}`);
   }
   return memberRowsBody(
     ctx,
@@ -687,20 +747,26 @@ function memberRowsBody(
   type: string,
   user: string,
   sources: readonly SqlMembershipSource[],
-): string {
+): Body {
   if (sources.length > 0) {
-    return `  select distinct (ms.id)::${type}
+    return sourcesBodyOf(
+      `  select distinct (ms.id)::${type}
   from (
-${sourceRows(sources, user)}
+${sourceRows(sources)}
   ) ms
   where ${signedIn(ctx, user)}
     and ms.scope = ${quoteLiteral(scope)}
     and jsonb_typeof(ms.roles) = 'array'
-    and jsonb_array_length(ms.roles) > 0${sourceFilters(ctx, scope, user)}`;
+    and jsonb_array_length(ms.roles) > 0${sourceFilters(ctx, scope, user)}`,
+      sources,
+      user,
+    );
   }
   const mapped = scopeTable(ctx, scope);
   if (mapped === undefined) {
-    return `  select null::${type} where false -- no ${scope} memberships table configured`;
+    return sqlBody(
+      `  select null::${type} where false -- no ${scope} memberships table configured`,
+    );
   }
   const { table, column } = mapped;
   const lines = [
@@ -725,7 +791,7 @@ ${sourceRows(sources, user)}
       '    ',
     ),
   );
-  return lines.join('\n');
+  return sqlBody(lines.join('\n'));
 }
 
 function membershipClaim(ctx: RlsSqlContext): string {
@@ -749,13 +815,7 @@ grant execute on function ${fn}() to anon, authenticated;`
 grant execute on function ${fn}() to authenticated;`;
   return `create or replace function ${fn}()
 returns setof ${type}
-language sql
-stable
-security definer
-set search_path = ''
-as $$
-${memberBody(ctx, scope, type)}
-$$;
+${functionBody(memberBody(ctx, scope, type))}
 ${grants}`;
 }
 
@@ -781,13 +841,7 @@ function memberForFunction(
   );
   return `create or replace function ${fn}(p_user uuid)
 returns setof ${type}
-language sql
-stable
-security definer
-set search_path = ''
-as $$
-${body}
-$$;
+${functionBody(body)}
 revoke execute on function ${fn}(uuid) from public, anon, authenticated;`;
 }
 
@@ -795,7 +849,7 @@ function helperFunction(
   ctx: RlsSqlContext,
   name: string,
   returns: string,
-  body: string,
+  body: Body,
   anonExecute: boolean,
 ): string {
   const fn = qualified(ctx, name);
@@ -806,13 +860,7 @@ grant execute on function ${fn}(text) to anon, authenticated;`
 grant execute on function ${fn}(text) to authenticated;`;
   return `create or replace function ${fn}(p_grant text)
 returns ${returns}
-language sql
-stable
-security definer
-set search_path = ''
-as $$
-${body}
-$$;
+${functionBody(body)}
 ${grants}`;
 }
 
@@ -822,7 +870,15 @@ function userIdType(ctx: RlsSqlContext): string {
     : 'text not null';
 }
 
-function seedSql(ctx: RlsSqlContext, rows: readonly RolePermission[]): string {
+/**
+ * The `role_permissions` rows the policy compiles to: an upsert and a delete
+ * of every other row. Data, not schema, so `supabase db diff` drops it from a
+ * declarative schema; `--split ...,seeds` writes it as its own migration.
+ */
+export function seedSql(
+  ctx: RlsSqlContext,
+  rows: readonly RolePermission[],
+): string {
   const table = qualified(ctx, 'role_permissions');
   if (rows.length === 0) {
     return `delete from ${table};`;
@@ -858,6 +914,8 @@ export type HelpersOptions = {
    * find no subject for `anon` and return nothing.
    */
   readonly anonExecute?: boolean;
+  /** Leave the `role_permissions` rows out: the `seeds` split part writes them. */
+  readonly withoutSeeds?: boolean;
 };
 
 /**
@@ -878,7 +936,7 @@ export function helpersSql(
   ];
   if (schema !== 'public') {
     chunks.push(
-      `create schema if not exists ${s};\ngrant usage on schema ${s} to authenticated;`,
+      `create schema if not exists ${s};\nrevoke all on schema ${s} from public;\ngrant usage on schema ${s} to ${options.anonExecute === true ? 'anon, authenticated' : 'authenticated'};`,
     );
   }
   chunks.push(`create table if not exists ${rp} (
@@ -891,7 +949,9 @@ export function helpersSql(
 );
 alter table ${rp} enable row level security;
 revoke all on table ${rp} from anon, authenticated, public;`);
-  chunks.push(seedSql(ctx, rows));
+  if (options.withoutSeeds !== true) {
+    chunks.push(seedSql(ctx, rows));
+  }
   if (
     ctx.authorize === 'database' &&
     options.userRoles &&
@@ -911,7 +971,9 @@ revoke all on table ${ur} from anon, authenticated, public;`);
     chunks.push(custom);
   }
   const anon = options.anonExecute === true;
-  chunks.push(helperFunction(ctx, HELPERS.has, 'boolean', hasBody(ctx), anon));
+  chunks.push(
+    helperFunction(ctx, HELPERS.has, 'boolean', sqlBody(hasBody(ctx)), anon),
+  );
   const capabilities = capabilitiesSql(ctx);
   if (capabilities !== '') {
     chunks.push(capabilities);

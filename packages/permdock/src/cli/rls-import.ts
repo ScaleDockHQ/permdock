@@ -189,7 +189,7 @@ type Query = (
 
 async function seedsFromDb(query: Query): Promise<readonly RolePermission[]> {
   const tables = await query(
-    `select table_schema from information_schema.tables where table_name = 'role_permissions' order by table_schema = 'public' desc, table_schema limit 1`,
+    `select table_schema from information_schema.tables where table_name = 'role_permissions' order by table_schema = 'permdock' desc, table_schema = 'public' desc, table_schema limit 1`,
   );
   const schema = tables.rows[0]?.['table_schema'];
   if (typeof schema !== 'string' || !/^[A-Za-z_][A-Za-z0-9_]*$/u.test(schema)) {

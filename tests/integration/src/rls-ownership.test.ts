@@ -117,7 +117,7 @@ describe('ownership triggers in generated RLS', () => {
         async () =>
           (
             await db!.tester.query<{ readonly ok: boolean }>(
-              "select public.permdock_can_assign($1, 'o1') as ok",
+              "select permdock.permdock_can_assign($1, 'o1') as ok",
               [role],
             )
           ).rows[0]?.ok,

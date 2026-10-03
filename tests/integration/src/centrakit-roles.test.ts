@@ -115,7 +115,7 @@ describe('CentraKit global roles through roles.key', () => {
   const mint = (user: string) =>
     as('supabase_auth_admin', {}, async (client) => {
       const result = await client.query<{ event: { claims: Claims } }>(
-        'select public.custom_access_token_hook($1::jsonb) as event',
+        'select permdock.custom_access_token_hook($1::jsonb) as event',
         [JSON.stringify({ user_id: user, claims: { sub: user } })],
       );
       return result.rows[0]?.event.claims ?? {};
@@ -124,7 +124,7 @@ describe('CentraKit global roles through roles.key', () => {
   const has = (user: string, key: string) =>
     as('authenticated', { sub: user }, async (client) => {
       const result = await client.query<{ ok: boolean }>(
-        'select public.permdock_has($1) as ok',
+        'select permdock.permdock_has($1) as ok',
         [key],
       );
       return result.rows[0]?.ok;
@@ -132,7 +132,7 @@ describe('CentraKit global roles through roles.key', () => {
 
   const version = async (user: string) => {
     const result = await db?.admin.query<{ version: string }>(
-      'select version from public.permdock_authz_version where user_id = $1',
+      'select version from permdock.permdock_authz_version where user_id = $1',
       [user],
     );
     return Number(result?.rows[0]?.version ?? 0);

@@ -50,6 +50,21 @@ describe('subjectFromSupabase', () => {
     expect(subject.principal?.claims).not.toHaveProperty('role');
   });
 
+  it('keeps the member group of a membership, and drops an empty one', () => {
+    const subject = subjectFromSupabase({
+      sub: 'user-6',
+      role: 'authenticated',
+      memberships: [
+        { tenant: 'org-1', roles: ['nurse'], member: { group: 'night' } },
+        { tenant: 'org-2', roles: ['nurse'], member: { group: '' } },
+      ],
+    });
+    expect(subject.principal?.memberships).toEqual([
+      { tenant: 'org-1', roles: ['nurse'], member: { group: 'night' } },
+      { tenant: 'org-2', roles: ['nurse'] },
+    ]);
+  });
+
   it('maps resource-scoped memberships from the hook claim', () => {
     const subject = subjectFromSupabase({
       sub: 'user-5',
@@ -290,7 +305,7 @@ describe('supabaseRls and authorizeSql', () => {
       },
     });
     expect(database).toContain('create or replace function "app"."authorize"(');
-    expect(database).toContain('m."organization_id"::text = requested_tenant');
+    expect(database).toContain('m."organization_id" = v_member_tenant');
     expect(database).toContain('rp.permission = requested_permission::text');
     expect(database).toContain("and rp.scope = 'tenant'");
     expect(database).toContain("and rp.effect = 'allow'");
@@ -313,10 +328,10 @@ describe('supabaseRls and authorizeSql', () => {
       tenant,
       customRoles: { declared: ['admin', "o'wner"] },
     });
-    expect(database).toContain('"public"."custom_role_permissions" c');
-    expect(database).toContain('"public"."custom_role_includes" c');
+    expect(database).toContain('"permdock"."custom_role_permissions" c');
+    expect(database).toContain('"permdock"."custom_role_includes" c');
     expect(database).toContain("any(array['admin', 'o''wner']::text[])");
-    expect(database).toContain('"public"."permdock_custom_keys"(');
+    expect(database).toContain('"permdock"."permdock_custom_keys"(');
     const jwt = authorizeSql({
       authorize: 'jwt',
       customRoles: { declared: [] },

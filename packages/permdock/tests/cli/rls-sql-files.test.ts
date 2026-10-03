@@ -80,9 +80,12 @@ describe('parseSplit and partPath', () => {
     ['policies,,', ['policies']],
     [
       'helpers,views',
-      "rls generate --split takes helpers, policies and hook, got 'helpers,views'",
+      "rls generate --split takes helpers, seeds, indexes, policies and hook, got 'helpers,views'",
     ],
-    [' , ', "rls generate --split takes helpers, policies and hook, got ' , '"],
+    [
+      ' , ',
+      "rls generate --split takes helpers, seeds, indexes, policies and hook, got ' , '",
+    ],
   ])('parses %j', (raw, expected) => {
     expect(parseSplit(raw)).toEqual(expected);
   });

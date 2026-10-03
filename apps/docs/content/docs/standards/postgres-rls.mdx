@@ -77,8 +77,8 @@ permdock rls verify --db $DATABASE_URL
 | `eq(principal.claim.user_role, 'admin')` | `((select auth.jwt()) ->> 'user_role') = 'admin'` | GUC variant |
 | Claim array contains a row column | `team_id in (select jsonb_array_elements_text((select auth.jwt())->'app_metadata'->'teams'))::uuid` | none |
 | Membership via join table | `id in (select resource_id from memberships where user_id = (select auth.uid()) [and role in (...)])` | same |
-| Role check of a global role | `(select public.permdock_has('channels.delete'))` | same helper, claims from GUCs |
-| Role check of a role on a named scope | `org_id in (select public.permitted_organization_ids('channels.delete'))`, `customer_id in (select public.permitted_customer_ids('quote.read'))` | same helpers |
+| Role check of a global role | `(select permdock.permdock_has('channels.delete'))` | same helper, claims from GUCs |
+| Role check of a role on a named scope | `org_id in (select permdock.permitted_organization_ids('channels.delete'))`, `customer_id in (select permdock.permitted_customer_ids('quote.read'))` | same helpers |
 | Named permission in a hand-written policy | `(select authorize('channels.delete'))` with `--rbac supabase`; imported as opaque | opaque unless a function is mapped |
 | Literal comparisons, `isNull`, `and`, `or`, `not`, `true`, `false` | literal SQL | literal SQL |
 

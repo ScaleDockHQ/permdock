@@ -123,13 +123,24 @@ describe('rls verify --introspect', () => {
     expect(result.code).toBe(0);
   });
 
+  it('warns about a scope column no index starts with, and accepts one that does', async () => {
+    const pg = started();
+    const warning =
+      'warning: public.doc: no index starts with orgId, which the policies or helpers filter on';
+    expect((await verify(pg.uri)).out).toContain(warning);
+    await pg.admin.query('create index doc_org_id_tags on doc ("orgId", tags)');
+    const result = await verify(pg.uri);
+    expect(result.out).not.toContain(warning);
+    expect(result.code).toBe(0);
+  });
+
   it('reports policies, grants, RLS and helpers that drifted', async () => {
     const pg = started();
     await pg.admin.query(`
       create policy "hand_written" on doc for select to authenticated using (true);
       grant insert on doc to authenticated;
-      alter function public.permdock_has(text) security invoker;
-      alter function public.permitted_tenant_ids(text) reset search_path;
+      alter function permdock.permdock_has(text) security invoker;
+      alter function permdock.permitted_tenant_ids(text) reset search_path;
     `);
     const result = await verify(pg.uri);
     expect(result.code).toBe(1);
@@ -137,8 +148,8 @@ describe('rls verify --introspect', () => {
       expect.arrayContaining([
         'public.doc: policy hand_written is not generated (permissive select); a permissive one widens access',
         'public.doc: authenticated holds insert, which no generated policy allows',
-        'public.permdock_has: helper is not security definer',
-        "public.permitted_tenant_ids: helper does not set search_path = ''",
+        'permdock.permdock_has: helper is not security definer',
+        "permdock.permitted_tenant_ids: helper does not set search_path = ''",
       ]),
     );
     await pg.admin.query('alter table doc disable row level security');

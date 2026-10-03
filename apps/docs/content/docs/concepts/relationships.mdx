@@ -194,7 +194,7 @@ Snapshots carry no graph. A grant whose condition needs the graph, or whose rela
 | Drizzle, Kysely | `toWhere(where, table, { relations })` emits one subquery: the closure table when `relations.closure` is set, otherwise a recursive walk bounded by the grant's depth |
 | Prisma | `await resolveRelated(where, { run })` reads the ids with one raw query and replaces each node with `in(id, ids)`; `toWhere` then compiles as usual |
 
-`relations: { tables, closure }` maps resource names to tables (default the resource name) and names the closure table, for example `'public.permdock_closure'`. Without `relations` the compilers refuse a `related` node with `non-portable-condition` ([conditions](/docs/concepts/conditions)). A relation with a `period` stays out of `where()` (`partial: true`). `resolveRelated` reads the ids when it runs, so a share added after that call is not in the result.
+`relations: { tables, closure }` maps resource names to tables (default the resource name) and names the closure table, for example `'permdock.permdock_closure'`. Without `relations` the compilers refuse a `related` node with `non-portable-condition` ([conditions](/docs/concepts/conditions)). A relation with a `period` stays out of `where()` (`partial: true`). `resolveRelated` reads the ids when it runs, so a share added after that call is not in the result.
 
 ## whoCan
 

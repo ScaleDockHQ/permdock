@@ -104,8 +104,8 @@ Collection actions (`quote.create`, `quote.list`) have no row: they need a membe
 
 ```sql
 create policy quote_select on public.quote for select to authenticated using (
-  organization_id in (select public.permitted_organization_ids('quote.read#1'))
-  or (customer_id in (select public.permitted_customer_ids('quote.read#2')) and status = any (array['sent', 'accepted']))
+  organization_id in (select permdock.permitted_organization_ids('quote.read#1'))
+  or (customer_id in (select permdock.permitted_customer_ids('quote.read#2')) and status = any (array['sent', 'accepted']))
 );
 ```
 

@@ -168,7 +168,7 @@ describe('fieldViews skips and warnings', () => {
     expect(view?.companion).toBe('doc_visible_fields');
     expect(result.warnings).toEqual([]);
     expect(fieldViewsSql(result.views)).toContain(
-      'grant select on table "doc_visible" to anon, authenticated;',
+      'grant select on table "public"."doc_visible" to anon, authenticated;',
     );
   });
 

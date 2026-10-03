@@ -150,6 +150,7 @@ export const catalogSchema: CatalogSchemaNode = freezeDeep({
           'arity',
           'meta',
           'usages',
+          'rowConditions',
         ],
         properties: {
           key: { type: 'string' },

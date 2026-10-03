@@ -116,12 +116,12 @@ describe('permdock rls', () => {
     );
     await generate('forced.sql', 'sql', ['--force']);
     expect(readFileSync(join(cwd, 'forced.sql'), 'utf8')).toMatch(
-      /enable row level security;\nalter table "[^"]+" force row level security;/u,
+      /enable row level security;\nalter table "[^"]+"\."[^"]+" force row level security;/u,
     );
     const drizzle = await generate('policies.ts', 'drizzle', ['--force']);
     expect(drizzle.stdout).toContain('policies.migration.sql');
     expect(readFileSync(join(cwd, 'policies.migration.sql'), 'utf8')).toMatch(
-      /enable row level security;\nalter table "[^"]+" force row level security;/u,
+      /enable row level security;\nalter table "[^"]+"\."[^"]+" force row level security;/u,
     );
   });
 
@@ -234,11 +234,11 @@ export const policy = definePolicy(permissions, {
     const sql = readFileSync(join(cwd, 'rls.sql'), 'utf8');
     expect(sql).toContain('from "public"."organization_members" m');
     expect(sql).toContain(
-      `"orgId" in (select "public".permitted_tenant_ids('post.read'))`,
+      `"orgId" in (select "permdock".permitted_tenant_ids('post.read'))`,
     );
     expect(sql).toContain('security definer');
     expect(sql).toContain(
-      'grant execute on function "public".permitted_tenant_ids(text) to authenticated;',
+      'grant execute on function "permdock".permitted_tenant_ids(text) to authenticated;',
     );
     expect(sql).not.toMatch(/service_role/i);
   });
@@ -298,20 +298,20 @@ export const policy = definePolicy(permissions, {
       'organization_members:organization_id,user_id,role',
     ]);
     expect(database).toContain(
-      'create table if not exists "public".custom_role_permissions',
+      'create table if not exists "permdock".custom_role_permissions',
     );
     expect(database).toContain(
-      'create table if not exists "public".custom_role_includes',
+      'create table if not exists "permdock".custom_role_includes',
     );
     expect(database).toContain("and rp.role = any(array['admin']::text[])");
     expect(database).toContain(
       "and not (m.\"role\"::text = any(array['admin', 'owner']::text[]))",
     );
     expect(database).toContain(
-      'revoke execute on function "public".permdock_custom_keys(text[], text[], text[], text) from public, anon, authenticated;',
+      'revoke execute on function "permdock".permdock_custom_keys(text[], text[], text[], text) from public, anon, authenticated;',
     );
     const jwt = await generate(['--custom-roles', '--authorize', 'jwt']);
-    expect(jwt).toContain('create or replace view "public".permdock_ceiling');
+    expect(jwt).toContain('create or replace view "permdock".permdock_ceiling');
     expect(jwt).toContain(
       "cross join lateral (select m -> 'grants' -> r.role as g) cg",
     );
@@ -409,9 +409,9 @@ export const policy = definePolicy(permissions, {
     );
     const sql = readFileSync(join(cwd, 'rls.sql'), 'utf8');
     expect(sql).not.toContain('custom_access_token_hook(event jsonb)');
-    expect(sql).toContain('create or replace function "public"."authorize"(');
+    expect(sql).toContain('create or replace function "permdock"."authorize"(');
     expect(sql).toContain('requested_tenant text default null');
-    expect(sql).toContain(`(select "public".permdock_has('post.read'))`);
+    expect(sql).toContain(`(select "permdock".permdock_has('post.read'))`);
     expect(sql).not.toMatch(/using \([^\n]*authorize\(/u);
     expect(sql).not.toMatch(/service_role/i);
   });
@@ -453,7 +453,7 @@ export const planPolicy = definePolicy(permissions, {
       `('auditor', 'post.read', 'post.read', 'global', 'allow')`,
     );
     expect(sql).toContain(
-      `using ((select "public".permdock_has('post.read')))`,
+      `using ((select "permdock".permdock_has('post.read')))`,
     );
   });
 
@@ -805,7 +805,7 @@ export const policy = definePolicy(permissions, {
     expect(result.code).toBe(0);
     const sql = readFileSync(join(cwd, 'rls.sql'), 'utf8');
     expect(sql).toContain(
-      `"orgId" in (select "public".permitted_tenant_ids('post.read'))`,
+      `"orgId" in (select "permdock".permitted_tenant_ids('post.read'))`,
     );
     expect(sql).toContain("(select auth.jwt()) -> 'memberships'");
   });

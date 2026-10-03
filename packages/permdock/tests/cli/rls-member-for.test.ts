@@ -35,7 +35,7 @@ function helpers(ctx: RlsSqlContext): string {
 
 /** The `create function ... $$;` block of `name`, through its revoke line. */
 function fn(sql: string, name: string): string {
-  const start = sql.indexOf(`create or replace function "public".${name}(`);
+  const start = sql.indexOf(`create or replace function "permdock".${name}(`);
   if (start === -1) {
     return '';
   }
@@ -48,16 +48,19 @@ describe('member_<scope>_ids_for', () => {
     const sql = helpers({ ...base, memberSources: sources });
     const organization = fn(sql, 'member_organization_ids_for');
     expect(organization).toContain(
-      "member_organization_ids_for(p_user uuid)\nreturns setof text\nlanguage sql\nstable\nsecurity definer\nset search_path = ''",
+      "member_organization_ids_for(p_user uuid)\nreturns setof text\nlanguage plpgsql\nstable\nsecurity definer\nset search_path = ''",
     );
     expect(organization).toContain('"public"."memberships"');
-    expect(organization).toContain('p_user::text');
+    expect(organization).toContain(
+      'v_user_0 "public"."memberships"."user_id"%type := p_user;',
+    );
+    expect(organization).toContain('m."user_id" = v_user_0');
     expect(organization).toContain("coalesce(p_user::text, '') <> ''");
     expect(organization).toContain('expires_at');
     expect(organization).not.toContain('auth.uid()');
     expect(organization).not.toContain('auth.jwt()');
     expect(organization).toContain(
-      'revoke execute on function "public".member_organization_ids_for(uuid) from public, anon, authenticated;',
+      'revoke execute on function "permdock".member_organization_ids_for(uuid) from public, anon, authenticated;',
     );
     expect(organization).not.toMatch(/grant execute/u);
     expect(fn(sql, 'member_customer_ids_for')).toContain(
@@ -167,10 +170,10 @@ describe('the hook grants for member_<scope>_ids_for', () => {
       'grants.sql',
     );
     expect(grants).toContain(
-      'grant execute on function "public".member_organization_ids_for(uuid) to supabase_auth_admin;',
+      'grant execute on function "permdock".member_organization_ids_for(uuid) to supabase_auth_admin;',
     );
     expect(grants).toContain(
-      'grant execute on function "public".member_customer_ids_for(uuid) to supabase_auth_admin;',
+      'grant execute on function "permdock".member_customer_ids_for(uuid) to supabase_auth_admin;',
     );
     expect(sql).not.toContain('member_organization_ids_for');
     expect(manifest.helpers.functions).toContain('member_organization_ids_for');

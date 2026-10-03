@@ -19,7 +19,7 @@ export async function listPosts(permdock: PermDock) {
 
 - `permdock.where(permission)` narrows the query before it runs. It leaves out closure grants and marks the result `partial`; `filter` then drops what a closure refuses, and `pick` redacts fields.
 - When nothing is granted, `toWhere` returns a constant false expression (no rows). A closure grant cannot compile: `toWhere` throws `PermDockValidationError`.
-- `toWhere(condition, table, { columns })` maps schema fields to differently named columns. Graph grants need `{ relations: { closure: 'public.permdock_closure' } }`, otherwise a `related` node throws `non-portable-condition`.
+- `toWhere(condition, table, { columns })` maps schema fields to differently named columns. Graph grants need `{ relations: { closure: 'permdock.permdock_closure' } }`, otherwise a `related` node throws `non-portable-condition`.
 - `checkRow` (Drizzle) answers one row as `{ found: false }` or `{ found: true, granted }`, so a handler can tell `404` from `403` with one query.
 - Prisma also exports `permdockExtension`. Drizzle, Prisma and Kysely export `withSubject`, which runs a transaction as the subject (`set local role` plus claims) so RLS sees it; its `dialect` must match `rls generate`.
 - Convex: `createPermDock` from `permdock/convex` returns `withPermDock` and `snapshotQuery`. Identity comes from `ctx` only; function arguments never influence the subject.

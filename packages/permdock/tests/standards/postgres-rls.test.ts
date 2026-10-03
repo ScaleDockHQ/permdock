@@ -121,6 +121,14 @@ function roleNames(items: readonly unknown[]): string[] {
   });
 }
 
+/** A `RangeVar` as `schema.table`, or `table` when it names no schema. */
+function rangeName(range: Node | undefined): string {
+  return [range?.['schemaname'], range?.['relname']]
+    .filter((part) => part !== undefined)
+    .map(String)
+    .join('.');
+}
+
 async function policies(dialect: Dialect): Promise<readonly Policy[]> {
   return (await statements(dialect)).flatMap((stmt, index) => {
     const policy = child(stmt, 'CreatePolicyStmt');
@@ -131,7 +139,7 @@ async function policies(dialect: Dialect): Promise<readonly Policy[]> {
     const check = child(policy, 'with_check');
     return [
       {
-        table: String(child(policy, 'table')?.['relname']),
+        table: rangeName(child(policy, 'table')),
         name: String(policy['policy_name']),
         cmd: String(policy['cmd_name']),
         permissive: policy['permissive'] === true,
@@ -288,20 +296,18 @@ describe.each(DIALECTS)('rls generate --dialect %s', (dialect) => {
     const stmts = await statements(dialect);
     const all = await policies(dialect);
     for (const table of new Set(all.map((policy) => policy.table))) {
-      const relname = (node: Node | undefined) =>
-        child(node, 'relation')?.['relname'] ?? undefined;
       expect(
         stmts.some(
           (stmt) =>
-            relname(child(stmt, 'AlterTableStmt')) === table &&
-            JSON.stringify(stmt).includes('AT_EnableRowSecurity'),
+            rangeName(child(child(stmt, 'AlterTableStmt'), 'relation')) ===
+              table && JSON.stringify(stmt).includes('AT_EnableRowSecurity'),
         ),
       ).toBe(true);
       const grants = stmts.flatMap((stmt) => {
         const grant = child(stmt, 'GrantStmt');
         const target = child(list(grant, 'objects')[0], 'RangeVar');
         return grant?.['objtype'] === 'OBJECT_TABLE' &&
-          target?.['relname'] === table
+          rangeName(target) === table
           ? [grant]
           : [];
       });

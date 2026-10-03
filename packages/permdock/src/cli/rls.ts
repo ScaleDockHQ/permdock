@@ -1,5 +1,6 @@
 import type { CliIo, PermDockConfig, RlsDialect, RlsTarget } from './types.ts';
 
+import { PERMDOCK_SCHEMA } from '../supabase/sources.ts';
 import { requirePeer } from './peer.ts';
 import { type GenerateOutcome, runRlsGenerate } from './rls-generate.ts';
 import {
@@ -9,6 +10,7 @@ import {
   expectedRls,
   introspectMixed,
   introspectRls,
+  missingIndexes,
 } from './rls-introspect.ts';
 import { parseRbacAuthorize } from './rls-rbac.ts';
 import { runRlsVerify, type SqlConnect } from './rls-verify.ts';
@@ -21,7 +23,8 @@ export const RLS_HELP = `permdock rls generate | import | verify | migrate
            [--policy-per-role] [--policy-name '{table}_{op}'] [--tenant-type uuid] [--custom-roles]
            [--capabilities] [--fields views [--revoke-columns]]
            [--out <path>] [--check] [--skip-closures] [--inline-functions] [--force] [--guc-prefix app]
-           [--split helpers,policies,hook --out <dir>/056_permdock_{part}.sql] [--grants-out <file>|-]
+           [--split helpers,seeds,policies,hook --out <dir>/056_permdock_{part}.sql]
+           [--grants-out <file>|-] [--seeds-out <file>|-]
            [--helpers-only]
   import   --sql schema.sql | --db $DATABASE_URL --out src/permissions.generated.ts
            [--schema zod|valibot|arktype] [--memberships <table>:tenant,user,role]
@@ -66,6 +69,7 @@ export type RlsRunInput = {
   readonly introspect: boolean;
   readonly split: string | undefined;
   readonly grantsOut: string | undefined;
+  readonly seedsOut: string | undefined;
   readonly helpersOnly: boolean;
   readonly write: boolean;
   readonly json: boolean;
@@ -133,6 +137,7 @@ function generateInput(
     revokeColumns: input.revokeColumns,
     ...(input.split === undefined ? {} : { split: input.split }),
     ...(input.grantsOut === undefined ? {} : { grantsOut: input.grantsOut }),
+    ...(input.seedsOut === undefined ? {} : { seedsOut: input.seedsOut }),
     helpersOnly: input.helpersOnly,
   };
 }
@@ -190,12 +195,11 @@ async function introspectHelpersOnly(
   generated: GenerateOutcome,
   connect: SqlConnect | undefined,
 ): Promise<{ readonly code: 0 | 1 | 2; readonly output: string }> {
-  const schema = generated.schema ?? 'public';
+  const schema = generated.schema ?? PERMDOCK_SCHEMA;
   try {
-    const helpers = diffRls(
-      expected,
-      await introspectRls(db, expected, connect),
-    );
+    const actual = await introspectRls(db, expected, connect);
+    const helpers = diffRls(expected, actual);
+    const warnings = missingIndexes(expected, actual);
     const mixed = diffMixed(
       {
         schema,
@@ -208,10 +212,11 @@ async function introspectHelpersOnly(
     const drift = [...helpers, ...mixed.drift];
     const info = mixed.info.map((line) => `info: ${line}`);
     return drift.length > 0
-      ? { code: 1, output: [...drift, ...info].join('\n') }
+      ? { code: 1, output: [...drift, ...warnings, ...info].join('\n') }
       : {
           code: 0,
           output: [
+            ...warnings,
             ...info,
             `introspected ${String(expected.helpers.length)} helper(s) and ${String(generated.seeds?.length ?? 0)} seeded row(s), helpers only: no drift`,
           ].join('\n'),
@@ -250,7 +255,11 @@ async function introspect(
   if (generated.code !== 0 || generated.policies === undefined) {
     return { code: 2, output: generated.output };
   }
-  const expected = expectedRls(generated.policies, generated.text);
+  const expected = expectedRls(
+    generated.policies,
+    generated.text,
+    generated.indexes,
+  );
   if (generated.helpersOnly === true) {
     return introspectHelpersOnly(input.db, expected, generated, input.connect);
   }
@@ -259,12 +268,13 @@ async function introspect(
     const drift = diffRls(expected, actual, {
       columnGrants: (input.fields ?? input.config.rls?.fields) === 'views',
     });
+    const warnings = missingIndexes(expected, actual);
     if (drift.length > 0) {
-      return { code: 1, output: drift.join('\n') };
+      return { code: 1, output: [...drift, ...warnings].join('\n') };
     }
     return {
       code: 0,
-      output: `introspected ${String(expected.policies.length)} policies on ${String(expected.tables.length)} table(s) and ${String(expected.helpers.length)} helper(s): no drift`,
+      output: `${warnings.map((line) => `${line}\n`).join('')}introspected ${String(expected.policies.length)} policies on ${String(expected.tables.length)} table(s) and ${String(expected.helpers.length)} helper(s): no drift`,
     };
   } catch (cause) {
     return {

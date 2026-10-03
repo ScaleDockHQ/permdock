@@ -397,32 +397,6 @@ export default {
       },
       "flags": {}
     },
-    "permdock_authz_version": {
-      "key": "permdock_authz_version",
-      "name": "permdock_authz_version",
-      "schema": "public",
-      "kind": "table",
-      "columns": {
-        "user_id": {
-          "db": "user_id",
-          "type": "text",
-          "nullable": false,
-          "hasDefault": false
-        },
-        "version": {
-          "db": "version",
-          "type": "int8",
-          "nullable": false,
-          "hasDefault": true
-        }
-      },
-      "primaryKey": [
-        "user_id"
-      ],
-      "uniqueKeys": {},
-      "relations": {},
-      "flags": {}
-    },
     "quotes": {
       "key": "quotes",
       "name": "quotes",
@@ -496,56 +470,6 @@ export default {
       },
       "flags": {}
     },
-    "role_permissions": {
-      "key": "role_permissions",
-      "name": "role_permissions",
-      "schema": "public",
-      "kind": "table",
-      "columns": {
-        "role": {
-          "db": "role",
-          "type": "text",
-          "nullable": false,
-          "hasDefault": false
-        },
-        "permission": {
-          "db": "permission",
-          "type": "text",
-          "nullable": false,
-          "hasDefault": false
-        },
-        "grant_key": {
-          "db": "grant_key",
-          "type": "text",
-          "nullable": false,
-          "hasDefault": false
-        },
-        "scope": {
-          "db": "scope",
-          "type": "text",
-          "nullable": false,
-          "hasDefault": false
-        },
-        "effect": {
-          "db": "effect",
-          "type": "text",
-          "nullable": false,
-          "hasDefault": true,
-          "enum": [
-            "allow",
-            "deny"
-          ]
-        }
-      },
-      "primaryKey": [
-        "role",
-        "grant_key",
-        "scope"
-      ],
-      "uniqueKeys": {},
-      "relations": {},
-      "flags": {}
-    },
     "staff": {
       "key": "staff",
       "name": "staff",
@@ -604,50 +528,10 @@ export default {
         }
       },
       "flags": {}
-    },
-    "user_roles": {
-      "key": "user_roles",
-      "name": "user_roles",
-      "schema": "public",
-      "kind": "table",
-      "columns": {
-        "user_id": {
-          "db": "user_id",
-          "type": "uuid",
-          "nullable": false,
-          "hasDefault": false
-        },
-        "role": {
-          "db": "role",
-          "type": "text",
-          "nullable": false,
-          "hasDefault": false
-        }
-      },
-      "primaryKey": [
-        "user_id",
-        "role"
-      ],
-      "uniqueKeys": {},
-      "relations": {},
-      "flags": {}
     }
   },
   "enums": {},
   "functions": {
-    "custom_access_token_hook": {
-      "name": "custom_access_token_hook",
-      "schema": "public",
-      "args": [
-        {
-          "name": "event",
-          "type": "jsonb"
-        }
-      ],
-      "returns": "jsonb",
-      "returnsSet": false,
-      "volatility": "stable"
-    },
     "datetime_preference_claims": {
       "name": "datetime_preference_claims",
       "schema": "public",
@@ -672,87 +556,6 @@ export default {
       ],
       "returns": "jsonb",
       "returnsSet": false,
-      "volatility": "stable"
-    },
-    "member_customer_ids": {
-      "name": "member_customer_ids",
-      "schema": "public",
-      "args": [],
-      "returns": "uuid",
-      "returnsSet": true,
-      "volatility": "stable"
-    },
-    "member_customer_ids_for": {
-      "name": "member_customer_ids_for",
-      "schema": "public",
-      "args": [
-        {
-          "name": "p_user",
-          "type": "uuid"
-        }
-      ],
-      "returns": "uuid",
-      "returnsSet": true,
-      "volatility": "stable"
-    },
-    "member_organization_ids": {
-      "name": "member_organization_ids",
-      "schema": "public",
-      "args": [],
-      "returns": "uuid",
-      "returnsSet": true,
-      "volatility": "stable"
-    },
-    "member_organization_ids_for": {
-      "name": "member_organization_ids_for",
-      "schema": "public",
-      "args": [
-        {
-          "name": "p_user",
-          "type": "uuid"
-        }
-      ],
-      "returns": "uuid",
-      "returnsSet": true,
-      "volatility": "stable"
-    },
-    "permdock_has": {
-      "name": "permdock_has",
-      "schema": "public",
-      "args": [
-        {
-          "name": "p_grant",
-          "type": "text"
-        }
-      ],
-      "returns": "bool",
-      "returnsSet": false,
-      "volatility": "stable"
-    },
-    "permitted_customer_ids": {
-      "name": "permitted_customer_ids",
-      "schema": "public",
-      "args": [
-        {
-          "name": "p_grant",
-          "type": "text"
-        }
-      ],
-      "returns": "uuid",
-      "returnsSet": true,
-      "volatility": "stable"
-    },
-    "permitted_organization_ids": {
-      "name": "permitted_organization_ids",
-      "schema": "public",
-      "args": [
-        {
-          "name": "p_grant",
-          "type": "text"
-        }
-      ],
-      "returns": "uuid",
-      "returnsSet": true,
       "volatility": "stable"
     }
   }

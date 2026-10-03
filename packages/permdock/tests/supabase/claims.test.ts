@@ -78,6 +78,19 @@ const invalid: readonly (readonly [string, unknown])[] = [
   ['scope number', { sub, scope: 1 }],
   ['act string', { sub, act: 'agent' }],
   ['nested act sub number', { sub, act: { sub: 'a', act: { sub: 2 } } }],
+  ['act without sub', { sub, act: {} }],
+  ['nested act empty sub', { sub, act: { sub: 'a', act: { sub: '' } } }],
+  [
+    'membership member without group',
+    { sub, memberships: [{ tenant: 't', roles: ['a'], member: {} }] },
+  ],
+  [
+    'membership member empty group',
+    {
+      sub,
+      memberships: [{ tenant: 't', roles: ['a'], member: { group: '' } }],
+    },
+  ],
   ['app_metadata array', { sub, app_metadata: [] }],
   ['app_metadata user_role number', { sub, app_metadata: { user_role: 1 } }],
   [
@@ -111,6 +124,15 @@ describe('supabaseClaims()', () => {
       expect(ajv(value)).toBe(false);
     });
   }
+
+  it('accepts the member group a membership source fills, as the JSON Schema does', () => {
+    const claims = {
+      sub,
+      memberships: [{ tenant: 't', roles: ['a'], member: { group: 'night' } }],
+    };
+    expect(validate(schema, claims)).toEqual({ value: claims });
+    expect(ajv(claims)).toBe(true);
+  });
 
   it('passes unknown claims through unchanged', () => {
     const claims = { sub, datetime_preferences: { timezone: 'UTC' }, x: [1] };

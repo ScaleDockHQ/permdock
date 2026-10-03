@@ -227,7 +227,7 @@ const DEFAULT_SENSITIVE_ACTIONS = [
   'disburse',
 ] as const;
 
-async function loadPolicy(
+export async function loadPolicy(
   cwd: string,
   path: string,
 ): Promise<Policy | undefined> {

@@ -6,6 +6,7 @@ import type { GenerateOutcome } from './rls-generate.ts';
 import type { RlsMigrateConfig, RlsMigrateHelper } from './types.ts';
 
 import { escapeSqlIdent, quoteSqlLiteral } from '../core/sql.ts';
+import { PERMDOCK_SCHEMA } from '../supabase/sources.ts';
 import { sqlFiles } from './files.ts';
 import { HELPERS } from './rls-helpers.ts';
 
@@ -67,7 +68,7 @@ export function migrateTarget(generated: GenerateOutcome): MigrateTarget {
     keys.add(row.grantKey);
   }
   return {
-    schema: generated.schema ?? 'public',
+    schema: generated.schema ?? PERMDOCK_SCHEMA,
     sql: generated.text,
     permissions: new Set(generated.keys?.permissions ?? []),
     rowConditions: new Set(generated.keys?.rowConditions ?? []),

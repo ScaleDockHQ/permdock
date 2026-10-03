@@ -14,7 +14,8 @@ const FIXTURE = join(HERE, '../fixtures/named-scopes');
 
 // quote.read carries a row condition (`where: visible`); asset.read does not.
 const SETUP = `
-create function public.permitted_organization_ids(p_grant text) returns setof text
+create schema permdock;
+create function permdock.permitted_organization_ids(p_grant text) returns setof text
   language sql stable as $$ select null::text where false $$;
 create schema storage;
 create table storage.objects (name text not null);
@@ -23,11 +24,11 @@ create schema realtime;
 create table realtime.messages (topic text not null);
 alter table realtime.messages enable row level security;
 create policy "asset files" on storage.objects for select
-  using (split_part(name, '/', 1) in (select public.permitted_organization_ids('asset.read')));
+  using (split_part(name, '/', 1) in (select permdock.permitted_organization_ids('asset.read')));
 create policy "quote files" on storage.objects for select
-  using (split_part(name, '/', 1) in (select public.permitted_organization_ids('quote.read')));
+  using (split_part(name, '/', 1) in (select permdock.permitted_organization_ids('quote.read')));
 create policy "quote topics" on realtime.messages for select
-  using (split_part(topic, ':', 2) in (select public.permitted_organization_ids('quote.read#2')));
+  using (split_part(topic, ':', 2) in (select permdock.permitted_organization_ids('quote.read#2')));
 `;
 
 describe('rls verify --db and helper calls on storage and realtime', () => {

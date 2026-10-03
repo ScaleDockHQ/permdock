@@ -303,7 +303,7 @@ describe('custom roles in generated RLS (database and jwt modes)', () => {
           [
             STUB,
             generated[shape.name] ?? '',
-            `create type public.app_permission as enum (${PERMISSION_KEYS.map((key) => `'${key}'`).join(', ')});`,
+            `create type permdock.app_permission as enum (${PERMISSION_KEYS.map((key) => `'${key}'`).join(', ')});`,
             authorizeSql({
               authorize: shape.name === 'custom_database' ? 'database' : 'jwt',
               tenant: {
@@ -314,7 +314,7 @@ describe('custom roles in generated RLS (database and jwt modes)', () => {
               },
               customRoles: { declared: DECLARED },
             }),
-            'grant execute on function public.authorize(public.app_permission, text) to authenticated;',
+            'grant execute on function permdock.authorize(permdock.app_permission, text) to authenticated;',
           ].join('\n'),
         );
       } finally {
@@ -332,14 +332,16 @@ describe('custom roles in generated RLS (database and jwt modes)', () => {
     const database = generated['custom_database'] ?? '';
     const jwt = generated['custom_jwt'] ?? '';
     expect(database).toContain(
-      'create table if not exists "public".custom_role_permissions',
+      'create table if not exists "permdock".custom_role_permissions',
     );
     expect(database).toContain(
-      'create table if not exists "public".custom_role_includes',
+      'create table if not exists "permdock".custom_role_includes',
     );
     expect(jwt).not.toContain('custom_role_permissions');
     for (const sql of [database, jwt]) {
-      expect(sql).toContain('create or replace view "public".permdock_ceiling');
+      expect(sql).toContain(
+        'create or replace view "permdock".permdock_ceiling',
+      );
       expect(sql).toContain(
         "array['admin', 'lead', 'member', 'viewer']::text[]",
       );
@@ -386,10 +388,10 @@ describe('custom roles in generated RLS (database and jwt modes)', () => {
     try {
       await client.query('begin');
       await client.query(
-        `insert into public.custom_role_permissions (tenant_id, role, permission) values ('acme', 'grabby', 'project.delete')`,
+        `insert into permdock.custom_role_permissions (tenant_id, role, permission) values ('acme', 'grabby', 'project.delete')`,
       );
       await client.query(
-        `insert into public.custom_role_includes (tenant_id, role, include_role) values ('acme', 'grabby', 'owner'), ('acme', 'grabby', 'auditor')`,
+        `insert into permdock.custom_role_includes (tenant_id, role, include_role) values ('acme', 'grabby', 'owner'), ('acme', 'grabby', 'auditor')`,
       );
       await client.query('set local role authenticated');
       await client.query(`select set_config('request.jwt.claims', $1, true)`, [
@@ -493,11 +495,11 @@ describe('custom roles in generated RLS (database and jwt modes)', () => {
       try {
         await client.query('begin');
         if (shape.name === 'custom_database') {
-          await client.query(`insert into public.custom_role_permissions (tenant_id, role, permission, effect) values
+          await client.query(`insert into permdock.custom_role_permissions (tenant_id, role, permission, effect) values
             ('acme', 'editor-plus', 'task.update', 'allow'),
             ('acme', 'editor-plus', 'project.read', 'deny'),
             ('acme', 'grabby', 'project.delete', 'allow')`);
-          await client.query(`insert into public.custom_role_includes (tenant_id, role, include_role) values
+          await client.query(`insert into permdock.custom_role_includes (tenant_id, role, include_role) values
             ('acme', 'editor-plus', 'viewer')`);
         }
         await client.query('set local role authenticated');
@@ -527,7 +529,7 @@ describe('custom roles in generated RLS (database and jwt modes)', () => {
             ],
           );
           const result = await client.query<{ ok: boolean }>(
-            `select public.authorize($1::public.app_permission, 'acme') as ok`,
+            `select permdock.authorize($1::permdock.app_permission, 'acme') as ok`,
             [permission],
           );
           return result.rows[0]?.ok ?? false;

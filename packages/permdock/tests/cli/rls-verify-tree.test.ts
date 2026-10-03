@@ -59,9 +59,7 @@ describe('verifyTree', () => {
     ).toHaveLength(2);
     expect(bound.length).toBeGreaterThanOrEqual(3);
     expect(result.checked).toBeGreaterThan(0);
-    expect(
-      db.selects.some((sql) => sql.endsWith('::text = any($1::text[])')),
-    ).toBe(true);
+    expect(db.selects.some((sql) => sql.endsWith('"id" = any($1)'))).toBe(true);
   });
 
   it('counts agreement on visible rows and reports every row the database shows but decide denies', async () => {

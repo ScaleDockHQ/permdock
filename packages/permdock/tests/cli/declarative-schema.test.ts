@@ -80,8 +80,8 @@ describe('rls generate --split and --grants-out', () => {
       `wrote ${part('helpers')}, ${part('policies')}, ${part('hook')}, ${GRANTS}`,
     );
     const helpers = read(cwd, part('helpers'));
-    expect(helpers).toContain('function "public".permdock_has(');
-    expect(helpers).toContain('function "public".member_organization_ids()');
+    expect(helpers).toContain('function "permdock".permdock_has(');
+    expect(helpers).toContain('function "permdock".member_organization_ids()');
     expect(helpers).not.toContain('create policy');
     const policies = read(cwd, part('policies'));
     expect(policies).toContain('create policy');
@@ -94,16 +94,16 @@ describe('rls generate --split and --grants-out', () => {
     expect(hook).not.toContain('supabase_auth_admin;');
     const grants = read(cwd, GRANTS);
     expect(grants.split('\n', 1)[0]).toBe(
-      '-- permdock:grants v1 schema=public',
+      '-- permdock:grants v1 schema=permdock',
     );
     expect(grants).toContain(
       'grant usage on schema "public" to supabase_auth_admin;',
     );
     expect(grants).toContain(
-      'grant execute on function "public".custom_access_token_hook(jsonb) to supabase_auth_admin;',
+      'grant execute on function "permdock".custom_access_token_hook(jsonb) to supabase_auth_admin;',
     );
     expect(grants).toContain(
-      'revoke execute on function "public".custom_access_token_hook(jsonb) from authenticated, anon, public;',
+      'revoke execute on function "permdock".custom_access_token_hook(jsonb) from authenticated, anon, public;',
     );
     expect(grants).toContain('"permdock_auth_admin_read_memberships"');
     expect(grants).toContain('"permdock_auth_admin_read_version"');
@@ -148,7 +148,83 @@ describe('rls generate --split and --grants-out', () => {
     expect(read(cwd, part('hook'))).toContain(
       '-- the supabase_auth_admin grants are in a separate migration',
     );
-    expect(result.stdout).toContain('-- permdock:grants v1 schema=public');
+    expect(result.stdout).toContain('-- permdock:grants v1 schema=permdock');
+  });
+
+  it('writes the role_permissions rows as their own seeds migration', async () => {
+    const cwd = project();
+    const SEEDS = 'supabase/migrations/20260101000001_permdock_seeds.sql';
+    const result = await run(
+      [
+        'rls',
+        'generate',
+        '--split',
+        'helpers,seeds',
+        '--out',
+        OUT,
+        '--seeds-out',
+        SEEDS,
+      ],
+      { cwd },
+    );
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain(`wrote ${part('helpers')}, ${SEEDS}`);
+    const helpers = read(cwd, part('helpers'));
+    expect(helpers).toContain(
+      'create table if not exists "permdock".role_permissions',
+    );
+    expect(helpers).not.toContain('insert into "permdock".role_permissions');
+    const seeds = read(cwd, SEEDS);
+    expect(seeds.split('\n', 1)[0]).toBe(
+      '-- permdock:seeds v1 schema=permdock',
+    );
+    expect(seeds).toContain(
+      'insert into "permdock".role_permissions (role, permission, grant_key, scope, effect) values',
+    );
+    expect(existsSync(join(cwd, part('seeds')))).toBe(false);
+    const stray = await run(
+      [
+        'rls',
+        'generate',
+        '--split',
+        'helpers',
+        '--out',
+        OUT,
+        '--seeds-out',
+        SEEDS,
+      ],
+      { cwd },
+    );
+    expect(stray.code).toBe(2);
+    expect(stray.stdout).toContain('--seeds-out needs the seeds part');
+  });
+
+  it('writes the indexes the policies and helpers read through as their own part', async () => {
+    const cwd = project();
+    const unsplit = await generate(cwd);
+    expect(unsplit.stdout).toContain(
+      'index suggestion: create index on public.memberships (user_id), or add indexes to --split',
+    );
+    const result = await run(
+      ['rls', 'generate', '--split', 'indexes,policies', '--out', OUT],
+      { cwd },
+    );
+    expect(result.code).toBe(0);
+    expect(result.stdout).not.toContain('index suggestion');
+    const indexes = read(cwd, part('indexes'));
+    expect(indexes.split('\n', 1)[0]).toBe('-- permdock:indexes v1');
+    expect(indexes).toContain(
+      'create index if not exists "permdock_memberships_user_id_idx" on "public"."memberships" ("user_id");',
+    );
+    expect(indexes).toContain(
+      'create index if not exists "permdock_contacts_user_id_idx" on "public"."contacts" ("user_id");',
+    );
+    expect(indexes).toContain(
+      'create index if not exists "permdock_invoice_organization_id_idx" on "public"."invoice" ("organization_id");',
+    );
+    expect(indexes).toContain(
+      'create index if not exists "permdock_invoice_status_idx" on "public"."invoice" ("status");',
+    );
   });
 
   it('refuses a split without {part}, grants without the hook part, and a hook part without supabase.hook', async () => {
@@ -189,7 +265,9 @@ describe('rls generate --split and --grants-out', () => {
       { cwd },
     );
     expect(unknown.code).toBe(2);
-    expect(unknown.stdout).toContain('takes helpers, policies and hook');
+    expect(unknown.stdout).toContain(
+      'takes helpers, seeds, indexes, policies and hook',
+    );
   });
 });
 

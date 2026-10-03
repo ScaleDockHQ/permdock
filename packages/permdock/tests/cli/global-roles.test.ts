@@ -95,9 +95,9 @@ describe('rls.roles', () => {
     const helpers = readFileSync(join(cwd, 'helpers.sql'), 'utf8');
     expect(helpers).toContain(`from "identity"."user_roles" ur
     join "identity"."roles" urk on urk."id" = ur."role_id"
-    join "public".role_permissions rp on rp.role = urk."key"::text`);
+    join "permdock".role_permissions rp on rp.role = urk."key"::text`);
     expect(helpers).not.toContain(
-      'create table if not exists "public".user_roles',
+      'create table if not exists "permdock".user_roles',
     );
     const hook = readFileSync(join(cwd, 'hook.sql'), 'utf8');
     expect(hook).toContain(
@@ -108,7 +108,7 @@ describe('rls.roles', () => {
     );
     expect(hook).toContain(`create trigger "permdock_authz_version"
   after update or delete on "identity"."roles"
-  for each row execute function "public".permdock_bump_authz_version_role_keys();`);
+  for each row execute function "permdock".permdock_bump_authz_version_role_keys();`);
   });
 
   it('refuses the RBAC scaffold, which brings its own user_roles', async () => {

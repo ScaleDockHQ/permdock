@@ -36,7 +36,7 @@ describe('fromTable', () => {
     expect(sql.select('$1'))
       .toBe(`select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
 from "public"."memberships" m
-where m."user_id"::text = $1
+where m."user_id" = $1
 group by m."scope"::text, m."scope_id"::text`);
     expect(sql.list()).toContain(
       'where m."scope"::text = $1::text and m."scope_id"::text = $2::text',

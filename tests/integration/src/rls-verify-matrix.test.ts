@@ -260,7 +260,7 @@ describe('rls verify matrix (admin, member, viewer, non-member, global role)', (
             STUB,
             readFileSync(out, 'utf8'),
             shape.mode === 'database'
-              ? `insert into public.user_roles (user_id, role) values ('${AUDITOR}', 'auditor');`
+              ? `insert into permdock.user_roles (user_id, role) values ('${AUDITOR}', 'auditor');`
               : '',
           ].join('\n'),
         );

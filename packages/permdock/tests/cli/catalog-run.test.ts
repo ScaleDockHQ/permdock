@@ -89,7 +89,7 @@ describe('runCatalog', () => {
     expect(result.code).toBe(0);
     const document = parsed(result.output);
     expect(document.permissions).toHaveLength(7);
-    expect(document.permissions[0]).not.toHaveProperty('rowConditions');
+    expect(document.permissions[0]?.rowConditions).toBe(true);
   });
 
   it('exits 2 when --from does not exist', async () => {

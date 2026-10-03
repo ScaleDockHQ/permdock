@@ -18,6 +18,8 @@ export type SupabaseMembershipClaim = {
   readonly expiresAt?: number;
   readonly grantedBy?: string;
   readonly reason?: string;
+  /** The subgroup a membership source's `group` fills: a fixed name or a column. */
+  readonly member?: { readonly group: string };
   readonly managedBy?: 'idp';
   readonly entitlements?: readonly string[];
   /** Custom roles in compact form, read by the RLS helpers in `jwt` mode. */
@@ -185,6 +187,17 @@ function checkMembership(item: unknown, path: Path, issues: Issues): void {
   );
   optional(
     item,
+    'member',
+    path,
+    issues,
+    (value) =>
+      isRecord(value) &&
+      typeof own(value, 'group') === 'string' &&
+      own(value, 'group') !== '',
+    'an object with a non-empty string group',
+  );
+  optional(
+    item,
     'managedBy',
     path,
     issues,
@@ -263,7 +276,10 @@ function checkAct(value: unknown, issues: Issues): void {
       issue(issues, path, 'Expected an object');
       return;
     }
-    optional(current, 'sub', path, issues, isString, 'a string');
+    const sub = own(current, 'sub');
+    if (typeof sub !== 'string' || sub === '') {
+      issue(issues, [...path, 'sub'], 'Expected a non-empty string');
+    }
     current = own(current, 'act');
     path.push('act');
   }

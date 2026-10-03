@@ -64,7 +64,7 @@ describe('fromJunction over a schema-qualified table', () => {
     return db.as({ role: 'supabase_auth_admin' }, async () => {
       const result = await client.query<{
         event: { claims: Record<string, unknown> };
-      }>('select public.custom_access_token_hook($1::jsonb) as event', [
+      }>('select permdock.custom_access_token_hook($1::jsonb) as event', [
         JSON.stringify({
           user_id: user,
           claims: { sub: user, role: 'authenticated' },

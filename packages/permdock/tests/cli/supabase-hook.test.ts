@@ -79,14 +79,12 @@ describe('permdock supabase hook generate', () => {
     expect(code).toBe(0);
     expect(output).toContain('jwt_expiry = 900');
     expect(output).toContain(
-      'uri = "pg-functions://postgres/public/custom_access_token_hook"',
+      'uri = "pg-functions://postgres/permdock/custom_access_token_hook"',
     );
     expect(sql).toContain(
-      'create or replace function "public".custom_access_token_hook(event jsonb)',
+      'create schema if not exists "permdock";\nrevoke all on schema "permdock" from public;\n\ncreate or replace function "permdock".custom_access_token_hook(event jsonb)',
     );
-    expect(sql).toContain(
-      `(select u.raw_app_meta_data ->> 'active_organization' from auth.users u where u.id = uid::uuid)`,
-    );
+    expect(sql).toContain(`claims -> 'app_metadata' ->> 'active_organization'`);
     expect(sql).toContain('budget integer := 1024;');
     expect(sql).toContain(
       `claims := jsonb_set(claims, '{memberships_truncated}', 'true'::jsonb);`,
@@ -95,7 +93,7 @@ describe('permdock supabase hook generate', () => {
       `claims := jsonb_set(claims, '{tenant_id}', to_jsonb(active));`,
     );
     expect(sql).toContain(`'locale', to_jsonb(p."locale")`);
-    expect(sql).toContain(`'plan', u.raw_app_meta_data -> 'plan'`);
+    expect(sql).toContain(`'plan', claims -> 'app_metadata' -> 'plan'`);
     expect(sql).toContain(
       `where has_column_privilege(r.role, '"public"."profiles"', c.name, 'INSERT')`,
     );
@@ -104,21 +102,21 @@ describe('permdock supabase hook generate', () => {
     expect(sql).toContain(`from "public"."customer_contacts" m`);
     expect(sql).toContain(`jsonb_build_array('contact')`);
     expect(sql).toContain(
-      'create table if not exists "public"."permdock_authz_version"',
+      'create table if not exists "permdock"."permdock_authz_version"',
     );
     expect(sql).toContain('create trigger "permdock_authz_version"');
     expect(sql).toContain('create trigger "permdock_protect_managed"');
     expect(sql).toContain(
-      'revoke execute on function "public".custom_access_token_hook(jsonb) from authenticated, anon, public;',
+      'revoke execute on function "permdock".custom_access_token_hook(jsonb) from authenticated, anon, public;',
     );
     for (const table of [
-      'memberships',
-      'customer_contacts',
-      'user_roles',
-      'profiles',
+      '"public"."memberships"',
+      '"public"."customer_contacts"',
+      '"permdock"."user_roles"',
+      '"public"."profiles"',
     ]) {
       expect(sql).toContain(
-        `grant select on table "public"."${table}" to supabase_auth_admin;`,
+        `grant select on table ${table} to supabase_auth_admin;`,
       );
     }
     expect(sql).not.toMatch(/service_role/iu);
@@ -131,7 +129,10 @@ describe('permdock supabase hook generate', () => {
     );
     expect(code).toBe(0);
     expect(sql).toContain(
-      `(select a."active_org"::text from "public"."profiles" a where a."id"::text = uid)`,
+      `(select a."active_org"::text from "public"."profiles" a where a."id" = v_active_user)`,
+    );
+    expect(sql).toContain(
+      `v_active_user "public"."profiles"."id"%type := uid;`,
     );
     expect(sql).toContain('budget integer := 2048;');
     expect(sql).not.toContain('permdock_authz_version');
@@ -139,7 +140,7 @@ describe('permdock supabase hook generate', () => {
       '--active-from',
       'app_metadata.org',
     ]);
-    expect(meta.sql).toContain(`raw_app_meta_data ->> 'org'`);
+    expect(meta.sql).toContain(`claims -> 'app_metadata' ->> 'org'`);
   });
 
   it('refuses configurations it cannot compile', async () => {
@@ -240,7 +241,7 @@ describe('permdock supabase hook generate', () => {
     const loopEnd = sql.indexOf('end loop;');
     expect(sql.indexOf('feature_claims"(uid')).toBeGreaterThan(loopEnd);
     expect(sql.split('\n', 1)[0]).toBe(
-      '-- permdock:hook v1 schema=public tenant=tenant_id budget=1024 claims=user_role,roles,memberships,memberships_truncated,tenant_id,authz_ver,features',
+      '-- permdock:hook v1 schema=permdock tenant=tenant_id budget=1024 claims=user_role,roles,memberships,memberships_truncated,tenant_id,authz_ver,features',
     );
   });
 
@@ -287,7 +288,7 @@ describe('permdock supabase hook generate', () => {
     );
     expect(otherSchema.code).toBe(1);
     expect(otherSchema.stdout + otherSchema.stderr).toContain(
-      'schema public -> auth_hooks',
+      'schema permdock -> auth_hooks',
     );
     writeFileSync(join(cwd, 'hook.sql'), '-- hand edited\n');
     const unmarked = await run(
@@ -303,12 +304,12 @@ describe('permdock supabase hook generate', () => {
       $schema: 'https://permdock.dev/schemas/supabase-manifest-v1.json',
       version: 1,
       hook: {
-        schema: 'public',
+        schema: 'permdock',
         function: 'custom_access_token_hook',
         out: 'supabase/permdock-hook.sql',
       },
       helpers: {
-        schema: 'public',
+        schema: 'permdock',
         functions: [
           'permdock_has',
           'permitted_organization_ids',
@@ -382,7 +383,7 @@ describe('permdock supabase hook generate', () => {
         },
       ],
       rls: {
-        schema: 'public',
+        schema: 'permdock',
         mode: 'jwt',
         tenantClaim: 'tenant_id',
         scopes: [
@@ -478,13 +479,13 @@ describe('permdock supabase hook generate', () => {
     const missing = await generate(`{ memberships: [${SOURCES}] }`);
     expect(missing.code).toBe(0);
     expect(missing.output).toContain(
-      'PD039 schema public has no permdock_has, permitted_organization_ids, member_organization_ids, member_organization_ids_for, permitted_customer_ids, member_customer_ids, member_customer_ids_for',
+      'PD039 schema permdock has no permdock_has, permitted_organization_ids, member_organization_ids, member_organization_ids_for, permitted_customer_ids, member_customer_ids, member_customer_ids_for',
     );
     writeFileSync(
       join(missing.cwd, 'rls.sql'),
-      `create or replace function "public".permdock_has(p_grant text) returns boolean language sql as $$ select false $$;
-create or replace function public.permitted_organization_ids(p_grant text) returns setof text language sql as $$ select null::text where false $$;
-create or replace function "public".member_organization_ids_for(p_user uuid) returns setof text language sql as $$ select null::text where false $$;
+      `create or replace function "permdock".permdock_has(p_grant text) returns boolean language sql as $$ select false $$;
+create or replace function permdock.permitted_organization_ids(p_grant text) returns setof text language sql as $$ select null::text where false $$;
+create or replace function "permdock".member_organization_ids_for(p_user uuid) returns setof text language sql as $$ select null::text where false $$;
 `,
     );
     const partial = await run(
@@ -492,7 +493,7 @@ create or replace function "public".member_organization_ids_for(p_user uuid) ret
       { cwd: missing.cwd },
     );
     expect(partial.stdout).toContain(
-      'PD039 schema public has no member_organization_ids, permitted_customer_ids, member_customer_ids, member_customer_ids_for',
+      'PD039 schema permdock has no member_organization_ids, permitted_customer_ids, member_customer_ids, member_customer_ids_for',
     );
     const other = await generate(
       `{ memberships: [${SOURCES}] }`,
@@ -501,7 +502,7 @@ create or replace function "public".member_organization_ids_for(p_user uuid) ret
     );
     writeFileSync(
       join(other.cwd, 'rls.sql'),
-      `create function "public".permdock_has(p_grant text) returns boolean language sql as $$ select false $$;`,
+      `create function "permdock".permdock_has(p_grant text) returns boolean language sql as $$ select false $$;`,
     );
     const wrongSchema = await run(
       ['supabase', 'hook', 'generate', '--out', 'hook.sql'],
@@ -540,7 +541,7 @@ create or replace function "public".member_organization_ids_for(p_user uuid) ret
       }[];
     };
     expect(report.findings.map((item) => item.message)).toEqual([
-      "schema public has no permdock_has, permitted_organization_ids, member_organization_ids, member_organization_ids_for, permitted_customer_ids, member_customer_ids, member_customer_ids_for: the hook's claims are read by these helpers; run permdock rls generate and apply its migration",
+      "schema permdock has no permdock_has, permitted_organization_ids, member_organization_ids, member_organization_ids_for, permitted_customer_ids, member_customer_ids, member_customer_ids_for: the hook's claims are read by these helpers; run permdock rls generate and apply its migration",
       'claim features is 2012 bytes of JSON in ./claims.json, more than the 1024-byte memberships budget',
       'sample 2 in ./claims.json has memberships [1] that subjectFromSupabase drops (membership-dropped)',
     ]);

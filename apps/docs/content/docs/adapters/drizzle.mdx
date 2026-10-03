@@ -27,7 +27,7 @@ await db.select().from(posts).where(and(toWhere(permdock.where(permissions.post.
 toWhere(condition, posts, { columns: { authorId: posts.author_id } })
 
 // graph grants: related nodes compile to a subquery over the relation tables
-toWhere(permdock.where(permissions.doc.read), docs, { relations: { closure: 'public.permdock_closure' } })
+toWhere(permdock.where(permissions.doc.read), docs, { relations: { closure: 'permdock.permdock_closure' } })
 
 // one row: not found, or found with the decision
 const check = await checkRow(db, posts, permdock.where(permissions.post.update), eq(posts.id, id))

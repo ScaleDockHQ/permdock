@@ -180,7 +180,8 @@
           "action",
           "arity",
           "meta",
-          "usages"
+          "usages",
+          "rowConditions"
         ],
         "properties": {
           "key": {

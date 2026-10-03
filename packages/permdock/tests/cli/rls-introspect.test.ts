@@ -8,6 +8,7 @@ import {
   expectedRls,
   introspectMixed,
   introspectRls,
+  missingIndexes,
   qualified,
 } from '../../src/cli/rls-introspect.ts';
 import { run } from '../../src/cli/run.ts';
@@ -64,6 +65,7 @@ const clean: ActualRls = {
       roles: ['authenticated'],
     },
   ],
+  leadingColumns: {},
   rlsEnabled: { 'public.post': true },
   grants: { 'public.post': { authenticated: ['select'] } },
   helpers: {
@@ -116,6 +118,24 @@ describe('rls verify --introspect', () => {
         { columnGrants: true },
       ),
     ).toEqual([]);
+  });
+
+  it('warns about each index target no index starts with', () => {
+    const indexed = expectedRls([], SQL, [
+      { table: 'post', columns: ['author_id'] },
+      { table: 'app.memberships', columns: ['user_id', 'org_id'] },
+    ]);
+    expect(
+      missingIndexes(indexed, {
+        ...clean,
+        leadingColumns: {
+          'public.post': ['id', 'author_id'],
+          'app.memberships': ['org_id'],
+        },
+      }),
+    ).toEqual([
+      'warning: app.memberships: no index starts with user_id, which the policies or helpers filter on; add it, or write it with rls generate --split ...,indexes',
+    ]);
   });
 
   it('needs --db', async () => {
@@ -174,6 +194,7 @@ describe('diffRls details', () => {
             roles: ['anon'],
           },
         ],
+        leadingColumns: {},
         rlsEnabled: { 'public.post': true },
         grants: { 'public.post': { anon: ['select', 'delete'] } },
         helpers: {
@@ -194,6 +215,7 @@ describe('diffRls details', () => {
     expect(
       diffRls(permissive, {
         policies: [],
+        leadingColumns: {},
         rlsEnabled: { 'public.post': false },
         grants: {},
         helpers: {},
@@ -209,6 +231,7 @@ describe('diffRls details', () => {
         {
           ...clean,
           policies: [],
+          leadingColumns: {},
           rlsEnabled: { 'public.post': true },
           grants: {},
         },
@@ -297,6 +320,7 @@ describe('introspectRls and introspectMixed through an injected client', () => {
           roles: [],
         },
       ],
+      leadingColumns: {},
       rlsEnabled: { 'public.post': true, 'public.off': false },
       grants: { 'public.post': { anon: ['select', 'update'] } },
       helpers: {

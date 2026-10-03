@@ -8,6 +8,7 @@ import type { PermDockConfig } from './types.ts';
 import { membershipColumns, tableKey } from './deciding-columns.ts';
 import { rel, sqlFiles } from './files.ts';
 import { FIELD_VIEWS } from './rls-fields.ts';
+import { sqlStatements } from './sql-statements.ts';
 
 export function pd005(cwd: string): readonly DoctorFinding[] {
   const lockPath = join(cwd, '.permdock/skills-lock.json');
@@ -263,11 +264,13 @@ const GRANT =
   /\b(grant|revoke)\s+([\s\S]+?)\s+on\s+(?:table\s+)?([\w."]+)\s+(?:to|from)\s+([\w\s,"]+?)(?:\s+with\s+grant\s+option|\s+cascade|\s+restrict)?\s*;/giu;
 const CLIENT_ROLES = new Set(['anon', 'authenticated', 'public']);
 
-function applyPrivilege(
-  writable: Set<string>,
-  verb: string,
-  part: string,
-): void {
+/** Writable columns per privilege: a revoke of one leaves the other in place. */
+type Writable = {
+  readonly insert: Set<string>;
+  readonly update: Set<string>;
+};
+
+function applyPrivilege(writable: Writable, verb: string, part: string): void {
   const match =
     /^\s*(all(?:\s+privileges)?|insert|update)\s*(?:\(([^)]*)\))?\s*$/iu.exec(
       part,
@@ -275,58 +278,89 @@ function applyPrivilege(
   if (match === null) {
     return;
   }
+  const kind = (match[1] ?? '').toLowerCase();
+  const sets =
+    kind === 'insert'
+      ? [writable.insert]
+      : kind === 'update'
+        ? [writable.update]
+        : [writable.insert, writable.update];
   const columns =
     match[2] === undefined
       ? ['*']
       : match[2].split(',').map((column) => column.trim().replaceAll('"', ''));
-  for (const column of columns) {
-    if (verb.toLowerCase() === 'grant') {
-      writable.add(column);
-    } else if (column === '*') {
-      writable.clear();
-    } else {
-      writable.delete(column);
+  for (const set of sets) {
+    for (const column of columns) {
+      if (verb.toLowerCase() === 'grant') {
+        set.add(column);
+      } else if (column === '*') {
+        set.clear();
+      } else {
+        set.delete(column);
+      }
     }
   }
 }
 
-/** Columns of `table` a client role may insert or update, per the migrations; `*` for every column. */
+const CREATE_TABLE =
+  /^create\s+(?:(?:global|local)\s+)?(?:(?:temp|temporary|unlogged)\s+)?table\s+(?:if\s+not\s+exists\s+)?((?:"[^"]+"|\w+)(?:\.(?:"[^"]+"|\w+))?)\s*\(/iu;
+const REVOKE_DEFAULT_TABLES =
+  /^alter\s+default\s+privileges\s+(?:for\s+(?:role|user)\s+[\w\s,"]+?\s+)?in\s+schema\s+"?public"?\s+revoke\s+[\s\S]+?\s+on\s+tables\s+from\s+[\s\S]*\b(?:anon|authenticated)\b/iu;
+
+/**
+ * Columns of `table` a client role may insert or update, per the migrations
+ * in order; `*` for every column. On Supabase a table created in `public`
+ * starts writable: the default privileges grant `anon` and `authenticated`
+ * everything, until a migration revokes them.
+ */
 function clientWritable(
   cwd: string,
   config: PermDockConfig,
   target: string,
-): Set<string> {
-  const writable = new Set<string>();
+): ReadonlySet<string> {
+  const writable: Writable = { insert: new Set(), update: new Set() };
+  let defaults = config.supabase !== undefined && target.startsWith('public.');
   for (const file of sqlFiles(
     cwd,
     config.doctor?.migrations ?? MIGRATION_DIRS,
   )) {
-    const text = readFileSync(file, 'utf8')
-      .replaceAll(/--[^\n]*/gu, '')
-      .replaceAll(/\/\*[\s\S]*?\*\//gu, '');
-    for (const [
-      ,
-      verb = '',
-      privileges = '',
-      name = '',
-      roles = '',
-    ] of text.matchAll(GRANT)) {
-      if (tableKey(name) !== target) {
+    for (const { text } of sqlStatements(readFileSync(file, 'utf8'))) {
+      if (REVOKE_DEFAULT_TABLES.test(text)) {
+        defaults = false;
         continue;
       }
-      const clients = roles
-        .split(',')
-        .map((role) => role.trim().replaceAll('"', '').toLowerCase())
-        .some((role) => CLIENT_ROLES.has(role));
-      if (!clients) {
+      const created = CREATE_TABLE.exec(text);
+      if (created !== null) {
+        if (defaults && tableKey(created[1] ?? '') === target) {
+          writable.insert.add('*');
+          writable.update.add('*');
+        }
         continue;
       }
-      for (const part of privileges.split(/,(?![^(]*\))/u)) {
-        applyPrivilege(writable, verb, part);
+      for (const [
+        ,
+        verb = '',
+        privileges = '',
+        name = '',
+        roles = '',
+      ] of `${text};`.matchAll(GRANT)) {
+        if (tableKey(name) !== target) {
+          continue;
+        }
+        const clients = roles
+          .split(',')
+          .map((role) => role.trim().replaceAll('"', '').toLowerCase())
+          .some((role) => CLIENT_ROLES.has(role));
+        if (!clients) {
+          continue;
+        }
+        for (const part of privileges.split(/,(?![^(]*\))/u)) {
+          applyPrivilege(writable, verb, part);
+        }
       }
     }
   }
-  return writable;
+  return new Set([...writable.insert, ...writable.update]);
 }
 
 /** Membership columns a client can write: a user who sets `user_id` or `role` grants themselves access. */

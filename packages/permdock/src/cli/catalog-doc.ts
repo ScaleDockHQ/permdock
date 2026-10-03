@@ -64,7 +64,7 @@ export function policyRowConditionKeys(policy: Policy): ReadonlySet<string> {
   return keys;
 }
 
-/** With `policy`, permissions carry `hostable` and `rowConditions`, and roles carry `on`, `assignable` and their ownership rules. */
+/** With `policy`, permissions carry `hostable` and a known `rowConditions` (without, it is `true`), and roles carry `on`, `assignable` and their ownership rules. */
 export function buildCatalog(
   tree: PermissionTree,
   scan: ScanResult,
@@ -113,7 +113,7 @@ export function buildCatalog(
         meta: metaRecord(leaf.meta),
         usages: scan.usages[leaf.key] ?? [],
         hostable: hostable.has(leaf.key) ? (true as const) : undefined,
-        rowConditions: rowConditions?.has(leaf.key),
+        rowConditions: rowConditions?.has(leaf.key) ?? true,
         approvals: approvals.get(leaf.key),
         breakGlass: breakGlass.get(leaf.key),
       }),

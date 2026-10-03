@@ -15,6 +15,7 @@ import {
   memoryRoleSource,
 } from '../index.ts';
 import { supabaseTenantClaim } from '../supabase/budget.ts';
+import { PERMDOCK_SCHEMA } from '../supabase/sources.ts';
 import { policyRowConditionKeys } from './catalog-doc.ts';
 import {
   type RlsFixture,
@@ -438,7 +439,7 @@ async function verifyAgainstDatabase(input: {
   const seedsTables =
     rls?.customRoles === true &&
     (rls.authorize ?? rls.rbac?.authorize ?? 'jwt') === 'database';
-  const schema = rls?.schema ?? rls?.rbac?.schema ?? 'public';
+  const schema = rls?.schema ?? rls?.rbac?.schema ?? PERMDOCK_SCHEMA;
   const scopes = scopeList(input.policy.scopes);
   const query: QueryFn = async (sql, values) => {
     try {

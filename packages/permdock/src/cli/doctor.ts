@@ -40,6 +40,7 @@ import {
   pd028,
   pd040,
 } from './doctor-project.ts';
+import { pd054 } from './doctor-seeds.ts';
 import {
   pd001,
   pd007,
@@ -53,6 +54,16 @@ import {
   pd038,
   pd041,
 } from './doctor-source.ts';
+import {
+  pd046,
+  pd047,
+  pd048,
+  pd049,
+  pd050,
+  pd051,
+  pd052,
+  pd053,
+} from './doctor-sql.ts';
 import { defaultSrcPath, listSourceFiles, rel } from './files.ts';
 import { runSkillsInstall } from './skills.ts';
 import { createStyle } from './style.ts';
@@ -66,6 +77,18 @@ import { pd039 } from './supabase-setup.ts';
 import { DOCTOR_REPORT_SCHEMA } from './version.ts';
 
 export type { DoctorFinding, DoctorSeverity } from './doctor-types.ts';
+
+/** Static checks over the Supabase migrations; `--only sql` runs them alone. */
+const SQL_CHECKS = [
+  ['PD046', pd046],
+  ['PD047', pd047],
+  ['PD048', pd048],
+  ['PD049', pd049],
+  ['PD050', pd050],
+  ['PD051', pd051],
+  ['PD052', pd052],
+  ['PD053', pd053],
+] as const;
 
 export type DoctorReport = {
   readonly $schema: typeof DOCTOR_REPORT_SCHEMA;
@@ -262,6 +285,14 @@ export async function runDoctor(input: {
   }
   if (include('supabase') || include('PD045')) {
     findings.push(...pd045(input.cwd));
+  }
+  for (const [code, check] of SQL_CHECKS) {
+    if (include('supabase') || include('sql') || include(code)) {
+      findings.push(...check(input.cwd, input.config));
+    }
+  }
+  if (include('supabase') || include('seeds') || include('PD054')) {
+    findings.push(...(await pd054(input)));
   }
   if (include('next') || include('endpoint') || include('PD044')) {
     findings.push(...(await pd044(input)));

@@ -17,9 +17,6 @@ export type Database = EnrichDatabase<
         week_start: "monday" | "sunday";
         time_format: "12h" | "24h";
       };
-      role_permissions: {
-        effect: "allow" | "deny";
-      };
     };
   }
 >;
@@ -28,8 +25,6 @@ export const datetime_preferencesWeekStartValues = ["monday", "sunday"] as const
 export type DatetimePreferencesWeekStart = (typeof datetime_preferencesWeekStartValues)[number];
 export const datetime_preferencesTimeFormatValues = ["12h", "24h"] as const;
 export type DatetimePreferencesTimeFormat = (typeof datetime_preferencesTimeFormatValues)[number];
-export const role_permissionsEffectValues = ["allow", "deny"] as const;
-export type RolePermissionsEffect = (typeof role_permissionsEffectValues)[number];
 export type Models = {
   contacts: {
     Row: {
@@ -198,26 +193,6 @@ export type Models = {
     ForeignKeys: never;
     Flags: Record<never, never>;
   };
-  permdock_authz_version: {
-    Row: {
-      user_id: string;
-      version: number;
-    };
-    Insert: {
-      user_id: string;
-      version?: number;
-    };
-    Update: {
-      user_id?: string;
-      version?: number;
-    };
-    Relations: Record<never, never>;
-    PrimaryKey: "user_id";
-    UniqueKeys: Record<never, never>;
-    Checks: never;
-    ForeignKeys: never;
-    Flags: Record<never, never>;
-  };
   quotes: {
     Row: {
       id: string;
@@ -248,35 +223,6 @@ export type Models = {
     UniqueKeys: Record<never, never>;
     Checks: never;
     ForeignKeys: "quotes_customer_id_fkey" | "quotes_organization_id_fkey";
-    Flags: Record<never, never>;
-  };
-  role_permissions: {
-    Row: {
-      role: string;
-      permission: string;
-      grant_key: string;
-      scope: string;
-      effect: "allow" | "deny";
-    };
-    Insert: {
-      role: string;
-      permission: string;
-      grant_key: string;
-      scope: string;
-      effect?: "allow" | "deny";
-    };
-    Update: {
-      role?: string;
-      permission?: string;
-      grant_key?: string;
-      scope?: string;
-      effect?: "allow" | "deny";
-    };
-    Relations: Record<never, never>;
-    PrimaryKey: "role" | "grant_key" | "scope";
-    UniqueKeys: Record<never, never>;
-    Checks: "role_permissions_effect_check" | "role_permissions_scope_check";
-    ForeignKeys: never;
     Flags: Record<never, never>;
   };
   staff: {
@@ -310,35 +256,9 @@ export type Models = {
     ForeignKeys: "staff_organization_id_fkey" | "staff_user_id_fkey";
     Flags: Record<never, never>;
   };
-  user_roles: {
-    Row: {
-      user_id: string;
-      role: string;
-    };
-    Insert: {
-      user_id: string;
-      role: string;
-    };
-    Update: {
-      user_id?: string;
-      role?: string;
-    };
-    Relations: Record<never, never>;
-    PrimaryKey: "user_id" | "role";
-    UniqueKeys: Record<never, never>;
-    Checks: never;
-    ForeignKeys: "user_roles_user_id_fkey";
-    Flags: Record<never, never>;
-  };
 };
 
 export type Functions = {
-  custom_access_token_hook: {
-    Args: {
-      event: Json;
-    };
-    Returns: Json;
-  };
   datetime_preference_claims: {
     Args: {
       p_user_id: string;
@@ -350,44 +270,6 @@ export type Functions = {
       p_user_id: string;
     };
     Returns: Json;
-  };
-  member_customer_ids: {
-    Args: Record<never, never>;
-    Returns: string[];
-  };
-  member_customer_ids_for: {
-    Args: {
-      p_user: string;
-    };
-    Returns: string[];
-  };
-  member_organization_ids: {
-    Args: Record<never, never>;
-    Returns: string[];
-  };
-  member_organization_ids_for: {
-    Args: {
-      p_user: string;
-    };
-    Returns: string[];
-  };
-  permdock_has: {
-    Args: {
-      p_grant: string;
-    };
-    Returns: boolean;
-  };
-  permitted_customer_ids: {
-    Args: {
-      p_grant: string;
-    };
-    Returns: string[];
-  };
-  permitted_organization_ids: {
-    Args: {
-      p_grant: string;
-    };
-    Returns: string[];
   };
 };
 

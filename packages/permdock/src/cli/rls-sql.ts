@@ -23,12 +23,15 @@ import {
   quoteSqlTable,
 } from '../core/sql.ts';
 import { isSqlFunctionField } from '../index.ts';
+import { PERMDOCK_SCHEMA } from '../supabase/sources.ts';
 
 const CLI = 'PermDock CLI';
 const CLAIM = SQL_IDENT;
 
 export type RlsSqlContext = {
   readonly dialect: RlsDialect;
+  /** `rls.anonymousSignIns`: `'deny'` keeps an `is_anonymous` token out of every branch but `anyone()`'s. */
+  readonly anonymousSignIns?: 'deny';
   /** The policy's scopes in order (the implicit `tenant` / `team` pair when it declares none). */
   readonly scopes: readonly Scope[];
   readonly memberships?: RlsMemberships;
@@ -45,7 +48,7 @@ export type RlsSqlContext = {
   readonly tenantClaim: string;
   readonly gucPrefix: string;
   readonly inlineFunctions?: boolean;
-  /** Schema of `role_permissions` and the RLS helpers (`permdock_has`, `permitted_<scope>_ids`). Default `public`. */
+  /** Schema of `role_permissions` and the RLS helpers (`permdock_has`, `permitted_<scope>_ids`). Default `permdock`, a schema the Data API does not expose. */
   readonly schema?: string;
   /** Where the helpers read roles and memberships: tables (`database`) or claims (`jwt`, the default). */
   readonly authorize?: 'database' | 'jwt';
@@ -323,7 +326,7 @@ export function graphSqlText(parts: GraphSql, ctx: RlsSqlContext): string {
         return quoteIdent(part.column);
       }
       if ('subject' in part) {
-        return `${subjectIdSql(ctx)}::text`;
+        return subjectIdSql(ctx);
       }
       return typeof part.value === 'string'
         ? quoteLiteral(part.value)
@@ -971,7 +974,7 @@ function compileMemberOf(
     condition.roles.length === 0 &&
     scopeSources(ctx, scope).length > 0
   ) {
-    return `${quoteIdent(condition.field)} in (select ${quoteIdent(ctx.schema ?? 'public')}.${memberIdsHelper(scope)}())`;
+    return `${quoteIdent(condition.field)} in (select ${quoteIdent(ctx.schema ?? PERMDOCK_SCHEMA)}.${memberIdsHelper(scope)}())`;
   }
   if (scope !== undefined && scope === rootScope(ctx.scopes)) {
     const parts = [
@@ -1232,13 +1235,13 @@ function compileRelatedSql(
     type === undefined
       ? `${quoteIdent(condition.field)}::text`
       : quoteIdent(condition.field);
-  const helper = `${`${quoteIdent(ctx.schema ?? 'public')}.${graphHelper(condition.resource)}`}(${quoteLiteral(condition.relation)})`;
+  const helper = `${`${quoteIdent(ctx.schema ?? PERMDOCK_SCHEMA)}.${graphHelper(condition.resource)}`}(${quoteLiteral(condition.relation)})`;
   const cap = ctx.graph?.closures[condition.resource];
   let inner: string;
   if (condition.depth > 0 && cap !== undefined) {
     const depth =
       condition.depth < cap ? ` and depth <= ${String(condition.depth)}` : '';
-    inner = `select descendant${cast} from ${`${quoteIdent(ctx.schema ?? 'public')}.${CLOSURE.table}`} where resource = ${quoteLiteral(condition.resource)}${depth} and ancestor = any (array(select ${helper}))`;
+    inner = `select descendant${cast} from ${`${quoteIdent(ctx.schema ?? PERMDOCK_SCHEMA)}.${CLOSURE.table}`} where resource = ${quoteLiteral(condition.resource)}${depth} and ancestor = any (array(select ${helper}))`;
   } else {
     inner =
       cast === ''
@@ -1267,12 +1270,12 @@ function compileHoppedSql(
       'PermDock CLI: a related condition with link hops needs the policy resources in the RLS context',
     );
   }
-  const schema = quoteIdent(ctx.schema ?? 'public');
+  const schema = quoteIdent(ctx.schema ?? PERMDOCK_SCHEMA);
   return graphSqlText(
     relatedSql(condition, {
       resources,
       ...(ctx.graph?.tables === undefined ? {} : { tables: ctx.graph.tables }),
-      closure: `${ctx.schema ?? 'public'}.${CLOSURE.table}`,
+      closure: `${ctx.schema ?? PERMDOCK_SCHEMA}.${CLOSURE.table}`,
       closureDepths: ctx.graph?.closures ?? {},
       qualify: qualifiedTable,
       holders: (resource, relation) => [

@@ -323,12 +323,12 @@ export const supabaseHookManifestFixture: SupabaseHookManifest = {
   $schema: 'https://permdock.dev/schemas/supabase-manifest-v1.json',
   version: 1,
   hook: {
-    schema: 'public',
+    schema: 'permdock',
     function: 'custom_access_token_hook',
     out: 'supabase/permdock-hook.sql',
   },
   helpers: {
-    schema: 'public',
+    schema: 'permdock',
     functions: [
       'permdock_has',
       'permitted_tenant_ids',
@@ -366,7 +366,7 @@ export const supabaseHookManifestFixture: SupabaseHookManifest = {
     },
   ],
   rls: {
-    schema: 'public',
+    schema: 'permdock',
     mode: 'jwt',
     tenantClaim: 'tenant_id',
     scopes: [{ name: 'tenant', type: 'uuid' }],

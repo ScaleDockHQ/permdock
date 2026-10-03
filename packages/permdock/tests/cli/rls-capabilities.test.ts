@@ -71,17 +71,17 @@ describe('rls generate --capabilities', () => {
       [
         'quote_select',
         'authenticated',
-        `"orgId" in (select "public".permitted_tenant_ids('quote.read'))`,
+        `"orgId" in (select "permdock".permitted_tenant_ids('quote.read'))`,
       ],
       [
         'quote_select_anon',
         'anon',
-        `("id"::text in (select "public".permdock_capability_ids('quote', 'guest', 'quote.read'))) and ("status" = 'sent')`,
+        `("id"::text in (select "permdock".permdock_capability_ids('quote', 'guest', 'quote.read'))) and ("status" = 'sent')`,
       ],
       [
         'file_select_anon',
         'anon',
-        `"folderId"::text in (select "public".permdock_capability_ids('folder', 'commenter', 'file.read'))`,
+        `"folderId"::text in (select "permdock".permdock_capability_ids('folder', 'commenter', 'file.read'))`,
       ],
     ]);
     expect(warnings).toEqual([
@@ -89,11 +89,11 @@ describe('rls generate --capabilities', () => {
       'no folder memberships table: only link capabilities reach commenter/file.read',
     ]);
     expect(helpers).toContain(
-      `create or replace function "public".permdock_capability_ids(p_resource text, p_role text, p_permission text)`,
+      `create or replace function "permdock".permdock_capability_ids(p_resource text, p_role text, p_permission text)`,
     );
     expect(helpers).toContain(`((select auth.jwt()) -> 'capability')`);
     expect(helpers).toContain(
-      `grant execute on function "public".permdock_capability_ids(text, text, text) to anon, authenticated;`,
+      `grant execute on function "permdock".permdock_capability_ids(text, text, text) to anon, authenticated;`,
     );
     expect(helpers).not.toMatch(/service_role/u);
   });

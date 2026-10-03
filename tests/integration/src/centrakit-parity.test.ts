@@ -102,8 +102,6 @@ insert into contacts values
   ('${id(0xd3)}', '${ORG_A}', '${CUST_A2}', '${MIXED}', 'Mixed'),
   ('${OPEN_CONTACT}', '${ORG_B}', '${CUST_B1}', null, 'No login yet'),
   ('${id(0xd4)}', '${ORG_OFF}', '${CUST_OFF}', '${CONTACT}', 'Gone');
-create table user_roles (user_id uuid not null, role text not null);
-insert into user_roles values ('${PLATFORM}', 'platform-admin'), ('${SUSPENDED}', 'platform-admin');
 create table customers (id uuid primary key, organization_id uuid not null);
 create table quotes (id uuid primary key, organization_id uuid not null, customer_id uuid not null);
 grant select on customers, quotes to authenticated;
@@ -184,6 +182,7 @@ describe('CentraKit: hook claim, composeMemberships and the RLS helpers agree', 
     db = await startPostgres([
       SETUP,
       ...database,
+      `insert into permdock.user_roles values ('${PLATFORM}', 'platform-admin'), ('${SUSPENDED}', 'platform-admin')`,
       'create schema pd_jwt; grant usage on schema pd_jwt to authenticated',
       ...jwt,
     ]);
@@ -191,7 +190,7 @@ describe('CentraKit: hook claim, composeMemberships and the RLS helpers agree', 
     query = async (text, values) => (await admin.query(text, [...values])).rows;
     grants = (
       await admin.query<{ role: string; grant_key: string; scope: string }>(
-        'select role, grant_key, scope from public.role_permissions',
+        'select role, grant_key, scope from permdock.role_permissions',
       )
     ).rows.map((row) => [row.role, row.grant_key, row.scope] as const);
   }, 180_000);
@@ -221,7 +220,7 @@ describe('CentraKit: hook claim, composeMemberships and the RLS helpers agree', 
   async function mint(user: string): Promise<Claims> {
     return as('supabase_auth_admin', {}, async (client) => {
       const result = await client.query<{ event: { claims: Claims } }>(
-        'select public.custom_access_token_hook($1::jsonb) as event',
+        'select permdock.custom_access_token_hook($1::jsonb) as event',
         [
           JSON.stringify({
             user_id: user,
@@ -308,7 +307,7 @@ describe('CentraKit: hook claim, composeMemberships and the RLS helpers agree', 
   }
 
   async function helpers(
-    schema: 'public' | 'pd_jwt',
+    schema: 'permdock' | 'pd_jwt',
     claims: Claims,
   ): Promise<{
     readonly permitted: Readonly<Record<string, string[]>>;
@@ -398,7 +397,7 @@ describe('CentraKit: hook claim, composeMemberships and the RLS helpers agree', 
   });
 
   it('returns from the database-mode and jwt-mode helpers what the claim grants', async () => {
-    const mixed = await helpers('public', {
+    const mixed = await helpers('permdock', {
       sub: MIXED,
       role: 'authenticated',
     });
@@ -415,7 +414,7 @@ describe('CentraKit: hook claim, composeMemberships and the RLS helpers agree', 
     expect(Object.values(platform.has)).toContain(true);
     for (const user of USERS) {
       const claims = await mint(user);
-      for (const schema of ['public', 'pd_jwt'] as const) {
+      for (const schema of ['permdock', 'pd_jwt'] as const) {
         expect({ schema, user, ...(await helpers(schema, claims)) }).toEqual({
           schema,
           user,
@@ -434,7 +433,7 @@ describe('CentraKit: hook claim, composeMemberships and the RLS helpers agree', 
       Number(
         (
           await admin.query<{ version: string }>(
-            'select version from public.permdock_authz_version where user_id = $1',
+            'select version from permdock.permdock_authz_version where user_id = $1',
             [LATE],
           )
         ).rows[0]?.version ?? 0,

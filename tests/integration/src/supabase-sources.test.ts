@@ -77,8 +77,9 @@ insert into memberships select '${BIG}', 'organization', o, 'viewer', 'staff', n
   from unnest(array[${MANY.map((id) => `'${id}'`).join(', ')}]) o;
 create table customer_contacts (customer_id text not null, organization_id text not null, user_id uuid not null);
 insert into customer_contacts values ('A', 'T', '${CONTACT}'), ('C', 'X', '${CONTACT}');
-create table user_roles (user_id uuid not null, role text not null);
-insert into user_roles values ('${ADMIN}', 'platform-admin'), ('${SUSPENDED}', 'platform-support');
+create schema permdock;
+create table permdock.user_roles (user_id uuid not null, role text not null);
+insert into permdock.user_roles values ('${ADMIN}', 'platform-admin'), ('${SUSPENDED}', 'platform-support');
 create table profiles (id uuid primary key, locale text, timezone text, secret text, disabled_at timestamptz);
 insert into profiles select id, 'nl-NL', 'Europe/Amsterdam', 'never-copied', null from auth.users;
 update profiles set disabled_at = now() where id = '${SUSPENDED}';
@@ -163,14 +164,30 @@ describe('permdock supabase hook generate against Postgres', () => {
     );
   }
 
+  /** Auth puts the user's `raw_app_meta_data` into the event's claims as `app_metadata`. */
+  async function appMetadata(user: string): Promise<unknown> {
+    if (db === undefined) {
+      throw new Error('PermDock: Postgres was not started');
+    }
+    const result = await db.admin.query<{ meta: unknown }>(
+      'select raw_app_meta_data as meta from auth.users where id = $1',
+      [user],
+    );
+    return result.rows[0]?.meta ?? {};
+  }
+
   async function mint(user: string): Promise<Claims> {
     return as('supabase_auth_admin', {}, async (client) => {
       const result = await client.query<{ event: { claims: Claims } }>(
-        'select public.custom_access_token_hook($1::jsonb) as event',
+        'select permdock.custom_access_token_hook($1::jsonb) as event',
         [
           JSON.stringify({
             user_id: user,
-            claims: { sub: user, role: 'authenticated' },
+            claims: {
+              sub: user,
+              role: 'authenticated',
+              app_metadata: await appMetadata(user),
+            },
           }),
         ],
       );
@@ -456,14 +473,14 @@ describe('permdock supabase hook generate against Postgres', () => {
       const missing = await generate();
       expect(missing.code).toBe(0);
       expect(missing.stdout).toContain(
-        'PD039 schema public has no permdock_has, permitted_organization_ids, member_organization_ids, member_organization_ids_for, permitted_customer_ids, member_customer_ids, member_customer_ids_for',
+        'PD039 schema permdock has no permdock_has, permitted_organization_ids, member_organization_ids, member_organization_ids_for, permitted_customer_ids, member_customer_ids, member_customer_ids_for',
       );
       await empty.query(
-        'create function public.permdock_has(p_grant text) returns boolean language sql as $$ select false $$',
+        'create schema permdock; create function permdock.permdock_has(p_grant text) returns boolean language sql as $$ select false $$',
       );
       const partial = await generate();
       expect(partial.stdout).toContain(
-        'PD039 schema public has no permitted_organization_ids, member_organization_ids, member_organization_ids_for, permitted_customer_ids, member_customer_ids, member_customer_ids_for',
+        'PD039 schema permdock has no permitted_organization_ids, member_organization_ids, member_organization_ids_for, permitted_customer_ids, member_customer_ids, member_customer_ids_for',
       );
     } finally {
       await empty.end();

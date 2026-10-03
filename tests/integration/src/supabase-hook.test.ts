@@ -120,7 +120,7 @@ describe('Supabase token hook with named scopes (jwt mode)', () => {
       SETUP,
       generated,
       hookSql,
-      `insert into public.user_roles values ('${SUSPENDED}', 'platform-support')`,
+      `insert into permdock.user_roles values ('${SUSPENDED}', 'platform-support')`,
     ]);
   }, 120_000);
 
@@ -153,7 +153,7 @@ describe('Supabase token hook with named scopes (jwt mode)', () => {
       { role: 'supabase_auth_admin' },
       async (client) => {
         const result = await client.query<{ event: { claims: Claims } }>(
-          'select public.custom_access_token_hook($1::jsonb) as event',
+          'select permdock.custom_access_token_hook($1::jsonb) as event',
           [event],
         );
         const claims = result.rows[0]?.event.claims;
@@ -245,7 +245,7 @@ describe('Supabase token hook with named scopes (jwt mode)', () => {
         { sub: OWNER, role: 'authenticated' },
         async (client) => {
           await client.query(
-            'select public.custom_access_token_hook($1::jsonb)',
+            'select permdock.custom_access_token_hook($1::jsonb)',
             [JSON.stringify({ user_id: OWNER, claims: {} })],
           );
         },

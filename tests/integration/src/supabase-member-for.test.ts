@@ -62,7 +62,7 @@ const FEATURE_CLAIMS = `
 create schema better_supabase;
 create function better_supabase.feature_claims(uid uuid) returns jsonb language sql stable as $$
   select jsonb_object_agg(id, jsonb_build_array('export') order by id)
-  from public.member_organization_ids_for(uid) id
+  from permdock.member_organization_ids_for(uid) id
 $$;
 `;
 
@@ -111,7 +111,7 @@ describe('member_<scope>_ids_for against Postgres', () => {
 
   beforeAll(async () => {
     const [jwt, database, hook] = await Promise.all([
-      rls('jwt', 'public'),
+      rls('jwt', 'permdock'),
       rls('database', 'pd_db'),
       generate(
         [
@@ -161,14 +161,14 @@ describe('member_<scope>_ids_for against Postgres', () => {
   }
 
   it('reads the sources as supabase_auth_admin with no request.jwt.claims', async () => {
-    const fn = 'public.member_organization_ids_for';
+    const fn = 'permdock.member_organization_ids_for';
     expect(await idsFor('supabase_auth_admin', fn, OWNER)).toEqual(['B', 'T']);
     expect(await idsFor('supabase_auth_admin', fn, CONTACT)).toEqual([]);
     expect(await idsFor('supabase_auth_admin', fn, SUSPENDED)).toEqual([]);
     expect(
       await idsFor(
         'supabase_auth_admin',
-        'public.member_customer_ids_for',
+        'permdock.member_customer_ids_for',
         CONTACT,
       ),
     ).toEqual(['A']);
@@ -207,7 +207,7 @@ describe('member_<scope>_ids_for against Postgres', () => {
       expect(
         await idsFor(
           'supabase_auth_admin',
-          'public.member_organization_ids_for',
+          'permdock.member_organization_ids_for',
           user,
         ),
       ).toEqual(own);
@@ -223,7 +223,7 @@ describe('member_<scope>_ids_for against Postgres', () => {
       db?.as({ role: 'supabase_auth_admin' }, async () => {
         const result = await tester.query<{
           event: { claims: Record<string, unknown> };
-        }>('select public.custom_access_token_hook($1::jsonb) as event', [
+        }>('select permdock.custom_access_token_hook($1::jsonb) as event', [
           JSON.stringify({
             user_id: user,
             claims: { sub: user, role: 'authenticated' },
@@ -246,9 +246,10 @@ describe('member_<scope>_ids_for against Postgres', () => {
       const tester = db.tester;
       await expect(
         db.as({ role: dbRole }, () =>
-          tester.query('select public.member_organization_ids_for($1::uuid)', [
-            OWNER,
-          ]),
+          tester.query(
+            'select permdock.member_organization_ids_for($1::uuid)',
+            [OWNER],
+          ),
         ),
       ).rejects.toMatchObject({ code: '42501' });
     }

@@ -29,6 +29,7 @@ function catalog(
         arity: 'instance',
         meta: {},
         usages: [],
+        rowConditions: false,
       },
     ],
     roles: [{ key: 'member' }],

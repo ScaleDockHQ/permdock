@@ -53,7 +53,7 @@ type SupabaseMemberships = {
 };
 
 export type AuthorizeSqlOptions = {
-  /** Postgres schema of `authorize`, `user_roles`, `role_permissions` and `app_permission`. Default `public`. */
+  /** Postgres schema of `authorize`, `user_roles`, `role_permissions` and `app_permission`. Default `permdock`. */
   readonly schema?: string;
   /** `database` (default) reads the tables on every call; `jwt` reads the hook-injected claims. */
   readonly authorize?: 'database' | 'jwt';

@@ -122,7 +122,7 @@ describe('graph SQL', () => {
     expect(manager).toContain('"until" is null or');
     expect(
       render(relationArmSql('employee', 'owner', extraOptions)).sql,
-    ).toContain('"ownerId"::text = $1');
+    ).toContain('"ownerId" = $1');
     expect(() => relationArmSql('employee', 'org', extraOptions)).toThrow(
       /no graph SQL form/u,
     );

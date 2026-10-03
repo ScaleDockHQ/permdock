@@ -105,7 +105,7 @@ export type RlsConfig = {
     /** Model name per table name; defaults to the PascalCased table name. */
     readonly models?: Readonly<Record<string, string>>;
   };
-  /** Schema of `role_permissions` and the RLS helpers (`permdock_has`, `permitted_<scope>_ids`, `member_<scope>_ids`) (and the RBAC scaffold). Default `public`. */
+  /** Schema of `role_permissions` and the RLS helpers (`permdock_has`, `permitted_<scope>_ids`, `member_<scope>_ids`) (and the RBAC scaffold). Default `permdock`; keep it out of `[api] schemas`. */
   readonly schema?: string;
   /** Where the helpers read roles and memberships: `database` tables or `jwt` claims. */
   readonly authorize?: 'database' | 'jwt';
@@ -123,6 +123,14 @@ export type RlsConfig = {
    * mints. Off by default.
    */
   readonly capabilities?: boolean;
+  /**
+   * `'deny'` (Supabase only): a token with `is_anonymous: true` reaches no grant
+   * but those to `anyone()`. Supabase gives an anonymous sign-in the
+   * `authenticated` role, so without it the grants to roles and to
+   * `authenticated()` reach it. The subject mapper has to refuse it in process
+   * too. Off by default.
+   */
+  readonly anonymousSignIns?: 'deny';
   /**
    * `'views'`: one `security_invoker` view `<table>_visible` per table with field-limited
    * read grants, whose restricted columns are `case when <permitted> then col end`. Off by default.
@@ -195,7 +203,7 @@ export type GlobalRoles = {
 export type SupabaseHookConfig = {
   /** The same `fromTable` / `fromJunction` sources the app passes as `memberships`. */
   readonly memberships: readonly SqlMembershipSource[];
-  /** Schema of the hook and the version table. Default `rls.schema`, else `public`. */
+  /** Schema of the hook and the version table. Default `rls.schema`, else `permdock`. */
   readonly schema?: string;
   /** Global roles: `user_role` and `roles`. Default `rls.roles`, else the `<schema>.user_roles (user_id, role)` table; `false` for none. */
   readonly roles?: GlobalRoles | false;

@@ -10,6 +10,8 @@ export type SupabaseConfig = {
   readonly jwtExpiry?: number;
   /** `[db.migrations] schema_paths`, relative to `supabase/`. */
   readonly schemaPaths?: readonly string[];
+  /** `[api] schemas`: the schemas the Data API exposes. */
+  readonly apiSchemas?: readonly string[];
 };
 
 export type SupabaseConfigRead =
@@ -24,6 +26,12 @@ function table(value: unknown): Readonly<Record<string, unknown>> | undefined {
   }
   // SAFETY: a non-array object from the TOML parser is a TOML table.
   return value as Record<string, unknown>;
+}
+
+function strings(value: unknown): readonly string[] | undefined {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string')
+    : undefined;
 }
 
 /** `supabase/config.toml`, parsed; `undefined` when the project has none. */
@@ -45,14 +53,14 @@ export function readSupabaseConfig(
   }
   const expiry = table(root['auth'])?.['jwt_expiry'];
   const paths = table(table(root['db'])?.['migrations'])?.['schema_paths'];
-  const schemaPaths = Array.isArray(paths)
-    ? paths.filter((item): item is string => typeof item === 'string')
-    : undefined;
+  const schemaPaths = strings(paths);
+  const apiSchemas = strings(table(root['api'])?.['schemas']);
   return {
     ok: true,
     config: {
       ...(typeof expiry === 'number' ? { jwtExpiry: expiry } : {}),
       ...(schemaPaths === undefined ? {} : { schemaPaths }),
+      ...(apiSchemas === undefined ? {} : { apiSchemas }),
     },
   };
 }

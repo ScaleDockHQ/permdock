@@ -23,6 +23,31 @@ export type RlsAccess =
   /** A `deny` for delegated `oauth-client` actors: a token with `client_id` or `act`. */
   | { readonly kind: 'actor'; readonly actor: 'oauth-client' };
 
+/**
+ * The `role_permissions` grant key of a break-glass grant. It differs from
+ * the permission key, so `authorize()` and the table policies never count it;
+ * only the break-glass read asks for it.
+ */
+export function breakGlassKey(permission: string): string {
+  return `${permission}#break-glass`;
+}
+
+/**
+ * The role and scope holding a break-glass grant. `breakGlass()` sets
+ * `to: authenticated`, so inside `role()` the role is on the grant itself.
+ */
+export function breakGlassHolder(
+  item: RlsGrant,
+): { readonly role: string; readonly scope: string } | undefined {
+  if (item.access.kind === 'role') {
+    return { role: item.access.role, scope: item.access.scope };
+  }
+  const { role, scope } = item.grant;
+  return role === null || typeof scope !== 'string'
+    ? undefined
+    : { role, scope };
+}
+
 export type RlsGrant = {
   readonly grant: Grant;
   /** Role name, or `anyone` / `authenticated`, for policy names and messages. */

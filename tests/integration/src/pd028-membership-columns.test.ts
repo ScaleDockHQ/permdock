@@ -22,6 +22,8 @@ revoke update (user_id) on {t} from authenticated;`,
   table_revoke_then_columns: `grant select, update on {t} to authenticated;
 revoke update on {t} from authenticated;
 grant update (name) on {t} to authenticated;`,
+  defaults_revoked: `revoke all on {t} from anon, authenticated;
+grant select, update (name) on {t} to authenticated;`,
 } as const;
 
 type Case = keyof typeof CASES;
@@ -35,7 +37,9 @@ describe('PD028 reads membership column grants the way Postgres applies them', (
 
   beforeAll(async () => {
     db = await startPostgres([
-      'create role authenticated nologin; create role anon nologin;',
+      // Supabase's default privileges: every new public table is writable by the client roles.
+      `create role authenticated nologin; create role anon nologin;
+alter default privileges in schema public grant all on tables to anon, authenticated;`,
       ...Object.keys(CASES).map((name) =>
         // SAFETY: Object.keys of CASES returns its own keys.
         sql(name as Case, `public.contacts_${name}`),
@@ -78,7 +82,9 @@ export default {
 
   async function writable(name: Case): Promise<boolean> {
     const result = await db?.admin.query<{ ok: boolean }>(
-      `select has_column_privilege('authenticated', $1, 'user_id', 'UPDATE') as ok`,
+      `select bool_or(has_column_privilege(r.role, $1, 'user_id', p.privilege)) as ok
+       from (values ('anon'), ('authenticated')) r(role)
+       cross join (values ('INSERT'), ('UPDATE')) p(privilege)`,
       [`public.contacts_${name}`],
     );
     return result?.rows[0]?.ok === true;
@@ -97,6 +103,10 @@ export default {
 
   it('a column-level revoke alone leaves user_id writable', async () => {
     expect(await writable('column_revoke_only')).toBe(true);
-    expect(await writable('table_revoke_then_columns')).toBe(false);
+    expect(await writable('defaults_revoked')).toBe(false);
+  });
+
+  it('revoking update leaves the default insert', async () => {
+    expect(await writable('table_revoke_then_columns')).toBe(true);
   });
 });

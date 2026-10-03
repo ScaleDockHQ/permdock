@@ -7,8 +7,13 @@ import type { RlsSqlContext } from './rls-sql.ts';
 import { sole } from '../core/compact.ts';
 import { hasConditionOp, requiresApproval } from '../index.ts';
 import { jsonSchemaOf } from './catalog-doc.ts';
-import { collectGrants } from './rls-grants.ts';
+import {
+  breakGlassHolder,
+  breakGlassKey,
+  collectGrants,
+} from './rls-grants.ts';
 import { accessSql, capabilityAccessSql } from './rls-helpers.ts';
+import { conditionFields } from './rls-indexes.ts';
 import {
   arrayColumnsOf,
   columnTypesOf,
@@ -60,7 +65,11 @@ export type CompiledGrants = {
   readonly branches: readonly CompiledBranch[];
   readonly rolePermissions: readonly RolePermission[];
   /** Tables and columns that row conditions filter on, for index suggestions. */
-  readonly filtered: readonly string[];
+  /** The row columns policies filter on: scope keys and condition fields. */
+  readonly rowColumns: readonly {
+    readonly table: string;
+    readonly column: string;
+  }[];
 };
 
 export function commandFor(action: string): SqlCommand | undefined {
@@ -356,6 +365,9 @@ function noteConditions(entry: Prepared, warnings: string[]): void {
  * a helper call keyed by grant key. Nothing in a branch is per-row except the
  * portable row condition and resource-membership joins.
  */
+/** A Supabase token from a permanent user: anonymous sign-ins carry `is_anonymous: true`. */
+const PERMANENT_USER = `((select auth.jwt()) ->> 'is_anonymous') is distinct from 'true'`;
+
 export function compileGrants(
   policy: Policy,
   ctx: RlsSqlContext,
@@ -363,14 +375,32 @@ export function compileGrants(
   warnings: string[],
   skipClosures: boolean,
 ): CompiledGrants {
-  const entries = collectGrants(policy).flatMap((item) => {
+  const items = collectGrants(policy);
+  const entries = items.flatMap((item) => {
     const entry = prepare(item, tables, warnings, skipClosures);
     return entry === undefined ? [] : [entry];
   });
   const keys = assignKeys(entries, ctx.fields === 'views');
   const rows = new Map<string, RolePermission>();
+  for (const item of items) {
+    const holder =
+      item.grant.breakGlass === undefined ? undefined : breakGlassHolder(item);
+    if (holder !== undefined) {
+      const row: RolePermission = {
+        role: holder.role,
+        permission: item.grant.permission.key,
+        grantKey: breakGlassKey(item.grant.permission.key),
+        scope: holder.scope,
+        effect: item.grant.effect,
+      };
+      rows.set(`${row.role}\u0000${row.grantKey}\u0000${row.scope}`, row);
+    }
+  }
   const branches: CompiledBranch[] = [];
-  const filtered = new Set<string>();
+  const rowColumns = new Map<string, { table: string; column: string }>();
+  const filters = (table: string, column: string): void => {
+    rowColumns.set(`${table}\u0000${column}`, { table, column });
+  };
   const typed = new Map<string, RlsSqlContext>();
   const contextFor = (name: string): RlsSqlContext => {
     const known = typed.get(name);
@@ -392,10 +422,11 @@ export function compileGrants(
     const rowCtx = contextFor(item.grant.permission.resource);
     const { grant, access, label } = item;
     noteConditions(entry, warnings);
-    for (const condition of [entry.using, entry.check]) {
-      if (condition !== undefined && 'field' in condition) {
-        filtered.add(`${table}.${condition.field}`);
-      }
+    for (const field of [
+      ...conditionFields(entry.using),
+      ...conditionFields(entry.check),
+    ]) {
+      filters(table, field);
     }
     const grantKey = keys.get(entry);
     let accessExpr: string | undefined;
@@ -405,6 +436,9 @@ export function compileGrants(
           ? undefined
           : policy.scopes.find((scope) => scope.name === access.scope)?.key;
       accessExpr = accessSql(ctx, access.scope, grantKey, column);
+      if (column !== undefined) {
+        filters(table, column);
+      }
       const row: RolePermission = {
         role: access.role,
         permission: grant.permission.key,
@@ -434,6 +468,9 @@ export function compileGrants(
     }
     const validity = validitySql(grant.validity);
     accessExpr = andSql(accessExpr, validity);
+    if (ctx.anonymousSignIns === 'deny' && access.kind !== 'anyone') {
+      accessExpr = andSql(accessExpr, PERMANENT_USER);
+    }
     const using = compileOptional(entry.using, rowCtx);
     const check = compileOptional(entry.check, rowCtx);
     const fields = grant.fields === undefined ? {} : { fields: grant.fields };
@@ -479,7 +516,7 @@ export function compileGrants(
   return {
     branches: ensureSelectCoverage(branches, warnings),
     rolePermissions: [...rows.values()],
-    filtered: [...filtered],
+    rowColumns: [...rowColumns.values()],
   };
 }
 

@@ -291,7 +291,7 @@ create materialized view mat as select 1;
         join(cwd, 'supabase/migrations/001_profiles.sql'),
         `create table public.profiles (id uuid primary key, region text, bio text, locale text);
 grant select, update on public.profiles to authenticated;
-revoke update on public.profiles from authenticated;
+revoke insert, update on public.profiles from anon, authenticated;
 grant update (bio, region) on public.profiles to authenticated;
 revoke update (bio) on profiles from authenticated;
 -- grant update on public.profiles to anon;
@@ -377,9 +377,8 @@ export default {
 revoke update (user_id) on public.contacts from authenticated;`),
     ).toHaveLength(1);
     expect(
-      await findings(
-        `grant update (name, user_id) on public.contacts to authenticated;`,
-      ),
+      await findings(`revoke all on public.contacts from anon, authenticated;
+grant update (name, user_id) on public.contacts to authenticated;`),
     ).toEqual([
       'public.contacts.user_id decides memberships, and the migrations let anon or authenticated insert or update it: a user could give themselves a membership',
     ]);
@@ -387,6 +386,10 @@ revoke update (user_id) on public.contacts from authenticated;`),
       await findings(`grant select, update on public.contacts to authenticated;
 revoke update on public.contacts from authenticated;
 grant update (name) on public.contacts to authenticated;`),
+    ).toHaveLength(1);
+    expect(
+      await findings(`revoke all on public.contacts from anon, authenticated;
+grant select, update (name) on public.contacts to authenticated;`),
     ).toEqual([]);
   });
 

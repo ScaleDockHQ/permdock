@@ -276,7 +276,7 @@ describe('rls verify --db through an injected client', () => {
 
   it('seeds custom roles in database mode and stops when the seed is refused', async () => {
     const sql = fakeSql((call) =>
-      call.sql.startsWith('insert into "public"."custom_role_permissions"')
+      call.sql.startsWith('insert into "permdock"."custom_role_permissions"')
         ? { code: '42501' }
         : rowsFor(() => 1)(call),
     );

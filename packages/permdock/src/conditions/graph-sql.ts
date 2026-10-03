@@ -20,6 +20,7 @@ import { DEFAULT_GROUP_DEPTH } from '../core/relations.ts';
 export type GraphSqlPart =
   | { readonly text: string }
   | { readonly value: string | number | boolean }
+  /** Compared with an uncast column, so its index applies: render a bound parameter or the column's type. */
   | { readonly subject: true }
   | { readonly column: string };
 
@@ -134,10 +135,11 @@ function edgeHolderFilter(
   spec: EdgeRelation,
   alias: string,
 ): GraphSql {
-  const subject = `${col(alias, spec.subject ?? 'user_id')}::text`;
+  const holder = col(alias, spec.subject ?? 'user_id');
+  const subject = `${holder}::text`;
   const groups = spec.groups;
   if (groups === undefined) {
-    return [text(`${subject} = `), { subject: true }];
+    return [text(`${holder} = `), { subject: true }];
   }
   const kind = col(alias, groups.column);
   const direct: GraphSqlPart[] =
@@ -147,7 +149,7 @@ function edgeHolderFilter(
   const parts: GraphSqlPart[] = [
     text('(('),
     ...direct,
-    text(`) and ${subject} = `),
+    text(`) and ${holder} = `),
     { subject: true },
     text(')'),
   ];
@@ -212,7 +214,7 @@ function relationArm(
   if (isPrincipalRelation(spec)) {
     const parts: GraphSqlPart[] = [
       text(
-        `select ${id} as id from ${table} ${t} where ${col(t, spec.principal)}::text = `,
+        `select ${id} as id from ${table} ${t} where ${col(t, spec.principal)} = `,
       ),
       { subject: true },
     ];
@@ -230,7 +232,7 @@ function relationArm(
   if (isFieldRelation(spec) && spec.memberOf === undefined) {
     return [
       text(
-        `select ${id} as id from ${table} ${t} where ${col(t, spec.field)}::text = `,
+        `select ${id} as id from ${table} ${t} where ${col(t, spec.field)} = `,
       ),
       { subject: true },
     ];

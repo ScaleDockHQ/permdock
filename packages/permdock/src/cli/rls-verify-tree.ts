@@ -376,7 +376,7 @@ export async function verifyTree(input: {
       }
       const ids = list.map((row) => String(row[node.id]));
       const visible = await query(
-        `select ${quoteIdent(node.id)}::text as id from ${tableSql(tables?.[node.name] ?? node.name)} where ${quoteIdent(node.id)}::text = any($1::text[])`,
+        `select ${quoteIdent(node.id)}::text as id from ${tableSql(tables?.[node.name] ?? node.name)} where ${quoteIdent(node.id)} = any($1)`,
         [ids],
       );
       const seen = new Set(visible.rows.map((row) => String(row['id'])));

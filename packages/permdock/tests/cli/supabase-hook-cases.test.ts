@@ -25,20 +25,22 @@ const hookWith = (memberships: readonly SqlMembershipSource[]) => () =>
 
 describe('activeFromSql', () => {
   it('reads app_metadata, a table column or a mapped id column', () => {
-    expect(activeFromSql(undefined, 'organization')).toBe(
-      `(select u.raw_app_meta_data ->> 'active_organization' from auth.users u where u.id = uid::uuid)`,
-    );
-    expect(activeFromSql('app.profiles.active_org', 'organization')).toBe(
-      `(select a."active_org"::text from "app"."profiles" a where a."id"::text = uid)`,
-    );
+    expect(activeFromSql(undefined, 'organization')).toEqual({
+      sql: `claims -> 'app_metadata' ->> 'active_organization'`,
+    });
+    expect(activeFromSql('app.profiles.active_org', 'organization')).toEqual({
+      sql: `(select a."active_org"::text from "app"."profiles" a where a."id" = v_active_user)`,
+      userType: `"app"."profiles"."id"%type`,
+    });
     expect(
       activeFromSql(
         { table: 'profiles', column: 'org', id: 'user_id' },
         'organization',
       ),
-    ).toBe(
-      `(select a."org"::text from "public"."profiles" a where a."user_id"::text = uid)`,
-    );
+    ).toEqual({
+      sql: `(select a."org"::text from "public"."profiles" a where a."user_id" = v_active_user)`,
+      userType: `"public"."profiles"."user_id"%type`,
+    });
   });
 
   it.each([

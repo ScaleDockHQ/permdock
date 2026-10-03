@@ -165,21 +165,6 @@ export type Database = {
         }
         Relationships: []
       }
-      permdock_authz_version: {
-        Row: {
-          user_id: string
-          version: number
-        }
-        Insert: {
-          user_id: string
-          version?: number
-        }
-        Update: {
-          user_id?: string
-          version?: number
-        }
-        Relationships: []
-      }
       quotes: {
         Row: {
           amount: number
@@ -219,30 +204,6 @@ export type Database = {
           },
         ]
       }
-      role_permissions: {
-        Row: {
-          effect: string
-          grant_key: string
-          permission: string
-          role: string
-          scope: string
-        }
-        Insert: {
-          effect?: string
-          grant_key: string
-          permission: string
-          role: string
-          scope: string
-        }
-        Update: {
-          effect?: string
-          grant_key?: string
-          permission?: string
-          role?: string
-          scope?: string
-        }
-        Relationships: []
-      }
       staff: {
         Row: {
           id: string
@@ -275,48 +236,13 @@ export type Database = {
           },
         ]
       }
-      user_roles: {
-        Row: {
-          role: string
-          user_id: string
-        }
-        Insert: {
-          role: string
-          user_id: string
-        }
-        Update: {
-          role?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      custom_access_token_hook: { Args: { event: Json }; Returns: Json }
       datetime_preference_claims: { Args: { p_user_id: string }; Returns: Json }
       feature_claims: { Args: { p_user_id: string }; Returns: Json }
-      member_customer_ids: {
-        Args: Record<PropertyKey, never>
-        Returns: string[]
-      }
-      member_customer_ids_for: { Args: { p_user: string }; Returns: string[] }
-      member_organization_ids: {
-        Args: Record<PropertyKey, never>
-        Returns: string[]
-      }
-      member_organization_ids_for: {
-        Args: { p_user: string }
-        Returns: string[]
-      }
-      permdock_has: { Args: { p_grant: string }; Returns: boolean }
-      permitted_customer_ids: { Args: { p_grant: string }; Returns: string[] }
-      permitted_organization_ids: {
-        Args: { p_grant: string }
-        Returns: string[]
-      }
     }
     Enums: {
       [_ in never]: never

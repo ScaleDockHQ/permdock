@@ -153,17 +153,17 @@ describe('rls migrate', () => {
       .toBe(`-- hand-written policies, formatting kept
 create policy "assets_select" on public.asset for select to authenticated
   using (
-    organization_id in (select public.permitted_organization_ids('asset.update'))
-    or (asset.organization_id in (select public.member_organization_ids()))
+    organization_id in (select permdock.permitted_organization_ids('asset.update'))
+    or (asset.organization_id in (select permdock.member_organization_ids()))
   );
 
 create policy "assets_update" on public.asset for update to authenticated
-  using ((asset.organization_id in (select public.permitted_organization_ids('asset.update'))))
-  with check ((organization_id in (select public.permitted_organization_ids('asset.update'))));
+  using ((asset.organization_id in (select permdock.permitted_organization_ids('asset.update'))))
+  with check ((organization_id in (select permdock.permitted_organization_ids('asset.update'))));
 
 create policy "orgs_disable" on public.organization for update to authenticated
-  using ((select public.permdock_has('organization.read'))
-    or (select public.permdock_has('organization.read')));
+  using ((select permdock.permdock_has('organization.read'))
+    or (select permdock.permdock_has('organization.read')));
 `);
     expect((await report(cwd)).rewrites).toEqual([]);
   });
@@ -256,9 +256,9 @@ describe('rls generate --helpers-only', () => {
     );
     expect(result.code).toBe(0);
     const sql = read(cwd, 'supabase/schemas/056_permdock.sql');
-    expect(sql).toContain('function "public".permitted_organization_ids(');
-    expect(sql).toContain('function "public".member_organization_ids(');
-    expect(sql).toContain('insert into "public".role_permissions');
+    expect(sql).toContain('function "permdock".permitted_organization_ids(');
+    expect(sql).toContain('function "permdock".member_organization_ids(');
+    expect(sql).toContain('insert into "permdock".role_permissions');
     expect(sql).not.toMatch(/create policy/iu);
   });
 

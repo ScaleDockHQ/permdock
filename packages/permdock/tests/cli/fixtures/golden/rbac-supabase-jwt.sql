@@ -27,6 +27,7 @@ revoke all on table "app"."user_roles" from authenticated, anon, public;
 -- policies call them uncorrelated, so Postgres evaluates each once per statement
 
 create schema if not exists "app";
+revoke all on schema "app" from public;
 grant usage on schema "app" to authenticated;
 
 create table if not exists "app".role_permissions (
@@ -173,8 +174,10 @@ begin
   if claims is null or (select auth.uid()) is null then
     return false;
   end if;
+  -- a top-level null (no role row) falls back to app_metadata, like subjectFromSupabase
+  role_claim := coalesce(nullif(claims -> 'user_role', 'null'::jsonb), claims -> 'app_metadata' -> 'user_role');
   if requested_tenant is not null then
-    return exists (
+    return (exists (
       select 1
       from jsonb_array_elements(
         case jsonb_typeof(coalesce(claims -> 'memberships', claims -> 'app_metadata' -> 'memberships'))
@@ -188,65 +191,118 @@ begin
       join "app"."role_permissions" rp on rp.role = r.role
       where m ->> 'scope' = 'tenant'
         and m ->> 'id' = requested_tenant
+        and case jsonb_typeof(m -> 'expiresAt')
+          when 'number' then (m ->> 'expiresAt')::numeric > extract(epoch from now())
+          else true
+        end
         and rp.permission = requested_permission::text
         and rp.scope = 'tenant'
         and rp.effect = 'allow'
+        and rp.grant_key = rp.permission
+    ))
+    and not exists (
+      select 1
+      from jsonb_array_elements(
+        case jsonb_typeof(coalesce(claims -> 'memberships', claims -> 'app_metadata' -> 'memberships'))
+          when 'array' then coalesce(claims -> 'memberships', claims -> 'app_metadata' -> 'memberships')
+          else '[]'::jsonb
+        end
+      ) m
+      cross join lateral jsonb_array_elements_text(
+        case jsonb_typeof(m -> 'roles') when 'array' then m -> 'roles' else '[]'::jsonb end
+      ) r(role)
+      join "app"."role_permissions" rp on rp.role = r.role
+      where m ->> 'scope' = 'tenant'
+        and m ->> 'id' = requested_tenant
+        and case jsonb_typeof(m -> 'expiresAt')
+          when 'number' then (m ->> 'expiresAt')::numeric > extract(epoch from now())
+          else true
+        end
+        and rp.permission = requested_permission::text
+        and rp.scope = 'tenant'
+        and rp.effect = 'deny'
+    )
+    and not exists (
+      select 1
+      from jsonb_array_elements_text(
+        case jsonb_typeof(role_claim)
+          when 'array' then role_claim
+          when 'string' then jsonb_build_array(role_claim)
+          else '[]'::jsonb
+        end
+      ) r(role)
+      join "app"."role_permissions" rp on rp.role = r.role
+      where rp.permission = requested_permission::text
+        and rp.scope = 'global'
+        and rp.effect = 'deny'
     );
   end if;
-  -- a top-level null (no role row) falls back to app_metadata, like subjectFromSupabase
-  role_claim := coalesce(nullif(claims -> 'user_role', 'null'::jsonb), claims -> 'app_metadata' -> 'user_role');
   return exists (
-    select 1
-    from jsonb_array_elements_text(
-      case jsonb_typeof(role_claim)
-        when 'array' then role_claim
-        when 'string' then jsonb_build_array(role_claim)
-        else '[]'::jsonb
-      end
-    ) r(role)
-    join "app"."role_permissions" rp on rp.role = r.role
-    where rp.permission = requested_permission::text
-      and rp.scope = 'global'
-      and rp.effect = 'allow'
-  );
+      select 1
+      from jsonb_array_elements_text(
+        case jsonb_typeof(role_claim)
+          when 'array' then role_claim
+          when 'string' then jsonb_build_array(role_claim)
+          else '[]'::jsonb
+        end
+      ) r(role)
+      join "app"."role_permissions" rp on rp.role = r.role
+      where rp.permission = requested_permission::text
+        and rp.scope = 'global'
+        and rp.effect = 'allow'
+        and rp.grant_key = rp.permission
+    )
+    and not exists (
+      select 1
+      from jsonb_array_elements_text(
+        case jsonb_typeof(role_claim)
+          when 'array' then role_claim
+          when 'string' then jsonb_build_array(role_claim)
+          else '[]'::jsonb
+        end
+      ) r(role)
+      join "app"."role_permissions" rp on rp.role = r.role
+      where rp.permission = requested_permission::text
+        and rp.scope = 'global'
+        and rp.effect = 'deny'
+    );
 end;
 $$;
-
 revoke execute on function "app"."authorize"("app"."app_permission", text) from public, anon;
 grant execute on function "app"."authorize"("app"."app_permission", text) to authenticated;
 
-revoke all on table "post" from anon, authenticated;
-grant select, insert, update, delete on table "post" to authenticated;
-alter table "post" enable row level security;
+alter table "public"."post" enable row level security;
+revoke all on table "public"."post" from anon, authenticated;
+grant select, insert, update, delete on table "public"."post" to authenticated;
 
-drop policy if exists "post_select" on "post";
+drop policy if exists "post_select" on "public"."post";
 create policy "post_select"
-  on "post"
+  on "public"."post"
   as permissive
   for select
   to authenticated
   using (((select "app".permdock_has('post.read')) or ("orgId" in (select "app".permitted_tenant_ids('post.read')))) or ((select "app".permdock_has('post.list')) or ("orgId" in (select "app".permitted_tenant_ids('post.list')))));
 
-drop policy if exists "post_update" on "post";
+drop policy if exists "post_update" on "public"."post";
 create policy "post_update"
-  on "post"
+  on "public"."post"
   as permissive
   for update
   to authenticated
   using ((select "app".permdock_has('post.update#1')) or (("orgId" in (select "app".permitted_tenant_ids('post.update#2'))) and ("authorId" = (select auth.uid()))))
   with check ((select "app".permdock_has('post.update#1')) or (("orgId" in (select "app".permitted_tenant_ids('post.update#2'))) and ("authorId" = (select auth.uid()))));
 
-drop policy if exists "post_delete" on "post";
+drop policy if exists "post_delete" on "public"."post";
 create policy "post_delete"
-  on "post"
+  on "public"."post"
   as permissive
   for delete
   to authenticated
   using ((select "app".permdock_has('post.delete')));
 
-drop policy if exists "post_insert" on "post";
+drop policy if exists "post_insert" on "public"."post";
 create policy "post_insert"
-  on "post"
+  on "public"."post"
   as permissive
   for insert
   to authenticated

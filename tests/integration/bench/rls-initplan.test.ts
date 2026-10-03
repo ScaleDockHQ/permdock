@@ -78,10 +78,10 @@ function perRowPolicies(): string {
   const membership = (role: string): string =>
     `exists (select 1 from "organization_members" m where m."organization_id" = "orgId" and m."user_id" = (select auth.uid()) and m."role" = any('{${role}}'))`;
   const tenant = (role: string, permission: string): string =>
-    `(select "public".authorize('${permission}', "orgId"::text)) and (${membership(role)})`;
+    `(select "permdock".authorize('${permission}', "orgId"::text)) and (${membership(role)})`;
   const policies = [
-    ['staff_post_read', `(select "public".authorize('post.read'))`],
-    ['staff_post_list', `(select "public".authorize('post.list'))`],
+    ['staff_post_read', `(select "permdock".authorize('post.read'))`],
+    ['staff_post_list', `(select "permdock".authorize('post.list'))`],
     ['admin_post_read', tenant('admin', 'post.read')],
     ['admin_post_list', tenant('admin', 'post.list')],
     ['member_post_read', tenant('member', 'post.read')],
@@ -263,7 +263,7 @@ describe('rls helpers run once per statement (InitPlan)', () => {
         end loop;
       end $$;
       create policy "members_read_post" on public.post for select to authenticated
-        using ("orgId" in (select "public".member_tenant_ids()));
+        using ("orgId" in (select "permdock".member_tenant_ids()));
     `);
     const membership = await measure();
     expect(membership.ids).toEqual(helper?.ids);

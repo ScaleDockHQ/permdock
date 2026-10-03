@@ -336,7 +336,7 @@ describe('rls verify --tree failures', () => {
               : [],
         };
       }
-      if (call.sql.includes('::text = any($1::text[])')) {
+      if (call.sql.includes(' = any($1)')) {
         const ids = Array.isArray(call.values[0]) ? call.values[0] : [];
         return { rows: ids.map((id: unknown) => ({ id })) };
       }

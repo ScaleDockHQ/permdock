@@ -54,11 +54,11 @@ export function writeSqlFiles(
   return { wrote, printed: printed.join('\n') };
 }
 
-const PARTS = ['helpers', 'policies', 'hook'] as const;
+const PARTS = ['helpers', 'seeds', 'indexes', 'policies', 'hook'] as const;
 
 export type SplitPart = (typeof PARTS)[number];
 
-/** `--split helpers,policies,hook`: the parts in that fixed order, or an error. */
+/** `--split helpers,seeds,indexes,policies,hook`: the parts in that fixed order, or an error. */
 export function parseSplit(
   raw: string | undefined,
 ): readonly SplitPart[] | string | undefined {
@@ -71,7 +71,7 @@ export function parseSplit(
     .filter((name) => name !== '');
   const unknown = names.filter((name) => !PARTS.some((part) => part === name));
   if (unknown.length > 0 || names.length === 0) {
-    return `rls generate --split takes helpers, policies and hook, got '${raw}'`;
+    return `rls generate --split takes helpers, seeds, indexes, policies and hook, got '${raw}'`;
   }
   return PARTS.filter((part) => names.includes(part));
 }

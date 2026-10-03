@@ -157,10 +157,10 @@ The token carries `role: 'anon'`, the capability under a `capability` claim, `ia
 
 ```sql
 create policy quote_select_anon on public.quote for select to anon using (
-  ("id"::text in (select public.permdock_capability_ids('quote', 'guest', 'quote.read'))) and ("status" = 'sent')
+  ("id"::text in (select permdock.permdock_capability_ids('quote', 'guest', 'quote.read'))) and ("status" = 'sent')
 );
 create policy file_select_anon on public.file for select to anon using (
-  "folder_id"::text in (select public.permdock_capability_ids('folder', 'commenter', 'file.read'))
+  "folder_id"::text in (select permdock.permdock_capability_ids('folder', 'commenter', 'file.read'))
 );
 ```
 

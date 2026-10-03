@@ -150,12 +150,18 @@ export function rls(ctx: CliContext): Command {
       },
       split: {
         type: 'string',
-        description: 'Write helpers, policies and hook as separate parts',
+        description:
+          'Write helpers, seeds, policies and hook as separate parts',
         valueHint: 'parts',
       },
       'grants-out': {
         type: 'string',
         description: 'File for the supabase_auth_admin grants',
+        valueHint: 'file',
+      },
+      'seeds-out': {
+        type: 'string',
+        description: 'File for the role_permissions seeds',
         valueHint: 'file',
       },
       'helpers-only': {
@@ -203,6 +209,7 @@ export function rls(ctx: CliContext): Command {
         introspect: parsed.introspect === true,
         split: stringArg(parsed.split),
         grantsOut: stringArg(parsed['grants-out']),
+        seedsOut: stringArg(parsed['seeds-out']),
         helpersOnly: parsed['helpers-only'] === true,
         write: parsed.write === true,
         json: ctx.json,

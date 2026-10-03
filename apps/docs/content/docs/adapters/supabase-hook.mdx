@@ -174,7 +174,7 @@ supabase: {
   language sql stable as $$
     select jsonb_object_agg(f.organization_id, f.features)
     from public.organization_features f
-    where f.organization_id in (select public.member_organization_ids_for(user_id))
+    where f.organization_id in (select permdock.member_organization_ids_for(user_id))
   $$;
   ```
 

@@ -10,7 +10,8 @@ export type ExchangeCapabilityOptions = {
    * secret (`HS256`).
    */
   readonly key: Record<string, unknown> | { readonly secret: string };
-  readonly alg: 'ES256' | 'RS256' | 'HS256';
+  /** Default `ES256`, Supabase's asymmetric signing key; the legacy secret needs `HS256` named. */
+  readonly alg?: 'ES256' | 'RS256' | 'HS256';
   readonly kid?: string;
   readonly issuer?: string;
   /** Lifetime in seconds, capped by the capability's own expiry. Default 300. */
@@ -37,8 +38,9 @@ export async function exchangeCapability(
   subject: Subject,
   options: ExchangeCapabilityOptions,
 ): Promise<string | undefined> {
+  const alg = options.alg ?? 'ES256';
   const secret = isSecret(options.key);
-  if (secret !== (options.alg === 'HS256')) {
+  if (secret !== (alg === 'HS256')) {
     throw new Error(
       'PermDock: exchangeCapability signs HS256 with { secret } only, and ES256 / RS256 with a private JWK only.',
     );
@@ -66,14 +68,14 @@ export async function exchangeCapability(
   // SAFETY: a non-secret key is the private JWK the options type declares; jose validates it on import.
   const key = isSecret(options.key)
     ? new TextEncoder().encode(options.key.secret)
-    : await jose.importJWK(options.key as never, options.alg);
+    : await jose.importJWK(options.key as never, alg);
   // No `sub`: `auth.uid()` casts it to uuid, and a link id is not a user.
   const jwt = new jose.SignJWT({ role: 'anon', capability })
     .setProtectedHeader(
       secret
         ? { alg: 'HS256', typ: 'JWT' }
         : {
-            alg: options.alg,
+            alg,
             ...(options.kid === undefined ? {} : { kid: options.kid }),
             typ: 'JWT',
           },

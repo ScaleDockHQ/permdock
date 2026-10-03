@@ -141,7 +141,7 @@ async function generate(cwd: string): Promise<string> {
   return sql;
 }
 
-const USER_ROLES = `insert into public.user_roles values
+const USER_ROLES = `insert into permdock.user_roles values
   ('u_platform_admin', 'platform-admin'), ('u_platform_support', 'platform-support')`;
 
 describe.each([
@@ -239,7 +239,7 @@ describe.each([
     const keysOf = async (scope: string): Promise<string[]> =>
       (
         await db!.admin.query<{ readonly v: string }>(
-          `select distinct grant_key as v from public.role_permissions where permission = 'quote.read' and scope = $1`,
+          `select distinct grant_key as v from permdock.role_permissions where permission = 'quote.read' and scope = $1`,
           [scope],
         )
       ).rows.map((row) => row.v);
@@ -248,7 +248,7 @@ describe.each([
       helper(
         principal,
         tenant,
-        `select distinct v from unnest($1::text[]) k, public.permitted_organization_ids(k) v`,
+        `select distinct v from unnest($1::text[]) k, permdock.permitted_organization_ids(k) v`,
         [organizationKeys],
       );
     expect(await organizations(personas.owner, 'T')).toEqual(['T']);
@@ -258,7 +258,7 @@ describe.each([
     const customers = await helper(
       personas.businessContact,
       'T',
-      `select distinct v from unnest($1::text[]) k, public.permitted_customer_ids(k) v`,
+      `select distinct v from unnest($1::text[]) k, permdock.permitted_customer_ids(k) v`,
       [keys],
     );
     expect(customers).toEqual([]);
@@ -269,7 +269,7 @@ describe.each([
       helper(
         principal,
         '',
-        `select public.permdock_has('organization.read')::text as v`,
+        `select permdock.permdock_has('organization.read')::text as v`,
         [],
       );
     expect(await has(personas.platformSupport)).toEqual(['true']);

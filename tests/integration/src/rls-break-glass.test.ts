@@ -113,7 +113,7 @@ describe('break-glass RLS session function (guc)', () => {
     await expect(
       asNurse({}, () =>
         db!.tester.query(
-          `select id from public.permdock_break_glass_patient('patient.read')`,
+          `select id from permdock.permdock_break_glass_patient('patient.read')`,
         ),
       ),
     ).rejects.toMatchObject({ code: '42501' });
@@ -123,7 +123,7 @@ describe('break-glass RLS session function (guc)', () => {
         { 'app.break_glass': session({ expiresAt: nowSeconds() - 60 }) },
         () =>
           db!.tester.query(
-            `select id from public.permdock_break_glass_patient('patient.read')`,
+            `select id from permdock.permdock_break_glass_patient('patient.read')`,
           ),
       ),
     ).rejects.toMatchObject({ code: '42501' });
@@ -131,7 +131,7 @@ describe('break-glass RLS session function (guc)', () => {
     await expect(
       asNurse({ 'app.break_glass': session({ reason: '' }) }, () =>
         db!.tester.query(
-          `select id from public.permdock_break_glass_patient('patient.read')`,
+          `select id from permdock.permdock_break_glass_patient('patient.read')`,
         ),
       ),
     ).rejects.toMatchObject({ code: '42501' });
@@ -151,7 +151,7 @@ describe('break-glass RLS session function (guc)', () => {
     ]);
     const rows = (
       await db.tester.query<{ readonly id: string }>(
-        `select id from public.permdock_break_glass_patient('patient.read') order by id`,
+        `select id from permdock.permdock_break_glass_patient('patient.read') order by id`,
       )
     ).rows.map((row) => row.id);
     await db.tester.query(`select set_config('app.break_glass', '', false)`);
@@ -166,7 +166,7 @@ describe('break-glass RLS session function (guc)', () => {
         readonly purpose: string;
         readonly reason: string;
       }>(
-        `select subject, permission, purpose, reason from public.permdock_break_glass_audit`,
+        `select subject, permission, purpose, reason from permdock.permdock_break_glass_audit`,
       )
     ).rows;
     expect(audit).toEqual([

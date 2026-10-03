@@ -81,7 +81,13 @@ export type MembershipSql = {
   readonly table: string;
   /** Columns of the table that decide a membership; triggers bump the authorization version on them. */
   readonly user: string;
-  /** The `select` of claim rows for one user (`$1`), with every filter applied. */
+  /** `<table>.<user>%type`: the PL/pgSQL type of the user column, for a variable `select` compares with. */
+  readonly userType: string;
+  /**
+   * The `select` of claim rows for one user, with every filter applied.
+   * `user` must have the column's type (a `userType` variable, or an untyped
+   * `$1` Postgres infers): the column is compared uncast so its index applies.
+   */
   select(user: string): string;
   /** The `select` of member rows for one scope instance (`$1` scope, `$2` id). */
   list(): string;
@@ -214,6 +220,7 @@ function sqlOf(shape: Shape): MembershipSql {
   return compact<MembershipSql>({
     table: shape.table,
     user: shape.user,
+    userType: `${qualified(shape.table)}.${ident(shape.user)}%type`,
     reads: [
       ...new Set(
         [suspension?.users, ...Object.values(suspension?.scopes ?? {})].flatMap(
@@ -229,11 +236,7 @@ function sqlOf(shape: Shape): MembershipSql {
       columns: [...new Set(shape.columns)],
     },
     select: (user: string) =>
-      selectOf(
-        shape,
-        filters(shape, `${col(shape.user)}::text = ${user}`),
-        false,
-      ),
+      selectOf(shape, filters(shape, `${col(shape.user)} = ${user}`), false),
     list: () =>
       selectOf(
         shape,
@@ -564,6 +567,13 @@ export function fromJunction(
 
 export const AUTHZ_VERSION_TABLE = 'permdock_authz_version';
 
+/**
+ * The default schema of everything PermDock generates: helpers, seeds, the
+ * RBAC scaffold, the hook and the version table. Keep it out of the Data
+ * API's exposed schemas, so the `security definer` functions are not RPCs.
+ */
+export const PERMDOCK_SCHEMA = 'permdock';
+
 export { supabaseMembershipsBudget, supabaseTenantClaim } from './budget.ts';
 
 /**
@@ -575,7 +585,7 @@ export function authzVersion(options: {
   readonly schema?: string;
 }): NonNullable<MembershipSource['version']> {
   const table = qualified(
-    `${options.schema ?? 'public'}.${AUTHZ_VERSION_TABLE}`,
+    `${options.schema ?? PERMDOCK_SCHEMA}.${AUTHZ_VERSION_TABLE}`,
   );
   return async (principal) => {
     const rows = rowsOf(

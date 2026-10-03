@@ -59,6 +59,7 @@ function input(overrides: Partial<RlsRunInput>): RlsRunInput {
     introspect: false,
     split: undefined,
     grantsOut: undefined,
+    seedsOut: undefined,
     helpersOnly: false,
     write: false,
     json: false,
@@ -221,6 +222,14 @@ function catalogReply(
         })),
       };
     }
+    if (call.sql.includes('i.indkey[0]')) {
+      return {
+        rows: expected.indexes.map((target) => ({
+          target: target.table,
+          leading: target.columns[0],
+        })),
+      };
+    }
     if (call.sql.includes('.role_permissions')) {
       return { rows: [...(mixed.seeds ?? [])] };
     }
@@ -253,7 +262,11 @@ async function expectedFor(flags: { readonly helpersOnly?: boolean } = {}) {
   }
   return {
     generated,
-    expected: expectedRls(generated.policies, generated.text),
+    expected: expectedRls(
+      generated.policies,
+      generated.text,
+      generated.indexes,
+    ),
   };
 }
 
@@ -327,6 +340,9 @@ describe('runRls verify --introspect', () => {
     );
     expect(result.code).toBe(1);
     expect(result.output).toMatch(/policy \S+ is missing/u);
+    expect(result.output).toContain(
+      'warning: public.post: no index starts with authorId',
+    );
     expect(result.output).toContain('table is missing');
   });
 
@@ -431,7 +447,7 @@ describe('runRls verify --introspect', () => {
     );
     expect(drift.code).toBe(1);
     expect(drift.output).toContain(
-      'public.role_permissions: unexpected x deny p on global',
+      'permdock.role_permissions: unexpected x deny p on global',
     );
   });
 });

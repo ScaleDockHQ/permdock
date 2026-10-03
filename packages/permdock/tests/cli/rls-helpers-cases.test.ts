@@ -29,7 +29,7 @@ const helpers = (extra: Partial<RlsSqlContext>, userRoles = false) =>
   helpersSql(ctx(extra), [], { userRoles });
 
 function fnBody(sql: string, name: string): string {
-  const start = sql.indexOf(`create or replace function "public".${name}(`);
+  const start = sql.indexOf(`create or replace function "permdock".${name}(`);
   return start === -1 ? '' : sql.slice(start, sql.indexOf('$$;', start));
 }
 
@@ -50,6 +50,22 @@ describe('accessSql and membershipTable', () => {
   it('keeps a schema-qualified membership table', () => {
     expect(membershipTable('app.members')).toBe('"app"."members"');
     expect(membershipTable('members')).toBe('"public"."members"');
+  });
+});
+
+describe('helpersSql schema', () => {
+  it('creates the private permdock schema and grants only usage', () => {
+    const sql = helpers({});
+    expect(sql).toContain(
+      'create schema if not exists "permdock";\nrevoke all on schema "permdock" from public;\ngrant usage on schema "permdock" to authenticated;',
+    );
+    expect(
+      helpersSql(ctx(), [], { userRoles: false, anonExecute: true }),
+    ).toContain('grant usage on schema "permdock" to anon, authenticated;');
+  });
+
+  it('leaves public alone when it is configured', () => {
+    expect(helpers({ schema: 'public' })).not.toContain('create schema');
   });
 });
 

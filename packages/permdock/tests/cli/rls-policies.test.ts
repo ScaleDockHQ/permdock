@@ -73,11 +73,11 @@ describe('assemblePolicies', () => {
     expect(using('post_select')).toBe('true');
     expect(using('post_select_anon')).toBe('true');
     expect(using('post_update')).toContain(
-      `"orgId" in (select "public".permitted_tenant_ids('post.update#1'))`,
+      `"orgId" in (select "permdock".permitted_tenant_ids('post.update#1'))`,
     );
     const denied = policies.find((item) => item.name === 'deny_post_delete');
     expect(denied?.using).toBe(
-      `not (("orgId" in (select "public".permitted_tenant_ids('post.delete#2'))) and ("locked" = true))`,
+      `not (("orgId" in (select "permdock".permitted_tenant_ids('post.delete#2'))) and ("locked" = true))`,
     );
   });
 

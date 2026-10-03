@@ -67,7 +67,7 @@ export default {
 }
 
 function helper(sql: string, name: string): string {
-  const start = sql.indexOf(`function "public".${name}(`);
+  const start = sql.indexOf(`function "permdock".${name}(`);
   return start === -1 ? '' : sql.slice(start, sql.indexOf('$$;', start));
 }
 
@@ -88,7 +88,7 @@ describe('member_<scope>_ids', () => {
     expect(body).not.toContain('role_permissions');
     expect(body).not.toContain('tenant_id');
     expect(sql).toContain(
-      'grant execute on function "public".member_customer_ids() to authenticated;',
+      'grant execute on function "permdock".member_customer_ids() to authenticated;',
     );
     expect(sql).not.toContain('service_role');
   });

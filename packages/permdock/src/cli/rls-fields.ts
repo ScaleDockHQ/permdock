@@ -6,7 +6,12 @@ import { jsonSchemaOf } from './catalog-doc.ts';
 import { andSql, branchClauses, wrapSql } from './rls-compile.ts';
 import { signedIn } from './rls-helpers.ts';
 import { orSql } from './rls-policies.ts';
-import { quoteIdent, quoteLiteral, quoteTable } from './rls-sql.ts';
+import {
+  qualifiedTable,
+  quoteIdent,
+  quoteLiteral,
+  quoteTable,
+} from './rls-sql.ts';
 
 /** Names of the field-view objects. Part of the SQL contract. */
 export const FIELD_VIEWS = {
@@ -247,8 +252,8 @@ function selectList(lines: readonly string[]): string {
 
 function grantView(name: string, roles: readonly string[]): string {
   return [
-    `revoke all on table ${quoteTable(name)} from anon, authenticated, public;`,
-    `grant select on table ${quoteTable(name)} to ${roles.join(', ')};`,
+    `revoke all on table ${quoteTable(qualifiedTable(name))} from anon, authenticated, public;`,
+    `grant select on table ${quoteTable(qualifiedTable(name))} to ${roles.join(', ')};`,
   ].join('\n');
 }
 
@@ -258,10 +263,10 @@ function inlineViewSql(view: FieldView): string {
       ? quoteIdent(column.name)
       : `case when ${column.mask} then ${quoteIdent(column.name)} end as ${quoteIdent(column.name)}`,
   );
-  return `create or replace view ${quoteTable(view.view)} with (security_invoker = true) as
+  return `create or replace view ${quoteTable(qualifiedTable(view.view))} with (security_invoker = true) as
 select
 ${selectList(targets)}
-from ${quoteTable(view.table)};`;
+from ${quoteTable(qualifiedTable(view.table))};`;
 }
 
 function companionSql(view: FieldView, companion: string): string {
@@ -274,12 +279,12 @@ function companionSql(view: FieldView, companion: string): string {
     ),
   ];
   const any = orSql(restricted.map((column) => column.mask ?? 'false'));
-  return `create or replace view ${quoteTable(companion)} with (security_barrier = true) as
+  return `create or replace view ${quoteTable(qualifiedTable(companion))} with (security_barrier = true) as
 select
 ${selectList(targets)}
-from ${quoteTable(view.table)}
+from ${quoteTable(qualifiedTable(view.table))}
 where ${any};
-comment on view ${quoteTable(companion)} is ${quoteLiteral(`${FIELD_VIEWS.comment} ${view.view}`)};`;
+comment on view ${quoteTable(qualifiedTable(companion))} is ${quoteLiteral(`${FIELD_VIEWS.comment} ${view.view}`)};`;
 }
 
 function joinedViewSql(view: FieldView, companion: string): string {
@@ -288,20 +293,20 @@ function joinedViewSql(view: FieldView, companion: string): string {
       ? `t.${quoteIdent(column.name)}`
       : `f.${quoteIdent(column.name)}`,
   );
-  return `create or replace view ${quoteTable(view.view)} with (security_invoker = true) as
+  return `create or replace view ${quoteTable(qualifiedTable(view.view))} with (security_invoker = true) as
 select
 ${selectList(targets)}
-from ${quoteTable(view.table)} t
-left join ${quoteTable(companion)} f on f.${quoteIdent(FIELD_VIEWS.key)} = t.${quoteIdent(view.key)};`;
+from ${quoteTable(qualifiedTable(view.table))} t
+left join ${quoteTable(qualifiedTable(companion))} f on f.${quoteIdent(FIELD_VIEWS.key)} = t.${quoteIdent(view.key)};`;
 }
 
 /** `select` on only the unrestricted columns (and the key) of the base table, for `--revoke-columns`. */
 export function columnGrantSql(view: FieldView, role: string): string {
-  return `grant select (${columnList(readableColumns(view))}) on table ${quoteTable(view.table)} to ${role};`;
+  return `grant select (${columnList(readableColumns(view))}) on table ${quoteTable(qualifiedTable(view.table))} to ${role};`;
 }
 
 export function columnRevokeSql(view: FieldView): string {
-  return `revoke select (${columnList(restrictedColumns(view))}) on table ${quoteTable(view.table)} from anon, authenticated;`;
+  return `revoke select (${columnList(restrictedColumns(view))}) on table ${quoteTable(qualifiedTable(view.table))} from anon, authenticated;`;
 }
 
 /**

@@ -119,10 +119,22 @@ describe('the attrs claim against Postgres', () => {
     );
   }
 
+  /** Auth puts the user's `raw_app_meta_data` into the event's claims as `app_metadata`. */
+  async function appMetadata(user: string): Promise<unknown> {
+    if (db === undefined) {
+      throw new Error('PermDock: Postgres was not started');
+    }
+    const result = await db.admin.query<{ meta: unknown }>(
+      'select raw_app_meta_data as meta from auth.users where id = $1',
+      [user],
+    );
+    return result.rows[0]?.meta ?? {};
+  }
+
   async function mint(user: string): Promise<Claims> {
     return as('supabase_auth_admin', {}, async (client) => {
       const result = await client.query<{ event: { claims: Claims } }>(
-        'select public.custom_access_token_hook($1::jsonb) as event',
+        'select permdock.custom_access_token_hook($1::jsonb) as event',
         [
           JSON.stringify({
             user_id: user,
@@ -130,6 +142,7 @@ describe('the attrs claim against Postgres', () => {
               sub: user,
               role: 'authenticated',
               attrs: { region: 'forged' },
+              app_metadata: await appMetadata(user),
             },
           }),
         ],

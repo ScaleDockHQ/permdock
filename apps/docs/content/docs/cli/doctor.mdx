@@ -67,6 +67,15 @@ On a terminal, `--fix` asks before it writes; answering no prints the report wit
 | `PD043` | `schema_paths` in `supabase/config.toml` applies a file that calls the SQL helpers before the file that defines them, or leaves that file out | warning |
 | `PD044` | `usePermission` reads a permission whose grant the snapshot cannot answer, and there is no `app/**/api/permdock/route.ts` using `permdockHandler` and no `endpoint` | warning |
 | `PD045` | `supabase/config.toml` is not valid TOML | warning |
+| `PD046` | The PermDock helper schema (`rls.schema`) is listed in `[api] schemas`, so the Data API serves the `security definer` helpers as RPCs | warning |
+| `PD047` | A SQL migration reads `raw_user_meta_data` or `user_metadata`, which a user can set for themselves | warning |
+| `PD048` | A SQL function sets no `search_path` | warning |
+| `PD049` | A `security definer` function whose `execute` is not revoked from `public` (and, in the `public` schema, from `anon`) | warning |
+| `PD050` | A migration creates a table in `public` without enabling row level security | error |
+| `PD051` | A policy calls `auth.uid()` or `auth.jwt()` bare instead of `(select auth.uid())`, so Postgres calls it once per row | warning |
+| `PD052` | An update policy has `using` and no `with check` | warning |
+| `PD053` | A foreign key column no index starts with | warning |
+| `PD054` | The last `role_permissions` seeds in the migrations differ from the rows the policy compiles to | warning |
 
 ### PD001: server-only imports in client entries
 
@@ -203,7 +212,7 @@ A condition that reads `context.*` (`where: { region: context.region }`) is eval
 
 ### PD028: attributes and memberships a user could set
 
-The Supabase token hook copies `supabase.hook.attrs` into the `attrs` claim, which attribute conditions and RLS read ([Supabase token hook](/docs/adapters/supabase-hook#attributes)). An error names an entry `generate` refuses: `user_metadata` or `raw_user_meta_data`, an `auth.users` column, a prototype key or a duplicate. A warning names listed columns that the SQL files under `doctor.migrations` (default `supabase/migrations`, `supabase/schemas`, `migrations`, `drizzle`, `prisma/migrations`, `db/migrations`) grant `insert`, `update` or `all` on to `anon`, `authenticated` or `public`, table-wide or by column, net of later `revoke`s. Fix it by revoking those grants and granting column-level `update` on non-attribute columns only; the generated migration refuses to install until you do. The same warning covers every `fromTable` / `fromJunction` source in `supabase.hook.memberships` (or `rls.membershipSources`): its user, scope, id, `within`, role, `via` and expiry columns decide who holds which membership. The grant model is Postgres's: a column-level `revoke` leaves a table-level grant in place, so `revoke update (user_id) on contacts` after `grant update on contacts` still warns ([sources](/docs/adapters/supabase-hook#sources)). `--only attrs` (or `--only supabase`) runs this check.
+The Supabase token hook copies `supabase.hook.attrs` into the `attrs` claim, which attribute conditions and RLS read ([Supabase token hook](/docs/adapters/supabase-hook#attributes)). An error names an entry `generate` refuses: `user_metadata` or `raw_user_meta_data`, an `auth.users` column, a prototype key or a duplicate. A warning names listed columns that the SQL files under `doctor.migrations` (default `supabase/migrations`, `supabase/schemas`, `migrations`, `drizzle`, `prisma/migrations`, `db/migrations`) grant `insert`, `update` or `all` on to `anon`, `authenticated` or `public`, table-wide or by column, net of later `revoke`s. Fix it by revoking those grants and granting column-level `update` on non-attribute columns only; the generated migration refuses to install until you do. The same warning covers every `fromTable` / `fromJunction` source in `supabase.hook.memberships` (or `rls.membershipSources`): its user, scope, id, `within`, role, `via` and expiry columns decide who holds which membership. The grant model is Postgres's: a column-level `revoke` leaves a table-level grant in place, so `revoke update (user_id) on contacts` after `grant update on contacts` still warns ([sources](/docs/adapters/supabase-hook#sources)). With a `supabase` config, a table created in `public` starts with Supabase's default privileges, which grant `anon` and `authenticated` everything, until a migration revokes them on the table or with `alter default privileges in schema public revoke ... on tables`. `insert` and `update` are tracked apart, so `revoke update` alone still leaves the default `insert`. `--only attrs` (or `--only supabase`) runs this check.
 
 ### PD029: API keys that never expire
 
@@ -272,6 +281,42 @@ A snapshot carries portable conditions, so `usePermission` answers a `where` on 
 ### PD045: unparseable `config.toml`
 
 PD019 reads `[auth] jwt_expiry` and PD043 reads `[db.migrations] schema_paths` from `supabase/config.toml` with a TOML parser. When the file does not parse, both checks fall back to Supabase's defaults (3600 seconds and `./schemas/**/*.sql`), and PD045 names the first parse error so a finding is never based on a misread file. `--only supabase` runs PD045.
+
+### PD046: helper schema exposed through the Data API
+
+`permdock rls` writes its helpers, `role_permissions`, `user_roles`, `authorize` and the token hook into `rls.schema`, `permdock` by default, so the Data API never serves them. The `security definer` helpers answer for any user id they are given, so listing that schema in `[api] schemas` in `supabase/config.toml` turns each into an RPC that reports another user's memberships. The check runs when `supabase/config.toml` exists and warns when `[api] schemas` (default `public`, `graphql_public`) names the helper schema. Remove it from the list. `--only sql` (or `--only supabase`) runs PD046 to PD053.
+
+### PD047: user metadata in SQL
+
+`raw_user_meta_data` in `auth.users` and the `user_metadata` claim are written by the user through `supabase.auth.updateUser`, so a policy or function that decides on them lets the user decide. The check names each read in the migration folders by file and line. Read `raw_app_meta_data` / `app_metadata`, which only the service role writes, or a table the user cannot write.
+
+### PD048: functions without `search_path`
+
+A function resolves unqualified names through the caller's `search_path`, so a caller can create an object that shadows one the function reads; for a `security definer` function that runs with the owner's rights. The check names each `create function` that neither sets `search_path` nor gets it from a later `alter function ... set search_path`, skipping `language c` and `internal`. Add `set search_path = ''` and qualify every name. Every function `permdock rls` writes sets it.
+
+### PD049: `security definer` functions clients can call
+
+Postgres grants `execute` on every new function to `public`, and Supabase also grants it to `anon` in the `public` schema. The check names each `security definer` function, trigger functions excepted, that no later `revoke execute` (on the function, on all functions in its schema, or through `alter default privileges`) takes from `public` and, in `public`, from `anon`. Revoke both and grant `execute` to `authenticated` only where a client must call it, as the generated `authorize` does.
+
+### PD050: tables without row level security
+
+Supabase's Data API serves every table in an exposed schema, and the default privileges let `anon` and `authenticated` read and write it, so a `public` table without row level security is open to anyone with the anon key. The check names each `create table` in `public` that no `alter table ... enable row level security` in the migrations follows and no later `drop table` removes. It is an error: there is no safe reading of an open table.
+
+### PD051: per-row `auth.uid()` in a policy
+
+`auth.uid()` and `auth.jwt()` are functions, and a bare call in `using` or `with check` runs once for each row the query reads. Wrapped as `(select auth.uid())`, Postgres evaluates it once per statement as an init plan. The check names each policy with a bare call. The policies `permdock rls` writes already wrap them.
+
+### PD052: update policies without `with check`
+
+Postgres checks the new row of an update against `with check`, falling back to `using` when there is none. The fallback is right only when the two conditions should be the same; a policy that lets a user update their own rows usually also needs to stop them moving a row to another tenant or owner. The check names each `create policy ... for update` without `with check` so the choice is explicit.
+
+### PD053: foreign keys without an index
+
+Postgres indexes the referenced key but not the referencing column. A policy that joins on that column, and every delete or key update of the referenced row, then scans the table. The check reads `references` in `create table` and `alter table ... add constraint`, and names each foreign key column that no `create index`, primary key or unique constraint starts with. Add an index whose first column is the foreign key.
+
+### PD054: stale `role_permissions` seeds
+
+The helpers answer from `role_permissions`, so a policy change reaches the database only when a migration seeds the new rows. With `--split ...,seeds` those rows are a versioned migration of their own, and a policy change without a new one leaves the helpers on the old grants. With an `rls` or `supabase` config, the check finds the last statement in the migration folders that seeds `role_permissions` in `rls.schema` (or clears it), compiles the policy's rows, and names how many are missing and how many are stale, with examples. Run `permdock rls generate` and apply the new seeds. `--only seeds` (or `--only supabase`) runs PD054.
 
 ## Why
 

@@ -68,8 +68,12 @@ describe('emitSql and migrationSql', () => {
       '',
       true,
     );
-    expect(text).toContain('alter table "doc" force row level security;');
-    expect(text).toContain('grant insert on table "doc" to authenticated;');
+    expect(text).toContain(
+      'alter table "public"."doc" enable row level security;\nalter table "public"."doc" force row level security;\nrevoke all on table "public"."doc"',
+    );
+    expect(text).toContain(
+      'grant insert on table "public"."doc" to authenticated;',
+    );
     expect(text).toContain('  with check (ok())');
     expect(text).toContain('  as restrictive');
   });

@@ -52,7 +52,7 @@ async function generate(
 }
 
 function viewOf(sql: string, name: string): string {
-  const start = sql.indexOf(`create or replace view "${name}"`);
+  const start = sql.indexOf(`create or replace view "public"."${name}"`);
   return start === -1 ? '' : sql.slice(start, sql.indexOf(';', start) + 1);
 }
 
@@ -70,7 +70,7 @@ describe('permdock rls generate --fields views', () => {
     expect(sql).toContain("('finance', 'invoice.read', 'invoice.read#1'");
     expect(sql).toContain('as restrictive');
     expect(sql).toContain(
-      'revoke execute on function "public".permdock_has(text) from public, anon;',
+      'revoke execute on function "permdock".permdock_has(text) from public, anon;',
     );
   });
 
@@ -85,7 +85,7 @@ describe('permdock rls generate --fields views', () => {
     for (const column of ['orgId', 'authorId', 'amount', 'note']) {
       expect(view).toContain(`then "${column}" end as "${column}"`);
     }
-    expect(view).toContain('from "invoice";');
+    expect(view).toContain('from "public"."invoice";');
     const amount = view
       .split('\n')
       .find((line) => line.includes('"amount" end'));
@@ -94,10 +94,10 @@ describe('permdock rls generate --fields views', () => {
     expect(amount).toContain('("authorId" = (select auth.uid()))');
     const note = view.split('\n').find((line) => line.includes('"note" end'));
     expect(note).toContain(
-      'and not (select "public".permdock_has(\'invoice.read#5\'))',
+      'and not (select "permdock".permdock_has(\'invoice.read#5\'))',
     );
     expect(sql).toContain(
-      'grant select on table "invoice_visible" to anon, authenticated;',
+      'grant select on table "public"."invoice_visible" to anon, authenticated;',
     );
     expect(stdout).toContain(
       'field view invoice_visible: invoice still returns orgId, authorId, amount, note to direct reads',
@@ -127,10 +127,10 @@ describe('permdock rls generate --fields views', () => {
     const cwd = appCopy();
     const { sql } = await generate(cwd, ['--fields', 'views']);
     expect(sql).toContain(
-      'grant execute on function "public".permdock_has(text) to anon, authenticated;',
+      'grant execute on function "permdock".permdock_has(text) to anon, authenticated;',
     );
     expect(sql).toContain(
-      'grant execute on function "public".permitted_tenant_ids(text) to anon, authenticated;',
+      'grant execute on function "permdock".permitted_tenant_ids(text) to anon, authenticated;',
     );
   });
 
@@ -143,30 +143,34 @@ describe('permdock rls generate --fields views', () => {
     ]);
     expect(code).toBe(0);
     expect(stdout).not.toContain('still returns');
-    expect(sql).toContain('grant update on table "invoice" to authenticated;');
     expect(sql).toContain(
-      'grant select ("id", "title") on table "invoice" to authenticated;',
+      'grant update on table "public"."invoice" to authenticated;',
     );
     expect(sql).toContain(
-      'grant select ("id", "title") on table "invoice" to anon;',
+      'grant select ("id", "title") on table "public"."invoice" to authenticated;',
     );
     expect(sql).toContain(
-      'revoke select ("orgId", "authorId", "amount", "note") on table "invoice" from anon, authenticated;',
+      'grant select ("id", "title") on table "public"."invoice" to anon;',
     );
-    expect(sql).not.toMatch(/grant select(, [a-z]+)* on table "invoice" to/u);
+    expect(sql).toContain(
+      'revoke select ("orgId", "authorId", "amount", "note") on table "public"."invoice" from anon, authenticated;',
+    );
+    expect(sql).not.toMatch(
+      /grant select(, [a-z]+)* on table "public"."invoice" to/u,
+    );
     const companion = viewOf(sql, 'invoice_visible_fields');
     expect(companion).toContain('with (security_barrier = true)');
     expect(companion).toContain('"id" as "permdock_key"');
     expect(companion).toMatch(/\nwhere /u);
     expect(sql).toContain(
-      `comment on view "invoice_visible_fields" is 'permdock:field-companion invoice_visible';`,
+      `comment on view "public"."invoice_visible_fields" is 'permdock:field-companion invoice_visible';`,
     );
     const view = viewOf(sql, 'invoice_visible');
     expect(view).toContain('with (security_invoker = true)');
     expect(view).toContain('t."title"');
     expect(view).toContain('f."amount"');
     expect(view).toContain(
-      'left join "invoice_visible_fields" f on f."permdock_key" = t."id";',
+      'left join "public"."invoice_visible_fields" f on f."permdock_key" = t."id";',
     );
   });
 
@@ -200,12 +204,14 @@ describe('permdock rls generate --fields views', () => {
         'utf8',
       );
       expect(migration).toContain(
-        'revoke all on table "invoice" from anon, authenticated;',
+        'revoke all on table "public"."invoice" from anon, authenticated;',
       );
       expect(migration).toContain(
-        'grant select ("id", "title") on table "invoice" to authenticated;',
+        'grant select ("id", "title") on table "public"."invoice" to authenticated;',
       );
-      expect(migration).toContain('create or replace view "invoice_visible"');
+      expect(migration).toContain(
+        'create or replace view "public"."invoice_visible"',
+      );
     }
   });
 
@@ -231,7 +237,9 @@ describe('permdock rls generate --fields views', () => {
 `,
     );
     const { sql } = await generate(cwd, []);
-    expect(sql).toContain('create or replace view "invoice_visible_fields"');
+    expect(sql).toContain(
+      'create or replace view "public"."invoice_visible_fields"',
+    );
   });
 
   it('fails when the schema cannot list the table columns', async () => {

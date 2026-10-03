@@ -1,5 +1,6 @@
 import type { CompiledPolicy } from './rls-compile.ts';
 import type { RolePermission } from './rls-helpers.ts';
+import type { IndexTarget } from './rls-indexes.ts';
 import type { SqlClient, SqlConnect } from './rls-verify.ts';
 
 import { escapeSqlIdent } from '../core/sql.ts';
@@ -32,6 +33,8 @@ export type ExpectedRls = {
   >;
   /** `security definer` functions, as `schema.name`. */
   readonly helpers: readonly string[];
+  /** The indexes the policies and helpers read through; only their first column is checked. */
+  readonly indexes: readonly IndexTarget[];
 };
 
 /** The same facts, read from `pg_policies`, `pg_class`, the table grants and `pg_proc`. */
@@ -56,6 +59,8 @@ export type ActualRls = {
       }
     >
   >;
+  /** Per table, the first column of each of its plain-column indexes. */
+  readonly leadingColumns: Readonly<Record<string, readonly string[]>>;
 };
 
 /** `posts` and `"app"."posts"` as `public.posts` and `app.posts`. */
@@ -81,6 +86,7 @@ function helpersOf(sql: string): readonly string[] {
 export function expectedRls(
   policies: readonly CompiledPolicy[],
   sql: string,
+  indexes: readonly IndexTarget[] = [],
 ): ExpectedRls {
   const tables = [...new Set(policies.map((item) => qualified(item.table)))];
   const grants: Record<string, Record<string, Privilege[]>> = {};
@@ -112,7 +118,30 @@ export function expectedRls(
     tables,
     grants,
     helpers: helpersOf(sql),
+    indexes: indexes.map((target) => ({
+      ...target,
+      table: qualified(target.table),
+    })),
   };
+}
+
+/**
+ * One warning per index target no index starts with. A missing index slows
+ * the policy down but grants nothing, so these do not fail `verify`.
+ */
+export function missingIndexes(
+  expected: ExpectedRls,
+  actual: ActualRls,
+): readonly string[] {
+  return expected.indexes.flatMap((target) => {
+    const column = target.columns[0];
+    return column === undefined ||
+      actual.leadingColumns[target.table]?.includes(column) === true
+      ? []
+      : [
+          `warning: ${target.table}: no index starts with ${column}, which the policies or helpers filter on; add it, or write it with rls generate --split ...,indexes`,
+        ];
+  });
 }
 
 function sameList(left: readonly string[], right: readonly string[]): boolean {
@@ -235,6 +264,13 @@ from pg_proc p
 join pg_namespace n on n.oid = p.pronamespace
 where n.nspname || '.' || p.proname = any($1::text[])`;
 
+const INDEXES_SQL = `select n.nspname || '.' || c.relname as target, a.attname as leading
+from pg_index i
+join pg_class c on c.oid = i.indrelid
+join pg_namespace n on n.oid = c.relnamespace
+join pg_attribute a on a.attrelid = i.indrelid and a.attnum = i.indkey[0]
+where i.indpred is null and n.nspname || '.' || c.relname = any($1::text[])`;
+
 function commandOf(cmd: unknown): string {
   const text = String(cmd ?? '').toLowerCase();
   return text === '*' ? 'all' : text;
@@ -270,6 +306,15 @@ export async function introspectRls(
     const enabled = await client.query(TABLES_SQL, [tables]);
     const grants = await client.query(GRANTS_SQL, [tables]);
     const helpers = await client.query(HELPERS_SQL, [[...expected.helpers]]);
+    const indexes = await client.query(INDEXES_SQL, [
+      [...new Set(expected.indexes.map((target) => target.table))],
+    ]);
+    const leadingColumns: Record<string, string[]> = {};
+    for (const row of indexes.rows) {
+      (leadingColumns[String(row['target'])] ??= []).push(
+        String(row['leading']),
+      );
+    }
     const byTable: Record<string, Record<string, string[]>> = {};
     for (const row of grants.rows) {
       const table = String(row['target']);
@@ -308,6 +353,7 @@ export async function introspectRls(
           },
         ]),
       ),
+      leadingColumns,
     };
   } finally {
     await client.end();
