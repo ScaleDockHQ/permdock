@@ -18,10 +18,22 @@ export async function requirePeer<T>(
 ): Promise<T> {
   try {
     return await load();
-  } catch {
+  } catch (error) {
+    if (!isMissingModule(error)) {
+      throw error;
+    }
     const agent = getUserAgent() ?? (await detect({ cwd }))?.agent;
-    throw new Error(peerHint(name, command, agent));
+    throw new Error(peerHint(name, command, agent), { cause: error });
   }
+}
+
+function isMissingModule(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null || !('code' in error)) {
+    return false;
+  }
+  return (
+    error.code === 'ERR_MODULE_NOT_FOUND' || error.code === 'MODULE_NOT_FOUND'
+  );
 }
 
 /**

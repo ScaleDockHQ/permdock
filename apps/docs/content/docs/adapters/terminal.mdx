@@ -71,6 +71,8 @@ export const { permdock, protect, filterCommands, format, exitCode } = createPer
 | `ci-oidc` | The job's OIDC token: GitHub Actions through `ACTIONS_ID_TOKEN_REQUEST_URL` (`{ source: 'ci-oidc', audience }` requests that `aud`), a GitLab `id_tokens` variable named with `{ source: 'ci-oidc', env }`, or `CI_JOB_JWT_V2`. Verify it with `subjectFromCiOidc` from `permdock/jwt`, which returns a workload principal (`kind: 'workload'`, `sub` as the id, with `repository`, `ref` and `environment`), or exchange it with RFC 8693 token exchange at your authorization server. The CLI never sees a long-lived secret. | Pipelines |
 | anonymous | `token()` returned `null` and `subject` returned `null`. | Public read-only commands |
 
+Each request to the device and token endpoints, and the GitHub Actions OIDC request, is aborted after 10 seconds and then yields no token.
+
 All sources end in the same verification step. A `--user` flag, a `USER` environment variable or a git config email are never accepted as identity; they may at most select which stored profile to load (`--as`), and the profile's token is still verified.
 
 ## Process lifecycle

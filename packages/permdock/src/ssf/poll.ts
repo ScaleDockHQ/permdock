@@ -1,7 +1,11 @@
 import type { PollOptions, SsfAuditEvent } from './types.ts';
 
 import { compact } from '../core/compact.ts';
+import { timeoutSignal } from '../core/timeout.ts';
 import { isRecord, type IngestResult } from './wire.ts';
+
+/** Milliseconds a poll or acknowledgement request may take. */
+const POLL_TIMEOUT_MS = 30_000;
 
 /**
  * One RFC 8936 poll round: fetch the pending SETs, ingest them and acknowledge
@@ -32,7 +36,7 @@ export async function pollOnce(input: {
     method: 'POST',
     headers,
     body: JSON.stringify(body),
-    signal: options.signal,
+    signal: timeoutSignal(POLL_TIMEOUT_MS, options.signal),
   });
   const response = await fetchFn(options.endpoint, requestInit);
   if (!response.ok) {
@@ -73,7 +77,7 @@ export async function pollOnce(input: {
             returnImmediately: true,
           }),
         ),
-        signal: options.signal,
+        signal: timeoutSignal(POLL_TIMEOUT_MS, options.signal),
       }),
     );
   }

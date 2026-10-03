@@ -18,13 +18,12 @@ import type { RevocationFeed } from '../core/revocations.ts';
 import type { Actor, Principal, Subject } from '../core/subject.ts';
 import type { PdpFactory, PdpPermDock } from '../pdp/types.ts';
 import type { Connection, ConnectionOptions } from './connection.ts';
-import type { WebBotAuthOptions } from './web-bot-auth.ts';
+import type { WebBotAuthVerifier } from './web-bot-auth.ts';
 
 import { compact } from '../core/compact.ts';
 import { createPermDock as createCorePermDock } from '../core/permdock.ts';
 import { listPermissions } from '../core/permissions.ts';
 import { isActor } from '../core/subject.ts';
-import { openConnection } from './connection.ts';
 import {
   applyApprovalResume,
   createEvaluationsHandler,
@@ -35,7 +34,7 @@ import {
   problemFromDecision,
   problemResponse,
 } from './problem.ts';
-import { InvalidSignatureError, verifyWebBotAuth } from './web-bot-auth.ts';
+import { InvalidSignatureError } from './web-bot-auth.ts';
 
 export type ServerPermDockOptions<TUser = unknown> = {
   /** The user, or a full `Subject` (core then skips `policy.subject`); `null` is anonymous. */
@@ -43,7 +42,8 @@ export type ServerPermDockOptions<TUser = unknown> = {
     request: Request,
   ) => TUser | Subject | null | Promise<TUser | Subject | null>;
   readonly actor?: (request: Request) => unknown;
-  readonly webBotAuth?: WebBotAuthOptions;
+  /** `(request) => verifyWebBotAuth(request, options)`; a verified bot becomes the actor. */
+  readonly webBotAuth?: WebBotAuthVerifier;
   readonly tenant?:
     | string
     | ((request: Request) => string | undefined | Promise<string | undefined>);
@@ -172,7 +172,10 @@ async function resolveActor(
   request: Request,
   options: ServerPermDockOptions,
 ): Promise<Actor | undefined> {
-  const verified = await verifyWebBotAuth(request, options.webBotAuth);
+  const verified =
+    options.webBotAuth === undefined
+      ? undefined
+      : await options.webBotAuth(request);
   if (verified !== undefined) {
     return verified;
   }
@@ -332,6 +335,8 @@ export function createKernel<
     scope?: TenantScope,
   ): Promise<Connection> => {
     const { tenant } = scope ?? (await tenantScope(options.tenant, request));
+    // Lazy: only apps that open connections bundle the revalidation loop.
+    const { openConnection } = await import('./connection.ts');
     return openConnection<T>({
       open: async (): Promise<PermDock<V>> =>
         (await build(request, { tenant })).permdock,

@@ -343,6 +343,43 @@ describe('remote JWKS cache', () => {
     }
   });
 
+  it('shares one request between concurrent resolves', async () => {
+    const fake = fakeFetch(() => jwksResponse(120));
+    const cache = createKeyCache({
+      jwks: 'https://login.test/jwks',
+      fetch: fake.fetch,
+    });
+    const results = await Promise.all([
+      cache.resolveJwks(NOW),
+      cache.resolveJwks(NOW),
+      cache.refetchJwks(NOW),
+    ]);
+    expect(results.every((result) => result.ok)).toBe(true);
+    expect(fake.calls.length).toBe(1);
+  });
+
+  it('gives up on a JWKS endpoint that does not answer within the timeout', async () => {
+    const hanging = (
+      _input: RequestInfo | URL,
+      init?: RequestInit,
+    ): Promise<Response> =>
+      new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => {
+          reject(new Error('aborted', { cause: init.signal?.reason }));
+        });
+      });
+    const cache = createKeyCache({
+      jwks: 'https://login.test/jwks',
+      // SAFETY: hanging has fetch's call signature; preconnect is never called.
+      fetch: hanging as typeof fetch,
+      jwksCache: { timeout: 20 },
+    });
+    expect(await cache.resolveJwks(NOW)).toEqual({
+      ok: false,
+      cause: 'jwks-unavailable',
+    });
+  });
+
   it('serves a cached set when a later fetch fails and reports unavailability otherwise', async () => {
     let healthy = true;
     const fake = fakeFetch(() => (healthy ? jwksResponse(120) : json({}, 500)));

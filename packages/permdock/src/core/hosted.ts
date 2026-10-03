@@ -14,6 +14,7 @@ import {
   completeGrant,
   declaredRoleNames,
   deny,
+  indexPolicy,
   role,
 } from './policy.ts';
 import { bytesToBase64Url, sha256 } from './sha256.ts';
@@ -560,6 +561,7 @@ export function mergeHostedGrants(
     policy: freezeDeep({
       ...policy,
       grants,
+      index: indexPolicy(policy.roles, grants, policy.vocabulary),
       fingerprint: bytesToBase64Url(
         sha256(`${policy.fingerprint}:${document.fingerprint}`),
       ),

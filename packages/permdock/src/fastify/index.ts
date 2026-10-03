@@ -9,4 +9,5 @@ export { sendReply, toRequest } from './http.ts';
 export {
   discoverViaSignatureAgent,
   InvalidSignatureError,
+  verifyWebBotAuth,
 } from '../server/web-bot-auth.ts';

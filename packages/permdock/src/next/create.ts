@@ -22,7 +22,6 @@ import type {
 import { compact } from '../core/compact.ts';
 import { emptySnapshot } from '../core/from-snapshot.ts';
 import { createPermDock as createCorePermDock } from '../core/permdock.ts';
-import { applyOtel } from '../otel/instrument.ts';
 import { createEvaluationsHandler } from './handler.ts';
 import { renderClientProvider } from './provider.tsx';
 
@@ -159,24 +158,21 @@ export function createPermDock<
     // Decisions read the clock (membership and token expiry), so the instance
     // is created past a dynamic boundary; inside a cache scope this resolves at once.
     await io();
-    // SAFETY: applyOtel erases V; it returns or wraps the instance built from this V-typed policy.
-    const instance = applyOtel(
-      await createCorePermDock(
-        policy,
-        user,
-        compact({
-          tenant,
-          memberships: options.memberships,
-          relations: options.relations,
-          entitlements: options.entitlements,
-          customRoles: options.customRoles,
-          policies: options.policies,
-          sink,
-          limits: options.limits,
-        }),
-      ),
-      options.otel,
-    ) as PermDock<V>;
+    const built = await createCorePermDock(
+      policy,
+      user,
+      compact({
+        tenant,
+        memberships: options.memberships,
+        relations: options.relations,
+        entitlements: options.entitlements,
+        customRoles: options.customRoles,
+        policies: options.policies,
+        sink,
+        limits: options.limits,
+      }),
+    );
+    const instance = options.otel === undefined ? built : options.otel(built);
     return wrapInstance(instance, options.onDenied);
   });
 

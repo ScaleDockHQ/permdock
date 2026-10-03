@@ -160,7 +160,7 @@ A leaked `client` key cannot widen access: it can push a catalog, but the applic
 ### Keys
 
 The Cloud signs with a per-environment key through the `TokenSigner` interface ([extension interfaces](/docs/concepts/extension-interfaces)) and publishes the public half as a JWK Set at `<PERMDOCK_CLOUD_URL>/v1/environments/<env>/.well-known/jwks.json` (`cloud().jwks`). `cloud().snapshots.get()` asks for `application/jwt` and returns only a compact `permdock-snapshot+jwt`; an unsigned body is an error, never a snapshot. The client `PermDockProvider` that receives it verifies it with `joseTokenVerifier({ jwks: cloud().jwks, typ: 'permdock-snapshot+jwt' })`; a consumer in another language points its JOSE library at the same JWKS. Algorithms are `Ed25519` by default, `ES256` on request for consumers whose libraries lack Ed25519; never `RS256` in a FAPI 2.0 environment. Rotation follows the JWKS rule: the new `kid` is published, the old key stays until the last snapshot signed with it has passed `exp`, and the dashboard shows both. Signed decision-log exports (`typ: permdock-decisions+jwt`) use the same key and endpoint ([audit and observability](/docs/concepts/audit-and-observability)). The private key never leaves the Cloud; the `PERMDOCK_CLOUD_KEY` API key is unrelated to it and cannot sign anything.
-- Zero required dependencies: the client uses `fetch` and the wire formats from core. It is server-only and `tests/bundle` asserts no client entry reaches it.
+- Zero required dependencies: the client uses `fetch` and the wire formats from core. Each request is aborted after 10 seconds, combined with any `signal` you pass, and then fails like an unreachable Cloud. It is server-only and `tests/bundle` asserts no client entry reaches it.
 
 ### HTTP API
 

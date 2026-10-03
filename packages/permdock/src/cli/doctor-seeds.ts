@@ -12,7 +12,7 @@ import { loadPolicy } from './doctor-collect.ts';
 import { MIGRATION_DIRS } from './doctor-project.ts';
 import { rel, sqlFiles } from './files.ts';
 import { compileGrants } from './rls-compile.ts';
-import { sqlStatements } from './sql-statements.ts';
+import { group, sqlStatements } from './sql-statements.ts';
 
 const SEED_INSERT =
   /^insert\s+into\s+((?:"[^"]+"|\w+)(?:\.(?:"[^"]+"|\w+))?)\s*\(\s*role\s*,\s*permission\s*,\s*grant_key\s*,\s*scope\s*,\s*effect\s*\)\s*values\s*([\s\S]*?)\s*on\s+conflict\b/iu;
@@ -46,9 +46,9 @@ function lastSeed(
   )) {
     for (const { text } of sqlStatements(readFileSync(file, 'utf8'))) {
       const insert = SEED_INSERT.exec(text);
-      if (insert !== null && tableKey(insert[1] ?? '') === table) {
+      if (insert !== null && tableKey(group(insert, 1)) === table) {
         const rows = new Set<string>();
-        for (const row of (insert[2] ?? '').matchAll(SEED_ROW)) {
+        for (const row of group(insert, 2).matchAll(SEED_ROW)) {
           rows.add(
             rowKey(row.slice(1, 6).map((value) => value.replaceAll("''", "'"))),
           );
@@ -57,7 +57,7 @@ function lastSeed(
         continue;
       }
       const clear = SEED_CLEAR.exec(text);
-      if (clear !== null && tableKey(clear[1] ?? '') === table) {
+      if (clear !== null && tableKey(group(clear, 1)) === table) {
         seeded = { file: rel(cwd, file), rows: new Set() };
       }
     }

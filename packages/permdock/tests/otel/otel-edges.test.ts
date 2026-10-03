@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { OtelApi } from '../../src/otel/types.ts';
 
 import { createPermDock } from '../../src/core/permdock.ts';
-import { applyOtel, instrument, withOtel } from '../../src/otel/instrument.ts';
+import { instrument, withOtel } from '../../src/otel/instrument.ts';
 import {
   memberUser,
   ownPost,
@@ -177,15 +177,5 @@ describe('permdock/otel logging and spans', () => {
         'permdock.otel unmatched redact: app.missing, app.keep.deeper, app.__proto__, absent.key',
       ],
     });
-  });
-});
-
-describe('applyOtel', () => {
-  it('returns the instance unchanged without options', async () => {
-    const permdock = await createPermDock(policy, memberUser);
-    expect({
-      same: applyOtel(permdock, undefined) === permdock,
-      wrapped: applyOtel(permdock, {}) === permdock,
-    }).toEqual({ same: true, wrapped: false });
   });
 });

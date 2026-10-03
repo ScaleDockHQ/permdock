@@ -418,7 +418,45 @@ export type Policy<
   readonly fresh?: readonly string[];
   /** Policy delegations in declaration order; absent or empty when the policy declares none. */
   readonly delegations?: readonly PolicyDelegation[];
+  readonly index: PolicyIndex;
 };
+
+/** Lookups built once per policy, so a decision does not rescan every role and grant. */
+export type PolicyIndex = {
+  readonly declaredRoles: ReadonlySet<string>;
+  readonly supports: readonly SupportSpec[];
+  /** The grants `grantList` returns, by permission key, in the same order. */
+  readonly grantsByKey: ReadonlyMap<string, readonly Grant[]>;
+};
+
+export function indexPolicy(
+  roles: readonly RoleBinding[],
+  grants: readonly Grant[],
+  vocabulary: PolicyVocabulary,
+): PolicyIndex {
+  const declaredRoles = new Set(roles.map((item) => item.name));
+  for (const leaf of listRoles(vocabulary.roles)) {
+    declaredRoles.add(leaf.key);
+  }
+  const supports = roles.flatMap((binding) =>
+    binding.support === undefined ? [] : [binding.support],
+  );
+  const listed =
+    grants.length > 0 ? grants : roles.flatMap((binding) => binding.grants);
+  const byKey = new Map<string, Grant[]>();
+  for (const grant of listed) {
+    const bucket = byKey.get(grant.permission.key);
+    if (bucket === undefined) {
+      byKey.set(grant.permission.key, [grant]);
+    } else {
+      bucket.push(grant);
+    }
+  }
+  for (const bucket of byKey.values()) {
+    Object.freeze(bucket);
+  }
+  return freezeDeep({ declaredRoles, supports, grantsByKey: byKey });
+}
 
 export { requiresApproval } from './approval-required.ts';
 
@@ -1348,6 +1386,7 @@ export function definePolicy<
     hostable,
     fresh,
     delegations: delegations.length === 0 ? undefined : delegations,
+    index: indexPolicy(roles, grants, vocabulary),
   }) as Policy<TUser, TPrincipal, VocabularyFromInput<Input>>;
 }
 
@@ -1383,11 +1422,7 @@ export function grantList(policy: Policy): readonly Grant[] {
 }
 
 export function declaredRoleNames(policy: Policy): ReadonlySet<string> {
-  const names = new Set(policy.roles.map((item) => item.name));
-  for (const leaf of listRoles(policy.vocabulary.roles)) {
-    names.add(leaf.key);
-  }
-  return names;
+  return policy.index.declaredRoles;
 }
 
 export function separationConflicts(

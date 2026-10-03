@@ -25,7 +25,7 @@ import type {
   TenantScope,
 } from '../server/create.ts';
 import type { StreamProtectOptions } from '../server/stream.ts';
-import type { WebBotAuthOptions } from '../server/web-bot-auth.ts';
+import type { WebBotAuthVerifier } from '../server/web-bot-auth.ts';
 
 import { compact } from '../core/compact.ts';
 import { createKernel, tenantScope } from '../server/create.ts';
@@ -81,7 +81,8 @@ export type OrpcPermDockOptions<
   readonly pdp?: PdpFactory;
   /** Accepted for adapter parity; not read by this adapter. */
   readonly snapshots?: SnapshotSource;
-  readonly webBotAuth?: WebBotAuthOptions;
+  /** `(request) => verifyWebBotAuth(request, options)`; a verified bot becomes the actor. */
+  readonly webBotAuth?: WebBotAuthVerifier;
   /** Ends or revalidates open event iterators. */
   readonly revocations?: RevocationFeed;
 };

@@ -6,7 +6,12 @@ import type {
   TokenSourceName,
 } from './types.ts';
 
-import { refreshCredential, runDeviceFlow } from './device.ts';
+import { timeoutSignal } from '../core/timeout.ts';
+import {
+  TERMINAL_TIMEOUT_MS,
+  refreshCredential,
+  runDeviceFlow,
+} from './device.ts';
 import { readCredentials, writeCredentials } from './storage.ts';
 
 const JWT_PART = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/u;
@@ -86,6 +91,7 @@ async function fromCiOidc(
         headers: {
           Authorization: `Bearer ${env['ACTIONS_ID_TOKEN_REQUEST_TOKEN']}`,
         },
+        signal: timeoutSignal(TERMINAL_TIMEOUT_MS),
       });
       const body: unknown = await response.json();
       if (

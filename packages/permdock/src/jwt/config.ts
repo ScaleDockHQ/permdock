@@ -31,6 +31,8 @@ const FAPI2_CLOCK_TOLERANCE = 5;
 export const DEFAULT_JWKS_MIN_TTL = 60;
 export const DEFAULT_JWKS_MAX_TTL = 3600;
 export const DEFAULT_JWKS_COOLDOWN = 60;
+/** Milliseconds a discovery or JWKS request may take. */
+export const DEFAULT_JWKS_TIMEOUT = 5000;
 
 export function fail(cause: TokenFailureCause): {
   readonly ok: false;

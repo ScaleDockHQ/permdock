@@ -56,6 +56,7 @@ function withoutProviders<
       onDenied: policy.onDenied,
       fingerprint: policy.fingerprint,
       resources: policy.resources,
+      index: policy.index,
     }),
   );
 }

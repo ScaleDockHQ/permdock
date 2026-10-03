@@ -166,6 +166,13 @@ alter table public.notes add constraint notes_author foreign key (author_id) ref
       `${MIGRATION}:10 public.notes.author_id is a foreign key no index starts with, so policies that join on it and deletes of the referenced row scan public.notes`,
     ]);
   });
+
+  it('counts a unique constraint added later as the index', () => {
+    const cwd =
+      migration(`alter table public.notes add constraint notes_author foreign key (author_id) references auth.users (id);
+alter table only public.notes add constraint notes_author_key unique (author_id, id);`);
+    expect(pd053(cwd, config)).toEqual([]);
+  });
 });
 
 describe('the generated RLS', () => {

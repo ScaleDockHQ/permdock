@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { memoryLimitStore } from '../../src/core/limits.ts';
 import { definePermissions, resource } from '../../src/core/permissions.ts';
 import { allow, definePolicy, role } from '../../src/core/policy.ts';
+import { verifyWebBotAuth } from '../../src/server/web-bot-auth.ts';
 import { createPermDock } from '../../src/trpc/index.ts';
 import {
   memberUser,
@@ -36,7 +37,11 @@ describe('permdock/trpc request discovery and failures', () => {
     const t = initTRPC.context<Ctx>().create();
     const { permdock } = createPermDock(policy, {
       subject: () => memberUser,
-      webBotAuth: { verify: true, keys: { lookup: () => undefined } },
+      webBotAuth: (request) =>
+        verifyWebBotAuth(request, {
+          verify: true,
+          keys: { lookup: () => undefined },
+        }),
     });
     const router = t.router({
       read: t.procedure.use(permdock()).query(() => 'ok'),

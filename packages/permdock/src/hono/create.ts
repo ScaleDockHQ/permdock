@@ -19,7 +19,7 @@ import type { Permission } from '../core/permissions.ts';
 import type { Policy, PolicyVocabulary } from '../core/policy.ts';
 import type { RevocationFeed } from '../core/revocations.ts';
 import type { Principal } from '../core/subject.ts';
-import type { OtelOptions } from '../otel/types.ts';
+import type { OtelWrap } from '../otel/types.ts';
 import type { PdpFactory } from '../pdp/types.ts';
 import type { Connection, ConnectionOptions } from '../server/connection.ts';
 import type {
@@ -28,11 +28,10 @@ import type {
   TenantOption,
   TenantScope,
 } from '../server/create.ts';
-import type { WebBotAuthOptions } from '../server/web-bot-auth.ts';
+import type { WebBotAuthVerifier } from '../server/web-bot-auth.ts';
 
 import { compact } from '../core/compact.ts';
 import { PermDockRevokedError } from '../core/errors.ts';
-import { applyOtel } from '../otel/instrument.ts';
 import { createKernel, tenantScope } from '../server/create.ts';
 import { problemFromError } from '../server/map-error.ts';
 import {
@@ -59,8 +58,10 @@ export type HonoPermDockOptions<TUser = unknown> = {
   readonly pdp?: PdpFactory;
   /** Accepted for adapter parity; not read by this adapter. */
   readonly snapshots?: SnapshotSource;
-  readonly otel?: OtelOptions;
-  readonly webBotAuth?: WebBotAuthOptions;
+  /** `(permdock) => withOtel(permdock, options)` from `permdock/otel`. */
+  readonly otel?: OtelWrap;
+  /** `(request) => verifyWebBotAuth(request, options)`; a verified bot becomes the actor. */
+  readonly webBotAuth?: WebBotAuthVerifier;
   /** Ends or revalidates open sockets and streams. */
   readonly revocations?: RevocationFeed;
 };
@@ -225,7 +226,7 @@ export function createPermDock<
       webBotAuth: options.webBotAuth,
       revocations: options.revocations,
       adapter: 'hono',
-      wrap: (permdock: PermDock<V>) => applyOtel(permdock, options.otel),
+      wrap: options.otel,
     }),
   );
 

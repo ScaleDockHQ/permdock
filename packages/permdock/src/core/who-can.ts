@@ -27,7 +27,6 @@ import {
   isFieldRelation,
   isPrincipalRelation,
 } from './permissions.ts';
-import { grantList } from './policy.ts';
 import {
   DEFAULT_GROUP_DEPTH,
   pendingRelations,
@@ -514,11 +513,9 @@ export async function whoCan(input: {
     },
   };
   await Promise.all(
-    grantList(policy)
-      .filter((grant) => grant.permission.key === permission.key)
-      .flatMap((grant) =>
-        flattenGrantee(grant.to).map((item) => discover(grant, item, ctx)),
-      ),
+    (policy.index.grantsByKey.get(permission.key) ?? []).flatMap((grant) =>
+      flattenGrantee(grant.to).map((item) => discover(grant, item, ctx)),
+    ),
   );
   const root = rootScope(scopes);
   const tenantKey =

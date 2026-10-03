@@ -412,9 +412,7 @@ function typedUsers(parts: Parts): string {
 function checkSources(parts: {
   readonly sources: readonly SqlMembershipSource[];
   readonly scopes: readonly Scope[];
-  readonly suspended: readonly string[];
-}): string[] {
-  const warnings: string[] = [];
+}): void {
   if (parts.sources.length === 0) {
     throw new Error(
       'PermDock CLI: supabase.hook.memberships needs at least one fromTable or fromJunction source',
@@ -444,15 +442,7 @@ function checkSources(parts: {
         `PermDock CLI: the ${source.sql.table} source needs within columns for ${missing.join(', ')}: a ${scope} membership without every ancestor grants nothing`,
       );
     }
-    for (const ancestor of chain.slice(1)) {
-      if (parts.suspended.includes(ancestor) && !holds.has(ancestor)) {
-        warnings.push(
-          `the ${source.sql.table} source cannot check ${ancestor} suspension`,
-        );
-      }
-    }
   }
-  return warnings;
 }
 
 function entriesSql(parts: Parts): string {
@@ -910,7 +900,7 @@ function hookParts(
   scopes: readonly Scope[],
   config: PermDockConfig,
   overrides: HookOverrides,
-): { readonly parts: Parts; readonly warnings: readonly string[] } {
+): Parts {
   const hook = config.supabase?.hook;
   if (hook === undefined) {
     throw new Error(
@@ -927,11 +917,7 @@ function hookParts(
   quoteIdent(schema);
   const tenantClaim = config.rls?.tenantClaim ?? supabaseTenantClaim;
   const extraPlan = extraClaimsPlan(hook.claims, tenantClaim);
-  const warnings = checkSources({
-    sources: hook.memberships,
-    scopes,
-    suspended: Object.keys(suspension?.scopes ?? {}),
-  });
+  checkSources({ sources: hook.memberships, scopes });
   const parts: Parts = {
     schema,
     scopes,
@@ -976,7 +962,7 @@ function hookParts(
     throw new Error(`PermDock CLI: ${extraPlan.errors.join('; ')}`);
   }
   quoteIdent(parts.tenantClaim);
-  return { parts, warnings };
+  return parts;
 }
 
 function permdockClaim(name: string, budget = false): SupabaseHookClaim {
@@ -1144,7 +1130,7 @@ export function supabaseHookManifest(
   config: PermDockConfig,
   overrides: HookOverrides & { readonly out?: string } = {},
 ): SupabaseHookManifest {
-  const { parts } = hookParts(scopes, config, overrides);
+  const parts = hookParts(scopes, config, overrides);
   return manifestOf(parts, overrides.out ?? defaultOut(config), config);
 }
 
@@ -1160,10 +1146,9 @@ export function supabaseHookSql(
 ): {
   readonly sql: string;
   readonly grants: string;
-  readonly warnings: readonly string[];
   readonly manifest: SupabaseHookManifest;
 } {
-  const { parts, warnings } = hookParts(scopes, config, overrides);
+  const parts = hookParts(scopes, config, overrides);
   const manifest = manifestOf(parts, defaultOut(config), config);
   const toml = configToml(parts.schema, parts.jwtExpiry)
     .split('\n')
@@ -1185,7 +1170,7 @@ ${toml}${grantsOut === undefined ? '' : `\n-- the supabase_auth_admin grants are
   const grants = `${GRANTS_MARKER} schema=${parts.schema}
 ${grantsSql(parts)}
 `;
-  return { sql: `${sql}\n`, grants, warnings, manifest };
+  return { sql: `${sql}\n`, grants, manifest };
 }
 
 /** What the hook file's header says about where its grants went. */
@@ -1332,7 +1317,7 @@ export async function runSupabase(input: {
     return { code: 2, output: SUPABASE_HELP };
   }
   const scopes = await loadScopes(input.cwd, input.config);
-  const { sql, grants, warnings, manifest } = supabaseHookSql(
+  const { sql, grants, manifest } = supabaseHookSql(
     scopes,
     input.config,
     overrides,
@@ -1380,7 +1365,6 @@ export async function runSupabase(input: {
       ...(grantsWritten.printed === '' ? [] : [grantsWritten.printed]),
       'add to supabase/config.toml:',
       toml,
-      ...warnings,
       ...(missing.length === 0 ? [] : [missingHelpersMessage(placed, missing)]),
     ].join('\n'),
   };

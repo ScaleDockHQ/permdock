@@ -492,6 +492,46 @@ describe('permdock supabase hook generate', () => {
     ]);
   });
 
+  it('names the ancestor columns and via of a mapped rls.memberships table', async () => {
+    const mapped = await generate(
+      `{ memberships: [${SOURCES}] }`,
+      [],
+      `{
+        memberships: {
+          scopes: {
+            organization: { table: 'members', user: 'user_id', role: 'role', tenant: 'organization_id', via: 'via' },
+            customer: { table: 'customer_members', user: 'user_id', role: 'role', columns: { customer: 'customer_id', organization: 'org_id' } },
+          },
+        },
+      }`,
+    );
+    const inspect = await run(['supabase', 'inspect', '--json'], {
+      cwd: mapped.cwd,
+    });
+    expect(inspect.code).toBe(0);
+    const manifest: SupabaseHookManifest = JSON.parse(inspect.stdout);
+    expect(manifest.rls.memberships).toEqual([
+      {
+        table: 'public.members',
+        user: { column: 'user_id' },
+        scope: { value: 'organization' },
+        id: { column: 'organization_id' },
+        role: { column: 'role' },
+        via: { column: 'via' },
+        columns: ['user_id', 'organization_id', 'role', 'via'],
+      },
+      {
+        table: 'public.customer_members',
+        user: { column: 'user_id' },
+        scope: { value: 'customer' },
+        id: { column: 'customer_id' },
+        role: { column: 'role' },
+        within: { columns: { organization: 'org_id' } },
+        columns: ['user_id', 'customer_id', 'role', 'org_id'],
+      },
+    ]);
+  });
+
   it('writes the manifest with --out and reports drift with --check', async () => {
     const { cwd } = await generate(`{ memberships: [${SOURCES}] }`);
     const out = ['supabase', 'inspect', '--out', 'permdock.manifest.json'];

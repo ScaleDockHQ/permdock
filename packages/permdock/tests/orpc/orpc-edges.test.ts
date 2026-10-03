@@ -6,6 +6,7 @@ import { memoryLimitStore } from '../../src/core/limits.ts';
 import { definePermissions, resource } from '../../src/core/permissions.ts';
 import { allow, definePolicy, role } from '../../src/core/policy.ts';
 import { createPermDock } from '../../src/orpc/index.ts';
+import { verifyWebBotAuth } from '../../src/server/web-bot-auth.ts';
 import {
   memberUser,
   ownPost,
@@ -35,7 +36,11 @@ describe('permdock/orpc request discovery and failures', () => {
   it('reads ctx.request and rejects a bad Web Bot Auth signature', async () => {
     const { permdock } = createPermDock<Ctx>(policy, {
       subject: () => memberUser,
-      webBotAuth: { verify: true, keys: { lookup: () => undefined } },
+      webBotAuth: (request) =>
+        verifyWebBotAuth(request, {
+          verify: true,
+          keys: { lookup: () => undefined },
+        }),
     });
     const read = os
       .$context<Ctx>()

@@ -8,6 +8,12 @@ import { project, removeProjects } from './doctor-kit.ts';
 
 afterAll(removeProjects);
 
+function missingModule(name: string): Error {
+  return Object.assign(new Error(`Cannot find package '${name}'`), {
+    code: 'ERR_MODULE_NOT_FOUND',
+  });
+}
+
 describe('requirePeer', () => {
   it('returns the loaded peer', async () => {
     await expect(
@@ -18,11 +24,27 @@ describe('requirePeer', () => {
   it('turns a missing peer into the install line', async () => {
     await expect(
       requirePeer(
-        () => Promise.reject(new Error('Cannot find package')),
+        () => Promise.reject(missingModule('pgsql-parser')),
         'pgsql-parser',
         'permdock rls import',
       ),
     ).rejects.toThrow(peerHint('pgsql-parser', 'permdock rls import'));
+  });
+
+  it('treats a CommonJS MODULE_NOT_FOUND as missing', async () => {
+    const error = Object.assign(new Error("Cannot find module 'pg'"), {
+      code: 'MODULE_NOT_FOUND',
+    });
+    await expect(
+      requirePeer(() => Promise.reject(error), 'pg', 'permdock rls'),
+    ).rejects.toThrow(peerHint('pg', 'permdock rls'));
+  });
+
+  it('rethrows a peer that is installed but fails to load', async () => {
+    const error = new SyntaxError('Unexpected token');
+    await expect(
+      requirePeer(() => Promise.reject(error), 'pg', 'permdock rls'),
+    ).rejects.toBe(error);
   });
 
   it.each([
@@ -59,7 +81,7 @@ describe('requirePeer', () => {
         const cwd = project({ [lockfile]: '{}\n' });
         await expect(
           requirePeer(
-            () => Promise.reject(new Error('Cannot find package')),
+            () => Promise.reject(missingModule('pg')),
             'pg',
             'permdock rls verify --db',
             cwd,

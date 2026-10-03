@@ -20,7 +20,8 @@ function quoted(value: string): string {
   return `"${value.replaceAll(/["\\]/gu, '')}"`;
 }
 
-const UTF8 = new TextEncoder();
+// oxlint-disable-next-line eslint/no-inline-comments -- bundlers only read the annotation inline
+const UTF8 = /* @__PURE__ */ new TextEncoder();
 
 /**
  * An RFC 9651 sf-string: `"` and `\` escaped, and anything outside printable

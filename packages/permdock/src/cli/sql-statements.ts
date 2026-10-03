@@ -49,3 +49,11 @@ export function sqlStatements(
   push(start, text.length);
   return statements;
 }
+
+/** Capture group `index` of a match, or '' when an optional group took no part. */
+export function group(
+  match: RegExpExecArray | RegExpMatchArray,
+  index: number,
+): string {
+  return match[index] ?? '';
+}

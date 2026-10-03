@@ -8,6 +8,7 @@ import {
 } from '@modelcontextprotocol/server';
 import { memoryApprovalStore } from 'permdock/approvals';
 import { createPermDock } from 'permdock/mcp';
+import { withOtel } from 'permdock/otel';
 import { z } from 'zod';
 
 import { ownPost, permissions } from './permissions.ts';
@@ -83,16 +84,17 @@ export function createServer(options: {
     subject: (authInfo) => options.local ?? userFor(authInfo),
     requireAuthInfo: options.requireAuthInfo ?? false,
     store,
-    otel: {
-      logger: {
-        info(message: string, attributes?: Record<string, unknown>) {
-          otelLog.push({ message, attributes });
+    otel: (permdock) =>
+      withOtel(permdock, {
+        logger: {
+          info(message: string, attributes?: Record<string, unknown>) {
+            otelLog.push({ message, attributes });
+          },
+          warn(message: string, attributes?: Record<string, unknown>) {
+            otelLog.push({ message, attributes });
+          },
         },
-        warn(message: string, attributes?: Record<string, unknown>) {
-          otelLog.push({ message, attributes });
-        },
-      },
-    },
+      }),
   });
   const mcp = new McpServer(
     { name: 'posts', version: '1.0.0' },

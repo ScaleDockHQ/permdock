@@ -57,9 +57,7 @@ export function mayAccess(
       return true;
     }
     const principal = resolved.principal;
-    const relevant = grantList(policy).filter(
-      (grant) => grant.permission.key === permission.key,
-    );
+    const relevant = policy.index.grantsByKey.get(permission.key) ?? [];
     if (principal !== null) {
       const declared = declaredRoleNames(policy);
       if (heldRoleNames(principal).some((name) => !declared.has(name))) {

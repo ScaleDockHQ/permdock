@@ -11,7 +11,13 @@ import {
 } from '../../src/core/hosted.ts';
 import { createPermDock } from '../../src/core/permdock.ts';
 import { definePermissions, resource } from '../../src/core/permissions.ts';
-import { allow, definePolicy, deny, role } from '../../src/core/policy.ts';
+import {
+  allow,
+  definePolicy,
+  deny,
+  grantList,
+  role,
+} from '../../src/core/policy.ts';
 import { memorySink } from '../../src/core/sink.ts';
 import { definePlans } from '../../src/core/vocabulary.ts';
 
@@ -546,6 +552,42 @@ describe('hosted approvals that go stale on a resource change', () => {
         },
       ]),
     ).toEqual(['invalid', 'invalid']);
+  });
+});
+
+describe('policy index', () => {
+  it('lists the grantList grants by permission key, in order', () => {
+    const keys = new Set(
+      grantList(policy).map((grant) => grant.permission.key),
+    );
+    for (const key of keys) {
+      expect(policy.index.grantsByKey.get(key)).toEqual(
+        grantList(policy).filter((grant) => grant.permission.key === key),
+      );
+    }
+    expect([...policy.index.declaredRoles].toSorted()).toEqual([
+      'auditor',
+      'member',
+    ]);
+  });
+
+  it('is rebuilt when a hosted document adds grants', () => {
+    const merged = mergeHostedGrants(
+      policy,
+      document([
+        {
+          id: 'g_export',
+          permission: 'invoice.export',
+          to: { kind: 'role', role: 'member', scope: 'global' },
+        },
+      ]),
+    );
+    expect(policy.index.grantsByKey.get('invoice.export')).toBeUndefined();
+    expect(
+      merged.policy.index.grantsByKey
+        .get('invoice.export')
+        ?.map((grant) => grant.hosted?.grant),
+    ).toEqual(['g_export']);
   });
 });
 

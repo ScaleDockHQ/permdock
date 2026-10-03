@@ -103,6 +103,7 @@ Option notes:
 - The Discovery document is fetched over HTTPS only; `http:` issuers are a configuration error. Its `issuer` must equal the configured issuer (Discovery 1.0 section 4.3); a mismatch is reported once by `permdock doctor` and every token resolves to anonymous with cause `discovery-mismatch` until it is fixed. The document is re-read on the JWKS refetch schedule.
 - The JWKS cache honours `Cache-Control: max-age` on the JWKS response, with a configurable floor and ceiling (`jwksCache: { minTtl, maxTtl }`).
 - An unknown `kid` triggers a refetch at most once per `jwksCache.cooldown` seconds (default 60), so a flood of tokens with bogus `kid` values cannot turn the resolver into a JWKS-fetch amplifier.
+- Concurrent requests share one in-flight discovery or JWKS fetch. Each fetch is aborted after `jwksCache.timeout` milliseconds (default 5000) and then counts as `jwks-unavailable` or `discovery-unavailable`, so a slow identity provider cannot hold requests open.
 - A fetch error keeps the previous key set until it expires, then fails closed: tokens are rejected with cause `jwks-unavailable` (or `discovery-unavailable` when the document itself could not be fetched and none is cached). Nothing is ever verified against an empty or partially fetched set.
 - Key rotation with a standby key (Supabase's standby / current / previously used / revoked model, or any issuer that publishes the next key ahead of time) needs no configuration: the new `kid` is found on the next refetch.
 

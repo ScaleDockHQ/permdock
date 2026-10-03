@@ -43,6 +43,8 @@ export type JwksCacheOptions = {
   readonly minTtl?: number;
   readonly maxTtl?: number;
   readonly cooldown?: number;
+  /** Milliseconds a discovery or JWKS request may take before it counts as failed. Default 5000. */
+  readonly timeout?: number;
 };
 
 export type JoseTokenVerifierOptions = {

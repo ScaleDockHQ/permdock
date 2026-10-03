@@ -33,6 +33,7 @@
     "test:integration": "pnpm --filter @permdock/integration test:integration",
     "test:runtimes": "pnpm --filter @permdock/runtimes test:runtimes",
     "typecheck": "turbo run typecheck",
+    "typecheck:perf": "node scripts/typecheck-perf.ts",
     "typecheck:tooling": "tsc --noEmit --checkers 4",
     "verify": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run typecheck:tooling && pnpm run knip && pnpm run boundaries && pnpm run test && pnpm run docs:drift",
     "version-packages": "node scripts/root-changelog.ts && changeset version && oxfmt ."

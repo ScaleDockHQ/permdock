@@ -12,17 +12,16 @@ permix adapters each copy request isolation onto the framework context; PermDock
 ## API
 
 ```ts
-import { createPermDock, discoverViaSignatureAgent } from 'permdock/server'
+import { createPermDock, discoverViaSignatureAgent, verifyWebBotAuth } from 'permdock/server'
 import { policy } from './policy'
 
 export const { permdock, protect, connection, problem, openapi } = createPermDock(policy, {
   subject: async (request) => userFromSession(request.headers.get('cookie')),
   actor: async (request) => agentFrom(request),          // optional; Web Bot Auth fills this automatically when enabled
-  webBotAuth: {                                         // optional RFC 9421 verification
-    verify: true,
+  webBotAuth: (request) => verifyWebBotAuth(request, {   // optional RFC 9421 verification
     keys: discoverViaSignatureAgent({ allow: ['agents.example.com'] }),
     required: false,
-  },
+  }),
   tenant: (request) => orgFromPath(request),            // optional; resolved again on every protect
   limits: memoryLimitStore(),                           // optional LimitStore for quota grants
 })
@@ -125,7 +124,7 @@ Open a connection only after `protect` succeeded, so the refusal at open is the 
 The kernel implements the [shared adapter contract](/docs/adapters) for every HTTP adapter. What it adds:
 
 - `permdock(request)` always takes a Fetch `Request`. Adapters with their own request type convert it first (`toRequest` in `permdock/node`) and pass their framework context only to the `tenant` resolver, so memoisation has one key everywhere.
-- When `webBotAuth` is enabled and the request carries `Signature` and `Signature-Agent`, the kernel verifies the RFC 9421 signature against the agent's directory (the `created` / `expires` window, covered components and key lookup) and fills `actor` with the verified key id.
+- When `webBotAuth` is set and the request carries `Signature` and `Signature-Agent`, the kernel verifies the RFC 9421 signature against the agent's directory (the `created` / `expires` window, covered components and key lookup) and fills `actor` with the verified key id.
 - Bearer tokens are not validated here; the `subject` resolver or a [provider](/docs/adapters/supabase) does that, and the kernel only reads the scopes and `authorization_details` the resolver returns.
 - `PermDockDeniedError` thrown by `assert` inside a handler is caught by the adapter's error hook and routed through `problemFromError`.
 

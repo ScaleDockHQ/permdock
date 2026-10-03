@@ -194,38 +194,44 @@
     "problemResponse",
     "subjectFromApiKey",
     "validationProblem",
+    "verifyWebBotAuth",
     "wwwAuthenticate"
   ],
   "./hono": [
     "InvalidSignatureError",
     "createPermDock",
-    "discoverViaSignatureAgent"
+    "discoverViaSignatureAgent",
+    "verifyWebBotAuth"
   ],
   "./express": [
     "InvalidSignatureError",
     "createPermDock",
     "discoverViaSignatureAgent",
     "sendResponse",
-    "toRequest"
+    "toRequest",
+    "verifyWebBotAuth"
   ],
   "./fastify": [
     "InvalidSignatureError",
     "createPermDock",
     "discoverViaSignatureAgent",
     "sendReply",
-    "toRequest"
+    "toRequest",
+    "verifyWebBotAuth"
   ],
   "./elysia": [
     "InvalidSignatureError",
     "createPermDock",
-    "discoverViaSignatureAgent"
+    "discoverViaSignatureAgent",
+    "verifyWebBotAuth"
   ],
   "./nest": [
     "InvalidSignatureError",
     "createPermDock",
     "discoverViaSignatureAgent",
     "sendResponse",
-    "toRequest"
+    "toRequest",
+    "verifyWebBotAuth"
   ],
   "./node": [
     "InvalidSignatureError",
@@ -234,7 +240,8 @@
     "fromResponse",
     "isServerResponse",
     "sendResponse",
-    "toRequest"
+    "toRequest",
+    "verifyWebBotAuth"
   ],
   "./trpc": ["createPermDock", "errorFormatter"],
   "./orpc": ["createPermDock"],
@@ -330,7 +337,6 @@
     "GENAI_SEMCONV_PIN",
     "GEN_AI_TOOL_CALL_ID",
     "GEN_AI_TOOL_NAME",
-    "applyOtel",
     "instrument",
     "withOtel"
   ],

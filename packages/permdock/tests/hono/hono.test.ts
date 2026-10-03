@@ -8,6 +8,7 @@ import type { User } from '../fixtures/quick-start.ts';
 
 import { memoryRevocationFeed } from '../../src/core/revocations.ts';
 import { createPermDock } from '../../src/hono/index.ts';
+import { verifyWebBotAuth } from '../../src/server/web-bot-auth.ts';
 import {
   memberUser,
   otherPost,
@@ -191,10 +192,11 @@ describe('permdock/hono', () => {
   it('rejects a claimed Web Bot Auth signature before the handler', async () => {
     const { permdock } = createPermDock(policy, {
       subject: () => memberUser,
-      webBotAuth: {
-        verify: true,
-        keys: { lookup: () => undefined },
-      },
+      webBotAuth: (request) =>
+        verifyWebBotAuth(request, {
+          verify: true,
+          keys: { lookup: () => undefined },
+        }),
     });
     const app = new Hono();
     app.use(permdock());

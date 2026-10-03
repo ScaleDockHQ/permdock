@@ -85,6 +85,11 @@ function clientReferencePlugin(): {
 
 export default defineConfig({
   plugins: [sveltePlugin(), clientReferencePlugin()],
+  // `sideEffects: false` in package.json promises consumers the same; externals
+  // keep the default so a bare `import 'server-only'` survives.
+  treeshake: {
+    moduleSideEffects: [{ external: false, sideEffects: false }],
+  },
   entry: [
     'src/index.ts',
     'src/approvals/index.ts',

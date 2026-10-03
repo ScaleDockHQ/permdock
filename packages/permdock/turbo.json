@@ -1,5 +1,10 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
   "extends": ["//"],
-  "tags": ["library"]
+  "tags": ["library"],
+  "tasks": {
+    "typecheck": {
+      "dependsOn": ["build", "^build"]
+    }
+  }
 }

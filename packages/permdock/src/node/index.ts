@@ -10,4 +10,5 @@ export type { NodeRequest } from './http.ts';
 export {
   discoverViaSignatureAgent,
   InvalidSignatureError,
+  verifyWebBotAuth,
 } from '../server/web-bot-auth.ts';

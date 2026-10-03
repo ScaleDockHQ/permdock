@@ -49,6 +49,7 @@ export {
   discoverViaSignatureAgent,
   invalidSignatureProblem,
   invalidSignatureResponse,
+  verifyWebBotAuth,
 } from './web-bot-auth.ts';
 export type {
   DiscoverViaSignatureAgentOptions,
@@ -56,4 +57,5 @@ export type {
   WebBotAuthKeyLookup,
   WebBotAuthKeys,
   WebBotAuthOptions,
+  WebBotAuthVerifier,
 } from './web-bot-auth.ts';

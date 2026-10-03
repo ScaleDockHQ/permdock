@@ -2,7 +2,11 @@ import type { ProblemDetails } from '../core/errors.ts';
 import type { Actor, JsonWebKeyLike } from '../core/subject.ts';
 
 import { compact } from '../core/compact.ts';
+import { timeoutSignal } from '../core/timeout.ts';
 import { PROBLEM_BASE, problemResponse } from './problem.ts';
+
+/** Milliseconds a key directory fetch may take before the signature counts as unverifiable. */
+const DIRECTORY_TIMEOUT_MS = 5000;
 
 const DEFAULT_MAX_AGE = 300;
 const FUTURE_SKEW = 60;
@@ -31,6 +35,14 @@ export type WebBotAuthOptions = {
   /** Unix seconds; defaults to the system clock. */
   readonly now?: () => number;
 };
+
+/**
+ * An adapter's `webBotAuth` option: `(request) => verifyWebBotAuth(request, options)`,
+ * so an app without it does not bundle RFC 9421 verification.
+ */
+export type WebBotAuthVerifier = (
+  request: Request,
+) => Promise<Actor | undefined>;
 
 export type DiscoverViaSignatureAgentOptions = {
   readonly allow: readonly string[];
@@ -463,6 +475,7 @@ async function loadDirectory(
       accept:
         'application/http-message-signatures-directory+json, application/json',
     },
+    signal: timeoutSignal(DIRECTORY_TIMEOUT_MS),
   });
   if (!response.ok) {
     throw new TypeError('directory fetch failed');

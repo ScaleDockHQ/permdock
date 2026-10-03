@@ -25,7 +25,7 @@ import type { PermDock } from '../core/permdock.ts';
 import type { Permission } from '../core/permissions.ts';
 import type { Policy, PolicyVocabulary } from '../core/policy.ts';
 import type { Principal } from '../core/subject.ts';
-import type { OtelOptions } from '../otel/types.ts';
+import type { OtelWrap } from '../otel/types.ts';
 import type { PdpFactory } from '../pdp/types.ts';
 import type {
   OpenApiHooks,
@@ -33,10 +33,9 @@ import type {
   TenantOption,
   TenantScope,
 } from '../server/create.ts';
-import type { WebBotAuthOptions } from '../server/web-bot-auth.ts';
+import type { WebBotAuthVerifier } from '../server/web-bot-auth.ts';
 
 import { compact } from '../core/compact.ts';
-import { applyOtel } from '../otel/instrument.ts';
 import { createKernel, tenantScope } from '../server/create.ts';
 import { problemFromError } from '../server/map-error.ts';
 import { sendReply, toRequest } from './http.ts';
@@ -60,8 +59,10 @@ export type FastifyPermDockOptions<TUser = unknown> = {
   readonly pdp?: PdpFactory;
   /** Accepted for adapter parity; not read by this adapter. */
   readonly snapshots?: SnapshotSource;
-  readonly otel?: OtelOptions;
-  readonly webBotAuth?: WebBotAuthOptions;
+  /** `(permdock) => withOtel(permdock, options)` from `permdock/otel`. */
+  readonly otel?: OtelWrap;
+  /** `(request) => verifyWebBotAuth(request, options)`; a verified bot becomes the actor. */
+  readonly webBotAuth?: WebBotAuthVerifier;
 };
 
 export type PermDockRequest<
@@ -161,7 +162,7 @@ export function createPermDock<
       pdp: options.pdp,
       webBotAuth: options.webBotAuth,
       adapter: 'fastify',
-      wrap: (permdock: PermDock<V>) => applyOtel(permdock, options.otel),
+      wrap: options.otel,
     }),
   );
 

@@ -42,12 +42,7 @@ import {
 } from './grantee.ts';
 import { applyQuota } from './limits.ts';
 import { getResource, listPermissions } from './permissions.ts';
-import {
-  grantList,
-  requiresApproval,
-  type Grant,
-  type Policy,
-} from './policy.ts';
+import { requiresApproval, type Grant, type Policy } from './policy.ts';
 import { resolveRelated } from './relations.ts';
 import { scopeList, tenantOf } from './scopes.ts';
 import {
@@ -61,7 +56,6 @@ import { isThenable } from './thenable.ts';
 import { decisionToken, payloadDigest, versionOf } from './token.ts';
 import { validateBoundary } from './validation.ts';
 import { isActive } from './validity.ts';
-import { listRoles } from './vocabulary.ts';
 
 type ScopeMatch = ReturnType<typeof matchScopedMembership>;
 
@@ -189,12 +183,8 @@ export function expandRoleNames(
   return { roles: [...resolved], unknown };
 }
 
-export function declaredRoleNames(policy: Policy): Set<string> {
-  const names = new Set(policy.roles.map((role) => role.name));
-  for (const leaf of listRoles(policy.vocabulary?.roles)) {
-    names.add(leaf.key);
-  }
-  return names;
+export function declaredRoleNames(policy: Policy): ReadonlySet<string> {
+  return policy.index.declaredRoles;
 }
 
 function alternativesFor(
@@ -579,10 +569,7 @@ export function evaluate(
     }
   }
 
-  const supports = policy.roles.flatMap((binding) =>
-    binding.support === undefined ? [] : [binding.support],
-  );
-  const actorVias = actorRequiredVias(supports);
+  const actorVias = actorRequiredVias(policy.index.supports);
   if (
     actorVias.size > 0 &&
     subject.actor === undefined &&
@@ -602,13 +589,10 @@ export function evaluate(
 
   const purposes = purposesOf(subject);
 
+  const forPermission = policy.index.grantsByKey.get(permission.key) ?? [];
   const candidates: { readonly grant: Grant; readonly custom?: CustomRole }[] =
-    grantList(policy)
-      .filter(
-        (grant) =>
-          grant.permission.key === permission.key &&
-          grant.breakGlass === undefined,
-      )
+    forPermission
+      .filter((grant) => grant.breakGlass === undefined)
       .map((grant) => ({ grant }));
   for (const item of env.customGrants) {
     if (item.grant.permission.key === permission.key) {
@@ -620,11 +604,8 @@ export function evaluate(
   let breakGlassObligations: readonly Obligation[] = [];
   const breakGlassOverrides = new Set<string>();
   let breakGlassDenial: Denial | undefined;
-  for (const grant of grantList(policy)) {
-    if (
-      grant.permission.key !== permission.key ||
-      grant.breakGlass === undefined
-    ) {
+  for (const grant of forPermission) {
+    if (grant.breakGlass === undefined) {
       continue;
     }
     if (tracer !== undefined) {

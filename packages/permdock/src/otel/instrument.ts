@@ -335,10 +335,3 @@ export function withOtel<V extends PolicyVocabulary = PolicyVocabulary>(
 ): PermDock<V> {
   return instrumented(permdock, options, resolveApi(options.api));
 }
-
-export function applyOtel<V extends PolicyVocabulary = PolicyVocabulary>(
-  permdock: PermDock<V>,
-  options: OtelOptions | undefined,
-): PermDock<V> {
-  return options === undefined ? permdock : withOtel(permdock, options);
-}

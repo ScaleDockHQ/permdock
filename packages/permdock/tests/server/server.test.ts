@@ -12,6 +12,7 @@ import {
   createPermDock,
   discoverViaSignatureAgent,
 } from '../../src/server/index.ts';
+import { verifyWebBotAuth } from '../../src/server/web-bot-auth.ts';
 import {
   adminUser,
   memberUser,
@@ -398,10 +399,11 @@ describe('permdock/server webBotAuth', () => {
     const { publicJwk } = await ed25519Pair();
     const { permdock: permdockFor } = createPermDock(policy, {
       subject: () => memberUser,
-      webBotAuth: {
-        verify: true,
-        keys: { lookup: () => publicJwk },
-      },
+      webBotAuth: (incoming) =>
+        verifyWebBotAuth(incoming, {
+          verify: true,
+          keys: { lookup: () => publicJwk },
+        }),
     });
     const permdock = await permdockFor(request());
     expect(permdock.subject.actor).toBeUndefined();
@@ -412,10 +414,11 @@ describe('permdock/server webBotAuth', () => {
     const { publicJwk, privateKey } = await ed25519Pair();
     const { permdock: permdockFor } = createPermDock(policy, {
       subject: () => memberUser,
-      webBotAuth: {
-        verify: true,
-        keys: { lookup: () => publicJwk },
-      },
+      webBotAuth: (incoming) =>
+        verifyWebBotAuth(incoming, {
+          verify: true,
+          keys: { lookup: () => publicJwk },
+        }),
     });
     const permdock = await permdockFor(
       await signedRequest(privateKey, 'bot-1'),
@@ -430,10 +433,11 @@ describe('permdock/server webBotAuth', () => {
     const { publicJwk, privateKey } = await ed25519Pair();
     const { permdock: permdockFor, protect } = createPermDock(policy, {
       subject: () => memberUser,
-      webBotAuth: {
-        verify: true,
-        keys: { lookup: () => publicJwk },
-      },
+      webBotAuth: (incoming) =>
+        verifyWebBotAuth(incoming, {
+          verify: true,
+          keys: { lookup: () => publicJwk },
+        }),
     });
     const good = await signedRequest(privateKey, 'bot-1');
     const tampered = new Request(good.url, {
@@ -465,14 +469,15 @@ describe('permdock/server webBotAuth', () => {
     const { publicJwk, privateKey } = await ed25519Pair();
     const { protect } = createPermDock(policy, {
       subject: () => memberUser,
-      webBotAuth: {
-        verify: true,
-        keys: discoverViaSignatureAgent({
-          allow: ['allowed.example'],
-          fetch: async () =>
-            Response.json({ keys: [{ ...publicJwk, kid: 'bot-1' }] }),
+      webBotAuth: (incoming) =>
+        verifyWebBotAuth(incoming, {
+          verify: true,
+          keys: discoverViaSignatureAgent({
+            allow: ['allowed.example'],
+            fetch: async () =>
+              Response.json({ keys: [{ ...publicJwk, kid: 'bot-1' }] }),
+          }),
         }),
-      },
     });
     const signed = await signedRequest(
       privateKey,
@@ -493,11 +498,12 @@ describe('permdock/server webBotAuth', () => {
   it('rejects unsigned requests when required is true', async () => {
     const { protect } = createPermDock(policy, {
       subject: () => memberUser,
-      webBotAuth: {
-        verify: true,
-        required: true,
-        keys: { lookup: () => undefined },
-      },
+      webBotAuth: (incoming) =>
+        verifyWebBotAuth(incoming, {
+          verify: true,
+          required: true,
+          keys: { lookup: () => undefined },
+        }),
     });
     const denied = await protect(
       permissions.post.update,
@@ -517,18 +523,19 @@ describe('permdock/server webBotAuth', () => {
     const { publicJwk, privateKey } = await ed25519Pair();
     const { permdock: permdockFor } = createPermDock(policy, {
       subject: () => memberUser,
-      webBotAuth: {
-        verify: true,
-        keys: discoverViaSignatureAgent({
-          allow: ['agents.example.com'],
-          fetch: async (input) => {
-            expect(String(input)).toBe(
-              'https://agents.example.com/.well-known/http-message-signatures-directory',
-            );
-            return Response.json({ keys: [{ ...publicJwk, kid: 'bot-1' }] });
-          },
+      webBotAuth: (incoming) =>
+        verifyWebBotAuth(incoming, {
+          verify: true,
+          keys: discoverViaSignatureAgent({
+            allow: ['agents.example.com'],
+            fetch: async (input) => {
+              expect(String(input)).toBe(
+                'https://agents.example.com/.well-known/http-message-signatures-directory',
+              );
+              return Response.json({ keys: [{ ...publicJwk, kid: 'bot-1' }] });
+            },
+          }),
         }),
-      },
     });
     const permdock = await permdockFor(
       await signedRequest(privateKey, 'bot-1'),

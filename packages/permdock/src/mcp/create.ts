@@ -30,7 +30,6 @@ import { mayUse } from '../core/may-use.ts';
 import { createPermDock as createCorePermDock } from '../core/permdock.ts';
 import { annotationsFor } from '../core/permissions.ts';
 import { wireDenials } from '../core/wire-denial.ts';
-import { applyOtel } from '../otel/instrument.ts';
 import {
   bearerChallenge,
   protectedResourceMetadataUrl,
@@ -404,26 +403,23 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       typeof clientId === 'string' && clientId !== ''
         ? { id: clientId, kind: 'mcp-client' as const }
         : undefined;
-    return applyOtel(
-      await createCorePermDock(
-        policy,
-        user,
-        compact({
-          tenant,
-          actor,
-          delegation:
-            authInfo === undefined ? undefined : delegationOf(authInfo),
-          memberships: options.memberships,
-          relations: options.relations,
-          entitlements: options.entitlements,
-          customRoles: options.customRoles,
-          policies: options.policies,
-          sink: options.sink,
-          limits: options.limits,
-        }),
-      ),
-      options.otel,
+    const built = await createCorePermDock(
+      policy,
+      user,
+      compact({
+        tenant,
+        actor,
+        delegation: authInfo === undefined ? undefined : delegationOf(authInfo),
+        memberships: options.memberships,
+        relations: options.relations,
+        entitlements: options.entitlements,
+        customRoles: options.customRoles,
+        policies: options.policies,
+        sink: options.sink,
+        limits: options.limits,
+      }),
     );
+    return options.otel === undefined ? built : options.otel(built);
   };
 
   const forThisServer = (authInfo: McpAuthInfo): boolean =>

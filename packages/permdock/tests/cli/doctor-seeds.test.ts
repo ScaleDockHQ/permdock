@@ -70,10 +70,40 @@ describe('PD054 stale role_permissions seeds', () => {
     expect(finding?.message).toMatch(/: \d+ missing, such as/u);
   });
 
+  it('compiles a supabase-only config with Supabase defaults and names stale rows alone', async () => {
+    const cwd = await seeded();
+    const file = path.join(cwd, SEEDS);
+    writeFileSync(
+      file,
+      readFileSync(file, 'utf8').replace(
+        'values\n',
+        "values\n  ('ghost', 'quote.read', 'quote.read', 'organization', 'allow'),\n",
+      ),
+    );
+    writeFileSync(
+      path.join(cwd, 'supabase/migrations/20260102000000_other.sql'),
+      "insert into public.notes (id) values ('n1');\ndelete from public.notes;\n",
+    );
+    const [finding] = await pd054({
+      cwd,
+      config: { permissions: POLICY, policy: POLICY, supabase: {} },
+    });
+    expect(finding?.message).toContain(
+      'rows the policy no longer compiles to: 1 stale, such as (ghost quote.read quote.read organization allow)',
+    );
+    expect(finding?.message).not.toContain('missing');
+  });
+
   it('needs a policy, an rls or supabase config, and a seed in the migrations', async () => {
     expect(await pd054({ cwd: project({}), config })).toEqual([]);
     expect(
       await pd054({ cwd: await seeded(), config: { policy: POLICY } }),
+    ).toEqual([]);
+    expect(
+      await pd054({
+        cwd: await seeded(),
+        config: { ...config, policy: 'src/missing-policy.ts' },
+      }),
     ).toEqual([]);
   });
 });

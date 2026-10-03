@@ -33,7 +33,7 @@ receiver.poll({ endpoint: 'https://login.example.com/ssf/poll', every: '30s' }) 
 ```
 
 - `receiver.push(request)` is a Fetch handler for RFC 8935 push delivery: it accepts `application/secevent+jwt`, verifies, dispatches and returns `202`.
-- `receiver.poll(options)` runs RFC 8936 poll delivery from a long-lived process: it fetches pending SETs, dispatches them and acknowledges by `jti`.
+- `receiver.poll(options)` runs RFC 8936 poll delivery from a long-lived process: it fetches pending SETs, dispatches them and acknowledges by `jti`. Each poll request is aborted after 30 seconds, or earlier through `options.signal`.
 - `onEvent` is keyed by CAEP event type. Handlers receive the resolved `subject`, the raw `event` claims, `event_timestamp` and the `jti`.
 - `subject` maps the SET `sub_id` (formats `iss_sub`, `email`, `opaque`, `complex`, and others defined by the Subject Identifiers RFC) to the id PermDock uses in `tag` and snapshots. A SET without `sub_id` falls back to `sub`, then to the event's own `subject` member (the pre-1.0 CAEP layout some transmitters still send). The session of a `complex` subject becomes `subject.session`, so a `session-revoked` event ends only that session.
 - `verifier` (optional, a `TokenVerifier` from [extension interfaces](/docs/concepts/extension-interfaces)) replaces the built-in `joseTokenVerifier` over `jwks`; `discovery: '<issuer>'` may stand in for `issuer` plus `jwks` exactly as in [`permdock/jwt`](/docs/adapters/jwt); the document's issuer then becomes the expected SET issuer, for the built-in verifier and a custom one alike.

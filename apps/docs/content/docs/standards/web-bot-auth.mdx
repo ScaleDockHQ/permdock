@@ -22,15 +22,16 @@ Two things Web Bot Auth does not provide, and PermDock does not infer from it: t
 ## How PermDock uses it
 
 ```ts
-import { createPermDock, discoverViaSignatureAgent } from 'permdock/hono'
+import { createPermDock, discoverViaSignatureAgent, verifyWebBotAuth } from 'permdock/hono'
+
+const keys = discoverViaSignatureAgent({ allow: ['agents.example.com'] }) // key discovery policy
 
 export const { permdock, protect } = createPermDock(policy, {
   subject: (c) => c.get('user'),
-  webBotAuth: {
-    verify: true,                                  // verify RFC 9421 signatures when present
-    keys: discoverViaSignatureAgent({ allow: ['agents.example.com'] }), // key discovery policy
+  webBotAuth: (request) => verifyWebBotAuth(request, {
+    keys,
     required: false,                               // unsigned requests are still allowed, with no actor
-  },
+  }),
 })
 app.use(permdock())
 app.delete('/posts/:id', protect(permissions.post.delete, (c) => loadPost(c.req.param('id'))), handler)
@@ -39,7 +40,7 @@ app.delete('/posts/:id', protect(permissions.post.delete, (c) => loadPost(c.req.
 
 Behaviour in the [HTTP adapters](/docs/adapters/server-kernel):
 
-- **Verification is optional and off by default.** When `webBotAuth.verify` is true, a request with `Signature-Input` is verified against keys discovered through `Signature-Agent`, subject to an allow-list of key directories.
+- **Verification is optional and off by default.** When `webBotAuth` is set to a `verifyWebBotAuth` call, a request with `Signature-Input` is verified against keys discovered through `Signature-Agent`, subject to an allow-list of key directories.
 - **Freshness is bounded.** `created` is required, may be at most 60 seconds in the future and at most `maxAge` seconds old (default 300); a past `expires` rejects. `now` (Unix seconds) replaces the system clock, which is how the RFC 9421 Appendix B vectors are checked.
 - **Invalid signature fails closed.** A request that claims a signature but fails verification is rejected before any permission check, with a Problem Details body of type `.../invalid-signature`. It is never downgraded to an anonymous actor.
 - **Verified signer becomes `actor`.** `actor.id` is the signer's key identifier and `actor.kind` is `'web-bot-auth'`. Policies may reference `subject.actor` in conditions (for example, denying `post.publish` when any actor is present), and `on('decision')` events include it for audit.
@@ -49,7 +50,7 @@ Behaviour in the [HTTP adapters](/docs/adapters/server-kernel):
 ### Request lifecycle
 
 1. An agent sends `DELETE /posts/p_42` with a bearer token for user u_123 and RFC 9421 `Signature` and `Signature-Input` headers, plus `Signature-Agent` pointing at its key directory.
-2. The adapter's `permdock()` middleware sees the signature, checks the `Signature-Agent` host against the allow-list, fetches (or reads from cache) the public key, and verifies the signed components.
+2. The adapter's `permdock()` middleware sees the signature, checks the `Signature-Agent` host against the allow-list, fetches (or reads from cache) the public key, and verifies the signed components. A key directory fetch is aborted after 5 seconds, and the signature then counts as unverifiable.
 3. On success, the request-scoped `PermDock` is built with `principal` from the token, `actor` from the signer, and `delegation` from the token scopes.
 4. `protect(permissions.post.delete, ...)` loads the post and calls `decide`. A policy that denies `post.delete` for any `actor` (a "humans only" rule) yields `denied`; otherwise the normal grant and delegation intersection applies.
 5. The 403 body, if any, is a Problem Details document; the `on('decision')` event names the signer as `actor`.
@@ -70,8 +71,8 @@ const member = role('member', [
 
 | Web Bot Auth / RFC 9421 concept | PermDock concept |
 | --- | --- |
-| `Signature`, `Signature-Input` headers | Verified by the HTTP adapter when `webBotAuth.verify` is on |
-| `Signature-Agent` key discovery | `webBotAuth.keys` discovery policy with an allow-list of directories |
+| `Signature`, `Signature-Input` headers | Verified by the HTTP adapter when `webBotAuth` is set |
+| `Signature-Agent` key discovery | The `keys` option of `verifyWebBotAuth`: a discovery policy with an allow-list of directories |
 | Signer key identifier | `actor.id` |
 | Signature scheme | `actor.kind: 'web-bot-auth'` |
 | Unsigned request | No `actor`; principal from the session as usual |

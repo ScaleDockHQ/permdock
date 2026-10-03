@@ -8,7 +8,7 @@ import { PERMDOCK_SCHEMA } from '../supabase/sources.ts';
 import { tableKey } from './deciding-columns.ts';
 import { MIGRATION_DIRS } from './doctor-project.ts';
 import { rel, sqlFiles } from './files.ts';
-import { sqlStatements } from './sql-statements.ts';
+import { group, sqlStatements } from './sql-statements.ts';
 import { supabaseConfig } from './supabase-config.ts';
 
 /** One statement of a migration: comments blanked, its file and first line. */
@@ -49,8 +49,9 @@ function migrationStatements(
   );
 }
 
+/** The schema of a `tableKey`, which always names one. */
 function schemaOf(key: string): string {
-  return key.split('.')[0] ?? 'public';
+  return key.slice(0, key.indexOf('.'));
 }
 
 function unquote(name: string): string {
@@ -101,7 +102,7 @@ export function pd047(
     [...statement.text.matchAll(USER_METADATA)].map((match) => ({
       code: 'PD047',
       severity: 'warning' as const,
-      message: `${statement.file}:${String(statement.line + statement.text.slice(0, match.index).split('\n').length - 1)} reads ${match[1] ?? 'user_metadata'}, which a user can set for themselves`,
+      message: `${statement.file}:${String(statement.line + statement.text.slice(0, match.index).split('\n').length - 1)} reads ${match[0]}, which a user can set for themselves`,
       fix: 'decide access from app_metadata (raw_app_meta_data), a server-owned table or a hook claim; user_metadata is for display only',
     })),
   );
@@ -139,7 +140,7 @@ function createdFunctions(
       : [
           {
             ...statement,
-            key: tableKey(match[1] ?? ''),
+            key: tableKey(group(match, 1)),
             head: header(statement.text),
           },
         ];
@@ -158,7 +159,7 @@ export function pd048(
   const altered = new Set(
     statements.flatMap((statement) => {
       const match = ALTER_SEARCH_PATH.exec(statement.text);
-      return match === null ? [] : [tableKey(match[1] ?? '')];
+      return match === null ? [] : [tableKey(group(match, 1))];
     }),
   );
   return createdFunctions(statements)
@@ -194,13 +195,13 @@ function revokedExecute(
   for (const statement of statements) {
     const one = REVOKE_EXECUTE.exec(statement.text);
     if (one !== null) {
-      add(tableKey(one[1] ?? ''), one[2] ?? '');
+      add(tableKey(group(one, 1)), group(one, 2));
       continue;
     }
     const all = REVOKE_ALL_FUNCTIONS.exec(statement.text);
     if (all !== null) {
       const schema = all[1] ?? all[2];
-      add(`${schema === undefined ? '*' : unquote(schema)}.*`, all[3] ?? '');
+      add(`${schema === undefined ? '*' : unquote(schema)}.*`, group(all, 3));
     }
   }
   return revoked;
@@ -273,17 +274,17 @@ export function pd050(
   for (const statement of migrationStatements(cwd, config)) {
     const table = CREATE_TABLE.exec(statement.text);
     if (table !== null) {
-      created.set(tableKey(table[1] ?? ''), statement);
+      created.set(tableKey(group(table, 1)), statement);
       continue;
     }
     const rls = ENABLE_RLS.exec(statement.text);
     if (rls !== null) {
-      enabled.add(tableKey(rls[1] ?? ''));
+      enabled.add(tableKey(group(rls, 1)));
       continue;
     }
     const dropped = DROP_TABLE.exec(statement.text);
     if (dropped !== null) {
-      for (const name of (dropped[1] ?? '').split(',')) {
+      for (const name of group(dropped, 1).split(',')) {
         created.delete(tableKey(name.trim()));
       }
     }
@@ -319,19 +320,20 @@ export function pd051(
     }
     const calls = [
       ...new Set(
-        [...(policy[3] ?? '').matchAll(UNWRAPPED_AUTH)].map(
-          (match) => `auth.${(match[1] ?? '').toLowerCase()}()`,
+        [...group(policy, 3).matchAll(UNWRAPPED_AUTH)].map(
+          (match) => `auth.${group(match, 1).toLowerCase()}()`,
         ),
       ),
     ];
-    return calls.length === 0
+    const [first] = calls;
+    return first === undefined
       ? []
       : [
           {
             code: 'PD051',
             severity: 'warning' as const,
-            message: `${statement.file}:${String(statement.line)} policy ${unquote(policy[1] ?? '')} on ${tableKey(policy[2] ?? '')} calls ${calls.join(' and ')} once per row`,
-            fix: `wrap each call as (select ${calls[0] ?? 'auth.uid()'}) so Postgres evaluates it once per statement (Supabase advisor auth_rls_initplan)`,
+            message: `${statement.file}:${String(statement.line)} policy ${unquote(group(policy, 1))} on ${tableKey(group(policy, 2))} calls ${calls.join(' and ')} once per row`,
+            fix: `wrap each call as (select ${first}) so Postgres evaluates it once per statement (Supabase advisor auth_rls_initplan)`,
           },
         ];
   });
@@ -359,7 +361,7 @@ export function pd052(
       {
         code: 'PD052',
         severity: 'warning' as const,
-        message: `${statement.file}:${String(statement.line)} update policy ${unquote(policy[1] ?? '')} on ${tableKey(policy[2] ?? '')} has no with check, so Postgres checks the new row against using alone`,
+        message: `${statement.file}:${String(statement.line)} update policy ${unquote(group(policy, 1))} on ${tableKey(group(policy, 2))} has no with check, so Postgres checks the new row against using alone`,
         fix: 'add with check (...) stating what the updated row must satisfy, such as the same tenant and owner test, so an update cannot move a row out of what the user may write',
       },
     ];
@@ -401,9 +403,9 @@ function tablePart(raw: string): {
     part,
   );
   if (listed !== null) {
-    const foreign = /^foreign/iu.test(listed[1] ?? '');
+    const foreign = /^foreign/iu.test(group(listed, 1));
     return {
-      column: firstColumn(listed[2] ?? ''),
+      column: firstColumn(group(listed, 2)),
       foreign,
       indexed: !foreign,
     };
@@ -416,7 +418,7 @@ function tablePart(raw: string): {
 }
 
 function firstColumn(list: string): string {
-  return unquote(list.split(',')[0]?.trim() ?? '');
+  return unquote(list.replace(/,[\s\S]*$/u, '').trim());
 }
 
 type ForeignKey = SqlStatement & {
@@ -446,7 +448,7 @@ export function pd053(
   for (const statement of migrationStatements(cwd, config)) {
     const table = CREATE_TABLE.exec(statement.text);
     if (table !== null) {
-      const key = tableKey(table[1] ?? '');
+      const key = tableKey(group(table, 1));
       const open = statement.text.indexOf('(', table[0].length - 1);
       const body = statement.text.slice(
         open + 1,
@@ -465,9 +467,9 @@ export function pd053(
     }
     const added = ADD_CONSTRAINT.exec(statement.text);
     if (added !== null) {
-      const key = tableKey(added[1] ?? '');
-      const column = firstColumn(added[4] ?? '');
-      if (/^foreign/iu.test(added[3] ?? '')) {
+      const key = tableKey(group(added, 1));
+      const column = firstColumn(group(added, 4));
+      if (/^foreign/iu.test(group(added, 3))) {
         keys.push({ ...statement, table: key, column });
       } else {
         indexed.add(`${key}.${column}`);
@@ -476,7 +478,7 @@ export function pd053(
     }
     const index = CREATE_INDEX.exec(statement.text);
     if (index !== null) {
-      indexed.add(`${tableKey(index[2] ?? '')}.${unquote(index[3] ?? '')}`);
+      indexed.add(`${tableKey(group(index, 2))}.${unquote(group(index, 3))}`);
     }
   }
   return keys

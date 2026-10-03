@@ -178,14 +178,17 @@ Never import a policy into this entry. A missing `document.modelContext` is a no
 ## Web Bot Auth on HTTP adapters
 
 ```ts
-import { createPermDock, discoverViaSignatureAgent } from 'permdock/hono';
+import {
+  createPermDock,
+  discoverViaSignatureAgent,
+  verifyWebBotAuth,
+} from 'permdock/hono';
+
+const keys = discoverViaSignatureAgent({ allow: ['agents.example.com'] });
 
 export const { permdock, protect } = createPermDock(policy, {
   subject: (c) => c.get('user'),
-  webBotAuth: {
-    verify: true,
-    keys: discoverViaSignatureAgent({ allow: ['agents.example.com'] }),
-  },
+  webBotAuth: (request) => verifyWebBotAuth(request, { verify: true, keys }),
 });
 ```
 

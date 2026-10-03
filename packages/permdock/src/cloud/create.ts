@@ -24,6 +24,10 @@ import { ApprovalError } from '../approvals/errors.ts';
 import { compact } from '../core/compact.ts';
 import { freezeDeep } from '../core/freeze.ts';
 import { parsePolicyDocument } from '../core/hosted.ts';
+import { timeoutSignal } from '../core/timeout.ts';
+
+/** Milliseconds a PermDock Cloud request may take; a slower one fails like an unreachable Cloud. */
+const CLOUD_TIMEOUT_MS = 10_000;
 
 function readEnv(name: string): string {
   // SAFETY: process is optional here and the env value is typeof-checked before use.
@@ -126,7 +130,11 @@ export function cloud(options: CloudOptions = {}): CloudClient {
     if (accept !== undefined) {
       next.set('accept', accept);
     }
-    return fetchFn(`${root}${path}`, { ...init, headers: next });
+    return fetchFn(`${root}${path}`, {
+      ...init,
+      headers: next,
+      signal: timeoutSignal(CLOUD_TIMEOUT_MS, init.signal),
+    });
   };
 
   const approvals: ApprovalStore = {

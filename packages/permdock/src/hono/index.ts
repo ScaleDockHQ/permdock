@@ -8,4 +8,5 @@ export type {
 export {
   discoverViaSignatureAgent,
   InvalidSignatureError,
+  verifyWebBotAuth,
 } from '../server/web-bot-auth.ts';

@@ -13,6 +13,10 @@ import { compact } from '../core/compact.ts';
 import { emptySnapshot, fromSnapshot } from '../core/from-snapshot.ts';
 import { parseSnapshot } from '../core/snapshot.ts';
 import { nowSeconds } from '../core/tenancy.ts';
+import { timeoutSignal } from '../core/timeout.ts';
+
+/** Milliseconds a decision, refresh or approval request may take; a slower one is an error like a failed request. */
+const STORE_TIMEOUT_MS = 10_000;
 
 export type ClientStoreOptions = {
   readonly snapshot: Snapshot | string;
@@ -304,6 +308,7 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
       const response = await fetchImpl(options.endpoint, {
         method: 'POST',
         credentials: 'include',
+        signal: timeoutSignal(STORE_TIMEOUT_MS),
         headers: {
           accept: 'application/json',
           'content-type': 'application/json',
@@ -458,6 +463,7 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
             const response = await fetchImpl(href, {
               method: 'GET',
               credentials: 'include',
+              signal: timeoutSignal(STORE_TIMEOUT_MS),
               headers: { accept: 'application/json', ...options.headers },
             });
             if (response.status === 404) {
@@ -565,6 +571,7 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
           const response = await fetchImpl(withTenant(source, requested), {
             method: 'GET',
             credentials: 'include',
+            signal: timeoutSignal(STORE_TIMEOUT_MS),
             headers: {
               accept: 'application/json',
               ...options.headers,
@@ -700,6 +707,7 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
       const response = await fetchImpl(href, {
         method: 'POST',
         credentials: 'include',
+        signal: timeoutSignal(STORE_TIMEOUT_MS),
         headers: {
           accept: 'application/json',
           'content-type': 'application/json',

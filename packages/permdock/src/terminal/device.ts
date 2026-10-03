@@ -5,6 +5,10 @@ import type {
 } from './types.ts';
 
 import { compact } from '../core/compact.ts';
+import { timeoutSignal } from '../core/timeout.ts';
+
+/** Milliseconds an authorization server request may take. */
+export const TERMINAL_TIMEOUT_MS = 10_000;
 
 type DeviceAuthorization = {
   readonly device_code: string;
@@ -43,6 +47,7 @@ async function postForm(
         method: 'POST',
         headers: { 'content-type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams(fields),
+        signal: timeoutSignal(TERMINAL_TIMEOUT_MS),
       }),
     );
   } catch {
@@ -63,7 +68,9 @@ async function discoverDeviceEndpoints(
     ? `${issuer}.well-known/oauth-authorization-server`
     : `${issuer}/.well-known/oauth-authorization-server`;
   try {
-    const response = await fetchImpl(url);
+    const response = await fetchImpl(url, {
+      signal: timeoutSignal(TERMINAL_TIMEOUT_MS),
+    });
     const body = await readJson(response);
     if (body === null) {
       return {};

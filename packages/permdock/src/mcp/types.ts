@@ -32,7 +32,7 @@ import type {
 } from '../core/interfaces.ts';
 import type { Permission } from '../core/permissions.ts';
 import type { Principal } from '../core/subject.ts';
-import type { OtelOptions } from '../otel/types.ts';
+import type { OtelWrap } from '../otel/types.ts';
 
 /** The verified `AuthInfo` the MCP SDK's bearer auth puts on `ctx.http.authInfo`. */
 export type McpAuthInfo = {
@@ -171,7 +171,8 @@ export type McpPermDockOptions<TUser = unknown> = {
   readonly sink?: DecisionSink;
   readonly limits?: LimitStore;
   readonly snapshots?: SnapshotSource;
-  readonly otel?: OtelOptions;
+  /** `(permdock) => withOtel(permdock, options)` from `permdock/otel`. */
+  readonly otel?: OtelWrap;
 };
 
 export type McpPermDock = {
