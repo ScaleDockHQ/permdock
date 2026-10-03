@@ -1,21 +1,21 @@
-import { PGlite } from '@electric-sql/pglite';
-import { eq } from 'drizzle-orm';
-import { boolean, pgTable, text } from 'drizzle-orm/pg-core';
-import { drizzle } from 'drizzle-orm/pglite';
+import { PGlite } from "@electric-sql/pglite";
+import { eq } from "drizzle-orm";
+import { boolean, pgTable, text } from "drizzle-orm/pg-core";
+import { drizzle } from "drizzle-orm/pglite";
 
-import { projectsOf } from '@permdock/e2e-saas-kit';
+import { projectsOf } from "@permdock/e2e-saas-kit";
 
-export const projects = pgTable('project', {
-  id: text('id').primaryKey(),
-  orgId: text('orgId').notNull(),
-  ownerId: text('ownerId').notNull(),
-  name: text('name').notNull(),
-  archived: boolean('archived').notNull(),
+export const projects = pgTable("project", {
+  id: text("id").primaryKey(),
+  orgId: text("orgId").notNull(),
+  ownerId: text("ownerId").notNull(),
+  name: text("name").notNull(),
+  archived: boolean("archived").notNull(),
 });
 
 const client = new PGlite();
 
-export const db = drizzle(client);
+export const db = drizzle({ client });
 
 const created = client.exec(`
   create table project (
@@ -33,7 +33,7 @@ export async function reseed(): Promise<void> {
   await db.delete(projects);
   await db
     .insert(projects)
-    .values([...projectsOf('acme'), ...projectsOf('globex')]);
+    .values([...projectsOf("acme"), ...projectsOf("globex")]);
 }
 
 await reseed();

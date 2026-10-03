@@ -1,8 +1,8 @@
-import type { ESTree, Scope, SourceCode, Variable } from '@oxlint/plugins';
+import type { ESTree, Scope, SourceCode, Variable } from "@oxlint/plugins";
 
-import { defineRule } from '@oxlint/plugins';
+import { defineRule } from "@oxlint/plugins";
 
-const moduleMockMethods = new Set(['doMock', 'mock', 'unstable_mockModule']);
+const moduleMockMethods = new Set(["doMock", "mock", "unstable_mockModule"]);
 
 function resolveVariable(
   sourceCode: SourceCode,
@@ -18,8 +18,8 @@ function resolveVariable(
 }
 
 function importedName(node: ESTree.Node): string | null {
-  if (node.type !== 'ImportSpecifier') return null;
-  return node.imported.type === 'Identifier'
+  if (node.type !== "ImportSpecifier") return null;
+  return node.imported.type === "Identifier"
     ? node.imported.name
     : node.imported.value;
 }
@@ -28,9 +28,9 @@ function isTestFrameworkObject(
   sourceCode: SourceCode,
   expression: ESTree.Expression,
 ): expression is ESTree.IdentifierReference {
-  if (expression.type !== 'Identifier') return false;
+  if (expression.type !== "Identifier") return false;
   if (
-    (expression.name === 'vi' || expression.name === 'jest') &&
+    (expression.name === "vi" || expression.name === "jest") &&
     sourceCode.isGlobalReference(expression)
   ) {
     return true;
@@ -38,30 +38,30 @@ function isTestFrameworkObject(
 
   const variable = resolveVariable(sourceCode, expression);
   if (variable === null || variable.defs.length === 0) {
-    return expression.name === 'vi' || expression.name === 'jest';
+    return expression.name === "vi" || expression.name === "jest";
   }
   return variable.defs.some((definition) => {
     if (
-      definition.type !== 'ImportBinding' ||
-      definition.parent?.type !== 'ImportDeclaration'
+      definition.type !== "ImportBinding" ||
+      definition.parent?.type !== "ImportDeclaration"
     ) {
       return false;
     }
     const source = definition.parent.source.value;
     const name = importedName(definition.node);
     return (
-      (source === 'vitest' && name === 'vi') ||
-      (source === '@jest/globals' && name === 'jest')
+      (source === "vitest" && name === "vi") ||
+      (source === "@jest/globals" && name === "jest")
     );
   });
 }
 
 function mockedSpecifier(node: ESTree.CallExpression): string | null {
   const [first] = node.arguments;
-  if (first === undefined || first.type === 'SpreadElement') return null;
-  if (first.type === 'Literal' && typeof first.value === 'string')
+  if (first === undefined || first.type === "SpreadElement") return null;
+  if (first.type === "Literal" && typeof first.value === "string")
     return first.value;
-  if (first.type === 'TemplateLiteral' && first.quasis.length === 1) {
+  if (first.type === "TemplateLiteral" && first.quasis.length === 1) {
     return first.quasis[0]?.value.cooked ?? null;
   }
   return null;
@@ -69,14 +69,14 @@ function mockedSpecifier(node: ESTree.CallExpression): string | null {
 
 function isFirstPartySpecifier(specifier: string): boolean {
   return (
-    specifier.startsWith('@workspace/') ||
-    specifier.startsWith('@/') ||
-    specifier.startsWith('./') ||
-    specifier.startsWith('../') ||
-    specifier.includes('/apps/') ||
-    specifier.includes('/packages/') ||
-    specifier.startsWith('apps/') ||
-    specifier.startsWith('packages/')
+    specifier.startsWith("@workspace/") ||
+    specifier.startsWith("@/") ||
+    specifier.startsWith("./") ||
+    specifier.startsWith("../") ||
+    specifier.includes("/apps/") ||
+    specifier.includes("/packages/") ||
+    specifier.startsWith("apps/") ||
+    specifier.startsWith("packages/")
   );
 }
 
@@ -85,21 +85,21 @@ function moduleMockCall(
   callee: ESTree.Expression,
 ): boolean {
   if (
-    !('property' in callee) ||
-    !('object' in callee) ||
-    !('computed' in callee)
+    !("property" in callee) ||
+    !("object" in callee) ||
+    !("computed" in callee)
   )
     return false;
   if (!isTestFrameworkObject(sourceCode, callee.object)) return false;
   const property = callee.property;
   const method = callee.computed
-    ? property.type === 'Literal' &&
-      (property.value === 'doMock' ||
-        property.value === 'mock' ||
-        property.value === 'unstable_mockModule')
+    ? property.type === "Literal" &&
+      (property.value === "doMock" ||
+        property.value === "mock" ||
+        property.value === "unstable_mockModule")
       ? property.value
       : null
-    : property.type === 'Identifier'
+    : property.type === "Identifier"
       ? property.name
       : null;
   return method !== null && moduleMockMethods.has(method);
@@ -108,22 +108,22 @@ function moduleMockCall(
 /** Ban test framework module mocking in favor of real dependency seams. */
 export const noModuleMockingRule = defineRule({
   meta: {
-    type: 'problem',
+    type: "problem",
     docs: {
       description:
-        'Disallow Vitest and Jest module mocking; tests must replace dependencies through real interfaces.',
+        "Disallow Vitest and Jest module mocking; tests must replace dependencies through real interfaces.",
     },
     messages: {
       moduleMock:
-        'Replace module mocking with dependency injection through a real interface, service layer, or faithful test implementation.',
+        "Replace module mocking with dependency injection through a real interface, service layer, or faithful test implementation.",
     },
   },
   createOnce(context) {
     return {
       CallExpression(node) {
         if (
-          node.callee.type === 'Super' ||
-          node.callee.type === 'V8IntrinsicExpression'
+          node.callee.type === "Super" ||
+          node.callee.type === "V8IntrinsicExpression"
         )
           return;
         if (!moduleMockCall(context.sourceCode, node.callee)) return;
@@ -131,7 +131,7 @@ export const noModuleMockingRule = defineRule({
         // Third-party ESM packages often cannot be spied. Computed specifiers
         // are usually require.resolve() of those packages or test fixtures.
         if (specifier === null || !isFirstPartySpecifier(specifier)) return;
-        context.report({ node, messageId: 'moduleMock' });
+        context.report({ node, messageId: "moduleMock" });
       },
     };
   },

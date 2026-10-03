@@ -1,13 +1,13 @@
-import { createComponent, createComputed, on, type JSX } from 'solid-js';
+import { createComponent, createComputed, on, type JSX } from "solid-js";
 
-import type { Snapshot } from '../core/interfaces.ts';
-import type { PermDockProviderProps } from './types.ts';
+import type { Snapshot } from "../core/interfaces.ts";
+import type { PermDockProviderProps } from "./types.ts";
 
-import { compact } from '../core/compact.ts';
-import { emptySnapshot } from '../core/from-snapshot.ts';
-import { isPromiseLike } from '../react/source.ts';
-import { createClientStore } from '../react/store.ts';
-import { PermDockContext } from './context.ts';
+import { compact } from "../core/compact.ts";
+import { emptySnapshot } from "../core/from-snapshot.ts";
+import { isPromiseLike } from "../react/source.ts";
+import { createClientStore } from "../react/store.ts";
+import { PermDockContext } from "./context.ts";
 
 type ProviderProps = Parameters<typeof PermDockContext.Provider>[0];
 
@@ -16,7 +16,7 @@ export function PermDockProvider(props: PermDockProviderProps): JSX.Element {
   const promised = isPromiseLike(source);
   // SAFETY: the only function the snapshot prop allows is an accessor of a snapshot or string.
   const read =
-    typeof source === 'function'
+    typeof source === "function"
       ? (source as () => Snapshot | string | undefined)
       : undefined;
   // SAFETY: neither a promise nor an accessor, so it is the plain Snapshot or string the prop allows.

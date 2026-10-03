@@ -1,9 +1,9 @@
-import type { Snippet } from 'svelte';
+import type { Snippet } from "svelte";
 
-import type { Decision } from '../core/decision.ts';
-import type { Permission } from '../core/permissions.ts';
-import type { ClientStore } from '../react/store.ts';
-import type { ClientStatus, PermissionState } from './types.ts';
+import type { Decision } from "../core/decision.ts";
+import type { Permission } from "../core/permissions.ts";
+import type { ClientStore } from "../react/store.ts";
+import type { ClientStatus, PermissionState } from "./types.ts";
 
 export type ProtectedProps = {
   readonly permission: Permission;
@@ -14,7 +14,7 @@ export type ProtectedProps = {
   readonly fallback?: Snippet<[Decision]>;
 };
 
-type DecideDock = {
+type DecidePermDock = {
   readonly decide: (permission: Permission, data?: unknown) => Decision;
 };
 
@@ -22,7 +22,7 @@ export type ProtectedView = {
   readonly allowed: boolean;
   readonly status: ClientStatus;
   readonly decision: Decision;
-  readonly slot: 'pending' | 'fallback' | 'default';
+  readonly slot: "pending" | "fallback" | "default";
 };
 
 export function protectedView(
@@ -42,22 +42,26 @@ export function protectedView(
           decision: local.decision,
           slot: slotOf(local.allowed, local.status, local.decision),
         }
-      : tenantView(store.get().tenant(tenant) as DecideDock, reference, data);
+      : tenantView(
+          store.get().tenant(tenant) as DecidePermDock,
+          reference,
+          data,
+        );
   return scoped;
 }
 
 function tenantView(
-  dock: DecideDock,
+  permdock: DecidePermDock,
   reference: Permission,
   data: unknown,
 ): ProtectedView {
-  const decision = dock.decide(reference, data);
-  const allowed = decision.outcome === 'granted';
+  const decision = permdock.decide(reference, data);
+  const allowed = decision.outcome === "granted";
   return {
     allowed,
-    status: 'ready',
+    status: "ready",
     decision,
-    slot: slotOf(allowed, 'ready', decision),
+    slot: slotOf(allowed, "ready", decision),
   };
 }
 
@@ -65,12 +69,12 @@ function slotOf(
   allowed: boolean,
   status: ClientStatus,
   decision: Decision,
-): ProtectedView['slot'] {
-  if (status === 'pending') {
-    return 'pending';
+): ProtectedView["slot"] {
+  if (status === "pending") {
+    return "pending";
   }
-  if (!allowed || decision.outcome !== 'granted') {
-    return 'fallback';
+  if (!allowed || decision.outcome !== "granted") {
+    return "fallback";
   }
-  return 'default';
+  return "default";
 }

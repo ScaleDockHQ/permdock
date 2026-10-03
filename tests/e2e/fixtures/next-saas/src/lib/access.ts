@@ -1,16 +1,16 @@
-import type { Membership, PermDock, Snapshot } from 'permdock';
+import type { Membership, PermDock, Snapshot } from "permdock";
 
-import { cacheLife, cacheTag } from 'next/cache';
-import { createPermDock, memoryRoleSource, snapshotFor } from 'permdock';
-import { cacheLifeFor, snapshotTag } from 'permdock/next';
+import { cacheLife, cacheTag } from "next/cache";
+import { createPermDock, memoryRoleSource, snapshotFor } from "permdock";
+import { cacheLifeFor, snapshotTag } from "permdock/next";
 
-import type { Project } from '../permissions.ts';
-import type { SessionClaims } from '../policy.ts';
-import type { Org } from './store.ts';
+import type { Project } from "../permissions.ts";
+import type { SessionClaims } from "../policy.ts";
+import type { Org } from "./store.ts";
 
-import { policy, subjectOf } from '../policy.ts';
-import { getClaims, membershipsFor } from './session.ts';
-import { findOrg, membersOf, projectsOf } from './store.ts';
+import { policy, subjectOf } from "../policy.ts";
+import { getClaims, membershipsFor } from "./session.ts";
+import { findOrg, membersOf, projectsOf } from "./store.ts";
 
 function membershipOption(claims: SessionClaims | null): {
   readonly memberships?: readonly Membership[];
@@ -19,13 +19,13 @@ function membershipOption(claims: SessionClaims | null): {
   return memberships === undefined ? {} : { memberships };
 }
 
-export type OrgView = Pick<Org, 'id' | 'name' | 'plan' | 'customRoles'>;
+export type OrgView = Pick<Org, "id" | "name" | "plan" | "customRoles">;
 
 /** Shared layer: per-org data every member sees, invalidated by `org:<id>`. */
 export async function getOrg(id: string): Promise<OrgView | null> {
-  'use cache';
+  "use cache";
   cacheTag(`org:${id}`);
-  cacheLife('hours');
+  cacheLife("hours");
   const org = findOrg(id);
   return org === undefined
     ? null
@@ -38,18 +38,18 @@ export async function getOrg(id: string): Promise<OrgView | null> {
 }
 
 export async function getProjects(org: string): Promise<Project[]> {
-  'use cache';
+  "use cache";
   cacheTag(`org:${org}`);
-  cacheLife('hours');
+  cacheLife("hours");
   return projectsOf(org);
 }
 
 export async function getMembers(
   org: string,
 ): Promise<{ user: string; role: string }[]> {
-  'use cache';
-  cacheTag(`org:${org}`, 'members');
-  cacheLife('hours');
+  "use cache";
+  cacheTag(`org:${org}`, "members");
+  cacheLife("hours");
   return membersOf(org);
 }
 
@@ -65,12 +65,12 @@ async function buildSnapshot(org: string): Promise<{
     customRoles: view?.customRoles ?? [],
     plans: view === null ? [] : [view.plan],
   });
-  return { snapshot, user: claims?.sub ?? 'anon' };
+  return { snapshot, user: claims?.sub ?? "anon" };
 }
 
 /** Private layer: per session, prefetchable into the App Shell. */
 async function loadSnapshotPrivate(org: string): Promise<Snapshot> {
-  'use cache: private';
+  "use cache: private";
   const { snapshot, user } = await buildSnapshot(org);
   cacheLife(cacheLifeFor(snapshot));
   cacheTag(snapshotTag(user), `org:${org}`);
@@ -83,7 +83,7 @@ async function loadSnapshotUncached(org: string): Promise<Snapshot> {
 }
 
 export const loadSnapshot: (org: string) => Promise<Snapshot> =
-  process.env['PERMDOCK_E2E_NO_PRIVATE_CACHE'] === '1'
+  process.env["PERMDOCK_E2E_NO_PRIVATE_CACHE"] === "1"
     ? loadSnapshotUncached
     : loadSnapshotPrivate;
 

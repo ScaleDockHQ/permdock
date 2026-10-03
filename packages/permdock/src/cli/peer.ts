@@ -3,7 +3,7 @@ import {
   detect,
   getUserAgent,
   resolveCommand,
-} from 'package-manager-detector';
+} from "package-manager-detector";
 
 /**
  * Loads an optional peer dependency for one command, or fails with the line
@@ -18,10 +18,22 @@ export async function requirePeer<T>(
 ): Promise<T> {
   try {
     return await load();
-  } catch {
+  } catch (error) {
+    if (!isMissingModule(error)) {
+      throw error;
+    }
     const agent = getUserAgent() ?? (await detect({ cwd }))?.agent;
-    throw new Error(peerHint(name, command, agent));
+    throw new Error(peerHint(name, command, agent), { cause: error });
   }
+}
+
+function isMissingModule(error: unknown): boolean {
+  if (typeof error !== "object" || error === null || !("code" in error)) {
+    return false;
+  }
+  return (
+    error.code === "ERR_MODULE_NOT_FOUND" || error.code === "MODULE_NOT_FOUND"
+  );
 }
 
 /**
@@ -37,10 +49,10 @@ export function peerHint(
   const install =
     agent === undefined
       ? undefined
-      : resolveCommand(agent, 'add', ['-D', name]);
+      : resolveCommand(agent, "add", ["-D", name]);
   const line =
     install === null || install === undefined
       ? `pnpm add -D ${name} (or npm install -D ${name})`
-      : [install.command, ...install.args].join(' ');
+      : [install.command, ...install.args].join(" ");
   return `PermDock CLI: ${command} needs the optional peer ${name}. Install it with: ${line}`;
 }

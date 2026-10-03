@@ -1,9 +1,9 @@
-import { generate as DefaultImage } from 'fumadocs-ui/og';
-import { notFound } from 'next/navigation';
-import { ImageResponse } from 'next/og';
+import { generate as DefaultImage } from "fumadocs-ui/og";
+import { notFound } from "next/navigation";
+import { ImageResponse } from "next/og";
 
-import { appName } from '@/lib/shared';
-import { getPageImageUrl, source } from '@/lib/source';
+import { appName } from "@/lib/shared";
+import { getPageImageUrl, source } from "@/lib/source";
 
 type OgRouteContext = {
   params: Promise<{ slug: string[] }>;
@@ -20,7 +20,7 @@ export async function GET(
   return new ImageResponse(
     <DefaultImage
       title={page.data.title}
-      description={page.data.description ?? ''}
+      description={page.data.description ?? ""}
       site={appName}
     />,
     {

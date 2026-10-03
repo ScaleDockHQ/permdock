@@ -1,11 +1,11 @@
-import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
-import { createRequire } from 'node:module';
-import { join } from 'node:path';
-import { Readable } from 'node:stream';
-import { fileURLToPath } from 'node:url';
-import { parseSnapshot } from 'permdock';
-import { describe, expect, it } from 'vitest';
+import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { join } from "node:path";
+import { Readable } from "node:stream";
+import { fileURLToPath } from "node:url";
+import { parseSnapshot } from "permdock";
+import { describe, expect, it } from "vitest";
 
 import {
   CLIENT_ENTRIES,
@@ -15,13 +15,13 @@ import {
   clientApiLeaks,
   isClientBoundary,
   walk,
-} from './graph.ts';
+} from "./graph.ts";
 
-const RSC = fileURLToPath(new URL('./fixtures/rsc/', import.meta.url));
+const RSC = fileURLToPath(new URL("./fixtures/rsc/", import.meta.url));
 
 // SAFETY: declares the subset of Next's compiled react-server-dom-webpack client used here
 const { createFromNodeStream } = createRequire(import.meta.url)(
-  'next/dist/compiled/react-server-dom-webpack/client.node',
+  "next/dist/compiled/react-server-dom-webpack/client.node",
 ) as {
   readonly createFromNodeStream: (
     stream: Readable,
@@ -43,30 +43,30 @@ type RenderResult =
     }
   | { readonly ok: false; readonly error: string };
 
-export function renderFlight(mode: 'provider' | 'snapshot'): RenderResult {
+export function renderFlight(mode: "provider" | "snapshot"): RenderResult {
   const out = execFileSync(
     process.execPath,
     [
-      '--conditions',
-      'react-server',
-      '--import',
-      './register.ts',
-      'render.ts',
+      "--conditions",
+      "react-server",
+      "--import",
+      "./register.ts",
+      "render.ts",
       mode,
     ],
     {
       cwd: RSC,
-      encoding: 'utf8',
-      env: { ...process.env, NODE_ENV: 'production' },
+      encoding: "utf8",
+      env: { ...process.env, NODE_ENV: "production" },
     },
   );
   // SAFETY: the last stdout line of the render fixture is its JSON RenderResult
-  return JSON.parse(out.trim().split('\n').at(-1) ?? '{}') as RenderResult;
+  return JSON.parse(out.trim().split("\n").at(-1) ?? "{}") as RenderResult;
 }
 
-describe('react-server build', () => {
-  it('renders the permdock/next PermDockProvider as a client reference', () => {
-    const result = renderFlight('provider');
+describe("react-server build", () => {
+  it("renders the permdock/next PermDockProvider as a client reference", () => {
+    const result = renderFlight("provider");
     if (!result.ok) {
       throw new Error(result.error);
     }
@@ -80,19 +80,19 @@ describe('react-server build', () => {
   });
 
   it('keeps "use client" on the client provider entry', () => {
-    expect(isClientBoundary(join(DIST, 'react/provider-client.js'))).toBe(true);
-    expect(readFileSync(join(DIST, 'next/index.js'), 'utf8')).toContain(
+    expect(isClientBoundary(join(DIST, "react/provider-client.js"))).toBe(true);
+    expect(readFileSync(join(DIST, "next/index.js"), "utf8")).toContain(
       'from "../react/provider-client.js"',
     );
   });
 
-  it('shares one React context between permdock/react and the provider reference', () => {
-    const fromReact = contextChunks(walk(ENTRIES['./react']));
+  it("shares one React context between permdock/react and the provider reference", () => {
+    const fromReact = contextChunks(walk(ENTRIES["./react"]));
     expect(fromReact).toHaveLength(1);
-    expect(contextChunks(walk('react/provider-client.js'))).toEqual(fromReact);
+    expect(contextChunks(walk("react/provider-client.js"))).toEqual(fromReact);
   });
 
-  it('never reaches a client-only React API from a server entry', () => {
+  it("never reaches a client-only React API from a server entry", () => {
     const client = new Set<Entry>(CLIENT_ENTRIES);
     const leaks: string[] = [];
     // SAFETY: Object.keys(ENTRIES) lists exactly the Entry keys
@@ -104,8 +104,8 @@ describe('react-server build', () => {
     expect(leaks).toEqual([]);
   });
 
-  it('round-trips a snapshotFor() snapshot through React Flight', async () => {
-    const result = renderFlight('snapshot');
+  it("round-trips a snapshotFor() snapshot through React Flight", async () => {
+    const result = renderFlight("snapshot");
     if (!result.ok) {
       throw new Error(result.error);
     }
@@ -124,9 +124,9 @@ describe('react-server build', () => {
 
   it('marks every React client entry with "use client"', () => {
     for (const entry of [
-      './react',
-      './react-native',
-      './next/client',
+      "./react",
+      "./react-native",
+      "./next/client",
     ] as const) {
       expect(isClientBoundary(join(DIST, ENTRIES[entry]))).toBe(true);
     }

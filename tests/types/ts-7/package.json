@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "lint": "oxlint --disable-nested-config",
-    "typecheck": "tsc --noEmit --checkers 4 -p tsconfig.json"
+    "lint": "oxlint --disable-nested-config --type-aware",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "devDependencies": {
     "@permdock/ox-config": "workspace:*",

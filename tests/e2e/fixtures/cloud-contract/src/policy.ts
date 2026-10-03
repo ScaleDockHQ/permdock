@@ -1,6 +1,6 @@
-import { allow, definePolicy, principal, role } from 'permdock';
+import { allow, definePolicy, principal, role } from "permdock";
 
-import { permissions } from './permissions.ts';
+import { permissions } from "./permissions.ts";
 
 export type User = {
   readonly id: string;
@@ -10,7 +10,7 @@ export type User = {
 export const policy = definePolicy(permissions, {
   roles: [
     role(
-      'member',
+      "member",
       [
         allow(permissions.invoice.read, { where: { ownerId: principal.id } }),
         allow(permissions.invoice.list),
@@ -18,14 +18,14 @@ export const policy = definePolicy(permissions, {
       { assignable: true },
     ),
     role(
-      'finance',
+      "finance",
       [
         allow(permissions.invoice.read),
-        allow(permissions.invoice.refund, { approval: 'human' }),
+        allow(permissions.invoice.refund, { approval: "human" }),
       ],
       { assignable: true },
     ),
-    role('auditor', [], { assignable: true }),
+    role("auditor", [], { assignable: true }),
   ],
   principal: (user: User) => user,
   hostable: [permissions.auditLog.read],

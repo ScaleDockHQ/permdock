@@ -4,16 +4,17 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "analyze": "next experimental-analyze",
     "build": "next build",
     "dev": "next dev -p ${PORT:-3000}",
     "dev:portless": "DOCS_ORIGIN=$(portless get docs.permdock) portless",
-    "lint": "oxlint --disable-nested-config",
+    "lint": "oxlint --disable-nested-config --type-aware",
     "start": "next start -p ${PORT:-3000}",
     "test": "vitest run",
-    "typecheck": "next typegen && tsc --noEmit --checkers 4"
+    "typecheck": "tsc --noEmit",
+    "typegen": "next typegen"
   },
   "dependencies": {
-    "@base-ui/react": "catalog:",
     "@permdock/next-config": "workspace:*",
     "@permdock/ui": "workspace:*",
     "@sentry/nextjs": "catalog:",

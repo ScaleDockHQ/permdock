@@ -1,10 +1,10 @@
-import { createInterface } from 'node:readline';
+import { createInterface } from "node:readline";
 
-import type { Decision } from '../core/decision.ts';
-import type { PermDock } from '../core/permdock.ts';
-import type { Permission } from '../core/permissions.ts';
-import type { Policy } from '../core/policy.ts';
-import type { Actor, Delegation, Principal, Subject } from '../core/subject.ts';
+import type { Decision } from "../core/decision.ts";
+import type { PermDock } from "../core/permdock.ts";
+import type { Permission } from "../core/permissions.ts";
+import type { Policy, PolicyVocabulary } from "../core/policy.ts";
+import type { Actor, Delegation, Principal, Subject } from "../core/subject.ts";
 import type {
   CommandEntry,
   FilterCommandsOptions,
@@ -19,18 +19,18 @@ import type {
   TokenHelper,
   TokenSource,
   TypedConfirm,
-} from './types.ts';
+} from "./types.ts";
 
-import { resumeDecision, storedApprovalToken } from '../approvals/helpers.ts';
-import { compact } from '../core/compact.ts';
-import { createPermDock as createCorePermDock } from '../core/permdock.ts';
-import { isSubject } from '../core/subject.ts';
-import { revokeCredential } from './device.ts';
-import { defaultExit, EX_NOPERM, EX_USAGE } from './exit.ts';
-import { filterCommandEntries } from './filter.ts';
-import { exitCode, formatDecision } from './format.ts';
-import { deleteCredentials, readCredentials } from './storage.ts';
-import { profileFromArgv, resolveToken, warnJwtInArgv } from './token.ts';
+import { resumeDecision, storedApprovalToken } from "../approvals/helpers.ts";
+import { compact } from "../core/compact.ts";
+import { createPermDock as createCorePermDock } from "../core/permdock.ts";
+import { isSubject } from "../core/subject.ts";
+import { revokeCredential } from "./device.ts";
+import { defaultExit, EX_NOPERM, EX_USAGE } from "./exit.ts";
+import { filterCommandEntries } from "./filter.ts";
+import { exitCode, formatDecision } from "./format.ts";
+import { deleteCredentials, readCredentials } from "./storage.ts";
+import { profileFromArgv, resolveToken, warnJwtInArgv } from "./token.ts";
 
 function writeOf(options: TerminalPermDockOptions): (text: string) => void {
   return (
@@ -57,33 +57,33 @@ function envOf(
  * agent is acting for the user.
  */
 function answersLocally(
-  decision: Extract<Decision, { readonly outcome: 'approval-required' }>,
+  decision: Extract<Decision, { readonly outcome: "approval-required" }>,
   subject: Subject,
 ): boolean {
   const approval = decision.grant.approval;
   return (
-    typeof approval === 'object' &&
+    typeof approval === "object" &&
     approval.distinct === false &&
     subject.actor === undefined
   );
 }
 
 function isInteractive(options: TerminalPermDockOptions): boolean {
-  if (typeof options.interactive === 'boolean') {
+  if (typeof options.interactive === "boolean") {
     return options.interactive;
   }
   if (options.interactive !== undefined) {
     return true;
   }
   const tty = options.runtime?.stdoutIsTTY ?? process.stdout.isTTY;
-  return tty === true && envOf(options)['CI'] === undefined;
+  return tty === true && envOf(options)["CI"] === undefined;
 }
 
 function jsonOutput(options: TerminalPermDockOptions): boolean {
   if (options.output?.json !== undefined) {
     return options.output.json;
   }
-  return argvOf(options).includes('--json');
+  return argvOf(options).includes("--json");
 }
 
 function flag(
@@ -110,7 +110,7 @@ function actorFromResolved(value: unknown): TerminalActor {
         ? undefined
         : {
             id: principal.id,
-            kind: principal.kind ?? 'oauth-client',
+            kind: principal.kind ?? "oauth-client",
           });
     return compact<TerminalActor>({
       actor,
@@ -118,12 +118,12 @@ function actorFromResolved(value: unknown): TerminalActor {
     });
   }
   if (
-    typeof value === 'object' &&
+    typeof value === "object" &&
     value !== null &&
-    'id' in value &&
-    'kind' in value &&
-    typeof value.id === 'string' &&
-    typeof value.kind === 'string'
+    "id" in value &&
+    "kind" in value &&
+    typeof value.id === "string" &&
+    typeof value.kind === "string"
   ) {
     // SAFETY: id and kind were checked to be strings above; every other Actor field is optional.
     return { actor: value as Actor };
@@ -135,9 +135,9 @@ function resourceRef(
   permission: Permission,
   data: unknown,
 ): { readonly type: string; readonly id?: string } {
-  if (data !== null && typeof data === 'object' && 'id' in data) {
+  if (data !== null && typeof data === "object" && "id" in data) {
     const id = data.id;
-    if (typeof id === 'string' || typeof id === 'number') {
+    if (typeof id === "string" || typeof id === "number") {
       return { type: permission.resource, id: String(id) };
     }
   }
@@ -158,7 +158,7 @@ function defaultConfirm(input: {
       `${input.permission} on ${describeResource(input.resource)} (${input.reason}). Continue? [y/N] `,
       (answer) => {
         rl.close();
-        resolve(answer.trim().toLowerCase() === 'y');
+        resolve(answer.trim().toLowerCase() === "y");
       },
     );
   });
@@ -189,10 +189,14 @@ const defaultTyped: TypedConfirm = (input) => {
   });
 };
 
-export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
-  policy: Policy<TUser, TPrincipal>,
+export function createPermDock<
+  TUser,
+  TPrincipal extends Principal = Principal,
+  V extends PolicyVocabulary = PolicyVocabulary,
+>(
+  policy: Policy<TUser, TPrincipal, V>,
   options: TerminalPermDockOptions<TUser>,
-): TerminalPermDock {
+): TerminalPermDock<V> {
   const write = writeOf(options);
   const exit = options.runtime?.exit ?? defaultExit;
   const runtime: TerminalRuntime = compact({
@@ -201,12 +205,12 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
   });
   warnJwtInArgv(argvOf(options), write);
 
-  let cached: Promise<PermDock> | undefined;
-  let last: PermDock | undefined;
-  let lastProfile = 'default';
+  let cached: Promise<PermDock<V>> | undefined;
+  let last: PermDock<V> | undefined;
+  let lastProfile = "default";
 
   const tokenFor =
-    (profile: string, force?: PermDockResolveOptions['source']): TokenHelper =>
+    (profile: string, force?: PermDockResolveOptions["source"]): TokenHelper =>
     (sources: readonly TokenSource[]): Promise<string | null> =>
       resolveToken(
         sources,
@@ -222,9 +226,9 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
 
   const resolve = async (
     resolveOptions: PermDockResolveOptions = {},
-  ): Promise<PermDock> => {
+  ): Promise<PermDock<V>> => {
     const profile =
-      resolveOptions.as ?? profileFromArgv(argvOf(options)) ?? 'default';
+      resolveOptions.as ?? profileFromArgv(argvOf(options)) ?? "default";
     lastProfile = profile;
     const context: TokenContext = {
       token: tokenFor(profile, resolveOptions.source),
@@ -270,7 +274,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
 
   const permdock = (
     resolveOptions: PermDockResolveOptions = {},
-  ): Promise<PermDock> => {
+  ): Promise<PermDock<V>> => {
     if (resolveOptions.refresh === true || cached === undefined) {
       cached = resolve(resolveOptions);
     }
@@ -296,7 +300,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     entries: readonly CommandEntry[],
     filterOptions?: FilterCommandsOptions,
   ): readonly CommandEntry[] => {
-    const next = filterOptions ?? { mode: 'hide' };
+    const next = filterOptions ?? { mode: "hide" };
     return filterCommandEntries(next.permdock ?? last, entries, next);
   };
 
@@ -305,7 +309,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       permission: Permission,
       load?: (...args: TArgs) => TData | Promise<TData>,
     ) =>
-    (action: (context: ProtectContext<TData>, ...args: TArgs) => unknown) =>
+    (action: (context: ProtectContext<TData, V>, ...args: TArgs) => unknown) =>
     async (...args: TArgs): Promise<unknown> => {
       const instance = await permdock();
       let data: TData | undefined;
@@ -317,37 +321,37 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         next: Permission,
         row?: unknown,
         decideOptions?: {
-          readonly source: 'adapter' | 'simulate';
+          readonly source: "adapter" | "simulate";
           readonly adapter: string;
         },
       ) => Decision;
-      const dryRun = flag(options, options.dryRun, ['--dry-run']);
+      const dryRun = flag(options, options.dryRun, ["--dry-run"]);
       const first = decide(
         permission,
         data,
         dryRun
-          ? { source: 'simulate', adapter: 'terminal' }
-          : { source: 'adapter', adapter: 'terminal' },
+          ? { source: "simulate", adapter: "terminal" }
+          : { source: "adapter", adapter: "terminal" },
       );
 
       if (dryRun) {
         write(
-          first.outcome === 'granted'
+          first.outcome === "granted"
             ? jsonOutput(options)
-              ? `${JSON.stringify({ outcome: 'granted', permission: permission.key, dryRun: true })}\n`
+              ? `${JSON.stringify({ outcome: "granted", permission: permission.key, dryRun: true })}\n`
               : `dry run: ${permission.key} on ${describeResource(resourceRef(permission, data))} is granted; nothing ran\n`
             : format(first, { permission, subject: instance.subject }),
         );
         return exit(exitCode(first));
       }
 
-      if (first.outcome === 'denied') {
+      if (first.outcome === "denied") {
         write(format(first, { permission, subject: instance.subject }));
         return exit(exitCode(first));
       }
 
-      let granted: Extract<Decision, { readonly outcome: 'granted' }>;
-      if (first.outcome === 'granted') {
+      let granted: Extract<Decision, { readonly outcome: "granted" }>;
+      if (first.outcome === "granted") {
         granted = first;
       } else if (answersLocally(first, instance.subject)) {
         if (!isInteractive(options)) {
@@ -360,7 +364,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
           return exit(exitCode(first));
         }
         const confirm =
-          typeof options.interactive === 'object'
+          typeof options.interactive === "object"
             ? (options.interactive.confirm ?? defaultConfirm)
             : defaultConfirm;
         const promptToken = first.token;
@@ -374,8 +378,8 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
           write(
             format(
               {
-                outcome: 'denied',
-                denials: [{ role: null, reason: 'approval' }],
+                outcome: "denied",
+                denials: [{ role: null, reason: "approval" }],
                 alternatives: [],
               },
               { permission, subject: instance.subject },
@@ -386,13 +390,13 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         const again = decide(
           permission,
           data,
-          compact({ source: 'adapter' as const, adapter: 'terminal' }),
+          compact({ source: "adapter" as const, adapter: "terminal" }),
         );
-        if (again.outcome === 'denied') {
+        if (again.outcome === "denied") {
           write(format(again, { permission, subject: instance.subject }));
           return exit(exitCode(again));
         }
-        if (again.outcome === 'granted') {
+        if (again.outcome === "granted") {
           granted = again;
         } else if (again.token === promptToken) {
           const principal = instance.subject.principal;
@@ -401,7 +405,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
             return exit(EX_NOPERM);
           }
           granted = {
-            outcome: 'granted',
+            outcome: "granted",
             subject: { ...instance.subject, principal },
             matched: again.grant,
             token: again.token,
@@ -426,10 +430,10 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
           subject: instance.subject,
           store: options.store,
           resource: resourceRef(permission, data),
-          adapter: 'terminal',
+          adapter: "terminal",
           token: await storedApprovalToken(options.store, first, false),
         });
-        if (resumed.outcome !== 'granted') {
+        if (resumed.outcome !== "granted") {
           write(format(resumed, { permission, subject: instance.subject }));
           return exit(exitCode(resumed));
         }
@@ -438,7 +442,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
 
       if (
         permission.meta.destructive === true &&
-        !flag(options, options.yes, ['--yes', '-y'])
+        !flag(options, options.yes, ["--yes", "-y"])
       ) {
         const resource = resourceRef(permission, data);
         if (!isInteractive(options)) {
@@ -448,7 +452,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
           return exit(EX_USAGE);
         }
         const typed =
-          typeof options.interactive === 'object'
+          typeof options.interactive === "object"
             ? (options.interactive.typed ?? defaultTyped)
             : defaultTyped;
         const expected = resource.id ?? permission.key;

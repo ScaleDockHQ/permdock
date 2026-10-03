@@ -1,15 +1,15 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 
-import type { DoctorFinding } from './doctor-types.ts';
-import type { PermDockConfig } from './types.ts';
+import type { DoctorFinding } from "./doctor-types.ts";
+import type { PermDockConfig } from "./types.ts";
 
-import { rel, sqlFiles } from './files.ts';
-import { HOOK_MARKER } from './markers.ts';
-import { supabaseConfig } from './supabase-config.ts';
+import { rel, sqlFiles } from "./files.ts";
+import { HOOK_MARKER } from "./markers.ts";
+import { supabaseConfig } from "./supabase-config.ts";
 
-const SCHEMAS = 'supabase/schemas';
-const MIGRATIONS = 'supabase/migrations';
+const SCHEMAS = "supabase/schemas";
+const MIGRATIONS = "supabase/migrations";
 
 const CREATES_HOOK =
   /\bcreate\s+(?:or\s+replace\s+)?function\s+[\w."]*custom_access_token_hook\b/iu;
@@ -23,12 +23,13 @@ const CALLS_HELPER =
   /\b(?:permdock_has|(?:permitted|member)_[a-z][a-z0-9_]*_ids)\s*\(/iu;
 
 function uncommented(text: string): string {
-  return text.replaceAll(/--[^\n]*/gu, '').replaceAll(/\/\*[\s\S]*?\*\//gu, '');
+  return text.replaceAll(/--[^\n]*/gu, "").replaceAll(/\/\*[\s\S]*?\*\//gu, "");
 }
 
 /**
  * PD042: a hook declared under `supabase/schemas` reaches the database through
- * `supabase db diff`, which drops its `supabase_auth_admin` grants. A function
+ * `supabase db diff`, which drops its `supabase_auth_admin` grants. pg-delta
+ * keeps them, so the check is off under `[experimental.pgdelta]`. A function
  * created (or dropped and created again) without them is executable by
  * `public` and not by the auth server, so a migration at or after the one
  * that creates it must carry the grants.
@@ -37,18 +38,21 @@ export function pd042(
   cwd: string,
   config: PermDockConfig,
 ): readonly DoctorFinding[] {
-  if (config.supabase?.hook === undefined) {
+  if (
+    config.supabase?.hook === undefined ||
+    supabaseConfig(cwd).pgDelta !== undefined
+  ) {
     return [];
   }
   const declared = sqlFiles(cwd, [SCHEMAS]).some((file) =>
-    readFileSync(file, 'utf8').startsWith(`${HOOK_MARKER} `),
+    readFileSync(file, "utf8").startsWith(`${HOOK_MARKER} `),
   );
   if (!declared) {
     return [];
   }
   const migrations = sqlFiles(cwd, [MIGRATIONS]).map((file) => ({
     file,
-    text: uncommented(readFileSync(file, 'utf8')),
+    text: uncommented(readFileSync(file, "utf8")),
   }));
   const created = migrations.findIndex(({ text }) => CREATES_HOOK.test(text));
   const dropped = migrations.findLastIndex(({ text }) => DROPS_HOOK.test(text));
@@ -65,10 +69,10 @@ export function pd042(
   const at = rel(cwd, migrations[needed]?.file ?? MIGRATIONS);
   return [
     {
-      code: 'PD042',
-      severity: 'error',
+      code: "PD042",
+      severity: "error",
       message: `${at} creates custom_access_token_hook from supabase/schemas, and no migration from it on grants it to supabase_auth_admin: supabase db diff drops those grants, so the auth server cannot call the hook and public can`,
-      fix: 'generate the grants with permdock supabase hook generate --grants-out (or rls generate --split ...,hook --grants-out) into a new file from supabase migration new, after the db diff migration',
+      fix: "generate the grants with permdock supabase hook generate --grants-out (or rls generate --split ...,hook --grants-out) into a new file from supabase migration new, after the db diff migration",
     },
   ];
 }
@@ -76,50 +80,53 @@ export function pd042(
 /** The `[db.migrations] schema_paths` globs of `supabase/config.toml`, or Supabase's default. */
 function schemaPaths(cwd: string): readonly string[] {
   const paths = supabaseConfig(cwd).schemaPaths ?? [];
-  return paths.length === 0 ? ['./schemas/**/*.sql'] : paths;
+  return paths.length === 0 ? ["./schemas/**/*.sql"] : paths;
 }
 
 /** Schema files in the order `supabase db diff` applies them: each glob in turn, sorted within it. */
 function orderedSchemaFiles(cwd: string): readonly string[] {
-  return sqlFiles(join(cwd, 'supabase'), schemaPaths(cwd), { order: 'entry' });
+  return sqlFiles(join(cwd, "supabase"), schemaPaths(cwd), { order: "entry" });
 }
 
 /**
  * PD043: `db diff` applies schema files in `schema_paths` order, so a policy
  * that calls `permdock_has` or `permitted_<scope>_ids` before the file that
- * defines them fails to apply.
+ * defines them fails to apply. pg-delta orders by dependencies instead.
  */
 export function pd043(cwd: string): readonly DoctorFinding[] {
+  if (supabaseConfig(cwd).pgDelta !== undefined) {
+    return [];
+  }
   if (!existsSync(join(cwd, SCHEMAS))) {
     return [];
   }
   const files = orderedSchemaFiles(cwd).map((file) => ({
     file,
-    text: uncommented(readFileSync(file, 'utf8')),
+    text: uncommented(readFileSync(file, "utf8")),
   }));
   const helpers = files.findIndex(({ text }) => DEFINES_HELPER.test(text));
   const defined = sqlFiles(cwd, [SCHEMAS]).find((file) =>
-    DEFINES_HELPER.test(uncommented(readFileSync(file, 'utf8'))),
+    DEFINES_HELPER.test(uncommented(readFileSync(file, "utf8"))),
   );
   if (helpers === -1) {
     return defined === undefined
       ? []
       : [
           {
-            code: 'PD043',
-            severity: 'warning',
+            code: "PD043",
+            severity: "warning",
             message: `${rel(cwd, defined)} defines the PermDock helpers, but schema_paths in supabase/config.toml does not list it, so supabase db diff never applies it`,
             fix: `add it to [db.migrations] schema_paths before every file that calls permdock_has, permitted_<scope>_ids or member_<scope>_ids`,
           },
         ];
   }
-  const helperFile = rel(cwd, files[helpers]?.file ?? '');
+  const helperFile = rel(cwd, files[helpers]?.file ?? "");
   return files
     .slice(0, helpers)
     .filter(({ text }) => CALLS_HELPER.test(text))
     .map(({ file }) => ({
-      code: 'PD043',
-      severity: 'warning',
+      code: "PD043",
+      severity: "warning",
       message: `${rel(cwd, file)} calls the PermDock helpers, but schema_paths applies it before ${helperFile}, which defines them`,
       fix: `list ${helperFile} earlier in [db.migrations] schema_paths, or give it a lower number, such as 056_permdock_helpers.sql before 060_policies.sql`,
     }));

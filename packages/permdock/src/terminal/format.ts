@@ -1,24 +1,24 @@
-import type { Decision } from '../core/decision.ts';
-import type { Permission } from '../core/permissions.ts';
-import type { Subject } from '../core/subject.ts';
-import type { FormatOptions, TerminalProblemDetails } from './types.ts';
+import type { Decision } from "../core/decision.ts";
+import type { Permission } from "../core/permissions.ts";
+import type { Subject } from "../core/subject.ts";
+import type { FormatOptions, TerminalProblemDetails } from "./types.ts";
 
-import { compact } from '../core/compact.ts';
+import { compact } from "../core/compact.ts";
 import {
   PermDockApprovalRequiredError,
   PermDockDeniedError,
   approvalMessage,
   deniedMessage,
-} from '../core/errors.ts';
-import { EX_NOPERM, EX_OK, EX_TEMPFAIL } from './exit.ts';
+} from "../core/errors.ts";
+import { EX_NOPERM, EX_OK, EX_TEMPFAIL } from "./exit.ts";
 
 export function exitCode(decision: Decision): number {
   switch (decision.outcome) {
-    case 'granted':
+    case "granted":
       return EX_OK;
-    case 'approval-required':
+    case "approval-required":
       return EX_TEMPFAIL;
-    case 'denied':
+    case "denied":
       return EX_NOPERM;
     default: {
       const exhaustive: never = decision;
@@ -34,24 +34,24 @@ function permissionKey(
   if (permission !== undefined) {
     return permission.key;
   }
-  if (decision.outcome === 'granted') {
+  if (decision.outcome === "granted") {
     return decision.matched.permission;
   }
-  if (decision.outcome === 'approval-required') {
+  if (decision.outcome === "approval-required") {
     return decision.grant.permission;
   }
-  return 'unknown';
+  return "unknown";
 }
 
 function permissionScope(permission: Permission | undefined): string {
-  return permission?.scope ?? '';
+  return permission?.scope ?? "";
 }
 
 function resourceOf(permission: Permission | undefined): {
   readonly type: string;
   readonly id?: string;
 } {
-  return { type: permission?.resource ?? 'unknown' };
+  return { type: permission?.resource ?? "unknown" };
 }
 
 export function formatDecision(
@@ -64,13 +64,13 @@ export function formatDecision(
   const resource = resourceOf(options.permission);
   const subject: Subject | undefined = options.subject;
 
-  if (decision.outcome === 'granted') {
+  if (decision.outcome === "granted") {
     return json
-      ? `${JSON.stringify({ outcome: 'granted', permission: key })}\n`
-      : '';
+      ? `${JSON.stringify({ outcome: "granted", permission: key })}\n`
+      : "";
   }
 
-  if (decision.outcome === 'approval-required') {
+  if (decision.outcome === "approval-required") {
     const error = new PermDockApprovalRequiredError({
       decision,
       permission: key,

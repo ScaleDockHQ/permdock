@@ -1,12 +1,12 @@
-import { watch } from 'node:fs';
-import { resolve } from 'node:path';
+import { watch } from "node:fs";
+import { resolve } from "node:path";
 
-import type { CreatePermDockPluginOptions } from './types.ts';
+import type { PermDockPluginOptions } from "./types.ts";
 
-import { runCollect } from './collect.ts';
-import { loadConfig } from './config.ts';
+import { runCollect } from "./collect.ts";
+import { loadConfig } from "./config.ts";
 
-export type { CreatePermDockPluginOptions } from './types.ts';
+export type { PermDockPluginOptions } from "./types.ts";
 
 /** Any object: Next's `NextConfig` is an interface, so no index signature. */
 export type NextConfigLike = object;
@@ -24,8 +24,8 @@ export type NextConfigFunction<T extends NextConfigLike> = (
   context: NextConfigContext,
 ) => Promise<T>;
 
-const PHASE_BUILD = 'phase-production-build';
-const PHASE_DEV = 'phase-development-server';
+const PHASE_BUILD = "phase-production-build";
+const PHASE_DEV = "phase-development-server";
 
 function report(message: string | undefined): void {
   if (message !== undefined) {
@@ -38,7 +38,7 @@ function describeError(error: unknown): string {
 }
 
 export function createPermDockPlugin(
-  options?: CreatePermDockPluginOptions,
+  options?: PermDockPluginOptions,
 ): <T extends NextConfigLike>(
   nextConfig: NextConfigInput<T>,
 ) => NextConfigFunction<T> {
@@ -48,12 +48,12 @@ export function createPermDockPlugin(
   ): NextConfigFunction<T> {
     return async (phase, context) => {
       const resolved =
-        typeof nextConfig === 'function'
+        typeof nextConfig === "function"
           ? await nextConfig(phase, context)
           : nextConfig;
       const cwd = process.cwd();
       if (phase === PHASE_BUILD) {
-        const check = process.env['PERMDOCK_COLLECT'] !== 'write';
+        const check = process.env["PERMDOCK_COLLECT"] !== "write";
         report(await runPluginCollect(cwd, options, check));
       } else if (phase === PHASE_DEV) {
         try {
@@ -73,7 +73,7 @@ export function createPermDockPlugin(
 
 export async function runPluginCollect(
   cwd: string,
-  options: CreatePermDockPluginOptions | undefined,
+  options: PermDockPluginOptions | undefined,
   check: boolean,
 ): Promise<string | undefined> {
   const config = await loadConfig(cwd);
@@ -91,7 +91,7 @@ export async function runPluginCollect(
   if (result.code === 0) {
     return undefined;
   }
-  if (check && options?.onDrift === 'warn') {
+  if (check && options?.onDrift === "warn") {
     return result.message;
   }
   if (check && result.code === 1) {
@@ -102,9 +102,9 @@ export async function runPluginCollect(
 
 function startWatch(
   cwd: string,
-  options: CreatePermDockPluginOptions | undefined,
+  options: PermDockPluginOptions | undefined,
 ): void {
-  const srcPath = options?.collect?.srcPath ?? ['./src'];
+  const srcPath = options?.collect?.srcPath ?? ["./src"];
   for (const entry of srcPath) {
     try {
       watch(resolve(cwd, entry), { recursive: true }, () => {

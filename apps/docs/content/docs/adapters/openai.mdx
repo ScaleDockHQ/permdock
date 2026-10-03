@@ -3,7 +3,7 @@ title: OpenAI Agents SDK
 description: permdock/openai turns PermDock decisions into OpenAI Agents SDK needsApproval predicates, guards tool lists per caller, resolves interruptions against a pluggable ApprovalStore, and binds the replay-safe token to the serialised RunState.
 ---
 
-`permdock/openai` connects the [Decision](/docs/concepts/decisions) model to the [OpenAI Agents SDK](https://openai.github.io/openai-agents-js/) for JavaScript. The SDK pauses a run when a tool needs approval, returns `interruptions`, and resumes from the same `RunState` after `state.approve()` or `state.reject()`. What it does not do is decide *whether* a call needs approval from anything richer than a boolean, nor record who approved, nor guarantee that the approved call is the one that runs. The adapter supplies the predicate from the typed policy, the record through an [ApprovalStore](/docs/adapters/approvals), and the binding through the token.
+`permdock/openai` connects the [Decision](/docs/concepts/decisions) model to the [OpenAI Agents SDK](https://openai.github.io/openai-agents-js/) for JavaScript. The SDK pauses a run when a tool needs approval, returns `interruptions`, and resumes from the same `RunState` after `state.approve()` or `state.reject()`. What it does not do is decide _whether_ a call needs approval from anything richer than a boolean, nor record who approved, nor guarantee that the approved call is the one that runs. The adapter supplies the predicate from the typed policy, the record through an [ApprovalStore](/docs/adapters/approvals), and the binding through the token.
 
 ## Purpose
 
@@ -12,47 +12,67 @@ The SDK's [human-in-the-loop guide](https://openai.github.io/openai-agents-js/gu
 ## API
 
 ```ts
-import { Agent, run, tool, RunState } from '@openai/agents'
-import { createPermDock } from 'permdock/openai'
-import { z } from 'zod'
+import { Agent, run, tool, RunState } from "@openai/agents";
+import { createPermDock } from "permdock/openai";
+import { z } from "zod";
 
-const PostArgs = z.object({ id: z.string() }) // tool input arrives as `unknown`
+const PostArgs = z.object({ id: z.string() }); // tool input arrives as `unknown`
 
-const { needsApproval, guardTools, resolveInterruptions, permdock } = createPermDock(policy, {
-  subject: (context) => context.user,                      // RunContext -> principal
-  actor: (context) => ({ id: context.agentId, kind: 'openai-agent' }),
-  delegation: (context) => ({ scopes: context.scopes }),
-  tools: {
-    delete_post: { permission: permissions.post.delete, data: (args) => loadPost(PostArgs.parse(args).id) },
-    list_posts:  { permission: permissions.post.list },
-  },
-  store,                                                  // ApprovalStore; memoryApprovalStore() when omitted
-})
+const { needsApproval, guardTools, resolveInterruptions, permdock } =
+  createPermDock(policy, {
+    subject: (context) => context.user, // RunContext -> principal
+    actor: (context) => ({ id: context.agentId, kind: "openai-agent" }),
+    delegation: (context) => ({ scopes: context.scopes }),
+    tools: {
+      delete_post: {
+        permission: permissions.post.delete,
+        data: (args) => loadPost(PostArgs.parse(args).id),
+      },
+      list_posts: { permission: permissions.post.list },
+    },
+    store, // ApprovalStore; memoryApprovalStore() when omitted
+  });
 
 const deletePost = tool({
-  name: 'delete_post',
+  name: "delete_post",
   parameters: z.object({ id: z.string() }),
-  needsApproval: needsApproval(permissions.post.delete),  // decide() per call; denied → approval never granted
-  execute: async ({ id }, ctx) => { (await permdock(ctx)).assert(permissions.post.delete, await loadPost(id)); return remove(id) },
-})
+  needsApproval: needsApproval(permissions.post.delete), // decide() per call; denied → approval never granted
+  execute: async ({ id }, ctx) => {
+    (await permdock(ctx)).assert(permissions.post.delete, await loadPost(id));
+    return remove(id);
+  },
+});
 
-const agent = new Agent({ name: 'Posts', tools: guardTools([deletePost, listPosts], context) })
+const agent = new Agent({
+  name: "Posts",
+  tools: guardTools([deletePost, listPosts], context),
+});
 ```
 
 ```ts
 // After a run pauses
-let result = await run(agent, input, { context })
+let result = await run(agent, input, { context });
 if (result.interruptions.length) {
-  const pending = await resolveInterruptions(result.state, result.interruptions, { context })
+  const pending = await resolveInterruptions(
+    result.state,
+    result.interruptions,
+    { context },
+  );
   // pending: ApprovalRequest[] written to the store; surface them to a person
-  await db.save(runId, result.state.toString())            // RunState; tokens live in the store, not in the state
+  await db.save(runId, result.state.toString()); // RunState; tokens live in the store, not in the state
 }
 
 // Later, in another process: the context comes from the resuming session, not from the stored state
-const context = { user: await currentUser(request) }
-const state = await RunState.fromStringWithContext(agent, await db.load(runId), new RunContext(context))
-const pending = await resolveInterruptions(state, state.getInterruptions(), { context })
-if (pending.length === 0) result = await run(agent, state) // every interruption approved or rejected
+const context = { user: await currentUser(request) };
+const state = await RunState.fromStringWithContext(
+  agent,
+  await db.load(runId),
+  new RunContext(context),
+);
+const pending = await resolveInterruptions(state, state.getInterruptions(), {
+  context,
+});
+if (pending.length === 0) result = await run(agent, state); // every interruption approved or rejected
 ```
 
 - `needsApproval(permission)` returns the SDK predicate `(runContext, args) => Promise<boolean>`; it reads the application context from `runContext.context`. It returns `false` only when `can(permission, row)` holds for the resolved resource, and `true` (pause) for `approval-required`, `denied`, a thrown or empty `data` loader and anything else; the check does not touch the store. The tool never executes on a denial: `resolveInterruptions` rejects it.
@@ -67,12 +87,12 @@ if (pending.length === 0) result = await run(agent, state) // every interruption
 2. The model calls a tool. The SDK parses the arguments; on parse failure it requests approval without calling the predicate (its own fail-closed rule). Otherwise it calls `needsApproval(context, args)`.
 3. The adapter validates `args` against the resource schema when `data` is declared, loads the resource, and calls `decide`:
 
-| Decision outcome | `needsApproval` returns | Then |
-| --- | --- | --- |
-| `granted` | `false` | Tool executes |
-| `approval-required` | `true` | Interruption created; `ApprovalRequest` with `token` written to the store on `resolveInterruptions` |
-| `denied` | `true` | `resolveInterruptions` immediately calls `state.reject(i, { message })` with the Decision's reason and alternatives |
-| unmapped tool, validation error, thrown resolver | `true` then reject | Fail closed |
+| Decision outcome                                 | `needsApproval` returns | Then                                                                                                                |
+| ------------------------------------------------ | ----------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `granted`                                        | `false`                 | Tool executes                                                                                                       |
+| `approval-required`                              | `true`                  | Interruption created; `ApprovalRequest` with `token` written to the store on `resolveInterruptions`                 |
+| `denied`                                         | `true`                  | `resolveInterruptions` immediately calls `state.reject(i, { message })` with the Decision's reason and alternatives |
+| unmapped tool, validation error, thrown resolver | `true` then reject      | Fail closed                                                                                                         |
 
 4. The application persists `result.state.toString()` and shows the pending requests (its own UI, `approvalsHandler`, or the PermDock Cloud inbox). The token lives only in the store; it is not placed inside `RunState`, because serialised state travels with the request and may be logged.
 5. A person resolves the request; the store records the approver. The actor (the agent) cannot approve its own call, and the principal cannot either unless the grant sets `approval: { distinct: false }`.

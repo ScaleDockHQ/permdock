@@ -9,5 +9,5 @@ pnpm --filter @permdock/example-expo dev
 Opens `http://127.0.0.1:3486/`. `Protected` shows `edit` for a member updating their own post and `locked` for publish. Web smoke is Playwright; native Maestro is optional.
 
 ```ts
-import { PermDockProvider, usePermission } from 'permdock/react-native'
+import { PermDockProvider, usePermission } from "permdock/react-native";
 ```

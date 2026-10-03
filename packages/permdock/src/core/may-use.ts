@@ -1,10 +1,10 @@
-import type { SnapshotGrant } from './interfaces.ts';
-import type { PermDock } from './permdock.ts';
-import type { Permission } from './permissions.ts';
-import type { Delegation } from './subject.ts';
+import type { SnapshotGrant } from "./interfaces.ts";
+import type { PermDock } from "./permdock.ts";
+import type { Permission } from "./permissions.ts";
+import type { Delegation } from "./subject.ts";
 
-import { coveredByDelegation } from './delegation.ts';
-import { scopeList, tenantOf } from './scopes.ts';
+import { coveredByDelegation } from "./delegation.ts";
+import { scopeList, tenantOf } from "./scopes.ts";
 
 function delegationMayCover(
   permission: Permission,
@@ -15,10 +15,10 @@ function delegationMayCover(
     ...(delegation?.access ?? []),
     ...(delegation?.authorizationDetails ?? []),
   ].flatMap((entry) =>
-    typeof entry === 'object' &&
+    typeof entry === "object" &&
     entry !== null &&
-    typeof entry['identifier'] === 'string'
-      ? [entry['identifier']]
+    typeof entry["identifier"] === "string"
+      ? [entry["identifier"]]
       : [],
   );
   return [undefined, ...identifiers].some(
@@ -29,12 +29,12 @@ function delegationMayCover(
 
 function blocksEveryRow(grant: SnapshotGrant): boolean {
   return (
-    grant.effect === 'deny' &&
+    grant.effect === "deny" &&
     grant.where === undefined &&
     grant.check === undefined &&
     grant.portable !== false &&
     grant.fields === undefined &&
-    (grant.scope === undefined || grant.scope === 'tenant')
+    (grant.scope === undefined || grant.scope === "tenant")
   );
 }
 
@@ -44,22 +44,22 @@ function blocksEveryRow(grant: SnapshotGrant): boolean {
  * unconditional deny, within its delegation. A listing hint for tools and
  * skills, never a decision; the call itself is decided in full.
  */
-export function mayUse(dock: PermDock, permission: Permission): boolean {
+export function mayUse(permdock: PermDock, permission: Permission): boolean {
   try {
-    const snapshot = dock.snapshot();
-    if (!('grants' in snapshot)) {
+    const snapshot = permdock.snapshot();
+    if (!("grants" in snapshot)) {
       return false;
     }
     if (
       !delegationMayCover(
         permission,
-        dock.subject.delegation,
-        dock.subject.actor !== undefined,
+        permdock.subject.delegation,
+        permdock.subject.actor !== undefined,
       )
     ) {
       return false;
     }
-    const tenant = dock.subject.principal?.tenant;
+    const tenant = permdock.subject.principal?.tenant;
     const scopes = scopeList(snapshot.scopes);
     const grants = snapshot.grants.filter((grant) => {
       if (grant.permission !== permission.key) {
@@ -74,7 +74,7 @@ export function mayUse(dock: PermDock, permission: Permission): boolean {
     if (grants.some(blocksEveryRow)) {
       return false;
     }
-    return grants.some((grant) => grant.effect === 'allow');
+    return grants.some((grant) => grant.effect === "allow");
   } catch {
     return false;
   }

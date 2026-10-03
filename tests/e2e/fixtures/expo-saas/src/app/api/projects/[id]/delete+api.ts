@@ -1,16 +1,16 @@
-import { saasPermissions as p } from 'permdock/testing/saas/permissions';
+import { saasPermissions as p } from "permdock/testing/saas/permissions";
 
-import { findProject, removeProject } from '@permdock/e2e-saas-kit';
+import { findProject, removeProject } from "@permdock/e2e-saas-kit";
 
-import { server } from '../../../../lib/server';
+import { kernel } from "../../../../lib/server";
 
 function projectId(request: Request): string {
   return decodeURIComponent(
-    new URL(request.url).pathname.split('/').at(-2) ?? '',
+    new URL(request.url).pathname.split("/").at(-2) ?? "",
   );
 }
 
-const guard = server.protect(p.project.delete, (request) =>
+const guard = kernel.protect(p.project.delete, (request) =>
   findProject(projectId(request)),
 );
 

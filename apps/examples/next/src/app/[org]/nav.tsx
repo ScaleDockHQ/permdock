@@ -1,12 +1,12 @@
-'use client';
+"use client";
 
-import type { Permission } from 'permdock';
+import type { Permission } from "permdock";
 
-import Link from 'next/link';
-import { usePermission } from 'permdock/react';
-import { use } from 'react';
+import Link from "next/link";
+import { usePermission } from "permdock/react";
+import { use } from "react";
 
-import { permissions } from '../../permissions.ts';
+import { permissions } from "../../permissions.ts";
 
 type Item = {
   readonly id: string;
@@ -18,23 +18,23 @@ type Item = {
 };
 
 const items: readonly Item[] = [
-  { id: 'overview', label: 'Overview', path: '', permission: null },
+  { id: "overview", label: "Overview", path: "", permission: null },
   {
-    id: 'quotes',
-    label: 'Quotes',
-    path: '/quotes',
+    id: "quotes",
+    label: "Quotes",
+    path: "/quotes",
     permission: permissions.quote.list,
   },
   {
-    id: 'members',
-    label: 'Members',
-    path: '/members',
+    id: "members",
+    label: "Members",
+    path: "/members",
     permission: permissions.member.list,
   },
   {
-    id: 'settings',
-    label: 'Settings',
-    path: '/settings',
+    id: "settings",
+    label: "Settings",
+    path: "/settings",
     permission: permissions.member.manage,
     prefetch: false,
   },

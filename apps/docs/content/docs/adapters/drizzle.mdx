@@ -12,28 +12,45 @@ A condition such as `where: { authorId: principal.id }` is evaluated in memory b
 ## API
 
 ```ts
-import { toWhere } from 'permdock/drizzle'
-import { posts } from './schema'
+import { toWhere } from "permdock/drizzle";
+import { posts } from "./schema";
 
 const rows = await db
   .select()
   .from(posts)
-  .where(toWhere(permdock.where(permissions.post.read), posts))
+  .where(toWhere(permdock.where(permissions.post.read), posts));
 
 // combine with app filters: toWhere returns a Drizzle SQL expression
-await db.select().from(posts).where(and(toWhere(permdock.where(permissions.post.read), posts), eq(posts.published, true)))
+await db
+  .select()
+  .from(posts)
+  .where(
+    and(
+      toWhere(permdock.where(permissions.post.read), posts),
+      eq(posts.published, true),
+    ),
+  );
 
 // column mapping when schema field names differ from Drizzle column names
-toWhere(condition, posts, { columns: { authorId: posts.author_id } })
+toWhere(condition, posts, { columns: { authorId: posts.author_id } });
 
 // graph grants: related nodes compile to a subquery over the relation tables
-toWhere(permdock.where(permissions.doc.read), docs, { relations: { closure: 'public.permdock_closure' } })
+toWhere(permdock.where(permissions.doc.read), docs, {
+  relations: { closure: "permdock.permdock_closure" },
+});
 
 // one row: not found, or found with the decision
-const check = await checkRow(db, posts, permdock.where(permissions.post.update), eq(posts.id, id))
+const check = await checkRow(
+  db,
+  posts,
+  permdock.where(permissions.post.update),
+  eq(posts.id, id),
+);
 
 // run a transaction as the subject, so RLS policies see it
-await withSubject(db, permdock, (tx) => tx.select().from(posts), { dialect: 'guc' })
+await withSubject(db, permdock, (tx) => tx.select().from(posts), {
+  dialect: "guc",
+});
 ```
 
 - `toWhere(condition, table, options?)` returns a Drizzle `SQL` and maps each condition field to a column of `table` by name (or via `options.columns`), and each operator (`eq`, `ne`, `in`, `notIn`, `gt`, `gte`, `lt`, `lte`, `isNull`, `contains`, `and`, `or`, `not`) to the Drizzle operator of the same meaning. `table` is any Drizzle table object; no cast is needed. `options.columns` accepts only columns of that table or `SQL`, so a column of another table is a type error.
@@ -51,17 +68,17 @@ RLS generation reuses the same compiler:
 
 ```ts
 // emitted by: permdock rls generate --target drizzle --dialect supabase
-import { sql } from 'drizzle-orm'
-import { pgPolicy } from 'drizzle-orm/pg-core'
-import { authenticatedRole, authUid } from 'drizzle-orm/supabase'
-import * as schema from './schema'
+import { sql } from "drizzle-orm";
+import { pgPolicy } from "drizzle-orm/pg-core";
+import { authenticatedRole, authUid } from "drizzle-orm/supabase";
+import * as schema from "./schema";
 
-export const postReadMember = pgPolicy('post_read_member', {
-  as: 'permissive',
-  for: 'select',
+export const postReadMember = pgPolicy("post_read_member", {
+  as: "permissive",
+  for: "select",
   to: authenticatedRole,
   using: sql`("author_id" = ${authUid})`,
-}).link(schema.posts)
+}).link(schema.posts);
 ```
 
 Each policy is linked to its table with `.link`, so the table definition stays untouched and drizzle-kit picks the policies up from the schema. The `guc` and `neon` dialects declare `pgRole('authenticated').existing()` in the file instead of importing from `drizzle-orm/supabase`. Grants, column privileges, `enable row level security` and the helper functions have no Drizzle form, so they go to `<out>.migration.sql` next to the policies file; apply it with your migrations. `rls.drizzle.schema` sets the import path and `rls.drizzle.exports` maps a table to its export name when it is not the table name in camelCase ([RLS](/docs/adapters/rls)).

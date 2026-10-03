@@ -1,7 +1,7 @@
-import { createLocalJWKSet, jwtVerify } from 'jose';
-import { describe, expect, it } from 'vitest';
+import { createLocalJWKSet, jwtVerify } from "jose";
+import { describe, expect, it } from "vitest";
 
-import type { SaasScenario } from '../../../src/testing/saas/index.ts';
+import type { SaasScenario } from "../../../src/testing/saas/index.ts";
 
 import {
   createPermDock,
@@ -9,7 +9,7 @@ import {
   memoryLimitStore,
   memoryRoleSource,
   parseSnapshot,
-} from '../../../src/index.ts';
+} from "../../../src/index.ts";
 import {
   saasCustomRoles,
   saasFolderScenarios,
@@ -26,8 +26,8 @@ import {
   saasUser,
   saasUsers,
   signSaasToken,
-} from '../../../src/testing/saas/index.ts';
-import { reasonOf } from '../../fixtures/decisions.ts';
+} from "../../../src/testing/saas/index.ts";
+import { reasonOf } from "../../fixtures/decisions.ts";
 
 async function instanceFor(user: string, tenant: string | undefined) {
   return createPermDock(saasPolicy, saasPrincipal(user, tenant), {
@@ -56,7 +56,7 @@ async function checkServer(scenario: SaasScenario): Promise<void> {
     scenario.row as never,
   );
   expect(decision.outcome).toBe(scenario.expected.outcome);
-  if (scenario.expected.reason !== undefined && decision.outcome === 'denied') {
+  if (scenario.expected.reason !== undefined && decision.outcome === "denied") {
     expect(decision.denials.map((denial) => denial.reason)).toContain(
       scenario.expected.reason,
     );
@@ -72,11 +72,11 @@ async function checkClient(scenario: SaasScenario): Promise<void> {
   // SAFETY: each saas scenario pairs a saasPermissions leaf with a row of its resource.
   // SAFETY: each scenario pairs its permission with a row of that resource.
   expect(client.can(scenario.permission as never, scenario.row as never)).toBe(
-    outcome === 'granted',
+    outcome === "granted",
   );
 }
 
-describe('saas scenarios', () => {
+describe("saas scenarios", () => {
   for (const scenario of saasScenarios) {
     const server = `server: ${scenario.name}`;
     it(server, () => checkServer(scenario));
@@ -87,83 +87,83 @@ describe('saas scenarios', () => {
   }
 });
 
-describe('saas scenario helpers', () => {
+describe("saas scenario helpers", () => {
   const input = {
-    key: 'apiKey.create',
-    subjectId: 'alice',
+    key: "apiKey.create",
+    subjectId: "alice",
     count: 5,
-    per: 'day',
-    tenant: 'acme',
+    per: "day",
+    tenant: "acme",
   };
 
-  it('primes each subject and tenant once with the used units', async () => {
+  it("primes each subject and tenant once with the used units", async () => {
     const store = saasLimitStore(3);
     expect(store.remaining(input)).toEqual({ remaining: 2 });
     expect(await store.consume(input)).toEqual({ remaining: 1 });
-    expect(store.remaining({ ...input, tenant: 'globex' })).toEqual({
+    expect(store.remaining({ ...input, tenant: "globex" })).toEqual({
       remaining: 2,
     });
     expect(saasLimitStore().remaining(input)).toEqual({ remaining: 5 });
   });
 
-  it('builds a principal, or a subject when an actor or delegation is set', () => {
+  it("builds a principal, or a subject when an actor or delegation is set", () => {
     const base = saasScenarios[0];
     if (base === undefined) {
-      throw new Error('no saas scenarios');
+      throw new Error("no saas scenarios");
     }
-    const delegation = { scopes: ['project:read'] };
+    const delegation = { scopes: ["project:read"] };
     expect({
-      plain: saasUser({ ...base, user: 'bob', tenant: 'acme' }),
-      delegated: saasUser({ ...base, user: 'bob', tenant: 'acme', delegation }),
+      plain: saasUser({ ...base, user: "bob", tenant: "acme" }),
+      delegated: saasUser({ ...base, user: "bob", tenant: "acme", delegation }),
       options: Object.keys(
         saasScenarioOptions({
           name: base.name,
-          user: 'bob',
+          user: "bob",
           permission: base.permission,
           expected: base.expected,
         }),
       ),
     }).toEqual({
-      plain: saasPrincipal('bob', 'acme'),
+      plain: saasPrincipal("bob", "acme"),
       delegated: {
-        principal: saasPrincipal('bob', 'acme'),
+        principal: saasPrincipal("bob", "acme"),
         context: {},
         delegation,
       },
-      options: ['customRoles', 'limits', 'relations'],
+      options: ["customRoles", "limits", "relations"],
     });
   });
 });
 
-describe('saas folder tree', () => {
+describe("saas folder tree", () => {
   for (const scenario of saasFolderScenarios) {
     it(`server: ${scenario.name}`, () => checkServer(scenario));
     it(`client: ${scenario.name}`, () => checkClient(scenario));
   }
 
-  it('lists who reads a folder and how', async () => {
-    const permdock = await instanceFor('carol', 'acme');
+  it("lists who reads a folder and how", async () => {
+    const permdock = await instanceFor("carol", "acme");
     const result = await permdock.whoCan(
       saasPermissions.folder.read,
-      saasSeed.folders.find((folder) => folder.id === 'platform'),
+      saasSeed.folders.find((folder) => folder.id === "platform"),
     );
     expect(result.holders.map((holder) => holder.principal.id)).toContain(
-      'bob',
+      "bob",
     );
     expect(result.holders.map((holder) => holder.principal.id)).not.toContain(
-      'hank',
+      "hank",
     );
     expect(result.complete).toBe(false);
   });
 });
 
-describe('saas seed', () => {
-  it('lists every user once, including one without memberships', () => {
+describe("saas seed", () => {
+  it("lists every user once, including one without memberships", () => {
     expect(new Set(saasUsers).size).toBe(saasUsers.length);
-    expect(saasUsers).toContain('mallory');
+    expect(saasUsers).toContain("mallory");
   });
 
-  it('keeps every row inside a seeded org', () => {
+  it("keeps every row inside a seeded org", () => {
     const orgs = new Set(saasSeed.orgs.map((org) => org.id));
     for (const row of [
       ...saasSeed.projects,
@@ -174,63 +174,63 @@ describe('saas seed', () => {
     }
   });
 
-  it('validates rows at the boundary', async () => {
-    const permdock = await instanceFor('alice', 'acme');
+  it("validates rows at the boundary", async () => {
+    const permdock = await instanceFor("alice", "acme");
     // SAFETY: deliberately incomplete project row to exercise boundary validation.
     const decision = permdock.decide(
       saasPermissions.project.update,
       {
-        id: 'p1',
-        orgId: 'acme',
+        id: "p1",
+        orgId: "acme",
       } as never,
       { trusted: false },
     );
-    expect(reasonOf(decision)).toBe('validation');
+    expect(reasonOf(decision)).toBe("validation");
   });
 
-  it('emits schema and seed SQL without service_role', () => {
+  it("emits schema and seed SQL without service_role", () => {
     const sql = `${saasSchemaSql}\n${saasSeedSql()}`;
     expect(sql).not.toMatch(/service_role/iu);
     expect(sql).toContain(`('p4', 'acme', 'bob', 'Old tunnel', true)`);
     expect(saasSeedSql({ ...saasSeed, members: [], docs: [] })).not.toContain(
-      'org_member',
+      "org_member",
     );
   });
 });
 
-describe('saas tokens', () => {
-  it('signs an ES256 token jose verifies against the published JWKS', async () => {
-    const token = await signSaasToken('alice', { now: 1_900_000_000 });
+describe("saas tokens", () => {
+  it("signs an ES256 token jose verifies against the published JWKS", async () => {
+    const token = await signSaasToken("alice", { now: 1_900_000_000 });
     const { payload, protectedHeader } = await jwtVerify(
       token,
       createLocalJWKSet({
         keys: [
           {
-            kty: 'EC',
-            crv: 'P-256',
-            x: 'p5Q0wX-3-mOBqOcCTP-RHesn80ydMMNOpr_YNY6uE1I',
-            y: 'Tr8Bo2w8QPJ1l0BfNLOEUsSz2VVJGx8AWMOika2yUeA',
-            kid: 'e2e',
+            kty: "EC",
+            crv: "P-256",
+            x: "p5Q0wX-3-mOBqOcCTP-RHesn80ydMMNOpr_YNY6uE1I",
+            y: "Tr8Bo2w8QPJ1l0BfNLOEUsSz2VVJGx8AWMOika2yUeA",
+            kid: "e2e",
           },
         ],
       }),
       {
-        issuer: 'https://saas.permdock.test',
-        audience: 'permdock-saas',
+        issuer: "https://saas.permdock.test",
+        audience: "permdock-saas",
         currentDate: new Date(1_900_000_100_000),
       },
     );
     expect(protectedHeader).toEqual({
-      alg: 'ES256',
-      kid: 'e2e',
-      typ: 'at+jwt',
+      alg: "ES256",
+      kid: "e2e",
+      typ: "at+jwt",
     });
-    expect(payload.sub).toBe('alice');
-    expect(payload['memberships']).toEqual([
-      { tenant: 'acme', roles: ['admin'] },
-      { tenant: 'globex', roles: ['viewer'] },
+    expect(payload.sub).toBe("alice");
+    expect(payload["memberships"]).toEqual([
+      { tenant: "acme", roles: ["admin"] },
+      { tenant: "globex", roles: ["viewer"] },
     ]);
-    const bare = await signSaasToken('bob', { memberships: false });
-    expect(bare.split('.')).toHaveLength(3);
+    const bare = await signSaasToken("bob", { memberships: false });
+    expect(bare.split(".")).toHaveLength(3);
   });
 });

@@ -1,6 +1,6 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { describe, expect, it } from "vitest";
 
 import {
   DIST,
@@ -9,10 +9,10 @@ import {
   TOOLING_PACKAGES,
   packageImports,
   walk,
-} from './graph.ts';
+} from "./graph.ts";
 
-describe('invariant 12: runtime entries depend on @standard-schema/spec only', () => {
-  it('never loads a CLI or test-runner package from a runtime entry', () => {
+describe("invariant 12: runtime entries depend on @standard-schema/spec only", () => {
+  it("never loads a CLI or test-runner package from a runtime entry", () => {
     const leaked: string[] = [];
     for (const entry of RUNTIME_ENTRIES) {
       for (const name of packageImports(walk(ENTRIES[entry]))) {
@@ -25,24 +25,24 @@ describe('invariant 12: runtime entries depend on @standard-schema/spec only', (
     expect(leaked).toEqual([]);
   });
 
-  it('keeps the core entry free of every package but optional peers', () => {
-    expect(packageImports(walk(ENTRIES['.']))).toEqual([]);
+  it("keeps the core entry free of every package but optional peers", () => {
+    expect(packageImports(walk(ENTRIES["."]))).toEqual([]);
   });
 
-  it('declares only @standard-schema/spec and the CLI packages as dependencies', () => {
+  it("declares only @standard-schema/spec and the CLI packages as dependencies", () => {
     // SAFETY: dist/../package.json is the built package's own manifest
     const manifest = JSON.parse(
-      readFileSync(join(DIST, '..', 'package.json'), 'utf8'),
+      readFileSync(join(DIST, "..", "package.json"), "utf8"),
     ) as { readonly dependencies: Readonly<Record<string, string>> };
     expect(Object.keys(manifest.dependencies).toSorted()).toEqual([
-      '@clack/prompts',
-      '@standard-schema/spec',
-      'citty',
-      'diff',
-      'jiti',
-      'oxc-parser',
-      'package-manager-detector',
-      'smol-toml',
+      "@clack/prompts",
+      "@standard-schema/spec",
+      "citty",
+      "diff",
+      "jiti",
+      "oxc-parser",
+      "package-manager-detector",
+      "smol-toml",
     ]);
   });
 });

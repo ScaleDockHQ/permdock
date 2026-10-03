@@ -2,38 +2,38 @@ import type {
   Capability,
   LinkPolicy,
   LinkPrincipal,
-} from '../core/capability.ts';
+} from "../core/capability.ts";
 import type {
   AuthEvent,
   TokenFailureCause,
   TokenVerifier,
-} from '../core/interfaces.ts';
-import type { Subject } from '../core/subject.ts';
-import type { ReplayStore } from '../ssf/types.ts';
-import type { JoseTokenVerifierOptions } from './types.ts';
+} from "../core/interfaces.ts";
+import type { Subject } from "../core/subject.ts";
+import type { ReplayStore } from "../ssf/types.ts";
+import type { JoseTokenVerifierOptions } from "./types.ts";
 
 import {
   capabilitySubject,
   linkPolicyViolation,
   parseCapability,
   redeemerAllows,
-} from '../core/capability.ts';
-import { compact } from '../core/compact.ts';
-import { anonymousSubject } from '../core/subject.ts';
-import { decodeHeader, normalizeTyp } from './header.ts';
-import { joseTokenVerifier } from './verifier.ts';
+} from "../core/capability.ts";
+import { compact } from "../core/compact.ts";
+import { anonymousSubject } from "../core/subject.ts";
+import { decodeHeader, normalizeTyp } from "./header.ts";
+import { joseTokenVerifier } from "./verifier.ts";
 
 /** `on('auth')` causes: a verification failure, or one of the three capability checks. */
 export type CapabilityFailureCause =
   | TokenFailureCause
-  | 'capability-revoked'
-  | 'capability-replayed'
-  | 'redeemer-mismatch'
-  | 'link-policy';
+  | "capability-revoked"
+  | "capability-replayed"
+  | "redeemer-mismatch"
+  | "link-policy";
 
 export type CapabilitySubjectOptions = Omit<
   JoseTokenVerifierOptions,
-  'typ' | 'issuer' | 'audience' | 'profile'
+  "typ" | "issuer" | "audience" | "profile"
 > & {
   /** The issuer the capability was signed by (`iss`); required. */
   readonly issuer: string;
@@ -63,11 +63,11 @@ export type CapabilitySubjectOptions = Omit<
 
 type Outcome =
   | { readonly ok: true }
-  | { readonly ok: false; readonly reason: AuthEvent['reason'] };
+  | { readonly ok: false; readonly reason: AuthEvent["reason"] };
 
 function emit(
   options: CapabilitySubjectOptions,
-  reason: AuthEvent['reason'],
+  reason: AuthEvent["reason"],
   cause: CapabilityFailureCause | undefined,
   token: string,
 ): void {
@@ -79,7 +79,7 @@ function emit(
     compact<AuthEvent>({
       reason,
       cause,
-      source: 'capability',
+      source: "capability",
       kid: header?.kid,
       alg: header?.alg,
       typ: header?.typ,
@@ -116,13 +116,13 @@ async function stores(
       policy !== undefined &&
       linkPolicyViolation(capability, policy, issuedAt) !== undefined
     ) {
-      return 'link-policy';
+      return "link-policy";
     }
     if (
       options.revoked !== undefined &&
       (await options.revoked(capability.id))
     ) {
-      return 'capability-revoked';
+      return "capability-revoked";
     }
     const replay = options.replay;
     if (
@@ -130,11 +130,11 @@ async function stores(
       (replay === undefined ||
         !(await claimOnce(replay, once.key, once.expiresAt)))
     ) {
-      return 'capability-replayed';
+      return "capability-replayed";
     }
     return { ok: true };
   } catch {
-    return { ok: false, reason: 'source-threw' };
+    return { ok: false, reason: "source-threw" };
   }
 }
 
@@ -153,16 +153,16 @@ export async function subjectFromCapability(
   }
   const deny = (
     cause: CapabilityFailureCause | undefined,
-    reason: AuthEvent['reason'] = 'invalid-token',
+    reason: AuthEvent["reason"] = "invalid-token",
   ): Subject => {
     emit(options, reason, cause, token);
     return anonymousSubject();
   };
-  if (typeof options.issuer !== 'string' || options.issuer.length === 0) {
-    return deny('wrong-issuer');
+  if (typeof options.issuer !== "string" || options.issuer.length === 0) {
+    return deny("wrong-issuer");
   }
   if (options.audience === undefined || options.audience.length === 0) {
-    return deny('wrong-audience');
+    return deny("wrong-audience");
   }
   let verifier: TokenVerifier;
   try {
@@ -170,60 +170,60 @@ export async function subjectFromCapability(
       options.verifier ??
       joseTokenVerifier({
         ...options,
-        typ: 'permdock-capability+jwt',
+        typ: "permdock-capability+jwt",
       });
   } catch {
-    return deny('malformed');
+    return deny("malformed");
   }
-  let verified: Awaited<ReturnType<TokenVerifier['verify']>>;
+  let verified: Awaited<ReturnType<TokenVerifier["verify"]>>;
   try {
     verified = await verifier.verify(
       token,
       compact({
-        typ: 'permdock-capability+jwt',
+        typ: "permdock-capability+jwt",
         issuer: options.issuer,
         audience: options.audience,
         clockTolerance: options.clockTolerance,
       }),
     );
   } catch {
-    return deny('malformed');
+    return deny("malformed");
   }
   if (!verified.ok) {
     return deny(verified.cause);
   }
-  if (normalizeTyp(verified.header.typ) !== 'permdock-capability+jwt') {
-    return deny('wrong-token-type');
+  if (normalizeTyp(verified.header.typ) !== "permdock-capability+jwt") {
+    return deny("wrong-token-type");
   }
-  const parsed = parseCapability(verified.claims['capability']);
+  const parsed = parseCapability(verified.claims["capability"]);
   const exp = verified.claims.exp;
   if (
-    parsed?.holder !== 'link' ||
+    parsed?.holder !== "link" ||
     verified.claims.sub !== parsed.id ||
-    typeof exp !== 'number'
+    typeof exp !== "number"
   ) {
-    return deny('invalid-claims');
+    return deny("invalid-claims");
   }
   const capability = { ...parsed, expiresAt: Math.min(parsed.expiresAt, exp) };
   const now = Date.now() / 1000;
   if (capability.expiresAt <= now) {
-    return deny('expired');
+    return deny("expired");
   }
   if (!redeemerAllows(capability.redeemer, options.viewer, now)) {
-    return deny('redeemer-mismatch');
+    return deny("redeemer-mismatch");
   }
-  const jti = verified.claims['jti'];
+  const jti = verified.claims["jti"];
   if (
     capability.once === true &&
-    (options.replay === undefined || typeof jti !== 'string' || jti === '')
+    (options.replay === undefined || typeof jti !== "string" || jti === "")
   ) {
-    return deny('invalid-claims');
+    return deny("invalid-claims");
   }
   const iat = verified.claims.iat;
   const checked = await stores(
     options,
     capability,
-    typeof iat === 'number' ? iat : undefined,
+    typeof iat === "number" ? iat : undefined,
     capability.once === true
       ? {
           key: `capability\u0000${options.issuer}\u0000${String(jti)}`,
@@ -231,7 +231,7 @@ export async function subjectFromCapability(
         }
       : undefined,
   );
-  if (typeof checked === 'string') {
+  if (typeof checked === "string") {
     return deny(checked);
   }
   if (!checked.ok) {

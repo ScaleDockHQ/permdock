@@ -12,21 +12,41 @@ A2A 1.0 ([specification](https://a2a-protocol.org/latest/specification/)) descri
 ## API
 
 ```ts
-import { createPermDock } from 'permdock/a2a'
+import { createPermDock } from "permdock/a2a";
 
 const { agentCard, extendedAgentCard, protectSkill } = createPermDock(policy, {
-  subject: (auth) => userFrom(auth),                    // caller principal from the A2A request auth
-  card: { name: 'Posts agent', url: 'https://agent.example.com/a2a', version: '1.0.0' },
-  securitySchemes: { oauth: { type: 'oauth2', oauth2MetadataUrl: 'https://auth.example.com/.well-known/oauth-authorization-server' } },
-  skills: {
-    summarise: { permission: permissions.post.read,   description: 'Summarise a post' },
-    publish:   { permission: permissions.post.publish, data: (task) => loadPost(task.postId) },
+  subject: (auth) => userFrom(auth), // caller principal from the A2A request auth
+  card: {
+    name: "Posts agent",
+    url: "https://agent.example.com/a2a",
+    version: "1.0.0",
   },
-})
+  securitySchemes: {
+    oauth: {
+      type: "oauth2",
+      oauth2MetadataUrl:
+        "https://auth.example.com/.well-known/oauth-authorization-server",
+    },
+  },
+  skills: {
+    summarise: {
+      permission: permissions.post.read,
+      description: "Summarise a post",
+    },
+    publish: {
+      permission: permissions.post.publish,
+      data: (task) => loadPost(task.postId),
+    },
+  },
+});
 
-app.get('/.well-known/agent-card.json', (c) => c.json(agentCard()))
-app.get('/a2a/extended-card', (c) => c.json(extendedAgentCard(c.get('auth'))))
-app.post('/a2a/tasks', protectSkill((task) => task.skillId), handleTask)
+app.get("/.well-known/agent-card.json", (c) => c.json(agentCard()));
+app.get("/a2a/extended-card", (c) => c.json(extendedAgentCard(c.get("auth"))));
+app.post(
+  "/a2a/tasks",
+  protectSkill((task) => task.skillId),
+  handleTask,
+);
 ```
 
 - `skills` maps skill ids to a permission and optional metadata; `data` resolves the resource for instance-level actions from the task payload.

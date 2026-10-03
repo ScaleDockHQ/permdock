@@ -1,0 +1,19 @@
+---
+description: One branch and one pull request per chat or plan, conventional commits, and never merging without the required checks
+globs:
+alwaysApply: true
+---
+
+# Git workflow
+
+`main` is production and, before launch, the working branch.
+
+1. **Check the tree.** Run `git status` first. If there are uncommitted changes you did not make, stop and ask. Never discard them.
+2. **Branch.** On `main`, run `git fetch` and create `<type>/<short-topic>` from `origin/main`, where `<type>` is a commitlint type (`feat/org-switcher`, `fix/mcp-401`). On this work's branch already, keep using it.
+3. **Commit.** Small conventional commits with a lower-case subject of at most 72 characters. A commit that moves a baseline (bundle size, type instantiations, CLI startup, coverage) states the before and after numbers.
+4. **Open one pull request.** After the first push, run `gh pr create --base main` as a draft until `pnpm verify` passes, then mark it ready. The title is a conventional commit header: it becomes the squash commit and the `pr-title` job checks it. The body follows `.github/pull_request_template.md`.
+5. **Keep everything on that pull request.** Follow-ups, review fixes and extra todos from the same chat or plan go onto the same branch. Never open a second pull request, stack them, or split a plan into one per todo.
+6. **New work, new branch.** Only when the user starts a new chat or plan, or asks for a separate pull request.
+7. **Never merge without being asked.** Never push to `main`. When the user asks to merge, wait for the required checks, and first confirm that `main` has required status checks at all (`gh api repos/{owner}/{repo}/branches/main/protection`). With none, a pull request merges at once and CI first fails on `main`: report that gap instead of merging.
+
+Dependabot and the Changesets `chore: version packages` pull request are the only other pull requests.

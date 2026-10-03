@@ -1,10 +1,10 @@
-import type { McpAuthInfo } from 'permdock/mcp';
+import type { McpAuthInfo } from "permdock/mcp";
 
-import { McpServer } from '@modelcontextprotocol/server';
-import { createPermDock, subjectFromMcp } from 'permdock/mcp';
-import { saasPolicy } from 'permdock/testing/saas';
-import { saasPermissions as p } from 'permdock/testing/saas/permissions';
-import { z } from 'zod';
+import { McpServer } from "@modelcontextprotocol/server";
+import { createPermDock, subjectFromMcp } from "permdock/mcp";
+import { saasPolicy } from "permdock/testing/saas";
+import { saasPermissions as p } from "permdock/testing/saas/permissions";
+import { z } from "zod";
 
 import {
   findOrg,
@@ -12,17 +12,17 @@ import {
   membershipsOf,
   projectsOf,
   removeProject,
-} from '@permdock/e2e-saas-kit';
+} from "@permdock/e2e-saas-kit";
 
-import { RESOURCE } from './config.ts';
+import { RESOURCE } from "./config.ts";
 
 function tenantOf(authInfo: McpAuthInfo): string | undefined {
-  const tenant = authInfo.extra?.['tenant'];
-  return typeof tenant === 'string' && tenant !== '' ? tenant : undefined;
+  const tenant = authInfo.extra?.["tenant"];
+  return typeof tenant === "string" && tenant !== "" ? tenant : undefined;
 }
 
 function text(value: unknown) {
-  return { content: [{ type: 'text' as const, text: JSON.stringify(value) }] };
+  return { content: [{ type: "text" as const, text: JSON.stringify(value) }] };
 }
 
 /**
@@ -36,7 +36,7 @@ const { protectServer } = createPermDock(saasPolicy, {
     if (subject.principal === null) {
       return subject;
     }
-    const org = findOrg(tenantOf(authInfo) ?? '');
+    const org = findOrg(tenantOf(authInfo) ?? "");
     return {
       ...subject,
       principal: {
@@ -56,26 +56,26 @@ const { protectServer } = createPermDock(saasPolicy, {
 
 export function createMcpServer(): McpServer {
   const mcp = new McpServer(
-    { name: 'saas-projects', version: '1.0.0' },
+    { name: "saas-projects", version: "1.0.0" },
     { capabilities: { tools: { listChanged: true } } },
   );
   const server = protectServer(mcp);
   const byId = z.object({ id: z.string() });
   server.registerTool(
-    'list_projects',
-    { permission: p.project.list, description: 'List the org’s projects' },
+    "list_projects",
+    { permission: p.project.list, description: "List the org’s projects" },
     (ctx) =>
       text(
-        projectsOf(tenantOf(ctx.http?.authInfo ?? {}) ?? '').map(
+        projectsOf(tenantOf(ctx.http?.authInfo ?? {}) ?? "").map(
           (row) => row.id,
         ),
       ),
   );
   server.registerTool(
-    'delete_project',
+    "delete_project",
     {
       permission: p.project.delete,
-      description: 'Delete a project',
+      description: "Delete a project",
       inputSchema: byId,
       data: ({ id }) => findProject(id) ?? null,
     },
@@ -85,8 +85,8 @@ export function createMcpServer(): McpServer {
     },
   );
   server.registerTool(
-    'read_analytics',
-    { permission: p.analytics.read, description: 'Read org analytics (Pro)' },
+    "read_analytics",
+    { permission: p.analytics.read, description: "Read org analytics (Pro)" },
     () => text({ visits: 42 }),
   );
   return mcp;

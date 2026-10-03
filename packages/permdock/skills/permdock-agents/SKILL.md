@@ -44,7 +44,7 @@ An agent call has a principal (the user whose grants are evaluated), an actor (t
      delegations: [
        {
          from: roles.member,
-         to: actor('eve'),
+         to: actor("eve"),
          permissions: [permissions.post.read, permissions.post.update],
        },
      ],
@@ -57,7 +57,7 @@ An agent call has a principal (the user whose grants are evaluated), an actor (t
 
 4. **Gate destructive tools.** Put `approval: { by }` on each destructive or money-moving grant and pass a `store` to the adapter. Follow the `permdock-approvals` skill (`npx skills add ScaleDockHQ/PermDock --skill permdock-approvals`).
    ✓ A destructive tool returns the runtime's approval outcome instead of running.
-5. **Wire the agent-facing surfaces.** A2A: serve `agentCard()` publicly, `extendedAgentCard(auth)` behind auth, and `protectSkill` on the task endpoint. WebMCP: `registerTools` from a snapshot, with the server re-checking. Web Bot Auth: `webBotAuth: { verify: true, keys }` on the HTTP adapter. -> [references/runtimes.md](references/runtimes.md)
+5. **Wire the agent-facing surfaces.** A2A: serve `agentCard()` publicly, `extendedAgentCard(auth)` behind auth, and `protectSkill` on the task endpoint. WebMCP: `registerTools` from a snapshot, with the server re-checking. Web Bot Auth: `webBotAuth: (request) => verifyWebBotAuth(request, { verify: true, keys })` on the HTTP adapter. -> [references/runtimes.md](references/runtimes.md)
    ✓ Each surface passes the Verify list of its spec skill.
 6. **Test.** Add scenario tests with `permdock/testing` for one delegated grant, one `not-delegated` denial and one approval per destructive tool ([scenario testing](https://permdock.dev/docs/guides/scenario-testing)). Then review with the `permdock-audit` skill, which reports ASI02 and ASI03 per adapter.
    ✓ The tests pass and the audit has no blocker.

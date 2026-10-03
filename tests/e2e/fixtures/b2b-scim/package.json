@@ -4,10 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "lint": "oxlint --disable-nested-config",
+    "lint": "oxlint --disable-nested-config --type-aware",
     "serve": "node scripts/serve.ts",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit --checkers 4"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@electric-sql/pglite": "catalog:",

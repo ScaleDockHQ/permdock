@@ -1,5 +1,5 @@
 export default {
-  permissions: './permissions.ts',
-  policy: './policy.ts',
-  rls: { dialect: 'supabase' },
+  permissions: "./permissions.ts",
+  policy: "./policy.ts",
+  rls: { dialect: "supabase" },
 };

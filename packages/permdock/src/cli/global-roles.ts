@@ -1,6 +1,6 @@
-import type { GlobalRoles } from './types.ts';
+import type { GlobalRoles } from "./types.ts";
 
-import { quoteIdent, quoteTable } from './rls-sql.ts';
+import { quoteIdent, quoteTable } from "./rls-sql.ts";
 
 /** A global-roles source as SQL: the `from` clause and the user and role key expressions. */
 export type RoleRows = {
@@ -19,7 +19,7 @@ export type RoleRows = {
 };
 
 function qualify(name: string, schema: string): string {
-  return name.includes('.') ? name : `${schema}.${name}`;
+  return name.includes(".") ? name : `${schema}.${name}`;
 }
 
 /** Resolves `source` against `schema`, aliasing the table `alias` and the roles table `<alias>k`. */
@@ -29,10 +29,10 @@ export function globalRoleSource(
   alias: string,
 ): RoleRows {
   const table = qualify(source.table, schema);
-  const user = source.user ?? 'user_id';
+  const user = source.user ?? "user_id";
   const userSql = `${alias}.${quoteIdent(user)}`;
-  const role = source.role ?? 'role';
-  if (typeof role === 'string') {
+  const role = source.role ?? "role";
+  if (typeof role === "string") {
     return {
       table,
       user,
@@ -49,7 +49,7 @@ export function globalRoleSource(
     );
   }
   const [ref, id] = pair;
-  const through = qualify(role.through, table.split('.')[0] ?? schema);
+  const through = qualify(role.through, table.split(".")[0] ?? schema);
   const keys = `${alias}k`;
   return {
     table,

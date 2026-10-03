@@ -1,8 +1,8 @@
-import type { ReactNode } from 'react';
+import type { ReactNode } from "react";
 
-import { RootDocument, rootMetadata } from '@/components/root-document';
+import { RootDocument, rootMetadata } from "@/components/root-document";
 
-import './global.css';
+import "./global.css";
 
 export const metadata = rootMetadata;
 

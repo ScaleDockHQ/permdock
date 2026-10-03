@@ -44,7 +44,7 @@ PermDock is typed permissions for TypeScript apps, APIs, databases and AI agents
 
    ✓ The skill for the task is loaded, and `permdock-wire` has run first if the app has no factory file.
 
-2. **Look identifiers up, never guess them.** Read the owning page through the docs MCP (`https://permdock.dev/mcp`, tools `search_docs` and `get_page`), or append `.md` to any `https://permdock.dev/docs/...` URL. Every public name follows the [naming convention](https://permdock.dev/docs/getting-started/naming).
+2. **Look identifiers up, never guess them.** Read the owning page through the docs MCP (`https://permdock.dev/mcp`, tools `search`, `list_pages` and `get_page`), or append `.md` to any `https://permdock.dev/docs/...` URL. Every public name follows the [naming convention](https://permdock.dev/docs/getting-started/naming).
    ✓ Each identifier written into the app appears on a docs page or in `node_modules/permdock`.
 3. **Read a decision.** `decide()` returns `{ outcome, denials: [{ reason, ... }], alternatives }`. `reason` is one of the closed list on [decisions](https://permdock.dev/docs/concepts/decisions); `alternatives` are permissions on the same resource the subject does hold. HTTP adapters answer RFC 9457 Problem Details ([errors](https://permdock.dev/docs/concepts/errors)); for the format, defer to the `problem-details` spec skill (`npx skills add ScaleDockHQ/scaledock-skills --skill problem-details`).
    ✓ Each denial the user asked about is named by its reason.

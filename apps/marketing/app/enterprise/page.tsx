@@ -1,22 +1,22 @@
-import { LandmarkIcon, MailIcon, ShieldCheckIcon } from 'lucide-react';
+import { LandmarkIcon, MailIcon, ShieldCheckIcon } from "lucide-react";
 
-import { PageHero } from '@/components/sections/page-hero';
-import { invariants } from '@/lib/invariants';
-import { site } from '@/lib/site';
-import { Button } from '@permdock/ui/components/button';
+import { PageHero } from "@/components/sections/page-hero";
+import { invariants } from "@/lib/invariants";
+import { site } from "@/lib/site";
+import { Button } from "@permdock/ui/components/button";
 import {
   Item,
   ItemContent,
   ItemDescription,
   ItemMedia,
   ItemTitle,
-} from '@permdock/ui/components/item';
-import { Frame, FrameFooter, FramePanel } from '@permdock/ui/reui/frame';
+} from "@permdock/ui/components/item";
+import { Frame, FrameFooter, FramePanel } from "@permdock/ui/reui/frame";
 
 export const metadata = {
-  title: 'Enterprise',
+  title: "Enterprise",
   description:
-    'Fail-closed defaults, signed evidence, SCIM, CAEP/SSF, FAPI 2.0 and self-hosting.',
+    "Fail-closed defaults, signed evidence, SCIM, CAEP/SSF, FAPI 2.0 and self-hosting.",
 };
 
 export default function EnterprisePage() {
@@ -26,29 +26,29 @@ export default function EnterprisePage() {
         badge="Enterprise"
         title="Fail-closed defaults you can take to a review"
         description="Signed decision batches, OCSF-shaped events, SCIM into a store you own, CAEP and SSF session revoke, FAPI 2.0 on the JWT path, and a Cloud you can skip."
-        primary={{ href: `mailto:${site.email}`, label: 'Contact' }}
+        primary={{ href: `mailto:${site.email}`, label: "Contact" }}
         secondary={{
-          href: '/docs/security/threat-model',
-          label: 'Threat model',
+          href: "/docs/security/threat-model",
+          label: "Threat model",
         }}
         features={[
           {
-            title: 'Signed evidence',
+            title: "Signed evidence",
             description:
-              'typ permdock-decisions+jwt. Compact JWS, one private claim.',
-            href: '/docs/standards/jose',
+              "typ permdock-decisions+jwt. Compact JWS, one private claim.",
+            href: "/docs/standards/jose",
             icon: <ShieldCheckIcon aria-hidden="true" className="size-4" />,
           },
           {
-            title: 'Directory you own',
-            description: 'SCIM into DirectoryStore. Cloud holds no copy.',
-            href: '/docs/adapters/scim',
+            title: "Directory you own",
+            description: "SCIM into DirectoryStore. Cloud holds no copy.",
+            href: "/docs/adapters/scim",
             icon: <LandmarkIcon aria-hidden="true" className="size-4" />,
           },
           {
-            title: 'Self-hosting',
-            description: 'In-process defaults ship in the MIT package.',
-            href: '/docs/adapters/cloud',
+            title: "Self-hosting",
+            description: "In-process defaults ship in the MIT package.",
+            href: "/docs/adapters/cloud",
             icon: <MailIcon aria-hidden="true" className="size-4" />,
           },
         ]}
@@ -58,7 +58,7 @@ export default function EnterprisePage() {
           <Frame key={item.title}>
             <FramePanel className="flex flex-col gap-2">
               <h2 className="text-base font-semibold">{item.title}</h2>
-              <p className="text-muted-foreground text-sm leading-6">
+              <p className="text-sm leading-6 text-muted-foreground">
                 {item.body}
               </p>
             </FramePanel>

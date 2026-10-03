@@ -1,10 +1,10 @@
-import type { Snapshot } from '../core/interfaces.ts';
-import type { PermDockStorage } from './types.ts';
+import type { Snapshot } from "../core/interfaces.ts";
+import type { PermDockStorage } from "./types.ts";
 
-import { parseSnapshot } from '../core/snapshot.ts';
+import { parseSnapshot } from "../core/snapshot.ts";
 
-export const SNAPSHOT_KEY = 'permdock.snapshot';
-const TENANT_KEY = 'permdock.tenant';
+export const SNAPSHOT_KEY = "permdock.snapshot";
+const TENANT_KEY = "permdock.tenant";
 
 export function memoryStorage(
   initial: Readonly<Record<string, string>> = {},
@@ -25,10 +25,10 @@ export function memoryStorage(
 
 function isThenable(value: unknown): value is Promise<unknown> {
   return (
-    typeof value === 'object' &&
+    typeof value === "object" &&
     value !== null &&
-    'then' in value &&
-    typeof value.then === 'function'
+    "then" in value &&
+    typeof value.then === "function"
   );
 }
 

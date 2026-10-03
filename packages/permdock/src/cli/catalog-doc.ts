@@ -4,7 +4,7 @@ import type {
   PermissionTree,
   Policy,
   ResourceNode,
-} from '../index.ts';
+} from "../index.ts";
 import type {
   CatalogApproval,
   CatalogBreakGlass,
@@ -12,19 +12,20 @@ import type {
   CatalogDocument,
   CatalogGrant,
   ScanResult,
-} from './types.ts';
+} from "./types.ts";
 
-import { catalogSchema } from '../catalog/schema.ts';
-import { canonicalJson } from '../core/canonical-json.ts';
+import { catalogSchema } from "../catalog/schema.ts";
+import { canonicalJson } from "../core/canonical-json.ts";
+import { byCodePoint } from "../core/compare.ts";
 import {
   catalogFingerprint,
   findRole,
   getResource,
   listPermissions,
-} from '../index.ts';
-import { CATALOG_SCHEMA, generatorBanner } from './version.ts';
+} from "../index.ts";
+import { CATALOG_SCHEMA, generatorBanner } from "./version.ts";
 
-const ROW_GRANTEES = new Set(['relation', 'plan', 'actor', 'assurance']);
+const ROW_GRANTEES = new Set(["relation", "plan", "actor", "assurance"]);
 
 /**
  * Whether a grant depends on more than the role and the scope: a row or body
@@ -64,7 +65,7 @@ export function policyRowConditionKeys(policy: Policy): ReadonlySet<string> {
   return keys;
 }
 
-/** With `policy`, permissions carry `hostable` and `rowConditions`, and roles carry `on`, `assignable` and their ownership rules. */
+/** With `policy`, permissions carry `hostable` and a known `rowConditions` (without, it is `true`), and roles carry `on`, `assignable` and their ownership rules. */
 export function buildCatalog(
   tree: PermissionTree,
   scan: ScanResult,
@@ -74,8 +75,8 @@ export function buildCatalog(
   const hostable = new Set(policy?.hostable ?? []);
   const rowConditions =
     policy === undefined ? undefined : policyRowConditionKeys(policy);
-  const resources: Record<string, CatalogDocument['resources'][string]> = {};
-  const definedIn = scan.definitionFiles['permissions'];
+  const resources: Record<string, CatalogDocument["resources"][string]> = {};
+  const definedIn = scan.definitionFiles["permissions"];
   for (const leaf of listPermissions(tree)) {
     if (resources[leaf.resource] !== undefined) {
       continue;
@@ -84,14 +85,14 @@ export function buildCatalog(
     resources[leaf.resource] = compactResource(
       definedIn === undefined
         ? {
-            id: node?.id ?? 'id',
+            id: node?.id ?? "id",
             schema: node === undefined ? null : jsonSchemaOf(node),
             relations: node?.relations,
             version: node?.version,
             restricted: node?.restricted,
           }
         : {
-            id: node?.id ?? 'id',
+            id: node?.id ?? "id",
             schema: node === undefined ? null : jsonSchemaOf(node),
             definedIn,
             relations: node?.relations,
@@ -113,12 +114,12 @@ export function buildCatalog(
         meta: metaRecord(leaf.meta),
         usages: scan.usages[leaf.key] ?? [],
         hostable: hostable.has(leaf.key) ? (true as const) : undefined,
-        rowConditions: rowConditions?.has(leaf.key),
+        rowConditions: rowConditions?.has(leaf.key) ?? true,
         approvals: approvals.get(leaf.key),
         breakGlass: breakGlass.get(leaf.key),
       }),
     )
-    .toSorted((a, b) => a.key.localeCompare(b.key));
+    .toSorted((a, b) => byCodePoint(a.key, b.key));
   const body = {
     resources,
     permissions,
@@ -146,13 +147,13 @@ export function buildCatalog(
 }
 
 function catalogApproval(
-  approval: Grant['approval'],
+  approval: Grant["approval"],
 ): CatalogApproval | undefined {
   if (approval === undefined) {
     return undefined;
   }
-  return approval === 'human'
-    ? 'human'
+  return approval === "human"
+    ? "human"
     : withDefined({
         by: approval.by,
         distinct: approval.distinct,
@@ -202,10 +203,10 @@ function catalogGrant(grant: Grant): CatalogGrant {
 function catalogGrantKey(grant: CatalogGrant): string {
   return [
     grant.permission,
-    grant.effect === 'allow' ? '0' : '1',
-    grant.role ?? '\uFFFF',
+    grant.effect === "allow" ? "0" : "1",
+    grant.role ?? "\uFFFF",
     canonicalJson(grant),
-  ].join('\u0000');
+  ].join("\u0000");
 }
 
 export function catalogGrants(policy: Policy): readonly CatalogGrant[] {
@@ -216,7 +217,7 @@ export function catalogGrants(policy: Policy): readonly CatalogGrant[] {
   for (const entry of entries) {
     keys.set(entry, catalogGrantKey(entry));
   }
-  const keyOf = (grant: CatalogGrant): string => keys.get(grant) ?? '';
+  const keyOf = (grant: CatalogGrant): string => keys.get(grant) ?? "";
   return entries.toSorted((a, b) => {
     const left = keyOf(a);
     const right = keyOf(b);
@@ -252,7 +253,7 @@ function codeApprovals(
   const seen = new Set<string>();
   for (const grant of policy?.grants ?? []) {
     if (
-      grant.effect !== 'allow' ||
+      grant.effect !== "allow" ||
       grant.hosted !== undefined ||
       grant.approval === undefined
     ) {
@@ -300,7 +301,7 @@ function codeBreakGlass(
 
 function catalogScopes(
   policy: Policy | undefined,
-): Pick<CatalogDocument, 'scopes'> {
+): Pick<CatalogDocument, "scopes"> {
   const scopes = policy?.scopes ?? [];
   return scopes.length === 0
     ? {}
@@ -308,7 +309,7 @@ function catalogScopes(
         scopes: scopes.map((scope) =>
           withDefined({
             name: scope.name,
-            key: scope.key ?? '',
+            key: scope.key ?? "",
             within: scope.within,
           }),
         ),
@@ -318,7 +319,7 @@ function catalogScopes(
 function catalogRoles(
   scanned: readonly string[],
   policy: Policy | undefined,
-): Pick<CatalogDocument, 'roles'> {
+): Pick<CatalogDocument, "roles"> {
   if (policy === undefined) {
     return scanned.length === 0
       ? {}
@@ -344,9 +345,9 @@ function catalogRoles(
         on:
           binding.on === undefined
             ? undefined
-            : typeof binding.on === 'string'
+            : typeof binding.on === "string"
               ? binding.on
-              : ('resource' as const),
+              : ("resource" as const),
         assignable: binding.assignable,
         min: binding.min === 0 ? undefined : binding.min,
         max: binding.max,
@@ -399,10 +400,10 @@ function compactResource(resource: {
   readonly id: string;
   readonly schema: unknown;
   readonly definedIn?: string;
-  readonly relations?: CatalogDocument['resources'][string]['relations'];
+  readonly relations?: CatalogDocument["resources"][string]["relations"];
   readonly version?: string | undefined;
   readonly restricted?: string | undefined;
-}): CatalogDocument['resources'][string] {
+}): CatalogDocument["resources"][string] {
   const relations =
     resource.relations !== undefined &&
     Object.keys(resource.relations).length > 0
@@ -428,17 +429,17 @@ export function jsonSchemaOf(node: ResourceNode): unknown {
   // SAFETY: every member is optional and checked with ?. and typeof before output() is called.
   const schema = node.schema as
     | {
-        readonly '~standard'?: {
+        readonly "~standard"?: {
           readonly jsonSchema?: {
             readonly output?: (options: { readonly target: string }) => unknown;
           };
         };
       }
     | undefined;
-  const output = schema?.['~standard']?.jsonSchema?.output;
-  if (typeof output === 'function') {
+  const output = schema?.["~standard"]?.jsonSchema?.output;
+  if (typeof output === "function") {
     try {
-      return output({ target: 'draft-2020-12' });
+      return output({ target: "draft-2020-12" });
     } catch {
       return null;
     }
@@ -456,24 +457,24 @@ export function catalogForCompare(doc: CatalogDocument): string {
 }
 
 export function formatCatalogMarkdown(doc: CatalogDocument): string {
-  const lines = ['# Permissions', ''];
-  const byResource = new Map<string, CatalogDocument['permissions']>();
+  const lines = ["# Permissions", ""];
+  const byResource = new Map<string, CatalogDocument["permissions"]>();
   for (const permission of doc.permissions) {
     const current = byResource.get(permission.resource) ?? [];
     byResource.set(permission.resource, [...current, permission]);
   }
   for (const resource of [...byResource.keys()].toSorted()) {
-    lines.push(`## ${resource}`, '');
-    lines.push('| Action | Arity | Scope | Usages |');
-    lines.push('| --- | --- | --- | --- |');
+    lines.push(`## ${resource}`, "");
+    lines.push("| Action | Arity | Scope | Usages |");
+    lines.push("| --- | --- | --- | --- |");
     for (const permission of byResource.get(resource) ?? []) {
       lines.push(
         `| \`${permission.action}\` | ${permission.arity} | \`${permission.scope}\` | ${String(permission.usages.length)} |`,
       );
     }
-    lines.push('');
+    lines.push("");
   }
-  return `${lines.join('\n')}\n`;
+  return `${lines.join("\n")}\n`;
 }
 
 export function catalogSchemaDocument(): unknown {

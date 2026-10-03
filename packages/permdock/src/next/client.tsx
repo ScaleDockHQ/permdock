@@ -1,14 +1,14 @@
-'use client';
+"use client";
 
-import type { ErrorInfo } from 'next/error';
-import type { ComponentType, ReactNode } from 'react';
+import type { ErrorInfo } from "next/error";
+import type { ComponentType, ReactNode } from "react";
 
-import { catchError } from 'next/error';
-import { createContext, useContext } from 'react';
+import { catchError } from "next/error";
+import { createContext, useContext } from "react";
 
-import type { PermDockDigest } from '../core/digest.ts';
+import type { PermDockDigest } from "../core/digest.ts";
 
-import { parsePermDockDigest } from '../core/digest.ts';
+import { parsePermDockDigest } from "../core/digest.ts";
 
 export type PermissionBoundaryState = PermDockDigest & {
   /** Re-fetches and re-renders the boundary's children, e.g. after an approval or a role change. */
@@ -37,7 +37,7 @@ function PermissionFallback(
     throw info.error;
   }
   const node =
-    parsed.outcome === 'approval-required'
+    parsed.outcome === "approval-required"
       ? (props.approval ?? props.denied)
       : props.denied;
   return (

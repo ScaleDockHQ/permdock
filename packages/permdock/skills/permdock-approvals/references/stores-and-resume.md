@@ -5,7 +5,7 @@ The API and the store contract are on the [approvals adapter](https://permdock.d
 ## Store and handler
 
 ```ts
-import { approvalsHandler, memoryApprovalStore } from 'permdock/approvals';
+import { approvalsHandler, memoryApprovalStore } from "permdock/approvals";
 
 export const store = memoryApprovalStore({ ttl: 60 * 60 * 1000 }); // default: one hour
 
@@ -17,7 +17,7 @@ const handler = approvalsHandler(store, {
   subject: (request) => approverFromSession(request), // the approver, from real authentication
   requireDistinctApprover: false, // true refuses the principal even where a grant sets distinct: false
 });
-app.all('/permdock/approvals/*', (c) => handler(c.req.raw));
+app.all("/permdock/approvals/*", (c) => handler(c.req.raw));
 ```
 
 - `memoryApprovalStore` is per process. On serverless or with several replicas, implement `ApprovalStore` over the app's database; the Drizzle recipe on the adapter page is the template, and `cloud().approvals` from `permdock/cloud` is the hosted implementation of the same interface.

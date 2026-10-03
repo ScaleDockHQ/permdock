@@ -1,16 +1,16 @@
-import { RuleTester } from 'oxlint/plugins-dev';
+import { RuleTester } from "oxlint/plugins-dev";
 
-import { noKnownValueWideningRule } from '../../../src/anti-slop/rules/no-known-value-widening.ts';
+import { noKnownValueWideningRule } from "../../../src/anti-slop/rules/no-known-value-widening.ts";
 
 const tester = new RuleTester({
-  languageOptions: { parserOptions: { lang: 'ts' } },
+  languageOptions: { parserOptions: { lang: "ts" } },
 });
 
-const error = { messageId: 'widening' };
+const error = { messageId: "widening" };
 
-const prelude = 'type Command = () => void; const startCommand = () => {};';
+const prelude = "type Command = () => void; const startCommand = () => {};";
 
-tester.run('anti-slop/no-known-value-widening', noKnownValueWideningRule, {
+tester.run("anti-slop/no-known-value-widening", noKnownValueWideningRule, {
   valid: [
     `${prelude} const commands: Record<string, Command> = {};`,
     `${prelude} type Index<T> = Record<string, T>; const commands: Index<Command> = {};`,
@@ -34,10 +34,10 @@ tester.run('anti-slop/no-known-value-widening', noKnownValueWideningRule, {
     `${prelude} import { Commands } from './types'; const commands: Commands = { start: startCommand };`,
   ],
   invalid: [
-    { code: 'const value: unknown = {};', errors: [error] },
-    { code: 'const value: object = {};', errors: [error] },
-    { code: 'let value: unknown; value = {};', errors: [error] },
-    { code: 'function create(): unknown { return {}; }', errors: [error] },
+    { code: "const value: unknown = {};", errors: [error] },
+    { code: "const value: object = {};", errors: [error] },
+    { code: "let value: unknown; value = {};", errors: [error] },
+    { code: "function create(): unknown { return {}; }", errors: [error] },
     {
       code: `${prelude} const commands: Record<string, Command> = { start: startCommand };`,
       errors: [error],
@@ -110,7 +110,7 @@ tester.run('anti-slop/no-known-value-widening', noKnownValueWideningRule, {
       code: `${prelude} type Index<T = Command> = Record<string, T>; const commands: Index = { start: startCommand };`,
       errors: [error],
     },
-    { code: 'const value: unknown = 1;', errors: [error] },
-    { code: 'const value: object = [];', errors: [error] },
+    { code: "const value: unknown = 1;", errors: [error] },
+    { code: "const value: object = [];", errors: [error] },
   ],
 });

@@ -1,7 +1,7 @@
-import { type Middleware, defineMiddleware } from '@supabase/middleware';
+import { type Middleware, defineMiddleware } from "@supabase/middleware";
 
-import type { ApprovalStore } from '../approvals/types.ts';
-import type { PolicySource } from '../core/hosted.ts';
+import type { ApprovalStore } from "../approvals/types.ts";
+import type { PolicySource } from "../core/hosted.ts";
 import type {
   DecisionSink,
   EntitlementSource,
@@ -10,20 +10,19 @@ import type {
   RelationSource,
   RoleSource,
   SnapshotSource,
-} from '../core/interfaces.ts';
-import type { PermDock } from '../core/permdock.ts';
-import type { Permission } from '../core/permissions.ts';
-import type { Policy } from '../core/policy.ts';
-import type { Principal, Subject } from '../core/subject.ts';
-import type { OtelOptions } from '../otel/types.ts';
-import type { PdpFactory } from '../pdp/types.ts';
-import type { OpenApiHooks } from '../server/create.ts';
-import type { WebBotAuthOptions } from '../server/web-bot-auth.ts';
+} from "../core/interfaces.ts";
+import type { PermDock } from "../core/permdock.ts";
+import type { Permission } from "../core/permissions.ts";
+import type { Policy, PolicyVocabulary } from "../core/policy.ts";
+import type { Principal, Subject } from "../core/subject.ts";
+import type { OtelWrap } from "../otel/types.ts";
+import type { PdpFactory } from "../pdp/types.ts";
+import type { OpenApiHooks } from "../server/create.ts";
+import type { WebBotAuthVerifier } from "../server/web-bot-auth.ts";
 
-import { compact } from '../core/compact.ts';
-import { applyOtel } from '../otel/instrument.ts';
-import { createKernel } from '../server/create.ts';
-import { invalidSignatureResponse } from '../server/web-bot-auth.ts';
+import { compact } from "../core/compact.ts";
+import { createKernel } from "../server/create.ts";
+import { invalidSignatureResponse } from "../server/web-bot-auth.ts";
 
 /**
  * The verified Supabase Auth access-token payload as `@supabase/server`
@@ -53,7 +52,7 @@ export type SupabaseMiddlewareContext = {
   readonly jwtClaims: SupabaseJwtClaims | null;
 };
 
-export type SupabaseMiddlewareOptions<TUser = unknown> = {
+export type SupabaseMiddlewarePermDockOptions<TUser = unknown> = {
   readonly subject: (
     ctx: SupabaseMiddlewareContext,
     request: Request,
@@ -78,8 +77,10 @@ export type SupabaseMiddlewareOptions<TUser = unknown> = {
   readonly pdp?: PdpFactory;
   /** Accepted for adapter parity; not read by this adapter. */
   readonly snapshots?: SnapshotSource;
-  readonly otel?: OtelOptions;
-  readonly webBotAuth?: WebBotAuthOptions;
+  /** `(permdock) => withOtel(permdock, options)` from `permdock/otel`. */
+  readonly otel?: OtelWrap;
+  /** `(request) => verifyWebBotAuth(request, options)`; a verified bot becomes the actor. */
+  readonly webBotAuth?: WebBotAuthVerifier;
 };
 
 export type WithPermDockConfig = {
@@ -101,21 +102,27 @@ export type SupabaseMiddlewareHandler = <Ctx extends SupabaseMiddlewareContext>(
   ctx: Ctx,
 ) => Promise<Response>;
 
-export type SupabaseMiddlewarePermDock = {
+export type SupabaseMiddlewarePermDock<
+  V extends PolicyVocabulary = PolicyVocabulary,
+> = {
   readonly withPermDock: Middleware<
-    'permdock',
+    "permdock",
     WithPermDockConfig | undefined,
     SupabaseMiddlewareContext,
-    PermDock
+    PermDock<V>
   >;
   readonly permdockHandler: () => SupabaseMiddlewareHandler;
   readonly openapi: OpenApiHooks;
 };
 
-export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
-  policy: Policy<TUser, TPrincipal>,
-  options: SupabaseMiddlewareOptions<TUser>,
-): SupabaseMiddlewarePermDock {
+export function createPermDock<
+  TUser,
+  TPrincipal extends Principal = Principal,
+  V extends PolicyVocabulary = PolicyVocabulary,
+>(
+  policy: Policy<TUser, TPrincipal, V>,
+  options: SupabaseMiddlewarePermDockOptions<TUser>,
+): SupabaseMiddlewarePermDock<V> {
   const contexts = new WeakMap<Request, SupabaseMiddlewareContext>();
   const tenantOption = options.tenant;
 
@@ -129,7 +136,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         // SAFETY: the kernel passes it to core createPermDock, which accepts TUser, a Subject or null.
         options.subject(contextFor(request), request) as TUser | Promise<TUser>,
       tenant:
-        typeof tenantOption === 'function'
+        typeof tenantOption === "function"
           ? (
               request: Request,
             ): string | undefined | Promise<string | undefined> =>
@@ -145,8 +152,8 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       limits: options.limits,
       pdp: options.pdp,
       webBotAuth: options.webBotAuth,
-      adapter: 'supabase-middleware',
-      wrap: (dock: PermDock) => applyOtel(dock, options.otel),
+      adapter: "supabase-middleware",
+      wrap: options.otel,
     }),
   );
 
@@ -156,18 +163,18 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
   };
 
   const withPermDock = defineMiddleware<
-    'permdock',
+    "permdock",
     WithPermDockConfig | undefined,
     SupabaseMiddlewareContext,
-    PermDock
+    PermDock<V>
   >({
-    key: 'permdock',
+    key: "permdock",
     run:
       (config) =>
       async (
         request,
         ctx,
-      ): Promise<Response | { readonly permdock: PermDock }> => {
+      ): Promise<Response | { readonly permdock: PermDock<V> }> => {
         bind(request, ctx);
         if (config?.protect === undefined) {
           try {
@@ -196,19 +203,19 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
   });
 
   const permdockHandler = (): SupabaseMiddlewareHandler => {
-    const { POST, GET } = kernel.handler();
+    const { POST, GET } = kernel.permdockHandler();
     return (request, ctx): Promise<Response> => {
       bind(request, ctx);
       switch (request.method) {
-        case 'POST':
+        case "POST":
           return POST(request);
-        case 'GET':
+        case "GET":
           return GET(request);
         default:
           return Promise.resolve(
             new Response(null, {
               status: 405,
-              headers: { Allow: 'GET, POST' },
+              headers: { Allow: "GET, POST" },
             }),
           );
       }

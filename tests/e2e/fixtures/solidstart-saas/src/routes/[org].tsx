@@ -1,16 +1,16 @@
-import type { RouteDefinition, RouteSectionProps } from '@solidjs/router';
+import type { RouteDefinition, RouteSectionProps } from "@solidjs/router";
 
-import { createAsync, revalidate } from '@solidjs/router';
-import { PermDockProvider, usePermission } from 'permdock/solid';
-import { For, Show, Suspense, onCleanup, onMount } from 'solid-js';
+import { createAsync, revalidate } from "@solidjs/router";
+import { PermDockProvider, usePermission } from "permdock/solid";
+import { For, Show, Suspense, onCleanup, onMount } from "solid-js";
 
-import type { NavItem } from '@permdock/e2e-saas-kit/nav';
+import type { NavItem } from "@permdock/e2e-saas-kit/nav";
 
-import { navItems, orgs } from '@permdock/e2e-saas-kit/nav';
+import { navItems, orgs } from "@permdock/e2e-saas-kit/nav";
 
-import type { OrgView } from '../lib/saas';
+import type { OrgView } from "../lib/saas";
 
-import { getOrgView, getProjects, getSnapshot } from '../lib/saas';
+import { getOrgView, getProjects, getSnapshot } from "../lib/saas";
 
 declare global {
   interface Window {
@@ -20,8 +20,8 @@ declare global {
 
 export const route = {
   preload: ({ params }) => {
-    void getOrgView(params['org'] ?? '');
-    void getSnapshot(params['org'] ?? '');
+    void getOrgView(params["org"] ?? "");
+    void getSnapshot(params["org"] ?? "");
   },
 } satisfies RouteDefinition;
 
@@ -34,7 +34,7 @@ function Item(props: {
     <Show
       when={state().allowed}
       fallback={
-        <Show when={props.item.pro === true && props.org.plan !== 'pro'}>
+        <Show when={props.item.pro === true && props.org.plan !== "pro"}>
           <li data-upsell={props.item.id}>
             {props.item.label}: upgrade to Pro
           </li>
@@ -62,7 +62,7 @@ function RefreshSignal(props: {
       }
       // SAFETY: the fixture's /api/version route answers { changedAt: number }
       fetch(`/api/version?org=${encodeURIComponent(props.org)}`, {
-        cache: 'no-store',
+        cache: "no-store",
       })
         .then((response) => response.json() as Promise<{ changedAt: number }>)
         .then(async (body) => {
@@ -103,8 +103,8 @@ function OrgHeader() {
 }
 
 export default function OrgLayout(props: RouteSectionProps) {
-  const org = createAsync(() => getOrgView(props.params['org'] ?? ''));
-  const snapshot = createAsync(() => getSnapshot(props.params['org'] ?? ''));
+  const org = createAsync(() => getOrgView(props.params["org"] ?? ""));
+  const snapshot = createAsync(() => getSnapshot(props.params["org"] ?? ""));
   // The provider mounts once the snapshot has resolved inside the boundary, so
   // streaming SSR serialises it and hydration builds the store from it.
   return (
@@ -132,7 +132,7 @@ export default function OrgLayout(props: RouteSectionProps) {
               )}
             </Show>
             <RefreshSignal
-              org={props.params['org'] ?? ''}
+              org={props.params["org"] ?? ""}
               issuedAt={current().issuedAt}
             />
             <main>{props.children}</main>

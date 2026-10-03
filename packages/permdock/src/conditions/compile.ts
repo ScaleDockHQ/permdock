@@ -1,10 +1,10 @@
-import type { WhereResult } from '../core/permdock.ts';
-import type { ResourceNode } from '../core/permissions.ts';
-import type { Membership, Subject } from '../core/subject.ts';
+import type { WhereResult } from "../core/permdock.ts";
+import type { ResourceNode } from "../core/permissions.ts";
+import type { Membership, Subject } from "../core/subject.ts";
 
-import { compact, isReadonlyArray, sole } from '../core/compact.ts';
-import { PermDockValidationError } from '../core/errors.ts';
-import { assertSafeKey } from '../core/paths.ts';
+import { compact, isReadonlyArray, sole } from "../core/compact.ts";
+import { PermDockValidationError } from "../core/errors.ts";
+import { assertSafeKey } from "../core/paths.ts";
 import {
   type Scope,
   resolveScope,
@@ -13,7 +13,7 @@ import {
   scopeList,
   subjectMemberships,
   tenantOf,
-} from '../core/scopes.ts';
+} from "../core/scopes.ts";
 import {
   type Condition,
   type ConditionValue,
@@ -21,13 +21,13 @@ import {
   isConditionDate,
   isConditionRef,
   parentHop,
-} from './ast.ts';
+} from "./ast.ts";
 import {
   type GraphSql,
   type RelationsMapping,
   relatedSql,
-} from './graph-sql.ts';
-import { resolveConditionRef } from './refs.ts';
+} from "./graph-sql.ts";
+import { resolveConditionRef } from "./refs.ts";
 
 export type MembershipTable = {
   readonly table: string;
@@ -109,23 +109,23 @@ export function scopeColumn(
 }
 
 export type CompiledCompare = {
-  readonly kind: 'compare';
+  readonly kind: "compare";
   readonly op:
-    | 'eq'
-    | 'ne'
-    | 'gt'
-    | 'gte'
-    | 'lt'
-    | 'lte'
-    | 'contains'
-    | 'in'
-    | 'notIn';
+    | "eq"
+    | "ne"
+    | "gt"
+    | "gte"
+    | "lt"
+    | "lte"
+    | "contains"
+    | "in"
+    | "notIn";
   readonly field: string;
   readonly value: unknown;
 };
 
 export type CompiledExists = {
-  readonly kind: 'exists';
+  readonly kind: "exists";
   readonly table: string;
   readonly user: string;
   readonly userValue: string;
@@ -145,29 +145,29 @@ export type CompiledExists = {
 };
 
 export type CompiledWhere =
-  | { readonly kind: 'never' }
-  | { readonly kind: 'always' }
+  | { readonly kind: "never" }
+  | { readonly kind: "always" }
   | CompiledCompare
   | {
-      readonly kind: 'isNull';
+      readonly kind: "isNull";
       readonly field: string;
       readonly negated: boolean;
     }
-  | { readonly kind: 'and' | 'or'; readonly items: readonly CompiledWhere[] }
-  | { readonly kind: 'not'; readonly item: CompiledWhere }
+  | { readonly kind: "and" | "or"; readonly items: readonly CompiledWhere[] }
+  | { readonly kind: "not"; readonly item: CompiledWhere }
   | CompiledExists
   | CompiledSql;
 
 /** A Postgres boolean over the row that is never NULL: a `related` node's subquery. */
 export type CompiledSql = {
-  readonly kind: 'sql';
+  readonly kind: "sql";
   readonly parts: GraphSql;
   /** What a `{ subject: true }` part binds. */
   readonly subject: string;
 };
 
-const NEVER: CompiledWhere = { kind: 'never' };
-const ALWAYS: CompiledWhere = { kind: 'always' };
+const NEVER: CompiledWhere = { kind: "never" };
+const ALWAYS: CompiledWhere = { kind: "always" };
 
 function isExpired(membership: Membership, now: number): boolean {
   return membership.expiresAt !== undefined && membership.expiresAt <= now;
@@ -175,9 +175,9 @@ function isExpired(membership: Membership, now: number): boolean {
 
 function isScalar(value: unknown): boolean {
   return (
-    typeof value === 'string' ||
-    typeof value === 'number' ||
-    typeof value === 'boolean' ||
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean" ||
     value instanceof Date
   );
 }
@@ -207,19 +207,19 @@ function unwrap(value: ConditionValue, subject: Subject | undefined): unknown {
 
 function nonPortable(detail: string): PermDockValidationError {
   return new PermDockValidationError({
-    code: 'non-portable-condition',
-    permission: '',
-    resource: '',
-    boundary: 'where',
+    code: "non-portable-condition",
+    permission: "",
+    resource: "",
+    boundary: "where",
     message: `PermDock: non-portable-condition: ${detail}`,
   });
 }
 
 function asPortableCondition(input: Condition | WhereResult): Condition {
-  if ('partial' in input && input.partial) {
-    throw nonPortable('closure grant');
+  if ("partial" in input && input.partial) {
+    throw nonPortable("closure grant");
   }
-  if ('condition' in input && !('op' in input)) {
+  if ("condition" in input && !("op" in input)) {
     return input.condition;
   }
   // SAFETY: a WhereResult has no `op` and returned above, so what is left is a Condition.
@@ -232,25 +232,25 @@ export function escapeLike(value: string): string {
 }
 
 function allOf(items: readonly CompiledWhere[]): CompiledWhere {
-  if (items.some((item) => item.kind === 'never')) {
+  if (items.some((item) => item.kind === "never")) {
     return NEVER;
   }
-  const kept = items.filter((item) => item.kind !== 'always');
+  const kept = items.filter((item) => item.kind !== "always");
   if (kept.length === 0) {
     return ALWAYS;
   }
-  return sole(kept) ?? { kind: 'and', items: kept };
+  return sole(kept) ?? { kind: "and", items: kept };
 }
 
 function anyOf(items: readonly CompiledWhere[]): CompiledWhere {
-  if (items.some((item) => item.kind === 'always')) {
+  if (items.some((item) => item.kind === "always")) {
     return ALWAYS;
   }
-  const kept = items.filter((item) => item.kind !== 'never');
+  const kept = items.filter((item) => item.kind !== "never");
   if (kept.length === 0) {
     return NEVER;
   }
-  return sole(kept) ?? { kind: 'or', items: kept };
+  return sole(kept) ?? { kind: "or", items: kept };
 }
 
 /**
@@ -261,26 +261,26 @@ function anyOf(items: readonly CompiledWhere[]): CompiledWhere {
  */
 function negate(node: CompiledWhere): CompiledWhere {
   switch (node.kind) {
-    case 'never':
+    case "never":
       return ALWAYS;
-    case 'always':
+    case "always":
       return NEVER;
-    case 'and':
+    case "and":
       return anyOf(node.items.map((item) => negate(item)));
-    case 'or':
+    case "or":
       return allOf(node.items.map((item) => negate(item)));
-    case 'not':
+    case "not":
       return node.item;
-    case 'isNull':
+    case "isNull":
       return { ...node, negated: !node.negated };
-    case 'compare':
+    case "compare":
       return anyOf([
-        { kind: 'not', item: node },
-        { kind: 'isNull', field: node.field, negated: false },
+        { kind: "not", item: node },
+        { kind: "isNull", field: node.field, negated: false },
       ]);
-    case 'exists':
-    case 'sql':
-      return { kind: 'not', item: node };
+    case "exists":
+    case "sql":
+      return { kind: "not", item: node };
     default: {
       const exhaustive: never = node;
       throw nonPortable(`unknown compiled node '${String(exhaustive)}'`);
@@ -289,7 +289,7 @@ function negate(node: CompiledWhere): CompiledWhere {
 }
 
 function matchingMemberships(
-  condition: Extract<Condition, { readonly op: 'memberOf' }>,
+  condition: Extract<Condition, { readonly op: "memberOf" }>,
   subject: Subject | undefined,
   now: number,
   scopes: readonly Scope[],
@@ -318,14 +318,14 @@ function inList(field: string, values: readonly unknown[]): CompiledWhere {
     return NEVER;
   }
   if (unique.length === 1) {
-    return { kind: 'compare', op: 'eq', field, value: unique[0] };
+    return { kind: "compare", op: "eq", field, value: unique[0] };
   }
-  return { kind: 'compare', op: 'in', field, value: unique };
+  return { kind: "compare", op: "in", field, value: unique };
 }
 
 function activeTenant(subject: Subject | undefined): string | undefined {
   const tenant = subject?.principal?.tenant;
-  return tenant === undefined || tenant === '' ? undefined : tenant;
+  return tenant === undefined || tenant === "" ? undefined : tenant;
 }
 
 function existsOn(
@@ -341,16 +341,16 @@ function existsOn(
     readonly resource: string | undefined;
   },
 ): CompiledExists {
-  assertSafeKey(table.table, 'membership table');
-  assertSafeKey(rowColumn, 'membership column');
-  assertSafeKey(rowField, 'condition field');
+  assertSafeKey(table.table, "membership table");
+  assertSafeKey(rowColumn, "membership column");
+  assertSafeKey(rowField, "condition field");
   const tenantValue =
     scoped.tenantColumn === undefined ? undefined : activeTenant(subject);
   return compact<CompiledExists>({
-    kind: 'exists',
+    kind: "exists",
     table: table.table,
     user: table.user,
-    userValue: subject.principal?.id ?? '',
+    userValue: subject.principal?.id ?? "",
     role: table.role,
     roles,
     rowColumn,
@@ -365,7 +365,7 @@ function existsOn(
 }
 
 function compileExists(
-  condition: Extract<Condition, { readonly op: 'memberOf' }>,
+  condition: Extract<Condition, { readonly op: "memberOf" }>,
   table: MembershipTable,
   subject: Subject | undefined,
   now: number,
@@ -375,13 +375,13 @@ function compileExists(
   const userValue = subject?.principal?.id;
   if (
     subject === undefined ||
-    typeof userValue !== 'string' ||
-    userValue === ''
+    typeof userValue !== "string" ||
+    userValue === ""
   ) {
     return NEVER;
   }
   const scope =
-    condition.scope === 'resource'
+    condition.scope === "resource"
       ? undefined
       : resolveScope(scopes, condition.scope);
   const rowColumn =
@@ -404,10 +404,10 @@ function compileExists(
         scopeChain(scopes, scope).includes(root)
           ? scopeColumn(table, scopes, root)
           : undefined,
-      resource: condition.scope === 'resource' ? condition.resource : undefined,
+      resource: condition.scope === "resource" ? condition.resource : undefined,
     },
   );
-  if (condition.scope !== 'resource') {
+  if (condition.scope !== "resource") {
     return own;
   }
   // As `evaluateCondition`: a keyed hop needs the resource column to key on,
@@ -444,17 +444,17 @@ function compileExists(
 }
 
 function compileMemberOf(
-  condition: Extract<Condition, { readonly op: 'memberOf' }>,
+  condition: Extract<Condition, { readonly op: "memberOf" }>,
   options: CompileWhereOptions,
 ): CompiledWhere {
-  assertSafeKey(condition.field, 'condition field');
+  assertSafeKey(condition.field, "condition field");
   const now = options.now ?? Date.now() / 1000;
   const scopes = options.scopes ?? scopeList(undefined);
   const scope =
-    condition.scope === 'resource'
+    condition.scope === "resource"
       ? undefined
       : resolveScope(scopes, condition.scope);
-  if (condition.scope !== 'resource' && scope === undefined) {
+  if (condition.scope !== "resource" && scope === undefined) {
     return NEVER;
   }
   const mapping =
@@ -507,7 +507,7 @@ function compileMemberOf(
     inList(condition.field, ids),
     ...(condition.parents ?? []).map((parent) => {
       const hop = parentHop(parent);
-      assertSafeKey(hop.field, 'condition field');
+      assertSafeKey(hop.field, "condition field");
       return inList(
         hop.field,
         matched.flatMap((membership) =>
@@ -527,25 +527,25 @@ function compileCompare(
     Condition,
     {
       readonly op:
-        | 'eq'
-        | 'ne'
-        | 'gt'
-        | 'gte'
-        | 'lt'
-        | 'lte'
-        | 'contains'
-        | 'in'
-        | 'notIn';
+        | "eq"
+        | "ne"
+        | "gt"
+        | "gte"
+        | "lt"
+        | "lte"
+        | "contains"
+        | "in"
+        | "notIn";
     }
   >,
   options: CompileWhereOptions,
 ): CompiledWhere {
-  if (condition.field === '_' && condition.op === 'eq') {
+  if (condition.field === "_" && condition.op === "eq") {
     return condition.value === true ? ALWAYS : NEVER;
   }
-  assertSafeKey(condition.field, 'condition field');
+  assertSafeKey(condition.field, "condition field");
   const value = unwrap(condition.value, options.subject);
-  if (condition.op === 'in' || condition.op === 'notIn') {
+  if (condition.op === "in" || condition.op === "notIn") {
     const list = Array.isArray(value)
       ? [
           ...new Set(
@@ -555,12 +555,12 @@ function compileCompare(
       : [];
     if (list.length === 0) {
       // `notIn` of nothing still needs a value: a NULL field never matches.
-      return condition.op === 'in'
+      return condition.op === "in"
         ? NEVER
-        : { kind: 'isNull', field: condition.field, negated: true };
+        : { kind: "isNull", field: condition.field, negated: true };
     }
     return {
-      kind: 'compare',
+      kind: "compare",
       op: condition.op,
       field: condition.field,
       value: list,
@@ -569,7 +569,7 @@ function compileCompare(
   if (value === null || value === undefined) {
     return NEVER;
   }
-  return { kind: 'compare', op: condition.op, field: condition.field, value };
+  return { kind: "compare", op: condition.op, field: condition.field, value };
 }
 
 function compileRelated(
@@ -578,24 +578,24 @@ function compileRelated(
 ): CompiledWhere {
   if (options.relations === undefined || options.resources === undefined) {
     throw nonPortable(
-      'related (the relation graph): pass `relations` so it compiles to a subquery, or resolve it to ids first (permdock/prisma resolveRelated)',
+      "related (the relation graph): pass `relations` so it compiles to a subquery, or resolve it to ids first (permdock/prisma resolveRelated)",
     );
   }
-  assertSafeKey(condition.field, 'condition field');
+  assertSafeKey(condition.field, "condition field");
   const principal = options.subject?.principal?.id;
   if (
     condition.ids === undefined &&
-    (principal === undefined || principal === '')
+    (principal === undefined || principal === "")
   ) {
     return NEVER;
   }
   return {
-    kind: 'sql',
+    kind: "sql",
     parts: relatedSql(condition, {
       ...options.relations,
       resources: options.resources,
     }),
-    subject: principal ?? '',
+    subject: principal ?? "",
   };
 }
 
@@ -604,64 +604,64 @@ function compileNode(
   options: CompileWhereOptions,
 ): CompiledWhere {
   switch (condition.op) {
-    case 'and':
+    case "and":
       return allOf(
         condition.conditions.map((child) => compileNode(child, options)),
       );
-    case 'or':
+    case "or":
       return anyOf(
         condition.conditions.map((child) => compileNode(child, options)),
       );
-    case 'not':
+    case "not":
       return negate(compileNode(condition.condition, options));
-    case 'isNull':
-      assertSafeKey(condition.field, 'condition field');
+    case "isNull":
+      assertSafeKey(condition.field, "condition field");
       return {
-        kind: 'isNull',
+        kind: "isNull",
         field: condition.field,
         negated: !condition.value,
       };
-    case 'opaque':
-      throw nonPortable('opaque SQL');
-    case 'sqlFunction':
+    case "opaque":
+      throw nonPortable("opaque SQL");
+    case "sqlFunction":
       return compileNode(condition.twin, options);
-    case 'memberOf':
+    case "memberOf":
       return compileMemberOf(condition, options);
-    case 'related':
+    case "related":
       return compileRelated(condition, options);
-    case 'eq':
-    case 'ne':
-    case 'gt':
-    case 'gte':
-    case 'lt':
-    case 'lte':
-    case 'contains':
-    case 'in':
-    case 'notIn':
+    case "eq":
+    case "ne":
+    case "gt":
+    case "gte":
+    case "lt":
+    case "lte":
+    case "contains":
+    case "in":
+    case "notIn":
       return compileCompare(condition, options);
     default: {
       const exhaustive: never = condition;
       void exhaustive;
-      throw nonPortable('unknown condition');
+      throw nonPortable("unknown condition");
     }
   }
 }
 
 /** The subject `permdock.where()` was built for, when the input carries one. */
 function whereSubject(input: Condition | WhereResult): Subject | undefined {
-  return 'partial' in input ? input.subject : undefined;
+  return "partial" in input ? input.subject : undefined;
 }
 
 function whereScopes(
   input: Condition | WhereResult,
 ): readonly Scope[] | undefined {
-  return 'partial' in input ? input.scopes : undefined;
+  return "partial" in input ? input.scopes : undefined;
 }
 
 function whereResources(
   input: Condition | WhereResult,
 ): ReadonlyMap<string, ResourceNode> | undefined {
-  return 'partial' in input ? input.resources : undefined;
+  return "partial" in input ? input.resources : undefined;
 }
 
 export function compileWhere(

@@ -1,4 +1,4 @@
-import type { IncomingMessage, ServerResponse } from 'node:http';
+import type { IncomingMessage, ServerResponse } from "node:http";
 
 export type NodeRequest = IncomingMessage & {
   readonly originalUrl?: string;
@@ -6,19 +6,19 @@ export type NodeRequest = IncomingMessage & {
   readonly body?: unknown;
 };
 
-type StreamRequestInit = RequestInit & { readonly duplex: 'half' };
+type StreamRequestInit = RequestInit & { readonly duplex: "half" };
 
 export function toRequest(
   req: NodeRequest,
   stream: IncomingMessage | null = req,
 ): Request {
-  const host = headerValue(req.headers.host) ?? 'localhost';
-  const protocol = req.protocol ?? 'http';
-  const path = req.originalUrl ?? req.url ?? '/';
+  const host = headerValue(req.headers.host) ?? "localhost";
+  const protocol = req.protocol ?? "http";
+  const path = req.originalUrl ?? req.url ?? "/";
   const url = `${protocol}://${host}${path}`;
   const headers = new Headers();
   for (const [key, value] of Object.entries(req.headers)) {
-    if (typeof value === 'string') {
+    if (typeof value === "string") {
       headers.set(key, value);
       continue;
     }
@@ -28,8 +28,8 @@ export function toRequest(
       }
     }
   }
-  const method = req.method ?? 'GET';
-  if (method === 'GET' || method === 'HEAD') {
+  const method = req.method ?? "GET";
+  if (method === "GET" || method === "HEAD") {
     return new Request(url, { method, headers });
   }
   const parsed = bodyOf(req, headers);
@@ -43,13 +43,13 @@ export function toRequest(
     method,
     headers,
     body: incomingBody(stream),
-    duplex: 'half',
+    duplex: "half",
   };
   return new Request(url, init);
 }
 
 function chunkOf(chunk: string | Buffer): Uint8Array {
-  return typeof chunk === 'string' ? Buffer.from(chunk) : new Uint8Array(chunk);
+  return typeof chunk === "string" ? Buffer.from(chunk) : new Uint8Array(chunk);
 }
 
 /**
@@ -80,9 +80,9 @@ function incomingBody(req: IncomingMessage): ReadableStream<Uint8Array> {
             return;
           }
           const cleanup = (): void => {
-            req.off('readable', onReadable);
-            req.off('end', onEnd);
-            req.off('error', onError);
+            req.off("readable", onReadable);
+            req.off("end", onEnd);
+            req.off("error", onError);
           };
           const onReadable = (): void => {
             if (drain()) {
@@ -100,9 +100,9 @@ function incomingBody(req: IncomingMessage): ReadableStream<Uint8Array> {
             controller.error(err);
             resolve();
           };
-          req.on('readable', onReadable);
-          req.once('end', onEnd);
-          req.once('error', onError);
+          req.on("readable", onReadable);
+          req.once("end", onEnd);
+          req.once("error", onError);
         });
       },
     },
@@ -111,10 +111,10 @@ function incomingBody(req: IncomingMessage): ReadableStream<Uint8Array> {
 }
 
 function headerValue(value: string | string[] | undefined): string | undefined {
-  if (typeof value === 'string' && value.length > 0) {
+  if (typeof value === "string" && value.length > 0) {
     return value;
   }
-  if (Array.isArray(value) && typeof value[0] === 'string') {
+  if (Array.isArray(value) && typeof value[0] === "string") {
     return value[0];
   }
   return undefined;
@@ -124,11 +124,11 @@ function bodyOf(req: NodeRequest, headers: Headers): string | undefined {
   if (req.body === undefined) {
     return undefined;
   }
-  if (typeof req.body === 'string') {
+  if (typeof req.body === "string") {
     return req.body;
   }
-  if (!headers.has('content-type')) {
-    headers.set('content-type', 'application/json');
+  if (!headers.has("content-type")) {
+    headers.set("content-type", "application/json");
   }
   return JSON.stringify(req.body);
 }
@@ -149,10 +149,10 @@ export const fromResponse: typeof sendResponse = sendResponse;
 
 export function isServerResponse(value: unknown): value is ServerResponse {
   return (
-    typeof value === 'object' &&
+    typeof value === "object" &&
     value !== null &&
-    'setHeader' in value &&
-    typeof value.setHeader === 'function' &&
-    'end' in value
+    "setHeader" in value &&
+    typeof value.setHeader === "function" &&
+    "end" in value
   );
 }

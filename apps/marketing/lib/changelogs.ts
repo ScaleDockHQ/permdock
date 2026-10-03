@@ -1,13 +1,13 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-import { parseChangelog, type ChangelogRelease } from './changelog';
+import { parseChangelog, type ChangelogRelease } from "./changelog";
 
-const root = join(dirname(fileURLToPath(import.meta.url)), '../../..');
+const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 
 const files: readonly { readonly file: string; readonly name: string }[] = [
-  { file: 'packages/permdock/CHANGELOG.md', name: 'permdock' },
+  { file: "packages/permdock/CHANGELOG.md", name: "permdock" },
 ];
 
 export function loadChangelogs(): ChangelogRelease[] {
@@ -17,7 +17,7 @@ export function loadChangelogs(): ChangelogRelease[] {
     if (!existsSync(path)) {
       continue;
     }
-    const markdown = readFileSync(path, 'utf8');
+    const markdown = readFileSync(path, "utf8");
     releases.push(...parseChangelog(markdown, entry.name));
   }
   return releases;
@@ -25,7 +25,7 @@ export function loadChangelogs(): ChangelogRelease[] {
 
 export function loadRecentShips(count: number): ChangelogRelease[] {
   const permdock = loadChangelogs().filter(
-    (release) => release.packageName === 'permdock',
+    (release) => release.packageName === "permdock",
   );
   return permdock.slice(0, count);
 }

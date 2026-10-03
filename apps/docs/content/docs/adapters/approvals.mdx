@@ -12,32 +12,54 @@ The AI SDK, Eve, the OpenAI Agents SDK, MCP elicitation and the Claude Agent SDK
 ## API
 
 ```ts
-import { memoryApprovalStore, approvalsHandler } from 'permdock/approvals'
-import type { ApprovalStore, ApprovalRequest } from 'permdock/approvals'
+import { memoryApprovalStore, approvalsHandler } from "permdock/approvals";
+import type { ApprovalStore, ApprovalRequest } from "permdock/approvals";
 
-const store = memoryApprovalStore({ ttl: 60 * 60 * 1000 })   // default: one hour
+const store = memoryApprovalStore({ ttl: 60 * 60 * 1000 }); // default: one hour
 
 // Every agent and HTTP adapter takes the same option
-const { toolApproval } = createPermDock(policy, { subject, actor, tools, store })
+const { toolApproval } = createPermDock(policy, {
+  subject,
+  actor,
+  tools,
+  store,
+});
 
 // Routes for approvers: list pending, approve, reject
 const handler = approvalsHandler(store, {
-  subject: (request) => subjectFromJwt(request),   // the approver, from real authentication
-  requireDistinctApprover: false,                  // true = refuse the principal even where a grant sets distinct: false
-})
-app.all('/permdock/approvals/*', (c) => handler(c.req.raw))
+  subject: (request) => subjectFromJwt(request), // the approver, from real authentication
+  requireDistinctApprover: false, // true = refuse the principal even where a grant sets distinct: false
+});
+app.all("/permdock/approvals/*", (c) => handler(c.req.raw));
 ```
 
 ```ts
 interface ApprovalStore {
-  create(request: ApprovalRequest): Promise<void> | void
-  get(token: string): Promise<ApprovalRequest | null> | ApprovalRequest | null
-  resolve(token: string, verdict: { status: 'approved' | 'rejected'; by: Subject; note?: string }): Promise<ApprovalRequest> | ApprovalRequest
-  list(query: { status?: ApprovalRequest['status']; principalId?: string; actorId?: string; tenant?: string; session?: string; limit?: number; cursor?: string }): Promise<ApprovalPage> | ApprovalPage
+  create(request: ApprovalRequest): Promise<void> | void;
+  get(token: string): Promise<ApprovalRequest | null> | ApprovalRequest | null;
+  resolve(
+    token: string,
+    verdict: { status: "approved" | "rejected"; by: Subject; note?: string },
+  ): Promise<ApprovalRequest> | ApprovalRequest;
+  list(query: {
+    status?: ApprovalRequest["status"];
+    principalId?: string;
+    actorId?: string;
+    tenant?: string;
+    session?: string;
+    limit?: number;
+    cursor?: string;
+  }): Promise<ApprovalPage> | ApprovalPage;
   // ApprovalPage = { items: ApprovalRequest[]; next?: string }
-  expire(now?: Date): Promise<number> | number
-  consume(token: string, now?: Date): Promise<ApprovalRequest | null> | ApprovalRequest | null
-  cancel?(filter, meta: { by: string; note?: string }): Promise<number> | number
+  expire(now?: Date): Promise<number> | number;
+  consume(
+    token: string,
+    now?: Date,
+  ): Promise<ApprovalRequest | null> | ApprovalRequest | null;
+  cancel?(
+    filter,
+    meta: { by: string; note?: string },
+  ): Promise<number> | number;
 }
 ```
 
@@ -56,13 +78,13 @@ interface ApprovalStore {
 
 `approvalsHandler` routes, all Fetch `Request` to `Response`:
 
-| Route | Purpose | Denial |
-| --- | --- | --- |
-| `GET /pending` | `{ items, next? }`: requests the authenticated approver may resolve, in the approver's active tenant (`?tenant=` must be one of the approver's memberships); `?limit=` and `?cursor=` page through the store, and a page may hold fewer items than `limit` after the eligibility filter | `401` without a subject; `403` for a tenant the approver does not belong to |
-| `GET /mine` | `{ items, next? }`: the authenticated principal's own requests, for `useApproval` polling, paged the same way | `401` without a subject |
-| `POST /:token/approve` | Appends to `approvals`; once the quorum is met, marks approved and records `resolvedBy` and `resolvedAt` | `403` Problem Details when the approver is the actor, the principal (unless the grant sets `distinct: false` and `requireDistinctApprover` is off), or when neither `approvers.by` nor an open `approvers.escalation.to` matches (`approver-not-eligible`); `409` when the same approver answers twice (`approver-repeated`) |
-| `POST /:token/reject` | Marks rejected with an optional `note` | Same |
-| `GET /:token` | One request, for a confirmation screen | `404` for unknown or foreign tokens |
+| Route                  | Purpose                                                                                                                                                                                                                                                                                 | Denial                                                                                                                                                                                                                                                                                                                       |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /pending`         | `{ items, next? }`: requests the authenticated approver may resolve, in the approver's active tenant (`?tenant=` must be one of the approver's memberships); `?limit=` and `?cursor=` page through the store, and a page may hold fewer items than `limit` after the eligibility filter | `401` without a subject; `403` for a tenant the approver does not belong to                                                                                                                                                                                                                                                  |
+| `GET /mine`            | `{ items, next? }`: the authenticated principal's own requests, for `useApproval` polling, paged the same way                                                                                                                                                                           | `401` without a subject                                                                                                                                                                                                                                                                                                      |
+| `POST /:token/approve` | Appends to `approvals`; once the quorum is met, marks approved and records `resolvedBy` and `resolvedAt`                                                                                                                                                                                | `403` Problem Details when the approver is the actor, the principal (unless the grant sets `distinct: false` and `requireDistinctApprover` is off), or when neither `approvers.by` nor an open `approvers.escalation.to` matches (`approver-not-eligible`); `409` when the same approver answers twice (`approver-repeated`) |
+| `POST /:token/reject`  | Marks rejected with an optional `note`                                                                                                                                                                                                                                                  | Same                                                                                                                                                                                                                                                                                                                         |
+| `GET /:token`          | One request, for a confirmation screen                                                                                                                                                                                                                                                  | `404` for unknown or foreign tokens                                                                                                                                                                                                                                                                                          |
 
 ## Request lifecycle
 
@@ -94,25 +116,25 @@ Over plain HTTP, step 5 is the retried request with a `PermDock-Approval: <token
 The interface is small enough that persistence is a short file. This is documentation, not a package entry; PermDock Cloud implements the same interface over its API. The same code (`tests/integration/fixtures/approval-store/drizzle.ts`) runs against Postgres under `testApprovalStore(store, { reopen })`, so it holds the idempotent `create`, single-use `consume`, tenant-bound `resolve` and resume-after-restart rules.
 
 ```ts
-import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type {
   ApprovalListQuery,
   ApprovalRequest,
   ApprovalStatus,
   ApprovalStore,
-} from 'permdock/approvals';
+} from "permdock/approvals";
 
-import { and, eq, gt, isNull, lte, or, sql } from 'drizzle-orm';
-import { jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
-import { ApprovalError, applyApprovalVerdict } from 'permdock/approvals';
+import { and, eq, gt, isNull, lte, or, sql } from "drizzle-orm";
+import { jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { ApprovalError, applyApprovalVerdict } from "permdock/approvals";
 
-export const approvals = pgTable('permdock_approvals', {
-  token: text('token').primaryKey(),
-  body: jsonb('body').$type<ApprovalRequest>().notNull(),
-  status: text('status').$type<ApprovalStatus>().notNull(),
-  tenant: text('tenant'),
-  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
-  consumedAt: timestamp('consumed_at', { withTimezone: true }),
+export const approvals = pgTable("permdock_approvals", {
+  token: text("token").primaryKey(),
+  body: jsonb("body").$type<ApprovalRequest>().notNull(),
+  status: text("status").$type<ApprovalStatus>().notNull(),
+  tenant: text("tenant"),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  consumedAt: timestamp("consumed_at", { withTimezone: true }),
 });
 
 export const approvalsDdl = `
@@ -152,7 +174,7 @@ export function drizzleApprovalStore(db: NodePgDatabase): ApprovalStore {
           target: approvals.token,
           set: values,
           setWhere: or(
-            eq(approvals.status, 'expired'),
+            eq(approvals.status, "expired"),
             lte(approvals.expiresAt, new Date()),
           ),
         });
@@ -161,7 +183,7 @@ export function drizzleApprovalStore(db: NodePgDatabase): ApprovalStore {
     async resolve(token, verdict) {
       const current = await get(token);
       if (current === null) {
-        throw new ApprovalError('approval-not-found', 'approval was not found');
+        throw new ApprovalError("approval-not-found", "approval was not found");
       }
       const next = applyApprovalVerdict(current, verdict);
       // Write only over the row this verdict was computed from, so two
@@ -173,14 +195,17 @@ export function drizzleApprovalStore(db: NodePgDatabase): ApprovalStore {
         .where(
           and(
             eq(approvals.token, token),
-            eq(approvals.status, 'pending'),
+            eq(approvals.status, "pending"),
             gt(approvals.expiresAt, new Date()),
             sql`coalesce(jsonb_array_length(${approvals.body} -> 'approvals'), 0) = ${seen}`,
           ),
         )
         .returning({ body: approvals.body });
       if (row === undefined) {
-        throw new ApprovalError('approval-not-pending', 'approval is not pending');
+        throw new ApprovalError(
+          "approval-not-pending",
+          "approval is not pending",
+        );
       }
       return row.body;
     },
@@ -194,7 +219,7 @@ export function drizzleApprovalStore(db: NodePgDatabase): ApprovalStore {
         .where(
           and(
             eq(approvals.token, token),
-            eq(approvals.status, 'approved'),
+            eq(approvals.status, "approved"),
             isNull(approvals.consumedAt),
             gt(approvals.expiresAt, now),
           ),
@@ -210,8 +235,8 @@ export function drizzleApprovalStore(db: NodePgDatabase): ApprovalStore {
           const parsed: unknown = JSON.parse(query.cursor);
           if (
             !Array.isArray(parsed) ||
-            typeof parsed[0] !== 'string' ||
-            typeof parsed[1] !== 'string'
+            typeof parsed[0] !== "string" ||
+            typeof parsed[1] !== "string"
           ) {
             return { items: [] };
           }
@@ -258,11 +283,11 @@ export function drizzleApprovalStore(db: NodePgDatabase): ApprovalStore {
       const rows = await db
         .update(approvals)
         .set({
-          status: 'expired',
+          status: "expired",
           body: sql`${approvals.body} || '{"status":"expired"}'::jsonb`,
         })
         .where(
-          and(eq(approvals.status, 'pending'), lte(approvals.expiresAt, now)),
+          and(eq(approvals.status, "pending"), lte(approvals.expiresAt, now)),
         )
         .returning({ token: approvals.token });
       return rows.length;
@@ -277,14 +302,14 @@ export function drizzleApprovalStore(db: NodePgDatabase): ApprovalStore {
 
 The Drizzle store above is the template; every other backing store is the same methods over a different driver, and none is a package:
 
-| Runtime or store | `ApprovalStore` | Notes |
-| --- | --- | --- |
-| Cloudflare Durable Objects | One object per approval `token`, or one per tenant holding a map; `alarm()` implements expiry | The natural fit: single-writer, survives isolate restarts, colocated with the Agents SDK. KV works for `SnapshotSource` (eventually consistent reads are fine for snapshots) but not for approvals, which need a consistent `resolve` |
-| Cloudflare D1, Turso, SQLite | The Drizzle store with the `sqlite` dialect | `expiresAt` comparisons in the query; a scheduled job or the read path sweeps expired rows |
-| Redis, Upstash, Vercel KV | Hash per `token` with `EXPIRE` set to `expiresAt`; `resolve` is a `WATCH` or Lua script so two approvers cannot both win | Good for serverless functions; `list` needs a secondary index (a sorted set per subject) |
-| Postgres, Neon, Supabase | The Drizzle store with the `pg` dialect, or the equivalent Prisma or Kysely queries | Row-level security on the approvals table can restrict `list` to the approver's tenant using the same generated policies as the rest of the schema |
-| Durable execution (Inngest, Vercel Workflow, LangGraph checkpointer) | The framework's own durable step or state holds the pending request; `resolve` is the event that resumes it | The token check still runs in the adapter on resume ([ecosystem index](/docs/research/ecosystem-index)) |
-| PermDock Cloud | `cloud().approvals` | The hosted implementation of the same interface ([Cloud adapter](/docs/adapters/cloud)) |
+| Runtime or store                                                     | `ApprovalStore`                                                                                                          | Notes                                                                                                                                                                                                                                 |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Cloudflare Durable Objects                                           | One object per approval `token`, or one per tenant holding a map; `alarm()` implements expiry                            | The natural fit: single-writer, survives isolate restarts, colocated with the Agents SDK. KV works for `SnapshotSource` (eventually consistent reads are fine for snapshots) but not for approvals, which need a consistent `resolve` |
+| Cloudflare D1, Turso, SQLite                                         | The Drizzle store with the `sqlite` dialect                                                                              | `expiresAt` comparisons in the query; a scheduled job or the read path sweeps expired rows                                                                                                                                            |
+| Redis, Upstash, Vercel KV                                            | Hash per `token` with `EXPIRE` set to `expiresAt`; `resolve` is a `WATCH` or Lua script so two approvers cannot both win | Good for serverless functions; `list` needs a secondary index (a sorted set per subject)                                                                                                                                              |
+| Postgres, Neon, Supabase                                             | The Drizzle store with the `pg` dialect, or the equivalent Prisma or Kysely queries                                      | Row-level security on the approvals table can restrict `list` to the approver's tenant using the same generated policies as the rest of the schema                                                                                    |
+| Durable execution (Inngest, Vercel Workflow, LangGraph checkpointer) | The framework's own durable step or state holds the pending request; `resolve` is the event that resumes it              | The token check still runs in the adapter on resume ([ecosystem index](/docs/research/ecosystem-index))                                                                                                                               |
+| PermDock Cloud                                                       | `cloud().approvals`                                                                                                      | The hosted implementation of the same interface ([Cloud adapter](/docs/adapters/cloud))                                                                                                                                               |
 
 Whatever the store, `permdock doctor` warns when `memoryApprovalStore()` is the configured store in a serverless or edge target, because a cold start would lose pending approvals ([installation](/docs/getting-started/installation), runtimes).
 
@@ -293,25 +318,29 @@ Whatever the store, `permdock doctor` warns when `memoryApprovalStore()` is the 
 A store holds the pending request; something still has to tell a human. Delivery is a recipe over the `approval` event that fires when a request is created (`permdock.on('approval')`, or the same event arriving at a `DecisionSink`), never a package, and the approver's identity always comes from the surface that authenticated them, never from the message ([adapters](/docs/adapters), [threat model](/docs/security/threat-model)). The reference recipe is the [Vercel Chat SDK](https://chat-sdk.dev), because it is the one surface that is durable, signature-verified and reaches Slack, Microsoft Teams and Discord from one call; it is also what the PermDock Cloud inbox uses for its Slack and Teams delivery, so self-hosters and Cloud users run the same code path. Neither the store nor the adapters have a `notify` hook: the `approval` event already reaches every listener and sink, so delivery needs no new interface method.
 
 ```ts
-import { requestApproval } from 'chat/workflow'
-import { permdock, store } from './permdock'        // the factory result and your ApprovalStore
-import { subjectFromChatUser } from './subjects'    // maps a verified chat user to a Subject
+import { requestApproval } from "chat/workflow";
+import { permdock, store } from "./permdock"; // the factory result and your ApprovalStore
+import { subjectFromChatUser } from "./subjects"; // maps a verified chat user to a Subject
 
 // `approval` events fire when a request is created and when it is resolved; a DecisionSink sees the same events
-permdock.on('approval', async (event) => {
-  if (event.request.status !== 'pending') return
+permdock.on("approval", async (event) => {
+  if (event.request.status !== "pending") return;
   // Runs inside a Workflow SDK step, so the wait survives redeploys and cold starts
   const outcome = await requestApproval({
     channel: process.env.APPROVALS_CHANNEL!,
-    approvers: await approversFor(event.request),   // Slack / Teams user ids allowed to answer
+    approvers: await approversFor(event.request), // Slack / Teams user ids allowed to answer
     title: `Approve ${event.request.permission}?`,
-    body: describe(event.request),                  // reason, resource id, actor, expiry from the request
+    body: describe(event.request), // reason, resource id, actor, expiry from the request
     timeout: event.request.expiresAt,
-  })
+  });
   // `outcome.user.id` is the platform-verified responder; the Chat SDK checked the signature
-  const by = await subjectFromChatUser(outcome.user)
-  await store.resolve(event.request.token, outcome.approved ? 'approved' : 'rejected', { by })
-})
+  const by = await subjectFromChatUser(outcome.user);
+  await store.resolve(
+    event.request.token,
+    outcome.approved ? "approved" : "rejected",
+    { by },
+  );
+});
 ```
 
 What the recipe does and does not do:
@@ -323,14 +352,14 @@ What the recipe does and does not do:
 
 Other surfaces implement the same three steps (send, wait, resolve with a verified identity):
 
-| Surface | Send and wait | Verified responder | Notes |
-| --- | --- | --- | --- |
-| Trigger.dev waitpoints | `wait.createToken` produces an HMAC-signed callback URL; `wait.forToken` suspends the task | Whoever your callback endpoint authenticates (a session or a signed link); the token is not an identity | Pair with the approval UI or a Chat SDK card that calls the callback |
-| Temporal, Restate, Inngest, Cloudflare Workflows | Signals, awakeables, `step.waitForEvent`, `waitForEvent` | The event's sender as authenticated by your HTTP layer | The durable step holds the wait; the store record holds the request |
-| n8n | AI Agent tool "Require approval" and the "Send and Wait for Response" node (Slack, Teams, Gmail, Telegram, Discord, WhatsApp) | n8n's own credential for the channel; map the responder in the workflow | No-code delivery for agents that run inside n8n; the tools themselves are guarded through `permdock/mcp` |
-| Eve | `approval.response` receives the authenticated `responder` | Eve | The adapter already does this; no delivery code needed ([Eve adapter](/docs/adapters/eve)) |
-| Email and notification infrastructure (Resend, Knock, Novu, Courier, Twilio) | Send a message with a link to `approvalsHandler` | The approver's session on the approval page | A channel only; a link is never an approval by itself, and the approver always authenticates on the page |
-| PermDock Cloud | Inbox UI plus Slack and Teams through the Chat SDK recipe above | Cloud authentication and the platform signature | The hosted implementation of the same store and the same recipe ([Cloud adapter](/docs/adapters/cloud)) |
+| Surface                                                                      | Send and wait                                                                                                                 | Verified responder                                                                                      | Notes                                                                                                    |
+| ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Trigger.dev waitpoints                                                       | `wait.createToken` produces an HMAC-signed callback URL; `wait.forToken` suspends the task                                    | Whoever your callback endpoint authenticates (a session or a signed link); the token is not an identity | Pair with the approval UI or a Chat SDK card that calls the callback                                     |
+| Temporal, Restate, Inngest, Cloudflare Workflows                             | Signals, awakeables, `step.waitForEvent`, `waitForEvent`                                                                      | The event's sender as authenticated by your HTTP layer                                                  | The durable step holds the wait; the store record holds the request                                      |
+| n8n                                                                          | AI Agent tool "Require approval" and the "Send and Wait for Response" node (Slack, Teams, Gmail, Telegram, Discord, WhatsApp) | n8n's own credential for the channel; map the responder in the workflow                                 | No-code delivery for agents that run inside n8n; the tools themselves are guarded through `permdock/mcp` |
+| Eve                                                                          | `approval.response` receives the authenticated `responder`                                                                    | Eve                                                                                                     | The adapter already does this; no delivery code needed ([Eve adapter](/docs/adapters/eve))               |
+| Email and notification infrastructure (Resend, Knock, Novu, Courier, Twilio) | Send a message with a link to `approvalsHandler`                                                                              | The approver's session on the approval page                                                             | A channel only; a link is never an approval by itself, and the approver always authenticates on the page |
+| PermDock Cloud                                                               | Inbox UI plus Slack and Teams through the Chat SDK recipe above                                                               | Cloud authentication and the platform signature                                                         | The hosted implementation of the same store and the same recipe ([Cloud adapter](/docs/adapters/cloud))  |
 
 ## Why
 

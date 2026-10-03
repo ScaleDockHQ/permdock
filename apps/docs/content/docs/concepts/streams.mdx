@@ -11,19 +11,19 @@ The server kernel and every streaming adapter expose `connection(...)` next to `
 
 ```ts
 const conn = await connection(c, {
-  permission: permissions.project.read,     // checked at open and after every revalidation
-  data: () => loadProject(c.req.param('id')), // a row, or a loader re-run on every revalidation
-  revalidate: 5 * 60_000,                    // optional periodic revalidation, off by default
-})
+  permission: permissions.project.read, // checked at open and after every revalidation
+  data: () => loadProject(c.req.param("id")), // a row, or a loader re-run on every revalidation
+  revalidate: 5 * 60_000, // optional periodic revalidation, off by default
+});
 ```
 
-| Member | Meaning |
-| --- | --- |
-| `permdock` | The current request-scoped instance. After a revalidation it is replaced by a new instance, never mutated. |
-| `signal` | An `AbortSignal` that aborts when the connection must end. `signal.reason` is a `PermDockRevokedError`. |
+| Member                                   | Meaning                                                                                                                                                                                                          |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `permdock`                               | The current request-scoped instance. After a revalidation it is replaced by a new instance, never mutated.                                                                                                       |
+| `signal`                                 | An `AbortSignal` that aborts when the connection must end. `signal.reason` is a `PermDockRevokedError`.                                                                                                          |
 | `check(permission, data?, { trusted? })` | A per-message decision against the current instance. It never throws and returns the `Decision`. Data is validated against the resource schema first unless `trusted: true` marks it as a row the server loaded. |
-| `filter(permission, items)` | The outbound filter for items pushed to the subscriber, with the same semantics as `permdock.filter`. |
-| `close()` | Stops the connection's timers and its feed subscription. Adapters call it when the transport closes; a long-running server must not skip it. |
+| `filter(permission, items)`              | The outbound filter for items pushed to the subscriber, with the same semantics as `permdock.filter`.                                                                                                            |
+| `close()`                                | Stops the connection's timers and its feed subscription. Adapters call it when the transport closes; a long-running server must not skip it.                                                                     |
 
 Once the signal has aborted or `close()` was called, `check` returns `denied` with reason `no-grant` and `detail: 'connection-revoked'`, and `filter` returns an empty array. If the opening itself failed (building the instance threw, the opening permission was denied, or the `data` loader returned nothing), the connection starts aborted with `denied`; reading `conn.permdock` then throws, so check `conn.signal.aborted` first.
 
@@ -33,12 +33,12 @@ A denied per-message check does not end the connection. Answer it with a Problem
 
 `signal.reason.code` says why:
 
-| Code | Cause |
-| --- | --- |
-| `session-revoked` | A revocation feed published `session-revoked` for this principal (and this session, when both sides name one). |
-| `expired` | The subject's `expiresAt` (the token's `exp`) passed, or the feed's `subscribe` threw. |
-| `denied` | The opening permission was denied at open or after a revalidation; the `Decision` rides on the error as `decision`. |
-| `subject-changed` | A revalidation resolved no principal, a different principal id, or threw. |
+| Code              | Cause                                                                                                               |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `session-revoked` | A revocation feed published `session-revoked` for this principal (and this session, when both sides name one).      |
+| `expired`         | The subject's `expiresAt` (the token's `exp`) passed, or the feed's `subscribe` threw.                              |
+| `denied`          | The opening permission was denied at open or after a revalidation; the `Decision` rides on the error as `decision`. |
+| `subject-changed` | A revalidation resolved no principal, a different principal id, or threw.                                           |
 
 `PermDockRevokedError` is only a connection signal: it is never thrown by `can` or `decide`, and it is not a denial reason. `toProblemDetails()` maps `denied` to a 403 `denied` body with the denials, and every other code to a 401 `unauthenticated` body whose `detail` is the code. An abort adds nothing to the closed lists on the wire: there is no `revoked` denial reason and no `on('auth')` event for it. Per-message checks emit decision events like any other check, so `on('decision')` and sinks see them.
 
@@ -56,16 +56,16 @@ Revalidating instead of closing on every change means a role edit that adds a pe
 
 ```ts
 interface RevocationFeed {
-  subscribe(listener: (event: RevocationEvent) => void): () => void
-  revoke(event: RevocationEvent): void | Promise<void>
+  subscribe(listener: (event: RevocationEvent) => void): () => void;
+  revoke(event: RevocationEvent): void | Promise<void>;
 }
 
 type RevocationEvent = {
-  principal: string
-  session?: string
-  tenant?: string
-  kind: 'session-revoked' | 'changed'
-}
+  principal: string;
+  session?: string;
+  tenant?: string;
+  kind: "session-revoked" | "changed";
+};
 ```
 
 `memoryRevocationFeed()` is the in-process default exported from `permdock` and `permdock/server`. It validates and freezes each event, throws a `TypeError` for an event without a principal or with an unknown `kind`, and isolates listener errors so one listener cannot stop the others. A multi-replica app bridges `revoke` across processes with its own pub/sub (Postgres `LISTEN` / `NOTIFY`, Redis, Supabase Realtime). Pass the feed as the `revocations` option of the kernel or the adapter.
@@ -82,14 +82,14 @@ Events come from three places:
 
 Each adapter wires the transport so an app does not repeat the plumbing:
 
-| Adapter | Opening | Per message | On abort |
-| --- | --- | --- | --- |
-| `permdock/server` | `connection(request, options)`; Next.js Route Handlers streaming SSE use this directly | `conn.check`, `conn.filter` | Your code reads `conn.signal` |
-| `permdock/hono` | `connection(c, options)` before `upgradeWebSocket` or `streamSSE` | `conn.check` in `onMessage`; `sse(conn, stream, source, { items })` drops items the subscriber cannot read | `socket(conn, events)` closes the WebSocket with `1008` and the Problem Details `type` as the reason; `sse` writes an `event: permdock` frame with the Problem Details body and resolves, so await it as the last statement of the `streamSSE` callback |
-| `permdock/elysia` | `connection(ws, options)` in the `.ws` `open` handler, one connection per socket | `conn.check` in `message` | `ws.close(1008, ...)` |
-| `permdock/trpc` | `protect(permission)` on a subscription procedure opens the connection | Outbound items pass the filter when `protect` is given `{ items: permission }`; tracked envelopes are unwrapped before the check | The iterator ends with `FORBIDDEN` or `UNAUTHORIZED`, with the Problem Details on `cause` |
-| `permdock/orpc` | The same as tRPC, for event iterators | The same | `ORPCError` `FORBIDDEN` or `UNAUTHORIZED` |
-| `permdock/nest` | `connection(client, req, options)` in `handleConnection`, one connection per client | `PermDockGuard` on a `@SubscribeMessage` handler checks through the client's connection | Emits `permdock:error` with the Problem Details, then `client.disconnect(true)`, or `close(1008, ...)` for a raw socket |
+| Adapter           | Opening                                                                                | Per message                                                                                                                      | On abort                                                                                                                                                                                                                                                |
+| ----------------- | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `permdock/server` | `connection(request, options)`; Next.js Route Handlers streaming SSE use this directly | `conn.check`, `conn.filter`                                                                                                      | Your code reads `conn.signal`                                                                                                                                                                                                                           |
+| `permdock/hono`   | `connection(c, options)` before `upgradeWebSocket` or `streamSSE`                      | `conn.check` in `onMessage`; `sse(conn, stream, source, { items })` drops items the subscriber cannot read                       | `socket(conn, events)` closes the WebSocket with `1008` and the Problem Details `type` as the reason; `sse` writes an `event: permdock` frame with the Problem Details body and resolves, so await it as the last statement of the `streamSSE` callback |
+| `permdock/elysia` | `connection(ws, options)` in the `.ws` `open` handler, one connection per socket       | `conn.check` in `message`                                                                                                        | `ws.close(1008, ...)`                                                                                                                                                                                                                                   |
+| `permdock/trpc`   | `protect(permission)` on a subscription procedure opens the connection                 | Outbound items pass the filter when `protect` is given `{ items: permission }`; tracked envelopes are unwrapped before the check | The iterator ends with `FORBIDDEN` or `UNAUTHORIZED`, with the Problem Details on `cause`                                                                                                                                                               |
+| `permdock/orpc`   | The same as tRPC, for event iterators                                                  | The same                                                                                                                         | `ORPCError` `FORBIDDEN` or `UNAUTHORIZED`                                                                                                                                                                                                               |
+| `permdock/nest`   | `connection(client, req, options)` in `handleConnection`, one connection per client    | `PermDockGuard` on a `@SubscribeMessage` handler checks through the client's connection                                          | Emits `permdock:error` with the Problem Details, then `client.disconnect(true)`, or `close(1008, ...)` for a raw socket                                                                                                                                 |
 
 Close code `1008` is the RFC 6455 policy-violation code. The close frame and the SSE `permdock` event carry the reason so a client can tell a revocation from a network drop and does not reconnect in a loop. The SSE frame reuses the existing Problem Details body; there is no new wire format.
 

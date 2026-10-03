@@ -1,92 +1,92 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from "vitest";
 
 import type {
   ApprovalRequest,
   ApprovalStore,
-} from '../../src/approvals/index.ts';
-import type { Subject } from '../../src/core/subject.ts';
+} from "../../src/approvals/index.ts";
+import type { Subject } from "../../src/core/subject.ts";
 
 import {
   ApprovalError,
   approvalsHandler,
   memoryApprovalStore,
-} from '../../src/approvals/index.ts';
+} from "../../src/approvals/index.ts";
 
 const future = new Date(Date.now() + 60 * 60 * 1000).toISOString();
-const BASE = 'https://api.example.com/permdock/approvals';
+const BASE = "https://api.example.com/permdock/approvals";
 
 function pending(
   token: string,
-  principal: ApprovalRequest['subject']['principal'],
+  principal: ApprovalRequest["subject"]["principal"],
 ): ApprovalRequest {
   return {
     v: 1,
     token,
-    permission: 'post.delete',
-    scope: 'post:delete',
-    resource: { type: 'post', id: '42' },
+    permission: "post.delete",
+    scope: "post:delete",
+    resource: { type: "post", id: "42" },
     subject: { principal },
-    detail: 'post.delete requires human approval.',
+    detail: "post.delete requires human approval.",
     createdAt: new Date().toISOString(),
     expiresAt: future,
-    status: 'pending',
+    status: "pending",
   };
 }
 
 function seeded(): ApprovalStore {
   const store = memoryApprovalStore();
-  store.create(pending('own', { id: 'u_1', roles: ['member'], tenant: 'o_1' }));
+  store.create(pending("own", { id: "u_1", roles: ["member"], tenant: "o_1" }));
   store.create(
-    pending('acme', { id: 'u_2', roles: ['member'], tenant: 'o_acme' }),
+    pending("acme", { id: "u_2", roles: ["member"], tenant: "o_acme" }),
   );
-  store.create(pending('loose', { id: 'u_3', roles: ['member'] }));
-  store.create(pending('anon', null));
+  store.create(pending("loose", { id: "u_3", roles: ["member"] }));
+  store.create(pending("anon", null));
   return store;
 }
 
 const viewer: Subject = {
   principal: {
-    id: 'u_1',
+    id: "u_1",
     roles: [],
-    memberships: [{ tenant: 'o_1', roles: ['admin'] }],
+    memberships: [{ tenant: "o_1", roles: ["admin"] }],
   },
   context: {},
 };
 
-describe('approvalsHandler GET by token', () => {
+describe("approvalsHandler GET by token", () => {
   it.each<[string, number]>([
-    ['own', 200],
-    ['acme', 404],
-    ['loose', 200],
-    ['anon', 200],
-    ['missing', 404],
-  ])('shows %s with %d', async (token, status) => {
+    ["own", 200],
+    ["acme", 404],
+    ["loose", 200],
+    ["anon", 200],
+    ["missing", 404],
+  ])("shows %s with %d", async (token, status) => {
     const handler = approvalsHandler(seeded(), { subject: () => viewer });
     expect((await handler(new Request(`${BASE}/${token}`))).status).toBe(
       status,
     );
   });
 
-  it('refuses an undefined subject and an unknown route', async () => {
+  it("refuses an undefined subject and an unknown route", async () => {
     const handler = approvalsHandler(seeded(), { subject: () => undefined });
     expect((await handler(new Request(`${BASE}/own`))).status).toBe(401);
     expect(
-      (await handler(new Request(`${BASE}/own`, { method: 'DELETE' }))).status,
+      (await handler(new Request(`${BASE}/own`, { method: "DELETE" }))).status,
     ).toBe(405);
     expect(
-      (await handler(new Request('https://api.example.com/'))).status,
+      (await handler(new Request("https://api.example.com/"))).status,
     ).toBe(405);
   });
 });
 
-describe('approvalsHandler error mapping', () => {
-  it.each<[ApprovalError['code'], number]>([
-    ['approval-not-found', 404],
-    ['approval-not-pending', 409],
-    ['approval-expired', 409],
-    ['approver-unauthenticated', 401],
-    ['approver-not-eligible', 403],
-  ])('maps %s to %d', async (code, status) => {
+describe("approvalsHandler error mapping", () => {
+  it.each<[ApprovalError["code"], number]>([
+    ["approval-not-found", 404],
+    ["approval-not-pending", 409],
+    ["approval-expired", 409],
+    ["approver-unauthenticated", 401],
+    ["approver-not-eligible", 403],
+  ])("maps %s to %d", async (code, status) => {
     const store: ApprovalStore = {
       ...seeded(),
       resolve: () => {
@@ -96,36 +96,36 @@ describe('approvalsHandler error mapping', () => {
     const handler = approvalsHandler(store, { subject: () => viewer });
     const response = await handler(
       new Request(`${BASE}/loose/approve`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        method: "POST",
+        headers: { "content-type": "application/json" },
         body: JSON.stringify({ note: 7 }),
       }),
     );
     expect(response.status).toBe(status);
   });
 
-  it('ignores an unreadable note', async () => {
+  it("ignores an unreadable note", async () => {
     const handler = approvalsHandler(seeded(), { subject: () => viewer });
     const response = await handler(
       new Request(`${BASE}/loose/reject`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: '{nope',
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: "{nope",
       }),
     );
     expect(response.status).toBe(200);
   });
 });
 
-describe('approvalsHandler inbox', () => {
-  it('lists across membership tenants for a principal without an active tenant and pages', async () => {
+describe("approvalsHandler inbox", () => {
+  it("lists across membership tenants for a principal without an active tenant and pages", async () => {
     const store = seeded();
     const handler = approvalsHandler(store, {
       subject: () => ({
         principal: {
-          id: 'u_9',
+          id: "u_9",
           roles: [],
-          memberships: [{ tenant: 'o_acme', roles: ['admin'] }],
+          memberships: [{ tenant: "o_acme", roles: ["admin"] }],
         },
         context: {},
       }),
@@ -143,7 +143,7 @@ describe('approvalsHandler inbox', () => {
     }).toEqual({
       status: 200,
       paged: true,
-      next: 'string',
+      next: "string",
     });
   });
 });

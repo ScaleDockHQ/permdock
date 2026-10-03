@@ -1,4 +1,4 @@
-export type DoctorSeverity = 'error' | 'warning';
+export type DoctorSeverity = "error" | "warning";
 
 export type DoctorFinding = {
   readonly code: string;

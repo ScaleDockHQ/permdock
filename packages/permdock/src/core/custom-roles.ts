@@ -1,30 +1,30 @@
-import type { RoleGrantee } from './grantee.ts';
-import type { Grant, Policy } from './policy.ts';
-import type { CustomRole, CustomRoleGrant, Membership } from './subject.ts';
+import type { RoleGrantee } from "./grantee.ts";
+import type { Grant, Policy } from "./policy.ts";
+import type { CustomRole, CustomRoleGrant, Membership } from "./subject.ts";
 
-import { freezeDeep } from './freeze.ts';
-import { flattenGrantee } from './grantee.ts';
-import { isForbiddenKey } from './paths.ts';
-import { findPermission } from './permissions.ts';
-import { declaredRoleNames, grantList } from './policy.ts';
+import { freezeDeep } from "./freeze.ts";
+import { flattenGrantee } from "./grantee.ts";
+import { isForbiddenKey } from "./paths.ts";
+import { findPermission } from "./permissions.ts";
+import { declaredRoleNames, grantList } from "./policy.ts";
 import {
   type Scope,
   normalizeMemberships,
   resolveScope,
   scopeList,
   tenantOf,
-} from './scopes.ts';
-import { findRole } from './vocabulary.ts';
+} from "./scopes.ts";
+import { findRole } from "./vocabulary.ts";
 
 export type CustomRoleDropReason =
-  | 'unknown-permission'
-  | 'outside-ceiling'
-  | 'condition-not-allowed';
+  | "unknown-permission"
+  | "outside-ceiling"
+  | "condition-not-allowed";
 
 /** Why part of a custom role was left out: a permission, or an undeclared include. */
 export type CustomRoleDrop =
   | { readonly permission: string; readonly reason: CustomRoleDropReason }
-  | { readonly role: string; readonly reason: 'unknown-role' };
+  | { readonly role: string; readonly reason: "unknown-role" };
 
 export type ResolvedCustomRole = {
   /** Declared grants re-targeted to the custom role; conditions and approvals kept. */
@@ -45,7 +45,7 @@ export type CustomGrant = {
   readonly role: CustomRole;
 };
 
-const GRANT_KEYS = new Set(['permission', 'effect']);
+const GRANT_KEYS = new Set(["permission", "effect"]);
 
 /** The named scope a custom-role ceiling is keyed by. */
 export type CeilingScope = string;
@@ -56,13 +56,13 @@ export type CeilingScope = string;
  * the policy does not declare it; such a role resolves to nothing.
  */
 export function customRoleScope(
-  role: Pick<CustomRole, 'scope' | 'team'>,
+  role: Pick<CustomRole, "scope" | "team">,
   scopes: readonly Scope[],
 ): CeilingScope | undefined {
   if (role.scope !== undefined) {
     return resolveScope(scopes, role.scope);
   }
-  return resolveScope(scopes, role.team === undefined ? 'tenant' : 'team');
+  return resolveScope(scopes, role.team === undefined ? "tenant" : "team");
 }
 
 /** The instance of its scope a custom role is pinned to, if any. */
@@ -70,14 +70,14 @@ function customRoleId(role: CustomRole): string | undefined {
   return role.scope === undefined ? role.team : role.id;
 }
 
-function isCeilingScope(scope: Grant['scope']): scope is CeilingScope {
-  return typeof scope === 'string' && scope !== 'global';
+function isCeilingScope(scope: Grant["scope"]): scope is CeilingScope {
+  return typeof scope === "string" && scope !== "global";
 }
 
 function soleRole(grant: Grant): string | undefined {
-  const roles = flattenGrantee(grant.to).filter((item) => item.kind === 'role');
+  const roles = flattenGrantee(grant.to).filter((item) => item.kind === "role");
   const first = roles[0];
-  return roles.length === 1 && first?.kind === 'role' ? first.role : undefined;
+  return roles.length === 1 && first?.kind === "role" ? first.role : undefined;
 }
 
 /** Permission keys a declared role's allows reach, hosted grants included. */
@@ -87,7 +87,7 @@ export function roleAllowKeys(
 ): ReadonlySet<string> {
   return new Set(
     grantList(policy)
-      .filter((grant) => grant.effect === 'allow' && soleRole(grant) === name)
+      .filter((grant) => grant.effect === "allow" && soleRole(grant) === name)
       .map((grant) => grant.permission.key),
   );
 }
@@ -115,7 +115,7 @@ function ceilings(
   for (const grant of grantList(policy)) {
     const name = soleRole(grant);
     if (
-      grant.effect !== 'allow' ||
+      grant.effect !== "allow" ||
       grant.hosted !== undefined ||
       !isCeilingScope(grant.scope) ||
       name === undefined ||
@@ -140,9 +140,9 @@ export function ceilingGrants(
 }
 
 function retarget(grant: Grant, role: CustomRole, scope: CeilingScope): Grant {
-  const grantee: RoleGrantee = { kind: 'role', role: role.name, scope };
+  const grantee: RoleGrantee = { kind: "role", role: role.name, scope };
   const others = flattenGrantee(grant.to).filter(
-    (item) => item.kind !== 'role',
+    (item) => item.kind !== "role",
   );
   return freezeDeep({
     ...grant,
@@ -177,7 +177,7 @@ export function resolveCustomRole(
   const seen = new Set<string>();
   const drop = (entry: CustomRoleDrop): void => {
     const id =
-      'role' in entry
+      "role" in entry
         ? `role:${entry.role}`
         : `${entry.reason}:${entry.permission}`;
     if (!seen.has(id)) {
@@ -192,8 +192,8 @@ export function resolveCustomRole(
   const denyKeys = new Set<string>();
 
   for (const name of Array.isArray(role.includes) ? role.includes : []) {
-    if (typeof name !== 'string' || !declared.has(name)) {
-      drop({ role: String(name), reason: 'unknown-role' });
+    if (typeof name !== "string" || !declared.has(name)) {
+      drop({ role: String(name), reason: "unknown-role" });
       continue;
     }
     for (const grant of all) {
@@ -201,7 +201,7 @@ export function resolveCustomRole(
         continue;
       }
       const key = grant.permission.key;
-      if (grant.effect === 'deny') {
+      if (grant.effect === "deny") {
         // Only denies of the role's own scope: RLS evaluates each scope's keys separately.
         if (grant.scope === scope) {
           included.push(grant);
@@ -212,7 +212,7 @@ export function resolveCustomRole(
       } else if (ceilingKeys.has(key)) {
         allowKeys.add(key);
       } else {
-        drop({ permission: key, reason: 'outside-ceiling' });
+        drop({ permission: key, reason: "outside-ceiling" });
       }
     }
   }
@@ -221,8 +221,8 @@ export function resolveCustomRole(
     ? role.grants
     : [];
   for (const item of entries) {
-    if (item === null || typeof item !== 'object') {
-      drop({ permission: String(item), reason: 'unknown-permission' });
+    if (item === null || typeof item !== "object") {
+      drop({ permission: String(item), reason: "unknown-permission" });
       continue;
     }
     // SAFETY: item is a non-null object checked above; both fields stay unknown until checked.
@@ -231,28 +231,28 @@ export function resolveCustomRole(
       readonly effect?: unknown;
     };
     const raw = entry.permission;
-    const key = typeof raw === 'string' ? raw : String(raw);
+    const key = typeof raw === "string" ? raw : String(raw);
     if (
-      typeof raw !== 'string' ||
+      typeof raw !== "string" ||
       findPermission(policy.permissions, raw)?.key !== raw
     ) {
-      drop({ permission: key, reason: 'unknown-permission' });
+      drop({ permission: key, reason: "unknown-permission" });
       continue;
     }
-    const effect = entry.effect ?? 'allow';
+    const effect = entry.effect ?? "allow";
     const extra = Object.keys(entry).some((name) => !GRANT_KEYS.has(name));
-    if (extra || (effect !== 'allow' && effect !== 'deny')) {
-      drop({ permission: key, reason: 'condition-not-allowed' });
+    if (extra || (effect !== "allow" && effect !== "deny")) {
+      drop({ permission: key, reason: "condition-not-allowed" });
       // A malformed entry can only narrow: it still removes the permission.
       denyKeys.add(key);
       continue;
     }
-    if (effect === 'deny') {
+    if (effect === "deny") {
       denyKeys.add(key);
       continue;
     }
     if (!ceilingKeys.has(key)) {
-      drop({ permission: key, reason: 'outside-ceiling' });
+      drop({ permission: key, reason: "outside-ceiling" });
       continue;
     }
     allowKeys.add(key);
@@ -265,7 +265,7 @@ export function resolveCustomRole(
     }
   };
   for (const grant of included) {
-    if (grant.effect === 'deny' || !denyKeys.has(grant.permission.key)) {
+    if (grant.effect === "deny" || !denyKeys.has(grant.permission.key)) {
       push(grant);
     }
   }
@@ -277,14 +277,14 @@ export function resolveCustomRole(
     for (const grant of ceiling) {
       if (grant.permission.key === key) {
         push(grant);
-        sources.add(soleRole(grant) ?? '');
+        sources.add(soleRole(grant) ?? "");
       }
     }
     for (const grant of all) {
       if (
-        grant.effect === 'deny' &&
+        grant.effect === "deny" &&
         grant.permission.key === key &&
-        sources.has(soleRole(grant) ?? '')
+        sources.has(soleRole(grant) ?? "")
       ) {
         push(grant);
       }
@@ -304,7 +304,7 @@ export function validateCustomRole(
   const permissions = [
     ...new Set(
       resolved.grants
-        .filter((grant) => grant.effect === 'allow')
+        .filter((grant) => grant.effect === "allow")
         .map((grant) => grant.permission.key),
     ),
   ].toSorted();
@@ -318,12 +318,12 @@ export function validateCustomRole(
 function wellFormed(role: CustomRole): boolean {
   return (
     role !== null &&
-    typeof role === 'object' &&
-    typeof role.name === 'string' &&
-    typeof role.tenant === 'string' &&
-    (role.team === undefined || typeof role.team === 'string') &&
-    (role.scope === undefined || typeof role.scope === 'string') &&
-    (role.id === undefined || typeof role.id === 'string')
+    typeof role === "object" &&
+    typeof role.name === "string" &&
+    typeof role.tenant === "string" &&
+    (role.team === undefined || typeof role.team === "string") &&
+    (role.scope === undefined || typeof role.scope === "string") &&
+    (role.id === undefined || typeof role.id === "string")
   );
 }
 
@@ -401,7 +401,7 @@ export function customRoleClaim(
     }
     for (const grant of grants) {
       entries.push(
-        grant.effect === 'deny' ? `-${grant.permission}` : grant.permission,
+        grant.effect === "deny" ? `-${grant.permission}` : grant.permission,
       );
     }
     claim[role.name] = entries;

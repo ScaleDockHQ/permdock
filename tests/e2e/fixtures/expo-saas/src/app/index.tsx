@@ -1,15 +1,15 @@
-import type { SaasProject } from 'permdock/testing/saas/permissions';
+import type { SaasProject } from "permdock/testing/saas/permissions";
 
-import { Redirect } from 'expo-router';
-import { usePermission } from 'permdock/react-native';
-import { useCallback, useEffect, useState } from 'react';
-import { AppState, Pressable, Text, View } from 'react-native';
+import { Redirect } from "expo-router";
+import { usePermission } from "permdock/react-native";
+import { useCallback, useEffect, useState } from "react";
+import { AppState, Pressable, Text, View } from "react-native";
 
-import type { NavItem } from '@permdock/e2e-saas-kit/nav';
+import type { NavItem } from "@permdock/e2e-saas-kit/nav";
 
-import { navItems, permissions } from '@permdock/e2e-saas-kit/nav';
+import { navItems, permissions } from "@permdock/e2e-saas-kit/nav";
 
-import { ORG, post, useSession } from '../lib/session';
+import { ORG, post, useSession } from "../lib/session";
 
 function NavEntry(props: {
   readonly item: NavItem;
@@ -19,7 +19,7 @@ function NavEntry(props: {
   if (allowed) {
     return <Text testID={`nav-${props.item.id}`}>{props.item.label}</Text>;
   }
-  if (props.item.pro === true && props.plan !== 'pro') {
+  if (props.item.pro === true && props.plan !== "pro") {
     return (
       <Text testID={`upsell-${props.item.id}`}>
         {props.item.label}: upgrade to Pro
@@ -34,7 +34,7 @@ function Row(props: {
   readonly onChange: () => void;
 }) {
   const { allowed } = usePermission(permissions.project.delete, props.project);
-  const [result, setResult] = useState('');
+  const [result, setResult] = useState("");
   const onDelete = async (): Promise<void> => {
     const response = await post(
       `/api/projects/${encodeURIComponent(props.project.id)}/delete?org=${ORG}`,
@@ -62,8 +62,8 @@ function Projects() {
   const [projects, setProjects] = useState<readonly SaasProject[]>([]);
   const load = useCallback(() => {
     fetch(`/api/projects?org=${ORG}`, {
-      credentials: 'include',
-      cache: 'no-store',
+      credentials: "include",
+      cache: "no-store",
     })
       .then(
         // SAFETY: the fixture's /api/projects route answers { projects: SaasProject[] }
@@ -76,8 +76,8 @@ function Projects() {
   }, []);
   useEffect(() => {
     load();
-    const subscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active') {
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
         load();
       }
     });
@@ -95,8 +95,8 @@ function Projects() {
 }
 
 async function signOut(): Promise<void> {
-  await post('/api/logout');
-  window.location.assign('/login');
+  await post("/api/logout");
+  window.location.assign("/login");
 }
 
 export default function Home() {

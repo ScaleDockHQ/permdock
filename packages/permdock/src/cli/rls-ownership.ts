@@ -1,9 +1,9 @@
-import type { Policy } from '../core/policy.ts';
-import type { Scope } from '../core/scopes.ts';
-import type { RlsMembershipTable } from './types.ts';
+import type { Policy } from "../core/policy.ts";
+import type { Scope } from "../core/scopes.ts";
+import type { RlsMembershipTable } from "./types.ts";
 
-import { resolveScope, scopeChain } from '../core/scopes.ts';
-import { findRole } from '../core/vocabulary.ts';
+import { resolveScope, scopeChain } from "../core/scopes.ts";
+import { findRole } from "../core/vocabulary.ts";
 import {
   globalRoleRows,
   memberColumn,
@@ -12,7 +12,7 @@ import {
   qualified,
   roleRows,
   signedIn,
-} from './rls-helpers.ts';
+} from "./rls-helpers.ts";
 import {
   type RlsOwnership,
   type RlsSqlContext,
@@ -23,13 +23,13 @@ import {
   roleKindSql,
   scopeTable,
   subjectIdSql,
-} from './rls-sql.ts';
+} from "./rls-sql.ts";
 
 /** Objects the ownership rules add next to the helpers. Names are part of the SQL contract. */
 const OWNERSHIP = {
-  canAssign: 'permdock_can_assign',
-  holders: 'permdock_holders',
-  transferOnly: 'permdock_transfer_only',
+  canAssign: "permdock_can_assign",
+  holders: "permdock_holders",
+  transferOnly: "permdock_transfer_only",
 } as const;
 
 function roleScope(
@@ -40,7 +40,7 @@ function roleScope(
   const on =
     policy.rolesByName.get(name)?.on ??
     findRole(policy.vocabulary.roles, name)?.on;
-  return typeof on === 'string' ? resolveScope(scopes, on) : undefined;
+  return typeof on === "string" ? resolveScope(scopes, on) : undefined;
 }
 
 /** The rules `rls generate` enforces; `undefined` when no role declares one. */
@@ -49,21 +49,21 @@ export function ownershipRules(
   scopes: readonly Scope[],
 ): RlsOwnership | undefined {
   const kinds: Record<string, readonly string[]> = {};
-  const assigns: RlsOwnership['assigns'][number][] = [];
-  const counted: RlsOwnership['counted'][number][] = [];
+  const assigns: RlsOwnership["assigns"][number][] = [];
+  const counted: RlsOwnership["counted"][number][] = [];
   for (const binding of policy.roles) {
     const scope = roleScope(policy, scopes, binding.name);
     if (binding.for !== undefined) {
       kinds[binding.name] = binding.for;
     }
     const assigner =
-      scope ?? (binding.on === undefined ? ('global' as const) : undefined);
+      scope ?? (binding.on === undefined ? ("global" as const) : undefined);
     for (const target of binding.assigns ?? []) {
       const at = roleScope(policy, scopes, target);
       if (
         assigner !== undefined &&
         at !== undefined &&
-        (assigner === 'global' || scopeChain(scopes, at).includes(assigner))
+        (assigner === "global" || scopeChain(scopes, at).includes(assigner))
       ) {
         assigns.push({ assigner: binding.name, scope: assigner, role: target });
       }
@@ -104,9 +104,9 @@ function holdersSql(
   role: string | { readonly expr: string },
   into: string,
 ): string {
-  const roleExpr = typeof role === 'string' ? quoteLiteral(role) : role.expr;
+  const roleExpr = typeof role === "string" ? quoteLiteral(role) : role.expr;
   const filters = [
-    `m.${quoteIdent(column)}::text = ${idExpr}`,
+    `m.${quoteIdent(column)} = ${idExpr}`,
     `m.${quoteIdent(table.role)}::text = ${roleExpr}`,
   ];
   if (table.expiresAt !== undefined) {
@@ -114,9 +114,9 @@ function holdersSql(
     filters.push(`(${expires} is null or ${expires} > now())`);
   }
   const via =
-    table.via === undefined ? 'null::text' : `${memberColumn(table.via)}::text`;
+    table.via === undefined ? "null::text" : `${memberColumn(table.via)}::text`;
   const kind =
-    typeof role === 'string'
+    typeof role === "string"
       ? roleKindSql(ctx, role, via)
       : kindFilterSql(ctx, roleExpr, via);
   if (kind !== undefined) {
@@ -124,7 +124,7 @@ function holdersSql(
   }
   return `select count(distinct m.${quoteIdent(table.user)}) into ${into}
       from ${membershipTable(table.table)} m
-      where ${filters.join('\n        and ')}`;
+      where ${filters.join("\n        and ")}`;
 }
 
 /**
@@ -137,14 +137,14 @@ function holdersTriggerSql(
   scope: string,
   table: RlsMembershipTable,
   column: string,
-  counted: RlsOwnership['counted'],
+  counted: RlsOwnership["counted"],
 ): string {
   const fn = qualified(ctx, `${OWNERSHIP.holders}_${scope}`);
   const col = quoteIdent(column);
   const checks = counted.map((rule) => {
     const lines = [
-      `    select count(*) into v_total from ${membershipTable(table.table)} m where m.${col}::text = v_id;`,
-      `    ${holdersSql(ctx, table, column, 'v_id', rule.role, 'v_count')};`,
+      `    select count(*) into v_total from ${membershipTable(table.table)} m where m.${col} = v_key;`,
+      `    ${holdersSql(ctx, table, column, "v_key", rule.role, "v_count")};`,
     ];
     if (rule.min > 0) {
       lines.push(`    if v_total > 0 and v_count < ${String(rule.min)} then
@@ -162,7 +162,7 @@ function holdersTriggerSql(
         hint = 'max-holders';
     end if;`);
     }
-    return lines.join('\n');
+    return lines.join("\n");
   });
   return `-- ${scope}: holder counts (min / max), checked at commit
 create or replace function ${fn}()
@@ -174,6 +174,7 @@ as $$
 declare
   v_ids text[] := '{}';
   v_id text;
+  v_key ${membershipTable(table.table)}.${col}%type;
   v_total bigint;
   v_count bigint;
 begin
@@ -185,7 +186,8 @@ begin
   end if;
   foreach v_id in array v_ids loop
     continue when v_id is null;
-${checks.join('\n')}
+    v_key := v_id;
+${checks.join("\n")}
   end loop;
   return null;
 end;
@@ -213,16 +215,16 @@ function transferTriggerSql(
   const fn = qualified(ctx, `${OWNERSHIP.transferOnly}_${scope}`);
   const col = quoteIdent(column);
   const role = quoteIdent(table.role);
-  const list = `array[${roles.map(quoteLiteral).join(', ')}]::text[]`;
+  const list = `array[${roles.map(quoteLiteral).join(", ")}]::text[]`;
   const rows = (alias: string, source: string, delta: string): string =>
-    `select ${alias}.${col}::text as id, ${alias}.${role}::text as role, ${delta} as delta from ${source} ${alias} where ${alias}.${role}::text = any(${list})`;
+    `select ${alias}.${col} as id, ${alias}.${role}::text as role, ${delta} as delta from ${source} ${alias} where ${alias}.${role}::text = any(${list})`;
   const loop = (source: string): string => `    for v_change in
       select c.id, c.role, sum(c.delta) as delta
       from (${source}) c
       group by c.id, c.role
     loop
       continue when v_change.delta = 0 or v_change.id is null;
-      ${holdersSql(ctx, table, column, 'v_change.id', { expr: 'v_change.role' }, 'v_after')};
+      ${holdersSql(ctx, table, column, "v_change.id", { expr: "v_change.role" }, "v_after")};
       if v_after > 0 and v_after - v_change.delta > 0 then
         raise exception using
           errcode = '23514',
@@ -230,24 +232,24 @@ function transferTriggerSql(
           hint = 'transfer-only';
       end if;
     end loop;`;
-  const inserted = rows('n', 'permdock_new', '1');
-  const deleted = rows('o', 'permdock_old', '-1');
+  const inserted = rows("n", "permdock_new", "1");
+  const deleted = rows("o", "permdock_old", "-1");
   const target = membershipTable(table.table);
-  const trigger = (op: 'insert' | 'update' | 'delete'): string => {
+  const trigger = (op: "insert" | "update" | "delete"): string => {
     const name = quoteIdent(`${OWNERSHIP.transferOnly}_${scope}_${op}`);
     const referencing =
-      op === 'insert'
-        ? 'new table as permdock_new'
-        : op === 'delete'
-          ? 'old table as permdock_old'
-          : 'old table as permdock_old new table as permdock_new';
+      op === "insert"
+        ? "new table as permdock_new"
+        : op === "delete"
+          ? "old table as permdock_old"
+          : "old table as permdock_old new table as permdock_new";
     return `drop trigger if exists ${name} on ${target};
 create trigger ${name}
   after ${op} on ${target}
   referencing ${referencing}
   for each statement execute function ${fn}();`;
   };
-  return `-- ${scope}: transfer-only roles (${roles.join(', ')}) keep their holder count per statement
+  return `-- ${scope}: transfer-only roles (${roles.join(", ")}) keep their holder count per statement
 create or replace function ${fn}()
 returns trigger
 language plpgsql
@@ -268,38 +270,38 @@ ${loop(`${inserted} union all ${deleted}`)}
   return null;
 end;
 $$;
-${trigger('insert')}
-${trigger('update')}
-${trigger('delete')}`;
+${trigger("insert")}
+${trigger("update")}
+${trigger("delete")}`;
 }
 
-function pairsSql(pairs: RlsOwnership['assigns']): string {
+function pairsSql(pairs: RlsOwnership["assigns"]): string {
   return `values ${pairs
     .map(
       (pair) => `(${quoteLiteral(pair.assigner)}, ${quoteLiteral(pair.role)})`,
     )
-    .join(', ')}`;
+    .join(", ")}`;
 }
 
 /** Whether the signed-in user holds, in instance `p_scope_id`, a role whose `assigns` lists `p_role`. */
 function canAssignSql(ctx: RlsSqlContext, own: RlsOwnership): string {
   const fn = qualified(ctx, OWNERSHIP.canAssign);
   const parts: string[] = [];
-  const global = own.assigns.filter((pair) => pair.scope === 'global');
+  const global = own.assigns.filter((pair) => pair.scope === "global");
   if (global.length > 0) {
-    if (ctx.authorize === 'database') {
+    if (ctx.authorize === "database") {
       const ur = globalRoleRows(ctx);
       const kind = globalKindFilterSql(ctx, ur.roleSql);
       parts.push(`exists (
       select 1 from ${ur.from}
       where ${ur.userSql} = ${subjectIdSql(ctx)}
-        and (${ur.roleSql}, p_role) in (${pairsSql(global)})${kind === undefined ? '' : `\n        and ${kind}`}
+        and (${ur.roleSql}, p_role) in (${pairsSql(global)})${kind === undefined ? "" : `\n        and ${kind}`}
     )`);
     } else {
-      const kind = globalKindFilterSql(ctx, 'r.role');
+      const kind = globalKindFilterSql(ctx, "r.role");
       parts.push(`exists (
       select 1 from ${roleRows(ctx)}
-      where (r.role, p_role) in (${pairsSql(global)})${kind === undefined ? '' : `\n        and ${kind}`}
+      where (r.role, p_role) in (${pairsSql(global)})${kind === undefined ? "" : `\n        and ${kind}`}
     )`);
     }
   }
@@ -308,7 +310,7 @@ function canAssignSql(ctx: RlsSqlContext, own: RlsOwnership): string {
     if (pairs.length === 0) {
       continue;
     }
-    if (ctx.authorize === 'database') {
+    if (ctx.authorize === "database") {
       const mapped = scopeTable(ctx, name);
       if (mapped === undefined) {
         continue;
@@ -327,7 +329,7 @@ function canAssignSql(ctx: RlsSqlContext, own: RlsOwnership): string {
         ctx,
         `${memberColumn(table.role)}::text`,
         table.via === undefined
-          ? 'null::text'
+          ? "null::text"
           : `${memberColumn(table.via)}::text`,
       );
       if (kind !== undefined) {
@@ -335,10 +337,10 @@ function canAssignSql(ctx: RlsSqlContext, own: RlsOwnership): string {
       }
       parts.push(`exists (
       select 1 from ${membershipTable(table.table)} m
-      where ${filters.join('\n        and ')}
+      where ${filters.join("\n        and ")}
     )`);
     } else {
-      const kind = kindFilterSql(ctx, 'r.role', "m ->> 'via'");
+      const kind = kindFilterSql(ctx, "r.role", "m ->> 'via'");
       parts.push(`exists (
       select 1 from ${membershipRows(ctx)}
       where m ->> 'scope' = ${quoteLiteral(name)}
@@ -347,11 +349,11 @@ function canAssignSql(ctx: RlsSqlContext, own: RlsOwnership): string {
         and case jsonb_typeof(m -> 'expiresAt')
           when 'number' then (m ->> 'expiresAt')::numeric > extract(epoch from now())
           else true
-        end${kind === undefined ? '' : `\n        and ${kind}`}
+        end${kind === undefined ? "" : `\n        and ${kind}`}
     )`);
     }
   }
-  const body = parts.length === 0 ? 'false' : parts.join('\n    or ');
+  const body = parts.length === 0 ? "false" : parts.join("\n    or ");
   return `-- who may assign: a held role whose assigns lists p_role, in instance p_scope_id (its scope or an ancestor's)
 create or replace function ${fn}(p_role text, p_scope_id text)
 returns boolean
@@ -376,7 +378,7 @@ grant execute on function ${fn}(text, text) to authenticated;`;
 export function ownershipSql(ctx: RlsSqlContext): string {
   const own = ctx.ownership;
   if (own === undefined) {
-    return '';
+    return "";
   }
   const chunks: string[] = [];
   for (const { name } of ctx.scopes) {
@@ -406,5 +408,5 @@ export function ownershipSql(ctx: RlsSqlContext): string {
   if (own.assigns.length > 0) {
     chunks.push(canAssignSql(ctx, own));
   }
-  return chunks.length === 0 ? '' : `${chunks.join('\n\n')}\n`;
+  return chunks.length === 0 ? "" : `${chunks.join("\n\n")}\n`;
 }

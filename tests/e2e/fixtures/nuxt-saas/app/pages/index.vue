@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { orgs } from '@permdock/e2e-saas-kit/nav';
+import { orgs } from "@permdock/e2e-saas-kit/nav";
 </script>
 
 <template>

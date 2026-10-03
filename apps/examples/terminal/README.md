@@ -3,7 +3,7 @@
 Minimal CLI wiring for `permdock/terminal`: env / keychain subject resolution, `filterCommands` help, `protect` on `status` / `deploy` / `rollback`, `--json` Problem Details, `--dry-run`, a destructive `rollback` that needs a typed confirmation or `--yes`, and an agent-run actor from `PERMDOCK_ACTOR_TOKEN`.
 
 ```ts
-import { createPermDock } from 'permdock/terminal'
+import { createPermDock } from "permdock/terminal";
 ```
 
 ```bash

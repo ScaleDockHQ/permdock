@@ -1,6 +1,6 @@
-import type { Membership } from 'permdock';
+import type { Membership } from "permdock";
 
-import type { Quote, RoleName } from '../permissions.ts';
+import type { Quote, RoleName } from "../permissions.ts";
 
 export type Organization = { readonly id: string; readonly name: string };
 export type Customer = {
@@ -20,61 +20,61 @@ type Store = {
 };
 
 export const organizations: readonly Organization[] = [
-  { id: 'acme', name: 'Acme Field Services' },
-  { id: 'globex', name: 'Globex Maintenance' },
+  { id: "acme", name: "Acme Field Services" },
+  { id: "globex", name: "Globex Maintenance" },
 ];
 
 export const customers: readonly Customer[] = [
-  { id: 'north', organizationId: 'acme', name: 'Northwind Offices' },
-  { id: 'south', organizationId: 'acme', name: 'Southside Clinic' },
-  { id: 'harbor', organizationId: 'globex', name: 'Harbor Storage' },
+  { id: "north", organizationId: "acme", name: "Northwind Offices" },
+  { id: "south", organizationId: "acme", name: "Southside Clinic" },
+  { id: "harbor", organizationId: "globex", name: "Harbor Storage" },
 ];
 
 export const people: readonly Person[] = [
-  { id: 'olivia', name: 'Olivia (Acme admin)' },
-  { id: 'max', name: 'Max (Acme member)' },
-  { id: 'carol', name: 'Carol (Northwind contact)' },
+  { id: "olivia", name: "Olivia (Acme admin)" },
+  { id: "max", name: "Max (Acme member)" },
+  { id: "carol", name: "Carol (Northwind contact)" },
 ];
 
 const seedQuotes = (): Quote[] => [
   {
-    id: 'q-101',
-    organization_id: 'acme',
-    customer_id: 'north',
-    title: 'HVAC service, 3rd floor',
-    status: 'sent',
+    id: "q-101",
+    organization_id: "acme",
+    customer_id: "north",
+    title: "HVAC service, 3rd floor",
+    status: "sent",
     total: 4200,
   },
   {
-    id: 'q-102',
-    organization_id: 'acme',
-    customer_id: 'north',
-    title: 'Annual fire-safety inspection',
-    status: 'approved',
+    id: "q-102",
+    organization_id: "acme",
+    customer_id: "north",
+    title: "Annual fire-safety inspection",
+    status: "approved",
     total: 1800,
   },
   {
-    id: 'q-103',
-    organization_id: 'acme',
-    customer_id: 'north',
-    title: 'Lobby lighting retrofit',
-    status: 'draft',
+    id: "q-103",
+    organization_id: "acme",
+    customer_id: "north",
+    title: "Lobby lighting retrofit",
+    status: "draft",
     total: 9600,
   },
   {
-    id: 'q-201',
-    organization_id: 'acme',
-    customer_id: 'south',
-    title: 'Clean-room filter swap',
-    status: 'sent',
+    id: "q-201",
+    organization_id: "acme",
+    customer_id: "south",
+    title: "Clean-room filter swap",
+    status: "sent",
     total: 7300,
   },
   {
-    id: 'q-301',
-    organization_id: 'globex',
-    customer_id: 'harbor',
-    title: 'Dock door repair',
-    status: 'sent',
+    id: "q-301",
+    organization_id: "globex",
+    customer_id: "harbor",
+    title: "Dock door repair",
+    status: "sent",
     total: 2500,
   },
 ];
@@ -82,16 +82,16 @@ const seedQuotes = (): Quote[] => [
 function seed(): Store {
   return {
     staff: [
-      { user: 'olivia', organization: 'acme', role: 'admin' },
-      { user: 'olivia', organization: 'globex', role: 'member' },
-      { user: 'max', organization: 'acme', role: 'member' },
+      { user: "olivia", organization: "acme", role: "admin" },
+      { user: "olivia", organization: "globex", role: "member" },
+      { user: "max", organization: "acme", role: "member" },
     ],
-    contacts: [{ user: 'carol', organization: 'acme', customer: 'north' }],
+    contacts: [{ user: "carol", organization: "acme", customer: "north" }],
     quotes: seedQuotes(),
   };
 }
 
-const KEY = Symbol.for('permdock.example-next.store');
+const KEY = Symbol.for("permdock.example-next.store");
 
 // Next bundles route handlers and pages separately; the store lives on
 // globalThis so every bundle in the process sees the same rows.
@@ -113,19 +113,19 @@ export function membershipsOf(user: string): Membership[] {
     ...staff
       .filter((row) => row.user === user)
       .map((row): Membership => ({
-        scope: 'organization',
+        scope: "organization",
         id: row.organization,
         roles: [row.role],
-        via: 'staff',
+        via: "staff",
       })),
     ...contacts
       .filter((row) => row.user === user)
       .map((row): Membership => ({
-        scope: 'customer',
+        scope: "customer",
         id: row.customer,
         within: { organization: row.organization },
-        roles: ['contact'],
-        via: 'contact',
+        roles: ["contact"],
+        via: "contact",
       })),
   ];
 }
@@ -180,7 +180,7 @@ export function removeQuote(id: string): void {
   current.quotes = current.quotes.filter((quote) => quote.id !== id);
 }
 
-export function setQuoteStatus(id: string, status: Quote['status']): void {
+export function setQuoteStatus(id: string, status: Quote["status"]): void {
   const quote = store().quotes.find((item) => item.id === id) ?? null;
   if (quote !== null) {
     quote.status = status;

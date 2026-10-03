@@ -1,6 +1,6 @@
-import type { ArgsDef, Resolvable, SubCommandsDef } from 'citty';
+import type { ArgsDef, Resolvable, SubCommandsDef } from "citty";
 
-import type { CliIo, PermDockConfig } from '../types.ts';
+import type { CliIo, PermDockConfig } from "../types.ts";
 
 /** A command definition as a parent's `subCommands` holds it, whatever its args. */
 export type Command = Extract<
@@ -30,21 +30,26 @@ export type CliContext = {
 /** Flags every command accepts. `run()` reads them from anywhere in argv. */
 export const globalArgs = {
   cwd: {
-    type: 'string',
-    description: 'Run as if started in this directory',
-    valueHint: 'dir',
+    type: "string",
+    description: "Run as if started in this directory",
+    valueHint: "dir",
   },
   config: {
-    type: 'string',
-    description: 'Config file (default permdock.config.{ts,mts,js,mjs})',
-    valueHint: 'file',
+    type: "string",
+    description: "Config file (default permdock.config.{ts,mts,js,mjs})",
+    valueHint: "file",
   },
-  json: { type: 'boolean', description: 'Machine-readable output' },
+  json: { type: "boolean", description: "Machine-readable output" },
+  yes: {
+    type: "boolean",
+    alias: "y",
+    description: "Never prompt; take the answer the flags give",
+  },
   color: {
-    type: 'boolean',
-    description: 'Styled output on a colour terminal',
+    type: "boolean",
+    description: "Styled output on a colour terminal",
     default: true,
-    negativeDescription: 'Plain output',
+    negativeDescription: "Plain output",
   },
 } as const;
 
@@ -56,7 +61,7 @@ export function listArg(rawArgs: readonly string[], name: string): string[] {
   const values: string[] = [];
   const flag = `--${name}`;
   for (const [i, token] of rawArgs.entries()) {
-    if (token === '--') {
+    if (token === "--") {
       break;
     }
     let value: string | undefined;
@@ -64,12 +69,12 @@ export function listArg(rawArgs: readonly string[], name: string): string[] {
       value = token.slice(flag.length + 1);
     } else if (token === flag) {
       const next = rawArgs[i + 1];
-      if (next !== undefined && (next === '-' || !next.startsWith('-'))) {
+      if (next !== undefined && (next === "-" || !next.startsWith("-"))) {
         value = next;
       }
     }
     if (value !== undefined) {
-      values.push(...value.split(',').map((item) => item.trim()));
+      values.push(...value.split(",").map((item) => item.trim()));
     }
   }
   return values;
@@ -81,10 +86,10 @@ export function resolveArgs(command: Command): ArgsDef | Promise<ArgsDef> {
   if (args === undefined) {
     return {};
   }
-  return typeof args === 'function' ? args() : args;
+  return typeof args === "function" ? args() : args;
 }
 
 /** A string flag, `undefined` when absent or given without a value. */
 export function stringArg(value: unknown): string | undefined {
-  return typeof value === 'string' && value !== '' ? value : undefined;
+  return typeof value === "string" && value !== "" ? value : undefined;
 }

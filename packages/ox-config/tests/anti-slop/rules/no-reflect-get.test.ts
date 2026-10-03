@@ -1,28 +1,28 @@
-import { RuleTester } from 'oxlint/plugins-dev';
+import { RuleTester } from "oxlint/plugins-dev";
 
-import { noReflectGetRule } from '../../../src/anti-slop/rules/no-reflect-get.ts';
+import { noReflectGetRule } from "../../../src/anti-slop/rules/no-reflect-get.ts";
 
 const tester = new RuleTester({
-  languageOptions: { parserOptions: { lang: 'ts' } },
+  languageOptions: { parserOptions: { lang: "ts" } },
 });
-const error = { messageId: 'reflectGet' };
+const error = { messageId: "reflectGet" };
 
-tester.run('anti-slop/no-reflect-get', noReflectGetRule, {
+tester.run("anti-slop/no-reflect-get", noReflectGetRule, {
   valid: [
-    'const value = owner.property;',
-    'const value = owner[key];',
-    'Reflect.set(owner, key, value);',
-    'const Reflect = { get() { return 1; } }; Reflect.get();',
-    'function read(Reflect: { get(): number }) { return Reflect.get(); }',
+    "const value = owner.property;",
+    "const value = owner[key];",
+    "Reflect.set(owner, key, value);",
+    "const Reflect = { get() { return 1; } }; Reflect.get();",
+    "function read(Reflect: { get(): number }) { return Reflect.get(); }",
   ],
   invalid: [
     {
-      name: 'static access',
-      code: 'const value = Reflect.get(owner, key);',
+      name: "static access",
+      code: "const value = Reflect.get(owner, key);",
       errors: [error],
     },
     {
-      name: 'computed access',
+      name: "computed access",
       code: "const value = Reflect['get'](owner, key);",
       errors: [error],
     },

@@ -1,12 +1,12 @@
-import type { TokenVerifier } from '../core/interfaces.ts';
-import type { ScimTokenOptions } from './types.ts';
+import type { TokenVerifier } from "../core/interfaces.ts";
+import type { ScimTokenOptions } from "./types.ts";
 
-import { compact } from '../core/compact.ts';
-import { sha256 } from '../core/sha256.ts';
+import { compact } from "../core/compact.ts";
+import { sha256 } from "../core/sha256.ts";
 
 export type ScimCredential =
-  | { readonly kind: 'token' }
-  | { readonly kind: 'jwt'; readonly iss?: string };
+  | { readonly kind: "token" }
+  | { readonly kind: "jwt"; readonly iss?: string };
 
 function hexToBytes(hex: string): Uint8Array | undefined {
   if (hex.length % 2 !== 0) {
@@ -35,7 +35,7 @@ function timingSafeEqual(left: Uint8Array, right: Uint8Array): boolean {
 }
 
 function bearerToken(request: Request): string | undefined {
-  const header = request.headers.get('authorization');
+  const header = request.headers.get("authorization");
   if (header === null) {
     return undefined;
   }
@@ -49,7 +49,7 @@ async function matchStaticToken(
   options: ScimTokenOptions,
 ): Promise<boolean> {
   const stored = await options.lookup(tenant);
-  const expected = hexToBytes(stored ?? '');
+  const expected = hexToBytes(stored ?? "");
   const actual = sha256(token);
   if (expected === undefined) {
     timingSafeEqual(actual, actual);
@@ -59,11 +59,11 @@ async function matchStaticToken(
 }
 
 function tenantClaim(claims: Record<string, unknown>): string | undefined {
-  if (typeof claims['tenant'] === 'string' && claims['tenant'] !== '') {
-    return claims['tenant'];
+  if (typeof claims["tenant"] === "string" && claims["tenant"] !== "") {
+    return claims["tenant"];
   }
-  if (typeof claims['tid'] === 'string' && claims['tid'] !== '') {
-    return claims['tid'];
+  if (typeof claims["tid"] === "string" && claims["tid"] !== "") {
+    return claims["tid"];
   }
   return undefined;
 }
@@ -86,7 +86,7 @@ export async function authenticateScim(input: {
   if (input.token !== undefined) {
     const matched = await matchStaticToken(input.tenant, bearer, input.token);
     if (matched) {
-      return { ok: true, credential: { kind: 'token' } };
+      return { ok: true, credential: { kind: "token" } };
     }
   }
   if (input.verifier === undefined) {
@@ -106,9 +106,9 @@ export async function authenticateScim(input: {
   return {
     ok: true,
     credential: compact<ScimCredential>({
-      kind: 'jwt',
+      kind: "jwt",
       iss:
-        typeof verified.claims.iss === 'string'
+        typeof verified.claims.iss === "string"
           ? verified.claims.iss
           : undefined,
     }),
@@ -117,9 +117,9 @@ export async function authenticateScim(input: {
 
 export function sha256Hex(value: string): string {
   const bytes = sha256(value);
-  let hex = '';
+  let hex = "";
   for (const byte of bytes) {
-    hex += byte.toString(16).padStart(2, '0');
+    hex += byte.toString(16).padStart(2, "0");
   }
   return hex;
 }

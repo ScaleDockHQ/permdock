@@ -1,9 +1,9 @@
-import { notFound } from 'next/navigation';
-import { Protected } from 'permdock/react';
-import { Suspense } from 'react';
+import { notFound } from "next/navigation";
+import { Protected } from "permdock/react";
+import { Suspense } from "react";
 
-import { organizationBySlug, visibleStaff } from '../../../../../lib/access.ts';
-import { permissions } from '../../../../../policy.ts';
+import { organizationBySlug, visibleStaff } from "../../../../../lib/access.ts";
+import { permissions } from "../../../../../policy.ts";
 
 export const instant = true;
 

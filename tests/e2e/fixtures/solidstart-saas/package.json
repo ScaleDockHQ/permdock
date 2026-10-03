@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "lint": "oxlint --disable-nested-config",
+    "lint": "oxlint --disable-nested-config --type-aware",
     "serve": "node scripts/serve.ts",
-    "typecheck": "tsc --noEmit --checkers 4"
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@permdock/e2e-saas-kit": "workspace:*",

@@ -1,9 +1,9 @@
-import type { Decision, DenialReason } from '../core/decision.ts';
-import type { Permission, PermissionTree } from '../core/permissions.ts';
-import type { Actor, Delegation } from '../core/subject.ts';
+import type { Decision, DenialReason } from "../core/decision.ts";
+import type { Permission, PermissionTree } from "../core/permissions.ts";
+import type { Actor, Delegation } from "../core/subject.ts";
 
-import { compact } from '../core/compact.ts';
-import { findPermission, listPermissions } from '../core/permissions.ts';
+import { compact } from "../core/compact.ts";
+import { findPermission, listPermissions } from "../core/permissions.ts";
 
 export type AuthzenEntity = {
   readonly type?: unknown;
@@ -20,30 +20,30 @@ export type AuthzenItem = {
 };
 
 export const UNKNOWN: Decision = {
-  outcome: 'denied',
-  denials: [{ role: null, reason: 'no-grant', detail: 'unknown-permission' }],
+  outcome: "denied",
+  denials: [{ role: null, reason: "no-grant", detail: "unknown-permission" }],
   alternatives: [],
 };
 
 export const UNAVAILABLE: Decision = {
-  outcome: 'denied',
-  denials: [{ role: null, reason: 'no-grant', detail: 'resource-unavailable' }],
+  outcome: "denied",
+  denials: [{ role: null, reason: "no-grant", detail: "resource-unavailable" }],
   alternatives: [],
 };
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function actionNameOf(item: AuthzenItem): string | undefined {
-  if (typeof item.action?.name === 'string') {
+  if (typeof item.action?.name === "string") {
     return item.action.name;
   }
   if (!isRecord(item.action?.properties)) {
     return undefined;
   }
-  const scope = item.action.properties['scope'];
-  return typeof scope === 'string' ? scope : undefined;
+  const scope = item.action.properties["scope"];
+  return typeof scope === "string" ? scope : undefined;
 }
 
 export function permissionOf(
@@ -59,7 +59,7 @@ export function permissionOf(
     return byKey;
   }
   const resource =
-    typeof item.resource?.type === 'string' ? item.resource.type : undefined;
+    typeof item.resource?.type === "string" ? item.resource.type : undefined;
   if (resource === undefined) {
     return undefined;
   }
@@ -74,11 +74,11 @@ export function permissionOf(
 
 export function resourceData(item: AuthzenItem): unknown {
   const properties = item.resource?.properties;
-  if (properties !== null && typeof properties === 'object') {
+  if (properties !== null && typeof properties === "object") {
     return properties;
   }
   const id = item.resource?.id;
-  if (typeof id === 'string' || typeof id === 'number') {
+  if (typeof id === "string" || typeof id === "number") {
     return { id: String(id) };
   }
   return undefined;
@@ -86,7 +86,7 @@ export function resourceData(item: AuthzenItem): unknown {
 
 export function resourceIdOf(item: AuthzenItem): string | undefined {
   const id = item.resource?.id;
-  if (typeof id === 'string' || typeof id === 'number') {
+  if (typeof id === "string" || typeof id === "number") {
     return String(id);
   }
   return undefined;
@@ -97,12 +97,12 @@ export function userFromEntity(entity: AuthzenEntity | undefined): unknown {
     return null;
   }
   const result: Record<string, unknown> = {};
-  if (typeof entity.id === 'string' || typeof entity.id === 'number') {
-    result['id'] = String(entity.id);
+  if (typeof entity.id === "string" || typeof entity.id === "number") {
+    result["id"] = String(entity.id);
   }
   if (isRecord(entity.properties)) {
     for (const [key, value] of Object.entries(entity.properties)) {
-      if (key === 'actor' || key === 'delegation') {
+      if (key === "actor" || key === "delegation") {
         continue;
       }
       result[key] = value;
@@ -114,30 +114,30 @@ export function userFromEntity(entity: AuthzenEntity | undefined): unknown {
 export function actorOf(item: AuthzenItem): Actor | undefined {
   const context = isRecord(item.context) ? item.context : {};
   const fromSubject = isRecord(item.subject?.properties)
-    ? item.subject.properties['actor']
+    ? item.subject.properties["actor"]
     : undefined;
-  const raw = context['actor'] ?? fromSubject;
-  if (!isRecord(raw) || typeof raw['id'] !== 'string') {
+  const raw = context["actor"] ?? fromSubject;
+  if (!isRecord(raw) || typeof raw["id"] !== "string") {
     return undefined;
   }
-  const kind = typeof raw['kind'] === 'string' ? raw['kind'] : 'oauth-client';
-  return { id: raw['id'], kind };
+  const kind = typeof raw["kind"] === "string" ? raw["kind"] : "oauth-client";
+  return { id: raw["id"], kind };
 }
 
 export function delegationOf(item: AuthzenItem): Delegation | undefined {
   const context = isRecord(item.context) ? item.context : {};
   const fromSubject = isRecord(item.subject?.properties)
-    ? item.subject.properties['delegation']
+    ? item.subject.properties["delegation"]
     : undefined;
-  const raw = context['delegation'] ?? fromSubject;
+  const raw = context["delegation"] ?? fromSubject;
   if (!isRecord(raw)) {
     return undefined;
   }
-  const scopes = raw['scopes'];
-  const authorizationDetails = raw['authorizationDetails'];
+  const scopes = raw["scopes"];
+  const authorizationDetails = raw["authorizationDetails"];
   return compact<Delegation>({
     scopes: Array.isArray(scopes)
-      ? scopes.filter((scope) => typeof scope === 'string')
+      ? scopes.filter((scope) => typeof scope === "string")
       : undefined,
     authorizationDetails: Array.isArray(authorizationDetails)
       ? authorizationDetails
@@ -146,10 +146,10 @@ export function delegationOf(item: AuthzenItem): Delegation | undefined {
 }
 
 export function tenantOf(item: AuthzenItem): string | undefined {
-  if (!isRecord(item.context) || typeof item.context['tenant'] !== 'string') {
+  if (!isRecord(item.context) || typeof item.context["tenant"] !== "string") {
     return undefined;
   }
-  return item.context['tenant'];
+  return item.context["tenant"];
 }
 
 /**
@@ -158,13 +158,13 @@ export function tenantOf(item: AuthzenItem): string | undefined {
  * `search/action` is the only place a PEP asks what else is permitted.
  */
 export type PermDockContext = {
-  readonly outcome: Decision['outcome'];
+  readonly outcome: Decision["outcome"];
   readonly denials?: readonly {
     readonly role: string | null;
     readonly reason: DenialReason;
   }[];
   readonly token?: string;
-  readonly reason?: 'unknown-permission';
+  readonly reason?: "unknown-permission";
 };
 
 /** Only the outcome, denial reasons and token leave the PDP; `alternatives` are `search/action`. */
@@ -172,23 +172,23 @@ export type EvaluationContext = { readonly permdock: PermDockContext };
 
 function permdockContext(decision: Decision): PermDockContext {
   switch (decision.outcome) {
-    case 'granted':
-      return { outcome: 'granted' };
-    case 'denied': {
+    case "granted":
+      return { outcome: "granted" };
+    case "denied": {
       const unknown = decision.denials.some(
-        (denial) => denial.detail === 'unknown-permission',
+        (denial) => denial.detail === "unknown-permission",
       );
       return compact<PermDockContext>({
-        outcome: 'denied',
+        outcome: "denied",
         denials: decision.denials.map((denial) => ({
           role: denial.role,
           reason: denial.reason,
         })),
-        reason: unknown ? 'unknown-permission' : undefined,
+        reason: unknown ? "unknown-permission" : undefined,
       });
     }
-    case 'approval-required':
-      return { outcome: 'approval-required', token: decision.token };
+    case "approval-required":
+      return { outcome: "approval-required", token: decision.token };
     default: {
       const exhaustive: never = decision;
       return exhaustive;
@@ -205,7 +205,7 @@ export function evaluationRow(decision: Decision): {
   readonly context: EvaluationContext;
 } {
   return {
-    decision: decision.outcome === 'granted',
+    decision: decision.outcome === "granted",
     context: evaluationContext(decision),
   };
 }
@@ -223,10 +223,10 @@ export function mergeItem(shared: AuthzenItem, item: unknown): AuthzenItem {
     return shared;
   }
   return compact<AuthzenItem>({
-    subject: isRecord(item['subject']) ? item['subject'] : shared.subject,
-    action: isRecord(item['action']) ? item['action'] : shared.action,
-    resource: isRecord(item['resource']) ? item['resource'] : shared.resource,
-    context: item['context'] ?? shared.context,
+    subject: isRecord(item["subject"]) ? item["subject"] : shared.subject,
+    action: isRecord(item["action"]) ? item["action"] : shared.action,
+    resource: isRecord(item["resource"]) ? item["resource"] : shared.resource,
+    context: item["context"] ?? shared.context,
   });
 }
 
@@ -234,17 +234,17 @@ export function pageOf(body: Record<string, unknown>): {
   readonly offset: number;
   readonly size: number;
 } {
-  const page = isRecord(body['page']) ? body['page'] : {};
+  const page = isRecord(body["page"]) ? body["page"] : {};
   const raw =
-    typeof page['token'] === 'string'
-      ? page['token']
-      : typeof page['next_token'] === 'string'
-        ? page['next_token']
-        : '0';
+    typeof page["token"] === "string"
+      ? page["token"]
+      : typeof page["next_token"] === "string"
+        ? page["next_token"]
+        : "0";
   const parsed = Math.trunc(Number(raw));
-  const sizeRaw = page['limit'] ?? page['size'];
+  const sizeRaw = page["limit"] ?? page["size"];
   const size =
-    typeof sizeRaw === 'number' && sizeRaw > 0 ? Math.min(sizeRaw, 200) : 50;
+    typeof sizeRaw === "number" && sizeRaw > 0 ? Math.min(sizeRaw, 200) : 50;
   return {
     offset: Number.isFinite(parsed) && parsed > 0 ? parsed : 0,
     size,
@@ -268,7 +268,7 @@ export function paged<T>(
   return {
     results: slice,
     page: {
-      next_token: next < items.length ? String(next) : '',
+      next_token: next < items.length ? String(next) : "",
       count: slice.length,
       total: items.length,
     },

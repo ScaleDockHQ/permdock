@@ -1,31 +1,31 @@
-import type { Credential, CredentialPrincipal } from '../core/credential.ts';
+import type { Credential, CredentialPrincipal } from "../core/credential.ts";
 import type {
   AuthEvent,
   CredentialVerifier,
   DecisionSink,
   SettingsSource,
   SubjectResolver,
-} from '../core/interfaces.ts';
-import type { PermissionTree } from '../core/permissions.ts';
-import type { Principal, Subject } from '../core/subject.ts';
+} from "../core/interfaces.ts";
+import type { PermissionTree } from "../core/permissions.ts";
+import type { Principal, Subject } from "../core/subject.ts";
 
-import { compact } from '../core/compact.ts';
+import { compact } from "../core/compact.ts";
 import {
   credentialPolicyViolation,
   credentialSubject,
   credentialTenant,
   parseCredential,
-} from '../core/credential.ts';
-import { bytesToBase64Url } from '../core/sha256.ts';
-import { credentialEvent } from '../core/sink.ts';
-import { anonymousSubject } from '../core/subject.ts';
-import { isThenable } from '../core/thenable.ts';
+} from "../core/credential.ts";
+import { bytesToBase64Url } from "../core/sha256.ts";
+import { credentialEvent } from "../core/sink.ts";
+import { anonymousSubject } from "../core/subject.ts";
+import { isThenable } from "../core/thenable.ts";
 
-const PREFIX = 'pdk_';
+const PREFIX = "pdk_";
 const ID = /^[\w-]{1,128}$/u;
 const TAIL = /^[A-Za-z\d]{49}$/u;
 const ALPHABET =
-  'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 const SECRET_LENGTH = 43;
 const CHECKSUM_LENGTH = 6;
 const MAX_KEY = PREFIX.length + 128 + 1 + SECRET_LENGTH + CHECKSUM_LENGTH;
@@ -51,9 +51,9 @@ function checksum(text: string): string {
       (crc >>> 8);
   }
   let value = (crc ^ 0xff_ff_ff_ff) >>> 0;
-  let out = '';
+  let out = "";
   for (let index = 0; index < CHECKSUM_LENGTH; index += 1) {
-    out = (ALPHABET[value % 62] ?? '') + out;
+    out = (ALPHABET[value % 62] ?? "") + out;
     value = Math.floor(value / 62);
   }
   return out;
@@ -61,13 +61,13 @@ function checksum(text: string): string {
 
 /** `on('auth')` causes for an API key that resolves to the anonymous subject. */
 export type ApiKeyFailureCause =
-  | 'malformed'
-  | 'unknown-credential'
-  | 'invalid-claims'
-  | 'expired'
-  | 'credential-policy'
-  | 'credential-revoked'
-  | 'owner-unavailable';
+  | "malformed"
+  | "unknown-credential"
+  | "invalid-claims"
+  | "expired"
+  | "credential-policy"
+  | "credential-revoked"
+  | "owner-unavailable";
 
 /** An opaque key split at its last `_`: `pdk_<id>_<secret><checksum>`. */
 export type ApiKeyParts = {
@@ -89,14 +89,14 @@ export type StoredCredential = {
  */
 export function parseApiKey(key: unknown): ApiKeyParts | undefined {
   if (
-    typeof key !== 'string' ||
+    typeof key !== "string" ||
     key.length > MAX_KEY ||
     !key.startsWith(PREFIX)
   ) {
     return undefined;
   }
   const body = key.slice(PREFIX.length);
-  const cut = body.lastIndexOf('_');
+  const cut = body.lastIndexOf("_");
   if (cut <= 0) {
     return undefined;
   }
@@ -119,10 +119,10 @@ export function parseApiKey(key: unknown): ApiKeyParts | undefined {
 export function generateApiKey(id: string): string {
   if (!ID.test(id)) {
     throw new TypeError(
-      'PermDock: an API key id is 1 to 128 of A-Z, a-z, 0-9, _ and -',
+      "PermDock: an API key id is 1 to 128 of A-Z, a-z, 0-9, _ and -",
     );
   }
-  let secret = '';
+  let secret = "";
   const bytes = new Uint8Array(64);
   while (secret.length < SECRET_LENGTH) {
     globalThis.crypto.getRandomValues(bytes);
@@ -140,7 +140,7 @@ export function generateApiKey(id: string): string {
 /** base64url SHA-256 of the whole key, the value to store and compare. */
 export async function hashApiKey(key: string): Promise<string> {
   const digest = await globalThis.crypto.subtle.digest(
-    'SHA-256',
+    "SHA-256",
     new TextEncoder().encode(key),
   );
   return bytesToBase64Url(new Uint8Array(digest));
@@ -174,7 +174,7 @@ export function apiKeyVerifier(options: {
     | undefined
     | Promise<StoredCredential | null | undefined>;
   /** Passed through as the verifier's `touch`, for a `lastUsedAt` column. */
-  readonly touch?: CredentialVerifier['touch'];
+  readonly touch?: CredentialVerifier["touch"];
 }): CredentialVerifier {
   return Object.freeze({
     ...(options.touch === undefined ? {} : { touch: options.touch }),
@@ -191,7 +191,7 @@ export function apiKeyVerifier(options: {
       if (
         credential === undefined ||
         credential.id !== parts.id ||
-        typeof stored.hash !== 'string' ||
+        typeof stored.hash !== "string" ||
         !sameHash(await hashApiKey(secret), stored.hash)
       ) {
         return null;
@@ -215,7 +215,7 @@ export type MemoryCredentials = CredentialVerifier & {
 
 function write(
   sink: DecisionSink,
-  event: Parameters<DecisionSink['write']>[0],
+  event: Parameters<DecisionSink["write"]>[0],
 ): void {
   try {
     const written = sink.write(event);
@@ -238,7 +238,7 @@ export function memoryCredentials(
   const used = new Map<string, number>();
   const verifier = apiKeyVerifier({ find: (id) => records.get(id) });
   const emit = (
-    operation: 'created' | 'rotated' | 'revoked',
+    operation: "created" | "rotated" | "revoked",
     credential: Credential,
   ): void => {
     if (options.sink !== undefined) {
@@ -267,13 +267,13 @@ export function memoryCredentials(
     async issue(input: Credential): Promise<string> {
       const credential = parseCredential(input);
       if (credential === undefined) {
-        throw new TypeError('PermDock: not a valid v1 credential');
+        throw new TypeError("PermDock: not a valid v1 credential");
       }
       if (records.has(credential.id)) {
         throw new Error(`PermDock: credential '${credential.id}' exists`);
       }
       const key = await store(credential);
-      emit('created', credential);
+      emit("created", credential);
       return key;
     },
     async rotate(id: string): Promise<string | undefined> {
@@ -282,7 +282,7 @@ export function memoryCredentials(
         return undefined;
       }
       const key = await store(current.credential);
-      emit('rotated', current.credential);
+      emit("rotated", current.credential);
       return key;
     },
     revoke(id: string): boolean {
@@ -292,7 +292,7 @@ export function memoryCredentials(
       }
       records.delete(id);
       used.delete(id);
-      emit('revoked', current.credential);
+      emit("revoked", current.credential);
       return true;
     },
     list(): readonly Credential[] {
@@ -351,20 +351,20 @@ async function checkStores(
       policy !== undefined &&
       credentialPolicyViolation(credential, policy) !== undefined
     ) {
-      return { ok: false, cause: 'credential-policy' };
+      return { ok: false, cause: "credential-policy" };
     }
     if (
       options.revoked !== undefined &&
       (await options.revoked(credential.id))
     ) {
-      return { ok: false, cause: 'credential-revoked' };
+      return { ok: false, cause: "credential-revoked" };
     }
-    if (credential.kind !== 'user' || options.owner === undefined) {
+    if (credential.kind !== "user" || options.owner === undefined) {
       return { ok: true };
     }
     const owner = await options.owner(credential.principal);
     if (owner === null || owner === undefined) {
-      return { ok: false, cause: 'owner-unavailable' };
+      return { ok: false, cause: "owner-unavailable" };
     }
     return { ok: true, owner };
   } catch {
@@ -412,7 +412,7 @@ function reportUse(
   write(options.sink, [
     credentialEvent(
       compact({
-        operation: 'used' as const,
+        operation: "used" as const,
         credential,
         source: options.source,
         sample,
@@ -444,19 +444,19 @@ async function resolveApiKey(
   options: ApiKeySubjectOptions,
   tenant: string | undefined,
 ): Promise<Subject<CredentialPrincipal>> {
-  if (typeof key !== 'string' || key.length === 0) {
+  if (typeof key !== "string" || key.length === 0) {
     return anonymous();
   }
   const deny = (
     cause: ApiKeyFailureCause | undefined,
-    reason: AuthEvent['reason'] = 'invalid-token',
+    reason: AuthEvent["reason"] = "invalid-token",
   ): Subject<CredentialPrincipal> => {
     try {
       options.onAuth?.(
         compact<AuthEvent>({
           reason,
           cause,
-          source: 'api-key',
+          source: "api-key",
           requestId: options.requestId,
         }),
       );
@@ -467,31 +467,31 @@ async function resolveApiKey(
   };
   const parts = parseApiKey(key);
   if (parts === undefined) {
-    return deny('malformed');
+    return deny("malformed");
   }
   let verified: unknown;
   try {
     verified = await options.verifier.verify(key);
   } catch {
-    return deny(undefined, 'source-threw');
+    return deny(undefined, "source-threw");
   }
   if (verified === null || verified === undefined) {
-    return deny('unknown-credential');
+    return deny("unknown-credential");
   }
   const credential = parseCredential(verified);
   if (credential === undefined || credential.id !== parts.id) {
-    return deny('invalid-claims');
+    return deny("invalid-claims");
   }
   if (
     credential.expiresAt !== undefined &&
     credential.expiresAt <= Date.now() / 1000
   ) {
-    return deny('expired');
+    return deny("expired");
   }
   const checked = await checkStores(options, credential, tenant);
   if (!checked.ok) {
     return checked.cause === undefined
-      ? deny(undefined, 'source-threw')
+      ? deny(undefined, "source-threw")
       : deny(checked.cause);
   }
   const subject = credentialSubject(
@@ -499,7 +499,7 @@ async function resolveApiKey(
     compact({ permissions: options.permissions, owner: checked.owner }),
   );
   if (subject.principal === null) {
-    return deny('owner-unavailable');
+    return deny("owner-unavailable");
   }
   reportUse(options, credential);
   touch(options.verifier, credential.id);

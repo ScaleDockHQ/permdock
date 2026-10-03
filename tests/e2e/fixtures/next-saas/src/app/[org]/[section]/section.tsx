@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import { useParams } from 'next/navigation';
-import { Protected } from 'permdock/react';
+import { useParams } from "next/navigation";
+import { Protected } from "permdock/react";
 
-import { navItemFor } from '../../../nav.ts';
-import { ForbiddenState } from '../forbidden-state.tsx';
+import { navItemFor } from "../../../nav.ts";
+import { ForbiddenState } from "../forbidden-state.tsx";
 
 export function Section() {
   const { section } = useParams<{ section: string }>();

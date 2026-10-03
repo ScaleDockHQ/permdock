@@ -1,4 +1,4 @@
-export { ConvexError, createPermDock } from './create.ts';
+export { ConvexError, createPermDock } from "./create.ts";
 export type {
   ConvexCtxLike,
   ConvexErrorData,
@@ -8,4 +8,4 @@ export type {
   ConvexPermDockOptions,
   ConvexQueryBuilder,
   ConvexSubject,
-} from './types.ts';
+} from "./types.ts";

@@ -1,15 +1,15 @@
-import { type ReactElement, useMemo } from 'react';
+import { type ReactElement, useMemo } from "react";
 
-import type { Permission } from '../core/permissions.ts';
-import type { PermDockProviderProps } from './types.ts';
+import type { Permission } from "../core/permissions.ts";
+import type { PermDockProviderProps } from "./types.ts";
 
-import { compact } from '../core/compact.ts';
-import { emptySnapshot } from '../core/from-snapshot.ts';
+import { compact } from "../core/compact.ts";
+import { emptySnapshot } from "../core/from-snapshot.ts";
 import {
   PermDockSnapshotPromiseContext,
   PermDockStoreContext,
-} from './context.ts';
-import { createClientStore } from './store.ts';
+} from "./context.ts";
+import { createClientStore } from "./store.ts";
 
 /** One hint per provider: the first check `endpoint: false` turns into a `server-only` denial. */
 function hintOnce(): (permission: Permission) => void {

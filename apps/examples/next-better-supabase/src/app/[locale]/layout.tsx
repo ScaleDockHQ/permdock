@@ -1,13 +1,13 @@
-import type { ReactNode } from 'react';
+import type { ReactNode } from "react";
 
 export const metadata = {
-  title: 'PermDock with better-supabase',
+  title: "PermDock with better-supabase",
   description:
-    'Snapshot-only permission UI over Supabase claims, with RLS deciding the rows.',
+    "Snapshot-only permission UI over Supabase claims, with RLS deciding the rows.",
 };
 
 export function generateStaticParams(): { locale: string }[] {
-  return [{ locale: 'en' }];
+  return [{ locale: "en" }];
 }
 
 export default async function RootLayout(props: {

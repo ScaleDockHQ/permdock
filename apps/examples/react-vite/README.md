@@ -9,5 +9,5 @@ pnpm --filter @permdock/example-react-vite dev
 Opens `http://127.0.0.1:3480/`. `Protected` shows `edit` for a member updating their own post and `locked` for publish.
 
 ```ts
-import { PermDockProvider, Protected } from 'permdock/react'
+import { PermDockProvider, Protected } from "permdock/react";
 ```

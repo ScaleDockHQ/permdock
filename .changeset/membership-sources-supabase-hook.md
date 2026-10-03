@@ -1,5 +1,5 @@
 ---
-'permdock': minor
+"permdock": minor
 ---
 
 Composed membership sources and `permdock supabase hook generate`. `memberships` on every `createPermDock` accepts an array of sources, merged and de-duplicated by `composeMemberships`, and `MembershipSource` gains optional `list({ scope, id })` (a scope's members), `version(principal)` and `claimsFirst`. `claimsFirst(sources, { version })` keeps the verified token's memberships and reads the sources only when the token was truncated. Permissions listed in `definePolicy({ fresh })` deny with the new reason `stale-credentials` when token memberships are behind the source version; a stale subject's snapshot drops those allows.

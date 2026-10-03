@@ -29,7 +29,7 @@
   "js/ts.experimental.useTsgo": true,
   "js/ts.tsdk.path": "./node_modules/typescript",
   "js/ts.preferences.importModuleSpecifier": "non-relative",
-  "tailwindCSS.classFunctions": ["cn", "cva"],
+  "tailwindCSS.classFunctions": ["cn", "cva", "tv"],
   "tailwindCSS.experimental.configFile": {
     "apps/docs/app/global.css": "apps/docs/**",
     "apps/marketing/app/globals.css": ["apps/marketing/**", "packages/ui/**"]

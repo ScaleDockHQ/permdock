@@ -1,8 +1,8 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute } from "@tanstack/react-router";
 
-import { loginUsers } from '@permdock/e2e-saas-kit/nav';
+import { loginUsers } from "@permdock/e2e-saas-kit/nav";
 
-export const Route = createFileRoute('/login')({
+export const Route = createFileRoute("/login")({
   component: () => (
     <main>
       <h1>Sign in</h1>

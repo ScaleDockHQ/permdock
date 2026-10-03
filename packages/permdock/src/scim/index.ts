@@ -1,11 +1,11 @@
-export { authenticateScim, sha256Hex } from './auth.ts';
-export { resourceTypes, schemas, serviceProviderConfig } from './discovery.ts';
-export { filterSupported, matchFilter, parseScimFilter } from './filter.ts';
-export { scimHandler } from './handler.ts';
-export { tenantFromPath } from './route.ts';
-export { normalizePatchOps } from './patch.ts';
-export { directoryMembershipSource } from './source.ts';
-export { memoryDirectoryStore } from './store.ts';
+export { authenticateScim, sha256Hex } from "./auth.ts";
+export { resourceTypes, schemas, serviceProviderConfig } from "./discovery.ts";
+export { filterSupported, matchFilter, parseScimFilter } from "./filter.ts";
+export { scimHandler } from "./handler.ts";
+export { tenantFromPath } from "./route.ts";
+export { normalizePatchOps } from "./patch.ts";
+export { directoryMembershipSource } from "./source.ts";
+export { memoryDirectoryStore } from "./store.ts";
 export {
   DirectoryNotFoundError,
   DirectoryUniquenessError,
@@ -16,7 +16,7 @@ export {
   ROLES_EXTENSION,
   SCIM_CONTENT_TYPE,
   USER_SCHEMA,
-} from './types.ts';
+} from "./types.ts";
 export type {
   DirectoryChange,
   DirectoryGroup,
@@ -29,4 +29,4 @@ export type {
   ScimPageResult,
   ScimPatchOp,
   ScimTokenOptions,
-} from './types.ts';
+} from "./types.ts";

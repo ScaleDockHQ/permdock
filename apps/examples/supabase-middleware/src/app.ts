@@ -1,20 +1,20 @@
-import { pipeline } from '@supabase/middleware';
-import { withClaims } from '@supabase/server/middleware/claims';
-import { subjectFromSupabase } from 'permdock/supabase';
-import { createPermDock } from 'permdock/supabase/middleware';
+import { pipeline } from "@supabase/middleware";
+import { withClaims } from "@supabase/server/middleware/claims";
+import { subjectFromSupabase } from "permdock/supabase";
+import { createPermDock } from "permdock/supabase/middleware";
 
-import { isDevUser, jwks, mintToken } from './keys.ts';
-import { ownPost, permissions } from './permissions.ts';
-import { policy } from './policy.ts';
+import { isDevUser, jwks, mintToken } from "./keys.ts";
+import { ownPost, permissions } from "./permissions.ts";
+import { policy } from "./policy.ts";
 
 const posts = new Map([
   [ownPost.id, ownPost],
-  ['p2', { id: 'p2', authorId: 'u9', orgId: 'o1', published: true }],
+  ["p2", { id: "p2", authorId: "u9", orgId: "o1", published: true }],
 ]);
 
 // Stands in for the database read a real app would await here.
 async function postFrom(request: Request): Promise<typeof ownPost | null> {
-  const [, , id = ''] = new URL(request.url).pathname.split('/');
+  const [, , id = ""] = new URL(request.url).pathname.split("/");
   await Promise.resolve();
   return posts.get(id) ?? null;
 }
@@ -24,10 +24,10 @@ async function postFrom(request: Request): Promise<typeof ownPost | null> {
 const { withPermDock, permdockHandler } = createPermDock(policy, {
   subject: (ctx) =>
     subjectFromSupabase(ctx.jwtClaims, {
-      roles: 'user_role',
-      tenant: 'tenant_id',
-      memberships: 'memberships',
-      declared: ['member', 'admin'],
+      roles: "user_role",
+      tenant: "tenant_id",
+      memberships: "memberships",
+      declared: ["member", "admin"],
     }),
 });
 
@@ -71,7 +71,7 @@ const publishPost = pipeline(
 const evaluations = pipeline([withClaims({ jwks })], permdockHandler());
 
 async function devToken(request: Request): Promise<Response> {
-  const user = new URL(request.url).pathname.slice('/dev/token/'.length);
+  const user = new URL(request.url).pathname.slice("/dev/token/".length);
   if (!isDevUser(user)) {
     return Response.json({ ok: false }, { status: 404 });
   }
@@ -82,19 +82,19 @@ type Route = (request: Request) => Promise<Response>;
 
 function routeFor(request: Request): Route | null {
   const { pathname } = new URL(request.url);
-  if (request.method === 'GET' && pathname.startsWith('/dev/token/')) {
+  if (request.method === "GET" && pathname.startsWith("/dev/token/")) {
     return devToken;
   }
-  if (request.method === 'POST' && pathname === '/api/permdock') {
+  if (request.method === "POST" && pathname === "/api/permdock") {
     return evaluations;
   }
   if (
-    request.method === 'POST' &&
+    request.method === "POST" &&
     /^\/posts\/[^/]+\/publish$/u.test(pathname)
   ) {
     return publishPost;
   }
-  if (request.method === 'PATCH' && /^\/posts\/[^/]+$/u.test(pathname)) {
+  if (request.method === "PATCH" && /^\/posts\/[^/]+$/u.test(pathname)) {
     return patchPost;
   }
   return null;
@@ -102,7 +102,7 @@ function routeFor(request: Request): Route | null {
 
 export const app = {
   async fetch(request: Request): Promise<Response> {
-    if (new URL(request.url).pathname === '/health') {
+    if (new URL(request.url).pathname === "/health") {
       return Response.json({ ok: true });
     }
     const route = routeFor(request);

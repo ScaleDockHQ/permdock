@@ -1,4 +1,4 @@
-export { createPermDock } from './create.ts';
+export { createPermDock } from "./create.ts";
 export type {
   CanUseToolOptions,
   ClaudeAgentContext,
@@ -8,4 +8,4 @@ export type {
   PermissionRequestHookInput,
   PermissionRequestHookOutput,
   PermissionResult,
-} from './create.ts';
+} from "./create.ts";

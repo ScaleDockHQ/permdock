@@ -41,39 +41,27 @@ jobs:
             next: true
             run: pnpm run lint:root && pnpm exec turbo run lint $AFFECTED
           - name: knip
-            run: pnpm run knip
+            run: pnpm exec turbo run knip
           # Includes the public types under TypeScript 5.9, 6 and 7 (tests/types).
           - name: typecheck
             next: true
-            run: pnpm exec turbo run typecheck $AFFECTED && pnpm run typecheck:tooling
+            run: pnpm exec turbo run typecheck typecheck:tooling typecheck:perf $AFFECTED
           - name: test
             next: true
             run: pnpm run authzen:vectors && pnpm exec turbo run test $AFFECTED
           - name: boundaries
             run: pnpm run boundaries
           - name: audit
-            run: pnpm run audit:high
+            run: pnpm exec turbo run audit:high
           - name: drift
-            run: |
-              pnpm exec turbo run build --filter=permdock
-              pnpm exec permdock collect --check --cwd tests/integration/fixtures/posts
-              pnpm exec permdock collect --check --cwd apps/examples/monorepo
-              pnpm exec permdock collect --check --cwd tests/e2e/fixtures/turborepo
-              pnpm run docs:drift
-              pnpm run openapi:generate
-              git diff --exit-code -- packages/permdock/schemas/openapi
+            next: true
+            run: pnpm exec turbo run docs:drift openapi:check gen:check $AFFECTED
           - name: doctor
-            run: |
-              pnpm exec turbo run build --filter=permdock
-              for example in apps/examples/*/; do
-                echo "::group::$example"
-                pnpm exec permdock doctor --cwd "$example"
-                echo "::endgroup::"
-              done
+            run: pnpm exec turbo run doctor $AFFECTED
           - name: size
-            run: pnpm exec turbo run test --filter=@permdock/bundle
+            run: pnpm exec turbo run size $AFFECTED
           - name: publish
-            run: pnpm exec turbo run check:publish
+            run: pnpm exec turbo run check:publish $AFFECTED
     steps:
       - uses: actions/checkout@v7
         with:
@@ -81,9 +69,21 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - uses: $/.github/actions/setup
+      - uses: ./.github/actions/setup
         with:
           turbo-team: ${{ vars.TURBO_TEAM }}
+
+      # Turbopack's build cache; Turborepo restores the outputs, not `.next/cache`.
+      - uses: actions/cache@v6
+        if: matrix.next
+        with:
+          path: |
+            apps/*/.next/cache
+            apps/examples/*/.next/cache
+            tests/e2e/fixtures/*/.next/cache
+            tests/e2e/fixtures/turborepo/apps/*/.next/cache
+          key: next-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('apps/**/*.ts', 'apps/**/*.tsx', 'apps/**/*.mdx', 'apps/**/*.css', 'tests/e2e/fixtures/**/*.tsx', '!**/node_modules/**') }}
+          restore-keys: next-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
 
       - name: Build Next.js apps
         if: matrix.next

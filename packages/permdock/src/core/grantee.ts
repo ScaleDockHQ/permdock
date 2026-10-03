@@ -3,20 +3,20 @@ import type {
   ConditionValue,
   RelatedCondition,
   RelatedHop,
-} from '../conditions/ast.ts';
-import type { DenialReason } from './decision.ts';
+} from "../conditions/ast.ts";
+import type { DenialReason } from "./decision.ts";
 import type {
   Permission,
   PermissionTree,
   PrincipalRelation,
   ResourceLink,
   ResourceNode,
-} from './permissions.ts';
-import type { Subject } from './subject.ts';
-import type { Plan, Role } from './vocabulary.ts';
+} from "./permissions.ts";
+import type { Subject } from "./subject.ts";
+import type { Plan, Role } from "./vocabulary.ts";
 
-import { compact, sole } from './compact.ts';
-import { freezeDeep } from './freeze.ts';
+import { compact, sole } from "./compact.ts";
+import { freezeDeep } from "./freeze.ts";
 import {
   expandRelation,
   isComputedRelation,
@@ -25,27 +25,27 @@ import {
   isPrincipalRelation,
   isSelfParented,
   listPermissions,
-} from './permissions.ts';
+} from "./permissions.ts";
 import {
   type Scope,
   activeFor,
   resolveScope,
   rootScope,
   scopeList,
-} from './scopes.ts';
-import { isPlan, isRole } from './vocabulary.ts';
+} from "./scopes.ts";
+import { isPlan, isRole } from "./vocabulary.ts";
 
 export type RoleGrantee = {
-  readonly kind: 'role';
+  readonly kind: "role";
   readonly role: string;
   /** `'global'`, a scope name, or one resource. */
   readonly scope: string | { readonly resource: string };
 };
 
-export type AnyoneGrantee = { readonly kind: 'anyone' };
-export type AuthenticatedGrantee = { readonly kind: 'authenticated' };
+export type AnyoneGrantee = { readonly kind: "anyone" };
+export type AuthenticatedGrantee = { readonly kind: "authenticated" };
 export type RelationGrantee = {
-  readonly kind: 'relation';
+  readonly kind: "relation";
   readonly resource: string;
   readonly relation: string;
   /**
@@ -53,17 +53,17 @@ export type RelationGrantee = {
    * own parents. A list of link names: follow those to-one links from the row
    * to `resource`, then walk its parents only when `depth` is set.
    */
-  readonly through?: 'parent' | readonly string[];
+  readonly through?: "parent" | readonly string[];
   /** Parent hops walked above the first `resource` instance; absent means `DEFAULT_RELATION_DEPTH` for `'parent'` and `0` for links. */
   readonly depth?: number;
 };
 
 const DEFAULT_RELATION_DEPTH = 16;
 export const MAX_RELATION_DEPTH = 32;
-export type PlanGrantee = { readonly kind: 'plan'; readonly plan: string };
-export type ActorGrantee = { readonly kind: 'actor'; readonly actor: string };
+export type PlanGrantee = { readonly kind: "plan"; readonly plan: string };
+export type ActorGrantee = { readonly kind: "actor"; readonly actor: string };
 export type AssuranceGrantee = {
-  readonly kind: 'assurance';
+  readonly kind: "assurance";
   readonly acr?: readonly string[];
   readonly amr?: readonly string[];
   readonly maxAge?: number;
@@ -96,47 +96,47 @@ export type GranteeMatch = {
 function isGrantee(value: unknown): value is Grantee {
   return (
     value !== null &&
-    typeof value === 'object' &&
-    'kind' in value &&
-    typeof value.kind === 'string'
+    typeof value === "object" &&
+    "kind" in value &&
+    typeof value.kind === "string"
   );
 }
 
 export function anyone(): AnyoneGrantee {
-  return freezeDeep({ kind: 'anyone' as const });
+  return freezeDeep({ kind: "anyone" as const });
 }
 
 export function authenticated(): AuthenticatedGrantee {
-  return freezeDeep({ kind: 'authenticated' as const });
+  return freezeDeep({ kind: "authenticated" as const });
 }
 
 export function relation(
   resource: Permission | PermissionTree,
   name: string,
   options?: {
-    readonly through?: 'parent' | readonly string[];
+    readonly through?: "parent" | readonly string[];
     readonly depth?: number;
   },
 ): RelationGrantee {
   const leaves = listPermissions(resource);
   const resourceName = leaves[0]?.resource;
   if (resourceName === undefined) {
-    throw new Error('PermDock: relation() requires a resource tree');
+    throw new Error("PermDock: relation() requires a resource tree");
   }
   const through = options?.through;
   if (Array.isArray(through)) {
     if (through.length === 0) {
-      throw new Error('PermDock: relation() through needs at least one link');
+      throw new Error("PermDock: relation() through needs at least one link");
     }
     // SAFETY: a widening to unknown, so each link from untyped callers is checked below.
     for (const link of through as readonly unknown[]) {
-      if (typeof link !== 'string' || link === '' || link === 'parent') {
+      if (typeof link !== "string" || link === "" || link === "parent") {
         throw new Error(
           "PermDock: relation() through lists link names; walk parents with through: 'parent' or depth",
         );
       }
     }
-  } else if (through !== undefined && through !== 'parent') {
+  } else if (through !== undefined && through !== "parent") {
     throw new Error(
       `PermDock: relation() through must be 'parent' or a list of link names (got '${String(through)}')`,
     );
@@ -162,11 +162,11 @@ export function relation(
   // SAFETY: every link was checked to be a non-empty string other than 'parent' above.
   return freezeDeep(
     compact<RelationGrantee>({
-      kind: 'relation' as const,
+      kind: "relation" as const,
       resource: resourceName,
       relation: name,
       through:
-        through === undefined || through === 'parent'
+        through === undefined || through === "parent"
           ? through
           : [...(through as readonly string[])],
       depth,
@@ -176,13 +176,13 @@ export function relation(
 
 export function plan(name: Plan | string): PlanGrantee {
   return freezeDeep({
-    kind: 'plan' as const,
-    plan: typeof name === 'string' ? name : name.key,
+    kind: "plan" as const,
+    plan: typeof name === "string" ? name : name.key,
   });
 }
 
 export function actor(kind: string): ActorGrantee {
-  return freezeDeep({ kind: 'actor' as const, actor: kind });
+  return freezeDeep({ kind: "actor" as const, actor: kind });
 }
 
 export function assurance(options: {
@@ -193,18 +193,18 @@ export function assurance(options: {
   const acr =
     options.acr === undefined
       ? undefined
-      : typeof options.acr === 'string'
+      : typeof options.acr === "string"
         ? [options.acr]
         : options.acr;
   const amr =
     options.amr === undefined
       ? undefined
-      : typeof options.amr === 'string'
+      : typeof options.amr === "string"
         ? [options.amr]
         : options.amr;
   return freezeDeep(
     compact<AssuranceGrantee>({
-      kind: 'assurance' as const,
+      kind: "assurance" as const,
       acr,
       amr,
       maxAge: options.maxAge,
@@ -212,8 +212,8 @@ export function assurance(options: {
   );
 }
 
-function resolveRoleScope(on: Role['on'] | undefined): RoleGrantee['scope'] {
-  return typeof on === 'string' ? on : 'global';
+function resolveRoleScope(on: Role["on"] | undefined): RoleGrantee["scope"] {
+  return typeof on === "string" ? on : "global";
 }
 
 export function asGrantee(input: GranteeInput): Grantee | readonly Grantee[] {
@@ -225,27 +225,27 @@ export function asGrantee(input: GranteeInput): Grantee | readonly Grantee[] {
     }
     return items;
   }
-  if (typeof input === 'string') {
+  if (typeof input === "string") {
     return freezeDeep({
-      kind: 'role' as const,
+      kind: "role" as const,
       role: input,
-      scope: 'global' as const,
+      scope: "global" as const,
     });
   }
   if (isRole(input)) {
     return freezeDeep({
-      kind: 'role' as const,
+      kind: "role" as const,
       role: input.key,
       scope: resolveRoleScope(input.on),
     });
   }
   if (isPlan(input)) {
-    return freezeDeep({ kind: 'plan' as const, plan: input.key });
+    return freezeDeep({ kind: "plan" as const, plan: input.key });
   }
   if (isGrantee(input)) {
     return input;
   }
-  throw new Error('PermDock: invalid grantee');
+  throw new Error("PermDock: invalid grantee");
 }
 
 export function flattenGrantee(
@@ -266,7 +266,7 @@ export function roleNameOf(
   to: Grantee | readonly Grantee[] | undefined,
 ): string | null {
   for (const item of flattenGrantee(to)) {
-    if (item.kind === 'role') {
+    if (item.kind === "role") {
       return item.role;
     }
   }
@@ -275,10 +275,10 @@ export function roleNameOf(
 
 export function roleScopeOf(
   to: Grantee | readonly Grantee[] | undefined,
-  fallback: RoleGrantee['scope'] = 'global',
-): RoleGrantee['scope'] {
+  fallback: RoleGrantee["scope"] = "global",
+): RoleGrantee["scope"] {
   for (const item of flattenGrantee(to)) {
-    if (item.kind === 'role') {
+    if (item.kind === "role") {
       return item.scope;
     }
   }
@@ -288,7 +288,7 @@ export function roleScopeOf(
 export function hasAnyone(
   to: Grantee | readonly Grantee[] | undefined,
 ): boolean {
-  return flattenGrantee(to).some((item) => item.kind === 'anyone');
+  return flattenGrantee(to).some((item) => item.kind === "anyone");
 }
 
 /**
@@ -328,7 +328,7 @@ export function relationStart(
   ) {
     return undefined;
   }
-  const walks = grantee.through === 'parent' && isSelfParented(target);
+  const walks = grantee.through === "parent" && isSelfParented(target);
   const requested = grantee.depth ?? DEFAULT_RELATION_DEPTH;
   const depth = walks
     ? Number.isInteger(requested)
@@ -339,7 +339,7 @@ export function relationStart(
     return { field: resource.id, parent: false, depth };
   }
   if (
-    grantee.through === 'parent' &&
+    grantee.through === "parent" &&
     resource.parent?.resource === target.name
   ) {
     return { field: resource.parent.field, parent: true, depth };
@@ -375,9 +375,9 @@ export function resourceRoleCondition(
     return undefined;
   }
   return compact<RelatedCondition>({
-    op: 'related',
+    op: "related",
     resource: membershipResource,
-    relation: '',
+    relation: "",
     ids: [...new Set(ids)].toSorted(),
     field: start.field,
     depth: DEFAULT_RELATION_DEPTH,
@@ -460,20 +460,20 @@ function periodConditions(
   const startsAt = spec.period?.startsAt;
   if (startsAt !== undefined) {
     out.push({
-      op: 'or',
+      op: "or",
       conditions: [
-        { op: 'isNull', field: startsAt, value: true },
-        { op: 'lte', field: startsAt, value: now },
+        { op: "isNull", field: startsAt, value: true },
+        { op: "lte", field: startsAt, value: now },
       ],
     });
   }
   const expiresAt = spec.period?.expiresAt;
   if (expiresAt !== undefined) {
     out.push({
-      op: 'or',
+      op: "or",
       conditions: [
-        { op: 'isNull', field: expiresAt, value: true },
-        { op: 'gt', field: expiresAt, value: now },
+        { op: "isNull", field: expiresAt, value: true },
+        { op: "gt", field: expiresAt, value: now },
       ],
     });
   }
@@ -504,7 +504,7 @@ export function relationCondition(
         return undefined;
       }
       return compact<RelatedCondition>({
-        op: 'related',
+        op: "related",
         resource: target.name,
         relation: grantee.relation,
         field: path.field,
@@ -518,7 +518,7 @@ export function relationCondition(
       return undefined;
     }
     return compact<RelatedCondition>({
-      op: 'related',
+      op: "related",
       resource: target.name,
       relation: grantee.relation,
       field: start.field,
@@ -542,16 +542,16 @@ export function relationCondition(
       );
       return part === undefined ? [] : [part];
     });
-    return sole(parts) ?? { op: 'or', conditions: parts };
+    return sole(parts) ?? { op: "or", conditions: parts };
   }
   if (isComputedRelation(spec)) {
     return undefined;
   }
   if (isPrincipalRelation(spec)) {
     const owner: Condition = {
-      op: 'eq',
+      op: "eq",
       field: spec.principal,
-      value: { ref: 'principal.id' },
+      value: { ref: "principal.id" },
     };
     const period = periodConditions(
       spec,
@@ -559,26 +559,26 @@ export function relationCondition(
     );
     return period.length === 0
       ? owner
-      : { op: 'and', conditions: [owner, ...period] };
+      : { op: "and", conditions: [owner, ...period] };
   }
   if (spec.memberOf !== undefined) {
     const scope = resolveScope(scopes, spec.memberOf);
     if (scope === undefined) {
-      return { op: 'or', conditions: [] };
+      return { op: "or", conditions: [] };
     }
     if (scope === rootScope(scopes)) {
       return {
-        op: 'eq',
+        op: "eq",
         field: spec.field,
-        value: { ref: 'principal.tenant' },
+        value: { ref: "principal.tenant" },
       };
     }
-    return { op: 'memberOf', scope, field: spec.field, roles: [] };
+    return { op: "memberOf", scope, field: spec.field, roles: [] };
   }
   return {
-    op: 'eq',
+    op: "eq",
     field: spec.field,
-    value: { ref: 'principal.id' },
+    value: { ref: "principal.id" },
   };
 }
 
@@ -598,7 +598,7 @@ export function combineWhere(
   if (right === undefined) {
     return left;
   }
-  return { op: 'and', conditions: [left, right] };
+  return { op: "and", conditions: [left, right] };
 }
 
 /** Seats (`Membership.entitlements`) held through memberships that apply under the active tenant. */
@@ -628,33 +628,33 @@ function matchOne(
   resources: ReadonlyMap<string, ResourceNode> | undefined,
 ): GranteeMatch {
   switch (grantee.kind) {
-    case 'anyone':
+    case "anyone":
       return { matched: true };
-    case 'authenticated':
+    case "authenticated":
       return subject.principal === null
-        ? { matched: false, reason: 'anonymous' }
+        ? { matched: false, reason: "anonymous" }
         : { matched: true };
-    case 'plan': {
+    case "plan": {
       if (subject.principal === null) {
-        return { matched: false, reason: 'anonymous' };
+        return { matched: false, reason: "anonymous" };
       }
       const plans = subject.principal.plans ?? [];
       return plans.includes(grantee.plan) ||
         seatsInTenant(subject, scopes).includes(grantee.plan)
         ? { matched: true }
-        : { matched: false, reason: 'not-entitled' };
+        : { matched: false, reason: "not-entitled" };
     }
-    case 'actor': {
+    case "actor": {
       if (subject.actor === undefined) {
-        return { matched: false, reason: 'no-grant' };
+        return { matched: false, reason: "no-grant" };
       }
       return subject.actor.kind === grantee.actor
         ? { matched: true }
-        : { matched: false, reason: 'no-grant' };
+        : { matched: false, reason: "no-grant" };
     }
-    case 'assurance': {
+    case "assurance": {
       if (subject.principal === null) {
-        return { matched: false, reason: 'anonymous' };
+        return { matched: false, reason: "anonymous" };
       }
       const principalAssurance = subject.principal.assurance;
       if (grantee.acr !== undefined && grantee.acr.length > 0) {
@@ -662,7 +662,7 @@ function matchOne(
         if (acr === undefined || !grantee.acr.includes(acr)) {
           return {
             matched: false,
-            reason: 'insufficient-user-authentication',
+            reason: "insufficient-user-authentication",
           };
         }
       }
@@ -671,7 +671,7 @@ function matchOne(
         if (!grantee.amr.every((method) => amr.includes(method))) {
           return {
             matched: false,
-            reason: 'insufficient-user-authentication',
+            reason: "insufficient-user-authentication",
           };
         }
       }
@@ -680,28 +680,28 @@ function matchOne(
         if (authTime === undefined || now - authTime > grantee.maxAge) {
           return {
             matched: false,
-            reason: 'insufficient-user-authentication',
+            reason: "insufficient-user-authentication",
           };
         }
       }
       return { matched: true };
     }
-    case 'relation': {
+    case "relation": {
       if (subject.principal === null) {
-        return { matched: false, reason: 'anonymous' };
+        return { matched: false, reason: "anonymous" };
       }
       const where = relationCondition(grantee, resource, scopes, {
         resources,
         now: { date: new Date(now * 1000).toISOString() },
       });
       if (where === undefined && resource !== undefined) {
-        return { matched: false, reason: 'condition' };
+        return { matched: false, reason: "condition" };
       }
       return compact<GranteeMatch>({ matched: true, where });
     }
-    case 'role': {
+    case "role": {
       if (subject.principal === null) {
-        return { matched: false, reason: 'anonymous' };
+        return { matched: false, reason: "anonymous" };
       }
       return { matched: true };
     }
@@ -714,7 +714,7 @@ function matchOne(
 
 /** A kind this build does not know, from a forged snapshot or a newer document, never matches. */
 function unknownGrantee(_grantee: never): GranteeMatch {
-  return { matched: false, reason: 'no-grant', unknown: true };
+  return { matched: false, reason: "no-grant", unknown: true };
 }
 
 export function matchGrantee(
@@ -728,7 +728,7 @@ export function matchGrantee(
 ): GranteeMatch {
   const items = flattenGrantee(to);
   if (items.length === 0) {
-    return { matched: false, reason: 'no-grant' };
+    return { matched: false, reason: "no-grant" };
   }
   let where: Condition | undefined;
   for (const item of items) {

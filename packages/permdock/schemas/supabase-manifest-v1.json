@@ -68,48 +68,29 @@
       }
     },
     "authzVersion": { "type": "boolean" },
+    "authzVersionBump": {
+      "type": "object",
+      "required": ["schema", "function", "args"],
+      "properties": {
+        "schema": { "$ref": "#/$defs/identifier" },
+        "function": { "const": "permdock_bump_authz_version_for" },
+        "args": { "const": "p_users uuid[]" }
+      }
+    },
     "memberships": {
       "type": "array",
-      "items": {
-        "type": "object",
-        "required": ["table", "user", "scope", "id", "role", "columns"],
-        "properties": {
-          "table": {
-            "type": "string",
-            "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$"
-          },
-          "user": { "$ref": "#/$defs/column" },
-          "scope": { "$ref": "#/$defs/value" },
-          "id": { "$ref": "#/$defs/column" },
-          "role": { "$ref": "#/$defs/value" },
-          "within": {
-            "oneOf": [
-              { "$ref": "#/$defs/column" },
-              {
-                "type": "object",
-                "required": ["columns"],
-                "additionalProperties": false,
-                "properties": {
-                  "columns": {
-                    "type": "object",
-                    "additionalProperties": { "$ref": "#/$defs/identifier" }
-                  }
-                }
-              }
-            ]
-          },
-          "via": { "$ref": "#/$defs/value" },
-          "expiresAt": { "$ref": "#/$defs/column" },
-          "columns": {
-            "type": "array",
-            "items": { "$ref": "#/$defs/identifier" }
-          }
-        }
-      }
+      "items": { "$ref": "#/$defs/membership" }
     },
     "rls": {
       "type": "object",
-      "required": ["schema", "mode", "tenantClaim", "scopes", "helpers"],
+      "required": [
+        "schema",
+        "mode",
+        "tenantClaim",
+        "scopes",
+        "helpers",
+        "memberships"
+      ],
       "properties": {
         "schema": { "$ref": "#/$defs/identifier" },
         "mode": { "enum": ["jwt", "database"] },
@@ -143,6 +124,10 @@
               }
             }
           }
+        },
+        "memberships": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/membership" }
         }
       }
     },
@@ -163,6 +148,42 @@
     }
   },
   "$defs": {
+    "membership": {
+      "type": "object",
+      "required": ["table", "user", "scope", "id", "role", "columns"],
+      "properties": {
+        "table": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$"
+        },
+        "user": { "$ref": "#/$defs/column" },
+        "scope": { "$ref": "#/$defs/value" },
+        "id": { "$ref": "#/$defs/column" },
+        "role": { "$ref": "#/$defs/value" },
+        "within": {
+          "oneOf": [
+            { "$ref": "#/$defs/column" },
+            {
+              "type": "object",
+              "required": ["columns"],
+              "additionalProperties": false,
+              "properties": {
+                "columns": {
+                  "type": "object",
+                  "additionalProperties": { "$ref": "#/$defs/identifier" }
+                }
+              }
+            }
+          ]
+        },
+        "via": { "$ref": "#/$defs/value" },
+        "expiresAt": { "$ref": "#/$defs/column" },
+        "columns": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/identifier" }
+        }
+      }
+    },
     "identifier": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
     "helperName": {
       "type": "string",

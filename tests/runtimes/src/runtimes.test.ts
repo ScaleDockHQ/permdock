@@ -1,26 +1,26 @@
-import type { ChildProcess } from 'node:child_process';
+import type { ChildProcess } from "node:child_process";
 
-import { build } from 'esbuild';
-import { Miniflare } from 'miniflare';
-import { spawn, spawnSync } from 'node:child_process';
-import { once } from 'node:events';
-import { existsSync } from 'node:fs';
-import { createRequire } from 'node:module';
-import { createServer } from 'node:net';
-import { dirname, join } from 'node:path';
-import { setTimeout as sleep } from 'node:timers/promises';
-import { fileURLToPath } from 'node:url';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { build } from "esbuild";
+import { Miniflare } from "miniflare";
+import { spawn, spawnSync } from "node:child_process";
+import { once } from "node:events";
+import { existsSync } from "node:fs";
+import { createRequire } from "node:module";
+import { createServer } from "node:net";
+import { dirname, join } from "node:path";
+import { setTimeout as sleep } from "node:timers/promises";
+import { fileURLToPath } from "node:url";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
   ADAPTER_EXPECTED,
   AUTHZEN_EXPECTED,
   adapterOutcomes,
   authzenOutcomes,
-} from './scenarios.ts';
+} from "./scenarios.ts";
 
-const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const inCi = process.env['CI'] !== undefined && process.env['CI'] !== '';
+const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+const inCi = process.env["CI"] !== undefined && process.env["CI"] !== "";
 
 type Runtime = {
   readonly name: string;
@@ -32,12 +32,12 @@ type Runtime = {
 function freePort(): Promise<number> {
   return new Promise((resolve, reject) => {
     const server = createServer();
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', () => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
       const address = server.address();
       server.close(() => {
         resolve(
-          typeof address === 'object' && address !== null ? address.port : 0,
+          typeof address === "object" && address !== null ? address.port : 0,
         );
       });
     });
@@ -79,7 +79,7 @@ function processRuntime(
       const child = spawn(command, args, {
         cwd: root,
         env: { ...process.env, PORT: String(port) },
-        stdio: ['ignore', 'inherit', 'inherit'],
+        stdio: ["ignore", "inherit", "inherit"],
       });
       const base = `http://127.0.0.1:${String(port)}`;
       await waitForHealth(base, child);
@@ -89,7 +89,7 @@ function processRuntime(
           if (child.exitCode !== null) {
             return;
           }
-          const exited = once(child, 'exit');
+          const exited = once(child, "exit");
           child.kill();
           await exited;
         },
@@ -99,36 +99,36 @@ function processRuntime(
 }
 
 function onPath(binary: string): boolean {
-  return spawnSync(binary, ['--version'], { stdio: 'ignore' }).status === 0;
+  return spawnSync(binary, ["--version"], { stdio: "ignore" }).status === 0;
 }
 
 /** The native binary the `deno` package installs; its `bin.cjs` launcher exits before Deno does. */
 const deno = join(
-  dirname(createRequire(import.meta.url).resolve('deno/bin.cjs')),
-  process.platform === 'win32' ? 'deno.exe' : 'deno',
+  dirname(createRequire(import.meta.url).resolve("deno/bin.cjs")),
+  process.platform === "win32" ? "deno.exe" : "deno",
 );
 
 const workerd: Runtime = {
-  name: 'workerd',
-  prefixes: ['kernel', 'hono'],
+  name: "workerd",
+  prefixes: ["kernel", "hono"],
   available: true,
   async start() {
     const bundle = await build({
-      entryPoints: [join(root, 'src/worker.ts')],
+      entryPoints: [join(root, "src/worker.ts")],
       bundle: true,
       write: false,
-      format: 'esm',
-      platform: 'neutral',
-      conditions: ['workerd', 'worker', 'browser'],
-      mainFields: ['module', 'main'],
-      target: 'es2024',
-      logLevel: 'silent',
+      format: "esm",
+      platform: "neutral",
+      conditions: ["workerd", "worker", "browser"],
+      mainFields: ["module", "main"],
+      target: "es2024",
+      logLevel: "silent",
     });
-    const script = bundle.outputFiles[0]?.text ?? '';
+    const script = bundle.outputFiles[0]?.text ?? "";
     const miniflare = new Miniflare({
       modules: true,
       script,
-      compatibilityDate: '2026-07-01',
+      compatibilityDate: "2026-07-01",
     });
     const url = await miniflare.ready;
     return {
@@ -140,24 +140,24 @@ const workerd: Runtime = {
 
 const runtimes: readonly Runtime[] = [
   processRuntime(
-    'bun',
-    'bun',
-    ['src/serve-bun.ts'],
-    ['kernel', 'hono', 'elysia'],
-    onPath('bun'),
+    "bun",
+    "bun",
+    ["src/serve-bun.ts"],
+    ["kernel", "hono", "elysia"],
+    onPath("bun"),
   ),
   processRuntime(
-    'deno',
+    "deno",
     deno,
-    ['run', '--allow-net', '--allow-env', '--allow-read', 'src/serve-deno.ts'],
-    ['kernel', 'hono'],
+    ["run", "--allow-net", "--allow-env", "--allow-read", "src/serve-deno.ts"],
+    ["kernel", "hono"],
     existsSync(deno),
   ),
   workerd,
 ];
 
 function suite(runtime: Runtime): void {
-  const state: { server?: Awaited<ReturnType<Runtime['start']>> } = {};
+  const state: { server?: Awaited<ReturnType<Runtime["start"]>> } = {};
 
   beforeAll(async () => {
     state.server = await runtime.start();
@@ -169,14 +169,14 @@ function suite(runtime: Runtime): void {
 
   for (const prefix of runtime.prefixes) {
     it(`serves the saas scenarios through ${prefix}`, async () => {
-      expect(await adapterOutcomes(state.server?.base ?? '', prefix)).toEqual(
+      expect(await adapterOutcomes(state.server?.base ?? "", prefix)).toEqual(
         ADAPTER_EXPECTED,
       );
     });
   }
 
-  it('answers AuthZEN evaluations', async () => {
-    expect(await authzenOutcomes(state.server?.base ?? '')).toEqual(
+  it("answers AuthZEN evaluations", async () => {
+    expect(await authzenOutcomes(state.server?.base ?? "")).toEqual(
       AUTHZEN_EXPECTED,
     );
   });

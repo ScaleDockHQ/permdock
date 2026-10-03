@@ -11,9 +11,9 @@ The hooks below are direct exports of `permdock/react` and `permdock/react-nativ
 
 Two honest ways to show a denied action:
 
-| Pattern | Use when | Build with |
-| --- | --- | --- |
-| Hidden | The user should not know the action exists (admin menus, other tenants' data) | `<Protected>` with no `fallback` |
+| Pattern                | Use when                                                                                    | Build with                                                      |
+| ---------------------- | ------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| Hidden                 | The user should not know the action exists (admin menus, other tenants' data)               | `<Protected>` with no `fallback`                                |
 | Disabled with a reason | The user may learn what would unlock it (upgrade the plan, ask an admin, wait for approval) | `usePermission` plus `describe(decision)` on a disabled control |
 
 `<Protected>` hides. It does not grow a `disabled` mode: a disabled control needs a reason, a tooltip and an accessible name, and those are the component library's job. PermDock gives the reason:
@@ -32,7 +32,10 @@ const why = describe(decision)   // { title: 'Approval required', detail: 'Publi
 A menu is a list of permissions on one resource. `usePermissions` evaluates several references at once and returns one entry per reference, so a toolbar renders from a single snapshot pass:
 
 ```tsx
-const actions = usePermissions([permissions.post.update, permissions.post.publish, permissions.post.delete], post)
+const actions = usePermissions(
+  [permissions.post.update, permissions.post.publish, permissions.post.delete],
+  post,
+);
 // actions[permissions.post.update.key] -> { allowed, status, decision }
 // actions.granted -> [permissions.post.update]      references, not strings
 ```
@@ -44,7 +47,7 @@ It is the client form of AuthZEN action search and resolves the [React adapter](
 `useFilter(permission, rows)` runs `filter` against the snapshot and returns the rows the subject may act on, memoised on the row identities:
 
 ```tsx
-const editable = useFilter(permissions.post.update, posts)
+const editable = useFilter(permissions.post.update, posts);
 ```
 
 For rows with a closure-backed grant the hook returns `{ rows, partial: true }` and the list should render a `pending` state for the excluded rows or ask the server for the filtered page; a list should never be assembled client-side from an unfiltered query the server would have refused. Server components use `permdock.filter` directly.
@@ -52,7 +55,7 @@ For rows with a closure-backed grant the hook returns `{ rows, partial: true }` 
 ## Tenant switcher
 
 ```tsx
-const { tenant, tenants, switchTo } = useTenant()
+const { tenant, tenants, switchTo } = useTenant();
 // tenant: 'o_acme' | null       the active tenant of the snapshot
 // tenants: string[]             every membership tenant, from the snapshot
 // switchTo(id): Promise<void>   see below
@@ -61,7 +64,13 @@ const { tenant, tenants, switchTo } = useTenant()
 `switchTo` does one of two things depending on the provider. With `snapshot({ tenants: 'all' })` the client already holds every membership's grants and the switch is local and synchronous. With the default per-tenant snapshot the provider calls `refresh({ tenant })`, which asks the server for a snapshot with another active tenant; the server resolves the request against the subject's memberships and answers with `no-membership` for a tenant it does not hold, so a forged id yields an empty snapshot, not another tenant's grants. `PermDockProvider` accepts a `tenant` prop for the initial value, and `<Protected>` accepts `tenant` to render against a derived instance:
 
 ```tsx
-<Protected permission={permissions.billing.plan.change} tenant="o_globex" fallback={null}>...</Protected>
+<Protected
+  permission={permissions.billing.plan.change}
+  tenant="o_globex"
+  fallback={null}
+>
+  ...
+</Protected>
 ```
 
 Provider hooks such as Clerk's `useOrganization`, Better Auth's `useActiveOrganization` or WorkOS AuthKit's `organizationId` remain the source of truth for which organisation the session is in; the recipe wires their change handler to `switchTo`, and PermDock adds the permission-aware half. Display names and logos come from the provider; PermDock only knows ids.
@@ -69,9 +78,9 @@ Provider hooks such as Clerk's `useOrganization`, Better Auth's `useActiveOrgani
 ## Memberships and role chips
 
 ```tsx
-const memberships = useMemberships()                       // Membership[] from the snapshot
-const roles = useRoles()                                   // Role[] held in the active tenant
-const { roles: teamRoles } = useRoles({ team: 't_design' })
+const memberships = useMemberships(); // Membership[] from the snapshot
+const roles = useRoles(); // Role[] held in the active tenant
+const { roles: teamRoles } = useRoles({ team: "t_design" });
 ```
 
 Render a "Your roles in Acme" chip list from `useRoles()`, an organisation list from `useMemberships()` filtered to `tenant` entries, and a shared-with-me list from `on` entries. The display label for a role is `role.meta.title` on the `Role` leaf; the snapshot's `vocabulary` carries it, so the client needs no catalog for titles.
@@ -81,8 +90,8 @@ Render a "Your roles in Acme" chip list from `useRoles()`, an organisation list 
 `useApproval` handles the `approval-required` outcome end to end on the client:
 
 ```tsx
-const { decision } = usePermission(permissions.post.delete, post)
-const approval = useApproval(decision)
+const { decision } = usePermission(permissions.post.delete, post);
+const approval = useApproval(decision);
 // approval.state: 'not-needed' | 'required' | 'pending' | 'approved' | 'rejected' | 'expired'
 // approval.request(note?): Promise<void>   POSTs to approvalsHandler, creates the ApprovalRequest
 // approval.token                            the replay-safe token, for the retry header
@@ -95,8 +104,15 @@ const approval = useApproval(decision)
 Support access is modelled as the customer being the `principal` and the support engineer the `actor` with a time-bound delegation ([tenancy](/docs/concepts/tenancy) adjacent features). The client can tell:
 
 ```tsx
-const { principal, actor, delegation, expiresAt } = useSubject()
-{actor && <Banner>Viewing as {principal.id} · acting as {actor.id} · until {format(expiresAt)}</Banner>}
+const { principal, actor, delegation, expiresAt } = useSubject();
+{
+  actor && (
+    <Banner>
+      Viewing as {principal.id} · acting as {actor.id} · until{" "}
+      {format(expiresAt)}
+    </Banner>
+  );
+}
 ```
 
 `useSubject` exposes the snapshot's subject: the principal summary, the actor (id and kind, never its secrets) and the delegation. It is also the right hook for "signed in as a service account" and for hiding personal settings when `principal.kind` is not `'user'`.
@@ -106,7 +122,9 @@ const { principal, actor, delegation, expiresAt } = useSubject()
 An admin wants to see the app as a Globex viewer would. On the server:
 
 ```ts
-const preview = permdock.simulate({ tenant: 'o_globex', roles: ['viewer'] }).snapshot()
+const preview = permdock
+  .simulate({ tenant: "o_globex", roles: ["viewer"] })
+  .snapshot();
 // preview.simulated === true
 ```
 

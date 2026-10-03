@@ -1,4 +1,4 @@
-import type { OpenApiFactory } from './types.ts';
+import type { OpenApiFactory } from "./types.ts";
 
 import {
   asList,
@@ -7,8 +7,8 @@ import {
   securityOf,
   securityProfileRequirementsOf,
   securitySchemesOf,
-} from './emit.ts';
-import { overlayOf } from './overlay.ts';
+} from "./emit.ts";
+import { overlayOf } from "./overlay.ts";
 
 function extendOperation(
   operation: Readonly<Record<string, unknown>>,

@@ -2,17 +2,17 @@ import type {
   DirectoryEvent,
   MembershipEvent,
   SinkEvent,
-} from '../core/interfaces.ts';
-import type { ScimCredential } from './auth.ts';
+} from "../core/interfaces.ts";
+import type { ScimCredential } from "./auth.ts";
 import type {
   DirectoryChange,
   DirectoryGroup,
   DirectoryUser,
   ScimHandlerOptions,
-} from './types.ts';
+} from "./types.ts";
 
-import { compact } from '../core/compact.ts';
-import { membershipEvent, memorySink } from '../core/sink.ts';
+import { compact } from "../core/compact.ts";
+import { membershipEvent, memorySink } from "../core/sink.ts";
 
 export function reportUnknownRoles(
   roles: readonly string[] | undefined,
@@ -50,10 +50,10 @@ export function membershipEventsForGroup(input: {
     }
     events.push(
       membershipEvent({
-        source: 'scim',
-        operation: 'added',
+        source: "scim",
+        operation: "added",
         principal: { id },
-        scope: 'tenant',
+        scope: "tenant",
         id: input.tenant,
         via: `group:${input.groupId}`,
         roles: { added: roles, removed: [] },
@@ -66,10 +66,10 @@ export function membershipEventsForGroup(input: {
     }
     events.push(
       membershipEvent({
-        source: 'scim',
-        operation: 'removed',
+        source: "scim",
+        operation: "removed",
         principal: { id },
-        scope: 'tenant',
+        scope: "tenant",
         id: input.tenant,
         via: `group:${input.groupId}`,
         roles: { added: [], removed: roles },
@@ -88,9 +88,9 @@ export async function emitDirectory(
   known: readonly DirectoryUser[] = [],
 ): Promise<void> {
   const kind =
-    event.resource.type === 'User' && event.active === false
-      ? 'session-revoked'
-      : 'changed';
+    event.resource.type === "User" && event.active === false
+      ? "session-revoked"
+      : "changed";
   const sink = options.sink ?? memorySink();
   try {
     await sink.write([event, ...extra]);
@@ -127,7 +127,7 @@ async function principalIds(
     }),
   );
   for (const [index, user] of users.entries()) {
-    ids.add(userIds[index] ?? '');
+    ids.add(userIds[index] ?? "");
     if (user !== null) {
       ids.add(user.userName);
       if (user.externalId !== undefined) {
@@ -135,13 +135,13 @@ async function principalIds(
       }
     }
   }
-  ids.delete('');
+  ids.delete("");
   return [...ids];
 }
 
 async function publish(
   options: ScimHandlerOptions,
-  kind: DirectoryChange['kind'],
+  kind: DirectoryChange["kind"],
   tenant: string,
   userIds: readonly string[],
   known: readonly DirectoryUser[],
@@ -166,17 +166,17 @@ async function publish(
 }
 
 export function directoryEvent(input: {
-  readonly operation: DirectoryEvent['operation'];
+  readonly operation: DirectoryEvent["operation"];
   readonly tenant: string;
-  readonly type: 'User' | 'Group';
+  readonly type: "User" | "Group";
   readonly id: string;
   readonly credential: ScimCredential;
   readonly active?: boolean;
 }): DirectoryEvent {
   return compact<DirectoryEvent>({
-    type: 'directory',
+    type: "directory",
     at: new Date().toISOString(),
-    source: 'scim',
+    source: "scim",
     operation: input.operation,
     tenant: input.tenant,
     resource: { type: input.type, id: input.id },

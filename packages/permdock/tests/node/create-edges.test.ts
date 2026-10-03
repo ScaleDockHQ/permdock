@@ -1,13 +1,13 @@
-import type { IncomingMessage, ServerResponse } from 'node:http';
+import type { IncomingMessage, ServerResponse } from "node:http";
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from "vitest";
 
-import { createPermDock } from '../../src/node/index.ts';
-import { memberUser, permissions, policy } from '../fixtures/quick-start.ts';
+import { createPermDock } from "../../src/node/index.ts";
+import { memberUser, permissions, policy } from "../fixtures/quick-start.ts";
 
-function get(url: string, method = 'GET'): IncomingMessage {
+function get(url: string, method = "GET"): IncomingMessage {
   // SAFETY: the adapter reads only headers, method and url on a GET request.
-  return { headers: { host: 'api.test' }, method, url } as IncomingMessage;
+  return { headers: { host: "api.test" }, method, url } as IncomingMessage;
 }
 
 function response(): {
@@ -32,29 +32,29 @@ function response(): {
   };
 }
 
-describe('permdock/node edge cases', () => {
-  it('reuses the bound request and protects a collection without a loader', async () => {
-    const { permdock, protect } = createPermDock(policy, {
+describe("permdock/node edge cases", () => {
+  it("reuses the bound request and protects a collection without a loader", async () => {
+    const { permdock: permdockFor, protect } = createPermDock(policy, {
       subject: () => memberUser,
     });
-    const req = get('/posts');
-    const dock = await permdock(req);
+    const req = get("/posts");
+    const permdock = await permdockFor(req);
     const guard = await protect(permissions.post.list)(req);
     expect({
-      principal: dock.subject.principal?.id,
+      principal: permdock.subject.principal?.id,
       ok: guard.ok,
-    }).toEqual({ principal: 'u1', ok: true });
+    }).toEqual({ principal: "u1", ok: true });
   });
 
-  it('serves the snapshot on GET and HEAD from the evaluations handler', async () => {
+  it("serves the snapshot on GET and HEAD from the evaluations handler", async () => {
     const { permdockHandler } = createPermDock(policy, {
       subject: () => memberUser,
     });
     const handle = permdockHandler();
     const statuses = [];
-    for (const method of ['GET', 'HEAD']) {
+    for (const method of ["GET", "HEAD"]) {
       const { res, status } = response();
-      await handle(get('/api/permdock', method), res);
+      await handle(get("/api/permdock", method), res);
       statuses.push(status());
     }
     expect(statuses).toEqual([200, 200]);

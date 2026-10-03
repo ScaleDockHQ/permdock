@@ -1,6 +1,6 @@
-import type { RelatedCondition } from './ast.ts';
+import type { RelatedCondition } from "./ast.ts";
 
-import { assertSafeKey } from '../core/paths.ts';
+import { assertSafeKey } from "../core/paths.ts";
 import {
   type EdgeRelation,
   type ResourceNode,
@@ -9,8 +9,8 @@ import {
   isFieldRelation,
   isPrincipalRelation,
   isSelfParented,
-} from '../core/permissions.ts';
-import { DEFAULT_GROUP_DEPTH } from '../core/relations.ts';
+} from "../core/permissions.ts";
+import { DEFAULT_GROUP_DEPTH } from "../core/relations.ts";
 
 /**
  * Postgres SQL as parts, so each compiler binds values and names columns its
@@ -20,6 +20,7 @@ import { DEFAULT_GROUP_DEPTH } from '../core/relations.ts';
 export type GraphSqlPart =
   | { readonly text: string }
   | { readonly value: string | number | boolean }
+  /** Compared with an uncast column, so its index applies: render a bound parameter or the column's type. */
   | { readonly subject: true }
   | { readonly column: string };
 
@@ -56,15 +57,15 @@ export type GraphSqlOptions = RelationsMapping & {
 /** A Postgres identifier, schema-qualified names split on `.`. */
 export function quoteSqlName(name: string): string {
   return name
-    .split('.')
+    .split(".")
     .map((part) => {
-      assertSafeKey(part, 'sql identifier');
-      if (part === '' || part.includes('\0')) {
+      assertSafeKey(part, "sql identifier");
+      if (part === "" || part.includes("\0")) {
         throw new Error(`PermDock: unsafe SQL identifier '${name}'`);
       }
       return `"${part.replaceAll('"', '""')}"`;
     })
-    .join('.');
+    .join(".");
 }
 
 type Build = {
@@ -134,10 +135,11 @@ function edgeHolderFilter(
   spec: EdgeRelation,
   alias: string,
 ): GraphSql {
-  const subject = `${col(alias, spec.subject ?? 'user_id')}::text`;
+  const holder = col(alias, spec.subject ?? "user_id");
+  const subject = `${holder}::text`;
   const groups = spec.groups;
   if (groups === undefined) {
-    return [text(`${subject} = `), { subject: true }];
+    return [text(`${holder} = `), { subject: true }];
   }
   const kind = col(alias, groups.column);
   const direct: GraphSqlPart[] =
@@ -145,11 +147,11 @@ function edgeHolderFilter(
       ? [text(`(${kind} is null`)]
       : [text(`(${kind} is null or ${kind} = `), { value: groups.direct }];
   const parts: GraphSqlPart[] = [
-    text('(('),
+    text("(("),
     ...direct,
-    text(`) and ${subject} = `),
+    text(`) and ${holder} = `),
     { subject: true },
-    text(')'),
+    text(")"),
   ];
   for (const [resource, relation] of Object.entries(groups.resources)) {
     if (resource === node.name) {
@@ -160,10 +162,10 @@ function edgeHolderFilter(
       { value: resource },
       text(` and ${subject} in (`),
       ...groupHolders(build, resource, relation),
-      text('))'),
+      text("))"),
     );
   }
-  parts.push(text(')'));
+  parts.push(text(")"));
   return parts;
 }
 
@@ -180,7 +182,7 @@ function relationArm(
   if (isEdgeRelation(spec)) {
     const edge = tableName(build, spec.edge);
     const object = spec.object ?? `${node.name}_id`;
-    const e = nextAlias(build, 'e');
+    const e = nextAlias(build, "e");
     const base: GraphSql = [
       text(`select ${col(e, object)}::text as id from ${edge} ${e} where `),
       ...edgeHolderFilter(build, node, spec, e),
@@ -190,15 +192,15 @@ function relationArm(
     if (self === undefined || spec.groups === undefined) {
       return base;
     }
-    const g = nextAlias(build, 'g');
-    const n = nextAlias(build, 'e');
+    const g = nextAlias(build, "g");
+    const n = nextAlias(build, "e");
     return [
       text(
         `select ${g}.id from (with recursive ${g}(id, level) as (select b.id, 0 from (`,
       ),
       ...base,
       text(
-        `) b union select ${col(n, object)}::text, ${g}.level + 1 from ${edge} ${n} join ${g} on ${col(n, spec.subject ?? 'user_id')}::text = ${g}.id where ${col(n, spec.groups.column)} = `,
+        `) b union select ${col(n, object)}::text, ${g}.level + 1 from ${edge} ${n} join ${g} on ${col(n, spec.subject ?? "user_id")}::text = ${g}.id where ${col(n, spec.groups.column)} = `,
       ),
       { value: node.name },
       text(` and ${g}.level < ${String(DEFAULT_GROUP_DEPTH)}`),
@@ -207,12 +209,12 @@ function relationArm(
     ];
   }
   const table = tableOf(build, node.name);
-  const t = nextAlias(build, 't');
+  const t = nextAlias(build, "t");
   const id = `${col(t, node.id)}::text`;
   if (isPrincipalRelation(spec)) {
     const parts: GraphSqlPart[] = [
       text(
-        `select ${id} as id from ${table} ${t} where ${col(t, spec.principal)}::text = `,
+        `select ${id} as id from ${table} ${t} where ${col(t, spec.principal)} = `,
       ),
       { subject: true },
     ];
@@ -230,7 +232,7 @@ function relationArm(
   if (isFieldRelation(spec) && spec.memberOf === undefined) {
     return [
       text(
-        `select ${id} as id from ${table} ${t} where ${col(t, spec.field)}::text = `,
+        `select ${id} as id from ${table} ${t} where ${col(t, spec.field)} = `,
       ),
       { subject: true },
     ];
@@ -246,12 +248,12 @@ function holderIds(build: Build, resource: string, relation: string): GraphSql {
     relationArm(build, node, name),
   );
   if (arms.length === 0) {
-    return [text('select null::text as id where false')];
+    return [text("select null::text as id where false")];
   }
   const out: GraphSqlPart[] = [];
   for (const [index, arm] of arms.entries()) {
     if (index > 0) {
-      out.push(text(' union '));
+      out.push(text(" union "));
     }
     out.push(...arm);
   }
@@ -282,13 +284,13 @@ function heldIds(build: Build, condition: RelatedCondition): GraphSql {
     return groupHolders(build, condition.resource, condition.relation);
   }
   if (condition.ids.length === 0) {
-    return [text('select null::text as id where false')];
+    return [text("select null::text as id where false")];
   }
-  const parts: GraphSqlPart[] = [text('select v.id from (values ')];
+  const parts: GraphSqlPart[] = [text("select v.id from (values ")];
   for (const [index, id] of condition.ids.entries()) {
-    parts.push(text(index === 0 ? '(' : ', ('), { value: id }, text('::text)'));
+    parts.push(text(index === 0 ? "(" : ", ("), { value: id }, text("::text)"));
   }
-  parts.push(text(') as v(id)'));
+  parts.push(text(") as v(id)"));
   return parts;
 }
 
@@ -310,11 +312,11 @@ function reached(build: Build, condition: RelatedCondition): GraphSql {
     (closureDepths === undefined ||
       closureDepths[condition.resource] !== undefined)
   ) {
-    const c = nextAlias(build, 'c');
+    const c = nextAlias(build, "c");
     const cap = closureDepths?.[condition.resource];
     const depth =
       cap !== undefined && condition.depth >= cap
-        ? ''
+        ? ""
         : ` and ${c}.depth <= ${String(condition.depth)}`;
     return [
       text(
@@ -323,14 +325,14 @@ function reached(build: Build, condition: RelatedCondition): GraphSql {
       { value: condition.resource },
       text(`${depth} and ${c}.ancestor in (`),
       ...held,
-      text(')'),
+      text(")"),
     ];
   }
-  const d = nextAlias(build, 'd');
-  const t = nextAlias(build, 't');
+  const d = nextAlias(build, "d");
+  const t = nextAlias(build, "t");
   const restricted =
     node.restricted === undefined
-      ? ''
+      ? ""
       : ` and ${col(t, node.restricted)} is not true`;
   return [
     text(
@@ -366,13 +368,13 @@ function targets(build: Build, condition: RelatedCondition): GraphSql {
     if (link === undefined) {
       throw new Error(`PermDock: '${from.resource}' has no link '${hop.link}'`);
     }
-    const t = nextAlias(build, 't');
+    const t = nextAlias(build, "t");
     set = [
       text(
         `select ${col(t, node.id)}::text as id from ${tableOf(build, node.name)} ${t} where ${col(t, link.field)}::text in (`,
       ),
       ...set,
-      text(')'),
+      text(")"),
     ];
   }
   return set;
@@ -407,22 +409,22 @@ export function relatedSql(
   options: GraphSqlOptions,
 ): GraphSql {
   const parts: GraphSqlPart[] = [
-    text('coalesce('),
+    text("coalesce("),
     { column: condition.field },
-    text('::text in ('),
+    text("::text in ("),
     ...relatedTargetsSql(condition, options),
-    text('), false)'),
+    text("), false)"),
   ];
   const guard = relatedRowGuard(condition);
   if (guard === undefined) {
     return parts;
   }
   return [
-    text('('),
+    text("("),
     ...parts,
-    text(' and '),
+    text(" and "),
     { column: guard },
-    text(' is not true)'),
+    text(" is not true)"),
   ];
 }
 
@@ -439,15 +441,15 @@ export function renderGraphSql(
     readonly column: (name: string) => string;
   },
 ): { readonly sql: string; readonly values: readonly unknown[] } {
-  let sql = '';
+  let sql = "";
   const values: unknown[] = [];
   for (const part of parts) {
-    if ('text' in part) {
+    if ("text" in part) {
       sql += part.text;
-    } else if ('column' in part) {
+    } else if ("column" in part) {
       sql += render.column(part.column);
     } else {
-      values.push('subject' in part ? render.subject : part.value);
+      values.push("subject" in part ? render.subject : part.value);
       sql += render.placeholder(values.length);
     }
   }

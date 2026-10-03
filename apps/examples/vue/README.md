@@ -9,5 +9,5 @@ pnpm --filter @permdock/example-vue dev
 Opens `http://127.0.0.1:3481/`. `Protected` shows `edit` for a member updating their own post and `locked` for publish.
 
 ```ts
-import { permdockPlugin, Protected } from 'permdock/vue'
+import { permdockPlugin, Protected } from "permdock/vue";
 ```

@@ -1,17 +1,17 @@
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import path from 'node:path';
-import { afterAll, describe, expect, it } from 'vitest';
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import path from "node:path";
+import { afterAll, describe, expect, it } from "vitest";
 
-import type { CollectConfig, PermDockConfig } from '../../src/cli/types.ts';
+import type { CollectConfig, PermDockConfig } from "../../src/cli/types.ts";
 
-import { runCollect } from '../../src/cli/collect.ts';
+import { runCollect } from "../../src/cli/collect.ts";
 import {
   NOW,
   PERMISSIONS,
   project,
   quietIo,
   removeProjects,
-} from './doctor-kit.ts';
+} from "./doctor-kit.ts";
 
 afterAll(removeProjects);
 
@@ -33,83 +33,83 @@ async function collect(
 /** The module a generated barrel imports, resolved from the barrel's own folder. */
 function barrelTarget(barrel: string): string {
   const specifier = /from '([^']+)'\n\nexport/u.exec(
-    readFileSync(barrel, 'utf8'),
+    readFileSync(barrel, "utf8"),
   )?.[1];
   if (specifier === undefined) {
     throw new Error(`no import in ${barrel}`);
   }
-  return path.resolve(path.dirname(barrel), specifier.replace(/\.js$/u, '.ts'));
+  return path.resolve(path.dirname(barrel), specifier.replace(/\.js$/u, ".ts"));
 }
 
-describe('runCollect', () => {
-  it('exits 2 when no permissions module is configured or guessable', async () => {
-    const result = await collect(project({ 'src/a.ts': '' }), {});
+describe("runCollect", () => {
+  it("exits 2 when no permissions module is configured or guessable", async () => {
+    const result = await collect(project({ "src/a.ts": "" }), {});
     expect([result.code, result.message]).toEqual([
       2,
-      'usage: set permissions in permdock.config.ts or pass a definePermissions module',
+      "usage: set permissions in permdock.config.ts or pass a definePermissions module",
     ]);
   });
 
-  it('guesses permissions.ts at the root or under a srcPath entry', async () => {
-    const root = project({ 'permissions.ts': PERMISSIONS });
+  it("guesses permissions.ts at the root or under a srcPath entry", async () => {
+    const root = project({ "permissions.ts": PERMISSIONS });
     expect((await collect(root, {})).document?.permissions.length).toBe(9);
-    const lib = project({ 'lib/permissions.ts': PERMISSIONS });
-    const result = await collect(lib, {}, { collect: { srcPath: ['./lib/'] } });
+    const lib = project({ "lib/permissions.ts": PERMISSIONS });
+    const result = await collect(lib, {}, { collect: { srcPath: ["./lib/"] } });
     expect(result.code).toBe(0);
     expect(result.scan?.usages).toEqual({});
   });
 
-  it('exits 2 with the reason when the module throws or exports no tree', async () => {
+  it("exits 2 with the reason when the module throws or exports no tree", async () => {
     const cwd = project({
-      'src/throws.ts': "throw new Error('boom');\n",
-      'src/value.ts': 'export const permissions = 5;\n',
+      "src/throws.ts": "throw new Error('boom');\n",
+      "src/value.ts": "export const permissions = 5;\n",
     });
     expect(
-      (await collect(cwd, { permissions: './src/throws.ts' })).message,
-    ).toBe('boom');
+      (await collect(cwd, { permissions: "./src/throws.ts" })).message,
+    ).toBe("boom");
     expect(
-      (await collect(cwd, { permissions: './src/value.ts' })).message,
-    ).toBe('PermDock CLI: permissions export is not a permission tree');
+      (await collect(cwd, { permissions: "./src/value.ts" })).message,
+    ).toBe("PermDock CLI: permissions export is not a permission tree");
   });
 
-  it('--check reports a missing catalog, drift, and an up-to-date catalog', async () => {
-    const cwd = project({ 'src/permissions.ts': PERMISSIONS });
-    const config = { permissions: './src/permissions.ts' };
+  it("--check reports a missing catalog, drift, and an up-to-date catalog", async () => {
+    const cwd = project({ "src/permissions.ts": PERMISSIONS });
+    const config = { permissions: "./src/permissions.ts" };
     expect(await collect(cwd, config, { check: true })).toMatchObject({
       code: 1,
-      message: 'catalog missing: permissions.catalog.json',
+      message: "catalog missing: permissions.catalog.json",
     });
     expect(await collect(cwd, config)).toMatchObject({
       code: 0,
-      message: 'wrote permissions.catalog.json',
+      message: "wrote permissions.catalog.json",
     });
     expect(await collect(cwd, config, { check: true })).toMatchObject({
       code: 0,
-      message: 'catalog up to date: permissions.catalog.json',
+      message: "catalog up to date: permissions.catalog.json",
     });
-    writeFileSync(path.join(cwd, 'permissions.catalog.json'), '{}');
+    writeFileSync(path.join(cwd, "permissions.catalog.json"), "{}");
     expect(await collect(cwd, config, { check: true })).toMatchObject({
       code: 1,
       message: expect.stringContaining(
         [
-          'catalog drift: permissions.catalog.json',
-          '--- permissions.catalog.json (on disk)',
-          '+++ permissions.catalog.json (generated)',
-          '@@ ',
-        ].join('\n'),
+          "catalog drift: permissions.catalog.json",
+          "--- permissions.catalog.json (on disk)",
+          "+++ permissions.catalog.json (generated)",
+          "@@ ",
+        ].join("\n"),
       ),
     });
   });
 
-  it('writes a barrel that imports the permissions module from its own folder', async () => {
-    const cwd = project({ 'src/permissions.ts': PERMISSIONS });
+  it("writes a barrel that imports the permissions module from its own folder", async () => {
+    const cwd = project({ "src/permissions.ts": PERMISSIONS });
     await collect(cwd, {
-      permissions: './src/permissions.ts',
+      permissions: "./src/permissions.ts",
       collect: { barrel: true },
     });
-    const barrel = path.join(cwd, 'src/permissions.generated.ts');
-    expect(barrelTarget(barrel)).toBe(path.join(cwd, 'src/permissions.ts'));
-    expect(readFileSync(barrel, 'utf8'))
+    const barrel = path.join(cwd, "src/permissions.generated.ts");
+    expect(barrelTarget(barrel)).toBe(path.join(cwd, "src/permissions.ts"));
+    expect(readFileSync(barrel, "utf8"))
       .toBe(`// @generated by permdock — do not edit
 import { mergePermissions } from 'permdock'
 import { permissions as collected } from './permissions.js'
@@ -119,22 +119,22 @@ export const permissions = mergePermissions(collected)
 
     await collect(
       cwd,
-      { permissions: 'src/permissions.ts' },
-      { collect: { barrel: 'generated/all.ts' } },
+      { permissions: "src/permissions.ts" },
+      { collect: { barrel: "generated/all.ts" } },
     );
-    expect(barrelTarget(path.join(cwd, 'generated/all.ts'))).toBe(
-      path.join(cwd, 'src/permissions.ts'),
+    expect(barrelTarget(path.join(cwd, "generated/all.ts"))).toBe(
+      path.join(cwd, "src/permissions.ts"),
     );
   });
 
-  it('writes no barrel when it is false', async () => {
-    const cwd = project({ 'src/permissions.ts': PERMISSIONS });
+  it("writes no barrel when it is false", async () => {
+    const cwd = project({ "src/permissions.ts": PERMISSIONS });
     await collect(
       cwd,
-      { permissions: './src/permissions.ts', collect: { barrel: true } },
+      { permissions: "./src/permissions.ts", collect: { barrel: true } },
       { collect: { barrel: false } },
     );
-    expect(existsSync(path.join(cwd, 'src/permissions.generated.ts'))).toBe(
+    expect(existsSync(path.join(cwd, "src/permissions.generated.ts"))).toBe(
       false,
     );
   });

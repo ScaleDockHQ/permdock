@@ -1,10 +1,10 @@
-import { Protected } from 'permdock/react';
-import { Suspense } from 'react';
+import { Protected } from "permdock/react";
+import { Suspense } from "react";
 
-import { getStaff } from '../../../lib/access.ts';
-import { people } from '../../../lib/store.ts';
-import { permissions } from '../../../permissions.ts';
-import { changeRole } from '../../actions.ts';
+import { getStaff } from "../../../lib/access.ts";
+import { people } from "../../../lib/store.ts";
+import { permissions } from "../../../permissions.ts";
+import { changeRole } from "../../actions.ts";
 
 export const instant = true;
 
@@ -29,10 +29,10 @@ async function Staff(props: {
               <input
                 type="hidden"
                 name="role"
-                value={row.role === 'admin' ? 'member' : 'admin'}
+                value={row.role === "admin" ? "member" : "admin"}
               />
               <button type="submit" data-change-role={row.user}>
-                {row.role === 'admin' ? 'Make member' : 'Make admin'}
+                {row.role === "admin" ? "Make member" : "Make admin"}
               </button>
             </form>
           </Protected>

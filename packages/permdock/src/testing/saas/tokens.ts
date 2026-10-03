@@ -1,45 +1,45 @@
-import type { Membership } from '../../index.ts';
+import type { Membership } from "../../index.ts";
 
-import { saasMemberships } from './seed.ts';
+import { saasMemberships } from "./seed.ts";
 
 type EcJwk = {
-  readonly kty: 'EC';
-  readonly crv: 'P-256';
+  readonly kty: "EC";
+  readonly crv: "P-256";
   readonly x: string;
   readonly y: string;
   readonly kid: string;
-  readonly alg: 'ES256';
-  readonly use: 'sig';
+  readonly alg: "ES256";
+  readonly use: "sig";
 };
 
 // Test-only ES256 key pair. It signs fixture sessions and nothing else. Plain literals (no
 // module-level calls) let bundlers drop it from clients that import only the definitions.
 export const saasPublicJwk: EcJwk = {
-  kty: 'EC',
-  crv: 'P-256',
-  x: 'p5Q0wX-3-mOBqOcCTP-RHesn80ydMMNOpr_YNY6uE1I',
-  y: 'Tr8Bo2w8QPJ1l0BfNLOEUsSz2VVJGx8AWMOika2yUeA',
-  kid: 'e2e',
-  alg: 'ES256',
-  use: 'sig',
+  kty: "EC",
+  crv: "P-256",
+  x: "p5Q0wX-3-mOBqOcCTP-RHesn80ydMMNOpr_YNY6uE1I",
+  y: "Tr8Bo2w8QPJ1l0BfNLOEUsSz2VVJGx8AWMOika2yUeA",
+  kid: "e2e",
+  alg: "ES256",
+  use: "sig",
 };
 
 export const saasPrivateJwk: EcJwk & { readonly d: string } = {
-  kty: 'EC',
-  crv: 'P-256',
-  x: 'p5Q0wX-3-mOBqOcCTP-RHesn80ydMMNOpr_YNY6uE1I',
-  y: 'Tr8Bo2w8QPJ1l0BfNLOEUsSz2VVJGx8AWMOika2yUeA',
-  kid: 'e2e',
-  alg: 'ES256',
-  use: 'sig',
-  d: '8gTksJVtlkViFAL5tSmPaxnrR3QzONTODL6l8xDZiCk',
+  kty: "EC",
+  crv: "P-256",
+  x: "p5Q0wX-3-mOBqOcCTP-RHesn80ydMMNOpr_YNY6uE1I",
+  y: "Tr8Bo2w8QPJ1l0BfNLOEUsSz2VVJGx8AWMOika2yUeA",
+  kid: "e2e",
+  alg: "ES256",
+  use: "sig",
+  d: "8gTksJVtlkViFAL5tSmPaxnrR3QzONTODL6l8xDZiCk",
 };
 
 export const saasJwks: Readonly<{ keys: EcJwk[] }> = {
   keys: [saasPublicJwk],
 };
-export const saasIssuer = 'https://saas.permdock.test';
-export const saasAudience = 'permdock-saas';
+export const saasIssuer = "https://saas.permdock.test";
+export const saasAudience = "permdock-saas";
 export const SAAS_TOKEN_TTL_SECONDS = 3600;
 
 export type SaasTokenOptions = {
@@ -54,14 +54,14 @@ export type SaasTokenOptions = {
 };
 
 function base64url(bytes: Uint8Array): string {
-  let binary = '';
+  let binary = "";
   for (const byte of bytes) {
     binary += String.fromCodePoint(byte);
   }
   return btoa(binary)
-    .replaceAll('+', '-')
-    .replaceAll('/', '_')
-    .replace(/=+$/u, '');
+    .replaceAll("+", "-")
+    .replaceAll("/", "_")
+    .replace(/=+$/u, "");
 }
 
 function encodeJson(value: unknown): string {
@@ -78,7 +78,7 @@ export async function signSaasToken(
     options.memberships === false
       ? undefined
       : (options.memberships ?? saasMemberships(sub));
-  const header = { alg: 'ES256', kid: saasPublicJwk.kid, typ: 'at+jwt' };
+  const header = { alg: "ES256", kid: saasPublicJwk.kid, typ: "at+jwt" };
   const payload = {
     ...options.claims,
     ...(memberships === undefined ? {} : { memberships }),
@@ -90,14 +90,14 @@ export async function signSaasToken(
   };
   const input = `${encodeJson(header)}.${encodeJson(payload)}`;
   const key = await crypto.subtle.importKey(
-    'jwk',
+    "jwk",
     { ...saasPrivateJwk },
-    { name: 'ECDSA', namedCurve: 'P-256' },
+    { name: "ECDSA", namedCurve: "P-256" },
     false,
-    ['sign'],
+    ["sign"],
   );
   const signature = await crypto.subtle.sign(
-    { name: 'ECDSA', hash: 'SHA-256' },
+    { name: "ECDSA", hash: "SHA-256" },
     key,
     new TextEncoder().encode(input),
   );
@@ -105,8 +105,8 @@ export async function signSaasToken(
 }
 
 function decodeSegment(segment: string): Uint8Array<ArrayBuffer> {
-  const padded = segment.replaceAll('-', '+').replaceAll('_', '/');
-  const binary = atob(padded + '='.repeat((4 - (padded.length % 4)) % 4));
+  const padded = segment.replaceAll("-", "+").replaceAll("_", "/");
+  const binary = atob(padded + "=".repeat((4 - (padded.length % 4)) % 4));
   return Uint8Array.from(binary, (char) => char.codePointAt(0) ?? 0);
 }
 
@@ -117,7 +117,7 @@ function parseSegment(segment: string): Record<string, unknown> | null {
     );
     // SAFETY: checked to be a non-null, non-array object; values stay unknown.
     return parsed !== null &&
-      typeof parsed === 'object' &&
+      typeof parsed === "object" &&
       !Array.isArray(parsed)
       ? (parsed as Record<string, unknown>)
       : null;
@@ -143,7 +143,7 @@ export async function verifySaasSession(
   token: string | null | undefined,
   now: number = Math.floor(Date.now() / 1000),
 ): Promise<{ readonly sub: string; readonly expiresAt: number } | null> {
-  const parts = typeof token === 'string' ? token.split('.') : [];
+  const parts = typeof token === "string" ? token.split(".") : [];
   const [head, body, signature] = parts;
   if (
     parts.length !== 3 ||
@@ -156,22 +156,22 @@ export async function verifySaasSession(
   const header = parseSegment(head);
   const payload = parseSegment(body);
   if (
-    header?.['alg'] !== 'ES256' ||
-    header['kid'] !== saasPublicJwk.kid ||
+    header?.["alg"] !== "ES256" ||
+    header["kid"] !== saasPublicJwk.kid ||
     payload === null
   ) {
     return null;
   }
   try {
     const key = await crypto.subtle.importKey(
-      'jwk',
+      "jwk",
       { ...saasPublicJwk },
-      { name: 'ECDSA', namedCurve: 'P-256' },
+      { name: "ECDSA", namedCurve: "P-256" },
       false,
-      ['verify'],
+      ["verify"],
     );
     const valid = await crypto.subtle.verify(
-      { name: 'ECDSA', hash: 'SHA-256' },
+      { name: "ECDSA", hash: "SHA-256" },
       key,
       decodeSegment(signature),
       new TextEncoder().encode(`${head}.${body}`),
@@ -184,10 +184,10 @@ export async function verifySaasSession(
   }
   const { sub, iss, aud, exp } = payload;
   if (
-    typeof sub !== 'string' ||
+    typeof sub !== "string" ||
     iss !== saasIssuer ||
     aud !== saasAudience ||
-    typeof exp !== 'number' ||
+    typeof exp !== "number" ||
     exp <= now
   ) {
     return null;

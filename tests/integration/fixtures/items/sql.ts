@@ -1,6 +1,6 @@
-import type { ItemMember, ItemRow } from './policy.ts';
+import type { ItemMember, ItemRow } from "./policy.ts";
 
-import { itemMembers, itemRows } from './policy.ts';
+import { itemMembers, itemRows } from "./policy.ts";
 
 /** Column names match the condition fields, so no column map is needed. */
 export const itemSchemaSql = `
@@ -32,7 +32,7 @@ type Cell = string | number | boolean | Date | readonly string[] | null;
 
 function literal(value: Cell | undefined): string {
   if (value === null || value === undefined) {
-    return 'null';
+    return "null";
   }
   if (value instanceof Date) {
     return `'${value.toISOString()}'::timestamptz`;
@@ -40,16 +40,16 @@ function literal(value: Cell | undefined): string {
   if (Array.isArray(value)) {
     return value.length === 0
       ? `'{}'::text[]`
-      : `array[${value.map((item) => literal(item)).join(', ')}]`;
+      : `array[${value.map((item) => literal(item)).join(", ")}]`;
   }
-  if (typeof value === 'number' || typeof value === 'boolean') {
+  if (typeof value === "number" || typeof value === "boolean") {
     return String(value);
   }
   return `'${String(value).replaceAll("'", "''")}'`;
 }
 
 function tuple(cells: readonly (Cell | undefined)[]): string {
-  return `(${cells.map((cell) => literal(cell)).join(', ')})`;
+  return `(${cells.map((cell) => literal(cell)).join(", ")})`;
 }
 
 export function itemSeedSql(
@@ -85,7 +85,7 @@ export function itemSeedSql(
     ),
   );
   return [
-    `insert into item (id, "orgId", "teamId", "folderId", owner, status, score, title, tags, due, archived) values\n  ${items.join(',\n  ')};`,
-    `insert into item_member (user_id, org_id, team_id, resource, resource_id, role, expires_at) values\n  ${grants.join(',\n  ')};`,
-  ].join('\n');
+    `insert into item (id, "orgId", "teamId", "folderId", owner, status, score, title, tags, due, archived) values\n  ${items.join(",\n  ")};`,
+    `insert into item_member (user_id, org_id, team_id, resource, resource_id, role, expires_at) values\n  ${grants.join(",\n  ")};`,
+  ].join("\n");
 }

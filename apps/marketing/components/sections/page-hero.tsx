@@ -1,24 +1,12 @@
-'use client';
+import { ArrowUpRightIcon } from "lucide-react";
 
-import type { ReactNode } from 'react';
+import type { SiteHref } from "@/lib/site";
 
-import { ArrowRightIcon, ArrowUpRightIcon } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { ButtonLink } from "@/components/site/button-link";
+import { SiteLink } from "@/components/site/site-link";
+import { Badge } from "@permdock/ui/reui/badge";
 
-import type { SiteHref } from '@/lib/site';
-
-import { SiteLink } from '@/components/site/site-link';
-import { Button } from '@permdock/ui/components/button';
-import { cn } from '@permdock/ui/lib/utils';
-import { Badge } from '@permdock/ui/reui/badge';
-import { IconTile } from '@permdock/ui/reui/icon-tile';
-
-export type PageHeroFeature = {
-  title: string;
-  description: string;
-  href: SiteHref;
-  icon: ReactNode;
-};
+import { PageHeroFeatures, type PageHeroFeature } from "./page-hero-features";
 
 export function PageHero({
   badge,
@@ -37,32 +25,9 @@ export function PageHero({
   secondary: { href: SiteHref; label: string };
   features: readonly PageHeroFeature[];
 }) {
-  const first = features[0];
-  const [activeTitle, setActiveTitle] = useState(first?.title ?? '');
-  const [held, setHeld] = useState(false);
-
-  useEffect(() => {
-    if (held || features.length === 0) {
-      return;
-    }
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      return;
-    }
-    const timer = setTimeout(() => {
-      setActiveTitle((current) => {
-        const index = features.findIndex(
-          (feature) => feature.title === current,
-        );
-        return features[(index + 1) % features.length]?.title ?? current;
-      });
-    }, 2200);
-    return () => clearTimeout(timer);
-    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- a new title re-arms the timer, including after a click
-  }, [activeTitle, features, held]);
-
   return (
-    <section className="bg-background w-full px-4 py-12 sm:px-6 lg:px-20">
-      <div className="border-border mx-auto w-full max-w-6xl overflow-hidden rounded-xl border">
+    <section className="w-full bg-background px-4 py-12 sm:px-6 lg:px-20">
+      <div className="mx-auto w-full max-w-6xl overflow-hidden rounded-xl border border-border">
         <div className="flex flex-col items-start gap-4 px-6 pt-12 pb-6 sm:pt-16">
           <Badge
             variant="outline"
@@ -72,73 +37,28 @@ export function PageHero({
           >
             <span
               aria-hidden="true"
-              className="bg-success size-1.5 shrink-0 rounded-full"
+              className="size-1.5 shrink-0 rounded-full bg-success"
             />
             {badge}
             <ArrowUpRightIcon
               aria-hidden="true"
-              className="text-muted-foreground size-3.5"
+              className="size-3.5 text-muted-foreground"
             />
           </Badge>
-          <h1 className="text-foreground max-w-3xl text-3xl font-semibold tracking-tight sm:text-4xl lg:text-5xl">
+          <h1 className="max-w-3xl text-3xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
             {title}
           </h1>
-          <p className="text-muted-foreground max-w-3xl text-base leading-6">
+          <p className="max-w-3xl text-base leading-6 text-muted-foreground">
             {description}
           </p>
           <div className="flex flex-wrap items-center gap-2 pt-2">
-            <Button
-              nativeButton={false}
-              render={<SiteLink href={primary.href} />}
-            >
-              {primary.label}
-            </Button>
-            <Button
-              variant="outline"
-              nativeButton={false}
-              render={<SiteLink href={secondary.href} />}
-            >
+            <ButtonLink href={primary.href}>{primary.label}</ButtonLink>
+            <ButtonLink variant="outline" href={secondary.href}>
               {secondary.label}
-            </Button>
+            </ButtonLink>
           </div>
         </div>
-        <div
-          className="bg-border border-border grid grid-cols-1 gap-px border-t lg:grid-cols-3"
-          onPointerEnter={() => setHeld(true)}
-          onPointerLeave={() => setHeld(false)}
-          onFocusCapture={() => setHeld(true)}
-          onBlurCapture={() => setHeld(false)}
-        >
-          {features.map((feature) => {
-            const isActive = feature.title === activeTitle;
-            return (
-              <SiteLink
-                key={feature.title}
-                href={feature.href}
-                onClick={() => setActiveTitle(feature.title)}
-                aria-current={isActive ? 'true' : undefined}
-                className={cn(
-                  'group/feature bg-background hover:bg-muted flex items-start gap-2.5 p-6 transition-colors',
-                  isActive && 'group-not-has-[a:hover]/grid:bg-muted',
-                )}
-              >
-                <IconTile variant="outline" size="sm" className="bg-muted">
-                  {feature.icon}
-                </IconTile>
-                <div className="flex flex-1 flex-col gap-1">
-                  <p className="text-sm font-medium">{feature.title}</p>
-                  <p className="text-muted-foreground line-clamp-3 text-sm">
-                    {feature.description}
-                  </p>
-                </div>
-                <ArrowRightIcon
-                  aria-hidden="true"
-                  className="text-muted-foreground size-4 shrink-0 self-center"
-                />
-              </SiteLink>
-            );
-          })}
-        </div>
+        <PageHeroFeatures features={features} />
       </div>
     </section>
   );

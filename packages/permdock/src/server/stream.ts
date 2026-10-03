@@ -1,9 +1,9 @@
-import type { ProblemDetails } from '../core/errors.ts';
-import type { Permission } from '../core/permissions.ts';
-import type { Connection } from './connection.ts';
-import type { ProtectOptions } from './create.ts';
+import type { ProblemDetails } from "../core/errors.ts";
+import type { Permission } from "../core/permissions.ts";
+import type { Connection } from "./connection.ts";
+import type { ProtectOptions } from "./create.ts";
 
-import { PermDockRevokedError } from '../core/errors.ts';
+import { PermDockRevokedError } from "../core/errors.ts";
 
 export function isAsyncIterable(
   value: unknown,
@@ -11,10 +11,10 @@ export function isAsyncIterable(
   // SAFETY: value is a non-null object; the iterator member is only compared with typeof.
   return (
     value !== null &&
-    typeof value === 'object' &&
+    typeof value === "object" &&
     typeof (value as { readonly [Symbol.asyncIterator]?: unknown })[
       Symbol.asyncIterator
-    ] === 'function'
+    ] === "function"
   );
 }
 
@@ -23,12 +23,12 @@ export type StreamProtectOptions = ProtectOptions & {
    * For a procedure that returns an async iterable: each outbound item is
    * checked against this permission and dropped when the subscriber cannot read it.
    */
-  readonly items?: Permission<string, unknown, 'instance'>;
+  readonly items?: Permission<string, unknown, "instance">;
 };
 
 export type GuardIterableOptions = {
   /** Outbound items the subscriber cannot read under this permission are dropped. */
-  readonly items?: Permission<string, unknown, 'instance'>;
+  readonly items?: Permission<string, unknown, "instance">;
   /** The row to check for an item (for example the data inside a tracked envelope). */
   readonly unwrap?: (item: unknown) => unknown;
   /** The framework error thrown to the subscriber when the connection aborts. */
@@ -51,13 +51,13 @@ export async function* guardIterable(
       reject(
         connection.signal.reason instanceof PermDockRevokedError
           ? connection.signal.reason
-          : new PermDockRevokedError({ code: 'denied' }),
+          : new PermDockRevokedError({ code: "denied" }),
       );
     };
     if (connection.signal.aborted) {
       fail();
     } else {
-      connection.signal.addEventListener('abort', fail, { once: true });
+      connection.signal.addEventListener("abort", fail, { once: true });
     }
   });
   aborted.catch(() => undefined);
@@ -72,7 +72,7 @@ export async function* guardIterable(
         options.unwrap === undefined ? next.value : options.unwrap(next.value);
       if (
         options.items === undefined ||
-        connection.check(options.items, row).outcome === 'granted'
+        connection.check(options.items, row).outcome === "granted"
       ) {
         yield next.value;
       }
@@ -101,7 +101,7 @@ function revokedProblem(signal: AbortSignal): ProblemDetails {
   return (
     reason instanceof PermDockRevokedError
       ? reason
-      : new PermDockRevokedError({ code: 'denied' })
+      : new PermDockRevokedError({ code: "denied" })
   ).toProblemDetails();
 }
 
@@ -116,6 +116,6 @@ export function onRevoked(
   if (connection.signal.aborted) {
     fire();
   } else {
-    connection.signal.addEventListener('abort', fire, { once: true });
+    connection.signal.addEventListener("abort", fire, { once: true });
   }
 }

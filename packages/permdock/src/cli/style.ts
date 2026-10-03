@@ -1,4 +1,4 @@
-import { styleText } from 'node:util';
+import { styleText } from "node:util";
 
 type Format = Parameters<typeof styleText>[0];
 
@@ -16,8 +16,8 @@ export function createStyle(color: boolean): Style {
   return {
     color,
     paint,
-    errorMark: color ? paint('red', '✖') : 'error',
-    warnMark: color ? paint('yellow', '⚠') : 'warn',
+    errorMark: color ? paint("red", "✖") : "error",
+    warnMark: color ? paint("yellow", "⚠") : "warn",
   };
 }
 
@@ -32,6 +32,6 @@ export function streamHasColors(
   if (stream.isTTY === true) {
     return stream.hasColors(env);
   }
-  const force = env['FORCE_COLOR'];
-  return force !== undefined && force !== '0' && force !== 'false';
+  const force = env["FORCE_COLOR"];
+  return force !== undefined && force !== "0" && force !== "false";
 }

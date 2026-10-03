@@ -1,8 +1,8 @@
-export { createPermDock, errorFormatter } from './create.ts';
+export { createPermDock, errorFormatter } from "./create.ts";
 export type {
   TrpcMiddleware,
   TrpcMiddlewareOpts,
   TrpcOpenApiHooks,
   TrpcPermDock,
   TrpcPermDockOptions,
-} from './create.ts';
+} from "./create.ts";

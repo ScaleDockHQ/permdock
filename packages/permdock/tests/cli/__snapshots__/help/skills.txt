@@ -1,0 +1,17 @@
+Install, update or list the PermDock Agent Skills (permdock skills)
+
+USAGE permdock skills [OPTIONS] [ACTION]
+
+ARGUMENTS
+
+  ACTION    install (default), update or list
+
+OPTIONS
+
+      --cwd=<dir>    Run as if started in this directory                  
+  --config=<file>    Config file (default permdock.config.{ts,mts,js,mjs})
+           --json    Machine-readable output                              
+        -y, --yes    Never prompt; take the answer the flags give         
+          --color    Styled output on a colour terminal (Default: true)   
+       --no-color    Plain output                                         
+   --agent=<name>    Agent skill folders to write, repeatable             

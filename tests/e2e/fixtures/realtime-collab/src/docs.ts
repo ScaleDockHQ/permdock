@@ -1,4 +1,4 @@
-import { type SaasDoc, saasSeed } from 'permdock/testing/saas';
+import { type SaasDoc, saasSeed } from "permdock/testing/saas";
 
 export type Edit = { readonly docId: string; readonly by: string };
 
@@ -10,7 +10,7 @@ export function findDoc(id: string | undefined): SaasDoc | undefined {
 }
 
 export function textOf(id: string): string {
-  return texts.get(id) ?? findDoc(id)?.title ?? '';
+  return texts.get(id) ?? findDoc(id)?.title ?? "";
 }
 
 export function writeText(edit: Edit, text: string): void {
@@ -43,7 +43,7 @@ export async function* editsOf(
       wake = resolve;
     });
   listeners.add(push);
-  signal.addEventListener('abort', stop);
+  signal.addEventListener("abort", stop);
   try {
     while (!signal.aborted) {
       const next = queue.shift();
@@ -56,6 +56,6 @@ export async function* editsOf(
     }
   } finally {
     listeners.delete(push);
-    signal.removeEventListener('abort', stop);
+    signal.removeEventListener("abort", stop);
   }
 }

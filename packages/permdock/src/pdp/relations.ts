@@ -1,7 +1,7 @@
-import type { Decision } from '../core/decision.ts';
-import type { DecisionProvider } from '../core/interfaces.ts';
-import type { Permission } from '../core/permissions.ts';
-import type { Subject } from '../core/subject.ts';
+import type { Decision } from "../core/decision.ts";
+import type { DecisionProvider } from "../core/interfaces.ts";
+import type { Permission } from "../core/permissions.ts";
+import type { Subject } from "../core/subject.ts";
 import type {
   OpenFgaOptions,
   OpenFgaTuple,
@@ -10,10 +10,10 @@ import type {
   RemotePdpCache,
   SpiceDbCheck,
   SpiceDbOptions,
-} from './types.ts';
+} from "./types.ts";
 
-import { isRecord } from '../authzen/map.ts';
-import { compact } from '../core/compact.ts';
+import { isRecord } from "../authzen/map.ts";
+import { compact } from "../core/compact.ts";
 import {
   DEFAULT_TIMEOUT_MS,
   cacheKey,
@@ -23,9 +23,9 @@ import {
   postJson,
   ttlCache,
   ttlMs,
-} from './shared.ts';
+} from "./shared.ts";
 
-type CheckResult = boolean | 'unavailable' | 'invalid';
+type CheckResult = boolean | "unavailable" | "invalid";
 
 type RelationBackend<T> = {
   readonly name: string;
@@ -64,7 +64,7 @@ function relationProvider<T>(backend: RelationBackend<T>): DecisionProvider {
     permission: Permission,
     subject: Subject,
     data: unknown,
-  ): T | null | 'invalid' {
+  ): T | null | "invalid" {
     const callback = callbacks.get(permission.key);
     if (callback === undefined) {
       return null;
@@ -72,7 +72,7 @@ function relationProvider<T>(backend: RelationBackend<T>): DecisionProvider {
     try {
       return callback(subject, data);
     } catch {
-      return 'invalid';
+      return "invalid";
     }
   }
 
@@ -83,14 +83,14 @@ function relationProvider<T>(backend: RelationBackend<T>): DecisionProvider {
     },
     async decide(request): Promise<Decision> {
       if (request.subject.principal === null) {
-        return denied('anonymous');
+        return denied("anonymous");
       }
       const tuple = tupleFor(request.permission, request.subject, request.data);
-      if (tuple === 'invalid') {
-        return denied('pdp-invalid-response');
+      if (tuple === "invalid") {
+        return denied("pdp-invalid-response");
       }
       if (tuple === null) {
-        return denied('pdp-denied');
+        return denied("pdp-denied");
       }
       const key = cacheKey(request.subject, request.permission, tuple);
       const hit = decisions.get(key);
@@ -98,11 +98,11 @@ function relationProvider<T>(backend: RelationBackend<T>): DecisionProvider {
         return hit;
       }
       const result = await backend.check(tuple, post);
-      if (result === 'unavailable') {
-        return denied('pdp-unavailable');
+      if (result === "unavailable") {
+        return denied("pdp-unavailable");
       }
-      if (result === 'invalid') {
-        return denied('pdp-invalid-response');
+      if (result === "invalid") {
+        return denied("pdp-invalid-response");
       }
       const decision = result
         ? granted(
@@ -111,7 +111,7 @@ function relationProvider<T>(backend: RelationBackend<T>): DecisionProvider {
             request.subject,
             request.data,
           )
-        : denied('pdp-denied');
+        : denied("pdp-denied");
       decisions.set(key, decision);
       return decision;
     },
@@ -120,7 +120,7 @@ function relationProvider<T>(backend: RelationBackend<T>): DecisionProvider {
         return [];
       }
       const tuple = tupleFor(request.permission, request.subject, undefined);
-      if (tuple === 'invalid') {
+      if (tuple === "invalid") {
         return null;
       }
       if (tuple === null) {
@@ -165,7 +165,7 @@ export function openfga(options: OpenFgaOptions): DecisionProvider {
   });
   return relationProvider<OpenFgaTuple>(
     compact({
-      name: 'openfga',
+      name: "openfga",
       map: options.map,
       auth: options.auth,
       timeout: options.timeout,
@@ -173,7 +173,7 @@ export function openfga(options: OpenFgaOptions): DecisionProvider {
       fetch: options.fetch,
       async check(tuple: OpenFgaTuple, post: Post): Promise<CheckResult> {
         if (tuple.id === undefined) {
-          return 'invalid';
+          return "invalid";
         }
         const body = await jsonOf(
           await post(`${store}/check`, {
@@ -186,11 +186,11 @@ export function openfga(options: OpenFgaOptions): DecisionProvider {
           }),
         );
         if (body === undefined) {
-          return 'unavailable';
+          return "unavailable";
         }
-        return isRecord(body) && typeof body['allowed'] === 'boolean'
-          ? body['allowed']
-          : 'invalid';
+        return isRecord(body) && typeof body["allowed"] === "boolean"
+          ? body["allowed"]
+          : "invalid";
       },
       async list(
         tuple: OpenFgaTuple,
@@ -204,13 +204,13 @@ export function openfga(options: OpenFgaOptions): DecisionProvider {
             user: tuple.user,
           }),
         );
-        if (!isRecord(body) || !Array.isArray(body['objects'])) {
+        if (!isRecord(body) || !Array.isArray(body["objects"])) {
           return null;
         }
         const prefix = `${tuple.type}:`;
         const ids: string[] = [];
-        for (const object of body['objects']) {
-          if (typeof object !== 'string' || !object.startsWith(prefix)) {
+        for (const object of body["objects"]) {
+          if (typeof object !== "string" || !object.startsWith(prefix)) {
             return null;
           }
           ids.push(object.slice(prefix.length));
@@ -235,12 +235,12 @@ function subjectReference(check: SpiceDbCheck): Record<string, unknown> {
  */
 export function spicedb(options: SpiceDbOptions): DecisionProvider {
   const consistency =
-    options.consistency === 'fully-consistent'
+    options.consistency === "fully-consistent"
       ? { fullyConsistent: true }
       : { minimizeLatency: true };
   return relationProvider<SpiceDbCheck>(
     compact({
-      name: 'spicedb',
+      name: "spicedb",
       map: options.map,
       auth: { bearer: options.token },
       timeout: options.timeout,
@@ -248,10 +248,10 @@ export function spicedb(options: SpiceDbOptions): DecisionProvider {
       fetch: options.fetch,
       async check(check: SpiceDbCheck, post: Post): Promise<CheckResult> {
         if (check.resource.id === undefined) {
-          return 'invalid';
+          return "invalid";
         }
         const body = await jsonOf(
-          await post(joinUrl(options.url, '/v1/permissions/check'), {
+          await post(joinUrl(options.url, "/v1/permissions/check"), {
             consistency,
             resource: {
               objectType: check.resource.type,
@@ -262,19 +262,19 @@ export function spicedb(options: SpiceDbOptions): DecisionProvider {
           }),
         );
         if (body === undefined) {
-          return 'unavailable';
+          return "unavailable";
         }
         if (!isRecord(body)) {
-          return 'invalid';
+          return "invalid";
         }
-        switch (body['permissionship']) {
-          case 'PERMISSIONSHIP_HAS_PERMISSION':
+        switch (body["permissionship"]) {
+          case "PERMISSIONSHIP_HAS_PERMISSION":
             return true;
-          case 'PERMISSIONSHIP_NO_PERMISSION':
-          case 'PERMISSIONSHIP_CONDITIONAL_PERMISSION':
+          case "PERMISSIONSHIP_NO_PERMISSION":
+          case "PERMISSIONSHIP_CONDITIONAL_PERMISSION":
             return false;
           default:
-            return 'invalid';
+            return "invalid";
         }
       },
       async list(
@@ -282,7 +282,7 @@ export function spicedb(options: SpiceDbOptions): DecisionProvider {
         post: Post,
       ): Promise<readonly string[] | null> {
         const response = await post(
-          joinUrl(options.url, '/v1/permissions/resources'),
+          joinUrl(options.url, "/v1/permissions/resources"),
           {
             consistency,
             resourceObjectType: check.resource.type,
@@ -300,8 +300,8 @@ export function spicedb(options: SpiceDbOptions): DecisionProvider {
           return null;
         }
         const ids: string[] = [];
-        for (const line of text.split('\n')) {
-          if (line.trim() === '') {
+        for (const line of text.split("\n")) {
+          if (line.trim() === "") {
             continue;
           }
           let parsed: unknown;
@@ -310,17 +310,17 @@ export function spicedb(options: SpiceDbOptions): DecisionProvider {
           } catch {
             return null;
           }
-          const result = isRecord(parsed) ? parsed['result'] : undefined;
+          const result = isRecord(parsed) ? parsed["result"] : undefined;
           if (
             !isRecord(result) ||
-            typeof result['resourceObjectId'] !== 'string'
+            typeof result["resourceObjectId"] !== "string"
           ) {
             return null;
           }
           if (
-            result['permissionship'] === 'LOOKUP_PERMISSIONSHIP_HAS_PERMISSION'
+            result["permissionship"] === "LOOKUP_PERMISSIONSHIP_HAS_PERMISSION"
           ) {
-            ids.push(result['resourceObjectId']);
+            ids.push(result["resourceObjectId"]);
           }
         }
         return Object.freeze(ids);

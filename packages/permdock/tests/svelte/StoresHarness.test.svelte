@@ -39,7 +39,7 @@
   // svelte-ignore state_referenced_locally
   try {
     onReady({
-      dock: getPermDock(),
+      permdock: getPermDock(),
       permission: permission(defs.post.update, () => ownPost),
       permissions: permissions(
         () => [defs.post.update, defs.post.publish],

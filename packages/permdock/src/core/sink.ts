@@ -1,4 +1,4 @@
-import type { Credential } from './credential.ts';
+import type { Credential } from "./credential.ts";
 import type {
   AccessEvent,
   CredentialEvent,
@@ -6,31 +6,31 @@ import type {
   MembershipEvent,
   SinkEvent,
   TokenSigner,
-} from './interfaces.ts';
+} from "./interfaces.ts";
 
-import { compact } from './compact.ts';
+import { compact } from "./compact.ts";
 
 /** The closed list of CloudEvents `type` values PermDock emits. */
 export const CLOUD_EVENT_TYPES: {
-  readonly decision: 'dev.permdock.decision';
-  readonly approval: 'dev.permdock.approval';
-  readonly directory: 'dev.permdock.directory';
-  readonly membership: 'dev.permdock.membership';
-  readonly catalog: 'dev.permdock.catalog';
-  readonly credential: 'dev.permdock.credential';
-  readonly accessStarted: 'dev.permdock.access.started';
-  readonly accessEnded: 'dev.permdock.access.ended';
-  readonly accessRevoked: 'dev.permdock.access.revoked';
+  readonly decision: "dev.permdock.decision";
+  readonly approval: "dev.permdock.approval";
+  readonly directory: "dev.permdock.directory";
+  readonly membership: "dev.permdock.membership";
+  readonly catalog: "dev.permdock.catalog";
+  readonly credential: "dev.permdock.credential";
+  readonly accessStarted: "dev.permdock.access.started";
+  readonly accessEnded: "dev.permdock.access.ended";
+  readonly accessRevoked: "dev.permdock.access.revoked";
 } = Object.freeze({
-  decision: 'dev.permdock.decision',
-  approval: 'dev.permdock.approval',
-  directory: 'dev.permdock.directory',
-  membership: 'dev.permdock.membership',
-  catalog: 'dev.permdock.catalog',
-  credential: 'dev.permdock.credential',
-  accessStarted: 'dev.permdock.access.started',
-  accessEnded: 'dev.permdock.access.ended',
-  accessRevoked: 'dev.permdock.access.revoked',
+  decision: "dev.permdock.decision",
+  approval: "dev.permdock.approval",
+  directory: "dev.permdock.directory",
+  membership: "dev.permdock.membership",
+  catalog: "dev.permdock.catalog",
+  credential: "dev.permdock.credential",
+  accessStarted: "dev.permdock.access.started",
+  accessEnded: "dev.permdock.access.ended",
+  accessRevoked: "dev.permdock.access.revoked",
 });
 
 export type CloudEventType =
@@ -38,10 +38,10 @@ export type CloudEventType =
 
 /** Why a published catalog broke a live hosted grant, which the Cloud then suspends. */
 export type CatalogFindingCode =
-  | 'permission-removed'
-  | 'not-hostable'
-  | 'grantee-removed'
-  | 'approval-tightened';
+  | "permission-removed"
+  | "not-hostable"
+  | "grantee-removed"
+  | "approval-tightened";
 
 /** One drift finding: the permission key and, when one broke, the hosted grant id. */
 export type CatalogFinding = {
@@ -52,7 +52,7 @@ export type CatalogFinding = {
 
 /** `data` of a `dev.permdock.catalog` event: a `permdock cloud push` or a drift against live hosted grants. */
 export type CatalogEventData = {
-  readonly kind: 'publish' | 'drift';
+  readonly kind: "publish" | "drift";
   /** The catalog fingerprint after the publish, or the one drift was measured against. */
   readonly fingerprint: string;
   readonly previous?: string;
@@ -60,13 +60,13 @@ export type CatalogEventData = {
 };
 
 export type CloudEvent = {
-  readonly specversion: '1.0';
+  readonly specversion: "1.0";
   readonly type: CloudEventType;
   readonly source: string;
   readonly subject?: string;
   readonly id: string;
   readonly time: string;
-  readonly datacontenttype: 'application/json';
+  readonly datacontenttype: "application/json";
   readonly data: SinkEvent | CatalogEventData;
 };
 
@@ -89,20 +89,20 @@ export type MemorySink = DecisionSink & {
 
 function cloudEventType(event: SinkEvent): CloudEventType {
   switch (event.type) {
-    case 'directory':
+    case "directory":
       return CLOUD_EVENT_TYPES.directory;
-    case 'membership':
+    case "membership":
       return CLOUD_EVENT_TYPES.membership;
-    case 'credential':
+    case "credential":
       return CLOUD_EVENT_TYPES.credential;
-    case 'access':
-      return event.operation === 'started'
+    case "access":
+      return event.operation === "started"
         ? CLOUD_EVENT_TYPES.accessStarted
-        : event.operation === 'ended'
+        : event.operation === "ended"
           ? CLOUD_EVENT_TYPES.accessEnded
           : CLOUD_EVENT_TYPES.accessRevoked;
-    case 'decision':
-      if (event.phase === 'requested' || event.phase === 'resolved') {
+    case "decision":
+      if (event.phase === "requested" || event.phase === "resolved") {
         return CLOUD_EVENT_TYPES.approval;
       }
       return CLOUD_EVENT_TYPES.decision;
@@ -114,13 +114,13 @@ function cloudEventType(event: SinkEvent): CloudEventType {
 }
 
 function cloudEventSubject(event: SinkEvent): string {
-  if (event.type === 'directory') {
+  if (event.type === "directory") {
     return event.resource.id;
   }
-  if (event.type === 'membership' || event.type === 'access') {
+  if (event.type === "membership" || event.type === "access") {
     return event.principal.id;
   }
-  if (event.type === 'credential') {
+  if (event.type === "credential") {
     return event.credential.id;
   }
   return event.permission;
@@ -131,30 +131,30 @@ function cloudEventSubject(event: SinkEvent): string {
  * events only and must be in `(0, 1]`.
  */
 export function credentialEvent(input: {
-  readonly operation: CredentialEvent['operation'];
+  readonly operation: CredentialEvent["operation"];
   readonly credential: Credential;
   readonly source?: string;
-  readonly by?: CredentialEvent['by'];
+  readonly by?: CredentialEvent["by"];
   readonly sample?: number;
   readonly at?: string;
 }): CredentialEvent {
   const sample = input.sample;
   if (
     sample !== undefined &&
-    (input.operation !== 'used' ||
+    (input.operation !== "used" ||
       !Number.isFinite(sample) ||
       sample <= 0 ||
       sample > 1)
   ) {
     throw new RangeError(
-      'PermDock: sample is a number in (0, 1] on used events only',
+      "PermDock: sample is a number in (0, 1] on used events only",
     );
   }
   const { credential } = input;
   return compact<CredentialEvent>({
-    type: 'credential',
+    type: "credential",
     at: input.at ?? new Date().toISOString(),
-    source: input.source ?? 'permdock',
+    source: input.source ?? "permdock",
     operation: input.operation,
     credential: { id: credential.id, kind: credential.kind },
     principal: { id: credential.principal },
@@ -167,27 +167,27 @@ export function credentialEvent(input: {
 
 export function membershipEvent(input: {
   readonly source: string;
-  readonly operation: MembershipEvent['operation'];
-  readonly principal: MembershipEvent['principal'];
+  readonly operation: MembershipEvent["operation"];
+  readonly principal: MembershipEvent["principal"];
   readonly scope?: string;
   readonly id?: string;
-  readonly within?: MembershipEvent['within'];
+  readonly within?: MembershipEvent["within"];
   readonly via?: string;
   readonly expiresAt?: number;
-  readonly roles: MembershipEvent['roles'];
-  readonly by?: MembershipEvent['by'];
+  readonly roles: MembershipEvent["roles"];
+  readonly by?: MembershipEvent["by"];
   readonly at?: string;
 }): MembershipEvent {
   if ((input.scope === undefined) !== (input.id === undefined)) {
     throw new TypeError(
-      'PermDock: membershipEvent needs scope and id together',
+      "PermDock: membershipEvent needs scope and id together",
     );
   }
   if (input.scope === undefined && input.within !== undefined) {
-    throw new TypeError('PermDock: membershipEvent within needs a scope');
+    throw new TypeError("PermDock: membershipEvent within needs a scope");
   }
   return compact<MembershipEvent>({
-    type: 'membership',
+    type: "membership",
     at: input.at ?? new Date().toISOString(),
     source: input.source,
     operation: input.operation,
@@ -209,26 +209,26 @@ export function membershipEvent(input: {
  */
 export function accessEvent(input: {
   readonly source: string;
-  readonly operation: AccessEvent['operation'];
+  readonly operation: AccessEvent["operation"];
   readonly tenant: string;
-  readonly principal: AccessEvent['principal'];
+  readonly principal: AccessEvent["principal"];
   readonly via?: string;
   readonly roles: readonly string[];
-  readonly member?: AccessEvent['member'];
+  readonly member?: AccessEvent["member"];
   readonly expiresAt?: number;
   readonly grantedBy?: string;
   readonly reason?: string;
-  readonly actor?: AccessEvent['actor'];
+  readonly actor?: AccessEvent["actor"];
   readonly at?: string;
 }): AccessEvent {
   return compact<AccessEvent>({
-    type: 'access',
+    type: "access",
     at: input.at ?? new Date().toISOString(),
     source: input.source,
     operation: input.operation,
     tenant: input.tenant,
     principal: input.principal,
-    via: input.via ?? 'support',
+    via: input.via ?? "support",
     roles: input.roles,
     member: input.member,
     expiresAt: input.expiresAt,
@@ -240,16 +240,16 @@ export function accessEvent(input: {
 
 export function toCloudEvent(
   event: SinkEvent,
-  source = 'permdock',
+  source = "permdock",
 ): CloudEvent {
   return compact<CloudEvent>({
-    specversion: '1.0',
+    specversion: "1.0",
     type: cloudEventType(event),
     source,
     subject: cloudEventSubject(event),
     id: globalThis.crypto.randomUUID(),
     time: event.at,
-    datacontenttype: 'application/json',
+    datacontenttype: "application/json",
     data: event,
   });
 }
@@ -259,11 +259,11 @@ export function signDecisionBatch(
   signer: TokenSigner,
   options: SignDecisionBatchOptions = {},
 ): Promise<string> {
-  const source = options.source ?? 'permdock';
+  const source = options.source ?? "permdock";
   return signer.sign(
     { events: events.map((event) => toCloudEvent(event, source)) },
-    compact<Parameters<TokenSigner['sign']>[1]>({
-      typ: 'permdock-decisions+jwt',
+    compact<Parameters<TokenSigner["sign"]>[1]>({
+      typ: "permdock-decisions+jwt",
       audience: options.audience,
     }),
   );

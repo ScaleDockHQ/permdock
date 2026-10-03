@@ -1,13 +1,13 @@
-import { revalidateTag } from 'next/cache';
+import { revalidateTag } from "next/cache";
 
-import { setPlan } from '../../../../lib/store.ts';
+import { setPlan } from "../../../../lib/store.ts";
 
 /**
  * A simulated billing webhook. Route Handlers cannot call `updateTag`, so
  * the shared org entry is expired with `revalidateTag(tag, { expire: 0 })`.
  */
 export async function POST(request: Request): Promise<Response> {
-  if (process.env['NEXT_E2E'] !== '1') {
+  if (process.env["NEXT_E2E"] !== "1") {
     return new Response(null, { status: 404 });
   }
   // SAFETY: every field stays unknown and is checked before use
@@ -16,8 +16,8 @@ export async function POST(request: Request): Promise<Response> {
     readonly plan?: unknown;
   };
   if (
-    typeof body.org !== 'string' ||
-    (body.plan !== 'free' && body.plan !== 'pro')
+    typeof body.org !== "string" ||
+    (body.plan !== "free" && body.plan !== "pro")
   ) {
     return Response.json({ ok: false }, { status: 400 });
   }

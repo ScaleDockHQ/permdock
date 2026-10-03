@@ -1,8 +1,8 @@
-import { expect, it } from 'vitest';
+import { expect, it } from "vitest";
 
-import type { Permission, Policy, RoleSource } from '../index.ts';
+import type { Permission, Policy, RoleSource } from "../index.ts";
 
-import { createPermDock, fromSnapshot, parseSnapshot } from '../index.ts';
+import { createPermDock, fromSnapshot, parseSnapshot } from "../index.ts";
 
 export type ClientParityCase = {
   readonly name: string;
@@ -54,13 +54,13 @@ export function testClientParity(
     it(`client parity: ${entry.name}`, async () => {
       const result = await outcomes(policy, entry, options);
       if (!result.server) {
-        expect(result.client, 'client granted what the server denied').toBe(
+        expect(result.client, "client granted what the server denied").toBe(
           false,
         );
         return;
       }
       if (entry.stricter !== true) {
-        expect(result.client, 'client denied what the server granted').toBe(
+        expect(result.client, "client denied what the server granted").toBe(
           true,
         );
       }

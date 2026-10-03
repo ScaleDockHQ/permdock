@@ -3,7 +3,6 @@ title: JWT authorization claims (RFC 9068, SCIM)
 description: How PermDock reads the registered roles, groups and entitlements JWT claims (RFC 9068 section 2.2.3.1, SCIM RFC 7643 encoding) into global roles, team memberships and entitlement roles, how vendor tenant claims map to the active tenant, and the AuthZEN claims draft that makes a PDP a claim source.
 ---
 
-
 ## What it is
 
 [RFC 9068](https://www.rfc-editor.org/rfc/rfc9068.html), the JWT profile for OAuth 2.0 access tokens, says in section 2.2.3.1 that an authorization server which embeds authorization attributes beyond delegated scopes (memberships in roles and groups, entitlements for the targeted resource) SHOULD use the `roles`, `groups` and `entitlements` attributes of the SCIM `User` schema ([RFC 7643](https://www.rfc-editor.org/rfc/rfc7643.html) section 4.1.2) as claim names, and registers all three in the IANA JWT claims registry. RFC 7643 defines the three as multi-valued complex attributes: each value is an object whose `value` sub-attribute carries the identifier, optionally with `display` (a human label), `type`, `primary` and `$ref`. RFC 7643 section 8.2 shows the `groups` form. No vocabulary is given for `roles` or `entitlements`.
@@ -28,27 +27,27 @@ PermDock reads role and group material from tokens on every request through `per
 ### Default claim mapping in `permdock/jwt`
 
 ```ts
-import { subjectFromJwt } from 'permdock/jwt'
+import { subjectFromJwt } from "permdock/jwt";
 
 const subject = await subjectFromJwt(token, {
-  jwks: 'https://issuer.example/.well-known/jwks.json',
-  issuer: 'https://issuer.example',
-  audience: 'api://permdock-example',
+  jwks: "https://issuer.example/.well-known/jwks.json",
+  issuer: "https://issuer.example",
+  audience: "api://permdock-example",
   claims: {
-    id: 'sub',
-    roles: 'roles',            // default; RFC 9068
-    groups: 'groups',          // default; RFC 9068 -> team memberships
-    entitlements: 'entitlements', // default; RFC 9068 -> principal.plans
-    tenant: 'org_id',          // no standard exists; vendor specific, see below
+    id: "sub",
+    roles: "roles", // default; RFC 9068
+    groups: "groups", // default; RFC 9068 -> team memberships
+    entitlements: "entitlements", // default; RFC 9068 -> principal.plans
+    tenant: "org_id", // no standard exists; vendor specific, see below
   },
-})
+});
 ```
 
-| Claim | Encoding accepted | Becomes | Rule |
-| --- | --- | --- | --- |
-| `roles` | `string[]` or SCIM complex values | `principal.roles` (global); an issuer that scopes roles to a tenant is read through a `claims.memberships` path, which yields memberships `{ tenant, roles }` | Names the policy never declared are dropped and reported once by `on('auth')`; a custom role name resolves through the `RoleSource` |
-| `groups` | `string[]` or SCIM complex values | `principal.memberships[]` entries `{ tenant, roles: [] }` of the active tenant, with `via: 'group:<value>'`; roles come from the resolver's `groupRoles` option (`{ '9f2c': ['lead'] }`, ids never names) or a `MembershipSource` | The `value` sub-attribute is the identifier; `display` is never used for matching |
-| `entitlements` | `string[]` or SCIM complex values | `principal.plans`, selected by name | Same trust rule as `roles`; grant with `to: plans.pro`, not by stuffing the name into `principal.roles` |
+| Claim          | Encoding accepted                 | Becomes                                                                                                                                                                                                                           | Rule                                                                                                                                |
+| -------------- | --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `roles`        | `string[]` or SCIM complex values | `principal.roles` (global); an issuer that scopes roles to a tenant is read through a `claims.memberships` path, which yields memberships `{ tenant, roles }`                                                                     | Names the policy never declared are dropped and reported once by `on('auth')`; a custom role name resolves through the `RoleSource` |
+| `groups`       | `string[]` or SCIM complex values | `principal.memberships[]` entries `{ tenant, roles: [] }` of the active tenant, with `via: 'group:<value>'`; roles come from the resolver's `groupRoles` option (`{ '9f2c': ['lead'] }`, ids never names) or a `MembershipSource` | The `value` sub-attribute is the identifier; `display` is never used for matching                                                   |
+| `entitlements` | `string[]` or SCIM complex values | `principal.plans`, selected by name                                                                                                                                                                                               | Same trust rule as `roles`; grant with `to: plans.pro`, not by stuffing the name into `principal.roles`                             |
 
 Reading SCIM complex values: `{ "value": "9f2c", "display": "Design", "type": "direct" }` contributes `9f2c`; `display` and `type` are not read. An Entra `_claim_names` / `_claim_sources` overflow (above roughly 200 groups) is not resolved. For large or nested directories, use app roles or a directory lookup in `context` ([authentication](/docs/concepts/authentication) single sign-on).
 
@@ -56,18 +55,18 @@ Reading SCIM complex values: `{ "value": "9f2c", "display": "Design", "type": "d
 
 There is no standard tenant claim. The `claims.tenant` path is configuration, and the resolver applies the [threat model](/docs/security/threat-model) rule: the value is compared against onboarded tenants (or the subject's memberships) and an absent or unknown value yields a subject with no active tenant, never a default.
 
-| Issuer | Tenant claim | Roles per tenant | Notes |
-| --- | --- | --- | --- |
-| Microsoft Entra ID | `tid` | `roles` are app roles assigned in the tenant | Restrict the issuer to one tenant or compare `tid` against onboarded tenants; `permdock doctor` `PD011` |
-| Auth0 | `org_id`, `org_name` | Organization Roles through a post-login Action claim | `org_name` is a label, `org_id` is the identifier |
-| WorkOS | `org_id` | `role` (slug) and `permissions` | `permissions` under the entitlements-are-roles rule |
-| Clerk | `org_id` (session token) | `org_role`, `org_permissions`; compact `o` claim in v2 tokens | The [Clerk provider](/docs/adapters/clerk) reads these directly |
-| Google Workspace | `hd` | None in the token | Absent for consumer accounts; `permdock doctor` `PD010` |
-| Kinde | `org_code` | `permissions`, `roles` | |
-| Descope | `tenants` object keyed by tenant id | `tenants.<id>.roles` | A per-tenant claim path: `claims: { memberships: 'tenants' }` maps each key to a membership |
-| Zitadel | Organisation id nested under each role in `urn:zitadel:iam:org:project:roles` | Same claim | The resolver flattens `role -> { orgId }` into `{ tenant: orgId, roles: [role] }` memberships |
-| Logto | Audience `urn:logto:organization:<id>` on an organization token | `roles`, `scope` | One token per organisation |
-| Supabase (convention) | `tenant_id` injected by a custom access token hook | A hook-injected role claim | The [Supabase provider](/docs/adapters/supabase) refuses `user_metadata` |
+| Issuer                | Tenant claim                                                                  | Roles per tenant                                              | Notes                                                                                                   |
+| --------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Microsoft Entra ID    | `tid`                                                                         | `roles` are app roles assigned in the tenant                  | Restrict the issuer to one tenant or compare `tid` against onboarded tenants; `permdock doctor` `PD011` |
+| Auth0                 | `org_id`, `org_name`                                                          | Organization Roles through a post-login Action claim          | `org_name` is a label, `org_id` is the identifier                                                       |
+| WorkOS                | `org_id`                                                                      | `role` (slug) and `permissions`                               | `permissions` under the entitlements-are-roles rule                                                     |
+| Clerk                 | `org_id` (session token)                                                      | `org_role`, `org_permissions`; compact `o` claim in v2 tokens | The [Clerk provider](/docs/adapters/clerk) reads these directly                                         |
+| Google Workspace      | `hd`                                                                          | None in the token                                             | Absent for consumer accounts; `permdock doctor` `PD010`                                                 |
+| Kinde                 | `org_code`                                                                    | `permissions`, `roles`                                        |                                                                                                         |
+| Descope               | `tenants` object keyed by tenant id                                           | `tenants.<id>.roles`                                          | A per-tenant claim path: `claims: { memberships: 'tenants' }` maps each key to a membership             |
+| Zitadel               | Organisation id nested under each role in `urn:zitadel:iam:org:project:roles` | Same claim                                                    | The resolver flattens `role -> { orgId }` into `{ tenant: orgId, roles: [role] }` memberships           |
+| Logto                 | Audience `urn:logto:organization:<id>` on an organization token               | `roles`, `scope`                                              | One token per organisation                                                                              |
+| Supabase (convention) | `tenant_id` injected by a custom access token hook                            | A hook-injected role claim                                    | The [Supabase provider](/docs/adapters/supabase) refuses `user_metadata`                                |
 
 ### PermDock as a claim source
 
@@ -75,18 +74,18 @@ There is no standard tenant claim. The `claims.tenant` path is configuration, an
 
 ## Mapping table
 
-| Specification concept | PermDock concept |
-| --- | --- |
-| RFC 9068 `roles` claim | `principal.roles`; tenant-scoped roles through a `claims.memberships` path |
-| RFC 7643 complex value `value` | The identifier PermDock matches on |
-| RFC 7643 complex value `display` | Never used for matching |
-| RFC 7643 complex value `type` (`direct`, `indirect`) | Not read; direct and indirect memberships map the same way |
-| RFC 9068 `groups` claim | `Membership.team` (identifier), `via: 'group:<id>'` |
-| RFC 9068 `entitlements` claim | Roles under the entitlements-are-roles rule |
-| SCIM `Group.id` | `Membership.team` |
-| SCIM `Group.displayName` | Never an identifier |
-| No standard tenant claim | `claims.tenant` configuration; `principal.tenant` after resolution |
-| AuthZEN claims draft: claim binding | `/search/resource` over the subject's roles and memberships |
+| Specification concept                                | PermDock concept                                                           |
+| ---------------------------------------------------- | -------------------------------------------------------------------------- |
+| RFC 9068 `roles` claim                               | `principal.roles`; tenant-scoped roles through a `claims.memberships` path |
+| RFC 7643 complex value `value`                       | The identifier PermDock matches on                                         |
+| RFC 7643 complex value `display`                     | Never used for matching                                                    |
+| RFC 7643 complex value `type` (`direct`, `indirect`) | Not read; direct and indirect memberships map the same way                 |
+| RFC 9068 `groups` claim                              | `Membership.team` (identifier), `via: 'group:<id>'`                        |
+| RFC 9068 `entitlements` claim                        | Roles under the entitlements-are-roles rule                                |
+| SCIM `Group.id`                                      | `Membership.team`                                                          |
+| SCIM `Group.displayName`                             | Never an identifier                                                        |
+| No standard tenant claim                             | `claims.tenant` configuration; `principal.tenant` after resolution         |
+| AuthZEN claims draft: claim binding                  | `/search/resource` over the subject's roles and memberships                |
 
 ## Sources
 

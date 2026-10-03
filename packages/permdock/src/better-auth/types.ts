@@ -1,6 +1,6 @@
-import type { StandardSchemaV1 } from '@standard-schema/spec';
+import type { StandardSchemaV1 } from "@standard-schema/spec";
 
-import type { Principal } from '../core/subject.ts';
+import type { Principal } from "../core/subject.ts";
 
 export type BetterAuthPrincipal = Principal & {
   readonly email?: string;
@@ -33,7 +33,7 @@ export type BetterAuthLike = {
       readonly query?: {
         readonly organizationId?: string;
         readonly filterField?: string;
-        readonly filterOperator?: 'eq';
+        readonly filterOperator?: "eq";
         readonly filterValue?: string;
       };
       readonly headers?: unknown;
@@ -52,7 +52,7 @@ export type BetterAuthLike = {
 };
 
 export type BetterAuthSubjectOptions = {
-  readonly memberships?: 'all' | 'active';
+  readonly memberships?: "all" | "active";
   readonly schema?: StandardSchemaV1;
   readonly headers?: unknown;
   readonly declared?: readonly string[];

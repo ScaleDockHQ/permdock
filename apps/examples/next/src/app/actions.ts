@@ -1,20 +1,20 @@
-'use server';
+"use server";
 
-import { updateTag } from 'next/cache';
-import { redirect } from 'next/navigation';
-import { snapshotTag } from 'permdock/next';
+import { updateTag } from "next/cache";
+import { redirect } from "next/navigation";
+import { snapshotTag } from "permdock/next";
 
-import type { RoleName } from '../permissions.ts';
+import type { RoleName } from "../permissions.ts";
 
-import { orgTag } from '../lib/access.ts';
+import { orgTag } from "../lib/access.ts";
 import {
   findQuote,
   removeQuote,
   setQuoteStatus,
   setStaffRole,
-} from '../lib/store.ts';
-import { requireAccess } from '../permdock/server.ts';
-import { permissions, roles } from '../permissions.ts';
+} from "../lib/store.ts";
+import { requireAccess } from "../permdock/server.ts";
+import { permissions, roles } from "../permissions.ts";
 
 function isRole(value: string): value is RoleName {
   return Object.hasOwn(roles, value);
@@ -34,7 +34,7 @@ export async function approveQuote(
     data: quote,
     tenant: organization,
   });
-  setQuoteStatus(quote.id, 'approved');
+  setQuoteStatus(quote.id, "approved");
   updateTag(orgTag(organization));
 }
 
@@ -58,18 +58,18 @@ export async function deleteQuote(
 
 function field(form: FormData, name: string): string {
   const value = form.get(name);
-  return typeof value === 'string' ? value : '';
+  return typeof value === "string" ? value : "";
 }
 
 export async function changeRole(form: FormData): Promise<void> {
-  const organization = field(form, 'organization');
-  const user = field(form, 'user');
-  const role = field(form, 'role');
+  const organization = field(form, "organization");
+  const user = field(form, "user");
+  const role = field(form, "role");
   await requireAccess({
     permission: permissions.member.manage,
     tenant: organization,
   });
-  if (!isRole(role) || role === 'contact') {
+  if (!isRole(role) || role === "contact") {
     return;
   }
   if (setStaffRole(organization, user, role)) {

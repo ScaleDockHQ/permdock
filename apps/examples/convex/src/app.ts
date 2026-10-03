@@ -1,39 +1,39 @@
-import { Hono } from 'hono';
-import { createPermDock } from 'permdock/convex';
+import { Hono } from "hono";
+import { createPermDock } from "permdock/convex";
 
-import { permissions } from './permissions.ts';
-import { policy } from './policy.ts';
+import { permissions } from "./permissions.ts";
+import { policy } from "./policy.ts";
 
 function userOf(ctx: unknown): { readonly id: string } | null {
-  if (ctx === null || typeof ctx !== 'object' || !('user' in ctx)) {
+  if (ctx === null || typeof ctx !== "object" || !("user" in ctx)) {
     return null;
   }
   const { user } = ctx;
-  if (user === null || typeof user !== 'object' || !('id' in user)) {
+  if (user === null || typeof user !== "object" || !("id" in user)) {
     return null;
   }
   const { id } = user;
-  return typeof id === 'string' ? { id } : null;
+  return typeof id === "string" ? { id } : null;
 }
 
 const { withPermDock, snapshotQuery } = createPermDock(policy, {
   subject: (ctx) => {
     const identity = userOf(ctx);
-    return identity === null ? null : { id: identity.id, roles: ['member'] };
+    return identity === null ? null : { id: identity.id, roles: ["member"] };
   },
 });
 
 const list = withPermDock((ctx) =>
   ctx.permdock.filter(permissions.post.read, [
-    { id: 'p1', authorId: 'user-1' },
-    { id: 'p2', authorId: 'user-2' },
+    { id: "p1", authorId: "user-1" },
+    { id: "p2", authorId: "user-2" },
   ]),
 );
 
 const destroy = withPermDock((ctx, args: { readonly id: string }) => {
   const allowed = ctx.permdock.can(permissions.post.delete, {
     id: args.id,
-    authorId: 'user-1',
+    authorId: "user-1",
   });
   return { allowed };
 });
@@ -48,17 +48,17 @@ const snapshot = snapshotQuery() as {
 
 export const app = new Hono();
 
-app.get('/health', (c) => c.json({ ok: true }));
+app.get("/health", (c) => c.json({ ok: true }));
 
-app.get('/posts', async (c) => {
-  const rows = await list({ user: { id: 'user-1' } }, {});
+app.get("/posts", async (c) => {
+  const rows = await list({ user: { id: "user-1" } }, {});
   return c.json({ rows });
 });
 
-app.post('/posts/:id/delete', async (c) => {
+app.post("/posts/:id/delete", async (c) => {
   const result = await destroy(
-    { user: { id: 'user-1' } },
-    { id: c.req.param('id') },
+    { user: { id: "user-1" } },
+    { id: c.req.param("id") },
   );
   if (!result.allowed) {
     return c.json({ ok: false }, 403);
@@ -66,7 +66,7 @@ app.post('/posts/:id/delete', async (c) => {
   return c.json({ ok: true });
 });
 
-app.get('/snapshot', async (c) => {
-  const body = await snapshot.handler({ user: { id: 'user-1' } }, {});
+app.get("/snapshot", async (c) => {
+  const body = await snapshot.handler({ user: { id: "user-1" } }, {});
   return c.json({ grants: body.grants.length });
 });

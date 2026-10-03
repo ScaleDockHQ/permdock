@@ -1,4 +1,4 @@
-export { createPermDock } from './create.ts';
+export { createPermDock } from "./create.ts";
 export type {
   AiSdkContext,
   AiSdkPermDock,
@@ -7,4 +7,4 @@ export type {
   NeedsApprovalOptions,
   ToolApprovalCall,
   ToolApprovalStatus,
-} from './create.ts';
+} from "./create.ts";

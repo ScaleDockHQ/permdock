@@ -8,44 +8,56 @@ A condition is the part of a grant that depends on data: "the author is the curr
 ## Writing conditions
 
 ```ts
-allow(permissions.post.update, { where: { authorId: principal.id } })
-allow(permissions.post.read,   { where: { or: [{ published: true }, { authorId: principal.id }] } })
-allow(permissions.invoice.pay, { where: { orgId: principal.orgId, amount: { lte: 10_000 } } })
-allow(permissions.post.read,   { where: { teamId: { in: context.teamIds } } })
-allow(permissions.post.update, { where: { authorId: principal.id }, check: { authorId: principal.id } })
+allow(permissions.post.update, { where: { authorId: principal.id } });
+allow(permissions.post.read, {
+  where: { or: [{ published: true }, { authorId: principal.id }] },
+});
+allow(permissions.invoice.pay, {
+  where: { orgId: principal.orgId, amount: { lte: 10_000 } },
+});
+allow(permissions.post.read, { where: { teamId: { in: context.teamIds } } });
+allow(permissions.post.update, {
+  where: { authorId: principal.id },
+  check: { authorId: principal.id },
+});
 ```
 
 An object literal is an implicit `and` over its fields. A field value is either a literal (`true`, `'published'`, `42`), a principal reference (`principal.id`), or an operator object (`{ lte: 10_000 }`). `and`, `or` and `not` nest. Field names and literal types are checked against `StandardSchemaV1.InferOutput` of the resource schema, so a typo or a string compared to a boolean is a compile error.
 
 ### Operators
 
-| Operator | Meaning | SQL |
-| --- | --- | --- |
-| `eq` (default for a bare value) | equals | `=` |
-| `ne` | not equals | `<>` |
-| `in`, `notIn` | membership in a literal array or a `context` array | `IN`, `NOT IN` |
-| `gt`, `gte`, `lt`, `lte` | comparison on numbers, strings, dates | `>`, `>=`, `<`, `<=` |
-| `isNull` | `true` or `false` | `IS NULL`, `IS NOT NULL` |
-| `contains` | array column contains value, or string contains substring (typed by the field) | `@>` or `LIKE`; RLS: `value = any(column)` or `LIKE` |
-| `and`, `or`, `not` | compound | `AND`, `OR`, `NOT` |
-| `memberOf` | the row's scope field names an instance of a named scope (or a resource) where the subject holds one of the listed roles, through a membership of exactly that scope; emitted by scoped role declarations, not written by hand | `=` on the active tenant claim, or `EXISTS (select 1 from <membership table> ...)` |
-| `sqlFunction` | a named Postgres function plus a portable `twin` the evaluator, `filter`, `where` and snapshots run | `name(args)` (`--inline-functions` emits the twin instead) |
-| `related` | the subject holds a relation on the object the row's field names, or on one of its ancestors within `depth` parent hops; emitted by `relation(..., { through: 'parent' })` and edge-table relations, not written by hand ([relationships](/docs/concepts/relationships)) | `field in (select descendant from permdock_closure where ... and ancestor = any (array(select permitted_<resource>_ids('<relation>'))))` |
+| Operator                        | Meaning                                                                                                                                                                                                                                                                  | SQL                                                                                                                                      |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `eq` (default for a bare value) | equals                                                                                                                                                                                                                                                                   | `=`                                                                                                                                      |
+| `ne`                            | not equals                                                                                                                                                                                                                                                               | `<>`                                                                                                                                     |
+| `in`, `notIn`                   | membership in a literal array or a `context` array                                                                                                                                                                                                                       | `IN`, `NOT IN`                                                                                                                           |
+| `gt`, `gte`, `lt`, `lte`        | comparison on numbers, strings, dates                                                                                                                                                                                                                                    | `>`, `>=`, `<`, `<=`                                                                                                                     |
+| `isNull`                        | `true` or `false`                                                                                                                                                                                                                                                        | `IS NULL`, `IS NOT NULL`                                                                                                                 |
+| `contains`                      | array column contains value, or string contains substring (typed by the field)                                                                                                                                                                                           | `@>` or `LIKE`; RLS: `value = any(column)` or `LIKE`                                                                                     |
+| `and`, `or`, `not`              | compound                                                                                                                                                                                                                                                                 | `AND`, `OR`, `NOT`                                                                                                                       |
+| `memberOf`                      | the row's scope field names an instance of a named scope (or a resource) where the subject holds one of the listed roles, through a membership of exactly that scope; emitted by scoped role declarations, not written by hand                                           | `=` on the active tenant claim, or `EXISTS (select 1 from <membership table> ...)`                                                       |
+| `sqlFunction`                   | a named Postgres function plus a portable `twin` the evaluator, `filter`, `where` and snapshots run                                                                                                                                                                      | `name(args)` (`--inline-functions` emits the twin instead)                                                                               |
+| `related`                       | the subject holds a relation on the object the row's field names, or on one of its ancestors within `depth` parent hops; emitted by `relation(..., { through: 'parent' })` and edge-table relations, not written by hand ([relationships](/docs/concepts/relationships)) | `field in (select descendant from permdock_closure where ... and ancestor = any (array(select permitted_<resource>_ids('<relation>'))))` |
 
 That is the whole list. It is deliberately the subset that round-trips to Postgres RLS ([research](/docs/standards/postgres-rls)); anything richer belongs in `context` or a closure. `memberOf` is the one node the evaluator adds for [scoped roles](/docs/concepts/tenancy): `role('viewer', grants, { on: 'tenant' })` wraps each grant's condition in `memberOf(tenant, roles: ['viewer'])`, so a tenant-scoped grant compiles, snapshots and filters like any other condition. `sqlFunction` is the node for SQL-authority policies whose database helper is the source of truth:
 
 ```ts
 allow(permissions.job.read, {
-  where: sqlFunction('job_permitted', {
-    args: [{ field: 'id' }],
+  where: sqlFunction("job_permitted", {
+    args: [{ field: "id" }],
     twin: {
       or: [
-        { scope: 'public' },
-        { and: [{ scope: 'team' }, { op: 'memberOf', scope: 'team', field: 'teamId', roles: [] }] },
+        { scope: "public" },
+        {
+          and: [
+            { scope: "team" },
+            { op: "memberOf", scope: "team", field: "teamId", roles: [] },
+          ],
+        },
       ],
     },
   }),
-})
+});
 ```
 
 ### Subject references
@@ -63,17 +75,17 @@ Token claims are `principal.claims.<path>`, and a path may be nested: `principal
 
 ### Common patterns
 
-| Intent | Condition | Supabase RLS output |
-| --- | --- | --- |
-| Ownership | `{ where: { authorId: principal.id } }` | `(select auth.uid()) = author_id` |
-| Tenancy | `{ where: { orgId: principal.orgId } }` | `org_id = ((select auth.jwt()) ->> 'orgId')::uuid` |
-| Public rows | `{ where: { published: true } }` | `published = true` |
-| Owner or public | `{ where: { or: [{ published: true }, { authorId: principal.id }] } }` | `(published = true OR (select auth.uid()) = author_id)` |
-| Membership (array in `context`) | `{ where: { teamId: { in: context.teamIds } } }` | `team_id IN (select team_id from team_user where user_id = (select auth.uid()))` |
-| Tenancy (scoped role) | `role('viewer', [allow(permissions.post.read)], { on: 'tenant' })` | `org_id = ((select auth.jwt()) ->> 'tenant_id')::uuid` |
-| Team role (scoped role) | `role('lead', [allow(permissions.post.publish)], { on: 'team' })` | `exists (select 1 from team_member m where m.team_id = team_id and m.user_id = (select auth.uid()) and m.role = 'lead')` |
-| Not archived | `{ where: { archivedAt: { isNull: true } } }` | `archived_at IS NULL` |
-| Cannot reassign owner | `{ where: { authorId: principal.id }, check: { authorId: principal.id } }` | `USING (...) WITH CHECK (...)` |
+| Intent                          | Condition                                                                  | Supabase RLS output                                                                                                      |
+| ------------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Ownership                       | `{ where: { authorId: principal.id } }`                                    | `(select auth.uid()) = author_id`                                                                                        |
+| Tenancy                         | `{ where: { orgId: principal.orgId } }`                                    | `org_id = ((select auth.jwt()) ->> 'orgId')::uuid`                                                                       |
+| Public rows                     | `{ where: { published: true } }`                                           | `published = true`                                                                                                       |
+| Owner or public                 | `{ where: { or: [{ published: true }, { authorId: principal.id }] } }`     | `(published = true OR (select auth.uid()) = author_id)`                                                                  |
+| Membership (array in `context`) | `{ where: { teamId: { in: context.teamIds } } }`                           | `team_id IN (select team_id from team_user where user_id = (select auth.uid()))`                                         |
+| Tenancy (scoped role)           | `role('viewer', [allow(permissions.post.read)], { on: 'tenant' })`         | `org_id = ((select auth.jwt()) ->> 'tenant_id')::uuid`                                                                   |
+| Team role (scoped role)         | `role('lead', [allow(permissions.post.publish)], { on: 'team' })`          | `exists (select 1 from team_member m where m.team_id = team_id and m.user_id = (select auth.uid()) and m.role = 'lead')` |
+| Not archived                    | `{ where: { archivedAt: { isNull: true } } }`                              | `archived_at IS NULL`                                                                                                    |
+| Cannot reassign owner           | `{ where: { authorId: principal.id }, check: { authorId: principal.id } }` | `USING (...) WITH CHECK (...)`                                                                                           |
 
 The right-hand column assumes the Supabase dialect; Neon and generic Postgres substitute `auth.user_id()` or a GUC. Column naming follows the mapping the RLS adapter derives from your schema or Drizzle table.
 
@@ -81,12 +93,12 @@ The right-hand column assumes the Supabase dialect; Neon and generic Postgres su
 
 `where` describes the row as it is now; `check` describes the row as it will be after the write. The split mirrors Postgres exactly:
 
-| Action | `where` | `check` | Generated policy |
-| --- | --- | --- | --- |
-| `read` (and other read-like instance actions) | required for a conditional grant | not allowed | `FOR SELECT USING (where)` |
-| `create` (collection) | not allowed | on the new row | `FOR INSERT WITH CHECK (check)` |
-| `update` | current row | next row; defaults to `where` when omitted | `FOR UPDATE USING (where) WITH CHECK (check)` |
-| `delete` | current row | not allowed | `FOR DELETE USING (where)` |
+| Action                                        | `where`                          | `check`                                    | Generated policy                              |
+| --------------------------------------------- | -------------------------------- | ------------------------------------------ | --------------------------------------------- |
+| `read` (and other read-like instance actions) | required for a conditional grant | not allowed                                | `FOR SELECT USING (where)`                    |
+| `create` (collection)                         | not allowed                      | on the new row                             | `FOR INSERT WITH CHECK (check)`               |
+| `update`                                      | current row                      | next row; defaults to `where` when omitted | `FOR UPDATE USING (where) WITH CHECK (check)` |
+| `delete`                                      | current row                      | not allowed                                | `FOR DELETE USING (where)`                    |
 
 The classic hole this closes: a user who may update their own posts must not be able to reassign `authorId` to someone else. `allow(permissions.post.update, { where: { authorId: principal.id } })` alone lets Postgres reuse the `USING` clause as `WITH CHECK`, and PermDock does the same in memory: when `check` is omitted for `update`, the `where` condition is evaluated against the proposed row too. Pass `check` explicitly when the two differ.
 
@@ -102,7 +114,11 @@ Conditions are plain JSON. No superjson, no class instances, no functions. The l
   "conditions": [
     { "op": "eq", "field": "authorId", "value": { "ref": "principal.id" } },
     { "op": "in", "field": "teamId", "value": { "ref": "context.teamIds" } },
-    { "op": "lte", "field": "createdAt", "value": { "date": "2026-09-01T00:00:00Z" } }
+    {
+      "op": "lte",
+      "field": "createdAt",
+      "value": { "date": "2026-09-01T00:00:00Z" }
+    }
   ]
 }
 ```
@@ -120,22 +136,25 @@ This is the format inside [snapshots](/docs/concepts/snapshots), catalogs and th
 
 One AST, several interpreters:
 
-| Target | Entry | What you get |
-| --- | --- | --- |
-| In memory | `permdock.can`, `decide`, `filter` | Boolean per row, fail-closed on missing fields |
-| Arrays | `permdock.filter(permissions.post.read, posts)` | `Post[]` |
-| Query fragment | `permdock.where(permissions.post.read)` | The portable condition for the subject's matching grants: allows OR'd, each AND'd with `NOT` of matching denies |
-| Drizzle | `toWhere(permdock.where(...), posts)` from `permdock/drizzle` | An SQL expression for `.where()`; empty allow is constant false; `memberOf` is equality, `inArray`, parent `or`, or `exists` |
-| Prisma | `toWhere(...)` from `permdock/prisma` | A `WhereInput` object; fail-closed as `{ OR: [] }` when nothing is allowed; `memberOf` uses frozen membership ids |
-| Kysely | `toWhere(...)` from `permdock/kysely` | An expression builder callback; empty allow is `eb.lit(false)`; `memberOf` matches Drizzle |
-| Prisma 8 | `toPredicate(...)` from `permdock/prisma` | A function of the model's field proxy |
-| Postgres RLS | `permdock rls generate` | `CREATE POLICY` statements, Drizzle `pgPolicy` entries or Prisma 8 `policy_*` blocks |
+| Target         | Entry                                                         | What you get                                                                                                                 |
+| -------------- | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| In memory      | `permdock.can`, `decide`, `filter`                            | Boolean per row, fail-closed on missing fields                                                                               |
+| Arrays         | `permdock.filter(permissions.post.read, posts)`               | `Post[]`                                                                                                                     |
+| Query fragment | `permdock.where(permissions.post.read)`                       | The portable condition for the subject's matching grants: allows OR'd, each AND'd with `NOT` of matching denies              |
+| Drizzle        | `toWhere(permdock.where(...), posts)` from `permdock/drizzle` | An SQL expression for `.where()`; empty allow is constant false; `memberOf` is equality, `inArray`, parent `or`, or `exists` |
+| Prisma         | `toWhere(...)` from `permdock/prisma`                         | A `WhereInput` object; fail-closed as `{ OR: [] }` when nothing is allowed; `memberOf` uses frozen membership ids            |
+| Kysely         | `toWhere(...)` from `permdock/kysely`                         | An expression builder callback; empty allow is `eb.lit(false)`; `memberOf` matches Drizzle                                   |
+| Prisma 8       | `toPredicate(...)` from `permdock/prisma`                     | A function of the model's field proxy                                                                                        |
+| Postgres RLS   | `permdock rls generate`                                       | `CREATE POLICY` statements, Drizzle `pgPolicy` entries or Prisma 8 `policy_*` blocks                                         |
 
 `related` needs the graph tables, not only the row. `permdock.where()` keeps it; Drizzle and Kysely compile it to a subquery when `options.relations` says where the tables are, and Prisma needs `resolveRelated` to replace it with ids first. Without either, the compilers refuse it with `non-portable-condition`. A relation with a `period` stays out of `where()` (`partial: true`); re-check those rows with `filter` after `loadRelations`, or let RLS enforce them ([relationships](/docs/concepts/relationships#snapshots-clients-and-where)).
 
 ```ts
-import { toWhere } from 'permdock/drizzle'
-const rows = await db.select().from(posts).where(toWhere(permdock.where(permissions.post.read), posts))
+import { toWhere } from "permdock/drizzle";
+const rows = await db
+  .select()
+  .from(posts)
+  .where(toWhere(permdock.where(permissions.post.read), posts));
 ```
 
 `permdock.where` follows the flattening CASL v7 fixed in `rulesToCondition`: walk grants, OR the allows, AND each with the negation of every deny, and return an always-false condition when nothing is allowed so the query returns no rows rather than all rows. If any matching grant is a closure, the result carries `partial: true` and the adapter page tells you to re-check rows in memory after the query.
@@ -143,7 +162,10 @@ const rows = await db.select().from(posts).where(toWhere(permdock.where(permissi
 ## Closures
 
 ```ts
-allow(permissions.post.publish, (post, ctx) => post.authorId === ctx.principal.id && !post.published)
+allow(
+  permissions.post.publish,
+  (post, ctx) => post.authorId === ctx.principal.id && !post.published,
+);
 ```
 
 A closure is any function passed as the condition. It runs on the server with `(data, ctx)` where `ctx` has `subject`, `actor`, `delegation` and `context`. It may be async. It is not portable, so:
@@ -159,7 +181,12 @@ Closures are the right tool for calls to another system or logic that is not a c
 `permdock rls import` reads existing policies from `pg_policies`. Expressions in the portable subset become `where` / `check` data; named functions listed in `rls.functions` become `sqlFunction` nodes; anything else (`now()` arithmetic, `CASE`, multi-join subqueries, unmapped custom functions) becomes an opaque node:
 
 ```ts
-allow(permissions.post.read, { where: opaque({ sql: '(created_at > now() - interval \'30 days\')', fingerprint: 'sha256:...' }) })
+allow(permissions.post.read, {
+  where: opaque({
+    sql: "(created_at > now() - interval '30 days')",
+    fingerprint: "sha256:...",
+  }),
+});
 ```
 
 An opaque condition keeps the SQL verbatim so `rls generate` can emit it back unchanged and the fingerprint (from the deparsed AST, not raw text, since `pg_get_expr` rewrites formatting) detects drift on re-import. In memory an opaque condition fails its grant, a deny with one denies, and the decision explains why (`reason: 'opaque-condition'`), so the client falls back to the decision endpoint and the endpoint falls back to the database. `permdock rls verify` reports opaque grants as untestable app-side. Prefer `sqlFunction` when the SQL is a named helper whose body you can twin. Supabase's `authorize('perm')` RBAC helper is imported the same way: list it in `rls.functions` and it becomes a `sqlFunction` node, not a dedicated op.

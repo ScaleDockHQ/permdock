@@ -1,5 +1,5 @@
-import type { Policy, Principal, Subject } from '../../index.ts';
-import type { SaasDoc } from './permissions.ts';
+import type { Policy, Principal, Subject } from "../../index.ts";
+import type { SaasDoc } from "./permissions.ts";
 
 import {
   allow,
@@ -9,11 +9,11 @@ import {
   principal,
   relation,
   role,
-} from '../../index.ts';
-import { saasPermissions, saasPlans, saasRoles } from './permissions.ts';
+} from "../../index.ts";
+import { saasPermissions, saasPlans, saasRoles } from "./permissions.ts";
 
 function isSubject(user: Principal | Subject | null): user is Subject {
-  return user !== null && 'context' in user && 'principal' in user;
+  return user !== null && "context" in user && "principal" in user;
 }
 
 type RoleRef = (typeof saasRoles)[keyof typeof saasRoles];
@@ -57,8 +57,8 @@ export const saasPolicy: Policy<
   { permissions: saasPermissions, roles: saasRoles, plans: saasPlans },
   {
     scopes: {
-      tenant: { key: 'orgId' },
-      team: { key: 'teamId', within: 'tenant' },
+      tenant: { key: "orgId" },
+      team: { key: "teamId", within: "tenant" },
     },
     // A full `Subject` (with `expiresAt` or `session`) is used as is.
     subject: (user: Principal | Subject | null): Principal | null =>
@@ -95,7 +95,7 @@ export const saasPolicy: Policy<
       ...each(admins, (to) =>
         allow(p.apiKey.create, {
           to,
-          limit: { count: SAAS_API_KEY_LIMIT, per: 'day' },
+          limit: { count: SAAS_API_KEY_LIMIT, per: "day" },
         }),
       ),
       allow(p.apiKey.revokeAll, {
@@ -112,13 +112,13 @@ export const saasPolicy: Policy<
       allow(p.billing.manage, { to: r.owner }),
       deny(p.project.delete, { to: anyone(), where: { archived: true } }),
       ...each(readers, (to) => allow(p.doc.read, { to })),
-      allow(p.doc.update, { to: relation(p.doc, 'team') }),
+      allow(p.doc.update, { to: relation(p.doc, "team") }),
       ...each(admins, (to) => allow(p.folder.read, { to })),
       allow(p.folder.read, {
-        to: relation(p.folder, 'viewer', { through: 'parent', depth: 8 }),
+        to: relation(p.folder, "viewer", { through: "parent", depth: 8 }),
       }),
       allow(p.folder.update, {
-        to: relation(p.folder, 'editor', { through: 'parent', depth: 8 }),
+        to: relation(p.folder, "editor", { through: "parent", depth: 8 }),
       }),
     ],
   },

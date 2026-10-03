@@ -1,17 +1,17 @@
-import type { Condition } from '../conditions/ast.ts';
-import type { Permission } from '../core/permissions.ts';
-import type { Policy } from '../core/policy.ts';
-import type { Principal } from '../core/subject.ts';
+import type { Condition } from "../conditions/ast.ts";
+import type { Permission } from "../core/permissions.ts";
+import type { Policy } from "../core/policy.ts";
+import type { Principal } from "../core/subject.ts";
 
-export type OpenApiTarget = '3.1' | '3.2' | '3.3';
-export type OverlayVersion = '1.1' | '1.2';
-export type SecurityProfileName = 'fapi2';
+export type OpenApiTarget = "3.1" | "3.2" | "3.3";
+export type OverlayVersion = "1.1" | "1.2";
+export type SecurityProfileName = "fapi2";
 export type SchemeType =
-  | 'oauth2'
-  | 'openIdConnect'
-  | 'http'
-  | 'apiKey'
-  | 'gnap';
+  | "oauth2"
+  | "openIdConnect"
+  | "http"
+  | "apiKey"
+  | "gnap";
 
 export type OpenApiSchemeOptions = {
   readonly name: string;
@@ -46,15 +46,15 @@ export type OpenApiSecurityRequirement = Readonly<
 
 export type OpenApiDescribe = {
   readonly security: readonly OpenApiSecurityRequirement[];
-  readonly 'x-permdock-permissions': readonly string[];
+  readonly "x-permdock-permissions": readonly string[];
   /** Keyed by permission key: the portable conditions of its allow grants. */
-  readonly 'x-permdock-conditions'?: Readonly<Record<string, Condition>>;
+  readonly "x-permdock-conditions"?: Readonly<Record<string, Condition>>;
   /** Keyed by permission key: the permissions whose grants need an approval. */
-  readonly 'x-permdock-approval'?: Readonly<
-    Record<string, { readonly reason: 'human' }>
+  readonly "x-permdock-approval"?: Readonly<
+    Record<string, { readonly reason: "human" }>
   >;
-  readonly 'x-permdock-securityProfile'?: SecurityProfileName;
-  readonly 'x-badges'?: readonly { readonly name: string }[];
+  readonly "x-permdock-securityProfile"?: SecurityProfileName;
+  readonly "x-badges"?: readonly { readonly name: string }[];
 };
 
 /** One operation the Overlay targets, joined by `operationId`. */

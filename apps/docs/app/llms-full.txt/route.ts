@@ -1,8 +1,14 @@
-import { getLLMText, source } from '@/lib/source';
+import { cacheLife } from "next/cache";
 
-export async function GET() {
-  const scan = source.getPages().map(getLLMText);
-  const scanned = await Promise.all(scan);
+import { markdownHeaders } from "@/lib/shared";
+import { docsLlms } from "@/lib/source";
 
-  return new Response(scanned.join('\n\n'));
+async function llmsFull(): Promise<string> {
+  "use cache";
+  cacheLife("max");
+  return docsLlms.full();
+}
+
+export async function GET(): Promise<Response> {
+  return new Response(await llmsFull(), { headers: markdownHeaders });
 }

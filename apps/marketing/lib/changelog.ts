@@ -6,7 +6,7 @@ export type ChangelogChange = {
 export type ChangelogRelease = {
   readonly packageName: string;
   readonly version: string;
-  readonly kind: 'Minor' | 'Patch' | 'Major';
+  readonly kind: "Minor" | "Patch" | "Major";
   readonly changes: readonly ChangelogChange[];
 };
 
@@ -18,10 +18,10 @@ export function parseChangelog(
   markdown: string,
   packageName: string,
 ): ChangelogRelease[] {
-  const lines = markdown.split('\n');
+  const lines = markdown.split("\n");
   const releases: ChangelogRelease[] = [];
   let version: string | undefined;
-  let kind: ChangelogRelease['kind'] | undefined;
+  let kind: ChangelogRelease["kind"] | undefined;
   let changes: ChangelogChange[] = [];
 
   function flush(): void {
@@ -38,26 +38,26 @@ export function parseChangelog(
 
   for (const line of lines) {
     const versionMatch = heading.exec(line);
-    if (versionMatch?.groups?.['version'] !== undefined) {
+    if (versionMatch?.groups?.["version"] !== undefined) {
       flush();
-      version = versionMatch.groups['version'];
+      version = versionMatch.groups["version"];
       kind = undefined;
       continue;
     }
     const kindMatch = kindHeading.exec(line);
-    if (kindMatch?.groups?.['kind'] !== undefined) {
+    if (kindMatch?.groups?.["kind"] !== undefined) {
       flush();
       // SAFETY: the kindHeading regex only captures the release kinds ChangelogRelease['kind'] lists
-      kind = kindMatch.groups['kind'] as ChangelogRelease['kind'];
+      kind = kindMatch.groups["kind"] as ChangelogRelease["kind"];
       continue;
     }
     const changeMatch = changeLine.exec(line);
-    if (changeMatch?.groups?.['text'] !== undefined && kind !== undefined) {
-      const hash = changeMatch.groups['hash'];
+    if (changeMatch?.groups?.["text"] !== undefined && kind !== undefined) {
+      const hash = changeMatch.groups["hash"];
       if (hash === undefined) {
-        changes.push({ text: changeMatch.groups['text'] });
+        changes.push({ text: changeMatch.groups["text"] });
       } else {
-        changes.push({ text: changeMatch.groups['text'], hash });
+        changes.push({ text: changeMatch.groups["text"], hash });
       }
     }
   }

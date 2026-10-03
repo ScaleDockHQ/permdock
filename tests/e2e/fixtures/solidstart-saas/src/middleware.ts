@@ -1,6 +1,6 @@
-import { createMiddleware } from '@solidjs/start/middleware';
+import { createMiddleware } from "@solidjs/start/middleware";
 
-import { handleSaasRoute } from '@permdock/e2e-saas-kit';
+import { handleSaasRoute } from "@permdock/e2e-saas-kit";
 
 /** Test and session routes first; everything else goes to SolidStart. */
 export default createMiddleware([

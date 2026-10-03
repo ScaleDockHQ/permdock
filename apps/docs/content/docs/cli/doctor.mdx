@@ -16,57 +16,66 @@ permdock doctor --fix          # apply safe fixes (install skills, regenerate th
 
 Exit code `1` on any error, `0` otherwise; warnings only fail with `--strict`.
 
-On a terminal, `--fix` asks before it writes; answering no prints the report without fixing, and cancelling exits `2`. In CI, in a pipe or with `--json` it fixes without asking.
+Without `--fix`, doctor only reads: it never writes the catalog or any other file. On a terminal, `--fix` asks before it writes; answering no prints the report without fixing, and cancelling exits `2`. In CI, in a pipe or with `--json` it fixes without asking.
 
 ## Checks
 
-| Code | Check | Severity |
-| --- | --- | --- |
-| `PD001` | Server-only imports in client entries | error |
-| `PD002` | Unknown permission references | error |
-| `PD003` | Permissions used but never granted | warning |
-| `PD004` | Stale catalog | error |
-| `PD005` | Missing or outdated Agent Skills | warning |
-| `PD006` | Unsupported TypeScript version | error |
-| `PD007` | Policy validation mode `never` with an HTTP, MCP or agent adapter present | warning |
-| `PD008` | Reserved identifier used for a public export | warning |
-| `PD009` | Duplicate `permdock` copies in the dependency tree | error |
-| `PD010` | Roles or tenant read from an unverified or user-editable claim | error |
-| `PD011` | Tenant read from an optional claim under a multi-tenant issuer | warning |
-| `PD012` | OpenAPI document or Overlay pinned to a draft revision the installed CLI does not emit | warning |
-| `PD013` | Polymorphic `EdDSA` in a JWT `algorithms` list instead of `Ed25519` | warning |
-| `PD014` | `discovery` issuer mismatch, plain-HTTP issuer, or `jwks` without `issuer` | error |
-| `PD015` | Token verification that does not check `typ`, or `accept: 'id-token'` on an API route | warning |
-| `PD016` | Opaque RLS grants, or `sqlFunction` grants with no verify fixtures, under an `rls` config | warning |
-| `PD017` | An `allow` on a sensitive verb (`approve`, `pay`, `settle`, `submit`, `transfer`, `refund`, `disburse`, or `doctor.sensitiveActions`) has no `approval` and no `deny` on the same leaf | warning |
-| `PD018` | `exclusiveWith` names an undeclared role (error), or a `doctor.memberships` fixture / custom role holds two exclusive roles (warning) | error / warning |
-| `PD019` | `rls.rbac.authorize` is `jwt`, `[auth] jwt_expiry` in `supabase/config.toml` exceeds 3600 seconds, and the policy grants a sensitive verb | warning |
-| `PD020` | A permission the policy marks `hostable` sits on a resource the `rls` config compiles | warning |
-| `PD021` | The policy lists `hostable` permissions but `PERMDOCK_CLOUD_URL` or `PERMDOCK_CLOUD_KEY` is unset | warning |
-| `PD022` | A SQL migration creates a view without `security_invoker`, so it reads past row level security | warning |
-| `PD023` | A custom role in the `doctor.memberships` fixture names a permission or include its ceiling drops | warning |
-| `PD024` | An `allow` sets `approval: { distinct: false }`, so the requester can approve their own request | warning |
-| `PD025` | A membership in the `doctor.memberships` fixture grants nothing under the policy's named scopes | warning |
-| `PD026` | No role on a scope sets `min`, so every instance of it can lose its last manager | warning |
-| `PD027` | Under an `rls` config, a grant's `where` or `check` reads `context.*`, which RLS cannot evaluate | warning |
-| `PD028` | `supabase.hook.attrs` lists `user_metadata` or another value the hook cannot use (error), or an `attrs` column or a membership source's deciding column that your migrations let `anon` or `authenticated` insert or update (warning) | error, warning |
-| `PD029` | An API key in the `doctor.credentials` fixture never expires or is not a valid v1 credential, or a tenant's settings allow keys without expiry | warning |
-| `PD030` | Under an `rls` config, a read grant limits `fields`, but the table still returns those columns to a direct read | warning |
-| `PD031` | A resource parents itself but no `through: 'parent'` grant walks it, or declares `restricted` but no graph grant reaches its rows | warning |
-| `PD032` | Under an `rls` config, a graph resource shares its name with a scope or is not a lowercase SQL name, so `rls generate` cannot name its `permitted_<resource>_ids` helper | error |
-| `PD033` | A role `activation` has no `maxDuration` (the elevation never expires on its own), or an activation role is held standing by a `doctor.memberships` fixture | warning |
-| `PD034` | Under an `rls` config, a `breakGlass` grant would be compiled: RLS never compiles a break-glass override, so it reads through the generated `permdock_break_glass_<resource>` function instead | warning |
-| `PD035` | A `supportAccess` role has `actorRequired: false`, so a support session runs as the tenant, unattributed | warning |
-| `PD036` | A `protect(permission)` with no row loader on a route whose path names an id (`/posts/:id`, `/posts/{id}`, a `[id]` folder), so the check never sees the row (BOLA) | warning |
-| `PD037` | A migration's policy on `storage.objects` or `realtime.messages` calls `permdock_has` or `permitted_<scope>_ids` with a permission whose grants carry row conditions, which the helpers do not check | error |
-| `PD038` | Under an `rls` or `supabase.hook` config, a `subjectFromSupabase` or `subjectFromSupabaseSession` call reads the tenant from a different claim than `rls.tenantClaim`, the claim the hook writes and the helpers compare with | warning |
-| `PD039` | Under a `supabase.hook` config, the helper schema has no generated `permdock_has`, `permitted_<scope>_ids` or `member_<scope>_ids`, a `supabase.hook.claims` entry in the `doctor.claims` fixture is larger than the memberships budget, or a sample has a `memberships` entry `subjectFromSupabase` drops | warning |
-| `PD040` | A SQL migration calls `auth.role()`, which Supabase deprecated | warning |
-| `PD041` | An `exchangeCapability` call signs with `alg: 'HS256'`, the project's shared JWT secret | warning |
-| `PD042` | The token hook is declared under `supabase/schemas`, and no migration from the one that creates it on grants it to `supabase_auth_admin` | error |
-| `PD043` | `schema_paths` in `supabase/config.toml` applies a file that calls the SQL helpers before the file that defines them, or leaves that file out | warning |
-| `PD044` | `usePermission` reads a permission whose grant the snapshot cannot answer, and there is no `app/**/api/permdock/route.ts` using `permdockHandler` and no `endpoint` | warning |
-| `PD045` | `supabase/config.toml` is not valid TOML | warning |
+| Code    | Check                                                                                                                                                                                                                                                                                                      | Severity        |
+| ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
+| `PD001` | Server-only imports in client entries                                                                                                                                                                                                                                                                      | error           |
+| `PD002` | Unknown permission references                                                                                                                                                                                                                                                                              | error           |
+| `PD003` | Permissions used but never granted                                                                                                                                                                                                                                                                         | warning         |
+| `PD004` | Stale catalog                                                                                                                                                                                                                                                                                              | error           |
+| `PD005` | Missing or outdated Agent Skills                                                                                                                                                                                                                                                                           | warning         |
+| `PD006` | Unsupported TypeScript version                                                                                                                                                                                                                                                                             | error           |
+| `PD007` | Policy validation mode `never` with an HTTP, MCP or agent adapter present                                                                                                                                                                                                                                  | warning         |
+| `PD008` | Reserved identifier used for a public export                                                                                                                                                                                                                                                               | warning         |
+| `PD009` | Duplicate `permdock` copies in the dependency tree                                                                                                                                                                                                                                                         | error           |
+| `PD010` | Roles or tenant read from an unverified or user-editable claim                                                                                                                                                                                                                                             | error           |
+| `PD011` | Tenant read from an optional claim under a multi-tenant issuer                                                                                                                                                                                                                                             | warning         |
+| `PD012` | OpenAPI document or Overlay pinned to a draft revision the installed CLI does not emit                                                                                                                                                                                                                     | warning         |
+| `PD013` | Polymorphic `EdDSA` in a JWT `algorithms` list instead of `Ed25519`                                                                                                                                                                                                                                        | warning         |
+| `PD014` | `discovery` issuer mismatch, plain-HTTP issuer, or `jwks` without `issuer`                                                                                                                                                                                                                                 | error           |
+| `PD015` | Token verification that does not check `typ`, or `accept: 'id-token'` on an API route                                                                                                                                                                                                                      | warning         |
+| `PD016` | Opaque RLS grants, or `sqlFunction` grants with no verify fixtures, under an `rls` config                                                                                                                                                                                                                  | warning         |
+| `PD017` | An `allow` on a sensitive verb (`approve`, `pay`, `settle`, `submit`, `transfer`, `refund`, `disburse`, or `doctor.sensitiveActions`) has no `approval` and no `deny` on the same leaf                                                                                                                     | warning         |
+| `PD018` | `exclusiveWith` names an undeclared role (error), or a `doctor.memberships` fixture / custom role holds two exclusive roles (warning)                                                                                                                                                                      | error / warning |
+| `PD019` | `rls.rbac.authorize` is `jwt`, `[auth] jwt_expiry` in `supabase/config.toml` exceeds 3600 seconds, and the policy grants a sensitive verb                                                                                                                                                                  | warning         |
+| `PD020` | A permission the policy marks `hostable` sits on a resource the `rls` config compiles                                                                                                                                                                                                                      | warning         |
+| `PD021` | The policy lists `hostable` permissions but `PERMDOCK_CLOUD_URL` or `PERMDOCK_CLOUD_KEY` is unset                                                                                                                                                                                                          | warning         |
+| `PD022` | A SQL migration creates a view without `security_invoker`, so it reads past row level security                                                                                                                                                                                                             | warning         |
+| `PD023` | A custom role in the `doctor.memberships` fixture names a permission or include its ceiling drops                                                                                                                                                                                                          | warning         |
+| `PD024` | An `allow` sets `approval: { distinct: false }`, so the requester can approve their own request                                                                                                                                                                                                            | warning         |
+| `PD025` | A membership in the `doctor.memberships` fixture grants nothing under the policy's named scopes                                                                                                                                                                                                            | warning         |
+| `PD026` | No role on a scope sets `min`, so every instance of it can lose its last manager                                                                                                                                                                                                                           | warning         |
+| `PD027` | Under an `rls` config, a grant's `where` or `check` reads `context.*`, which RLS cannot evaluate                                                                                                                                                                                                           | warning         |
+| `PD028` | `supabase.hook.attrs` lists `user_metadata` or another value the hook cannot use (error), or an `attrs` column or a membership source's deciding column that your migrations let `anon` or `authenticated` insert or update (warning)                                                                      | error, warning  |
+| `PD029` | An API key in the `doctor.credentials` fixture never expires or is not a valid v1 credential, or a tenant's settings allow keys without expiry                                                                                                                                                             | warning         |
+| `PD030` | Under an `rls` config, a read grant limits `fields`, but the table still returns those columns to a direct read                                                                                                                                                                                            | warning         |
+| `PD031` | A resource parents itself but no `through: 'parent'` grant walks it, or declares `restricted` but no graph grant reaches its rows                                                                                                                                                                          | warning         |
+| `PD032` | Under an `rls` config, a graph resource shares its name with a scope or is not a lowercase SQL name, so `rls generate` cannot name its `permitted_<resource>_ids` helper                                                                                                                                   | error           |
+| `PD033` | A role `activation` has no `maxDuration` (the elevation never expires on its own), or an activation role is held standing by a `doctor.memberships` fixture                                                                                                                                                | warning         |
+| `PD034` | Under an `rls` config, a `breakGlass` grant would be compiled: RLS never compiles a break-glass override, so it reads through the generated `permdock_break_glass_<resource>` function instead                                                                                                             | warning         |
+| `PD035` | A `supportAccess` role has `actorRequired: false`, so a support session runs as the tenant, unattributed                                                                                                                                                                                                   | warning         |
+| `PD036` | A `protect(permission)` with no row loader on a route whose path names an id (`/posts/:id`, `/posts/{id}`, a `[id]` folder), so the check never sees the row (BOLA)                                                                                                                                        | warning         |
+| `PD037` | A migration's policy on `storage.objects` or `realtime.messages` calls `permdock_has` or `permitted_<scope>_ids` with a permission whose grants carry row conditions, which the helpers do not check                                                                                                       | error           |
+| `PD038` | Under an `rls` or `supabase.hook` config, a `subjectFromSupabase` or `subjectFromSupabaseSession` call reads the tenant from a different claim than `rls.tenantClaim`, the claim the hook writes and the helpers compare with                                                                              | warning         |
+| `PD039` | Under a `supabase.hook` config, the helper schema has no generated `permdock_has`, `permitted_<scope>_ids` or `member_<scope>_ids`, a `supabase.hook.claims` entry in the `doctor.claims` fixture is larger than the memberships budget, or a sample has a `memberships` entry `subjectFromSupabase` drops | warning         |
+| `PD040` | A SQL migration calls `auth.role()`, which Supabase deprecated                                                                                                                                                                                                                                             | warning         |
+| `PD041` | An `exchangeCapability` call signs with `alg: 'HS256'`, the project's shared JWT secret                                                                                                                                                                                                                    | warning         |
+| `PD042` | The token hook is declared under `supabase/schemas`, and no migration from the one that creates it on grants it to `supabase_auth_admin` (not under pg-delta)                                                                                                                                              | error           |
+| `PD043` | `schema_paths` in `supabase/config.toml` applies a file that calls the SQL helpers before the file that defines them, or leaves that file out (not under pg-delta)                                                                                                                                         | warning         |
+| `PD044` | `usePermission` reads a permission whose grant the snapshot cannot answer, and there is no `app/**/api/permdock/route.ts` using `permdockHandler` and no `endpoint`                                                                                                                                        | warning         |
+| `PD045` | `supabase/config.toml` is not valid TOML                                                                                                                                                                                                                                                                   | warning         |
+| `PD046` | The PermDock helper schema (`rls.schema`) is listed in `[api] schemas`, so the Data API serves the `security definer` helpers as RPCs                                                                                                                                                                      | warning         |
+| `PD047` | A SQL migration reads `raw_user_meta_data` or `user_metadata`, which a user can set for themselves                                                                                                                                                                                                         | warning         |
+| `PD048` | A SQL function sets no `search_path`                                                                                                                                                                                                                                                                       | warning         |
+| `PD049` | A `security definer` function whose `execute` is not revoked from `public` (and, in the `public` schema, from `anon`)                                                                                                                                                                                      | warning         |
+| `PD050` | A migration creates a table in `public` without enabling row level security                                                                                                                                                                                                                                | error           |
+| `PD051` | A policy calls `auth.uid()` or `auth.jwt()` bare instead of `(select auth.uid())`, so Postgres calls it once per row                                                                                                                                                                                       | warning         |
+| `PD052` | An update policy has `using` and no `with check`                                                                                                                                                                                                                                                           | warning         |
+| `PD053` | A foreign key column no index starts with                                                                                                                                                                                                                                                                  | warning         |
+| `PD054` | The last `role_permissions` seeds in the migrations differ from the rows the policy compiles to                                                                                                                                                                                                            | warning         |
 
 ### PD001: server-only imports in client entries
 
@@ -74,9 +83,9 @@ Policy modules, `createPermDock` from `permdock/next` and any file that imports 
 
 ```ts title="permdock.config.ts"
 export default defineConfig({
-  permissions: './src/permissions.ts',
-  doctor: { clientEntries: ['src/**/*.tsx', 'app'] },
-})
+  permissions: "./src/permissions.ts",
+  doctor: { clientEntries: ["src/**/*.tsx", "app"] },
+});
 ```
 
 This is the permix issue #49 class of bug (server code leaking into client bundles), caught before the bundler does something surprising. The bundle check in `tests/bundle` covers what a transitive import would reach.
@@ -197,13 +206,14 @@ When `doctor.memberships` points at a JSON fixture with a `memberships` array, t
 ### PD026: scopes nobody has to keep
 
 The check loads the policy and warns once per scope that has roles held on it but where none sets `min`: every organization can then lose its last owner, and nobody is left who may assign roles there. Set `min: 1` on the role that manages the scope (generated RLS then refuses to commit the removal of its last holder), or `min: 0` on any of the scope's roles to record that no holder must stay, as for a customer scope whose contacts come and go ([ownership](/docs/concepts/ownership)). `--only ownership` runs this check.
+
 ### PD027: request context in an RLS policy
 
 A condition that reads `context.*` (`where: { region: context.region }`) is evaluated by `can` and compiled by the ORM adapters, which bind the request context. Postgres never sees that context: it is not in the JWT, so `permdock rls generate` refuses the grant (or skips it under `--skip-closures`) and the database cannot enforce the rule. With an `rls` config, the check names each such grant and the refs it reads. Fix it by moving the value into a server-set claim and comparing with `principal.claims.<name>`, which compiles, or by keeping the check in the application only ([subject attributes in RLS](/docs/adapters/rls#subject-attributes-abac)). `--only context-refs` (or `--only rls`) runs this check.
 
 ### PD028: attributes and memberships a user could set
 
-The Supabase token hook copies `supabase.hook.attrs` into the `attrs` claim, which attribute conditions and RLS read ([Supabase token hook](/docs/adapters/supabase-hook#attributes)). An error names an entry `generate` refuses: `user_metadata` or `raw_user_meta_data`, an `auth.users` column, a prototype key or a duplicate. A warning names listed columns that the SQL files under `doctor.migrations` (default `supabase/migrations`, `supabase/schemas`, `migrations`, `drizzle`, `prisma/migrations`, `db/migrations`) grant `insert`, `update` or `all` on to `anon`, `authenticated` or `public`, table-wide or by column, net of later `revoke`s. Fix it by revoking those grants and granting column-level `update` on non-attribute columns only; the generated migration refuses to install until you do. The same warning covers every `fromTable` / `fromJunction` source in `supabase.hook.memberships` (or `rls.membershipSources`): its user, scope, id, `within`, role, `via` and expiry columns decide who holds which membership. The grant model is Postgres's: a column-level `revoke` leaves a table-level grant in place, so `revoke update (user_id) on contacts` after `grant update on contacts` still warns ([sources](/docs/adapters/supabase-hook#sources)). `--only attrs` (or `--only supabase`) runs this check.
+The Supabase token hook copies `supabase.hook.attrs` into the `attrs` claim, which attribute conditions and RLS read ([Supabase token hook](/docs/adapters/supabase-hook#attributes)). An error names an entry `generate` refuses: `user_metadata` or `raw_user_meta_data`, an `auth.users` column, a prototype key or a duplicate. A warning names listed columns that the SQL files under `doctor.migrations` (default `supabase/migrations`, `supabase/schemas`, `migrations`, `drizzle`, `prisma/migrations`, `db/migrations`) grant `insert`, `update` or `all` on to `anon`, `authenticated` or `public`, table-wide or by column, net of later `revoke`s. Fix it by revoking those grants and granting column-level `update` on non-attribute columns only; the generated migration refuses to install until you do. The same warning covers every `fromTable` / `fromJunction` source in `supabase.hook.memberships` (or `rls.membershipSources`): its user, scope, id, `within`, role, `via` and expiry columns decide who holds which membership. The grant model is Postgres's: a column-level `revoke` leaves a table-level grant in place, so `revoke update (user_id) on contacts` after `grant update on contacts` still warns ([sources](/docs/adapters/supabase-hook#sources)). With a `supabase` config, a table created in `public` starts with Supabase's default privileges, which grant `anon` and `authenticated` everything, until a migration revokes them on the table or with `alter default privileges in schema public revoke ... on tables`. `insert` and `update` are tracked apart, so `revoke update` alone still leaves the default `insert`. `--only attrs` (or `--only supabase`) runs this check.
 
 ### PD029: API keys that never expire
 
@@ -259,11 +269,11 @@ Supabase deprecated `auth.role()`. The role a request runs under is already the 
 
 ### PD042: hook grants missing from the migrations
 
-`supabase db diff` writes migrations from `supabase/schemas` but drops grants and policies for `supabase_auth_admin`, so a hook declared there lands without them: the auth server cannot call it, and Postgres's default `execute` for `public` lets clients call it. The check runs when a file under `supabase/schemas` starts with the hook marker. It finds the first migration under `supabase/migrations` that creates `custom_access_token_hook` and the last that drops it, and errors unless that migration or a later one grants `execute` on the hook to `supabase_auth_admin`. `create or replace function` keeps the grants, so later migrations that only change the body pass. Generate the grants file with `--grants-out` ([declarative schemas](/docs/cli/rls#declarative-schemas)). `--only declarative` (or `--only supabase`) runs PD042.
+`supabase db diff` writes migrations from `supabase/schemas` but drops grants and policies for `supabase_auth_admin`, so a hook declared there lands without them: the auth server cannot call it, and Postgres's default `execute` for `public` lets clients call it. The check runs when a file under `supabase/schemas` starts with the hook marker. It finds the first migration under `supabase/migrations` that creates `custom_access_token_hook` and the last that drops it, and errors unless that migration or a later one grants `execute` on the hook to `supabase_auth_admin`. `create or replace function` keeps the grants, so later migrations that only change the body pass. Generate the grants file with `--grants-out` ([declarative schemas](/docs/cli/rls#declarative-schemas)). pg-delta's `declarative sync` keeps those grants, so the check is off when `supabase/config.toml` sets `[experimental.pgdelta] enabled = true`. `--only declarative` (or `--only supabase`) runs PD042.
 
 ### PD043: helpers applied after their callers
 
-`db diff` applies schema files in the order of the `schema_paths` globs in `supabase/config.toml` (default `./schemas/**/*.sql`), sorted within each glob, so a policy that calls `permdock_has`, `permitted_<scope>_ids` or `member_<scope>_ids` before the file that defines `permdock_has` fails to apply. The check warns on each such file, and once when `schema_paths` leaves out the file that defines the helpers. `--only declarative` (or `--only supabase`) runs PD043.
+`db diff` applies schema files in the order of the `schema_paths` globs in `supabase/config.toml` (default `./schemas/**/*.sql`), sorted within each glob, so a policy that calls `permdock_has`, `permitted_<scope>_ids` or `member_<scope>_ids` before the file that defines `permdock_has` fails to apply. The check warns on each such file, and once when `schema_paths` leaves out the file that defines the helpers. pg-delta orders statements by their dependencies, so the check is off under `[experimental.pgdelta]`. `--only declarative` (or `--only supabase`) runs PD043.
 
 ### PD044: server-only grants with no endpoint
 
@@ -272,6 +282,42 @@ A snapshot carries portable conditions, so `usePermission` answers a `where` on 
 ### PD045: unparseable `config.toml`
 
 PD019 reads `[auth] jwt_expiry` and PD043 reads `[db.migrations] schema_paths` from `supabase/config.toml` with a TOML parser. When the file does not parse, both checks fall back to Supabase's defaults (3600 seconds and `./schemas/**/*.sql`), and PD045 names the first parse error so a finding is never based on a misread file. `--only supabase` runs PD045.
+
+### PD046: helper schema exposed through the Data API
+
+`permdock rls` writes its helpers, `role_permissions`, `user_roles`, `authorize` and the token hook into `rls.schema`, `permdock` by default, so the Data API never serves them. The `security definer` helpers answer for any user id they are given, so listing that schema in `[api] schemas` in `supabase/config.toml` turns each into an RPC that reports another user's memberships. The check runs when `supabase/config.toml` exists and warns when `[api] schemas` (default `public`, `graphql_public`) names the helper schema. Remove it from the list. `--only sql` (or `--only supabase`) runs PD046 to PD053.
+
+### PD047: user metadata in SQL
+
+`raw_user_meta_data` in `auth.users` and the `user_metadata` claim are written by the user through `supabase.auth.updateUser`, so a policy or function that decides on them lets the user decide. The check names each read in the migration folders by file and line. Read `raw_app_meta_data` / `app_metadata`, which only the service role writes, or a table the user cannot write.
+
+### PD048: functions without `search_path`
+
+A function resolves unqualified names through the caller's `search_path`, so a caller can create an object that shadows one the function reads; for a `security definer` function that runs with the owner's rights. The check names each `create function` that neither sets `search_path` nor gets it from a later `alter function ... set search_path`, skipping `language c` and `internal`. Add `set search_path = ''` and qualify every name. Every function `permdock rls` writes sets it.
+
+### PD049: `security definer` functions clients can call
+
+Postgres grants `execute` on every new function to `public`, and Supabase also grants it to `anon` in the `public` schema. The check names each `security definer` function, trigger functions excepted, that no later `revoke execute` (on the function, on all functions in its schema, or through `alter default privileges`) takes from `public` and, in `public`, from `anon`. Revoke both and grant `execute` to `authenticated` only where a client must call it, as the generated `authorize` does.
+
+### PD050: tables without row level security
+
+Supabase's Data API serves every table in an exposed schema, and the default privileges let `anon` and `authenticated` read and write it, so a `public` table without row level security is open to anyone with the anon key. The check names each `create table` in `public` that no `alter table ... enable row level security` in the migrations follows and no later `drop table` removes. It is an error: there is no safe reading of an open table.
+
+### PD051: per-row `auth.uid()` in a policy
+
+`auth.uid()` and `auth.jwt()` are functions, and a bare call in `using` or `with check` runs once for each row the query reads. Wrapped as `(select auth.uid())`, Postgres evaluates it once per statement as an init plan. The check names each policy with a bare call. The policies `permdock rls` writes already wrap them.
+
+### PD052: update policies without `with check`
+
+Postgres checks the new row of an update against `with check`, falling back to `using` when there is none. The fallback is right only when the two conditions should be the same; a policy that lets a user update their own rows usually also needs to stop them moving a row to another tenant or owner. The check names each `create policy ... for update` without `with check` so the choice is explicit.
+
+### PD053: foreign keys without an index
+
+Postgres indexes the referenced key but not the referencing column. A policy that joins on that column, and every delete or key update of the referenced row, then scans the table. The check reads `references` in `create table` and `alter table ... add constraint`, and names each foreign key column that no `create index`, primary key or unique constraint starts with. Add an index whose first column is the foreign key.
+
+### PD054: stale `role_permissions` seeds
+
+The helpers answer from `role_permissions`, so a policy change reaches the database only when a migration seeds the new rows. With `--split ...,seeds` those rows are a versioned migration of their own, and a policy change without a new one leaves the helpers on the old grants. With an `rls` or `supabase` config, the check finds the last statement in the migration folders that seeds `role_permissions` in `rls.schema` (or clears it), compiles the policy's rows, and names how many are missing and how many are stale, with examples. Run `permdock rls generate` and apply the new seeds. `--only seeds` (or `--only supabase`) runs PD054.
 
 ## Why
 

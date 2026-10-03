@@ -16,24 +16,30 @@ export type Database = {
     Tables: {
       contacts: {
         Row: {
+          created_at: string
           customer_id: string
           id: string
           name: string
           organization_id: string
+          updated_at: string
           user_id: string | null
         }
         Insert: {
+          created_at?: string
           customer_id: string
-          id: string
+          id?: string
           name: string
           organization_id: string
+          updated_at?: string
           user_id?: string | null
         }
         Update: {
+          created_at?: string
           customer_id?: string
           id?: string
           name?: string
           organization_id?: string
+          updated_at?: string
           user_id?: string | null
         }
         Relationships: [
@@ -55,19 +61,25 @@ export type Database = {
       }
       customers: {
         Row: {
+          created_at: string
           id: string
           name: string
           organization_id: string
+          updated_at: string
         }
         Insert: {
-          id: string
+          created_at?: string
+          id?: string
           name: string
           organization_id: string
+          updated_at?: string
         }
         Update: {
+          created_at?: string
           id?: string
           name?: string
           organization_id?: string
+          updated_at?: string
         }
         Relationships: [
           {
@@ -81,23 +93,29 @@ export type Database = {
       }
       datetime_preferences: {
         Row: {
+          created_at: string
           date_format: string
           time_format: string
           timezone: string
+          updated_at: string
           user_id: string
           week_start: string
         }
         Insert: {
+          created_at?: string
           date_format: string
           time_format: string
           timezone: string
+          updated_at?: string
           user_id: string
           week_start: string
         }
         Update: {
+          created_at?: string
           date_format?: string
           time_format?: string
           timezone?: string
+          updated_at?: string
           user_id?: string
           week_start?: string
         }
@@ -105,18 +123,21 @@ export type Database = {
       }
       memberships: {
         Row: {
+          created_at: string
           role: string
           scope: string
           scope_id: string
           user_id: string
         }
         Insert: {
+          created_at?: string
           role: string
           scope: string
           scope_id: string
           user_id: string
         }
         Update: {
+          created_at?: string
           role?: string
           scope?: string
           scope_id?: string
@@ -126,14 +147,17 @@ export type Database = {
       }
       organization_features: {
         Row: {
+          created_at: string
           feature: string
           organization_id: string
         }
         Insert: {
+          created_at?: string
           feature: string
           organization_id: string
         }
         Update: {
+          created_at?: string
           feature?: string
           organization_id?: string
         }
@@ -149,58 +173,58 @@ export type Database = {
       }
       organizations: {
         Row: {
+          created_at: string
           id: string
           name: string
           slug: string
+          updated_at: string
         }
         Insert: {
-          id: string
+          created_at?: string
+          id?: string
           name: string
           slug: string
+          updated_at?: string
         }
         Update: {
+          created_at?: string
           id?: string
           name?: string
           slug?: string
-        }
-        Relationships: []
-      }
-      permdock_authz_version: {
-        Row: {
-          user_id: string
-          version: number
-        }
-        Insert: {
-          user_id: string
-          version?: number
-        }
-        Update: {
-          user_id?: string
-          version?: number
+          updated_at?: string
         }
         Relationships: []
       }
       quotes: {
         Row: {
-          amount: number
+          amount_minor: number
+          created_at: string
+          currency: string
           customer_id: string
           id: string
           organization_id: string
           title: string
+          updated_at: string
         }
         Insert: {
-          amount: number
+          amount_minor: number
+          created_at?: string
+          currency: string
           customer_id: string
-          id: string
+          id?: string
           organization_id: string
           title: string
+          updated_at?: string
         }
         Update: {
-          amount?: number
+          amount_minor?: number
+          created_at?: string
+          currency?: string
           customer_id?: string
           id?: string
           organization_id?: string
           title?: string
+          updated_at?: string
         }
         Relationships: [
           {
@@ -219,50 +243,32 @@ export type Database = {
           },
         ]
       }
-      role_permissions: {
-        Row: {
-          effect: string
-          grant_key: string
-          permission: string
-          role: string
-          scope: string
-        }
-        Insert: {
-          effect?: string
-          grant_key: string
-          permission: string
-          role: string
-          scope: string
-        }
-        Update: {
-          effect?: string
-          grant_key?: string
-          permission?: string
-          role?: string
-          scope?: string
-        }
-        Relationships: []
-      }
       staff: {
         Row: {
+          created_at: string
           id: string
           name: string
           organization_id: string
           title: string
+          updated_at: string
           user_id: string
         }
         Insert: {
-          id: string
+          created_at?: string
+          id?: string
           name: string
           organization_id: string
           title: string
+          updated_at?: string
           user_id: string
         }
         Update: {
+          created_at?: string
           id?: string
           name?: string
           organization_id?: string
           title?: string
+          updated_at?: string
           user_id?: string
         }
         Relationships: [
@@ -275,48 +281,13 @@ export type Database = {
           },
         ]
       }
-      user_roles: {
-        Row: {
-          role: string
-          user_id: string
-        }
-        Insert: {
-          role: string
-          user_id: string
-        }
-        Update: {
-          role?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      custom_access_token_hook: { Args: { event: Json }; Returns: Json }
       datetime_preference_claims: { Args: { p_user_id: string }; Returns: Json }
       feature_claims: { Args: { p_user_id: string }; Returns: Json }
-      member_customer_ids: {
-        Args: Record<PropertyKey, never>
-        Returns: string[]
-      }
-      member_customer_ids_for: { Args: { p_user: string }; Returns: string[] }
-      member_organization_ids: {
-        Args: Record<PropertyKey, never>
-        Returns: string[]
-      }
-      member_organization_ids_for: {
-        Args: { p_user: string }
-        Returns: string[]
-      }
-      permdock_has: { Args: { p_grant: string }; Returns: boolean }
-      permitted_customer_ids: { Args: { p_grant: string }; Returns: string[] }
-      permitted_organization_ids: {
-        Args: { p_grant: string }
-        Returns: string[]
-      }
     }
     Enums: {
       [_ in never]: never

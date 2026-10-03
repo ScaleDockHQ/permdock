@@ -1,5 +1,5 @@
-import type { CatalogUsage } from '../catalog/types.ts';
-import type { SqlMembershipSource } from '../supabase/sources.ts';
+import type { CatalogUsage } from "../catalog/types.ts";
+import type { SqlMembershipSource } from "../supabase/sources.ts";
 
 export type CollectConfig = {
   readonly srcPath?: readonly string[];
@@ -11,9 +11,9 @@ export type CatalogConfig = {
   readonly out?: string;
 };
 
-export type RlsDialect = 'supabase' | 'neon' | 'guc';
+export type RlsDialect = "supabase" | "neon" | "guc";
 
-export type RlsTarget = 'sql' | 'drizzle' | 'prisma';
+export type RlsTarget = "sql" | "drizzle" | "prisma";
 
 export type RlsMembershipTable = {
   readonly table: string;
@@ -105,10 +105,10 @@ export type RlsConfig = {
     /** Model name per table name; defaults to the PascalCased table name. */
     readonly models?: Readonly<Record<string, string>>;
   };
-  /** Schema of `role_permissions` and the RLS helpers (`permdock_has`, `permitted_<scope>_ids`, `member_<scope>_ids`) (and the RBAC scaffold). Default `public`. */
+  /** Schema of `role_permissions` and the RLS helpers (`permdock_has`, `permitted_<scope>_ids`, `member_<scope>_ids`) (and the RBAC scaffold). Default `permdock`; keep it out of `[api] schemas`. */
   readonly schema?: string;
   /** Where the helpers read roles and memberships: `database` tables or `jwt` claims. */
-  readonly authorize?: 'database' | 'jwt';
+  readonly authorize?: "database" | "jwt";
   /** One policy per role and permission instead of one per table and command. */
   readonly policyPerRole?: boolean;
   /**
@@ -124,10 +124,18 @@ export type RlsConfig = {
    */
   readonly capabilities?: boolean;
   /**
+   * `'deny'` (Supabase only): a token with `is_anonymous: true` reaches no grant
+   * but those to `anyone()`. Supabase gives an anonymous sign-in the
+   * `authenticated` role, so without it the grants to roles and to
+   * `authenticated()` reach it. The subject mapper has to refuse it in process
+   * too. Off by default.
+   */
+  readonly anonymousSignIns?: "deny";
+  /**
    * `'views'`: one `security_invoker` view `<table>_visible` per table with field-limited
    * read grants, whose restricted columns are `case when <permitted> then col end`. Off by default.
    */
-  readonly fields?: 'views';
+  readonly fields?: "views";
   /**
    * With `fields: 'views'`, grant `anon` and `authenticated` only the unrestricted columns of
    * the base table, so restricted columns are read through the view. Breaks `select *`.
@@ -138,7 +146,7 @@ export type RlsConfig = {
   /** `rls generate --rbac supabase` defaults; flags override. */
   readonly rbac?: {
     readonly schema?: string;
-    readonly authorize?: 'database' | 'jwt';
+    readonly authorize?: "database" | "jwt";
   };
   /** The global-roles table `permdock_has` reads in `database` mode. Default `<schema>.user_roles (user_id, role)`, which the helpers create. */
   readonly roles?: GlobalRoles;
@@ -154,9 +162,9 @@ export type RlsConfig = {
  * `scoped(scope, id, key)` takes the scope as a literal, `global(key)` returns a boolean.
  */
 export type RlsMigrateHelper =
-  | { readonly form: 'ids' | 'row' | 'membership'; readonly scope: string }
-  | { readonly form: 'scoped' }
-  | { readonly form: 'global' };
+  | { readonly form: "ids" | "row" | "membership"; readonly scope: string }
+  | { readonly form: "scoped" }
+  | { readonly form: "global" };
 
 export type RlsMigrateConfig = {
   /** By function name, without the schema. */
@@ -195,7 +203,7 @@ export type GlobalRoles = {
 export type SupabaseHookConfig = {
   /** The same `fromTable` / `fromJunction` sources the app passes as `memberships`. */
   readonly memberships: readonly SqlMembershipSource[];
-  /** Schema of the hook and the version table. Default `rls.schema`, else `public`. */
+  /** Schema of the hook and the version table. Default `rls.schema`, else `permdock`. */
   readonly schema?: string;
   /** Global roles: `user_role` and `roles`. Default `rls.roles`, else the `<schema>.user_roles (user_id, role)` table; `false` for none. */
   readonly roles?: GlobalRoles | false;
@@ -280,7 +288,7 @@ export type {
   CatalogScope,
   CatalogSupportAccess,
   CatalogUsage,
-} from '../catalog/types.ts';
+} from "../catalog/types.ts";
 
 export type DynamicUsage = {
   readonly file: string;
@@ -325,9 +333,9 @@ export type RunResult = {
   readonly stderr: string;
 };
 
-export type CreatePermDockPluginOptions = {
+export type PermDockPluginOptions = {
   readonly collect?: CollectConfig;
-  readonly onDrift?: 'error' | 'warn';
+  readonly onDrift?: "error" | "warn";
   /**
    * Unplugin only: compare instead of write in `buildStart`, failing the
    * build on drift (as `permdock collect --check` does). The Next plugin

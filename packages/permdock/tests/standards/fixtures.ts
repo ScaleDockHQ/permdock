@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync } from "node:fs";
 
 export type Rfc9421Vector = {
   readonly key: Readonly<Record<string, string>>;
@@ -66,15 +66,15 @@ export type OcsfClass = {
 };
 
 type Fixtures = {
-  readonly 'rfc9421-ed25519.json': Rfc9421Vector;
-  readonly 'rfc8037-ed25519.json': Rfc8037Vector;
-  readonly 'rfc7520-jws.json': Rfc7520Vector;
-  readonly 'rfc7643-schemas.json': Rfc7643Vector;
-  readonly 'ocsf-1.3.0-authorize_session.json': OcsfClass;
-  readonly 'ocsf-1.3.0-account_change.json': OcsfClass;
-  readonly 'cloudevents-1.0.2.schema.json': Readonly<Record<string, unknown>>;
-  readonly 'a2a-1.0.0.schema.json': Readonly<Record<string, unknown>>;
-  readonly 'arazzo-1.1.schema.json': Readonly<Record<string, unknown>>;
+  readonly "rfc9421-ed25519.json": Rfc9421Vector;
+  readonly "rfc8037-ed25519.json": Rfc8037Vector;
+  readonly "rfc7520-jws.json": Rfc7520Vector;
+  readonly "rfc7643-schemas.json": Rfc7643Vector;
+  readonly "ocsf-1.3.0-authorize_session.json": OcsfClass;
+  readonly "ocsf-1.3.0-account_change.json": OcsfClass;
+  readonly "cloudevents-1.0.2.schema.json": Readonly<Record<string, unknown>>;
+  readonly "a2a-1.0.0.schema.json": Readonly<Record<string, unknown>>;
+  readonly "arazzo-1.1.schema.json": Readonly<Record<string, unknown>>;
 };
 
 /** A vendored upstream artefact from `tests/fixtures/standards`. */
@@ -83,7 +83,7 @@ export function standardsFixture<Name extends keyof Fixtures>(
 ): Fixtures[Name] {
   const text = readFileSync(
     new URL(`../fixtures/standards/${name}`, import.meta.url),
-    'utf8',
+    "utf8",
   );
   // SAFETY: pnpm standards:fixtures writes each file in the shape listed in Fixtures.
   return JSON.parse(text) as Fixtures[Name];

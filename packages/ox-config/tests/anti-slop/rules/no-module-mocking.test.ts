@@ -1,18 +1,18 @@
-import { RuleTester } from 'oxlint/plugins-dev';
+import { RuleTester } from "oxlint/plugins-dev";
 
-import { noModuleMockingRule } from '../../../src/anti-slop/rules/no-module-mocking.ts';
+import { noModuleMockingRule } from "../../../src/anti-slop/rules/no-module-mocking.ts";
 
 const tester = new RuleTester({
-  languageOptions: { parserOptions: { lang: 'ts' } },
+  languageOptions: { parserOptions: { lang: "ts" } },
 });
-const error = { messageId: 'moduleMock' };
+const error = { messageId: "moduleMock" };
 
-tester.run('anti-slop/no-module-mocking', noModuleMockingRule, {
+tester.run("anti-slop/no-module-mocking", noModuleMockingRule, {
   valid: [
-    'const store = new InMemoryUserStore();',
+    "const store = new InMemoryUserStore();",
     "vi.spyOn(store, 'save');",
-    'const vi = { mock() {} }; vi.mock();',
-    'function test(jest: { mock(): void }) { jest.mock(); }',
+    "const vi = { mock() {} }; vi.mock();",
+    "function test(jest: { mock(): void }) { jest.mock(); }",
     "import { vi as localVi } from './helpers'; localVi.mock('./module');",
   ],
   invalid: [

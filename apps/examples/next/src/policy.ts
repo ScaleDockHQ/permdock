@@ -1,8 +1,8 @@
-import type { Membership } from 'permdock';
+import type { Membership } from "permdock";
 
-import { allow, definePolicy, role } from 'permdock';
+import { allow, definePolicy, role } from "permdock";
 
-import { permissions, roles } from './permissions.ts';
+import { permissions, roles } from "./permissions.ts";
 
 export type User = {
   readonly id: string;
@@ -20,44 +20,44 @@ export const policy = definePolicy(
   { permissions, roles },
   {
     scopes: {
-      organization: { key: 'organization_id' },
-      customer: { key: 'customer_id', within: 'organization' },
+      organization: { key: "organization_id" },
+      customer: { key: "customer_id", within: "organization" },
     },
     roles: [
       role(
         roles.admin,
         [
           ...staffCanRead,
-          allow(permissions.quote.approve, { where: { status: 'sent' } }),
+          allow(permissions.quote.approve, { where: { status: "sent" } }),
           allow(permissions.quote.delete),
           allow(permissions.member.manage),
         ],
-        { on: 'organization' },
+        { on: "organization" },
       ),
       role(
         roles.member,
         [
           ...staffCanRead,
-          allow(permissions.quote.delete, { approval: 'human' }),
+          allow(permissions.quote.delete, { approval: "human" }),
         ],
-        { on: 'organization' },
+        { on: "organization" },
       ),
       role(
         roles.contact,
         [
           allow(permissions.quote.read, {
-            where: { status: { in: ['sent', 'approved'] } },
+            where: { status: { in: ["sent", "approved"] } },
           }),
           allow(permissions.quote.list),
-          allow(permissions.quote.approve, { where: { status: 'sent' } }),
+          allow(permissions.quote.approve, { where: { status: "sent" } }),
         ],
-        { on: 'customer' },
+        { on: "customer" },
       ),
     ],
     principal: (user: User | null) =>
       user === null
         ? null
         : { id: user.id, roles: [], memberships: user.memberships },
-    validate: 'boundary',
+    validate: "boundary",
   },
 );

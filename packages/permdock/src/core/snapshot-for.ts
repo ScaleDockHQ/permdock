@@ -1,14 +1,14 @@
-import type { AuthEvent, Snapshot } from './interfaces.ts';
-import type { Policy, PolicyVocabulary } from './policy.ts';
-import type { CustomRole, Membership, Principal, Subject } from './subject.ts';
+import type { AuthEvent, Snapshot } from "./interfaces.ts";
+import type { Policy, PolicyVocabulary } from "./policy.ts";
+import type { CustomRole, Membership, Principal, Subject } from "./subject.ts";
 
-import { compact } from './compact.ts';
-import { freezeDeep } from './freeze.ts';
-import { type SnapshotInclude, snapshotOf } from './instance.ts';
-import { resolveSubject } from './resolve-subject.ts';
-import { scopeList } from './scopes.ts';
-import { tenantsOf } from './tenancy.ts';
-import { isThenable } from './thenable.ts';
+import { compact } from "./compact.ts";
+import { freezeDeep } from "./freeze.ts";
+import { type SnapshotInclude, snapshotOf } from "./instance.ts";
+import { resolveSubject } from "./resolve-subject.ts";
+import { scopeList } from "./scopes.ts";
+import { tenantsOf } from "./tenancy.ts";
+import { isThenable } from "./thenable.ts";
 
 export type SnapshotForOptions = {
   /** Active tenant; ignored unless the subject holds a membership in it. */
@@ -22,7 +22,7 @@ export type SnapshotForOptions = {
   /** Plans of the active tenant; replaces `principal.plans`. */
   readonly plans?: readonly string[];
   readonly include?: SnapshotInclude;
-  readonly tenants?: 'all';
+  readonly tenants?: "all";
   /** Epoch seconds for `issuedAt` and membership expiry. Defaults to the clock. */
   readonly now?: number;
 };
@@ -77,13 +77,13 @@ export function snapshotFor<
   );
   if (isThenable(resolved)) {
     throw new TypeError(
-      'PermDock: snapshotFor() needs synchronous subject and context mappers. Resolve async data first and pass it as a Subject, or use createPermDock(...).snapshot().',
+      "PermDock: snapshotFor() needs synchronous subject and context mappers. Resolve async data first and pass it as a Subject, or use createPermDock(...).snapshot().",
     );
   }
   const subject = withPlans(resolved, options.plans);
   // SAFETY: the generic policy's scopes are the same runtime list as the erased Policy's.
   const tenants = new Set(
-    tenantsOf(subject.principal, scopeList(policy.scopes as Policy['scopes'])),
+    tenantsOf(subject.principal, scopeList(policy.scopes as Policy["scopes"])),
   );
   const customRoles = (options.customRoles ?? []).filter((item) =>
     tenants.has(item.tenant),

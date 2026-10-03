@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from "vitest";
 
 import {
   CLIENT_ENTRIES,
@@ -8,10 +8,10 @@ import {
   serverOnlyFiles,
   walk,
   wintertcViolations,
-} from './graph.ts';
+} from "./graph.ts";
 
-describe('WinterTC Minimum Common API', () => {
-  it('loads every entry but permdock/terminal without Node built-ins', () => {
+describe("WinterTC Minimum Common API", () => {
+  it("loads every entry but permdock/terminal without Node built-ins", () => {
     const violations: string[] = [];
     for (const entry of WINTERTC_ENTRIES) {
       violations.push(
@@ -23,12 +23,12 @@ describe('WinterTC Minimum Common API', () => {
     expect(violations).toEqual([]);
   });
 
-  it('evaluates the WinterTC entries', async () => {
-    await import('permdock');
-    await import('permdock/server');
+  it("evaluates the WinterTC entries", async () => {
+    await import("permdock");
+    await import("permdock/server");
   });
 
-  it('keeps client entries off policy and server evaluation chunks', () => {
+  it("keeps client entries off policy and server evaluation chunks", () => {
     const leaked: string[] = [];
     for (const entry of CLIENT_ENTRIES) {
       leaked.push(
@@ -40,7 +40,7 @@ describe('WinterTC Minimum Common API', () => {
     expect(leaked).toEqual([]);
   });
 
-  it('keeps client entries off server adapters', () => {
+  it("keeps client entries off server adapters", () => {
     const leaked: string[] = [];
     for (const entry of CLIENT_ENTRIES) {
       leaked.push(...serverOnlyFiles(walk(ENTRIES[entry])));

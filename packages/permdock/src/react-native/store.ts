@@ -1,34 +1,34 @@
-import type { Snapshot } from '../core/interfaces.ts';
-import type { ClientStore } from '../react/store.ts';
-import type { NativePermDockProviderProps } from './types.ts';
+import type { Snapshot } from "../core/interfaces.ts";
+import type { ClientStore } from "../react/store.ts";
+import type { NativePermDockProviderProps } from "./types.ts";
 
-import { compact } from '../core/compact.ts';
-import { emptySnapshot } from '../core/from-snapshot.ts';
-import { createClientStore } from '../react/store.ts';
+import { compact } from "../core/compact.ts";
+import { emptySnapshot } from "../core/from-snapshot.ts";
+import { createClientStore } from "../react/store.ts";
 import {
   acceptSnapshot,
   clearStorage,
   persistSnapshot,
   readStored,
   readStoredSync,
-} from './storage.ts';
+} from "./storage.ts";
 
-export type NativeStoreOptions = Omit<NativePermDockProviderProps, 'children'>;
+export type NativeStoreOptions = Omit<NativePermDockProviderProps, "children">;
 
 function isJws(value: string): boolean {
-  const parts = value.split('.');
+  const parts = value.split(".");
   return parts.length === 3 && parts.every((part) => part.length > 0);
 }
 
 export function createNativeStore(options: NativeStoreOptions): ClientStore {
   const signed =
-    typeof options.snapshot === 'string' && isJws(options.snapshot)
+    typeof options.snapshot === "string" && isJws(options.snapshot)
       ? options.snapshot
       : undefined;
   const seeded =
     options.snapshot === undefined || signed !== undefined
       ? undefined
-      : typeof options.snapshot === 'string'
+      : typeof options.snapshot === "string"
         ? acceptSnapshot(options.snapshot, options.subjectId)
         : acceptSnapshot(JSON.stringify(options.snapshot), options.subjectId);
   const sync =

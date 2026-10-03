@@ -62,10 +62,11 @@
       }
     },
     "act": {
-      "description": "RFC 8693 actor chain; the innermost sub is the acting party.",
+      "description": "RFC 8693 actor chain: the outermost sub is the current actor, each nested act a prior one.",
       "type": "object",
+      "required": ["sub"],
       "properties": {
-        "sub": { "type": "string" },
+        "sub": { "type": "string", "minLength": 1 },
         "act": { "$ref": "#/$defs/act" }
       }
     },
@@ -105,6 +106,12 @@
         },
         "grantedBy": { "type": "string" },
         "reason": { "type": "string" },
+        "member": {
+          "description": "The subgroup a membership source's group fills.",
+          "type": "object",
+          "required": ["group"],
+          "properties": { "group": { "type": "string", "minLength": 1 } }
+        },
         "managedBy": { "const": "idp" },
         "entitlements": { "type": "array", "items": { "type": "string" } },
         "grants": {

@@ -1,0 +1,34 @@
+---
+description: Workspace layout, Turbo boundary tags, code rules and lazy imports for every change in this repository
+globs:
+alwaysApply: true
+---
+
+# Architecture
+
+PermDock is a library repository: one published package, two deployed apps, and examples and tests that consume the package the way a user would.
+
+## Layout and boundaries
+
+- `packages/permdock` is the only published package. Apps, examples and tests import it through its package `exports`, which point at `dist/`, so checks depend on `^build` (`docs/decisions/0021-build-over-transit.md`).
+- Every workspace has a Turbo tag in its `turbo.json`, and `pnpm boundaries` enforces the rules in the root `turbo.json`:
+  - `library`: `permdock`. Depends on no workspace but `tooling`.
+  - `tooling`: `typescript-config`, `ox-config`. Every workspace may use them as dev dependencies.
+  - `ui`: `packages/ui`. Never imports an app, example, test or `next-config`; only apps and tests depend on it.
+  - `next-config`: `packages/next-config`, used by the Next.js apps.
+  - `app`: `apps/docs`, `apps/marketing`. Never import each other or an example.
+  - `example`: `apps/examples/*`. Import `library` and `tooling`; only tests depend on them.
+  - `test`: `tests/*` and the e2e fixtures.
+- Files are kebab-case. Tests live in each workspace's `tests/` folder, never beside the source.
+- Repo scripts are TypeScript in `scripts/`, run directly by Node.
+
+## Code rules
+
+- Imports at the top of the file. Exhaustive `switch` with a `never` default. Only erasable TypeScript syntax.
+- Every `as T` has a `// SAFETY:` comment; prefer a type guard or a schema parse.
+- Comments state constraints the code cannot show, never what the next line does or how it was changed.
+- A dynamic `import()` is allowed only for a measured startup cost (a CLI command, a client panel) or an optional peer, with a comment naming the reason. An optional peer's import fails with a message that names the package to install.
+- Dates are `Temporal`; `date-fns`, `dayjs`, `luxon` and `moment` are banned by the lint config.
+- No hand-written `useMemo`, `useCallback` or `memo` in the apps; the React Compiler memoizes.
+- Errors that cross a boundary are RFC 9457 Problem Details: the HTTP adapters through `src/server/problem.ts`, the CLI through `--json`.
+- The runtime invariants in `invariants.mdc` and the names in `naming.mdc` override anything here.

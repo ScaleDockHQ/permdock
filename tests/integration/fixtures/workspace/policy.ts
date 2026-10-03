@@ -1,4 +1,4 @@
-import type { Membership } from 'permdock';
+import type { Membership } from "permdock";
 
 import {
   allow,
@@ -9,8 +9,8 @@ import {
   relation,
   resource,
   role,
-} from 'permdock';
-import { z } from 'zod';
+} from "permdock";
+import { z } from "zod";
 
 // The graph of packages/permdock/tests/fixtures/graph.ts, built on the
 // published entry so its registry is the one the ORM compilers read.
@@ -24,50 +24,50 @@ const Folder = z.object({
 const Doc = z.object({ id: z.string(), folderId: z.string() });
 
 const asGroupOrUser = {
-  column: 'kind',
-  resources: { team: 'member' },
-  direct: 'user',
+  column: "kind",
+  resources: { team: "member" },
+  direct: "user",
 } as const;
 
 const member = {
-  edge: 'folder_members',
-  object: 'folder_id',
-  subject: 'subject_id',
-  expiresAt: 'expires_at',
+  edge: "folder_members",
+  object: "folder_id",
+  subject: "subject_id",
+  expiresAt: "expires_at",
   groups: asGroupOrUser,
 } as const;
 
 export const permissions = definePermissions({
   team: resource(Team, {
-    actions: ['read'],
+    actions: ["read"],
     relations: {
       member: {
-        edge: 'team_members',
-        object: 'team_id',
-        subject: 'subject_id',
+        edge: "team_members",
+        object: "team_id",
+        subject: "subject_id",
         groups: asGroupOrUser,
       },
-      lead: { principal: 'leadId' },
+      lead: { principal: "leadId" },
     },
   }),
   folder: resource(Folder, {
-    actions: ['read'],
-    parent: { field: 'parentId', resource: 'folder' },
-    links: { team: { field: 'teamId', resource: 'team' } },
-    restricted: 'restricted',
+    actions: ["read"],
+    parent: { field: "parentId", resource: "folder" },
+    links: { team: { field: "teamId", resource: "team" } },
+    restricted: "restricted",
     relations: {
-      editor: { ...member, match: { role: 'editor' } },
-      viewer: { ...member, match: { role: 'viewer' }, includes: ['editor'] },
+      editor: { ...member, match: { role: "editor" } },
+      viewer: { ...member, match: { role: "viewer" }, includes: ["editor"] },
     },
   }),
   doc: resource(Doc, {
-    actions: ['read', 'review'],
-    parent: { field: 'folderId', resource: 'folder' },
-    links: { folder: { field: 'folderId', resource: 'folder' } },
+    actions: ["read", "review"],
+    parent: { field: "folderId", resource: "folder" },
+    links: { folder: { field: "folderId", resource: "folder" } },
   }),
 });
 
-export const roles = defineRoles({ folderAdmin: { on: 'folder' } });
+export const roles = defineRoles({ folderAdmin: { on: "folder" } });
 
 export type WorkspaceUser = {
   readonly id: string;
@@ -76,22 +76,22 @@ export type WorkspaceUser = {
 
 const grants = [
   allow(permissions.doc.read, {
-    to: relation(permissions.folder, 'viewer', {
-      through: 'parent',
+    to: relation(permissions.folder, "viewer", {
+      through: "parent",
       depth: 8,
     }),
   }),
   allow(permissions.folder.read, {
-    to: relation(permissions.folder, 'viewer', {
-      through: 'parent',
+    to: relation(permissions.folder, "viewer", {
+      through: "parent",
       depth: 2,
     }),
   }),
   allow([permissions.doc.review, permissions.doc.read], {
-    to: relation(permissions.team, 'lead', { through: ['folder', 'team'] }),
+    to: relation(permissions.team, "lead", { through: ["folder", "team"] }),
   }),
   allow(permissions.team.read, {
-    to: relation(permissions.team, 'member'),
+    to: relation(permissions.team, "member"),
   }),
 ];
 
@@ -102,7 +102,7 @@ const subject = (user: WorkspaceUser) => ({
 
 // Declared so the implicit tenant / team scopes do not claim the name of the
 // team resource (its RLS helper is permitted_team_ids).
-const scopes = { org: { key: 'orgId' } };
+const scopes = { org: { key: "orgId" } };
 
 export const policy = definePolicy(
   { permissions, roles },
@@ -129,29 +129,29 @@ export const graphPolicy = definePolicy(permissions, {
 
 export const rows = {
   team: [
-    { id: 'eng-team', leadId: 'lee' },
-    { id: 'sre', leadId: 'lena' },
-    { id: 'oncall', leadId: null },
+    { id: "eng-team", leadId: "lee" },
+    { id: "sre", leadId: "lena" },
+    { id: "oncall", leadId: null },
   ],
   folder: [
-    { id: 'root', parentId: null, teamId: null, restricted: false },
-    { id: 'eng', parentId: 'root', teamId: 'eng-team', restricted: false },
-    { id: 'platform', parentId: 'eng', teamId: 'eng-team', restricted: false },
-    { id: 'deep', parentId: 'platform', teamId: 'sre', restricted: false },
-    { id: 'hr', parentId: 'root', teamId: null, restricted: true },
-    { id: 'payroll', parentId: 'hr', teamId: null, restricted: false },
-    { id: 'secret', parentId: 'eng', teamId: null, restricted: true },
-    { id: 'vault', parentId: 'secret', teamId: null, restricted: false },
+    { id: "root", parentId: null, teamId: null, restricted: false },
+    { id: "eng", parentId: "root", teamId: "eng-team", restricted: false },
+    { id: "platform", parentId: "eng", teamId: "eng-team", restricted: false },
+    { id: "deep", parentId: "platform", teamId: "sre", restricted: false },
+    { id: "hr", parentId: "root", teamId: null, restricted: true },
+    { id: "payroll", parentId: "hr", teamId: null, restricted: false },
+    { id: "secret", parentId: "eng", teamId: null, restricted: true },
+    { id: "vault", parentId: "secret", teamId: null, restricted: false },
   ],
   doc: [
-    { id: 'root-doc', folderId: 'root' },
-    { id: 'eng-doc', folderId: 'eng' },
-    { id: 'platform-doc', folderId: 'platform' },
-    { id: 'deep-doc', folderId: 'deep' },
-    { id: 'hr-doc', folderId: 'hr' },
-    { id: 'pay-doc', folderId: 'payroll' },
-    { id: 'secret-doc', folderId: 'secret' },
-    { id: 'vault-doc', folderId: 'vault' },
+    { id: "root-doc", folderId: "root" },
+    { id: "eng-doc", folderId: "eng" },
+    { id: "platform-doc", folderId: "platform" },
+    { id: "deep-doc", folderId: "deep" },
+    { id: "hr-doc", folderId: "hr" },
+    { id: "pay-doc", folderId: "payroll" },
+    { id: "secret-doc", folderId: "secret" },
+    { id: "vault-doc", folderId: "vault" },
   ],
 };
 
@@ -159,68 +159,68 @@ type EdgeRow = Readonly<Record<string, string | number | null>>;
 
 export const tables: Readonly<Record<string, readonly EdgeRow[]>> = {
   team_members: [
-    { team_id: 'eng-team', kind: 'user', subject_id: 'carl' },
-    { team_id: 'eng-team', kind: 'team', subject_id: 'sre' },
-    { team_id: 'sre', kind: 'user', subject_id: 'tina' },
-    { team_id: 'sre', kind: 'team', subject_id: 'oncall' },
-    { team_id: 'oncall', kind: null, subject_id: 'otto' },
-    { team_id: 'oncall', kind: 'robot', subject_id: 'rob' },
+    { team_id: "eng-team", kind: "user", subject_id: "carl" },
+    { team_id: "eng-team", kind: "team", subject_id: "sre" },
+    { team_id: "sre", kind: "user", subject_id: "tina" },
+    { team_id: "sre", kind: "team", subject_id: "oncall" },
+    { team_id: "oncall", kind: null, subject_id: "otto" },
+    { team_id: "oncall", kind: "robot", subject_id: "rob" },
   ],
   folder_members: [
     {
-      folder_id: 'root',
-      role: 'viewer',
-      kind: 'user',
-      subject_id: 'vera',
+      folder_id: "root",
+      role: "viewer",
+      kind: "user",
+      subject_id: "vera",
       expires_at: null,
     },
     {
-      folder_id: 'eng',
-      role: 'editor',
-      kind: 'user',
-      subject_id: 'eddie',
+      folder_id: "eng",
+      role: "editor",
+      kind: "user",
+      subject_id: "eddie",
       expires_at: null,
     },
     {
-      folder_id: 'eng',
-      role: 'viewer',
-      kind: 'user',
-      subject_id: 'ex',
+      folder_id: "eng",
+      role: "viewer",
+      kind: "user",
+      subject_id: "ex",
       expires_at: 1000,
     },
     {
-      folder_id: 'eng',
-      role: 'viewer',
-      kind: 'user',
-      subject_id: 'fay',
+      folder_id: "eng",
+      role: "viewer",
+      kind: "user",
+      subject_id: "fay",
       expires_at: 4_000_000_000,
     },
     {
-      folder_id: 'platform',
-      role: 'viewer',
-      kind: 'team',
-      subject_id: 'eng-team',
+      folder_id: "platform",
+      role: "viewer",
+      kind: "team",
+      subject_id: "eng-team",
       expires_at: null,
     },
     {
-      folder_id: 'hr',
-      role: 'viewer',
-      kind: 'user',
-      subject_id: 'hana',
+      folder_id: "hr",
+      role: "viewer",
+      kind: "user",
+      subject_id: "hana",
       expires_at: null,
     },
     {
-      folder_id: 'secret',
-      role: 'owner',
-      kind: 'user',
-      subject_id: 'vera',
+      folder_id: "secret",
+      role: "owner",
+      kind: "user",
+      subject_id: "vera",
       expires_at: null,
     },
     {
-      folder_id: 'secret',
-      role: 'editor',
-      kind: 'user',
-      subject_id: 'sid',
+      folder_id: "secret",
+      role: "editor",
+      kind: "user",
+      subject_id: "sid",
       expires_at: null,
     },
   ],
@@ -230,33 +230,33 @@ export const relations = memoryRelations(permissions, { rows, tables });
 
 export const users: readonly WorkspaceUser[] = [
   ...[
-    'vera',
-    'eddie',
-    'carl',
-    'tina',
-    'otto',
-    'rob',
-    'ex',
-    'fay',
-    'hana',
-    'sid',
-    'lee',
-    'lena',
-    'nobody',
+    "vera",
+    "eddie",
+    "carl",
+    "tina",
+    "otto",
+    "rob",
+    "ex",
+    "fay",
+    "hana",
+    "sid",
+    "lee",
+    "lena",
+    "nobody",
   ].map((id) => ({ id })),
   {
-    id: 'ada',
+    id: "ada",
     memberships: [
-      { on: { resource: 'folder', id: 'eng' }, roles: ['folderAdmin'] },
+      { on: { resource: "folder", id: "eng" }, roles: ["folderAdmin"] },
     ],
   },
 ];
 
 function literal(value: string | number | boolean | null): string {
   if (value === null) {
-    return 'null';
+    return "null";
   }
-  return typeof value === 'string'
+  return typeof value === "string"
     ? `'${value.replaceAll("'", "''")}'`
     : String(value);
 }
@@ -268,7 +268,7 @@ function insert(
 ): string {
   const first = items[0];
   if (first === undefined) {
-    return '';
+    return "";
   }
   const columns = Object.keys(first);
   const values = items
@@ -276,14 +276,14 @@ function insert(
       (row) =>
         `(${columns
           .map((column) =>
-            column === expiry && typeof row[column] === 'number'
+            column === expiry && typeof row[column] === "number"
               ? `to_timestamp(${String(row[column])})`
               : literal(row[column] ?? null),
           )
-          .join(', ')})`,
+          .join(", ")})`,
     )
-    .join(',\n  ');
-  return `insert into ${table} (${columns.map((column) => `"${column}"`).join(', ')}) values\n  ${values};`;
+    .join(",\n  ");
+  return `insert into ${table} (${columns.map((column) => `"${column}"`).join(", ")}) values\n  ${values};`;
 }
 
 export const schemaSql = `
@@ -306,12 +306,12 @@ create table folder_members (
 `;
 
 export const seedSql = [
-  insert('team', rows.team),
-  insert('folder', rows.folder),
-  insert('doc', rows.doc),
-  insert('team_members', tables['team_members'] ?? []),
-  insert('folder_members', tables['folder_members'] ?? [], 'expires_at'),
-].join('\n');
+  insert("team", rows.team),
+  insert("folder", rows.folder),
+  insert("doc", rows.doc),
+  insert("team_members", tables["team_members"] ?? []),
+  insert("folder_members", tables["folder_members"] ?? [], "expires_at"),
+].join("\n");
 
 /** The closure as `permdock rls` keeps it: every folder reaches its ancestors, stopping after the first restricted one. */
 export const closureSql = `

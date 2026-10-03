@@ -1,13 +1,13 @@
-import type { Decision, Membership, CustomRole } from 'permdock';
+import type { Decision, Membership, CustomRole } from "permdock";
 
-import { setTimeout as sleep } from 'node:timers/promises';
-import { createPermDock, memoryRoleSource } from 'permdock';
+import { setTimeout as sleep } from "node:timers/promises";
+import { createPermDock, memoryRoleSource } from "permdock";
 
-import { policy, permissions as source } from '@permdock/e2e-turbo-permissions';
-import { permissions as p } from '@permdock/e2e-turbo-permissions/dist';
+import { policy, permissions as source } from "@permdock/e2e-turbo-permissions";
+import { permissions as p } from "@permdock/e2e-turbo-permissions/dist";
 
-const API = process.env['API_ORIGIN'] ?? 'http://127.0.0.1:3509';
-const WORKER_TOKEN = process.env['WORKER_TOKEN'] ?? '';
+const API = process.env["API_ORIGIN"] ?? "http://127.0.0.1:3509";
+const WORKER_TOKEN = process.env["WORKER_TOKEN"] ?? "";
 const POLL_MS = 100;
 
 // Decisions below use leaves from the built copy against the source policy.
@@ -15,7 +15,7 @@ if (
   Object.is(p.project.update, source.project.update) ||
   p.project.update.key !== source.project.update.key
 ) {
-  throw new Error('the dist copy must be a separate module with the same keys');
+  throw new Error("the dist copy must be a separate module with the same keys");
 }
 
 type Job = {
@@ -36,13 +36,13 @@ function internal(path: string, init: RequestInit = {}): Promise<Response> {
     ...init,
     headers: {
       authorization: `Bearer ${WORKER_TOKEN}`,
-      'content-type': 'application/json',
+      "content-type": "application/json",
     },
   });
 }
 
 function reasonOf(decision: Decision): string | undefined {
-  return decision.outcome === 'denied'
+  return decision.outcome === "denied"
     ? decision.denials[0]?.reason
     : undefined;
 }
@@ -61,7 +61,7 @@ async function run(job: Job): Promise<void> {
         memberships: input.memberships,
         plans: input.plans,
       },
-      actor: { kind: 'service', id: 'turbo-worker' },
+      actor: { kind: "service", id: "turbo-worker" },
       delegation: { scopes: [p.project.update.scope] },
       context: {},
     },
@@ -72,17 +72,17 @@ async function run(job: Job): Promise<void> {
       ? undefined
       : permdock.decide(p.project.update, input.row);
   await internal(`/jobs/${job.id}/settle`, {
-    method: 'POST',
+    method: "POST",
     body: JSON.stringify({
-      outcome: decision?.outcome ?? 'denied',
-      reason: decision === undefined ? 'not-found' : reasonOf(decision),
+      outcome: decision?.outcome ?? "denied",
+      reason: decision === undefined ? "not-found" : reasonOf(decision),
     }),
   });
 }
 
 async function poll(): Promise<void> {
   for (;;) {
-    const response = await internal('/jobs/claim', { method: 'POST' }).catch(
+    const response = await internal("/jobs/claim", { method: "POST" }).catch(
       () => undefined,
     );
     if (response?.status === 200) {

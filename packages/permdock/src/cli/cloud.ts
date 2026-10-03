@@ -1,18 +1,18 @@
-import type { Grant, Policy, Snapshot, SnapshotGrant } from '../index.ts';
-import type { CliIo, PermDockConfig } from './types.ts';
+import type { Grant, Policy, Snapshot, SnapshotGrant } from "../index.ts";
+import type { CliIo, PermDockConfig } from "./types.ts";
 
-import { parseCatalog } from '../catalog/parse.ts';
-import { snapshotScopes } from '../core/instance.ts';
-import { catalogFingerprint } from '../index.ts';
-import { runCatalog } from './catalog.ts';
-import { loadConfiguredPolicy } from './load.ts';
+import { parseCatalog } from "../catalog/parse.ts";
+import { snapshotScopes } from "../core/instance.ts";
+import { catalogFingerprint } from "../index.ts";
+import { runCatalog } from "./catalog.ts";
+import { loadConfiguredPolicy } from "./load.ts";
 
 export type PushedPolicy = {
   readonly fingerprint: string;
   /** As a snapshot carries them: ordered `{ name, key, within?, resources? }`; absent without declared scopes. */
-  readonly scopes?: Snapshot['scopes'];
+  readonly scopes?: Snapshot["scopes"];
   readonly grants: readonly (SnapshotGrant & {
-    readonly limit?: Grant['limit'];
+    readonly limit?: Grant["limit"];
   })[];
 };
 
@@ -23,14 +23,14 @@ export type CloudPushResult = {
 
 function firstNonEmpty(...values: readonly (string | undefined)[]): string {
   for (const value of values) {
-    if (value !== undefined && value !== '') {
+    if (value !== undefined && value !== "") {
       return value;
     }
   }
-  return '';
+  return "";
 }
 
-function pushedGrant(grant: Grant): PushedPolicy['grants'][number] {
+function pushedGrant(grant: Grant): PushedPolicy["grants"][number] {
   const entry: Record<string, unknown> = {
     permission: grant.permission.key,
     effect: grant.effect,
@@ -40,9 +40,9 @@ function pushedGrant(grant: Grant): PushedPolicy['grants'][number] {
     check: grant.portable ? grant.check : undefined,
     approval: grant.approval,
     scope:
-      grant.scope === 'global'
+      grant.scope === "global"
         ? undefined
-        : typeof grant.scope === 'string'
+        : typeof grant.scope === "string"
           ? grant.scope
           : { resource: grant.scope.resource },
     portable: grant.portable ? undefined : false,
@@ -52,7 +52,7 @@ function pushedGrant(grant: Grant): PushedPolicy['grants'][number] {
   // SAFETY: entry is built above with the grant fields; the filter only drops undefined ones.
   return Object.fromEntries(
     Object.entries(entry).filter(([, value]) => value !== undefined),
-  ) as PushedPolicy['grants'][number];
+  ) as PushedPolicy["grants"][number];
 }
 
 /** The code policy as the hosted AuthZEN endpoint evaluates it; closures travel as `portable: false` and deny there. */
@@ -80,7 +80,7 @@ export async function runCloud(input: {
   readonly io: CliIo;
 }): Promise<CloudPushResult> {
   const action = input.rest[0];
-  if (action !== 'push') {
+  if (action !== "push") {
     return {
       code: 2,
       output: `usage: permdock cloud push [--dry-run] [--url <url>] [--environment <env>]`,
@@ -89,7 +89,7 @@ export async function runCloud(input: {
   const built = await runCatalog({
     cwd: input.cwd,
     config: input.config,
-    format: 'json',
+    format: "json",
     from: undefined,
     include: [],
     now: input.now,
@@ -113,29 +113,29 @@ export async function runCloud(input: {
     plans: (catalog.plans ?? []).length,
     grants: policy?.grants.length ?? 0,
   };
-  const url = firstNonEmpty(input.url, input.env['PERMDOCK_CLOUD_URL']).replace(
+  const url = firstNonEmpty(input.url, input.env["PERMDOCK_CLOUD_URL"]).replace(
     /\/$/u,
-    '',
+    "",
   );
   const environment = firstNonEmpty(
     input.environment,
-    input.env['PERMDOCK_CLOUD_ENV'],
-    input.env['VERCEL_ENV'],
-    'production',
+    input.env["PERMDOCK_CLOUD_ENV"],
+    input.env["VERCEL_ENV"],
+    "production",
   );
   const describe = (verb: string): string =>
     input.json
       ? JSON.stringify({ ...summary, environment, status: verb })
       : `${verb} catalog ${fingerprint} (${String(summary.permissions)} permissions, ${String(hostable.length)} hostable) to ${environment}`;
   if (input.dryRun) {
-    return { code: 0, output: describe('would push') };
+    return { code: 0, output: describe("would push") };
   }
-  const key = input.env['PERMDOCK_CLOUD_KEY'] ?? '';
-  if (url === '' || key === '') {
+  const key = input.env["PERMDOCK_CLOUD_KEY"] ?? "";
+  if (url === "" || key === "") {
     return {
       code: 2,
       output:
-        'permdock cloud push needs PERMDOCK_CLOUD_URL (or --url) and PERMDOCK_CLOUD_KEY in the environment',
+        "permdock cloud push needs PERMDOCK_CLOUD_URL (or --url) and PERMDOCK_CLOUD_KEY in the environment",
     };
   }
   const fetchFn = input.io.fetch ?? globalThis.fetch.bind(globalThis);
@@ -144,10 +144,10 @@ export async function runCloud(input: {
     response = await fetchFn(
       `${url}/v1/environments/${encodeURIComponent(environment)}/catalog`,
       {
-        method: 'POST',
+        method: "POST",
         headers: {
           authorization: `Bearer ${key}`,
-          'content-type': 'application/json',
+          "content-type": "application/json",
         },
         body: JSON.stringify(
           policy === undefined
@@ -168,5 +168,5 @@ export async function runCloud(input: {
       output: `PermDock Cloud rejected the catalog: HTTP ${String(response.status)}`,
     };
   }
-  return { code: 0, output: describe('pushed') };
+  return { code: 0, output: describe("pushed") };
 }

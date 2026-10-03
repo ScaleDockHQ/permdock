@@ -1,6 +1,6 @@
-import type { LimitDetail, Obligation, Quota } from './decision.ts';
-import type { LimitStore } from './interfaces.ts';
-import type { Grant, GrantLimit } from './policy.ts';
+import type { LimitDetail, Obligation, Quota } from "./decision.ts";
+import type { LimitStore } from "./interfaces.ts";
+import type { Grant, GrantLimit } from "./policy.ts";
 
 const UNIT_SECONDS: Record<string, number> = {
   s: 1,
@@ -26,9 +26,9 @@ const UNIT_SECONDS: Record<string, number> = {
 function isThenable(value: unknown): value is Promise<unknown> {
   return (
     value !== null &&
-    typeof value === 'object' &&
-    'then' in value &&
-    typeof value.then === 'function'
+    typeof value === "object" &&
+    "then" in value &&
+    typeof value.then === "function"
   );
 }
 
@@ -47,7 +47,7 @@ function limitWindowSeconds(per: string): number | undefined {
     return undefined;
   }
   const amount = Number(match[1]);
-  const unit = UNIT_SECONDS[match[2] ?? ''];
+  const unit = UNIT_SECONDS[match[2] ?? ""];
   return unit !== undefined && Number.isSafeInteger(amount) && amount > 0
     ? amount * unit
     : undefined;
@@ -73,8 +73,8 @@ export function assertLimit(
   }
   if (
     limit.mode !== undefined &&
-    limit.mode !== 'hard' &&
-    limit.mode !== 'soft'
+    limit.mode !== "hard" &&
+    limit.mode !== "soft"
   ) {
     throw new Error(
       `PermDock: limit mode on '${permissionKey}' must be 'hard' or 'soft'`,
@@ -82,7 +82,7 @@ export function assertLimit(
   }
   if (
     limit.alertAt !== undefined &&
-    (typeof limit.alertAt !== 'number' ||
+    (typeof limit.alertAt !== "number" ||
       !(limit.alertAt > 0 && limit.alertAt <= 1))
   ) {
     throw new Error(
@@ -133,7 +133,7 @@ function limitCacheKey(
 }
 
 function locate(
-  input: Parameters<LimitStore['consume']>[0],
+  input: Parameters<LimitStore["consume"]>[0],
 ):
   | { readonly id: string; readonly until: number; readonly now: number }
   | undefined {
@@ -204,10 +204,10 @@ export type QuotaVerdict =
     }
   | {
       readonly ok: false;
-      readonly reason: 'limit';
+      readonly reason: "limit";
       readonly detail: LimitDetail;
     }
-  | { readonly ok: false; readonly reason: 'limit-unavailable' };
+  | { readonly ok: false; readonly reason: "limit-unavailable" };
 
 /**
  * `left` is what remains once this call counts: the store's answer after
@@ -221,19 +221,19 @@ function verdictFor(
 ): QuotaVerdict {
   const seconds = limitWindowSeconds(limit.per);
   if (seconds === undefined) {
-    return { ok: false, reason: 'limit-unavailable' };
+    return { ok: false, reason: "limit-unavailable" };
   }
   const resetsAt = (Math.floor(now / seconds) + 1) * seconds;
   if (left < 0) {
-    return limit.mode === 'soft'
+    return limit.mode === "soft"
       ? {
           ok: true,
           quota: { remaining: 0, resetsAt },
-          obligations: [{ kind: 'over-limit' }],
+          obligations: [{ kind: "over-limit" }],
         }
       : {
           ok: false,
-          reason: 'limit',
+          reason: "limit",
           detail: { count: limit.count, window: seconds, resetsAt },
         };
   }
@@ -244,7 +244,7 @@ function verdictFor(
     ? {
         ok: true,
         quota: { remaining: left, resetsAt },
-        obligations: [{ kind: 'near-limit' }],
+        obligations: [{ kind: "near-limit" }],
       }
     : { ok: true, quota: { remaining: left, resetsAt } };
 }
@@ -264,7 +264,7 @@ export function applyQuota(input: {
     return { ok: true };
   }
   if (input.store === undefined) {
-    return { ok: false, reason: 'limit-unavailable' };
+    return { ok: false, reason: "limit-unavailable" };
   }
   const payload = {
     key: input.permissionKey,
@@ -276,34 +276,34 @@ export function applyQuota(input: {
   };
   const cacheKey = limitCacheKey(payload, input.now);
   if (cacheKey === undefined) {
-    return { ok: false, reason: 'limit-unavailable' };
+    return { ok: false, reason: "limit-unavailable" };
   }
   if (!input.consume) {
     try {
       const peeked = input.store.remaining(payload);
       if (isThenable(peeked)) {
-        return { ok: false, reason: 'limit-unavailable' };
+        return { ok: false, reason: "limit-unavailable" };
       }
       if (peeked !== undefined) {
         return verdictFor(limit, peeked.remaining - 1, input.now);
       }
     } catch {
-      return { ok: false, reason: 'limit-unavailable' };
+      return { ok: false, reason: "limit-unavailable" };
     }
     const cached = input.cache.get(cacheKey);
     if (cached === undefined) {
-      return { ok: false, reason: 'limit-unavailable' };
+      return { ok: false, reason: "limit-unavailable" };
     }
     return verdictFor(limit, cached - 1, input.now);
   }
   try {
     const consumed = input.store.consume(payload);
     if (isThenable(consumed)) {
-      return { ok: false, reason: 'limit-unavailable' };
+      return { ok: false, reason: "limit-unavailable" };
     }
     input.cache.set(cacheKey, consumed.remaining);
     return verdictFor(limit, consumed.remaining, input.now);
   } catch {
-    return { ok: false, reason: 'limit-unavailable' };
+    return { ok: false, reason: "limit-unavailable" };
   }
 }

@@ -14,3 +14,8 @@ Each service's `ignoreCommand` in `vercel.json` runs `turbo query affected --pac
 ## Consequences
 
 `.git` must stay in the upload, so `.vercelignore` does not list it. `vercel.json` is a build input of both services, so a change to it rebuilds both.
+
+## Alternatives considered
+
+- `npx turbo-ignore`: deprecated in Turborepo 2.11.
+- No `ignoreCommand`: every push rebuilds both services.

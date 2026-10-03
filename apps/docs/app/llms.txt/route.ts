@@ -1,7 +1,14 @@
-import { llms } from 'fumadocs-core/source';
+import { cacheLife } from "next/cache";
 
-import { source } from '@/lib/source';
+import { markdownHeaders } from "@/lib/shared";
+import { docsLlms } from "@/lib/source";
 
-export async function GET() {
-  return new Response(await llms(source).index());
+async function llmsIndex(): Promise<string> {
+  "use cache";
+  cacheLife("max");
+  return docsLlms.index();
+}
+
+export async function GET(): Promise<Response> {
+  return new Response(await llmsIndex(), { headers: markdownHeaders });
 }

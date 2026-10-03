@@ -6,11 +6,11 @@
  * ever added within it. `schemas/supabase-manifest-v1.json` is its JSON Schema.
  */
 export type SupabaseHookManifest = {
-  readonly $schema: 'https://permdock.dev/schemas/supabase-manifest-v1.json';
+  readonly $schema: "https://permdock.dev/schemas/supabase-manifest-v1.json";
   readonly version: 1;
   readonly hook: {
     readonly schema: string;
-    readonly function: 'custom_access_token_hook';
+    readonly function: "custom_access_token_hook";
     readonly out: string;
   };
   readonly helpers: {
@@ -29,6 +29,16 @@ export type SupabaseHookManifest = {
   };
   readonly claims: readonly SupabaseHookClaim[];
   readonly authzVersion: boolean;
+  /**
+   * With `authzVersion`, the function that bumps the listed users' `authz_ver`,
+   * for a membership source outside the hook. It is `security definer` and no
+   * client role may execute it: call it from a trigger owned by the table's owner.
+   */
+  readonly authzVersionBump?: {
+    readonly schema: string;
+    readonly function: "permdock_bump_authz_version_for";
+    readonly args: "p_users uuid[]";
+  };
   /** The `supabase.hook.memberships` sources, in the order the hook reads them. */
   readonly memberships: readonly SupabaseManifestMembership[];
   readonly rls: SupabaseManifestRls;
@@ -38,7 +48,7 @@ export type SupabaseHookManifest = {
    */
   readonly decidingColumns: readonly string[];
   /** The majors of the `-- permdock:hook` and `-- permdock:grants` marker lines. */
-  readonly markers: { readonly hook: 'v1'; readonly grants: 'v1' };
+  readonly markers: { readonly hook: "v1"; readonly grants: "v1" };
 };
 
 export type SupabaseHookClaim = {
@@ -88,7 +98,7 @@ export type SupabaseManifestHelper = {
 export type SupabaseManifestRls = {
   readonly schema: string;
   /** Where the helpers read roles and memberships: the claims (`jwt`) or the tables (`database`). */
-  readonly mode: 'jwt' | 'database';
+  readonly mode: "jwt" | "database";
   readonly tenantClaim: string;
   /** The declared scopes, root first, with the Postgres type of their ids. */
   readonly scopes: readonly {
@@ -97,4 +107,10 @@ export type SupabaseManifestRls = {
     readonly within?: string;
   }[];
   readonly helpers: readonly SupabaseManifestHelper[];
+  /**
+   * The tables `member_<scope>_ids_for` reads: an `rls.memberships` table
+   * mapped for the scope, else `rls.membershipSources`, else the hook's
+   * `memberships`.
+   */
+  readonly memberships: readonly SupabaseManifestMembership[];
 };

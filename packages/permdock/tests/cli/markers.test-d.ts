@@ -1,14 +1,14 @@
-import { describe, expectTypeOf, it } from 'vitest';
+import { describe, expectTypeOf, it } from "vitest";
 
 import type {
   SupabaseGrantsMarker,
   SupabaseHookMarker,
-} from '../../src/cli/index.ts';
+} from "../../src/cli/index.ts";
 
-import { parseGrantsMarker, parseHookMarker } from '../../src/cli/index.ts';
+import { parseGrantsMarker, parseHookMarker } from "../../src/cli/index.ts";
 
-describe('permdock/cli marker types', () => {
-  it('names what the marker readers return', () => {
+describe("permdock/cli marker types", () => {
+  it("names what the marker readers return", () => {
     expectTypeOf(parseHookMarker).returns.toEqualTypeOf<
       SupabaseHookMarker | undefined
     >();

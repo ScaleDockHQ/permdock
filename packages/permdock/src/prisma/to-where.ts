@@ -1,21 +1,21 @@
-import type { Condition } from '../conditions/ast.ts';
-import type { WhereResult } from '../core/permdock.ts';
-import type { Subject } from '../core/subject.ts';
-import type { PrismaModelFields } from './model-fields.ts';
+import type { Condition } from "../conditions/ast.ts";
+import type { WhereResult } from "../core/permdock.ts";
+import type { Subject } from "../core/subject.ts";
+import type { PrismaModelFields } from "./model-fields.ts";
 
 import {
   type CompiledWhere,
   compileWhere,
   escapeLike,
-} from '../conditions/compile.ts';
-import { type RowCheck, rowCheckOf } from '../conditions/row-check.ts';
+} from "../conditions/compile.ts";
+import { type RowCheck, rowCheckOf } from "../conditions/row-check.ts";
 import {
   statementText,
   subjectStatements,
   type WithSubjectOptions,
-} from '../conditions/subject-settings.ts';
-import { compact } from '../core/compact.ts';
-import { assertSafeKey } from '../core/paths.ts';
+} from "../conditions/subject-settings.ts";
+import { compact } from "../core/compact.ts";
+import { assertSafeKey } from "../core/paths.ts";
 
 export type PrismaWhereOptions = {
   readonly fields?: Readonly<Record<string, string>>;
@@ -37,7 +37,7 @@ type FieldTests = {
 function fieldTests(
   options: Pick<
     PrismaWhereOptions,
-    'fields' | 'listFields' | 'requiredFields' | 'model'
+    "fields" | "listFields" | "requiredFields" | "model"
   >,
 ): FieldTests {
   const mapped = (field: string): string => fieldName(field, options.fields);
@@ -57,28 +57,28 @@ function fieldName(
   field: string,
   fields: Readonly<Record<string, string>> | undefined,
 ): string {
-  assertSafeKey(field, 'condition field');
+  assertSafeKey(field, "condition field");
   return fields?.[field] ?? field;
 }
 
-const NEVER: CompiledWhere = { kind: 'never' };
-const ALWAYS: CompiledWhere = { kind: 'always' };
+const NEVER: CompiledWhere = { kind: "never" };
+const ALWAYS: CompiledWhere = { kind: "always" };
 
 function foldRequired(
   node: CompiledWhere,
   required: (field: string) => boolean,
 ): CompiledWhere {
   switch (node.kind) {
-    case 'isNull':
+    case "isNull":
       if (!required(node.field)) {
         return node;
       }
       return node.negated ? ALWAYS : NEVER;
-    case 'and': {
+    case "and": {
       const items = node.items
         .map((item) => foldRequired(item, required))
-        .filter((item) => item.kind !== 'always');
-      if (items.some((item) => item.kind === 'never')) {
+        .filter((item) => item.kind !== "always");
+      if (items.some((item) => item.kind === "never")) {
         return NEVER;
       }
       // SAFETY: items[0] is read only when items.length is 1.
@@ -86,13 +86,13 @@ function foldRequired(
         ? ALWAYS
         : items.length === 1
           ? (items[0] as CompiledWhere)
-          : { kind: 'and', items };
+          : { kind: "and", items };
     }
-    case 'or': {
+    case "or": {
       const items = node.items
         .map((item) => foldRequired(item, required))
-        .filter((item) => item.kind !== 'never');
-      if (items.some((item) => item.kind === 'always')) {
+        .filter((item) => item.kind !== "never");
+      if (items.some((item) => item.kind === "always")) {
         return ALWAYS;
       }
       // SAFETY: items[0] is read only when items.length is 1.
@@ -100,21 +100,21 @@ function foldRequired(
         ? NEVER
         : items.length === 1
           ? (items[0] as CompiledWhere)
-          : { kind: 'or', items };
+          : { kind: "or", items };
     }
-    case 'not': {
+    case "not": {
       const item = foldRequired(node.item, required);
-      return item.kind === 'never'
+      return item.kind === "never"
         ? ALWAYS
-        : item.kind === 'always'
+        : item.kind === "always"
           ? NEVER
-          : { kind: 'not', item };
+          : { kind: "not", item };
     }
-    case 'never':
-    case 'always':
-    case 'exists':
-    case 'compare':
-    case 'sql':
+    case "never":
+    case "always":
+    case "exists":
+    case "compare":
+    case "sql":
       return node;
     /* v8 ignore next 6 */
     default: {
@@ -132,30 +132,30 @@ function render(
   tests: FieldTests,
 ): Record<string, unknown> {
   switch (node.kind) {
-    case 'never':
+    case "never":
       return { ...EMPTY_OR };
-    case 'always':
+    case "always":
       return {};
-    case 'isNull': {
+    case "isNull": {
       const name = fieldName(node.field, options.fields);
       return node.negated
         ? { [name]: { not: null } }
         : { [name]: { equals: null } };
     }
-    case 'and':
+    case "and":
       return {
         AND: node.items.map((item) => render(item, options, tests)),
       };
-    case 'or':
+    case "or":
       return {
         OR: node.items.map((item) => render(item, options, tests)),
       };
-    case 'not':
+    case "not":
       return { NOT: render(node.item, options, tests) };
     // Unreachable: Prisma takes no `memberships` mapping, so `memberOf`
     // compiles from the subject. Fail closed if it ever arrives.
     /* v8 ignore next 6 */
-    case 'exists':
+    case "exists":
       return {
         [fieldName(node.rowField, options.fields)]: {
           in: [],
@@ -164,34 +164,34 @@ function render(
     // Unreachable: Prisma takes no `relations` mapping, so `related` is
     // refused unless `resolveRelated` turned it into ids first.
     /* v8 ignore next 2 */
-    case 'sql':
+    case "sql":
       return { ...EMPTY_OR };
-    case 'compare': {
+    case "compare": {
       const name = fieldName(node.field, options.fields);
       switch (node.op) {
-        case 'eq':
+        case "eq":
           return { [name]: { equals: node.value } };
-        case 'ne':
+        case "ne":
           return { [name]: { not: node.value } };
-        case 'gt':
+        case "gt":
           return { [name]: { gt: node.value } };
-        case 'gte':
+        case "gte":
           return { [name]: { gte: node.value } };
-        case 'lt':
+        case "lt":
           return { [name]: { lt: node.value } };
-        case 'lte':
+        case "lte":
           return { [name]: { lte: node.value } };
-        case 'in':
+        case "in":
           return { [name]: { in: node.value } };
-        case 'notIn':
+        case "notIn":
           return { [name]: { notIn: node.value } };
-        case 'contains':
+        case "contains":
           return tests.list(node.field)
             ? { [name]: { has: node.value } }
             : {
                 [name]: {
                   contains:
-                    typeof node.value === 'string'
+                    typeof node.value === "string"
                       ? escapeLike(node.value)
                       : node.value,
                 },
@@ -214,7 +214,7 @@ function render(
 }
 
 function containsEmptyOr(value: unknown): boolean {
-  if (value === null || typeof value !== 'object') {
+  if (value === null || typeof value !== "object") {
     return false;
   }
   if (Array.isArray(value)) {
@@ -222,14 +222,14 @@ function containsEmptyOr(value: unknown): boolean {
   }
   // SAFETY: null, primitives and arrays returned above, so value is a non-array object here.
   const record = value as Record<string, unknown>;
-  if (Array.isArray(record['OR']) && record['OR'].length === 0) {
+  if (Array.isArray(record["OR"]) && record["OR"].length === 0) {
     return true;
   }
   return Object.values(record).some((item) => containsEmptyOr(item));
 }
 
 function rewriteEmptyOr<T extends Record<string, unknown>>(args: T): T {
-  const where = args['where'];
+  const where = args["where"];
   if (where === undefined || !containsEmptyOr(where)) {
     return args;
   }
@@ -265,7 +265,7 @@ function wrap({
 }
 
 export function permdockExtension(): {
-  readonly name: 'permdock';
+  readonly name: "permdock";
   readonly query: {
     readonly $allModels: Record<
       string,
@@ -277,7 +277,7 @@ export function permdockExtension(): {
   };
 } {
   return {
-    name: 'permdock',
+    name: "permdock",
     query: {
       $allModels: {
         findMany: wrap,

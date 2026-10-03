@@ -1,19 +1,19 @@
-import type { AuthEvent, JwtClaims } from '../core/interfaces.ts';
-import type { Membership } from '../core/subject.ts';
-import type { JwtSubjectOptions, MappedSubject } from './types.ts';
+import type { AuthEvent, JwtClaims } from "../core/interfaces.ts";
+import type { Membership } from "../core/subject.ts";
+import type { JwtSubjectOptions, MappedSubject } from "./types.ts";
 
-import { compact } from '../core/compact.ts';
-import { freezeDeep } from '../core/freeze.ts';
-import { anonymousSubject } from '../core/subject.ts';
-import { assertSubjectConfig, fail, issuerFromDiscovery } from './config.ts';
-import { verifyDpopProof } from './dpop.ts';
-import { decodeHeader } from './header.ts';
-import { acceptMismatch, mapClaimsToSubject } from './map-claims.ts';
-import { joseTokenVerifier } from './verifier.ts';
+import { compact } from "../core/compact.ts";
+import { freezeDeep } from "../core/freeze.ts";
+import { anonymousSubject } from "../core/subject.ts";
+import { assertSubjectConfig, fail, issuerFromDiscovery } from "./config.ts";
+import { verifyDpopProof } from "./dpop.ts";
+import { decodeHeader } from "./header.ts";
+import { acceptMismatch, mapClaimsToSubject } from "./map-claims.ts";
+import { joseTokenVerifier } from "./verifier.ts";
 
 function emitAuth(
   options: JwtSubjectOptions,
-  cause: AuthEvent['cause'],
+  cause: AuthEvent["cause"],
   token: string | undefined,
 ): void {
   if (options.onAuth === undefined) {
@@ -22,9 +22,9 @@ function emitAuth(
   const header = token === undefined ? undefined : decodeHeader(token);
   options.onAuth(
     compact<AuthEvent>({
-      reason: 'invalid-token',
+      reason: "invalid-token",
       cause,
-      source: 'jwt',
+      source: "jwt",
       kid: header?.kid,
       alg: header?.alg,
       typ: header?.typ,
@@ -38,18 +38,18 @@ function tokenInQuery(request: Request | undefined): boolean {
   if (request === undefined) {
     return false;
   }
-  const url = new URL(request.url, 'https://permdock.invalid');
-  return url.searchParams.has('access_token');
+  const url = new URL(request.url, "https://permdock.invalid");
+  return url.searchParams.has("access_token");
 }
 
 function mtlsThumbprint(claims: JwtClaims): string | undefined {
-  const cnf = claims['cnf'];
-  if (cnf === null || typeof cnf !== 'object' || Array.isArray(cnf)) {
+  const cnf = claims["cnf"];
+  if (cnf === null || typeof cnf !== "object" || Array.isArray(cnf)) {
     return undefined;
   }
   // SAFETY: cnf was checked to be a non-array object above; the value stays unknown.
-  const value = (cnf as { readonly 'x5t#S256'?: unknown })['x5t#S256'];
-  return typeof value === 'string' ? value : undefined;
+  const value = (cnf as { readonly "x5t#S256"?: unknown })["x5t#S256"];
+  return typeof value === "string" ? value : undefined;
 }
 
 async function extraMemberships(
@@ -112,8 +112,8 @@ async function resolveSubject(
   if (token === undefined || token === null || token.length === 0) {
     return anonymousSubject();
   }
-  if (options.profile === 'fapi2' && tokenInQuery(request)) {
-    emitAuth(options, 'token-in-query', token);
+  if (options.profile === "fapi2" && tokenInQuery(request)) {
+    emitAuth(options, "token-in-query", token);
     return anonymousSubject();
   }
   const verifier = options.verifier ?? joseTokenVerifier(options);
@@ -131,15 +131,15 @@ async function resolveSubject(
         issuer,
         clockTolerance: options.clockTolerance,
         typ:
-          options.accept === 'id-token'
-            ? ['JWT']
-            : options.profile === 'fapi2'
-              ? 'at+jwt'
-              : ['at+jwt', 'JWT'],
+          options.accept === "id-token"
+            ? ["JWT"]
+            : options.profile === "fapi2"
+              ? "at+jwt"
+              : ["at+jwt", "JWT"],
       }),
     );
   } catch {
-    verified = fail('malformed');
+    verified = fail("malformed");
   }
   if (!verified.ok) {
     emitAuth(options, verified.cause, token);
@@ -153,46 +153,46 @@ async function resolveSubject(
       options.audience,
     )
   ) {
-    emitAuth(options, 'wrong-token-type', token);
+    emitAuth(options, "wrong-token-type", token);
     return anonymousSubject();
   }
   const sender =
-    options.sender ?? (options.profile === 'fapi2' ? 'dpop' : 'none');
-  const cnf = verified.claims['cnf'];
-  const hasCnf = cnf !== null && typeof cnf === 'object';
-  if (options.profile === 'fapi2' && !hasCnf) {
-    emitAuth(options, 'sender-constraint-required', token);
+    options.sender ?? (options.profile === "fapi2" ? "dpop" : "none");
+  const cnf = verified.claims["cnf"];
+  const hasCnf = cnf !== null && typeof cnf === "object";
+  if (options.profile === "fapi2" && !hasCnf) {
+    emitAuth(options, "sender-constraint-required", token);
     return anonymousSubject();
   }
-  if (sender === 'dpop') {
+  if (sender === "dpop") {
     const proof =
       request === undefined
-        ? { ok: false as const, cause: 'dpop-proof-invalid' as const }
+        ? { ok: false as const, cause: "dpop-proof-invalid" as const }
         : await verifyDpopProof(request, verified.claims, token);
     if (!proof.ok) {
       emitAuth(options, proof.cause, token);
       return anonymousSubject();
     }
   }
-  if (sender === 'mtls') {
+  if (sender === "mtls") {
     const expected = options.certificateThumbprint;
     const seen = mtlsThumbprint(verified.claims);
     if (expected === undefined || seen !== expected) {
-      emitAuth(options, 'mtls-binding-mismatch', token);
+      emitAuth(options, "mtls-binding-mismatch", token);
       return anonymousSubject();
     }
   }
   const mapped = mapClaimsToSubject(verified.claims, options);
   if (mapped.invalidChain) {
-    emitAuth(options, 'invalid-chain', token);
+    emitAuth(options, "invalid-chain", token);
     return anonymousSubject();
   }
   if (mapped.subject.principal === null) {
-    emitAuth(options, 'invalid-claims', token);
+    emitAuth(options, "invalid-claims", token);
     return anonymousSubject();
   }
   if (mapped.invalidClaims) {
-    emitAuth(options, 'invalid-claims', token);
+    emitAuth(options, "invalid-claims", token);
   }
   // SAFETY: a non-null principal from mapClaimsToSubject is a JwtPrincipal (checked above).
   return extraMemberships(

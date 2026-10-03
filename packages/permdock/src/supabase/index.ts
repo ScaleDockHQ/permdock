@@ -1,5 +1,5 @@
-export { exchangeCapability } from './capability.ts';
-export { supabaseClaims } from './claims.ts';
+export { exchangeCapability } from "./capability.ts";
+export { supabaseClaims } from "./claims.ts";
 export type {
   SupabaseActClaim,
   SupabaseClaims,
@@ -7,9 +7,9 @@ export type {
   SupabaseClaimsSchema,
   SupabaseMembershipClaim,
   SupabasePermDockClaims,
-} from './claims.ts';
-export type { ExchangeCapabilityOptions } from './capability.ts';
-export { authorizeSql, supabaseRls } from './rls.ts';
+} from "./claims.ts";
+export type { ExchangeCapabilityOptions } from "./capability.ts";
+export { authorizeSql, supabaseRls } from "./rls.ts";
 export {
   AUTHZ_VERSION_TABLE,
   authzVersion,
@@ -17,20 +17,20 @@ export {
   fromTable,
   supabaseMembershipsBudget,
   supabaseTenantClaim,
-} from './sources.ts';
+} from "./sources.ts";
 export type {
   MembershipJunctionOptions,
   MembershipSql,
   MembershipTableOptions,
   SqlMembershipSource,
   SqlQuery,
-} from './sources.ts';
+} from "./sources.ts";
 export {
   actorOf,
   delegationOf,
   subjectFromSupabase,
   subjectFromSupabaseSession,
-} from './subject.ts';
+} from "./subject.ts";
 export type {
   SupabaseHookClaim,
   SupabaseHookManifest,
@@ -39,7 +39,7 @@ export type {
   SupabaseManifestMembership,
   SupabaseManifestRls,
   SupabaseManifestValue,
-} from './manifest.ts';
+} from "./manifest.ts";
 export type {
   AuthorizeSqlOptions,
   SupabaseActiveRow,
@@ -54,4 +54,4 @@ export type {
   SupabaseRlsOptions,
   SupabaseSubjectOptions,
   SupabaseSuspension,
-} from './types.ts';
+} from "./types.ts";

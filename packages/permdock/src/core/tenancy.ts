@@ -1,8 +1,8 @@
-import type { ResourceNode } from './permissions.ts';
-import type { GrantScope } from './policy.ts';
-import type { Membership, Principal, Subject } from './subject.ts';
+import type { ResourceNode } from "./permissions.ts";
+import type { GrantScope } from "./policy.ts";
+import type { Membership, Principal, Subject } from "./subject.ts";
 
-import { isFieldRelation } from './permissions.ts';
+import { isFieldRelation } from "./permissions.ts";
 import {
   type Scope,
   activeFor,
@@ -12,7 +12,7 @@ import {
   scopeChain,
   scopeIdOf,
   tenantOf,
-} from './scopes.ts';
+} from "./scopes.ts";
 
 export { activeFor };
 
@@ -123,7 +123,7 @@ export function partitionsOf(
 
 export type RowScope =
   | { readonly ok: true }
-  | { readonly ok: false; readonly reason: 'tenant-mismatch' | 'scope' };
+  | { readonly ok: false; readonly reason: "tenant-mismatch" | "scope" };
 
 /**
  * Whether `row` lies inside a named membership's instance: for the scope and
@@ -140,7 +140,7 @@ export function rowInScope(
   if (
     membership.scope === undefined ||
     row === null ||
-    typeof row !== 'object'
+    typeof row !== "object"
   ) {
     return { ok: true };
   }
@@ -161,7 +161,7 @@ export function rowInScope(
     ) {
       return {
         ok: false,
-        reason: name === root ? 'tenant-mismatch' : 'scope',
+        reason: name === root ? "tenant-mismatch" : "scope",
       };
     }
   }
@@ -173,19 +173,19 @@ export type ScopeMatch =
   | {
       readonly ok: false;
       readonly reason:
-        | 'tenant-mismatch'
-        | 'no-membership'
-        | 'scope'
-        | 'expired-membership'
-        | 'relation-depth'
-        | 'relation-unavailable';
+        | "tenant-mismatch"
+        | "no-membership"
+        | "scope"
+        | "expired-membership"
+        | "relation-depth"
+        | "relation-unavailable";
     };
 
 /** Whether a resource-role membership reaches the row through the self-parent chain. */
 export type ResourceRoleWalk = (
   membership: Membership,
   row: unknown,
-) => boolean | 'relation-depth' | 'relation-unavailable';
+) => boolean | "relation-depth" | "relation-unavailable";
 
 export function matchScopedMembership(
   subject: Subject,
@@ -201,19 +201,19 @@ export function matchScopedMembership(
   team?: string,
   walk?: ResourceRoleWalk,
 ): ScopeMatch {
-  if (scope === 'global') {
+  if (scope === "global") {
     return { ok: true };
   }
   const principal = subject.principal;
   if (principal === null) {
-    return { ok: false, reason: 'no-membership' };
+    return { ok: false, reason: "no-membership" };
   }
   const memberships = principal.memberships ?? [];
   const root = rootScope(scopes);
   let sawExpired = false;
   let sawWrongScope = false;
   let sawTenantMismatch = false;
-  let sawGraph: 'relation-depth' | 'relation-unavailable' | undefined;
+  let sawGraph: "relation-depth" | "relation-unavailable" | undefined;
   for (const membership of memberships) {
     if (!rolesOf(membership).includes(roleName)) {
       continue;
@@ -222,7 +222,7 @@ export function matchScopedMembership(
       sawExpired = true;
       continue;
     }
-    if (typeof scope === 'string') {
+    if (typeof scope === "string") {
       if (
         findScope(scopes, scope) === undefined ||
         membership.scope !== scope ||
@@ -235,7 +235,7 @@ export function matchScopedMembership(
         relatesTo(resource, key, name, scopes),
       );
       if (!inside.ok) {
-        if (inside.reason === 'tenant-mismatch') {
+        if (inside.reason === "tenant-mismatch") {
           sawTenantMismatch = true;
         } else {
           sawWrongScope = true;
@@ -288,18 +288,18 @@ export function matchScopedMembership(
         !isMembershipExpired(membership, now),
     )
   ) {
-    return { ok: false, reason: 'no-membership' };
+    return { ok: false, reason: "no-membership" };
   }
   if (sawTenantMismatch) {
-    return { ok: false, reason: 'tenant-mismatch' };
+    return { ok: false, reason: "tenant-mismatch" };
   }
   if (sawExpired && !sawWrongScope) {
-    return { ok: false, reason: 'expired-membership' };
+    return { ok: false, reason: "expired-membership" };
   }
   if (sawWrongScope) {
-    return { ok: false, reason: 'scope' };
+    return { ok: false, reason: "scope" };
   }
-  return { ok: false, reason: 'no-membership' };
+  return { ok: false, reason: "no-membership" };
 }
 
 function matchResourceMembership(
@@ -314,7 +314,7 @@ function matchResourceMembership(
     /* v8 ignore next */
     return false;
   }
-  if (row === null || typeof row !== 'object') {
+  if (row === null || typeof row !== "object") {
     return false;
   }
   if (
@@ -346,7 +346,7 @@ export function membershipField(
     return undefined;
   }
   if (resource.name === membershipResource) {
-    return resource.id ?? 'id';
+    return resource.id ?? "id";
   }
   let current: ResourceNode | undefined = resource;
   const seen = new Set<string>();

@@ -1,18 +1,18 @@
-import { describe, expect, it } from 'vitest';
-import { z } from 'zod';
+import { describe, expect, it } from "vitest";
+import { z } from "zod";
 
-import type { RlsSqlContext } from '../../src/cli/rls-sql.ts';
-import type { SubjectRef } from '../../src/conditions/refs.ts';
+import type { RlsSqlContext } from "../../src/cli/rls-sql.ts";
+import type { SubjectRef } from "../../src/conditions/refs.ts";
 
-import { compileGrants } from '../../src/cli/rls-compile.ts';
+import { compileGrants } from "../../src/cli/rls-compile.ts";
 import {
   arrayColumnsOf,
   claimPath,
   columnTypesOf,
   compileConditionSql,
   contextRefs,
-} from '../../src/cli/rls-sql.ts';
-import { scopeList } from '../../src/core/scopes.ts';
+} from "../../src/cli/rls-sql.ts";
+import { scopeList } from "../../src/core/scopes.ts";
 import {
   allow,
   context,
@@ -21,7 +21,7 @@ import {
   principal,
   resource,
   role,
-} from '../../src/index.ts';
+} from "../../src/index.ts";
 
 /** Walks a ref proxy by key; the proxy answers every key, so `undefined` is a test bug. */
 function refAt(root: SubjectRef, ...path: readonly string[]): SubjectRef {
@@ -37,75 +37,75 @@ function refAt(root: SubjectRef, ...path: readonly string[]): SubjectRef {
 }
 
 const base: RlsSqlContext = {
-  dialect: 'supabase',
-  tenantClaim: 'tenant_id',
+  dialect: "supabase",
+  tenantClaim: "tenant_id",
   scopes: scopeList(undefined),
-  gucPrefix: 'app',
+  gucPrefix: "app",
 };
 
 const typed: RlsSqlContext = {
   ...base,
   columnTypes: {
-    clearance: 'numeric',
-    archived: 'boolean',
-    openedAt: 'timestamptz',
-    ownerId: 'uuid',
+    clearance: "numeric",
+    archived: "boolean",
+    openedAt: "timestamptz",
+    ownerId: "uuid",
   },
 };
 
-describe('nested claim paths', () => {
-  it('walks every segment with -> and reads the last with ->>', () => {
+describe("nested claim paths", () => {
+  it("walks every segment with -> and reads the last with ->>", () => {
     const condition = {
-      op: 'eq',
-      field: 'region',
-      value: { ref: 'principal.claims.attrs.region' },
+      op: "eq",
+      field: "region",
+      value: { ref: "principal.claims.attrs.region" },
     } as const;
     expect(compileConditionSql(condition, base)).toBe(
       `"region" = ((select auth.jwt()) -> 'attrs' ->> 'region')`,
     );
-    expect(compileConditionSql(condition, { ...base, dialect: 'neon' })).toBe(
+    expect(compileConditionSql(condition, { ...base, dialect: "neon" })).toBe(
       `"region" = ((select auth.session()) -> 'attrs' ->> 'region')`,
     );
-    expect(compileConditionSql(condition, { ...base, dialect: 'guc' })).toBe(
+    expect(compileConditionSql(condition, { ...base, dialect: "guc" })).toBe(
       `"region" = (nullif((select current_setting('app.attrs', true)), '')::jsonb ->> 'region')`,
     );
   });
 
-  it('keeps a one-segment claim on the flat form', () => {
+  it("keeps a one-segment claim on the flat form", () => {
     expect(
       compileConditionSql(
-        { op: 'eq', field: 'plan', value: { ref: 'principal.claim.plan' } },
-        { ...base, dialect: 'guc' },
+        { op: "eq", field: "plan", value: { ref: "principal.claim.plan" } },
+        { ...base, dialect: "guc" },
       ),
     ).toBe(`"plan" = (select current_setting('app.plan', true))`);
   });
 
-  it('checks every segment against the prototype-key blocklist and the name rule', () => {
-    expect(claimPath('principal.claims.attrs.region')).toEqual([
-      'attrs',
-      'region',
+  it("checks every segment against the prototype-key blocklist and the name rule", () => {
+    expect(claimPath("principal.claims.attrs.region")).toEqual([
+      "attrs",
+      "region",
     ]);
-    expect(claimPath('principal.id')).toBeUndefined();
+    expect(claimPath("principal.id")).toBeUndefined();
     for (const ref of [
-      'principal.claims.attrs.__proto__',
-      'principal.claims.constructor.x',
-      'principal.claims.attrs.prototype',
+      "principal.claims.attrs.__proto__",
+      "principal.claims.constructor.x",
+      "principal.claims.attrs.prototype",
       "principal.claims.attrs.re'gion",
-      'principal.claims.a.b.c.d.e.f.g.h.i',
+      "principal.claims.a.b.c.d.e.f.g.h.i",
     ]) {
       expect(() => claimPath(ref)).toThrow(/claim/u);
     }
   });
 });
 
-describe('claims cast to the column type', () => {
-  it('casts numbers and booleans only when the claim has that JSON kind', () => {
+describe("claims cast to the column type", () => {
+  it("casts numbers and booleans only when the claim has that JSON kind", () => {
     expect(
       compileConditionSql(
         {
-          op: 'gte',
-          field: 'clearance',
-          value: { ref: 'principal.claims.attrs.clearance' },
+          op: "gte",
+          field: "clearance",
+          value: { ref: "principal.claims.attrs.clearance" },
         },
         typed,
       ),
@@ -114,7 +114,7 @@ describe('claims cast to the column type', () => {
     );
     expect(
       compileConditionSql(
-        { op: 'eq', field: 'archived', value: { ref: 'principal.claims.ro' } },
+        { op: "eq", field: "archived", value: { ref: "principal.claims.ro" } },
         typed,
       ),
     ).toBe(
@@ -122,41 +122,41 @@ describe('claims cast to the column type', () => {
     );
   });
 
-  it('casts the text form for dates and uuids', () => {
+  it("casts the text form for dates and uuids", () => {
     expect(
       compileConditionSql(
         {
-          op: 'lt',
-          field: 'openedAt',
-          value: { ref: 'principal.claims.since' },
+          op: "lt",
+          field: "openedAt",
+          value: { ref: "principal.claims.since" },
         },
         typed,
       ),
     ).toBe(`"openedAt" < (((select auth.jwt()) ->> 'since')::timestamptz)`);
     expect(
       compileConditionSql(
-        { op: 'eq', field: 'ownerId', value: { ref: 'principal.claims.sub' } },
+        { op: "eq", field: "ownerId", value: { ref: "principal.claims.sub" } },
         typed,
       ),
     ).toBe(`"ownerId" = (((select auth.jwt()) ->> 'sub')::uuid)`);
   });
 
-  it('casts a flat guc setting as is', () => {
+  it("casts a flat guc setting as is", () => {
     expect(
       compileConditionSql(
         {
-          op: 'gt',
-          field: 'clearance',
-          value: { ref: 'principal.claims.clearance' },
+          op: "gt",
+          field: "clearance",
+          value: { ref: "principal.claims.clearance" },
         },
-        { ...typed, dialect: 'guc' },
+        { ...typed, dialect: "guc" },
       ),
     ).toBe(
       `"clearance" > ((select current_setting('app.clearance', true))::numeric)`,
     );
   });
 
-  it('reads column types from the resource JSON Schema', () => {
+  it("reads column types from the resource JSON Schema", () => {
     const Doc = z.object({
       id: z.uuid(),
       region: z.string(),
@@ -171,122 +171,122 @@ describe('claims cast to the column type', () => {
     expect(
       columnTypesOf(
         (
-          Doc['~standard'] as unknown as {
+          Doc["~standard"] as unknown as {
             readonly jsonSchema: { readonly output: () => unknown };
           }
         ).jsonSchema.output(),
       ),
     ).toEqual({
-      id: 'uuid',
-      clearance: 'numeric',
-      score: 'numeric',
-      archived: 'boolean',
-      openedAt: 'timestamptz',
-      day: 'date',
+      id: "uuid",
+      clearance: "numeric",
+      score: "numeric",
+      archived: "boolean",
+      openedAt: "timestamptz",
+      day: "date",
     });
     expect(columnTypesOf(null)).toEqual({});
     expect(
       columnTypesOf({
-        properties: { a: { anyOf: [{ type: 'integer' }, { type: 'null' }] } },
+        properties: { a: { anyOf: [{ type: "integer" }, { type: "null" }] } },
       }),
-    ).toEqual({ a: 'numeric' });
+    ).toEqual({ a: "numeric" });
   });
 });
 
-describe('in and notIn against an array claim', () => {
+describe("in and notIn against an array claim", () => {
   const list = (type: string, cast: string): string =>
     `array(select (e #>> '{}')${cast} from jsonb_array_elements(case when jsonb_typeof(((select auth.jwt()) -> 'attrs' -> 'regions')) = 'array' then ((select auth.jwt()) -> 'attrs' -> 'regions') else '[]'::jsonb end) e where jsonb_typeof(e) = '${type}')`;
 
-  it('builds the array once per statement and compares with any', () => {
+  it("builds the array once per statement and compares with any", () => {
     expect(
       compileConditionSql(
         {
-          op: 'in',
-          field: 'region',
-          value: { ref: 'principal.claims.attrs.regions' },
+          op: "in",
+          field: "region",
+          value: { ref: "principal.claims.attrs.regions" },
         },
         base,
       ),
-    ).toBe(`"region" = any (${list('string', '')})`);
+    ).toBe(`"region" = any (${list("string", "")})`);
   });
 
-  it('keeps notIn false for a null column, as in memory', () => {
+  it("keeps notIn false for a null column, as in memory", () => {
     expect(
       compileConditionSql(
         {
-          op: 'notIn',
-          field: 'clearance',
-          value: { ref: 'principal.claims.attrs.regions' },
+          op: "notIn",
+          field: "clearance",
+          value: { ref: "principal.claims.attrs.regions" },
         },
         typed,
       ),
     ).toBe(
-      `("clearance" is not null and not ("clearance" = any (${list('number', '::numeric')})))`,
+      `("clearance" is not null and not ("clearance" = any (${list("number", "::numeric")})))`,
     );
   });
 
-  it('still rejects in against a ref that is not a claim', () => {
+  it("still rejects in against a ref that is not a claim", () => {
     expect(() =>
       compileConditionSql(
-        { op: 'in', field: 'region', value: { ref: 'principal.id' } },
+        { op: "in", field: "region", value: { ref: "principal.id" } },
         base,
       ),
     ).toThrow(/non-portable in/u);
   });
 });
 
-describe('request context in RLS', () => {
+describe("request context in RLS", () => {
   const Doc = z.object({
     id: z.string(),
     region: z.string(),
     clearance: z.number().int(),
   });
   const permissions = definePermissions({
-    doc: resource(Doc, { actions: ['read', 'update'] }),
+    doc: resource(Doc, { actions: ["read", "update"] }),
   });
   const policy = definePolicy(permissions, {
     roles: [
-      role('analyst', [
+      role("analyst", [
         allow(permissions.doc.read, {
           where: {
-            region: refAt(principal, 'claims', 'attrs', 'region'),
+            region: refAt(principal, "claims", "attrs", "region"),
             clearance: {
-              lte: refAt(principal, 'claims', 'attrs', 'clearance'),
+              lte: refAt(principal, "claims", "attrs", "clearance"),
             },
           },
         }),
         allow(permissions.doc.update, {
-          where: { region: refAt(context, 'region') },
+          where: { region: refAt(context, "region") },
         }),
       ]),
     ],
     subject: () => null,
   });
 
-  it('lists the context refs a condition reads', () => {
+  it("lists the context refs a condition reads", () => {
     expect(
       contextRefs({
-        op: 'and',
+        op: "and",
         conditions: [
-          { op: 'eq', field: 'a', value: { ref: 'context.a' } },
-          { op: 'in', field: 'b', value: [{ ref: 'context.b' }, 'x'] },
-          { op: 'eq', field: 'c', value: { ref: 'principal.id' } },
+          { op: "eq", field: "a", value: { ref: "context.a" } },
+          { op: "in", field: "b", value: [{ ref: "context.b" }, "x"] },
+          { op: "eq", field: "c", value: { ref: "principal.id" } },
         ],
       }),
-    ).toEqual(['context.a', 'context.b']);
+    ).toEqual(["context.a", "context.b"]);
   });
 
-  it('refuses a context grant and names the doctor check, or skips it on request', () => {
+  it("refuses a context grant and names the doctor check, or skips it on request", () => {
     expect(() => compileGrants(policy, base, undefined, [], false)).toThrow(
       /context\.region.*PD027/u,
     );
     const warnings: string[] = [];
     const { branches } = compileGrants(policy, base, undefined, warnings, true);
     expect(branches.map((branch) => branch.permissionKey)).toEqual([
-      'doc.read',
+      "doc.read",
     ]);
     expect(warnings).toContain(
-      'skipped grant analyst/doc.update: it reads context.region, which is not in the token',
+      "skipped grant analyst/doc.update: it reads context.region, which is not in the token",
     );
     expect(branches[0]?.using).toContain(
       `"clearance" <= (case when jsonb_typeof(((select auth.jwt()) -> 'attrs' -> 'clearance')) = 'number' then ((select auth.jwt()) -> 'attrs' ->> 'clearance')::numeric end)`,
@@ -294,38 +294,38 @@ describe('request context in RLS', () => {
   });
 });
 
-describe('contains on an array column', () => {
+describe("contains on an array column", () => {
   const arrays: RlsSqlContext = {
     ...base,
-    arrayColumns: { tags: 'text', reviewers: 'uuid' },
+    arrayColumns: { tags: "text", reviewers: "uuid" },
   };
 
-  it('compiles to v = any(col) instead of like', () => {
+  it("compiles to v = any(col) instead of like", () => {
     expect(
       compileConditionSql(
-        { op: 'contains', field: 'tags', value: 'urgent' },
+        { op: "contains", field: "tags", value: "urgent" },
         arrays,
       ),
     ).toBe(`'urgent' = any("tags")`);
     expect(
       compileConditionSql(
-        { op: 'contains', field: 'reviewers', value: { ref: 'principal.id' } },
+        { op: "contains", field: "reviewers", value: { ref: "principal.id" } },
         arrays,
       ),
     ).toBe(`(select auth.uid()) = any("reviewers")`);
     expect(
       compileConditionSql(
         {
-          op: 'contains',
-          field: 'reviewers',
-          value: { ref: 'principal.claims.delegate' },
+          op: "contains",
+          field: "reviewers",
+          value: { ref: "principal.claims.delegate" },
         },
         arrays,
       ),
     ).toBe(`(((select auth.jwt()) ->> 'delegate')::uuid) = any("reviewers")`);
     expect(
       compileConditionSql(
-        { op: 'contains', field: 'title', value: 'draft' },
+        { op: "contains", field: "title", value: "draft" },
         arrays,
       ),
     ).toBe(
@@ -333,19 +333,19 @@ describe('contains on an array column', () => {
     );
   });
 
-  it('reads array columns and their item types from the JSON Schema', () => {
+  it("reads array columns and their item types from the JSON Schema", () => {
     expect(
       arrayColumnsOf({
         properties: {
-          tags: { type: 'array', items: { type: 'string' } },
+          tags: { type: "array", items: { type: "string" } },
           reviewers: {
-            type: ['array', 'null'],
-            items: { type: 'string', format: 'uuid' },
+            type: ["array", "null"],
+            items: { type: "string", format: "uuid" },
           },
-          title: { type: 'string' },
+          title: { type: "string" },
         },
       }),
-    ).toEqual({ tags: 'text', reviewers: 'uuid' });
+    ).toEqual({ tags: "text", reviewers: "uuid" });
     expect(arrayColumnsOf(undefined)).toEqual({});
   });
 });

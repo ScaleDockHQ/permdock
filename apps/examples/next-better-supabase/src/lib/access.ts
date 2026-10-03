@@ -1,13 +1,12 @@
-import type { Snapshot } from 'permdock';
+import type { Snapshot } from "permdock";
 
-import { sessionStale } from 'better-supabase/next';
-import { cacheLife, cacheTag } from 'next/cache';
-import { emptySnapshot, snapshotFor } from 'permdock';
-import { cacheLifeFor, snapshotTag } from 'permdock/next';
-import { subjectFromSupabaseSession } from 'permdock/supabase';
+import { cacheLife, cacheTag } from "next/cache";
+import { emptySnapshot, snapshotFor } from "permdock";
+import { cacheLifeFor, snapshotTag } from "permdock/next";
+import { subjectFromSupabaseSession } from "permdock/supabase";
 
-import { policy } from '../policy.ts';
-import { next, postgres } from './supabase.ts';
+import { policy } from "../policy.ts";
+import { bs, postgres } from "./supabase/server.ts";
 
 export type Organization = {
   readonly id: string;
@@ -21,36 +20,34 @@ export const orgTag = (organization: string): string => `org:${organization}`;
 export async function organizationBySlug(
   slug: string,
 ): Promise<Organization | null> {
-  'use cache';
+  "use cache";
   cacheTag(`org-slug:${slug}`);
-  cacheLife('hours');
+  cacheLife("hours");
   const rows = await postgres.anon.queryRaw<Organization>(
-    'select id, slug, name from public.organizations where slug = $1',
+    "select id, slug, name from public.organizations where slug = $1",
     [slug],
   );
   return rows[0] ?? null;
 }
 
 /**
- * Private layer: the session's snapshot for one organization. `next.cached()`
- * caps `stale` at the token's expiry, `cacheLifeFor` at the snapshot's; the
- * smaller wins. 300 s joins the App Shell, so a prefetch carries the snapshot.
+ * Private layer: the session's snapshot for one organization. `bs.cached()`
+ * caps `stale` at the token's expiry and at 300 s, which joins the App Shell
+ * so a prefetch carries the snapshot; `cacheLifeFor` caps it at the
+ * snapshot's, and Next keeps the smaller of the two.
  */
 export async function loadSnapshot(organization: string): Promise<Snapshot> {
-  'use cache: private';
-  const { session } = await next.cached();
+  "use cache: private";
+  const { session } = await bs.cached({
+    tags: [orgTag(organization)],
+  });
+  cacheTag(snapshotTag(session.kind === "user" ? session.user.id : null));
   const subject = subjectFromSupabaseSession(session, {
-    memberships: 'memberships',
-    plans: 'features',
+    memberships: "memberships",
+    plans: "features",
   });
   const snapshot = snapshotFor(policy, subject, { tenant: organization });
-  cacheLife({
-    stale: Math.min(sessionStale(session), cacheLifeFor(snapshot).stale),
-  });
-  cacheTag(
-    snapshotTag(session.kind === 'user' ? session.user.id : null),
-    orgTag(organization),
-  );
+  cacheLife({ stale: cacheLifeFor(snapshot).stale });
   return snapshot;
 }
 
@@ -72,20 +69,17 @@ export type StaffRow = {
 export async function visibleStaff(
   organization: string,
 ): Promise<readonly StaffRow[]> {
-  'use cache: private';
-  const { sql, session } = await next.cached();
-  cacheTag(
-    snapshotTag(session.kind === 'user' ? session.user.id : null),
-    orgTag(organization),
-  );
-  if (session.kind !== 'user' || !sql) {
+  "use cache: private";
+  const { sql, session } = await bs.cached({ tags: [orgTag(organization)] });
+  cacheTag(snapshotTag(session.kind === "user" ? session.user.id : null));
+  if (session.kind !== "user" || !sql) {
     return [];
   }
   return sql.staff
     .findMany({
       where: { organization_id: organization },
-      select: ['id', 'name', 'title'],
-      orderBy: { name: 'asc' },
+      select: ["id", "name", "title"],
+      orderBy: { name: "asc" },
     })
     .orThrow();
 }
@@ -93,27 +87,25 @@ export async function visibleStaff(
 export type QuoteRow = {
   readonly id: string;
   readonly title: string;
-  readonly amount: number;
+  readonly amount_minor: number;
+  readonly currency: string;
 };
 
 /** A contact reads only their customer's quotes; the policy on `quotes` decides, not this filter. */
 export async function visibleQuotes(
   organization: string,
 ): Promise<readonly QuoteRow[]> {
-  'use cache: private';
-  const { sql, session } = await next.cached();
-  cacheTag(
-    snapshotTag(session.kind === 'user' ? session.user.id : null),
-    orgTag(organization),
-  );
-  if (session.kind !== 'user' || !sql) {
+  "use cache: private";
+  const { sql, session } = await bs.cached({ tags: [orgTag(organization)] });
+  cacheTag(snapshotTag(session.kind === "user" ? session.user.id : null));
+  if (session.kind !== "user" || !sql) {
     return [];
   }
   return sql.quotes
     .findMany({
       where: { organization_id: organization },
-      select: ['id', 'title', 'amount'],
-      orderBy: { title: 'asc' },
+      select: ["id", "title", "amount_minor", "currency"],
+      orderBy: { title: "asc" },
     })
     .orThrow();
 }

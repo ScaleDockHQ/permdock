@@ -3,7 +3,7 @@ import {
   type Policy,
   type Permission,
   type Snapshot,
-} from '../index.ts';
+} from "../index.ts";
 
 export async function snapshotFixture(
   policy: Policy,
@@ -13,7 +13,7 @@ export async function snapshotFixture(
       | Permission
       | { readonly [key: string]: unknown }
     )[];
-    readonly tenants?: 'all';
+    readonly tenants?: "all";
     readonly tenant?: string;
     readonly simulated?: boolean;
   } = {},
@@ -25,7 +25,7 @@ export async function snapshotFixture(
   );
   const target = options.simulated === true ? instance.simulate({}) : instance;
   if (Array.isArray(target)) {
-    throw new Error('PermDock: snapshotFixture expected a PermDock instance');
+    throw new Error("PermDock: snapshotFixture expected a PermDock instance");
   }
   const snapshot =
     options.include === undefined && options.tenants === undefined
@@ -38,8 +38,8 @@ export async function snapshotFixture(
             ? {}
             : { tenants: options.tenants }),
         });
-  if (typeof snapshot === 'string' || snapshot instanceof Promise) {
-    throw new Error('PermDock: snapshotFixture expected a JSON snapshot');
+  if (typeof snapshot === "string" || snapshot instanceof Promise) {
+    throw new Error("PermDock: snapshotFixture expected a JSON snapshot");
   }
   return snapshot;
 }

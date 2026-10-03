@@ -8,10 +8,23 @@
     },
     "shadcn": {
       "command": "pnpm",
-      "args": ["--dir", "apps/marketing", "exec", "shadcn", "mcp"]
+      "args": [
+        "--dir",
+        "apps/marketing",
+        "exec",
+        "shadcn",
+        "mcp"
+      ]
     },
     "reui": {
       "url": "https://mcp.reui.io"
+    },
+    "next-devtools": {
+      "command": "pnpm",
+      "args": [
+        "dlx",
+        "next-devtools-mcp@0.4.0"
+      ]
     }
   }
 }

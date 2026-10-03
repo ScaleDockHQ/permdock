@@ -1,6 +1,6 @@
-import { Suspense } from 'react';
+import { Suspense } from "react";
 
-import { DeniedBanner, QuickLinks } from './overview.tsx';
+import { DeniedBanner, QuickLinks } from "./overview.tsx";
 
 export default function Overview() {
   return (

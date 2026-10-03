@@ -1,10 +1,10 @@
-import { Protected } from 'permdock/react';
-import { Suspense } from 'react';
+import { Protected } from "permdock/react";
+import { Suspense } from "react";
 
-import { getMembers } from '../../../lib/access.ts';
-import { permissions } from '../../../permissions.ts';
-import { ForbiddenState } from '../forbidden-state.tsx';
-import { RoleForm } from './role-form.tsx';
+import { getMembers } from "../../../lib/access.ts";
+import { permissions } from "../../../permissions.ts";
+import { ForbiddenState } from "../forbidden-state.tsx";
+import { RoleForm } from "./role-form.tsx";
 
 async function MemberList(props: {
   readonly params: Promise<{ readonly org: string }>;
@@ -15,7 +15,7 @@ async function MemberList(props: {
     <ul aria-label="Members">
       {members.map((member) => (
         <li key={member.user} data-member={member.user}>
-          {member.user}{' '}
+          {member.user}{" "}
           <RoleForm org={org} user={member.user} role={member.role} />
         </li>
       ))}

@@ -1,9 +1,9 @@
-import type { ReactNode } from 'react';
+import type { ReactNode } from "react";
 
-import Link from 'next/link';
-import { PermDockProvider } from 'permdock/react';
+import Link from "next/link";
+import { PermDockProvider } from "permdock/react";
 
-import { loadSnapshot } from '../../../lib/access.ts';
+import { loadSnapshot } from "../../../lib/access.ts";
 
 export default function PortalLayout(props: {
   readonly children: ReactNode;

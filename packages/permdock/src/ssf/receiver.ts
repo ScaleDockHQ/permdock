@@ -1,6 +1,6 @@
-import type { ApprovalStore } from '../approvals/types.ts';
-import type { TokenVerifier, VerifiedToken } from '../core/interfaces.ts';
-import type { RevocationFeed } from '../core/revocations.ts';
+import type { ApprovalStore } from "../approvals/types.ts";
+import type { TokenVerifier, VerifiedToken } from "../core/interfaces.ts";
+import type { RevocationFeed } from "../core/revocations.ts";
 import type {
   PollHandle,
   PollOptions,
@@ -15,10 +15,10 @@ import type {
   SsfReceiver,
   SsfSubject,
   SsfSubjectMapper,
-} from './types.ts';
+} from "./types.ts";
 
-import { cancelApprovals } from '../approvals/helpers.ts';
-import { compact } from '../core/compact.ts';
+import { cancelApprovals } from "../approvals/helpers.ts";
+import { compact } from "../core/compact.ts";
 import {
   asSubject,
   eventSession,
@@ -26,9 +26,9 @@ import {
   eventTimestamp,
   setSubjectFromClaims,
   subjectSession,
-} from './claims.ts';
-import { BACKCHANNEL_LOGOUT_EVENT, caepName } from './events.ts';
-import { pollOnce } from './poll.ts';
+} from "./claims.ts";
+import { BACKCHANNEL_LOGOUT_EVENT, caepName } from "./events.ts";
+import { pollOnce } from "./poll.ts";
 import {
   LOGOUT_CONTENT,
   LOGOUT_TYP,
@@ -42,7 +42,7 @@ import {
   rfc8935,
   type IngestFail,
   type IngestResult,
-} from './wire.ts';
+} from "./wire.ts";
 
 type ReceiverConfig = {
   readonly verifier: TokenVerifier;
@@ -57,20 +57,20 @@ type ReceiverConfig = {
 };
 
 const CHANGED_EVENTS: ReadonlySet<string> = new Set([
-  'credential-change',
-  'assurance-level-change',
-  'token-claims-change',
+  "credential-change",
+  "assurance-level-change",
+  "token-claims-change",
 ]);
 
 function replayExpiresAt(
   claims: Readonly<Record<string, unknown>>,
   clockTolerance = 0,
 ): number | undefined {
-  if (typeof claims['exp'] === 'number') {
-    return claims['exp'];
+  if (typeof claims["exp"] === "number") {
+    return claims["exp"];
   }
-  if (typeof claims['iat'] === 'number') {
-    const until = claims['iat'] + clockTolerance;
+  if (typeof claims["iat"] === "number") {
+    const until = claims["iat"] + clockTolerance;
     return until > Date.now() / 1000 ? until : undefined;
   }
   return undefined;
@@ -127,22 +127,22 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
       };
     }
     if (
-      typeof result.claims['jti'] !== 'string' ||
-      result.claims['jti'].length === 0
+      typeof result.claims["jti"] !== "string" ||
+      result.claims["jti"].length === 0
     ) {
       return {
         ok: false,
-        err: 'invalid_request',
-        description: 'missing jti',
-        cause: 'invalid-claims',
+        err: "invalid_request",
+        description: "missing jti",
+        cause: "invalid-claims",
       };
     }
-    if (typeof result.claims.iat !== 'number') {
+    if (typeof result.claims.iat !== "number") {
       return {
         ok: false,
-        err: 'invalid_request',
-        description: 'missing iat',
-        cause: 'invalid-claims',
+        err: "invalid_request",
+        description: "missing iat",
+        cause: "invalid-claims",
       };
     }
     return result;
@@ -160,18 +160,18 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
     if (mapped === null || mapped === undefined) {
       return undefined;
     }
-    if (typeof mapped === 'string' && mapped.length === 0) {
+    if (typeof mapped === "string" && mapped.length === 0) {
       return undefined;
     }
-    if (typeof mapped !== 'string' && mapped.id.length === 0) {
+    if (typeof mapped !== "string" && mapped.id.length === 0) {
       return undefined;
     }
     return asSubject(mapped, session, issuer);
   }
 
   const atomic =
-    typeof config.replay.claim === 'function' &&
-    typeof config.replay.release === 'function';
+    typeof config.replay.claim === "function" &&
+    typeof config.replay.release === "function";
 
   /** `true` when this delivery owns the SET and should dispatch it. */
   async function claimDelivery(
@@ -206,10 +206,10 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
       return;
     }
     const kind =
-      input.type === 'session-revoked'
-        ? 'session-revoked'
+      input.type === "session-revoked"
+        ? "session-revoked"
         : CHANGED_EVENTS.has(input.type)
-          ? 'changed'
+          ? "changed"
           : undefined;
     if (kind === undefined) {
       return;
@@ -219,7 +219,7 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
         compact({
           principal: input.subject.id,
           session:
-            kind === 'session-revoked' ? input.subject.session : undefined,
+            kind === "session-revoked" ? input.subject.session : undefined,
           kind,
         }),
       );
@@ -229,7 +229,7 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
   }
 
   async function cancelSessionApprovals(input: SsfEventInput): Promise<void> {
-    if (config.approvals === undefined || input.type !== 'session-revoked') {
+    if (config.approvals === undefined || input.type !== "session-revoked") {
       return;
     }
     const count = await cancelApprovals(
@@ -238,10 +238,10 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
         principalId: input.subject.id,
         session: input.subject.session,
       }),
-      { by: 'ssf', note: input.jti },
+      { by: "ssf", note: input.jti },
     );
     emit({
-      type: 'approvals-cancelled',
+      type: "approvals-cancelled",
       subject: input.subject,
       jti: input.jti,
       cancelled: count,
@@ -256,7 +256,7 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
     const named = Object.hasOwn(config.onEvent, type)
       ? config.onEvent[type as keyof SsfOnEvent]
       : undefined;
-    const wildcard = config.onEvent['*'];
+    const wildcard = config.onEvent["*"];
     const handler: SsfEventHandler | undefined = named ?? wildcard;
     if (handler === undefined) {
       emit({
@@ -264,7 +264,7 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
         subject: input.subject,
         transmitter: input.subject.issuer,
         jti: input.jti,
-        unknown: 'event',
+        unknown: "event",
       });
       await publishRevocation(input);
       await cancelSessionApprovals(input);
@@ -275,8 +275,8 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
     } catch {
       return {
         ok: false,
-        err: 'invalid_request',
-        description: 'handler failed',
+        err: "invalid_request",
+        description: "handler failed",
       };
     }
     emit({
@@ -306,18 +306,18 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
     }
     const payload = isRecord(raw) ? raw : {};
     const type = caepName(uri) ?? uri;
-    if (caepName(uri) === undefined && config.onEvent['*'] === undefined) {
+    if (caepName(uri) === undefined && config.onEvent["*"] === undefined) {
       emit({
         type,
         transmitter: issuer,
         jti,
-        unknown: 'event',
+        unknown: "event",
       });
       return dispatchEvents(tail, run);
     }
     const identifier = baseSubject ??
       eventSubject(payload) ?? {
-        format: 'opaque',
+        format: "opaque",
         id: eventSession(payload) ?? jti,
       };
     const session = eventSession(payload) ?? subjectSession(identifier);
@@ -327,7 +327,7 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
         type,
         transmitter: issuer,
         jti,
-        unknown: 'subject',
+        unknown: "subject",
       });
       return dispatchEvents(tail, run);
     }
@@ -354,36 +354,36 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
     const verified = await verify(token, SET_TYP);
     if (!verified.ok) {
       emit({
-        type: 'verification-failed',
+        type: "verification-failed",
         err: verified.err,
         cause: verified.cause,
       });
       return verified;
     }
     // SAFETY: verify rejects a token whose jti is not a non-empty string.
-    const jti = verified.claims['jti'] as string;
+    const jti = verified.claims["jti"] as string;
     const issuer =
-      typeof verified.claims.iss === 'string' ? verified.claims.iss : undefined;
-    const events = verified.claims['events'];
+      typeof verified.claims.iss === "string" ? verified.claims.iss : undefined;
+    const events = verified.claims["events"];
     if (!isRecord(events)) {
       return {
         ok: false,
-        err: 'invalid_request',
-        description: 'missing events',
-        cause: 'invalid-claims',
+        err: "invalid_request",
+        description: "missing events",
+        cause: "invalid-claims",
       };
     }
     const key = replayKey(issuer, jti);
     const expiresAt = replayExpiresAt(verified.claims, config.clockTolerance);
     if (!(await claimDelivery(key, expiresAt))) {
-      emit({ type: 'replay', transmitter: issuer, jti, replayed: true });
+      emit({ type: "replay", transmitter: issuer, jti, replayed: true });
       return { ok: true };
     }
     const entries = Object.entries(events);
     let dispatched: IngestResult = {
       ok: false,
-      err: 'invalid_request',
-      description: 'handler failed',
+      err: "invalid_request",
+      description: "handler failed",
     };
     try {
       dispatched = await dispatchEvents(entries, {
@@ -403,38 +403,38 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
     const verified = await verify(token, LOGOUT_TYP);
     if (!verified.ok) {
       emit({
-        type: 'verification-failed',
+        type: "verification-failed",
         err: verified.err,
         cause: verified.cause,
       });
       return {
         ok: false,
-        err: 'invalid_request',
+        err: "invalid_request",
         description: verified.description,
       };
     }
-    if (verified.claims['nonce'] !== undefined) {
+    if (verified.claims["nonce"] !== undefined) {
       return {
         ok: false,
-        err: 'invalid_request',
-        description: 'nonce must be absent',
-        cause: 'invalid-claims',
+        err: "invalid_request",
+        description: "nonce must be absent",
+        cause: "invalid-claims",
       };
     }
-    const events = verified.claims['events'];
+    const events = verified.claims["events"];
     if (!isRecord(events) || !(BACKCHANNEL_LOGOUT_EVENT in events)) {
       return {
         ok: false,
-        err: 'invalid_request',
-        description: 'missing backchannel-logout event',
-        cause: 'invalid-claims',
+        err: "invalid_request",
+        description: "missing backchannel-logout event",
+        cause: "invalid-claims",
       };
     }
     const sub =
-      typeof verified.claims.sub === 'string' ? verified.claims.sub : undefined;
+      typeof verified.claims.sub === "string" ? verified.claims.sub : undefined;
     const sid =
-      typeof verified.claims['sid'] === 'string'
-        ? verified.claims['sid']
+      typeof verified.claims["sid"] === "string"
+        ? verified.claims["sid"]
         : undefined;
     if (
       (sub === undefined || sub.length === 0) &&
@@ -442,25 +442,25 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
     ) {
       return {
         ok: false,
-        err: 'invalid_request',
-        description: 'sub or sid required',
-        cause: 'invalid-claims',
+        err: "invalid_request",
+        description: "sub or sid required",
+        cause: "invalid-claims",
       };
     }
     // SAFETY: verify rejects a token whose jti is not a non-empty string.
-    const jti = verified.claims['jti'] as string;
+    const jti = verified.claims["jti"] as string;
     const issuer =
-      typeof verified.claims.iss === 'string' ? verified.claims.iss : undefined;
+      typeof verified.claims.iss === "string" ? verified.claims.iss : undefined;
     const key = replayKey(issuer, jti);
     const expiresAt = replayExpiresAt(verified.claims, config.clockTolerance);
     if (!(await claimDelivery(key, expiresAt))) {
-      emit({ type: 'replay', transmitter: issuer, jti, replayed: true });
+      emit({ type: "replay", transmitter: issuer, jti, replayed: true });
       return { ok: true };
     }
     let dispatched: IngestResult = {
       ok: false,
-      err: 'invalid_request',
-      description: 'handler failed',
+      err: "invalid_request",
+      description: "handler failed",
     };
     try {
       dispatched = await dispatchLogout(verified.claims, {
@@ -486,18 +486,18 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
   ): Promise<IngestResult> {
     const { issuer, jti, sub, sid } = ids;
     // SAFETY: ingestLogout checked events to be a record holding the back-channel logout event.
-    const events = claims['events'] as Readonly<Record<string, unknown>>;
+    const events = claims["events"] as Readonly<Record<string, unknown>>;
     const identifier: SetSubject =
       sub === undefined || sub.length === 0
-        ? compact({ format: 'opaque', id: sid })
-        : compact({ format: 'iss_sub', iss: issuer, sub });
+        ? compact({ format: "opaque", id: sid })
+        : compact({ format: "iss_sub", iss: issuer, sub });
     const subject = await resolveSubject(identifier, sid, issuer);
     if (subject === undefined) {
       emit({
-        type: 'session-revoked',
+        type: "session-revoked",
         transmitter: issuer,
         jti,
-        unknown: 'subject',
+        unknown: "subject",
       });
       return { ok: true };
     }
@@ -505,32 +505,32 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
       ? events[BACKCHANNEL_LOGOUT_EVENT]
       : {};
     return dispatch(
-      'session-revoked',
+      "session-revoked",
       compact({
         subject,
         event: payload,
         event_timestamp: eventTimestamp(payload),
         jti,
-        type: 'session-revoked',
+        type: "session-revoked",
       }),
     );
   }
 
   const receiver: SsfReceiver = {
     async push(request: Request): Promise<Response> {
-      if (request.method !== 'POST') {
-        return rfc8935(400, 'invalid_request', 'POST required');
+      if (request.method !== "POST") {
+        return rfc8935(400, "invalid_request", "POST required");
       }
       if (contentType(request) !== SET_CONTENT) {
         return rfc8935(
           400,
-          'invalid_request',
-          'application/secevent+jwt required',
+          "invalid_request",
+          "application/secevent+jwt required",
         );
       }
       const token = (await request.text()).trim();
       if (token.length === 0) {
-        return rfc8935(400, 'invalid_request', 'empty body');
+        return rfc8935(400, "invalid_request", "empty body");
       }
       const result = await ingestSet(token);
       if (!result.ok) {
@@ -540,20 +540,20 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
     },
 
     async logout(request: Request): Promise<Response> {
-      if (request.method !== 'POST') {
-        return jsonResponse(400, { error: 'invalid_request' });
+      if (request.method !== "POST") {
+        return jsonResponse(400, { error: "invalid_request" });
       }
       if (contentType(request) !== LOGOUT_CONTENT) {
-        return jsonResponse(400, { error: 'invalid_request' });
+        return jsonResponse(400, { error: "invalid_request" });
       }
       const params = new URLSearchParams(await request.text());
-      const token = params.get('logout_token');
+      const token = params.get("logout_token");
       if (token === null || token.length === 0) {
-        return jsonResponse(400, { error: 'invalid_request' });
+        return jsonResponse(400, { error: "invalid_request" });
       }
       const result = await ingestLogout(token);
       if (!result.ok) {
-        return jsonResponse(400, { error: 'invalid_request' });
+        return jsonResponse(400, { error: "invalid_request" });
       }
       return new Response(null, { status: 200 });
     },
@@ -569,7 +569,7 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
       const tick = (): void => {
         void pollOnce({ options, acks: [], ingest: ingestSet, emit }).catch(
           () => {
-            emit({ type: 'poll-failed', err: 'connection_failed' });
+            emit({ type: "poll-failed", err: "connection_failed" });
           },
         );
       };
@@ -585,8 +585,8 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
       };
     },
 
-    on(event: 'event', handler: SsfEventListener): () => void {
-      if (event !== 'event') {
+    on(event: "event", handler: SsfEventListener): () => void {
+      if (event !== "event") {
         const exhaustive: never = event;
         return exhaustive;
       }

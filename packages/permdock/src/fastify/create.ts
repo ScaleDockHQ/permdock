@@ -8,10 +8,10 @@ import type {
   RawRequestDefaultExpression,
   RawServerDefault,
   RouteGenericInterface,
-} from 'fastify';
+} from "fastify";
 
-import type { ApprovalStore } from '../approvals/types.ts';
-import type { PolicySource } from '../core/hosted.ts';
+import type { ApprovalStore } from "../approvals/types.ts";
+import type { PolicySource } from "../core/hosted.ts";
 import type {
   DecisionSink,
   EntitlementSource,
@@ -20,28 +20,27 @@ import type {
   RelationSource,
   RoleSource,
   SnapshotSource,
-} from '../core/interfaces.ts';
-import type { PermDock } from '../core/permdock.ts';
-import type { Permission } from '../core/permissions.ts';
-import type { Policy } from '../core/policy.ts';
-import type { Principal } from '../core/subject.ts';
-import type { OtelOptions } from '../otel/types.ts';
-import type { PdpFactory } from '../pdp/types.ts';
+} from "../core/interfaces.ts";
+import type { PermDock } from "../core/permdock.ts";
+import type { Permission } from "../core/permissions.ts";
+import type { Policy, PolicyVocabulary } from "../core/policy.ts";
+import type { Principal } from "../core/subject.ts";
+import type { OtelWrap } from "../otel/types.ts";
+import type { PdpFactory } from "../pdp/types.ts";
 import type {
   OpenApiHooks,
   ProtectOptions,
   TenantOption,
   TenantScope,
-} from '../server/create.ts';
-import type { WebBotAuthOptions } from '../server/web-bot-auth.ts';
+} from "../server/create.ts";
+import type { WebBotAuthVerifier } from "../server/web-bot-auth.ts";
 
-import { compact } from '../core/compact.ts';
-import { applyOtel } from '../otel/instrument.ts';
-import { createKernel, tenantScope } from '../server/create.ts';
-import { problemFromError } from '../server/map-error.ts';
-import { sendReply, toRequest } from './http.ts';
+import { compact } from "../core/compact.ts";
+import { createKernel, tenantScope } from "../server/create.ts";
+import { problemFromError } from "../server/map-error.ts";
+import { sendReply, toRequest } from "./http.ts";
 
-const SKIP_OVERRIDE = Symbol.for('skip-override');
+const SKIP_OVERRIDE = Symbol.for("skip-override");
 
 export type FastifyPermDockOptions<TUser = unknown> = {
   readonly subject: (request: FastifyRequest) => TUser | Promise<TUser>;
@@ -60,14 +59,17 @@ export type FastifyPermDockOptions<TUser = unknown> = {
   readonly pdp?: PdpFactory;
   /** Accepted for adapter parity; not read by this adapter. */
   readonly snapshots?: SnapshotSource;
-  readonly otel?: OtelOptions;
-  readonly webBotAuth?: WebBotAuthOptions;
+  /** `(permdock) => withOtel(permdock, options)` from `permdock/otel`. */
+  readonly otel?: OtelWrap;
+  /** `(request) => verifyWebBotAuth(request, options)`; a verified bot becomes the actor. */
+  readonly webBotAuth?: WebBotAuthVerifier;
 };
 
 export type PermDockRequest<
   Route extends RouteGenericInterface = RouteGenericInterface,
+  V extends PolicyVocabulary = PolicyVocabulary,
 > = FastifyRequest<Route> & {
-  permdock: PermDock;
+  permdock: PermDock<V>;
   permdockData?: unknown;
 };
 
@@ -101,10 +103,16 @@ export type FastifyProtect = <
   reply: FastifyReply,
 ) => Promise<void>;
 
-export type FastifyPermDock = {
+export type FastifyPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
   readonly permdock: FastifyPluginAsync;
   readonly protect: FastifyProtect;
   readonly permdockHandler: FastifyPluginAsync;
+  /** Types `request.permdock` for a route registered after `permdock` or `protect`. */
+  readonly withPermDock: <
+    Route extends RouteGenericInterface = RouteGenericInterface,
+  >(
+    fn: (request: PermDockRequest<Route, V>, reply: FastifyReply) => unknown,
+  ) => (request: FastifyRequest<Route>, reply: FastifyReply) => unknown;
   readonly openapi: OpenApiHooks;
 };
 
@@ -113,23 +121,27 @@ function breakEncapsulation(plugin: FastifyPluginAsync): FastifyPluginAsync {
   return plugin;
 }
 
-function decorate(
+function decorate<V extends PolicyVocabulary>(
   request: FastifyRequest,
-  instance: PermDock,
+  instance: PermDock<V>,
   data?: unknown,
 ): void {
   // SAFETY: the next line assigns permdock, which makes the request a PermDockRequest.
-  const scoped = request as PermDockRequest;
+  const scoped = request as PermDockRequest<RouteGenericInterface, V>;
   scoped.permdock = instance;
   if (data !== undefined) {
     scoped.permdockData = data;
   }
 }
 
-export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
-  policy: Policy<TUser, TPrincipal>,
+export function createPermDock<
+  TUser,
+  TPrincipal extends Principal = Principal,
+  V extends PolicyVocabulary = PolicyVocabulary,
+>(
+  policy: Policy<TUser, TPrincipal, V>,
   options: FastifyPermDockOptions<TUser>,
-): FastifyPermDock {
+): FastifyPermDock<V> {
   const contexts = new WeakMap<Request, FastifyRequest>();
   const bound = new WeakMap<FastifyRequest, Request>();
   const kernel = createKernel(
@@ -149,8 +161,8 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       limits: options.limits,
       pdp: options.pdp,
       webBotAuth: options.webBotAuth,
-      adapter: 'fastify',
-      wrap: (dock: PermDock) => applyOtel(dock, options.otel),
+      adapter: "fastify",
+      wrap: options.otel,
     }),
   );
 
@@ -169,9 +181,9 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     tenantScope(options.tenant, request);
 
   const permdock = breakEncapsulation((app) => {
-    app.decorateRequest('permdock', null);
-    app.decorateRequest('permdockData', null);
-    app.addHook('onRequest', async (request) => {
+    app.decorateRequest("permdock", null);
+    app.decorateRequest("permdockData", null);
+    app.addHook("onRequest", async (request) => {
       decorate(
         request,
         await kernel.permdock(bind(request), await scopeOf(request)),
@@ -213,20 +225,34 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     };
 
   const permdockHandler: FastifyPluginAsync = (app) => {
-    const { POST, GET } = kernel.handler((request) => {
+    const { POST, GET } = kernel.permdockHandler((request) => {
       const req = contexts.get(request);
       return req === undefined ? { tenant: undefined } : scopeOf(req);
     });
-    app.post('/', async (request, reply) => {
+    app.post("/", async (request, reply) => {
       const parsed = toRequest(request);
       contexts.set(parsed, request);
       await sendReply(reply, await POST(parsed));
     });
-    app.get('/', async (request, reply) => {
+    app.get("/", async (request, reply) => {
       await sendReply(reply, await GET(bind(request)));
     });
     return Promise.resolve();
   };
 
-  return { permdock, protect, permdockHandler, openapi: kernel.openapi };
+  const withPermDock =
+    <Route extends RouteGenericInterface>(
+      fn: (request: PermDockRequest<Route, V>, reply: FastifyReply) => unknown,
+    ) =>
+    (request: FastifyRequest<Route>, reply: FastifyReply): unknown =>
+      // SAFETY: the route runs after permdock or protect, which set request.permdock from this factory's policy.
+      fn(request as PermDockRequest<Route, V>, reply);
+
+  return {
+    permdock,
+    protect,
+    permdockHandler,
+    withPermDock,
+    openapi: kernel.openapi,
+  };
 }

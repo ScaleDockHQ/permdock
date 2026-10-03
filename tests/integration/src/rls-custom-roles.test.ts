@@ -1,59 +1,59 @@
-import type { CustomRole } from 'permdock';
+import type { CustomRole } from "permdock";
 
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { customRoleClaim } from 'permdock';
-import { run } from 'permdock/cli';
-import { authorizeSql } from 'permdock/supabase';
-import { rlsParity } from 'permdock/testing';
-import { Client } from 'pg';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { customRoleClaim } from "permdock";
+import { run } from "permdock/cli";
+import { authorizeSql } from "permdock/supabase";
+import { rlsParity } from "permdock/testing";
+import { Client } from "pg";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import type { Postgres } from './support/postgres.ts';
+import type { Postgres } from "./support/postgres.ts";
 
-import { permissions } from '../fixtures/rls-custom-roles/permissions.ts';
-import { policy } from '../fixtures/rls-custom-roles/policy.ts';
-import { startPostgres } from './support/postgres.ts';
+import { permissions } from "../fixtures/rls-custom-roles/permissions.ts";
+import { policy } from "../fixtures/rls-custom-roles/policy.ts";
+import { startPostgres } from "./support/postgres.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const FIXTURE = join(HERE, '../fixtures/rls-custom-roles');
+const FIXTURE = join(HERE, "../fixtures/rls-custom-roles");
 
-const PLUS = '00000000-0000-4000-8000-0000000000a1';
-const WRITER = '00000000-0000-4000-8000-0000000000b2';
-const GRABBY = '00000000-0000-4000-8000-0000000000c3';
-const REVIEWER = '00000000-0000-4000-8000-0000000000d4';
-const GLOBEX = '00000000-0000-4000-8000-0000000000e5';
-const SHADOW = '00000000-0000-4000-8000-0000000000f6';
-const OTHER = '00000000-0000-4000-8000-000000000099';
+const PLUS = "00000000-0000-4000-8000-0000000000a1";
+const WRITER = "00000000-0000-4000-8000-0000000000b2";
+const GRABBY = "00000000-0000-4000-8000-0000000000c3";
+const REVIEWER = "00000000-0000-4000-8000-0000000000d4";
+const GLOBEX = "00000000-0000-4000-8000-0000000000e5";
+const SHADOW = "00000000-0000-4000-8000-0000000000f6";
+const OTHER = "00000000-0000-4000-8000-000000000099";
 
 const CUSTOM_ROLES: readonly CustomRole[] = [
   // Adds one permission and denies one.
   {
-    tenant: 'acme',
-    name: 'editor-plus',
-    includes: ['viewer'],
+    tenant: "acme",
+    name: "editor-plus",
+    includes: ["viewer"],
     grants: [
-      { permission: 'task.update' },
-      { permission: 'project.read', effect: 'deny' },
+      { permission: "task.update" },
+      { permission: "project.read", effect: "deny" },
     ],
   },
-  { tenant: 'acme', name: 'writer', includes: ['member'] },
+  { tenant: "acme", name: "writer", includes: ["member"] },
   {
-    tenant: 'acme',
-    name: 'grabby',
-    includes: ['owner', 'auditor'],
-    grants: [{ permission: 'project.delete' }],
+    tenant: "acme",
+    name: "grabby",
+    includes: ["owner", "auditor"],
+    grants: [{ permission: "project.delete" }],
   },
   {
-    tenant: 'acme',
-    team: 't1',
-    name: 'reviewer',
-    grants: [{ permission: 'board.read' }],
+    tenant: "acme",
+    team: "t1",
+    name: "reviewer",
+    grants: [{ permission: "board.read" }],
   },
-  { tenant: 'globex', name: 'writer', grants: [{ permission: 'task.read' }] },
-  { tenant: 'acme', name: 'viewer', grants: [{ permission: 'task.delete' }] },
+  { tenant: "globex", name: "writer", grants: [{ permission: "task.read" }] },
+  { tenant: "acme", name: "viewer", grants: [{ permission: "task.delete" }] },
 ];
 
 type Membership = {
@@ -71,58 +71,58 @@ type Subject = {
 const SUBJECTS: Readonly<Record<string, Subject>> = {
   plus: {
     id: PLUS,
-    tenant: 'acme',
-    memberships: [{ tenant: 'acme', roles: ['editor-plus'] }],
+    tenant: "acme",
+    memberships: [{ tenant: "acme", roles: ["editor-plus"] }],
   },
   writer: {
     id: WRITER,
-    tenant: 'acme',
-    memberships: [{ tenant: 'acme', roles: ['writer'] }],
+    tenant: "acme",
+    memberships: [{ tenant: "acme", roles: ["writer"] }],
   },
   grabby: {
     id: GRABBY,
-    tenant: 'acme',
-    memberships: [{ tenant: 'acme', roles: ['grabby'] }],
+    tenant: "acme",
+    memberships: [{ tenant: "acme", roles: ["grabby"] }],
   },
   reviewer: {
     id: REVIEWER,
-    tenant: 'acme',
-    memberships: [{ tenant: 'acme', team: 't1', roles: ['reviewer'] }],
+    tenant: "acme",
+    memberships: [{ tenant: "acme", team: "t1", roles: ["reviewer"] }],
   },
   globex: {
     id: GLOBEX,
-    tenant: 'globex',
-    memberships: [{ tenant: 'globex', roles: ['writer'] }],
+    tenant: "globex",
+    memberships: [{ tenant: "globex", roles: ["writer"] }],
   },
   shadow: {
     id: SHADOW,
-    tenant: 'acme',
-    memberships: [{ tenant: 'acme', roles: ['viewer'] }],
+    tenant: "acme",
+    memberships: [{ tenant: "acme", roles: ["viewer"] }],
   },
 };
 
 const ROWS = {
   project: [
-    { id: 'p-acme', orgId: 'acme', ownerId: WRITER },
-    { id: 'p-other', orgId: 'acme', ownerId: OTHER },
-    { id: 'p-globex', orgId: 'globex', ownerId: GLOBEX },
+    { id: "p-acme", orgId: "acme", ownerId: WRITER },
+    { id: "p-other", orgId: "acme", ownerId: OTHER },
+    { id: "p-globex", orgId: "globex", ownerId: GLOBEX },
   ],
   task: [
-    { id: 't-own', orgId: 'acme', authorId: WRITER, locked: false },
-    { id: 't-other', orgId: 'acme', authorId: OTHER, locked: false },
-    { id: 't-locked', orgId: 'acme', authorId: WRITER, locked: true },
-    { id: 't-globex', orgId: 'globex', authorId: GLOBEX, locked: false },
+    { id: "t-own", orgId: "acme", authorId: WRITER, locked: false },
+    { id: "t-other", orgId: "acme", authorId: OTHER, locked: false },
+    { id: "t-locked", orgId: "acme", authorId: WRITER, locked: true },
+    { id: "t-globex", orgId: "globex", authorId: GLOBEX, locked: false },
   ],
   board: [
-    { id: 'b-t1', orgId: 'acme', teamId: 't1' },
-    { id: 'b-t2', orgId: 'acme', teamId: 't2' },
+    { id: "b-t1", orgId: "acme", teamId: "t1" },
+    { id: "b-t2", orgId: "acme", teamId: "t2" },
   ],
 } as const;
 
 const ACTIONS: Readonly<Record<keyof typeof ROWS, readonly string[]>> = {
-  project: ['read', 'update', 'delete'],
-  task: ['read', 'update', 'delete'],
-  board: ['read', 'update'],
+  project: ["read", "update", "delete"],
+  task: ["read", "update", "delete"],
+  board: ["read", "update"],
 };
 
 const ROLES = `
@@ -183,35 +183,35 @@ insert into public.board values ('b-t1', 'acme', 't1'), ('b-t2', 'acme', 't2');
 
 // Spot checks that pin the matrix to intent, so a database that denies (or
 // grants) everything cannot pass by agreeing with decide.
-const EXPECTED: Readonly<Record<string, 'granted' | 'denied'>> = {
-  'plus task.update t-other': 'granted',
-  'plus task.update t-locked': 'denied',
-  'plus task.read t-own': 'granted',
-  'plus project.read p-acme': 'denied',
-  'plus task.delete t-own': 'denied',
-  'writer task.update t-own': 'granted',
-  'writer task.update t-other': 'denied',
-  'writer task.update t-locked': 'denied',
-  'writer project.update p-acme': 'granted',
-  'writer project.update p-other': 'denied',
-  'writer task.read t-globex': 'denied',
-  'grabby project.delete p-acme': 'denied',
-  'grabby project.read p-acme': 'granted',
-  'grabby project.read p-globex': 'denied',
-  'reviewer board.read b-t1': 'granted',
-  'reviewer board.read b-t2': 'denied',
-  'reviewer board.update b-t1': 'denied',
-  'globex task.read t-globex': 'granted',
-  'globex task.update t-globex': 'denied',
-  'shadow task.read t-own': 'granted',
-  'shadow task.delete t-own': 'denied',
+const EXPECTED: Readonly<Record<string, "granted" | "denied">> = {
+  "plus task.update t-other": "granted",
+  "plus task.update t-locked": "denied",
+  "plus task.read t-own": "granted",
+  "plus project.read p-acme": "denied",
+  "plus task.delete t-own": "denied",
+  "writer task.update t-own": "granted",
+  "writer task.update t-other": "denied",
+  "writer task.update t-locked": "denied",
+  "writer project.update p-acme": "granted",
+  "writer project.update p-other": "denied",
+  "writer task.read t-globex": "denied",
+  "grabby project.delete p-acme": "denied",
+  "grabby project.read p-acme": "granted",
+  "grabby project.read p-globex": "denied",
+  "reviewer board.read b-t1": "granted",
+  "reviewer board.read b-t2": "denied",
+  "reviewer board.update b-t1": "denied",
+  "globex task.read t-globex": "granted",
+  "globex task.update t-globex": "denied",
+  "shadow task.read t-own": "granted",
+  "shadow task.delete t-own": "denied",
 };
 
 type Fixture = {
   readonly subject: Subject;
   readonly row: Readonly<Record<string, unknown>>;
   readonly action: string;
-  readonly expected?: 'granted' | 'denied';
+  readonly expected?: "granted" | "denied";
 };
 
 function fixtures(): readonly Fixture[] {
@@ -238,24 +238,24 @@ function fixtures(): readonly Fixture[] {
 }
 
 const PERMISSION_KEYS = [
-  'project.read',
-  'project.update',
-  'project.delete',
-  'project.list',
-  'project.create',
-  'task.read',
-  'task.update',
-  'task.delete',
-  'task.list',
-  'task.create',
-  'board.read',
-  'board.update',
+  "project.read",
+  "project.update",
+  "project.delete",
+  "project.list",
+  "project.create",
+  "task.read",
+  "task.update",
+  "task.delete",
+  "task.list",
+  "task.create",
+  "board.read",
+  "board.update",
 ];
-const DECLARED = ['admin', 'auditor', 'lead', 'member', 'owner', 'viewer'];
+const DECLARED = ["admin", "auditor", "lead", "member", "owner", "viewer"];
 
 const SHAPES = [
-  { name: 'custom_database', cwd: FIXTURE },
-  { name: 'custom_jwt', cwd: join(FIXTURE, 'jwt') },
+  { name: "custom_database", cwd: FIXTURE },
+  { name: "custom_jwt", cwd: join(FIXTURE, "jwt") },
 ] as const;
 
 function databaseUri(uri: string, database: string): string {
@@ -266,15 +266,15 @@ function databaseUri(uri: string, database: string): string {
 
 function testerUri(uri: string, database: string): string {
   const url = new URL(databaseUri(uri, database));
-  url.username = 'tester';
-  url.password = 'tester';
+  url.username = "tester";
+  url.password = "tester";
   return url.toString();
 }
 
-describe('custom roles in generated RLS (database and jwt modes)', () => {
+describe("custom roles in generated RLS (database and jwt modes)", () => {
   let db: Postgres | undefined;
-  const dir = mkdtempSync(join(tmpdir(), 'permdock-custom-roles-'));
-  const fixturesPath = join(dir, 'rls.fixtures.json');
+  const dir = mkdtempSync(join(tmpdir(), "permdock-custom-roles-"));
+  const fixturesPath = join(dir, "rls.fixtures.json");
   const generated: Record<string, string> = {};
 
   beforeAll(async () => {
@@ -286,13 +286,13 @@ describe('custom roles in generated RLS (database and jwt modes)', () => {
     for (const shape of SHAPES) {
       const out = join(dir, `${shape.name}.sql`);
       const result = await run(
-        ['rls', 'generate', '--target', 'sql', '--out', out],
+        ["rls", "generate", "--target", "sql", "--out", out],
         { cwd: shape.cwd },
       );
       if (result.code !== 0) {
         throw new Error(`rls generate ${shape.name}: ${result.stdout}`);
       }
-      generated[shape.name] = readFileSync(out, 'utf8');
+      generated[shape.name] = readFileSync(out, "utf8");
       await db.admin.query(`create database ${shape.name}`);
       const client = new Client({
         connectionString: databaseUri(db.uri, shape.name),
@@ -302,20 +302,20 @@ describe('custom roles in generated RLS (database and jwt modes)', () => {
         await client.query(
           [
             STUB,
-            generated[shape.name] ?? '',
-            `create type public.app_permission as enum (${PERMISSION_KEYS.map((key) => `'${key}'`).join(', ')});`,
+            generated[shape.name] ?? "",
+            `create type permdock.app_permission as enum (${PERMISSION_KEYS.map((key) => `'${key}'`).join(", ")});`,
             authorizeSql({
-              authorize: shape.name === 'custom_database' ? 'database' : 'jwt',
+              authorize: shape.name === "custom_database" ? "database" : "jwt",
               tenant: {
-                table: 'organization_members',
-                tenant: 'organization_id',
-                user: 'user_id',
-                role: 'role',
+                table: "organization_members",
+                tenant: "organization_id",
+                user: "user_id",
+                role: "role",
               },
               customRoles: { declared: DECLARED },
             }),
-            'grant execute on function public.authorize(public.app_permission, text) to authenticated;',
-          ].join('\n'),
+            "grant execute on function permdock.authorize(permdock.app_permission, text) to authenticated;",
+          ].join("\n"),
         );
       } finally {
         await client.end();
@@ -328,18 +328,20 @@ describe('custom roles in generated RLS (database and jwt modes)', () => {
     await db?.stop();
   });
 
-  it('emits the tables in database mode, the ceiling view in both', () => {
-    const database = generated['custom_database'] ?? '';
-    const jwt = generated['custom_jwt'] ?? '';
+  it("emits the tables in database mode, the ceiling view in both", () => {
+    const database = generated["custom_database"] ?? "";
+    const jwt = generated["custom_jwt"] ?? "";
     expect(database).toContain(
-      'create table if not exists "public".custom_role_permissions',
+      'create table if not exists "permdock".custom_role_permissions',
     );
     expect(database).toContain(
-      'create table if not exists "public".custom_role_includes',
+      'create table if not exists "permdock".custom_role_includes',
     );
-    expect(jwt).not.toContain('custom_role_permissions');
+    expect(jwt).not.toContain("custom_role_permissions");
     for (const sql of [database, jwt]) {
-      expect(sql).toContain('create or replace view "public".permdock_ceiling');
+      expect(sql).toContain(
+        'create or replace view "permdock".permdock_ceiling',
+      );
       expect(sql).toContain(
         "array['admin', 'lead', 'member', 'viewer']::text[]",
       );
@@ -348,22 +350,22 @@ describe('custom roles in generated RLS (database and jwt modes)', () => {
   });
 
   it.each(SHAPES)(
-    '$name: the database agrees with decide for every custom role, table and command',
+    "$name: the database agrees with decide for every custom role, table and command",
     async (shape) => {
       if (db === undefined) {
-        throw new Error('PermDock: Postgres was not started');
+        throw new Error("PermDock: Postgres was not started");
       }
       const result = await run(
         [
-          'rls',
-          'verify',
-          '--db',
+          "rls",
+          "verify",
+          "--db",
           // Database mode seeds each fixture's custom roles, which needs the
           // table owner; the checked statement still runs as authenticated.
-          shape.name === 'custom_database'
+          shape.name === "custom_database"
             ? databaseUri(db.uri, shape.name)
             : testerUri(db.uri, shape.name),
-          '--fixtures',
+          "--fixtures",
           fixturesPath,
         ],
         { cwd: shape.cwd },
@@ -375,25 +377,25 @@ describe('custom roles in generated RLS (database and jwt modes)', () => {
     },
   );
 
-  it('a row inserted outside the ceiling never widens access', async () => {
+  it("a row inserted outside the ceiling never widens access", async () => {
     if (db === undefined) {
-      throw new Error('PermDock: Postgres was not started');
+      throw new Error("PermDock: Postgres was not started");
     }
     const client = new Client({
-      connectionString: databaseUri(db.uri, 'custom_database'),
+      connectionString: databaseUri(db.uri, "custom_database"),
     });
     await client.connect();
     try {
-      await client.query('begin');
+      await client.query("begin");
       await client.query(
-        `insert into public.custom_role_permissions (tenant_id, role, permission) values ('acme', 'grabby', 'project.delete')`,
+        `insert into permdock.custom_role_permissions (tenant_id, role, permission) values ('acme', 'grabby', 'project.delete')`,
       );
       await client.query(
-        `insert into public.custom_role_includes (tenant_id, role, include_role) values ('acme', 'grabby', 'owner'), ('acme', 'grabby', 'auditor')`,
+        `insert into permdock.custom_role_includes (tenant_id, role, include_role) values ('acme', 'grabby', 'owner'), ('acme', 'grabby', 'auditor')`,
       );
-      await client.query('set local role authenticated');
+      await client.query("set local role authenticated");
       await client.query(`select set_config('request.jwt.claims', $1, true)`, [
-        JSON.stringify({ sub: GRABBY, role: 'authenticated' }),
+        JSON.stringify({ sub: GRABBY, role: "authenticated" }),
       ]);
       const deleted = await client.query(
         `delete from public.project where id = 'p-acme' returning id`,
@@ -403,48 +405,48 @@ describe('custom roles in generated RLS (database and jwt modes)', () => {
         `select id from public.project order by id`,
       );
       expect(read.rows.map((row: { id: string }) => row.id)).toEqual([
-        'p-acme',
-        'p-other',
+        "p-acme",
+        "p-other",
       ]);
-      await client.query('rollback');
+      await client.query("rollback");
     } finally {
       await client.end();
     }
   });
 
-  it('rlsParity carries the grants claim in jwt mode', async () => {
+  it("rlsParity carries the grants claim in jwt mode", async () => {
     if (db === undefined) {
-      throw new Error('PermDock: Postgres was not started');
+      throw new Error("PermDock: Postgres was not started");
     }
     const client = new Client({
-      connectionString: testerUri(db.uri, 'custom_jwt'),
+      connectionString: testerUri(db.uri, "custom_jwt"),
     });
     await client.connect();
     try {
       const report = await rlsParity(policy, {
-        dialect: 'supabase',
+        dialect: "supabase",
         customRoles: CUSTOM_ROLES,
         fixtures: [
           {
-            name: 'plus updates another task',
-            subject: SUBJECTS['plus']!,
+            name: "plus updates another task",
+            subject: SUBJECTS["plus"]!,
             permission: permissions.task.update,
             row: ROWS.task[1],
-            table: 'task',
+            table: "task",
           },
           {
-            name: 'plus cannot read projects',
-            subject: SUBJECTS['plus']!,
+            name: "plus cannot read projects",
+            subject: SUBJECTS["plus"]!,
             permission: permissions.project.read,
             row: ROWS.project[0],
-            table: 'project',
+            table: "project",
           },
           {
-            name: 'reviewer reads its team board',
-            subject: SUBJECTS['reviewer']!,
+            name: "reviewer reads its team board",
+            subject: SUBJECTS["reviewer"]!,
             permission: permissions.board.read,
             row: ROWS.board[0],
-            table: 'board',
+            table: "board",
           },
         ],
         query: async (sql, values) => {
@@ -457,21 +459,21 @@ describe('custom roles in generated RLS (database and jwt modes)', () => {
       });
       expect(report.results).toEqual([
         {
-          name: 'plus updates another task',
+          name: "plus updates another task",
           granted: true,
-          database: 'allowed',
+          database: "allowed",
           ok: true,
         },
         {
-          name: 'plus cannot read projects',
+          name: "plus cannot read projects",
           granted: false,
-          database: 'filtered',
+          database: "filtered",
           ok: true,
         },
         {
-          name: 'reviewer reads its team board',
+          name: "reviewer reads its team board",
           granted: true,
-          database: 'allowed',
+          database: "allowed",
           ok: true,
         },
       ]);
@@ -481,44 +483,44 @@ describe('custom roles in generated RLS (database and jwt modes)', () => {
   });
 
   it.each(SHAPES)(
-    '$name: authorize() answers tenant requests from custom roles',
+    "$name: authorize() answers tenant requests from custom roles",
     async (shape) => {
       if (db === undefined) {
-        throw new Error('PermDock: Postgres was not started');
+        throw new Error("PermDock: Postgres was not started");
       }
       const client = new Client({
         connectionString: databaseUri(db.uri, shape.name),
       });
       await client.connect();
       try {
-        await client.query('begin');
-        if (shape.name === 'custom_database') {
-          await client.query(`insert into public.custom_role_permissions (tenant_id, role, permission, effect) values
+        await client.query("begin");
+        if (shape.name === "custom_database") {
+          await client.query(`insert into permdock.custom_role_permissions (tenant_id, role, permission, effect) values
             ('acme', 'editor-plus', 'task.update', 'allow'),
             ('acme', 'editor-plus', 'project.read', 'deny'),
             ('acme', 'grabby', 'project.delete', 'allow')`);
-          await client.query(`insert into public.custom_role_includes (tenant_id, role, include_role) values
+          await client.query(`insert into permdock.custom_role_includes (tenant_id, role, include_role) values
             ('acme', 'editor-plus', 'viewer')`);
         }
-        await client.query('set local role authenticated');
+        await client.query("set local role authenticated");
         const ask = async (
           sub: string,
           role: string,
           permission: string,
         ): Promise<boolean> => {
           const held = CUSTOM_ROLES.filter(
-            (item) => item.tenant === 'acme' && item.name === role,
+            (item) => item.tenant === "acme" && item.name === role,
           );
           await client.query(
             `select set_config('request.jwt.claims', $1, true)`,
             [
               JSON.stringify({
                 sub,
-                role: 'authenticated',
+                role: "authenticated",
                 memberships: [
                   {
-                    scope: 'tenant',
-                    id: 'acme',
+                    scope: "tenant",
+                    id: "acme",
                     roles: [role],
                     grants: customRoleClaim(held),
                   },
@@ -527,17 +529,17 @@ describe('custom roles in generated RLS (database and jwt modes)', () => {
             ],
           );
           const result = await client.query<{ ok: boolean }>(
-            `select public.authorize($1::public.app_permission, 'acme') as ok`,
+            `select permdock.authorize($1::permdock.app_permission, 'acme') as ok`,
             [permission],
           );
           return result.rows[0]?.ok ?? false;
         };
-        expect(await ask(PLUS, 'editor-plus', 'task.update')).toBe(true);
-        expect(await ask(PLUS, 'editor-plus', 'task.read')).toBe(true);
-        expect(await ask(PLUS, 'editor-plus', 'project.read')).toBe(false);
-        expect(await ask(PLUS, 'editor-plus', 'task.delete')).toBe(false);
-        expect(await ask(GRABBY, 'grabby', 'project.delete')).toBe(false);
-        await client.query('rollback');
+        expect(await ask(PLUS, "editor-plus", "task.update")).toBe(true);
+        expect(await ask(PLUS, "editor-plus", "task.read")).toBe(true);
+        expect(await ask(PLUS, "editor-plus", "project.read")).toBe(false);
+        expect(await ask(PLUS, "editor-plus", "task.delete")).toBe(false);
+        expect(await ask(GRABBY, "grabby", "project.delete")).toBe(false);
+        await client.query("rollback");
       } finally {
         await client.end();
       }

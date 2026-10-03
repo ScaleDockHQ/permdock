@@ -1,15 +1,15 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from "vitest";
 
-import { createPermDock } from '../../src/ai-sdk/index.ts';
-import { PermDockApprovalRequiredError } from '../../src/core/errors.ts';
+import { createPermDock } from "../../src/ai-sdk/index.ts";
+import { PermDockApprovalRequiredError } from "../../src/core/errors.ts";
 import {
   memberUser,
   ownPost,
   permissions,
   policy,
-} from '../fixtures/quick-start.ts';
+} from "../fixtures/quick-start.ts";
 
-function dock() {
+function permdock() {
   return createPermDock(policy, {
     subject: () => memberUser,
     tools: {
@@ -18,43 +18,43 @@ function dock() {
   });
 }
 
-describe('permdock/ai-sdk edge cases', () => {
-  it('leaves params without tools unchanged', async () => {
-    const params = { toolChoice: 'auto' };
+describe("permdock/ai-sdk edge cases", () => {
+  it("leaves params without tools unchanged", async () => {
+    const params = { toolChoice: "auto" };
     expect(
-      await dock().capabilityMiddleware({}).transformParams({ params }),
+      await permdock().capabilityMiddleware({}).transformParams({ params }),
     ).toBe(params);
   });
 
-  it('asks for approval unless the messages already carry the request', async () => {
-    const { needsApproval } = dock();
+  it("asks for approval unless the messages already carry the request", async () => {
+    const { needsApproval } = permdock();
     const check = needsApproval(permissions.post.delete);
     const unrelated = [
       null,
-      'text',
-      { role: 'user', content: [] },
-      { role: 'assistant', content: 'plain' },
+      "text",
+      { role: "user", content: [] },
+      { role: "assistant", content: "plain" },
       {
-        role: 'assistant',
-        content: [null, { type: 'tool-approval-request', toolCallId: 'other' }],
+        role: "assistant",
+        content: [null, { type: "tool-approval-request", toolCallId: "other" }],
       },
     ];
     expect(
-      await check(ownPost, { toolCallId: 'c1', messages: unrelated }),
+      await check(ownPost, { toolCallId: "c1", messages: unrelated }),
     ).toBe(true);
     expect(await check(ownPost, { messages: unrelated })).toBe(true);
     const recheck = check(ownPost, {
-      toolCallId: 'c1',
+      toolCallId: "c1",
       messages: [
         {
-          role: 'assistant',
-          content: [{ type: 'tool-approval-request', toolCallId: 'c1' }],
+          role: "assistant",
+          content: [{ type: "tool-approval-request", toolCallId: "c1" }],
         },
       ],
     });
     await expect(recheck).rejects.toBeInstanceOf(PermDockApprovalRequiredError);
     await expect(recheck).rejects.toMatchObject({
-      resource: { type: 'post', id: 'p1' },
+      resource: { type: "post", id: "p1" },
     });
   });
 });

@@ -1,15 +1,15 @@
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from "vitest";
 
 import {
   createPermDock,
   fromSnapshot,
   listPermissions,
-  type CreatePermDockOptions,
+  type PermDockOptions,
   type Decision,
   type Policy,
-} from '../index.ts';
+} from "../index.ts";
 
-export type MatrixOutcome = 'granted' | 'denied' | 'approval-required';
+export type MatrixOutcome = "granted" | "denied" | "approval-required";
 
 export type MatrixCell =
   | MatrixOutcome
@@ -34,7 +34,7 @@ export type DescribePolicyConfig<TSubject> = {
     Record<string, MatrixCell | Record<string, MatrixCell>>
   >;
   readonly exhaustive?: boolean;
-  readonly options?: CreatePermDockOptions;
+  readonly options?: PermDockOptions;
   /**
    * Also assert every granted or denied cell against `fromSnapshot(permdock.snapshot())`,
    * the client a Server Component hands down. Closures cannot cross a snapshot and deny on the client.
@@ -44,16 +44,16 @@ export type DescribePolicyConfig<TSubject> = {
 
 function isOutcomeCell(value: unknown): value is MatrixCell {
   return (
-    value === 'granted' ||
-    value === 'denied' ||
-    value === 'approval-required' ||
+    value === "granted" ||
+    value === "denied" ||
+    value === "approval-required" ||
     (value !== null &&
-      typeof value === 'object' &&
-      ('denials' in value ||
-        'outcome' in value ||
-        'alternatives' in value ||
-        'obligations' in value ||
-        'deniedBy' in value))
+      typeof value === "object" &&
+      ("denials" in value ||
+        "outcome" in value ||
+        "alternatives" in value ||
+        "obligations" in value ||
+        "deniedBy" in value))
   );
 }
 
@@ -64,25 +64,25 @@ function assertDeniedBy(
   data: unknown,
   cell: MatrixCell,
 ): void {
-  if (typeof cell !== 'object' || cell.deniedBy === undefined) {
+  if (typeof cell !== "object" || cell.deniedBy === undefined) {
     return;
   }
   // SAFETY: permission is a leaf of the policy under test; explain() accepts any row at runtime.
   const explained = instance.explain(permission as never, data as never);
-  expect(explained.outcome).toBe('denied');
+  expect(explained.outcome).toBe("denied");
   expect(explained.trace.denies[0]?.name).toBe(cell.deniedBy);
 }
 
 function expectedOutcome(cell: MatrixCell): MatrixOutcome {
-  return typeof cell === 'string' ? cell : (cell.outcome ?? 'denied');
+  return typeof cell === "string" ? cell : (cell.outcome ?? "denied");
 }
 
 function assertCell(decision: Decision, cell: MatrixCell): void {
   expect(decision.outcome).toBe(expectedOutcome(cell));
   if (
-    typeof cell === 'object' &&
+    typeof cell === "object" &&
     cell.denials !== undefined &&
-    decision.outcome === 'denied'
+    decision.outcome === "denied"
   ) {
     for (const denial of cell.denials) {
       expect(
@@ -95,18 +95,18 @@ function assertCell(decision: Decision, cell: MatrixCell): void {
     }
   }
   if (
-    typeof cell === 'object' &&
+    typeof cell === "object" &&
     cell.alternatives !== undefined &&
-    decision.outcome === 'denied'
+    decision.outcome === "denied"
   ) {
     expect(decision.alternatives.map((leaf) => leaf.key)).toEqual(
       cell.alternatives,
     );
   }
   if (
-    typeof cell === 'object' &&
+    typeof cell === "object" &&
     cell.obligations !== undefined &&
-    decision.outcome === 'granted'
+    decision.outcome === "granted"
   ) {
     expect((decision.obligations ?? []).map((item) => item.kind)).toEqual(
       cell.obligations,
@@ -121,7 +121,7 @@ function assertSnapshotCell(
   cell: MatrixCell,
 ): void {
   const outcome = expectedOutcome(cell);
-  if (outcome === 'approval-required') {
+  if (outcome === "approval-required") {
     return;
   }
   // SAFETY: a JSON round trip of the instance's own snapshot, as a client would receive it.
@@ -131,25 +131,28 @@ function assertSnapshotCell(
   // SAFETY: permission is a leaf of the policy under test; can() accepts any row at runtime.
   expect(
     client.can(permission as never, data as never),
-    'snapshot client disagrees with the server',
-  ).toBe(outcome === 'granted');
+    "snapshot client disagrees with the server",
+  ).toBe(outcome === "granted");
 }
 
 export function describePolicy<TSubject>(
   policy: Policy,
   config: DescribePolicyConfig<TSubject>,
 ): void {
-  describe('policy matrix', () => {
+  describe("policy matrix", () => {
     const permissions = listPermissions(policy.permissions);
-    const docks = new Map<string, Awaited<ReturnType<typeof createPermDock>>>();
+    const permdocks = new Map<
+      string,
+      Awaited<ReturnType<typeof createPermDock>>
+    >();
 
     beforeAll(async () => {
       for (const [name, user] of Object.entries(config.subjects)) {
-        docks.set(name, await createPermDock(policy, user, config.options));
+        permdocks.set(name, await createPermDock(policy, user, config.options));
       }
     });
 
-    it('covers every permission', () => {
+    it("covers every permission", () => {
       if (config.exhaustive === false) {
         return;
       }
@@ -178,14 +181,14 @@ export function describePolicy<TSubject>(
           ][]) {
             it(`${subjectName}`, async () => {
               const instance =
-                docks.get(subjectName) ??
+                permdocks.get(subjectName) ??
                 (await createPermDock(
                   policy,
                   config.subjects[subjectName],
                   config.options,
                 ));
               const data =
-                permission.kind === 'instance'
+                permission.kind === "instance"
                   ? Object.values(config.fixtures ?? {})[0]
                   : undefined;
               // SAFETY: permission is a leaf of the policy under test; decide() accepts any row.
@@ -208,7 +211,7 @@ export function describePolicy<TSubject>(
           for (const [subjectName, cell] of Object.entries(row)) {
             it(`${fixtureName} / ${subjectName}`, async () => {
               const instance =
-                docks.get(subjectName) ??
+                permdocks.get(subjectName) ??
                 (await createPermDock(
                   policy,
                   config.subjects[subjectName],

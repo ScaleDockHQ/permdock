@@ -1,13 +1,13 @@
-import type { MembershipSource } from '../core/interfaces.ts';
-import type { Membership } from '../core/subject.ts';
+import type { MembershipSource } from "../core/interfaces.ts";
+import type { Membership } from "../core/subject.ts";
 import type {
   DirectoryMembershipSourceOptions,
   DirectoryStore,
   DirectoryUser,
-} from './types.ts';
+} from "./types.ts";
 
-import { compact } from '../core/compact.ts';
-import { groupRolesFor } from './group-roles.ts';
+import { compact } from "../core/compact.ts";
+import { groupRolesFor } from "./group-roles.ts";
 
 function allowedRoles(
   roles: readonly string[] | undefined,
@@ -35,12 +35,12 @@ function allowedRoles(
 async function lookupUser(
   store: DirectoryStore,
   tenant: string,
-  attribute: 'externalId' | 'userName',
+  attribute: "externalId" | "userName",
   principalId: string,
 ): Promise<DirectoryUser | null> {
   const found = await store.findUsers(
     tenant,
-    { op: 'eq', attribute, value: principalId },
+    { op: "eq", attribute, value: principalId },
     {
       startIndex: 1,
       count: 1,
@@ -53,17 +53,17 @@ async function findUser(
   store: DirectoryStore,
   tenant: string,
   principalId: string,
-  match: DirectoryMembershipSourceOptions['match'],
+  match: DirectoryMembershipSourceOptions["match"],
 ): Promise<DirectoryUser | null> {
-  const mode = match ?? 'either';
-  if (mode === 'externalId' || mode === 'either') {
-    const user = await lookupUser(store, tenant, 'externalId', principalId);
+  const mode = match ?? "either";
+  if (mode === "externalId" || mode === "either") {
+    const user = await lookupUser(store, tenant, "externalId", principalId);
     if (user !== null) {
       return user;
     }
   }
-  if (mode === 'userName' || mode === 'either') {
-    return lookupUser(store, tenant, 'userName', principalId);
+  if (mode === "userName" || mode === "either") {
+    return lookupUser(store, tenant, "userName", principalId);
   }
   return null;
 }
@@ -75,7 +75,7 @@ export function directoryMembershipSource(
   return {
     async membershipsFor(principal, query) {
       const tenant = query.tenant;
-      if (tenant === undefined || tenant === '') {
+      if (tenant === undefined || tenant === "") {
         return [];
       }
       let user: DirectoryUser | null;
@@ -88,7 +88,7 @@ export function directoryMembershipSource(
         return [];
       }
       let groups: readonly Awaited<
-        ReturnType<DirectoryStore['groupsFor']>
+        ReturnType<DirectoryStore["groupsFor"]>
       >[number][];
       try {
         groups = [...(await store.groupsFor(tenant, user.id))];
@@ -108,7 +108,7 @@ export function directoryMembershipSource(
               options.onUnknownRole,
             ),
             via: `group:${group.id}`,
-            managedBy: 'idp',
+            managedBy: "idp",
           }),
         );
       }

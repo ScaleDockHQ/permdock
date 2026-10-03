@@ -1,10 +1,10 @@
-import type { StandardSchemaV1 } from '@standard-schema/spec';
+import type { StandardSchemaV1 } from "@standard-schema/spec";
 
-type FieldKind = 'string' | 'boolean' | 'nullable-string';
+type FieldKind = "string" | "boolean" | "nullable-string";
 
-type FieldValue<K extends FieldKind> = K extends 'string'
+type FieldValue<K extends FieldKind> = K extends "string"
   ? string
-  : K extends 'boolean'
+  : K extends "boolean"
     ? boolean
     : string | null;
 
@@ -14,12 +14,12 @@ type Infer<S extends Shape> = { [K in keyof S]: FieldValue<S[K]> };
 
 function accepts(kind: FieldKind, value: unknown): boolean {
   switch (kind) {
-    case 'string':
-      return typeof value === 'string';
-    case 'boolean':
-      return typeof value === 'boolean';
-    case 'nullable-string':
-      return value === null || typeof value === 'string';
+    case "string":
+      return typeof value === "string";
+    case "boolean":
+      return typeof value === "boolean";
+    case "nullable-string":
+      return value === null || typeof value === "string";
     default: {
       const exhaustive: never = kind;
       return exhaustive;
@@ -32,12 +32,12 @@ export function rowSchema<const S extends Shape>(
   shape: S,
 ): StandardSchemaV1<Infer<S>> {
   return {
-    '~standard': {
+    "~standard": {
       version: 1,
-      vendor: 'permdock-testing',
+      vendor: "permdock-testing",
       validate(value) {
-        if (typeof value !== 'object' || value === null) {
-          return { issues: [{ message: 'expected an object' }] };
+        if (typeof value !== "object" || value === null) {
+          return { issues: [{ message: "expected an object" }] };
         }
         // SAFETY: value was checked to be a non-null object above; fields stay unknown.
         const record = value as Readonly<Record<string, unknown>>;

@@ -1,7 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from "vitest";
 
-import { prismaModelFields } from '../../src/prisma/model-fields.ts';
-import { toWhere } from '../../src/prisma/to-where.ts';
+import { prismaModelFields } from "../../src/prisma/model-fields.ts";
+import { toWhere } from "../../src/prisma/to-where.ts";
 
 const SCHEMA = `
 enum Status {
@@ -29,48 +29,48 @@ model User {
 }
 `;
 
-describe('prismaModelFields', () => {
-  it('reads required and list scalars from schema.prisma, skipping relations', () => {
-    expect(prismaModelFields(SCHEMA, 'Post')).toEqual({
-      required: ['id', 'orgId', 'status', 'authorId', 'ownerId'],
-      lists: ['tags'],
+describe("prismaModelFields", () => {
+  it("reads required and list scalars from schema.prisma, skipping relations", () => {
+    expect(prismaModelFields(SCHEMA, "Post")).toEqual({
+      required: ["id", "orgId", "status", "authorId", "ownerId"],
+      lists: ["tags"],
     });
-    expect(prismaModelFields(SCHEMA, 'User')).toEqual({
-      required: ['id'],
+    expect(prismaModelFields(SCHEMA, "User")).toEqual({
+      required: ["id"],
       lists: [],
     });
   });
 
-  it('reads a DMMF datamodel', () => {
+  it("reads a DMMF datamodel", () => {
     expect(
       prismaModelFields(
         {
           models: [
             {
-              name: 'Post',
+              name: "Post",
               fields: [
-                { name: 'id', kind: 'scalar', isRequired: true, isList: false },
+                { name: "id", kind: "scalar", isRequired: true, isList: false },
                 {
-                  name: 'teamId',
-                  kind: 'scalar',
+                  name: "teamId",
+                  kind: "scalar",
                   isRequired: false,
                   isList: false,
                 },
                 {
-                  name: 'tags',
-                  kind: 'scalar',
+                  name: "tags",
+                  kind: "scalar",
                   isRequired: true,
                   isList: true,
                 },
                 {
-                  name: 'status',
-                  kind: 'enum',
+                  name: "status",
+                  kind: "enum",
                   isRequired: true,
                   isList: false,
                 },
                 {
-                  name: 'author',
-                  kind: 'object',
+                  name: "author",
+                  kind: "object",
                   isRequired: true,
                   isList: false,
                 },
@@ -78,37 +78,37 @@ describe('prismaModelFields', () => {
             },
           ],
         },
-        'Post',
+        "Post",
       ),
-    ).toEqual({ required: ['id', 'status'], lists: ['tags'] });
+    ).toEqual({ required: ["id", "status"], lists: ["tags"] });
   });
 
-  it('throws for an unknown model', () => {
-    expect(() => prismaModelFields(SCHEMA, 'Missing')).toThrow(
+  it("throws for an unknown model", () => {
+    expect(() => prismaModelFields(SCHEMA, "Missing")).toThrow(
       /not in the datamodel/,
     );
-    expect(() => prismaModelFields({ models: [] }, 'Post')).toThrow(
+    expect(() => prismaModelFields({ models: [] }, "Post")).toThrow(
       /not in the datamodel/,
     );
   });
 
-  it('skips lines inside a model that are not field declarations', () => {
+  it("skips lines inside a model that are not field declarations", () => {
     expect(
-      prismaModelFields('model Note {\n  id String @id\n  1x\n}\n', 'Note'),
-    ).toEqual({ required: ['id'], lists: [] });
+      prismaModelFields("model Note {\n  id String @id\n  1x\n}\n", "Note"),
+    ).toEqual({ required: ["id"], lists: [] });
   });
 
-  it('feeds toWhere through the field mapping', () => {
-    const model = prismaModelFields(SCHEMA, 'Post');
+  it("feeds toWhere through the field mapping", () => {
+    const model = prismaModelFields(SCHEMA, "Post");
     const negated = {
-      op: 'not',
-      condition: { op: 'eq', field: 'org', value: 'acme' },
+      op: "not",
+      condition: { op: "eq", field: "org", value: "acme" },
     } as const;
-    expect(toWhere(negated, { model, fields: { org: 'orgId' } })).toEqual({
-      NOT: { orgId: { equals: 'acme' } },
+    expect(toWhere(negated, { model, fields: { org: "orgId" } })).toEqual({
+      NOT: { orgId: { equals: "acme" } },
     });
     expect(
-      toWhere({ op: 'contains', field: 'tags', value: 'a' }, { model }),
-    ).toEqual({ tags: { has: 'a' } });
+      toWhere({ op: "contains", field: "tags", value: "a" }, { model }),
+    ).toEqual({ tags: { has: "a" } });
   });
 });

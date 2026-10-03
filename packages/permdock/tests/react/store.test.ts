@@ -1,27 +1,27 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { Decision } from '../../src/core/decision.ts';
-import type { Snapshot, TokenVerifier } from '../../src/core/interfaces.ts';
+import type { Decision } from "../../src/core/decision.ts";
+import type { Snapshot, TokenVerifier } from "../../src/core/interfaces.ts";
 
-import { emptySnapshot } from '../../src/core/from-snapshot.ts';
-import { createPermDock } from '../../src/core/permdock.ts';
-import { createClientStore } from '../../src/react/store.ts';
+import { emptySnapshot } from "../../src/core/from-snapshot.ts";
+import { createPermDock } from "../../src/core/permdock.ts";
+import { createClientStore } from "../../src/react/store.ts";
 import {
   memberUser,
   ownPost,
   permissions,
   policy,
-} from '../fixtures/quick-start.ts';
+} from "../fixtures/quick-start.ts";
 
 // SAFETY: a partial approval-required decision; the store reads only outcome, grant and token.
 const required: Decision = {
-  outcome: 'approval-required',
+  outcome: "approval-required",
   grant: {
-    permission: 'post.publish',
-    role: 'member',
-    approval: { by: ['editor'] },
+    permission: "post.publish",
+    role: "member",
+    approval: { by: ["editor"] },
   },
-  token: 'pd1.token/one',
+  token: "pd1.token/one",
 } as unknown as Decision;
 
 function signedIn(id: string): Snapshot {
@@ -39,7 +39,7 @@ function json(value: unknown, status = 200): Response {
   return new Response(JSON.stringify(value), { status });
 }
 
-describe('createClientStore approvals', () => {
+describe("createClientStore approvals", () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
@@ -47,42 +47,42 @@ describe('createClientStore approvals', () => {
     vi.useRealTimers();
   });
 
-  it('polls the approvals handler until the request resolves', async () => {
+  it("polls the approvals handler until the request resolves", async () => {
     const urls: string[] = [];
-    const statuses = ['pending', 'pending', 'approved'];
+    const statuses = ["pending", "pending", "approved"];
     const store = createClientStore({
-      snapshot: signedIn('u1'),
-      approvals: '/api/approvals',
+      snapshot: signedIn("u1"),
+      approvals: "/api/approvals",
       server: false,
       fetch: (input) => {
         urls.push(String(input));
         return Promise.resolve(
-          json({ status: statuses.shift() ?? 'approved' }),
+          json({ status: statuses.shift() ?? "approved" }),
         );
       },
     });
     const stop = store.subscribe(() => undefined);
-    expect(store.approvalState(required)).toBe('required');
+    expect(store.approvalState(required)).toBe("required");
     await vi.advanceTimersByTimeAsync(2000);
-    expect(store.approvalState(required)).toBe('pending');
+    expect(store.approvalState(required)).toBe("pending");
     await vi.advanceTimersByTimeAsync(4000);
-    expect(store.approvalState(required)).toBe('approved');
+    expect(store.approvalState(required)).toBe("approved");
     const calls = urls.length;
     await vi.advanceTimersByTimeAsync(10_000);
     expect(urls).toHaveLength(calls);
-    expect(urls[0]).toBe('/api/approvals/pd1.token%2Fone');
+    expect(urls[0]).toBe("/api/approvals/pd1.token%2Fone");
     stop();
   });
 
-  it('stops polling when nothing subscribes and after clear', async () => {
+  it("stops polling when nothing subscribes and after clear", async () => {
     let calls = 0;
     const store = createClientStore({
-      snapshot: signedIn('u1'),
-      approvals: '/api/approvals',
+      snapshot: signedIn("u1"),
+      approvals: "/api/approvals",
       server: false,
       fetch: () => {
         calls += 1;
-        return Promise.resolve(json({ status: 'pending' }));
+        return Promise.resolve(json({ status: "pending" }));
       },
     });
     const stop = store.subscribe(() => undefined);
@@ -90,26 +90,26 @@ describe('createClientStore approvals', () => {
     await vi.advanceTimersByTimeAsync(2000);
     expect(calls).toBe(1);
     store.get().clear();
-    expect(store.approvalState(required)).toBe('required');
+    expect(store.approvalState(required)).toBe("required");
     stop();
     await vi.advanceTimersByTimeAsync(10_000);
     expect(calls).toBe(1);
   });
 
-  it('never polls without an approvals URL or while rendering on the server', async () => {
+  it("never polls without an approvals URL or while rendering on the server", async () => {
     let calls = 0;
     const fetch = (): Promise<Response> => {
       calls += 1;
-      return Promise.resolve(json({ status: 'approved' }));
+      return Promise.resolve(json({ status: "approved" }));
     };
     const local = createClientStore({
-      snapshot: signedIn('u1'),
+      snapshot: signedIn("u1"),
       server: false,
       fetch,
     });
     const onServer = createClientStore({
-      snapshot: signedIn('u1'),
-      approvals: '/api/approvals',
+      snapshot: signedIn("u1"),
+      approvals: "/api/approvals",
       fetch,
     });
     local.subscribe(() => undefined);
@@ -120,27 +120,27 @@ describe('createClientStore approvals', () => {
     expect(calls).toBe(0);
   });
 
-  it('marks a request pending once it is sent', async () => {
+  it("marks a request pending once it is sent", async () => {
     const store = createClientStore({
-      snapshot: signedIn('u1'),
-      approvals: '/api/approvals',
+      snapshot: signedIn("u1"),
+      approvals: "/api/approvals",
       server: false,
-      fetch: () => Promise.resolve(json({ status: 'pending' })),
+      fetch: () => Promise.resolve(json({ status: "pending" })),
     });
-    await store.requestApproval(required, 'please');
-    expect(store.approvalState(required)).toBe('pending');
+    await store.requestApproval(required, "please");
+    expect(store.approvalState(required)).toBe("pending");
     expect(
       store.approvalState({
-        outcome: 'denied',
+        outcome: "denied",
         denials: [],
         alternatives: [],
       }),
-    ).toBe('not-needed');
+    ).toBe("not-needed");
   });
 });
 
-describe('createClientStore snapshot sources', () => {
-  it('stays pending until a followed promise settles', async () => {
+describe("createClientStore snapshot sources", () => {
+  it("stays pending until a followed promise settles", async () => {
     const store = createClientStore({
       snapshot: emptySnapshot(),
       server: false,
@@ -151,15 +151,15 @@ describe('createClientStore snapshot sources', () => {
         resolve = fulfil;
       }),
     );
-    expect(store.get().status()).toBe('pending');
-    resolve(signedIn('u1'));
+    expect(store.get().status()).toBe("pending");
+    resolve(signedIn("u1"));
     await Promise.resolve();
     await Promise.resolve();
-    expect(store.get().status()).toBe('ready');
-    expect(store.get().subject.principal?.id).toBe('u1');
+    expect(store.get().status()).toBe("ready");
+    expect(store.get().subject.principal?.id).toBe("u1");
   });
 
-  it('drops a followed promise that settles after a replace', async () => {
+  it("drops a followed promise that settles after a replace", async () => {
     const store = createClientStore({
       snapshot: emptySnapshot(),
       server: false,
@@ -170,37 +170,37 @@ describe('createClientStore snapshot sources', () => {
         resolve = fulfil;
       }),
     );
-    store.replace(signedIn('u2'));
-    resolve(signedIn('u1'));
+    store.replace(signedIn("u2"));
+    resolve(signedIn("u1"));
     await Promise.resolve();
     await Promise.resolve();
-    expect(store.get().subject.principal?.id).toBe('u2');
-    expect(store.get().status()).toBe('ready');
+    expect(store.get().subject.principal?.id).toBe("u2");
+    expect(store.get().status()).toBe("ready");
   });
 
-  it('fails closed when a followed promise rejects', async () => {
+  it("fails closed when a followed promise rejects", async () => {
     const store = createClientStore({
-      snapshot: signedIn('u1'),
+      snapshot: signedIn("u1"),
       server: false,
     });
-    store.follow(Promise.reject(new Error('offline')));
+    store.follow(Promise.reject(new Error("offline")));
     await Promise.resolve();
     await Promise.resolve();
     expect(store.get().subject.principal).toBeNull();
-    expect(store.get().status()).toBe('server-only');
+    expect(store.get().status()).toBe("server-only");
   });
 
-  it('verifies a signed snapshot passed to replace', async () => {
+  it("verifies a signed snapshot passed to replace", async () => {
     const verifier: TokenVerifier = {
       verify: (token) =>
         Promise.resolve(
-          token === 'a.b.c'
+          token === "a.b.c"
             ? {
                 ok: true,
-                claims: { snapshot: signedIn('u3') },
-                header: { alg: 'ES256' },
+                claims: { snapshot: signedIn("u3") },
+                header: { alg: "ES256" },
               }
-            : { ok: false, reason: 'invalid-token', cause: 'malformed' },
+            : { ok: false, reason: "invalid-token", cause: "malformed" },
         ),
     };
     const store = createClientStore({
@@ -208,33 +208,33 @@ describe('createClientStore snapshot sources', () => {
       server: false,
       verifier,
     });
-    store.replace('a.b.c');
+    store.replace("a.b.c");
     await Promise.resolve();
     await Promise.resolve();
-    expect(store.get().subject.principal?.id).toBe('u3');
+    expect(store.get().subject.principal?.id).toBe("u3");
   });
 
-  it('fails closed for a JWS without a verifier, a throwing verifier and garbage', async () => {
-    const plain = createClientStore({ snapshot: 'a.b.c', server: false });
-    expect(plain.get().status()).toBe('server-only');
+  it("fails closed for a JWS without a verifier, a throwing verifier and garbage", async () => {
+    const plain = createClientStore({ snapshot: "a.b.c", server: false });
+    expect(plain.get().status()).toBe("server-only");
     const throwing = createClientStore({
-      snapshot: 'a.b.c',
+      snapshot: "a.b.c",
       server: false,
-      verifier: { verify: () => Promise.reject(new Error('jwks down')) },
+      verifier: { verify: () => Promise.reject(new Error("jwks down")) },
     });
-    expect(throwing.get().status()).toBe('pending');
+    expect(throwing.get().status()).toBe("pending");
     await settle();
-    expect(throwing.get().status()).toBe('server-only');
+    expect(throwing.get().status()).toBe("server-only");
     const garbage = createClientStore({
-      snapshot: signedIn('u1'),
+      snapshot: signedIn("u1"),
       server: false,
     });
     garbage.replace({ v: 99 });
     expect(garbage.get().subject.principal).toBeNull();
-    expect(garbage.get().status()).toBe('server-only');
+    expect(garbage.get().status()).toBe("server-only");
   });
 
-  it('drops a verification that finishes after a newer snapshot', async () => {
+  it("drops a verification that finishes after a newer snapshot", async () => {
     let finish: () => void = ignore;
     const verifier: TokenVerifier = {
       verify: () =>
@@ -242,31 +242,31 @@ describe('createClientStore snapshot sources', () => {
           finish = () => {
             resolve({
               ok: true,
-              claims: { snapshot: signedIn('old') },
-              header: { alg: 'ES256' },
+              claims: { snapshot: signedIn("old") },
+              header: { alg: "ES256" },
             });
           };
         }),
     };
     const store = createClientStore({
-      snapshot: 'a.b.c',
+      snapshot: "a.b.c",
       server: false,
       verifier,
     });
-    store.replace(signedIn('new'));
+    store.replace(signedIn("new"));
     finish();
     await settle();
-    expect(store.get().subject.principal?.id).toBe('new');
+    expect(store.get().subject.principal?.id).toBe("new");
   });
 
-  it('follows a promise that resolves to a JWS and keeps portable checks pending meanwhile', async () => {
+  it("follows a promise that resolves to a JWS and keeps portable checks pending meanwhile", async () => {
     const snapshot = await memberSnapshot();
     const verifier: TokenVerifier = {
       verify: () =>
         Promise.resolve({
           ok: true,
           claims: { snapshot },
-          header: { alg: 'ES256' },
+          header: { alg: "ES256" },
         }),
     };
     const store = createClientStore({
@@ -281,24 +281,24 @@ describe('createClientStore snapshot sources', () => {
       }),
     );
     expect(store.permissionState(permissions.post.read, ownPost).status).toBe(
-      'pending',
+      "pending",
     );
-    resolve('a.b.c');
+    resolve("a.b.c");
     await settle();
     expect(store.permissionState(permissions.post.read, ownPost)).toMatchObject(
-      { allowed: true, status: 'ready' },
+      { allowed: true, status: "ready" },
     );
   });
 
-  it('exposes the latest snapshot and the current client', async () => {
+  it("exposes the latest snapshot and the current client", async () => {
     const snapshot = await memberSnapshot();
     const store = createClientStore({ snapshot, server: false });
     expect(store.snapshot()).toEqual(snapshot);
     const first = store.get();
-    store.replace(signedIn('u2'));
+    store.replace(signedIn("u2"));
     // SAFETY: the store defines this symbol as a function returning the latest client.
     const current = (first as unknown as Record<symbol, () => unknown>)[
-      Symbol.for('permdock.current')
+      Symbol.for("permdock.current")
     ];
     expect(current?.()).toBe(store.get());
   });
@@ -315,7 +315,7 @@ async function memberSnapshot(): Promise<Snapshot> {
   const server = await createPermDock(policy as never, memberUser);
   const snapshot = server.snapshot();
   if (snapshot instanceof Promise) {
-    throw new Error('expected JSON snapshot');
+    throw new Error("expected JSON snapshot");
   }
   return snapshot;
 }
@@ -329,7 +329,7 @@ async function closureSnapshot(
     ...snapshot,
     ...extra,
     grants: snapshot.grants.map((grant) =>
-      grant.permission === 'post.update'
+      grant.permission === "post.update"
         ? {
             permission: grant.permission,
             effect: grant.effect,
@@ -343,19 +343,19 @@ async function closureSnapshot(
 }
 
 const granted = {
-  outcome: 'granted',
-  subject: { principal: { id: 'u1', roles: ['member'] }, context: {} },
-  matched: { role: 'member', permission: 'post.update' },
-  token: 'pd1.x',
+  outcome: "granted",
+  subject: { principal: { id: "u1", roles: ["member"] }, context: {} },
+  matched: { role: "member", permission: "post.update" },
+  token: "pd1.x",
 };
 
-describe('createClientStore endpoint evaluations', () => {
-  it('batches checks of one tick into one request and caches per row id', async () => {
+describe("createClientStore endpoint evaluations", () => {
+  it("batches checks of one tick into one request and caches per row id", async () => {
     const bodies: unknown[] = [];
     const store = createClientStore({
       snapshot: await closureSnapshot(),
-      endpoint: '/api/permdock',
-      headers: { 'x-test': '1' },
+      endpoint: "/api/permdock",
+      headers: { "x-test": "1" },
       server: false,
       fetch: async (_input, init) => {
         bodies.push(JSON.parse(String(init?.body)));
@@ -369,22 +369,22 @@ describe('createClientStore endpoint evaluations', () => {
       },
     });
     expect(store.permissionState(permissions.post.update, ownPost).status).toBe(
-      'pending',
+      "pending",
     );
     store.permissionState(permissions.post.update, { ...ownPost, id: 7 });
     store.permissionState(permissions.post.update);
-    expect(store.get().status()).toBe('pending');
+    expect(store.get().status()).toBe("pending");
     await settle();
     expect(bodies).toHaveLength(1);
     expect(bodies[0]).toMatchObject({
       evaluations: [
         {
-          subject: { type: 'user', id: 'u1' },
-          action: { name: 'update' },
-          resource: { type: 'post', id: 'p1' },
+          subject: { type: "user", id: "u1" },
+          action: { name: "update" },
+          resource: { type: "post", id: "p1" },
         },
-        { resource: { id: '7' } },
-        { resource: { type: 'post' } },
+        { resource: { id: "7" } },
+        { resource: { type: "post" } },
       ],
     });
     expect(
@@ -395,14 +395,14 @@ describe('createClientStore endpoint evaluations', () => {
       id: 7,
     });
     expect(missing.allowed).toBe(false);
-    expect(store.get().status()).toBe('ready');
+    expect(store.get().status()).toBe("ready");
   });
 
-  it('denies server-only when the endpoint fails or the snapshot is simulated', async () => {
+  it("denies server-only when the endpoint fails or the snapshot is simulated", async () => {
     let calls = 0;
     const failing = createClientStore({
       snapshot: await closureSnapshot(),
-      endpoint: '/api/permdock',
+      endpoint: "/api/permdock",
       server: false,
       fetch: async () => {
         calls += 1;
@@ -413,10 +413,10 @@ describe('createClientStore endpoint evaluations', () => {
     await settle();
     expect(
       failing.permissionState(permissions.post.update, ownPost),
-    ).toMatchObject({ allowed: false, status: 'server-only' });
+    ).toMatchObject({ allowed: false, status: "server-only" });
     const simulated = createClientStore({
       snapshot: await closureSnapshot({ simulated: true }),
-      endpoint: '/api/permdock',
+      endpoint: "/api/permdock",
       server: false,
       fetch: async () => {
         calls += 1;
@@ -427,17 +427,17 @@ describe('createClientStore endpoint evaluations', () => {
     await settle();
     expect(
       simulated.permissionState(permissions.post.update, ownPost).status,
-    ).toBe('server-only');
+    ).toBe("server-only");
     expect(calls).toBe(1);
   });
 
-  it('drops answers that arrive after the snapshot changed', async () => {
+  it("drops answers that arrive after the snapshot changed", async () => {
     const snapshot = await closureSnapshot();
     let answer: (response: Response) => void = ignore;
     let reject: (error: Error) => void = ignore;
     const store = createClientStore({
       snapshot,
-      endpoint: '/api/permdock',
+      endpoint: "/api/permdock",
       server: false,
       fetch: () =>
         new Promise<Response>((resolve, fail) => {
@@ -454,19 +454,19 @@ describe('createClientStore endpoint evaluations', () => {
     expect(after.allowed).toBe(false);
     await settle();
     store.replace(snapshot);
-    reject(new Error('offline'));
+    reject(new Error("offline"));
     await settle();
     expect(store.permissionState(permissions.post.update, ownPost).status).toBe(
-      'pending',
+      "pending",
     );
   });
 
-  it('skips the request when a reset empties the queue first', async () => {
+  it("skips the request when a reset empties the queue first", async () => {
     const snapshot = await closureSnapshot();
     let calls = 0;
     const store = createClientStore({
       snapshot,
-      endpoint: '/api/permdock',
+      endpoint: "/api/permdock",
       server: false,
       fetch: async () => {
         calls += 1;
@@ -480,11 +480,11 @@ describe('createClientStore endpoint evaluations', () => {
   });
 });
 
-describe('createClientStore invalidate and refresh', () => {
-  it('invalidates answers by permission, by resource node and entirely', async () => {
+describe("createClientStore invalidate and refresh", () => {
+  it("invalidates answers by permission, by resource node and entirely", async () => {
     const store = createClientStore({
       snapshot: await closureSnapshot(),
-      endpoint: '/api/permdock',
+      endpoint: "/api/permdock",
       server: false,
       fetch: async () =>
         json({ evaluations: [{ context: { permdock: granted } }] }),
@@ -496,54 +496,54 @@ describe('createClientStore invalidate and refresh', () => {
     expect(ask()).toBe(true);
     store.get().invalidate(permissions.post.read);
     expect(ask()).toBe(true);
-    expect(store.get().status()).toBe('stale');
+    expect(store.get().status()).toBe("stale");
     store.get().invalidate(permissions.post.update);
     expect(ask()).toBe(false);
     await settle();
     expect(ask()).toBe(true);
-    store.get().invalidate({ key: 'post' });
+    store.get().invalidate({ key: "post" });
     expect(ask()).toBe(false);
     await settle();
     store.get().invalidate({});
     expect(ask()).toBe(false);
   });
 
-  it('adds the tenant to a snapshot URL with a query string and a hash', async () => {
+  it("adds the tenant to a snapshot URL with a query string and a hash", async () => {
     const urls: string[] = [];
     const store = createClientStore({
-      snapshot: signedIn('u1'),
-      snapshotUrl: '/api/snapshot?v=1#top',
+      snapshot: signedIn("u1"),
+      snapshotUrl: "/api/snapshot?v=1#top",
       server: false,
       fetch: async (input) => {
         urls.push(String(input));
-        return json(signedIn('u1'));
+        return json(signedIn("u1"));
       },
     });
-    await store.get().refresh({ tenant: 'globex' });
-    expect(urls).toEqual(['/api/snapshot?v=1&tenant=globex#top']);
-    expect(store.get().status()).toBe('ready');
+    await store.get().refresh({ tenant: "globex" });
+    expect(urls).toEqual(["/api/snapshot?v=1&tenant=globex#top"]);
+    expect(store.get().status()).toBe("ready");
   });
 
-  it('switches tenants locally and does nothing without a source', async () => {
+  it("switches tenants locally and does nothing without a source", async () => {
     const store = createClientStore({
-      snapshot: signedIn('u1'),
+      snapshot: signedIn("u1"),
       server: false,
     });
     await store.get().refresh();
-    expect(store.get().status()).toBe('ready');
-    await store.get().refresh({ tenant: 'acme' });
-    expect(store.get().status()).toBe('ready');
+    expect(store.get().status()).toBe("ready");
+    await store.get().refresh({ tenant: "acme" });
+    expect(store.get().status()).toBe("ready");
   });
 
-  it('marks the snapshot stale when a refresh fails in any way', async () => {
+  it("marks the snapshot stale when a refresh fails in any way", async () => {
     const answers: (() => Promise<Response>)[] = [
-      () => Promise.reject(new Error('offline')),
+      () => Promise.reject(new Error("offline")),
       async () => json({ v: 99 }),
-      async () => json('a.b.c'),
+      async () => json("a.b.c"),
     ];
     const store = createClientStore({
-      snapshot: signedIn('u1'),
-      snapshotUrl: '/api/snapshot',
+      snapshot: signedIn("u1"),
+      snapshotUrl: "/api/snapshot",
       server: false,
       fetch: () => answers.shift()?.() ?? Promise.resolve(json({}, 500)),
     });
@@ -551,35 +551,35 @@ describe('createClientStore invalidate and refresh', () => {
       await store.get().refresh();
       expect({ attempt, status: store.get().status() }).toEqual({
         attempt,
-        status: 'stale',
+        status: "stale",
       });
     }
-    expect(store.get().subject.principal?.id).toBe('u1');
+    expect(store.get().subject.principal?.id).toBe("u1");
   });
 
-  it('verifies a signed snapshot returned by refresh', async () => {
+  it("verifies a signed snapshot returned by refresh", async () => {
     const store = createClientStore({
-      snapshot: signedIn('u1'),
-      snapshotUrl: '/api/snapshot',
+      snapshot: signedIn("u1"),
+      snapshotUrl: "/api/snapshot",
       server: false,
       verifier: {
         verify: async () => ({
           ok: true,
-          claims: { snapshot: signedIn('u5') },
-          header: { alg: 'ES256' },
+          claims: { snapshot: signedIn("u5") },
+          header: { alg: "ES256" },
         }),
       },
-      fetch: async () => json('a.b.c'),
+      fetch: async () => json("a.b.c"),
     });
     await store.get().refresh();
-    expect(store.get().subject.principal?.id).toBe('u5');
+    expect(store.get().subject.principal?.id).toBe("u5");
   });
 
-  it('keeps only the latest of two overlapping refreshes', async () => {
+  it("keeps only the latest of two overlapping refreshes", async () => {
     const pending: ((response: Response) => void)[] = [];
     const store = createClientStore({
-      snapshot: signedIn('u1'),
-      snapshotUrl: '/api/snapshot',
+      snapshot: signedIn("u1"),
+      snapshotUrl: "/api/snapshot",
       server: false,
       fetch: () =>
         new Promise<Response>((resolve) => {
@@ -588,45 +588,45 @@ describe('createClientStore invalidate and refresh', () => {
     });
     const first = store.get().refresh();
     const second = store.get().refresh();
-    pending[1]?.(json(signedIn('second')));
+    pending[1]?.(json(signedIn("second")));
     await second;
-    pending[0]?.(json(signedIn('first')));
+    pending[0]?.(json(signedIn("first")));
     await first;
-    expect(store.get().subject.principal?.id).toBe('second');
+    expect(store.get().subject.principal?.id).toBe("second");
   });
 
-  it('reports stale past maxAge and expiresAt', () => {
+  it("reports stale past maxAge and expiresAt", () => {
     vi.useFakeTimers();
     try {
       vi.setSystemTime(10_000_000);
       const now = Math.floor(Date.now() / 1000);
       const aged = createClientStore({
-        snapshot: { ...signedIn('u1'), issuedAt: now - 120 },
+        snapshot: { ...signedIn("u1"), issuedAt: now - 120 },
         maxAge: 60,
         server: false,
       });
-      expect(aged.get().status()).toBe('stale');
+      expect(aged.get().status()).toBe("stale");
       const fresh = createClientStore({
-        snapshot: { ...signedIn('u1'), issuedAt: now - 10 },
+        snapshot: { ...signedIn("u1"), issuedAt: now - 10 },
         maxAge: 60,
         server: false,
       });
-      expect(fresh.get().status()).toBe('ready');
+      expect(fresh.get().status()).toBe("ready");
       const expired = createClientStore({
-        snapshot: { ...signedIn('u1'), expiresAt: now - 1 },
+        snapshot: { ...signedIn("u1"), expiresAt: now - 1 },
         server: false,
       });
-      expect(expired.get().status()).toBe('stale');
+      expect(expired.get().status()).toBe("stale");
       expect(
         expired.permissionState(permissions.post.read, ownPost).status,
-      ).toBe('stale');
+      ).toBe("stale");
     } finally {
       vi.useRealTimers();
     }
   });
 });
 
-describe('createClientStore approval edge cases', () => {
+describe("createClientStore approval edge cases", () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
@@ -634,16 +634,16 @@ describe('createClientStore approval edge cases', () => {
     vi.useRealTimers();
   });
 
-  it('expires on 404, ignores unknown statuses and network errors', async () => {
+  it("expires on 404, ignores unknown statuses and network errors", async () => {
     const answers: (() => Promise<Response>)[] = [
-      () => Promise.reject(new Error('offline')),
-      async () => json({ status: 'weird' }),
+      () => Promise.reject(new Error("offline")),
+      async () => json({ status: "weird" }),
       async () => json({}, 500),
       async () => json({}, 404),
     ];
     const store = createClientStore({
-      snapshot: signedIn('u1'),
-      approvals: '/api/approvals/',
+      snapshot: signedIn("u1"),
+      approvals: "/api/approvals/",
       server: false,
       approvalInterval: 100,
       fetch: () => answers.shift()?.() ?? Promise.resolve(json({}, 500)),
@@ -651,17 +651,17 @@ describe('createClientStore approval edge cases', () => {
     const stop = store.subscribe(ignore);
     store.approvalState(required);
     await vi.advanceTimersByTimeAsync(300);
-    expect(store.approvalState(required)).toBe('required');
+    expect(store.approvalState(required)).toBe("required");
     await vi.advanceTimersByTimeAsync(100);
-    expect(store.approvalState(required)).toBe('expired');
+    expect(store.approvalState(required)).toBe("expired");
     stop();
   });
 
-  it('drops a poll answer that lands after clear', async () => {
+  it("drops a poll answer that lands after clear", async () => {
     let answer: (response: Response) => void = ignore;
     const store = createClientStore({
-      snapshot: signedIn('u1'),
-      approvals: '/api/approvals',
+      snapshot: signedIn("u1"),
+      approvals: "/api/approvals",
       server: false,
       approvalInterval: 100,
       fetch: () =>
@@ -673,67 +673,67 @@ describe('createClientStore approval edge cases', () => {
     store.approvalState(required);
     await vi.advanceTimersByTimeAsync(100);
     store.get().clear();
-    answer(json({ status: 'approved' }));
+    answer(json({ status: "approved" }));
     await vi.advanceTimersByTimeAsync(0);
-    expect(store.approvalState(required)).toBe('required');
+    expect(store.approvalState(required)).toBe("required");
     stop();
   });
 
-  it('sends a request only for approval-required decisions with a target', async () => {
+  it("sends a request only for approval-required decisions with a target", async () => {
     const posts: unknown[] = [];
     const fetch = async (
       input: string | URL | Request,
       init?: RequestInit,
     ): Promise<Response> => {
       posts.push([String(input), JSON.parse(String(init?.body))]);
-      return json({ status: 'pending' });
+      return json({ status: "pending" });
     };
     const viaEndpoint = createClientStore({
-      snapshot: signedIn('u1'),
-      endpoint: '/api/permdock',
+      snapshot: signedIn("u1"),
+      endpoint: "/api/permdock",
       server: false,
       fetch,
     });
-    await viaEndpoint.requestApproval(required, 'note');
+    await viaEndpoint.requestApproval(required, "note");
     expect(posts).toEqual([
       [
-        '/api/permdock',
-        { permission: 'post.publish', token: 'pd1.token/one', note: 'note' },
+        "/api/permdock",
+        { permission: "post.publish", token: "pd1.token/one", note: "note" },
       ],
     ]);
     await viaEndpoint.requestApproval({
-      outcome: 'denied',
+      outcome: "denied",
       denials: [],
       alternatives: [],
     });
     await createClientStore({
-      snapshot: signedIn('u1'),
+      snapshot: signedIn("u1"),
       server: false,
       fetch,
     }).requestApproval(required);
     await createClientStore({
-      snapshot: { ...signedIn('u1'), simulated: true },
-      approvals: '/api/approvals',
+      snapshot: { ...signedIn("u1"), simulated: true },
+      approvals: "/api/approvals",
       server: false,
       fetch,
     }).requestApproval(required);
     expect(posts).toHaveLength(1);
   });
 
-  it('keeps a terminal approval state when a request is sent again', async () => {
+  it("keeps a terminal approval state when a request is sent again", async () => {
     const store = createClientStore({
-      snapshot: signedIn('u1'),
-      approvals: '/api/approvals',
+      snapshot: signedIn("u1"),
+      approvals: "/api/approvals",
       server: false,
       approvalInterval: 100,
-      fetch: async () => json({ status: 'rejected' }),
+      fetch: async () => json({ status: "rejected" }),
     });
     const stop = store.subscribe(ignore);
     store.approvalState(required);
     await vi.advanceTimersByTimeAsync(100);
-    expect(store.approvalState(required)).toBe('rejected');
+    expect(store.approvalState(required)).toBe("rejected");
     await store.requestApproval(required);
-    expect(store.approvalState(required)).toBe('rejected');
+    expect(store.approvalState(required)).toBe("rejected");
     stop();
   });
 });

@@ -1,13 +1,13 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from "vitest";
 
-import type * as fixture from '../fixtures/quick-start.ts';
+import type * as fixture from "../fixtures/quick-start.ts";
 
 import {
   type Decision,
   type Permission,
   createPermDock,
-} from '../../src/index.ts';
-import { reasonOf } from '../fixtures/decisions.ts';
+} from "../../src/index.ts";
+import { reasonOf } from "../fixtures/decisions.ts";
 import {
   adminUser,
   memberUser,
@@ -15,10 +15,10 @@ import {
   otherPost,
   permissions,
   policy,
-} from '../fixtures/quick-start.ts';
+} from "../fixtures/quick-start.ts";
 
-describe('invariant 5: identity is by key', () => {
-  it('decides a cloned leaf like the original', async () => {
+describe("invariant 5: identity is by key", () => {
+  it("decides a cloned leaf like the original", async () => {
     const permdock = await createPermDock(policy, memberUser);
     // SAFETY: decide's overloads share one implementation that takes any leaf with or without a row.
     const decide = permdock.decide as (
@@ -39,10 +39,10 @@ describe('invariant 5: identity is by key', () => {
     }
   });
 
-  it('decides a leaf from a second module copy of the catalogue', async () => {
+  it("decides a leaf from a second module copy of the catalogue", async () => {
     // SAFETY: a second evaluation of the same fixture module has its exports.
     const copy = (await import(
-      new URL('../fixtures/quick-start.ts?copy', import.meta.url).href
+      new URL("../fixtures/quick-start.ts?copy", import.meta.url).href
     )) as typeof fixture;
     expect(copy.permissions.post.update).not.toBe(permissions.post.update);
     const permdock = await createPermDock(policy, adminUser);
@@ -52,7 +52,7 @@ describe('invariant 5: identity is by key', () => {
     expect(fromCopy.can(permissions.post.update, otherPost)).toBe(false);
   });
 
-  it('resolves a leaf that crossed the wire by its key', async () => {
+  it("resolves a leaf that crossed the wire by its key", async () => {
     const permdock = await createPermDock(policy, adminUser);
     // SAFETY: a JSON round trip keeps every field of the leaf.
     const wire = JSON.parse(
@@ -60,15 +60,15 @@ describe('invariant 5: identity is by key', () => {
     ) as typeof permissions.post.read;
     expect(permdock.can(wire, ownPost)).toBe(true);
     expect(
-      permdock.can({ ...permissions.post.read, key: 'post.nope' }, ownPost),
+      permdock.can({ ...permissions.post.read, key: "post.nope" }, ownPost),
     ).toBe(false);
   });
 
-  it('keys snapshot grants by key', async () => {
+  it("keys snapshot grants by key", async () => {
     const permdock = await createPermDock(policy, memberUser);
     const snapshot = permdock.snapshot();
     if (snapshot instanceof Promise) {
-      throw new Error('expected a JSON snapshot');
+      throw new Error("expected a JSON snapshot");
     }
     expect(JSON.stringify(snapshot)).toContain('"post.update"');
   });

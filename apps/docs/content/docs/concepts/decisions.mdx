@@ -9,15 +9,31 @@ description: decide returns a discriminated Decision with three outcomes, matche
 
 ```ts
 type Decision =
-  | { outcome: 'granted';           subject: Subject; matched: Grant; token: string; quota?: Quota; obligations?: Obligation[] }
-  | { outcome: 'denied';            denials: Array<{ role: string | null; reason: string; detail?: unknown }>; alternatives: Permission[] }
-  | { outcome: 'approval-required'; grant: Grant; reason: string; token: string }
+  | {
+      outcome: "granted";
+      subject: Subject;
+      matched: Grant;
+      token: string;
+      quota?: Quota;
+      obligations?: Obligation[];
+    }
+  | {
+      outcome: "denied";
+      denials: Array<{ role: string | null; reason: string; detail?: unknown }>;
+      alternatives: Permission[];
+    }
+  | {
+      outcome: "approval-required";
+      grant: Grant;
+      reason: string;
+      token: string;
+    };
 ```
 
-| Outcome | When | `can` | `assert` |
-| --- | --- | --- | --- |
-| `granted` | At least one `allow` matched, no `deny` matched, delegation covers it | `true` | returns the decision |
-| `denied` | A `deny` matched, nothing matched, anonymous, validation failed, or delegation does not cover it | `false` | throws `PermDockDeniedError` |
+| Outcome             | When                                                                                                                      | `can`   | `assert`                               |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------- | ------- | -------------------------------------- |
+| `granted`           | At least one `allow` matched, no `deny` matched, delegation covers it                                                     | `true`  | returns the decision                   |
+| `denied`            | A `deny` matched, nothing matched, anonymous, validation failed, or delegation does not cover it                          | `false` | throws `PermDockDeniedError`           |
 | `approval-required` | The matched `allow` carries `approval` (`'human'` or `{ by, distinct }`) and no approval has been recorded for this token | `false` | throws `PermDockApprovalRequiredError` |
 
 There is no fourth outcome. `not-applicable`, which the Vercel AI SDK uses when no policy covers a tool, does not exist in PermDock: a permission with no grant is `denied`. That is the fail-closed default, and the reason `@ai-sdk/policy-opa`'s fail-open behaviour on unrecognised decisions ([vercel/ai#19978](https://github.com/vercel/ai/issues/19978)) cannot happen through `permdock/ai-sdk`.
@@ -25,12 +41,12 @@ There is no fourth outcome. `not-applicable`, which the Vercel AI SDK uses when 
 ### granted
 
 ```ts
-const decision = permdock.decide(permissions.post.update, post)
-if (decision.outcome === 'granted') {
-  decision.subject.principal.id // narrowed: principal is non-null here
-  decision.matched.role         // 'member'
-  decision.matched.permission   // 'post.update'
-  decision.token                // opaque string, see below
+const decision = permdock.decide(permissions.post.update, post);
+if (decision.outcome === "granted") {
+  decision.subject.principal.id; // narrowed: principal is non-null here
+  decision.matched.role; // 'member'
+  decision.matched.permission; // 'post.update'
+  decision.token; // opaque string, see below
 }
 ```
 
@@ -53,40 +69,40 @@ When the matched allow has a `limit`, the decision also carries `quota: { remain
 
 `denials` has one entry per role that was consulted. Reasons are short stable strings:
 
-| Reason | Meaning |
-| --- | --- |
-| `no-grant` | The role has no grant for this permission |
-| `condition` | An allow exists but its `where` / `check` did not match |
-| `deny` | A deny matched (overrides everything) |
-| `inactive-grant` | An allow exists but the decision clock is outside its `validFrom` / `validUntil`; `detail` is the window `{ from, until }` in Unix seconds ([validity](/docs/concepts/policies#validity)) |
-| `closure-error` | A closure threw; treated as no match |
-| `opaque-condition` | An imported opaque condition cannot be evaluated in memory |
-| `server-only` | Client only: the snapshot cannot answer (a closure, graph relation or period grant, or a permission outside `include`) and the provider has no endpoint to ask, because none was given or it is `endpoint: false` ([Next.js Cache Components](/docs/guides/next-cache-components#snapshot-only-mode)); `role` is `null` |
-| `anonymous` | No principal |
-| `not-delegated`, `no-delegation` | Delegation does not cover the permission ([subject](/docs/concepts/subject)); `role` is `null` |
-| `insufficient-user-authentication` | The only conditions that failed read `subject.assurance` (`acr`, `amr`, `authTime`); HTTP adapters render it as the RFC 9470 step-up challenge; also a break-glass or activation `assurance` that was not met ([elevated access](/docs/concepts/elevated-access)) |
-| `not-entitled` | The grant's roles are held but a `plan` grantee in its `to` is not: neither `principal.plans` nor a seat on the active tenant's membership names it. `to` carries the grantee so the caller can name the plan; HTTP adapters answer 403 `/not-entitled` with `plans` when every denial is `not-entitled`, and `describe` returns `kind: 'upgrade'`. A plan grant whose roles are not held adds no denial, so the reason never offers an upgrade that would not grant |
-| `purpose`, `reason-required` | A break-glass grant was engaged (`context.purpose`) but the asserted purpose was not one it lists, or it requires a reason and `context.reason` was missing ([elevated access](/docs/concepts/elevated-access)); `role` is `null` |
-| `actor-required` | The subject holds a `supportAccess` membership with `actorRequired` but carries no `act`; support access is impersonation and must be attributed ([elevated access](/docs/concepts/elevated-access)); `role` is `null` |
-| `limit` | Quota exhausted |
-| `limit-unavailable` | No `LimitStore`, the store threw, or `consume` / `remaining` returned a thenable |
-| `relation-depth` | A graph grant's parent chain has a cycle, or goes on past its `depth` with no holder within it ([relationships](/docs/concepts/relationships)) |
-| `relation-unavailable` | A graph grant could not read the `RelationSource`: none configured, a throw or rejection, a malformed answer, or a Promise `loadRelations` did not load. On a `deny` it denies the decision |
-| `validation` | Boundary validation failed ([validation](/docs/concepts/validation)) |
-| `unknown-role` | A role name on the principal or a membership is not declared |
-| `pdp-denied` | The remote PDP answered `decision: false` |
-| `pdp-unavailable` | The remote PDP timed out, returned a non-2xx, or `createPermDock` from core was used for a delegated permission |
-| `pdp-invalid-response` | The remote body was not an AuthZEN evaluation response |
-| `tenant-mismatch`, `no-membership`, `scope`, `expired-membership` | Tenancy misses ([tenancy](/docs/concepts/tenancy)) |
-| `stale-credentials` | The permission is in the policy's `fresh` list and the subject's memberships come from a token behind the `MembershipSource` authorization version, or either version is missing ([Supabase token hook](/docs/adapters/supabase-hook)); `role` is `null` |
-| `last-holder`, `max-holders`, `transfer-only` | A role change would break the role's `min`, `max` or `transferOnly` (only from `decideRoleChange`, [ownership](/docs/concepts/ownership)) |
-| `not-assignable-by`, `self-demotion` | The subject may not make this role change, or it targets themselves ([ownership](/docs/concepts/ownership)) |
-| `not-allowed-for-membership`, `conflicting-role` | The target's membership kind is not in the role's `for`, or they hold a role in its `exclusiveWith` ([ownership](/docs/concepts/ownership)) |
-| `externally-managed` | The target's membership is owned by the identity provider (`managedBy: 'idp'`, from SCIM); the application cannot change it (only from `decideRoleChange`) |
-| `approval` | A resume token was unknown, pending, rejected, expired, consumed or for another call; `detail` names which ([approvals](/docs/adapters/approvals)) |
-| `stale-approval` | A resume token approved an earlier `version` of the row under `approval: { staleOn: 'resource-change' }`; ask again without it ([approval security](/docs/security/approvals#approvals-that-go-stale)) |
-| `exceeds-creator` | `decideCredential` only: the key would hold more than its creator may hand out (a role or permission outside the creator's `assignableRoles` / `assignablePermissions`, a tenant the creator is not in, a permission outside the creator's delegation), or the creator is a link or a credential; `detail` names the role, permission, tenant or creator ([API keys](/docs/concepts/credentials)) |
-| `credential-policy` | `decideCredential` only: the tenant's `credentials` settings refuse the key; `detail.rule` is `kind`, `no-expiry`, `ttl` or `unavailable` (the settings source threw) |
+| Reason                                                            | Meaning                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `no-grant`                                                        | The role has no grant for this permission                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `condition`                                                       | An allow exists but its `where` / `check` did not match                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `deny`                                                            | A deny matched (overrides everything)                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `inactive-grant`                                                  | An allow exists but the decision clock is outside its `validFrom` / `validUntil`; `detail` is the window `{ from, until }` in Unix seconds ([validity](/docs/concepts/policies#validity))                                                                                                                                                                                                                                                                            |
+| `closure-error`                                                   | A closure threw; treated as no match                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `opaque-condition`                                                | An imported opaque condition cannot be evaluated in memory                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `server-only`                                                     | Client only: the snapshot cannot answer (a closure, graph relation or period grant, or a permission outside `include`) and the provider has no endpoint to ask, because none was given or it is `endpoint: false` ([Next.js Cache Components](/docs/guides/next-cache-components#snapshot-only-mode)); `role` is `null`                                                                                                                                              |
+| `anonymous`                                                       | No principal                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `not-delegated`, `no-delegation`                                  | Delegation does not cover the permission ([subject](/docs/concepts/subject)); `role` is `null`                                                                                                                                                                                                                                                                                                                                                                       |
+| `insufficient-user-authentication`                                | The only conditions that failed read `subject.assurance` (`acr`, `amr`, `authTime`); HTTP adapters render it as the RFC 9470 step-up challenge; also a break-glass or activation `assurance` that was not met ([elevated access](/docs/concepts/elevated-access))                                                                                                                                                                                                    |
+| `not-entitled`                                                    | The grant's roles are held but a `plan` grantee in its `to` is not: neither `principal.plans` nor a seat on the active tenant's membership names it. `to` carries the grantee so the caller can name the plan; HTTP adapters answer 403 `/not-entitled` with `plans` when every denial is `not-entitled`, and `describe` returns `kind: 'upgrade'`. A plan grant whose roles are not held adds no denial, so the reason never offers an upgrade that would not grant |
+| `purpose`, `reason-required`                                      | A break-glass grant was engaged (`context.purpose`) but the asserted purpose was not one it lists, or it requires a reason and `context.reason` was missing ([elevated access](/docs/concepts/elevated-access)); `role` is `null`                                                                                                                                                                                                                                    |
+| `actor-required`                                                  | The subject holds a `supportAccess` membership with `actorRequired` but carries no `act`; support access is impersonation and must be attributed ([elevated access](/docs/concepts/elevated-access)); `role` is `null`                                                                                                                                                                                                                                               |
+| `limit`                                                           | Quota exhausted                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `limit-unavailable`                                               | No `LimitStore`, the store threw, or `consume` / `remaining` returned a thenable                                                                                                                                                                                                                                                                                                                                                                                     |
+| `relation-depth`                                                  | A graph grant's parent chain has a cycle, or goes on past its `depth` with no holder within it ([relationships](/docs/concepts/relationships))                                                                                                                                                                                                                                                                                                                       |
+| `relation-unavailable`                                            | A graph grant could not read the `RelationSource`: none configured, a throw or rejection, a malformed answer, or a Promise `loadRelations` did not load. On a `deny` it denies the decision                                                                                                                                                                                                                                                                          |
+| `validation`                                                      | Boundary validation failed ([validation](/docs/concepts/validation))                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `unknown-role`                                                    | A role name on the principal or a membership is not declared                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `pdp-denied`                                                      | The remote PDP answered `decision: false`                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `pdp-unavailable`                                                 | The remote PDP timed out, returned a non-2xx, or `createPermDock` from core was used for a delegated permission                                                                                                                                                                                                                                                                                                                                                      |
+| `pdp-invalid-response`                                            | The remote body was not an AuthZEN evaluation response                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `tenant-mismatch`, `no-membership`, `scope`, `expired-membership` | Tenancy misses ([tenancy](/docs/concepts/tenancy))                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `stale-credentials`                                               | The permission is in the policy's `fresh` list and the subject's memberships come from a token behind the `MembershipSource` authorization version, or either version is missing ([Supabase token hook](/docs/adapters/supabase-hook)); `role` is `null`                                                                                                                                                                                                             |
+| `last-holder`, `max-holders`, `transfer-only`                     | A role change would break the role's `min`, `max` or `transferOnly` (only from `decideRoleChange`, [ownership](/docs/concepts/ownership))                                                                                                                                                                                                                                                                                                                            |
+| `not-assignable-by`, `self-demotion`                              | The subject may not make this role change, or it targets themselves ([ownership](/docs/concepts/ownership))                                                                                                                                                                                                                                                                                                                                                          |
+| `not-allowed-for-membership`, `conflicting-role`                  | The target's membership kind is not in the role's `for`, or they hold a role in its `exclusiveWith` ([ownership](/docs/concepts/ownership))                                                                                                                                                                                                                                                                                                                          |
+| `externally-managed`                                              | The target's membership is owned by the identity provider (`managedBy: 'idp'`, from SCIM); the application cannot change it (only from `decideRoleChange`)                                                                                                                                                                                                                                                                                                           |
+| `approval`                                                        | A resume token was unknown, pending, rejected, expired, consumed or for another call; `detail` names which ([approvals](/docs/adapters/approvals))                                                                                                                                                                                                                                                                                                                   |
+| `stale-approval`                                                  | A resume token approved an earlier `version` of the row under `approval: { staleOn: 'resource-change' }`; ask again without it ([approval security](/docs/security/approvals#approvals-that-go-stale))                                                                                                                                                                                                                                                               |
+| `exceeds-creator`                                                 | `decideCredential` only: the key would hold more than its creator may hand out (a role or permission outside the creator's `assignableRoles` / `assignablePermissions`, a tenant the creator is not in, a permission outside the creator's delegation), or the creator is a link or a credential; `detail` names the role, permission, tenant or creator ([API keys](/docs/concepts/credentials))                                                                    |
+| `credential-policy`                                               | `decideCredential` only: the tenant's `credentials` settings refuse the key; `detail.rule` is `kind`, `no-expiry`, `ttl` or `unavailable` (the settings source threw)                                                                                                                                                                                                                                                                                                |
 
 This fixes two long-standing gaps: CASL's `ForbiddenError` only knows a reason when an inverted rule matched, and permix had no `explain` at all ([permix #22](https://github.com/letstri/permix/issues/22)). PermDock always says which roles were tried and why each did not grant; [`explain`](#explain) adds which grant decided it.
 
@@ -109,14 +125,14 @@ A `deny` denial from a grant with a `name` carries `detail: { name }`, so `PermD
 
 The grant matched, so the principal is allowed in principle, but a human must confirm this specific action. The adapter decides how to ask:
 
-| Surface | Mapping |
-| --- | --- |
-| Vercel AI SDK `toolApproval` | `'user-approval'`; the approval reply is re-checked against `token` on resume |
-| Vercel AI SDK `WorkflowAgent` | `needsApproval(permission)` suspends the durable workflow |
-| Claude Agent SDK | `canUseTool` returns an ask result; `permissionRequestHook` carries the reason |
-| MCP | Elicitation (stateless multi-round-trip request in the 2026-07-28 spec) |
-| HTTP | `403 application/problem+json` with `type` ending in `/approval-required` and the token in the body |
-| React | `usePermission` returns `allowed: false` with `status: 'ready'`; the UI may render an "ask for approval" affordance using `decide` |
+| Surface                       | Mapping                                                                                                                            |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Vercel AI SDK `toolApproval`  | `'user-approval'`; the approval reply is re-checked against `token` on resume                                                      |
+| Vercel AI SDK `WorkflowAgent` | `needsApproval(permission)` suspends the durable workflow                                                                          |
+| Claude Agent SDK              | `canUseTool` returns an ask result; `permissionRequestHook` carries the reason                                                     |
+| MCP                           | Elicitation (stateless multi-round-trip request in the 2026-07-28 spec)                                                            |
+| HTTP                          | `403 application/problem+json` with `type` ending in `/approval-required` and the token in the body                                |
+| React                         | `usePermission` returns `allowed: false` with `status: 'ready'`; the UI may render an "ask for approval" affordance using `decide` |
 
 See [approvals](/docs/security/approvals) for the full human-in-the-loop flow.
 
@@ -124,7 +140,11 @@ See [approvals](/docs/security/approvals) for the full human-in-the-loop flow.
 
 `decide`, `can` and `assert` take the same options as their last argument.
 
-<auto-type-table cwd path="../../packages/permdock/src/core/permdock.ts" name="DecideOptions" />
+<auto-type-table
+  cwd
+  path="../../packages/permdock/src/core/permdock.ts"
+  name="DecideOptions"
+/>
 
 ## token
 
@@ -135,7 +155,7 @@ The token is not a capability. Possessing it grants nothing; it only proves that
 ## assert
 
 ```ts
-const { subject } = permdock.assert(permissions.post.delete, post)
+const { subject } = permdock.assert(permissions.post.delete, post);
 // subject.principal is non-null from here on
 ```
 
@@ -150,7 +170,7 @@ All layers run even if an earlier one throws, so audit hooks still fire when a N
 ## explain
 
 ```ts
-const explained = permdock.explain(permissions.doc.update, doc)
+const explained = permdock.explain(permissions.doc.update, doc);
 // {
 //   outcome: 'denied',
 //   denials: [{ role: 'editor', reason: 'deny', detail: { name: 'lock' } }],
@@ -166,12 +186,12 @@ const explained = permdock.explain(permissions.doc.update, doc)
 
 `explain` is `decide` with `explain: true`: the same `Decision`, plus a `trace`. `denials` says why each consulted role did not grant; `trace` says which grants produced the outcome.
 
-| Field | Meaning |
-| --- | --- |
-| `evaluated` | How many candidate grants for the permission were examined before the outcome was reached. A deny returns at once, so grants after it are not counted |
-| `allows` | Every allow that matched, as a `MatchedGrant`, in policy order. On `denied` with reason `deny` these are the allows the deny overrode; on `granted` the first one is `matched` |
-| `denies` | Every deny that matched. `denies[0]` is the deny that produced a `deny` outcome, or the deny a [break-glass](/docs/concepts/elevated-access) grant lifted when the outcome is `granted` |
-| `skipped` | Grants passed over before their condition ran, each with `why`: `role` (a role it names is not held), `grantee` (its `to` did not match and added no denial), `via-only`, `purpose`, `field`, or `break-glass-inactive` |
+| Field       | Meaning                                                                                                                                                                                                                 |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `evaluated` | How many candidate grants for the permission were examined before the outcome was reached. A deny returns at once, so grants after it are not counted                                                                   |
+| `allows`    | Every allow that matched, as a `MatchedGrant`, in policy order. On `denied` with reason `deny` these are the allows the deny overrode; on `granted` the first one is `matched`                                          |
+| `denies`    | Every deny that matched. `denies[0]` is the deny that produced a `deny` outcome, or the deny a [break-glass](/docs/concepts/elevated-access) grant lifted when the outcome is `granted`                                 |
+| `skipped`   | Grants passed over before their condition ran, each with `why`: `role` (a role it names is not held), `grantee` (its `to` did not match and added no denial), `via-only`, `purpose`, `field`, or `break-glass-inactive` |
 
 A grant that ran its condition and did not match is in `denials`, not in `skipped`. Give a deny a `name` (`deny(permission, { name: 'lock' })`) and `denies[0].name` says which rule won; `MatchedGrant.name` carries it on `matched` and `grant` too.
 
@@ -184,7 +204,7 @@ const results = permdock.simulate([
   [permissions.post.update, post],
   [permissions.post.delete, post],
   [permissions.post.create],
-])
+]);
 // Decision[] in the same order
 ```
 
@@ -194,11 +214,11 @@ A third overload reads an [Arazzo](/docs/standards/arazzo) workflow and the appl
 
 ## Mapping decisions to other vocabularies
 
-| PermDock | AI SDK `toolApproval` | MCP tool result | HTTP | AuthZEN |
-| --- | --- | --- | --- | --- |
-| `granted` | `approved` | tool runs | 2xx | `decision: true` |
-| `denied` | `denied` with reason and alternatives | `isError: true`, refusal text plus `structuredContent` with denials and alternatives | `403` Problem Details `/denied` | `decision: false`, denials in `context` |
-| `approval-required` | `user-approval` | `input_required` URL request, or a refusal with `token` | `403` Problem Details `/approval-required` | `decision: false`, `context.permdock.outcome: 'approval-required'` |
+| PermDock            | AI SDK `toolApproval`                 | MCP tool result                                                                      | HTTP                                       | AuthZEN                                                            |
+| ------------------- | ------------------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------ | ------------------------------------------------------------------ |
+| `granted`           | `approved`                            | tool runs                                                                            | 2xx                                        | `decision: true`                                                   |
+| `denied`            | `denied` with reason and alternatives | `isError: true`, refusal text plus `structuredContent` with denials and alternatives | `403` Problem Details `/denied`            | `decision: false`, denials in `context`                            |
+| `approval-required` | `user-approval`                       | `input_required` URL request, or a refusal with `token`                              | `403` Problem Details `/approval-required` | `decision: false`, `context.permdock.outcome: 'approval-required'` |
 
 Each adapter page documents its exact translation; the [wire formats](/docs/concepts/wire-formats) page has the JSON.
 

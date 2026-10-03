@@ -16,28 +16,28 @@ permdock diff a.catalog.json b.catalog.json                     # two catalogs f
 
 Each input is either a `permissions.catalog.json` (any file ending in `.json`, validated with `parseCatalog`) or a module that exports `policy`, which the command turns into a catalog in memory with `buildCatalog`. A catalog written by `permdock collect` with `policy` configured carries a `grants` section ([catalog](/docs/cli/catalog#catalog-json-shape)); one written without the policy does not, and `diff` then compares permissions, scopes and roles only and says so.
 
-| Flag | Meaning |
-| --- | --- |
-| `--impact` | Load the fixtures and evaluate each one against both policies; both inputs must be modules. A fixture that was `granted` and no longer is counts as breaking (`access-lost`) |
+| Flag                | Meaning                                                                                                                                                                                                                                           |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--impact`          | Load the fixtures and evaluate each one against both policies; both inputs must be modules. A fixture that was `granted` and no longer is counts as breaking (`access-lost`)                                                                      |
 | `--fixtures <file>` | The fixture file for `--impact`; defaults to `rls.fixtures` in the config, then `rls.fixtures.json`. The format is the one [`rls verify`](/docs/cli/rls#verify) reads: `{ subject: { id, roles?, tenant?, memberships? }, row, newRow?, action }` |
-| `--json` | Print the report as JSON instead of text |
+| `--json`            | Print the report as JSON instead of text                                                                                                                                                                                                          |
 
 ## What is breaking
 
 A change is breaking when it can take a decision from `granted` to something else for some subject. The classification reads the grants' structure and does not evaluate rows, so it is conservative: a condition that changed is reported as narrowing even when it widened, because without data the command cannot tell. `--impact` is the precise answer for the subjects and rows the fixtures name.
 
-| Kind | Trigger |
-| --- | --- |
-| `permission-removed` | A permission key in `a` is absent from `b` |
-| `scope-removed` | A declared scope in `a` is absent from `b` |
-| `role-removed` | A role in `a` is absent from `b`; its grants are not listed again |
-| `allow-removed` | An allow with no counterpart in `b` (same permission, role, grantee and scope), on a permission and role that still exist |
-| `allow-narrowed` | An allow whose counterpart gained or changed a `where` or `check`, gained or changed an `approval`, lost fields, started later or ends earlier (`validFrom` / `validUntil`), gained or changed a `limit`, changed `purpose`, or became non-portable |
-| `deny-added` | A deny in `b` with no counterpart in `a` |
-| `deny-changed` | A deny whose body changed in any way, since a looser deny condition denies more rows |
-| `delegation-removed` | A policy delegation in `a` (same `from` and `to`) is absent from `b`; the agents it covered lose every delegated permission |
-| `delegation-narrowed` | A delegation whose counterpart lost permission keys or whose validity starts later or ends earlier |
-| `access-lost` | With `--impact`: a fixture that was `granted` under `a` and is `denied` or `approval-required` under `b` |
+| Kind                  | Trigger                                                                                                                                                                                                                                             |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `permission-removed`  | A permission key in `a` is absent from `b`                                                                                                                                                                                                          |
+| `scope-removed`       | A declared scope in `a` is absent from `b`                                                                                                                                                                                                          |
+| `role-removed`        | A role in `a` is absent from `b`; its grants are not listed again                                                                                                                                                                                   |
+| `allow-removed`       | An allow with no counterpart in `b` (same permission, role, grantee and scope), on a permission and role that still exist                                                                                                                           |
+| `allow-narrowed`      | An allow whose counterpart gained or changed a `where` or `check`, gained or changed an `approval`, lost fields, started later or ends earlier (`validFrom` / `validUntil`), gained or changed a `limit`, changed `purpose`, or became non-portable |
+| `deny-added`          | A deny in `b` with no counterpart in `a`                                                                                                                                                                                                            |
+| `deny-changed`        | A deny whose body changed in any way, since a looser deny condition denies more rows                                                                                                                                                                |
+| `delegation-removed`  | A policy delegation in `a` (same `from` and `to`) is absent from `b`; the agents it covered lose every delegated permission                                                                                                                         |
+| `delegation-narrowed` | A delegation whose counterpart lost permission keys or whose validity starts later or ends earlier                                                                                                                                                  |
+| `access-lost`         | With `--impact`: a fixture that was `granted` under `a` and is `denied` or `approval-required` under `b`                                                                                                                                            |
 
 Not breaking: an added permission, scope, role, allow or delegation; a removed deny; an approval or condition removed from an allow; a wider field list or validity window; more permission keys on a delegation; a role declaration change (`assignable`, `assigns`, `min`, `max` and so on), which is listed under `roles` as `~ name: declaration changed` but is not an access change on its own.
 
@@ -69,11 +69,11 @@ breaking (5)
 
 ## Exit codes
 
-| Code | Meaning |
-| --- | --- |
-| `0` | No breaking change (there may be non-breaking ones) |
-| `1` | At least one breaking change, including `access-lost` from `--impact` |
-| `2` | Usage error: fewer or more than two inputs, a missing file, an invalid catalog, `--impact` over a catalog file, or unreadable fixtures |
+| Code | Meaning                                                                                                                                |
+| ---- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `0`  | No breaking change (there may be non-breaking ones)                                                                                    |
+| `1`  | At least one breaking change, including `access-lost` from `--impact`                                                                  |
+| `2`  | Usage error: fewer or more than two inputs, a missing file, an invalid catalog, `--impact` over a catalog file, or unreadable fixtures |
 
 ## Why
 

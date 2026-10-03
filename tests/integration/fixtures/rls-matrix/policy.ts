@@ -1,24 +1,24 @@
-import { allow, definePolicy, deny, principal, role } from 'permdock';
+import { allow, definePolicy, deny, principal, role } from "permdock";
 
-import { permissions } from './permissions.ts';
+import { permissions } from "./permissions.ts";
 
 const { project, task } = permissions;
 
 export const policy = definePolicy(permissions, {
   roles: [
-    role('auditor', [allow([project.read, task.read])]),
+    role("auditor", [allow([project.read, task.read])]),
     role(
-      'admin',
+      "admin",
       [
         allow([project.read, project.update, project.delete]),
         allow([project.list, project.create]),
         allow([task.read, task.update, task.delete]),
         allow([task.list, task.create]),
       ],
-      { on: 'tenant' },
+      { on: "tenant" },
     ),
     role(
-      'member',
+      "member",
       [
         allow([project.read, task.read]),
         allow([project.list, task.list, task.create]),
@@ -28,10 +28,10 @@ export const policy = definePolicy(permissions, {
         }),
         deny(task.update, { where: { locked: true } }),
       ],
-      { on: 'tenant' },
+      { on: "tenant" },
     ),
-    role('viewer', [allow([project.read, task.read])], { on: 'tenant' }),
+    role("viewer", [allow([project.read, task.read])], { on: "tenant" }),
   ],
-  scopes: { tenant: { key: 'orgId' } },
+  scopes: { tenant: { key: "orgId" } },
   subject: () => null,
 });

@@ -1,10 +1,10 @@
-import { get } from 'svelte/store';
-import { describe, expect, it } from 'vitest';
+import { get } from "svelte/store";
+import { describe, expect, it } from "vitest";
 
-import { createPermDock } from '../../src/core/permdock.ts';
-import { approvalHeaders } from '../../src/react/headers.ts';
-import { createSvelteStore } from '../../src/svelte/context.ts';
-import { protectedView } from '../../src/svelte/protected.ts';
+import { createPermDock } from "../../src/core/permdock.ts";
+import { approvalHeaders } from "../../src/react/headers.ts";
+import { createSvelteStore } from "../../src/svelte/context.ts";
+import { protectedView } from "../../src/svelte/protected.ts";
 import {
   approvalFor,
   assignableFor,
@@ -17,40 +17,40 @@ import {
   subjectFor,
   sveltePermDock,
   tenantFor,
-} from '../../src/svelte/stores.ts';
+} from "../../src/svelte/stores.ts";
 import {
   memberUser,
   otherPost,
   ownPost,
   permissions as defs,
   policy,
-} from '../fixtures/quick-start.ts';
+} from "../fixtures/quick-start.ts";
 import {
   alice,
   ownProject,
   permissions as saas,
   policy as saasPolicy,
-} from '../fixtures/saas.ts';
+} from "../fixtures/saas.ts";
 
 async function memberSnapshot() {
   // SAFETY: memberUser is the quick-start policy's own user fixture; only the generic is erased.
   const server = await createPermDock(policy as never, memberUser);
   const snapshot = server.snapshot();
   if (snapshot instanceof Promise) {
-    throw new Error('expected JSON snapshot');
+    throw new Error("expected JSON snapshot");
   }
   return snapshot;
 }
 
-describe('permdock/svelte', () => {
-  it('answers portable grants from the snapshot without flashing deny', async () => {
+describe("permdock/svelte", () => {
+  it("answers portable grants from the snapshot without flashing deny", async () => {
     const snapshot = await memberSnapshot();
     const store = createSvelteStore({ snapshot });
     expect(protectedView(store, defs.post.update, ownPost).slot).toBe(
-      'default',
+      "default",
     );
     expect(protectedView(store, defs.post.update, otherPost).slot).toBe(
-      'fallback',
+      "fallback",
     );
     expect(
       get(permissionFor(store, defs.post.update, () => ownPost)).allowed,
@@ -60,10 +60,10 @@ describe('permdock/svelte', () => {
     ).toBe(false);
   });
 
-  it('exposes snapshot introspection through stores', async () => {
+  it("exposes snapshot introspection through stores", async () => {
     const snapshot = await memberSnapshot();
     const store = createSvelteStore({ snapshot });
-    const dock = sveltePermDock(store);
+    const permdock = sveltePermDock(store);
     const actions = get(
       permissionsFor(
         store,
@@ -80,39 +80,39 @@ describe('permdock/svelte', () => {
     const subject = get(subjectFor(store));
     const canEdit = get(permissionFor(store, defs.post.update, () => ownPost));
     expect(
-      `${canEdit.allowed}:${actions.granted.length}:${editable.length}:${editable.partial}:${tenant.tenant ?? 'none'}:${memberships.length}:${roles.roles.map((item) => item.key).join(',')}:${subject.simulated}:${dock.status()}`,
-    ).toContain('true:1:1:false');
-    expect(roles.roles.map((item) => item.key)).toContain('member');
+      `${canEdit.allowed}:${actions.granted.length}:${editable.length}:${editable.partial}:${tenant.tenant ?? "none"}:${memberships.length}:${roles.roles.map((item) => item.key).join(",")}:${subject.simulated}:${permdock.status()}`,
+    ).toContain("true:1:1:false");
+    expect(roles.roles.map((item) => item.key)).toContain("member");
     expect(subject.simulated).toBe(false);
-    expect(dock.status()).toBe('ready');
+    expect(permdock.status()).toBe("ready");
     expect(get(assignableFor(store))).toEqual([]);
     expect(get(assignablePermissionsFor(store))).toEqual([]);
     expect(get(approvalFor(store, () => canEdit.decision)).state).toBe(
-      'not-needed',
+      "not-needed",
     );
   });
 
-  it('decides <Protected> for another tenant through protectedView', async () => {
-    const server = await createPermDock(saasPolicy, alice, { tenant: 'acme' });
-    const snapshot = server.snapshot({ tenants: 'all' });
+  it("decides <Protected> for another tenant through protectedView", async () => {
+    const server = await createPermDock(saasPolicy, alice, { tenant: "acme" });
+    const snapshot = server.snapshot({ tenants: "all" });
     if (snapshot instanceof Promise) {
-      throw new Error('expected JSON snapshot');
+      throw new Error("expected JSON snapshot");
     }
-    const store = createSvelteStore({ snapshot, tenant: 'globex' });
-    const globexProject = { ...ownProject, id: 'g1', orgId: 'globex' };
+    const store = createSvelteStore({ snapshot, tenant: "globex" });
+    const globexProject = { ...ownProject, id: "g1", orgId: "globex" };
     const slots = [
-      protectedView(store, saas.project.update, ownProject, 'acme'),
-      protectedView(store, saas.project.update, globexProject, 'globex'),
+      protectedView(store, saas.project.update, ownProject, "acme"),
+      protectedView(store, saas.project.update, globexProject, "globex"),
     ].map((view) => [view.slot, view.status, view.allowed]);
     expect(slots).toEqual([
-      ['default', 'ready', true],
-      ['fallback', 'ready', false],
+      ["default", "ready", true],
+      ["fallback", "ready", false],
     ]);
   });
 
-  it('builds the approval resume header', () => {
-    expect(approvalHeaders('pd1.abc')).toEqual({
-      'PermDock-Approval': 'pd1.abc',
+  it("builds the approval resume header", () => {
+    expect(approvalHeaders("pd1.abc")).toEqual({
+      "PermDock-Approval": "pd1.abc",
     });
   });
 });

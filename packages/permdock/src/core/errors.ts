@@ -1,12 +1,12 @@
-import type { StandardSchemaV1 } from '@standard-schema/spec';
+import type { StandardSchemaV1 } from "@standard-schema/spec";
 
-import type { Decision } from './decision.ts';
-import type { Subject } from './subject.ts';
-import type { WireDenial } from './wire-denial.ts';
+import type { Decision } from "./decision.ts";
+import type { Subject } from "./subject.ts";
+import type { WireDenial } from "./wire-denial.ts";
 
-import { compact } from './compact.ts';
-import { approvalDigest, deniedDigest } from './digest.ts';
-import { wireDenials } from './wire-denial.ts';
+import { compact } from "./compact.ts";
+import { approvalDigest, deniedDigest } from "./digest.ts";
+import { wireDenials } from "./wire-denial.ts";
 
 /** Where and how a human approves; carries no secret. */
 export type ApprovalHint = {
@@ -36,11 +36,11 @@ export type ProblemDetails = {
   readonly plans?: readonly string[];
 };
 
-const PROBLEM_BASE = 'https://permdock.dev/problems';
+const PROBLEM_BASE = "https://permdock.dev/problems";
 
 export class PermDockDeniedError extends Error {
-  public override readonly name = 'PermDockDeniedError' as const;
-  public readonly decision: Extract<Decision, { readonly outcome: 'denied' }>;
+  public override readonly name = "PermDockDeniedError" as const;
+  public readonly decision: Extract<Decision, { readonly outcome: "denied" }>;
   public readonly permission: string;
   public readonly scope: string;
   public readonly resource: { readonly type: string; readonly id?: string };
@@ -49,7 +49,7 @@ export class PermDockDeniedError extends Error {
   public readonly digest: string;
 
   public constructor(input: {
-    readonly decision: Extract<Decision, { readonly outcome: 'denied' }>;
+    readonly decision: Extract<Decision, { readonly outcome: "denied" }>;
     readonly permission: string;
     readonly scope: string;
     readonly resource: { readonly type: string; readonly id?: string };
@@ -70,7 +70,7 @@ export class PermDockDeniedError extends Error {
   }): ProblemDetails {
     return compact<ProblemDetails>({
       type: `${PROBLEM_BASE}/denied`,
-      title: 'Permission denied',
+      title: "Permission denied",
       status: 403,
       detail: this.message,
       instance: options?.instance,
@@ -84,10 +84,10 @@ export class PermDockDeniedError extends Error {
 }
 
 export class PermDockApprovalRequiredError extends Error {
-  public override readonly name = 'PermDockApprovalRequiredError' as const;
+  public override readonly name = "PermDockApprovalRequiredError" as const;
   public readonly decision: Extract<
     Decision,
-    { readonly outcome: 'approval-required' }
+    { readonly outcome: "approval-required" }
   >;
   public readonly permission: string;
   public readonly scope: string;
@@ -100,7 +100,7 @@ export class PermDockApprovalRequiredError extends Error {
   public constructor(input: {
     readonly decision: Extract<
       Decision,
-      { readonly outcome: 'approval-required' }
+      { readonly outcome: "approval-required" }
     >;
     readonly permission: string;
     readonly scope: string;
@@ -122,7 +122,7 @@ export class PermDockApprovalRequiredError extends Error {
   }): ProblemDetails {
     return compact<ProblemDetails>({
       type: `${PROBLEM_BASE}/approval-required`,
-      title: 'Approval required',
+      title: "Approval required",
       status: 403,
       detail: this.message,
       instance: options?.instance,
@@ -136,12 +136,12 @@ export class PermDockApprovalRequiredError extends Error {
 }
 
 export class PermDockValidationError extends Error {
-  public override readonly name = 'PermDockValidationError' as const;
+  public override readonly name = "PermDockValidationError" as const;
   public readonly code:
-    | 'invalid-data'
-    | 'async-schema'
-    | 'no-schema'
-    | 'non-portable-condition';
+    | "invalid-data"
+    | "async-schema"
+    | "no-schema"
+    | "non-portable-condition";
   public readonly permission: string;
   public readonly resource: string;
   public readonly issues: readonly StandardSchemaV1.Issue[];
@@ -149,10 +149,10 @@ export class PermDockValidationError extends Error {
 
   public constructor(input: {
     readonly code:
-      | 'invalid-data'
-      | 'async-schema'
-      | 'no-schema'
-      | 'non-portable-condition';
+      | "invalid-data"
+      | "async-schema"
+      | "no-schema"
+      | "non-portable-condition";
     readonly permission: string;
     readonly resource: string;
     readonly issues?: readonly StandardSchemaV1.Issue[];
@@ -172,7 +172,7 @@ export class PermDockValidationError extends Error {
   }): ProblemDetails {
     return compact<ProblemDetails>({
       type: `${PROBLEM_BASE}/validation`,
-      title: 'Invalid resource data',
+      title: "Invalid resource data",
       status: 400,
       detail: this.message,
       instance: options?.instance,
@@ -184,10 +184,10 @@ export class PermDockValidationError extends Error {
 
 /** The `name` of the deny grant a `deny` denial carries in `detail`, if any. */
 function denyName(detail: unknown): string | undefined {
-  if (detail === null || typeof detail !== 'object' || !('name' in detail)) {
+  if (detail === null || typeof detail !== "object" || !("name" in detail)) {
     return undefined;
   }
-  return typeof detail.name === 'string' ? detail.name : undefined;
+  return typeof detail.name === "string" ? detail.name : undefined;
 }
 
 export function deniedMessage(
@@ -203,17 +203,17 @@ export function deniedMessage(
   const clauses = denials
     .map((denial) => {
       const name =
-        denial.reason === 'deny' ? denyName(denial.detail) : undefined;
+        denial.reason === "deny" ? denyName(denial.detail) : undefined;
       return name === undefined
-        ? `${denial.role ?? 'none'} (${denial.reason})`
-        : `${denial.role ?? 'none'} (${denial.reason} '${name}')`;
+        ? `${denial.role ?? "none"} (${denial.reason})`
+        : `${denial.role ?? "none"} (${denial.reason} '${name}')`;
     })
-    .join(', ');
+    .join(", ");
   const alt =
     alternatives.length === 0
-      ? ''
-      : ` Alternatives: ${alternatives.join(', ')}.`;
-  return `${permission} denied for subject ${subjectId ?? 'anonymous'}: ${clauses}.${alt}`;
+      ? ""
+      : ` Alternatives: ${alternatives.join(", ")}.`;
+  return `${permission} denied for subject ${subjectId ?? "anonymous"}: ${clauses}.${alt}`;
 }
 
 export function approvalMessage(
@@ -225,25 +225,25 @@ export function approvalMessage(
 }
 
 export type RevokedCode =
-  | 'session-revoked'
-  | 'expired'
-  | 'denied'
-  | 'subject-changed';
+  | "session-revoked"
+  | "expired"
+  | "denied"
+  | "subject-changed";
 
 /**
  * The `reason` of a long-lived connection's aborted `signal`. `denied` carries
  * the decision that re-denied the permission the connection was opened for.
  */
 export class PermDockRevokedError extends Error {
-  public override readonly name = 'PermDockRevokedError' as const;
+  public override readonly name = "PermDockRevokedError" as const;
   public readonly code: RevokedCode;
   public readonly permission?: string;
-  public readonly decision?: Exclude<Decision, { readonly outcome: 'granted' }>;
+  public readonly decision?: Exclude<Decision, { readonly outcome: "granted" }>;
 
   public constructor(input: {
     readonly code: RevokedCode;
     readonly permission?: string;
-    readonly decision?: Exclude<Decision, { readonly outcome: 'granted' }>;
+    readonly decision?: Exclude<Decision, { readonly outcome: "granted" }>;
   }) {
     super(`PermDock: connection ended (${input.code}).`);
     this.code = input.code;
@@ -258,23 +258,23 @@ export class PermDockRevokedError extends Error {
   public toProblemDetails(options?: {
     readonly instance?: string;
   }): ProblemDetails {
-    if (this.code === 'denied') {
+    if (this.code === "denied") {
       return compact<ProblemDetails>({
         type: `${PROBLEM_BASE}/denied`,
-        title: 'Permission denied',
+        title: "Permission denied",
         status: 403,
         detail: this.code,
         instance: options?.instance,
         permission: this.permission,
         denials:
-          this.decision?.outcome === 'denied'
+          this.decision?.outcome === "denied"
             ? wireDenials(this.decision.denials)
             : undefined,
       });
     }
     return compact<ProblemDetails>({
       type: `${PROBLEM_BASE}/unauthenticated`,
-      title: 'Authorization ended',
+      title: "Authorization ended",
       status: 401,
       detail: this.code,
       instance: options?.instance,

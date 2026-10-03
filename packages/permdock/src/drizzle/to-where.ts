@@ -1,27 +1,27 @@
-import type { SQL } from 'drizzle-orm';
+import type { SQL } from "drizzle-orm";
 
-import type { Condition } from '../conditions/ast.ts';
-import type { WhereResult } from '../core/permdock.ts';
-import type { Subject } from '../core/subject.ts';
+import type { Condition } from "../conditions/ast.ts";
+import type { WhereResult } from "../core/permdock.ts";
+import type { Subject } from "../core/subject.ts";
 import type {
   DrizzleOperators,
   DrizzleWhereOptions,
   DrizzleWithSubjectOptions,
-} from './types.ts';
+} from "./types.ts";
 
 import {
   type CompiledExists,
   type CompiledWhere,
   compileWhere,
   escapeLike,
-} from '../conditions/compile.ts';
-import { type RowCheck, rowCheckFrom } from '../conditions/row-check.ts';
+} from "../conditions/compile.ts";
+import { type RowCheck, rowCheckFrom } from "../conditions/row-check.ts";
 import {
   statementTemplate,
   subjectStatements,
-} from '../conditions/subject-settings.ts';
-import { compact } from '../core/compact.ts';
-import { assertSafeKey } from '../core/paths.ts';
+} from "../conditions/subject-settings.ts";
+import { compact } from "../core/compact.ts";
+import { assertSafeKey } from "../core/paths.ts";
 
 function loadOperators(injected?: DrizzleOperators): DrizzleOperators {
   if (injected !== undefined) {
@@ -36,7 +36,7 @@ function loadOperators(injected?: DrizzleOperators): DrizzleOperators {
         readonly getBuiltinModule?: (id: string) => unknown;
       };
     }
-  ).process?.getBuiltinModule?.('node:module') as
+  ).process?.getBuiltinModule?.("node:module") as
     | {
         readonly createRequire: (
           from: string,
@@ -45,18 +45,18 @@ function loadOperators(injected?: DrizzleOperators): DrizzleOperators {
     | undefined;
   try {
     if (loader === undefined) {
-      throw new Error('no module loader');
+      throw new Error("no module loader");
     }
-    return loader.createRequire(import.meta.url)('drizzle-orm');
+    return loader.createRequire(import.meta.url)("drizzle-orm");
   } catch {
     throw new Error(
-      'PermDock: permdock/drizzle requires the drizzle-orm peer; pass `operators` on runtimes without require',
+      "PermDock: permdock/drizzle requires the drizzle-orm peer; pass `operators` on runtimes without require",
     );
   }
 }
 
 function ident(name: string): string {
-  assertSafeKey(name, 'sql identifier');
+  assertSafeKey(name, "sql identifier");
   if (!/^[A-Za-z_][A-Za-z0-9_]*$/u.test(name)) {
     throw new Error(`PermDock: unsafe SQL identifier '${name}'`);
   }
@@ -68,7 +68,7 @@ function column(
   field: string,
   columns: Readonly<Record<string, unknown>> | undefined,
 ): unknown {
-  assertSafeKey(field, 'condition field');
+  assertSafeKey(field, "condition field");
   // SAFETY: an own-key read on an object; the value is checked for undefined or function below.
   const mapped =
     (columns !== undefined && Object.hasOwn(columns, field)
@@ -77,7 +77,7 @@ function column(
     (Object.hasOwn(table, field)
       ? (table as Readonly<Record<string, unknown>>)[field]
       : undefined);
-  if (mapped === undefined || typeof mapped === 'function') {
+  if (mapped === undefined || typeof mapped === "function") {
     throw new Error(`PermDock: unknown column '${field}'`);
   }
   return mapped;
@@ -85,11 +85,17 @@ function column(
 
 /** Drizzle's Postgres array columns (`text().array()`) report `dataType: 'array'`. */
 function isArrayColumn(col: unknown): boolean {
-  // SAFETY: checked to be a non-null object first; dataType is only compared.
+  if (col === null || typeof col !== "object") {
+    return false;
+  }
+  // SAFETY: checked to be a non-null object first; both fields are only compared.
+  const { dataType, dimensions } = col as {
+    readonly dataType?: unknown;
+    readonly dimensions?: unknown;
+  };
+  // drizzle-orm 0.x sets `dataType: 'array'`; 1.x keeps the element type and counts `dimensions`.
   return (
-    col !== null &&
-    typeof col === 'object' &&
-    (col as { readonly dataType?: unknown }).dataType === 'array'
+    dataType === "array" || (typeof dimensions === "number" && dimensions > 0)
   );
 }
 
@@ -97,19 +103,19 @@ function isArrayColumn(col: unknown): boolean {
 type SqlPart = { readonly text: string } | { readonly value: unknown };
 
 function tagged(parts: readonly SqlPart[], ops: DrizzleOperators): unknown {
-  const strings: string[] = [''];
+  const strings: string[] = [""];
   const values: unknown[] = [];
   for (const part of parts) {
-    if ('text' in part) {
+    if ("text" in part) {
       strings[strings.length - 1] += part.text;
     } else {
       values.push(part.value);
-      strings.push('');
+      strings.push("");
     }
   }
   // SAFETY: a string array becomes a TemplateStringsArray once raw is defined on the next line.
   const template = strings as unknown as TemplateStringsArray;
-  Object.defineProperty(template, 'raw', { value: strings });
+  Object.defineProperty(template, "raw", { value: strings });
   return ops.sql(template, ...values);
 }
 
@@ -132,18 +138,18 @@ function existsSql(
     parts.push({ text: ` and ${m(node.role)} in (` });
     for (const [index, role] of node.roles.entries()) {
       if (index > 0) {
-        parts.push({ text: ', ' });
+        parts.push({ text: ", " });
       }
       parts.push({ value: role });
     }
-    parts.push({ text: ')' });
+    parts.push({ text: ")" });
   }
   if (node.expiresAt !== undefined) {
     const expires = m(node.expiresAt);
     parts.push(
       { text: ` and (${expires} is null or ${expires} > ` },
       { value: node.now },
-      { text: ')' },
+      { text: ")" },
     );
   }
   if (node.tenantColumn !== undefined && node.tenantValue !== undefined) {
@@ -151,7 +157,7 @@ function existsSql(
     parts.push(
       { text: ` and (${tenant} is null or ${tenant} = ` },
       { value: node.tenantValue },
-      { text: ')' },
+      { text: ")" },
     );
   }
   if (node.resourceColumn !== undefined && node.resourceValue !== undefined) {
@@ -160,7 +166,7 @@ function existsSql(
       { value: node.resourceValue },
     );
   }
-  parts.push({ text: ')' });
+  parts.push({ text: ")" });
   return tagged(parts, ops);
 }
 
@@ -171,14 +177,14 @@ function containsSql(
 ): unknown {
   if (isArrayColumn(col)) {
     return tagged(
-      [{ value }, { text: ' = any(' }, { value: col }, { text: ')' }],
+      [{ value }, { text: " = any(" }, { value: col }, { text: ")" }],
       ops,
     );
   }
-  if (typeof value === 'string') {
+  if (typeof value === "string") {
     return ops.like(col, `%${escapeLike(value)}%`);
   }
-  return tagged([{ value: col }, { text: ' @> ' }, { value }], ops);
+  return tagged([{ value: col }, { text: " @> " }, { value }], ops);
 }
 
 function render(
@@ -188,61 +194,61 @@ function render(
   ops: DrizzleOperators,
 ): unknown {
   switch (node.kind) {
-    case 'never':
+    case "never":
       return ops.sql`false`;
-    case 'always':
+    case "always":
       return ops.sql`true`;
-    case 'isNull': {
+    case "isNull": {
       const col = column(table, node.field, options.columns);
       return node.negated ? ops.isNotNull(col) : ops.isNull(col);
     }
-    case 'and':
+    case "and":
       return ops.and(
         ...node.items.map((item) => render(item, table, options, ops)),
       );
-    case 'or':
+    case "or":
       return ops.or(
         ...node.items.map((item) => render(item, table, options, ops)),
       );
-    case 'not':
+    case "not":
       return ops.not(render(node.item, table, options, ops));
-    case 'exists':
+    case "exists":
       return existsSql(node, table, options, ops);
-    case 'sql':
+    case "sql":
       return tagged(
         node.parts.map((part): SqlPart => {
-          if ('text' in part) {
+          if ("text" in part) {
             return part;
           }
-          if ('column' in part) {
+          if ("column" in part) {
             return { value: column(table, part.column, options.columns) };
           }
-          return { value: 'subject' in part ? node.subject : part.value };
+          return { value: "subject" in part ? node.subject : part.value };
         }),
         ops,
       );
-    case 'compare': {
+    case "compare": {
       const col = column(table, node.field, options.columns);
       switch (node.op) {
-        case 'eq':
+        case "eq":
           return ops.eq(col, node.value);
-        case 'ne':
+        case "ne":
           return ops.ne(col, node.value);
-        case 'gt':
+        case "gt":
           return ops.gt(col, node.value);
-        case 'gte':
+        case "gte":
           return ops.gte(col, node.value);
-        case 'lt':
+        case "lt":
           return ops.lt(col, node.value);
-        case 'lte':
+        case "lte":
           return ops.lte(col, node.value);
-        case 'in':
+        case "in":
           // SAFETY: compileWhere emits in and notIn compares only with a non-empty array value.
           return ops.inArray(col, node.value as readonly unknown[]);
-        case 'notIn':
+        case "notIn":
           // SAFETY: compileWhere emits in and notIn compares only with a non-empty array value.
           return ops.notInArray(col, node.value as readonly unknown[]);
-        case 'contains':
+        case "contains":
           return containsSql(col, node.value, ops);
         /* v8 ignore next 4 */
         default: {

@@ -7,10 +7,10 @@ export type CodeSnippet = {
 };
 
 export const heroSnippet: CodeSnippet = {
-  id: 'hero',
-  label: 'decide',
-  filename: 'decide.ts',
-  language: 'ts',
+  id: "hero",
+  label: "decide",
+  filename: "decide.ts",
+  language: "ts",
   code: `import { createPermDock } from 'permdock'
 import { permissions, policy } from './policy'
 
@@ -24,10 +24,10 @@ permdock.decide(permissions.post.delete, post)
 
 export const surfaceSnippets: readonly CodeSnippet[] = [
   {
-    id: 'next',
-    label: 'Next.js',
-    filename: 'permdock/server.ts',
-    language: 'ts',
+    id: "next",
+    label: "Next.js",
+    filename: "permdock/server.ts",
+    language: "ts",
     code: `import { createPermDock } from 'permdock/next'
 
 export const { getPermDock, PermDockProvider, permdockHandler } =
@@ -40,10 +40,10 @@ permdock.assert(permissions.post.update, post)
 `,
   },
   {
-    id: 'react',
-    label: 'React',
-    filename: 'edit-button.tsx',
-    language: 'tsx',
+    id: "react",
+    label: "React",
+    filename: "edit-button.tsx",
+    language: "tsx",
     code: `import { PermDockProvider, Protected } from 'permdock/react'
 
 <PermDockProvider snapshot={snapshot} endpoint="/api/permdock">
@@ -54,10 +54,10 @@ permdock.assert(permissions.post.update, post)
 `,
   },
   {
-    id: 'hono',
-    label: 'Hono',
-    filename: 'app.ts',
-    language: 'ts',
+    id: "hono",
+    label: "Hono",
+    filename: "app.ts",
+    language: "ts",
     code: `import { createPermDock } from 'permdock/hono'
 
 export const { permdock, protect } = createPermDock(policy, {
@@ -72,10 +72,10 @@ app.delete(
 `,
   },
   {
-    id: 'mcp',
-    label: 'MCP',
-    filename: 'server.ts',
-    language: 'ts',
+    id: "mcp",
+    label: "MCP",
+    filename: "server.ts",
+    language: "ts",
     code: `import { createPermDock } from 'permdock/mcp'
 
 const { protectServer } = createPermDock(policy, {
@@ -90,10 +90,10 @@ protectServer(server).registerTool(
 `,
   },
   {
-    id: 'ai-sdk',
-    label: 'AI SDK',
-    filename: 'agent.ts',
-    language: 'ts',
+    id: "ai-sdk",
+    label: "AI SDK",
+    filename: "agent.ts",
+    language: "ts",
     code: `import { createPermDock } from 'permdock/ai-sdk'
 
 const { toolApproval } = createPermDock(policy, {
@@ -105,10 +105,10 @@ generateText({ model, tools, toolApproval })
 `,
   },
   {
-    id: 'rls',
-    label: 'RLS',
-    filename: 'terminal',
-    language: 'bash',
+    id: "rls",
+    label: "RLS",
+    filename: "terminal",
+    language: "bash",
     code: `permdock rls generate --target drizzle --dialect supabase
 permdock rls import --db $DATABASE_URL --out src/permissions.generated.ts
 permdock rls verify --db $DATABASE_URL
@@ -118,30 +118,30 @@ permdock rls verify --db $DATABASE_URL
 
 export const portableSnippets: readonly CodeSnippet[] = [
   {
-    id: 'memory',
-    label: 'In memory',
-    filename: 'filter.ts',
-    language: 'ts',
+    id: "memory",
+    label: "In memory",
+    filename: "filter.ts",
+    language: "ts",
     code: `allow(permissions.post.update, { to: relation(permissions.post, 'author') })
 
 permdock.filter(permissions.post.update, posts)
 `,
   },
   {
-    id: 'drizzle',
-    label: 'Drizzle',
-    filename: 'where.ts',
-    language: 'ts',
+    id: "drizzle",
+    label: "Drizzle",
+    filename: "where.ts",
+    language: "ts",
     code: `import { toWhere } from 'permdock/drizzle'
 
 db.select().from(posts).where(permdock.where(permissions.post.read))
 `,
   },
   {
-    id: 'rls-sql',
-    label: 'Postgres RLS',
-    filename: 'posts.sql',
-    language: 'sql',
+    id: "rls-sql",
+    label: "Postgres RLS",
+    filename: "posts.sql",
+    language: "sql",
     code: `CREATE POLICY post_update_author ON posts
   FOR UPDATE
   USING (author_id = current_setting('request.jwt.claim.sub', true));

@@ -1,64 +1,64 @@
-import type { RelatedCondition } from '../conditions/ast.ts';
-import type { CustomGrant } from './custom-roles.ts';
-import type { Decision } from './decision.ts';
-import type { EvalEnv } from './events.ts';
-import type { Grantee, RelationGrantee, RoleGrantee } from './grantee.ts';
+import type { RelatedCondition } from "../conditions/ast.ts";
+import type { CustomGrant } from "./custom-roles.ts";
+import type { Decision } from "./decision.ts";
+import type { EvalEnv } from "./events.ts";
+import type { Grantee, RelationGrantee, RoleGrantee } from "./grantee.ts";
 import type {
   MembershipSource,
   RelationGroup,
   RelationHolder,
-} from './interfaces.ts';
-import type { Permission, ResourceNode } from './permissions.ts';
-import type { Grant, Policy } from './policy.ts';
-import type { ReadHolder, RelationCache, RelationReader } from './relations.ts';
-import type { Scope } from './scopes.ts';
-import type { Membership, Subject } from './subject.ts';
+} from "./interfaces.ts";
+import type { Permission, ResourceNode } from "./permissions.ts";
+import type { Grant, Policy } from "./policy.ts";
+import type { ReadHolder, RelationCache, RelationReader } from "./relations.ts";
+import type { Scope } from "./scopes.ts";
+import type { Membership, Subject } from "./subject.ts";
 
-import { compact } from './compact.ts';
-import { evaluate } from './evaluate.ts';
-import { emptyListeners } from './events.ts';
-import { freezeDeep } from './freeze.ts';
-import { flattenGrantee, relationCondition } from './grantee.ts';
-import { ownGet } from './paths.ts';
+import { compact } from "./compact.ts";
+import { byCodePoint } from "./compare.ts";
+import { evaluate } from "./evaluate.ts";
+import { emptyListeners } from "./events.ts";
+import { freezeDeep } from "./freeze.ts";
+import { flattenGrantee, relationCondition } from "./grantee.ts";
+import { ownGet } from "./paths.ts";
 import {
   expandRelation,
   getResource,
   isEdgeRelation,
   isFieldRelation,
   isPrincipalRelation,
-} from './permissions.ts';
-import { grantList } from './policy.ts';
+} from "./permissions.ts";
 import {
   DEFAULT_GROUP_DEPTH,
   pendingRelations,
   relationId,
   relationWalk,
-} from './relations.ts';
+} from "./relations.ts";
 import {
   findScope,
   normalizeMemberships,
   resolveScope,
   rootScope,
   scopeList,
-} from './scopes.ts';
-import { nowSeconds } from './tenancy.ts';
+} from "./scopes.ts";
+import { nowSeconds } from "./tenancy.ts";
 
 /** One way a principal holds a permission on an object. */
 export type HoldingVia =
   | {
-      readonly kind: 'role';
+      readonly kind: "role";
       readonly role: string;
       readonly membership: Membership;
     }
   | {
-      readonly kind: 'relation';
+      readonly kind: "relation";
       readonly resource: string;
       readonly relation: string;
       /** The instance the relation is held on: the object or one of its ancestors. */
       readonly id: string;
     }
   | {
-      readonly kind: 'share';
+      readonly kind: "share";
       readonly resource: string;
       readonly relation: string;
       readonly id: string;
@@ -129,18 +129,18 @@ async function walkHolders(
   cache: RelationCache,
 ): Promise<readonly NodeHolders[] | undefined> {
   let walk = relationWalk(condition, row, reader);
-  if (walk === 'relation-unavailable') {
+  if (walk === "relation-unavailable") {
     await settle(cache);
     walk = relationWalk(condition, row, reader);
   }
   if (walk === undefined) {
     return [];
   }
-  if (walk === 'relation-depth' || walk === 'relation-unavailable') {
+  if (walk === "relation-depth" || walk === "relation-unavailable") {
     return undefined;
   }
   const { ids } = walk;
-  const read = (): ReturnType<RelationReader['holders']>[] =>
+  const read = (): ReturnType<RelationReader["holders"]>[] =>
     ids.map((id) =>
       reader.holders({
         resource: condition.resource,
@@ -149,14 +149,14 @@ async function walkHolders(
       }),
     );
   let answers = read();
-  if (answers.includes('pending')) {
+  if (answers.includes("pending")) {
     await settle(cache);
     answers = read();
   }
   const out: NodeHolders[] = [];
   for (const [index, answer] of answers.entries()) {
     const id = ids[index];
-    if (answer === 'pending' || answer === 'failed' || id === undefined) {
+    if (answer === "pending" || answer === "failed" || id === undefined) {
       return undefined;
     }
     out.push({ id, holders: answer });
@@ -169,7 +169,7 @@ async function discoverRole(
   allow: boolean,
   ctx: Discovery,
 ): Promise<void> {
-  if (typeof item.scope !== 'string' || item.scope === 'global') {
+  if (typeof item.scope !== "string" || item.scope === "global") {
     ctx.incomplete();
     return;
   }
@@ -189,7 +189,7 @@ async function discoverRole(
     ctx.add(
       member.id,
       allow
-        ? { kind: 'role', role: item.role, membership: member.membership }
+        ? { kind: "role", role: item.role, membership: member.membership }
         : undefined,
       member.membership,
     );
@@ -207,10 +207,10 @@ function holderVia(
   group?: RelationGroup,
 ): HoldingVia {
   if (!share) {
-    return { kind: 'relation', ...at };
+    return { kind: "relation", ...at };
   }
   return compact<HoldingVia>({
-    kind: 'share',
+    kind: "share",
     ...at,
     expiresAt: holder.expiresAt,
     group,
@@ -243,18 +243,18 @@ async function groupMembers(
     return { members: known, cut: false };
   }
   let holders = ctx.reader.holders(group);
-  if (holders === 'pending') {
+  if (holders === "pending") {
     await settle(ctx.cache);
     holders = ctx.reader.holders(group);
   }
-  if (holders === 'pending' || holders === 'failed') {
+  if (holders === "pending" || holders === "failed") {
     return undefined;
   }
   const path = new Set(seen).add(key);
   const out = new Set<string>();
   let cut = false;
   for (const holder of holders) {
-    if ('principal' in holder) {
+    if ("principal" in holder) {
       out.add(holder.principal.id);
       continue;
     }
@@ -314,7 +314,7 @@ async function discoverGraph(
         id: entry.id,
       };
       const share = isEdgeRelation(node?.relations[holder.relation]);
-      if ('principal' in holder) {
+      if ("principal" in holder) {
         ctx.add(
           holder.principal.id,
           allow ? holderVia(holder, at, share) : undefined,
@@ -354,7 +354,7 @@ async function discoverRelation(
   const condition = relationCondition(item, ctx.resource, ctx.scopes, {
     resources: ctx.policy.resources,
   });
-  if (condition?.op === 'related') {
+  if (condition?.op === "related") {
     await discoverGraph(condition, allow, ctx);
     return;
   }
@@ -368,10 +368,10 @@ async function discoverRelation(
   }
   const via: HoldingVia | undefined = allow
     ? {
-        kind: 'relation',
+        kind: "relation",
         resource: ctx.permission.resource,
         relation: item.relation,
-        id: relationId(ownGet(ctx.row, ctx.resource?.id ?? 'id')) ?? '',
+        id: relationId(ownGet(ctx.row, ctx.resource?.id ?? "id")) ?? "",
       }
     : undefined;
   if (isFieldRelation(spec) && spec.memberOf !== undefined) {
@@ -401,17 +401,17 @@ async function discoverRelation(
 }
 
 function discover(grant: Grant, item: Grantee, ctx: Discovery): Promise<void> {
-  const allow = grant.effect === 'allow';
+  const allow = grant.effect === "allow";
   switch (item.kind) {
-    case 'role':
+    case "role":
       return discoverRole(item, allow, ctx);
-    case 'relation':
+    case "relation":
       return discoverRelation(item, allow, ctx);
-    case 'anyone':
-    case 'authenticated':
-    case 'plan':
-    case 'actor':
-    case 'assurance':
+    case "anyone":
+    case "authenticated":
+    case "plan":
+    case "actor":
+    case "assurance":
       ctx.incomplete();
       return Promise.resolve();
     default: {
@@ -430,7 +430,7 @@ function unknownKind(_item: never, ctx: Discovery): Promise<void> {
 function memberLister(
   source: MembershipSource | undefined,
   scopes: readonly Scope[],
-): Discovery['list'] {
+): Discovery["list"] {
   const listed = new Map<string, Promise<readonly Member[] | null>>();
   const load = async (
     scope: string,
@@ -442,7 +442,7 @@ function memberLister(
     try {
       const entries = await source.list({ scope, id });
       return entries.flatMap((entry) =>
-        typeof entry.principal?.id === 'string'
+        typeof entry.principal?.id === "string"
           ? normalizeMemberships([entry.membership], scopes).map(
               (membership) => ({ id: entry.principal.id, membership }),
             )
@@ -472,9 +472,9 @@ export async function whoCan(input: {
 }): Promise<WhoCan> {
   const { policy, permission, row } = input;
   if (
-    permission.kind !== 'instance' ||
+    permission.kind !== "instance" ||
     row === null ||
-    typeof row !== 'object'
+    typeof row !== "object"
   ) {
     return freezeDeep({
       permission: permission.key,
@@ -514,11 +514,9 @@ export async function whoCan(input: {
     },
   };
   await Promise.all(
-    grantList(policy)
-      .filter((grant) => grant.permission.key === permission.key)
-      .flatMap((grant) =>
-        flattenGrantee(grant.to).map((item) => discover(grant, item, ctx)),
-      ),
+    (policy.index.grantsByKey.get(permission.key) ?? []).flatMap((grant) =>
+      flattenGrantee(grant.to).map((item) => discover(grant, item, ctx)),
+    ),
   );
   const root = rootScope(scopes);
   const tenantKey =
@@ -540,7 +538,7 @@ export async function whoCan(input: {
   };
   const now = nowSeconds();
   const ordered = [...found.entries()].toSorted(([a], [b]) =>
-    a.localeCompare(b),
+    byCodePoint(a, b),
   );
   const decideAll = (): readonly Decision[] =>
     ordered.map(([id, entry]) => {
@@ -558,7 +556,7 @@ export async function whoCan(input: {
         subject,
         permission,
         row,
-        { source: 'simulate', trusted: true, now },
+        { source: "simulate", trusted: true, now },
         env,
       );
     });
@@ -570,13 +568,13 @@ export async function whoCan(input: {
   const holders: Holder[] = [];
   for (const [index, [id, entry]] of ordered.entries()) {
     const decision = decisions[index];
-    if (decision === undefined || decision.outcome === 'denied') {
+    if (decision === undefined || decision.outcome === "denied") {
       if (
-        decision?.outcome === 'denied' &&
+        decision?.outcome === "denied" &&
         decision.denials.some(
           (denial) =>
-            denial.reason === 'relation-unavailable' ||
-            denial.reason === 'relation-depth',
+            denial.reason === "relation-unavailable" ||
+            denial.reason === "relation-depth",
         )
       ) {
         complete = false;

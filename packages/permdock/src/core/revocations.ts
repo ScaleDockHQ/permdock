@@ -3,7 +3,7 @@ export type RevocationEvent = {
   readonly session?: string;
   readonly tenant?: string;
   /** `session-revoked` ends a connection; `changed` makes it re-resolve its subject. */
-  readonly kind: 'session-revoked' | 'changed';
+  readonly kind: "session-revoked" | "changed";
 };
 
 export type RevocationListener = (event: RevocationEvent) => void;
@@ -18,17 +18,17 @@ export type RevocationFeed = {
 };
 
 function isRevocationEvent(value: unknown): value is RevocationEvent {
-  if (value === null || typeof value !== 'object') {
+  if (value === null || typeof value !== "object") {
     return false;
   }
   // SAFETY: value is a non-null object checked above; every field is type-checked below.
   const event = value as Record<string, unknown>;
   return (
-    typeof event['principal'] === 'string' &&
-    event['principal'].length > 0 &&
-    (event['kind'] === 'session-revoked' || event['kind'] === 'changed') &&
-    (event['session'] === undefined || typeof event['session'] === 'string') &&
-    (event['tenant'] === undefined || typeof event['tenant'] === 'string')
+    typeof event["principal"] === "string" &&
+    event["principal"].length > 0 &&
+    (event["kind"] === "session-revoked" || event["kind"] === "changed") &&
+    (event["session"] === undefined || typeof event["session"] === "string") &&
+    (event["tenant"] === undefined || typeof event["tenant"] === "string")
   );
 }
 
@@ -44,7 +44,7 @@ export function memoryRevocationFeed(): RevocationFeed {
     },
     revoke(event: RevocationEvent): void {
       if (!isRevocationEvent(event)) {
-        throw new TypeError('PermDock: invalid revocation event.');
+        throw new TypeError("PermDock: invalid revocation event.");
       }
       const frozen = Object.freeze({ ...event });
       for (const listener of listeners) {

@@ -40,11 +40,11 @@ Three files and one guard: `src/permissions.ts` (definitions), `src/policy.ts` (
      definePlans,
      resource,
      crud,
-   } from 'permdock';
-   import { Post } from './schemas';
+   } from "permdock";
+   import { Post } from "./schemas";
 
    export const permissions = definePermissions({
-     post: resource(Post, crud({ relations: { author: 'authorId' } })),
+     post: resource(Post, crud({ relations: { author: "authorId" } })),
    });
    export const roles = defineRoles({ member: {}, admin: {} });
    export const plans = definePlans({ pro: {} });
@@ -55,19 +55,19 @@ Three files and one guard: `src/permissions.ts` (definitions), `src/policy.ts` (
 3. **Policy.** Create `src/policy.ts`. Prefer `grants` with `to:` selectors (`anyone()`, `authenticated()`, `relation()`, a role or plan leaf, `actor()`, `assurance()`); `role(roles.member, …)` sugar also works.
 
    ```ts
-   import { definePolicy, role, allow, principal, relation } from 'permdock';
-   import { permissions, roles } from './permissions';
+   import { definePolicy, role, allow, principal, relation } from "permdock";
+   import { permissions, roles } from "./permissions";
 
    const member = role(roles.member, [
      allow(permissions.post.read),
      allow(permissions.post.list),
      allow(permissions.post.create),
      allow(permissions.post.update, {
-       to: relation(permissions.post, 'author'),
+       to: relation(permissions.post, "author"),
      }),
      allow(permissions.post.delete, {
        where: { authorId: principal.id },
-       approval: 'human',
+       approval: "human",
      }),
    ]);
 

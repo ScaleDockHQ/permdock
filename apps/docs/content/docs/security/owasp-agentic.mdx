@@ -11,18 +11,18 @@ The names below are the official entry names, checked against the OWASP GenAI Se
 
 ## Mapping table
 
-| ID | Name | PermDock mitigation |
-| --- | --- | --- |
-| ASI01 | Agent Goal Hijack | A hijacked goal still runs through the same `decide`: subjects come from verified credentials, never from model output; tool arguments are validated at the boundary; destructive permissions carry `approval: 'human'`, so an injected instruction reaches a person before it reaches data. PermDock does not detect injection. |
-| ASI02 | Tool Misuse | `permission` on each tool (scope, condition, `approval`, `limit`); boundary validation of arguments; `list_tools` and `capabilityMiddleware` filtering; `simulate()` pre-flight; `denied` with `alternatives`; see below |
-| ASI03 | Identity and Privilege Abuse | Two-principal subject (`principal`, `actor`, `delegation`); decision = principal grants ∩ delegation; monotonic attenuation across hops; `actor` in every audit event; see below |
-| ASI04 | Agentic Supply Chain Vulnerabilities | A tool or MCP server added at runtime is not callable until registered with a `permission`, and a generated server bound through `x-permdock-permissions` fails closed on unknown operations. Zero runtime dependencies in core; snapshots, catalogs and hosted policy documents are data, never executed. |
-| ASI05 | Unexpected Code Execution | Conditions are a JSON AST with no `eval` or `new Function`; paths never traverse `__proto__`, `constructor` or `prototype`; a shell or code tool is a permission like any other and can require approval per call. Sandboxing the execution is the runtime's job. |
-| ASI06 | Memory and Context Poisoning | Decisions read `subject` and `context` from the application, never from conversation memory, so a poisoned memory cannot grant; `on('decision')` and `permdock/otel` record what the poisoned agent attempted. |
-| ASI07 | Insecure Inter-Agent Communication | A2A extended card filtered per caller; agent-to-agent calls need a verified `actor` and a `delegation` (none is `no-delegation`); Web Bot Auth signatures that fail verification throw rather than becoming anonymous. |
-| ASI08 | Cascading Failures | Fail-closed on every error path (a thrown closure, a down PDP, a missing limit store); `limit` grants cap how often one agent can act; the CAEP receiver and `RevocationFeed` stop open connections on `session-revoked`; `longRunning` MCP tools re-check before returning a result. |
-| ASI09 | Human-Agent Trust Exploitation | Approval requests show the permission key, the resource identity and the bound token, not the agent's own summary; neither the actor nor the principal can approve their own request unless the grant sets `distinct: false` (doctor PD024), and `requireDistinctApprover` enforces the separation handler-wide; a batch approval is never issued. |
-| ASI10 | Rogue Agents | Least agency (`guardTools`, filtered `tools/list`), per-subject `limit` quotas, revocation through SSF and `RevocationFeed`, and an audit event naming principal and actor for every decision, so a drifting agent is bounded and visible. Detecting the drift is outside PermDock. |
+| ID    | Name                                 | PermDock mitigation                                                                                                                                                                                                                                                                                                                                |
+| ----- | ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ASI01 | Agent Goal Hijack                    | A hijacked goal still runs through the same `decide`: subjects come from verified credentials, never from model output; tool arguments are validated at the boundary; destructive permissions carry `approval: 'human'`, so an injected instruction reaches a person before it reaches data. PermDock does not detect injection.                   |
+| ASI02 | Tool Misuse                          | `permission` on each tool (scope, condition, `approval`, `limit`); boundary validation of arguments; `list_tools` and `capabilityMiddleware` filtering; `simulate()` pre-flight; `denied` with `alternatives`; see below                                                                                                                           |
+| ASI03 | Identity and Privilege Abuse         | Two-principal subject (`principal`, `actor`, `delegation`); decision = principal grants ∩ delegation; monotonic attenuation across hops; `actor` in every audit event; see below                                                                                                                                                                   |
+| ASI04 | Agentic Supply Chain Vulnerabilities | A tool or MCP server added at runtime is not callable until registered with a `permission`, and a generated server bound through `x-permdock-permissions` fails closed on unknown operations. Zero runtime dependencies in core; snapshots, catalogs and hosted policy documents are data, never executed.                                         |
+| ASI05 | Unexpected Code Execution            | Conditions are a JSON AST with no `eval` or `new Function`; paths never traverse `__proto__`, `constructor` or `prototype`; a shell or code tool is a permission like any other and can require approval per call. Sandboxing the execution is the runtime's job.                                                                                  |
+| ASI06 | Memory and Context Poisoning         | Decisions read `subject` and `context` from the application, never from conversation memory, so a poisoned memory cannot grant; `on('decision')` and `permdock/otel` record what the poisoned agent attempted.                                                                                                                                     |
+| ASI07 | Insecure Inter-Agent Communication   | A2A extended card filtered per caller; agent-to-agent calls need a verified `actor` and a `delegation` (none is `no-delegation`); Web Bot Auth signatures that fail verification throw rather than becoming anonymous.                                                                                                                             |
+| ASI08 | Cascading Failures                   | Fail-closed on every error path (a thrown closure, a down PDP, a missing limit store); `limit` grants cap how often one agent can act; the CAEP receiver and `RevocationFeed` stop open connections on `session-revoked`; `longRunning` MCP tools re-check before returning a result.                                                              |
+| ASI09 | Human-Agent Trust Exploitation       | Approval requests show the permission key, the resource identity and the bound token, not the agent's own summary; neither the actor nor the principal can approve their own request unless the grant sets `distinct: false` (doctor PD024), and `requireDistinctApprover` enforces the separation handler-wide; a batch approval is never issued. |
+| ASI10 | Rogue Agents                         | Least agency (`guardTools`, filtered `tools/list`), per-subject `limit` quotas, revocation through SSF and `RevocationFeed`, and an audit event naming principal and actor for every decision, so a drifting agent is bounded and visible. Detecting the drift is outside PermDock.                                                                |
 
 ## ASI02 Tool Misuse
 
@@ -34,15 +34,22 @@ That phrase is `permission` on `registerTool`. The stanza is the permission refe
 
 ```ts
 guarded.registerTool(
-  'delete_post',
-  { permission: permissions.post.delete, inputSchema, data: (args) => loadPost(args.id) },
+  "delete_post",
+  {
+    permission: permissions.post.delete,
+    inputSchema,
+    data: (args) => loadPost(args.id),
+  },
   handler,
-)
+);
 
-const member = role('member', [
-  allow(permissions.post.delete, { where: { authorId: principal.id }, approval: 'human' }),
-  allow(permissions.billing.invoice.pay, { limit: { count: 10, per: '1h' } }),
-])
+const member = role("member", [
+  allow(permissions.post.delete, {
+    where: { authorId: principal.id },
+    approval: "human",
+  }),
+  allow(permissions.billing.invoice.pay, { limit: { count: 10, per: "1h" } }),
+]);
 ```
 
 - **Scopes**: `permission.scope` (`post:delete`) is the OAuth scope, emitted as the MCP `scopeChallenge`, the OpenAPI scope and the A2A `securityRequirements` entry.

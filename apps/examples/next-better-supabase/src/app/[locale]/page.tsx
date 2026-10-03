@@ -1,18 +1,18 @@
 const people = [
   {
-    id: '00000000-0000-4000-8000-0000000000a1',
-    name: 'Olivia, owner of Acme',
-    next: '/en/acme/staff',
+    id: "00000000-0000-4000-8000-0000000000a1",
+    name: "Olivia, owner of Acme",
+    next: "/en/acme/staff",
   },
   {
-    id: '00000000-0000-4000-8000-0000000000a2',
-    name: 'Mason, member of Acme',
-    next: '/en/acme/staff',
+    id: "00000000-0000-4000-8000-0000000000a2",
+    name: "Mason, member of Acme",
+    next: "/en/acme/staff",
   },
   {
-    id: '00000000-0000-4000-8000-0000000000a3',
-    name: 'Carla, portal contact at Initech',
-    next: '/en/portal/acme/quotes',
+    id: "00000000-0000-4000-8000-0000000000a3",
+    name: "Carla, portal contact at Initech",
+    next: "/en/portal/acme/quotes",
   },
 ] as const;
 

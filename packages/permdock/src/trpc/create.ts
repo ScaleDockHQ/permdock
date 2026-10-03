@@ -2,11 +2,11 @@ import {
   TRPCError,
   isTrackedEnvelope,
   type AnyTRPCMiddlewareFunction,
-} from '@trpc/server';
+} from "@trpc/server";
 
-import type { ApprovalStore } from '../approvals/types.ts';
-import type { PermDockRevokedError } from '../core/errors.ts';
-import type { PolicySource } from '../core/hosted.ts';
+import type { ApprovalStore } from "../approvals/types.ts";
+import type { PermDockRevokedError } from "../core/errors.ts";
+import type { PolicySource } from "../core/hosted.ts";
 import type {
   DecisionSink,
   EntitlementSource,
@@ -15,27 +15,27 @@ import type {
   RelationSource,
   RoleSource,
   SnapshotSource,
-} from '../core/interfaces.ts';
-import type { PermDock } from '../core/permdock.ts';
-import type { Permission } from '../core/permissions.ts';
-import type { Policy } from '../core/policy.ts';
-import type { RevocationFeed } from '../core/revocations.ts';
-import type { Principal } from '../core/subject.ts';
-import type { PdpFactory } from '../pdp/types.ts';
-import type { Connection, ConnectionOptions } from '../server/connection.ts';
+} from "../core/interfaces.ts";
+import type { PermDock } from "../core/permdock.ts";
+import type { Permission } from "../core/permissions.ts";
+import type { Policy } from "../core/policy.ts";
+import type { RevocationFeed } from "../core/revocations.ts";
+import type { Principal } from "../core/subject.ts";
+import type { PdpFactory } from "../pdp/types.ts";
+import type { Connection, ConnectionOptions } from "../server/connection.ts";
 import type {
   OpenApiHooks,
   TenantOption,
   TenantScope,
-} from '../server/create.ts';
-import type { StreamProtectOptions } from '../server/stream.ts';
-import type { WebBotAuthOptions } from '../server/web-bot-auth.ts';
+} from "../server/create.ts";
+import type { StreamProtectOptions } from "../server/stream.ts";
+import type { WebBotAuthVerifier } from "../server/web-bot-auth.ts";
 
-import { compact } from '../core/compact.ts';
-import { createKernel, tenantScope } from '../server/create.ts';
-import { problemFromError } from '../server/map-error.ts';
-import { guardIterable, isAsyncIterable } from '../server/stream.ts';
-import { invalidSignatureResponse } from '../server/web-bot-auth.ts';
+import { compact } from "../core/compact.ts";
+import { createKernel, tenantScope } from "../server/create.ts";
+import { problemFromError } from "../server/map-error.ts";
+import { guardIterable, isAsyncIterable } from "../server/stream.ts";
+import { invalidSignatureResponse } from "../server/web-bot-auth.ts";
 
 export type TrpcMiddlewareOpts<TCtx = object, TInput = unknown> = {
   readonly ctx: TCtx;
@@ -66,7 +66,8 @@ export type TrpcPermDockOptions<TCtx = object, TUser = unknown> = {
   readonly pdp?: PdpFactory;
   /** Accepted for adapter parity; not read by this adapter. */
   readonly snapshots?: SnapshotSource;
-  readonly webBotAuth?: WebBotAuthOptions;
+  /** `(request) => verifyWebBotAuth(request, options)`; a verified bot becomes the actor. */
+  readonly webBotAuth?: WebBotAuthVerifier;
   /** Ends or revalidates open subscriptions. */
   readonly revocations?: RevocationFeed;
 };
@@ -76,10 +77,10 @@ export type TrpcOpenApiHooks = {
     readonly openapi: {
       readonly protect: true;
       readonly security: readonly Record<string, readonly string[]>[];
-      readonly 'x-permdock-permissions': readonly string[];
+      readonly "x-permdock-permissions": readonly string[];
     };
   };
-  readonly securitySchemes: OpenApiHooks['securitySchemes'];
+  readonly securitySchemes: OpenApiHooks["securitySchemes"];
 };
 
 export type TrpcPermDock<TCtx = object> = {
@@ -103,10 +104,10 @@ export type TrpcPermDock<TCtx = object> = {
 };
 
 function requestFromCtx(ctx: object): Request | undefined {
-  if ('request' in ctx && ctx.request instanceof Request) {
+  if ("request" in ctx && ctx.request instanceof Request) {
     return ctx.request;
   }
-  if ('req' in ctx && ctx.req instanceof Request) {
+  if ("req" in ctx && ctx.req instanceof Request) {
     return ctx.req;
   }
   return undefined;
@@ -115,9 +116,9 @@ function requestFromCtx(ctx: object): Request | undefined {
 function problemMessage(cause: unknown, fallback: string): string {
   if (
     cause !== null &&
-    typeof cause === 'object' &&
-    'detail' in cause &&
-    typeof cause.detail === 'string' &&
+    typeof cause === "object" &&
+    "detail" in cause &&
+    typeof cause.detail === "string" &&
     cause.detail.length > 0
   ) {
     return cause.detail;
@@ -125,30 +126,30 @@ function problemMessage(cause: unknown, fallback: string): string {
   return fallback;
 }
 
-const PROBLEM = Symbol.for('permdock.problem');
+const PROBLEM = Symbol.for("permdock.problem");
 
 function trpcCode(
   status: number,
 ):
-  | 'UNAUTHORIZED'
-  | 'BAD_REQUEST'
-  | 'NOT_FOUND'
-  | 'TOO_MANY_REQUESTS'
-  | 'SERVICE_UNAVAILABLE'
-  | 'FORBIDDEN' {
+  | "UNAUTHORIZED"
+  | "BAD_REQUEST"
+  | "NOT_FOUND"
+  | "TOO_MANY_REQUESTS"
+  | "SERVICE_UNAVAILABLE"
+  | "FORBIDDEN" {
   switch (status) {
     case 400:
-      return 'BAD_REQUEST';
+      return "BAD_REQUEST";
     case 401:
-      return 'UNAUTHORIZED';
+      return "UNAUTHORIZED";
     case 404:
-      return 'NOT_FOUND';
+      return "NOT_FOUND";
     case 429:
-      return 'TOO_MANY_REQUESTS';
+      return "TOO_MANY_REQUESTS";
     case 503:
-      return 'SERVICE_UNAVAILABLE';
+      return "SERVICE_UNAVAILABLE";
     default:
-      return 'FORBIDDEN';
+      return "FORBIDDEN";
   }
 }
 
@@ -171,7 +172,7 @@ async function throwTrpcError(response: Response): Promise<never> {
   } catch {
     cause = { status: response.status };
   }
-  if (cause !== null && typeof cause === 'object') {
+  if (cause !== null && typeof cause === "object") {
     Object.defineProperty(cause, PROBLEM, { value: true, enumerable: true });
   }
   const code = trpcCode(response.status);
@@ -190,7 +191,7 @@ function mapDownstream(result: unknown): Promise<unknown> {
   // SAFETY: checked to be a non-null object first; ok is only compared.
   if (
     result === null ||
-    typeof result !== 'object' ||
+    typeof result !== "object" ||
     (result as { readonly ok?: unknown }).ok !== false
   ) {
     return Promise.resolve(result);
@@ -198,7 +199,7 @@ function mapDownstream(result: unknown): Promise<unknown> {
   // SAFETY: the check above returned unless result is a non-null object; error is tested below.
   const error = (result as { readonly error?: unknown }).error;
   const cause =
-    error instanceof TRPCError && error.code === 'INTERNAL_SERVER_ERROR'
+    error instanceof TRPCError && error.code === "INTERNAL_SERVER_ERROR"
       ? error.cause
       : undefined;
   const mapped = problemFromError(cause);
@@ -212,7 +213,7 @@ export function errorFormatter<TShape extends { readonly data: object }>(opts: {
   readonly error: { readonly cause?: unknown };
 }): TShape {
   const cause = opts.error.cause;
-  if (cause === null || typeof cause !== 'object' || !(PROBLEM in cause)) {
+  if (cause === null || typeof cause !== "object" || !(PROBLEM in cause)) {
     return opts.shape;
   }
   // SAFETY: checked above to be a non-null object carrying the PROBLEM brand.
@@ -254,7 +255,7 @@ export function createPermDock<
       pdp: options.pdp,
       webBotAuth: options.webBotAuth,
       revocations: options.revocations,
-      adapter: 'trpc',
+      adapter: "trpc",
     }),
   );
 
@@ -284,7 +285,7 @@ export function createPermDock<
     }
     const request =
       requestOf(opts.ctx) ??
-      new Request(`http://localhost/trpc/${opts.path}`, { method: 'POST' });
+      new Request(`http://localhost/trpc/${opts.path}`, { method: "POST" });
     requestByCtx.set(ctx, request);
     if (!optsByRequest.has(request)) {
       optsByRequest.set(request, opts);
@@ -335,7 +336,7 @@ export function createPermDock<
     // SAFETY: checked to be a non-null object first; ok is only compared and data only tested.
     if (
       result === null ||
-      typeof result !== 'object' ||
+      typeof result !== "object" ||
       (result as { readonly ok?: unknown }).ok !== true ||
       !isAsyncIterable((result as { readonly data?: unknown }).data)
     ) {
@@ -396,15 +397,15 @@ export function createPermDock<
     // SAFETY: the handler route runs outside tRPC, so its only context is the request as req.
     const opts = {
       ctx: { req: request } as TCtx,
-      path: 'permdock',
-      type: 'unknown',
+      path: "permdock",
+      type: "unknown",
       next: (nextOpts?: { readonly ctx: TCtx }): Promise<unknown> =>
         Promise.resolve(nextOpts ?? { ctx: { req: request } as TCtx }),
     } satisfies TrpcMiddlewareOpts<TCtx>;
     bind(opts);
-    const { POST, GET } = kernel.handler(() => scopeOf(opts));
+    const { POST, GET } = kernel.permdockHandler(() => scopeOf(opts));
     return Promise.resolve(
-      request.method === 'GET' ? GET(request) : POST(request),
+      request.method === "GET" ? GET(request) : POST(request),
     );
   };
 

@@ -1,13 +1,13 @@
-import type { StandardSchemaV1 } from '@standard-schema/spec';
+import type { StandardSchemaV1 } from "@standard-schema/spec";
 
-import type { RoleSource } from '../core/interfaces.ts';
-import type { Permission } from '../core/permissions.ts';
-import type { Principal } from '../core/subject.ts';
+import type { RoleSource } from "../core/interfaces.ts";
+import type { Permission } from "../core/permissions.ts";
+import type { Principal } from "../core/subject.ts";
 
 export type ClerkPrincipal = Principal & {
   readonly clerkPermissions?: readonly string[];
   readonly claims?: Readonly<Record<string, unknown>>;
-  readonly featureSources?: Readonly<Record<string, 'o' | 'u'>>;
+  readonly featureSources?: Readonly<Record<string, "o" | "u">>;
 };
 
 export type ClerkMembershipListItem = {
@@ -38,7 +38,7 @@ export type ClerkGlobalRoles =
   | ((claims: Readonly<Record<string, unknown>>) => readonly string[]);
 
 export type ClerkSubjectOptions = {
-  readonly memberships?: 'active' | 'all';
+  readonly memberships?: "active" | "all";
   readonly backend?: ClerkBackend;
   readonly customRoles?: RoleSource;
   readonly permissions?: Readonly<Record<string, Permission>>;

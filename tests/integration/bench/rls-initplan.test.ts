@@ -1,18 +1,18 @@
-import type { Client } from 'pg';
+import type { Client } from "pg";
 
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { run } from 'permdock/cli';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { run } from "permdock/cli";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import type { Postgres } from '../src/support/postgres.ts';
+import type { Postgres } from "../src/support/postgres.ts";
 
-import { startPostgres } from '../src/support/postgres.ts';
+import { startPostgres } from "../src/support/postgres.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const FIXTURE = join(HERE, '../fixtures/supabase-rbac');
+const FIXTURE = join(HERE, "../fixtures/supabase-rbac");
 
 const ROWS = 10_000;
 const TENANTS = 20;
@@ -21,7 +21,7 @@ const RUNS = 7;
 const SPEEDUP = 5;
 /** Absolute ceiling for the helper shape's median execution time, in ms. */
 const CEILING_MS = 250;
-const MEMBER = '00000000-0000-4000-8000-000000000003';
+const MEMBER = "00000000-0000-4000-8000-000000000003";
 
 const SETUP = `
 create role authenticated nologin;
@@ -78,14 +78,14 @@ function perRowPolicies(): string {
   const membership = (role: string): string =>
     `exists (select 1 from "organization_members" m where m."organization_id" = "orgId" and m."user_id" = (select auth.uid()) and m."role" = any('{${role}}'))`;
   const tenant = (role: string, permission: string): string =>
-    `(select "public".authorize('${permission}', "orgId"::text)) and (${membership(role)})`;
+    `(select "permdock".authorize('${permission}', "orgId"::text)) and (${membership(role)})`;
   const policies = [
-    ['staff_post_read', `(select "public".authorize('post.read'))`],
-    ['staff_post_list', `(select "public".authorize('post.list'))`],
-    ['admin_post_read', tenant('admin', 'post.read')],
-    ['admin_post_list', tenant('admin', 'post.list')],
-    ['member_post_read', tenant('member', 'post.read')],
-    ['member_post_list', tenant('member', 'post.list')],
+    ["staff_post_read", `(select "permdock".authorize('post.read'))`],
+    ["staff_post_list", `(select "permdock".authorize('post.list'))`],
+    ["admin_post_read", tenant("admin", "post.read")],
+    ["admin_post_list", tenant("admin", "post.list")],
+    ["member_post_read", tenant("member", "post.read")],
+    ["member_post_list", tenant("member", "post.list")],
   ];
   return [
     'drop policy if exists "post_select" on public.post;',
@@ -93,23 +93,23 @@ function perRowPolicies(): string {
       ([name, using]) =>
         `create policy "${name}" on public.post as permissive for select to authenticated using (${using});`,
     ),
-  ].join('\n');
+  ].join("\n");
 }
 
 type PlanNode = {
-  readonly 'Node Type': string;
-  readonly 'Actual Loops'?: number;
-  readonly 'Actual Rows'?: number;
-  readonly 'Function Name'?: string;
+  readonly "Node Type": string;
+  readonly "Actual Loops"?: number;
+  readonly "Actual Rows"?: number;
+  readonly "Function Name"?: string;
   readonly Output?: readonly string[];
   readonly Filter?: string;
-  readonly 'Subplan Name'?: string;
+  readonly "Subplan Name"?: string;
   readonly Plans?: readonly PlanNode[];
 };
 
 type Explain = {
   readonly Plan: PlanNode;
-  readonly 'Execution Time': number;
+  readonly "Execution Time": number;
 };
 
 function nodes(plan: PlanNode): readonly PlanNode[] {
@@ -118,7 +118,7 @@ function nodes(plan: PlanNode): readonly PlanNode[] {
 
 function callsHelper(node: PlanNode, helper: string): boolean {
   return (
-    node['Function Name'] === helper ||
+    node["Function Name"] === helper ||
     (node.Output ?? []).some((item) => item.includes(`${helper}(`))
   );
 }
@@ -128,21 +128,21 @@ function median(values: readonly number[]): number {
   return sorted[Math.floor(sorted.length / 2)] ?? Number.NaN;
 }
 
-describe('rls helpers run once per statement (InitPlan)', () => {
+describe("rls helpers run once per statement (InitPlan)", () => {
   let db: Postgres | undefined;
 
   async function asMember<T>(work: (client: Client) => Promise<T>): Promise<T> {
     if (db === undefined) {
-      throw new Error('PermDock: Postgres was not started');
+      throw new Error("PermDock: Postgres was not started");
     }
     const client = db.tester;
     return db.as(
       {
-        role: 'authenticated',
+        role: "authenticated",
         settings: {
-          'request.jwt.claims': JSON.stringify({
+          "request.jwt.claims": JSON.stringify({
             sub: MEMBER,
-            role: 'authenticated',
+            role: "authenticated",
           }),
         },
       },
@@ -156,20 +156,20 @@ describe('rls helpers run once per statement (InitPlan)', () => {
   }> {
     const ids = await asMember(async (client) => {
       const result = await client.query<{ id: string }>(
-        'select id from public.post order by id',
+        "select id from public.post order by id",
       );
       return result.rows.map((row) => row.id);
     });
     const plans: Explain[] = [];
     for (let index = 0; index < RUNS; index += 1) {
       const plan = await asMember(async (client) => {
-        const result = await client.query<{ 'QUERY PLAN': Explain[] }>(
-          'explain (analyze, verbose, format json) select id from public.post',
+        const result = await client.query<{ "QUERY PLAN": Explain[] }>(
+          "explain (analyze, verbose, format json) select id from public.post",
         );
-        return result.rows[0]?.['QUERY PLAN'][0];
+        return result.rows[0]?.["QUERY PLAN"][0];
       });
       if (plan === undefined) {
-        throw new Error('PermDock: EXPLAIN returned no plan');
+        throw new Error("PermDock: EXPLAIN returned no plan");
       }
       plans.push(plan);
     }
@@ -180,23 +180,23 @@ describe('rls helpers run once per statement (InitPlan)', () => {
   let perRow: Awaited<ReturnType<typeof measure>> | undefined;
 
   beforeAll(async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'permdock-bench-'));
-    const out = join(dir, 'rls.sql');
+    const dir = mkdtempSync(join(tmpdir(), "permdock-bench-"));
+    const out = join(dir, "rls.sql");
     const generate = await run(
       [
-        'rls',
-        'generate',
-        '--target',
-        'sql',
-        '--dialect',
-        'supabase',
-        '--rbac',
-        'supabase',
-        '--authorize',
-        'database',
-        '--memberships',
-        'organization_members:organization_id,user_id,role',
-        '--out',
+        "rls",
+        "generate",
+        "--target",
+        "sql",
+        "--dialect",
+        "supabase",
+        "--rbac",
+        "supabase",
+        "--authorize",
+        "database",
+        "--memberships",
+        "organization_members:organization_id,user_id,role",
+        "--out",
         out,
       ],
       { cwd: FIXTURE },
@@ -204,9 +204,9 @@ describe('rls helpers run once per statement (InitPlan)', () => {
     if (generate.code !== 0) {
       throw new Error(`rls generate: ${generate.stdout}`);
     }
-    const generated = readFileSync(out, 'utf8');
+    const generated = readFileSync(out, "utf8");
     rmSync(dir, { recursive: true, force: true });
-    db = await startPostgres([SETUP, generated, 'analyze']);
+    db = await startPostgres([SETUP, generated, "analyze"]);
     helper = await measure();
     await db.admin.query(perRowPolicies());
     perRow = await measure();
@@ -216,24 +216,24 @@ describe('rls helpers run once per statement (InitPlan)', () => {
     await db?.stop();
   });
 
-  it('calls permitted_tenant_ids once, not once per row', () => {
+  it("calls permitted_tenant_ids once, not once per row", () => {
     const plan = helper?.plans[0]?.Plan;
     expect(plan).toBeDefined();
     const calls = nodes(plan!).filter((node) =>
-      callsHelper(node, 'permitted_tenant_ids'),
+      callsHelper(node, "permitted_tenant_ids"),
     );
     expect(calls.length).toBeGreaterThan(0);
     for (const node of calls) {
-      expect(node['Actual Loops']).toBe(1);
+      expect(node["Actual Loops"]).toBe(1);
     }
     const perRowPlan = perRow?.plans[0]?.Plan;
     const correlated = nodes(perRowPlan!).filter(
-      (node) => (node['Actual Loops'] ?? 0) >= ROWS / TENANTS,
+      (node) => (node["Actual Loops"] ?? 0) >= ROWS / TENANTS,
     );
     expect(correlated.length).toBeGreaterThan(0);
   });
 
-  it('returns the same rows as the per-row shape', () => {
+  it("returns the same rows as the per-row shape", () => {
     expect(helper?.ids).toHaveLength(ROWS / TENANTS);
     expect(helper?.ids).toEqual(perRow?.ids);
   });
@@ -241,11 +241,11 @@ describe('rls helpers run once per statement (InitPlan)', () => {
   it(`is at least ${String(SPEEDUP)}x faster than the per-row shape`, async ({
     annotate,
   }) => {
-    const after = median(helper!.plans.map((plan) => plan['Execution Time']));
-    const before = median(perRow!.plans.map((plan) => plan['Execution Time']));
+    const after = median(helper!.plans.map((plan) => plan["Execution Time"]));
+    const before = median(perRow!.plans.map((plan) => plan["Execution Time"]));
     const loops = (explain: Explain | undefined): number =>
       Math.max(
-        ...nodes(explain!.Plan).map((node) => node['Actual Loops'] ?? 0),
+        ...nodes(explain!.Plan).map((node) => node["Actual Loops"] ?? 0),
       );
     // Surfaced in the reporter so a PR can quote the numbers.
     await annotate(
@@ -255,7 +255,7 @@ describe('rls helpers run once per statement (InitPlan)', () => {
     expect(after).toBeLessThan(CEILING_MS);
   });
 
-  it('calls member_tenant_ids once in a membership-only policy', async () => {
+  it("calls member_tenant_ids once in a membership-only policy", async () => {
     await db?.admin.query(`
       do $$ declare p record; begin
         for p in select policyname from pg_policies where tablename = 'post' loop
@@ -263,16 +263,16 @@ describe('rls helpers run once per statement (InitPlan)', () => {
         end loop;
       end $$;
       create policy "members_read_post" on public.post for select to authenticated
-        using ("orgId" in (select "public".member_tenant_ids()));
+        using ("orgId" in (select "permdock".member_tenant_ids()));
     `);
     const membership = await measure();
     expect(membership.ids).toEqual(helper?.ids);
     const calls = nodes(membership.plans[0]!.Plan).filter((node) =>
-      callsHelper(node, 'member_tenant_ids'),
+      callsHelper(node, "member_tenant_ids"),
     );
     expect(calls.length).toBeGreaterThan(0);
     for (const node of calls) {
-      expect(node['Actual Loops']).toBe(1);
+      expect(node["Actual Loops"]).toBe(1);
     }
   });
 });

@@ -7,5 +7,5 @@ Hono wiring for `permdock/a2a`. `pnpm start` listens on `127.0.0.1:3471`.
 - `POST /a2a/tasks` — summarise granted for a member; publish denied
 
 ```ts
-import { createPermDock } from 'permdock/a2a'
+import { createPermDock } from "permdock/a2a";
 ```

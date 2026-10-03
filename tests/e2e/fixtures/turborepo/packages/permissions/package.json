@@ -12,8 +12,8 @@
   },
   "scripts": {
     "build": "tsdown",
-    "lint": "oxlint --disable-nested-config",
-    "typecheck": "tsc --noEmit --checkers 4"
+    "lint": "oxlint --disable-nested-config --type-aware",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "permdock": "workspace:*"

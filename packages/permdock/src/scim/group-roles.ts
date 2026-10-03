@@ -4,7 +4,7 @@ export function groupRolesFor(
 ): readonly string[] | undefined {
   if (
     groupRoles === undefined ||
-    typeof id !== 'string' ||
+    typeof id !== "string" ||
     !Object.hasOwn(groupRoles, id)
   ) {
     return undefined;

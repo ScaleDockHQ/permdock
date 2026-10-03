@@ -1,30 +1,31 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
-import type { Condition, Policy } from '../index.ts';
+import type { Condition, Policy } from "../index.ts";
 import type {
   CatalogUsage,
   CliIo,
   PermDockConfig,
   ScanResult,
-} from './types.ts';
+} from "./types.ts";
 
-import { getResource } from '../index.ts';
-import { jsonSchemaOf } from './catalog-doc.ts';
-import { runCollect } from './collect.ts';
-import { isClientSource } from './doctor-source.ts';
-import { listSourceFiles, rel } from './files.ts';
-import { asPolicy, loadModule, pickNamed } from './load.ts';
-import { USAGE_REPORT_SCHEMA } from './version.ts';
+import { getResource } from "../index.ts";
+import { jsonSchemaOf } from "./catalog-doc.ts";
+import { runCollect } from "./collect.ts";
+import { isClientSource } from "./doctor-source.ts";
+import { usageResult } from "./errors.ts";
+import { listSourceFiles, rel } from "./files.ts";
+import { asPolicy, loadModule, pickNamed } from "./load.ts";
+import { USAGE_REPORT_SCHEMA } from "./version.ts";
 
 export type UsageFinding = {
   readonly kind:
-    | 'unused'
-    | 'ungranted'
-    | 'no-role'
-    | 'dynamic'
-    | 'undeclared-field'
-    | 'outside-include';
+    | "unused"
+    | "ungranted"
+    | "no-role"
+    | "dynamic"
+    | "undeclared-field"
+    | "outside-include";
   readonly key: string;
   readonly detail: string;
 };
@@ -55,7 +56,7 @@ export async function runUsage(input: {
     cwd: input.cwd,
     config: input.config,
     collect: input.config.collect ?? {},
-    check: false,
+    check: true,
     now: input.now,
     io: input.io,
   });
@@ -64,7 +65,7 @@ export async function runUsage(input: {
   }
   const policyRel = input.config.policy;
   if (policyRel === undefined) {
-    return { code: 2, output: 'usage: set policy in permdock.config.ts' };
+    return { code: 2, output: "usage: set policy in permdock.config.ts" };
   }
   const policyAbs = resolve(input.cwd, policyRel);
   if (!existsSync(policyAbs)) {
@@ -75,32 +76,29 @@ export async function runUsage(input: {
   }
   let policy: Policy;
   try {
-    policy = asPolicy(pickNamed(await loadModule(policyAbs), ['policy']));
+    policy = asPolicy(pickNamed(await loadModule(policyAbs), ["policy"]));
   } catch (error) {
-    return {
-      code: 2,
-      output: error instanceof Error ? error.message : String(error),
-    };
+    return usageResult(error);
   }
   const granted = new Set<string>();
   const mergedRoles = new Set<string>();
   for (const role of policy.roles) {
     mergedRoles.add(role.name);
     for (const grant of role.grants) {
-      if (grant.effect === 'allow') {
+      if (grant.effect === "allow") {
         granted.add(grant.permission.key);
       }
     }
   }
   for (const grant of policy.grants ?? []) {
-    if (grant.effect === 'allow') {
+    if (grant.effect === "allow") {
       granted.add(grant.permission.key);
     }
   }
   const used = new Set<string>();
   const usedAt: Record<string, readonly CatalogUsage[]> = {};
   for (const permission of collected.document.permissions) {
-    if (permission.usages.some((usage) => usage.call !== 'allow')) {
+    if (permission.usages.some((usage) => usage.call !== "allow")) {
       used.add(permission.key);
       usedAt[permission.key] = permission.usages;
     }
@@ -116,19 +114,19 @@ export async function runUsage(input: {
     }
     if (!used.has(key) && !input.dynamicAsUsed) {
       unused.push({
-        kind: 'unused',
+        kind: "unused",
         key,
-        detail: permission.usages[0]?.file ?? 'defined',
+        detail: permission.usages[0]?.file ?? "defined",
       });
     }
     if (used.has(key) && !granted.has(key)) {
       const site = usedAt[key]?.[0];
       ungranted.push({
-        kind: 'ungranted',
+        kind: "ungranted",
         key,
         detail:
           site === undefined
-            ? 'checked'
+            ? "checked"
             : `${site.file}:${String(site.line)} (${site.call})`,
       });
     }
@@ -136,7 +134,7 @@ export async function runUsage(input: {
   for (const name of collected.scan.roleNames) {
     if (!mergedRoles.has(name)) {
       noRole.push({
-        kind: 'no-role',
+        kind: "no-role",
         key: name,
         detail: `role '${name}' not passed to definePolicy`,
       });
@@ -144,8 +142,8 @@ export async function runUsage(input: {
   }
   for (const site of collected.scan.dynamic) {
     dynamic.push({
-      kind: 'dynamic',
-      key: '*',
+      kind: "dynamic",
+      key: "*",
       detail: `${site.file}:${String(site.line)} (${site.call})`,
     });
   }
@@ -185,11 +183,11 @@ export async function runUsage(input: {
 }
 
 const CLIENT_CALLS = new Set([
-  'usePermission',
-  'can',
-  'decide',
-  'filter',
-  'actions',
+  "usePermission",
+  "can",
+  "decide",
+  "filter",
+  "actions",
 ]);
 
 function undeclaredFields(policy: Policy): readonly UsageFinding[] {
@@ -205,9 +203,9 @@ function undeclaredFields(policy: Policy): readonly UsageFinding[] {
     for (const field of fields) {
       if (!declared.has(field)) {
         findings.push({
-          kind: 'undeclared-field',
+          kind: "undeclared-field",
           key: grant.permission.key,
-          detail: `${grant.role === null ? 'policy grant' : `role '${grant.role}'`} reads '${field}', which the ${grant.permission.resource} schema does not declare`,
+          detail: `${grant.role === null ? "policy grant" : `role '${grant.role}'`} reads '${field}', which the ${grant.permission.resource} schema does not declare`,
         });
       }
     }
@@ -221,12 +219,12 @@ function declaredFields(
 ): ReadonlySet<string> | undefined {
   const node = getResource(policy.permissions, resource);
   const schema = node === undefined ? null : jsonSchemaOf(node);
-  if (schema === null || typeof schema !== 'object') {
+  if (schema === null || typeof schema !== "object") {
     return undefined;
   }
   // SAFETY: schema was checked to be a non-null object above; properties stays unknown.
   const properties = (schema as { readonly properties?: unknown }).properties;
-  if (properties === null || typeof properties !== 'object') {
+  if (properties === null || typeof properties !== "object") {
     return undefined;
   }
   return new Set(Object.keys(properties));
@@ -240,47 +238,47 @@ function conditionFields(
     return;
   }
   const add = (field: string): void => {
-    out.add(field.split('.')[0] ?? field);
+    out.add(field.split(".")[0] ?? field);
   };
   switch (condition.op) {
-    case 'eq':
-    case 'ne':
-    case 'gt':
-    case 'gte':
-    case 'lt':
-    case 'lte':
-    case 'contains':
-    case 'in':
-    case 'notIn':
-    case 'isNull': {
+    case "eq":
+    case "ne":
+    case "gt":
+    case "gte":
+    case "lt":
+    case "lte":
+    case "contains":
+    case "in":
+    case "notIn":
+    case "isNull": {
       add(condition.field);
       break;
     }
-    case 'and':
-    case 'or': {
+    case "and":
+    case "or": {
       for (const child of condition.conditions) {
         conditionFields(child, out);
       }
       break;
     }
-    case 'not': {
+    case "not": {
       conditionFields(condition.condition, out);
       break;
     }
-    case 'memberOf': {
+    case "memberOf": {
       add(condition.field);
       for (const parent of condition.parents ?? []) {
-        add(typeof parent === 'string' ? parent : parent.field);
+        add(typeof parent === "string" ? parent : parent.field);
       }
       break;
     }
-    case 'sqlFunction': {
+    case "sqlFunction": {
       for (const arg of condition.args) {
         if (
           arg !== null &&
-          typeof arg === 'object' &&
+          typeof arg === "object" &&
           !Array.isArray(arg) &&
-          'field' in arg
+          "field" in arg
         ) {
           add(arg.field);
         }
@@ -288,14 +286,14 @@ function conditionFields(
       conditionFields(condition.twin, out);
       break;
     }
-    case 'related': {
+    case "related": {
       add(condition.field);
       if (condition.restricted !== undefined) {
         add(condition.restricted);
       }
       break;
     }
-    case 'opaque': {
+    case "opaque": {
       break;
     }
     default: {
@@ -333,7 +331,7 @@ function outsideSnapshotInclude(
       known =
         existsSync(path) &&
         isClientSource(
-          { file, text: readFileSync(path, 'utf8') },
+          { file, text: readFileSync(path, "utf8") },
           clientEntries,
         );
       client.set(file, known);
@@ -350,7 +348,7 @@ function outsideSnapshotInclude(
     );
     if (site !== undefined) {
       findings.push({
-        kind: 'outside-include',
+        kind: "outside-include",
         key,
         detail: `${site.file}:${String(site.line)} (${site.call}) is outside every snapshot include`,
       });
@@ -361,7 +359,7 @@ function outsideSnapshotInclude(
 
 function ignored(key: string, patterns: readonly string[]): boolean {
   return patterns.some((pattern) => {
-    if (pattern.endsWith('.*')) {
+    if (pattern.endsWith(".*")) {
       return key.startsWith(pattern.slice(0, -2));
     }
     return key === pattern;
@@ -369,27 +367,27 @@ function ignored(key: string, patterns: readonly string[]): boolean {
 }
 
 function formatUsage(report: UsageReport): string {
-  const lines = ['permdock usage', ''];
+  const lines = ["permdock usage", ""];
   lines.push(`  defined but unused (${String(report.unused.length)})`);
   for (const finding of report.unused) {
     lines.push(`    ${finding.key.padEnd(28)} ${finding.detail}`);
   }
-  lines.push('');
+  lines.push("");
   lines.push(`  used but ungranted (${String(report.ungranted.length)})`);
   for (const finding of report.ungranted) {
     lines.push(`    ${finding.key.padEnd(28)} ${finding.detail}`);
   }
-  lines.push('');
+  lines.push("");
   lines.push(`  granted by no role (${String(report.noRole.length)})`);
   for (const finding of report.noRole) {
     lines.push(`    ${finding.key.padEnd(28)} ${finding.detail}`);
   }
   for (const [title, list] of [
-    ['conditions on undeclared fields', report.undeclared],
-    ['client checks outside include', report.outsideInclude],
+    ["conditions on undeclared fields", report.undeclared],
+    ["client checks outside include", report.outsideInclude],
   ] as const) {
     if (list.length > 0) {
-      lines.push('');
+      lines.push("");
       lines.push(`  ${title} (${String(list.length)})`);
       for (const finding of list) {
         lines.push(`    ${finding.key.padEnd(28)} ${finding.detail}`);
@@ -397,15 +395,15 @@ function formatUsage(report: UsageReport): string {
     }
   }
   if (report.dynamic.length > 0) {
-    lines.push('');
+    lines.push("");
     lines.push(`  dynamic (${String(report.dynamic.length)})`);
     for (const finding of report.dynamic) {
       lines.push(`    ${finding.detail}`);
     }
   }
-  lines.push('');
+  lines.push("");
   lines.push(
-    `  ${String(report.warnings)} warning${report.warnings === 1 ? '' : 's'}, ${String(report.errors)} error${report.errors === 1 ? '' : 's'}`,
+    `  ${String(report.warnings)} warning${report.warnings === 1 ? "" : "s"}, ${String(report.errors)} error${report.errors === 1 ? "" : "s"}`,
   );
-  return `${lines.join('\n')}\n`;
+  return `${lines.join("\n")}\n`;
 }

@@ -1,7 +1,7 @@
-import type { Browser, Page } from '@playwright/test';
+import type { Browser, Page } from "@playwright/test";
 
-import { expect, test } from '@playwright/test';
-import { saasPrivateJwk } from 'permdock/testing/saas';
+import { expect, test } from "@playwright/test";
+import { saasPrivateJwk } from "permdock/testing/saas";
 
 /**
  * The scenarios every SaaS UI fixture passes, against one DOM contract:
@@ -43,7 +43,7 @@ export async function signIn(
   user: string,
 ): Promise<void> {
   await page.goto(`${origin}/login`);
-  await page.getByRole('button', { name: `Sign in as ${user}` }).click();
+  await page.getByRole("button", { name: `Sign in as ${user}` }).click();
   await page.waitForURL(`${origin}/acme`);
 }
 
@@ -68,97 +68,97 @@ export function saasUiScenarios(options: SaasUiOptions): void {
   const { origin } = options;
   const refresh = { timeout: options.refreshTimeout ?? 10_000 };
 
-  test.describe.configure({ mode: 'serial' });
+  test.describe.configure({ mode: "serial" });
 
   test.beforeEach(async ({ request }) => {
     const response = await request.post(`${origin}/api/test/reset`);
     expect(response.ok()).toBe(true);
   });
 
-  test('1. a cold load renders the granted nav and row actions', async ({
+  test("1. a cold load renders the granted nav and row actions", async ({
     page,
   }) => {
-    await signIn(page, origin, 'alice');
+    await signIn(page, origin, "alice");
     await page.goto(`${origin}/acme/projects`);
-    await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible();
-    await expect(nav(page, 'members')).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Projects" })).toBeVisible();
+    await expect(nav(page, "members")).toBeVisible();
     await expect(
       page
         .locator('[data-project="p2"]')
-        .getByRole('button', { name: 'Delete' }),
+        .getByRole("button", { name: "Delete" }),
     ).toBeVisible();
   });
 
-  test('2. switching org shows that org’s role and plan', async ({ page }) => {
-    await signIn(page, origin, 'alice');
-    await expect(nav(page, 'members')).toBeVisible();
+  test("2. switching org shows that org’s role and plan", async ({ page }) => {
+    await signIn(page, origin, "alice");
+    await expect(nav(page, "members")).toBeVisible();
     await page.locator('[data-switch="globex"]:visible').click();
     await page.waitForURL(`${origin}/globex`);
-    await expect(nav(page, 'integrations')).toBeVisible();
-    await expect(nav(page, 'members')).toHaveCount(0);
+    await expect(nav(page, "integrations")).toBeVisible();
+    await expect(nav(page, "members")).toHaveCount(0);
     await expect(page.locator('[data-testid="nav"]:visible')).toHaveAttribute(
-      'data-plan',
-      'pro',
+      "data-plan",
+      "pro",
     );
   });
 
-  test('3. a forbidden page renders the forbidden state', async ({ page }) => {
-    await signIn(page, origin, 'bob');
-    await expect(nav(page, 'projects')).toBeVisible();
-    await expect(nav(page, 'settings')).toHaveCount(0);
+  test("3. a forbidden page renders the forbidden state", async ({ page }) => {
+    await signIn(page, origin, "bob");
+    await expect(nav(page, "projects")).toBeVisible();
+    await expect(nav(page, "settings")).toHaveCount(0);
     await page.goto(`${origin}/acme/settings`);
-    await expect(page.getByTestId('forbidden')).toBeVisible();
-    await expect(page.getByTestId('section-content')).toHaveCount(0);
+    await expect(page.getByTestId("forbidden")).toBeVisible();
+    await expect(page.getByTestId("section-content")).toHaveCount(0);
   });
 
-  test('4. a billing change unlocks pro items for every member without sign-out', async ({
+  test("4. a billing change unlocks pro items for every member without sign-out", async ({
     page,
     browser,
     request,
   }) => {
-    await signIn(page, origin, 'alice');
-    const carol = await signedIn(browser, origin, 'carol');
+    await signIn(page, origin, "alice");
+    const carol = await signedIn(browser, origin, "carol");
     for (const member of [page, carol]) {
-      await expect(upsell(member, 'analytics')).toBeVisible();
+      await expect(upsell(member, "analytics")).toBeVisible();
     }
     const response = await request.post(`${origin}/api/test/billing`, {
-      data: { org: 'acme', plan: 'pro' },
+      data: { org: "acme", plan: "pro" },
     });
     expect(response.ok()).toBe(true);
     for (const member of [page, carol]) {
-      await expect(nav(member, 'analytics')).toBeVisible(refresh);
-      await expect(upsell(member, 'analytics')).toHaveCount(0);
+      await expect(nav(member, "analytics")).toBeVisible(refresh);
+      await expect(upsell(member, "analytics")).toHaveCount(0);
     }
   });
 
-  test('5. a demoted member is denied by the server at once and the UI follows', async ({
+  test("5. a demoted member is denied by the server at once and the UI follows", async ({
     page,
     request,
   }) => {
-    await signIn(page, origin, 'bob');
+    await signIn(page, origin, "bob");
     await page.goto(`${origin}/acme/projects`);
     const rocket = page.locator('[data-project="p1"]');
-    await expect(rocket.getByRole('button', { name: 'Delete' })).toBeVisible();
+    await expect(rocket.getByRole("button", { name: "Delete" })).toBeVisible();
     await pausePoll(page, true);
     const demoted = await request.post(`${origin}/api/test/set-role`, {
-      data: { org: 'acme', user: 'bob', role: 'viewer' },
+      data: { org: "acme", user: "bob", role: "viewer" },
     });
     expect(demoted.ok()).toBe(true);
-    await rocket.getByRole('button', { name: 'Delete' }).click();
-    await expect(rocket.locator('output')).toHaveText(/^Denied: /u);
+    await rocket.getByRole("button", { name: "Delete" }).click();
+    await expect(rocket.locator("output")).toHaveText(/^Denied: /u);
     await pausePoll(page, false);
-    await expect(rocket.getByRole('button', { name: 'Delete' })).toHaveCount(
+    await expect(rocket.getByRole("button", { name: "Delete" })).toHaveCount(
       0,
       refresh,
     );
   });
 
-  test('6. signing out clears the nav and the next user never sees it', async ({
+  test("6. signing out clears the nav and the next user never sees it", async ({
     page,
   }) => {
-    await signIn(page, origin, 'alice');
-    await expect(nav(page, 'members')).toBeVisible();
-    await page.getByRole('button', { name: 'Sign out' }).click();
+    await signIn(page, origin, "alice");
+    await expect(nav(page, "members")).toBeVisible();
+    await page.getByRole("button", { name: "Sign out" }).click();
     await page.waitForURL(`${origin}/login`);
     await page.evaluate(() => {
       const seen = { members: false };
@@ -170,10 +170,10 @@ export function saasUiScenarios(options: SaasUiOptions): void {
         }
       }).observe(document.documentElement, { childList: true, subtree: true });
     });
-    await page.getByRole('button', { name: 'Sign in as bob' }).click();
+    await page.getByRole("button", { name: "Sign in as bob" }).click();
     await page.waitForURL(`${origin}/acme`);
-    await expect(nav(page, 'projects')).toBeVisible();
-    await expect(nav(page, 'members')).toHaveCount(0);
+    await expect(nav(page, "projects")).toBeVisible();
+    await expect(nav(page, "members")).toHaveCount(0);
     // SAFETY: saasSeen is a test-only global installed above; it is optional here
     const seen = await page
       .evaluate(
@@ -184,62 +184,62 @@ export function saasUiScenarios(options: SaasUiOptions): void {
     expect(seen?.members ?? false).toBe(false);
   });
 
-  test('7. parallel users each get their own nav', async ({ browser }) => {
+  test("7. parallel users each get their own nav", async ({ browser }) => {
     const [alice, bob] = await Promise.all([
-      signedIn(browser, origin, 'alice'),
-      signedIn(browser, origin, 'bob'),
+      signedIn(browser, origin, "alice"),
+      signedIn(browser, origin, "bob"),
     ]);
     const round = async (index: number): Promise<void> => {
       await Promise.all([
         alice.goto(`${origin}/acme?round=${String(index)}`),
         bob.goto(`${origin}/acme?round=${String(index)}`),
       ]);
-      await expect(nav(alice, 'members')).toBeVisible();
-      await expect(nav(bob, 'projects')).toBeVisible();
-      await expect(nav(bob, 'members')).toHaveCount(0);
+      await expect(nav(alice, "members")).toBeVisible();
+      await expect(nav(bob, "projects")).toBeVisible();
+      await expect(nav(bob, "members")).toHaveCount(0);
     };
     await round(1);
     await round(2);
     await round(3);
   });
 
-  test('8. a user with no live membership sees no org data', async ({
+  test("8. a user with no live membership sees no org data", async ({
     browser,
   }) => {
     const noOrgData = async (user: string): Promise<void> => {
       const page = await signedIn(browser, origin, user);
-      await expect(page.getByTestId('forbidden')).toBeVisible();
-      await expect(page.locator('[data-nav]')).toHaveCount(0);
+      await expect(page.getByTestId("forbidden")).toBeVisible();
+      await expect(page.locator("[data-nav]")).toHaveCount(0);
       await page.goto(`${origin}/acme/projects`);
-      await expect(page.getByTestId('forbidden')).toBeVisible();
-      await expect(page.locator('[data-project]')).toHaveCount(0);
+      await expect(page.getByTestId("forbidden")).toBeVisible();
+      await expect(page.locator("[data-project]")).toHaveCount(0);
       await page.context().close();
     };
-    await noOrgData('mallory');
-    await noOrgData('frank');
+    await noOrgData("mallory");
+    await noOrgData("frank");
   });
 
-  test('9. an admin of two orgs gets each org’s plan', async ({ page }) => {
-    await signIn(page, origin, 'erin');
-    await expect(nav(page, 'members')).toBeVisible();
-    await expect(upsell(page, 'analytics')).toBeVisible();
+  test("9. an admin of two orgs gets each org’s plan", async ({ page }) => {
+    await signIn(page, origin, "erin");
+    await expect(nav(page, "members")).toBeVisible();
+    await expect(upsell(page, "analytics")).toBeVisible();
     await page.goto(`${origin}/globex/analytics`);
-    await expect(page.getByTestId('section-content')).toBeVisible();
-    await expect(nav(page, 'analytics')).toBeVisible();
+    await expect(page.getByTestId("section-content")).toBeVisible();
+    await expect(nav(page, "analytics")).toBeVisible();
   });
 
-  test('10. client scripts never carry the server signing key', async ({
+  test("10. client scripts never carry the server signing key", async ({
     page,
   }) => {
     const scripts: Promise<string>[] = [];
-    page.on('response', (response) => {
-      if (response.request().resourceType() === 'script') {
-        scripts.push(response.text().catch(() => ''));
+    page.on("response", (response) => {
+      if (response.request().resourceType() === "script") {
+        scripts.push(response.text().catch(() => ""));
       }
     });
-    await signIn(page, origin, 'alice');
+    await signIn(page, origin, "alice");
     await page.goto(`${origin}/acme/projects`);
-    await expect(nav(page, 'members')).toBeVisible();
+    await expect(nav(page, "members")).toBeVisible();
     const bodies = await Promise.all(scripts);
     expect(bodies.length).toBeGreaterThan(0);
     const leaked = bodies.filter((body) => body.includes(saasPrivateJwk.d));

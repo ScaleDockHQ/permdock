@@ -1,16 +1,16 @@
-import type { Server } from 'node:http';
-import type { HttpCall, HttpResult } from 'permdock/testing';
+import type { Server } from "node:http";
+import type { HttpCall, HttpResult } from "permdock/testing";
 
-import { createAdaptorServer } from '@hono/node-server';
-import { createTRPCClient, httpBatchLink, TRPCClientError } from '@trpc/client';
-import { initTRPC } from '@trpc/server';
-import { fetchRequestHandler } from '@trpc/server/adapters/fetch';
-import { testHttpAdapter } from 'permdock/testing';
-import { saasPermissions as p } from 'permdock/testing/saas';
-import { createPermDock, errorFormatter } from 'permdock/trpc';
-import { z } from 'zod';
+import { createAdaptorServer } from "@hono/node-server";
+import { createTRPCClient, httpBatchLink, TRPCClientError } from "@trpc/client";
+import { initTRPC } from "@trpc/server";
+import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
+import { testHttpAdapter } from "permdock/testing";
+import { saasPermissions as p } from "permdock/testing/saas";
+import { createPermDock, errorFormatter } from "permdock/trpc";
+import { z } from "zod";
 
-import { listen } from '../support/listen.ts';
+import { listen } from "../support/listen.ts";
 
 type Context = { readonly req: Request };
 
@@ -23,9 +23,9 @@ const ok = (status: number, body: unknown): HttpResult => ({
 });
 
 testHttpAdapter({
-  name: 'permdock/trpc over fetchRequestHandler with httpBatchLink',
+  name: "permdock/trpc over fetchRequestHandler with httpBatchLink",
   skip: {
-    upload: 'the mount takes JSON input; uploads go through a REST route',
+    upload: "the mount takes JSON input; uploads go through a REST route",
   },
   async mount(domain) {
     const { permdock, protect, permdockHandler } = createPermDock<Context>(
@@ -33,7 +33,7 @@ testHttpAdapter({
       {
         subject: (opts) =>
           domain.subject(
-            opts.ctx.req.headers.get('authorization'),
+            opts.ctx.req.headers.get("authorization"),
             new URL(opts.ctx.req.url).pathname,
           ),
         // SAFETY: every procedure's input is an object or undefined; `org` is a string when present
@@ -56,7 +56,7 @@ testHttpAdapter({
         get: base
           .input(Row)
           .use(protect(p.project.read, row))
-          .query(({ ctx }) => ctx['permdockData']),
+          .query(({ ctx }) => ctx["permdockData"]),
         update: base
           .input(Row)
           .use(protect(p.project.update, row))
@@ -73,12 +73,12 @@ testHttpAdapter({
               },
             ),
           )
-          .mutation(({ ctx }) => ctx['permdockData']),
+          .mutation(({ ctx }) => ctx["permdockData"]),
         delete: base
           .input(Row)
           .use(protect(p.project.read, row))
           .mutation(({ ctx }) => {
-            ctx['permdock'].assert(p.project.delete, ctx['permdockData']);
+            ctx["permdock"].assert(p.project.delete, ctx["permdockData"]);
             return null;
           }),
       }),
@@ -108,13 +108,13 @@ testHttpAdapter({
     const server = createAdaptorServer({
       fetch: (request: Request) => {
         const [org, segment] = new URL(request.url).pathname
-          .split('/')
+          .split("/")
           .slice(1);
-        if (segment === 'permdock') {
+        if (segment === "permdock") {
           return permdockHandler(request);
         }
         return fetchRequestHandler({
-          endpoint: `/${org ?? ''}/trpc`,
+          endpoint: `/${org ?? ""}/trpc`,
           req: request,
           router,
           createContext: () => ({ req: request }),
@@ -133,10 +133,10 @@ testHttpAdapter({
       if (client === undefined) {
         const headers: Record<string, string> = {};
         if (call.authorization !== null) {
-          headers['authorization'] = call.authorization;
+          headers["authorization"] = call.authorization;
         }
         if (call.approval !== undefined) {
-          headers['permdock-approval'] = call.approval;
+          headers["permdock-approval"] = call.approval;
         }
         client = createTRPCClient<typeof router>({
           links: [
@@ -150,9 +150,9 @@ testHttpAdapter({
     const origin = await new Promise<string>((resolve) => {
       const address = server.address();
       resolve(
-        typeof address === 'object' && address !== null
+        typeof address === "object" && address !== null
           ? `http://127.0.0.1:${address.port}`
-          : '',
+          : "",
       );
     });
 
@@ -161,43 +161,43 @@ testHttpAdapter({
       const { org } = input;
       try {
         switch (input.op) {
-          case 'project.get':
+          case "project.get":
             return ok(
               200,
               await client.project.get.query({ org, id: input.id }),
             );
-          case 'project.update':
+          case "project.update":
             return ok(
               200,
               await client.project.update.mutate({ org, id: input.id }),
             );
-          case 'project.create':
+          case "project.create":
             return ok(
               201,
               await client.project.create.mutate({ org, body: input.body }),
             );
-          case 'project.delete':
+          case "project.delete":
             await client.project.delete.mutate({ org, id: input.id });
             return ok(204, null);
-          case 'project.upload':
-            throw new Error('uploads are skipped for tRPC');
-          case 'analytics.read':
+          case "project.upload":
+            throw new Error("uploads are skipped for tRPC");
+          case "analytics.read":
             return ok(200, await client.analytics.query({ org }));
-          case 'apiKey.create':
+          case "apiKey.create":
             return ok(201, await client.apiKey.create.mutate({ org }));
-          case 'apiKey.revokeAll':
+          case "apiKey.revokeAll":
             await client.apiKey.revokeAll.mutate({ org });
             return ok(204, null);
-          case 'admin.members':
+          case "admin.members":
             return ok(200, await client.admin.members.query({ org }));
-          case 'evaluations': {
-            const headers = new Headers({ 'content-type': 'application/json' });
+          case "evaluations": {
+            const headers = new Headers({ "content-type": "application/json" });
             if (input.authorization !== null) {
-              headers.set('authorization', input.authorization);
+              headers.set("authorization", input.authorization);
             }
             const response = await fetch(
               `${origin}/${org}/permdock/access/v1/evaluations`,
-              { method: 'POST', headers, body: JSON.stringify(input.body) },
+              { method: "POST", headers, body: JSON.stringify(input.body) },
             );
             return ok(response.status, await response.json());
           }

@@ -1,19 +1,19 @@
-import type { Policy } from '../index.ts';
-import type { RlsSqlContext } from './rls-sql.ts';
+import type { Policy } from "../index.ts";
+import type { RlsSqlContext } from "./rls-sql.ts";
 import type {
   PermDockConfig,
   RlsMemberships,
   RlsMembershipTable,
-} from './types.ts';
+} from "./types.ts";
 
-import { authorizeSql } from '../supabase/index.ts';
-import { roleNames } from './rls-grants.ts';
-import { quoteIdent, quoteLiteral, quoteTable } from './rls-sql.ts';
+import { authorizeSql } from "../supabase/index.ts";
+import { roleNames } from "./rls-grants.ts";
+import { quoteIdent, quoteLiteral, quoteTable } from "./rls-sql.ts";
 
-export type RbacAuthorizeMode = 'database' | 'jwt';
+export type RbacAuthorizeMode = "database" | "jwt";
 
 export type RbacOptions = {
-  /** Postgres schema for the enums, tables and functions. Default `public`. */
+  /** Postgres schema for the enums, tables and functions. Default `permdock`. */
   readonly schema: string;
   /**
    * `database` reads `user_roles` (and the memberships table) on every statement: role changes
@@ -56,14 +56,14 @@ export function resolveAuthorize(
     return explicit;
   }
   if (rls?.membershipSources !== undefined || flags.rbac === true) {
-    return 'database';
+    return "database";
   }
   const memberships = flags.memberships ?? rls?.memberships;
   return memberships?.tenant !== undefined ||
     memberships?.team !== undefined ||
     Object.keys(memberships?.scopes ?? {}).length > 0
-    ? 'database'
-    : 'jwt';
+    ? "database"
+    : "jwt";
 }
 
 export function parseRbacAuthorize(
@@ -72,7 +72,7 @@ export function parseRbacAuthorize(
   if (raw === undefined) {
     return undefined;
   }
-  if (raw === 'database' || raw === 'jwt') {
+  if (raw === "database" || raw === "jwt") {
     return raw;
   }
   throw new Error(
@@ -89,7 +89,7 @@ function createEnum(
   name: string,
   values: readonly string[],
 ): string {
-  const list = values.map((value) => quoteLiteral(value)).join(', ');
+  const list = values.map((value) => quoteLiteral(value)).join(", ");
   return `do $$ begin
   create type ${quoteTable(`${schema}.${name}`)} as enum (${list});
 exception when duplicate_object then null;
@@ -97,7 +97,7 @@ end $$;`;
 }
 
 function hookTable(name: string): string {
-  return quoteTable(name.includes('.') ? name : `public.${name}`);
+  return quoteTable(name.includes(".") ? name : `public.${name}`);
 }
 
 /** A read policy and `select` grant for `supabase_auth_admin` on a table the hook reads. */
@@ -144,23 +144,19 @@ export function rbacScaffold(
       : { suspension: options.context.suspension }),
   });
   const head = `-- rbac scaffold (Supabase Custom Claims and RBAC)
--- authorize: ${options.authorize}${options.authorize === 'jwt' ? ' (reads the hook claims; stale until the token refreshes)' : ' (reads user_roles on every statement)'}
--- the custom access token hook that writes user_role${options.authorize === 'jwt' ? ' and memberships' : ''}: permdock supabase hook generate
-${schema === 'public' ? '' : `create schema if not exists ${s};\n`}${createEnum(schema, 'app_role', roleNames(policy))}
-${createEnum(schema, 'app_permission', permissions)}
+-- authorize: ${options.authorize}${options.authorize === "jwt" ? " (reads the hook claims; stale until the token refreshes)" : " (reads user_roles on every statement)"}
+-- the custom access token hook that writes user_role${options.authorize === "jwt" ? " and memberships" : ""}: permdock supabase hook generate
+${schema === "public" ? "" : `create schema if not exists ${s};\n`}${createEnum(schema, "app_role", roleNames(policy))}
+${createEnum(schema, "app_permission", permissions)}
 
-create table if not exists ${q('user_roles')} (
+create table if not exists ${q("user_roles")} (
   user_id uuid not null references auth.users on delete cascade,
-  role ${q('app_role')} not null,
+  role ${q("app_role")} not null,
   primary key (user_id, role)
 );
 
-alter table ${q('user_roles')} enable row level security;
-revoke all on table ${q('user_roles')} from authenticated, anon, public;
+alter table ${q("user_roles")} enable row level security;
+revoke all on table ${q("user_roles")} from authenticated, anon, public;
 `;
-  const tail = `${authorizeFn}
-revoke execute on function ${q('authorize')}(${q('app_permission')}, text) from public, anon;
-grant execute on function ${q('authorize')}(${q('app_permission')}, text) to authenticated;
-`;
-  return { head, tail, warnings: [] };
+  return { head, tail: authorizeFn, warnings: [] };
 }

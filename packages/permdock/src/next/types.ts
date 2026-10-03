@@ -1,8 +1,8 @@
-import type { ReactElement, ReactNode } from 'react';
+import type { ReactElement, ReactNode } from "react";
 
-import type { ApprovalStore } from '../approvals/types.ts';
-import type { Decision } from '../core/decision.ts';
-import type { PolicySource } from '../core/hosted.ts';
+import type { ApprovalStore } from "../approvals/types.ts";
+import type { Decision } from "../core/decision.ts";
+import type { PolicySource } from "../core/hosted.ts";
 import type {
   DecisionSink,
   EntitlementSource,
@@ -11,11 +11,11 @@ import type {
   RelationSource,
   RoleSource,
   SnapshotSource,
-} from '../core/interfaces.ts';
-import type { PermDock } from '../core/permdock.ts';
-import type { Permission } from '../core/permissions.ts';
-import type { PolicyVocabulary } from '../core/policy.ts';
-import type { OtelOptions } from '../otel/types.ts';
+} from "../core/interfaces.ts";
+import type { PermDock } from "../core/permdock.ts";
+import type { Permission } from "../core/permissions.ts";
+import type { PolicyVocabulary } from "../core/policy.ts";
+import type { OtelWrap } from "../otel/types.ts";
 
 // oxlint-disable-next-line anti-slop/no-unknown-type-aliases -- public alias; the resolver parses it
 export type NextSubjectInput = unknown;
@@ -37,7 +37,8 @@ export type NextPermDockOptions<TUser = NextSubjectInput> = {
   readonly sink?: DecisionSink;
   readonly limits?: LimitStore;
   readonly snapshots?: SnapshotSource;
-  readonly otel?: OtelOptions;
+  /** `(permdock) => withOtel(permdock, options)` from `permdock/otel`. */
+  readonly otel?: OtelWrap;
   /**
    * Where `PermDockProvider` sends checks the snapshot cannot answer; default `/api/permdock`.
    * `false` is snapshot-only: no `permdockHandler` route, and those checks are denied with
@@ -60,7 +61,7 @@ export type RequireAccessInput = {
 
 export type ServerPermissionState = {
   readonly allowed: boolean;
-  readonly status: 'ready';
+  readonly status: "ready";
   readonly decision: Decision;
 };
 
@@ -71,7 +72,7 @@ export type ServerPermDockProviderProps = {
     | Permission
     | { readonly [key: string]: unknown }
   )[];
-  readonly tenants?: 'all';
+  readonly tenants?: "all";
   /** Overrides the factory's `endpoint`; `false` is snapshot-only. */
   readonly endpoint?: string | false;
 };
@@ -94,7 +95,7 @@ export type NextPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
    */
   readonly requireAccess: (
     input: RequireAccessInput,
-  ) => Promise<Extract<Decision, { readonly outcome: 'granted' }>>;
+  ) => Promise<Extract<Decision, { readonly outcome: "granted" }>>;
   /** Never awaits: passes an unawaited snapshot to the client provider, whose hooks suspend. */
   readonly PermDockProvider: (
     props: ServerPermDockProviderProps,

@@ -11,28 +11,31 @@ The definition is importable everywhere (server, client, React Native, MCP, test
 
 ```ts
 // src/permissions.ts
-import { definePermissions, defineRoles, resource, crud } from 'permdock'
-import { z } from 'zod' // or valibot / arktype: any Standard Schema
+import { definePermissions, defineRoles, resource, crud } from "permdock";
+import { z } from "zod"; // or valibot / arktype: any Standard Schema
 
 const Post = z.object({
   id: z.string(),
   authorId: z.string(),
   orgId: z.string(),
   published: z.boolean(),
-})
+});
 
 export const permissions = definePermissions({
-  post: resource(Post, crud({
-    id: 'id',
-    actions: { publish: { title: 'Publish post' } },
-    relations: { author: 'authorId' },
-  })),
-})
+  post: resource(
+    Post,
+    crud({
+      id: "id",
+      actions: { publish: { title: "Publish post" } },
+      relations: { author: "authorId" },
+    }),
+  ),
+});
 
 export const roles = defineRoles({
   member: {},
   admin: {},
-})
+});
 ```
 
 `permissions.post.update` is a `Permission<'post.update', Post>`: a plain frozen object with `key` (`'post.update'`), `scope` (`'post:update'`), `resource`, `action` and `meta`. Because the schema lives on the resource node and not on the leaf, a leaf can be passed as a React prop across the RSC boundary or logged as JSON. See [permissions](/docs/concepts/permissions).
@@ -43,29 +46,36 @@ The policy is server-only. Roles are arrays of grants; conditions are data.
 
 ```ts
 // src/policy.ts (server-only)
-import { definePolicy, role, allow, deny, principal, relation } from 'permdock'
-import { permissions, roles } from './permissions'
+import { definePolicy, role, allow, deny, principal, relation } from "permdock";
+import { permissions, roles } from "./permissions";
 
 const member = role(roles.member, [
   allow(permissions.post.read),
   allow(permissions.post.list),
   allow(permissions.post.create),
-  allow(permissions.post.update, { to: relation(permissions.post, 'author') }),
-  allow(permissions.post.delete, { where: { authorId: principal.id }, approval: 'human' }),
-])
+  allow(permissions.post.update, { to: relation(permissions.post, "author") }),
+  allow(permissions.post.delete, {
+    where: { authorId: principal.id },
+    approval: "human",
+  }),
+]);
 
 const admin = role(roles.admin, [
   ...member.grants,
   allow(permissions.post.delete),
   allow(permissions.post.publish),
   deny(permissions.post.publish, { where: { published: true } }),
-])
+]);
 
-export const policy = definePolicy({ permissions, roles }, {
-  roles: [member, admin],
-  principal: (user: User | null) => user && { id: user.id, orgId: user.orgId, roles: user.roles },
-  validate: 'boundary',
-})
+export const policy = definePolicy(
+  { permissions, roles },
+  {
+    roles: [member, admin],
+    principal: (user: User | null) =>
+      user && { id: user.id, orgId: user.orgId, roles: user.roles },
+    validate: "boundary",
+  },
+);
 ```
 
 `principal.id` is a reference to a principal field, not the value; it is what lets the same grant run in the browser, filter an array, compile to a SQL `where` and become an RLS `USING` clause. Deny overrides allow, allows OR together, and anything not granted is denied. See [policies](/docs/concepts/policies) and [conditions](/docs/concepts/conditions).
@@ -73,26 +83,26 @@ export const policy = definePolicy({ permissions, roles }, {
 ## 3. Create a PermDock and check
 
 ```ts
-import { createPermDock } from 'permdock'
-import { policy } from './policy'
-import { permissions } from './permissions'
+import { createPermDock } from "permdock";
+import { policy } from "./policy";
+import { permissions } from "./permissions";
 
-const permdock = await createPermDock(policy, user) // sync when the policy declares no async `context`; never throws
+const permdock = await createPermDock(policy, user); // sync when the policy declares no async `context`; never throws
 
-permdock.can(permissions.post.update, post)  // boolean
-permdock.can(permissions.post.create)        // collection action: no instance, enforced by the type
-permdock.actions(permissions.post, post)     // Permission[] this subject may perform on the row
-permdock.heldRoles()                         // Role[]
-permdock.roles.admin                         // typed Role leaf
+permdock.can(permissions.post.update, post); // boolean
+permdock.can(permissions.post.create); // collection action: no instance, enforced by the type
+permdock.actions(permissions.post, post); // Permission[] this subject may perform on the row
+permdock.heldRoles(); // Role[]
+permdock.roles.admin; // typed Role leaf
 
-const decision = permdock.decide(permissions.post.delete, post)
+const decision = permdock.decide(permissions.post.delete, post);
 switch (decision.outcome) {
-  case 'granted':           // { subject, matched, token }
-  case 'denied':            // { denials: [{ role, reason }], alternatives }
-  case 'approval-required': // { grant, reason, token }
+  case "granted": // { subject, matched, token }
+  case "denied": // { denials: [{ role, reason }], alternatives }
+  case "approval-required": // { grant, reason, token }
 }
 
-permdock.assert(permissions.post.update, post) // returns the granted Decision or throws PermDockDeniedError / PermDockApprovalRequiredError
+permdock.assert(permissions.post.update, post); // returns the granted Decision or throws PermDockDeniedError / PermDockApprovalRequiredError
 ```
 
 `createPermDock` returns a frozen, request-scoped `PermDock`. Create one per request (or per user session in the browser); never share a mutable global. `decide` is the full answer, `can` is the boolean shortcut, `assert` is for handlers that must stop on denial. See [decisions](/docs/concepts/decisions) and [errors](/docs/concepts/errors).
@@ -102,29 +112,34 @@ permdock.assert(permissions.post.update, post) // returns the granted Decision o
 Client code imports hooks directly from `permdock/react`; no factory is needed because the types flow through the permission reference.
 
 ```tsx
-import { PermDockProvider, usePermission, Protected } from 'permdock/react'
-import { permissions } from './permissions'
+import { PermDockProvider, usePermission, Protected } from "permdock/react";
+import { permissions } from "./permissions";
 
 export function App({ snapshot, children }) {
   return (
     <PermDockProvider snapshot={snapshot} endpoint="/api/permdock">
       {children}
     </PermDockProvider>
-  )
+  );
 }
 
 export function EditButton({ post }) {
-  const { allowed, status } = usePermission(permissions.post.update, post)
-  if (status === 'pending') return <Skeleton />
-  return allowed ? <button>Edit</button> : null
+  const { allowed, status } = usePermission(permissions.post.update, post);
+  if (status === "pending") return <Skeleton />;
+  return allowed ? <button>Edit</button> : null;
 }
 
 export function DeleteButton({ post }) {
   return (
-    <Protected permission={permissions.post.delete} data={post} pending={<Skeleton />} fallback={null}>
+    <Protected
+      permission={permissions.post.delete}
+      data={post}
+      pending={<Skeleton />}
+      fallback={null}
+    >
       <button>Delete</button>
     </Protected>
-  )
+  );
 }
 ```
 
@@ -136,38 +151,39 @@ On the server, `createPermDock` from `permdock/next` returns the async `get*` co
 
 ```ts
 // src/permdock/server.ts (server-only)
-import { createPermDock } from 'permdock/next'
-import { cookies } from 'next/headers'
-import { policy } from '@/policy'
+import { createPermDock } from "permdock/next";
+import { cookies } from "next/headers";
+import { policy } from "@/policy";
 
-export const { getPermDock, getPermission, PermDockProvider, permdockHandler } = createPermDock(policy, {
-  subject: async () => getUser(await cookies()),
-})
+export const { getPermDock, getPermission, PermDockProvider, permdockHandler } =
+  createPermDock(policy, {
+    subject: async () => getUser(await cookies()),
+  });
 ```
 
 ```tsx
 // app/layout.tsx: never awaits; permission hooks under it suspend until the snapshot streams in
-import { PermDockProvider } from '@/permdock/server'
+import { PermDockProvider } from "@/permdock/server";
 
 export default function RootLayout({ children }) {
-  return <PermDockProvider>{children}</PermDockProvider>
+  return <PermDockProvider>{children}</PermDockProvider>;
 }
 ```
 
 ```ts
 // app/posts/[id]/page.tsx, a Server Action, or a Route Handler
-import { getPermDock, getPermission } from '@/permdock/server'
+import { getPermDock, getPermission } from "@/permdock/server";
 
-const permdock = await getPermDock()
-permdock.assert(permissions.post.update, post)
+const permdock = await getPermDock();
+permdock.assert(permissions.post.update, post);
 
-const { allowed } = await getPermission(permissions.post.update, post)
+const { allowed } = await getPermission(permissions.post.update, post);
 ```
 
 ```ts
 // app/api/permdock/route.ts: decision endpoint for closure grants and client refreshes
-import { permdockHandler } from '@/permdock/server'
-export const { POST } = permdockHandler()
+import { permdockHandler } from "@/permdock/server";
+export const { POST } = permdockHandler();
 ```
 
 Client components keep importing `usePermission` from `permdock/react`. The snapshot resolver is meant to be wrapped in `'use cache: private'` with a `cacheLife` of at least five minutes so guards resolve from the prefetched App Shell; data-dependent checks stream under Suspense. Details are on the [Next.js adapter](/docs/adapters/next) page.

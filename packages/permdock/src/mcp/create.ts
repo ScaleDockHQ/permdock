@@ -3,46 +3,45 @@ import type {
   ResourceTemplate,
   ScopeChallenge,
   ScopeChallengeHandler,
-} from '@modelcontextprotocol/server';
+} from "@modelcontextprotocol/server";
 
-import type { Decision } from '../core/decision.ts';
-import type { PermDock } from '../core/permdock.ts';
-import type { Permission, ToolHints } from '../core/permissions.ts';
-import type { Policy } from '../core/policy.ts';
+import type { Decision } from "../core/decision.ts";
+import type { PermDock } from "../core/permdock.ts";
+import type { Permission, ToolHints } from "../core/permissions.ts";
+import type { Policy } from "../core/policy.ts";
 import type {
   AuthorizationDetail,
   Delegation,
   Principal,
-} from '../core/subject.ts';
-import type { BearerChallenge } from '../server/problem.ts';
+} from "../core/subject.ts";
+import type { BearerChallenge } from "../server/problem.ts";
 import type {
   GuardedMcpServer,
   McpAuthInfo,
   McpPermDock,
   McpPermDockOptions,
-} from './types.ts';
+} from "./types.ts";
 
-import { boundedMap } from '../agent/lru.ts';
-import { resumeDecision, storedApprovalToken } from '../approvals/helpers.ts';
-import { compact } from '../core/compact.ts';
-import { describe } from '../core/describe.ts';
-import { mayUse } from '../core/may-use.ts';
-import { createPermDock as createCorePermDock } from '../core/permdock.ts';
-import { annotationsFor } from '../core/permissions.ts';
-import { wireDenials } from '../core/wire-denial.ts';
-import { applyOtel } from '../otel/instrument.ts';
+import { boundedMap } from "../agent/lru.ts";
+import { resumeDecision, storedApprovalToken } from "../approvals/helpers.ts";
+import { compact } from "../core/compact.ts";
+import { describe } from "../core/describe.ts";
+import { mayUse } from "../core/may-use.ts";
+import { createPermDock as createCorePermDock } from "../core/permdock.ts";
+import { annotationsFor } from "../core/permissions.ts";
+import { wireDenials } from "../core/wire-denial.ts";
 import {
   bearerChallenge,
   protectedResourceMetadataUrl,
   stepUpOf,
-} from '../server/problem.ts';
+} from "../server/problem.ts";
 
 /** `_meta` key on `tools/call`, `resources/read` and `prompts/get` carrying an approval token. */
-export const APPROVAL_META_KEY = 'dev.permdock/approval';
+export const APPROVAL_META_KEY = "dev.permdock/approval";
 
 const SESSIONS_PER_SERVER = 1000;
 
-const CLIENT_CAPABILITIES = 'io.modelcontextprotocol/clientCapabilities';
+const CLIENT_CAPABILITIES = "io.modelcontextprotocol/clientCapabilities";
 
 type Context = {
   readonly sessionId?: string;
@@ -74,14 +73,14 @@ function stillAllowed(
   approved: string | undefined,
 ): boolean {
   switch (decision.outcome) {
-    case 'granted':
+    case "granted":
       return true;
-    case 'approval-required':
+    case "approval-required":
       return approved !== undefined && decision.token === approved;
-    case 'denied':
+    case "denied":
       return (
         decision.denials.length > 0 &&
-        decision.denials.every((denial) => denial.reason === 'limit')
+        decision.denials.every((denial) => denial.reason === "limit")
       );
     default: {
       const exhaustive: never = decision;
@@ -105,7 +104,7 @@ type InnerServer = {
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function contextOf(value: unknown): Context {
@@ -120,24 +119,24 @@ function approvalTokenOf(context: Context): string | undefined {
   } catch {
     fromState = undefined;
   }
-  if (typeof fromState === 'string' && fromState !== '') {
+  if (typeof fromState === "string" && fromState !== "") {
     return fromState;
   }
   // oxlint-disable-next-line no-underscore-dangle -- the MCP protocol names it `_meta`
   const fromMeta = context.mcpReq?._meta?.[APPROVAL_META_KEY];
-  if (typeof fromMeta === 'string' && fromMeta !== '') {
+  if (typeof fromMeta === "string" && fromMeta !== "") {
     return fromMeta;
   }
-  const fromAuth = context.http?.authInfo?.extra?.['approval'];
-  return typeof fromAuth === 'string' && fromAuth !== '' ? fromAuth : undefined;
+  const fromAuth = context.http?.authInfo?.extra?.["approval"];
+  return typeof fromAuth === "string" && fromAuth !== "" ? fromAuth : undefined;
 }
 
 function authorizationDetailsOf(
   authInfo: McpAuthInfo,
 ): readonly AuthorizationDetail[] | undefined {
   const details =
-    authInfo.extra?.['authorizationDetails'] ??
-    authInfo.extra?.['authorization_details'];
+    authInfo.extra?.["authorizationDetails"] ??
+    authInfo.extra?.["authorization_details"];
   // SAFETY: authInfo comes from the server's token verifier, which puts RFC 9396 entries in this array.
   return Array.isArray(details)
     ? (details as readonly AuthorizationDetail[])
@@ -160,7 +159,7 @@ function resourceMetadataOf(authInfo: McpAuthInfo): string | undefined {
     return authInfo.resourceMetadataUrl;
   }
   const resource = authInfo.resource;
-  return resource?.protocol === 'https:' || resource?.protocol === 'http:'
+  return resource?.protocol === "https:" || resource?.protocol === "http:"
     ? protectedResourceMetadataUrl(resource)
     : undefined;
 }
@@ -185,10 +184,10 @@ function acceptsUrlElicitation(
 ): boolean {
   const fromEnvelope = context.mcpReq?.envelope?.[CLIENT_CAPABILITIES];
   const capabilities = isRecord(fromEnvelope) ? fromEnvelope : fallback?.();
-  if (!isRecord(capabilities) || !isRecord(capabilities['elicitation'])) {
+  if (!isRecord(capabilities) || !isRecord(capabilities["elicitation"])) {
     return false;
   }
-  return isRecord(capabilities['elicitation']['url']);
+  return isRecord(capabilities["elicitation"]["url"]);
 }
 
 function withParams(
@@ -216,11 +215,11 @@ function urlElicitation(
   requestState: string | undefined,
 ): Readonly<Record<string, unknown>> {
   return compact({
-    resultType: 'input_required',
+    resultType: "input_required",
     inputRequests: {
       [key]: {
-        method: 'elicitation/create',
-        params: { mode: 'url', message, url },
+        method: "elicitation/create",
+        params: { mode: "url", message, url },
       },
     },
     requestState,
@@ -232,8 +231,8 @@ function resourceRef(
   data: unknown,
 ): { readonly type: string; readonly id?: string } {
   if (isRecord(data)) {
-    const id = data['id'];
-    if (typeof id === 'string' || typeof id === 'number') {
+    const id = data["id"];
+    if (typeof id === "string" || typeof id === "number") {
       return { type: permission.resource, id: String(id) };
     }
   }
@@ -241,7 +240,7 @@ function resourceRef(
 }
 
 function deniedRefusal(
-  decision: Extract<Decision, { readonly outcome: 'denied' }>,
+  decision: Extract<Decision, { readonly outcome: "denied" }>,
   permission: Permission,
   data: unknown,
 ): Refusal {
@@ -252,11 +251,11 @@ function deniedRefusal(
       ? permission.key
       : `${permission.key} on ${resource.id}`;
   const maybe =
-    alternatives.length === 0 ? '' : ` You may: ${alternatives.join(', ')}.`;
+    alternatives.length === 0 ? "" : ` You may: ${alternatives.join(", ")}.`;
   return {
     text: `Denied: ${suffix}.${maybe}`,
     structured: {
-      outcome: 'denied',
+      outcome: "denied",
       permission: permission.key,
       resource,
       denials: wireDenials(decision.denials),
@@ -267,14 +266,14 @@ function deniedRefusal(
 }
 
 function approvalRefusal(
-  decision: Extract<Decision, { readonly outcome: 'approval-required' }>,
+  decision: Extract<Decision, { readonly outcome: "approval-required" }>,
   permission: Permission,
   data: unknown,
 ): Refusal {
   return {
     text: describe(decision).detail,
     structured: {
-      outcome: 'approval-required',
+      outcome: "approval-required",
       permission: permission.key,
       resource: resourceRef(permission, data),
       token: decision.token,
@@ -290,7 +289,7 @@ function plainRefusal(
   return {
     text,
     structured: {
-      outcome: 'denied',
+      outcome: "denied",
       permission: permission.key,
       resource: { type: permission.resource },
       alternatives: [],
@@ -305,7 +304,7 @@ function toolRefusal(refusal: Refusal): unknown {
   }
   return {
     isError: true,
-    content: [{ type: 'text', text: refusal.text }],
+    content: [{ type: "text", text: refusal.text }],
     structuredContent: refusal.structured,
   };
 }
@@ -315,8 +314,8 @@ function requirePermission(
   name: string,
   config: unknown,
 ): Permission {
-  const permission = isRecord(config) ? config['permission'] : undefined;
-  if (!isRecord(permission) || typeof permission['key'] !== 'string') {
+  const permission = isRecord(config) ? config["permission"] : undefined;
+  if (!isRecord(permission) || typeof permission["key"] !== "string") {
     throw new TypeError(
       `permdock/mcp: ${kind} ${name} has no permission; every guarded registration needs one.`,
     );
@@ -326,7 +325,7 @@ function requirePermission(
 }
 
 function sessionKey(context: Context): string {
-  return context.sessionId ?? '';
+  return context.sessionId ?? "";
 }
 
 function throwRefusal(refusal: Refusal): unknown {
@@ -362,13 +361,13 @@ function guardUpdates(
   const update = registered.update.bind(registered);
   registered.update = (updates): void => {
     const next: Record<string, unknown> = { ...updates };
-    if (typeof updates['callback'] === 'function') {
+    if (typeof updates["callback"] === "function") {
       // SAFETY: the typeof check above confirms a function; Handler takes any arguments.
-      next['callback'] = wrap(updates['callback'] as Handler);
+      next["callback"] = wrap(updates["callback"] as Handler);
     }
     if (rename !== undefined && currentName !== undefined) {
-      const to = updates['name'];
-      if (typeof to === 'string' || to === null) {
+      const to = updates["name"];
+      if (typeof to === "string" || to === null) {
         rename(currentName(), to);
       }
     }
@@ -393,7 +392,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     let tenant: string | undefined;
     try {
       tenant =
-        typeof options.tenant === 'function'
+        typeof options.tenant === "function"
           ? await options.tenant(material)
           : options.tenant;
     } catch {
@@ -401,29 +400,26 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     }
     const clientId = authInfo?.clientId;
     const actor =
-      typeof clientId === 'string' && clientId !== ''
-        ? { id: clientId, kind: 'mcp-client' as const }
+      typeof clientId === "string" && clientId !== ""
+        ? { id: clientId, kind: "mcp-client" as const }
         : undefined;
-    return applyOtel(
-      await createCorePermDock(
-        policy,
-        user,
-        compact({
-          tenant,
-          actor,
-          delegation:
-            authInfo === undefined ? undefined : delegationOf(authInfo),
-          memberships: options.memberships,
-          relations: options.relations,
-          entitlements: options.entitlements,
-          customRoles: options.customRoles,
-          policies: options.policies,
-          sink: options.sink,
-          limits: options.limits,
-        }),
-      ),
-      options.otel,
+    const built = await createCorePermDock(
+      policy,
+      user,
+      compact({
+        tenant,
+        actor,
+        delegation: authInfo === undefined ? undefined : delegationOf(authInfo),
+        memberships: options.memberships,
+        relations: options.relations,
+        entitlements: options.entitlements,
+        customRoles: options.customRoles,
+        policies: options.policies,
+        sink: options.sink,
+        limits: options.limits,
+      }),
     );
+    return options.otel === undefined ? built : options.otel(built);
   };
 
   const forThisServer = (authInfo: McpAuthInfo): boolean =>
@@ -439,7 +435,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       : forThisServer(authInfo) && hasScope(authInfo, permission.scope);
 
   const approvalInput = async (
-    decision: Extract<Decision, { readonly outcome: 'approval-required' }>,
+    decision: Extract<Decision, { readonly outcome: "approval-required" }>,
     handlerContext: unknown,
     context: Context,
     capabilities: (() => unknown) | undefined,
@@ -461,7 +457,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
             handlerContext as never,
           );
     return urlElicitation(
-      'approval',
+      "approval",
       options.approval?.hint ?? describe(decision).detail,
       url,
       requestState,
@@ -469,7 +465,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
   };
 
   const stepUpRefusal = (
-    decision: Extract<Decision, { readonly outcome: 'denied' }>,
+    decision: Extract<Decision, { readonly outcome: "denied" }>,
     permission: Permission,
     data: unknown,
     context: Context,
@@ -482,19 +478,19 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       at === undefined || !acceptsUrlElicitation(context, capabilities)
         ? undefined
         : withParams(at, {
-            acr_values: acrValues?.join(' '),
+            acr_values: acrValues?.join(" "),
             max_age: maxAge === undefined ? undefined : String(maxAge),
           });
     return compact<Refusal>({
       text: base.text,
       structured: compact({
         ...base.structured,
-        error: 'insufficient_user_authentication',
-        acr_values: acrValues?.join(' '),
+        error: "insufficient_user_authentication",
+        acr_values: acrValues?.join(" "),
         max_age: maxAge,
         www_authenticate: bearerChallenge(
           compact<BearerChallenge>({
-            error: 'insufficient_user_authentication',
+            error: "insufficient_user_authentication",
             acrValues,
             maxAge,
           }),
@@ -504,7 +500,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         url === undefined
           ? undefined
           : urlElicitation(
-              'step_up',
+              "step_up",
               `Sign in again to use ${permission.key}.`,
               url,
               undefined,
@@ -524,8 +520,8 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     if (authInfo === undefined && options.requireAuthInfo === true) {
       return {
         ok: false,
-        refusal: plainRefusal(permission, 'Denied: no verified credentials.', {
-          error: 'invalid_token',
+        refusal: plainRefusal(permission, "Denied: no verified credentials.", {
+          error: "invalid_token",
         }),
       };
     }
@@ -534,8 +530,8 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         ok: false,
         refusal: plainRefusal(
           permission,
-          'Denied: the token was not issued for this server.',
-          { error: 'invalid_token' },
+          "Denied: the token was not issued for this server.",
+          { error: "invalid_token" },
         ),
       };
     }
@@ -547,12 +543,12 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
           permission,
           `Denied: ${permission.key} needs the ${permission.scope} scope.`,
           compact({
-            error: 'insufficient_scope',
+            error: "insufficient_scope",
             scope: permission.scope,
             resource_metadata: resourceMetadata,
             www_authenticate: bearerChallenge(
               compact({
-                error: 'insufficient_scope' as const,
+                error: "insufficient_scope" as const,
                 scopes: [permission.scope],
                 resourceMetadata,
               }),
@@ -571,7 +567,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
           refusal: plainRefusal(
             permission,
             `Denied: ${permission.key} failed closed.`,
-            { denials: [{ role: null, reason: 'validation' }] },
+            { denials: [{ role: null, reason: "validation" }] },
           ),
         };
       }
@@ -581,28 +577,28 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
           refusal: plainRefusal(
             permission,
             `Denied: ${permission.key} found nothing to decide on.`,
-            { denials: [{ role: null, reason: 'validation' }] },
+            { denials: [{ role: null, reason: "validation" }] },
           ),
         };
       }
     }
     try {
-      const dock = await instanceFor(authInfo);
+      const permdock = await instanceFor(authInfo);
       // SAFETY: decide's instance and collection overloads share one implementation that takes either kind.
       const raw = (
-        dock.decide as (
+        permdock.decide as (
           next: Permission,
           row?: unknown,
           decideOptions?: {
-            readonly source: 'adapter' | 'simulate';
+            readonly source: "adapter" | "simulate";
             readonly adapter: string;
-            readonly boundary: 'mcp-args';
+            readonly boundary: "mcp-args";
           },
         ) => Decision
       )(permission, data, {
-        source: completion === undefined ? 'adapter' : 'simulate',
-        adapter: 'mcp',
-        boundary: 'mcp-args',
+        source: completion === undefined ? "adapter" : "simulate",
+        adapter: "mcp",
+        boundary: "mcp-args",
       });
       if (completion !== undefined) {
         if (stillAllowed(raw, completion.approved)) {
@@ -611,7 +607,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         return {
           ok: false,
           refusal:
-            raw.outcome === 'denied'
+            raw.outcome === "denied"
               ? deniedRefusal(raw, permission, data)
               : plainRefusal(
                   permission,
@@ -623,29 +619,29 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       const decision = await resumeDecision({
         decision: raw,
         permission,
-        subject: dock.subject,
+        subject: permdock.subject,
         store: options.store,
         resource: resourceRef(permission, data),
-        adapter: 'mcp',
+        adapter: "mcp",
         token:
           approvalTokenOf(context) ??
           (await storedApprovalToken(options.store, raw, false)),
       });
       switch (decision.outcome) {
-        case 'granted':
-          return raw.outcome === 'approval-required'
+        case "granted":
+          return raw.outcome === "approval-required"
             ? { ok: true, approved: raw.token }
             : { ok: true };
-        case 'denied':
+        case "denied":
           return {
             ok: false,
             refusal: decision.denials.some(
-              (denial) => denial.reason === 'insufficient-user-authentication',
+              (denial) => denial.reason === "insufficient-user-authentication",
             )
               ? stepUpRefusal(decision, permission, data, context, capabilities)
               : deniedRefusal(decision, permission, data),
           };
-        case 'approval-required':
+        case "approval-required":
           return {
             ok: false,
             refusal: compact<Refusal>({
@@ -697,15 +693,15 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     if (guarded.length === 0) {
       return shown;
     }
-    let dock: PermDock;
+    let permdock: PermDock;
     try {
-      dock = await instanceFor(authInfo);
+      permdock = await instanceFor(authInfo);
     } catch {
       // A subject that cannot be built sees no guarded entry.
       return shown;
     }
     for (const entry of guarded) {
-      if (mayUse(dock, entry.permission)) {
+      if (mayUse(permdock, entry.permission)) {
         shown.add(entry.key);
       }
     }
@@ -807,34 +803,34 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         const shown = await visible(context, permissionOf, entries.map(keyOf));
         const kept = entries.filter((entry) => shown.has(keyOf(entry)));
         if (remember) {
-          lastListed.set(sessionKey(context), [...shown].toSorted().join(','));
+          lastListed.set(sessionKey(context), [...shown].toSorted().join(","));
         }
-        return { ...result, [field]: kept, cacheScope: 'private' };
+        return { ...result, [field]: kept, cacheScope: "private" };
       };
 
     const filters: Readonly<
       Record<string, (result: unknown, context: unknown) => Promise<unknown>>
     > = {
-      'tools/list': listFilter<{ readonly name: string }>(
-        'tools',
+      "tools/list": listFilter<{ readonly name: string }>(
+        "tools",
         (entry) => entry.name,
         toolPermission,
         true,
       ),
-      'prompts/list': listFilter<{ readonly name: string }>(
-        'prompts',
+      "prompts/list": listFilter<{ readonly name: string }>(
+        "prompts",
         (entry) => entry.name,
         promptPermission,
         false,
       ),
-      'resources/list': listFilter<{ readonly uri: string }>(
-        'resources',
+      "resources/list": listFilter<{ readonly uri: string }>(
+        "resources",
         (entry) => entry.uri,
         resourcePermission,
         false,
       ),
-      'resources/templates/list': listFilter<{ readonly uriTemplate: string }>(
-        'resourceTemplates',
+      "resources/templates/list": listFilter<{ readonly uriTemplate: string }>(
+        "resourceTemplates",
         (entry) => entry.uriTemplate,
         templatePermission,
         false,
@@ -853,7 +849,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       if (
         filter !== undefined &&
         rest.length === 1 &&
-        typeof handler === 'function'
+        typeof handler === "function"
       ) {
         set(method, async (request: unknown, context: unknown) =>
           // SAFETY: the typeof check above confirms a function; Handler takes any arguments.
@@ -881,14 +877,14 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         return;
       }
       const shown = await visible(context, toolPermission, [...tools.keys()]);
-      const after = [...shown].toSorted().join(',');
+      const after = [...shown].toSorted().join(",");
       if (after === before) {
         return;
       }
       lastListed.set(key, after);
       try {
         await (context.mcpReq?.notify?.({
-          method: 'notifications/tools/list_changed',
+          method: "notifications/tools/list_changed",
         }) ?? inner.sendToolListChanged?.());
       } catch {
         // A lost notification only delays the client's next list.
@@ -922,7 +918,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       config: Readonly<Record<string, unknown>>,
       handler: Handler,
     ): Registered => {
-      const permission = requirePermission('tool', name, config);
+      const permission = requirePermission("tool", name, config);
       const {
         permission: _permission,
         data,
@@ -940,7 +936,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
           ...passthrough,
           annotations: {
             ...annotationsFor(permission),
-            ...(passthrough['annotations'] as ToolHints | undefined),
+            ...(passthrough["annotations"] as ToolHints | undefined),
           },
           scopeChallenge: challengeFor(
             permission,
@@ -978,7 +974,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       config: Readonly<Record<string, unknown>>,
       handler: Handler,
     ): Registered => {
-      const permission = requirePermission('prompt', name, config);
+      const permission = requirePermission("prompt", name, config);
       const {
         permission: _permission,
         data,
@@ -1028,7 +1024,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       config: Readonly<Record<string, unknown>>,
       read: Handler,
     ): Registered => {
-      const permission = requirePermission('resource', name, config);
+      const permission = requirePermission("resource", name, config);
       const {
         permission: _permission,
         data,
@@ -1059,7 +1055,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         },
         wrap(read),
       );
-      if (typeof uriOrTemplate === 'string') {
+      if (typeof uriOrTemplate === "string") {
         resources.set(uriOrTemplate, permission);
       } else {
         templates.push({ template: uriOrTemplate, permission });
@@ -1070,9 +1066,9 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
 
     // SAFETY: the server is an object whose three register methods are replaced below.
     const guarded = server as unknown as Record<string, unknown>;
-    guarded['registerTool'] = registerTool;
-    guarded['registerPrompt'] = registerPrompt;
-    guarded['registerResource'] = registerResource;
+    guarded["registerTool"] = registerTool;
+    guarded["registerPrompt"] = registerPrompt;
+    guarded["registerResource"] = registerResource;
     // SAFETY: the register methods were just replaced by the guarded ones GuardedMcpServer declares.
     return server as unknown as GuardedMcpServer;
   };

@@ -12,34 +12,43 @@ Prisma has no server-side row filter unless the database enforces one, so list q
 ## API
 
 ```ts
-import { toWhere, permdockExtension } from 'permdock/prisma'
+import { toWhere, permdockExtension } from "permdock/prisma";
 
-const prisma = new PrismaClient().$extends(permdockExtension())
+const prisma = new PrismaClient().$extends(permdockExtension());
 
 const posts = await prisma.post.findMany({
   where: {
     AND: [toWhere(permdock.where(permissions.post.read)), { published: true }],
   },
-})
+});
 
 // typed to the model's WhereInput when the resource schema was generated from Prisma types
-toWhere<Prisma.PostWhereInput>(permdock.where(permissions.post.read))
+toWhere<Prisma.PostWhereInput>(permdock.where(permissions.post.read));
 
 // required and list fields read from schema.prisma (or Prisma.dmmf.datamodel)
-const model = prismaModelFields(readFileSync('prisma/schema.prisma', 'utf8'), 'Post')
-toWhere(permdock.where(permissions.post.read), { model })
+const model = prismaModelFields(
+  readFileSync("prisma/schema.prisma", "utf8"),
+  "Post",
+);
+toWhere(permdock.where(permissions.post.read), { model });
 
 // graph grants: read the related ids first, then compile
 const where = await resolveRelated(permdock.where(permissions.doc.read), {
   run: ({ sql, values }) => prisma.$queryRawUnsafe(sql, ...values),
-})
-await prisma.doc.findMany({ where: toWhere(where) })
+});
+await prisma.doc.findMany({ where: toWhere(where) });
 
 // one row: not found, or found with the decision
-const check = await checkRow(prisma.post, permdock.where(permissions.post.update), { id })
+const check = await checkRow(
+  prisma.post,
+  permdock.where(permissions.post.update),
+  { id },
+);
 
 // run a transaction as the subject, so RLS policies see it
-await withSubject(prisma, permdock, (tx) => tx.post.findMany(), { dialect: 'guc' })
+await withSubject(prisma, permdock, (tx) => tx.post.findMany(), {
+  dialect: "guc",
+});
 ```
 
 - `toWhere(condition, options?)` maps fields to model fields by name (or `options.fields`), and operators to Prisma filter operators: `eq` to `equals`, `ne` to `not`, `in` / `notIn`, `gt` / `gte` / `lt` / `lte`, `isNull` to `equals: null`, `contains` to `has` for scalar lists (`options.listFields`) and `contains` for strings with `%`, `_` and `\` escaped (Prisma passes the value into `LIKE` as is), `and` / `or` / `not` to `AND` / `OR` / `NOT`.
@@ -58,9 +67,9 @@ await withSubject(prisma, permdock, (tx) => tx.post.findMany(), { dialect: 'guc'
 Prisma 8's ORM filters with typed field predicates instead of `WhereInput` objects. `toPredicate(condition, options?)` returns a function of the model's field proxy that builds the same filter:
 
 ```ts
-import { toPredicate, prismaModelFields } from 'permdock/prisma'
+import { toPredicate, prismaModelFields } from "permdock/prisma";
 
-const readable = toPredicate(permdock.where(permissions.post.read), { model })
+const readable = toPredicate(permdock.where(permissions.post.read), { model });
 // readable(post) builds the predicate from the Post field proxy; pass it wherever Prisma 8 takes a filter
 ```
 

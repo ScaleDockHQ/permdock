@@ -3,13 +3,13 @@ import type {
   Membership,
   Principal,
   RelationSource,
-} from '../../index.ts';
-import type { SaasDoc, SaasFolder, SaasProject } from './permissions.ts';
+} from "../../index.ts";
+import type { SaasDoc, SaasFolder, SaasProject } from "./permissions.ts";
 
-import { memoryRelations } from '../../index.ts';
-import { saasPermissions } from './permissions.ts';
+import { memoryRelations } from "../../index.ts";
+import { saasPermissions } from "./permissions.ts";
 
-export type SaasPlan = 'free' | 'pro';
+export type SaasPlan = "free" | "pro";
 
 export type SaasOrg = {
   readonly id: string;
@@ -32,7 +32,7 @@ export type SaasMember = {
 export type SaasShare = {
   readonly folder: string;
   readonly user: string;
-  readonly relation: 'viewer' | 'editor';
+  readonly relation: "viewer" | "editor";
   readonly expiresAt?: number;
 };
 
@@ -70,177 +70,177 @@ export const SAAS_EXPIRED_AT = 1_000_000_000;
 export const saasSeed: SaasSeed = Object.freeze({
   orgs: [
     {
-      id: 'acme',
-      name: 'Acme',
-      plan: 'free',
+      id: "acme",
+      name: "Acme",
+      plan: "free",
       customRoles: [
-        { tenant: 'acme', name: 'contractor', includes: ['member'] },
+        { tenant: "acme", name: "contractor", includes: ["member"] },
       ],
     },
-    { id: 'globex', name: 'Globex', plan: 'pro', customRoles: [] },
-    { id: 'org-1', name: 'Org One', plan: 'pro', customRoles: [] },
-    { id: 'tenant-1', name: 'Tenant One', plan: 'pro', customRoles: [] },
+    { id: "globex", name: "Globex", plan: "pro", customRoles: [] },
+    { id: "org-1", name: "Org One", plan: "pro", customRoles: [] },
+    { id: "tenant-1", name: "Tenant One", plan: "pro", customRoles: [] },
   ],
   members: [
-    { user: 'alice', tenant: 'acme', roles: ['admin'] },
-    { user: 'alice', tenant: 'globex', roles: ['viewer'] },
-    { user: 'bob', tenant: 'acme', roles: ['member'] },
-    { user: 'carol', tenant: 'acme', roles: ['owner'] },
-    { user: 'dave', tenant: 'acme', roles: ['contractor'] },
-    { user: 'erin', tenant: 'acme', roles: ['admin'] },
-    { user: 'erin', tenant: 'globex', roles: ['admin'] },
+    { user: "alice", tenant: "acme", roles: ["admin"] },
+    { user: "alice", tenant: "globex", roles: ["viewer"] },
+    { user: "bob", tenant: "acme", roles: ["member"] },
+    { user: "carol", tenant: "acme", roles: ["owner"] },
+    { user: "dave", tenant: "acme", roles: ["contractor"] },
+    { user: "erin", tenant: "acme", roles: ["admin"] },
+    { user: "erin", tenant: "globex", roles: ["admin"] },
     {
-      user: 'frank',
-      tenant: 'acme',
-      roles: ['member'],
+      user: "frank",
+      tenant: "acme",
+      roles: ["member"],
       expiresAt: SAAS_EXPIRED_AT,
     },
-    { user: 'gina', tenant: 'acme', roles: ['viewer'] },
-    { user: 'gina', tenant: 'acme', team: 'team-a', roles: ['lead'] },
-    { user: 'hank', tenant: 'acme', roles: ['viewer'] },
+    { user: "gina", tenant: "acme", roles: ["viewer"] },
+    { user: "gina", tenant: "acme", team: "team-a", roles: ["lead"] },
+    { user: "hank", tenant: "acme", roles: ["viewer"] },
     {
-      user: 'hank',
-      on: { resource: 'project', id: 'p3' },
-      roles: ['collaborator'],
+      user: "hank",
+      on: { resource: "project", id: "p3" },
+      roles: ["collaborator"],
     },
-    { user: 'user-2', tenant: 'org-1', roles: ['member'] },
-    { user: '2', tenant: 'org-1', roles: ['member'] },
-    { user: 'tina', tenant: 'tenant-1', roles: ['member'] },
-    { user: 'ivan', tenant: 'acme', roles: ['viewer', 'lead'] },
+    { user: "user-2", tenant: "org-1", roles: ["member"] },
+    { user: "2", tenant: "org-1", roles: ["member"] },
+    { user: "tina", tenant: "tenant-1", roles: ["member"] },
+    { user: "ivan", tenant: "acme", roles: ["viewer", "lead"] },
   ],
   projects: [
     {
-      id: 'p1',
-      orgId: 'acme',
-      ownerId: 'bob',
-      name: 'Rocket',
+      id: "p1",
+      orgId: "acme",
+      ownerId: "bob",
+      name: "Rocket",
       archived: false,
     },
     {
-      id: 'p2',
-      orgId: 'acme',
-      ownerId: 'alice',
-      name: 'Anvil',
+      id: "p2",
+      orgId: "acme",
+      ownerId: "alice",
+      name: "Anvil",
       archived: false,
     },
     {
-      id: 'p3',
-      orgId: 'acme',
-      ownerId: 'bob',
-      name: 'Magnet',
+      id: "p3",
+      orgId: "acme",
+      ownerId: "bob",
+      name: "Magnet",
       archived: false,
     },
     {
-      id: 'p4',
-      orgId: 'acme',
-      ownerId: 'bob',
-      name: 'Old tunnel',
+      id: "p4",
+      orgId: "acme",
+      ownerId: "bob",
+      name: "Old tunnel",
       archived: true,
     },
     {
-      id: 'g1',
-      orgId: 'globex',
-      ownerId: 'alice',
-      name: 'Hammock',
+      id: "g1",
+      orgId: "globex",
+      ownerId: "alice",
+      name: "Hammock",
       archived: false,
     },
     {
-      id: 'n1',
-      orgId: 'org-1',
-      ownerId: 'user-2',
-      name: 'Numbered',
+      id: "n1",
+      orgId: "org-1",
+      ownerId: "user-2",
+      name: "Numbered",
       archived: false,
     },
     {
-      id: 'o1',
-      orgId: 'org-1',
-      ownerId: 'tina',
-      name: 'Lookalike',
+      id: "o1",
+      orgId: "org-1",
+      ownerId: "tina",
+      name: "Lookalike",
       archived: false,
     },
   ],
   docs: [
     {
-      id: 'd1',
-      orgId: 'acme',
-      teamId: 'team-a',
-      title: 'Roadmap',
+      id: "d1",
+      orgId: "acme",
+      teamId: "team-a",
+      title: "Roadmap",
       locked: false,
     },
     {
-      id: 'd2',
-      orgId: 'acme',
-      teamId: 'team-a',
-      title: 'Signed contract',
+      id: "d2",
+      orgId: "acme",
+      teamId: "team-a",
+      title: "Signed contract",
       locked: true,
     },
     {
-      id: 'd3',
-      orgId: 'acme',
-      teamId: 'team-b',
-      title: 'Other team',
+      id: "d3",
+      orgId: "acme",
+      teamId: "team-b",
+      title: "Other team",
       locked: false,
     },
   ],
   folders: [
     {
-      id: 'root',
-      orgId: 'acme',
+      id: "root",
+      orgId: "acme",
       parentId: null,
-      name: 'Acme',
+      name: "Acme",
       restricted: false,
     },
     {
-      id: 'eng',
-      orgId: 'acme',
-      parentId: 'root',
-      name: 'Engineering',
+      id: "eng",
+      orgId: "acme",
+      parentId: "root",
+      name: "Engineering",
       restricted: false,
     },
     {
-      id: 'platform',
-      orgId: 'acme',
-      parentId: 'eng',
-      name: 'Platform',
+      id: "platform",
+      orgId: "acme",
+      parentId: "eng",
+      name: "Platform",
       restricted: false,
     },
     {
-      id: 'infra',
-      orgId: 'acme',
-      parentId: 'platform',
-      name: 'Infra',
+      id: "infra",
+      orgId: "acme",
+      parentId: "platform",
+      name: "Infra",
       restricted: false,
     },
     {
-      id: 'hr',
-      orgId: 'acme',
-      parentId: 'root',
-      name: 'People',
+      id: "hr",
+      orgId: "acme",
+      parentId: "root",
+      name: "People",
       restricted: true,
     },
     {
-      id: 'payroll',
-      orgId: 'acme',
-      parentId: 'hr',
-      name: 'Payroll',
+      id: "payroll",
+      orgId: "acme",
+      parentId: "hr",
+      name: "Payroll",
       restricted: false,
     },
     {
-      id: 'globex-root',
-      orgId: 'globex',
+      id: "globex-root",
+      orgId: "globex",
       parentId: null,
-      name: 'Globex',
+      name: "Globex",
       restricted: false,
     },
   ],
   shares: [
-    { folder: 'root', user: 'bob', relation: 'viewer' },
-    { folder: 'hr', user: 'hank', relation: 'viewer' },
-    { folder: 'eng', user: 'gina', relation: 'editor' },
+    { folder: "root", user: "bob", relation: "viewer" },
+    { folder: "hr", user: "hank", relation: "viewer" },
+    { folder: "eng", user: "gina", relation: "editor" },
     {
-      folder: 'root',
-      user: 'frank',
-      relation: 'viewer',
+      folder: "root",
+      user: "frank",
+      relation: "viewer",
       expiresAt: SAAS_EXPIRED_AT,
     },
   ],
@@ -248,7 +248,7 @@ export const saasSeed: SaasSeed = Object.freeze({
 
 /** The seed's folder tree and shares as a `RelationSource`, for `createPermDock({ relations })`. */
 export function saasRelations(seed: SaasSeed = saasSeed): RelationSource {
-  const edges = (relation: SaasShare['relation']) =>
+  const edges = (relation: SaasShare["relation"]) =>
     seed.shares
       .filter((share) => share.relation === relation)
       .map((share) =>
@@ -262,14 +262,14 @@ export function saasRelations(seed: SaasSeed = saasSeed): RelationSource {
       );
   return memoryRelations(saasPermissions, {
     rows: { folder: seed.folders },
-    edges: { folder: { viewer: edges('viewer'), editor: edges('editor') } },
+    edges: { folder: { viewer: edges("viewer"), editor: edges("editor") } },
   });
 }
 
 /** Every user id in the seed. */
 export const saasUsers: readonly string[] = [
   ...new Set(saasSeed.members.map((member) => member.user)),
-  'mallory',
+  "mallory",
 ] as const;
 
 export function saasOrg(id: string): SaasOrg | undefined {

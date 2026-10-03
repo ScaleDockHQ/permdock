@@ -1,4 +1,4 @@
-import { defineConfig } from 'oxlint';
+import { defineConfig } from "oxlint";
 
 import {
   core,
@@ -6,15 +6,15 @@ import {
   ignorePatterns,
   node,
   test,
-} from '@permdock/ox-config/oxlint';
+} from "@permdock/ox-config/oxlint";
 
 export default defineConfig({
   extends: [core, node, test, fixture],
   ignorePatterns: [
     ...ignorePatterns,
-    'apps/**',
-    'packages/**',
-    'build/**',
-    '**/routeTree.gen.ts',
+    "apps/**",
+    "packages/**",
+    "build/**",
+    "**/routeTree.gen.ts",
   ],
 });

@@ -14,3 +14,7 @@ Marketing's `robots.ts` lists both `/sitemap.xml` and `/docs/sitemap.xml`. The d
 ## Consequences
 
 A crawl rule for docs pages is edited in `apps/marketing/app/robots.ts`.
+
+## Alternatives considered
+
+- A `robots.ts` in each app: the docs one would be served at `/docs/robots.txt`, which crawlers never read.

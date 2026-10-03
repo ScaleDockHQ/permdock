@@ -11,51 +11,65 @@ description: permdock/next wires one explicit server factory into Server Compone
 
 ```ts
 // src/permdock/server.ts (server-only)
-import 'server-only'
-import { cookies } from 'next/headers'
-import { createPermDock } from 'permdock/next'
-import { policy } from '@/policy'
+import "server-only";
+import { cookies } from "next/headers";
+import { createPermDock } from "permdock/next";
+import { policy } from "@/policy";
 
-export const { getPermDock, getPermission, requireAccess, PermDockProvider, permdockHandler } = createPermDock(policy, {
+export const {
+  getPermDock,
+  getPermission,
+  requireAccess,
+  PermDockProvider,
+  permdockHandler,
+} = createPermDock(policy, {
   subject: async () => getUser(await cookies()),
-  tenant: async () => (await cookies()).get('org')?.value,   // active tenant; accepted only when a membership matches
-  onDenied: () => redirect('/forbidden'),   // assert handler; per-call handlers still run first
-})
+  tenant: async () => (await cookies()).get("org")?.value, // active tenant; accepted only when a membership matches
+  onDenied: () => redirect("/forbidden"), // assert handler; per-call handlers still run first
+});
 ```
 
 The active tenant usually comes from the URL (`app/[org]/...`); a Server Component or Route Handler passes it explicitly with `getPermDock({ tenant: params.org })`, and the resolver above is the fallback for requests without a segment. Either way the value is a request, not a fact: core keeps it only when `principal.memberships` holds that tenant, otherwise tenant-scoped checks are `denied` with `no-membership` ([tenancy](/docs/concepts/tenancy)).
 
 ```tsx
 // app/[org]/layout.tsx: never awaits; hooks under it suspend until the snapshot streams in
-import { PermDockProvider } from '@/permdock/server'
+import { PermDockProvider } from "@/permdock/server";
 export default function Layout({ children }) {
-  return <PermDockProvider include={[permissions.post, permissions.billing]}>{children}</PermDockProvider>
+  return (
+    <PermDockProvider include={[permissions.post, permissions.billing]}>
+      {children}
+    </PermDockProvider>
+  );
 }
 
 // app/posts/[id]/page.tsx (RSC), a Server Action or a Route Handler
-import { getPermDock, getPermission } from '@/permdock/server'
-const permdock = await getPermDock()
-permdock.assert(permissions.post.update, post)
-const { allowed } = await getPermission(permissions.post.update, post)
-await requireAccess({ permission: permissions.post.update, data: post, tenant: org })   // forbidden() / unauthorized() on a denial
+import { getPermDock, getPermission } from "@/permdock/server";
+const permdock = await getPermDock();
+permdock.assert(permissions.post.update, post);
+const { allowed } = await getPermission(permissions.post.update, post);
+await requireAccess({
+  permission: permissions.post.update,
+  data: post,
+  tenant: org,
+}); // forbidden() / unauthorized() on a denial
 
 // app/api/permdock/route.ts: decision endpoint for closure grants
-import { permdockHandler } from '@/permdock/server'
-export const { POST } = permdockHandler()
+import { permdockHandler } from "@/permdock/server";
+export const { POST } = permdockHandler();
 
 // Client components import from permdock/react, never from permdock/next
-import { usePermission, useTenant, useFilter, Protected } from 'permdock/react'
+import { usePermission, useTenant, useFilter, Protected } from "permdock/react";
 ```
 
-| Export | Role |
-|---|---|
-| `getPermDock` | Async. Resolves the subject once per request through `React.cache`, awaits `io()`, builds the request-scoped `PermDock`, returns it. A `redirect()`, `notFound()` or other Next.js interrupt thrown by the `subject` or `tenant` resolver propagates (`unstable_rethrow`); any other throw makes the subject anonymous. Accepts `{ tenant }` to set the active tenant from a route segment; `(await getPermDock()).tenant(id)` derives another instance without re-resolving. Safe to call from layouts, pages, Server Actions and Route Handlers; concurrent calls in one render share the same instance. |
-| `getPermission` | Async counterpart of `usePermission`: returns `allowed`, `status: 'ready'` and the `Decision`. The server counterparts of the other hooks are methods on the instance: `.tenants()`, `.memberships()`, `.heldRoles()`, `.assignableRoles()`, `.filter()`, `.actions()`. |
-| `requireAccess` | Async guard for pages, layouts below the root, Server Actions and Route Handlers: `requireAccess({ permission, data?, tenant? })` resolves to the granted `Decision`. A denial calls `unauthorized()` when the subject is anonymous and `forbidden()` otherwise, so `app/unauthorized.tsx` or `app/forbidden.tsx` renders (both need `experimental.authInterrupts`). `approval-required` throws `PermDockApprovalRequiredError` with the replay-safe `token`, and a boundary failure throws `PermDockValidationError`, as `assert` does. The factory `onDenied` does not run; `on('denied')` hooks and the sink still see the decision. Call it in the render path and await it: a `try/catch` around it swallows the interrupt unless the catch calls `unstable_rethrow`. |
-| `PermDockProvider` | Server Component that never awaits. It starts the snapshot (optionally scoped with `include`, with `tenant` for the active tenant and `tenants: 'all'` to ship every membership's grants) and renders the client `PermDockProvider` from `permdock/react` with `snapshotPromise`, `endpoint` and `tenant`. `endpoint` on the factory or the provider defaults to `/api/permdock`; `endpoint: false` is snapshot-only: no `permdockHandler` route, and checks the snapshot cannot answer are denied with reason `server-only` ([snapshot-only mode](/docs/guides/next-cache-components#snapshot-only-mode)). The static shell renders around it; only hooks and `<Protected>` under it suspend. A subject that cannot be resolved yields an empty snapshot, so everything renders denied. The snapshot is not cached: for prefetchable permission UI, use the private-cache pattern below. |
-| `cacheLifeFor` | `cacheLifeFor(snapshot, { min, max, now })` returns `{ stale }` for `cacheLife()`: `max` (300) when the snapshot never expires, otherwise the seconds until `expiresAt` clamped to `min` (30). Below `min` it returns the real remainder, so Next.js leaves a nearly expired snapshot out of prefetches. It reads `issuedAt` from the snapshot, not the clock. |
-| `permdockHandler` | Returns `POST` (and `GET` for `.well-known` discovery) implementing the AuthZEN-shaped decision endpoint on top of the same subject resolver; also serves `refresh({ tenant })` snapshot requests, answering from the subject's memberships. A batch over 256 `evaluations` is a `413` ([Problem Details](/docs/standards/problem-details#payload-too-large)). |
-| `tenant`, `memberships`, `customRoles`, `store`, `sink`, `snapshots` | The shared adapter options: how the active tenant is resolved, a `MembershipSource`, a `RoleSource`, and the three hosted-capability interfaces ([adapters](/docs/adapters), [extension interfaces](/docs/concepts/extension-interfaces)). Every `sink.write` that returns a promise, and one `sink.flush()` per render, are handed to `after()`, so a serverless function stays alive until decision events are delivered; outside a request scope (tests, scripts) the sink behaves as in core. |
+| Export                                                               | Role                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `getPermDock`                                                        | Async. Resolves the subject once per request through `React.cache`, awaits `io()`, builds the request-scoped `PermDock`, returns it. A `redirect()`, `notFound()` or other Next.js interrupt thrown by the `subject` or `tenant` resolver propagates (`unstable_rethrow`); any other throw makes the subject anonymous. Accepts `{ tenant }` to set the active tenant from a route segment; `(await getPermDock()).tenant(id)` derives another instance without re-resolving. Safe to call from layouts, pages, Server Actions and Route Handlers; concurrent calls in one render share the same instance.                                                                                                                                                                                                                                                                                |
+| `getPermission`                                                      | Async counterpart of `usePermission`: returns `allowed`, `status: 'ready'` and the `Decision`. The server counterparts of the other hooks are methods on the instance: `.tenants()`, `.memberships()`, `.heldRoles()`, `.assignableRoles()`, `.filter()`, `.actions()`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `requireAccess`                                                      | Async guard for pages, layouts below the root, Server Actions and Route Handlers: `requireAccess({ permission, data?, tenant? })` resolves to the granted `Decision`. A denial calls `unauthorized()` when the subject is anonymous and `forbidden()` otherwise, so `app/unauthorized.tsx` or `app/forbidden.tsx` renders (both need `experimental.authInterrupts`). `approval-required` throws `PermDockApprovalRequiredError` with the replay-safe `token`, and a boundary failure throws `PermDockValidationError`, as `assert` does. The factory `onDenied` does not run; `on('denied')` hooks and the sink still see the decision. Call it in the render path and await it: a `try/catch` around it swallows the interrupt unless the catch calls `unstable_rethrow`.                                                                                                                |
+| `PermDockProvider`                                                   | Server Component that never awaits. It starts the snapshot (optionally scoped with `include`, with `tenant` for the active tenant and `tenants: 'all'` to ship every membership's grants) and renders the client `PermDockProvider` from `permdock/react` with `snapshotPromise`, `endpoint` and `tenant`. `endpoint` on the factory or the provider defaults to `/api/permdock`; `endpoint: false` is snapshot-only: no `permdockHandler` route, and checks the snapshot cannot answer are denied with reason `server-only` ([snapshot-only mode](/docs/guides/next-cache-components#snapshot-only-mode)). The static shell renders around it; only hooks and `<Protected>` under it suspend. A subject that cannot be resolved yields an empty snapshot, so everything renders denied. The snapshot is not cached: for prefetchable permission UI, use the private-cache pattern below. |
+| `cacheLifeFor`                                                       | `cacheLifeFor(snapshot, { min, max, now })` returns `{ stale }` for `cacheLife()`: `max` (300) when the snapshot never expires, otherwise the seconds until `expiresAt` clamped to `min` (30). Below `min` it returns the real remainder, so Next.js leaves a nearly expired snapshot out of prefetches. It reads `issuedAt` from the snapshot, not the clock.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `permdockHandler`                                                    | Returns `POST` (and `GET` for `.well-known` discovery) implementing the AuthZEN-shaped decision endpoint on top of the same subject resolver; also serves `refresh({ tenant })` snapshot requests, answering from the subject's memberships. A batch over 256 `evaluations` is a `413` ([Problem Details](/docs/standards/problem-details#payload-too-large)).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `tenant`, `memberships`, `customRoles`, `store`, `sink`, `snapshots` | The shared adapter options: how the active tenant is resolved, a `MembershipSource`, a `RoleSource`, and the three hosted-capability interfaces ([adapters](/docs/adapters), [extension interfaces](/docs/concepts/extension-interfaces)). Every `sink.write` that returns a promise, and one `sink.flush()` per render, are handed to `after()`, so a serverless function stays alive until decision events are delivered; outside a request scope (tests, scripts) the sink behaves as in core.                                                                                                                                                                                                                                                                                                                                                                                         |
 
 ### PermissionBoundary
 
@@ -63,22 +77,28 @@ import { usePermission, useTenant, useFilter, Protected } from 'permdock/react'
 
 ```tsx
 // app/[org]/quotes/[id]/page.tsx (Server Component)
-import { PermissionBoundary } from 'permdock/next/client'
+import { PermissionBoundary } from "permdock/next/client";
 
-<PermissionBoundary denied={<p>Only staff can delete quotes.</p>} approval={<ApprovalNotice />}>
+<PermissionBoundary
+  denied={<p>Only staff can delete quotes.</p>}
+  approval={<ApprovalNotice />}
+>
   <Suspense fallback={null}>
-    <DeleteZone params={params} />   {/* awaits getPermDock(), then permdock.assert(permissions.quote.delete, quote) */}
+    {/* awaits getPermDock(), then permdock.assert(permissions.quote.delete, quote) */}
+    <DeleteZone params={params} />
   </Suspense>
-</PermissionBoundary>
+</PermissionBoundary>;
 
 // approval-notice.tsx
-'use client'
-import { usePermissionBoundary } from 'permdock/next/client'
+("use client");
+import { usePermissionBoundary } from "permdock/next/client";
 
 export function ApprovalNotice() {
-  const state = usePermissionBoundary()   // { outcome, permission, token?, retry }
-  if (state?.outcome !== 'approval-required') return null
-  return <button onClick={() => state.retry()}>I have approval, try again</button>
+  const state = usePermissionBoundary(); // { outcome, permission, token?, retry }
+  if (state?.outcome !== "approval-required") return null;
+  return (
+    <button onClick={() => state.retry()}>I have approval, try again</button>
+  );
 }
 ```
 
@@ -93,25 +113,28 @@ export function ApprovalNotice() {
 When the organization is the root segment (`app/[org]/layout.tsx` is the root layout), the getter `next/root-params` generates for it is already a `tenant` resolver, so deep components need neither props nor `getPermDock({ tenant })`:
 
 ```ts
-import { org } from 'next/root-params'
+import { org } from "next/root-params";
 
-export const { getPermDock, getPermission, requireAccess } = createPermDock(policy, {
-  subject: async () => getUser(await cookies()),
-  tenant: org,
-})
+export const { getPermDock, getPermission, requireAccess } = createPermDock(
+  policy,
+  {
+    subject: async () => getUser(await cookies()),
+    tenant: org,
+  },
+);
 ```
 
 Root parameters are readable only in Server Components: in a Server Action or Route Handler the getter throws, the resolver yields no tenant, and tenant-scoped checks deny. Pass `{ tenant }` explicitly there. With Cache Components, the root layout also needs `generateStaticParams` returning at least one value.
 
 ### Segment configs and links
 
-| Where | What | Why |
-| --- | --- | --- |
-| `next.config.ts` | `cacheComponents: true`, `partialPrefetching: true`, `experimental.authInterrupts: true` | The App Shell carries the private-cached snapshot; `requireAccess` needs the interrupts |
-| Pages whose gated UI must paint on click | `export const instant = true` | Next.js validates in development that nothing on the way blocks; the gates come from the private cache |
-| A shared layout that must block (it awaits request data outside a private cache) | `export const instant = false` on the layout, `true` on the pages below | Navigation between the pages stays validated while entry into the layout may block |
-| A rarely visited admin page that calls `requireAccess` at the top | `export const prefetch = 'force-disabled'` (and `instant = false`) | A runtime prefetch costs a server render per page view; the page checks access at request time anyway |
-| Links to a resource page | `<Link prefetch={true}>` with the page's check in a `'use cache: private'` function keyed on the resource id | The per-link prefetch resolves `params` and the private cache, so the gated actions render before the click |
+| Where                                                                            | What                                                                                                         | Why                                                                                                         |
+| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| `next.config.ts`                                                                 | `cacheComponents: true`, `partialPrefetching: true`, `experimental.authInterrupts: true`                     | The App Shell carries the private-cached snapshot; `requireAccess` needs the interrupts                     |
+| Pages whose gated UI must paint on click                                         | `export const instant = true`                                                                                | Next.js validates in development that nothing on the way blocks; the gates come from the private cache      |
+| A shared layout that must block (it awaits request data outside a private cache) | `export const instant = false` on the layout, `true` on the pages below                                      | Navigation between the pages stays validated while entry into the layout may block                          |
+| A rarely visited admin page that calls `requireAccess` at the top                | `export const prefetch = 'force-disabled'` (and `instant = false`)                                           | A runtime prefetch costs a server render per page view; the page checks access at request time anyway       |
+| Links to a resource page                                                         | `<Link prefetch={true}>` with the page's check in a `'use cache: private'` function keyed on the resource id | The per-link prefetch resolves `params` and the private cache, so the gated actions render before the click |
 
 A capability token in the URL (`?token=`) is URL data: a `<Link prefetch={true}>` resolves it in the prefetch, so every such link costs a server render, and a shared `'use cache'` scope must never read it, because its output would be served to everyone. Verify the token inside `'use cache: private'` or at request time, and link to token pages with the default prefetch.
 
@@ -130,37 +153,38 @@ The `next.config.ts` plugin (`createPermDockPlugin`) exists only as a build hook
 
 ```tsx
 // src/permdock/snapshot.ts
-import { cacheLife, cacheTag } from 'next/cache'
-import { snapshotFor } from 'permdock'
-import { cacheLifeFor, snapshotTag } from 'permdock/next'
+import { cacheLife, cacheTag } from "next/cache";
+import { snapshotFor } from "permdock";
+import { cacheLifeFor, snapshotTag } from "permdock/next";
 
 export async function loadSnapshot(org: string) {
-  'use cache: private'
-  const claims = await getClaims()                 // verified locally (JWKS); reads cookies inside the private cache
-  const snapshot = snapshotFor(policy, claims, { tenant: org, include: [permissions.post] })
-  cacheLife(cacheLifeFor(snapshot))                // 30 s minimum for per-link prefetch, 300 s for the App Shell
-  cacheTag(snapshotTag(claims?.sub))               // permdock:<sub>, or permdock:anon
-  return snapshot
+  "use cache: private";
+  const claims = await getClaims(); // verified locally (JWKS); reads cookies inside the private cache
+  const snapshot = snapshotFor(policy, claims, {
+    tenant: org,
+    include: [permissions.post],
+  });
+  cacheLife(cacheLifeFor(snapshot)); // 30 s minimum for per-link prefetch, 300 s for the App Shell
+  cacheTag(snapshotTag(claims?.sub)); // permdock:<sub>, or permdock:anon
+  return snapshot;
 }
 
 // app/[org]/layout.tsx: synchronous, so the layout itself is static
-import { PermDockProvider } from 'permdock/react'
+import { PermDockProvider } from "permdock/react";
 export default function Layout({ children, params }) {
   return (
-    <PermDockProvider snapshotPromise={params.then(({ org }) => loadSnapshot(org))}>
+    <PermDockProvider
+      snapshotPromise={params.then(({ org }) => loadSnapshot(org))}
+    >
       {children}
     </PermDockProvider>
-  )
+  );
 }
 ```
 
-   The tenant is part of the cache key because it is an argument, so `/acme` and `/globex` shells carry different snapshots; a subject that does not belong to the segment's tenant gets an empty tenant scope, never another tenant's grants.
+The tenant is part of the cache key because it is an argument, so `/acme` and `/globex` shells carry different snapshots; a subject that does not belong to the segment's tenant gets an empty tenant scope, never another tenant's grants.
 
-   `'use cache: private'` caches per browser session, so session-derived output is allowed into the prefetched App Shell. Anything that reads `cookies()` without it must render behind a `Suspense` boundary or the navigation blocks.
-3. Guards resolve from the shell. Client `Protected` and `usePermission` answer from the prefetched snapshot, so a link to an admin page paints on click. Data-dependent checks (`getPermission(permissions.post.update, post)` where `post` comes from the database) sit under `Suspense` and stream.
-4. Mutations. A Server Action calls `permdock.assert(...)` or `await requireAccess(...)`, performs the write, then `updateTag(snapshotTag(user))` (the tag your loader set) if the write changed roles, memberships or custom roles, which invalidates the private cache and the client refetches. A Route Handler, such as a billing webhook, an entitlement webhook or a revocation-counter bump, uses `revalidateTag(tag, { expire: 0 })` instead, because `updateTag` works only in Server Actions. Not `revalidateTag(tag, 'max')`: stale-while-revalidate would keep serving the revoked grant for one more visit. `refresh()` is for a Server Action that changed nothing cached but must repaint the acting browser. A role-assignment action additionally checks `permissions.member.assignRole` and that the new role is in `permdock.assignableRoles()` before writing ([tenancy](/docs/concepts/tenancy)).
-5. Closure grants. `usePermission` posts batched `evaluations` to `app/api/permdock/route.ts`; `permdockHandler` resolves the same subject, validates the posted data at the boundary and answers.
-6. Segments that must not be prefetched with permission UI export `instant = false` (see [segment configs](#segment-configs-and-links)).
+`'use cache: private'` caches per browser session, so session-derived output is allowed into the prefetched App Shell. Anything that reads `cookies()` without it must render behind a `Suspense` boundary or the navigation blocks. 3. Guards resolve from the shell. Client `Protected` and `usePermission` answer from the prefetched snapshot, so a link to an admin page paints on click. Data-dependent checks (`getPermission(permissions.post.update, post)` where `post` comes from the database) sit under `Suspense` and stream. 4. Mutations. A Server Action calls `permdock.assert(...)` or `await requireAccess(...)`, performs the write, then `updateTag(snapshotTag(user))` (the tag your loader set) if the write changed roles, memberships or custom roles, which invalidates the private cache and the client refetches. A Route Handler, such as a billing webhook, an entitlement webhook or a revocation-counter bump, uses `revalidateTag(tag, { expire: 0 })` instead, because `updateTag` works only in Server Actions. Not `revalidateTag(tag, 'max')`: stale-while-revalidate would keep serving the revoked grant for one more visit. `refresh()` is for a Server Action that changed nothing cached but must repaint the acting browser. A role-assignment action additionally checks `permissions.member.assignRole` and that the new role is in `permdock.assignableRoles()` before writing ([tenancy](/docs/concepts/tenancy)). 5. Closure grants. `usePermission` posts batched `evaluations` to `app/api/permdock/route.ts`; `permdockHandler` resolves the same subject, validates the posted data at the boundary and answers. 6. Segments that must not be prefetched with permission UI export `instant = false` (see [segment configs](#segment-configs-and-links)).
 
 ## OpenAPI
 
@@ -173,9 +197,9 @@ Next.js has no built-in spec generator, so `permdock/next` has no in-process Ope
 ```ts
 // openapi-gen.config.ts
 export default defineConfig({
-  openapi: '3.2.0',
-  overlay: { apply: ['./permdock.overlay.json'] },
-})
+  openapi: "3.2.0",
+  overlay: { apply: ["./permdock.overlay.json"] },
+});
 ```
 
 ```bash
@@ -193,27 +217,47 @@ A Next.js app exposes an MCP server as a route handler through [`mcp-handler`](h
 
 ```ts
 // app/api/mcp/route.ts
-import { createMcpHandler, withMcpAuth } from 'mcp-handler'
-import { createPermDock } from 'permdock/mcp'
-import { createJwtSubjectResolver } from 'permdock/jwt'
-import { policy, permissions } from '@/permissions'
-import { store } from '@/permdock'          // the same ApprovalStore the server components use
+import { createMcpHandler, withMcpAuth } from "mcp-handler";
+import { createPermDock } from "permdock/mcp";
+import { createJwtSubjectResolver } from "permdock/jwt";
+import { policy, permissions } from "@/permissions";
+import { store } from "@/permdock"; // the same ApprovalStore the server components use
 
-const verify = createJwtSubjectResolver({ issuer: process.env.AUTH_ISSUER!, audience: process.env.MCP_RESOURCE! })
-const { protectServer } = createPermDock(policy, { subject: (authInfo) => authInfo.extra?.subject ?? null, store })
+const verify = createJwtSubjectResolver({
+  issuer: process.env.AUTH_ISSUER!,
+  audience: process.env.MCP_RESOURCE!,
+});
+const { protectServer } = createPermDock(policy, {
+  subject: (authInfo) => authInfo.extra?.subject ?? null,
+  store,
+});
 
 const handler = createMcpHandler((server) => {
-  const guarded = protectServer(server)
-  guarded.registerTool('delete_post', { permission: permissions.post.delete, inputSchema, data: loadPost }, deletePost)
-})
+  const guarded = protectServer(server);
+  guarded.registerTool(
+    "delete_post",
+    { permission: permissions.post.delete, inputSchema, data: loadPost },
+    deletePost,
+  );
+});
 
-const authed = withMcpAuth(handler, async (_req, token) => {
-  const subject = await verify(token)
-  if (!subject.principal) return undefined
-  return { token, clientId: subject.claims.client_id, scopes: subject.claims.scope?.split(' ') ?? [], expiresAt: subject.expiresAt, extra: { subject } }
-}, { required: true })
+const authed = withMcpAuth(
+  handler,
+  async (_req, token) => {
+    const subject = await verify(token);
+    if (!subject.principal) return undefined;
+    return {
+      token,
+      clientId: subject.claims.client_id,
+      scopes: subject.claims.scope?.split(" ") ?? [],
+      expiresAt: subject.expiresAt,
+      extra: { subject },
+    };
+  },
+  { required: true },
+);
 
-export { authed as GET, authed as POST }
+export { authed as GET, authed as POST };
 ```
 
 Three rules. The subject comes from the verified bearer token, never from the app session: an MCP client is not a browser and carries no cookie. `store` must be durable on Vercel because each invocation is stateless (`memoryApprovalStore()` would drop a pending approval; `permdock doctor` warns). And the route is unrelated to `permdockHandler()`, which serves the client decision endpoint for the React side; the two can share one policy file and nothing else. `mcp-handler` also mounts on Nuxt, SvelteKit and Hono with the same file, so the recipe is not Next-specific.
@@ -233,26 +277,26 @@ The [shared adapter contract](/docs/adapters) applies; the Next.js specifics:
 
 How `permdock/next` relates to each function in the [Next.js functions reference](https://nextjs.org/docs/app/api-reference/functions). "Adapter" means `permdock/next` calls it; "app" means the app calls it next to PermDock.
 
-| Function | Who | Use |
-| --- | --- | --- |
-| `io` | adapter | Awaited before the instance is created, because decisions read the clock (membership and token expiry). It suspends a prerender without blocking prefetches and resolves at once inside a cache scope |
-| `connection` | never | It would hold every permission check until a real request, which blocks prefetches |
-| `after` | adapter | Keeps sink writes and `flush()` alive after the response |
-| `unstable_rethrow` | adapter | Lets `redirect()` and other interrupts from the `subject` and `tenant` resolvers through |
-| `forbidden`, `unauthorized` | adapter | `requireAccess` on a denial |
-| `cookies`, `headers` | app | Read by the app's `subject` resolver or inside the app's `'use cache: private'` loader; PermDock never calls them |
-| `cacheLife`, `cacheTag` | app | `cacheLife(cacheLifeFor(snapshot))` and `cacheTag(snapshotTag(sub))` inside the app's private cache |
-| `updateTag` | app | In the Server Action that changed roles, memberships or custom roles |
-| `revalidateTag` | app | In Route Handlers (webhooks), with `{ expire: 0 }` |
-| `refresh` | app | Server Actions only; other members' browsers need an app signal that calls `router.refresh()` |
-| `next/root-params` | app | The generated getter is a `tenant` resolver ([above](#active-tenant-from-a-root-segment)) |
-| `generateStaticParams` | app | Required for a root segment under Cache Components |
-| `notFound`, `redirect`, `permanentRedirect` | app | `notFound()` hides a row the subject may not read; `redirect()` from `onDenied` |
-| `catchError` | adapter | `PermissionBoundary` in `permdock/next/client` ([above](#permissionboundary)) |
-| `useOffline` | app | An offline badge; snapshot-backed `<Protected>` and `usePermission` keep answering offline |
-| `useRouter`, `useParams`, `usePathname`, `useSearchParams`, `useSelectedLayoutSegment(s)`, `useLinkStatus` | app | Plain navigation UI; never a source of subject or tenant facts |
-| `unstable_cache`, `unstable_noStore`, `revalidatePath`, `fetch`, `draftMode` | not relevant | `'use cache'` and tags replace them; no decision makes a network call |
-| `generateMetadata`, `generateImageMetadata`, `generateSitemaps`, `generateViewport`, `ImageResponse`, `NextRequest`, `NextResponse`, `userAgent`, `useReportWebVitals` | not relevant | No permission surface; `permdockHandler` speaks the standard `Request` and `Response` |
+| Function                                                                                                                                                               | Who          | Use                                                                                                                                                                                                   |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `io`                                                                                                                                                                   | adapter      | Awaited before the instance is created, because decisions read the clock (membership and token expiry). It suspends a prerender without blocking prefetches and resolves at once inside a cache scope |
+| `connection`                                                                                                                                                           | never        | It would hold every permission check until a real request, which blocks prefetches                                                                                                                    |
+| `after`                                                                                                                                                                | adapter      | Keeps sink writes and `flush()` alive after the response                                                                                                                                              |
+| `unstable_rethrow`                                                                                                                                                     | adapter      | Lets `redirect()` and other interrupts from the `subject` and `tenant` resolvers through                                                                                                              |
+| `forbidden`, `unauthorized`                                                                                                                                            | adapter      | `requireAccess` on a denial                                                                                                                                                                           |
+| `cookies`, `headers`                                                                                                                                                   | app          | Read by the app's `subject` resolver or inside the app's `'use cache: private'` loader; PermDock never calls them                                                                                     |
+| `cacheLife`, `cacheTag`                                                                                                                                                | app          | `cacheLife(cacheLifeFor(snapshot))` and `cacheTag(snapshotTag(sub))` inside the app's private cache                                                                                                   |
+| `updateTag`                                                                                                                                                            | app          | In the Server Action that changed roles, memberships or custom roles                                                                                                                                  |
+| `revalidateTag`                                                                                                                                                        | app          | In Route Handlers (webhooks), with `{ expire: 0 }`                                                                                                                                                    |
+| `refresh`                                                                                                                                                              | app          | Server Actions only; other members' browsers need an app signal that calls `router.refresh()`                                                                                                         |
+| `next/root-params`                                                                                                                                                     | app          | The generated getter is a `tenant` resolver ([above](#active-tenant-from-a-root-segment))                                                                                                             |
+| `generateStaticParams`                                                                                                                                                 | app          | Required for a root segment under Cache Components                                                                                                                                                    |
+| `notFound`, `redirect`, `permanentRedirect`                                                                                                                            | app          | `notFound()` hides a row the subject may not read; `redirect()` from `onDenied`                                                                                                                       |
+| `catchError`                                                                                                                                                           | adapter      | `PermissionBoundary` in `permdock/next/client` ([above](#permissionboundary))                                                                                                                         |
+| `useOffline`                                                                                                                                                           | app          | An offline badge; snapshot-backed `<Protected>` and `usePermission` keep answering offline                                                                                                            |
+| `useRouter`, `useParams`, `usePathname`, `useSearchParams`, `useSelectedLayoutSegment(s)`, `useLinkStatus`                                                             | app          | Plain navigation UI; never a source of subject or tenant facts                                                                                                                                        |
+| `unstable_cache`, `unstable_noStore`, `revalidatePath`, `fetch`, `draftMode`                                                                                           | not relevant | `'use cache'` and tags replace them; no decision makes a network call                                                                                                                                 |
+| `generateMetadata`, `generateImageMetadata`, `generateSitemaps`, `generateViewport`, `ImageResponse`, `NextRequest`, `NextResponse`, `userAgent`, `useReportWebVitals` | not relevant | No permission surface; `permdockHandler` speaks the standard `Request` and `Response`                                                                                                                 |
 
 ## Example app
 
@@ -269,7 +313,7 @@ To check a route by hand, open the Next.js DevTools in `next dev`, select Naviga
 
 The multi-org pattern with JWT and database membership modes, a refresh signal and a negative control is `tests/e2e/fixtures/next-saas` ([Next.js Cache Components guide](/docs/guides/next-cache-components)).
 
-`apps/examples/next-better-supabase` is the same shape on Supabase sessions from better-supabase: `/[locale]/[orgSlug]/...` routes, staff roles in `memberships`, portal contacts through `contacts.user_id`, and the PermDock access-token hook and RLS helpers generated from one set of sources. It runs in snapshot-only mode (`endpoint={false}`, no `/api/permdock` route), loads the snapshot and the RLS-filtered rows through `next.cached()`, and tags both with `snapshotTag(sub)` ([the recipe](/docs/guides/next-cache-components#supabase-claims)). `pnpm --filter @permdock/example-next-better-supabase serve` starts Postgres in testcontainers, so it needs Docker. `tests/e2e/src/next-better-supabase.spec.ts` asserts under `instant()` that page and organization switches render the gated nav from the prefetch, that no request reaches `/api/permdock`, and that RLS returns only the active organization's rows and a contact's own quotes.
+`apps/examples/next-better-supabase` is the same shape on Supabase sessions from better-supabase: `/[locale]/[orgSlug]/...` routes, staff roles in `memberships`, portal contacts through `contacts.user_id`, and the PermDock access-token hook and RLS helpers generated from one set of sources. It runs in snapshot-only mode (`endpoint={false}`, no `/api/permdock` route), loads the snapshot and the RLS-filtered rows through `bs.cached()`, and tags both with `snapshotTag(sub)` ([the recipe](/docs/guides/next-cache-components#supabase-claims)). `pnpm --filter @permdock/example-next-better-supabase serve` starts Postgres in testcontainers, so it needs Docker. `tests/e2e/src/next-better-supabase.spec.ts` asserts under `instant()` that page and organization switches render the gated nav from the prefetch, that no request reaches `/api/permdock`, and that RLS returns only the active organization's rows and a contact's own quotes.
 
 ## Why
 

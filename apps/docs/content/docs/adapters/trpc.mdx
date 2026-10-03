@@ -11,36 +11,40 @@ tRPC procedures have no HTTP surface of their own, so the [server kernel](/docs/
 
 ```ts
 // server/permdock.ts
-import { initTRPC } from '@trpc/server'
-import { createPermDock } from 'permdock/trpc'
-import { policy } from './policy'
-import { permissions } from './permissions'
+import { initTRPC } from "@trpc/server";
+import { createPermDock } from "permdock/trpc";
+import { policy } from "./policy";
+import { permissions } from "./permissions";
 
-export const { permdock, protect, openapi } = createPermDock(policy, { subject: (opts) => opts.ctx.user ?? null })
+export const { permdock, protect, openapi } = createPermDock(policy, {
+  subject: (opts) => opts.ctx.user ?? null,
+});
 
-const t = initTRPC.context<Context>().create()
-export const router = t.router
-export const procedure = t.procedure.use(permdock())               // ctx.permdock is the request-scoped PermDock
+const t = initTRPC.context<Context>().create();
+export const router = t.router;
+export const procedure = t.procedure.use(permdock()); // ctx.permdock is the request-scoped PermDock
 
 // server/routers/posts.ts
 export const postsRouter = router({
-  list: procedure.query(async ({ ctx }) => ctx.permdock.filter(permissions.post.read, await listPosts())),
+  list: procedure.query(async ({ ctx }) =>
+    ctx.permdock.filter(permissions.post.read, await listPosts()),
+  ),
 
   remove: procedure
     .input(z.object({ id: z.string() }))
     .use(protect(permissions.post.delete, ({ input }) => loadPost(input.id)))
-    .meta(openapi.security(permissions.post.delete))               // trpc-to-openapi: { openapi: { protect: true, ... } }
+    .meta(openapi.security(permissions.post.delete)) // trpc-to-openapi: { openapi: { protect: true, ... } }
     .mutation(async ({ ctx }) => deletePost(ctx.permdockData)),
-})
+});
 ```
 
-| Export | Role |
-|---|---|
-| `permdock()` | Middleware. Calls `subject(opts)` once per request (memoised on `ctx` so nested routers share the instance) and extends `ctx` with `permdock`. Typed through tRPC's middleware context inference, no manual context augmentation. |
+| Export                                 | Role                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `permdock()`                           | Middleware. Calls `subject(opts)` once per request (memoised on `ctx` so nested routers share the instance) and extends `ctx` with `permdock`. Typed through tRPC's middleware context inference, no manual context augmentation.                                                                                                                                                                                                                                                  |
 | `protect(permission, load?, options?)` | Middleware placed after `.input(...)`. The `tenant` option reads each procedure's own opts (`(opts) => opts.input?.org`), so procedures in one `httpBatchLink` batch decide in their own tenant; the subject is resolved once per HTTP request. `load` receives `input`, `ctx`; the result is validated at the boundary when the loader is untrusted and passed on as `ctx.permdockData`. Denials throw `TRPCError` with code `FORBIDDEN` and the Problem Details body as `cause`. |
-| `openapi.security(permission)` | Returns the `meta` fragment for `trpc-to-openapi`: `protect: true`, `securitySchemes` scope names, and `x-permdock-permissions`. `openapi.securitySchemes()` feeds `generateOpenApiDocument`. |
-| `permdockHandler` | Procedure (or standalone Fetch handler) implementing the AuthZEN-shaped decision endpoint for `permdock/react` clients that share the tRPC server. |
-| `request` option | `(ctx) => Request \| null \| undefined`. The Web `Request` behind a context, for adapters whose context holds it under another name; defaults to `ctx.request` or `ctx.req`. A throwing mapper is no request. |
+| `openapi.security(permission)`         | Returns the `meta` fragment for `trpc-to-openapi`: `protect: true`, `securitySchemes` scope names, and `x-permdock-permissions`. `openapi.securitySchemes()` feeds `generateOpenApiDocument`.                                                                                                                                                                                                                                                                                      |
+| `permdockHandler`                      | Procedure (or standalone Fetch handler) implementing the AuthZEN-shaped decision endpoint for `permdock/react` clients that share the tRPC server.                                                                                                                                                                                                                                                                                                                                 |
+| `request` option                       | `(ctx) => Request \| null \| undefined`. The Web `Request` behind a context, for adapters whose context holds it under another name; defaults to `ctx.request` or `ctx.req`. A throwing mapper is no request.                                                                                                                                                                                                                                                                      |
 
 ### Subscriptions
 
@@ -49,10 +53,15 @@ A subscription procedure behind `protect(permission, load?, { items })` opens a 
 ```ts
 onProjectEvent: t.procedure
   .input(z.object({ projectId: z.string() }))
-  .use(protect(permissions.project.read, loadProject, { items: permissions.project.read }))
+  .use(
+    protect(permissions.project.read, loadProject, {
+      items: permissions.project.read,
+    }),
+  )
   .subscription(async function* ({ input, signal }) {
-    for await (const event of projectEvents(input.projectId, signal)) yield tracked(event.id, event)
-  })
+    for await (const event of projectEvents(input.projectId, signal))
+      yield tracked(event.id, event);
+  });
 ```
 
 ## Request lifecycle
@@ -71,10 +80,10 @@ onProjectEvent: t.procedure
 - Boundary validation failure: `TRPCError` code `BAD_REQUEST` with `issues`.
 - Anonymous subject: `UNAUTHORIZED` when the procedure requires one.
 
-
 ## Why
 
 - **`trpc-to-openapi` keeps `protect: true`.** Its `protect` is a boolean: a protected procedure requires the document's security schemes, with no way to name scopes per procedure. Per-scope requirements would need a fork or a post-processing step on its output; instead `openapi.security` puts the permission keys in `x-permdock-permissions`, and `permdock openapi emit` over the generated document turns them into per-operation `security` with the exact scopes. One pass through the CLI gives the same result as the producers with a native per-operation hook.
+
 ## Example app
 
 `apps/examples/trpc`: tRPC v11 with the Fetch adapter, a posts router using `permdock()` and `protect` on `posts.update` (granted) and `posts.publish` (denied for `member`). Unit tests call procedures through `createCaller` and assert `TRPCError` codes and Problem Details `cause` bodies.

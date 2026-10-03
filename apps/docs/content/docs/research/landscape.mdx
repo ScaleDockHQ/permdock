@@ -9,20 +9,20 @@ Versions, star counts and prices are as surveyed in September 2026 from npm, Git
 
 Two families dominate. In-process TypeScript libraries (CASL, permix, Kilpi, accesscontrol, Better Auth's `createAccessControl`) infer keys well but mostly stop at booleans, with CASL the only one that reaches the data layer. External engines (Cerbos, Permit.io, OpenFGA, SpiceDB, Oso Cloud, casbin, Cedar, OPA) are strings in and booleans out with almost no TypeScript inference.
 
-| Capability | CASL | permix | Kilpi | accesscontrol | Better Auth | Cerbos | OpenFGA | ZenStack | zap/permit |
-|---|---|---|---|---|---|---|---|---|---|
-| Keys inferred from the definition | partial (declared tuple) | yes | yes | partial | yes (`as const`) | no | no | n/a (DSL) | yes |
-| Standard Schema resources | no | no | no | no | no | no | no | no | yes |
-| Conditions to a `where` clause | yes (Prisma, Mongoose) | no | no | no | no | yes (query plan) | partial (`ListObjects`) | yes (compiled SQL) | no |
-| Field-level | yes | no | partial (redact) | yes | no | partial | no | yes | no |
-| React, Next RSC, React Native | partial | partial | partial | no | partial | partial | no | no | no |
-| Vue, Svelte, Solid | Vue, Angular | yes | no | no | no | no | no | no | no |
-| Server framework adapters | no | yes | partial | no | no | no | no | partial | no |
-| SSR hydration | partial (pack) | yes (booleans) | partial | no | no | no | no | no | no |
-| Explain why denied | partial (`reason`) | no | no | partial (events) | no | partial (audit) | partial (`Expand`) | no | no |
-| OpenAPI security emission | no | no | no | no | no | no | no | no | no |
-| MCP tool binding | no | no | no | no | no | no | partial (guide) | no | no |
-| `llms.txt` or skills | no | yes | no | no | yes | yes | yes | no | yes |
+| Capability                        | CASL                     | permix         | Kilpi            | accesscontrol    | Better Auth      | Cerbos           | OpenFGA                 | ZenStack           | zap/permit |
+| --------------------------------- | ------------------------ | -------------- | ---------------- | ---------------- | ---------------- | ---------------- | ----------------------- | ------------------ | ---------- |
+| Keys inferred from the definition | partial (declared tuple) | yes            | yes              | partial          | yes (`as const`) | no               | no                      | n/a (DSL)          | yes        |
+| Standard Schema resources         | no                       | no             | no               | no               | no               | no               | no                      | no                 | yes        |
+| Conditions to a `where` clause    | yes (Prisma, Mongoose)   | no             | no               | no               | no               | yes (query plan) | partial (`ListObjects`) | yes (compiled SQL) | no         |
+| Field-level                       | yes                      | no             | partial (redact) | yes              | no               | partial          | no                      | yes                | no         |
+| React, Next RSC, React Native     | partial                  | partial        | partial          | no               | partial          | partial          | no                      | no                 | no         |
+| Vue, Svelte, Solid                | Vue, Angular             | yes            | no               | no               | no               | no               | no                      | no                 | no         |
+| Server framework adapters         | no                       | yes            | partial          | no               | no               | no               | no                      | partial            | no         |
+| SSR hydration                     | partial (pack)           | yes (booleans) | partial          | no               | no               | no               | no                      | no                 | no         |
+| Explain why denied                | partial (`reason`)       | no             | no               | partial (events) | no               | partial (audit)  | partial (`Expand`)      | no                 | no         |
+| OpenAPI security emission         | no                       | no             | no               | no               | no               | no               | no                      | no                 | no         |
+| MCP tool binding                  | no                       | no             | no               | no               | no               | no               | partial (guide)         | no                 | no         |
+| `llms.txt` or skills              | no                       | yes            | no               | no               | yes              | yes              | yes                     | no                 | yes        |
 
 Gaps nobody fills well, and PermDock's answer:
 
@@ -150,15 +150,15 @@ Adapt: providers' roles are subject input, not competitors. ZenStack's compiled 
 
 Every surviving open-core vendor gives the engine away and charges for the operational layer around it.
 
-| Vendor | Free | Paid layer | Meter |
-| --- | --- | --- | --- |
-| Cerbos | Apache-2.0 PDP, no caps | Hub: policy distribution, audit store, enrichment | Monthly active principals (free, then about 25 USD per month to about 933 USD per month) |
-| Permit.io | Up to 1,000 MAU and 20 tenants | UI, sync, MCP Gateway | MAU steps |
-| AuthZed | SpiceDB | Hosted clusters | About 2 USD per cluster hour |
-| Oso | (library deprecated) | Oso Cloud, Oso for Agents | About 15 USD per user per month |
-| WorkOS FGA | none | Inside the WorkOS bundle | About 150 USD per month |
-| Arcade, Composio | none | Hosted tool-auth proxies | About 25 to 29 USD per month plus per call or per authorization |
-| Pushary, Rills | Rills free | Durable approval API with audit log | Flat about 99 USD per month (Pushary) |
+| Vendor           | Free                           | Paid layer                                        | Meter                                                                                    |
+| ---------------- | ------------------------------ | ------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Cerbos           | Apache-2.0 PDP, no caps        | Hub: policy distribution, audit store, enrichment | Monthly active principals (free, then about 25 USD per month to about 933 USD per month) |
+| Permit.io        | Up to 1,000 MAU and 20 tenants | UI, sync, MCP Gateway                             | MAU steps                                                                                |
+| AuthZed          | SpiceDB                        | Hosted clusters                                   | About 2 USD per cluster hour                                                             |
+| Oso              | (library deprecated)           | Oso Cloud, Oso for Agents                         | About 15 USD per user per month                                                          |
+| WorkOS FGA       | none                           | Inside the WorkOS bundle                          | About 150 USD per month                                                                  |
+| Arcade, Composio | none                           | Hosted tool-auth proxies                          | About 25 to 29 USD per month plus per call or per authorization                          |
+| Pushary, Rills   | Rills free                     | Durable approval API with audit log               | Flat about 99 USD per month (Pushary)                                                    |
 
 None of them sells typed permission references, one condition compiled to UI, SQL and RLS, `approval-required` as a first-class outcome, or a decision event naming principal, actor and delegation.
 

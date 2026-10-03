@@ -1,5 +1,5 @@
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 /**
@@ -11,7 +11,7 @@ export function canonicalJson(
   value: unknown,
   path: Set<object> = new Set(),
 ): string {
-  if (typeof value === 'bigint') {
+  if (typeof value === "bigint") {
     return JSON.stringify(`${value}n`);
   }
   if (value instanceof Date) {
@@ -19,7 +19,7 @@ export function canonicalJson(
       Number.isNaN(value.getTime()) ? null : value.toISOString(),
     );
   }
-  if (value !== null && typeof value === 'object') {
+  if (value !== null && typeof value === "object") {
     if (path.has(value)) {
       return '"[Circular]"';
     }
@@ -28,7 +28,7 @@ export function canonicalJson(
       if (Array.isArray(value)) {
         return `[${value
           .map((item) => canonicalJson(item === undefined ? null : item, path))
-          .join(',')}]`;
+          .join(",")}]`;
       }
       if (isRecord(value)) {
         const entries = Object.keys(value)
@@ -38,11 +38,11 @@ export function canonicalJson(
             (key) =>
               `${JSON.stringify(key)}:${canonicalJson(value[key], path)}`,
           );
-        return `{${entries.join(',')}}`;
+        return `{${entries.join(",")}}`;
       }
     } finally {
       path.delete(value);
     }
   }
-  return JSON.stringify(value) ?? 'null';
+  return JSON.stringify(value) ?? "null";
 }

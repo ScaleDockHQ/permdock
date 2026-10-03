@@ -9,15 +9,15 @@ Status: planned
 
 The OpenAPI Initiative maintains a set of [registries](https://spec.openapis.org/registry/) that give shared names to things the specification itself leaves open:
 
-| Registry | What it lists |
-| --- | --- |
-| Extension Field | Individual `x-*` fields with a defined meaning and the objects they may appear on |
-| Namespace | Prefixes of the form `x-{namespace}-` reserved for one organisation or project |
-| Format | Values for the JSON Schema `format` keyword |
-| Tag Kind | Values for the tag `kind` field |
-| Media Type | Media types with defined handling in OpenAPI descriptions |
-| Draft Feature | Features being trialled before they enter the specification |
-| Alternative Schema | Schema languages other than JSON Schema that a description may reference |
+| Registry           | What it lists                                                                     |
+| ------------------ | --------------------------------------------------------------------------------- |
+| Extension Field    | Individual `x-*` fields with a defined meaning and the objects they may appear on |
+| Namespace          | Prefixes of the form `x-{namespace}-` reserved for one organisation or project    |
+| Format             | Values for the JSON Schema `format` keyword                                       |
+| Tag Kind           | Values for the tag `kind` field                                                   |
+| Media Type         | Media types with defined handling in OpenAPI descriptions                         |
+| Draft Feature      | Features being trialled before they enter the specification                       |
+| Alternative Schema | Schema languages other than JSON Schema that a description may reference          |
 
 Registering is a pull request against [OAI/spec.openapis.org](https://github.com/OAI/spec.openapis.org/) that adds a Markdown file under `registries/_{registryName}`. The [Namespace Registry](https://spec.openapis.org/registry/namespace/) requires the prefix format `x-{namespace}-` with lowercase identifiers; registered namespaces are `fdx`, `jsonschema`, `ms`, `oai` (reserved for the OpenAPI Initiative), `oas-draft`, `oas`, `sap` and `scalar`.
 
@@ -53,15 +53,15 @@ Until the registration lands, the extensions are still valid OpenAPI (any `x-` f
 
 ### PermDock extensions
 
-| Extension | Appears on | JSON shape | Purpose |
-| --- | --- | --- | --- |
-| `x-permdock-permissions` | Operation | Array of permission keys: `["post.delete"]`; the matching `scope` of each key appears in the operation's `security` | The permissions `protect` enforces on the route, in catalog terms |
-| `x-permdock-conditions` | Operation | Object keyed by permission key whose values are portable condition JSON ([wire formats](/docs/concepts/wire-formats)) | What a scope allows beyond "the scope is present", e.g. `authorId = principal.id` |
-| `x-permdock-securityProfile` | Security Scheme, Operation | String, currently `"fapi2"` | Declares that the resource server implements a named security profile ([FAPI 2.0](/docs/standards/fapi-2)); an operation-level value overrides the scheme's. On `--target 3.3` output it is the stable twin of the native `type: profile` scheme and `securityProfileRequirements` emitted from the pinned [OpenAPI 3.3](/docs/standards/openapi) draft, so consumers that ignore the draft still see the declaration |
-| `x-permdock-approval` | Operation | Object keyed by permission key: `{ "post.delete": { "reason": "human" } }` | The operation may answer `approval-required`; clients can plan for an approval step ([approvals](/docs/security/approvals)) |
-| `x-permdock-arity` | Operation (`permdock openapi emit --arity` only) | `{ "kind": "collection" }` or `{ "kind": "instance", "parameter": "id" }` | Whether the operation acts on one resource and which path parameter carries its id, for generated MCP servers and SDKs ([permdock openapi](/docs/cli/openapi)) |
-| `x-permdock-oauth2MetadataUrl` | Security Scheme (3.1 targets only) | URL string | Fallback for the 3.2 `oauth2MetadataUrl` field, for which no `x-oai-*` extension is registered |
-| `x-permdock-catalog` | Root | `{ "v": 1, "generator": "permdock/openapi", "drafts": { "oas": "3.3-dev@<commit>", "securityProfiles": "oai-discussion-5304@2026-09-01", "overlay": "1.2-dev@<commit>" } }` | Identifies the generator and the shape version (`v`); it carries no catalog hash, because `permdock openapi --check` detects drift by regenerating the output and comparing it. `drafts` is present only when the output depends on an unfinished specification (today: `--target 3.3` for `oas` and `securityProfiles`, `--overlay 1.2` for `overlay`) and names each pinned revision; `--check` fails and `permdock doctor` warns when the pins differ from the installed CLI's |
+| Extension                      | Appears on                                       | JSON shape                                                                                                                                                                  | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ------------------------------ | ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `x-permdock-permissions`       | Operation                                        | Array of permission keys: `["post.delete"]`; the matching `scope` of each key appears in the operation's `security`                                                         | The permissions `protect` enforces on the route, in catalog terms                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `x-permdock-conditions`        | Operation                                        | Object keyed by permission key whose values are portable condition JSON ([wire formats](/docs/concepts/wire-formats))                                                       | What a scope allows beyond "the scope is present", e.g. `authorId = principal.id`                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `x-permdock-securityProfile`   | Security Scheme, Operation                       | String, currently `"fapi2"`                                                                                                                                                 | Declares that the resource server implements a named security profile ([FAPI 2.0](/docs/standards/fapi-2)); an operation-level value overrides the scheme's. On `--target 3.3` output it is the stable twin of the native `type: profile` scheme and `securityProfileRequirements` emitted from the pinned [OpenAPI 3.3](/docs/standards/openapi) draft, so consumers that ignore the draft still see the declaration                                                             |
+| `x-permdock-approval`          | Operation                                        | Object keyed by permission key: `{ "post.delete": { "reason": "human" } }`                                                                                                  | The operation may answer `approval-required`; clients can plan for an approval step ([approvals](/docs/security/approvals))                                                                                                                                                                                                                                                                                                                                                       |
+| `x-permdock-arity`             | Operation (`permdock openapi emit --arity` only) | `{ "kind": "collection" }` or `{ "kind": "instance", "parameter": "id" }`                                                                                                   | Whether the operation acts on one resource and which path parameter carries its id, for generated MCP servers and SDKs ([permdock openapi](/docs/cli/openapi))                                                                                                                                                                                                                                                                                                                    |
+| `x-permdock-oauth2MetadataUrl` | Security Scheme (3.1 targets only)               | URL string                                                                                                                                                                  | Fallback for the 3.2 `oauth2MetadataUrl` field, for which no `x-oai-*` extension is registered                                                                                                                                                                                                                                                                                                                                                                                    |
+| `x-permdock-catalog`           | Root                                             | `{ "v": 1, "generator": "permdock/openapi", "drafts": { "oas": "3.3-dev@<commit>", "securityProfiles": "oai-discussion-5304@2026-09-01", "overlay": "1.2-dev@<commit>" } }` | Identifies the generator and the shape version (`v`); it carries no catalog hash, because `permdock openapi --check` detects drift by regenerating the output and comparing it. `drafts` is present only when the output depends on an unfinished specification (today: `--target 3.3` for `oas` and `securityProfiles`, `--overlay 1.2` for `overlay`) and names each pinned revision; `--check` fails and `permdock doctor` warns when the pins differ from the installed CLI's |
 
 Every value is plain JSON that survives the same round trips as a permission leaf; nothing in an extension is a reference to a runtime object.
 
@@ -74,11 +74,18 @@ Every value is plain JSON that survives the same round trips as a permission lea
         "security": [{ "permdockOAuth": ["post:delete"] }],
         "x-permdock-permissions": ["post.delete"],
         "x-permdock-conditions": {
-          "post.delete": { "op": "eq", "field": "authorId", "value": { "ref": "principal.id" } }
+          "post.delete": {
+            "op": "eq",
+            "field": "authorId",
+            "value": { "ref": "principal.id" }
+          }
         },
         "x-permdock-approval": { "post.delete": { "reason": "human" } },
         "x-permdock-securityProfile": "fapi2",
-        "responses": { "204": { "description": "Deleted" }, "403": { "$ref": "#/components/responses/PermDockDenied" } }
+        "responses": {
+          "204": { "description": "Deleted" },
+          "403": { "$ref": "#/components/responses/PermDockDenied" }
+        }
       }
     }
   }
@@ -87,33 +94,33 @@ Every value is plain JSON that survives the same round trips as a permission lea
 
 ### Registered names PermDock reuses
 
-| Situation | Registered extension | Where PermDock writes it |
-| --- | --- | --- |
-| Deprecated scheme, `--target 3.1` | `x-oai-deprecated` | Security Scheme |
-| Device authorization flow, `--target 3.1` | `x-oai-deviceAuthorization` | Inside `flows` of an `oauth2` scheme |
-| Device authorization endpoint, `--target 3.1` | `x-oai-deviceAuthorizationUrl` | Inside that flow |
+| Situation                                     | Registered extension           | Where PermDock writes it             |
+| --------------------------------------------- | ------------------------------ | ------------------------------------ |
+| Deprecated scheme, `--target 3.1`             | `x-oai-deprecated`             | Security Scheme                      |
+| Device authorization flow, `--target 3.1`     | `x-oai-deviceAuthorization`    | Inside `flows` of an `oauth2` scheme |
+| Device authorization endpoint, `--target 3.1` | `x-oai-deviceAuthorizationUrl` | Inside that flow                     |
 
 ### JWS `typ` values PermDock emits
 
 These are not OpenAPI extensions but they are the other namespace PermDock writes into a registered-vocabulary position: the `typ` header parameter of every JWS PermDock signs (RFC 7515 section 4.1.9; the value is a media type name without the `application/` prefix per RFC 7519 section 5.1). They are listed here so that one page holds every name PermDock places in a shared registry-shaped slot, and so that emitting a `typ` not in this table is a documentation failure before it is a code one ([JOSE](/docs/standards/jose), [wire formats](/docs/concepts/wire-formats)).
 
-| `typ` | Private claim | Emitted by |
-| --- | --- | --- |
-| `permdock-snapshot+jwt` | `snapshot` (snapshot `v: 1`) | `permdock.snapshot({ signer })`, `permdock/cloud` snapshots |
-| `permdock-approval+jwt` | `approval` | `approvalsHandler({ signer })` |
-| `permdock-decisions+jwt` | `events` | A `DecisionSink` with `signer`, `permdock/cloud` export |
-| `permdock-policy+jwt` | `policy` (policy document `v: 1`); `iss` = `aud` = the Cloud environment URL, `exp` = `iat` + 24 hours | PermDock Cloud hosted grants, read by `cloud().policies` |
-| `permdock-capability+jwt` | `capability` (capability `v: 1`); `sub` = the link id, `exp` = `capability.expiresAt` | `signCapability`, read by `subjectFromCapability` |
+| `typ`                     | Private claim                                                                                          | Emitted by                                                  |
+| ------------------------- | ------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------- |
+| `permdock-snapshot+jwt`   | `snapshot` (snapshot `v: 1`)                                                                           | `permdock.snapshot({ signer })`, `permdock/cloud` snapshots |
+| `permdock-approval+jwt`   | `approval`                                                                                             | `approvalsHandler({ signer })`                              |
+| `permdock-decisions+jwt`  | `events`                                                                                               | A `DecisionSink` with `signer`, `permdock/cloud` export     |
+| `permdock-policy+jwt`     | `policy` (policy document `v: 1`); `iss` = `aud` = the Cloud environment URL, `exp` = `iat` + 24 hours | PermDock Cloud hosted grants, read by `cloud().policies`    |
+| `permdock-capability+jwt` | `capability` (capability `v: 1`); `sub` = the link id, `exp` = `capability.expiresAt`                  | `signCapability`, read by `subjectFromCapability`           |
 
 The `+jwt` structured syntax suffix is registered (RFC 8417 section 7.2), so any JOSE library treats these as JWTs. Each `typ` is the short form of a media type, and the full names are the media types PermDock documents:
 
-| Media type | `typ` | Carried as |
-| --- | --- | --- |
-| `application/permdock-snapshot+jwt` | `permdock-snapshot+jwt` | A signed snapshot in a response body or `SnapshotSource` payload |
-| `application/permdock-approval+jwt` | `permdock-approval+jwt` | A signed approval request handed to a delivery surface |
-| `application/permdock-decisions+jwt` | `permdock-decisions+jwt` | A signed event batch: a sink export or a Cloud webhook delivery |
-| `application/permdock-policy+jwt` | `permdock-policy+jwt` | The hosted-grants policy document from `GET /policy` |
-| `application/permdock-capability+jwt` | `permdock-capability+jwt` | A link capability, usually in a URL query parameter |
+| Media type                            | `typ`                     | Carried as                                                       |
+| ------------------------------------- | ------------------------- | ---------------------------------------------------------------- |
+| `application/permdock-snapshot+jwt`   | `permdock-snapshot+jwt`   | A signed snapshot in a response body or `SnapshotSource` payload |
+| `application/permdock-approval+jwt`   | `permdock-approval+jwt`   | A signed approval request handed to a delivery surface           |
+| `application/permdock-decisions+jwt`  | `permdock-decisions+jwt`  | A signed event batch: a sink export or a Cloud webhook delivery  |
+| `application/permdock-policy+jwt`     | `permdock-policy+jwt`     | The hosted-grants policy document from `GET /policy`             |
+| `application/permdock-capability+jwt` | `permdock-capability+jwt` | A link capability, usually in a URL query parameter              |
 
 On the wire PermDock sends and accepts `application/jwt` as the `Content-Type` of every one of them, because a receiver checks `typ` after verifying and `application/jwt` is registered (RFC 7519 section 10.3.1); the specific names identify the envelope in documentation, in OpenAPI `content` keys a team writes for its own endpoints, and in the `typ` check. They are not registered with IANA, unlike `at+jwt` (RFC 9068), `secevent+jwt` (RFC 8417) and `logout+jwt` (Back-Channel Logout); until they are, the names are safe because a verifier only accepts the `typ` it was configured for. A breaking change to an envelope is a new `typ` value and a new row, never a changed row. Fixtures in `permdock/testing` assert the set of `typ` values the package can emit equals this table.
 
@@ -162,16 +169,16 @@ These steps happen outside this repository. Remove the `Status: planned` line at
 
 ## Mapping table
 
-| Registry concept | PermDock concept |
-| --- | --- |
-| Namespace `permdock`, prefix `x-permdock-` | Every PermDock-specific field in a document |
-| Extension `x-oai-deprecated` | `scheme.deprecated` adapter option, 3.1 output |
-| Extension `x-oai-deviceAuthorization`, `x-oai-deviceAuthorizationUrl` | `scheme.flows.deviceAuthorization` adapter option (`--device-flow`), 3.1 output |
-| Extension `x-agent-trust` | Not used: it is defined for `Agent-Signature`, not Web Bot Auth's `Signature-Agent` |
-| Extension Registry, no entry for `oauth2MetadataUrl` | `x-permdock-oauth2MetadataUrl` |
-| Format, Tag Kind, Draft Feature, Alternative Schema registries | Not used; PermDock emits standard JSON Schema formats and no draft features |
-| Media Type registry, IANA media types | `application/permdock-*+jwt`, documented above; not registered |
-| (JOSE, not OAI) JWS `typ` header values | `permdock-snapshot+jwt`, `permdock-approval+jwt`, `permdock-decisions+jwt`, `permdock-policy+jwt`, `permdock-capability+jwt`, the closed list above |
+| Registry concept                                                      | PermDock concept                                                                                                                                    |
+| --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Namespace `permdock`, prefix `x-permdock-`                            | Every PermDock-specific field in a document                                                                                                         |
+| Extension `x-oai-deprecated`                                          | `scheme.deprecated` adapter option, 3.1 output                                                                                                      |
+| Extension `x-oai-deviceAuthorization`, `x-oai-deviceAuthorizationUrl` | `scheme.flows.deviceAuthorization` adapter option (`--device-flow`), 3.1 output                                                                     |
+| Extension `x-agent-trust`                                             | Not used: it is defined for `Agent-Signature`, not Web Bot Auth's `Signature-Agent`                                                                 |
+| Extension Registry, no entry for `oauth2MetadataUrl`                  | `x-permdock-oauth2MetadataUrl`                                                                                                                      |
+| Format, Tag Kind, Draft Feature, Alternative Schema registries        | Not used; PermDock emits standard JSON Schema formats and no draft features                                                                         |
+| Media Type registry, IANA media types                                 | `application/permdock-*+jwt`, documented above; not registered                                                                                      |
+| (JOSE, not OAI) JWS `typ` header values                               | `permdock-snapshot+jwt`, `permdock-approval+jwt`, `permdock-decisions+jwt`, `permdock-policy+jwt`, `permdock-capability+jwt`, the closed list above |
 
 ## Sources
 

@@ -1,21 +1,21 @@
-import type { ApprovalStore } from 'permdock/approvals';
+import type { ApprovalStore } from "permdock/approvals";
 
-import { drizzle } from 'drizzle-orm/node-postgres';
+import { drizzle } from "drizzle-orm/node-postgres";
 import {
   saasPermissions as p,
   saasPrincipal,
   saasSchemaSql,
   saasSeedSql,
-} from 'permdock/testing/saas';
-import { Client } from 'pg';
+} from "permdock/testing/saas";
+import { Client } from "pg";
 
-import type { Postgres } from './postgres.ts';
+import type { Postgres } from "./postgres.ts";
 
 import {
   approvalsDdl,
   drizzleApprovalStore,
-} from '../../fixtures/approval-store/drizzle.ts';
-import { startPostgres } from './postgres.ts';
+} from "../../fixtures/approval-store/drizzle.ts";
+import { startPostgres } from "./postgres.ts";
 
 export type AgentDb = {
   readonly pg: Postgres;
@@ -53,10 +53,10 @@ export function projectLoader(uri: string) {
     load: async (args: unknown): Promise<unknown> => {
       await ready;
       const id =
-        args !== null && typeof args === 'object' && 'id' in args
+        args !== null && typeof args === "object" && "id" in args
           ? args.id
           : undefined;
-      if (typeof id !== 'string') {
+      if (typeof id !== "string") {
         return null;
       }
       const result = await client.query(
@@ -69,10 +69,10 @@ export function projectLoader(uri: string) {
   };
 }
 
-export const TENANT = 'acme';
+export const TENANT = "acme";
 
 export function agentSubject(context: { readonly user?: unknown }) {
-  return typeof context.user === 'string'
+  return typeof context.user === "string"
     ? saasPrincipal(context.user, TENANT)
     : null;
 }
@@ -90,6 +90,6 @@ export function agentDelegation() {
 }
 
 export const owner = {
-  principal: saasPrincipal('carol', TENANT),
+  principal: saasPrincipal("carol", TENANT),
   context: {},
 };

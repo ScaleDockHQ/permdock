@@ -22,17 +22,17 @@ The same skills ship inside the `permdock` npm package and can be installed with
 
 ## What the repository gives you
 
-| Artifact | Where | Use it for |
-| --- | --- | --- |
-| `AGENTS.md` (`CLAUDE.md` imports it) | repository root | Maintainer guide: layout, commands, the invariants and an index of the topic rules |
-| `.agents/rules/*.mdc` | repository root, linked into `.cursor/rules` and `.claude/rules` | Maintainer rules attached by path: invariants, naming, docs, "when you change X also update Y", testing, prose |
-| `llms.txt`, `llms-full.txt` | docs site root | Index and full text of the docs for context loading |
-| `.md` per page | append `.md` to any docs URL | Read one page as Markdown without HTML |
-| Docs MCP server | `POST /mcp` (`search_docs`, `get_page`) | Search and read docs from inside an MCP-capable agent |
-| Cloud MCP server | `https://mcp.permdock.com` | Read-only evidence, catalog and pending approvals; never resolves an approval |
-| `permissions.catalog.json` and its JSON Schema | app repository, `permdock catalog --format schema` | Know which permissions exist, their arity, scopes and metadata |
-| `permdock doctor --json` | app repository | Machine-readable findings with stable codes and fixes |
-| Example apps | `apps/examples/<adapter>` | Working code for every adapter, exercised by e2e tests |
+| Artifact                                       | Where                                                            | Use it for                                                                                                     |
+| ---------------------------------------------- | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `AGENTS.md` (`CLAUDE.md` imports it)           | repository root                                                  | Maintainer guide: layout, commands, the invariants and an index of the topic rules                             |
+| `.agents/rules/*.mdc`                          | repository root, linked into `.cursor/rules` and `.claude/rules` | Maintainer rules attached by path: invariants, naming, docs, "when you change X also update Y", testing, prose |
+| `llms.txt`, `llms-full.txt`                    | docs site root                                                   | Index and full text of the docs for context loading                                                            |
+| `.md` per page                                 | append `.md` to any docs URL                                     | Read one page as Markdown without HTML                                                                         |
+| Docs MCP server                                | `POST /mcp` (`search`, `list_pages`, `get_page`)                 | Search and read docs from inside an MCP-capable agent                                                          |
+| Cloud MCP server                               | `https://mcp.permdock.com`                                       | Read-only evidence, catalog and pending approvals; never resolves an approval                                  |
+| `permissions.catalog.json` and its JSON Schema | app repository, `permdock catalog --format schema`               | Know which permissions exist, their arity, scopes and metadata                                                 |
+| `permdock doctor --json`                       | app repository                                                   | Machine-readable findings with stable codes and fixes                                                          |
+| Example apps                                   | `apps/examples/<adapter>`                                        | Working code for every adapter, exercised by e2e tests                                                         |
 
 Standards for these artifacts are on the [Agent docs standards](/docs/standards/agent-docs-standards) page.
 
@@ -42,61 +42,72 @@ Three files and one check. Import paths and identifiers follow the [naming conve
 
 ```ts
 // src/permissions.ts — importable everywhere; no rules, no secrets
-import { definePermissions, defineRoles, resource, crud } from 'permdock'
-import { Post } from './schemas' // any Standard Schema validator
+import { definePermissions, defineRoles, resource, crud } from "permdock";
+import { Post } from "./schemas"; // any Standard Schema validator
 
 export const permissions = definePermissions({
-  post: resource(Post, crud({
-    id: 'id',
-    actions: { publish: { title: 'Publish post' } },
-  })),
-})
+  post: resource(
+    Post,
+    crud({
+      id: "id",
+      actions: { publish: { title: "Publish post" } },
+    }),
+  ),
+});
 
-export const roles = defineRoles({ member: {} })
+export const roles = defineRoles({ member: {} });
 ```
 
 ```ts
 // src/policy.ts — server-only
-import { definePolicy, role, allow, principal } from 'permdock'
-import { permissions, roles } from './permissions'
+import { definePolicy, role, allow, principal } from "permdock";
+import { permissions, roles } from "./permissions";
 
 const member = role(roles.member, [
   allow(permissions.post.read),
   allow(permissions.post.list),
   allow(permissions.post.create),
   allow(permissions.post.update, { where: { authorId: principal.id } }),
-  allow(permissions.post.delete, { where: { authorId: principal.id }, approval: 'human' }),
-  allow(permissions.post.publish, { approval: 'human' }),
-])
+  allow(permissions.post.delete, {
+    where: { authorId: principal.id },
+    approval: "human",
+  }),
+  allow(permissions.post.publish, { approval: "human" }),
+]);
 
-export const policy = definePolicy({ permissions, roles }, {
-  roles: [member],
-  principal: (user: User | null) => user && { id: user.id, roles: user.roles },
-})
+export const policy = definePolicy(
+  { permissions, roles },
+  {
+    roles: [member],
+    principal: (user: User | null) =>
+      user && { id: user.id, roles: user.roles },
+  },
+);
 ```
 
 ```ts
 // src/permdock/server.ts — the explicit factory; same pattern for permdock/hono, permdock/mcp, permdock/ai-sdk
-import { createPermDock } from 'permdock/next'
-import { policy } from '../policy'
+import { createPermDock } from "permdock/next";
+import { policy } from "../policy";
 
-export const { getPermDock, getPermission, PermDockProvider, permdockHandler } = createPermDock(policy, {
-  subject: async () => getUser(await cookies()),
-})
+export const { getPermDock, getPermission, PermDockProvider, permdockHandler } =
+  createPermDock(policy, {
+    subject: async () => getUser(await cookies()),
+  });
 ```
 
 Then, in a Server Component or Server Action:
 
 ```ts
-const permdock = await getPermDock()
-permdock.assert(permissions.post.update, post)
+const permdock = await getPermDock();
+permdock.assert(permissions.post.update, post);
 ```
 
 And in a client component:
 
 ```tsx
-import { usePermission } from 'permdock/react'
-const { allowed, status } = usePermission(permissions.post.update, post)
+import { usePermission } from "permdock/react";
+const { allowed, status } = usePermission(permissions.post.update, post);
 ```
 
 Finish with `pnpm exec permdock doctor` and add `permdock collect --check` and `permdock usage --strict` to CI. Full versions: [quick start](/docs/getting-started/quick-start), [Next.js adapter](/docs/adapters/next), [MCP adapter](/docs/adapters/mcp), [AI SDK adapter](/docs/adapters/ai-sdk).

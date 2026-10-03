@@ -1,17 +1,17 @@
-import type { Metadata } from 'next';
+import type { Metadata } from "next";
 
 import {
   DocsBody,
   DocsDescription,
   DocsPage,
   DocsTitle,
-} from 'fumadocs-ui/layouts/docs/page';
+} from "fumadocs-ui/layouts/docs/page";
 
-import { AskAi } from '@/components/ask-ai';
+import { AskAi } from "@/components/ask-ai";
 
-const title = 'Ask AI';
+const title = "Ask AI";
 const description =
-  'Ask a question about PermDock. The answer comes from these docs and links the pages it used.';
+  "Ask a question about PermDock. The answer comes from these docs and links the pages it used.";
 
 export const metadata: Metadata = { title, description };
 

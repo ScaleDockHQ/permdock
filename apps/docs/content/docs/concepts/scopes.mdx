@@ -12,17 +12,29 @@ export const policy = definePolicy(
   { permissions, roles },
   {
     scopes: {
-      organization: { key: 'organization_id' },
-      customer: { key: 'customer_id', within: 'organization' },
+      organization: { key: "organization_id" },
+      customer: { key: "customer_id", within: "organization" },
     },
     roles: [
-      role(roles.admin, [allow([permissions.quote.read, permissions.quote.update])], { on: 'organization' }),
-      role(roles.contact, [allow(permissions.quote.read, { where: { status: { in: ['sent', 'accepted'] } } })], { on: 'customer' }),
-      role(roles['platform-admin'], [allow(permissions.organization.disable)]),
+      role(
+        roles.admin,
+        [allow([permissions.quote.read, permissions.quote.update])],
+        { on: "organization" },
+      ),
+      role(
+        roles.contact,
+        [
+          allow(permissions.quote.read, {
+            where: { status: { in: ["sent", "accepted"] } },
+          }),
+        ],
+        { on: "customer" },
+      ),
+      role(roles["platform-admin"], [allow(permissions.organization.disable)]),
     ],
     subject: (user: Principal | null) => user, // a Subject from subjectFromSupabase skips it
   },
-)
+);
 ```
 
 - **The declaration order is the scope order.** The first scope is the one the active tenant selects an instance of (`principal.tenant`, `permdock.tenant(id)`, `tenants()`).
@@ -38,14 +50,22 @@ A grant on scope S reaches a row only through the row's own S key. Every resourc
 
 ```ts
 const inScopes = {
-  organization: { field: 'organization_id', memberOf: 'organization' },
-  customer: { field: 'customer_id', memberOf: 'customer' },
-} as const
+  organization: { field: "organization_id", memberOf: "organization" },
+  customer: { field: "customer_id", memberOf: "customer" },
+} as const;
 
 export const permissions = definePermissions({
-  quote: resource(Quote, { id: 'id', actions: ['read', 'update', 'accept'], relations: inScopes }),
-  invoice: resource(Invoice, { id: 'id', actions: ['read', 'pay'], relations: inScopes }),
-})
+  quote: resource(Quote, {
+    id: "id",
+    actions: ["read", "update", "accept"],
+    relations: inScopes,
+  }),
+  invoice: resource(Invoice, {
+    id: "id",
+    actions: ["read", "pay"],
+    relations: inScopes,
+  }),
+});
 ```
 
 A row is checked against the membership's scope and every ancestor the resource declares, outermost first: a customer contact's quote must carry the contact's `customer_id`, and its `organization_id` must be the one in the membership's `within`. A mismatch on the first scope is `tenant-mismatch`; on a scope below it, `scope`.
@@ -54,20 +74,26 @@ A row is checked against the membership's scope and every ancestor the resource 
 
 ```ts
 type Membership = {
-  scope?: string                            // a declared scope name
-  id?: string                               // the instance of that scope
-  within?: Record<string, string>           // the id of every ancestor scope
-  on?: { resource: string; id: string }     // or: a role on one resource
-  roles: string[]
-  via?: string                              // the membership kind: 'staff', 'contact', 'group:<scim id>'
-  expiresAt?: number                        // Unix seconds
-}
+  scope?: string; // a declared scope name
+  id?: string; // the instance of that scope
+  within?: Record<string, string>; // the id of every ancestor scope
+  on?: { resource: string; id: string }; // or: a role on one resource
+  roles: string[];
+  via?: string; // the membership kind: 'staff', 'contact', 'group:<scim id>'
+  expiresAt?: number; // Unix seconds
+};
 
 // a staff member of T who is also a portal contact of customer C in organization B
 memberships: [
-  { scope: 'organization', id: 'T', roles: ['member'], via: 'staff' },
-  { scope: 'customer', id: 'C', within: { organization: 'B' }, roles: ['contact'], via: 'contact' },
-]
+  { scope: "organization", id: "T", roles: ["member"], via: "staff" },
+  {
+    scope: "customer",
+    id: "C",
+    within: { organization: "B" },
+    roles: ["contact"],
+    via: "contact",
+  },
+];
 ```
 
 `via` is audit and UI data unless a role declares `for`: then only memberships of those kinds hold it, so `role(roles.admin, grants, { on: 'organization', for: ['staff'] })` never reaches a contact or guest membership, and a membership without `via` holds no role that declares `for` ([ownership](/docs/concepts/ownership)).
@@ -87,16 +113,16 @@ Collection actions (`quote.create`, `quote.list`) have no row: they need a membe
 
 ## Where scopes are read
 
-| Surface | What it does with scopes |
-| --- | --- |
-| `decide`, `can`, `filter` | Matches each scoped grant against a membership of its scope, inside the active tenant, then checks the row keys of the scope and its declared ancestors |
-| `where()` | One equality per partitioning key on the membership's chain, outermost first (`organization_id = 'T' and customer_id = 'A'`), ORed across memberships; the result carries the scopes for `toWhere` |
-| `snapshot()`, `snapshotFor`, `fromSnapshot` | `scopes` lists `{ name, key, within, resources }` in order; grants carry the scope name and the membership they came from ([wire formats](/docs/concepts/wire-formats)) |
-| `memberOf` conditions and relations | A `memberOf: S` relation on the first scope means "the row is in the active tenant"; on any other scope, "the subject holds a membership in the row's instance of S" |
-| Custom roles | `CustomRole.scope` (default the first scope) and optional `id`; the ceiling is keyed by scope name ([custom roles](/docs/concepts/custom-roles)) |
-| RLS | One `permitted_<scope>_ids(p_grant)` and one membership-only `member_<scope>_ids()` helper per declared scope, applied to that scope's key ([Postgres RLS](/docs/standards/postgres-rls)) |
-| Catalog | `scopes[]` in order and `roles[].on` as a scope name or `resource` |
-| Membership events | `scope`, `id` and `within`, like a membership, so a role change at any depth is recorded ([wire formats](/docs/concepts/wire-formats)) |
+| Surface                                     | What it does with scopes                                                                                                                                                                           |
+| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `decide`, `can`, `filter`                   | Matches each scoped grant against a membership of its scope, inside the active tenant, then checks the row keys of the scope and its declared ancestors                                            |
+| `where()`                                   | One equality per partitioning key on the membership's chain, outermost first (`organization_id = 'T' and customer_id = 'A'`), ORed across memberships; the result carries the scopes for `toWhere` |
+| `snapshot()`, `snapshotFor`, `fromSnapshot` | `scopes` lists `{ name, key, within, resources }` in order; grants carry the scope name and the membership they came from ([wire formats](/docs/concepts/wire-formats))                            |
+| `memberOf` conditions and relations         | A `memberOf: S` relation on the first scope means "the row is in the active tenant"; on any other scope, "the subject holds a membership in the row's instance of S"                               |
+| Custom roles                                | `CustomRole.scope` (default the first scope) and optional `id`; the ceiling is keyed by scope name ([custom roles](/docs/concepts/custom-roles))                                                   |
+| RLS                                         | One `permitted_<scope>_ids(p_grant)` and one membership-only `member_<scope>_ids()` helper per declared scope, applied to that scope's key ([Postgres RLS](/docs/standards/postgres-rls))          |
+| Catalog                                     | `scopes[]` in order and `roles[].on` as a scope name or `resource`                                                                                                                                 |
+| Membership events                           | `scope`, `id` and `within`, like a membership, so a role change at any depth is recorded ([wire formats](/docs/concepts/wire-formats))                                                             |
 
 ## RLS
 
@@ -104,8 +130,8 @@ Collection actions (`quote.create`, `quote.list`) have no row: they need a membe
 
 ```sql
 create policy quote_select on public.quote for select to authenticated using (
-  organization_id in (select public.permitted_organization_ids('quote.read#1'))
-  or (customer_id in (select public.permitted_customer_ids('quote.read#2')) and status = any (array['sent', 'accepted']))
+  organization_id in (select permdock.permitted_organization_ids('quote.read#1'))
+  or (customer_id in (select permdock.permitted_customer_ids('quote.read#2')) and status = any (array['sent', 'accepted']))
 );
 ```
 

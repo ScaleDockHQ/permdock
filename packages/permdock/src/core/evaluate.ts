@@ -1,4 +1,4 @@
-import type { RelatedCondition } from '../conditions/ast.ts';
+import type { RelatedCondition } from "../conditions/ast.ts";
 import type {
   Decision,
   Denial,
@@ -9,59 +9,53 @@ import type {
   Trace,
   TraceSkip,
   TraceSkipReason,
-} from './decision.ts';
-import type { AuthEvent, DecisionEvent, RoleSource } from './interfaces.ts';
-import type { DecideOptions, RowPair } from './permdock.ts';
-import type { Permission } from './permissions.ts';
-import type { RelationReader } from './relations.ts';
-import type { CustomRole, Membership, Subject } from './subject.ts';
+} from "./decision.ts";
+import type { AuthEvent, DecisionEvent, RoleSource } from "./interfaces.ts";
+import type { DecideOptions, RowPair } from "./permdock.ts";
+import type { Permission } from "./permissions.ts";
+import type { RelationReader } from "./relations.ts";
+import type { CustomRole, Membership, Subject } from "./subject.ts";
 
-import { evaluateCondition } from '../conditions/evaluate.ts';
-import { compact } from './compact.ts';
-import { isCustomRoleName, holdsCustomRole } from './custom-roles.ts';
+import { evaluateCondition } from "../conditions/evaluate.ts";
+import { compact } from "./compact.ts";
+import { isCustomRoleName, holdsCustomRole } from "./custom-roles.ts";
 import {
   coveredByDelegation,
   delegatedPermissions,
   resourceIdOf,
-} from './delegation.ts';
+} from "./delegation.ts";
 import {
   actorRequiredVias,
   evaluateBreakGlass,
   isSupportMembership,
   purposesOf,
-} from './elevated.ts';
-import { PermDockValidationError } from './errors.ts';
-import { type EvalEnv, emitSafe, finish } from './events.ts';
-import { grantCoversField } from './fields.ts';
-import { freezeDeep } from './freeze.ts';
+} from "./elevated.ts";
+import { PermDockValidationError } from "./errors.ts";
+import { type EvalEnv, emitSafe, finish } from "./events.ts";
+import { grantCoversField } from "./fields.ts";
+import { freezeDeep } from "./freeze.ts";
 import {
   combineWhere,
   flattenGrantee,
   matchGrantee,
   resourceRoleCondition,
-} from './grantee.ts';
-import { applyQuota } from './limits.ts';
-import { getResource, listPermissions } from './permissions.ts';
-import {
-  grantList,
-  requiresApproval,
-  type Grant,
-  type Policy,
-} from './policy.ts';
-import { resolveRelated } from './relations.ts';
-import { scopeList, tenantOf } from './scopes.ts';
+} from "./grantee.ts";
+import { applyQuota } from "./limits.ts";
+import { getResource, listPermissions } from "./permissions.ts";
+import { requiresApproval, type Grant, type Policy } from "./policy.ts";
+import { resolveRelated } from "./relations.ts";
+import { scopeList, tenantOf } from "./scopes.ts";
 import {
   inTeam,
   isMembershipExpired,
   matchScopedMembership,
   nowSeconds,
   type ResourceRoleWalk,
-} from './tenancy.ts';
-import { isThenable } from './thenable.ts';
-import { decisionToken, payloadDigest, versionOf } from './token.ts';
-import { validateBoundary } from './validation.ts';
-import { isActive } from './validity.ts';
-import { listRoles } from './vocabulary.ts';
+} from "./tenancy.ts";
+import { isThenable } from "./thenable.ts";
+import { decisionToken, payloadDigest, versionOf } from "./token.ts";
+import { validateBoundary } from "./validation.ts";
+import { isActive } from "./validity.ts";
 
 type ScopeMatch = ReturnType<typeof matchScopedMembership>;
 
@@ -86,9 +80,9 @@ function matchWriteScope(
 function isRowPair(value: unknown): value is RowPair<unknown> {
   return (
     value !== null &&
-    typeof value === 'object' &&
-    'current' in value &&
-    'next' in value
+    typeof value === "object" &&
+    "current" in value &&
+    "next" in value
   );
 }
 
@@ -105,7 +99,7 @@ export function customRolesFor(
     try {
       loaded.push(source.rolesFor(tenant));
     } catch {
-      auth.push({ reason: 'source-threw', source: 'customRoles' });
+      auth.push({ reason: "source-threw", source: "customRoles" });
       loaded.push([]);
     }
   }
@@ -113,7 +107,7 @@ export function customRolesFor(
     return Promise.all(
       loaded.map((item) =>
         Promise.resolve(item).catch((): CustomRole[] => {
-          auth.push({ reason: 'source-threw', source: 'customRoles' });
+          auth.push({ reason: "source-threw", source: "customRoles" });
           return [];
         }),
       ),
@@ -125,7 +119,7 @@ export function customRolesFor(
 
 function stringList(value: unknown): readonly string[] {
   return Array.isArray(value)
-    ? value.filter((item): item is string => typeof item === 'string')
+    ? value.filter((item): item is string => typeof item === "string")
     : [];
 }
 
@@ -145,7 +139,7 @@ export function assignableNamesFor(
     return undefined;
   }
   const failed = (): string[] => {
-    auth.push({ reason: 'source-threw', source: 'customRoles' });
+    auth.push({ reason: "source-threw", source: "customRoles" });
     return [];
   };
   const loaded = tenants.map((tenant) => {
@@ -189,12 +183,8 @@ export function expandRoleNames(
   return { roles: [...resolved], unknown };
 }
 
-export function declaredRoleNames(policy: Policy): Set<string> {
-  const names = new Set(policy.roles.map((role) => role.name));
-  for (const leaf of listRoles(policy.vocabulary?.roles)) {
-    names.add(leaf.key);
-  }
-  return names;
+export function declaredRoleNames(policy: Policy): ReadonlySet<string> {
+  return policy.index.declaredRoles;
 }
 
 function alternativesFor(
@@ -214,10 +204,10 @@ function alternativesFor(
       subject,
       leaf,
       undefined,
-      { trusted: true, source: 'simulate', now },
+      { trusted: true, source: "simulate", now },
       { ...env, emit: false, skipAlternatives: true },
     );
-    return decision.outcome === 'granted';
+    return decision.outcome === "granted";
   });
 }
 
@@ -228,7 +218,7 @@ function evaluateGrantCondition(
   next: unknown,
   subject: Subject,
   now: number,
-  scopes: Policy['scopes'],
+  scopes: Policy["scopes"],
   relations: RelationReader | undefined,
 ): {
   readonly matched: boolean;
@@ -239,20 +229,20 @@ function evaluateGrantCondition(
   // grant whatever the rest of the condition says, so `not` and `or` cannot
   // turn it into a match.
   let unknown:
-    | 'relation-depth'
-    | 'relation-unavailable'
-    | 'opaque-condition'
+    | "relation-depth"
+    | "relation-unavailable"
+    | "opaque-condition"
     | undefined;
   const onOpaque = (): void => {
-    unknown ??= 'opaque-condition';
+    unknown ??= "opaque-condition";
   };
   const related = (condition: RelatedCondition, row: unknown): boolean => {
     if (relations === undefined) {
-      unknown ??= 'relation-unavailable';
+      unknown ??= "relation-unavailable";
       return false;
     }
     const verdict = resolveRelated(condition, row, subject, now, relations);
-    if (verdict === 'relation-depth' || verdict === 'relation-unavailable') {
+    if (verdict === "relation-depth" || verdict === "relation-unavailable") {
       unknown ??= verdict;
       return false;
     }
@@ -267,22 +257,22 @@ function evaluateGrantCondition(
         context: subject.context,
       });
       if (isThenable(result)) {
-        return { matched: false, reason: 'closure-error', cause: result };
+        return { matched: false, reason: "closure-error", cause: result };
       }
       return { matched: result === true };
     } catch (error) {
-      return { matched: false, reason: 'closure-error', cause: error };
+      return { matched: false, reason: "closure-error", cause: error };
     }
   }
   if (grant.where !== undefined) {
-    if (permission.kind === 'collection') {
-      return { matched: false, reason: 'condition' };
+    if (permission.kind === "collection") {
+      return { matched: false, reason: "condition" };
     }
     if (current === undefined) {
-      return { matched: false, reason: 'condition' };
+      return { matched: false, reason: "condition" };
     }
-    if (grant.where.op === 'opaque' || grant.check?.op === 'opaque') {
-      return { matched: false, reason: 'opaque-condition' };
+    if (grant.where.op === "opaque" || grant.check?.op === "opaque") {
+      return { matched: false, reason: "opaque-condition" };
     }
     const matched = evaluateCondition(
       grant.where,
@@ -297,17 +287,17 @@ function evaluateGrantCondition(
       return { matched: false, reason: unknown };
     }
     if (!matched) {
-      return { matched: false, reason: 'condition' };
+      return { matched: false, reason: "condition" };
     }
   }
   const checkCondition =
-    grant.check ?? (permission.action === 'update' ? grant.where : undefined);
+    grant.check ?? (permission.action === "update" ? grant.where : undefined);
   if (checkCondition !== undefined) {
-    if (checkCondition.op === 'opaque') {
-      return { matched: false, reason: 'opaque-condition' };
+    if (checkCondition.op === "opaque") {
+      return { matched: false, reason: "opaque-condition" };
     }
     if (next === undefined) {
-      return { matched: false, reason: 'condition' };
+      return { matched: false, reason: "condition" };
     }
     const matched = evaluateCondition(
       checkCondition,
@@ -322,7 +312,7 @@ function evaluateGrantCondition(
       return { matched: false, reason: unknown };
     }
     if (!matched) {
-      return { matched: false, reason: 'condition' };
+      return { matched: false, reason: "condition" };
     }
   }
   return { matched: true };
@@ -331,31 +321,31 @@ function evaluateGrantCondition(
 /** A grant whose condition could not be answered; a deny with one denies. */
 function isUnevaluable(reason: DenialReason | undefined): boolean {
   return (
-    reason === 'relation-depth' ||
-    reason === 'relation-unavailable' ||
-    reason === 'closure-error' ||
-    reason === 'opaque-condition'
+    reason === "relation-depth" ||
+    reason === "relation-unavailable" ||
+    reason === "closure-error" ||
+    reason === "opaque-condition"
   );
 }
 
 function shouldConsumeQuota(
-  source: DecisionEvent['source'] | undefined,
+  source: DecisionEvent["source"] | undefined,
   simulated: boolean,
 ): boolean {
   if (simulated) {
     return false;
   }
   switch (source) {
-    case 'can':
-    case 'filter':
-    case 'simulate':
-    case 'explain':
+    case "can":
+    case "filter":
+    case "simulate":
+    case "explain":
       return false;
-    case 'decide':
-    case 'assert':
-    case 'endpoint':
-    case 'adapter':
-    case 'approval':
+    case "decide":
+    case "assert":
+    case "endpoint":
+    case "adapter":
+    case "approval":
     case undefined:
       return true;
     default: {
@@ -468,28 +458,28 @@ export function evaluate(
     );
     return final;
   };
-  if (permission.kind === 'instance' && isRowPair(data)) {
+  if (permission.kind === "instance" && isRowPair(data)) {
     current = data.current;
     next = data.next;
   }
-  if (permission.kind === 'collection') {
+  if (permission.kind === "collection") {
     current = undefined;
     next = data;
   }
   try {
     if (
       data !== undefined ||
-      (permission.kind === 'instance' && policy.validate === 'always')
+      (permission.kind === "instance" && policy.validate === "always")
     ) {
       const validated = validateBoundary(
         permission,
         resource,
-        permission.kind === 'instance' && isRowPair(data) ? data.current : data,
+        permission.kind === "instance" && isRowPair(data) ? data.current : data,
         policy.validate,
         trusted,
-        options.boundary ?? 'manual',
+        options.boundary ?? "manual",
       );
-      if (permission.kind === 'instance' && isRowPair(data)) {
+      if (permission.kind === "instance" && isRowPair(data)) {
         current = validated;
         next = validateBoundary(
           permission,
@@ -497,9 +487,9 @@ export function evaluate(
           data.next,
           policy.validate,
           trusted,
-          options.boundary ?? 'manual',
+          options.boundary ?? "manual",
         );
-      } else if (permission.kind === 'instance') {
+      } else if (permission.kind === "instance") {
         current = validated;
         next = validated;
       } else {
@@ -509,11 +499,11 @@ export function evaluate(
   } catch (error) {
     if (
       error instanceof PermDockValidationError &&
-      error.code === 'invalid-data'
+      error.code === "invalid-data"
     ) {
       return complete({
-        outcome: 'denied',
-        denials: [{ role: null, reason: 'validation', detail: error }],
+        outcome: "denied",
+        denials: [{ role: null, reason: "validation", detail: error }],
         alternatives: [],
       });
     }
@@ -522,12 +512,12 @@ export function evaluate(
 
   if (isDelegatedPermission(policy, permission)) {
     return complete({
-      outcome: 'denied',
+      outcome: "denied",
       denials: [
         {
           role: null,
-          reason: 'pdp-unavailable',
-          detail: 'use permdock/pdp createPermDock',
+          reason: "pdp-unavailable",
+          detail: "use permdock/pdp createPermDock",
         },
       ],
       alternatives: [],
@@ -547,7 +537,7 @@ export function evaluate(
     // SAFETY: emitSafe passes these listeners only the AuthEvent literal below.
     emitSafe(
       env.listeners.auth as unknown as Set<(payload: unknown) => void>,
-      { reason: 'unknown-role', source: 'roles' } satisfies AuthEvent,
+      { reason: "unknown-role", source: "roles" } satisfies AuthEvent,
       env.listeners,
     );
   }
@@ -575,14 +565,11 @@ export function evaluate(
       matchingRoles.add(name);
     }
     for (const name of expanded.unknown) {
-      denials.push({ role: name, reason: 'unknown-role' });
+      denials.push({ role: name, reason: "unknown-role" });
     }
   }
 
-  const supports = policy.roles.flatMap((binding) =>
-    binding.support === undefined ? [] : [binding.support],
-  );
-  const actorVias = actorRequiredVias(supports);
+  const actorVias = actorRequiredVias(policy.index.supports);
   if (
     actorVias.size > 0 &&
     subject.actor === undefined &&
@@ -594,21 +581,18 @@ export function evaluate(
     )
   ) {
     return complete({
-      outcome: 'denied',
-      denials: [{ role: null, reason: 'actor-required' }],
+      outcome: "denied",
+      denials: [{ role: null, reason: "actor-required" }],
       alternatives: [],
     });
   }
 
   const purposes = purposesOf(subject);
 
+  const forPermission = policy.index.grantsByKey.get(permission.key) ?? [];
   const candidates: { readonly grant: Grant; readonly custom?: CustomRole }[] =
-    grantList(policy)
-      .filter(
-        (grant) =>
-          grant.permission.key === permission.key &&
-          grant.breakGlass === undefined,
-      )
+    forPermission
+      .filter((grant) => grant.breakGlass === undefined)
       .map((grant) => ({ grant }));
   for (const item of env.customGrants) {
     if (item.grant.permission.key === permission.key) {
@@ -620,35 +604,32 @@ export function evaluate(
   let breakGlassObligations: readonly Obligation[] = [];
   const breakGlassOverrides = new Set<string>();
   let breakGlassDenial: Denial | undefined;
-  for (const grant of grantList(policy)) {
-    if (
-      grant.permission.key !== permission.key ||
-      grant.breakGlass === undefined
-    ) {
+  for (const grant of forPermission) {
+    if (grant.breakGlass === undefined) {
       continue;
     }
     if (tracer !== undefined) {
       tracer.evaluated += 1;
     }
     if (!matchGrantee(grant.to, subject, now, resource, scopes).matched) {
-      skip(tracer, grant, permission.key, 'grantee');
+      skip(tracer, grant, permission.key, "grantee");
       continue;
     }
     const result = evaluateBreakGlass(grant.breakGlass, subject, now);
-    if (result.kind === 'inactive') {
-      skip(tracer, grant, permission.key, 'break-glass-inactive');
+    if (result.kind === "inactive") {
+      skip(tracer, grant, permission.key, "break-glass-inactive");
       continue;
     }
     for (const name of grant.breakGlass.overrides) {
       breakGlassOverrides.add(name);
     }
-    if (result.kind === 'granted') {
+    if (result.kind === "granted") {
       breakGlassGrant = grant;
       breakGlassObligations = result.obligations;
       break;
     }
     breakGlassDenial ??=
-      result.reason === 'insufficient-user-authentication'
+      result.reason === "insufficient-user-authentication"
         ? { role: null, reason: result.reason, to: result.to }
         : { role: null, reason: result.reason };
   }
@@ -693,7 +674,7 @@ export function evaluate(
           inTeam(membership, scopes, env.team),
       )
     ) {
-      skip(tracer, grant, permission.key, 'via-only');
+      skip(tracer, grant, permission.key, "via-only");
       continue;
     }
     const required = grant.purpose;
@@ -701,7 +682,7 @@ export function evaluate(
       required !== undefined &&
       !purposes.some((purpose) => required.includes(purpose))
     ) {
-      skip(tracer, grant, permission.key, 'purpose');
+      skip(tracer, grant, permission.key, "purpose");
       continue;
     }
     // A deny whose grantee kind is unknown applies to everyone: unknown denies.
@@ -712,28 +693,28 @@ export function evaluate(
       resource,
       scopes,
       policy.resources,
-      grant.effect === 'deny',
+      grant.effect === "deny",
     );
     if (!granteeMatch.matched) {
-      const reason = granteeMatch.reason ?? 'no-grant';
+      const reason = granteeMatch.reason ?? "no-grant";
       if (
-        reason === 'not-entitled' &&
+        reason === "not-entitled" &&
         !flattenGrantee(grant.to).every(
           (item) =>
-            item.kind !== 'role' ||
+            item.kind !== "role" ||
             (custom === undefined
-              ? item.scope === 'global'
+              ? item.scope === "global"
                 ? globalNames.roles.includes(item.role)
                 : matchingRoles.has(item.role)
               : holdsCustom(custom)),
         )
       ) {
-        skip(tracer, grant, permission.key, 'grantee');
+        skip(tracer, grant, permission.key, "grantee");
         continue;
       }
       denials.push(
-        (reason === 'insufficient-user-authentication' ||
-          reason === 'not-entitled') &&
+        (reason === "insufficient-user-authentication" ||
+          reason === "not-entitled") &&
           grant.to !== undefined
           ? { role: displayRole, reason, to: grant.to }
           : { role: displayRole, reason },
@@ -741,25 +722,25 @@ export function evaluate(
       continue;
     }
     const roleItems = flattenGrantee(grant.to).filter(
-      (item) => item.kind === 'role',
+      (item) => item.kind === "role",
     );
     let scopeMembership: Membership | undefined;
     let roleOk = roleItems.length === 0;
     if (roleItems.length > 0) {
       if (subject.principal === null) {
-        denials.push({ role: displayRole, reason: 'anonymous' });
+        denials.push({ role: displayRole, reason: "anonymous" });
         continue;
       }
       let allHeld = true;
       for (const roleItem of roleItems) {
         const held =
           custom === undefined
-            ? roleItem.scope === 'global'
+            ? roleItem.scope === "global"
               ? globalNames.roles.includes(roleItem.role)
               : matchingRoles.has(roleItem.role)
             : holdsCustom(custom);
         if (!held) {
-          skip(tracer, grant, permission.key, 'role');
+          skip(tracer, grant, permission.key, "role");
           allHeld = false;
           break;
         }
@@ -791,7 +772,7 @@ export function evaluate(
           );
         const scopeMatch = matchWriteScope(
           matchRow,
-          permission.kind === 'instance',
+          permission.kind === "instance",
           current,
           next,
         );
@@ -808,14 +789,14 @@ export function evaluate(
       continue;
     }
     if (!isActive(grant.validity, now)) {
-      if (grant.effect === 'allow') {
+      if (grant.effect === "allow") {
         denials.push({
           role: displayRole,
-          reason: 'inactive-grant',
+          reason: "inactive-grant",
           detail: grant.validity,
         });
       } else {
-        skip(tracer, grant, permission.key, 'validity');
+        skip(tracer, grant, permission.key, "validity");
       }
       continue;
     }
@@ -837,49 +818,49 @@ export function evaluate(
     );
     if (
       !condition.matched &&
-      grant.effect === 'deny' &&
+      grant.effect === "deny" &&
       isUnevaluable(condition.reason) &&
       grantCoversField(grant.fields, options.field, grant.effect)
     ) {
-      if (condition.reason === 'closure-error') {
+      if (condition.reason === "closure-error") {
         emitSafe(
           env.listeners.error,
-          condition.cause ?? new Error('closure-error'),
+          condition.cause ?? new Error("closure-error"),
           env.listeners,
         );
       }
       tracer?.denies.push(matchedOf(merged, permission.key));
       return complete({
-        outcome: 'denied',
+        outcome: "denied",
         denials: [
           {
             role: displayRole,
-            reason: condition.reason ?? 'relation-unavailable',
+            reason: condition.reason ?? "relation-unavailable",
           },
         ],
         alternatives: [],
       });
     }
     if (!condition.matched) {
-      if (condition.reason === 'closure-error') {
+      if (condition.reason === "closure-error") {
         emitSafe(
           env.listeners.error,
-          condition.cause ?? new Error('closure-error'),
+          condition.cause ?? new Error("closure-error"),
           env.listeners,
         );
       }
       denials.push({
         role: displayRole,
-        reason: condition.reason ?? 'condition',
+        reason: condition.reason ?? "condition",
         detail: condition.cause,
       });
       continue;
     }
     if (!grantCoversField(grant.fields, options.field, grant.effect)) {
-      skip(tracer, grant, permission.key, 'field');
+      skip(tracer, grant, permission.key, "field");
       continue;
     }
-    if (grant.effect === 'deny') {
+    if (grant.effect === "deny") {
       tracer?.denies.push(matchedOf(merged, permission.key));
       if (grant.name !== undefined && breakGlassOverrides.has(grant.name)) {
         if (breakGlassGrant !== undefined) {
@@ -887,7 +868,7 @@ export function evaluate(
         }
         if (breakGlassDenial !== undefined) {
           return complete({
-            outcome: 'denied',
+            outcome: "denied",
             denials: [breakGlassDenial],
             alternatives: env.skipAlternatives
               ? []
@@ -896,13 +877,13 @@ export function evaluate(
         }
       }
       return complete({
-        outcome: 'denied',
+        outcome: "denied",
         denials: [
           grant.name === undefined
-            ? { role: displayRole, reason: 'deny' }
+            ? { role: displayRole, reason: "deny" }
             : {
                 role: displayRole,
-                reason: 'deny',
+                reason: "deny",
                 detail: { name: grant.name },
               },
         ],
@@ -934,12 +915,12 @@ export function evaluate(
     const reason: DenialReason =
       denials[0]?.reason ??
       (subject.principal === null
-        ? 'anonymous'
+        ? "anonymous"
         : globalNames.unknown.length > 0 && globalNames.roles.length === 0
-          ? 'unknown-role'
-          : 'no-grant');
+          ? "unknown-role"
+          : "no-grant");
     return complete({
-      outcome: 'denied',
+      outcome: "denied",
       denials: denials.length > 0 ? denials : [{ role: null, reason }],
       alternatives: env.skipAlternatives
         ? []
@@ -949,8 +930,8 @@ export function evaluate(
 
   if (subject.stale === true && (policy.fresh ?? []).includes(permission.key)) {
     return complete({
-      outcome: 'denied',
-      denials: [{ role: null, reason: 'stale-credentials' }],
+      outcome: "denied",
+      denials: [{ role: null, reason: "stale-credentials" }],
       alternatives: [],
     });
   }
@@ -965,8 +946,8 @@ export function evaluate(
   );
   if (ceiling !== undefined && !ceiling.has(permission.key)) {
     return complete({
-      outcome: 'denied',
-      denials: [{ role: null, reason: 'not-delegated' }],
+      outcome: "denied",
+      denials: [{ role: null, reason: "not-delegated" }],
       alternatives: env.skipAlternatives
         ? []
         : alternativesFor(policy, permission, subject, now, env),
@@ -980,7 +961,7 @@ export function evaluate(
   );
   if (delegationMiss !== undefined) {
     return complete({
-      outcome: 'denied',
+      outcome: "denied",
       denials: [{ role: null, reason: delegationMiss }],
       alternatives: env.skipAlternatives
         ? []
@@ -990,7 +971,7 @@ export function evaluate(
 
   const quotaDenials: Denial[] = [];
   let matchedAllow: (typeof allows)[number] | undefined;
-  let quotaState: Pick<GrantedDecision, 'quota' | 'obligations'> = {};
+  let quotaState: Pick<GrantedDecision, "quota" | "obligations"> = {};
   for (const candidate of allows) {
     const consume =
       !requiresApproval(candidate.grant.approval) &&
@@ -1000,7 +981,7 @@ export function evaluate(
       cache: env.limitCache,
       grant: candidate.grant,
       permissionKey: permission.key,
-      subjectId: subject.principal?.id ?? '',
+      subjectId: subject.principal?.id ?? "",
       tenant: subject.principal?.tenant,
       now,
       consume,
@@ -1014,14 +995,14 @@ export function evaluate(
       break;
     }
     quotaDenials.push(
-      quota.reason === 'limit'
-        ? { role: candidate.grant.role, reason: 'limit', detail: quota.detail }
+      quota.reason === "limit"
+        ? { role: candidate.grant.role, reason: "limit", detail: quota.detail }
         : { role: candidate.grant.role, reason: quota.reason },
     );
   }
   if (matchedAllow === undefined) {
     return complete({
-      outcome: 'denied',
+      outcome: "denied",
       denials: quotaDenials.length > 0 ? quotaDenials : denials,
       alternatives: env.skipAlternatives
         ? []
@@ -1031,23 +1012,23 @@ export function evaluate(
 
   // SAFETY: current is a non-null object checked in the condition; the read value stays unknown.
   const resourceId =
-    permission.kind === 'collection'
-      ? '*'
-      : current !== null && typeof current === 'object'
+    permission.kind === "collection"
+      ? "*"
+      : current !== null && typeof current === "object"
         ? String(
-            (current as Record<string, unknown>)[resource?.id ?? 'id'] ?? '*',
+            (current as Record<string, unknown>)[resource?.id ?? "id"] ?? "*",
           )
-        : '*';
+        : "*";
   const approval = matchedAllow.grant.approval;
   const version =
     approval !== undefined &&
-    approval !== 'human' &&
-    approval.staleOn === 'resource-change' &&
+    approval !== "human" &&
+    approval.staleOn === "resource-change" &&
     resource?.version !== undefined
       ? versionOf(current, resource.version)
       : undefined;
   const token = env.simulated
-    ? 'pd1.simulated'
+    ? "pd1.simulated"
     : decisionToken({
         key: permission.key,
         resourceId,
@@ -1056,7 +1037,7 @@ export function evaluate(
         fingerprint: policy.fingerprint,
         version,
         payload:
-          resourceId === '*' && (next ?? current) !== undefined
+          resourceId === "*" && (next ?? current) !== undefined
             ? payloadDigest(next ?? current)
             : undefined,
       });
@@ -1072,13 +1053,13 @@ export function evaluate(
   return complete(
     requiresApproval(matchedAllow.grant.approval)
       ? {
-          outcome: 'approval-required',
+          outcome: "approval-required",
           grant: matched,
-          reason: 'human',
+          reason: "human",
           token,
         }
       : {
-          outcome: 'granted',
+          outcome: "granted",
           subject,
           matched,
           token,

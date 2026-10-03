@@ -1,8 +1,8 @@
-import { Protected } from 'permdock/solid';
+import { Protected } from "permdock/solid";
 
-import { permissions } from '@permdock/e2e-saas-kit/nav';
+import { permissions } from "@permdock/e2e-saas-kit/nav";
 
-import { Forbidden } from '../../lib/forbidden';
+import { Forbidden } from "../../lib/forbidden";
 
 export default function Overview() {
   return (

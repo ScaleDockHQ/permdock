@@ -6,9 +6,10 @@
   "scripts": {
     "build": "vite build",
     "dev": "vite",
-    "lint": "oxlint --disable-nested-config",
+    "doctor": "permdock doctor",
+    "lint": "oxlint --disable-nested-config --type-aware",
     "preview": "vite preview --host 127.0.0.1 --port 3481",
-    "typecheck": "tsc --noEmit --checkers 4"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "permdock": "workspace:*",

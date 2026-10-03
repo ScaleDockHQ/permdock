@@ -1,13 +1,13 @@
-import { effectScope, isRef, toValue, watch, type App, type Plugin } from 'vue';
+import { effectScope, isRef, toValue, watch, type App, type Plugin } from "vue";
 
-import type { Snapshot } from '../core/interfaces.ts';
-import type { PermDockPluginOptions } from './types.ts';
+import type { Snapshot } from "../core/interfaces.ts";
+import type { PermDockPluginOptions } from "./types.ts";
 
-import { compact } from '../core/compact.ts';
-import { emptySnapshot } from '../core/from-snapshot.ts';
-import { isPromiseLike } from '../react/source.ts';
-import { createClientStore } from '../react/store.ts';
-import { permDockKey } from './context.ts';
+import { compact } from "../core/compact.ts";
+import { emptySnapshot } from "../core/from-snapshot.ts";
+import { isPromiseLike } from "../react/source.ts";
+import { createClientStore } from "../react/store.ts";
+import { permDockKey } from "./context.ts";
 
 export const permdockPlugin: Plugin<PermDockPluginOptions> = {
   install(app: App, options: PermDockPluginOptions): void {
@@ -27,7 +27,7 @@ export const permdockPlugin: Plugin<PermDockPluginOptions> = {
     );
     if (promised) {
       store.follow(source);
-    } else if (isRef(source) || typeof source === 'function') {
+    } else if (isRef(source) || typeof source === "function") {
       const scope = effectScope(true);
       scope.run(() => {
         // SAFETY: the promise case is handled above, so source is a ref or getter of a Snapshot or string.

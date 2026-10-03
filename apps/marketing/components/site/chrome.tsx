@@ -1,7 +1,7 @@
-import type { ReactNode } from 'react';
+import type { ReactNode } from "react";
 
-import { Navbar } from '@/components/blocks/navbar-12/components/navbar';
-import { SiteFooter } from '@/components/site/footer';
+import { Navbar } from "@/components/blocks/navbar-12/components/navbar";
+import { SiteFooter } from "@/components/site/footer";
 
 export function SiteChrome({ children }: { children: ReactNode }) {
   return (

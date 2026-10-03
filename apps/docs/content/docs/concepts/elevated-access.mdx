@@ -8,10 +8,10 @@ Three features share one primitive: a membership that is time-bound (`expiresAt`
 ```ts
 type Membership = {
   // ...scope, id, within, roles, via, expiresAt, managedBy, entitlements
-  eligible?: readonly string[];        // roles the holder may activate, not hold
-  grantedBy?: string;                  // who elevated, consented to, or granted this
-  reason?: string;                     // why it was written
-  member?: { group: string };          // a subgroup inside the instance
+  eligible?: readonly string[]; // roles the holder may activate, not hold
+  grantedBy?: string; // who elevated, consented to, or granted this
+  reason?: string; // why it was written
+  member?: { group: string }; // a subgroup inside the instance
 };
 ```
 
@@ -20,11 +20,11 @@ type Membership = {
 A role with `activation` is never held directly. A membership lists it under `eligible`, and `permdock.activate` mints the elevated membership to write.
 
 ```ts
-role('admin', ADMIN, {
-  on: 'organization',
+role("admin", ADMIN, {
+  on: "organization",
   activation: {
-    maxDuration: '4h',
-    justification: 'required',
+    maxDuration: "4h",
+    justification: "required",
     approval: { by: roles.owner },
     assurance: { maxAge: 300 },
   },
@@ -35,13 +35,13 @@ role('admin', ADMIN, {
 
 ```ts
 const decision = permdock.activate({
-  role: 'admin',
-  scope: 'organization',
+  role: "admin",
+  scope: "organization",
   id: orgId,
-  duration: '2h',
-  reason: 'covering the on-call shift',
+  duration: "2h",
+  reason: "covering the on-call shift",
 });
-if (decision.outcome === 'granted') {
+if (decision.outcome === "granted") {
   await db.memberships.insert(decision.elevation);
   // { scope, id, roles: ['admin'], via: 'elevated', expiresAt, grantedBy, reason }
 }
@@ -55,18 +55,25 @@ Break-glass is the only deny override. It overrides deny grants whose `name` it 
 
 ```ts
 breakGlass(permissions.patient.read, {
-  overrides: ['restricted-record'],
-  requires: { purpose: ['BTG', 'ETREAT'], reason: true, assurance: { maxAge: 60 } },
-  maxDuration: '1h',
-  obligations: ['notify', 'review'],
+  overrides: ["restricted-record"],
+  requires: {
+    purpose: ["BTG", "ETREAT"],
+    reason: true,
+    assurance: { maxAge: 60 },
+  },
+  maxDuration: "1h",
+  obligations: ["notify", "review"],
 });
 
-deny(permissions.patient.read, { where: { restricted: true }, name: 'restricted-record' });
+deny(permissions.patient.read, {
+  where: { restricted: true },
+  name: "restricted-record",
+});
 ```
 
 A break-glass grant is engaged when the caller asserts `context.purpose`. When engaged and satisfied, the outcome is `granted` with `matched.breakGlass: true` and `obligations: [{ kind: 'notify' }, { kind: 'review' }, { kind: 'justify', reason }]` — there are still only three outcomes, never a fourth. Missing requirements deny with `purpose` (the asserted purpose is not one it lists), `reason-required` (no `context.reason`), or `insufficient-user-authentication` (the `assurance` was not met). `DecisionEvent` records `purpose` and `reason`, and `toOcsf` maps a break-glass decision to high severity.
 
-RLS never compiles break-glass: the grant stays non-portable. The server reads restricted rows through a `security definer` function that checks a signed break-glass session and writes an audit row. `permdock doctor` PD034 flags a policy that tries to compile it under an `rls` config.
+RLS never compiles break-glass: the grant stays non-portable. The server reads restricted rows through a `security definer` function, `permdock.permdock_break_glass_<resource>(permission)`, that checks a signed break-glass session and writes an audit row. It lifts the deny, never the tenant boundary: a break-glass grant on a role reads only the rows of the scope instances where the subject holds it (its `role_permissions` row has the grant key `<permission>#break-glass`, which no table policy and no `authorize()` call matches), and a grant to no role reads the rows of the root scope instances the subject is a member of, or every row when the policy declares no scopes. `permdock doctor` PD034 flags a policy that tries to compile it under an `rls` config.
 
 ## Support access with tenant consent
 
@@ -74,9 +81,9 @@ RLS never compiles break-glass: the grant stays non-portable. The server reads r
 
 ```ts
 supportAccess({
-  role: 'support',
+  role: "support",
   actorRequired: true,
-  consent: { by: roles.owner, durations: ['1d', '7d', '30d'] },
+  consent: { by: roles.owner, durations: ["1d", "7d", "30d"] },
   forbid: [permissions.billing, permissions.security],
 });
 ```
@@ -95,7 +102,7 @@ Group members ride C3's `fromJunction` `group` option (`member: { group }`). Wit
 `context.purpose` is a decision input:
 
 ```ts
-allow(permissions.record.read, { purpose: ['treatment'] });
+allow(permissions.record.read, { purpose: ["treatment"] });
 ```
 
 The grant applies only when the caller asserts a matching purpose. It is not portable; RLS honours it only through the break-glass session function.

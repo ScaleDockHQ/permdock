@@ -1,14 +1,14 @@
-import { type ReactNode, act, Component, createElement } from 'react';
-import { createRoot, type Root } from 'react-dom/client';
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { type ReactNode, act, Component, createElement } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
-import type { PermissionBoundaryState } from '../../src/next/client.tsx';
+import type { PermissionBoundaryState } from "../../src/next/client.tsx";
 
-import { approvalDigest, deniedDigest } from '../../src/core/digest.ts';
+import { approvalDigest, deniedDigest } from "../../src/core/digest.ts";
 import {
   PermissionBoundary,
   usePermissionBoundary,
-} from '../../src/next/client.tsx';
+} from "../../src/next/client.tsx";
 
 beforeAll(() => {
   // SAFETY: React reads this global flag to allow act() outside a test renderer.
@@ -52,8 +52,8 @@ class Outer extends Component<
 }
 
 function mount(node: ReactNode): HTMLElement {
-  vi.spyOn(console, 'error').mockImplementation(() => undefined);
-  host = document.createElement('div');
+  vi.spyOn(console, "error").mockImplementation(() => undefined);
+  host = document.createElement("div");
   document.body.append(host);
   const created = createRoot(host);
   root = created;
@@ -64,7 +64,7 @@ function mount(node: ReactNode): HTMLElement {
 }
 
 function digestError(digest: string): Error {
-  return Object.assign(new Error('refused'), { digest });
+  return Object.assign(new Error("refused"), { digest });
 }
 
 const thrown: { current: Error | null } = { current: null };
@@ -73,7 +73,7 @@ function Child(): ReactNode {
   if (thrown.current !== null) {
     throw thrown.current;
   }
-  return 'content';
+  return "content";
 }
 
 const seen: { current: PermissionBoundaryState | null } = { current: null };
@@ -83,29 +83,29 @@ function Reader(props: { readonly label: string }): ReactNode {
   return props.label;
 }
 
-describe('permdock/next PermissionBoundary', () => {
-  it('renders the children when nothing throws and no state outside a fallback', () => {
+describe("permdock/next PermissionBoundary", () => {
+  it("renders the children when nothing throws and no state outside a fallback", () => {
     thrown.current = null;
     const view = mount(
       createElement(
         PermissionBoundary,
-        { denied: 'denied' },
+        { denied: "denied" },
         createElement(Child),
-        createElement(Reader, { label: '' }),
+        createElement(Reader, { label: "" }),
       ),
     );
     expect({ text: view.textContent, state: seen.current }).toEqual({
-      text: 'content',
+      text: "content",
       state: null,
     });
   });
 
-  it('renders denied for a denial digest and retries into the children', () => {
-    thrown.current = digestError(deniedDigest('post.update'));
+  it("renders denied for a denial digest and retries into the children", () => {
+    thrown.current = digestError(deniedDigest("post.update"));
     const view = mount(
       createElement(
         PermissionBoundary,
-        { denied: createElement(Reader, { label: 'denied' }) },
+        { denied: createElement(Reader, { label: "denied" }) },
         createElement(Child),
       ),
     );
@@ -114,32 +114,32 @@ describe('permdock/next PermissionBoundary', () => {
       outcome: seen.current?.outcome,
       permission: seen.current?.permission,
     }).toEqual({
-      text: 'denied',
-      outcome: 'denied',
-      permission: 'post.update',
+      text: "denied",
+      outcome: "denied",
+      permission: "post.update",
     });
     thrown.current = null;
     act(() => {
       seen.current?.retry();
     });
-    expect(view.textContent).toBe('content');
+    expect(view.textContent).toBe("content");
   });
 
-  it('renders approval for an approval digest, falling back to denied, then nothing', () => {
-    thrown.current = digestError(approvalDigest('post.delete', 'pd1.token'));
+  it("renders approval for an approval digest, falling back to denied, then nothing", () => {
+    thrown.current = digestError(approvalDigest("post.delete", "pd1.token"));
     const approval = mount(
       createElement(
         PermissionBoundary,
         {
-          denied: 'denied',
-          approval: createElement(Reader, { label: 'approve' }),
+          denied: "denied",
+          approval: createElement(Reader, { label: "approve" }),
         },
         createElement(Child),
       ),
     );
     expect({ text: approval.textContent, state: seen.current }).toMatchObject({
-      text: 'approve',
-      state: { outcome: 'approval-required', token: 'pd1.token' },
+      text: "approve",
+      state: { outcome: "approval-required", token: "pd1.token" },
     });
     act(() => {
       root?.unmount();
@@ -147,22 +147,22 @@ describe('permdock/next PermissionBoundary', () => {
     const fallback = mount(
       createElement(
         PermissionBoundary,
-        { denied: 'denied' },
+        { denied: "denied" },
         createElement(Child),
       ),
     );
-    expect(fallback.textContent).toBe('denied');
+    expect(fallback.textContent).toBe("denied");
     act(() => {
       root?.unmount();
     });
     const empty = mount(
       createElement(PermissionBoundary, {}, createElement(Child)),
     );
-    expect(empty.textContent).toBe('');
+    expect(empty.textContent).toBe("");
   });
 
-  it('passes any other error to the next boundary up', () => {
-    const failure = new Error('database down');
+  it("passes any other error to the next boundary up", () => {
+    const failure = new Error("database down");
     thrown.current = failure;
     const view = mount(
       createElement(
@@ -170,11 +170,11 @@ describe('permdock/next PermissionBoundary', () => {
         null,
         createElement(
           PermissionBoundary,
-          { denied: 'denied' },
+          { denied: "denied" },
           createElement(Child),
         ),
       ),
     );
-    expect(view.textContent).toBe('outer: database down');
+    expect(view.textContent).toBe("outer: database down");
   });
 });

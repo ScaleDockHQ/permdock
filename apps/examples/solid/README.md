@@ -9,5 +9,5 @@ pnpm --filter @permdock/example-solid dev
 Opens `http://127.0.0.1:3483/`. `Protected` shows `edit` for a member updating their own post and `locked` for publish.
 
 ```ts
-import { PermDockProvider, Protected } from 'permdock/solid'
+import { PermDockProvider, Protected } from "permdock/solid";
 ```

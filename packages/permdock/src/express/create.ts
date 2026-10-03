@@ -4,12 +4,12 @@ import type {
   RequestHandler,
   Response,
   Router,
-} from 'express';
+} from "express";
 
-import express from 'express';
+import express from "express";
 
-import type { ApprovalStore } from '../approvals/types.ts';
-import type { PolicySource } from '../core/hosted.ts';
+import type { ApprovalStore } from "../approvals/types.ts";
+import type { PolicySource } from "../core/hosted.ts";
 import type {
   DecisionSink,
   EntitlementSource,
@@ -18,26 +18,25 @@ import type {
   RelationSource,
   RoleSource,
   SnapshotSource,
-} from '../core/interfaces.ts';
-import type { PermDock } from '../core/permdock.ts';
-import type { Permission } from '../core/permissions.ts';
-import type { Policy } from '../core/policy.ts';
-import type { Principal } from '../core/subject.ts';
-import type { OtelOptions } from '../otel/types.ts';
-import type { PdpFactory } from '../pdp/types.ts';
+} from "../core/interfaces.ts";
+import type { PermDock } from "../core/permdock.ts";
+import type { Permission } from "../core/permissions.ts";
+import type { Policy, PolicyVocabulary } from "../core/policy.ts";
+import type { Principal } from "../core/subject.ts";
+import type { OtelWrap } from "../otel/types.ts";
+import type { PdpFactory } from "../pdp/types.ts";
 import type {
   OpenApiHooks,
   ProtectOptions,
   TenantOption,
   TenantScope,
-} from '../server/create.ts';
-import type { WebBotAuthOptions } from '../server/web-bot-auth.ts';
+} from "../server/create.ts";
+import type { WebBotAuthVerifier } from "../server/web-bot-auth.ts";
 
-import { compact } from '../core/compact.ts';
-import { applyOtel } from '../otel/instrument.ts';
-import { createKernel, tenantScope } from '../server/create.ts';
-import { problemFromError } from '../server/map-error.ts';
-import { sendResponse, toRequest } from './http.ts';
+import { compact } from "../core/compact.ts";
+import { createKernel, tenantScope } from "../server/create.ts";
+import { problemFromError } from "../server/map-error.ts";
+import { sendResponse, toRequest } from "./http.ts";
 
 export type ExpressPermDockOptions<TUser = unknown> = {
   readonly subject: (req: Request) => TUser | Promise<TUser>;
@@ -56,16 +55,21 @@ export type ExpressPermDockOptions<TUser = unknown> = {
   readonly pdp?: PdpFactory;
   /** Accepted for adapter parity; not read by this adapter. */
   readonly snapshots?: SnapshotSource;
-  readonly otel?: OtelOptions;
-  readonly webBotAuth?: WebBotAuthOptions;
+  /** `(permdock) => withOtel(permdock, options)` from `permdock/otel`. */
+  readonly otel?: OtelWrap;
+  /** `(request) => verifyWebBotAuth(request, options)`; a verified bot becomes the actor. */
+  readonly webBotAuth?: WebBotAuthVerifier;
 };
 
-export type PermDockRequest<T = unknown> = Request & {
-  permdock: PermDock;
+export type PermDockRequest<
+  T = unknown,
+  V extends PolicyVocabulary = PolicyVocabulary,
+> = Request & {
+  permdock: PermDock<V>;
   permdockData?: T;
 };
 
-export type ExpressPermDock = {
+export type ExpressPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
   readonly permdock: () => RequestHandler;
   readonly protect: (
     permission: Permission,
@@ -74,8 +78,8 @@ export type ExpressPermDock = {
   ) => RequestHandler;
   readonly errorHandler: () => ErrorRequestHandler;
   readonly permdockHandler: () => Router;
-  readonly handler: (
-    fn: (req: PermDockRequest, res: Response) => unknown,
+  readonly withPermDock: (
+    fn: (req: PermDockRequest<unknown, V>, res: Response) => unknown,
   ) => RequestHandler;
   readonly openapi: OpenApiHooks;
 };
@@ -95,12 +99,14 @@ const errorHandler = (): ErrorRequestHandler => (err, _req, res, next) => {
   }, next);
 };
 
-const handler =
-  (fn: (req: PermDockRequest, res: Response) => unknown): RequestHandler =>
+const withPermDock =
+  <V extends PolicyVocabulary>(
+    fn: (req: PermDockRequest<unknown, V>, res: Response) => unknown,
+  ): RequestHandler =>
   (req, res, next) => {
     run(async () => {
-      // SAFETY: handler wraps routes mounted after permdock() or protect(), which set req.permdock.
-      await fn(req as PermDockRequest, res);
+      // SAFETY: withPermDock wraps routes mounted after permdock() or protect(), which set req.permdock from this factory's policy.
+      await fn(req as PermDockRequest<unknown, V>, res);
     }, next);
   };
 
@@ -115,10 +121,14 @@ export function withBound<T>(
   return req === undefined ? fallback : use(req);
 }
 
-export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
-  policy: Policy<TUser, TPrincipal>,
+export function createPermDock<
+  TUser,
+  TPrincipal extends Principal = Principal,
+  V extends PolicyVocabulary = PolicyVocabulary,
+>(
+  policy: Policy<TUser, TPrincipal, V>,
   options: ExpressPermDockOptions<TUser>,
-): ExpressPermDock {
+): ExpressPermDock<V> {
   const contexts = new WeakMap<globalThis.Request, Request>();
   const bound = new WeakMap<Request, globalThis.Request>();
   const kernel = createKernel(
@@ -136,8 +146,8 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       limits: options.limits,
       pdp: options.pdp,
       webBotAuth: options.webBotAuth,
-      adapter: 'express',
-      wrap: (dock: PermDock) => applyOtel(dock, options.otel),
+      adapter: "express",
+      wrap: options.otel,
     }),
   );
 
@@ -197,7 +207,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     };
 
   const permdockHandler = (): Router => {
-    const { POST, GET } = kernel.handler((request) =>
+    const { POST, GET } = kernel.permdockHandler((request) =>
       withBound<TenantScope | Promise<TenantScope>>(
         contexts,
         request,
@@ -208,12 +218,12 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       ),
     );
     const router = express.Router({ mergeParams: true });
-    router.post('/', (req, res, next) => {
+    router.post("/", (req, res, next) => {
       run(async () => {
         await sendResponse(res, await POST(rebind(req)));
       }, next);
     });
-    router.get('/', (req, res, next) => {
+    router.get("/", (req, res, next) => {
       run(async () => {
         await sendResponse(res, await GET(bind(req)));
       }, next);
@@ -226,7 +236,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     protect,
     errorHandler,
     permdockHandler,
-    handler,
+    withPermDock,
     openapi: kernel.openapi,
   };
 }

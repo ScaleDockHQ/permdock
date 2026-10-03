@@ -1,5 +1,5 @@
 export default {
-  permissions: './policy.ts',
-  policy: './rls-policy.ts',
-  rls: { dialect: 'guc' },
+  permissions: "./policy.ts",
+  policy: "./rls-policy.ts",
+  rls: { dialect: "guc" },
 };

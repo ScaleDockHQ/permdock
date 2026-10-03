@@ -8,9 +8,9 @@ import {
   type ScimPage,
   type ScimPageResult,
   type ScimPatchOp,
-} from 'permdock/scim';
+} from "permdock/scim";
 
-type Emails = NonNullable<DirectoryUser['emails']>;
+type Emails = NonNullable<DirectoryUser["emails"]>;
 
 type Rows<T> = Promise<{ readonly rows: T[] }>;
 
@@ -93,7 +93,7 @@ const GROUP_COLUMNS = `g.id, g."displayName", g."externalId", g.roles, g.locatio
     where m.tenant = g.tenant and m.group_id = g.id), '{}') as members`;
 
 function randomId(prefix: string): string {
-  return `${prefix}${crypto.randomUUID().replaceAll('-', '').slice(0, 16)}`;
+  return `${prefix}${crypto.randomUUID().replaceAll("-", "").slice(0, 16)}`;
 }
 
 function toUser(row: UserRow): DirectoryUser {
@@ -106,7 +106,7 @@ function toUser(row: UserRow): DirectoryUser {
     meta: {
       created: row.created,
       lastModified: row.lastModified,
-      resourceType: 'User',
+      resourceType: "User",
       ...(row.location === null ? {} : { location: row.location }),
     },
   };
@@ -122,7 +122,7 @@ function toGroup(row: GroupRow): DirectoryGroup {
     meta: {
       created: row.created,
       lastModified: row.lastModified,
-      resourceType: 'Group',
+      resourceType: "Group",
       ...(row.location === null ? {} : { location: row.location }),
     },
   };
@@ -132,33 +132,33 @@ function toGroup(row: GroupRow): DirectoryGroup {
 function uniqueness(error: unknown): never {
   // SAFETY: every field is compared against literals before use; a non-pg error just rethrows
   const pg = error as { code?: unknown; constraint?: unknown };
-  if (pg.code === '23505') {
-    const constraint = typeof pg.constraint === 'string' ? pg.constraint : '';
+  if (pg.code === "23505") {
+    const constraint = typeof pg.constraint === "string" ? pg.constraint : "";
     throw new DirectoryUniquenessError(
-      constraint.endsWith('userName') ? 'userName' : 'externalId',
+      constraint.endsWith("userName") ? "userName" : "externalId",
     );
   }
   throw error;
 }
 
-type Kind = 'user' | 'group';
+type Kind = "user" | "group";
 
 const COLUMNS: Record<Kind, Readonly<Record<string, string>>> = {
   user: {
-    id: 'id',
+    id: "id",
     userName: '"userName"',
     externalId: '"externalId"',
-    active: 'active::text',
+    active: "active::text",
   },
   group: {
-    id: 'g.id',
+    id: "g.id",
     displayName: 'g."displayName"',
     externalId: 'g."externalId"',
   },
 };
 
 function asText(value: string | boolean): string {
-  return typeof value === 'boolean' ? String(value) : value;
+  return typeof value === "boolean" ? String(value) : value;
 }
 
 /**
@@ -167,24 +167,24 @@ function asText(value: string | boolean): string {
  */
 function compare(
   column: string,
-  op: 'eq' | 'ne' | 'co' | 'sw',
+  op: "eq" | "ne" | "co" | "sw",
   value: string | boolean,
   bind: (value: unknown) => string,
   caseless: boolean,
 ): string {
-  if (caseless && (op === 'co' || op === 'sw')) {
-    return 'false';
+  if (caseless && (op === "co" || op === "sw")) {
+    return "false";
   }
   const left = caseless ? `lower(${column})` : column;
   const right = bind(caseless ? asText(value).toLowerCase() : value);
   switch (op) {
-    case 'eq':
+    case "eq":
       return `${left} = ${right}`;
-    case 'ne':
+    case "ne":
       return `${left} is distinct from ${right}`;
-    case 'co':
+    case "co":
       return `strpos(${left}, ${right}) > 0`;
-    case 'sw':
+    case "sw":
       return `starts_with(${left}, ${right})`;
     default: {
       const exhaustive: never = op;
@@ -199,35 +199,35 @@ function compileFilter(
   bind: (value: unknown) => string,
 ): string {
   switch (filter.op) {
-    case 'and':
-    case 'or':
+    case "and":
+    case "or":
       return `(${filter.filters
         .map((item) => compileFilter(item, kind, bind))
         .join(` ${filter.op} `)})`;
-    case 'pr':
-    case 'eq':
-    case 'ne':
-    case 'co':
-    case 'sw': {
-      if (filter.attribute === 'members.value') {
-        if (kind !== 'group') {
-          return filter.op === 'ne' ? 'true' : 'false';
+    case "pr":
+    case "eq":
+    case "ne":
+    case "co":
+    case "sw": {
+      if (filter.attribute === "members.value") {
+        if (kind !== "group") {
+          return filter.op === "ne" ? "true" : "false";
         }
         const member =
-          filter.op === 'pr'
-            ? 'true'
-            : compare('m.user_id', filter.op, filter.value, bind, false);
+          filter.op === "pr"
+            ? "true"
+            : compare("m.user_id", filter.op, filter.value, bind, false);
         return `exists (select 1 from scim_member m where m.tenant = g.tenant and m.group_id = g.id and ${member})`;
       }
       const column = COLUMNS[kind][filter.attribute];
       if (column === undefined) {
-        return filter.op === 'ne' ? 'true' : 'false';
+        return filter.op === "ne" ? "true" : "false";
       }
-      if (filter.op === 'pr') {
+      if (filter.op === "pr") {
         return `coalesce(${column}, '') <> ''`;
       }
       const caseless =
-        typeof filter.value === 'boolean' || filter.attribute === 'active';
+        typeof filter.value === "boolean" || filter.attribute === "active";
       return compare(column, filter.op, filter.value, bind, caseless);
     }
     default: {
@@ -247,9 +247,9 @@ function where(
     params.push(value);
     return `$${String(params.length)}`;
   };
-  const prefix = kind === 'group' ? 'g.' : '';
+  const prefix = kind === "group" ? "g." : "";
   const clause =
-    filter === undefined ? 'true' : compileFilter(filter, kind, bind);
+    filter === undefined ? "true" : compileFilter(filter, kind, bind);
   return { sql: `${prefix}tenant = $1 and ${clause}`, params };
 }
 
@@ -258,7 +258,7 @@ function window(page: ScimPage): {
   readonly count: number;
 } {
   const count = page.count ?? DEFAULT_COUNT;
-  if (page.cursor !== undefined && page.cursor !== '') {
+  if (page.cursor !== undefined && page.cursor !== "") {
     const decoded = Math.trunc(Number(page.cursor));
     return {
       offset: Number.isFinite(decoded) && decoded > 0 ? decoded : 0,
@@ -306,14 +306,14 @@ function emailsOf(value: unknown): Emails {
           primary?: unknown;
           type?: unknown;
         } | null;
-        return typeof email?.value === 'string'
+        return typeof email?.value === "string"
           ? [
               {
                 value: email.value,
-                ...(typeof email.primary === 'boolean'
+                ...(typeof email.primary === "boolean"
                   ? { primary: email.primary }
                   : {}),
-                ...(typeof email.type === 'string' ? { type: email.type } : {}),
+                ...(typeof email.type === "string" ? { type: email.type } : {}),
               },
             ]
           : [];
@@ -322,23 +322,23 @@ function emailsOf(value: unknown): Emails {
 }
 
 function applyUserOp(user: DirectoryUser, op: ScimPatchOp): DirectoryUser {
-  switch (op.path ?? '') {
-    case 'active':
-      return typeof op.value === 'boolean'
+  switch (op.path ?? "") {
+    case "active":
+      return typeof op.value === "boolean"
         ? { ...user, active: op.value }
         : user;
-    case 'userName':
-      return typeof op.value === 'string'
+    case "userName":
+      return typeof op.value === "string"
         ? { ...user, userName: op.value }
         : user;
-    case 'externalId':
-      return typeof op.value === 'string'
+    case "externalId":
+      return typeof op.value === "string"
         ? { ...user, externalId: op.value }
-        : without(user, 'externalId');
-    case 'emails':
+        : without(user, "externalId");
+    case "emails":
       return Array.isArray(op.value)
         ? { ...user, emails: emailsOf(op.value) }
-        : without(user, 'emails');
+        : without(user, "emails");
     default:
       return user;
   }
@@ -349,42 +349,42 @@ function memberValues(value: unknown): string[] {
     ? value.flatMap((item: unknown) => {
         // SAFETY: `value` is typeof-checked before it is kept
         const member = item as { value?: unknown } | null;
-        return typeof member?.value === 'string' ? [member.value] : [];
+        return typeof member?.value === "string" ? [member.value] : [];
       })
     : [];
 }
 
 function applyGroupOp(group: DirectoryGroup, op: ScimPatchOp): DirectoryGroup {
-  const path = op.path ?? '';
-  if (path === 'displayName') {
-    return typeof op.value === 'string'
+  const path = op.path ?? "";
+  if (path === "displayName") {
+    return typeof op.value === "string"
       ? { ...group, displayName: op.value }
       : group;
   }
-  if (path === 'externalId') {
-    return typeof op.value === 'string'
+  if (path === "externalId") {
+    return typeof op.value === "string"
       ? { ...group, externalId: op.value }
-      : without(group, 'externalId');
+      : without(group, "externalId");
   }
-  if (path === 'roles') {
+  if (path === "roles") {
     return Array.isArray(op.value)
       ? {
           ...group,
           roles: op.value.filter(
-            (item: unknown): item is string => typeof item === 'string',
+            (item: unknown): item is string => typeof item === "string",
           ),
         }
-      : without(group, 'roles');
+      : without(group, "roles");
   }
-  if (path !== 'members') {
+  if (path !== "members") {
     return group;
   }
   const incoming = memberValues(op.value);
   const current = group.members.map((member) => member.value);
   const next =
-    op.op === 'replace'
+    op.op === "replace"
       ? incoming
-      : op.op === 'add'
+      : op.op === "add"
         ? [...current, ...incoming.filter((value) => !current.includes(value))]
         : current.filter((value) => !incoming.includes(value));
   return { ...group, members: next.map((value) => ({ value })) };
@@ -397,7 +397,7 @@ async function readUser(
   lock = false,
 ) {
   const { rows } = await sql.query<UserRow>(
-    `select ${USER_COLUMNS} from scim_user where tenant = $1 and id = $2${lock ? ' for update' : ''}`,
+    `select ${USER_COLUMNS} from scim_user where tenant = $1 and id = $2${lock ? " for update" : ""}`,
     [tenant, id],
   );
   return rows[0] === undefined ? null : toUser(rows[0]);
@@ -440,7 +440,7 @@ async function writeUser(
     .catch(uniqueness);
   const row = rows[0];
   if (row === undefined) {
-    throw new Error('scim_user upsert returned no row');
+    throw new Error("scim_user upsert returned no row");
   }
   return toUser(row);
 }
@@ -471,18 +471,18 @@ async function writeGroup(
     )
     .catch(uniqueness);
   await sql.query(
-    'delete from scim_member where tenant = $1 and group_id = $2',
+    "delete from scim_member where tenant = $1 and group_id = $2",
     [tenant, group.id],
   );
   for (const value of new Set(group.members.map((member) => member.value))) {
     await sql.query(
-      'insert into scim_member (tenant, group_id, user_id) values ($1, $2, $3)',
+      "insert into scim_member (tenant, group_id, user_id) values ($1, $2, $3)",
       [tenant, group.id, value],
     );
   }
   const written = await readGroup(sql, tenant, group.id);
   if (written === null) {
-    throw new Error('scim_group upsert returned no row');
+    throw new Error("scim_group upsert returned no row");
   }
   return written;
 }
@@ -498,7 +498,7 @@ export function pgDirectoryStore(sql: SqlClient): DirectoryStore & {
     getUser: (tenant, id) => readUser(sql, tenant, id),
     async findUsers(tenant, filter, page) {
       const { offset, count } = window(page);
-      const clause = where(tenant, filter, 'user');
+      const clause = where(tenant, filter, "user");
       const [{ rows }, total] = await Promise.all([
         sql.query<UserRow>(
           `select ${USER_COLUMNS} from scim_user where ${clause.sql} order by seq offset ${String(offset)} limit ${String(count)}`,
@@ -514,7 +514,7 @@ export function pgDirectoryStore(sql: SqlClient): DirectoryStore & {
     putUser(tenant, user) {
       return writeUser(sql, tenant, {
         ...user,
-        id: user.id === '' ? randomId('u_') : user.id,
+        id: user.id === "" ? randomId("u_") : user.id,
       });
     },
     patchUser(tenant, id, ops) {
@@ -533,7 +533,7 @@ export function pgDirectoryStore(sql: SqlClient): DirectoryStore & {
     deleteUser(tenant, id) {
       return sql.transaction(async (tx) => {
         const { rows } = await tx.query(
-          'delete from scim_user where tenant = $1 and id = $2 returning id',
+          "delete from scim_user where tenant = $1 and id = $2 returning id",
           [tenant, id],
         );
         if (rows.length === 0) {
@@ -546,7 +546,7 @@ export function pgDirectoryStore(sql: SqlClient): DirectoryStore & {
           [tenant, id, new Date().toISOString()],
         );
         await tx.query(
-          'delete from scim_member where tenant = $1 and user_id = $2',
+          "delete from scim_member where tenant = $1 and user_id = $2",
           [tenant, id],
         );
       });
@@ -554,7 +554,7 @@ export function pgDirectoryStore(sql: SqlClient): DirectoryStore & {
     getGroup: (tenant, id) => readGroup(sql, tenant, id),
     async findGroups(tenant, filter, page) {
       const { offset, count } = window(page);
-      const clause = where(tenant, filter, 'group');
+      const clause = where(tenant, filter, "group");
       const [{ rows }, total] = await Promise.all([
         sql.query<GroupRow>(
           `select ${GROUP_COLUMNS} from scim_group g where ${clause.sql} order by g.seq offset ${String(offset)} limit ${String(count)}`,
@@ -571,14 +571,14 @@ export function pgDirectoryStore(sql: SqlClient): DirectoryStore & {
       return sql.transaction((tx) =>
         writeGroup(tx, tenant, {
           ...group,
-          id: group.id === '' ? randomId('g_') : group.id,
+          id: group.id === "" ? randomId("g_") : group.id,
         }),
       );
     },
     patchGroup(tenant, id, ops) {
       return sql.transaction(async (tx) => {
         await tx.query(
-          'select 1 from scim_group where tenant = $1 and id = $2 for update',
+          "select 1 from scim_group where tenant = $1 and id = $2 for update",
           [tenant, id],
         );
         const existing = await readGroup(tx, tenant, id);
@@ -594,7 +594,7 @@ export function pgDirectoryStore(sql: SqlClient): DirectoryStore & {
     },
     async deleteGroup(tenant, id) {
       const { rows } = await sql.query(
-        'delete from scim_group where tenant = $1 and id = $2 returning id',
+        "delete from scim_group where tenant = $1 and id = $2 returning id",
         [tenant, id],
       );
       if (rows.length === 0) {

@@ -5,7 +5,7 @@ export type JsonWebKeyLike = {
 
 export type Binding = {
   readonly jkt?: string;
-  readonly 'x5t#S256'?: string;
+  readonly "x5t#S256"?: string;
   readonly jwk?: JsonWebKeyLike;
   readonly kid?: string;
 };
@@ -51,7 +51,7 @@ export type Membership = {
   /** A subgroup the holder belongs to inside the instance (`vendor-support`); a `fromJunction` group column fills it. */
   readonly member?: { readonly group: string };
   /** `idp`: the identity provider (SCIM) owns this membership; the application must not edit it. */
-  readonly managedBy?: 'idp';
+  readonly managedBy?: "idp";
   /** Seats this membership holds (`dev-mode`, `editor`); `plan()` grantees match them inside the active tenant. */
   readonly entitlements?: readonly string[];
   /** Input only: an instance of the first scope. */
@@ -66,7 +66,7 @@ export type Membership = {
  */
 export type CustomRoleGrant = {
   readonly permission: string;
-  readonly effect?: 'allow' | 'deny';
+  readonly effect?: "allow" | "deny";
 };
 
 export type CustomRole = {
@@ -87,7 +87,7 @@ export type CustomRole = {
 export type Principal = {
   readonly id: string;
   readonly issuer?: string;
-  readonly kind?: 'user' | 'service' | 'workload' | 'link';
+  readonly kind?: "user" | "service" | "workload" | "link";
   readonly roles?: readonly string[];
   readonly plans?: readonly string[];
   readonly memberships?: readonly Membership[];
@@ -135,10 +135,10 @@ export type Subject<TPrincipal extends Principal = Principal> = {
 };
 
 export function isPrincipal(value: unknown): value is Principal {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
     return false;
   }
-  if ('principal' in value && 'context' in value) {
+  if ("principal" in value && "context" in value) {
     return false;
   }
   // SAFETY: value is a non-null, non-array object checked above; every field stays unknown.
@@ -149,37 +149,37 @@ export function isPrincipal(value: unknown): value is Principal {
     readonly kind?: unknown;
     readonly issuer?: unknown;
   };
-  if (typeof record.id !== 'string') {
+  if (typeof record.id !== "string") {
     return false;
   }
   return (
     Array.isArray(record.roles) ||
     Array.isArray(record.memberships) ||
-    record.kind === 'user' ||
-    record.kind === 'service' ||
-    record.kind === 'workload' ||
-    record.kind === 'link' ||
-    typeof record.issuer === 'string'
+    record.kind === "user" ||
+    record.kind === "service" ||
+    record.kind === "workload" ||
+    record.kind === "link" ||
+    typeof record.issuer === "string"
   );
 }
 
 export function isSubject(value: unknown): value is Subject {
   return (
     value !== null &&
-    typeof value === 'object' &&
-    'principal' in value &&
-    'context' in value &&
-    typeof value.context === 'object'
+    typeof value === "object" &&
+    "principal" in value &&
+    "context" in value &&
+    typeof value.context === "object"
   );
 }
 
 export function isActor(value: unknown): value is Actor {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
     return false;
   }
   // SAFETY: value is a non-null, non-array object checked above; both fields stay unknown.
   const record = value as { readonly id?: unknown; readonly kind?: unknown };
-  return typeof record.id === 'string' && typeof record.kind === 'string';
+  return typeof record.id === "string" && typeof record.kind === "string";
 }
 
 export function anonymousSubject(

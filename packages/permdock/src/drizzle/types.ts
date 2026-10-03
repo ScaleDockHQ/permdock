@@ -1,13 +1,13 @@
-import type { SQL, Table } from 'drizzle-orm';
+import type { SQL, Table } from "drizzle-orm";
 
-import type { MembershipsMapping } from '../conditions/compile.ts';
-import type { RelationsMapping } from '../conditions/graph-sql.ts';
-import type { WithSubjectOptions } from '../conditions/subject-settings.ts';
-import type { Subject } from '../core/subject.ts';
+import type { MembershipsMapping } from "../conditions/compile.ts";
+import type { RelationsMapping } from "../conditions/graph-sql.ts";
+import type { WithSubjectOptions } from "../conditions/subject-settings.ts";
+import type { Subject } from "../core/subject.ts";
 
 /** A column of the Drizzle table `T` or an `SQL` expression; anything for a structural stand-in. */
 export type DrizzleColumnOf<T> = T extends Table
-  ? T['_']['columns'][keyof T['_']['columns']] | SQL
+  ? T["_"]["columns"][keyof T["_"]["columns"]] | SQL
   : unknown;
 
 export type DrizzleWhereOptions<T = unknown> = {

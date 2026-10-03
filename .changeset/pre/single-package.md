@@ -1,5 +1,5 @@
 ---
-'permdock': minor
+"permdock": minor
 ---
 
 One package: the CLI moves into `permdock`. The `permdock` binary is the package's `bin`, `@permdock/cli` becomes `permdock/cli` (`defineConfig`, `run`), `@permdock/cli/unplugin` becomes `permdock/unplugin`, and `permdock/next/plugin` runs `collect` itself instead of resolving `@permdock/cli`. `permdock`, owned by the `scaledockhq` npm organisation, is the only package name.

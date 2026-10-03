@@ -1,17 +1,17 @@
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { run } from 'permdock/cli';
-import { saasSchemaSql, saasSeed, saasSeedSql } from 'permdock/testing/saas';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { run } from "permdock/cli";
+import { saasSchemaSql, saasSeed, saasSeedSql } from "permdock/testing/saas";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import type { Postgres } from './support/postgres.ts';
+import type { Postgres } from "./support/postgres.ts";
 
-import { startPostgres } from './support/postgres.ts';
+import { startPostgres } from "./support/postgres.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const FIXTURE = join(HERE, '../fixtures/saas');
+const FIXTURE = join(HERE, "../fixtures/saas");
 
 const ROLES = `
 create role authenticated nologin;
@@ -24,14 +24,14 @@ const GRANTS = `
 grant select, insert on all tables in schema public to authenticated;
 `;
 
-describe('rls verify --tree over the shared SaaS folder tree', () => {
+describe("rls verify --tree over the shared SaaS folder tree", () => {
   let db: Postgres | undefined;
-  const dir = mkdtempSync(join(tmpdir(), 'permdock-saas-tree-'));
-  const out = join(dir, 'saas.sql');
+  const dir = mkdtempSync(join(tmpdir(), "permdock-saas-tree-"));
+  const out = join(dir, "saas.sql");
 
   beforeAll(async () => {
     const generated = await run(
-      ['rls', 'generate', '--target', 'sql', '--out', out],
+      ["rls", "generate", "--target", "sql", "--out", out],
       { cwd: FIXTURE },
     );
     if (generated.code !== 0) {
@@ -41,7 +41,7 @@ describe('rls verify --tree over the shared SaaS folder tree', () => {
       ROLES,
       saasSchemaSql,
       saasSeedSql(),
-      readFileSync(out, 'utf8'),
+      readFileSync(out, "utf8"),
       GRANTS,
     ]);
   }, 180_000);
@@ -51,11 +51,11 @@ describe('rls verify --tree over the shared SaaS folder tree', () => {
     await db?.stop();
   });
 
-  it('agrees with decide on a generated tree with restricted branches, shares and an expired share', async () => {
+  it("agrees with decide on a generated tree with restricted branches, shares and an expired share", async () => {
     if (db === undefined) {
-      throw new Error('PermDock: Postgres was not started');
+      throw new Error("PermDock: Postgres was not started");
     }
-    const result = await run(['rls', 'verify', '--tree', '--db', db.uri], {
+    const result = await run(["rls", "verify", "--tree", "--db", db.uri], {
       cwd: FIXTURE,
     });
     const counts =
@@ -64,7 +64,7 @@ describe('rls verify --tree over the shared SaaS folder tree', () => {
       );
     expect(result).toEqual({
       code: 0,
-      stderr: '',
+      stderr: "",
       stdout: expect.stringMatching(/verified/u),
     });
     expect(result.stdout).not.toMatch(
@@ -74,12 +74,12 @@ describe('rls verify --tree over the shared SaaS folder tree', () => {
     expect(Number(counts?.[2])).toBeGreaterThan(0);
   });
 
-  it('rolls the generated tree back', async () => {
+  it("rolls the generated tree back", async () => {
     if (db === undefined) {
-      throw new Error('PermDock: Postgres was not started');
+      throw new Error("PermDock: Postgres was not started");
     }
     const folders = await db.admin.query<{ count: string }>(
-      'select count(*) from folder',
+      "select count(*) from folder",
     );
     expect(Number(folders.rows[0]?.count)).toBe(saasSeed.folders.length);
   });

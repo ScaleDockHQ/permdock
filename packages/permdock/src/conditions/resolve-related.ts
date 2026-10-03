@@ -1,14 +1,14 @@
-import type { WhereResult } from '../core/permdock.ts';
-import type { Condition, RelatedCondition } from './ast.ts';
+import type { WhereResult } from "../core/permdock.ts";
+import type { Condition, RelatedCondition } from "./ast.ts";
 
-import { PermDockValidationError } from '../core/errors.ts';
-import { freezeDeep } from '../core/freeze.ts';
+import { PermDockValidationError } from "../core/errors.ts";
+import { freezeDeep } from "../core/freeze.ts";
 import {
   type RelationsMapping,
   relatedRowGuard,
   relatedTargetsSql,
   renderGraphSql,
-} from './graph-sql.ts';
+} from "./graph-sql.ts";
 
 export type ResolveRelatedOptions = {
   /**
@@ -26,24 +26,24 @@ export type ResolveRelatedOptions = {
   readonly parse?: (id: string, field: string) => unknown;
 };
 
-const NOTHING: Condition = { op: 'or', conditions: [] };
+const NOTHING: Condition = { op: "or", conditions: [] };
 
 function notRestricted(column: string): Condition {
   return {
-    op: 'or',
+    op: "or",
     conditions: [
-      { op: 'eq', field: column, value: false },
-      { op: 'isNull', field: column, value: true },
+      { op: "eq", field: column, value: false },
+      { op: "isNull", field: column, value: true },
     ],
   };
 }
 
 function refused(detail: string): PermDockValidationError {
   return new PermDockValidationError({
-    code: 'non-portable-condition',
-    permission: '',
-    resource: '',
-    boundary: 'where',
+    code: "non-portable-condition",
+    permission: "",
+    resource: "",
+    boundary: "where",
     message: `PermDock: non-portable-condition: ${detail}`,
   });
 }
@@ -63,15 +63,15 @@ export async function resolveRelated(
 
   async function resolveNode(node: RelatedCondition): Promise<Condition> {
     if (resources === undefined) {
-      throw refused('related: the where() result carries no resource graph');
+      throw refused("related: the where() result carries no resource graph");
     }
-    if (node.ids === undefined && (subject === undefined || subject === '')) {
+    if (node.ids === undefined && (subject === undefined || subject === "")) {
       return NOTHING;
     }
     const query = renderGraphSql(
       relatedTargetsSql(node, { ...options.relations, resources }),
       {
-        subject: subject ?? '',
+        subject: subject ?? "",
         placeholder: (index) => `$${String(index)}`,
         /* v8 ignore next 3 */
         column: (name) => {
@@ -84,53 +84,53 @@ export async function resolveRelated(
       values: query.values,
     });
     const ids = rows.flatMap((row) => {
-      const id = row['id'];
-      if (typeof id !== 'string' && typeof id !== 'number') {
+      const id = row["id"];
+      if (typeof id !== "string" && typeof id !== "number") {
         return [];
       }
       const text = String(id);
       const parsed =
         options.parse === undefined ? text : options.parse(text, node.field);
-      return typeof parsed === 'string' ||
-        typeof parsed === 'number' ||
-        typeof parsed === 'boolean'
+      return typeof parsed === "string" ||
+        typeof parsed === "number" ||
+        typeof parsed === "boolean"
         ? [parsed]
         : [];
     });
     const reach: Condition =
-      ids.length === 0 ? NOTHING : { op: 'in', field: node.field, value: ids };
+      ids.length === 0 ? NOTHING : { op: "in", field: node.field, value: ids };
     const guard = relatedRowGuard(node);
     return guard === undefined || ids.length === 0
       ? reach
-      : { op: 'and', conditions: [reach, notRestricted(guard)] };
+      : { op: "and", conditions: [reach, notRestricted(guard)] };
   }
 
   async function resolve(node: Condition): Promise<Condition> {
     switch (node.op) {
-      case 'related':
+      case "related":
         return resolveNode(node);
-      case 'and':
-      case 'or':
+      case "and":
+      case "or":
         return {
           op: node.op,
           conditions: await Promise.all(node.conditions.map(resolve)),
         };
-      case 'not':
-        return { op: 'not', condition: await resolve(node.condition) };
-      case 'sqlFunction':
+      case "not":
+        return { op: "not", condition: await resolve(node.condition) };
+      case "sqlFunction":
         return { ...node, twin: await resolve(node.twin) };
-      case 'eq':
-      case 'ne':
-      case 'gt':
-      case 'gte':
-      case 'lt':
-      case 'lte':
-      case 'contains':
-      case 'in':
-      case 'notIn':
-      case 'isNull':
-      case 'memberOf':
-      case 'opaque':
+      case "eq":
+      case "ne":
+      case "gt":
+      case "gte":
+      case "lt":
+      case "lte":
+      case "contains":
+      case "in":
+      case "notIn":
+      case "isNull":
+      case "memberOf":
+      case "opaque":
         return node;
       default: {
         const exhaustive: never = node;
@@ -141,7 +141,7 @@ export async function resolveRelated(
 
   const condition = await resolve(where.condition);
   const out = { condition, partial: where.partial };
-  for (const key of ['subject', 'scopes', 'resources'] as const) {
+  for (const key of ["subject", "scopes", "resources"] as const) {
     if (where[key] !== undefined) {
       Object.defineProperty(out, key, { value: where[key], enumerable: false });
     }

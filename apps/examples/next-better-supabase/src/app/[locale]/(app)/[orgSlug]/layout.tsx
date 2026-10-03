@@ -1,15 +1,15 @@
-import type { ReactNode } from 'react';
+import type { ReactNode } from "react";
 
-import Link from 'next/link';
-import { PermDockProvider } from 'permdock/react';
-import { Suspense } from 'react';
+import Link from "next/link";
+import { PermDockProvider } from "permdock/react";
+import { Suspense } from "react";
 
-import { snapshotForSlug } from '../../../../lib/access.ts';
-import { Nav, NavSkeleton } from './nav.tsx';
+import { snapshotForSlug } from "../../../../lib/access.ts";
+import { Nav, NavSkeleton } from "./nav.tsx";
 
 const organizations = [
-  { slug: 'acme', name: 'Acme' },
-  { slug: 'globex', name: 'Globex' },
+  { slug: "acme", name: "Acme" },
+  { slug: "globex", name: "Globex" },
 ] as const;
 
 // Synchronous: the shell is static, and only the gated nav waits for the

@@ -1,21 +1,21 @@
-import { createJiti } from 'jiti';
-import { dirname, resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { createJiti } from "jiti";
+import { dirname, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 
-import type { Permission, PermissionTree, Policy } from '../index.ts';
+import type { Permission, PermissionTree, Policy } from "../index.ts";
 
-import { listPermissions } from '../index.ts';
+import { listPermissions } from "../index.ts";
 
 /**
  * Errors Node raises while resolving or parsing a module graph, before any of
  * its code runs, so loading it again through jiti cannot repeat a side effect.
  */
 const NOT_NATIVE = new Set([
-  'ERR_MODULE_NOT_FOUND',
-  'ERR_UNKNOWN_FILE_EXTENSION',
-  'ERR_UNSUPPORTED_DIR_IMPORT',
-  'ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX',
-  'ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING',
+  "ERR_MODULE_NOT_FOUND",
+  "ERR_UNKNOWN_FILE_EXTENSION",
+  "ERR_UNSUPPORTED_DIR_IMPORT",
+  "ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX",
+  "ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING",
 ]);
 
 function loadsWithJiti(error: unknown): boolean {
@@ -23,10 +23,10 @@ function loadsWithJiti(error: unknown): boolean {
     return true;
   }
   const code: unknown =
-    error !== null && typeof error === 'object' && 'code' in error
+    error !== null && typeof error === "object" && "code" in error
       ? error.code
       : undefined;
-  return typeof code === 'string' && NOT_NATIVE.has(code);
+  return typeof code === "string" && NOT_NATIVE.has(code);
 }
 
 /**
@@ -53,7 +53,7 @@ export async function loadModule(
     });
     loaded = await jiti.import(abs);
   }
-  if (loaded === null || typeof loaded !== 'object') {
+  if (loaded === null || typeof loaded !== "object") {
     throw new Error(`PermDock CLI: module '${abs}' did not export an object`);
   }
   // SAFETY: checked to be a non-null object above; exports stay unknown.
@@ -69,13 +69,13 @@ export function pickNamed(
       return mod[name];
     }
   }
-  return mod['default'];
+  return mod["default"];
 }
 
 export function asPermissionTree(value: unknown): PermissionTree {
-  if (value === null || typeof value !== 'object') {
+  if (value === null || typeof value !== "object") {
     throw new Error(
-      'PermDock CLI: permissions export is not a permission tree',
+      "PermDock CLI: permissions export is not a permission tree",
     );
   }
   // SAFETY: the project's configured permissions export, checked to be an object above.
@@ -85,11 +85,11 @@ export function asPermissionTree(value: unknown): PermissionTree {
 export function asPolicy(value: unknown): Policy {
   if (
     value === null ||
-    typeof value !== 'object' ||
-    !('roles' in value) ||
-    !('permissions' in value)
+    typeof value !== "object" ||
+    !("roles" in value) ||
+    !("permissions" in value)
   ) {
-    throw new Error('PermDock CLI: policy export is not a Policy');
+    throw new Error("PermDock CLI: policy export is not a Policy");
   }
   // SAFETY: the project's configured policy export, checked above for roles and permissions.
   return value as Policy;
@@ -109,7 +109,7 @@ export async function loadConfiguredPolicy(
   }
   try {
     return asPolicy(
-      pickNamed(await loadModule(resolve(cwd, path)), ['policy']),
+      pickNamed(await loadModule(resolve(cwd, path)), ["policy"]),
     );
   } catch {
     return undefined;

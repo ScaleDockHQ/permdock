@@ -7,5 +7,5 @@ HTTP harness for `permdock/eve`. `pnpm start` listens on `127.0.0.1:3474` with n
 - `GET /delete_post` — `approval.request` → `user-approval`
 
 ```ts
-import { createPermDock } from 'permdock/eve'
+import { createPermDock } from "permdock/eve";
 ```

@@ -1,19 +1,19 @@
-import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { describe, expect, it } from "vitest";
 
-import { measureExports } from './write-baseline.ts';
+import { measureExports } from "./write-baseline.ts";
 
 const exportsPath = join(
   dirname(fileURLToPath(import.meta.url)),
-  'exports.json',
+  "exports.json",
 );
 
-describe('public exports', () => {
-  it('matches the recorded exports snapshot', () => {
+describe("public exports", () => {
+  it("matches the recorded exports snapshot", () => {
     // SAFETY: the exports snapshot is written by this suite in this shape
-    const recorded = JSON.parse(readFileSync(exportsPath, 'utf8')) as Record<
+    const recorded = JSON.parse(readFileSync(exportsPath, "utf8")) as Record<
       string,
       readonly string[]
     >;

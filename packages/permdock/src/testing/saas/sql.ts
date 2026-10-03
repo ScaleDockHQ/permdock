@@ -1,7 +1,7 @@
-import type { SaasSeed } from './seed.ts';
+import type { SaasSeed } from "./seed.ts";
 
-import { quoteSqlLiteral } from '../../core/sql.ts';
-import { saasSeed } from './seed.ts';
+import { quoteSqlLiteral } from "../../core/sql.ts";
+import { saasSeed } from "./seed.ts";
 
 /**
  * Postgres tables for the SaaS domain. Column names match the resource
@@ -64,16 +64,16 @@ create table folder_editor (
 
 function literal(value: string | number | boolean | null | undefined): string {
   if (value === null || value === undefined) {
-    return 'null';
+    return "null";
   }
-  if (typeof value === 'number') {
+  if (typeof value === "number") {
     if (!Number.isFinite(value)) {
-      throw new Error('PermDock: non-finite number in fixture seed');
+      throw new Error("PermDock: non-finite number in fixture seed");
     }
     return String(value);
   }
-  if (typeof value === 'boolean') {
-    return value ? 'true' : 'false';
+  if (typeof value === "boolean") {
+    return value ? "true" : "false";
   }
   return quoteSqlLiteral(value);
 }
@@ -83,9 +83,9 @@ function values(rows: readonly (readonly unknown[])[]): string {
   return rows
     .map(
       (row) =>
-        `(${row.map((cell) => literal(cell as string | number | boolean | null)).join(', ')})`,
+        `(${row.map((cell) => literal(cell as string | number | boolean | null)).join(", ")})`,
     )
-    .join(',\n  ');
+    .join(",\n  ");
 }
 
 /** `insert` statements for a seed; the default is the full shared seed. */
@@ -148,7 +148,7 @@ export function saasSeedSql(seed: SaasSeed = saasSeed): string {
       )};`,
     );
   }
-  const viewers = seed.shares.filter((share) => share.relation === 'viewer');
+  const viewers = seed.shares.filter((share) => share.relation === "viewer");
   if (viewers.length > 0) {
     statements.push(
       `insert into folder_share (folder_id, user_id, expires_at) values\n  ${values(
@@ -162,7 +162,7 @@ export function saasSeedSql(seed: SaasSeed = saasSeed): string {
         ),
     );
   }
-  const editors = seed.shares.filter((share) => share.relation === 'editor');
+  const editors = seed.shares.filter((share) => share.relation === "editor");
   if (editors.length > 0) {
     statements.push(
       `insert into folder_editor (folder_id, user_id) values\n  ${values(
@@ -170,5 +170,5 @@ export function saasSeedSql(seed: SaasSeed = saasSeed): string {
       )};`,
     );
   }
-  return `${statements.join('\n')}\n`;
+  return `${statements.join("\n")}\n`;
 }

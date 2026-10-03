@@ -1,6 +1,6 @@
-import type { Membership, Subject } from 'permdock';
+import type { Membership, Subject } from "permdock";
 
-export { saasPolicy as policy } from 'permdock/testing/saas';
+export { saasPolicy as policy } from "permdock/testing/saas";
 
 export type SessionClaims = {
   readonly sub: string;

@@ -37,12 +37,12 @@ A policy declares its scopes in order (an organization, the customers inside it)
      { permissions, roles },
      {
        scopes: {
-         organization: { key: 'organization_id' },
-         customer: { key: 'customer_id', within: 'organization' },
+         organization: { key: "organization_id" },
+         customer: { key: "customer_id", within: "organization" },
        },
        roles: [
-         role(roles.admin, adminGrants, { on: 'organization' }),
-         role(roles.contact, contactGrants, { on: 'customer' }),
+         role(roles.admin, adminGrants, { on: "organization" }),
+         role(roles.contact, contactGrants, { on: "customer" }),
        ],
        subject,
      },

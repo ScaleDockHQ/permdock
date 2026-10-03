@@ -1,15 +1,15 @@
-import type { JwtClaims } from '../core/interfaces.ts';
-import type { SetSubject, SsfSubject } from './types.ts';
+import type { JwtClaims } from "../core/interfaces.ts";
+import type { SetSubject, SsfSubject } from "./types.ts";
 
-import { compact } from '../core/compact.ts';
-import { isRecord } from './wire.ts';
+import { compact } from "../core/compact.ts";
+import { isRecord } from "./wire.ts";
 
 export function asSubject(
   mapped: string | SsfSubject,
   session: string | undefined,
   issuer: string | undefined,
 ): SsfSubject {
-  if (typeof mapped === 'string') {
+  if (typeof mapped === "string") {
     return compact({ id: mapped, session, issuer });
   }
   return compact({
@@ -22,15 +22,15 @@ export function asSubject(
 export function setSubjectFromClaims(
   claims: JwtClaims,
 ): SetSubject | undefined {
-  const subId = claims['sub_id'];
-  if (isRecord(subId) && typeof subId['format'] === 'string') {
+  const subId = claims["sub_id"];
+  if (isRecord(subId) && typeof subId["format"] === "string") {
     // SAFETY: a record with a string format, the field RFC 9493 requires of every subject identifier.
     return subId as SetSubject;
   }
-  if (typeof claims.sub === 'string' && claims.sub.length > 0) {
+  if (typeof claims.sub === "string" && claims.sub.length > 0) {
     return compact({
-      format: 'iss_sub',
-      iss: typeof claims.iss === 'string' ? claims.iss : undefined,
+      format: "iss_sub",
+      iss: typeof claims.iss === "string" ? claims.iss : undefined,
       sub: claims.sub,
     });
   }
@@ -40,8 +40,8 @@ export function setSubjectFromClaims(
 export function eventTimestamp(
   payload: Readonly<Record<string, unknown>>,
 ): number | undefined {
-  const value = payload['event_timestamp'];
-  return typeof value === 'number' && Number.isFinite(value)
+  const value = payload["event_timestamp"];
+  return typeof value === "number" && Number.isFinite(value)
     ? value
     : undefined;
 }
@@ -49,11 +49,11 @@ export function eventTimestamp(
 export function eventSession(
   payload: Readonly<Record<string, unknown>>,
 ): string | undefined {
-  if (typeof payload['session'] === 'string' && payload['session'].length > 0) {
-    return payload['session'];
+  if (typeof payload["session"] === "string" && payload["session"].length > 0) {
+    return payload["session"];
   }
-  if (typeof payload['sid'] === 'string' && payload['sid'].length > 0) {
-    return payload['sid'];
+  if (typeof payload["sid"] === "string" && payload["sid"].length > 0) {
+    return payload["sid"];
   }
   return undefined;
 }
@@ -62,17 +62,17 @@ export function eventSession(
 export function eventSubject(
   payload: Readonly<Record<string, unknown>>,
 ): SetSubject | undefined {
-  const subject = payload['subject'];
+  const subject = payload["subject"];
   // SAFETY: a record with a string format, the field RFC 9493 requires of every subject identifier.
-  return isRecord(subject) && typeof subject['format'] === 'string'
+  return isRecord(subject) && typeof subject["format"] === "string"
     ? (subject as SetSubject)
     : undefined;
 }
 
 export function subjectSession(subject: SetSubject): string | undefined {
-  if (subject.format !== 'complex' || !isRecord(subject['session'])) {
+  if (subject.format !== "complex" || !isRecord(subject["session"])) {
     return undefined;
   }
-  const { id } = subject['session'];
-  return typeof id === 'string' && id.length > 0 ? id : undefined;
+  const { id } = subject["session"];
+  return typeof id === "string" && id.length > 0 ? id : undefined;
 }

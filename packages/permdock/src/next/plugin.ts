@@ -1,8 +1,8 @@
-export { createPermDockPlugin } from '../cli/plugin.ts';
+export { createPermDockPlugin } from "../cli/plugin.ts";
 export type {
-  CreatePermDockPluginOptions,
+  PermDockPluginOptions,
   NextConfigContext,
   NextConfigFunction,
   NextConfigInput,
   NextConfigLike,
-} from '../cli/plugin.ts';
+} from "../cli/plugin.ts";

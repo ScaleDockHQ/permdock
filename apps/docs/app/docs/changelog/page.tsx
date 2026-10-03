@@ -1,18 +1,18 @@
-import type { Metadata } from 'next';
+import type { Metadata } from "next";
 
-import { DocsBody, DocsPage } from 'fumadocs-ui/layouts/docs/page';
-import { notFound } from 'next/navigation';
+import { DocsBody, DocsPage } from "fumadocs-ui/layouts/docs/page";
+import { notFound } from "next/navigation";
 
-import { getMDXComponents } from '@/components/mdx';
-import { loadChangelog } from '@/lib/changelog';
+import { getMDXComponents } from "@/components/mdx";
+import { loadChangelog } from "@/lib/changelog";
 
 export const metadata: Metadata = {
-  title: 'Changelog',
-  description: 'Every PermDock release, newest first.',
+  title: "Changelog",
+  description: "Every PermDock release, newest first.",
 };
 
 export default async function Page() {
-  'use cache';
+  "use cache";
 
   const page = await loadChangelog();
   if (!page) notFound();

@@ -7,13 +7,13 @@ description: "How an Arazzo 1.1.0 workflow is an agent plan, and how permdock si
 
 The [Arazzo Specification 1.1.0](https://spec.openapis.org/arazzo/v1.1.0.html) (released 17 May 2026, [announcement](https://www.openapis.org/arazzo-specification)) describes workflows: sequences of API calls with dependencies between them, inputs, outputs and success criteria. An Arazzo document has:
 
-| Field | Meaning |
-| --- | --- |
-| `arazzo` | The Arazzo specification version, `1.1.0` |
-| `info` | Title and version of the workflow document |
-| `sourceDescriptions` | The API descriptions the workflows call into: `type: openapi`, `type: arazzo` (another workflow document) and, since 1.1, `type: asyncapi` |
-| `workflows` | Named workflows, each with `inputs`, ordered `steps`, `outputs` and success criteria |
-| `steps[]` | Each step points at one `operationId` or `operationPath` in a source description, or at another `workflowId`; it declares `parameters`, `requestBody`, `successCriteria`, `outputs` and what to do on success or failure |
+| Field                | Meaning                                                                                                                                                                                                                  |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `arazzo`             | The Arazzo specification version, `1.1.0`                                                                                                                                                                                |
+| `info`               | Title and version of the workflow document                                                                                                                                                                               |
+| `sourceDescriptions` | The API descriptions the workflows call into: `type: openapi`, `type: arazzo` (another workflow document) and, since 1.1, `type: asyncapi`                                                                               |
+| `workflows`          | Named workflows, each with `inputs`, ordered `steps`, `outputs` and success criteria                                                                                                                                     |
+| `steps[]`            | Each step points at one `operationId` or `operationPath` in a source description, or at another `workflowId`; it declares `parameters`, `requestBody`, `successCriteria`, `outputs` and what to do on success or failure |
 
 1.1 adds AsyncAPI sources (send / receive style steps with correlation), typed `parameters` on actions that call another `workflowId`, and better data selection (Selector Object, JSONPath). 1.0.x documents remain valid.
 
@@ -28,17 +28,19 @@ The result is a pre-flight for a whole workflow, not a single call: before an ag
 ### A workflow is an agent plan
 
 ```ts
-import { readFile } from 'node:fs/promises'
-import { PermDockDeniedError } from 'permdock'
-import { createPermDock } from 'permdock/node'
-import { policy } from './policy'
+import { readFile } from "node:fs/promises";
+import { PermDockDeniedError } from "permdock";
+import { createPermDock } from "permdock/node";
+import { policy } from "./policy";
 
-const arazzo = JSON.parse(await readFile('./workflows/publish-post.arazzo.json', 'utf8'))
-const openapi = JSON.parse(await readFile('./openapi.json', 'utf8'))          // after the Overlay is applied
+const arazzo = JSON.parse(
+  await readFile("./workflows/publish-post.arazzo.json", "utf8"),
+);
+const openapi = JSON.parse(await readFile("./openapi.json", "utf8")); // after the Overlay is applied
 
-const permdock = await createPermDock(policy, user)
+const permdock = await createPermDock(policy, user);
 
-const plan = permdock.simulate({ arazzo, openapi, workflowId: 'publishPost' })
+const plan = permdock.simulate({ arazzo, openapi, workflowId: "publishPost" });
 // {
 //   workflowId: 'publishPost',
 //   outcome: 'approval-required',            // worst outcome across steps: denied > approval-required > granted
@@ -49,9 +51,10 @@ const plan = permdock.simulate({ arazzo, openapi, workflowId: 'publishPost' })
 //   ],
 // }
 
-const blocked = plan.steps.filter((s) => s.decision.outcome !== 'granted')
-if (blocked.some((s) => s.decision.outcome === 'denied')) throw new PermDockDeniedError(blocked[0].decision)
-for (const step of blocked) await requestApproval(step)                      // approval-required steps, before step one runs
+const blocked = plan.steps.filter((s) => s.decision.outcome !== "granted");
+if (blocked.some((s) => s.decision.outcome === "denied"))
+  throw new PermDockDeniedError(blocked[0].decision);
+for (const step of blocked) await requestApproval(step); // approval-required steps, before step one runs
 ```
 
 What `simulate({ arazzo, openapi })` does, step by step (subject is the instance's, [Arazzo](/docs/standards/arazzo)):
@@ -95,18 +98,18 @@ It fails (exit `1`) when a step's `operationId` does not exist in the referenced
 
 ## Mapping table
 
-| Arazzo concept | PermDock concept |
-| --- | --- |
-| Workflow | A plan passed to `simulate({ arazzo, openapi })` on the instance |
-| Step with `operationId` / `operationPath` | One `[permission, data]` entry per key in the operation's `x-permdock-permissions` |
-| Step with `workflowId` | Expanded into that workflow's steps, its `parameters` becoming that workflow's `inputs` |
-| `sourceDescriptions[type=openapi]` | The `openapi` argument (one description or a map by source `name`) |
-| `sourceDescriptions[type=asyncapi]` | Unsupported until an AsyncAPI adapter exists; step `denied` |
-| `inputs`, workflow and step `parameters`, `$inputs.*` | Resource data for instance-level permissions |
-| `outputs` feeding a later step | `provisional: true` decision; re-decided by `protect` at execution |
-| `successCriteria` | Not evaluated; PermDock decides authorization, not success |
-| Operation without `x-permdock-permissions` | `denied`, reason `undocumented` (fail closed) |
-| Whole workflow | `outcome` = worst step outcome; one `simulate` audit event |
+| Arazzo concept                                        | PermDock concept                                                                        |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| Workflow                                              | A plan passed to `simulate({ arazzo, openapi })` on the instance                        |
+| Step with `operationId` / `operationPath`             | One `[permission, data]` entry per key in the operation's `x-permdock-permissions`      |
+| Step with `workflowId`                                | Expanded into that workflow's steps, its `parameters` becoming that workflow's `inputs` |
+| `sourceDescriptions[type=openapi]`                    | The `openapi` argument (one description or a map by source `name`)                      |
+| `sourceDescriptions[type=asyncapi]`                   | Unsupported until an AsyncAPI adapter exists; step `denied`                             |
+| `inputs`, workflow and step `parameters`, `$inputs.*` | Resource data for instance-level permissions                                            |
+| `outputs` feeding a later step                        | `provisional: true` decision; re-decided by `protect` at execution                      |
+| `successCriteria`                                     | Not evaluated; PermDock decides authorization, not success                              |
+| Operation without `x-permdock-permissions`            | `denied`, reason `undocumented` (fail closed)                                           |
+| Whole workflow                                        | `outcome` = worst step outcome; one `simulate` audit event                              |
 
 ## Sources
 

@@ -3,7 +3,6 @@ title: MCP authorization
 description: How the Model Context Protocol 2026-07-28 authorization model (OAuth 2.1 resource servers, scope challenges, RFC 8707, MRTR, CIMD, RFC 9207, Enterprise-Managed Authorization) maps onto permdock/mcp.
 ---
 
-
 ## What it is
 
 The [MCP specification 2026-07-28](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization) defines how MCP servers authorize callers:
@@ -25,17 +24,21 @@ Scopes are coarse: `post:delete` says an agent may delete posts, not which posts
 ## How PermDock uses it
 
 ```ts
-import { createPermDock } from 'permdock/mcp'
+import { createPermDock } from "permdock/mcp";
 const { protectServer } = createPermDock(policy, {
   subject: (authInfo) => userFrom(authInfo), // principal from the validated token
   // actor = authInfo.clientId, delegation = authInfo.scopes and authorization_details, filled automatically
-})
-const guarded = protectServer(server)
+});
+const guarded = protectServer(server);
 guarded.registerTool(
-  'delete_post',
-  { permission: permissions.post.delete, inputSchema, data: (args) => loadPost(args.id) },
+  "delete_post",
+  {
+    permission: permissions.post.delete,
+    inputSchema,
+    data: (args) => loadPost(args.id),
+  },
   handler,
-)
+);
 ```
 
 What `protectServer` does with each MCP concept:
@@ -52,26 +55,26 @@ What `protectServer` does with each MCP concept:
 
 ## Mapping table
 
-| MCP 2026-07-28 concept | PermDock feature |
-| --- | --- |
-| Server as OAuth 2.1 resource server | `subject: (authInfo) => ...` builds the principal from the validated token |
-| Bearer verification on a Fetch host (`mcp-handler` `withMcpAuth`, `verifyToken`) | Produces the `AuthInfo` PermDock consumes; the recipe fills it from `permdock/jwt` so `scopes` and `clientId` arrive verified ([MCP adapter](/docs/adapters/mcp), Hosting) |
-| RFC 9728 Protected Resource Metadata (`protectedResourceHandler`) | Not written by PermDock; its `scopes_supported` should list every permission `scope` the server exposes, which `permdock collect` emits |
-| `registerTool(..., { scopeChallenge })` | `permission` option on `guarded.registerTool`; `permission.scope` fills `scopeChallenge` |
-| `requireScopes()` | Applied automatically for tools with a `permission` |
-| `403 insufficient_scope` step-up | Emitted when `permission.scope` is missing from `authInfo.scopes`, naming the operation's scopes and `resource_metadata` |
-| SEP-2350 scope accumulation | Client-side; the challenge names the operation's scopes, and `simulate()` can pre-compute the full set for a plan |
-| RFC 8707 audience validation | `resource` option; a mismatch is `invalid_token` |
-| `ctx.http.authInfo.scopes` | `delegation.scopes`; intersected with principal grants |
-| `authInfo.clientId` | `actor.id` with `actor.kind: 'mcp-client'` |
-| Handler returning `isError: true` | `Decision` denied, with reasons and `alternatives` in `structuredContent` |
-| Tool `inputSchema` | Cross-checked against the resource's Standard JSON Schema; args validated at the boundary |
-| MRTR `input_required` | `approval-required` and step-up as URL-mode requests when the client declares URL elicitation; `requestState` is the approval token (or sealed by `createRequestStateCodec`) |
-| Tasks extension | Not used; long-running approvals live in the `ApprovalStore` |
-| CIMD client identity | Recorded as `actor.id`; no registration step in PermDock |
-| RFC 9207 `iss` validation | Client-side; documented in the example client, not enforced by the adapter |
-| EMA (ID-JAG via RFC 8693, redeemed with RFC 7523) | Transparent: resulting `authInfo` is consumed like any other token |
-| `authorization_grant_profiles_supported` | Not read by PermDock; belongs to the client's discovery step |
+| MCP 2026-07-28 concept                                                           | PermDock feature                                                                                                                                                             |
+| -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Server as OAuth 2.1 resource server                                              | `subject: (authInfo) => ...` builds the principal from the validated token                                                                                                   |
+| Bearer verification on a Fetch host (`mcp-handler` `withMcpAuth`, `verifyToken`) | Produces the `AuthInfo` PermDock consumes; the recipe fills it from `permdock/jwt` so `scopes` and `clientId` arrive verified ([MCP adapter](/docs/adapters/mcp), Hosting)   |
+| RFC 9728 Protected Resource Metadata (`protectedResourceHandler`)                | Not written by PermDock; its `scopes_supported` should list every permission `scope` the server exposes, which `permdock collect` emits                                      |
+| `registerTool(..., { scopeChallenge })`                                          | `permission` option on `guarded.registerTool`; `permission.scope` fills `scopeChallenge`                                                                                     |
+| `requireScopes()`                                                                | Applied automatically for tools with a `permission`                                                                                                                          |
+| `403 insufficient_scope` step-up                                                 | Emitted when `permission.scope` is missing from `authInfo.scopes`, naming the operation's scopes and `resource_metadata`                                                     |
+| SEP-2350 scope accumulation                                                      | Client-side; the challenge names the operation's scopes, and `simulate()` can pre-compute the full set for a plan                                                            |
+| RFC 8707 audience validation                                                     | `resource` option; a mismatch is `invalid_token`                                                                                                                             |
+| `ctx.http.authInfo.scopes`                                                       | `delegation.scopes`; intersected with principal grants                                                                                                                       |
+| `authInfo.clientId`                                                              | `actor.id` with `actor.kind: 'mcp-client'`                                                                                                                                   |
+| Handler returning `isError: true`                                                | `Decision` denied, with reasons and `alternatives` in `structuredContent`                                                                                                    |
+| Tool `inputSchema`                                                               | Cross-checked against the resource's Standard JSON Schema; args validated at the boundary                                                                                    |
+| MRTR `input_required`                                                            | `approval-required` and step-up as URL-mode requests when the client declares URL elicitation; `requestState` is the approval token (or sealed by `createRequestStateCodec`) |
+| Tasks extension                                                                  | Not used; long-running approvals live in the `ApprovalStore`                                                                                                                 |
+| CIMD client identity                                                             | Recorded as `actor.id`; no registration step in PermDock                                                                                                                     |
+| RFC 9207 `iss` validation                                                        | Client-side; documented in the example client, not enforced by the adapter                                                                                                   |
+| EMA (ID-JAG via RFC 8693, redeemed with RFC 7523)                                | Transparent: resulting `authInfo` is consumed like any other token                                                                                                           |
+| `authorization_grant_profiles_supported`                                         | Not read by PermDock; belongs to the client's discovery step                                                                                                                 |
 
 ## Specification check
 

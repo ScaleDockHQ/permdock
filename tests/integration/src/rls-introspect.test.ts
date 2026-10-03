@@ -1,19 +1,19 @@
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { run } from 'permdock/cli';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { run } from "permdock/cli";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import type { Postgres } from './support/postgres.ts';
+import type { Postgres } from "./support/postgres.ts";
 
-import { startPostgres } from './support/postgres.ts';
+import { startPostgres } from "./support/postgres.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const FIXTURE = join(HERE, '../fixtures/introspect');
+const FIXTURE = join(HERE, "../fixtures/introspect");
 
-const ORG = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
-const USER = '00000000-0000-4000-8000-0000000000c1';
+const ORG = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
+const USER = "00000000-0000-4000-8000-0000000000c1";
 
 const SETUP = `
 create role authenticated nologin;
@@ -36,36 +36,36 @@ insert into doc values ('open', '${ORG}', '{public,news}'), ('closed', '${ORG}',
 function claims(extra: Readonly<Record<string, unknown>> = {}): string {
   return JSON.stringify({
     sub: USER,
-    role: 'authenticated',
+    role: "authenticated",
     tenant_id: ORG,
-    memberships: [{ scope: 'tenant', id: ORG, roles: ['member'] }],
+    memberships: [{ scope: "tenant", id: ORG, roles: ["member"] }],
     ...extra,
   });
 }
 
 async function verify(uri: string): Promise<{ code: number; out: string }> {
   const result = await run(
-    ['rls', 'verify', '--introspect', '--db', uri, '--dialect', 'supabase'],
+    ["rls", "verify", "--introspect", "--db", uri, "--dialect", "supabase"],
     { cwd: FIXTURE },
   );
   return { code: result.code, out: `${result.stdout}${result.stderr}` };
 }
 
-describe('rls verify --introspect', () => {
+describe("rls verify --introspect", () => {
   let db: Postgres | undefined;
 
   beforeAll(async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'permdock-introspect-'));
-    const out = join(dir, 'rls.sql');
+    const dir = mkdtempSync(join(tmpdir(), "permdock-introspect-"));
+    const out = join(dir, "rls.sql");
     const result = await run(
       [
-        'rls',
-        'generate',
-        '--target',
-        'sql',
-        '--dialect',
-        'supabase',
-        '--out',
+        "rls",
+        "generate",
+        "--target",
+        "sql",
+        "--dialect",
+        "supabase",
+        "--out",
         out,
       ],
       { cwd: FIXTURE },
@@ -73,7 +73,7 @@ describe('rls verify --introspect', () => {
     if (result.code !== 0) {
       throw new Error(`rls generate: ${result.stdout}${result.stderr}`);
     }
-    const generated = readFileSync(out, 'utf8');
+    const generated = readFileSync(out, "utf8");
     rmSync(dir, { recursive: true, force: true });
     db = await startPostgres([SETUP, generated]);
   }, 120_000);
@@ -84,66 +84,77 @@ describe('rls verify --introspect', () => {
 
   function started(): Postgres {
     if (db === undefined) {
-      throw new Error('PermDock: Postgres was not started');
+      throw new Error("PermDock: Postgres was not started");
     }
     return db;
   }
 
-  it('reads rows whose array column contains the value', async () => {
+  it("reads rows whose array column contains the value", async () => {
     const pg = started();
     const ids = await pg.as(
-      { role: 'authenticated', settings: { 'request.jwt.claims': claims() } },
+      { role: "authenticated", settings: { "request.jwt.claims": claims() } },
       async () =>
-        (await pg.tester.query('select id from doc order by id')).rows.map(
+        (await pg.tester.query("select id from doc order by id")).rows.map(
           (row: { id: string }) => row.id,
         ),
     );
-    expect(ids).toEqual(['open']);
+    expect(ids).toEqual(["open"]);
   });
 
-  it('refuses a delete from a delegated oauth client', async () => {
+  it("refuses a delete from a delegated oauth client", async () => {
     const pg = started();
     const deleted = async (extra: Readonly<Record<string, unknown>>) =>
       pg.as(
         {
-          role: 'authenticated',
-          settings: { 'request.jwt.claims': claims(extra) },
+          role: "authenticated",
+          settings: { "request.jwt.claims": claims(extra) },
         },
         async () =>
           (await pg.tester.query("delete from doc where id = 'open'")).rowCount,
       );
     expect(await deleted({})).toBe(1);
-    expect(await deleted({ client_id: 'app-1' })).toBe(0);
-    expect(await deleted({ act: { sub: 'agent-1' } })).toBe(0);
+    expect(await deleted({ client_id: "app-1" })).toBe(0);
+    expect(await deleted({ act: { sub: "agent-1" } })).toBe(0);
   });
 
-  it('finds no drift in the generated database', async () => {
+  it("finds no drift in the generated database", async () => {
     const result = await verify(started().uri);
-    expect(result.out).toContain('no drift');
+    expect(result.out).toContain("no drift");
     expect(result.code).toBe(0);
   });
 
-  it('reports policies, grants, RLS and helpers that drifted', async () => {
+  it("warns about a scope column no index starts with, and accepts one that does", async () => {
+    const pg = started();
+    const warning =
+      "warning: public.doc: no index starts with orgId, which the policies or helpers filter on";
+    expect((await verify(pg.uri)).out).toContain(warning);
+    await pg.admin.query('create index doc_org_id_tags on doc ("orgId", tags)');
+    const result = await verify(pg.uri);
+    expect(result.out).not.toContain(warning);
+    expect(result.code).toBe(0);
+  });
+
+  it("reports policies, grants, RLS and helpers that drifted", async () => {
     const pg = started();
     await pg.admin.query(`
       create policy "hand_written" on doc for select to authenticated using (true);
       grant insert on doc to authenticated;
-      alter function public.permdock_has(text) security invoker;
-      alter function public.permitted_tenant_ids(text) reset search_path;
+      alter function permdock.permdock_has(text) security invoker;
+      alter function permdock.permitted_tenant_ids(text) reset search_path;
     `);
     const result = await verify(pg.uri);
     expect(result.code).toBe(1);
-    expect(result.out.split('\n')).toEqual(
+    expect(result.out.split("\n")).toEqual(
       expect.arrayContaining([
-        'public.doc: policy hand_written is not generated (permissive select); a permissive one widens access',
-        'public.doc: authenticated holds insert, which no generated policy allows',
-        'public.permdock_has: helper is not security definer',
-        "public.permitted_tenant_ids: helper does not set search_path = ''",
+        "public.doc: policy hand_written is not generated (permissive select); a permissive one widens access",
+        "public.doc: authenticated holds insert, which no generated policy allows",
+        "permdock.permdock_has: helper is not security definer",
+        "permdock.permitted_tenant_ids: helper does not set search_path = ''",
       ]),
     );
-    await pg.admin.query('alter table doc disable row level security');
+    await pg.admin.query("alter table doc disable row level security");
     expect((await verify(pg.uri)).out).toContain(
-      'public.doc: row level security is disabled',
+      "public.doc: row level security is disabled",
     );
   });
 });

@@ -10,35 +10,41 @@ description: Object hierarchies (nested folders, sub-teams, reporting lines, acc
 A resource names its `parent`, the relations principals hold on it, and optionally a `restricted` column:
 
 ```ts
-import { allow, definePermissions, definePolicy, relation, resource } from 'permdock'
+import {
+  allow,
+  definePermissions,
+  definePolicy,
+  relation,
+  resource,
+} from "permdock";
 
 export const permissions = definePermissions({
   doc: resource(Doc, {
-    actions: ['read', 'update'],
-    parent: { field: 'folderId', resource: 'folder' },
-    relations: { owner: 'ownerId' },
+    actions: ["read", "update"],
+    parent: { field: "folderId", resource: "folder" },
+    relations: { owner: "ownerId" },
   }),
   folder: resource(Folder, {
-    actions: ['read', 'share'],
-    parent: { field: 'parentId', resource: 'folder' },
+    actions: ["read", "share"],
+    parent: { field: "parentId", resource: "folder" },
     relations: {
-      editor: { edge: 'folder_editors' },
-      viewer: { edge: 'folder_viewers', expiresAt: 'expires_at' },
+      editor: { edge: "folder_editors" },
+      viewer: { edge: "folder_viewers", expiresAt: "expires_at" },
     },
-    restricted: 'restricted',
+    restricted: "restricted",
   }),
-})
+});
 ```
 
 A resource may parent itself (`folder` above): that is what makes a chain. Every walk over a chain has a depth, 16 unless the grant sets one, and never more than 32.
 
-| Relation | Declared as | Held when |
-| --- | --- | --- |
-| Field | `owner: 'ownerId'` or `{ field }` | the row's field is the principal's id |
+| Relation   | Declared as                                                | Held when                                                                                                                                                                                                                   |
+| ---------- | ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Field      | `owner: 'ownerId'` or `{ field }`                          | the row's field is the principal's id                                                                                                                                                                                       |
 | Edge table | `{ edge, object?, subject?, expiresAt?, match?, groups? }` | a row of `edge` has the object id in `object` (default `<resource>_id`) and the principal id in `subject` (default `user_id`), `expiresAt`, when named, is null or in the future, and every `match` column equals its value |
-| Principal | `{ principal, period? }` on a principal resource | the row's `principal` column is the principal's id and now is inside `period` (`startsAt`, `expiresAt` timestamp columns, `null` leaves a side open) |
-| Implied | `{ includes: ['editor'] }` | the principal holds any relation in `includes` |
-| Scope | `{ field, memberOf }` | tenancy, not the graph: a `through` grant never walks it |
+| Principal  | `{ principal, period? }` on a principal resource           | the row's `principal` column is the principal's id and now is inside `period` (`startsAt`, `expiresAt` timestamp columns, `null` leaves a side open)                                                                        |
+| Implied    | `{ includes: ['editor'] }`                                 | the principal holds any relation in `includes`                                                                                                                                                                              |
+| Scope      | `{ field, memberOf }`                                      | tenancy, not the graph: a `through` grant never walks it                                                                                                                                                                    |
 
 `restricted` names a boolean column. A restricted object is reached only by grants on itself, never by relations held on its ancestors, and nothing below it is reached through it. Grants on the restricted object still reach its descendants.
 
@@ -105,16 +111,22 @@ allow(permissions.doc.review, {
 ```ts
 export const policy = definePolicy(permissions, {
   grants: [
-    allow(permissions.doc.read, { to: relation(permissions.doc, 'owner') }),
+    allow(permissions.doc.read, { to: relation(permissions.doc, "owner") }),
     allow(permissions.doc.read, {
-      to: relation(permissions.folder, 'viewer', { through: 'parent', depth: 16 }),
+      to: relation(permissions.folder, "viewer", {
+        through: "parent",
+        depth: 16,
+      }),
     }),
     allow(permissions.doc.update, {
-      to: relation(permissions.folder, 'editor', { through: 'parent', depth: 4 }),
+      to: relation(permissions.folder, "editor", {
+        through: "parent",
+        depth: 4,
+      }),
     }),
   ],
   subject: (user) => ({ id: user.id }),
-})
+});
 ```
 
 An array in `to:` is an intersection, as everywhere in PermDock: `to: [relation(permissions.doc, 'owner'), relation(permissions.folder, 'viewer', { through: 'parent' })]` requires both. Two `allow` grants, as above, OR together. `definePolicy` rejects a `through` grant that cannot reach its resource (the row has no parent there, or a `through` on a resource that does not parent itself), a `through` over a `memberOf` relation, and an edge relation declared on another resource without `through`.
@@ -124,25 +136,25 @@ Reporting lines and delegates are the same two tools:
 ```ts
 const people = definePermissions({
   employee: resource(Employee, {
-    actions: ['review'],
-    parent: { field: 'managerId', resource: 'employee' },
-    relations: { manager: { principal: 'managerId' } },
+    actions: ["review"],
+    parent: { field: "managerId", resource: "employee" },
+    relations: { manager: { principal: "managerId" } },
   }),
   account: resource(Account, {
-    actions: ['act'],
+    actions: ["act"],
     relations: {
       delegate: {
-        principal: 'delegateId',
-        period: { startsAt: 'delegateFrom', expiresAt: 'delegateUntil' },
+        principal: "delegateId",
+        period: { startsAt: "delegateFrom", expiresAt: "delegateUntil" },
       },
     },
   }),
-})
+});
 
 allow(people.employee.review, {
-  to: relation(people.employee, 'manager', { through: 'parent', depth: 8 }),
-})
-allow(people.account.act, { to: relation(people.account, 'delegate') })
+  to: relation(people.employee, "manager", { through: "parent", depth: 8 }),
+});
+allow(people.account.act, { to: relation(people.account, "delegate") });
 ```
 
 The manager of an employee holds `manager` on it; walking the chain, the manager's manager holds `manager` on the manager, so skip-level managers reach the employee too. The delegate holds `delegate` only inside the period.
@@ -157,13 +169,20 @@ A graph grant reads facts the row does not carry, so the instance asks a `Relati
 
 ```ts
 type RelationSource = {
-  ancestors(query: { resource: string; id: string; through: 'parent'; depth: number }):
-    RelationChain | Promise<RelationChain>
-  related(query: { resource: string; id: string; relation: string }):
-    RelationHolder[] | Promise<RelationHolder[]>
-}
+  ancestors(query: {
+    resource: string;
+    id: string;
+    through: "parent";
+    depth: number;
+  }): RelationChain | Promise<RelationChain>;
+  related(query: {
+    resource: string;
+    id: string;
+    relation: string;
+  }): RelationHolder[] | Promise<RelationHolder[]>;
+};
 
-createPermDock(policy, user, { relations: source })
+createPermDock(policy, user, { relations: source });
 ```
 
 `ancestors` returns the chain nearest first, at most `depth` entries, each with its own `restricted` flag, plus `truncated` when the chain goes on. With a link name as `through` it returns the one instance the link points to. `related` returns the holders of one concrete relation on one object: `{ principal: { id } }` or `{ group: { resource, id, relation } }`, with optional `startsAt` / `expiresAt` in seconds. The instance expands `includes` and groups itself, so a source never answers for an implied relation. `memoryRelations(permissions, { rows, edges })` is the in-process source; `testRelationSource` in `permdock/testing` checks any other ([extension interfaces](/docs/concepts/extension-interfaces)).
@@ -171,14 +190,14 @@ createPermDock(policy, user, { relations: source })
 Answers are cached per instance, never at module level: a request's `can`, `filter`, `whoCan` and the instances `tenant()`, `team()` and `simulate()` derive share one cache, and the next request starts empty. Evaluation stays synchronous. A source that answers synchronously is used directly; a Promise the instance has not loaded yet denies, and `await permdock.loadRelations(permission, rows)` loads what those rows need first:
 
 ```ts
-const permdock = await getPermDock()
-await permdock.loadRelations(permissions.doc.read, docs)
-const visible = permdock.filter(permissions.doc.read, docs)
+const permdock = await getPermDock();
+await permdock.loadRelations(permissions.doc.read, docs);
+const visible = permdock.filter(permissions.doc.read, docs);
 ```
 
-| Denial reason | When |
-| --- | --- |
-| `relation-depth` | The chain has a cycle, or it goes on past `depth` and no holder was found within it |
+| Denial reason          | When                                                                                                                                            |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `relation-depth`       | The chain has a cycle, or it goes on past `depth` and no holder was found within it                                                             |
 | `relation-unavailable` | No `relations` source, a call that threw or rejected, an answer that is not a chain or a holder list, or a Promise `loadRelations` did not load |
 
 A graph read that fails fails the whole grant, whatever the rest of its condition says. On a `deny`, it denies the decision: a deny the graph cannot evaluate is never skipped.
@@ -189,19 +208,22 @@ Snapshots carry no graph. A grant whose condition needs the graph, or whose rela
 
 `permdock.where()` keeps graph grants as `related` nodes, and the ORM compilers turn them into SQL over the same tables RLS reads:
 
-| ORM | How a `related` node compiles |
-| --- | --- |
+| ORM             | How a `related` node compiles                                                                                                                                         |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Drizzle, Kysely | `toWhere(where, table, { relations })` emits one subquery: the closure table when `relations.closure` is set, otherwise a recursive walk bounded by the grant's depth |
-| Prisma | `await resolveRelated(where, { run })` reads the ids with one raw query and replaces each node with `in(id, ids)`; `toWhere` then compiles as usual |
+| Prisma          | `await resolveRelated(where, { run })` reads the ids with one raw query and replaces each node with `in(id, ids)`; `toWhere` then compiles as usual                   |
 
-`relations: { tables, closure }` maps resource names to tables (default the resource name) and names the closure table, for example `'public.permdock_closure'`. Without `relations` the compilers refuse a `related` node with `non-portable-condition` ([conditions](/docs/concepts/conditions)). A relation with a `period` stays out of `where()` (`partial: true`). `resolveRelated` reads the ids when it runs, so a share added after that call is not in the result.
+`relations: { tables, closure }` maps resource names to tables (default the resource name) and names the closure table, for example `'permdock.permdock_closure'`. Without `relations` the compilers refuse a `related` node with `non-portable-condition` ([conditions](/docs/concepts/conditions)). A relation with a `period` stays out of `where()` (`partial: true`). `resolveRelated` reads the ids when it runs, so a share added after that call is not in the result.
 
 ## whoCan
 
 `await permdock.whoCan(permission, row)` lists who holds a permission on one object and how, for share dialogs and access reviews:
 
 ```ts
-const { holders, complete } = await permdock.whoCan(permissions.folder.read, folder)
+const { holders, complete } = await permdock.whoCan(
+  permissions.folder.read,
+  folder,
+);
 // holders: [{ principal: { id: 'u_vera' }, via: [{ kind: 'share', resource: 'folder', relation: 'viewer', id: 'root' }] }]
 ```
 

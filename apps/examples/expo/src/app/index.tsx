@@ -1,7 +1,7 @@
-import { Protected } from 'permdock/react-native';
-import { Text, View } from 'react-native';
+import { Protected } from "permdock/react-native";
+import { Text, View } from "react-native";
 
-import { ownPost, permissions } from '../permissions.ts';
+import { ownPost, permissions } from "../permissions.ts";
 
 export default function Home() {
   return (

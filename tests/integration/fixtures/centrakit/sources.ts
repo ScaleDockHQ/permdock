@@ -1,14 +1,14 @@
-import type { SqlQuery, SupabaseSuspension } from 'permdock/supabase';
+import type { SqlQuery, SupabaseSuspension } from "permdock/supabase";
 
-import { fromJunction, fromTable } from 'permdock/supabase';
+import { fromJunction, fromTable } from "permdock/supabase";
 
 export const suspension: SupabaseSuspension = {
-  users: { table: 'profiles', id: 'user_id', disabledAt: 'disabled_at' },
+  users: { table: "profiles", id: "user_id", disabledAt: "disabled_at" },
   scopes: {
     organization: {
-      table: 'organizations',
-      id: 'id',
-      disabledAt: 'disabled_at',
+      table: "organizations",
+      id: "id",
+      disabledAt: "disabled_at",
     },
   },
 };
@@ -18,17 +18,17 @@ export function sources(query?: SqlQuery) {
   const shared = query === undefined ? { suspension } : { query, suspension };
   return [
     fromTable({
-      table: 'memberships',
-      columns: { via: 'via', expiresAt: 'expires_at' },
+      table: "memberships",
+      columns: { via: "via", expiresAt: "expires_at" },
       ...shared,
     }),
     fromJunction({
-      table: 'contacts',
-      scope: 'customer',
-      id: 'customer_id',
-      within: { organization: 'organization_id' },
-      roles: ['contact'],
-      via: 'contact',
+      table: "contacts",
+      scope: "customer",
+      id: "customer_id",
+      within: { organization: "organization_id" },
+      roles: ["contact"],
+      via: "contact",
       ...shared,
     }),
   ];

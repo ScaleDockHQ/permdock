@@ -1,15 +1,15 @@
-import type { SaasProject } from 'permdock/testing/saas';
+import type { SaasProject } from "permdock/testing/saas";
 
-import { createFileRoute, useRouter } from '@tanstack/react-router';
-import { usePermission } from 'permdock/react';
-import { useState } from 'react';
+import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { usePermission } from "permdock/react";
+import { useState } from "react";
 
-import { permissions } from '@permdock/e2e-saas-kit/nav';
+import { permissions } from "@permdock/e2e-saas-kit/nav";
 
-import { Forbidden } from '../lib/forbidden';
-import { getProjects, removeProject } from '../lib/saas.functions';
+import { Forbidden } from "../lib/forbidden";
+import { getProjects, removeProject } from "../lib/saas.functions";
 
-export const Route = createFileRoute('/$org/projects')({
+export const Route = createFileRoute("/$org/projects")({
   loader: ({ params }) => getProjects({ data: { org: params.org } }),
   component: Projects,
 });
@@ -17,18 +17,18 @@ export const Route = createFileRoute('/$org/projects')({
 function Row(props: { readonly project: SaasProject }) {
   const router = useRouter();
   const { allowed } = usePermission(permissions.project.delete, props.project);
-  const [result, setResult] = useState('');
+  const [result, setResult] = useState("");
   const onDelete = async (): Promise<void> => {
     const outcome = await removeProject({ data: { id: props.project.id } });
     if (outcome.ok) {
       await router.invalidate();
     } else {
-      setResult(`Denied: ${outcome.reason ?? 'denied'}`);
+      setResult(`Denied: ${outcome.reason ?? "denied"}`);
     }
   };
   return (
     <li data-project={props.project.id}>
-      {props.project.name}{' '}
+      {props.project.name}{" "}
       {allowed ? (
         <button type="button" onClick={() => void onDelete()}>
           Delete

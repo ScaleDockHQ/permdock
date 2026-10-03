@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { z } from 'zod';
+import { describe, expect, it } from "vitest";
+import { z } from "zod";
 
 import {
   allow,
@@ -8,108 +8,108 @@ import {
   definePolicy,
   resource,
   role,
-} from '../../src/index.ts';
-import { reasonOf } from '../fixtures/decisions.ts';
+} from "../../src/index.ts";
+import { reasonOf } from "../fixtures/decisions.ts";
 import {
   adminUser,
   memberUser,
   ownPost,
   permissions,
   policy,
-} from '../fixtures/quick-start.ts';
+} from "../fixtures/quick-start.ts";
 
-const OUTCOMES = new Set(['granted', 'denied', 'approval-required']);
+const OUTCOMES = new Set(["granted", "denied", "approval-required"]);
 
 const Other = z.object({ id: z.string() });
 const foreign = definePermissions({
-  note: resource(Other, { id: 'id', actions: ['read'] }),
+  note: resource(Other, { id: "id", actions: ["read"] }),
 });
 
-describe('invariant 1: fail-closed', () => {
-  it('denies a role the policy does not define', async () => {
+describe("invariant 1: fail-closed", () => {
+  it("denies a role the policy does not define", async () => {
     const permdock = await createPermDock(policy, {
-      id: 'u1',
-      orgId: 'o1',
-      roles: ['superuser'],
+      id: "u1",
+      orgId: "o1",
+      roles: ["superuser"],
     });
     expect(permdock.can(permissions.post.read, ownPost)).toBe(false);
   });
 
-  it('denies when the subject mapping throws', async () => {
+  it("denies when the subject mapping throws", async () => {
     const throwing = definePolicy(permissions, {
-      roles: [role('member', [allow(permissions.post.read)])],
+      roles: [role("member", [allow(permissions.post.read)])],
       subject: (): { id: string; roles: string[] } => {
-        throw new Error('token parse failed');
+        throw new Error("token parse failed");
       },
     });
-    const permdock = await createPermDock(throwing, { id: 'u1' });
+    const permdock = await createPermDock(throwing, { id: "u1" });
     expect(permdock.can(permissions.post.read, ownPost)).toBe(false);
   });
 
-  it('denies when a grant closure throws', async () => {
+  it("denies when a grant closure throws", async () => {
     const throwing = definePolicy(permissions, {
       roles: [
-        role('member', [
+        role("member", [
           allow(permissions.post.update, (): boolean => {
-            throw new Error('lookup failed');
+            throw new Error("lookup failed");
           }),
         ]),
       ],
       subject: (user: { id: string; roles: string[] }) => user,
     });
     const permdock = await createPermDock(throwing, {
-      id: 'u1',
-      roles: ['member'],
+      id: "u1",
+      roles: ["member"],
     });
     const decision = permdock.decide(permissions.post.update, ownPost);
-    expect(decision.outcome).toBe('denied');
-    expect(reasonOf(decision)).toBe('closure-error');
+    expect(decision.outcome).toBe("denied");
+    expect(reasonOf(decision)).toBe("closure-error");
   });
 
-  it('denies a row that fails the resource schema', async () => {
+  it("denies a row that fails the resource schema", async () => {
     const permdock = await createPermDock(policy, memberUser);
     const decision = permdock.decide(permissions.post.update, {
       ...ownPost,
-      published: 'yes',
+      published: "yes",
     });
-    expect(decision.outcome).toBe('denied');
-    expect(reasonOf(decision)).toBe('validation');
+    expect(decision.outcome).toBe("denied");
+    expect(reasonOf(decision)).toBe("validation");
   });
 
-  it('denies an actor that carries no delegation', async () => {
+  it("denies an actor that carries no delegation", async () => {
     const permdock = await createPermDock(policy, memberUser, {
-      actor: { id: 'agent-1', kind: 'agent' },
+      actor: { id: "agent-1", kind: "agent" },
     });
     const decision = permdock.decide(permissions.post.read, ownPost);
-    expect(decision.outcome).toBe('denied');
-    expect(reasonOf(decision)).toBe('no-delegation');
+    expect(decision.outcome).toBe("denied");
+    expect(reasonOf(decision)).toBe("no-delegation");
   });
 
-  it('denies a permission from another catalogue', async () => {
+  it("denies a permission from another catalogue", async () => {
     const permdock = await createPermDock(policy, adminUser);
-    expect(permdock.can(foreign.note.read, { id: 'n1' })).toBe(false);
+    expect(permdock.can(foreign.note.read, { id: "n1" })).toBe(false);
   });
 
-  it('denies an anonymous caller', async () => {
+  it("denies an anonymous caller", async () => {
     const permdock = await createPermDock(policy, null);
     expect(permdock.can(permissions.post.read, ownPost)).toBe(false);
   });
 
-  it('never throws from can() on hostile input', async () => {
+  it("never throws from can() on hostile input", async () => {
     const permdock = await createPermDock(policy, adminUser);
     const hostile: unknown[] = [
       undefined,
       null,
       42,
-      'post.read',
+      "post.read",
       {},
-      { key: 'post.nope' },
+      { key: "post.nope" },
       Object.create(null),
       new Proxy(
         {},
         {
           get() {
-            throw new Error('trap');
+            throw new Error("trap");
           },
         },
       ),
@@ -117,14 +117,14 @@ describe('invariant 1: fail-closed', () => {
     const rows: unknown[] = [
       undefined,
       null,
-      'row',
+      "row",
       [],
       { id: 1 },
       new Proxy(
         {},
         {
           get() {
-            throw new Error('trap');
+            throw new Error("trap");
           },
         },
       ),
@@ -143,9 +143,9 @@ describe('invariant 1: fail-closed', () => {
     }
   });
 
-  it('only ever returns the three outcomes', async () => {
+  it("only ever returns the three outcomes", async () => {
     const users = [null, memberUser, adminUser];
-    const rows = [undefined, ownPost, { ...ownPost, authorId: 'u9' }, {}];
+    const rows = [undefined, ownPost, { ...ownPost, authorId: "u9" }, {}];
     const leaves = [
       permissions.post.read,
       permissions.post.update,

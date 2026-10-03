@@ -5,6 +5,7 @@
 import { defineSchema, type Schema } from "better-supabase";
 import type { EnrichDatabase } from "better-supabase";
 import type { Database as SupabaseDatabase } from "./database.types.ts";
+import meta from "./generated.meta.js";
 
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
@@ -16,9 +17,6 @@ export type Database = EnrichDatabase<
         week_start: "monday" | "sunday";
         time_format: "12h" | "24h";
       };
-      role_permissions: {
-        effect: "allow" | "deny";
-      };
     };
   }
 >;
@@ -27,8 +25,6 @@ export const datetime_preferencesWeekStartValues = ["monday", "sunday"] as const
 export type DatetimePreferencesWeekStart = (typeof datetime_preferencesWeekStartValues)[number];
 export const datetime_preferencesTimeFormatValues = ["12h", "24h"] as const;
 export type DatetimePreferencesTimeFormat = (typeof datetime_preferencesTimeFormatValues)[number];
-export const role_permissionsEffectValues = ["allow", "deny"] as const;
-export type RolePermissionsEffect = (typeof role_permissionsEffectValues)[number];
 export type Models = {
   contacts: {
     Row: {
@@ -37,13 +33,17 @@ export type Models = {
       customer_id: string;
       user_id: string | null;
       name: string;
+      created_at: string;
+      updated_at: string;
     };
     Insert: {
-      id: string;
+      id?: string;
       organization_id: string;
       customer_id: string;
       user_id?: string | null;
       name: string;
+      created_at?: string;
+      updated_at?: string;
     };
     Update: {
       id?: string;
@@ -51,6 +51,8 @@ export type Models = {
       customer_id?: string;
       user_id?: string | null;
       name?: string;
+      created_at?: string;
+      updated_at?: string;
     };
     Relations: {
       customer: { table: "customers"; kind: "one"; nullable: false };
@@ -67,16 +69,22 @@ export type Models = {
       id: string;
       organization_id: string;
       name: string;
+      created_at: string;
+      updated_at: string;
     };
     Insert: {
-      id: string;
+      id?: string;
       organization_id: string;
       name: string;
+      created_at?: string;
+      updated_at?: string;
     };
     Update: {
       id?: string;
       organization_id?: string;
       name?: string;
+      created_at?: string;
+      updated_at?: string;
     };
     Relations: {
       contacts: { table: "contacts"; kind: "many"; nullable: true };
@@ -96,6 +104,8 @@ export type Models = {
       week_start: "monday" | "sunday";
       date_format: string;
       time_format: "12h" | "24h";
+      created_at: string;
+      updated_at: string;
     };
     Insert: {
       user_id: string;
@@ -103,6 +113,8 @@ export type Models = {
       week_start: "monday" | "sunday";
       date_format: string;
       time_format: "12h" | "24h";
+      created_at?: string;
+      updated_at?: string;
     };
     Update: {
       user_id?: string;
@@ -110,6 +122,8 @@ export type Models = {
       week_start?: "monday" | "sunday";
       date_format?: string;
       time_format?: "12h" | "24h";
+      created_at?: string;
+      updated_at?: string;
     };
     Relations: Record<never, never>;
     PrimaryKey: "user_id";
@@ -124,18 +138,21 @@ export type Models = {
       scope: string;
       scope_id: string;
       role: string;
+      created_at: string;
     };
     Insert: {
       user_id: string;
       scope: string;
       scope_id: string;
       role: string;
+      created_at?: string;
     };
     Update: {
       user_id?: string;
       scope?: string;
       scope_id?: string;
       role?: string;
+      created_at?: string;
     };
     Relations: Record<never, never>;
     PrimaryKey: "user_id" | "scope" | "scope_id" | "role";
@@ -148,14 +165,17 @@ export type Models = {
     Row: {
       organization_id: string;
       feature: string;
+      created_at: string;
     };
     Insert: {
       organization_id: string;
       feature: string;
+      created_at?: string;
     };
     Update: {
       organization_id?: string;
       feature?: string;
+      created_at?: string;
     };
     Relations: {
       organization: { table: "organizations"; kind: "one"; nullable: false };
@@ -171,16 +191,22 @@ export type Models = {
       id: string;
       slug: string;
       name: string;
+      created_at: string;
+      updated_at: string;
     };
     Insert: {
-      id: string;
+      id?: string;
       slug: string;
       name: string;
+      created_at?: string;
+      updated_at?: string;
     };
     Update: {
       id?: string;
       slug?: string;
       name?: string;
+      created_at?: string;
+      updated_at?: string;
     };
     Relations: {
       contacts: { table: "contacts"; kind: "many"; nullable: true };
@@ -197,47 +223,36 @@ export type Models = {
     ForeignKeys: never;
     Flags: Record<never, never>;
   };
-  permdock_authz_version: {
-    Row: {
-      user_id: string;
-      version: number;
-    };
-    Insert: {
-      user_id: string;
-      version?: number;
-    };
-    Update: {
-      user_id?: string;
-      version?: number;
-    };
-    Relations: Record<never, never>;
-    PrimaryKey: "user_id";
-    UniqueKeys: Record<never, never>;
-    Checks: never;
-    ForeignKeys: never;
-    Flags: Record<never, never>;
-  };
   quotes: {
     Row: {
       id: string;
       organization_id: string;
       customer_id: string;
       title: string;
-      amount: number;
+      amount_minor: number;
+      currency: string;
+      created_at: string;
+      updated_at: string;
     };
     Insert: {
-      id: string;
+      id?: string;
       organization_id: string;
       customer_id: string;
       title: string;
-      amount: number;
+      amount_minor: number;
+      currency: string;
+      created_at?: string;
+      updated_at?: string;
     };
     Update: {
       id?: string;
       organization_id?: string;
       customer_id?: string;
       title?: string;
-      amount?: number;
+      amount_minor?: number;
+      currency?: string;
+      created_at?: string;
+      updated_at?: string;
     };
     Relations: {
       customer: { table: "customers"; kind: "one"; nullable: false };
@@ -245,37 +260,8 @@ export type Models = {
     };
     PrimaryKey: "id";
     UniqueKeys: Record<never, never>;
-    Checks: never;
+    Checks: "quotes_amount_minor_check" | "quotes_currency_check";
     ForeignKeys: "quotes_customer_id_fkey" | "quotes_organization_id_fkey";
-    Flags: Record<never, never>;
-  };
-  role_permissions: {
-    Row: {
-      role: string;
-      permission: string;
-      grant_key: string;
-      scope: string;
-      effect: "allow" | "deny";
-    };
-    Insert: {
-      role: string;
-      permission: string;
-      grant_key: string;
-      scope: string;
-      effect?: "allow" | "deny";
-    };
-    Update: {
-      role?: string;
-      permission?: string;
-      grant_key?: string;
-      scope?: string;
-      effect?: "allow" | "deny";
-    };
-    Relations: Record<never, never>;
-    PrimaryKey: "role" | "grant_key" | "scope";
-    UniqueKeys: Record<never, never>;
-    Checks: "role_permissions_effect_check" | "role_permissions_scope_check";
-    ForeignKeys: never;
     Flags: Record<never, never>;
   };
   staff: {
@@ -285,13 +271,17 @@ export type Models = {
       user_id: string;
       name: string;
       title: string;
+      created_at: string;
+      updated_at: string;
     };
     Insert: {
-      id: string;
+      id?: string;
       organization_id: string;
       user_id: string;
       name: string;
       title: string;
+      created_at?: string;
+      updated_at?: string;
     };
     Update: {
       id?: string;
@@ -299,6 +289,8 @@ export type Models = {
       user_id?: string;
       name?: string;
       title?: string;
+      created_at?: string;
+      updated_at?: string;
     };
     Relations: {
       organization: { table: "organizations"; kind: "one"; nullable: false };
@@ -309,35 +301,9 @@ export type Models = {
     ForeignKeys: "staff_organization_id_fkey" | "staff_user_id_fkey";
     Flags: Record<never, never>;
   };
-  user_roles: {
-    Row: {
-      user_id: string;
-      role: string;
-    };
-    Insert: {
-      user_id: string;
-      role: string;
-    };
-    Update: {
-      user_id?: string;
-      role?: string;
-    };
-    Relations: Record<never, never>;
-    PrimaryKey: "user_id" | "role";
-    UniqueKeys: Record<never, never>;
-    Checks: never;
-    ForeignKeys: "user_roles_user_id_fkey";
-    Flags: Record<never, never>;
-  };
 };
 
 export type Functions = {
-  custom_access_token_hook: {
-    Args: {
-      event: Json;
-    };
-    Returns: Json;
-  };
   datetime_preference_claims: {
     Args: {
       p_user_id: string;
@@ -350,44 +316,6 @@ export type Functions = {
     };
     Returns: Json;
   };
-  member_customer_ids: {
-    Args: Record<never, never>;
-    Returns: string[];
-  };
-  member_customer_ids_for: {
-    Args: {
-      p_user: string;
-    };
-    Returns: string[];
-  };
-  member_organization_ids: {
-    Args: Record<never, never>;
-    Returns: string[];
-  };
-  member_organization_ids_for: {
-    Args: {
-      p_user: string;
-    };
-    Returns: string[];
-  };
-  permdock_has: {
-    Args: {
-      p_grant: string;
-    };
-    Returns: boolean;
-  };
-  permitted_customer_ids: {
-    Args: {
-      p_grant: string;
-    };
-    Returns: string[];
-  };
-  permitted_organization_ids: {
-    Args: {
-      p_grant: string;
-    };
-    Returns: string[];
-  };
 };
 
 export type TableName = keyof Models;
@@ -399,757 +327,4 @@ export type RowOf<T extends TableName> = Models[T]['Row'];
 export type InsertOf<T extends TableName> = Models[T]['Insert'];
 export type UpdateOf<T extends TableName> = Models[T]['Update'];
 
-export const schema: Schema<Models, Database, Functions> = defineSchema({
-  "version": 1,
-  "casing": "snake",
-  "tables": {
-    "contacts": {
-      "key": "contacts",
-      "name": "contacts",
-      "schema": "public",
-      "kind": "table",
-      "columns": {
-        "id": {
-          "db": "id",
-          "type": "uuid",
-          "nullable": false,
-          "hasDefault": false
-        },
-        "organization_id": {
-          "db": "organization_id",
-          "type": "uuid",
-          "nullable": false,
-          "hasDefault": false
-        },
-        "customer_id": {
-          "db": "customer_id",
-          "type": "uuid",
-          "nullable": false,
-          "hasDefault": false
-        },
-        "user_id": {
-          "db": "user_id",
-          "type": "uuid",
-          "nullable": true,
-          "hasDefault": false
-        },
-        "name": {
-          "db": "name",
-          "type": "text",
-          "nullable": false,
-          "hasDefault": false
-        }
-      },
-      "primaryKey": [
-        "id"
-      ],
-      "uniqueKeys": {},
-      "relations": {
-        "customer": {
-          "table": "customers",
-          "kind": "one",
-          "nullable": false,
-          "foreignKey": "contacts_customer_id_fkey",
-          "columns": [
-            "customer_id"
-          ],
-          "references": [
-            "id"
-          ],
-          "direction": "forward",
-          "onDelete": "cascade"
-        },
-        "organization": {
-          "table": "organizations",
-          "kind": "one",
-          "nullable": false,
-          "foreignKey": "contacts_organization_id_fkey",
-          "columns": [
-            "organization_id"
-          ],
-          "references": [
-            "id"
-          ],
-          "direction": "forward",
-          "onDelete": "cascade"
-        }
-      },
-      "flags": {}
-    },
-    "customers": {
-      "key": "customers",
-      "name": "customers",
-      "schema": "public",
-      "kind": "table",
-      "columns": {
-        "id": {
-          "db": "id",
-          "type": "uuid",
-          "nullable": false,
-          "hasDefault": false
-        },
-        "organization_id": {
-          "db": "organization_id",
-          "type": "uuid",
-          "nullable": false,
-          "hasDefault": false
-        },
-        "name": {
-          "db": "name",
-          "type": "text",
-          "nullable": false,
-          "hasDefault": false
-        }
-      },
-      "primaryKey": [
-        "id"
-      ],
-      "uniqueKeys": {},
-      "relations": {
-        "contacts": {
-          "table": "contacts",
-          "kind": "many",
-          "nullable": true,
-          "foreignKey": "contacts_customer_id_fkey",
-          "columns": [
-            "id"
-          ],
-          "references": [
-            "customer_id"
-          ],
-          "direction": "reverse",
-          "onDelete": "cascade"
-        },
-        "organization": {
-          "table": "organizations",
-          "kind": "one",
-          "nullable": false,
-          "foreignKey": "customers_organization_id_fkey",
-          "columns": [
-            "organization_id"
-          ],
-          "references": [
-            "id"
-          ],
-          "direction": "forward",
-          "onDelete": "cascade"
-        },
-        "quotes": {
-          "table": "quotes",
-          "kind": "many",
-          "nullable": true,
-          "foreignKey": "quotes_customer_id_fkey",
-          "columns": [
-            "id"
-          ],
-          "references": [
-            "customer_id"
-          ],
-          "direction": "reverse",
-          "onDelete": "cascade"
-        }
-      },
-      "flags": {}
-    },
-    "datetime_preferences": {
-      "key": "datetime_preferences",
-      "name": "datetime_preferences",
-      "schema": "public",
-      "kind": "table",
-      "columns": {
-        "user_id": {
-          "db": "user_id",
-          "type": "uuid",
-          "nullable": false,
-          "hasDefault": false
-        },
-        "timezone": {
-          "db": "timezone",
-          "type": "text",
-          "nullable": false,
-          "hasDefault": false
-        },
-        "week_start": {
-          "db": "week_start",
-          "type": "text",
-          "nullable": false,
-          "hasDefault": false,
-          "enum": [
-            "monday",
-            "sunday"
-          ]
-        },
-        "date_format": {
-          "db": "date_format",
-          "type": "text",
-          "nullable": false,
-          "hasDefault": false
-        },
-        "time_format": {
-          "db": "time_format",
-          "type": "text",
-          "nullable": false,
-          "hasDefault": false,
-          "enum": [
-            "12h",
-            "24h"
-          ]
-        }
-      },
-      "primaryKey": [
-        "user_id"
-      ],
-      "uniqueKeys": {},
-      "relations": {},
-      "flags": {}
-    },
-    "memberships": {
-      "key": "memberships",
-      "name": "memberships",
-      "schema": "public",
-      "kind": "table",
-      "columns": {
-        "user_id": {
-          "db": "user_id",
-          "type": "uuid",
-          "nullable": false,
-          "hasDefault": false
-        },
-        "scope": {
-          "db": "scope",
-          "type": "text",
-          "nullable": false,
-          "hasDefault": false
-        },
-        "scope_id": {
-          "db": "scope_id",
-          "type": "uuid",
-          "nullable": false,
-          "hasDefault": false
-        },
-        "role": {
-          "db": "role",
-          "type": "text",
-          "nullable": false,
-          "hasDefault": false
-        }
-      },
-      "primaryKey": [
-        "user_id",
-        "scope",
-        "scope_id",
-        "role"
-      ],
-      "uniqueKeys": {},
-      "relations": {},
-      "flags": {}
-    },
-    "organization_features": {
-      "key": "organization_features",
-      "name": "organization_features",
-      "schema": "public",
-      "kind": "table",
-      "columns": {
-        "organization_id": {
-          "db": "organization_id",
-          "type": "uuid",
-          "nullable": false,
-          "hasDefault": false
-        },
-        "feature": {
-          "db": "feature",
-          "type": "text",
-          "nullable": false,
-          "hasDefault": false
-        }
-      },
-      "primaryKey": [
-        "organization_id",
-        "feature"
-      ],
-      "uniqueKeys": {},
-      "relations": {
-        "organization": {
-          "table": "organizations",
-          "kind": "one",
-          "nullable": false,
-          "foreignKey": "organization_features_organization_id_fkey",
-          "columns": [
-            "organization_id"
-          ],
-          "references": [
-            "id"
-          ],
-          "direction": "forward",
-          "onDelete": "cascade"
-        }
-      },
-      "flags": {}
-    },
-    "organizations": {
-      "key": "organizations",
-      "name": "organizations",
-      "schema": "public",
-      "kind": "table",
-      "columns": {
-        "id": {
-          "db": "id",
-          "type": "uuid",
-          "nullable": false,
-          "hasDefault": false
-        },
-        "slug": {
-          "db": "slug",
-          "type": "text",
-          "nullable": false,
-          "hasDefault": false
-        },
-        "name": {
-          "db": "name",
-          "type": "text",
-          "nullable": false,
-          "hasDefault": false
-        }
-      },
-      "primaryKey": [
-        "id"
-      ],
-      "uniqueKeys": {
-        "organizations_slug_key": [
-          "slug"
-        ]
-      },
-      "relations": {
-        "contacts": {
-          "table": "contacts",
-          "kind": "many",
-          "nullable": true,
-          "foreignKey": "contacts_organization_id_fkey",
-          "columns": [
-            "id"
-          ],
-          "references": [
-            "organization_id"
-          ],
-          "direction": "reverse",
-          "onDelete": "cascade"
-        },
-        "customers": {
-          "table": "customers",
-          "kind": "many",
-          "nullable": true,
-          "foreignKey": "customers_organization_id_fkey",
-          "columns": [
-            "id"
-          ],
-          "references": [
-            "organization_id"
-          ],
-          "direction": "reverse",
-          "onDelete": "cascade"
-        },
-        "organization_features": {
-          "table": "organization_features",
-          "kind": "many",
-          "nullable": true,
-          "foreignKey": "organization_features_organization_id_fkey",
-          "columns": [
-            "id"
-          ],
-          "references": [
-            "organization_id"
-          ],
-          "direction": "reverse",
-          "onDelete": "cascade"
-        },
-        "quotes": {
-          "table": "quotes",
-          "kind": "many",
-          "nullable": true,
-          "foreignKey": "quotes_organization_id_fkey",
-          "columns": [
-            "id"
-          ],
-          "references": [
-            "organization_id"
-          ],
-          "direction": "reverse",
-          "onDelete": "cascade"
-        },
-        "staff": {
-          "table": "staff",
-          "kind": "many",
-          "nullable": true,
-          "foreignKey": "staff_organization_id_fkey",
-          "columns": [
-            "id"
-          ],
-          "references": [
-            "organization_id"
-          ],
-          "direction": "reverse",
-          "onDelete": "cascade"
-        }
-      },
-      "flags": {}
-    },
-    "permdock_authz_version": {
-      "key": "permdock_authz_version",
-      "name": "permdock_authz_version",
-      "schema": "public",
-      "kind": "table",
-      "columns": {
-        "user_id": {
-          "db": "user_id",
-          "type": "text",
-          "nullable": false,
-          "hasDefault": false
-        },
-        "version": {
-          "db": "version",
-          "type": "int8",
-          "nullable": false,
-          "hasDefault": true
-        }
-      },
-      "primaryKey": [
-        "user_id"
-      ],
-      "uniqueKeys": {},
-      "relations": {},
-      "flags": {}
-    },
-    "quotes": {
-      "key": "quotes",
-      "name": "quotes",
-      "schema": "public",
-      "kind": "table",
-      "columns": {
-        "id": {
-          "db": "id",
-          "type": "uuid",
-          "nullable": false,
-          "hasDefault": false
-        },
-        "organization_id": {
-          "db": "organization_id",
-          "type": "uuid",
-          "nullable": false,
-          "hasDefault": false
-        },
-        "customer_id": {
-          "db": "customer_id",
-          "type": "uuid",
-          "nullable": false,
-          "hasDefault": false
-        },
-        "title": {
-          "db": "title",
-          "type": "text",
-          "nullable": false,
-          "hasDefault": false
-        },
-        "amount": {
-          "db": "amount",
-          "type": "numeric",
-          "nullable": false,
-          "hasDefault": false
-        }
-      },
-      "primaryKey": [
-        "id"
-      ],
-      "uniqueKeys": {},
-      "relations": {
-        "customer": {
-          "table": "customers",
-          "kind": "one",
-          "nullable": false,
-          "foreignKey": "quotes_customer_id_fkey",
-          "columns": [
-            "customer_id"
-          ],
-          "references": [
-            "id"
-          ],
-          "direction": "forward",
-          "onDelete": "cascade"
-        },
-        "organization": {
-          "table": "organizations",
-          "kind": "one",
-          "nullable": false,
-          "foreignKey": "quotes_organization_id_fkey",
-          "columns": [
-            "organization_id"
-          ],
-          "references": [
-            "id"
-          ],
-          "direction": "forward",
-          "onDelete": "cascade"
-        }
-      },
-      "flags": {}
-    },
-    "role_permissions": {
-      "key": "role_permissions",
-      "name": "role_permissions",
-      "schema": "public",
-      "kind": "table",
-      "columns": {
-        "role": {
-          "db": "role",
-          "type": "text",
-          "nullable": false,
-          "hasDefault": false
-        },
-        "permission": {
-          "db": "permission",
-          "type": "text",
-          "nullable": false,
-          "hasDefault": false
-        },
-        "grant_key": {
-          "db": "grant_key",
-          "type": "text",
-          "nullable": false,
-          "hasDefault": false
-        },
-        "scope": {
-          "db": "scope",
-          "type": "text",
-          "nullable": false,
-          "hasDefault": false
-        },
-        "effect": {
-          "db": "effect",
-          "type": "text",
-          "nullable": false,
-          "hasDefault": true,
-          "enum": [
-            "allow",
-            "deny"
-          ]
-        }
-      },
-      "primaryKey": [
-        "role",
-        "grant_key",
-        "scope"
-      ],
-      "uniqueKeys": {},
-      "relations": {},
-      "flags": {}
-    },
-    "staff": {
-      "key": "staff",
-      "name": "staff",
-      "schema": "public",
-      "kind": "table",
-      "columns": {
-        "id": {
-          "db": "id",
-          "type": "uuid",
-          "nullable": false,
-          "hasDefault": false
-        },
-        "organization_id": {
-          "db": "organization_id",
-          "type": "uuid",
-          "nullable": false,
-          "hasDefault": false
-        },
-        "user_id": {
-          "db": "user_id",
-          "type": "uuid",
-          "nullable": false,
-          "hasDefault": false
-        },
-        "name": {
-          "db": "name",
-          "type": "text",
-          "nullable": false,
-          "hasDefault": false
-        },
-        "title": {
-          "db": "title",
-          "type": "text",
-          "nullable": false,
-          "hasDefault": false
-        }
-      },
-      "primaryKey": [
-        "id"
-      ],
-      "uniqueKeys": {},
-      "relations": {
-        "organization": {
-          "table": "organizations",
-          "kind": "one",
-          "nullable": false,
-          "foreignKey": "staff_organization_id_fkey",
-          "columns": [
-            "organization_id"
-          ],
-          "references": [
-            "id"
-          ],
-          "direction": "forward",
-          "onDelete": "cascade"
-        }
-      },
-      "flags": {}
-    },
-    "user_roles": {
-      "key": "user_roles",
-      "name": "user_roles",
-      "schema": "public",
-      "kind": "table",
-      "columns": {
-        "user_id": {
-          "db": "user_id",
-          "type": "uuid",
-          "nullable": false,
-          "hasDefault": false
-        },
-        "role": {
-          "db": "role",
-          "type": "text",
-          "nullable": false,
-          "hasDefault": false
-        }
-      },
-      "primaryKey": [
-        "user_id",
-        "role"
-      ],
-      "uniqueKeys": {},
-      "relations": {},
-      "flags": {}
-    }
-  },
-  "enums": {},
-  "functions": {
-    "custom_access_token_hook": {
-      "name": "custom_access_token_hook",
-      "schema": "public",
-      "args": [
-        {
-          "name": "event",
-          "type": "jsonb"
-        }
-      ],
-      "returns": "jsonb",
-      "returnsSet": false,
-      "volatility": "stable"
-    },
-    "datetime_preference_claims": {
-      "name": "datetime_preference_claims",
-      "schema": "public",
-      "args": [
-        {
-          "name": "p_user_id",
-          "type": "uuid"
-        }
-      ],
-      "returns": "jsonb",
-      "returnsSet": false,
-      "volatility": "stable"
-    },
-    "feature_claims": {
-      "name": "feature_claims",
-      "schema": "public",
-      "args": [
-        {
-          "name": "p_user_id",
-          "type": "uuid"
-        }
-      ],
-      "returns": "jsonb",
-      "returnsSet": false,
-      "volatility": "stable"
-    },
-    "member_customer_ids": {
-      "name": "member_customer_ids",
-      "schema": "public",
-      "args": [],
-      "returns": "uuid",
-      "returnsSet": true,
-      "volatility": "stable"
-    },
-    "member_customer_ids_for": {
-      "name": "member_customer_ids_for",
-      "schema": "public",
-      "args": [
-        {
-          "name": "p_user",
-          "type": "uuid"
-        }
-      ],
-      "returns": "uuid",
-      "returnsSet": true,
-      "volatility": "stable"
-    },
-    "member_organization_ids": {
-      "name": "member_organization_ids",
-      "schema": "public",
-      "args": [],
-      "returns": "uuid",
-      "returnsSet": true,
-      "volatility": "stable"
-    },
-    "member_organization_ids_for": {
-      "name": "member_organization_ids_for",
-      "schema": "public",
-      "args": [
-        {
-          "name": "p_user",
-          "type": "uuid"
-        }
-      ],
-      "returns": "uuid",
-      "returnsSet": true,
-      "volatility": "stable"
-    },
-    "permdock_has": {
-      "name": "permdock_has",
-      "schema": "public",
-      "args": [
-        {
-          "name": "p_grant",
-          "type": "text"
-        }
-      ],
-      "returns": "bool",
-      "returnsSet": false,
-      "volatility": "stable"
-    },
-    "permitted_customer_ids": {
-      "name": "permitted_customer_ids",
-      "schema": "public",
-      "args": [
-        {
-          "name": "p_grant",
-          "type": "text"
-        }
-      ],
-      "returns": "uuid",
-      "returnsSet": true,
-      "volatility": "stable"
-    },
-    "permitted_organization_ids": {
-      "name": "permitted_organization_ids",
-      "schema": "public",
-      "args": [
-        {
-          "name": "p_grant",
-          "type": "text"
-        }
-      ],
-      "returns": "uuid",
-      "returnsSet": true,
-      "volatility": "stable"
-    }
-  }
-});
+export const schema: Schema<Models, Database, Functions> = defineSchema(meta);

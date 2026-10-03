@@ -1,7 +1,8 @@
 # 0014. No `fumadocs-twoslash`
 
-- Status: accepted
+- Status: withdrawn
 - Date: 2026-09-30
+- Withdrawn: 2026-10-03
 
 ## Context
 
@@ -14,3 +15,11 @@ Code samples render without Twoslash. Public types are documented with `<auto-ty
 ## Consequences
 
 Samples show no inferred types. Follow-up: file the crash upstream, then revisit when a release supports TypeScript 7.
+
+## Alternatives considered
+
+- Running Twoslash under the TypeScript 6 JS API: the docs app would need a second TypeScript next to 7.
+
+## Withdrawn
+
+Repo standard 1.7.1 adds `fumadocs-twoslash` only when a page contains a twoslash block, and reports an installed `fumadocs-twoslash` with no such block as a gap. No page has one, so the docs app matches the standard without this record.

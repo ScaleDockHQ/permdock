@@ -1,6 +1,6 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 let cached: string | undefined;
 
@@ -18,19 +18,19 @@ export function packageRoot(): string {
 export function findPackageRoot(start: string): string {
   let dir = start;
   for (;;) {
-    const manifest = join(dir, 'package.json');
+    const manifest = join(dir, "package.json");
     if (existsSync(manifest)) {
       // SAFETY: name is typed unknown and compared with a string literal before use.
-      const { name } = JSON.parse(readFileSync(manifest, 'utf8')) as {
+      const { name } = JSON.parse(readFileSync(manifest, "utf8")) as {
         readonly name?: unknown;
       };
-      if (name === 'permdock') {
+      if (name === "permdock") {
         return dir;
       }
     }
     const parent = dirname(dir);
     if (parent === dir) {
-      throw new Error('PermDock CLI: cannot find the permdock package root');
+      throw new Error("PermDock CLI: cannot find the permdock package root");
     }
     dir = parent;
   }

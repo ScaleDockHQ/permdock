@@ -4,26 +4,31 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "analyze": "next experimental-analyze",
     "build": "next build",
     "dev": "next dev -p ${PORT:-3001}",
     "dev:portless": "portless",
-    "lint": "oxlint --disable-nested-config",
+    "lint": "oxlint --disable-nested-config --type-aware",
     "start": "next start",
     "test": "vitest run",
-    "typecheck": "next typegen && tsc --noEmit --checkers 4"
+    "typecheck": "tsc --noEmit",
+    "typegen": "next typegen"
   },
   "dependencies": {
     "@ai-sdk/otel": "catalog:",
     "@ai-sdk/react": "catalog:",
     "@fumadocs/local-md": "catalog:",
+    "@modelcontextprotocol/server": "catalog:",
     "@permdock/next-config": "workspace:*",
     "@permdock/ui": "workspace:*",
     "@sentry/nextjs": "catalog:",
     "@t3-oss/env-nextjs": "catalog:",
     "@vercel/analytics": "catalog:",
+    "@vercel/firewall": "catalog:",
     "@vercel/speed-insights": "catalog:",
     "ai": "catalog:",
     "beautiful-mermaid": "catalog:",
+    "botid": "catalog:",
     "fumadocs-core": "catalog:",
     "fumadocs-mdx": "catalog:",
     "fumadocs-typescript": "catalog:",
@@ -39,6 +44,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@modelcontextprotocol/client": "catalog:",
     "@permdock/ox-config": "workspace:*",
     "@permdock/typescript-config": "workspace:*",
     "@tailwindcss/postcss": "catalog:",

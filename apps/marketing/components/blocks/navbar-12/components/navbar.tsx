@@ -1,5 +1,3 @@
-'use client';
-
 import { NavbarActions } from './navbar-actions';
 import { NavbarRepo } from './navbar-repo';
 

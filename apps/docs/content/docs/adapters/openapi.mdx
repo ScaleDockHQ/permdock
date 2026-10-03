@@ -45,17 +45,17 @@ flowchart LR
 
 ## Works with
 
-| Stage | Tools | How PermDock connects |
-| --- | --- | --- |
-| Producers with an in-process hook | `hono-openapi`, `@hono/zod-openapi`, `@orpc/openapi`, `trpc-to-openapi`, `@elysia/openapi`, `@fastify/swagger`, `@nestjs/swagger` | `describe()`, `security()`, `spec()` passed into the generator next to `protect` |
-| Producers without a hook | [next-openapi-gen](https://github.com/tazo90/next-openapi-gen) (Next.js, TanStack Start, React Router, Remix, SvelteKit, Nuxt, Astro, Hono, Express), [TypeSpec](https://typespec.io), tsoa, ts-rest, Effect HttpApi, feTS, hand-written YAML or JSON | `overlay()` or `permdock openapi emit --format overlay`, applied by the producer or a CLI |
-| Appliers | next-openapi-gen `overlay.apply`, Redocly CLI `join --overlay`, Bump.sh `bump overlay` and its GitHub Action, Speakeasy CLI, Zuplo CLI, `overlays-js`, `openapi-format`, `oas-patch` | Consume the Overlay |
-| SDK generators | [Hey API](https://heyapi.dev), [Orval](https://orval.dev), [Kubb](https://kubb.dev), openapi-typescript, OpenAPI Generator, Kiota, Fern, Speakeasy, Redocly `generate-client` | Read standard `security`; no PermDock code |
-| Docs UIs and hosts | [Scalar](https://scalar.com), Swagger UI, Redoc, Stoplight Elements, RapiDoc, fumadocs-openapi, Zudoku; hosted: Mintlify, Bump.sh, Fern docs, Redocly Realm, Docusaurus OpenAPI, GitBook, Postman | Read standard `security`; Scalar optionally renders the `x-badges` approval hint; PermDock never writes a host's own extensions |
-| OpenAPI-to-MCP bridges | Orval and Kubb MCP output, Scalar, Speakeasy, Fern, Mintlify, Postman MCP Generator, Zuplo, Kong `openapi2mcp`, AWS AgentCore Gateway | Bind each generated tool's `permission` from `x-permdock-permissions` ([MCP adapter](/docs/adapters/mcp)) |
-| Linters | Spectral, Redocly lint, vacuum | A PermDock ruleset file checks the document invariants |
-| Testing and diff | Schemathesis `ignored_auth`, oasdiff, Prism, Microcks | Read `security`; turn PermDock's output into a runtime parity test and a breaking-change gate ([CLI: openapi](/docs/cli/openapi)) |
-| Workflows | Arazzo runners, `permdock.simulate` | Read `operationId` and `x-permdock-permissions` from the applied description ([Arazzo](/docs/standards/arazzo)) |
+| Stage                             | Tools                                                                                                                                                                                                                                                 | How PermDock connects                                                                                                             |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Producers with an in-process hook | `hono-openapi`, `@hono/zod-openapi`, `@orpc/openapi`, `trpc-to-openapi`, `@elysia/openapi`, `@fastify/swagger`, `@nestjs/swagger`                                                                                                                     | `describe()`, `security()`, `spec()` passed into the generator next to `protect`                                                  |
+| Producers without a hook          | [next-openapi-gen](https://github.com/tazo90/next-openapi-gen) (Next.js, TanStack Start, React Router, Remix, SvelteKit, Nuxt, Astro, Hono, Express), [TypeSpec](https://typespec.io), tsoa, ts-rest, Effect HttpApi, feTS, hand-written YAML or JSON | `overlay()` or `permdock openapi emit --format overlay`, applied by the producer or a CLI                                         |
+| Appliers                          | next-openapi-gen `overlay.apply`, Redocly CLI `join --overlay`, Bump.sh `bump overlay` and its GitHub Action, Speakeasy CLI, Zuplo CLI, `overlays-js`, `openapi-format`, `oas-patch`                                                                  | Consume the Overlay                                                                                                               |
+| SDK generators                    | [Hey API](https://heyapi.dev), [Orval](https://orval.dev), [Kubb](https://kubb.dev), openapi-typescript, OpenAPI Generator, Kiota, Fern, Speakeasy, Redocly `generate-client`                                                                         | Read standard `security`; no PermDock code                                                                                        |
+| Docs UIs and hosts                | [Scalar](https://scalar.com), Swagger UI, Redoc, Stoplight Elements, RapiDoc, fumadocs-openapi, Zudoku; hosted: Mintlify, Bump.sh, Fern docs, Redocly Realm, Docusaurus OpenAPI, GitBook, Postman                                                     | Read standard `security`; Scalar optionally renders the `x-badges` approval hint; PermDock never writes a host's own extensions   |
+| OpenAPI-to-MCP bridges            | Orval and Kubb MCP output, Scalar, Speakeasy, Fern, Mintlify, Postman MCP Generator, Zuplo, Kong `openapi2mcp`, AWS AgentCore Gateway                                                                                                                 | Bind each generated tool's `permission` from `x-permdock-permissions` ([MCP adapter](/docs/adapters/mcp))                         |
+| Linters                           | Spectral, Redocly lint, vacuum                                                                                                                                                                                                                        | A PermDock ruleset file checks the document invariants                                                                            |
+| Testing and diff                  | Schemathesis `ignored_auth`, oasdiff, Prism, Microcks                                                                                                                                                                                                 | Read `security`; turn PermDock's output into a runtime parity test and a breaking-change gate ([CLI: openapi](/docs/cli/openapi)) |
+| Workflows                         | Arazzo runners, `permdock.simulate`                                                                                                                                                                                                                   | Read `operationId` and `x-permdock-permissions` from the applied description ([Arazzo](/docs/standards/arazzo))                   |
 
 Every tool here also has a row on the [ecosystem index](/docs/research/ecosystem-index).
 
@@ -111,10 +111,10 @@ Every PermDock-specific field in a document is an OpenAPI extension under the `x
 `overlay({ operations })` returns an Overlay 1.1.0 document whose `actions` target each listed operation by its `operationId` and `update` it with `security` and `x-permdock-*` fields, plus one action for `components.securitySchemes`. Each entry of `operations` is `{ operationId, permissions }`; without `operations`, there is one action per permission, targeting an operation whose `operationId` is the permission key. The CLI reads the operations from the source document's `x-permdock-permissions`. `overlay({ version: '1.2' })` returns the pinned Overlay 1.2 draft instead: the per-operation bodies become reusable actions under `components.actions`, one per distinct permission set, and each operation is a `$ref` reference with its own `target`; `x-permdock-catalog.drafts.overlay` names the pin ([OpenAPI Overlay](/docs/standards/openapi-overlay)). The source document stays untouched and owned by the API team. `permdock openapi emit --format overlay` (with `--overlay 1.2` for the draft) produces the same output from the CLI.
 
 ```ts
-const doc = overlay({ extends: './openapi.json' })
+const doc = overlay({ extends: "./openapi.json" });
 // { overlay: '1.1.0', info: {...}, extends: './openapi.json', actions: [...] }
 
-const draft = overlay({ extends: './openapi.json', version: '1.2' })
+const draft = overlay({ extends: "./openapi.json", version: "1.2" });
 // { overlay: '1.2.0', info: {...}, extends: './openapi.json', components: { actions: {...} }, actions: [...] }
 ```
 
@@ -127,9 +127,9 @@ Next.js route handlers have no built-in spec generator, so `permdock/next` has n
 ```ts
 // openapi-gen.config.ts
 export default defineConfig({
-  openapi: '3.2.0',
-  overlay: { apply: ['./permdock.overlay.json'] },
-})
+  openapi: "3.2.0",
+  overlay: { apply: ["./permdock.overlay.json"] },
+});
 ```
 
 ```bash

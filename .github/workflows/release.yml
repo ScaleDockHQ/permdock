@@ -10,10 +10,20 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
-# No pnpm store cache and no Turborepo remote cache here: a publishing job builds from a cold start.
 jobs:
+  verify:
+    name: Verify
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/verify.yml
+    secrets:
+      TURBO_REMOTE_CACHE_SIGNATURE_KEY: ${{ secrets.TURBO_REMOTE_CACHE_SIGNATURE_KEY }}
+
+  # No pnpm store cache and no Turborepo remote cache here: a publishing job builds from a cold start.
   release:
     name: Release
+    needs: verify
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -29,14 +39,14 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - uses: $/.github/actions/setup
+      - uses: ./.github/actions/setup
         with:
-          cache: 'false'
+          cache: "false"
 
       # The pnpm runtime ships Node without npm; the Node.js distribution bundles it.
       - uses: actions/setup-node@v7
         with:
-          node-version: 24
+          node-version-file: .node-version
           package-manager-cache: false
 
       # Trusted publishing needs npm 11.5.1 or later.
@@ -49,18 +59,18 @@ jobs:
       - name: Build
         run: pnpm run build
 
-      - name: Verify
-        run: pnpm run verify
-
       - name: Create release pull request or publish
         id: changesets
         uses: changesets/action@v2.1.2
+        env:
+          # @changesets/changelog-github links each entry to its PR and author.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           # Publishing to npm is opt-in: set the repository variable NPM_PUBLISH to 'true'.
           version-script: pnpm run version-packages
           publish-script: ${{ vars.NPM_PUBLISH == 'true' && 'pnpm run release' || '' }}
-          pr-title: 'chore: version packages'
-          commit-message: 'chore: version packages'
+          pr-title: "chore: version packages"
+          commit-message: "chore: version packages"
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Merge main back into develop

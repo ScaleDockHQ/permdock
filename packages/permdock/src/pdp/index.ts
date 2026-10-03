@@ -1,6 +1,6 @@
-export { createPermDock } from './create.ts';
-export { openfga, spicedb } from './relations.ts';
-export { remotePdp } from './remote.ts';
+export { createPermDock } from "./create.ts";
+export { openfga, spicedb } from "./relations.ts";
+export { remotePdp } from "./remote.ts";
 export type {
   OpenFgaOptions,
   OpenFgaTuple,
@@ -14,4 +14,4 @@ export type {
   RelationMap,
   SpiceDbCheck,
   SpiceDbOptions,
-} from './types.ts';
+} from "./types.ts";

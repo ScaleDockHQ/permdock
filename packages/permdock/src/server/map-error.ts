@@ -3,9 +3,9 @@ import {
   PermDockDeniedError,
   PermDockRevokedError,
   PermDockValidationError,
-} from '../core/errors.ts';
-import { problemResponse } from './problem.ts';
-import { InvalidSignatureError } from './web-bot-auth.ts';
+} from "../core/errors.ts";
+import { problemResponse } from "./problem.ts";
+import { InvalidSignatureError } from "./web-bot-auth.ts";
 
 /**
  * Turns a thrown PermDock error into its Problem Details response. Returns
