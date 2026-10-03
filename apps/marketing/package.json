@@ -10,7 +10,7 @@
     "lint": "oxlint --disable-nested-config --type-aware",
     "start": "next start -p ${PORT:-3000}",
     "test": "vitest run",
-    "typecheck": "next typegen && tsc --noEmit --checkers 4"
+    "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
     "@permdock/next-config": "workspace:*",

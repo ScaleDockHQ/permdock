@@ -8,7 +8,7 @@
     "dev": "next dev -p 3485 -H 127.0.0.1",
     "lint": "oxlint --disable-nested-config --type-aware",
     "start": "next start -p 3485 -H 127.0.0.1",
-    "typecheck": "tsc --noEmit --checkers 4"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "next": "catalog:",

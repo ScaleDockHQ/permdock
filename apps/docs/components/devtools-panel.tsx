@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 
 import {
   DEMO_ACTIONS,
@@ -105,7 +105,7 @@ function DecisionView({ view }: { view: DemoDecisionView }) {
 export function DevtoolsPanel() {
   const [roleName, setRoleName] = useState<DemoRole>('member');
   const [action, setAction] = useState<DemoAction>('delete');
-  const view = useMemo(() => demoDecide(roleName, action), [roleName, action]);
+  const view = demoDecide(roleName, action);
 
   return (
     <div className="flex flex-col gap-6">

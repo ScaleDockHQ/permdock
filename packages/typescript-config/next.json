@@ -4,8 +4,8 @@
   "compilerOptions": {
     "jsx": "react-jsx",
     "lib": ["ES2025", "DOM", "DOM.Iterable"],
-    "module": "esnext",
     "allowJs": true,
+    "checkJs": true,
     "resolveJsonModule": true,
     "incremental": true,
     "plugins": [{ "name": "next" }]

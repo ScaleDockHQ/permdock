@@ -6,7 +6,7 @@
   "scripts": {
     "build": "next build",
     "lint": "oxlint --disable-nested-config --type-aware",
-    "typecheck": "tsc --noEmit --checkers 4"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@permdock/e2e-saas-kit": "workspace:*",

@@ -10,7 +10,7 @@
     "lint": "oxlint --disable-nested-config --type-aware",
     "start": "next start",
     "test": "vitest run",
-    "typecheck": "next typegen && tsc --noEmit --checkers 4"
+    "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
     "@ai-sdk/otel": "catalog:",

@@ -10,7 +10,7 @@
   },
   "scripts": {
     "lint": "oxlint --disable-nested-config --type-aware",
-    "typecheck": "tsc --noEmit --checkers 4"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "permdock": "workspace:*"

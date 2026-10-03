@@ -17,7 +17,7 @@
     "supabase:start": "supabase start",
     "supabase:stop": "supabase stop",
     "supabase:test": "supabase test db",
-    "typecheck": "tsc --noEmit --checkers 4"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "better-supabase": "catalog:",

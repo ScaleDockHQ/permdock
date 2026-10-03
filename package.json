@@ -20,7 +20,7 @@
     "format:check": "oxfmt --check .",
     "knip": "turbo run typegen --filter=@permdock/e2e-sveltekit-saas --filter=@permdock/e2e-nuxt-saas --filter=@permdock/e2e-tanstack-start-saas --filter=@permdock/example-prisma && knip --config knip.mts",
     "lint": "pnpm run lint:root && turbo run lint",
-    "lint:root": "oxlint commitlint.config.ts oxfmt.config.ts oxlint.config.ts scripts vitest.config.ts",
+    "lint:root": "oxlint commitlint.config.ts knip.mts oxfmt.config.ts oxlint.config.ts scripts vitest.config.ts",
     "marketing:dev": "turbo run dev --filter=marketing --filter=docs",
     "openapi:generate": "node scripts/fetch-openapi-schemas.ts && oxfmt packages/permdock/schemas/openapi",
     "permdock": "permdock",
@@ -34,7 +34,7 @@
     "test:runtimes": "pnpm --filter @permdock/runtimes test:runtimes",
     "typecheck": "turbo run typecheck",
     "typecheck:perf": "node scripts/typecheck-perf.ts",
-    "typecheck:tooling": "tsc --noEmit --checkers 4",
+    "typecheck:tooling": "tsc --noEmit",
     "verify": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run typecheck:tooling && pnpm run knip && pnpm run boundaries && pnpm run test && pnpm run docs:drift",
     "version-packages": "node scripts/root-changelog.ts && changeset version && oxfmt ."
   },

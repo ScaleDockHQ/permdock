@@ -6,7 +6,7 @@
   "scripts": {
     "lint": "oxlint --disable-nested-config --type-aware",
     "test:e2e": "playwright test",
-    "typecheck": "tsc --noEmit --checkers 4"
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@axe-core/playwright": "catalog:",

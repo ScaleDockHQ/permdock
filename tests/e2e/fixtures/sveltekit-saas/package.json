@@ -7,7 +7,7 @@
     "build": "vite build",
     "lint": "oxlint --disable-nested-config --type-aware",
     "serve": "node scripts/serve.ts",
-    "typecheck": "svelte-kit sync && tsc --noEmit --checkers 4",
+    "typecheck": "svelte-kit sync && tsc --noEmit",
     "typegen": "svelte-kit sync"
   },
   "devDependencies": {

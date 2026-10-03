@@ -7,7 +7,7 @@
     "build": "vite build",
     "lint": "oxlint --disable-nested-config --type-aware",
     "serve": "node scripts/serve.ts",
-    "typecheck": "tsc --noEmit --checkers 4"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@ai-sdk/react": "catalog:",

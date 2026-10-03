@@ -7,7 +7,7 @@
     "generate": "prisma generate",
     "lint": "oxlint --disable-nested-config --type-aware",
     "test:integration": "prisma generate && vitest run",
-    "typecheck": "prisma generate && tsc --noEmit --checkers 4"
+    "typecheck": "prisma generate && tsc --noEmit"
   },
   "devDependencies": {
     "@electric-sql/pglite": "catalog:",

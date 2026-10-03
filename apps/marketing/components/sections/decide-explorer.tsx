@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 
 import {
   DEMO_ACTIONS,
@@ -31,7 +31,7 @@ function isDemoAction(value: string): value is DemoAction {
 export function DecideExplorer() {
   const [role, setRole] = useState<DemoRole>('member');
   const [action, setAction] = useState<DemoAction>('publish');
-  const view = useMemo(() => demoDecide(role, action), [role, action]);
+  const view = demoDecide(role, action);
 
   return (
     <Section

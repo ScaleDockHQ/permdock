@@ -6,7 +6,7 @@
   "scripts": {
     "lint": "oxlint --disable-nested-config --type-aware",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit --checkers 4"
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@permdock/ox-config": "workspace:*",
