@@ -116,12 +116,31 @@ export { authed as GET, authed as POST };
   import { betterSupabase } from "@/lib/supabase";
   import { policy, permissions } from "@/permissions";
 
-  const dockFor = (ctx) =>
-    createPermDock(policy, subjectFromSupabaseSession(ctx.auth));
+  type Instance = Awaited<ReturnType<typeof createPermDock>>;
+
+  // One instance per request: `visible` runs once per tool.
+  const instances = new WeakMap<object, Promise<Instance>>();
+  const permdockFor = (ctx: { auth: object }) => {
+    let instance = instances.get(ctx.auth);
+    if (instance === undefined) {
+      instance = createPermDock(policy, subjectFromSupabaseSession(ctx.auth));
+      instances.set(ctx.auth, instance);
+    }
+    return instance;
+  };
 
   const bs = createMcp(betterSupabase, {
     name: "posts",
     version: "1.0.0",
+    advertisedScopes: ["posts:read", "posts:delete"],
+    requiredScopes: ["posts:read"],
+    // Table tools take a permission per operation; one without is hidden and refused.
+    resources: {
+      posts: {
+        operations: ["list", "get"],
+        meta: { list: permissions.post.list, get: permissions.post.read },
+      },
+    },
     tools: [
       defineTool({
         name: "delete_post",
@@ -131,12 +150,12 @@ export { authed as GET, authed as POST };
         run,
       }),
     ],
-    visible: (ctx, tool) =>
-      isPermission(tool.meta) && mayUse(dockFor(ctx), tool.meta),
-    authorize: (ctx, tool, args) => {
+    visible: async (ctx, tool) =>
+      isPermission(tool.meta) && mayUse(await permdockFor(ctx), tool.meta),
+    authorize: async (ctx, tool, args) => {
       if (!isPermission(tool.meta))
         return { allowed: false, reason: "no-grant" };
-      const decision = dockFor(ctx).decide(tool.meta, args);
+      const decision = (await permdockFor(ctx)).decide(tool.meta, args);
       if (decision.outcome === "granted") return { allowed: true };
       return {
         allowed: false,
@@ -152,6 +171,8 @@ export { authed as GET, authed as POST };
   ```
 
   Refuse a tool whose `meta` is not a permission in both hooks: `authorize` is optional in better-supabase, and a missing or permissive one lets the call through. An `approval-required` outcome is refused here, because `createMcp` has no approval store; use `permdock/mcp` on an SDK server when tools need human approval. `createMcp` validates `args` against the tool's `input` before `authorize`, which covers invariant 9 when `input` is the resource schema.
+
+  `advertisedScopes` (formerly `scopes`) only publishes `scopes_supported`; `requiredScopes` is what better-supabase enforces, answering 403 `insufficient_scope` to an `oauth-client` token without one. Neither limits a support or impersonation session, which PermDock reaches only through a policy delegation ([Supabase](/docs/adapters/supabase#support-and-impersonation-actors)). `mayUse` follows the policy delegation ceiling too, so a read-only support session is shown only read-only tools.
 
 - **Serving the metadata with Supabase.** Whichever server answers MCP, the Protected Resource Metadata document and the `WWW-Authenticate` challenges come from the host, and PermDock only needs the same resource URL. With `@supabase/server` in front of an SDK server:
 
@@ -181,7 +202,7 @@ export { authed as GET, authed as POST };
   });
   ```
 
-  With better-supabase, `createMcp` serves the document and the challenges itself; pass the same URL as `resource` wherever a PermDock adapter checks the token. In both cases the metadata omits `scopes_supported`, so publish the catalog's scope list through your own metadata response if clients need it up front.
+  With better-supabase, `createMcp` serves the document and the challenges itself, with `advertisedScopes` as `scopes_supported`; pass the same URL as `resource` wherever a PermDock adapter checks the token. `withOAuthProtectedResource` omits `scopes_supported`, so publish the catalog's scope list through your own metadata response if clients need it up front.
 
 - **Other hosts.** The official MCP framework middleware for Express (Node `IncomingMessage` servers), Cloudflare's `McpAgent` in the Agents SDK (a Durable Object per session, which is also a natural `ApprovalStore`), FastMCP for TypeScript and xmcp each construct or expose the same `McpServer`; `protectServer` wraps it at the point of construction. None of them needs a PermDock entry ([ecosystem index](/docs/research/ecosystem-index)).
 - **SDK version.** `permdock/mcp` targets `@modelcontextprotocol/server` 2.x (a types-only optional peer; `protectServer` duck-types the server at runtime, [installation](/docs/getting-started/installation)). SDK 1.x (`@modelcontextprotocol/sdk`) and `mcp-handler` 1.x are not supported: `scopeChallenge` and `ctx.http.authInfo` are v2 features, and 1.x's variadic `server.tool()` and `extra.authInfo` have no equivalents the adapter can wrap. The `mcp-handler` migration notes cover the move (`registerTool` instead of `server.tool`, `ctx.http?.authInfo` instead of `extra.authInfo`, Standard Schema for `inputSchema`).

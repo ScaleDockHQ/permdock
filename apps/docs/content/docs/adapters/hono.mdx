@@ -122,6 +122,34 @@ app.get(
 
 A denied message leaves the socket open; only a revocation, an expiry or a re-denied opening permission closes it.
 
+### With better-supabase
+
+better-supabase's `createHono` verifies the session and puts it on `c.var.auth`; `bs.middleware()` adds `c.var.db`. Map the session with `subjectFromSupabaseSession` and pair both middlewares in one helper used on every route, instead of `app.use(bs.middleware())`, so a route that skips the helper has no `c.var.db` and `bs.handler` answers 500 instead of running unguarded:
+
+```ts title="src/server.ts"
+import { createHono } from "better-supabase/hono";
+import type { Permission } from "permdock";
+import { createPermDock } from "permdock/hono";
+import { subjectFromSupabaseSession } from "permdock/supabase";
+
+const bs = createHono(betterSupabase);
+const { protect } = createPermDock(policy, {
+  subject: (c) =>
+    subjectFromSupabaseSession(c.get("auth"), { anonymousSignIns: "deny" }),
+});
+
+const guarded = (permission: Permission) =>
+  [bs.middleware(), protect(permission)] as const;
+
+export const app = bs.app().get(
+  "/customers",
+  ...guarded(permissions.customers.read),
+  bs.handler((_c, { db }) => db.customers.findMany({ select: ["id"] })),
+);
+```
+
+`protect` sets `c.get('permdock')` itself, so the route needs no `permdock()` middleware. A support session's token is the user's, with the admin as the actor; it reaches only what a policy delegation names ([Supabase](/docs/adapters/supabase#support-and-impersonation-actors)).
+
 ## Request lifecycle
 
 `permdock/hono` follows the [shared adapter contract](/docs/adapters) through the [server kernel](/docs/adapters/server-kernel). What differs on Hono:

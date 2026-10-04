@@ -123,19 +123,21 @@ When the relation is a role held somewhere (a team the user leads, a document sh
 
 The actor identifies the agent. It has an `id` and a `kind` plus whatever the adapter knows:
 
-| Adapter                            | `actor.kind`     | `actor.id`                                        | Source                                                             |
-| ---------------------------------- | ---------------- | ------------------------------------------------- | ------------------------------------------------------------------ |
-| `permdock/mcp`                     | `'mcp-client'`   | OAuth `client_id`                                 | `authInfo` from the MCP TypeScript SDK (OAuth 2.1 resource server) |
-| `permdock/jwt` with an `act` claim | `'oauth-client'` | outermost `act.sub`, the current actor (RFC 8693) | the verified token; the nesting is `delegation.chain`              |
-| `permdock/ai-sdk`                  | `'ai-sdk'`       | your `runtimeContext.agentId`                     | the `actor` option of `createPermDock`                             |
-| `permdock/claude-agent`            | `'claude-agent'` | session or agent name                             | the `actor` option                                                 |
-| HTTP adapters with Web Bot Auth    | `'web-bot-auth'` | the verified signer `keyid`                       | RFC 9421 HTTP Message Signatures via `webBotAuth`                  |
-| `permdock/a2a`                     | `'a2a-agent'`    | the calling Agent Card identity                   | A2A `securitySchemes` on the authenticated extended card           |
-| none                               | absent           | absent                                            | a plain human or service request                                   |
+| Adapter                                          | `actor.kind`      | `actor.id`                                             | Source                                                                                   |
+| ------------------------------------------------ | ----------------- | ------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| `permdock/mcp`                                   | `'mcp-client'`    | OAuth `client_id`                                      | `authInfo` from the MCP TypeScript SDK (OAuth 2.1 resource server)                       |
+| `permdock/jwt` with an `act` claim               | `'oauth-client'`  | outermost `act.sub`, the current actor (RFC 8693)      | the verified token; the nesting is `delegation.chain`                                    |
+| `permdock/supabase`, `act.kind: 'support'`       | `'support'`       | the admin's `act.sub`; also `sessionId` and `readOnly` | a better-supabase support session; no delegation, so only a policy delegation reaches it |
+| `permdock/supabase`, `act.kind: 'impersonation'` | `'impersonation'` | the admin's `act.sub`                                  | better-supabase `actingAs`; no delegation, so only a policy delegation reaches it        |
+| `permdock/ai-sdk`                                | `'ai-sdk'`        | your `runtimeContext.agentId`                          | the `actor` option of `createPermDock`                                                   |
+| `permdock/claude-agent`                          | `'claude-agent'`  | session or agent name                                  | the `actor` option                                                                       |
+| HTTP adapters with Web Bot Auth                  | `'web-bot-auth'`  | the verified signer `keyid`                            | RFC 9421 HTTP Message Signatures via `webBotAuth`                                        |
+| `permdock/a2a`                                   | `'a2a-agent'`     | the calling Agent Card identity                        | A2A `securitySchemes` on the authenticated extended card                                 |
+| none                                             | absent            | absent                                                 | a plain human or service request                                                         |
 
 This table is the closed list of `actor.kind` values; the transaction-token and SPIFFE recipes below add `'workload'`, and the agent-runtime adapters add their own name (`'eve'`, `'openai-agent'`, `'claude-agent'`, `'terminal'`) on their pages. An adapter adds its row here before using a new value.
 
-The actor appears on every decision and audit event so you can answer "which agent did this, for whom". The actor never has grants of its own; only the principal has roles.
+The actor appears on every decision and audit event so you can answer "which agent did this, for whom". The actor never has grants of its own; only the principal has roles. An actor with `readOnly: true` gets only the read-only permissions of the policy delegations that name it ([policy delegations](/docs/security/delegation#policy-delegations)).
 
 ## Delegation
 
