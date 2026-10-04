@@ -7,8 +7,8 @@ A custom role is a role a tenant admin defines at runtime. It is data from a `Ro
 
 ```ts
 type CustomRole = {
-  tenant: string;
-  scope?: string; // the named scope it is held at; default the first scope
+  tenant: string; // absent when scope is 'global'
+  scope?: string; // the named scope it is held at, or 'global'; default the first scope
   id?: string; // pins it to one instance of that scope
   team?: string; // input only: scope = the second scope, id = this team
   name: string; // unique within the tenant; a declared role name always wins
@@ -34,13 +34,32 @@ A member holds it like any role: `{ tenant: 'o_acme', roles: ['billing-manager']
 
 ## The ceiling
 
-The ceiling of a scope is the set of code allows of every declared role marked `assignable` in that [named scope](/docs/concepts/scopes): the first scope's roles for a custom role without `scope`, the roles of `scope` otherwise (the input shape `team` means the second scope). A custom role applies only through a membership of its own scope inside its tenant, and only to the pinned instance when `id` is set; there is no cascade between scopes. Global roles, resource roles and non-assignable roles such as `owner` are outside every ceiling. Grants merged from a hosted policy document never widen it, so the ceiling is exactly what was reviewed in code.
+The ceiling of a scope is the set of code allows of every declared role marked `assignable` in that [named scope](/docs/concepts/scopes): the first scope's roles for a custom role without `scope`, the roles of `scope` otherwise (the input shape `team` means the second scope). A custom role applies only through a membership of its own scope inside its tenant, and only to the pinned instance when `id` is set; there is no cascade between scopes. Resource roles and non-assignable roles such as `owner` are outside every ceiling; global roles are outside every tenant ceiling and form their own, below. Grants merged from a hosted policy document never widen it, so the ceiling is exactly what was reviewed in code.
+
+### Platform custom roles
+
+A custom role with `scope: 'global'` and no `tenant`, `team` or `id` is a platform role, such as a support tier an operator defines at runtime. Its ceiling is the allows of every declared global role (one without `on`) marked `assignable`. A principal holds it by name in `principal.roles`, like a declared global role, and it applies in every tenant. `RoleSource.globalRoles()` returns these roles; it is read once per signed-in subject, and a role it returns with a tenant is ignored. `memoryRoleSource` routes a role without `tenant` there.
+
+```ts
+const roles = defineRoles({
+  support: { assignable: true },
+  billingOps: { assignable: true },
+  superadmin: {}, // not assignable: outside the global ceiling
+});
+
+const tier2: CustomRole = {
+  scope: "global",
+  name: "tier2",
+  includes: ["support"],
+  grants: [{ permission: "tenant.suspend" }],
+};
+```
 
 `permdock catalog` lists the assignable roles with the permissions each contains; the permission keys of the ceiling are what a role editor offers.
 
 ## Resolution
 
-`resolveCustomRole(policy, role)` is the one resolver behind evaluation, `snapshot()`, `snapshotFor()` and `validateCustomRole()`, so they cannot disagree. It returns `{ grants, dropped }`:
+`resolveCustomRole(policy, role)` is the one resolver behind evaluation, `snapshot()`, `snapshotFor()` and `validateCustomRole()`, so they cannot disagree. It returns `{ grants, dropped, renamed }`:
 
 1. Start from the grants of each role in `includes`. An allow that is itself a ceiling grant is kept as is. An allow from a non-assignable or other-scope role whose permission is in the ceiling is replaced by the ceiling's grants for that permission; one whose permission is outside the ceiling is dropped. An included role's `deny` grants in the custom role's scope come along.
 2. Add each own `allow`. Its permission must be a declared key in the ceiling. It inherits every ceiling grant of that permission, together with the `deny` grants of the roles those grants belong to. When an included assignable role already grants the permission, the included grant is kept and the own allow adds nothing.
@@ -62,7 +81,11 @@ Nothing that fails resolution widens a role. `dropped` names each entry that was
 | `condition-not-allowed` | The entry carries a field other than `permission` and `effect` (a `where`, an `approval`, a `limit`), or an unknown `effect`. The permission is still removed, as if denied |
 | `unknown-role`          | An `includes` entry names no declared role; reported as `{ role, reason }`                                                                                                  |
 
-`validateCustomRole(policy, role)` returns `{ ok, permissions, dropped }`, where `permissions` is the sorted list of keys the role allows after the ceiling. Call it in the server action that saves a custom role. `permdock doctor` PD023 runs it over the `customRoles` of the `doctor.memberships` fixture ([doctor](/docs/cli/doctor)).
+`validateCustomRole(policy, role)` returns `{ ok, permissions, dropped, renamed }`, where `permissions` is the sorted list of keys the role allows after the ceiling. Call it in the server action that saves a custom role. `permdock doctor` PD023 runs it over the `customRoles` of the `doctor.memberships` fixture ([doctor](/docs/cli/doctor)).
+
+### Renamed keys
+
+A stored grant may name a permission by a key it was renamed from with `definePermissions(..., { renamed })` ([permissions](/docs/concepts/permissions#renamed-keys)). It resolves to the current leaf, so a rename never breaks a saved role. `renamed` lists each such grant as `{ from, to }`; rewrite those rows in storage before removing the alias. `customRoleClaim(roles, policy)` writes current keys into the token claim; without `policy` it copies the stored keys. `permdock doctor` PD055 prints the `update` statements for the `doctor.memberships` fixture.
 
 ## Who may assign what
 
@@ -95,6 +118,7 @@ For every custom role, `decide` on the server and `fromSnapshot(snapshot).decide
 
 - `database` mode reads `custom_role_permissions (tenant_id, scope, scope_id, role, permission, effect)` and `custom_role_includes (tenant_id, scope, scope_id, role, include_role)`, written by the application from the same data its `RoleSource` reads.
 - `jwt` mode reads a compact `grants` map on each membership of the `memberships` claim, `{ "billing-manager": ["@billing", "post.read", "-invoice.refund"] }`, built with `customRoleClaim(roles)`. It is off unless `--custom-roles` is set, and it grows every token.
+- Platform custom roles live in the same tables with `scope = 'global'` and a null `tenant_id` and `scope_id`. In `jwt` mode their entries ride the top-level `role_grants` claim, keyed by role name and built with `customRoleClaim(roles)`. `permdock_has` unions them into every tenant check.
 - Both intersect with the generated `permdock_ceiling` view, so a row or claim entry naming a permission outside the ceiling reaches nothing.
 - With `--rbac supabase`, `authorize(permission, tenant)` answers from custom roles too.
 

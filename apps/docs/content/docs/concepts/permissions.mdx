@@ -48,6 +48,7 @@ export const permissions = definePermissions({
 | `id`                      | key of the schema output | Identity field used for client cache keys, `filter`, decision tokens and RLS row identity. Defaults to `'id'` when the schema has one.                                                                                                                                                                                                                                                                                        |
 | `actions`                 | array or record          | Instance-level actions: `can(permissions.post.update, post)` requires a `Post`.                                                                                                                                                                                                                                                                                                                                               |
 | `collection`              | array or record          | Type-level actions: `can(permissions.post.create)` takes no instance.                                                                                                                                                                                                                                                                                                                                                         |
+| `name`                    | string                   | Optional. The resource name leaves, RLS tables, relations, `parent` and AuthZEN types use, in place of the last path segment. A letter, then letters, digits, `_` or `-`. Names are unique across the merged tree. The key keeps the path.                                                                                                                                                                                    |
 | `parent`                  | `{ field, resource }`    | Optional. `resource` is the parent **name string** (the last path segment). Exactly one parent. The name is resolved at `definePolicy` after `mergePermissions`. See [tenancy](/docs/concepts/tenancy).                                                                                                                                                                                                                       |
 | `disclosure`              | `'hide'` or `'reveal'`   | Optional, default `'reveal'`. With `'hide'`, an HTTP adapter answers a denied check on a loaded row with `404` `/not-found`, the same body a missing row gets, so an id never confirms that a row exists; the reason stays on the decision event. A step-up or rate-limit denial still answers as usual, because it arises only when the subject holds a matching grant. See the [threat model](/docs/security/threat-model). |
 
@@ -123,7 +124,15 @@ post: resource(Post, {
 });
 ```
 
-Metadata is plain JSON and lands on the leaf as `meta`. `readOnly`, `destructive` and `idempotent` become the MCP tool hints `readOnlyHint`, `destructiveHint` and `idempotentHint` in [`permdock/mcp`](/docs/adapters/mcp) (WebMCP reads only `readOnly`); an action named `read` or `list` is read-only unless `readOnly` says otherwise, and `destructive` is ignored on a read-only action. The hints inform the client and never replace the server's decision. The [catalog](/docs/cli/catalog) prints `title` and `description`.
+Metadata is plain JSON and lands on the leaf as `meta`. `x` holds data the application owns, such as a risk level or an undo window: a JSON object nested at most 8 deep, frozen on the leaf and carried on the catalog and snapshots. PermDock never reads it.
+
+```ts
+invoice: resource(Invoice, {
+  actions: { send: { title: "Send invoice", x: { risk: "high", undo: "30m" } } },
+}),
+```
+
+`readOnly`, `destructive` and `idempotent` become the MCP tool hints `readOnlyHint`, `destructiveHint` and `idempotentHint` in [`permdock/mcp`](/docs/adapters/mcp) (WebMCP reads only `readOnly`); an action named `read` or `list` is read-only unless `readOnly` says otherwise, and `destructive` is ignored on a read-only action. The hints inform the client and never replace the server's decision. The [catalog](/docs/cli/catalog) prints `title` and `description`.
 
 ## What a leaf contains
 
@@ -148,6 +157,21 @@ permissions.post.update;
 | `meta`     | `{ title, description, tags, readOnly, inferredFrom }` | Catalogs, docs, tool hints; `inferredFrom` is written by `permdock openapi import` with the operation an action came from |
 
 The schema is not on the leaf. It lives on the resource node, reachable through the definition, so a leaf stays JSON-serialisable while `can(permissions.post.update, post)` still knows that `post` must be a `Post`.
+
+### Resource names
+
+Two resources may share a last path segment when one sets `name`. A platform resource and an organisation resource named `billing` keep their keys and get distinct names:
+
+```ts
+definePermissions({
+  platform: {
+    billing: resource({ name: "platform_billing", actions: ["view"] }),
+  },
+  billing: resource({ actions: ["view"] }),
+});
+// platform.billing.view: { key: 'platform.billing.view', resource: 'platform_billing' }
+// billing.view:          { key: 'billing.view',          resource: 'billing' }
+```
 
 ### Type-level view
 
@@ -174,6 +198,28 @@ These hold for every leaf and every adapter depends on them.
 4. Leaves are prototype-safe. Keys such as `constructor` or `__proto__` are rejected by `definePermissions`, and lookups use own-property checks.
 5. The definition has no rules and no secrets, so it can be imported by client bundles, React Native, MCP servers, the CLI and tests.
 
+## Renamed keys
+
+`definePermissions(tree, { renamed })` maps keys a permission used to have to its current key. Rename the leaf in code and add the old key:
+
+```ts
+export const permissions = definePermissions(
+  { customer: resource(Customer, { actions: ["read", "update"] }) },
+  {
+    renamed: {
+      "organization.customers.view": "customer.read",
+      "organization.customers.edit": "customer.update",
+    },
+  },
+);
+```
+
+A former key resolves wherever a key arrives as a string: `findPermission`, stored [custom roles](/docs/concepts/custom-roles#renamed-keys), OAuth scopes in their `:` form, AuthZEN actions and hosted grants. Code, decisions, snapshots and audit events see only the current key. `formerKeys(leaf)` returns a leaf's former keys; they live on a non-enumerable property, so a leaf that crossed `JSON.stringify` has none. The catalog lists them as `renamedFrom`, and [`permdock diff`](/docs/cli/diff) reports a rename as `renamed` and a dropped alias as the breaking `alias-removed`. [`rls migrate`](/docs/cli/rls#migrate) maps former keys without a `keys` entry, and `rls generate` seeds `role_permissions` under them too.
+
+`definePermissions` throws when an old key is still a current key, a target is not a declared key, or an old key is not a valid key. An approval token binds the current key and the policy fingerprint, so an approval pending across a deploy that renames its key no longer resumes and is asked again.
+
+[Existing apps](/docs/getting-started/existing-apps) walks through a rename and its deprecation window.
+
 ## Registry helpers
 
 Helpers are functions, not methods on the tree, so a resource named `list` or `find` never collides with them.
@@ -186,6 +232,7 @@ listPermissions(permissions);
 
 findPermission(permissions, "post.update"); // Permission | undefined
 findPermission(permissions, scopeFromJwt); // strings from a DB, JWT scope or OpenAPI doc
+findPermission(permissions, "organization.customers.view"); // a former key: the current leaf
 ```
 
 `isPermission(value)` narrows an `unknown` to `Permission` without a cast: it checks for string `key`, `scope`, `resource` and `action` and an object `meta`. It accepts a leaf that crossed `JSON.stringify` (which drops the non-enumerable `kind`), and it does not look the key up, so the check that follows still decides by `key`.
@@ -256,7 +303,7 @@ Default PD017 verbs are `approve`, `pay`, `settle`, `submit`, `transfer`, `refun
 
 **References, not string keys.** A string key has no go-to-definition and no safe rename, and a typo is at best a compile error and at worst a silent deny. Template-literal unions over every resource and action slow the type checker on large catalogs, a string has nowhere to carry a scope or a title, and the union does not exist at runtime, so a catalog would have to be extracted from source. A reference fixes all four: the runtime definition is the catalog, an unknown permission is a type error, and types flow from the reference argument, so hooks and server helpers are direct exports with no per-app generic factory. Runtime subject detection in the CASL style is unnecessary because the reference already names the resource, and a Proxy tree was rejected because it cannot be serialised or enumerated.
 
-**Plain leaves, identity by key.** Leaves cross RSC props, JSON bodies, queue messages and duplicate bundle copies, and Standard Schema validators are neither serialisable nor small, so the schema stays on the resource node and a leaf is only data. Because identity is the `key`, keys are part of the public contract: renaming a resource is a wire-visible change, and `permdock collect --check` reports it.
+**Plain leaves, identity by key.** Leaves cross RSC props, JSON bodies, queue messages and duplicate bundle copies, and Standard Schema validators are neither serialisable nor small, so the schema stays on the resource node and a leaf is only data. Because identity is the `key`, keys are part of the public contract: renaming a resource is a wire-visible change, and `permdock collect --check` reports it. `renamed` keeps stored keys resolving through that change instead of hiding it.
 
 **Arity in the type.** If every action accepted optional data, a handler could check `update` without loading the row and an ownership condition would be evaluated against nothing. That mistake is easiest to make in an agent tool handler, where nothing else flags it. Arity cannot be inferred from the policy instead, because the policy is server-only while the definition is shared with clients. The same split explains why `where`, `filter` and `permdock.where` exist only for instance actions.
 

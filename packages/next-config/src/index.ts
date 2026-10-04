@@ -73,9 +73,6 @@ export function createNextConfig(
       turbopackFileSystemCacheForBuild:
         process.env["GITHUB_ACTIONS"] !== "true",
       optimizePackageImports: [...(options.optimizePackageImports ?? [])],
-      // `@next/playwright` `instant()` locks; never set on a real production deploy.
-      exposeTestingApiInProductionBuild:
-        process.env["EXPOSE_TESTING_API"] === "1",
     },
     typescript: { ignoreBuildErrors: true },
   };

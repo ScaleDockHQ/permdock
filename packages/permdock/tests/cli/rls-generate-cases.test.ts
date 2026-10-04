@@ -44,6 +44,25 @@ export const policy = definePolicy({ permissions, roles }, {
 `,
 );
 writeFileSync(
+  path.join(cwd, "renamed.ts"),
+  `import { allow, definePermissions, definePolicy, defineRoles, resource } from 'permdock';
+import { z } from 'zod';
+
+const Doc = z.object({ id: z.string(), orgId: z.string() });
+const permissions = definePermissions(
+  { doc: resource(Doc, { actions: ['view'], relations: { org: { field: 'orgId', memberOf: 'tenant' } } }) },
+  { renamed: { 'document.view': 'doc.view' } },
+);
+const roles = defineRoles({ editor: { on: 'tenant', assignable: true } });
+
+export const policy = definePolicy({ permissions, roles }, {
+  scopes: { tenant: { key: 'orgId' } },
+  grants: [allow(permissions.doc.view, { to: roles.editor })],
+  subject: () => null,
+});
+`,
+);
+writeFileSync(
   path.join(cwd, "graph.ts"),
   `import { allow, definePermissions, definePolicy, relation, resource } from 'permdock';
 import { z } from 'zod';
@@ -134,9 +153,24 @@ describe("rls generate context from the config", () => {
     expect(outcome.code).toBe(0);
     expect(outcome.text).toContain("custom_role_permissions");
     expect(outcome.text).toContain(
-      "and rp.role = any(array['editor', 'lead']::text[])",
+      "where rp.role = any(array['editor', 'lead']::text[])",
     );
     expect(outcome.text).not.toContain("service_role");
+  });
+
+  it("maps stored former keys in custom roles and reads rls.actions", async () => {
+    const outcome = await generate({
+      from: "./renamed.ts",
+      rbac: true,
+      customRoles: true,
+      authorize: "database",
+      config: { rls: { actions: { view: "select" } } },
+    });
+    expect(outcome.code).toBe(0);
+    expect(outcome.text).toContain(
+      "with renamed (former, key) as (values ('document.view', 'doc.view')),",
+    );
+    expect(outcome.text).toContain("for select");
   });
 
   it("types scopes from teamType and scopeTypes and ignores hook roles set to false", async () => {
@@ -216,5 +250,42 @@ describe("rls generate flag combinations", () => {
     });
     expect(outcome.code).toBe(2);
     expect(outcome.output).toBe("rls generate --split needs --target sql");
+  });
+});
+
+describe("rls generate --shims", () => {
+  it("needs rls.migrate.helpers", async () => {
+    const result = await generate({ from: "roles.ts", shims: true });
+    expect(result.code).toBe(2);
+    expect(result.output).toBe(
+      "PermDock CLI: rls generate --shims needs rls.migrate.helpers in permdock.config.ts",
+    );
+  });
+
+  it("appends the wrappers from the flag or rls.shims", async () => {
+    const migrate = {
+      helpers: { is_member: { form: "membership", scope: "tenant" } },
+    } as const;
+    const flagged = await generate({
+      from: "roles.ts",
+      shims: true,
+      config: { rls: { migrate } },
+    });
+    expect(flagged.code).toBe(0);
+    expect(flagged.text).toContain(
+      `create or replace function "public".is_member(p_id uuid)`,
+    );
+    const configured = await generate({
+      from: "roles.ts",
+      config: { rls: { migrate, shims: { schema: "legacy" } } },
+    });
+    expect(configured.text).toContain(
+      `create or replace function "legacy".is_member(`,
+    );
+    const off = await generate({
+      from: "roles.ts",
+      config: { rls: { migrate } },
+    });
+    expect(off.text).not.toContain("permdock shims");
   });
 });

@@ -14,6 +14,8 @@ export type CatalogPermission = {
   readonly arity: "instance" | "collection";
   readonly meta: Readonly<Record<string, unknown>>;
   readonly usages: readonly CatalogUsage[];
+  /** Keys the permission was renamed from (`definePermissions` `renamed`), sorted; absent when none. */
+  readonly renamedFrom?: readonly string[];
   /** Present only when the policy lists the permission in `hostable`. */
   readonly hostable?: true;
   /**
@@ -41,6 +43,11 @@ export type CatalogApproval =
   | "human"
   | {
       readonly by?: unknown;
+      readonly mode?: "any" | "all" | "sequential";
+      readonly stages?: readonly {
+        readonly by: unknown;
+        readonly quorum?: number;
+      }[];
       readonly distinct?: boolean;
       readonly staleOn?: "resource-change";
       readonly quorum?: number;

@@ -55,6 +55,7 @@ function target(overrides: Partial<MigrateTarget> = {}): MigrateTarget {
       ["org", new Set(["doc.read", "doc.update"])],
       ["global", new Set(["doc.read"])],
     ]),
+    renamed: {},
     ...overrides,
   };
 }
@@ -104,6 +105,7 @@ describe("migrateTarget", () => {
       permissions: new Set(),
       rowConditions: new Set(),
       granted: new Map(),
+      renamed: {},
     });
   });
 });
@@ -111,6 +113,37 @@ describe("migrateTarget", () => {
 describe("mapKey without prefixes", () => {
   it("keeps an unmapped key", () => {
     expect(mapKey({ helpers: {} }, "doc.read")).toBe("doc.read");
+  });
+
+  it("applies keys, then renamed, then prefixes", () => {
+    const renamed = { "legacy.read": "doc.read" };
+    expect(mapKey({ helpers: {} }, "legacy.read", renamed)).toBe("doc.read");
+    expect(
+      mapKey(
+        { helpers: {}, keys: { "legacy.read": "doc.update" } },
+        "legacy.read",
+        renamed,
+      ),
+    ).toBe("doc.update");
+    expect(
+      mapKey(
+        { helpers: {}, prefixes: { "legacy.": "doc." } },
+        "legacy.update",
+        renamed,
+      ),
+    ).toBe("doc.update");
+  });
+
+  it("rewrites a former key to the current one", async () => {
+    const { code, text } = await migrate(
+      `create policy p on t using (org_id in (select org_ids('doc.view')));`,
+      {
+        config: { ...CONFIG, keys: {}, prefixes: {} },
+        target: target({ renamed: { "doc.view": "doc.read" } }),
+      },
+    );
+    expect(code).toBe(0);
+    expect(text).toContain(`permitted_org_ids('doc.read')`);
   });
 });
 
@@ -153,7 +186,7 @@ describe("runRlsMigrate skips", () => {
       `create policy p on t using (is_admin('doc.audit'));`,
       [
         "not-granted-on-scope",
-        "doc.audit has no role_permissions row: rls generate seeds only read, list, get, create, update and delete grants",
+        "doc.audit has no unconditional allow row in role_permissions: a conditional, time-bounded or deny-mixed grant splits its grant key, so the helper would always deny",
       ],
     ],
     [

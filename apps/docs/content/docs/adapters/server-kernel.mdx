@@ -146,7 +146,7 @@ The kernel implements the [shared adapter contract](/docs/adapters) for every HT
 
 ## Example app
 
-No dedicated example; the kernel is exercised by every HTTP example (`apps/examples/hono` first) by the Expo API routes in `tests/e2e/fixtures/expo-saas`, the `b2b-scim` fixture, and the Bun, Deno and workerd apps in `tests/runtimes`. The SvelteKit, Nuxt, TanStack Start and SolidStart fixtures decide with core `createPermDock` (through the shared `saas-kit`), not with the kernel. Kernel unit tests live next to the entry and cover anonymous subjects, `loadData` returning `null`, boundary validation failures (`PermDockValidationError` to `400`), and approval-required responses. `tests/integration/src/http/kernel.test.ts` runs the [`testHttpAdapter`](/docs/adapters/testing) scenarios against the kernel behind a plain Fetch handler on `@hono/node-server`.
+No dedicated example; the kernel is exercised by every HTTP example (`apps/examples/hono` first) and by the Bun, Deno and workerd apps in `tests/runtimes`. Kernel unit tests live next to the entry and cover anonymous subjects, `loadData` returning `null`, boundary validation failures (`PermDockValidationError` to `400`), and approval-required responses. `tests/integration/src/http/kernel.test.ts` runs the [`testHttpAdapter`](/docs/adapters/testing) scenarios against the kernel behind a plain Fetch handler on `@hono/node-server`.
 
 ## Related standards
 

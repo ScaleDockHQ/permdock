@@ -47,4 +47,5 @@ OPTIONS
             --grants-out=<file>    File for the supabase_auth_admin grants                  
              --seeds-out=<file>    File for the role_permissions seeds                      
                  --helpers-only    Write the helpers and keep the policies hand-written     
+                        --shims    Wrap each rls.migrate helper under its legacy name       
                         --write    migrate: rewrite the files instead of a dry run          

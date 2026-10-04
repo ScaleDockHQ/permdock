@@ -14,7 +14,7 @@ import { idList, isId, ownRecord } from "./capability.ts";
 import { compact, isReadonlyArray } from "./compact.ts";
 import { coveredByDelegation } from "./delegation.ts";
 import { freezeDeep } from "./freeze.ts";
-import { listPermissions } from "./permissions.ts";
+import { formerKeys, listPermissions } from "./permissions.ts";
 import { bytesToBase64Url, sha256 } from "./sha256.ts";
 import { anonymousSubject } from "./subject.ts";
 
@@ -247,7 +247,14 @@ export function parseCredential(input: unknown): Credential | undefined {
 }
 
 function leafByKey(tree: PermissionTree): ReadonlyMap<string, Permission> {
-  return new Map(listPermissions(tree).map((leaf) => [leaf.key, leaf]));
+  const byKey = new Map<string, Permission>();
+  for (const leaf of listPermissions(tree)) {
+    byKey.set(leaf.key, leaf);
+    for (const old of formerKeys(leaf)) {
+      byKey.set(old, leaf);
+    }
+  }
+  return byKey;
 }
 
 /**

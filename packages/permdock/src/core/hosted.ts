@@ -237,7 +237,10 @@ function approvalRank(approval: Grant["approval"]):
     };
   }
   return {
-    by: JSON.stringify(approval.by),
+    by:
+      approval.stages === undefined
+        ? JSON.stringify(approval.by)
+        : JSON.stringify([approval.mode, approval.stages]),
     distinct: approval.distinct !== false,
     stale: approval.staleOn === "resource-change",
     quorum: approval.quorum ?? 1,
@@ -336,6 +339,9 @@ function approvalAcceptable(
     return true;
   }
   if (!isRecord(approval)) {
+    return false;
+  }
+  if (approval["mode"] !== undefined || approval["stages"] !== undefined) {
     return false;
   }
   if (

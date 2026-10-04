@@ -42,11 +42,7 @@ function committedCatalogs(): readonly string[] {
       }
     }
   };
-  for (const dir of [
-    "apps/examples",
-    "tests/e2e/fixtures",
-    "tests/integration/fixtures",
-  ]) {
+  for (const dir of ["apps/examples", "tests/integration/fixtures"]) {
     visit(path.join(root, dir));
   }
   return found.toSorted();

@@ -35,7 +35,7 @@ Pages are under `apps/docs/content/docs/`. Check the row for your change before 
 | Add an OpenAPI extension | `standards/openapi-registry.mdx` table, `standards/openapi.mdx`, `adapters/openapi.mdx`, `cli/openapi.mdx`, the registry PR once the namespace is registered |
 | Bump a pinned draft revision (OpenAPI 3.3 Security Profiles, Overlay 1.2, WebMCP, RAR remediation, OpenTelemetry GenAI, Web Bot Auth) or change a draft's posture | The standards page `Draft posture` line, `standards/watch-list.mdx` Posture cell, `x-permdock-catalog.drafts` for document and Overlay output, the emitter's name map and patch schema, `permdock/testing` fixtures keyed by the pin, a changeset; a posture change also updates the standards page's `Why` section |
 | Change a security default | `security/threat-model.mdx`, `security/owasp-agentic.mdx` mapping, the "Secure by default" bullet in `packages/permdock/README.md`, `.agents/rules/invariants.mdc` |
-| Add an example app | `apps/examples/<name>`, its adapter page "Example app" section, `tests/e2e`, the "Works with" table in `packages/permdock/README.md` |
+| Add an example app | `apps/examples/<name>`, its adapter page "Example app" section, the "Works with" table in `packages/permdock/README.md` |
 | Change the roadmap | `roadmap.mdx`, `Status: planned` lines on affected adapter / standards pages |
 | Resolve an open question | State the decision in the owning page's `Why` section and remove it from the Open questions list in `roadmap.mdx` |
 | Change a root script, the toolchain or CI | The Common commands or CI and release section of `README.md`, `CONTRIBUTING.md`, the Commands block in `AGENTS.md` |

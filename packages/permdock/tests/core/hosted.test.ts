@@ -331,6 +331,46 @@ describe("hosted grants", () => {
     ).toBe(true);
   });
 
+  it("drops a hosted staged approval, and a single approver where the code asks for stages", () => {
+    const auditor = { kind: "role", role: "auditor", scope: "global" } as const;
+    const staged = definePolicy(
+      { permissions, plans },
+      {
+        roles: [
+          role("member", [
+            allow(permissions.invoice.delete, {
+              approval: { mode: "sequential", stages: [{ by: "auditor" }] },
+            }),
+          ]),
+          role("auditor", []),
+        ],
+        principal: (user: User) => user,
+        hostable: [permissions.invoice],
+      },
+    );
+    const merged = mergeHostedGrants(
+      staged,
+      document([
+        {
+          id: "g_stages",
+          permission: "invoice.delete",
+          to: auditor,
+          approval: { mode: "sequential", stages: [{ by: auditor }] },
+        },
+        {
+          id: "g_single",
+          permission: "invoice.delete",
+          to: auditor,
+          approval: { by: auditor },
+        },
+      ]),
+    );
+    expect(merged.dropped.map((item) => [item.grant, item.reason])).toEqual([
+      ["g_stages", "invalid"],
+      ["g_single", "weaker-approval"],
+    ]);
+  });
+
   it("drops a grant on a permission the policy does not mark hostable", () => {
     const narrow = definePolicy(permissions, {
       roles: [role("member", [])],

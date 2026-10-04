@@ -262,9 +262,10 @@ function hasBody(ctx: RlsSqlContext): string {
   const active = userActive(ctx, "      ")
     .map((line) => `\n${line}`)
     .join("");
+  const custom = ctx.customRoles;
   if (ctx.authorize === "database") {
     const ur = globalRoleRows(ctx);
-    return `  select exists (
+    const declared = `  select exists (
     select 1
     from ${ur.from}
     join ${rp} rp on rp.role = ${ur.roleSql}
@@ -272,15 +273,59 @@ function hasBody(ctx: RlsSqlContext): string {
       and rp.grant_key = p_grant
       and rp.scope = 'global'${andLine("      ", globalKindFilterSql(ctx, ur.roleSql))}${active}
   )`;
+    if (custom === undefined) {
+      return declared;
+    }
+    // A platform custom role: rows with no tenant at scope global, held through the global roles table.
+    const match = `c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ${ur.roleSql}`;
+    const rows = (source: string, value: string, extra: string): string =>
+      `array(select c.${value} from ${qualified(ctx, source)} c where ${match}${extra})`;
+    return `${declared}
+  or exists (
+    select 1
+    from ${ur.from}
+    where ${ur.userSql} = ${subjectIdSql(ctx)}
+      and not (${ur.roleSql} = any(${textArray(custom.declared)}))${active}
+      ${customKeysSql(
+        ctx,
+        "global",
+        rows(CUSTOM_ROLES.permissions, "permission", " and c.effect = 'allow'"),
+        rows(CUSTOM_ROLES.permissions, "permission", " and c.effect = 'deny'"),
+        rows(CUSTOM_ROLES.includes, "include_role", ""),
+      ).trimStart()}
+  )`;
   }
-  return `  select ${signedIn(ctx)} and exists (
+  const declared = `  select ${signedIn(ctx)} and exists (
     select 1
     from ${roleRows(ctx)}
     join ${rp} rp on rp.role = r.role
     where rp.grant_key = p_grant
       and rp.scope = 'global'${andLine("      ", globalKindFilterSql(ctx, "r.role"))}${active}
   )`;
+  if (custom === undefined) {
+    return declared;
+  }
+  // A platform custom role's entries ride the top-level role_grants claim, keyed by role name.
+  const claim = subjectClaimJsonSql(ctx, GLOBAL_GRANTS_CLAIM);
+  return `${declared}
+  or (${signedIn(ctx)} and exists (
+    select 1
+    from ${roleRows(ctx)}
+    cross join lateral (select ${claim} -> r.role as g) cg
+    where jsonb_typeof(cg.g) = 'array'
+      and not (r.role = any(${textArray(custom.declared)}))${active}
+      ${customKeysSql(
+        ctx,
+        "global",
+        claimEntries("left(e, 1) not in ('-', '@')", "e"),
+        claimEntries("left(e, 1) = '-'", "substr(e, 2)"),
+        claimEntries("left(e, 1) = '@'", "substr(e, 2)"),
+      ).trimStart()}
+  ))`;
 }
+
+/** The claim `jwt` mode reads platform custom roles from: `customRoleClaim(globalRoles)`. */
+const GLOBAL_GRANTS_CLAIM = "role_grants";
 
 export function memberColumn(name: string): string {
   return `m.${quoteIdent(name)}`;
@@ -481,14 +526,16 @@ function customRolesSql(ctx: RlsSqlContext): string {
       const table = qualified(ctx, name);
       const unique = `${column}${name === CUSTOM_ROLES.permissions ? ", effect" : ""}`;
       chunks.push(`create table if not exists ${table} (
-  tenant_id ${tenantType} not null,
+  tenant_id ${tenantType},
   scope text not null default ${quoteLiteral(rootName(ctx))},
   scope_id text,
   role text not null,
-  ${column} text not null${check}
+  ${column} text not null${check},
+  check ((scope = 'global') = (tenant_id is null)),
+  check (scope <> 'global' or scope_id is null)
 );
 create unique index if not exists ${quoteIdent(`${name}_key`)}
-  on ${table} (tenant_id, scope, coalesce(scope_id, ''), role, ${unique});
+  on ${table} (coalesce(tenant_id::text, ''), scope, coalesce(scope_id, ''), role, ${unique});
 alter table ${table} enable row level security;
 revoke all on table ${table} from anon, authenticated, public;`);
     }
@@ -497,8 +544,7 @@ revoke all on table ${table} from anon, authenticated, public;`);
 create or replace view ${ceiling} with (security_invoker = true) as
 select rp.scope, rp.role, rp.permission, rp.grant_key, rp.effect
 from ${rp} rp
-where rp.scope <> 'global'
-  and rp.role = any(${textArray(custom.assignable)})
+where rp.role = any(${textArray(custom.assignable)})
   and exists (
     select 1 from ${rp} a
     where a.role = rp.role
@@ -507,6 +553,10 @@ where rp.scope <> 'global'
       and a.effect = 'allow'
   );
 revoke all on table ${ceiling} from anon, authenticated, public;`);
+  const renames = Object.entries(custom.renamed ?? {}).toSorted(([a], [b]) =>
+    a < b ? -1 : a > b ? 1 : 0,
+  );
+  const rename = renamesSql(renames);
   chunks.push(`-- one custom role: included ceiling keys and same-scope denies, plus every ceiling key of an allowed permission, minus denied permissions
 create or replace function ${keys}(p_allow text[], p_deny text[], p_include text[], p_scope text)
 returns setof text
@@ -514,14 +564,14 @@ language sql
 stable
 set search_path = ''
 as $$
-  with ceiling as (
-    select c.role, c.permission, c.grant_key, c.effect
-    from ${ceiling} c
+  with ${rename.prelude}ceiling as (
+    select c.role, ${rename.permission("c")}, c.grant_key, c.effect
+    from ${ceiling} c${rename.join("c")}
     where c.scope = p_scope
   ),
   included as (
-    select rp.role, rp.permission, rp.grant_key, rp.scope, rp.effect
-    from ${rp} rp
+    select rp.role, ${rename.permission("rp")}, rp.grant_key, rp.scope, rp.effect
+    from ${rp} rp${rename.join("rp")}
     where rp.role = any(coalesce(p_include, '{}'::text[]))
   ),
   kept as (
@@ -535,7 +585,7 @@ as $$
       )
   ),
   wanted as (
-    select unnest(coalesce(p_allow, '{}'::text[])) as permission
+    ${rename.allow}
     union
     select i.permission
     from included i
@@ -548,11 +598,11 @@ as $$
   allowed as (
     select w.permission
     from wanted w
-    where not (w.permission = any(coalesce(p_deny, '{}'::text[])))
+    where not (${rename.denied("w")})
       and not exists (select 1 from kept k where k.permission = w.permission)
   )
   select k.grant_key from kept k
-  where not (k.permission = any(coalesce(p_deny, '{}'::text[])))
+  where not (${rename.denied("k")})
   union
   select i.grant_key from included i
   where i.effect = 'deny' and i.scope = p_scope
@@ -562,6 +612,56 @@ as $$
 $$;
 revoke execute on function ${keys}(text[], text[], text[], text) from public, anon, authenticated;`);
   return chunks.join("\n\n");
+}
+
+function currentKeysSql(array: string): string {
+  return `select coalesce(r.key, e.permission) as permission
+    from unnest(coalesce(${array}, '{}'::text[])) as e(permission)
+    left join renamed r on r.former = e.permission`;
+}
+
+/**
+ * SQL fragments that read a stored former key as its current key inside
+ * `permdock_custom_keys`. Without renames they are the plain column and
+ * array reads.
+ */
+function renamesSql(renames: readonly (readonly [string, string])[]): {
+  readonly prelude: string;
+  readonly permission: (alias: string) => string;
+  readonly join: (alias: string) => string;
+  readonly allow: string;
+  readonly denied: (alias: string) => string;
+} {
+  if (renames.length === 0) {
+    return {
+      prelude: "",
+      permission: (alias) => `${alias}.permission`,
+      join: () => "",
+      allow: "select unnest(coalesce(p_allow, '{}'::text[])) as permission",
+      denied: (alias) =>
+        `${alias}.permission = any(coalesce(p_deny, '{}'::text[]))`,
+    };
+  }
+  const values = renames
+    .map(
+      ([former, current]) =>
+        `(${quoteLiteral(former)}, ${quoteLiteral(current)})`,
+    )
+    .join(", ");
+  return {
+    prelude: `renamed (former, key) as (values ${values}),
+  denied as (
+    ${currentKeysSql("p_deny")}
+  ),
+  `,
+    permission: (alias) =>
+      `coalesce(r_${alias}.key, ${alias}.permission) as permission`,
+    join: (alias) =>
+      ` left join renamed r_${alias} on r_${alias}.former = ${alias}.permission`,
+    allow: currentKeysSql("p_allow"),
+    denied: (alias) =>
+      `${alias}.permission in (select d.permission from denied d)`,
+  };
 }
 
 /**

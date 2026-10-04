@@ -103,6 +103,7 @@ export async function pd054(input: {
     scopes: scopeList(policy.scopes),
     tenantClaim: rls?.tenantClaim ?? supabaseTenantClaim,
     gucPrefix: rls?.gucPrefix ?? "app",
+    ...(rls?.actions === undefined ? {} : { actions: rls.actions }),
     schema,
     ...(rls?.fields === "views" ? { fields: "views" as const } : {}),
   };

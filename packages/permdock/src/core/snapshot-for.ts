@@ -85,8 +85,10 @@ export function snapshotFor<
   const tenants = new Set(
     tenantsOf(subject.principal, scopeList(policy.scopes as Policy["scopes"])),
   );
-  const customRoles = (options.customRoles ?? []).filter((item) =>
-    tenants.has(item.tenant),
+  const customRoles = (options.customRoles ?? []).filter(
+    (item) =>
+      item.scope === "global" ||
+      (item.tenant !== undefined && tenants.has(item.tenant)),
   );
   const names = options.assignable;
   const assignable =

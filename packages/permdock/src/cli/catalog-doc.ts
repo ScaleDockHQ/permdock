@@ -20,6 +20,7 @@ import { byCodePoint } from "../core/compare.ts";
 import {
   catalogFingerprint,
   findRole,
+  formerKeys,
   getResource,
   listPermissions,
 } from "../index.ts";
@@ -113,6 +114,8 @@ export function buildCatalog(
         arity: leaf.kind,
         meta: metaRecord(leaf.meta),
         usages: scan.usages[leaf.key] ?? [],
+        renamedFrom:
+          formerKeys(leaf).length === 0 ? undefined : formerKeys(leaf),
         hostable: hostable.has(leaf.key) ? (true as const) : undefined,
         rowConditions: rowConditions?.has(leaf.key) ?? true,
         approvals: approvals.get(leaf.key),
@@ -156,6 +159,8 @@ function catalogApproval(
     ? "human"
     : withDefined({
         by: approval.by,
+        mode: approval.mode,
+        stages: approval.stages,
         distinct: approval.distinct,
         staleOn: approval.staleOn,
         quorum: approval.quorum,

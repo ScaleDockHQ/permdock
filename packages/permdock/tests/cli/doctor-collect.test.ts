@@ -439,6 +439,45 @@ describe("PD023 custom roles", () => {
     expect(await run("./bad.json")).toEqual([]);
     expect(await run("./absent.json")).toEqual([]);
   });
+
+  it("caps a global custom role by the assignable global roles", async () => {
+    const cwd = policyProject(
+      {
+        policy: `  roles: [role('support', [allow(permissions.post.read)], { assignable: true }), role('root', [allow(permissions.post.approve)])],`,
+      },
+      {
+        "memberships.json": JSON.stringify({
+          customRoles: [
+            {
+              scope: "global",
+              name: "ops",
+              grants: [
+                { permission: "post.read" },
+                { permission: "post.approve" },
+              ],
+            },
+          ],
+        }),
+      },
+    );
+    expect(
+      await pd023({
+        cwd,
+        config: {
+          policy: "./src/policy.ts",
+          doctor: { memberships: "./memberships.json" },
+        },
+      }),
+    ).toEqual([
+      {
+        code: "PD023",
+        severity: "warning",
+        message:
+          "global custom role ops drops permission post.approve (outside-ceiling)",
+        fix: "grant it to a declared assignable role, or remove it from the custom role",
+      },
+    ]);
+  });
 });
 
 describe("PD029 credential fixtures", () => {

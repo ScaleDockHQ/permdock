@@ -72,4 +72,61 @@ describe("describe", () => {
       alternatives: [],
     });
   });
+
+  it("uses a message table and falls back to English per entry", () => {
+    const messages = {
+      titles: { denied: "Geweigerd", approval: "Goedkeuring nodig" },
+      reasons: { "no-grant": "geen toegang" },
+      separator: "; ",
+      granted: (permission: string) => `${permission} toegestaan`,
+      approval: (permission: string, by: readonly string[]) =>
+        `${permission}: ${by.length === 0 ? "een mens" : by.join(", ")}`,
+      upgrade: (plans: readonly string[]) => `plan ${plans.join("/")}`,
+    };
+    expect(
+      describeDecision(denied("no-grant", "condition"), { messages }),
+    ).toEqual({
+      kind: "denied",
+      title: "Geweigerd",
+      detail: "geen toegang; condition",
+      alternatives: [],
+    });
+    expect(
+      describeDecision(denied("tenant-mismatch"), { messages }).title,
+    ).toBe("Wrong tenant");
+    expect(
+      describeDecision(
+        approval({ kind: "role", role: "admin", scope: "global" }),
+        { messages },
+      ),
+    ).toMatchObject({
+      title: "Goedkeuring nodig",
+      detail: "post.delete: admin",
+    });
+    const granted: Decision = {
+      outcome: "granted",
+      subject: { principal: { id: "u1" }, context: {} },
+      token: "pd1.x",
+      matched: {
+        role: "admin",
+        permission: "post.read",
+        to: { kind: "role", role: "admin", scope: "global" },
+      },
+    };
+    expect(describeDecision(granted, { messages }).detail).toBe(
+      "post.read toegestaan",
+    );
+    const upgrade: Decision = {
+      outcome: "denied",
+      denials: [
+        {
+          role: null,
+          reason: "not-entitled",
+          to: { kind: "plan", plan: "pro" },
+        },
+      ],
+      alternatives: [],
+    };
+    expect(describeDecision(upgrade, { messages }).detail).toBe("plan pro");
+  });
 });

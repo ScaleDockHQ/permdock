@@ -8,8 +8,6 @@ const config: NextConfig = {
   serverExternalPackages: ["pg"],
   experimental: {
     authInterrupts: true,
-    // `@next/playwright` instant() against `next start`; only the e2e build sets it.
-    exposeTestingApiInProductionBuild: process.env["NEXT_E2E"] === "1",
   },
 };
 

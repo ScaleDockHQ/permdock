@@ -20,7 +20,11 @@ export {
   isSqlFunctionField,
 } from "./conditions/ast.ts";
 export { describe, requiredPlans } from "./core/describe.ts";
-export type { DecisionDescription } from "./core/describe.ts";
+export type {
+  DecisionDescription,
+  DescribeMessages,
+  DescribeOptions,
+} from "./core/describe.ts";
 export type {
   ApprovalRequiredDecision,
   Decision,
@@ -58,6 +62,11 @@ export {
   memoryRoleSource,
   memorySettings,
 } from "./core/interfaces.ts";
+export { memoryApprovalPolicies } from "./core/approval-policies.ts";
+export type {
+  ApprovalPolicy,
+  ApprovalPolicySource,
+} from "./core/approval-policies.ts";
 export {
   claimsFirst,
   composeMemberships,
@@ -139,6 +148,7 @@ export {
 export type {
   CustomRoleDrop,
   CustomRoleDropReason,
+  CustomRoleRename,
   CustomRoleValidation,
   ResolvedCustomRole,
 } from "./core/custom-roles.ts";
@@ -155,6 +165,7 @@ export type {
 export {
   definePermissions,
   findPermission,
+  formerKeys,
   getResource,
   isPermission,
   listPermissions,
@@ -164,6 +175,8 @@ export {
 export { crud, readable, writable } from "./core/presets.ts";
 export type {
   ActionMeta,
+  DefinePermissionsOptions,
+  MetaValue,
   Permission,
   PermissionKind,
   PermissionTree,
@@ -190,12 +203,18 @@ export {
   requiresApproval,
   role,
   separationConflicts,
+  user,
 } from "./core/policy.ts";
 export type {
   ActivationOption,
   ApprovalEscalation,
+  ApprovalMode,
   ApprovalOption,
   ApprovalRequirement,
+  ApprovalStage,
+  Approver,
+  ApproverInput,
+  UserApprover,
   AssuranceRequirement,
   BreakGlassOptions,
   BreakGlassRequirements,

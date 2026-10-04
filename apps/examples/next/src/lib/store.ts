@@ -96,15 +96,10 @@ const KEY = Symbol.for("permdock.example-next.store");
 // Next bundles route handlers and pages separately; the store lives on
 // globalThis so every bundle in the process sees the same rows.
 function store(): Store {
-  // SAFETY: KEY is a private Symbol.for key; only store() and resetStore() write it, with a Store
+  // SAFETY: KEY is a private Symbol.for key; only store() writes it, with a Store
   const holder = globalThis as { [KEY]?: Store };
   holder[KEY] ??= seed();
   return holder[KEY];
-}
-
-export function resetStore(): void {
-  // SAFETY: KEY is a private Symbol.for key; only store() and resetStore() write it, with a Store
-  (globalThis as { [KEY]?: Store })[KEY] = seed();
 }
 
 export function membershipsOf(user: string): Membership[] {

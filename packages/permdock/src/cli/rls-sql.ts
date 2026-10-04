@@ -4,6 +4,7 @@ import type { Condition, ConditionValue, ResourceNode } from "../index.ts";
 import type { SqlMembershipSource } from "../supabase/sources.ts";
 import type {
   GlobalRoles,
+  RlsActions,
   RlsActiveRow,
   RlsDialect,
   RlsMembershipTable,
@@ -48,6 +49,8 @@ export type RlsSqlContext = {
   readonly memberSources?: readonly SqlMembershipSource[];
   readonly tenantClaim: string;
   readonly gucPrefix: string;
+  /** `rls.actions`: verb to SQL command overrides. */
+  readonly actions?: RlsActions;
   readonly inlineFunctions?: boolean;
   /** Schema of `role_permissions` and the RLS helpers (`permdock_has`, `permitted_<scope>_ids`). Default `permdock`, a schema the Data API does not expose. */
   readonly schema?: string;
@@ -68,6 +71,8 @@ export type RlsSqlContext = {
   readonly customRoles?: {
     readonly declared: readonly string[];
     readonly assignable: readonly string[];
+    /** Former key to current key; a stored custom-role entry under a former key resolves like the current one. */
+    readonly renamed?: Readonly<Record<string, string>>;
   };
   /** Set when link capabilities compile: resource-scoped grants also get `anon` branches. */
   readonly capabilities?: true;

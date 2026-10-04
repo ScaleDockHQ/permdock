@@ -1,9 +1,11 @@
-import type { Grantee } from "../core/grantee.ts";
+import type { Approver } from "../core/approvers.ts";
+import type { ApprovalStage } from "../core/policy.ts";
 import type { Subject } from "../core/subject.ts";
 
+import { flattenApprovers } from "../core/approvers.ts";
 import { compact } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
-import { flattenGrantee, matchGrantee } from "../core/grantee.ts";
+import { matchGrantee } from "../core/grantee.ts";
 import { rootMembershipId } from "../core/scopes.ts";
 import { ApprovalError } from "./errors.ts";
 import { pageOf } from "./page.ts";
@@ -17,6 +19,7 @@ import {
   type ApprovalSignature,
   type ApprovalVerdict,
   approvalQuorum,
+  approverRelationKey,
   DEFAULT_APPROVAL_TTL_MS,
   escalationOpenAt,
 } from "./types.ts";
@@ -69,12 +72,13 @@ function holdsRole(subject: Subject, role: string, tenant?: string): boolean {
 }
 
 function matchesApprovers(
-  by: Grantee | readonly Grantee[],
+  by: Approver | readonly Approver[],
   subject: Subject,
   tenant: string | undefined,
   now: number,
+  relations: ReadonlySet<string>,
 ): boolean {
-  const items = flattenGrantee(by);
+  const items = flattenApprovers(by);
   if (items.length === 0) {
     return false;
   }
@@ -85,17 +89,53 @@ function matchesApprovers(
       }
       continue;
     }
-    // A relation needs a row and a relation reader the store does not have, so
-    // it matches no approver; so does any grantee that narrows to rows.
-    if (item.kind === "relation") {
-      return false;
+    if (item.kind === "user") {
+      if (subject.principal?.id !== item.id) {
+        return false;
+      }
+      continue;
     }
+    if (item.kind === "relation") {
+      if (!relations.has(approverRelationKey(item))) {
+        return false;
+      }
+      continue;
+    }
+    // A grantee that narrows to rows matches no approver.
     const result = matchGrantee(item, subject, now, undefined);
     if (!result.matched || result.where !== undefined) {
       return false;
     }
   }
   return true;
+}
+
+/** Approvals recorded per stage index. */
+function stageCounts(
+  approvals: readonly ApprovalSignature[] | undefined,
+  stages: readonly ApprovalStage[],
+): readonly number[] {
+  const counts = stages.map(() => 0);
+  for (const item of approvals ?? []) {
+    if (item.stage !== undefined && item.stage < counts.length) {
+      counts[item.stage] = (counts[item.stage] ?? 0) + 1;
+    }
+  }
+  return counts;
+}
+
+function isComplete(
+  request: ApprovalRequest,
+  approvals: readonly ApprovalSignature[],
+): boolean {
+  const stages = request.approvers?.stages;
+  if (stages === undefined) {
+    return approvals.length >= approvalQuorum(request);
+  }
+  const counts = stageCounts(approvals, stages);
+  return stages.every(
+    (stage, index) => (counts[index] ?? 0) >= (stage.quorum ?? 1),
+  );
 }
 
 function matchesFilter(
@@ -130,17 +170,22 @@ function matchesFilter(
 }
 
 /**
- * Refuses `by` as an approver of `request`, or returns. Eligibility is
- * `approvers.by`, or `approvers.escalation.to` once the request has waited
- * `escalation.after`; a principal who already approved is refused, so a
- * quorum counts distinct approvers.
+ * Refuses `by` as an approver of `request`, or returns the index of the
+ * stage the approval counts for (`undefined` without `stages`). Eligibility
+ * is `approvers.by` or, under `stages`, the first incomplete stage
+ * (`sequential`) or any incomplete stage (`all`); `approvers.escalation.to`
+ * is eligible too once the request has waited `escalation.after`. A
+ * principal who already approved is refused, so one person never completes
+ * two stages. `relations` are the relation approvers `by` holds on the
+ * request's resource (see `ApprovalVerdict.relations`).
  */
 export function assertApprover(
   request: ApprovalRequest,
   by: Subject,
   requireDistinctApprover: boolean,
   now: Date = new Date(),
-): void {
+  relations: readonly string[] = [],
+): number | undefined {
   const principal = by.principal;
   if (principal === null) {
     throw new ApprovalError(
@@ -182,26 +227,46 @@ export function assertApprover(
       "approver has already approved this request",
     );
   }
-  if (request.approvers === undefined) {
-    return;
+  const approvers = request.approvers;
+  if (approvers === undefined) {
+    return undefined;
   }
+  const held = new Set(relations);
   const instant = now.getTime() / 1000;
-  if (matchesApprovers(request.approvers.by, by, tenant, instant)) {
-    return;
-  }
-  const escalation = request.approvers.escalation;
+  const eligible = (target: Approver | readonly Approver[]): boolean =>
+    matchesApprovers(target, by, tenant, instant, held);
   const openAt = escalationOpenAt(request);
-  if (
-    escalation !== undefined &&
+  const escalated =
+    approvers.escalation !== undefined &&
     openAt !== undefined &&
     now.getTime() >= openAt &&
-    matchesApprovers(escalation.to, by, tenant, instant)
-  ) {
-    return;
+    eligible(approvers.escalation.to);
+  const stages = approvers.stages;
+  if (stages === undefined) {
+    if (escalated || (approvers.by !== undefined && eligible(approvers.by))) {
+      return undefined;
+    }
+    throw new ApprovalError(
+      "approver-not-eligible",
+      "approver does not hold an eligible role",
+    );
+  }
+  const counts = stageCounts(request.approvals, stages);
+  const open = stages.flatMap((stage, index) =>
+    (counts[index] ?? 0) < (stage.quorum ?? 1) ? [index] : [],
+  );
+  const candidates = approvers.mode === "sequential" ? open.slice(0, 1) : open;
+  for (const index of candidates) {
+    const stage = stages[index];
+    if (stage !== undefined && (escalated || eligible(stage.by))) {
+      return index;
+    }
   }
   throw new ApprovalError(
     "approver-not-eligible",
-    "approver does not hold an eligible role",
+    approvers.mode === "sequential"
+      ? "approver is not eligible for the current stage"
+      : "approver is not eligible for an open stage",
   );
 }
 
@@ -235,9 +300,10 @@ export function applyApprovalVerdict(
   if (Date.parse(request.expiresAt) <= now.getTime()) {
     throw new ApprovalError("approval-expired", "approval has expired");
   }
-  if (!(verdict.status === "rejected" && isSystemSubject(verdict.by))) {
-    assertApprover(request, verdict.by, false, now);
-  }
+  const stage =
+    verdict.status === "rejected" && isSystemSubject(verdict.by)
+      ? undefined
+      : assertApprover(request, verdict.by, false, now, verdict.relations);
   if (verdict.status === "rejected") {
     return freezeDeep(
       compact<ApprovalRequest>({
@@ -249,12 +315,16 @@ export function applyApprovalVerdict(
       }),
     );
   }
-  // One approval at a time: the request stays pending until the quorum is met.
+  // One approval at a time: the request stays pending until every quorum is met.
   const approvals: readonly ApprovalSignature[] = [
     ...(request.approvals ?? []),
-    { by: principal.id, at: now.toISOString() },
+    compact<ApprovalSignature>({
+      by: principal.id,
+      at: now.toISOString(),
+      stage,
+    }),
   ];
-  if (approvals.length < approvalQuorum(request)) {
+  if (!isComplete(request, approvals)) {
     return freezeDeep(
       compact<ApprovalRequest>({
         ...request,

@@ -23,4 +23,4 @@ Where things live:
 - `src/app/[org]/settings/page.tsx`: `prefetch = 'force-disabled'`, `instant = false` and `requireAccess` at the top.
 - `src/app/offline-badge.tsx`: `useOffline`; the snapshot keeps answering offline.
 
-`tests/e2e/src/next.spec.ts` builds the app and asserts each behavior with `@next/playwright` `instant()`. Set `SESSION_SECRET` in any deployment; the demo falls back to a fixed secret.
+Set `SESSION_SECRET` in any deployment; the demo falls back to a fixed secret.

@@ -13,6 +13,18 @@ const RESOURCE_BRAND: unique symbol = Symbol.for("permdock.resource");
 const TREE_REGISTRY: unique symbol = Symbol.for("permdock.registry");
 const NODE_RESOURCE: unique symbol = Symbol.for("permdock.resource");
 const TREE_LEAVES: unique symbol = Symbol.for("permdock.leaves");
+const LEAF_FORMER: unique symbol = Symbol.for("permdock.former");
+
+/** `definePermissions` options. */
+export type DefinePermissionsOptions = {
+  /**
+   * Keys a permission used to have, mapped to its current key. Old keys are
+   * accepted wherever a key arrives as a string (stored custom roles, OAuth
+   * scopes, AuthZEN actions, hosted grants, `findPermission`) and resolve to
+   * the current leaf; code, decisions and audit only ever see the current key.
+   */
+  readonly renamed?: Readonly<Record<string, string>>;
+};
 
 export type ActionMeta = {
   readonly title?: string;
@@ -30,7 +42,22 @@ export type ActionMeta = {
   readonly manageRoles?: boolean;
   /** Set by a generator (`permdock openapi import`) to the operation an action was inferred from. */
   readonly inferredFrom?: string;
+  /**
+   * Data the application owns, such as a risk level or an undo window. Plain
+   * JSON; PermDock carries it on the leaf, the catalog and snapshots and
+   * never reads it.
+   */
+  readonly x?: Readonly<Record<string, MetaValue>>;
 };
+
+/** A JSON value in `ActionMeta.x`. */
+export type MetaValue =
+  | string
+  | number
+  | boolean
+  | null
+  | readonly MetaValue[]
+  | { readonly [key: string]: MetaValue };
 
 export type PermissionKind = "instance" | "collection";
 
@@ -193,6 +220,11 @@ export type ResourceOptions<
   A extends ActionList | undefined = ActionList | undefined,
   C extends ActionList | undefined = ActionList | undefined,
 > = {
+  /**
+   * The resource name leaves, tables, relations and AuthZEN types use; the
+   * last path segment when absent. Names are unique across a tree.
+   */
+  readonly name?: string;
   readonly id?: string;
   readonly actions?: A;
   readonly collection?: C;
@@ -327,7 +359,48 @@ function metaFor(list: ActionList | undefined, action: string): ActionMeta {
   }
   // SAFETY: Array.isArray does not narrow a readonly array; the non-array ActionList is this map.
   const meta = (list as Record<string, ActionMeta>)[action];
+  if (meta?.x !== undefined) {
+    assertMetaValue(meta.x, `meta.x of action '${action}'`, 0);
+    if (Array.isArray(meta.x)) {
+      throw new TypeError(
+        `PermDock: meta.x of action '${action}' must be a JSON object`,
+      );
+    }
+  }
   return freezeDeep({ ...meta });
+}
+
+const MAX_META_DEPTH = 8;
+
+function assertMetaValue(value: unknown, label: string, depth: number): void {
+  if (depth > MAX_META_DEPTH) {
+    throw new Error(`PermDock: ${label} nests deeper than ${MAX_META_DEPTH}`);
+  }
+  if (
+    value === null ||
+    typeof value === "string" ||
+    typeof value === "boolean" ||
+    (typeof value === "number" && Number.isFinite(value))
+  ) {
+    return;
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      assertMetaValue(item, label, depth + 1);
+    }
+    return;
+  }
+  if (
+    typeof value === "object" &&
+    Object.getPrototypeOf(value) === Object.prototype
+  ) {
+    for (const key of Object.keys(value)) {
+      assertSafeKey(key, "meta.x key");
+      assertMetaValue(Reflect.get(value, key), label, depth + 1);
+    }
+    return;
+  }
+  throw new Error(`PermDock: ${label} must be plain JSON`);
 }
 
 export type ToolHints = {
@@ -372,6 +445,7 @@ function makeLeaf<K extends string, T, Kind extends PermissionKind>(
   action: string,
   meta: ActionMeta,
   kind: Kind,
+  former: readonly string[] | undefined,
 ): Permission<K, T, Kind> {
   // SAFETY: T is a phantom type parameter; kind is defined on the leaf right below.
   const leaf = {
@@ -387,7 +461,47 @@ function makeLeaf<K extends string, T, Kind extends PermissionKind>(
     writable: false,
     configurable: false,
   });
+  if (former !== undefined && former.length > 0) {
+    Object.defineProperty(leaf, LEAF_FORMER, {
+      value: Object.freeze([...former].toSorted()),
+      enumerable: false,
+      writable: false,
+      configurable: false,
+    });
+  }
   return Object.freeze(leaf);
+}
+
+/**
+ * The keys `permission` was renamed from, sorted. Empty for a leaf without
+ * renames and for one that crossed a serialisation boundary.
+ */
+export function formerKeys(permission: object): readonly string[] {
+  if (!Object.hasOwn(permission, LEAF_FORMER)) {
+    return [];
+  }
+  const value: unknown = Reflect.get(permission, LEAF_FORMER);
+  return isReadonlyArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
+}
+
+/** The OAuth scope strings `permission` used to have: each former key with `.` as `:`. */
+export function formerScopes(permission: object): readonly string[] {
+  return formerKeys(permission).map(keyToScope);
+}
+
+/** Former key to current key, for every leaf of `tree`. */
+export function renamedKeys(
+  tree: PermissionTree | Permission,
+): ReadonlyMap<string, string> {
+  const map = new Map<string, string>();
+  for (const leaf of listPermissions(tree)) {
+    for (const old of formerKeys(leaf)) {
+      map.set(old, leaf.key);
+    }
+  }
+  return map;
 }
 
 export function resource<
@@ -427,6 +541,8 @@ export function resource(
     "PermDock: resource() first argument must be a schema or options",
   );
 }
+
+const RESOURCE_NAME = /^[A-Za-z][A-Za-z0-9_-]*$/u;
 
 const EDGE_TABLE = /^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)?$/u;
 
@@ -707,14 +823,21 @@ function materialiseResource(
   path: readonly string[],
   registry: Map<string, ResourceNode>,
   leaves: Permission[],
+  former: ReadonlyMap<string, readonly string[]>,
 ): PermissionTree {
-  const name = path.at(-1);
-  if (name === undefined) {
+  const segment = path.at(-1);
+  if (segment === undefined) {
     throw new Error(
       "PermDock: resource() cannot be the root of definePermissions",
     );
   }
+  const name = init.options.name ?? segment;
   assertSafeKey(name, "resource");
+  if (init.options.name !== undefined && !RESOURCE_NAME.test(name)) {
+    throw new Error(
+      `PermDock: resource name '${name}' must start with a letter and hold only letters, digits, '_' and '-'`,
+    );
+  }
   if (registry.has(name)) {
     throw new Error(`PermDock: duplicate resource name '${name}'`);
   }
@@ -742,6 +865,7 @@ function materialiseResource(
       action,
       metaFor(init.options.actions, action),
       "instance",
+      former.get(key),
     );
     node[action] = leaf;
     leaves.push(leaf);
@@ -759,6 +883,7 @@ function materialiseResource(
       action,
       metaFor(init.options.collection, action),
       "collection",
+      former.get(key),
     );
     node[action] = leaf;
     leaves.push(leaf);
@@ -857,6 +982,7 @@ function walk(
   registry: Map<string, ResourceNode>,
   leaves: Permission[],
   depth: number,
+  former: ReadonlyMap<string, readonly string[]>,
 ): PermissionTree {
   if (depth > MAX_GROUP_DEPTH) {
     throw new Error(
@@ -864,7 +990,7 @@ function walk(
     );
   }
   if (isResourceInit(input)) {
-    return materialiseResource(input, path, registry, leaves);
+    return materialiseResource(input, path, registry, leaves, former);
   }
   if (input === null || typeof input !== "object" || Array.isArray(input)) {
     throw new Error(
@@ -881,6 +1007,7 @@ function walk(
       registry,
       leaves,
       depth + 1,
+      former,
     );
   }
   return group;
@@ -931,20 +1058,84 @@ export function getResource(
   return getRegistry(tree).get(name);
 }
 
-export function definePermissions<const Input>(
-  input: Input,
-): InferPermissionTree<Input> {
-  const registry = new Map<string, ResourceNode>();
-  const leaves: Permission[] = [];
-  const tree = walk(input, [], registry, leaves, 0);
-  const seen = new Set<string>();
+const RENAMED_KEY = /^\S+$/u;
+
+/** Current key to its former keys, from the `renamed` option; targets are checked once leaves exist. */
+function formerByKey(
+  renamed: Readonly<Record<string, string>> | undefined,
+): ReadonlyMap<string, readonly string[]> {
+  const former = new Map<string, string[]>();
+  if (renamed === undefined) {
+    return former;
+  }
+  if (renamed === null || typeof renamed !== "object") {
+    throw new TypeError("PermDock: renamed must map old keys to current keys");
+  }
+  for (const [old, current] of Object.entries(renamed)) {
+    if (!RENAMED_KEY.test(old) || old.split(".").some(isForbiddenKey)) {
+      throw new Error(`PermDock: renamed key '${old}' is not a valid key`);
+    }
+    if (typeof current !== "string") {
+      throw new TypeError(
+        `PermDock: renamed key '${old}' must map to a current key`,
+      );
+    }
+    former.set(current, [...(former.get(current) ?? []), old]);
+  }
+  return former;
+}
+
+/**
+ * Every current key is unique, every former key names exactly one leaf, and
+ * no former key is also a current key, so a string resolves to one leaf.
+ */
+function assertKeys(
+  leaves: readonly Permission[],
+  former?: ReadonlyMap<string, readonly string[]>,
+): void {
+  const current = new Set<string>();
   for (const leaf of leaves) {
-    if (seen.has(leaf.key)) {
+    if (current.has(leaf.key)) {
       /* v8 ignore next */
       throw new Error(`PermDock: duplicate permission key '${leaf.key}'`);
     }
-    seen.add(leaf.key);
+    current.add(leaf.key);
   }
+  for (const target of former?.keys() ?? []) {
+    if (!current.has(target)) {
+      throw new Error(
+        `PermDock: renamed target '${target}' is not a permission key`,
+      );
+    }
+  }
+  const olds = new Map<string, string>();
+  for (const leaf of leaves) {
+    for (const old of formerKeys(leaf)) {
+      if (current.has(old)) {
+        throw new Error(
+          `PermDock: renamed key '${old}' is still a permission key`,
+        );
+      }
+      const other = olds.get(old);
+      if (other !== undefined && other !== leaf.key) {
+        throw new Error(
+          `PermDock: renamed key '${old}' maps to both '${other}' and '${leaf.key}'`,
+        );
+      }
+      olds.set(old, leaf.key);
+    }
+  }
+}
+
+export function definePermissions<const Input>(
+  input: Input,
+  options?: DefinePermissionsOptions,
+): InferPermissionTree<Input> {
+  const registry = new Map<string, ResourceNode>();
+  const leaves: Permission[] = [];
+  const former = formerByKey(options?.renamed);
+  const tree = walk(input, [], registry, leaves, 0, former);
+  assertKeys(leaves, former);
   assertGraphTargets(registry);
   // SAFETY: walk builds the tree key by key from input, the shape InferPermissionTree<Input> maps.
   return freezeDeep(
@@ -986,8 +1177,17 @@ export function findPermission(
   if (isForbiddenKey(keyOrScope)) {
     return undefined;
   }
-  for (const leaf of listPermissions(tree)) {
+  const leaves = listPermissions(tree);
+  for (const leaf of leaves) {
     if (leaf.key === keyOrScope || leaf.scope === keyOrScope) {
+      return leaf;
+    }
+  }
+  for (const leaf of leaves) {
+    if (
+      formerKeys(leaf).includes(keyOrScope) ||
+      formerScopes(leaf).includes(keyOrScope)
+    ) {
       return leaf;
     }
   }
@@ -1095,5 +1295,6 @@ export function mergePermissions<const Trees extends readonly PermissionTree[]>(
   }
   assertGraphTargets(registry);
   const leaves = collectLeaves(merged);
+  assertKeys(leaves);
   return freezeDeep(attachRegistry(merged, registry, leaves));
 }

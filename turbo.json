@@ -55,7 +55,7 @@
           "allow": ["library", "tooling"]
         },
         "dependents": {
-          "allow": ["test"]
+          "allow": []
         }
       },
       "test": {
@@ -68,7 +68,7 @@
           "deny": ["app", "example", "test", "next-config"]
         },
         "dependents": {
-          "allow": ["app", "test"]
+          "allow": ["app"]
         }
       }
     }
@@ -89,13 +89,8 @@
       ],
       "env": [
         "DOCS_ORIGIN",
-        "EXPOSE_TESTING_API",
-        "MEMBERSHIP_MODE",
-        "NEXT_E2E",
         "NEXT_PUBLIC_*",
         "PERMDOCK_COLLECT",
-        "PERMDOCK_E2E_DRIFT",
-        "PERMDOCK_E2E_NO_PRIVATE_CACHE",
         "SENTRY_ORG",
         "SENTRY_PROJECT",
         "SESSION_SECRET"
@@ -152,12 +147,7 @@
       "outputs": []
     },
     "//#knip": {
-      "dependsOn": [
-        "@permdock/e2e-sveltekit-saas#typegen",
-        "@permdock/e2e-nuxt-saas#typegen",
-        "@permdock/e2e-tanstack-start-saas#typegen",
-        "@permdock/example-prisma#typegen"
-      ],
+      "dependsOn": ["@permdock/example-prisma#typegen"],
       "inputs": ["$TURBO_DEFAULT$"],
       "outputs": []
     },

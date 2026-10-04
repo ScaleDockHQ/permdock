@@ -151,7 +151,7 @@ ${createEnum(schema, "app_permission", permissions)}
 
 create table if not exists ${q("user_roles")} (
   user_id uuid not null references auth.users on delete cascade,
-  role ${q("app_role")} not null,
+  role ${options.customRoles === undefined ? q("app_role") : "text"} not null,
   primary key (user_id, role)
 );
 

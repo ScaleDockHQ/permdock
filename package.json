@@ -35,7 +35,6 @@
     "size": "turbo run size",
     "standards:fixtures": "node scripts/fetch-standards-fixtures.ts && oxfmt packages/permdock/tests/fixtures/standards",
     "test": "turbo run test",
-    "test:e2e": "pnpm --filter @permdock/e2e test:e2e",
     "test:integration": "pnpm --filter @permdock/integration test:integration",
     "test:runtimes": "pnpm --filter @permdock/runtimes test:runtimes",
     "typecheck": "turbo run typecheck",

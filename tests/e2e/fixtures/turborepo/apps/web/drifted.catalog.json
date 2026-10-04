@@ -1,7 +1,0 @@
-{
-  "$schema": "https://permdock.dev/schemas/catalog-v1.json",
-  "version": 1,
-  "resources": {},
-  "permissions": {},
-  "roles": {}
-}

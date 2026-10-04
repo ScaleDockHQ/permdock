@@ -20,24 +20,12 @@ coverage/
 tests/integration/src/support/prisma/
 apps/examples/prisma/src/generated/
 packages/permdock/tmp/
-playwright-report/
-test-results/
-blob-report/
-.playwright/
 
 # next.js
 .next/
 out/
 # local agent chat logs; searched and read like source when tracked
 /agent-transcripts/
-
-# nuxt, sveltekit and tanstack start fixtures
-.nuxt/
-.output/
-.svelte-kit/
-tests/e2e/fixtures/*/build/
-routeTree.gen.ts
-.tanstack/
 
 # expo
 .expo/
@@ -89,5 +77,3 @@ Thumbs.db
 signing_key.json
 .claude/settings.local.json
 
-# next-saas e2e fixture build log
-.e2e/

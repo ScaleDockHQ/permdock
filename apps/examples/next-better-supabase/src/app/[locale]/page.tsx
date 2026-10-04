@@ -16,7 +16,7 @@ const people = [
   },
 ] as const;
 
-/** The e2e build signs in through `/api/test/sign-in`; a real app uses Supabase Auth. */
+/** The `serve` build signs in through `/api/test/sign-in`; a real app uses Supabase Auth. */
 export default function Home() {
   return (
     <main>

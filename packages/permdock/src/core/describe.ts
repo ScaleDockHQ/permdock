@@ -1,7 +1,9 @@
-import type { Decision, MatchedGrant } from "./decision.ts";
+import type { Approver } from "./approvers.ts";
+import type { Decision, DenialReason, MatchedGrant } from "./decision.ts";
 import type { Grantee } from "./grantee.ts";
 import type { Permission } from "./permissions.ts";
 
+import { flattenApprovers } from "./approvers.ts";
 import { flattenGrantee } from "./grantee.ts";
 
 export type DecisionDescription = {
@@ -83,34 +85,87 @@ export function requiredPlans(decision: Decision): readonly string[] {
   return [...plans];
 }
 
-function approvalDetail(
-  permission: string,
-  approval: MatchedGrant["approval"],
-): string {
+/**
+ * Localised text for `describe`. Every entry is optional and falls back to the
+ * English default; `kind` and `alternatives` never change.
+ */
+export type DescribeMessages = {
+  readonly titles?: Partial<Record<DecisionDescription["kind"], string>>;
+  /** Text per denial reason; a denied detail joins the texts of its reasons with `separator`. */
+  readonly reasons?: Partial<Record<DenialReason, string>>;
+  /** Joins denial reason texts. Default `', '`. */
+  readonly separator?: string;
+  readonly granted?: (permission: string) => string;
+  /** `approvers` is empty for `'human'` approval. */
+  readonly approval?: (
+    permission: string,
+    approvers: readonly string[],
+  ) => string;
+  readonly upgrade?: (plans: readonly string[]) => string;
+};
+
+export type DescribeOptions = {
+  readonly messages?: DescribeMessages;
+};
+
+const TITLES: Readonly<Record<DecisionDescription["kind"], string>> = {
+  granted: "Granted",
+  denied: "Denied",
+  approval: "Approval required",
+  tenant: "Wrong tenant",
+  delegation: "Not delegated",
+  "server-only": "Server only",
+  upgrade: "Upgrade required",
+};
+
+function labelApprover(approver: Approver): string {
+  return approver.kind === "user"
+    ? `user ${approver.id}`
+    : labelGrantee(approver);
+}
+
+function approvers(approval: MatchedGrant["approval"]): readonly string[] {
   if (approval === undefined || approval === "human") {
+    return [];
+  }
+  return [
+    ...flattenApprovers(approval.by),
+    ...(approval.stages ?? []).flatMap((stage) => flattenApprovers(stage.by)),
+  ].map(labelApprover);
+}
+
+function approvalDetail(permission: string, labels: readonly string[]): string {
+  if (labels.length === 0) {
     return `${permission} requires human approval.`;
   }
-  const labels = flattenGrantee(approval.by).map(labelGrantee);
   return `${permission} requires approval from ${labels.join(" and ")}.`;
 }
 
-export function describe(decision: Decision): DecisionDescription {
+export function describe(
+  decision: Decision,
+  options?: DescribeOptions,
+): DecisionDescription {
+  const messages = options?.messages;
+  const titleOf = (kind: DecisionDescription["kind"]): string =>
+    messages?.titles?.[kind] ?? TITLES[kind];
   if (decision.outcome === "granted") {
+    const { permission } = decision.matched;
     return {
       kind: "granted",
-      title: "Granted",
-      detail: `${decision.matched.permission} granted.`,
+      title: titleOf("granted"),
+      detail: messages?.granted?.(permission) ?? `${permission} granted.`,
       alternatives: [],
     };
   }
   if (decision.outcome === "approval-required") {
+    const { permission } = decision.grant;
+    const labels = approvers(decision.grant.approval);
     return {
       kind: "approval",
-      title: "Approval required",
-      detail: approvalDetail(
-        decision.grant.permission,
-        decision.grant.approval,
-      ),
+      title: titleOf("approval"),
+      detail:
+        messages?.approval?.(permission, labels) ??
+        approvalDetail(permission, labels),
       alternatives: [],
     };
   }
@@ -118,8 +173,9 @@ export function describe(decision: Decision): DecisionDescription {
   if (plans.length > 0) {
     return {
       kind: "upgrade",
-      title: "Upgrade required",
-      detail: `${plans.join(" or ")} plan required.`,
+      title: titleOf("upgrade"),
+      detail:
+        messages?.upgrade?.(plans) ?? `${plans.join(" or ")} plan required.`,
       alternatives: decision.alternatives,
       plans,
     };
@@ -132,18 +188,12 @@ export function describe(decision: Decision): DecisionDescription {
       : reasons.includes("opaque-condition") || reasons.includes("server-only")
         ? "server-only"
         : "denied";
-  const title =
-    kind === "tenant"
-      ? "Wrong tenant"
-      : kind === "delegation"
-        ? "Not delegated"
-        : kind === "server-only"
-          ? "Server only"
-          : "Denied";
-  const detail = decision.denials.map((denial) => denial.reason).join(", ");
+  const detail = reasons
+    .map((reason) => messages?.reasons?.[reason] ?? reason)
+    .join(messages?.separator ?? ", ");
   return {
     kind,
-    title,
+    title: titleOf(kind),
     detail,
     alternatives: decision.alternatives,
   };

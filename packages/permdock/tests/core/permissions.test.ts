@@ -381,6 +381,12 @@ describe("definePermissions relation and graph validation", () => {
         b: { post: resource({ actions: ["read"] }) },
       }),
     ).toThrow(/duplicate resource name 'post'/u);
+    expect(() =>
+      definePermissions({
+        a: { post: resource({ name: "post", actions: ["read"] }) },
+        b: { article: resource({ name: "post", actions: ["read"] }) },
+      }),
+    ).toThrow(/duplicate resource name 'post'/u);
     expect(() => getRegistry({})).toThrow(/missing its registry/u);
     // SAFETY: a JavaScript caller passing no arguments.
     const untyped = resource as unknown as () => unknown;
@@ -388,6 +394,69 @@ describe("definePermissions relation and graph validation", () => {
     expect(() => definePermissions({ post: resource(Post) })).toThrow(
       /no actions/u,
     );
+  });
+
+  it("names a resource apart from its path", () => {
+    const tree = definePermissions({
+      platform: {
+        billing: resource({ name: "platform_billing", actions: ["view"] }),
+      },
+      billing: resource({ actions: ["view"] }),
+    });
+    expect(tree.platform.billing.view).toMatchObject({
+      key: "platform.billing.view",
+      resource: "platform_billing",
+    });
+    expect(tree.billing.view.resource).toBe("billing");
+    expect(getResource(tree, "platform_billing")?.path).toBe(
+      "platform.billing",
+    );
+    expect(() =>
+      definePermissions({ a: resource({ name: "1st", actions: ["read"] }) }),
+    ).toThrow(/must start with a letter/u);
+    expect(() =>
+      definePermissions({
+        a: resource({ name: "a.b", actions: ["read"] }),
+      }),
+    ).toThrow(/must start with a letter/u);
+  });
+
+  it("carries meta.x as frozen JSON and rejects anything else", () => {
+    const tree = definePermissions({
+      invoice: resource({
+        actions: {
+          send: {
+            x: { risk: "high", effects: ["customer-facing"], undo: null },
+          },
+        },
+      }),
+    });
+    expect(tree.invoice.send.meta.x).toEqual({
+      risk: "high",
+      effects: ["customer-facing"],
+      undo: null,
+    });
+    expect(Object.isFrozen(tree.invoice.send.meta.x)).toBe(true);
+    expect(JSON.parse(JSON.stringify(tree.invoice.send))).toMatchObject({
+      meta: { x: { risk: "high" } },
+    });
+    const bad = (x: unknown) => () =>
+      definePermissions({
+        invoice: resource({
+          // SAFETY: a JavaScript caller passing a non-JSON value.
+          actions: { send: { x } as never },
+        }),
+      });
+    expect(bad({ at: new Date(0) })).toThrow(/must be plain JSON/u);
+    expect(bad({ n: Number.NaN })).toThrow(/must be plain JSON/u);
+    expect(bad({ f: () => 1 })).toThrow(/must be plain JSON/u);
+    expect(bad(["a"])).toThrow(/must be a JSON object/u);
+    expect(bad(JSON.parse('{"__proto__": 1}'))).toThrow(/meta.x key/u);
+    let deep: unknown = 1;
+    for (let index = 0; index < 10; index += 1) {
+      deep = [deep];
+    }
+    expect(bad({ deep })).toThrow(/nests deeper/u);
   });
 
   it("merges a plain tree and rejects a leaf colliding with a group", () => {

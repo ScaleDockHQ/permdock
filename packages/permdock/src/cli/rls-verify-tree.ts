@@ -358,7 +358,7 @@ export async function verifyTree(input: {
   const reads = listPermissions(policy.permissions).filter(
     (leaf) =>
       leaf.kind === "instance" &&
-      commandFor(leaf.action) === "select" &&
+      commandFor(leaf.action, input.config.rls?.actions) === "select" &&
       rows[leaf.resource] !== undefined,
   );
   for (const subject of subjects) {

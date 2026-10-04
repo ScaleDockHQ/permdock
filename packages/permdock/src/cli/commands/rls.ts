@@ -168,6 +168,10 @@ export function rls(ctx: CliContext): Command {
         type: "boolean",
         description: "Write the helpers and keep the policies hand-written",
       },
+      shims: {
+        type: "boolean",
+        description: "Wrap each rls.migrate helper under its legacy name",
+      },
       write: {
         type: "boolean",
         description: "migrate: rewrite the files instead of a dry run",
@@ -212,6 +216,7 @@ export function rls(ctx: CliContext): Command {
         grantsOut: stringArg(parsed["grants-out"]),
         seedsOut: stringArg(parsed["seeds-out"]),
         helpersOnly: parsed["helpers-only"] === true,
+        shims: parsed.shims === true,
         write: parsed.write === true,
         json: ctx.json,
         io: ctx.io,

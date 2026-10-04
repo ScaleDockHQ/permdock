@@ -45,6 +45,8 @@ export type DecisionProvider = {
 export type RoleSource = {
   rolesFor(tenant: string): CustomRole[] | Promise<CustomRole[]>;
   assignable?(tenant: string): string[] | Promise<string[]>;
+  /** Platform custom roles (`scope: 'global'`), read once per signed-in subject. A role here with a tenant is ignored. */
+  globalRoles?(): CustomRole[] | Promise<CustomRole[]>;
 };
 
 /** One member of a scope instance, as `MembershipSource.list` returns it. */
@@ -576,7 +578,12 @@ export function memoryRoleSource(
   customRoles: readonly CustomRole[],
 ): RoleSource {
   const byTenant = new Map<string, CustomRole[]>();
+  const global: CustomRole[] = [];
   for (const role of customRoles) {
+    if (role.tenant === undefined) {
+      global.push(role);
+      continue;
+    }
     const list = byTenant.get(role.tenant) ?? [];
     list.push(role);
     byTenant.set(role.tenant, list);
@@ -584,6 +591,9 @@ export function memoryRoleSource(
   return {
     rolesFor(tenant: string): CustomRole[] {
       return byTenant.get(tenant) ?? [];
+    },
+    globalRoles(): CustomRole[] {
+      return global;
     },
   };
 }

@@ -17,8 +17,14 @@ import type { RelationReader } from "./relations.ts";
 import type { CustomRole, Membership, Subject } from "./subject.ts";
 
 import { evaluateCondition } from "../conditions/evaluate.ts";
+import { decisionTenant, tightenApproval } from "./approval-policies.ts";
 import { compact } from "./compact.ts";
-import { isCustomRoleName, holdsCustomRole } from "./custom-roles.ts";
+import {
+  isCustomRoleName,
+  holdsCustomRole,
+  holdsGlobalCustomRole,
+  isGlobalCustomRole,
+} from "./custom-roles.ts";
 import {
   coveredByDelegation,
   delegatedPermissions,
@@ -86,10 +92,23 @@ function isRowPair(value: unknown): value is RowPair<unknown> {
   );
 }
 
+function isGlobalRole(value: unknown): value is CustomRole {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    Reflect.get(value, "scope") === "global"
+  );
+}
+
+function onlyGlobal(roles: unknown): CustomRole[] {
+  return Array.isArray(roles) ? roles.filter(isGlobalRole) : [];
+}
+
 export function customRolesFor(
   source: RoleSource | undefined,
   tenants: readonly string[],
   auth: AuthEvent[],
+  signedIn = false,
 ): CustomRole[] | Promise<CustomRole[]> {
   if (source === undefined) {
     return [];
@@ -98,6 +117,17 @@ export function customRolesFor(
   for (const tenant of tenants) {
     try {
       loaded.push(source.rolesFor(tenant));
+    } catch {
+      auth.push({ reason: "source-threw", source: "customRoles" });
+      loaded.push([]);
+    }
+  }
+  if (signedIn && source.globalRoles !== undefined) {
+    try {
+      const roles = source.globalRoles();
+      loaded.push(
+        isThenable(roles) ? roles.then(onlyGlobal) : onlyGlobal(roles),
+      );
     } catch {
       auth.push({ reason: "source-threw", source: "customRoles" });
       loaded.push([]);
@@ -635,11 +665,13 @@ export function evaluate(
   }
 
   const holdsCustom = (custom: CustomRole): boolean =>
-    (subject.principal?.memberships ?? []).some(
-      (membership) =>
-        inTeam(membership, scopes, env.team) &&
-        holdsCustomRole(membership, custom, scopes),
-    );
+    isGlobalCustomRole(custom)
+      ? holdsGlobalCustomRole(principalRoles, custom)
+      : (subject.principal?.memberships ?? []).some(
+          (membership) =>
+            inTeam(membership, scopes, env.team) &&
+            holdsCustomRole(membership, custom, scopes),
+        );
 
   const walkRole: ResourceRoleWalk | undefined =
     env.relations?.available === true
@@ -969,12 +1001,40 @@ export function evaluate(
     });
   }
 
+  const approvalPolicies = env.approvalPolicies;
+  if (approvalPolicies === "failed" && allows.length > 0) {
+    return complete({
+      outcome: "denied",
+      denials: [
+        {
+          role: null,
+          reason: "approval",
+          detail: "approval-policy-unavailable",
+        },
+      ],
+      alternatives: [],
+    });
+  }
+  const approvalOf = (candidate: (typeof allows)[number]): Grant["approval"] =>
+    approvalPolicies === undefined || approvalPolicies === "failed"
+      ? candidate.grant.approval
+      : tightenApproval(candidate.grant.approval, approvalPolicies, {
+          permission: permission.key,
+          tenant: decisionTenant(subject, candidate.membership),
+          subject,
+          current,
+          next,
+          now,
+          scopes: scopeList(policy.scopes),
+        });
   const quotaDenials: Denial[] = [];
   let matchedAllow: (typeof allows)[number] | undefined;
+  let approval: Grant["approval"];
   let quotaState: Pick<GrantedDecision, "quota" | "obligations"> = {};
   for (const candidate of allows) {
+    approval = approvalOf(candidate);
     const consume =
-      !requiresApproval(candidate.grant.approval) &&
+      !requiresApproval(approval) &&
       shouldConsumeQuota(options.source, env.simulated);
     const quota = applyQuota({
       store: env.limits,
@@ -1019,7 +1079,6 @@ export function evaluate(
             (current as Record<string, unknown>)[resource?.id ?? "id"] ?? "*",
           )
         : "*";
-  const approval = matchedAllow.grant.approval;
   const version =
     approval !== undefined &&
     approval !== "human" &&
@@ -1041,17 +1100,16 @@ export function evaluate(
             ? payloadDigest(next ?? current)
             : undefined,
       });
-  const matched = matchedOf(
-    matchedAllow.grant,
-    permission.key,
-    matchedAllow.breakGlass,
-  );
+  const matched = compact<MatchedGrant>({
+    ...matchedOf(matchedAllow.grant, permission.key, matchedAllow.breakGlass),
+    approval,
+  });
   const obligations = [
     ...(quotaState.obligations ?? []),
     ...(matchedAllow.obligations ?? []),
   ];
   return complete(
-    requiresApproval(matchedAllow.grant.approval)
+    requiresApproval(approval)
       ? {
           outcome: "approval-required",
           grant: matched,
