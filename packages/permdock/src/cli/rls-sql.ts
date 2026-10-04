@@ -71,6 +71,8 @@ export type RlsSqlContext = {
   readonly customRoles?: {
     readonly declared: readonly string[];
     readonly assignable: readonly string[];
+    /** Former key to current key; a stored custom-role entry under a former key resolves like the current one. */
+    readonly renamed?: Readonly<Record<string, string>>;
   };
   /** Set when link capabilities compile: resource-scoped grants also get `anon` branches. */
   readonly capabilities?: true;

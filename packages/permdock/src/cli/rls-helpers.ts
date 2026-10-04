@@ -553,6 +553,10 @@ where rp.role = any(${textArray(custom.assignable)})
       and a.effect = 'allow'
   );
 revoke all on table ${ceiling} from anon, authenticated, public;`);
+  const renames = Object.entries(custom.renamed ?? {}).toSorted(([a], [b]) =>
+    a < b ? -1 : a > b ? 1 : 0,
+  );
+  const rename = renamesSql(renames);
   chunks.push(`-- one custom role: included ceiling keys and same-scope denies, plus every ceiling key of an allowed permission, minus denied permissions
 create or replace function ${keys}(p_allow text[], p_deny text[], p_include text[], p_scope text)
 returns setof text
@@ -560,14 +564,14 @@ language sql
 stable
 set search_path = ''
 as $$
-  with ceiling as (
-    select c.role, c.permission, c.grant_key, c.effect
-    from ${ceiling} c
+  with ${rename.prelude}ceiling as (
+    select c.role, ${rename.permission("c")}, c.grant_key, c.effect
+    from ${ceiling} c${rename.join("c")}
     where c.scope = p_scope
   ),
   included as (
-    select rp.role, rp.permission, rp.grant_key, rp.scope, rp.effect
-    from ${rp} rp
+    select rp.role, ${rename.permission("rp")}, rp.grant_key, rp.scope, rp.effect
+    from ${rp} rp${rename.join("rp")}
     where rp.role = any(coalesce(p_include, '{}'::text[]))
   ),
   kept as (
@@ -581,7 +585,7 @@ as $$
       )
   ),
   wanted as (
-    select unnest(coalesce(p_allow, '{}'::text[])) as permission
+    ${rename.allow}
     union
     select i.permission
     from included i
@@ -594,11 +598,11 @@ as $$
   allowed as (
     select w.permission
     from wanted w
-    where not (w.permission = any(coalesce(p_deny, '{}'::text[])))
+    where not (${rename.denied("w")})
       and not exists (select 1 from kept k where k.permission = w.permission)
   )
   select k.grant_key from kept k
-  where not (k.permission = any(coalesce(p_deny, '{}'::text[])))
+  where not (${rename.denied("k")})
   union
   select i.grant_key from included i
   where i.effect = 'deny' and i.scope = p_scope
@@ -608,6 +612,56 @@ as $$
 $$;
 revoke execute on function ${keys}(text[], text[], text[], text) from public, anon, authenticated;`);
   return chunks.join("\n\n");
+}
+
+function currentKeysSql(array: string): string {
+  return `select coalesce(r.key, e.permission) as permission
+    from unnest(coalesce(${array}, '{}'::text[])) as e(permission)
+    left join renamed r on r.former = e.permission`;
+}
+
+/**
+ * SQL fragments that read a stored former key as its current key inside
+ * `permdock_custom_keys`. Without renames they are the plain column and
+ * array reads.
+ */
+function renamesSql(renames: readonly (readonly [string, string])[]): {
+  readonly prelude: string;
+  readonly permission: (alias: string) => string;
+  readonly join: (alias: string) => string;
+  readonly allow: string;
+  readonly denied: (alias: string) => string;
+} {
+  if (renames.length === 0) {
+    return {
+      prelude: "",
+      permission: (alias) => `${alias}.permission`,
+      join: () => "",
+      allow: "select unnest(coalesce(p_allow, '{}'::text[])) as permission",
+      denied: (alias) =>
+        `${alias}.permission = any(coalesce(p_deny, '{}'::text[]))`,
+    };
+  }
+  const values = renames
+    .map(
+      ([former, current]) =>
+        `(${quoteLiteral(former)}, ${quoteLiteral(current)})`,
+    )
+    .join(", ");
+  return {
+    prelude: `renamed (former, key) as (values ${values}),
+  denied as (
+    ${currentKeysSql("p_deny")}
+  ),
+  `,
+    permission: (alias) =>
+      `coalesce(r_${alias}.key, ${alias}.permission) as permission`,
+    join: (alias) =>
+      ` left join renamed r_${alias} on r_${alias}.former = ${alias}.permission`,
+    allow: currentKeysSql("p_allow"),
+    denied: (alias) =>
+      `${alias}.permission in (select d.permission from denied d)`,
+  };
 }
 
 /**

@@ -246,7 +246,9 @@ The membership table (or claim) holds the custom role's name like any role; a de
 
 In `jwt` mode each membership may carry `grants`, a map from custom role name to compact entries: `key` allows, `-key` denies, `@role` includes. A custom role rides the membership of the scope it is held at. `customRoleClaim(roles)` from `permdock` builds the map for a token hook; the claim is read only with `--custom-roles`, and it adds a few bytes per entry to every token.
 
-A [platform custom role](/docs/concepts/custom-roles#platform-custom-roles) is a row with `scope = 'global'` and null `tenant_id` and `scope_id`; check constraints refuse any other combination. `permdock_has` unions its keys from `user_roles` in `database` mode, and from the top-level `role_grants` claim (the same compact map, keyed by role name) in `jwt` mode, so a global custom role answers in every tenant like a declared global role.
+A [platform custom role](/docs/concepts/custom-roles#platform-custom-roles) is a row with `scope = 'global'` and null `tenant_id` and `scope_id`; check constraints refuse any other combination. `permdock_has` unions its keys from `user_roles` in `database` mode, and from the top-level `role_grants` claim (the same compact map, keyed by role name) in `jwt` mode, so a global custom role answers in every tenant like a declared global role. With `--rbac supabase`, the scaffold's `user_roles.role` is `text` instead of the `app_role` enum when `--custom-roles` is on, because a custom role name is data, not a declared value.
+
+A stored entry under a key renamed with `definePermissions(..., { renamed })` resolves like the current key: `permdock_custom_keys` reads each former key as its current key, for allows, denies and the ceiling alike, so the database and `resolveCustomRole` agree during the deprecation window.
 
 ### Link capabilities
 

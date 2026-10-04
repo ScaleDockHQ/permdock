@@ -109,6 +109,7 @@ async function loadPolicy(
 function customRoleNames(policy: Policy): {
   readonly declared: readonly string[];
   readonly assignable: readonly string[];
+  readonly renamed?: Readonly<Record<string, string>>;
 } {
   const declared = [...roleNames(policy)].toSorted();
   const assignable = declared.filter(
@@ -118,7 +119,10 @@ function customRoleNames(policy: Policy): {
         (leaf) => leaf.key === name && leaf.assignable,
       ),
   );
-  return { declared, assignable };
+  const renamed = renamedKeys(policy.vocabulary.permissions);
+  return renamed.size === 0
+    ? { declared, assignable }
+    : { declared, assignable, renamed: Object.fromEntries(renamed) };
 }
 
 export async function runRlsGenerate(input: {
