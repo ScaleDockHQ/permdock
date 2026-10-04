@@ -14,7 +14,6 @@ const internal = [
 export default defineConfig({
   output: "src/lib/supabase/generated.ts",
   sql: {
-    dir: "supabase/schemas/better_supabase",
     testsDir: "supabase/tests",
     kit: ["updated-at", "audit", "pgtap"],
   },

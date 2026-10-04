@@ -18,4 +18,4 @@ grant select on public.staff to authenticated;
 create trigger bs_updated_at before update on public.staff
   for each row execute function better_supabase.set_updated_at('updated_at');
 create trigger bs_audit after insert or update or delete on public.staff
-  for each row execute function better_supabase.audit_trigger();
+  for each row execute function better_supabase.audit_row_change();

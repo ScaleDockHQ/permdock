@@ -304,6 +304,12 @@ export type Models = {
 };
 
 export type Functions = {
+  audit_retention: {
+    Args: {
+      tenant: string;
+    };
+    Returns: string;
+  };
   datetime_preference_claims: {
     Args: {
       p_user_id: string;
