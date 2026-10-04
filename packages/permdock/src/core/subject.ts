@@ -123,6 +123,8 @@ export type Actor = {
   readonly id: string;
   readonly kind: string;
   readonly binding?: Binding;
+  /** `true` narrows every policy delegation to this actor to its read-only permissions (`readOnlyHint`). */
+  readonly readOnly?: boolean;
   readonly [key: string]: unknown;
 };
 

@@ -99,7 +99,7 @@ select extensions.ok(
 update public.quotes set title = 'Initech rollout, phase 2'
 where id = '00000000-0000-4000-8000-0000000000f1';
 select extensions.results_eq(
-  $$select op, changed from better_supabase.audit_log
+  $$select op, changed from better_supabase.audit_events
     where table_name = 'public.quotes' and record_id = '00000000-0000-4000-8000-0000000000f1'
       and op = 'update'$$,
   $$values ('update', array['title'])$$,

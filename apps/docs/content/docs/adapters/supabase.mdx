@@ -64,7 +64,7 @@ const betterSupabase = defineSupabase(schema).claims(
 );
 ```
 
-It stays synchronous unless the app schema is asynchronous. `supabaseClaimFixtures` in `permdock/testing` all pass it, from `full` (every field, `memberships_truncated` and a `hook.claims` claim) to `portalContact`, `oauthClient` and `actChain`.
+It stays synchronous unless the app schema is asynchronous. `supabaseClaimFixtures` in `permdock/testing` all pass it, from `full` (every field, `memberships_truncated` and a `hook.claims` claim) to `portalContact`, `oauthClient`, `actChain`, `supportSession`, `supportSessionReadOnly`, `impersonation` and `anonymousSignIn`.
 
 - `supabaseRls(options)` is the `rls` value in `permdock.config.ts`. It tells `permdock rls` how `principal.id` (`(select auth.uid())`), `principal.claim.<name>` (`(select auth.jwt()) ->> 'claim'`), `principal.roles` (the `permdock_has` helper) and tenant-scoped roles (the `permitted_tenant_ids` helper, over the membership table or the `memberships` claim) compile; `tenantType` sets the tenant column type the claim is cast to (default `uuid`) ([tenancy](/docs/concepts/tenancy), portable compilation). `memberships` is one table, or `{ scopes, tenant, team, resource }` with a table per [named scope](/docs/concepts/scopes). `suspension` names the users and scope-instance tables whose `disabledAt` or `status` column suspends a row ([RLS](/docs/cli/rls)).
 - `exchangeCapability(subject, { key, alg?, kid?, issuer?, ttl? })` exchanges a verified link subject (from `subjectFromCapability`) for a short-lived Supabase access token: `role: 'anon'`, the capability under a `capability` claim, `iat`, `exp` (the `ttl`, default 300 seconds and at most 3600, never past the capability's expiry) and no `sub`, because `auth.uid()` casts `sub` to a uuid. `key` is a private JWK imported into the project's [JWT signing keys](https://supabase.com/docs/guides/auth/signing-keys) with `alg: 'ES256'` (the default) or `'RS256'` and its `kid`, or `{ secret }` with `alg: 'HS256'` named for a project on the legacy JWT secret. It returns `undefined` for any subject that is not a live link, and never mints `service_role`. `permdock rls generate --capabilities` emits the policies that read the claim ([link capabilities](/docs/concepts/capabilities)).
@@ -207,22 +207,22 @@ Supabase Auth has two signing systems ([JWT signing keys](https://supabase.com/d
 
 `subjectFromSupabase(claims, options)` maps the minted claims to the subject:
 
-| Claim                                                                                         | Trust                                | Becomes                                                                                                                                                                                                                                                                 |
-| --------------------------------------------------------------------------------------------- | ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `sub`                                                                                         | Verified                             | `principal.id`                                                                                                                                                                                                                                                          |
-| `role` (`anon`, `authenticated`, `service_role`)                                              | Verified                             | The Postgres role the request runs under; `anon` yields the anonymous subject; `service_role` is refused for subject building (a bypass role is not a principal)                                                                                                        |
-| `app_metadata.*` and hook-injected top-level claims (`user_role`, `tenant_id`, `memberships`) | Server-set, trusted                  | `principal.roles`, `principal.tenant`, `principal.memberships`, `principal.claims.*`                                                                                                                                                                                    |
-| `user_metadata.*`                                                                             | User-writable through the client SDK | **Never read.** A user can set `user_metadata.role = 'admin'` on themselves; it must not become a grant                                                                                                                                                                 |
-| `aal` (`aal1`, `aal2`)                                                                        | Verified                             | `principal.assurance.acr` (Supabase's level takes the `acr` slot, [subject](/docs/concepts/subject)), for grants that require MFA (`where: { subject: { assurance: { acr: 'aal2' } } }`); a failed condition is `denied` with reason `insufficient-user-authentication` |
-| `amr` (array of `{ method, timestamp }`)                                                      | Verified                             | Not copied into `principal.assurance.amr` (those objects are not RFC 8176 strings). Use `aal` for MFA, or map `method` yourself in a wrapper                                                                                                                            |
-| `iss`                                                                                         | Verified                             | `principal.issuer`; the project's Auth URL                                                                                                                                                                                                                              |
-| `session_id`                                                                                  | Verified                             | Carried on audit events; the key a CAEP `session-revoked` event invalidates                                                                                                                                                                                             |
-| `exp`                                                                                         | Verified                             | `subject.expiresAt`, copied into snapshots                                                                                                                                                                                                                              |
-| `email`, `phone`, `is_anonymous`                                                              | Verified                             | Exposed on `principal` only when `options.include` names them; not used for grants                                                                                                                                                                                      |
-| The claim `options.plans` names (for example `features`), an object keyed by tenant id        | Server-set, trusted                  | `principal.plans`, from the active tenant's entry only, so `plan()` grants apply; another tenant's plans are never read                                                                                                                                                 |
-| `act` (RFC 8693, the outermost `sub` is the current actor)                                    | Verified                             | `subject.actor` `{ id, kind: 'oauth-client' }`, with the chain on `delegation.chain`; a malformed `act` yields the anonymous subject and `on('auth')` cause `invalid-chain`                                                                                             |
-| `client_id` (a token Supabase's OAuth server issued to a third-party app)                     | Verified                             | `subject.actor` `{ id: client_id, kind: 'oauth-client' }` when there is no `act`                                                                                                                                                                                        |
-| `scope`                                                                                       | Verified                             | `delegation.scopes`. An actor needs a delegation that covers the permission (`<resource>:<action>`), so a client token without a matching scope is `denied` with `no-delegation` or `not-delegated`                                                                     |
+| Claim                                                                                         | Trust                                | Becomes                                                                                                                                                                                                                                                                                                                                                                     |
+| --------------------------------------------------------------------------------------------- | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sub`                                                                                         | Verified                             | `principal.id`                                                                                                                                                                                                                                                                                                                                                              |
+| `role` (`anon`, `authenticated`, `service_role`)                                              | Verified                             | The Postgres role the request runs under; `anon` yields the anonymous subject; `service_role` is refused for subject building (a bypass role is not a principal)                                                                                                                                                                                                            |
+| `app_metadata.*` and hook-injected top-level claims (`user_role`, `tenant_id`, `memberships`) | Server-set, trusted                  | `principal.roles`, `principal.tenant`, `principal.memberships`, `principal.claims.*`                                                                                                                                                                                                                                                                                        |
+| `user_metadata.*`                                                                             | User-writable through the client SDK | **Never read.** A user can set `user_metadata.role = 'admin'` on themselves; it must not become a grant                                                                                                                                                                                                                                                                     |
+| `aal` (`aal1`, `aal2`)                                                                        | Verified                             | `principal.assurance.acr` (Supabase's level takes the `acr` slot, [subject](/docs/concepts/subject)), for grants that require MFA (`where: { subject: { assurance: { acr: 'aal2' } } }`); a failed condition is `denied` with reason `insufficient-user-authentication`                                                                                                     |
+| `amr` (array of `{ method, timestamp }`)                                                      | Verified                             | Not copied into `principal.assurance.amr` (those objects are not RFC 8176 strings). Use `aal` for MFA, or map `method` yourself in a wrapper                                                                                                                                                                                                                                |
+| `iss`                                                                                         | Verified                             | `principal.issuer`; the project's Auth URL                                                                                                                                                                                                                                                                                                                                  |
+| `session_id`                                                                                  | Verified                             | Carried on audit events; the key a CAEP `session-revoked` event invalidates                                                                                                                                                                                                                                                                                                 |
+| `exp`                                                                                         | Verified                             | `subject.expiresAt`, copied into snapshots                                                                                                                                                                                                                                                                                                                                  |
+| `email`, `phone`, `is_anonymous`                                                              | Verified                             | Exposed on `principal` only when `options.include` names them; not used for grants. With `anonymousSignIns: 'deny'`, `is_anonymous: true` yields the anonymous subject                                                                                                                                                                                                      |
+| The claim `options.plans` names (for example `features`), an object keyed by tenant id        | Server-set, trusted                  | `principal.plans`, from the active tenant's entry only, so `plan()` grants apply; another tenant's plans are never read                                                                                                                                                                                                                                                     |
+| `act` (RFC 8693, the outermost `sub` is the current actor)                                    | Verified                             | `subject.actor` by the outer `kind`: none is `{ id, kind: 'oauth-client' }` with the chain on `delegation.chain`, `support` is `{ id, kind: 'support', sessionId, readOnly }`, `impersonation` is `{ id, kind: 'impersonation' }`. A malformed `act`, another `kind`, or `support` without `session_id` yields the anonymous subject and `on('auth')` cause `invalid-chain` |
+| `client_id` (a token Supabase's OAuth server issued to a third-party app)                     | Verified                             | `subject.actor` `{ id: client_id, kind: 'oauth-client' }` when there is no `act`                                                                                                                                                                                                                                                                                            |
+| `scope`                                                                                       | Verified                             | `delegation.scopes`. An actor needs a delegation that covers the permission (`<resource>:<action>`), so a client token without a matching scope is `denied` with `no-delegation` or `not-delegated`                                                                                                                                                                         |
 
 ### Actor and delegation: `actorOf` and `delegationOf`
 
@@ -231,14 +231,24 @@ The two rules in the last three rows are exported, so a session library derives 
 ```ts
 import { actorOf, delegationOf } from "permdock/supabase";
 
-const actor = actorOf(claims); // { ok: true, actor?: { id, kind: 'oauth-client', chain? } } | { ok: false, reason: 'invalid-chain' }
+const actor = actorOf(claims); // { ok: true, actor?: SupabaseActor } | { ok: false, reason: 'invalid-chain' }
 if (!actor.ok) return deny(); // a malformed act chain is never a user acting alone
 const delegation = delegationOf(claims); // { scopes } | undefined
 ```
 
 - `actorOf` reads only `act` and `client_id`. `act` wins: the actor is its outermost `sub` (the current actor; nested levels are prior actors), and `chain` is a frozen copy of the claim. Every level must carry a non-empty string `sub`. Without `act`, a non-empty `client_id` is the actor. With neither, the result is `{ ok: true }` with no actor.
-- `{ ok: false, reason: 'invalid-chain' }` must deny. An `act` that is not a chain of objects ending in a non-empty `sub` is not proof of who acts, and treating the token as the user alone would drop the delegation limit. `actorOf` also returns it when reading the claims throws.
-- `delegationOf` reads only `scope`: a space-separated string or a list of strings becomes `scopes`, and an empty or malformed value is `undefined`. `subjectFromSupabase` sets `delegation` only when there is an actor, as `{ scopes, chain }`.
+- The outer level's `kind` names the actor, as better-supabase writes it:
+
+  | `act`                                                     | `SupabaseActor`                                               |
+  | --------------------------------------------------------- | ------------------------------------------------------------- |
+  | no `kind` (an OAuth client or an agent chain)             | `{ kind: 'oauth-client', id, chain }`                         |
+  | `{ kind: 'support', sub, session_id, read_only, reason }` | `{ kind: 'support', id, sessionId, readOnly, reason, chain }` |
+  | `{ kind: 'impersonation', sub, reason }`                  | `{ kind: 'impersonation', id, reason, chain }`                |
+
+  A token better-supabase 0.5.0 minted for a support session (`session_id` without `kind`) reads as `support`, as better-supabase reads it until 0.6. `read_only` defaults to `false`.
+
+- `{ ok: false, reason: 'invalid-chain' }` must deny. An `act` that is not a chain of objects ending in a non-empty `sub`, that names another `kind`, or a support level without a non-empty `session_id` or with a non-boolean `read_only`, is not proof of who acts, and treating the token as the user alone would drop the delegation limit. `actorOf` also returns it when reading the claims throws.
+- `delegationOf` reads only `scope`: a space-separated string or a list of strings becomes `scopes`, and an empty or malformed value is `undefined`. `subjectFromSupabase` sets `delegation` only for an `oauth-client` actor, as `{ scopes, chain }`. A support or impersonation actor has none, so it reaches nothing until the policy delegates to it ([support and impersonation actors](#support-and-impersonation-actors)).
 - Callers apply the role rule first. A token with `role` set to `anon` or `service_role` maps to the anonymous subject and never carries an actor or a delegation, whatever its `act`, `client_id` or `scope` say: `anon` is no user, and `service_role` is a bypass key, not a principal. Neither function looks at `role`, so a caller that skips this check would hand an actor to a token PermDock refuses.
 
 Both take `unknown`, never throw, and return frozen values. For every `supabaseClaimFixtures` entry the test suite checks that they agree with `subjectFromSupabase(...).actor` and `.delegation`.
@@ -254,6 +264,16 @@ A top-level claim set to `null` counts as absent. The RBAC hook writes `user_rol
 ```ts
 const session = await getSession(); // verified locally against the project JWKS
 const subject = subjectFromSupabaseSession(session, { roles: "user_role" });
+```
+
+### Anonymous sign-ins
+
+Supabase gives a [`signInAnonymously()`](https://supabase.com/docs/guides/auth/auth-anonymous) user the `authenticated` role and `is_anonymous: true`, so by default `subjectFromSupabase` maps them as a user like any other. `anonymousSignIns: 'deny'` maps them to the anonymous subject instead, so only `anyone()` grants apply. Set it together with `rls.anonymousSignIns: 'deny'`, which does the same in the generated policies; `permdock doctor` PD057 names a subject call without it:
+
+```ts
+const subject = subjectFromSupabaseSession(session, {
+  anonymousSignIns: "deny",
+});
 ```
 
 ### Claim size and membership mode
@@ -341,6 +361,28 @@ Pass the same source, with a `query` over the app's connection, as `memberships`
 
 Run `permdock supabase inspect --out` before `better-supabase sql add entitlements`. With `permdock.manifest.json` present, the entitlements module writes `better_supabase.feature_claims(user_id)` over `permdock.member_organization_ids_for(user_id)` instead of its own membership table, so a membership that expired or an organization that is suspended loses its features in the same token that loses the membership ([claims other packages own](/docs/adapters/supabase-hook#claims-other-packages-own)). `tests/integration/src/supabase-member-for.test.ts` runs that function shape inside the hook.
 
+### The access kit
+
+`kits.access.model: 'permdock'` makes better-supabase's SQL kit (`can()`, and the organizations, invitations, audit, support-sessions, notifications and webhooks modules) check permissions through PermDock's helpers instead of a role catalog of its own. Run `permdock supabase inspect --out` first: the kit reads `rls.schema` and the root scope from `permdock.manifest.json`.
+
+```ts title="better-supabase.config.ts"
+export default defineConfig({
+  sql: { kit: ["access", "organizations", "invitations", "audit"] },
+  kits: {
+    access: {
+      model: "permdock",
+      functions: {
+        canAssign: "permdock.permdock_can_assign({role}, {tenant}::text)",
+      },
+    },
+  },
+});
+```
+
+- Every permission key the kit modules check must be `rowConditions: false` in `permissions.catalog.json`, because the helpers check role and scope only. `kitPermissionKeys` from `better-supabase/sql` lists the keys; better-supabase's doctor reports BS411 for a key that has row conditions or is missing.
+- `permdock_can_assign` exists only when a role declares `assigns`; without it, only the service role assigns roles.
+- The helpers read `auth.uid()`, so the kit's `can_user()` and `member_can()` answer for the caller only and raise SQLSTATE `0A000` for anyone else. The invitations module does not check the inviter's permission again when an invitation is accepted, and the notifications module does not filter recipients by their read permission.
+
 ## Request lifecycle
 
 1. The client signs in; Supabase Auth runs the `custom_access_token_hook` from `permdock supabase hook generate`, which reads `user_roles` and the membership sources and adds `user_role`, `memberships` and the tenant claim to the JWT.
@@ -351,11 +393,27 @@ Run `permdock supabase inspect --out` before `better-supabase sql add entitlemen
 
 ## Sessions and devices
 
-better-supabase 0.4.0 exposes three session tools that work next to PermDock:
+better-supabase 0.5.1 exposes these session tools next to PermDock:
 
 - `checkSession(sql, auth)` from `better-supabase/server` checks that a user token's session still exists in `auth.sessions`. A verified token stays valid until `exp` even after sign-out, so call it before a sensitive action; PermDock never makes that query itself.
-- `session.actor` and `session.delegation` carry the OAuth client or agent acting for the user (`client_id`, or the outermost `sub` of an RFC 8693 `act` chain) and the scopes the user granted it. They are the same values `actorOf` and `delegationOf` read from the claims, so `subjectFromSupabaseSession(session)` gives the same `oauth-client` actor either way.
-- The `scopes` guard option answers 403 `insufficient_scope` when a delegated token lacks a scope. It runs before PermDock, and PermDock's delegation narrowing still applies after it: a token that passes the guard reaches only the permissions whose `scope` its delegation names, and a `deny` for the `oauth-client` actor still wins.
+- `session.actor` and `session.delegation` carry who acts for the user, read from `act.kind` and `client_id` by the rule `actorOf` applies, so `subjectFromSupabaseSession(session)` gives the same actor kind and id either way. `supabaseClaimFixtures` from `better-supabase/testing` has one token of each kind, and PermDock's integration tests map each one.
+- The `scopes` guard option answers 403 `insufficient_scope` when an `oauth-client` token lacks a scope. It runs before PermDock, and PermDock's delegation narrowing still applies after it: a token that passes the guard reaches only the permissions whose `scope` its delegation names, and a `deny` for the `oauth-client` actor still wins. The guard does not limit support and impersonation sessions; PermDock does.
+- Only `allow: ['anonymous']` admits a `signInAnonymously()` user past a guard; `'anon'` means a caller without a session. Pair the default `allow: ['user']` with `anonymousSignIns: 'deny'` ([anonymous sign-ins](#anonymous-sign-ins)).
+
+### Support and impersonation actors
+
+A better-supabase support session (`supportClaims`) and `actingAs` mint a token for the user with the admin in `act`, so `subject.principal` is the user and `subject.actor` is the admin, kind `support` or `impersonation`. Neither carries a token delegation, so every call denies with `no-delegation` until the policy names the actor kind in a [delegation](/docs/security/delegation#policy-delegations):
+
+```ts
+definePolicy(permissions, {
+  roles,
+  delegations: [
+    { from: "member", to: actor("support"), permissions: [permissions.ticket] },
+  ],
+});
+```
+
+A support session with `read_only: true` reaches only the delegated permissions whose `readOnlyHint` is true (`meta.readOnly`, else a `read` or `list` action); any other permission denies with `not-delegated`, on the server and in the snapshot alike. The principal stays the user, so this is not PermDock's [`supportAccess`](/docs/concepts/elevated-access#support-access-with-tenant-consent), where the vendor is the principal; a support actor does satisfy `actorRequired` there.
 
 List and revoke sessions through the Supabase Auth API (`auth.admin.listUserSessions`, `auth.admin.signOut` / revoke). PermDock does not own a device list UI. Revocation reaches PermDock when the project emits Back-Channel Logout or a CAEP `session-revoked` SET into [`permdock/ssf`](/docs/adapters/ssf), joined on `subject.session` (`session_id`). With `approvals` set on the SSF factory, pending approval requests for that session are cancelled.
 

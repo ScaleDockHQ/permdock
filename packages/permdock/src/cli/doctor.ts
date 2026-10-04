@@ -54,6 +54,7 @@ import {
   pd036,
   pd038,
   pd041,
+  pd057,
 } from "./doctor-source.ts";
 import {
   pd046,
@@ -273,6 +274,12 @@ export async function runDoctor(input: {
         supabaseTenantClaim,
       ),
     );
+  }
+  if (
+    input.config.rls?.anonymousSignIns === "deny" &&
+    (include("supabase") || include("anonymous") || include("PD057"))
+  ) {
+    findings.push(...pd057(sources));
   }
   if (include("supabase") || include("auth-role") || include("PD040")) {
     findings.push(...pd040(input.cwd, input.config));

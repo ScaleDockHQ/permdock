@@ -7,7 +7,7 @@ export function membership(query?: SqlQuery) {
   return fromJunction({
     table: "better_supabase.memberships",
     scope: "organization",
-    id: "org_id",
+    id: "organization_id",
     roles: "role",
     ...(query === undefined ? {} : { query }),
   });

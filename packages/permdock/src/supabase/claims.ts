@@ -268,6 +268,39 @@ function checkPermDockClaims(
   );
 }
 
+/** The outer level's `kind`: none, `support` with a `session_id`, or `impersonation`. */
+function checkActKind(
+  level: Record<string, unknown>,
+  path: Path,
+  issues: Issues,
+): void {
+  const marked = own(level, "kind");
+  const kind =
+    marked === undefined && own(level, "session_id") !== undefined
+      ? "support"
+      : marked;
+  optional(level, "reason", path, issues, isString, "a string");
+  if (kind === undefined || kind === "impersonation") {
+    return;
+  }
+  if (kind !== "support") {
+    issue(issues, [...path, "kind"], "Expected 'support' or 'impersonation'");
+    return;
+  }
+  const session = own(level, "session_id");
+  if (typeof session !== "string" || session === "") {
+    issue(issues, [...path, "session_id"], "Expected a non-empty string");
+  }
+  optional(
+    level,
+    "read_only",
+    path,
+    issues,
+    (value) => typeof value === "boolean",
+    "a boolean",
+  );
+}
+
 function checkAct(value: unknown, issues: Issues): void {
   let current: unknown = value;
   const path: PropertyKey[] = ["act"];
@@ -279,6 +312,9 @@ function checkAct(value: unknown, issues: Issues): void {
     const sub = own(current, "sub");
     if (typeof sub !== "string" || sub === "") {
       issue(issues, [...path, "sub"], "Expected a non-empty string");
+    }
+    if (path.length === 1) {
+      checkActKind(current, path, issues);
     }
     current = own(current, "act");
     path.push("act");

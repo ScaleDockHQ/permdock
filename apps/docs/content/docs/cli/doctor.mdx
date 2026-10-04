@@ -78,6 +78,7 @@ Without `--fix`, doctor only reads: it never writes the catalog or any other fil
 | `PD054` | The last `role_permissions` seeds in the migrations differ from the rows the policy compiles to                                                                                                                                                                                                            | warning         |
 | `PD055` | A custom role in the `doctor.memberships` fixture stores a permission under a key it was renamed from                                                                                                                                                                                                      | warning         |
 | `PD056` | A migration still calls an `rls.migrate` helper by its legacy name                                                                                                                                                                                                                                         | warning         |
+| `PD057` | `rls.anonymousSignIns` is `'deny'`, but a `subjectFromSupabase` or `subjectFromSupabaseSession` call does not pass `anonymousSignIns: 'deny'`                                                                                                                                                              | warning         |
 
 ### PD001: server-only imports in client entries
 
@@ -328,6 +329,10 @@ A key renamed with `definePermissions(..., { renamed })` keeps resolving in stor
 ### PD056: callers of a legacy helper
 
 With `rls.migrate.helpers` set, the check counts calls to each legacy helper name in the migration folders, leaving out the statements that create, grant or drop the helper itself. A remaining call keeps the legacy function, or its [shim](/docs/cli/rls#shims), in use. Run `permdock rls migrate --write` for the policies, rewrite function bodies, views and triggers onto the PermDock helpers by hand, then drop the function. `--only shims` (or `--only sql`) runs PD056.
+
+### PD057: anonymous sign-ins mapped as users
+
+With `rls.anonymousSignIns: 'deny'`, the generated policies refuse a `signInAnonymously()` token, but `subjectFromSupabase` maps it as a signed-in user unless it gets the same option, so the server and the database disagree. The check names each `subjectFromSupabase` or `subjectFromSupabaseSession` call whose options object does not set `anonymousSignIns: 'deny'`; options passed as a variable are not read. `--only anonymous` (or `--only supabase`) runs PD057.
 
 ## Why
 

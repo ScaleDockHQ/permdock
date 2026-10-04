@@ -24,6 +24,7 @@ export type Database = {
           updated_at: string
           user_id: string | null
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           customer_id: string
@@ -67,6 +68,7 @@ export type Database = {
           organization_id: string
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           id?: string
@@ -101,6 +103,7 @@ export type Database = {
           user_id: string
           week_start: string
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           date_format: string
@@ -129,6 +132,7 @@ export type Database = {
           scope_id: string
           user_id: string
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           role: string
@@ -151,6 +155,7 @@ export type Database = {
           feature: string
           organization_id: string
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           feature: string
@@ -179,6 +184,7 @@ export type Database = {
           slug: string
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           id?: string
@@ -206,6 +212,7 @@ export type Database = {
           title: string
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           amount_minor: number
           created_at?: string
@@ -253,6 +260,7 @@ export type Database = {
           updated_at: string
           user_id: string
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           id?: string
@@ -286,6 +294,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      audit_retention: { Args: { tenant: string }; Returns: string }
       datetime_preference_claims: { Args: { p_user_id: string }; Returns: Json }
       feature_claims: { Args: { p_user_id: string }; Returns: Json }
     }

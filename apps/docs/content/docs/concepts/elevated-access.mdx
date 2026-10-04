@@ -97,6 +97,8 @@ A tenant owner grants access through an `ApprovalRequest` the tenant resolves. O
 
 Group members ride C3's `fromJunction` `group` option (`member: { group }`). With `actorRequired: true`, every decision under a support membership denies with `actor-required` unless the subject carries an `act`; impersonation is never modelled as the user's own session. `forbid` compiles to deny grants scoped to `via: 'support'`, so it holds in RLS too. The lifecycle emits `access.started`, `access.ended` and `access.revoked` events (`accessEvent`), each a CloudEvents type with an OCSF Account Change mapping (`accessToOcsf`); revoking consent bumps the revocation counter. `permdock doctor` PD035 warns on a support role without `actorRequired`.
 
+A better-supabase support session is the other way round: the token is the user's, `subject.principal` is the user and the admin is `subject.actor` with kind `support` ([Supabase](/docs/adapters/supabase#support-and-impersonation-actors)). It satisfies `actorRequired`, which accepts any actor, and reaches only what a policy delegation to `actor('support')` names; `read_only: true` narrows that to read-only permissions.
+
 ## Purpose of use
 
 `context.purpose` is a decision input:

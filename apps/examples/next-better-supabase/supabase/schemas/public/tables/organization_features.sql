@@ -18,4 +18,4 @@ create policy organization_features_auth_admin_read on public.organization_featu
 grant select on public.organization_features to supabase_auth_admin;
 
 create trigger bs_audit after insert or update or delete on public.organization_features
-  for each row execute function better_supabase.audit_trigger();
+  for each row execute function better_supabase.audit_row_change();

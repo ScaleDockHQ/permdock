@@ -14,6 +14,7 @@ import {
   delegatedPermissions,
   deny,
   fromSnapshot,
+  mayUse,
   relation,
   resource,
   role,
@@ -104,12 +105,14 @@ describe("policy delegations", () => {
         from: { kind: "role", role: "member", scope: "global" },
         to: { kind: "eve" },
         permissions: ["post.read", "post.update"],
+        readOnly: ["post.read"],
         validity: { until: UNTIL },
       },
       {
         from: { kind: "role", role: "admin", scope: "global" },
         to: { kind: "eve", id: "agent-billing" },
         permissions: ["billing.read"],
+        readOnly: ["billing.read"],
       },
     ]);
     expect(Object.isFrozen(policy.delegations?.[0])).toBe(true);
@@ -298,5 +301,82 @@ describe("policy delegations", () => {
     );
     expect(other.delegated).toBeUndefined();
     expect(other.subject.delegation).toEqual({ scopes: [] });
+  });
+});
+
+describe("read-only actors", () => {
+  const supportPolicy = definePolicy(permissions, {
+    roles: policy.roles,
+    delegations: [
+      { from: "member", to: actor("support"), permissions: [permissions.post] },
+    ],
+    subject,
+  });
+  const support = (readOnly: boolean) => ({
+    id: "admin-1",
+    kind: "support",
+    sessionId: "s-1",
+    readOnly,
+  });
+
+  it("gets nothing until the policy delegates to the actor kind", async () => {
+    const permdock = await createPermDock(policy, member, {
+      actor: support(false),
+    });
+    expect(outcome(permdock, permissions.post.read, post)).toBe(
+      "no-delegation",
+    );
+  });
+
+  it("uses every delegated permission when writable", async () => {
+    const permdock = await createPermDock(supportPolicy, member, {
+      actor: support(false),
+    });
+    expect(outcome(permdock, permissions.post.read, post)).toBe("granted");
+    expect(outcome(permdock, permissions.post.update, post)).toBe("granted");
+  });
+
+  it("is narrowed to read-only permissions, on the server and the client alike", async () => {
+    const permdock = await createPermDock(supportPolicy, member, {
+      actor: support(true),
+    });
+    expect(outcome(permdock, permissions.post.read, post)).toBe("granted");
+    expect(outcome(permdock, permissions.post.update, post)).toBe(
+      "not-delegated",
+    );
+    expect(outcome(permdock, permissions.post.delete, post)).toBe(
+      "not-delegated",
+    );
+    const snapshot = unsigned(permdock);
+    expect(snapshot.delegated).toEqual(["post.read"]);
+    const client = fromSnapshot(snapshot);
+    expect(client.can(permissions.post.read, post)).toBe(true);
+    const decision = client.decide(permissions.post.update, post);
+    expect(decision.outcome === "denied" && decision.denials[0]?.reason).toBe(
+      "not-delegated",
+    );
+    expect(mayUse(permdock, permissions.post.read)).toBe(true);
+    expect(mayUse(permdock, permissions.post.update)).toBe(false);
+  });
+
+  it("follows meta.readOnly over the action name", async () => {
+    const marked = definePermissions({
+      report: resource({
+        actions: { read: { readOnly: false }, export: { readOnly: true } },
+      }),
+    });
+    const markedPolicy = definePolicy(marked, {
+      roles: [
+        role("member", [
+          allow(marked.report.read),
+          allow(marked.report.export),
+        ]),
+      ],
+      delegations: [
+        { from: "member", to: "support", permissions: [marked.report] },
+      ],
+      subject,
+    });
+    expect(markedPolicy.delegations?.[0]?.readOnly).toEqual(["report.export"]);
   });
 });

@@ -3,17 +3,22 @@ import type { SupabaseHookManifest } from "../supabase/manifest.ts";
 /**
  * Claim sets in the shape the Supabase custom access token hook produces (the RBAC guide's
  * `user_role` claim, optionally mirrored into `app_metadata`, plus a `memberships` array for
- * multi-org apps). `betterSupabase` is the canonical shape better-supabase 0.4 emits: scoped
+ * multi-org apps). `betterSupabase` is the canonical shape better-supabase 0.5 emits: scoped
  * memberships, `tenant_id` and per-tenant plans in `features`. `full` sets every field of the
  * claim contract plus a `hook.claims` extra claim; `portalContact`, `oauthClient` and
  * `actChain` cover a customer contact, a Supabase OAuth server token and an RFC 8693 chain.
- * Every fixture passes `supabaseClaims()` and `schemas/supabase-claims-v1.json`. Plain data:
- * no Supabase or better-supabase types.
+ * `supportSession`, `supportSessionReadOnly` and `impersonation` are the `act.kind` tokens
+ * better-supabase mints; `anonymousSignIn` is a `signInAnonymously()` token read with
+ * `anonymousSignIns: 'deny'`. Every fixture passes `supabaseClaims()` and
+ * `schemas/supabase-claims-v1.json`. Plain data: no Supabase or better-supabase types.
  */
 export type SupabaseClaimFixture = {
   readonly claims: Readonly<Record<string, unknown>>;
   /** `subjectFromSupabase` options the case needs. */
-  readonly options?: { readonly plans?: string };
+  readonly options?: {
+    readonly plans?: string;
+    readonly anonymousSignIns?: "deny";
+  };
   readonly expect: {
     readonly id: string | null;
     readonly roles: readonly string[];
@@ -34,8 +39,15 @@ export type SupabaseClaimFixture = {
     readonly tenant?: string;
     readonly plans?: readonly string[];
     /** `subject.actor`, absent when the token has neither `act` nor `client_id`. */
-    readonly actor?: { readonly id: string; readonly kind: "oauth-client" };
-    /** `subject.delegation`: the `scope` claim and the `act` chain of a token with an actor. */
+    readonly actor?:
+      | { readonly id: string; readonly kind: "oauth-client" | "impersonation" }
+      | {
+          readonly id: string;
+          readonly kind: "support";
+          readonly sessionId: string;
+          readonly readOnly: boolean;
+        };
+    /** `subject.delegation`: the `scope` claim and the `act` chain of an `oauth-client` actor. */
     readonly delegation?: {
       readonly scopes?: readonly string[];
       readonly chain?: Readonly<Record<string, unknown>>;
@@ -59,6 +71,8 @@ const id: string = base.sub;
 const org = "0d8c5a2e-3f4b-4c6d-8e9f-a1b2c3d4e5f6";
 const project = "3b2a1c0d-9e8f-4a7b-8c6d-5e4f3a2b1c0d";
 const customer = "c7d8e9f0-1a2b-4c3d-9e4f-5a6b7c8d9e0f";
+const supportAdmin = "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d";
+const supportSessionId = "4e5f6a7b-8c9d-4e0f-9a1b-2c3d4e5f6a7b";
 const ownerMembership = {
   scope: "organization",
   id: org,
@@ -103,6 +117,10 @@ export type SupabaseClaimFixtureName =
   | "portalContact"
   | "oauthClient"
   | "actChain"
+  | "supportSession"
+  | "supportSessionReadOnly"
+  | "impersonation"
+  | "anonymousSignIn"
   | "anon"
   | "serviceRole";
 
@@ -296,6 +314,72 @@ export const supabaseClaimFixtures: Readonly<
         chain: { sub: "agent-runner", act: { sub: "mcp-client-42" } },
       },
     },
+  },
+  supportSession: {
+    claims: {
+      ...base,
+      user_role: "member",
+      act: {
+        kind: "support",
+        sub: supportAdmin,
+        reason: "ticket 42",
+        session_id: supportSessionId,
+        read_only: false,
+      },
+    },
+    expect: {
+      id,
+      roles: ["member"],
+      memberships: [],
+      actor: {
+        id: supportAdmin,
+        kind: "support",
+        sessionId: supportSessionId,
+        readOnly: false,
+      },
+    },
+  },
+  supportSessionReadOnly: {
+    claims: {
+      ...base,
+      user_role: "member",
+      act: {
+        kind: "support",
+        sub: supportAdmin,
+        reason: "ticket 42",
+        session_id: supportSessionId,
+        read_only: true,
+      },
+    },
+    expect: {
+      id,
+      roles: ["member"],
+      memberships: [],
+      actor: {
+        id: supportAdmin,
+        kind: "support",
+        sessionId: supportSessionId,
+        readOnly: true,
+      },
+    },
+  },
+  impersonation: {
+    claims: {
+      ...base,
+      user_role: "member",
+      act: { kind: "impersonation", sub: supportAdmin, reason: "ticket 42" },
+    },
+    expect: {
+      id,
+      roles: ["member"],
+      memberships: [],
+      actor: { id: supportAdmin, kind: "impersonation" },
+    },
+  },
+  anonymousSignIn: {
+    claims: { ...base, is_anonymous: true },
+    options: { anonymousSignIns: "deny" },
+    expect: { id: null, roles: [], memberships: [] },
   },
   anon: {
     claims: { ...base, role: "anon", sub: "" },

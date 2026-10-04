@@ -13,4 +13,4 @@ alter table public.memberships enable row level security;
 revoke all on public.memberships from anon, authenticated;
 
 create trigger bs_audit after insert or update or delete on public.memberships
-  for each row execute function better_supabase.audit_trigger();
+  for each row execute function better_supabase.audit_row_change();
