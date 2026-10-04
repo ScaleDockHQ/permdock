@@ -75,14 +75,18 @@ describe("platform custom roles in SQL", () => {
         customRoles: {
           declared: ["admin", "support"],
           assignable: ["support"],
-          renamed: { "system.billing.view": "platform.billing.view" },
+          renamed: {
+            "system.billing.view": "platform.billing.view",
+            "billing.view": "platform.billing.view",
+            "zz.view": "platform.billing.view",
+          },
         },
       },
       [],
       { userRoles: true },
     );
     expect(sql).toContain(
-      "with renamed (former, key) as (values ('system.billing.view', 'platform.billing.view')),",
+      "with renamed (former, key) as (values ('billing.view', 'platform.billing.view'), ('system.billing.view', 'platform.billing.view'), ('zz.view', 'platform.billing.view')),",
     );
     expect(sql).toContain("left join renamed r_c on r_c.former = c.permission");
     expect(sql).toContain(

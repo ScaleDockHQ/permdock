@@ -8,6 +8,7 @@ import type { Decision } from "../../src/core/decision.ts";
 import type { Subject } from "../../src/core/subject.ts";
 
 import { memoryApprovalPolicies } from "../../src/core/approval-policies.ts";
+import { describe as describeDecision } from "../../src/core/describe.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
 import { testApprovalPolicySource } from "../../src/testing/conformance.ts";
 import { permissions, policy, rows } from "../fixtures/expenses.ts";
@@ -122,6 +123,7 @@ describe("ApprovalPolicySource", () => {
         },
       },
     });
+    expect(describeDecision(decision).detail).toContain("user cfo");
   });
 
   it("denies every allowed call when the source throws or returns an invalid entry", async () => {
@@ -166,6 +168,108 @@ describe("ApprovalPolicySource", () => {
         alternatives: [],
       });
     }
+  });
+
+  it("denies when any field of an entry is malformed", async () => {
+    // SAFETY: deliberately malformed input to check the runtime guard.
+    const raw = (value: unknown): ApprovalPolicySource => ({
+      approvalPoliciesFor: () => value as never,
+    });
+    const sources = [
+      raw({ permission: "expense.read", approval: "human" }),
+      raw([null]),
+      raw([{ approval: "human" }]),
+      raw([{ permission: "expense.read", tenant: 5, approval: "human" }]),
+      raw([{ permission: "expense.read", actors: [1], approval: "human" }]),
+      raw([
+        {
+          permission: "expense.read",
+          check: { op: "related", resource: "x" },
+          approval: "human",
+        },
+      ]),
+      raw([
+        {
+          permission: "expense.read",
+          approval: { by: { kind: "relation", relation: "nope" } },
+        },
+      ]),
+      raw([
+        {
+          permission: "expense.read",
+          approval: { by: "finance", staleOn: "resource-change" },
+        },
+      ]),
+    ];
+    for (const source of sources) {
+      expect(
+        (await decide(source, permissions.expense.read, small)).outcome,
+      ).toBe("denied");
+    }
+  });
+
+  it("reads an async source and matches check against the proposed row", async () => {
+    const source: ApprovalPolicySource = {
+      approvalPoliciesFor: async () => [
+        {
+          permission: "expense.read",
+          check: { op: "gt", field: "amount", value: 1000 },
+          approval: "human",
+        },
+      ],
+    };
+    expect(
+      (
+        await decide(source, permissions.expense.read, {
+          current: small,
+          next: large,
+        })
+      ).outcome,
+    ).toBe("approval-required");
+    expect(
+      (await decide(source, permissions.expense.read, small)).outcome,
+    ).toBe("granted");
+  });
+
+  it("merges entries: one stage per distinct approver, the shortest ttl, distinct unless all opt out", async () => {
+    const finance = {
+      permission: "expense.read",
+      approval: { by: "finance", quorum: 2, distinct: false, ttl: "2h" },
+    } as const;
+    const source = memoryApprovalPolicies([
+      finance,
+      finance,
+      {
+        permission: "expense.read",
+        approval: { by: "auditor", distinct: false, ttl: "30m" },
+      },
+    ]);
+    const decision = await decide(source, permissions.expense.read, small);
+    expect(decision).toMatchObject({
+      outcome: "approval-required",
+      grant: {
+        approval: {
+          mode: "all",
+          stages: [
+            {
+              by: { kind: "role", role: "finance", scope: "global" },
+              quorum: 2,
+            },
+            { by: { kind: "role", role: "auditor", scope: "global" } },
+          ],
+          distinct: false,
+          ttl: "30m",
+        },
+      },
+    });
+    const human = memoryApprovalPolicies([
+      { permission: "expense.pay", approval: "human" },
+    ]);
+    const paid = await decide(human, permissions.expense.pay, large);
+    expect(paid.outcome).toBe("approval-required");
+    expect(paid).not.toHaveProperty("grant.approval.distinct");
+    expect(paid).toHaveProperty("grant.approval.mode", "sequential");
+    expect(paid).toHaveProperty("grant.approval.stages.length", 3);
   });
 
   it("skips an entry for a permission the policy does not declare", async () => {

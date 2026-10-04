@@ -18,7 +18,7 @@ export const permissions = definePermissions({
   }),
 });
 
-export const managerThenApprover = {
+const managerThenApprover = {
   mode: "sequential",
   stages: [
     { by: relation(permissions.expense, "manager") },

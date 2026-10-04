@@ -138,6 +138,15 @@ group("approval modes and approver kinds", () => {
         }),
       ),
     ).toThrow(/not declared on 'doc'/u);
+    for (const through of ["parent", ["team"], ["team", "lead"]] as const) {
+      expect(
+        build(
+          allow(tree.doc.read, {
+            approval: { by: relation(tree.doc, "owner", { through }) },
+          }),
+        ),
+      ).toThrow(/must live on 'doc'/u);
+    }
     expect(() =>
       definePolicy(tree, {
         roles: [

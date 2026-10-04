@@ -44,6 +44,25 @@ export const policy = definePolicy({ permissions, roles }, {
 `,
 );
 writeFileSync(
+  path.join(cwd, "renamed.ts"),
+  `import { allow, definePermissions, definePolicy, defineRoles, resource } from 'permdock';
+import { z } from 'zod';
+
+const Doc = z.object({ id: z.string(), orgId: z.string() });
+const permissions = definePermissions(
+  { doc: resource(Doc, { actions: ['view'], relations: { org: { field: 'orgId', memberOf: 'tenant' } } }) },
+  { renamed: { 'document.view': 'doc.view' } },
+);
+const roles = defineRoles({ editor: { on: 'tenant', assignable: true } });
+
+export const policy = definePolicy({ permissions, roles }, {
+  scopes: { tenant: { key: 'orgId' } },
+  grants: [allow(permissions.doc.view, { to: roles.editor })],
+  subject: () => null,
+});
+`,
+);
+writeFileSync(
   path.join(cwd, "graph.ts"),
   `import { allow, definePermissions, definePolicy, relation, resource } from 'permdock';
 import { z } from 'zod';
@@ -137,6 +156,21 @@ describe("rls generate context from the config", () => {
       "where rp.role = any(array['editor', 'lead']::text[])",
     );
     expect(outcome.text).not.toContain("service_role");
+  });
+
+  it("maps stored former keys in custom roles and reads rls.actions", async () => {
+    const outcome = await generate({
+      from: "./renamed.ts",
+      rbac: true,
+      customRoles: true,
+      authorize: "database",
+      config: { rls: { actions: { view: "select" } } },
+    });
+    expect(outcome.code).toBe(0);
+    expect(outcome.text).toContain(
+      "with renamed (former, key) as (values ('document.view', 'doc.view')),",
+    );
+    expect(outcome.text).toContain("for select");
   });
 
   it("types scopes from teamType and scopeTypes and ignores hook roles set to false", async () => {

@@ -1,9 +1,13 @@
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import type { ScanResult } from "../../src/cli/types.ts";
 
 import { buildCatalog } from "../../src/cli/catalog-doc.ts";
 import { diffCatalogs } from "../../src/cli/diff.ts";
+import { run } from "../../src/cli/run.ts";
 import {
   customRoleClaim,
   resolveCustomRole,
@@ -145,6 +149,12 @@ describe("definePermissions renamed", () => {
         renamed: { "customer.view": 1 } as unknown as Record<string, string>,
       }),
     ).toThrow("must map to a current key");
+    expect(() =>
+      definePermissions(shape, {
+        // SAFETY: deliberately wrong input to check the runtime guard.
+        renamed: "customer.view" as unknown as Record<string, string>,
+      }),
+    ).toThrow("renamed must map old keys to current keys");
   });
 
   it("rejects merged trees that claim the same former key", () => {
@@ -249,6 +259,50 @@ describe("catalog and diff", () => {
     });
     expect(result.grants?.removed).toEqual([]);
     expect(result.breaking).toEqual([]);
+  });
+
+  it("does not report an alias whose key is a permission again", () => {
+    const restored = buildCatalog(
+      definePermissions({
+        customer: resource({
+          id: "id",
+          actions: ["read", "update", "view"],
+          relations: { org: { field: "orgId", memberOf: "tenant" } },
+        }),
+      }),
+      EMPTY_SCAN,
+      at,
+      undefined,
+    );
+    const result = diffCatalogs(
+      { source: "b", catalog: catalogB, policy: undefined },
+      { source: "c", catalog: restored, policy: undefined },
+    );
+    expect(
+      result.breaking
+        .filter((change) => change.kind === "alias-removed")
+        .map((change) => change.detail.split(" ")[0]),
+    ).toEqual(["organization.customers.view"]);
+  });
+
+  it("prints a rename in the text form", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "permdock-renamed-"));
+    try {
+      writeFileSync(path.join(dir, "a.catalog.json"), JSON.stringify(catalogA));
+      writeFileSync(path.join(dir, "b.catalog.json"), JSON.stringify(catalogB));
+      const result = await run([
+        "diff",
+        "a.catalog.json",
+        "b.catalog.json",
+        "--cwd",
+        dir,
+      ]);
+      expect(result.stdout).toContain(
+        "customer.view → customer.read (renamed)",
+      );
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it("reports dropping an alias as breaking", () => {

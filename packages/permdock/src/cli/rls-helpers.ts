@@ -325,7 +325,7 @@ function hasBody(ctx: RlsSqlContext): string {
 }
 
 /** The claim `jwt` mode reads platform custom roles from: `customRoleClaim(globalRoles)`. */
-export const GLOBAL_GRANTS_CLAIM = "role_grants";
+const GLOBAL_GRANTS_CLAIM = "role_grants";
 
 export function memberColumn(name: string): string {
   return `m.${quoteIdent(name)}`;

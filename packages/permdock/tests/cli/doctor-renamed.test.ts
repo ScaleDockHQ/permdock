@@ -59,6 +59,16 @@ describe("PD055 custom roles stored under a former key", () => {
         config: { ...config, doctor: { memberships: "./missing.json" } },
       }),
     ).toEqual([]);
+    const [inApp] = await pd055({
+      cwd,
+      config: { ...config, rls: { schema: "app" } },
+    });
+    expect(inApp?.fix).toContain("update app.custom_role_permissions");
+    const bare = project({
+      "src/policy.ts": POLICY,
+      "memberships.json": JSON.stringify({}),
+    });
+    expect(await pd055({ cwd: bare, config })).toEqual([]);
   });
 });
 

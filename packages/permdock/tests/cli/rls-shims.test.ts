@@ -164,6 +164,22 @@ describe("shimsSql", () => {
     ).toContain(`select "permdock".permdock_has(p_key)`);
   });
 
+  it("answers a scoped helper from the declared scope names alone", () => {
+    const scoped = shimsSql(
+      base,
+      { helpers: { b: { form: "scoped" }, a: { form: "global" } } },
+      {},
+      {},
+    );
+    expect(scoped).not.toContain("when p_scope in (");
+    expect(scoped).toContain(
+      `when p_scope = 'tenant' then coalesce(p_id in (select ids::text from "permdock".permitted_tenant_ids(p_key) as ids), false)`,
+    );
+    expect(scoped.indexOf('"public".a(')).toBeLessThan(
+      scoped.indexOf('"public".b('),
+    );
+  });
+
   it("rejects an undeclared scope and an unsafe helper name", () => {
     expect(() =>
       shimsSql(base, { helpers: { x: { form: "ids", scope: "org" } } }, {}, {}),

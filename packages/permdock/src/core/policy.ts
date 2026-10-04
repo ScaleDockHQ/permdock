@@ -85,12 +85,10 @@ export type ClosureGrantFn<T = unknown> = (
 ) => boolean;
 
 export type { Approver, ApproverInput, UserApprover } from "./approvers.ts";
-export { flattenApprovers, user } from "./approvers.ts";
+export { user } from "./approvers.ts";
 
 /** Every approver a requirement names: `by`, each stage and `escalation.to`. */
-export function approversOf(
-  requirement: ApprovalRequirement,
-): readonly Approver[] {
+function approversOf(requirement: ApprovalRequirement): readonly Approver[] {
   return [
     ...flattenApprovers(requirement.by),
     ...(requirement.stages ?? []).flatMap((stage) =>
