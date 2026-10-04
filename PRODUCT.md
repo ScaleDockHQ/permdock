@@ -54,7 +54,6 @@ Plain and technical, written for an engineer or a coding agent about to wire it 
 - That PermDock Cloud is needed to decide, or that it is on the decision path.
 - A benchmark, percentage or size that was not measured in this repository, with the source next to it.
 - A planned feature as shipped. Pages for unbuilt work say so, and the [roadmap](./apps/docs/content/docs/roadmap.mdx) lists them.
-- That PermDock is published before `0.1.0` is on npm.
 
 ## Business model
 

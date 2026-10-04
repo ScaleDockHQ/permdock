@@ -1,18 +1,19 @@
 ---
 title: Roadmap
-description: What the PermDock 0.1.0 baseline contains, what is planned, what the project deliberately does not do, how versions are numbered, and the open design questions.
+description: What PermDock 0.1.0 contains, what is planned, what the project deliberately does not do, how versions are numbered, and the open design questions.
 ---
 
 This page is the single place for what exists, what is planned and what is still undecided. A page for something not built yet carries a `Status: planned` or `Status: tracking` line under its frontmatter; every other page describes code in the package. Design rationale lives in the Why section of the page that owns each decision.
 
 ## Current scope
 
-The first release, `0.1.0`, ships one package, `permdock`: core, every adapter, the `permdock` CLI (`permdock/cli`, `permdock/unplugin`, `permdock/next/plugin`) and the test runners (`permdock/testing`).
+`permdock@0.1.0` is on npm. It is one package: core, every adapter, the `permdock` CLI (`permdock/cli`, `permdock/unplugin`, `permdock/next/plugin`) and the test runners (`permdock/testing`).
 
-- **Core.** `definePermissions`, `resource` and typed permission references; `definePolicy`, `role`, `allow`, `deny` and portable conditions with an in-memory evaluator; the two-principal subject (`principal`, `actor`, `delegation`) with tenancy, memberships, scoped and custom roles; `createPermDock` with `can`, `decide`, `assert`, `filter`, `simulate`, `snapshot` and `on`; field-level grants, quota grants through `LimitStore`, approvals through `ApprovalStore`, decision events through `DecisionSink`, and connections that end on a `RevocationFeed`. See [concepts](/docs/concepts/permissions).
+- **Core.** `definePermissions`, `resource` and typed permission references, with `renamed` for former keys; `definePolicy`, `role`, `allow`, `deny` and portable conditions with an in-memory evaluator; time-bound grants (`validFrom`, `validUntil`) and policy `delegations` for agents; the two-principal subject (`principal`, `actor`, `delegation`) with tenancy, memberships, scoped, custom and global custom roles; `createPermDock` with `can`, `decide`, `explain`, `assert`, `filter`, `simulate`, `snapshot` and `on`; field-level grants, quota grants through `LimitStore`, approvals with quorum, stages and escalation through `ApprovalStore`, decision events through `DecisionSink`, and connections that end on a `RevocationFeed`. See [concepts](/docs/concepts/permissions).
+- **Adoption.** An app with its own permission keys, SQL helpers, tokens and stored custom roles moves over in steps that each leave it working: `rls generate --helpers-only --shims`, `rls migrate`, `renamed` aliases, and doctor PD055 and PD056 to measure what still uses an old key. See [existing apps](/docs/getting-started/existing-apps).
 - **Adapters.** UI adapters for React, React Native, Vue, Svelte and Solid; Next.js with Cache Components; server adapters for Hono, Express, Fastify, Elysia, Nest, Node, tRPC, oRPC and the Fetch kernel; your own CLI through `permdock/terminal`; agent adapters for MCP, the AI SDK, the Claude Agent SDK, Eve, OpenAI Agents, WebMCP and A2A; `where` compilers for Drizzle, Prisma and Kysely; providers for JWT and OIDC, Supabase, Better Auth, Clerk and Convex; AuthZEN as a PDP and as a PEP (`permdock/pdp`); approvals, SSF and CAEP, SCIM, OpenAPI, OpenTelemetry and the optional `permdock/cloud` client. See [adapters](/docs/adapters).
 - **Standards.** AuthZEN 1.0, Standard Schema, RFC 9457 Problem Details, JOSE and OpenID Connect, the FAPI 2.0 resource-server profile, RFC 9068 and SCIM claims, OAuth scopes and RAR, MCP authorization, OpenAPI 3.2 with the pinned 3.3 Security Profiles draft, Overlay 1.1 with the pinned 1.2 draft, Arazzo, Postgres RLS, Web Bot Auth and A2A. See [standards](/docs/standards).
-- **CLI.** `collect`, `catalog`, `usage`, `doctor`, `skills`, `openapi emit | import`, `arazzo check`, `rls generate | import | verify` and `cloud push`, plus the collect-only `createPermDockPlugin` and `createPermDockUnplugin` build hooks. See [CLI](/docs/cli).
+- **CLI.** `collect`, `catalog`, `diff`, `usage`, `doctor`, `skills`, `openapi emit | import`, `arazzo check`, `rls generate | import | verify | migrate`, `supabase hook generate | inspect` and `cloud push`, plus the collect-only `createPermDockPlugin` and `createPermDockUnplugin` build hooks. See [CLI](/docs/cli).
 - **Testing and docs.** Policy matrix tests, conformance runners for every extension interface, client parity, HTTP adapter and ORM parity scenario runners, the shared SaaS domain, the `permdock`, `permdock-wire`, `permdock-audit` and topic Agent Skills, `llms.txt`, and the public docs MCP server at `/mcp`.
 
 ## Planned
@@ -38,9 +39,8 @@ Specifications PermDock follows without code, including GNAP, carry a build, nam
 
 ## Versioning
 
-- Until the first release, everything is one pre-release baseline. Names and wire formats change in place, and every wire format stays at `v1`: snapshot `v: 1`, approval request `v: 1`, `catalog-v1.json` with `version: 1`, and `x-permdock-catalog.v: 1`.
-- Before `0.1.0`, the three packages publish prereleases (`0.1.0-next.N`) under the `next` npm dist-tag, so PermDock Cloud can build against a published contract; `latest` stays empty until `0.1.0`. Prereleases are still the baseline: formats change in place at `v1`.
-- From the first release (`0.1.0`), releases follow semver. A breaking change to a wire format bumps that format's major (`v: 2`) and the package major; a breaking change to a public identifier or a default is a major release with a migration note on each affected adapter page.
+- Releases follow semver from `0.1.0`, published under the `latest` npm dist-tag. Every wire format is at `v1`: snapshot `v: 1`, approval request `v: 1`, `catalog-v1.json` with `version: 1`, and `x-permdock-catalog.v: 1`.
+- A breaking change to a wire format bumps that format's major (`v: 2`) and the package major; a breaking change to a public identifier or a default is a major release with a migration note on each affected adapter page. Before `1.0.0`, the package major is the minor: `0.1.x` to `0.2.0`.
 - Any change to a public identifier, wire format or default behaviour starts as an RFC-lite issue and ends as an update to the owning page's Why section.
 - Adapters, the CLI and the test runners version with core; there is no independent versioning because there is only one package.
 - Pinned draft revisions (OpenAPI 3.3 Security Profiles, Overlay 1.2, WebMCP, Web Bot Auth) are bumped with a changeset and recorded in `x-permdock-catalog.drafts`; see the [watch list](/docs/standards/watch-list).

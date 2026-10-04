@@ -26,7 +26,7 @@ A new rule gets `description`, `globs` and `alwaysApply` (Cursor) frontmatter, p
 
 ## Status
 
-Pre-release. Everything here is the 0.1.0 baseline; nothing has shipped, so there is no compatibility to keep: change a name or format in place. Every wire format is `v1` (snapshot `v: 1`, approval request `v: 1`, `catalog-v1.json` with `version: 1`). Node.js 24 or later, pnpm 12.8.1 (`devEngines` fails on any other version), TypeScript 7 for the repository.
+`permdock@0.1.0` is on npm. Releases follow semver as the Versioning section of `roadmap.mdx` sets out: a breaking change to a name, default or wire format carries a changeset that says so, and a breaking wire-format change bumps that format's major. Every wire format is `v1` (snapshot `v: 1`, approval request `v: 1`, `catalog-v1.json` with `version: 1`). Node.js 24 or later, pnpm 12.8.1 (`devEngines` fails on any other version), TypeScript 7 for the repository.
 
 ## Repo layout
 

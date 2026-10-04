@@ -989,7 +989,7 @@ What PermDock emits for a consent screen and verifies on a token for `permission
 
 ## Versioning
 
-- The snapshot `v`, the approval request `v`, the policy document `v`, the capability `v` and the catalog `version` follow the format, not the package version, and are all `1`. Before the first release a format changes in place and stays at `1`; after it, a breaking change to a shape bumps the major. Readers reject unknown majors.
+- The snapshot `v`, the approval request `v`, the policy document `v`, the capability `v` and the catalog `version` follow the format, not the package version, and are all `1`. A breaking change to a shape bumps the major. Readers reject unknown majors.
 - The JWS envelope of a signed output is versioned by its `typ`: a change to the header set, the registered claims or the private claim name is a new `typ` (`permdock-snapshot.v2+jwt`), never a silent change, so a verifier configured for one `typ` keeps rejecting what it does not understand.
 - Everything PermDock writes names a scope instance the same way: `scope`, `id` and `within`. Memberships, snapshot grants, the `memberships` claim and `membership` events all use this shape. A fixed `tenant` / `team` pair could not describe a third level, and one shape lets the Cloud and a sink join an event to the membership it changed without a per-format mapping. Only input readers (`subject`, a `MembershipSource`) still accept `{ tenant, team }`.
 - Condition, Decision, event and Problem Details shapes are additive within a major: new optional fields may appear, existing fields keep their meaning. New condition `op` values (such as `sqlFunction`) are additive; readers that do not know an op deny.
