@@ -35,6 +35,7 @@
     "@types/node": "catalog:",
     "@types/pg": "catalog:",
     "ai": "catalog:",
+    "better-supabase": "catalog:",
     "drizzle-orm": "catalog:",
     "elysia": "catalog:",
     "express": "catalog:",
