@@ -32,6 +32,15 @@ const approval = {
       type: "object",
       properties: {
         by: {},
+        mode: { enum: ["any", "all", "sequential"] },
+        stages: {
+          type: "array",
+          items: {
+            type: "object",
+            required: ["by"],
+            properties: { by: {}, quorum: { type: "integer", minimum: 1 } },
+          },
+        },
         distinct: { type: "boolean" },
         staleOn: { const: "resource-change" },
         quorum: { type: "integer", minimum: 1 },

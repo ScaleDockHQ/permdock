@@ -159,6 +159,8 @@ function catalogApproval(
     ? "human"
     : withDefined({
         by: approval.by,
+        mode: approval.mode,
+        stages: approval.stages,
         distinct: approval.distinct,
         staleOn: approval.staleOn,
         quorum: approval.quorum,

@@ -244,6 +244,23 @@
                   "type": "object",
                   "properties": {
                     "by": {},
+                    "mode": {
+                      "enum": ["any", "all", "sequential"]
+                    },
+                    "stages": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": ["by"],
+                        "properties": {
+                          "by": {},
+                          "quorum": {
+                            "type": "integer",
+                            "minimum": 1
+                          }
+                        }
+                      }
+                    },
                     "distinct": {
                       "type": "boolean"
                     },
@@ -355,6 +372,23 @@
                 "type": "object",
                 "properties": {
                   "by": {},
+                  "mode": {
+                    "enum": ["any", "all", "sequential"]
+                  },
+                  "stages": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": ["by"],
+                      "properties": {
+                        "by": {},
+                        "quorum": {
+                          "type": "integer",
+                          "minimum": 1
+                        }
+                      }
+                    }
+                  },
                   "distinct": {
                     "type": "boolean"
                   },
