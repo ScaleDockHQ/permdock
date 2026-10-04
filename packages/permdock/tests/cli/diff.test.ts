@@ -67,7 +67,11 @@ describe("permdock diff", () => {
     );
     expect(result.code).toBe(1);
     const report = parsed(result.stdout);
-    expect(report.permissions).toEqual({ added: [], removed: [] });
+    expect(report.permissions).toEqual({
+      added: [],
+      removed: [],
+      renamed: [],
+    });
     expect(report.roles).toEqual({
       added: [],
       removed: ["auditor"],

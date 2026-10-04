@@ -194,6 +194,7 @@ describe("resolveCustomRole", () => {
       ok: true,
       permissions: ["invoice.read", "post.read"],
       dropped: [],
+      renamed: [],
     });
     expect(
       validateCustomRole(policy, {

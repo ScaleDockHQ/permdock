@@ -1,12 +1,17 @@
 import type { DenialReason } from "./decision.ts";
-import type { Permission } from "./permissions.ts";
 import type { PolicyDelegation } from "./policy.ts";
 import type { Delegation, GnapAccess, Subject } from "./subject.ts";
 
 import { flattenGrantee, matchGrantee } from "./grantee.ts";
+import { type Permission, formerScopes } from "./permissions.ts";
 import { isActive } from "./validity.ts";
 
 type DelegatedPermission = Pick<Permission, "scope" | "resource" | "action">;
+
+/** The permission's scope and any scope it was renamed from: tokens issued before a rename keep working. */
+function scopeNames(permission: DelegatedPermission): readonly string[] {
+  return [permission.scope, ...formerScopes(permission)];
+}
 
 /**
  * Whether a delegated caller may use a permission its principal holds, through
@@ -40,7 +45,9 @@ export function coveredByDelegation(
   if (emptyScopes && emptyAccess && !hasDetails) {
     return "no-delegation";
   }
-  const scopeOk = delegation.scopes?.includes(permission.scope) ?? false;
+  const scopes = scopeNames(permission);
+  const scopeOk =
+    delegation.scopes?.some((scope) => scopes.includes(scope)) ?? false;
   const detailOk =
     delegation.authorizationDetails?.some((detail) => {
       if (detail.type !== permission.resource) {
@@ -76,7 +83,7 @@ function accessCovers(
   }
   return access.some((entry) => {
     if (typeof entry === "string") {
-      return entry === permission.scope;
+      return scopeNames(permission).includes(entry);
     }
     if (entry === null || typeof entry !== "object") {
       return false;

@@ -221,6 +221,12 @@
               }
             }
           },
+          "renamedFrom": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "hostable": {
             "const": true
           },

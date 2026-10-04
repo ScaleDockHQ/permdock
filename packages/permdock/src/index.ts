@@ -143,6 +143,7 @@ export {
 export type {
   CustomRoleDrop,
   CustomRoleDropReason,
+  CustomRoleRename,
   CustomRoleValidation,
   ResolvedCustomRole,
 } from "./core/custom-roles.ts";
@@ -159,6 +160,7 @@ export type {
 export {
   definePermissions,
   findPermission,
+  formerKeys,
   getResource,
   isPermission,
   listPermissions,
@@ -168,6 +170,7 @@ export {
 export { crud, readable, writable } from "./core/presets.ts";
 export type {
   ActionMeta,
+  DefinePermissionsOptions,
   MetaValue,
   Permission,
   PermissionKind,

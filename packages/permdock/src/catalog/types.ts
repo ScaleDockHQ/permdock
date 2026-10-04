@@ -14,6 +14,8 @@ export type CatalogPermission = {
   readonly arity: "instance" | "collection";
   readonly meta: Readonly<Record<string, unknown>>;
   readonly usages: readonly CatalogUsage[];
+  /** Keys the permission was renamed from (`definePermissions` `renamed`), sorted; absent when none. */
+  readonly renamedFrom?: readonly string[];
   /** Present only when the policy lists the permission in `hostable`. */
   readonly hostable?: true;
   /**

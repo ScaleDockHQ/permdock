@@ -5,7 +5,7 @@ import type { CustomRole, CustomRoleGrant, Membership } from "./subject.ts";
 import { freezeDeep } from "./freeze.ts";
 import { flattenGrantee } from "./grantee.ts";
 import { isForbiddenKey } from "./paths.ts";
-import { findPermission } from "./permissions.ts";
+import { findPermission, formerKeys } from "./permissions.ts";
 import { declaredRoleNames, grantList } from "./policy.ts";
 import {
   type Scope,
@@ -26,10 +26,18 @@ export type CustomRoleDrop =
   | { readonly permission: string; readonly reason: CustomRoleDropReason }
   | { readonly role: string; readonly reason: "unknown-role" };
 
+/** A stored grant that named a permission by a key it was renamed from. */
+export type CustomRoleRename = {
+  readonly from: string;
+  readonly to: string;
+};
+
 export type ResolvedCustomRole = {
   /** Declared grants re-targeted to the custom role; conditions and approvals kept. */
   readonly grants: readonly Grant[];
   readonly dropped: readonly CustomRoleDrop[];
+  /** Grants stored under a former key (`definePermissions` `renamed`), resolved to the current one. */
+  readonly renamed: readonly CustomRoleRename[];
 };
 
 export type CustomRoleValidation = {
@@ -37,7 +45,20 @@ export type CustomRoleValidation = {
   /** Permission keys the role allows after the ceiling, sorted. */
   readonly permissions: readonly string[];
   readonly dropped: readonly CustomRoleDrop[];
+  /** Grants to rewrite in storage: each still resolves, under its current key. */
+  readonly renamed: readonly CustomRoleRename[];
 };
+
+/** The current key for a stored key, current or former; `undefined` when neither. */
+function currentKey(policy: Policy, raw: string): string | undefined {
+  const leaf = findPermission(policy.permissions, raw);
+  if (leaf === undefined) {
+    return undefined;
+  }
+  return leaf.key === raw || formerKeys(leaf).includes(raw)
+    ? leaf.key
+    : undefined;
+}
 
 /** A resolved custom-role grant and the role it belongs to. */
 export type CustomGrant = {
@@ -166,7 +187,7 @@ export function resolveCustomRole(
 ): ResolvedCustomRole {
   const scope = customRoleScope(role, scopeList(policy.scopes));
   if (scope === undefined) {
-    return freezeDeep({ grants: [], dropped: [] });
+    return freezeDeep({ grants: [], dropped: [], renamed: [] });
   }
   const ceiling = ceilingGrants(policy, scope);
   const ceilingSet = new Set(ceiling);
@@ -174,6 +195,7 @@ export function resolveCustomRole(
   const declared = declaredRoleNames(policy);
   const all = grantList(policy).filter((grant) => grant.hosted === undefined);
   const dropped: CustomRoleDrop[] = [];
+  const renamed: CustomRoleRename[] = [];
   const seen = new Set<string>();
   const drop = (entry: CustomRoleDrop): void => {
     const id =
@@ -231,13 +253,13 @@ export function resolveCustomRole(
       readonly effect?: unknown;
     };
     const raw = entry.permission;
-    const key = typeof raw === "string" ? raw : String(raw);
-    if (
-      typeof raw !== "string" ||
-      findPermission(policy.permissions, raw)?.key !== raw
-    ) {
-      drop({ permission: key, reason: "unknown-permission" });
+    const key = typeof raw === "string" ? currentKey(policy, raw) : undefined;
+    if (key === undefined) {
+      drop({ permission: String(raw), reason: "unknown-permission" });
       continue;
+    }
+    if (key !== raw) {
+      renamed.push({ from: String(raw), to: key });
     }
     const effect = entry.effect ?? "allow";
     const extra = Object.keys(entry).some((name) => !GRANT_KEYS.has(name));
@@ -293,6 +315,7 @@ export function resolveCustomRole(
   return freezeDeep({
     grants: out.map((grant) => retarget(grant, role, scope)),
     dropped,
+    renamed,
   });
 }
 
@@ -312,6 +335,7 @@ export function validateCustomRole(
     ok: resolved.dropped.length === 0,
     permissions,
     dropped: resolved.dropped,
+    renamed: resolved.renamed,
   });
 }
 
@@ -380,10 +404,14 @@ export function isCustomRoleName(
  * The compact JWT form of custom roles for the `memberships[].grants` claim
  * RLS reads in `jwt` mode: role name to entries, where `key` allows, `-key`
  * denies and `@role` includes. Put a team custom role on its team membership.
+ * Pass `policy` to write keys stored under a former name as the current key.
  */
 export function customRoleClaim(
   roles: readonly CustomRole[],
+  policy?: Policy,
 ): Readonly<Record<string, readonly string[]>> {
+  const keyOf = (raw: string): string =>
+    policy === undefined ? raw : (currentKey(policy, raw) ?? raw);
   const claim: Record<string, string[]> = {};
   for (const role of roles) {
     if (!wellFormed(role) || isForbiddenKey(role.name)) {
@@ -401,7 +429,9 @@ export function customRoleClaim(
     }
     for (const grant of grants) {
       entries.push(
-        grant.effect === "deny" ? `-${grant.permission}` : grant.permission,
+        grant.effect === "deny"
+          ? `-${keyOf(grant.permission)}`
+          : keyOf(grant.permission),
       );
     }
     claim[role.name] = entries;

@@ -21,6 +21,7 @@ import { asPolicy, loadModule, pickNamed } from "./load.ts";
 
 export type BreakingKind =
   | "permission-removed"
+  | "alias-removed"
   | "scope-removed"
   | "role-removed"
   | "allow-removed"
@@ -60,12 +61,19 @@ export type ImpactRow = {
   readonly after: "granted" | "denied" | "approval-required" | "unknown";
 };
 
+export type PermissionRename = {
+  readonly from: string;
+  readonly to: string;
+};
+
 export type CatalogDiff = {
   readonly a: { readonly source: string; readonly fingerprint?: string };
   readonly b: { readonly source: string; readonly fingerprint?: string };
   readonly permissions: {
     readonly added: readonly string[];
     readonly removed: readonly string[];
+    /** Keys of `a` that `b` keeps as a `renamedFrom` alias of a new key; not breaking. */
+    readonly renamed: readonly PermissionRename[];
   };
   readonly scopes: {
     readonly added: readonly string[];
@@ -375,18 +383,72 @@ function sideRef(side: Side): CatalogDiff["a"] {
     : { source: side.source, fingerprint: side.catalog.fingerprint };
 }
 
-export function diffCatalogs(a: Side, b: Side): CatalogDiff {
+/** Former key to current key, from each permission's `renamedFrom`. */
+function aliasesOf(catalog: CatalogDocument): ReadonlyMap<string, string> {
+  return new Map(
+    catalog.permissions.flatMap((item) =>
+      (item.renamedFrom ?? []).map((old) => [old, item.key] as const),
+    ),
+  );
+}
+
+/** `a` with every key `b` renamed written as its new key, so grants compare by the current name. */
+function underNames(a: Side, aliases: ReadonlyMap<string, string>): Side {
+  if (a.catalog.grants === undefined || aliases.size === 0) {
+    return a;
+  }
+  return {
+    ...a,
+    catalog: {
+      ...a.catalog,
+      grants: a.catalog.grants.map((grant) => {
+        const to = aliases.get(grant.permission);
+        return to === undefined ? grant : { ...grant, permission: to };
+      }),
+    },
+  };
+}
+
+export function diffCatalogs(original: Side, b: Side): CatalogDiff {
   const breaking: BreakingChange[] = [];
-  const permissions = setDiff(
+  const aliasesA = aliasesOf(original.catalog);
+  const aliasesB = aliasesOf(b.catalog);
+  const keysB = new Set(b.catalog.permissions.map((item) => item.key));
+  const a = underNames(original, aliasesB);
+  const keyDiff = setDiff(
     a.catalog.permissions.map((item) => item.key),
     b.catalog.permissions.map((item) => item.key),
   );
+  const renamed: PermissionRename[] = [];
+  const removedKeys: string[] = [];
+  for (const key of keyDiff.removed) {
+    const to = aliasesB.get(key);
+    if (to === undefined) {
+      removedKeys.push(key);
+    } else {
+      renamed.push({ from: key, to });
+    }
+  }
+  const permissions = {
+    added: keyDiff.added,
+    removed: removedKeys,
+    renamed,
+  };
   for (const key of permissions.removed) {
     breaking.push({
       kind: "permission-removed",
       permission: key,
       detail: `${key} no longer exists`,
     });
+  }
+  for (const [old, to] of aliasesA) {
+    if (!aliasesB.has(old) && !keysB.has(old)) {
+      breaking.push({
+        kind: "alias-removed",
+        permission: to,
+        detail: `${old} no longer resolves to ${to}: stored custom roles, tokens and SQL that still name it now deny`,
+      });
+    }
   }
   const scopes = setDiff(
     (a.catalog.scopes ?? []).map((scope) => scope.name),
@@ -598,7 +660,14 @@ function formatText(diff: CatalogDiff): string {
       lines.push(`  ~ ${item}`);
     }
   };
-  section("permissions", diff.permissions.added, diff.permissions.removed);
+  section(
+    "permissions",
+    diff.permissions.added,
+    diff.permissions.removed,
+    diff.permissions.renamed.map(
+      (rename) => `${rename.from} → ${rename.to} (renamed)`,
+    ),
+  );
   section("scopes", diff.scopes.added, diff.scopes.removed);
   section(
     "roles",
