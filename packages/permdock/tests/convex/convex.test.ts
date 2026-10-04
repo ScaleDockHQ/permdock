@@ -67,7 +67,7 @@ describe("permdock/convex", () => {
     await expect(remove({}, {})).rejects.toMatchObject({
       name: "ConvexError",
       data: {
-        type: "https://permdock.dev/problems/denied",
+        type: "https://permdock.com/problems/denied",
         title: "Permission denied",
         status: 403,
         permission: "post.delete",

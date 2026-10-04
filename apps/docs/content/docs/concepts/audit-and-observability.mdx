@@ -174,7 +174,7 @@ HTTP adapters answer a denied `assert` with `403 application/problem+json` per [
 
 Rules the adapters follow:
 
-- `type` is a stable URI per outcome under the fixed base `https://permdock.dev/problems`. `title` is constant per `type`; `detail` is human-readable and may vary.
+- `type` is a stable URI per outcome under the fixed base `https://permdock.com/problems`. `title` is constant per `type`; `detail` is human-readable and may vary.
 - The extension members `permission`, `scope`, `resource`, `denials`, `alternatives`, `reason`, `token` and `issues` are the machine-readable part. Their names match the `Decision` and the audit event, so a client library can parse all three with one type.
 - `approval-required` is a 403 with its own `type`, not a 401 and not a 202: the request was understood and refused pending a human. The client retries with a `PermDock-Approval: <token>` header once the request is approved in the store ([approvals](/docs/security/approvals)).
 - The body never contains the policy, the closure source, what a closure threw, or another subject's data. `denials` names roles the subject holds, which the subject already knows.

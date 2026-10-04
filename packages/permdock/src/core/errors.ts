@@ -36,7 +36,7 @@ export type ProblemDetails = {
   readonly plans?: readonly string[];
 };
 
-const PROBLEM_BASE = "https://permdock.dev/problems";
+const PROBLEM_BASE = "https://permdock.com/problems";
 
 export class PermDockDeniedError extends Error {
   public override readonly name = "PermDockDeniedError" as const;

@@ -4,7 +4,7 @@ description: Reviews an existing PermDock setup or a pull request that changes i
 license: MIT
 metadata:
   author: ScaleDockHQ
-  homepage: https://permdock.dev/docs/for-ai-agents
+  homepage: https://permdock.com/docs/for-ai-agents
   repository: https://github.com/ScaleDockHQ/permdock
 ---
 
@@ -42,7 +42,7 @@ Read the app's `permissions.ts`, `policy.ts`, factory file and every adapter gua
    ✓ Every item of every applicable Verify list has a pass or a finding.
 5. **Tests.** No `describePolicy` suite, or one with `exhaustive: false`, is a finding: a new permission can ship untested. A custom `ApprovalStore`, `DecisionSink`, `MembershipSource`, `RoleSource`, `SnapshotSource`, `LimitStore`, `RelationSource` or `DirectoryStore` without its `test<Interface>` runner from `permdock/testing` is a finding.
    ✓ Every policy and custom store has its runner, or a finding.
-6. **ASI02 and ASI03.** Map the inventory onto [OWASP Agentic](https://permdock.dev/docs/security/owasp-agentic); for the threat list itself, defer to the `owasp-agentic` spec skill (`npx skills add ScaleDockHQ/scaledock-skills --skill owasp-agentic`).
+6. **ASI02 and ASI03.** Map the inventory onto [OWASP Agentic](https://permdock.com/docs/security/owasp-agentic); for the threat list itself, defer to the `owasp-agentic` spec skill (`npx skills add ScaleDockHQ/scaledock-skills --skill owasp-agentic`).
    - **ASI02** (tool misuse): unmapped tools, a collection permission on a row handler, a destructive tool without `approval`, capability lists that include denied tools.
    - **ASI03** (identity and privilege abuse): a model-supplied subject or actor, an actor used as approver, `distinct: false` on a sensitive action, a resume token not bound to permission, resource, subject and actor, API keys stored in plain text or created outside `decideCredential`, keys without expiry (PD029), and a `memberships` source applied to service-key subjects.
      ✓ Each agent adapter in the app has an ASI02 line and an ASI03 line.
@@ -64,4 +64,4 @@ Read the app's `permissions.ts`, `policy.ts`, factory file and every adapter gua
 ## Reference index
 
 - Topic Verify lists: the `permdock-agents`, `permdock-approvals`, `permdock-tenancy`, `permdock-data` and `permdock-credentials` skills.
-- Docs: [OWASP Agentic mapping](https://permdock.dev/docs/security/owasp-agentic), [threat model](https://permdock.dev/docs/security/threat-model), [`permdock doctor`](https://permdock.dev/docs/cli/doctor), [`permdock usage`](https://permdock.dev/docs/cli/usage), [testing](https://permdock.dev/docs/adapters/testing).
+- Docs: [OWASP Agentic mapping](https://permdock.com/docs/security/owasp-agentic), [threat model](https://permdock.com/docs/security/threat-model), [`permdock doctor`](https://permdock.com/docs/cli/doctor), [`permdock usage`](https://permdock.com/docs/cli/usage), [testing](https://permdock.com/docs/adapters/testing).

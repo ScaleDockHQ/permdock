@@ -1,6 +1,6 @@
 # Queries and generated RLS
 
-Owning pages: [protected queries](https://permdock.dev/docs/concepts/policies#protected-queries), [RLS adapter](https://permdock.dev/docs/adapters/rls), [`permdock rls`](https://permdock.dev/docs/cli/rls), and the ORM pages [Drizzle](https://permdock.dev/docs/adapters/drizzle), [Prisma](https://permdock.dev/docs/adapters/prisma), [Kysely](https://permdock.dev/docs/adapters/kysely), [Convex](https://permdock.dev/docs/adapters/convex).
+Owning pages: [protected queries](https://permdock.com/docs/concepts/policies#protected-queries), [RLS adapter](https://permdock.com/docs/adapters/rls), [`permdock rls`](https://permdock.com/docs/cli/rls), and the ORM pages [Drizzle](https://permdock.com/docs/adapters/drizzle), [Prisma](https://permdock.com/docs/adapters/prisma), [Kysely](https://permdock.com/docs/adapters/kysely), [Convex](https://permdock.com/docs/adapters/convex).
 
 ## List queries
 
@@ -51,4 +51,4 @@ When hand-written policies call the app's own helpers (`org_ids_with_permission`
 
 ## Attributes RLS cannot see
 
-A grant condition on `context.*` cannot be enforced by the database (PD027). Compare with a server-set `principal.claims.*` claim instead, never one from `user_metadata`. On Supabase, `supabase.hook.attrs` lists only server-owned columns or `app_metadata.<key>` entries clients cannot update (PD028). The hook, declarative schemas (`--split`) and `fromTable` / `fromJunction` membership sources are on the [Supabase adapter](https://permdock.dev/docs/adapters/supabase) and [Supabase hook](https://permdock.dev/docs/adapters/supabase-hook) pages.
+A grant condition on `context.*` cannot be enforced by the database (PD027). Compare with a server-set `principal.claims.*` claim instead, never one from `user_metadata`. On Supabase, `supabase.hook.attrs` lists only server-owned columns or `app_metadata.<key>` entries clients cannot update (PD028). The hook, declarative schemas (`--split`) and `fromTable` / `fromJunction` membership sources are on the [Supabase adapter](https://permdock.com/docs/adapters/supabase) and [Supabase hook](https://permdock.com/docs/adapters/supabase-hook) pages.

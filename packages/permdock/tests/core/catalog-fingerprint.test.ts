@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { catalogFingerprint } from "../../src/core/catalog-fingerprint.ts";
 
 const catalog = {
-  $schema: "https://permdock.dev/schemas/catalog-v1.json",
+  $schema: "https://permdock.com/schemas/catalog-v1.json",
   version: 1,
   generatedAt: "2026-09-28T10:00:00.000Z",
   generator: "permdock 0.1.0",

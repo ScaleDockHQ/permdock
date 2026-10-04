@@ -1,6 +1,6 @@
 # Approval stores and the resume flow
 
-The API and the store contract are on the [approvals adapter](https://permdock.dev/docs/adapters/approvals); the token and the runtime table are on [approval security](https://permdock.dev/docs/security/approvals).
+The API and the store contract are on the [approvals adapter](https://permdock.com/docs/adapters/approvals); the token and the runtime table are on [approval security](https://permdock.com/docs/security/approvals).
 
 ## Store and handler
 
@@ -80,4 +80,4 @@ For AG-UI event shapes, defer to the `ag-ui` spec skill (`npx skills add ScaleDo
 
 ## Delivery
 
-Notifying an approver is a listener on the `approval` event (`permdock.on('approval', …)`), never a package. A message or email carries only the token and links to a page where the approver signs in; the verdict goes through `approvalsHandler` with that session's subject. A link never approves on its own ([approvals adapter, Delivery](https://permdock.dev/docs/adapters/approvals#delivery)).
+Notifying an approver is a listener on the `approval` event (`permdock.on('approval', …)`), never a package. A message or email carries only the token and links to a page where the approver signs in; the verdict goes through `approvalsHandler` with that session's subject. A link never approves on its own ([approvals adapter, Delivery](https://permdock.com/docs/adapters/approvals#delivery)).

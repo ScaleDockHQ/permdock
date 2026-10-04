@@ -29,7 +29,7 @@ A denial:
 
 ```json
 {
-  "type": "https://permdock.dev/problems/denied",
+  "type": "https://permdock.com/problems/denied",
   "title": "Permission denied",
   "status": 403,
   "detail": "Subject u_123 (role member) may not delete post p_42: the grant requires authorId = principal.id. Permitted on this post: post.read, post.update.",
@@ -52,7 +52,7 @@ An approval-required decision:
 
 ```json
 {
-  "type": "https://permdock.dev/problems/approval-required",
+  "type": "https://permdock.com/problems/approval-required",
   "title": "Approval required",
   "status": 403,
   "detail": "Deleting post p_42 requires human approval. Resubmit with the approval token once approved.",
@@ -64,7 +64,7 @@ An approval-required decision:
 
 Rules:
 
-- **`type` URIs are stable** and per outcome: `.../denied`, `.../approval-required`, `.../validation` (for `PermDockValidationError` at a boundary, status 400), plus two 401 types that exist only where a `WWW-Authenticate` challenge is the real answer: `.../unauthenticated` (no token, or a token that failed verification) and `.../step-up-required` (RFC 9470, carrying `acrValues` and `maxAge`). An exhausted `limit` is `.../rate-limited` (429) and a limit store that cannot answer is `.../limit-unavailable` (503); a denied row of a resource with `disclosure: 'hide'` is `.../not-found` (404), and a denial only a plan stands behind is `.../not-entitled` (403, with `plans`). They sit under the fixed base `https://permdock.dev/problems`; the host is not configurable, so a self-hosted deployment emits the same identifiers.
+- **`type` URIs are stable** and per outcome: `.../denied`, `.../approval-required`, `.../validation` (for `PermDockValidationError` at a boundary, status 400), plus two 401 types that exist only where a `WWW-Authenticate` challenge is the real answer: `.../unauthenticated` (no token, or a token that failed verification) and `.../step-up-required` (RFC 9470, carrying `acrValues` and `maxAge`). An exhausted `limit` is `.../rate-limited` (429) and a limit store that cannot answer is `.../limit-unavailable` (503); a denied row of a resource with `disclosure: 'hide'` is `.../not-found` (404), and a denial only a plan stands behind is `.../not-entitled` (403, with `plans`). They sit under the fixed base `https://permdock.com/problems`; the host is not configurable, so a self-hosted deployment emits the same identifiers.
 - **`permission`** is the permission `key`, never the object; keys are the wire form of references.
 - **`denials`** mirrors `Decision.denials` and is always present, in production too, because what it reveals is bounded by the subject's own snapshot: one entry per role that had a matching grant and why it did not apply. Conditions are the portable JSON AST, so a client can show exactly which constraint failed. Closure grants appear as `{ "kind": "closure" }` with no further detail.
 - **`alternatives`** lists permission keys on the same resource the subject does hold, so a model can pick a permitted action.
@@ -94,7 +94,7 @@ Hyphenated PermDock reasons become the underscored wire codes; nothing else is t
 
 ## Problem types
 
-Each `type` URI dereferences here: `https://permdock.dev/problems/<type>` redirects to the matching section below.
+Each `type` URI dereferences here: `https://permdock.com/problems/<type>` redirects to the matching section below.
 
 ### denied
 
@@ -122,7 +122,7 @@ Each `type` URI dereferences here: `https://permdock.dev/problems/<type>` redire
 
 ```json
 {
-  "type": "https://permdock.dev/problems/not-entitled",
+  "type": "https://permdock.com/problems/not-entitled",
   "title": "Plan upgrade required",
   "status": 403,
   "permission": "analytics.read",
@@ -167,7 +167,7 @@ Each `type` URI dereferences here: `https://permdock.dev/problems/<type>` redire
 
 | RFC 9457 member                                   | PermDock value                                                                                                                                                                                                     |
 | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `type`                                            | `https://permdock.dev/problems/denied`, `.../approval-required`, `.../validation`, `.../unauthenticated`, `.../step-up-required`, `.../not-entitled`, `.../rate-limited`, `.../limit-unavailable`, `.../not-found` |
+| `type`                                            | `https://permdock.com/problems/denied`, `.../approval-required`, `.../validation`, `.../unauthenticated`, `.../step-up-required`, `.../not-entitled`, `.../rate-limited`, `.../limit-unavailable`, `.../not-found` |
 | `title`                                           | Fixed per type, for example "Permission denied", "Approval required", "Authentication required", "Plan upgrade required", "Rate limit exceeded"                                                                    |
 | `status`                                          | Fixed per type: the number in each heading under [Problem types](#problem-types)                                                                                                                                   |
 | `detail`                                          | Model-readable sentence built from `Decision` reasons and `alternatives`                                                                                                                                           |
@@ -182,7 +182,7 @@ Each `type` URI dereferences here: `https://permdock.dev/problems/<type>` redire
 
 ## Why
 
-The `type` URI is an identifier first: clients and gateways switch on it, so it must be identical across every deployment. A configurable base would let two installs emit different identifiers for the same problem and break any client written against one of them, which is why the kernel has no `problem.base` option. RFC 9457 still asks that the URI dereference to documentation, so `permdock.dev/problems/<type>` redirects to the section above for that type rather than living as a separate page tree.
+The `type` URI is an identifier first: clients and gateways switch on it, so it must be identical across every deployment. A configurable base would let two installs emit different identifiers for the same problem and break any client written against one of them, which is why the kernel has no `problem.base` option. RFC 9457 still asks that the URI dereference to documentation, so `permdock.com/problems/<type>` redirects to the section above for that type rather than living as a separate page tree.
 
 The `approval` member (`at`, `hint`) is shared across the terminal and HTTP adapters rather than terminal-only: it carries no secret, only where and how a human approves, and every surface that can return `approval-required` benefits from the same pointer.
 

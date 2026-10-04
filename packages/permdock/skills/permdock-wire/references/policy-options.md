@@ -1,6 +1,6 @@
 # Policy options and CLI starting points
 
-Owning pages: [policies](https://permdock.dev/docs/concepts/policies), [decisions](https://permdock.dev/docs/concepts/decisions), [CLI](https://permdock.dev/docs/cli).
+Owning pages: [policies](https://permdock.com/docs/concepts/policies), [decisions](https://permdock.com/docs/concepts/decisions), [CLI](https://permdock.com/docs/cli).
 
 ## Usage limits
 
@@ -28,7 +28,7 @@ Hardware-key step-up is `to: assurance({ amr: ['hwk'], maxAge: 300 })` and rende
 
 ## Existing apps
 
-Adopting PermDock in an app with its own keys, SQL helpers and tokens is a step-by-step guide ([existing apps](https://permdock.dev/docs/getting-started/existing-apps)):
+Adopting PermDock in an app with its own keys, SQL helpers and tokens is a step-by-step guide ([existing apps](https://permdock.com/docs/getting-started/existing-apps)):
 
 - Keep the app's keys. Map verbs such as `view` to SQL with `rls.actions`, and give colliding resources a distinct `name` on `resource()`.
 - Put application-owned metadata in `meta.x`; PermDock carries it and never reads it.

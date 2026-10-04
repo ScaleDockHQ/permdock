@@ -49,7 +49,7 @@ function committedCatalogs(): readonly string[] {
 }
 
 const base = {
-  $schema: "https://permdock.dev/schemas/catalog-v1.json",
+  $schema: "https://permdock.com/schemas/catalog-v1.json",
   version: 1,
   generatedAt: "2026-10-01T00:00:00.000Z",
   generator: "permdock@0.1.0",

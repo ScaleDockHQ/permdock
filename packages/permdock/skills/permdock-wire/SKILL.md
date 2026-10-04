@@ -4,13 +4,13 @@ description: Adds PermDock authorization to a TypeScript app, from definitions t
 license: MIT
 metadata:
   author: ScaleDockHQ
-  homepage: https://permdock.dev/docs/getting-started/quick-start
+  homepage: https://permdock.com/docs/getting-started/quick-start
   repository: https://github.com/ScaleDockHQ/permdock
 ---
 
 # Wire PermDock
 
-Three files and one guard: `src/permissions.ts` (definitions), `src/policy.ts` (rules) and the factory file, then one check on the path the user asked for ([quick start](https://permdock.dev/docs/getting-started/quick-start)). Import paths and identifiers follow the [naming convention](https://permdock.dev/docs/getting-started/naming).
+Three files and one guard: `src/permissions.ts` (definitions), `src/policy.ts` (rules) and the factory file, then one check on the path the user asked for ([quick start](https://permdock.com/docs/getting-started/quick-start)). Import paths and identifiers follow the [naming convention](https://permdock.com/docs/getting-started/naming).
 
 ## Inputs (find out, or ask before starting)
 
@@ -87,7 +87,7 @@ Three files and one guard: `src/permissions.ts` (definitions), `src/policy.ts` (
    ✓ The factory file compiles and exports the adapter's public members.
 5. **Guard.** Add one check on the path the user asked for: `assert` or `protect` / `getPermission` with a permission reference on the server, `<Protected permission={permissions.post.update}>` inside `PermDockProvider` in React.
    ✓ That path cannot run without a `granted` decision, and the adapter handles a denial (Problem Details or fallback UI).
-6. **Check.** Run `permdock collect`, `permdock catalog`, `permdock usage` and `permdock doctor`, and add `permdock collect --check` to CI. For a Vite SPA, Expo or another framework without `'use client'`, set `doctor.clientEntries` to the client source globs so PD001 checks them. Add a `describePolicy` suite from `permdock/testing` ([scenario testing](https://permdock.dev/docs/guides/scenario-testing)). -> [references/policy-options.md](references/policy-options.md#cli-starting-points)
+6. **Check.** Run `permdock collect`, `permdock catalog`, `permdock usage` and `permdock doctor`, and add `permdock collect --check` to CI. For a Vite SPA, Expo or another framework without `'use client'`, set `doctor.clientEntries` to the client source globs so PD001 checks them. Add a `describePolicy` suite from `permdock/testing` ([scenario testing](https://permdock.com/docs/guides/scenario-testing)). -> [references/policy-options.md](references/policy-options.md#cli-starting-points)
    ✓ Collect and doctor findings are fixed, or the three files typecheck and one matrix test passes.
 
 ## Next skills
@@ -113,4 +113,4 @@ Install each with `npx skills add ScaleDockHQ/PermDock --skill <name>` when the 
 - [references/adapters.md](references/adapters.md): factory shapes for Next.js, HTTP frameworks, RPC frameworks, UI frameworks, AuthZEN, OpenAPI, OpenTelemetry, SCIM, Cloud, Better Auth, Clerk, Supabase, the remote PDP and collect-only frameworks.
 - [references/policy-options.md](references/policy-options.md): limits, disclosure, plans, validity windows, step-up, and CLI starting points (OpenAPI import, Arazzo, Cloud push).
 - The `permdock` skill: the mental model, `explain` for an unexpected denial, and the docs MCP.
-- Docs: [policies](https://permdock.dev/docs/concepts/policies), [conditions](https://permdock.dev/docs/concepts/conditions), [decisions](https://permdock.dev/docs/concepts/decisions), [adapters](https://permdock.dev/docs/adapters).
+- Docs: [policies](https://permdock.com/docs/concepts/policies), [conditions](https://permdock.com/docs/concepts/conditions), [decisions](https://permdock.com/docs/concepts/decisions), [adapters](https://permdock.com/docs/adapters).

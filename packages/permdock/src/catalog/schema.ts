@@ -58,7 +58,7 @@ const approval = {
 /** `schemas/catalog-v1.json`; a test keeps the two equal. */
 export const catalogSchema: CatalogSchemaNode = freezeDeep({
   $schema: "https://json-schema.org/draft/2020-12/schema",
-  $id: "https://permdock.dev/schemas/catalog-v1.json",
+  $id: "https://permdock.com/schemas/catalog-v1.json",
   type: "object",
   required: [
     "$schema",

@@ -340,7 +340,7 @@ describe("the pinned OpenAPI 3.3 schema", () => {
     });
     expect(schema).toMatchObject({
       $id: expect.stringMatching(
-        /^https:\/\/permdock\.dev\/schemas\/openapi\/oas-3\.3\//u,
+        /^https:\/\/permdock\.com\/schemas\/openapi\/oas-3\.3\//u,
       ),
       properties: { openapi: { pattern: String.raw`^3\.3\.\d+(-.+)?$` } },
       $defs: {

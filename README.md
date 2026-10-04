@@ -10,7 +10,7 @@ Typed permissions for TypeScript apps, APIs, databases and AI agents: one defini
 ![pnpm 12](https://img.shields.io/badge/pnpm-12.8.1-f69220.svg)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](./CODE_OF_CONDUCT.md)
 
-[**Docs**](https://permdock.dev/docs) · [**npm package**](./packages/permdock/README.md) · [**Product brief**](./PRODUCT.md) · [**Design**](./DESIGN.md) · [**Roadmap**](./apps/docs/content/docs/roadmap.mdx) · [**Agent guide**](./AGENTS.md) · [**Decisions**](./docs/decisions/README.md) · [**Contributing**](./CONTRIBUTING.md) · [**Report issue**](https://github.com/ScaleDockHQ/PermDock/issues)
+[**Docs**](https://permdock.com/docs) · [**npm package**](./packages/permdock/README.md) · [**Product brief**](./PRODUCT.md) · [**Design**](./DESIGN.md) · [**Roadmap**](./apps/docs/content/docs/roadmap.mdx) · [**Agent guide**](./AGENTS.md) · [**Decisions**](./docs/decisions/README.md) · [**Contributing**](./CONTRIBUTING.md) · [**Report issue**](https://github.com/ScaleDockHQ/PermDock/issues)
 
 > **Pre-release.** Nothing is published yet. The first release of `permdock` is `0.1.0`: one package with core, every adapter, the `permdock` CLI and `permdock/testing`.
 
@@ -25,7 +25,7 @@ Permission logic in a typical TypeScript app lives in `if (user.role === 'admin'
 - **Three outcomes.** `granted`, `denied` or `approval-required`, with denial reasons, permitted alternatives and a replay-safe approval token.
 - **Embedded.** Every decision runs in-process. PermDock Cloud is optional and never on the decision path.
 
-The user-facing overview with code for every surface is the [npm README](./packages/permdock/README.md); the full reference is the [docs](https://permdock.dev/docs).
+The user-facing overview with code for every surface is the [npm README](./packages/permdock/README.md); the full reference is the [docs](https://permdock.com/docs).
 
 ## What ships
 

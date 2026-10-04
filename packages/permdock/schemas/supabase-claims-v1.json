@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://permdock.dev/schemas/supabase-claims-v1.json",
+  "$id": "https://permdock.com/schemas/supabase-claims-v1.json",
   "title": "PermDock claims in a Supabase access token",
   "description": "The claims the permdock supabase hook writes and the SQL helpers and subjectFromSupabase read, plus the OAuth claims subjectFromSupabase maps to the actor and delegation. Other claims pass through. Each hook claim may also sit under app_metadata. supabaseClaims() in permdock/supabase validates the same shape; tenant_id is the default rls.tenantClaim.",
   "type": "object",

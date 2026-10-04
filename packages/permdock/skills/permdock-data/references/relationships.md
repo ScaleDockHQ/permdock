@@ -1,6 +1,6 @@
 # Relationship graph
 
-Owning page: [relationships](https://permdock.dev/docs/concepts/relationships). Named scopes are tenancy (fixed levels); the graph is the objects under them, with no fixed depth.
+Owning page: [relationships](https://permdock.com/docs/concepts/relationships). Named scopes are tenancy (fixed levels); the graph is the objects under them, with no fixed depth.
 
 ## Declare
 

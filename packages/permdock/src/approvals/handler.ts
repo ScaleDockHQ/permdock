@@ -13,7 +13,7 @@ import { isApprovalError } from "./errors.ts";
 import { approverRelations } from "./relations.ts";
 import { assertApprover } from "./store.ts";
 
-const PROBLEM_BASE = "https://permdock.dev/problems";
+const PROBLEM_BASE = "https://permdock.com/problems";
 
 export type ApprovalsHandlerOptions = {
   readonly subject: (

@@ -673,7 +673,7 @@ Output of `permdock collect` and `permdock catalog --format json`. The same list
 
 ```json
 {
-  "$schema": "https://permdock.dev/schemas/catalog-v1.json",
+  "$schema": "https://permdock.com/schemas/catalog-v1.json",
   "version": 1,
   "generatedAt": "2026-09-06T10:15:00Z",
   "generator": "permdock@0.1.0",
@@ -833,7 +833,7 @@ Output of `permdock supabase inspect --json`, and the file `inspect --out permdo
 
 ```json
 {
-  "$schema": "https://permdock.dev/schemas/supabase-manifest-v1.json",
+  "$schema": "https://permdock.com/schemas/supabase-manifest-v1.json",
   "version": 1,
   "hook": {
     "schema": "public",
@@ -936,7 +936,7 @@ Output of `permdock supabase inspect --json`, and the file `inspect --out permdo
 
 ```json
 {
-  "type": "https://permdock.dev/problems/denied",
+  "type": "https://permdock.com/problems/denied",
   "title": "Permission denied",
   "status": 403,
   "detail": "post.delete denied for subject u_1: member (condition). Alternatives: post.read, post.update.",
@@ -951,7 +951,7 @@ Output of `permdock supabase inspect --json`, and the file `inspect --out permdo
 
 ```json
 {
-  "type": "https://permdock.dev/problems/approval-required",
+  "type": "https://permdock.com/problems/approval-required",
   "title": "Approval required",
   "status": 403,
   "detail": "post.delete requires human approval (human). Token: pd1.…",
@@ -965,7 +965,7 @@ Output of `permdock supabase inspect --json`, and the file `inspect --out permdo
 
 ```json
 {
-  "type": "https://permdock.dev/problems/validation",
+  "type": "https://permdock.com/problems/validation",
   "title": "Invalid resource data",
   "status": 400,
   "detail": "post.update: invalid post data at authorId: Expected string, received number.",
@@ -977,7 +977,7 @@ Output of `permdock supabase inspect --json`, and the file `inspect --out permdo
 }
 ```
 
-The base URI in `type` is the fixed identifier `https://permdock.dev/problems`; it is not configurable, so every deployment emits the same `type` values. Each URI dereferences to its section on [Problem Details](/docs/standards/problem-details).
+The base URI in `type` is the fixed identifier `https://permdock.com/problems`; it is not configurable, so every deployment emits the same `type` values. Each URI dereferences to its section on [Problem Details](/docs/standards/problem-details).
 
 ## RFC 9396 authorization_details
 

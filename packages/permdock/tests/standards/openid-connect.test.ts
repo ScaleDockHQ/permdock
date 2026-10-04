@@ -431,7 +431,7 @@ describe("RFC 9470 OAuth 2.0 Step Up Authentication Challenge", () => {
       'Bearer error="insufficient_user_authentication", acr_values="urn:example:loa:3", max_age="300"',
     );
     expect(await response.json()).toMatchObject({
-      type: "https://permdock.dev/problems/step-up-required",
+      type: "https://permdock.com/problems/step-up-required",
       acrValues: ["urn:example:loa:3"],
       maxAge: 300,
     });

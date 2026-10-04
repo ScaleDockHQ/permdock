@@ -50,7 +50,7 @@ describe("normalizeDocsPath", () => {
       "hono",
     ]);
     expect(
-      normalizeDocsPath("https://permdock.dev/docs/adapters/hono.md"),
+      normalizeDocsPath("https://permdock.com/docs/adapters/hono.md"),
     ).toEqual(["adapters", "hono"]);
     expect(normalizeDocsPath("llms.mdx/docs/adapters/hono")).toEqual([
       "adapters",

@@ -1,6 +1,6 @@
 # Tokens, API keys and share links
 
-Owning pages: [JWT adapter](https://permdock.dev/docs/adapters/jwt), [authentication](https://permdock.dev/docs/concepts/authentication), [API keys](https://permdock.dev/docs/concepts/credentials), [link capabilities](https://permdock.dev/docs/concepts/capabilities).
+Owning pages: [JWT adapter](https://permdock.com/docs/adapters/jwt), [authentication](https://permdock.com/docs/concepts/authentication), [API keys](https://permdock.com/docs/concepts/credentials), [link capabilities](https://permdock.com/docs/concepts/capabilities).
 
 ## Access tokens — `permdock/jwt`
 

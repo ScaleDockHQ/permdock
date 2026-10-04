@@ -142,7 +142,7 @@ describe("permdock/server", () => {
       throw new Error("expected approval-required");
     }
     expect(await pending.response.json()).toMatchObject({
-      type: "https://permdock.dev/problems/approval-required",
+      type: "https://permdock.com/problems/approval-required",
       approval: { at: "https://app.example/approvals", hint: "Ask an admin." },
     });
     const permdock = await permdockFor(request());
@@ -462,7 +462,7 @@ describe("permdock/server webBotAuth", () => {
     expect(denied.response.status).toBe(403);
     // SAFETY: Problem Details JSON produced by the server adapter under test.
     const body = (await denied.response.json()) as { readonly type: string };
-    expect(body.type).toBe("https://permdock.dev/problems/invalid-signature");
+    expect(body.type).toBe("https://permdock.com/problems/invalid-signature");
   });
 
   it("rejects a Signature-Agent host that is not on the allow-list", async () => {
@@ -516,7 +516,7 @@ describe("permdock/server webBotAuth", () => {
     expect(denied.response.status).toBe(403);
     // SAFETY: Problem Details JSON produced by the server adapter under test.
     const body = (await denied.response.json()) as { readonly type: string };
-    expect(body.type).toBe("https://permdock.dev/problems/invalid-signature");
+    expect(body.type).toBe("https://permdock.com/problems/invalid-signature");
   });
 
   it("discovers a key through Signature-Agent when the host is allowed", async () => {

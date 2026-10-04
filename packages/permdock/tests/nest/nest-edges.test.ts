@@ -175,7 +175,7 @@ describe("permdock/nest gateway messages", () => {
     await connection(client, fakeRequest("handshake"));
     await revocations.revoke({ principal: "u1", kind: "session-revoked" });
     expect(closes).toEqual([
-      [1008, "https://permdock.dev/problems/unauthenticated"],
+      [1008, "https://permdock.com/problems/unauthenticated"],
     ]);
   });
 });

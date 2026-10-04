@@ -216,7 +216,7 @@ describe("draft-meunier-webbotauth-httpsig-protocol-02", () => {
     expect(failure.status).toBe(403);
     expect(failure.contentType).toBe("application/problem+json");
     expect(failure.body).toMatchObject({
-      type: "https://permdock.dev/problems/invalid-signature",
+      type: "https://permdock.com/problems/invalid-signature",
       title: "Invalid signature",
       status: 403,
     });

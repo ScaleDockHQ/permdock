@@ -404,7 +404,7 @@ export { supabaseMembershipsBudget } from "../supabase/budget.ts";
  * parser against this value.
  */
 export const supabaseHookManifestFixture: SupabaseHookManifest = {
-  $schema: "https://permdock.dev/schemas/supabase-manifest-v1.json",
+  $schema: "https://permdock.com/schemas/supabase-manifest-v1.json",
   version: 1,
   hook: {
     schema: "permdock",

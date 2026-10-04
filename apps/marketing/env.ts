@@ -16,7 +16,7 @@ export const env = createEnv({
     ),
   },
   client: {
-    NEXT_PUBLIC_SITE_URL: v.optional(url, "https://permdock.dev"),
+    NEXT_PUBLIC_SITE_URL: v.optional(url, "https://permdock.com"),
     NEXT_PUBLIC_SENTRY_DSN: v.optional(url),
     NEXT_PUBLIC_VERCEL_ENV: v.optional(
       v.picklist(["development", "preview", "production"]),

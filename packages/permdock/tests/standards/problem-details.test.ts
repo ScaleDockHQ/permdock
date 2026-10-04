@@ -189,7 +189,7 @@ describe("RFC 9457 Problem Details", () => {
   }
 
   it("uses the fixed base, never a configurable host", () => {
-    expect(PROBLEM_BASE).toBe("https://permdock.dev/problems");
+    expect(PROBLEM_BASE).toBe("https://permdock.com/problems");
   });
 
   it("carries permission, denials and alternatives as wire keys on a denial", async () => {

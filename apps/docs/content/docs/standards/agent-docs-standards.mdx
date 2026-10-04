@@ -45,7 +45,7 @@ Three channels put PermDock in front of an agent before it reads a page, and eac
 | npm provenance (Sigstore)         | Every release after the first is published from the Release workflow through npm trusted publishing (OIDC, no npm token) with provenance, so the registry shows the source commit and workflow; `permdock doctor` warns when an installed copy lacks an attestation | An agent (or its human) can check that the `permdock` it installed was built from this repository, which matters for a library that decides authorization |
 | JSR                               | `permdock` is also published to [JSR](https://jsr.io) from the same commit, with the TypeScript source and generated docs                                                                                                                                           | Deno users import without an npm shim; JSR renders the API reference from source, which agents read well                                                  |
 | Context7 and similar docs indexes | The docs site is registered with [Context7](https://context7.com) and serves `llms.txt`, `llms-full.txt` and `.md` per page so any index can pull it; the `permdock` skill points agents at the docs MCP and `llms.txt`                                             | Coding agents resolve "how do I use permdock" to current docs instead of training data; a `Status` line tells them what does not exist yet                |
-| MCP Registry                      | `server.json` at the repository root (`io.github.scaledockhq/permdock-docs`); Streamable HTTP at `https://permdock.dev/mcp`                                                                                                                                         | Agent hosts discover the docs server by name instead of a pasted URL                                                                                      |
+| MCP Registry                      | `server.json` at the repository root (`io.github.scaledockhq/permdock-docs`); Streamable HTTP at `https://permdock.com/mcp`                                                                                                                                         | Agent hosts discover the docs server by name instead of a pasted URL                                                                                      |
 
 None of these changes an API. They are listed here so the release checklist and the skill agree on them.
 
@@ -77,7 +77,7 @@ description: Adds PermDock authorization to a TypeScript app, from definitions t
 license: MIT
 metadata:
   author: ScaleDockHQ
-  homepage: https://permdock.dev/docs/getting-started/quick-start
+  homepage: https://permdock.com/docs/getting-started/quick-start
   repository: https://github.com/ScaleDockHQ/permdock
 ---
 
@@ -120,7 +120,7 @@ metadata:
 {
   "mcpServers": {
     "permdock-docs": {
-      "url": "https://permdock.dev/mcp"
+      "url": "https://permdock.com/mcp"
     }
   }
 }
@@ -129,8 +129,8 @@ metadata:
 Connect a client in one step:
 
 - Cursor: [add `permdock-docs` to Cursor](cursor://anysphere.cursor-deeplink/mcp/install?name=permdock-docs&config=eyJ1cmwiOiJodHRwczovL3Blcm1kb2NrLmRldi9tY3AifQ==).
-- VS Code: [add `permdock-docs` to VS Code](vscode:mcp/install?%7B%22name%22%3A%22permdock-docs%22%2C%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fpermdock.dev%2Fmcp%22%7D).
-- Claude Code: run `claude mcp add --transport http permdock-docs https://permdock.dev/mcp`. In Claude Desktop, add `https://permdock.dev/mcp` as a custom connector.
+- VS Code: [add `permdock-docs` to VS Code](vscode:mcp/install?%7B%22name%22%3A%22permdock-docs%22%2C%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fpermdock.com%2Fmcp%22%7D).
+- Claude Code: run `claude mcp add --transport http permdock-docs https://permdock.com/mcp`. In Claude Desktop, add `https://permdock.com/mcp` as a custom connector.
 
 Locally the same handler is `http://localhost:3000/mcp` while `pnpm dev:docs` is running. The repository-root `server.json` is the [MCP Registry](https://registry.modelcontextprotocol.io) listing.
 

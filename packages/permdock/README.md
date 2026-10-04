@@ -10,9 +10,9 @@
 
 Define permissions once as typed references over the Zod, Valibot or ArkType schemas you already have. Grant them to roles with portable conditions. Check them in React, React Native, Next.js, Hono, tRPC and MCP servers. Compile the same conditions to SQL `where` clauses and Postgres Row Level Security policies. Drive tool approvals in the Vercel AI SDK, the Claude Agent SDK, Eve and the OpenAI Agents SDK from the same decision.
 
-> **Pre-release.** The first published version is `0.1.0`. See the [roadmap](https://permdock.dev/docs/roadmap).
+> **Pre-release.** The first published version is `0.1.0`. See the [roadmap](https://permdock.com/docs/roadmap).
 
-[Docs](https://permdock.dev/docs) · [Quick start](https://permdock.dev/docs/getting-started/quick-start) · [Adapters](https://permdock.dev/docs/adapters) · [For AI agents](https://permdock.dev/docs/for-ai-agents) · [Source](https://github.com/ScaleDockHQ/permdock)
+[Docs](https://permdock.com/docs) · [Quick start](https://permdock.com/docs/getting-started/quick-start) · [Adapters](https://permdock.com/docs/adapters) · [For AI agents](https://permdock.com/docs/for-ai-agents) · [Source](https://github.com/ScaleDockHQ/permdock)
 
 ## Install
 
@@ -31,14 +31,14 @@ Permission logic in a typical TypeScript app is spread across `if (user.role ===
 - **Reference-based.** `permissions.post.update` is a typed, frozen object carrying `key`, `scope`, schema and metadata. Go-to-definition works, renames are safe, and the runtime definition is the catalog.
 - **Standard Schema native.** Resources are built from any [Standard Schema](https://standardschema.dev) validator; instance types are inferred; untrusted input is validated at trust boundaries only.
 - **Policy as data.** Roles are arrays of `allow` / `deny` grants with a portable condition AST. One condition evaluates in the browser, filters arrays, compiles to Drizzle / Prisma / Kysely `where`, and generates Postgres RLS.
-- **Multi-tenant roles.** A role is held globally, in a tenant, in a team or on one resource: `role('admin', grants, { on: 'tenant' })` replaces the `orgId` condition you used to repeat on every grant. Memberships come from your auth provider; PermDock stores nothing. Read [tenants, teams and scoped roles](https://permdock.dev/docs/concepts/tenancy).
+- **Multi-tenant roles.** A role is held globally, in a tenant, in a team or on one resource: `role('admin', grants, { on: 'tenant' })` replaces the `orgId` condition you used to repeat on every grant. Memberships come from your auth provider; PermDock stores nothing. Read [tenants, teams and scoped roles](https://permdock.com/docs/concepts/tenancy).
 - **Decisions, not booleans.** `decide()` returns `granted`, `denied` or `approval-required` with the matched grant, denial reasons and permitted alternatives. Adapters turn that into RFC 9457 Problem Details, model-readable MCP refusals and AI SDK approval states.
 - **Snapshots that carry conditions.** The client answers ownership checks offline with no duplicated rules, and `<Protected>` never blocks a Next.js 16.3 instant navigation.
 - **Agent-native.** A two-principal subject (principal, actor, delegation), adapters for MCP, the AI SDK, the Claude Agent SDK, Eve, the OpenAI Agents SDK, WebMCP and A2A, an AuthZEN 1.0 decision endpoint, and bundled agent skills.
 - **Human approvals that resume safely.** `approval: 'human'` grants yield a third outcome with a replay-safe `token`. Pending approvals live in a pluggable `ApprovalStore`; approvers are authenticated and never the agent; plain HTTP resumes with a `PermDock-Approval` header.
 - **Secure by default.** Fail-closed, deny overrides allow, an unknown reference is a type error, prototype-safe, no eval, `service_role` never emitted, model-supplied subjects never trusted, an agent with no delegation denied, no one approving their own request, never a default tenant, data validated against the resource schema unless the caller marks a row it loaded `trusted: true`.
-- **Authentication stays upstream.** PermDock consumes verified material only: sessions, JWKS-verified JWTs (`permdock/jwt`, with `jose` as an optional peer), Supabase, Clerk and Better Auth claims, MCP `authInfo`. Token failures become RFC 6750 challenges, never thrown errors. Read [authentication](https://permdock.dev/docs/concepts/authentication).
-- **The Cloud is optional.** Every decision runs in-process. PermDock Cloud adds a decision log, access reviews, an approval inbox, a hosted AuthZEN endpoint and a SCIM relay, all behind interfaces this package ships with in-process defaults. Read [PermDock Cloud](https://permdock.dev/docs/adapters/cloud).
+- **Authentication stays upstream.** PermDock consumes verified material only: sessions, JWKS-verified JWTs (`permdock/jwt`, with `jose` as an optional peer), Supabase, Clerk and Better Auth claims, MCP `authInfo`. Token failures become RFC 6750 challenges, never thrown errors. Read [authentication](https://permdock.com/docs/concepts/authentication).
+- **The Cloud is optional.** Every decision runs in-process. PermDock Cloud adds a decision log, access reviews, an approval inbox, a hosted AuthZEN endpoint and a SCIM relay, all behind interfaces this package ships with in-process defaults. Read [PermDock Cloud](https://permdock.com/docs/adapters/cloud).
 
 ## Quick start
 
@@ -146,7 +146,7 @@ import { PermDockProvider, Protected, usePermission } from "permdock/react";
 const { allowed, status } = usePermission(permissions.post.update, post);
 ```
 
-The same hook names exist in React Native, Vue, Svelte and Solid. Read [building UI](https://permdock.dev/docs/concepts/ui).
+The same hook names exist in React Native, Vue, Svelte and Solid. Read [building UI](https://permdock.com/docs/concepts/ui).
 
 ### Next.js 16.3
 
@@ -250,11 +250,11 @@ Any Standard Schema validator: Zod, Valibot, ArkType, Effect Schema. One import 
 | Build              | `permdock/next/plugin` · `permdock/unplugin`                                                                                                            |
 | Testing            | `permdock/testing`                                                                                                                                      |
 
-Nuxt, Astro, React Router, TanStack Start and Effect use these entries plus `permdock/unplugin`. The full matrix with example apps and related standards is on the [adapters page](https://permdock.dev/docs/adapters).
+Nuxt, Astro, React Router, TanStack Start and Effect use these entries plus `permdock/unplugin`. The full matrix with example apps and related standards is on the [adapters page](https://permdock.com/docs/adapters).
 
 ## Compared with
 
-Other TypeScript permission libraries (CASL, permix, Kilpi, `@zap-studio/permit`) return booleans from string keys and stop at the server or the UI. Hosted PDPs (Cerbos, Permit.io, OpenFGA, SpiceDB) put a network call on every check. PermDock is an embedded, typed library with one decision object across UI, API, SQL, RLS and agent approvals. Read the [comparison](https://permdock.dev/docs/comparison).
+Other TypeScript permission libraries (CASL, permix, Kilpi, `@zap-studio/permit`) return booleans from string keys and stop at the server or the UI. Hosted PDPs (Cerbos, Permit.io, OpenFGA, SpiceDB) put a network call on every check. PermDock is an embedded, typed library with one decision object across UI, API, SQL, RLS and agent approvals. Read the [comparison](https://permdock.com/docs/comparison).
 
 ## For AI agents
 
@@ -263,7 +263,7 @@ npx skills add ScaleDockHQ/PermDock   # the permdock, permdock-wire, permdock-au
 permdock skills                       # the same skills, offline, from node_modules/permdock/skills
 ```
 
-Claude Code users can add the plugin marketplace instead: `/plugin marketplace add ScaleDockHQ/permdock`. Every docs page is served as Markdown, plus `llms.txt` and `llms-full.txt`. Read [for AI agents](https://permdock.dev/docs/for-ai-agents).
+Claude Code users can add the plugin marketplace instead: `/plugin marketplace add ScaleDockHQ/permdock`. Every docs page is served as Markdown, plus `llms.txt` and `llms-full.txt`. Read [for AI agents](https://permdock.com/docs/for-ai-agents).
 
 ## License
 

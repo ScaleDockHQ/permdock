@@ -1,5 +1,5 @@
 {
-  "$schema": "https://permdock.dev/schemas/catalog-v1.json",
+  "$schema": "https://permdock.com/schemas/catalog-v1.json",
   "version": 1,
   "generatedAt": "2026-10-03T15:41:33.150Z",
   "generator": "permdock@0.1.0-next.2",
