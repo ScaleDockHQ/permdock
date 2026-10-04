@@ -152,6 +152,21 @@ describe("runDoctor", () => {
     ).toEqual([]);
   });
 
+  it("PD057 runs only under rls.anonymousSignIns: 'deny'", async () => {
+    const cwd = project({
+      "src/subject.ts": `export const s = (c: unknown) => subjectFromSupabase(c);\n`,
+    });
+    const deny: PermDockConfig = { rls: { anonymousSignIns: "deny" } };
+    const result = await doctor(cwd, deny, { only: ["PD057"], json: true });
+    expect(report(result.output).findings.map((item) => item.code)).toEqual([
+      "PD057",
+    ]);
+    expect(
+      report((await doctor(cwd, {}, { only: ["PD057"], json: true })).output)
+        .findings,
+    ).toEqual([]);
+  });
+
   it("skips the helper checks when the hook manifest cannot be built", async () => {
     const cwd = project({
       "src/permissions.ts": PERMISSIONS,

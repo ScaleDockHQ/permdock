@@ -18,6 +18,7 @@ import {
   pd036,
   pd038,
   pd041,
+  pd057,
 } from "../../src/cli/doctor-source.ts";
 
 function src(file: string, text: string): DoctorSource {
@@ -199,6 +200,30 @@ describe("PD038 tenant claim", () => {
     ).toEqual([
       "s.ts:1 reads the tenant from 'team_id', but rls.tenantClaim is 'org_id'",
     ]);
+  });
+});
+
+describe("PD057 anonymous sign-ins", () => {
+  const run = (text: string): readonly string[] =>
+    messages(pd057([src("s.ts", text)]));
+
+  it("warns on a subject call without anonymousSignIns: 'deny' and skips options it cannot read", () => {
+    expect(run(`subjectFromSupabase(claims)`)).toEqual([
+      "s.ts:1 maps anonymous sign-ins as users, but rls.anonymousSignIns is 'deny'",
+    ]);
+    expect(
+      run(`subjectFromSupabaseSession(session, { tenant: 'org_id' })`),
+    ).toHaveLength(1);
+    expect(
+      run(`subjectFromSupabaseSession(session, { anonymousSignIns: "deny" })`),
+    ).toEqual([]);
+    expect(
+      run(
+        `subjectFromSupabase(claims, { roles: 'r', anonymousSignIns: 'deny' })`,
+      ),
+    ).toEqual([]);
+    expect(run(`subjectFromSupabase(claims, options)`)).toEqual([]);
+    expect(run(`subjectFromSupabase(claims, { tenant: 'x'`)).toEqual([]);
   });
 });
 

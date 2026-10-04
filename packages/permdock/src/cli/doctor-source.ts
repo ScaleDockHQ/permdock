@@ -357,6 +357,44 @@ export function pd038(
   return findings;
 }
 
+/**
+ * PD057: `rls.anonymousSignIns` is `'deny'`, so RLS refuses `signInAnonymously()` users, but a
+ * `subjectFromSupabase(Session)` call maps them as signed-in users. Options that are not a
+ * literal object are not read.
+ */
+export function pd057(
+  sources: readonly DoctorSource[],
+): readonly DoctorFinding[] {
+  const findings: DoctorFinding[] = [];
+  for (const source of sources) {
+    for (const match of source.text.matchAll(SUPABASE_SUBJECT_CALL)) {
+      const open = match.index + match[0].length - 1;
+      const args = callArguments(source.text, open);
+      if (args === undefined) {
+        continue;
+      }
+      const options = args[1];
+      if (options !== undefined && !options.startsWith("{")) {
+        continue;
+      }
+      if (
+        options !== undefined &&
+        /(?:^|[{,\s])anonymousSignIns\s*:\s*['"]deny['"]/u.test(options)
+      ) {
+        continue;
+      }
+      const line = source.text.slice(0, match.index).split("\n").length;
+      findings.push({
+        code: "PD057",
+        severity: "warning",
+        message: `${source.file}:${line} maps anonymous sign-ins as users, but rls.anonymousSignIns is 'deny'`,
+        fix: "pass anonymousSignIns: 'deny' so the subject agrees with RLS",
+      });
+    }
+  }
+  return findings;
+}
+
 const EXCHANGE_CALL = /\bexchangeCapability\s*\(/gu;
 
 /** PD041: `exchangeCapability` signing link tokens with the project's shared JWT secret. */
