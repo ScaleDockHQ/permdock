@@ -140,7 +140,7 @@ Hono types context variables through the `Env` generic of each middleware and me
 
 ## Example app
 
-`apps/examples/hono`: `src/permissions.ts`, `src/policy.ts`, `createPermDock` from `permdock/hono`, `protect` on `PATCH /posts/:id` (granted) and `POST /posts/:id/publish` (denied for `member`), plus `src/serve.ts`, which serves `app.fetch` with `@hono/node-server`, for `pnpm start`. `tests/integration/src/http/hono.test.ts` runs the [`testHttpAdapter`](/docs/adapters/testing) scenarios on `@hono/node-server` with a global `permdock()`, a tenant from the `:org` param and a sub-app. The factory enables `otel` with a structural logger so decision lines are recorded locally. `tests/e2e` smokes both routes over Playwright's request fixture.
+`apps/examples/hono`: `src/permissions.ts`, `src/policy.ts`, `createPermDock` from `permdock/hono`, `protect` on `PATCH /posts/:id` (granted) and `POST /posts/:id/publish` (denied for `member`), plus `src/serve.ts`, which serves `app.fetch` with `@hono/node-server`, for `pnpm start`. `tests/integration/src/http/hono.test.ts` runs the [`testHttpAdapter`](/docs/adapters/testing) scenarios on `@hono/node-server` with a global `permdock()`, a tenant from the `:org` param and a sub-app. The factory enables `otel` with a structural logger so decision lines are recorded locally.
 
 ## Related standards
 

@@ -1,5 +1,5 @@
 ---
-description: Test layout and habits - permdock/testing runners and the shared SaaS domain, e2e scenario fixtures, integration, runtimes, types matrix and bundle baseline; tests before features for evaluation semantics
+description: Test layout and habits - permdock/testing runners and the shared SaaS domain, integration, runtimes, types matrix and bundle baseline; tests before features for evaluation semantics
 globs: tests/**,packages/permdock/src/testing/**,packages/permdock/tests/**,apps/examples/**
 alwaysApply: false
 paths:
@@ -16,12 +16,11 @@ paths:
 - `packages/permdock/tests/standards/<slug>.test.ts`: one file per page in `apps/docs/content/docs/standards` (except `index` and `watch-list`); `pnpm docs:drift` fails when either side is missing. Upstream artefacts live in `packages/permdock/tests/fixtures/standards`, fetched by `pnpm standards:fixtures` from the pins in `scripts/fetch-standards-fixtures.ts`; never edit them by hand.
 - `packages/permdock/tests/invariants/NN-<name>.test.ts`: one file per invariant in `invariants.mdc`, numbered to match; 8 and 12 live in `tests/bundle`. A change that breaks one fails there first.
 - Coverage: `pnpm test` enforces the thresholds in `packages/permdock/vitest.config.ts`, globally and per folder, at least 90% on statements, lines, functions and branches. Raise a threshold to the new measured value rounded down when coverage grows; never lower one.
-- `tests/e2e`: Playwright across `apps/examples` (web smoke per example); the `next-saas` fixture also asserts instant navigation with `@next/playwright` `instant()`.
-- `tests/e2e/fixtures/<name>`: scenario apps over the `permdock/testing/saas` domain (`next-saas`, `sveltekit-saas`, `nuxt-saas`, `tanstack-start-saas`, `solidstart-saas`, `expo-saas`, `mcp-oauth`, `ai-chat`, `realtime-collab`, `b2b-scim`, `cloud-contract`, and `turborepo`, whose `apps/*` and `packages/*` are workspace globs). Each has `scripts/serve.ts`, test-only `/api/test` routes and one numbered serial spec in `e2e/src`; `saas-kit` holds the shared session, store and routes.
+- No end-to-end or browser tests (Playwright, Maestro): unit, integration, runtime, type and bundle tests are the layers. Cover a behaviour in the lowest layer that can reach it.
 - `tests/integration`: Postgres via testcontainers (RLS parity, providers). Needs Docker.
 - `tests/runtimes`: one WinterTC app (kernel, Hono, AuthZEN, JWT) under Bun, Deno and workerd (Miniflare), plus Elysia on Bun. Bun comes from `PATH`; CI requires all three.
 - `tests/types`: the public types checked under TypeScript 5.9, 6 and 7 so consumers on older compilers keep working; the repository itself builds with TypeScript 7.
 - `tests/bundle`: two size gates against recorded baselines, plus the client-entry and runtime-dependency assertions behind invariants 8 and 12. `baseline.json` is the gzip of every dist chunk an entry reaches; `consumers.json` is what an app ships for a typical import, bundled by esbuild tree-shaken and minified with every other package external. An opt-in feature shows up only in the fixture that imports it. A size change rewrites both with `node src/write-baseline.ts` in the same PR.
 - `pnpm typecheck:perf`: type instantiations of the `permdock` source and tests (`--checkers 1`, deterministic) against `scripts/typecheck-perf.json`, failing 10% above the record or over a check-time ceiling. Record a deliberate change with `--write`.
-- Catalog drift runs in CI with `pnpm exec permdock collect --check --cwd <dir>` for `tests/integration/fixtures/posts`, `apps/examples/monorepo` and `tests/e2e/fixtures/turborepo`; the repo root has no `permdock.config.ts`.
+- Catalog drift runs in CI with `pnpm exec permdock collect --check --cwd <dir>` for `tests/integration/fixtures/posts` and `apps/examples/monorepo`; the repo root has no `permdock.config.ts`.
 - The [scenario testing guide](../../apps/docs/content/docs/guides/scenario-testing.mdx) covers the runners in depth. Keep assertions inside `it()` / `test()`, and never commit `.only` or `.skip`.

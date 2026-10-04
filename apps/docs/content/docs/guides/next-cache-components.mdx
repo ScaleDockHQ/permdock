@@ -5,7 +5,7 @@ description: How a multi-org SaaS keeps permission UI in the prefetched App Shel
 
 This guide builds permission UI for a multi-org SaaS on Next.js 16.3 with `cacheComponents`, `partialPrefetching` and instant navigation. Routes live under `/[org]/...`. Users hold roles per organization (owner, admin, member, viewer, plus custom roles), and organizations are on a free or pro plan.
 
-The approach is proven end to end by `tests/e2e/fixtures/next-saas` and `tests/e2e/src/next-saas.spec.ts`, which run `@next/playwright` `instant()` against `next start`. Every claim on this page is one of that spec's scenarios.
+`apps/examples/next` and `apps/examples/next-better-supabase` run this pattern.
 
 PermDock adds no cache directives and never calls `cookies()` or `headers()`. The app owns every `'use cache'`, `cacheLife` and `cacheTag`; PermDock supplies pure functions to call inside them.
 
@@ -228,11 +228,11 @@ The endpoint is still a hint source; Server Actions and RLS enforce on their own
 | After a role change   | stale until the token is re-issued                                                 | fresh on the next render or action                                                                  |
 | Proxy redirects       | precise: `mayAccess` sees the roles                                                | optimistic: the token carries no memberships, so `mayAccess` answers `true` for tenant-scoped pages |
 
-The fixture runs both modes from one build (`MEMBERSHIP_MODE=jwt|database`). A good default is mixed: JWT mode for UI hints, and `permdock rls generate --rbac supabase --authorize database` so Postgres reads memberships per statement ([rls](/docs/cli/rls)).
+A good default is mixed: JWT mode for UI hints, and `permdock rls generate --rbac supabase --authorize database` so Postgres reads memberships per statement ([rls](/docs/cli/rls)).
 
 ## Staleness
 
-How long each change takes to reach each place. "Signal" means the app's own realtime or poll channel calling `router.refresh()` (the fixture polls `/api/version` and compares the last change against the snapshot's `issuedAt`).
+How long each change takes to reach each place. "Signal" means the app's own realtime or poll channel calling `router.refresh()` (for example, polling a version route and comparing the last change against the snapshot's `issuedAt`).
 
 | Change                               | Acting browser                                                                 | Other members' UI                                                | Their Server Actions                                                             | Postgres RLS                                                              |
 | ------------------------------------ | ------------------------------------------------------------------------------ | ---------------------------------------------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
@@ -330,7 +330,7 @@ test("entering an org is instant with gates resolved", async ({ page }) => {
 });
 ```
 
-Run against `next build && next start` with `experimental.exposeTestingApiInProductionBuild` gated by an env flag. `apps/examples/next` applies the same pattern with named scopes (organizations and a customer portal), `instant = true` segments, `<Link prefetch={true}>` resource links and `requireAccess`, and `tests/e2e/src/next.spec.ts` asserts it the same way. Keep a negative control: the fixture serves the same build with `PERMDOCK_E2E_NO_PRIVATE_CACHE=1`, which drops `'use cache: private'`. The test above must fail there, which shows it measures the prefetch and not the network. Scope locators to `:visible`, because Next keeps the previous org's layout mounted but hidden after a switch. The fixture also fails if `next build` prints a `blocking-prerender-*` or `instant-*` message.
+Run it against `next build && next start` with `experimental.exposeTestingApiInProductionBuild` gated by an env flag; never set the flag on a real deploy. Keep a negative control: serve the same build without `'use cache: private'` on the snapshot loader. The test above must fail there, which shows it measures the prefetch and not the network. Scope locators to `:visible`, because Next keeps the previous org's layout mounted but hidden after a switch. Fail the build if `next build` prints a `blocking-prerender-*` or `instant-*` message. PermDock's own repository has no browser tests; this is a recipe for your app.
 
 ## Pitfalls
 
@@ -341,7 +341,7 @@ Run against `next build && next start` with `experimental.exposeTestingApiInProd
 - `refresh()` and `updateTag` reach only the browser that acted; other members need a signal.
 - A `stale` below 30 seconds silently drops the snapshot from per-link prefetches, and below 300 seconds from the App Shell. `cacheLifeFor` keeps the floor unless the token is about to expire.
 - Plan gates live in the snapshot and in Server Actions; the generated `authorize()` seeds ignore plans, so RLS does not enforce them.
-- Sign out with a document navigation (a plain `<form method="post">` to a Route Handler that clears the cookie and answers `303`), not a Server Action `redirect`. The App Router keeps visited routes as hidden trees in the page, so after a client-side sign-out the previous user's gated nav can stay in the DOM while the next user signs in. The `next-saas` fixture's scenario 7 asserts it never appears.
+- Sign out with a document navigation (a plain `<form method="post">` to a Route Handler that clears the cookie and answers `303`), not a Server Action `redirect`. The App Router keeps visited routes as hidden trees in the page, so after a client-side sign-out the previous user's gated nav can stay in the DOM while the next user signs in.
 
 ## Related
 

@@ -247,7 +247,7 @@ This is a recipe, not a package: PermDock composes with the bridge through the e
 
 ## Example app
 
-`apps/examples/mcp-server`: a real SDK v2 `McpServer` with `list_posts`, `update_post`, `delete_post` and `publish_post`, served over Streamable HTTP (`createMcpHandler` behind `verifyBearerToken`, `requireAuthInfo: true`) and over stdio as the local user. Playwright drives it with the SDK `Client`: a request without a token gets `401`, `tools/list` differs per token, a narrow token gets the `403` step-up naming `post:update`, and `delete_post` parks, runs once after `POST /approvals` and refuses the replay.
+`apps/examples/mcp-server`: a real SDK v2 `McpServer` with `list_posts`, `update_post`, `delete_post` and `publish_post`, served over Streamable HTTP (`createMcpHandler` behind `verifyBearerToken`, `requireAuthInfo: true`) and over stdio as the local user. Called through the SDK `Client`, a request without a token gets `401`, `tools/list` differs per token, a narrow token gets the `403` step-up naming `post:update`, and `delete_post` parks, runs once after `POST /approvals` and refuses the replay.
 
 ## Why
 

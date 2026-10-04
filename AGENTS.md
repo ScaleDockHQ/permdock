@@ -39,7 +39,7 @@ packages/permdock/    npm `permdock`, the only published package
 packages/{typescript-config,ox-config,next-config,ui}   private presets, createNextConfig(), vendored UI
 apps/marketing/ apps/docs/   Next.js 16.3, Vercel Services at `/` and `/docs`
 apps/examples/<name>/        one app per adapter
-tests/{e2e,types,integration,runtimes,bundle}   Playwright, TS 5.9/6/7, Postgres, Bun/Deno/workerd, size
+tests/{types,integration,runtimes,bundle}       TS 5.9/6/7, Postgres, Bun/Deno/workerd, size
 docs/agents/ docs/decisions/   corrections agents needed twice; exceptions to the repo standard
 ```
 
@@ -51,7 +51,6 @@ pnpm build                 # turbo run build (tsdown)
 pnpm check                 # format:check, lint, typecheck: the fast gate
 pnpm verify                # every CI gate: root steps, then one cached turbo run
 pnpm test                  # vitest unit + type tests
-pnpm test:e2e              # playwright across apps/examples
 pnpm test:integration      # testcontainers Postgres (Docker)
 pnpm test:runtimes         # Bun (on PATH), Deno and workerd; CI requires all three
 pnpm lint && pnpm format   # oxlint per workspace, oxfmt over the whole repo
@@ -137,7 +136,6 @@ Each is a record in `docs/decisions`:
 
 - `@orpc/server`, `@orpc/client` 2.0.0-beta.41: `permdock/orpc` targets oRPC 2's `openapi()` metadata.
 - `drizzle-orm` 1.0.0-rc.4: the release candidate the standard asks for; the peer also accepts 0.40.
-- `nitro` 3.0.260903-beta: the `solidstart-saas` fixture; Nitro 3 has no stable release.
 - Prisma 8 and Expo SDK 58 stay on 7.10.0 and SDK 57 until their blockers clear (0018).
 
 ## Turbo agent guidance

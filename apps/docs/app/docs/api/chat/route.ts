@@ -41,7 +41,7 @@ function problem(status: number, detail: string): Response {
 }
 
 export async function POST(request: Request): Promise<Response> {
-  // BotID and the Firewall answer only on Vercel; local and e2e servers skip them.
+  // BotID and the Firewall answer only on Vercel; local servers skip them.
   if (env.VERCEL === "1") {
     const blocked = await guardAskAi(request, vercelChecks);
     if (blocked !== null) {

@@ -90,7 +90,6 @@ In a git worktree the branch is prefixed: `https://<branch>.permdock.localhost`.
 | `pnpm check`                           | The fast gate: `format:check`, `lint` and `typecheck`                                                                                                       |
 | `pnpm verify`                          | Every CI gate: `format:check`, `lint:root` and `boundaries`, then one cached `turbo run` of the rest                                                        |
 | `pnpm test`                            | Vitest unit and type tests across the workspace                                                                                                             |
-| `pnpm test:e2e`                        | Playwright across `apps/examples` and `tests/e2e/fixtures`                                                                                                  |
 | `pnpm test:integration`                | Postgres via testcontainers: RLS parity and providers                                                                                                       |
 | `pnpm test:runtimes`                   | The WinterTC app on Bun, Deno and workerd                                                                                                                   |
 | `pnpm size`                            | Per-entry min+gzip against the recorded baseline                                                                                                            |
@@ -121,7 +120,7 @@ In a git worktree the branch is prefixed: `https://<branch>.permdock.localhost`.
 
 ## CI And Release
 
-- `ci.yml` runs on pushes to `main` and `develop`, on pull requests, and nightly with every e2e test repeated three times. It calls `verify.yml`, a matrix of format, lint, Knip, typecheck (with the TypeScript 5.9 / 6 / 7 type matrix), unit tests, boundaries, `audit:high`, catalog, docs and OpenAPI drift, `permdock doctor` over the examples, bundle size and publish checks, affected-only on pull requests. Integration, runtimes and sharded Playwright e2e run against the built `dist/`.
+- `ci.yml` runs on pushes to `main` and on pull requests. It calls `verify.yml`, a matrix of format, lint, Knip, typecheck (with the TypeScript 5.9 / 6 / 7 type matrix), unit tests, boundaries, `audit:high`, catalog, docs and OpenAPI drift, `permdock doctor` over the examples, bundle size and publish checks, affected-only on pull requests. Integration and runtimes run against the built `dist/`. There are no end-to-end or browser tests: unit, integration, runtime, type and bundle tests cover the package.
 - `release.yml` runs `verify` and Changesets on `main`. Pending changesets open a version pull request (`pnpm version-packages` also updates the root `CHANGELOG.md`); merging it publishes `permdock` to npm with trusted publishing (OIDC and provenance, no npm token) once the `NPM_PUBLISH` repository variable is `true`.
 
 ## Deploy
@@ -154,13 +153,12 @@ Read [`CONTRIBUTING.md`](./CONTRIBUTING.md). Public API changes start as an RFC 
 
 ### Tests
 
-| Path                                       | Contents                                                                                                                                                                          |
-| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`tests/e2e`](./tests/e2e)                 | Playwright over the examples, plus scenario fixture apps (Next, SvelteKit, Nuxt, TanStack Start, SolidStart, Expo, MCP OAuth, AI chat, realtime, Turborepo, SCIM, Cloud contract) |
-| [`tests/integration`](./tests/integration) | Postgres via testcontainers: RLS parity and providers                                                                                                                             |
-| [`tests/runtimes`](./tests/runtimes)       | Bun, Deno and workerd                                                                                                                                                             |
-| [`tests/types`](./tests/types)             | The public types under TypeScript 5.9, 6 and 7                                                                                                                                    |
-| [`tests/bundle`](./tests/bundle)           | Per-entry size baseline and client-entry assertions                                                                                                                               |
+| Path                                       | Contents                                              |
+| ------------------------------------------ | ----------------------------------------------------- |
+| [`tests/integration`](./tests/integration) | Postgres via testcontainers: RLS parity and providers |
+| [`tests/runtimes`](./tests/runtimes)       | Bun, Deno and workerd                                 |
+| [`tests/types`](./tests/types)             | The public types under TypeScript 5.9, 6 and 7        |
+| [`tests/bundle`](./tests/bundle)           | Per-entry size baseline and client-entry assertions   |
 
 ## Architecture At A Glance
 
