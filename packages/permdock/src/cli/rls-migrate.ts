@@ -52,6 +52,8 @@ export type MigrateTarget = {
   readonly rowConditions: ReadonlySet<string>;
   /** `grant_key` by scope, from the seeded `role_permissions` rows. */
   readonly granted: ReadonlyMap<string, ReadonlySet<string>>;
+  /** Former key to current key, applied after `keys` and before `prefixes`. */
+  readonly renamed: Readonly<Record<string, string>>;
 };
 
 export function migrateTarget(generated: GenerateOutcome): MigrateTarget {
@@ -73,6 +75,7 @@ export function migrateTarget(generated: GenerateOutcome): MigrateTarget {
     permissions: new Set(generated.keys?.permissions ?? []),
     rowConditions: new Set(generated.keys?.rowConditions ?? []),
     granted,
+    renamed: generated.keys?.renamed ?? {},
   };
 }
 
@@ -175,11 +178,18 @@ function isNullConst(node: unknown): boolean {
 
 const literal = quoteSqlLiteral;
 
-/** The PermDock key for a legacy one: `keys` first, then the longest matching prefix. */
-export function mapKey(config: RlsMigrateConfig, key: string): string {
+/** The PermDock key for a legacy one: `keys` first, then `renamed`, then the longest matching prefix. */
+export function mapKey(
+  config: RlsMigrateConfig,
+  key: string,
+  renamed: Readonly<Record<string, string>> = {},
+): string {
   const exact = config.keys?.[key];
   if (exact !== undefined) {
     return exact;
+  }
+  if (Object.hasOwn(renamed, key)) {
+    return renamed[key] ?? key;
   }
   const prefix = Object.keys(config.prefixes ?? {})
     .filter((candidate) => key.startsWith(candidate))
@@ -241,7 +251,7 @@ class Rewriter {
         "the key is not a string literal; map it by hand",
       );
     }
-    const key = mapKey(this.#config, legacy);
+    const key = mapKey(this.#config, legacy, this.#target.renamed);
     if (!this.#target.permissions.has(key)) {
       return skip(
         "unknown-key",

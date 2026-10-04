@@ -343,7 +343,7 @@ rls: {
       is_system_user_with: { form: 'global' },                                // (key) -> boolean
       is_org_member: { form: 'membership', scope: 'organization' },           // (id) -> boolean
     },
-    keys: { 'organization.customers.view': 'customers.read' },                // exact, checked first
+    keys: { 'organization.customers.view': 'customers.read' },                // exact, checked first; then definePermissions renamed
     prefixes: { 'organization.': '', 'system.': 'platform.' },                // longest prefix wins
     globalScopes: ['system'],                                                 // scoped literals that mean global
   },
@@ -372,6 +372,18 @@ The rewritten forms are uncorrelated, so Postgres runs each helper once per stat
 | `function-body`        | The call is inside a `create function` or `do` body, which runs with its own privileges                                                                                        |
 | `not-in-policy`        | The call is in a view, a trigger or any statement other than a policy                                                                                                          |
 | `unparsed`             | The file does not parse                                                                                                                                                        |
+
+A key renamed with `definePermissions(..., { renamed })` maps to its current key without a `keys` entry: `keys` wins, then `renamed`, then `prefixes`. `generate` also seeds every `role_permissions` row again under each former key, so SQL that still passes an old key keeps the access the current key has until the alias is removed.
+
+### Shims
+
+```bash
+permdock rls generate --target sql --rbac supabase --helpers-only --shims
+```
+
+`--shims` (or `rls.shims: true`, or `rls.shims: { schema: 'legacy' }`) adds one wrapper per `rls.migrate.helpers` entry under its legacy name, in `public` unless a schema is set. Each wrapper maps the key the way `migrate` does and calls the generated helper, so function bodies, views and triggers that `migrate` leaves alone keep working while they are rewritten by hand. The wrappers are `language sql stable security invoker` with `search_path = ''`: they read no table, and the helpers they call are the `security definer` ones. `execute` goes to `authenticated` only. Without `rls.migrate.helpers` the flag exits `2`.
+
+`create or replace` cannot change an existing function's argument names or return type, so drop a legacy helper with a different signature first. [`doctor`](/docs/cli/doctor) reports the remaining callers of each legacy name as PD056; drop the wrapper once it is quiet.
 
 ## import
 

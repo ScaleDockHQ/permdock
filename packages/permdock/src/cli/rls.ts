@@ -27,7 +27,7 @@ export const RLS_HELP = `permdock rls generate | import | verify | migrate
            [--out <path>] [--check] [--skip-closures] [--inline-functions] [--force] [--guc-prefix app]
            [--split helpers,seeds,policies,hook --out <dir>/056_permdock_{part}.sql]
            [--grants-out <file>|-] [--seeds-out <file>|-]
-           [--helpers-only]
+           [--helpers-only] [--shims]
   import   --sql schema.sql | --db $DATABASE_URL --out src/permissions.generated.ts
            [--schema zod|valibot|arktype] [--memberships <table>:tenant,user,role]
   verify   [--db $DATABASE_URL] [--fixtures rls.fixtures.ts] [--format pgtap|node] [--tree]
@@ -73,6 +73,7 @@ export type RlsRunInput = {
   readonly grantsOut: string | undefined;
   readonly seedsOut: string | undefined;
   readonly helpersOnly: boolean;
+  readonly shims?: boolean;
   readonly write: boolean;
   readonly json: boolean;
   readonly io: CliIo;
@@ -141,6 +142,7 @@ function generateInput(
     ...(input.grantsOut === undefined ? {} : { grantsOut: input.grantsOut }),
     ...(input.seedsOut === undefined ? {} : { seedsOut: input.seedsOut }),
     helpersOnly: input.helpersOnly,
+    shims: input.shims === true,
   };
 }
 

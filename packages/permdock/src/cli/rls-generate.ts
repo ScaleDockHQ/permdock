@@ -9,12 +9,14 @@ import type { SplitPart } from "./sql-files.ts";
 import type {
   CliIo,
   PermDockConfig,
+  RlsShimsConfig,
   RlsDialect,
   RlsMemberships,
   RlsTarget,
 } from "./types.ts";
 
 import { compact } from "../core/compact.ts";
+import { renamedKeys } from "../core/permissions.ts";
 import { scopeList } from "../core/scopes.ts";
 import { listPermissions, listRoles } from "../index.ts";
 import { supabaseTenantClaim } from "../supabase/budget.ts";
@@ -45,6 +47,7 @@ import {
   rbacScaffold,
   resolveAuthorize,
 } from "./rls-rbac.ts";
+import { shimsSql } from "./rls-shims.ts";
 import {
   checkSuspension,
   graphHelper,
@@ -78,6 +81,8 @@ export type GenerateOutcome = {
   readonly keys?: {
     readonly permissions: readonly string[];
     readonly rowConditions: readonly string[];
+    /** Former key to current key (`definePermissions` `renamed`). */
+    readonly renamed?: Readonly<Record<string, string>>;
   };
   readonly schema?: string;
   readonly helpersOnly?: boolean;
@@ -147,6 +152,8 @@ export async function runRlsGenerate(input: {
   readonly seedsOut?: string;
   /** Only the helpers, their seeds and the scaffold: no table policies, for a project whose policies are hand-written. */
   readonly helpersOnly?: boolean;
+  /** Legacy-named wrappers over the helpers, one per `rls.migrate.helpers` entry. */
+  readonly shims?: boolean;
   /** `false` returns the SQL and its policies without touching `out`. */
   readonly write?: boolean;
   readonly io: CliIo;
@@ -334,6 +341,30 @@ export async function runRlsGenerate(input: {
   const owned = ownershipSql(ctx);
   const graphed = graphSql(ctx, graph, rls?.tables);
   const breakGlass = breakGlassSql(ctx, breakGlassEntries(policy, rls?.tables));
+  const configured = rls?.shims;
+  const shimsConfig: RlsShimsConfig | undefined =
+    typeof configured === "object"
+      ? configured
+      : configured === true || input.shims === true
+        ? {}
+        : undefined;
+  if (shimsConfig !== undefined && rls?.migrate === undefined) {
+    return {
+      code: 2,
+      output:
+        "PermDock CLI: rls generate --shims needs rls.migrate.helpers in permdock.config.ts",
+      text: "",
+    };
+  }
+  const shims =
+    shimsConfig === undefined || rls?.migrate === undefined
+      ? undefined
+      : shimsSql(
+          ctx,
+          rls.migrate,
+          shimsConfig,
+          Object.fromEntries(renamedKeys(policy.vocabulary.permissions)),
+        );
   const preamble = [
     rbac?.head,
     helpersSql(ctx, compiled.rolePermissions, {
@@ -344,6 +375,7 @@ export async function runRlsGenerate(input: {
     owned === "" ? undefined : owned,
     graphed === "" ? undefined : graphed,
     breakGlass === "" ? undefined : breakGlass,
+    shims,
     rbac?.tail,
   ]
     .filter((part): part is string => part !== undefined)
@@ -423,6 +455,7 @@ export async function runRlsGenerate(input: {
           (leaf) => leaf.key,
         ),
         rowConditions: [...policyRowConditionKeys(policy)],
+        renamed: Object.fromEntries(renamedKeys(policy.vocabulary.permissions)),
       },
       schema,
       helpersOnly,

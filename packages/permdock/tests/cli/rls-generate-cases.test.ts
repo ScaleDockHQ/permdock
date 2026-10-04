@@ -218,3 +218,40 @@ describe("rls generate flag combinations", () => {
     expect(outcome.output).toBe("rls generate --split needs --target sql");
   });
 });
+
+describe("rls generate --shims", () => {
+  it("needs rls.migrate.helpers", async () => {
+    const result = await generate({ from: "roles.ts", shims: true });
+    expect(result.code).toBe(2);
+    expect(result.output).toBe(
+      "PermDock CLI: rls generate --shims needs rls.migrate.helpers in permdock.config.ts",
+    );
+  });
+
+  it("appends the wrappers from the flag or rls.shims", async () => {
+    const migrate = {
+      helpers: { is_member: { form: "membership", scope: "tenant" } },
+    } as const;
+    const flagged = await generate({
+      from: "roles.ts",
+      shims: true,
+      config: { rls: { migrate } },
+    });
+    expect(flagged.code).toBe(0);
+    expect(flagged.text).toContain(
+      `create or replace function "public".is_member(p_id uuid)`,
+    );
+    const configured = await generate({
+      from: "roles.ts",
+      config: { rls: { migrate, shims: { schema: "legacy" } } },
+    });
+    expect(configured.text).toContain(
+      `create or replace function "legacy".is_member(`,
+    );
+    const off = await generate({
+      from: "roles.ts",
+      config: { rls: { migrate } },
+    });
+    expect(off.text).not.toContain("permdock shims");
+  });
+});

@@ -161,6 +161,18 @@ export type RlsConfig = {
   readonly helpersOnly?: boolean;
   /** `rls migrate`: how existing helper calls map onto the generated helpers. */
   readonly migrate?: RlsMigrateConfig;
+  /**
+   * Emit a wrapper under each `migrate.helpers` name that answers from the
+   * generated helpers, for legacy SQL `rls migrate` leaves alone. `true` puts
+   * them in `public`. Off by default; `--shims` turns it on.
+   */
+  readonly shims?: boolean | RlsShimsConfig;
+};
+
+/** `rls.shims`: where the legacy-named wrappers go. */
+export type RlsShimsConfig = {
+  /** Schema of the legacy helpers. Default `public`. */
+  readonly schema?: string;
 };
 
 /** An action verb's SQL command, or `'none'` for a verb that only `permdock_has` answers. */

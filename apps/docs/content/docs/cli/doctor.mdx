@@ -76,6 +76,8 @@ Without `--fix`, doctor only reads: it never writes the catalog or any other fil
 | `PD052` | An update policy has `using` and no `with check`                                                                                                                                                                                                                                                           | warning         |
 | `PD053` | A foreign key column no index starts with                                                                                                                                                                                                                                                                  | warning         |
 | `PD054` | The last `role_permissions` seeds in the migrations differ from the rows the policy compiles to                                                                                                                                                                                                            | warning         |
+| `PD055` | A custom role in the `doctor.memberships` fixture stores a permission under a key it was renamed from                                                                                                                                                                                                      | warning         |
+| `PD056` | A migration still calls an `rls.migrate` helper by its legacy name                                                                                                                                                                                                                                         | warning         |
 
 ### PD001: server-only imports in client entries
 
@@ -318,6 +320,14 @@ Postgres indexes the referenced key but not the referencing column. A policy tha
 ### PD054: stale `role_permissions` seeds
 
 The helpers answer from `role_permissions`, so a policy change reaches the database only when a migration seeds the new rows. With `--split ...,seeds` those rows are a versioned migration of their own, and a policy change without a new one leaves the helpers on the old grants. With an `rls` or `supabase` config, the check finds the last statement in the migration folders that seeds `role_permissions` in `rls.schema` (or clears it), compiles the policy's rows, and names how many are missing and how many are stale, with examples. Run `permdock rls generate` and apply the new seeds. `--only seeds` (or `--only supabase`) runs PD054.
+
+### PD055: custom roles stored under a former key
+
+A key renamed with `definePermissions(..., { renamed })` keeps resolving in stored custom roles, so nothing breaks the day it is renamed. Removing the alias does break them, and `permdock diff` reports that as `alias-removed`. The check runs `validateCustomRole` over the `doctor.memberships` fixture and prints, for each stored former key, the `update` that rewrites it in `custom_role_permissions`. Apply it, or the same rewrite in your own role storage, before removing the alias. `--only renamed` (or `--only custom-roles`) runs PD055.
+
+### PD056: callers of a legacy helper
+
+With `rls.migrate.helpers` set, the check counts calls to each legacy helper name in the migration folders, leaving out the statements that create, grant or drop the helper itself. A remaining call keeps the legacy function, or its [shim](/docs/cli/rls#shims), in use. Run `permdock rls migrate --write` for the policies, rewrite function bodies, views and triggers onto the PermDock helpers by hand, then drop the function. `--only shims` (or `--only sql`) runs PD056.
 
 ## Why
 

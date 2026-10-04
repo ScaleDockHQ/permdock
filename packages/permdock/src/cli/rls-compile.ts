@@ -6,7 +6,12 @@ import type { RlsSqlContext } from "./rls-sql.ts";
 import type { RlsActions } from "./types.ts";
 
 import { sole } from "../core/compact.ts";
-import { hasConditionOp, requiresApproval } from "../index.ts";
+import {
+  formerKeys,
+  hasConditionOp,
+  listPermissions,
+  requiresApproval,
+} from "../index.ts";
 import { jsonSchemaOf } from "./catalog-doc.ts";
 import {
   breakGlassHolder,
@@ -558,9 +563,41 @@ export function compileGrants(
   }
   return {
     branches: ensureSelectCoverage(branches, warnings),
-    rolePermissions: [...rows.values()],
+    rolePermissions: withAliasRows(policy, [...rows.values()]),
     rowColumns: [...rowColumns.values()],
   };
+}
+
+/**
+ * Each row again under every key its permission was renamed from, so SQL that
+ * still calls `permdock_has('<old key>')` keeps the access the current key
+ * has. A split grant key (`key#n`) keeps its suffix; break-glass rows are not
+ * copied.
+ */
+function withAliasRows(
+  policy: Policy,
+  rows: readonly RolePermission[],
+): RolePermission[] {
+  const former = new Map(
+    listPermissions(policy.permissions).map((leaf) => [
+      leaf.key,
+      formerKeys(leaf),
+    ]),
+  );
+  const out = [...rows];
+  for (const row of rows) {
+    const suffix = row.grantKey.slice(row.permission.length);
+    if (
+      !row.grantKey.startsWith(row.permission) ||
+      (suffix !== "" && !/^#\d+$/u.test(suffix))
+    ) {
+      continue;
+    }
+    for (const old of former.get(row.permission) ?? []) {
+      out.push({ ...row, permission: old, grantKey: `${old}${suffix}` });
+    }
+  }
+  return out;
 }
 
 /**

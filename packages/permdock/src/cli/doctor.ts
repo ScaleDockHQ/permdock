@@ -28,6 +28,7 @@ import {
   pd034,
   pd035,
   pd037,
+  pd055,
 } from "./doctor-collect.ts";
 import { pd042, pd043 } from "./doctor-declarative.ts";
 import { pd044 } from "./doctor-next.ts";
@@ -63,6 +64,7 @@ import {
   pd051,
   pd052,
   pd053,
+  pd056,
 } from "./doctor-sql.ts";
 import { defaultSrcPath, listSourceFiles, rel } from "./files.ts";
 import { runSkillsInstall } from "./skills.ts";
@@ -294,6 +296,12 @@ export async function runDoctor(input: {
   }
   if (include("supabase") || include("seeds") || include("PD054")) {
     findings.push(...(await pd054(input)));
+  }
+  if (include("custom-roles") || include("renamed") || include("PD055")) {
+    findings.push(...(await pd055(input)));
+  }
+  if (include("sql") || include("shims") || include("PD056")) {
+    findings.push(...pd056(input.cwd, input.config));
   }
   if (include("next") || include("endpoint") || include("PD044")) {
     findings.push(...(await pd044(input)));

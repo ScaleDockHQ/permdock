@@ -490,3 +490,52 @@ export function pd053(
       fix: `create index on ${fk.table} (${fk.column}); (Supabase advisor unindexed_foreign_keys)`,
     }));
 }
+
+/**
+ * PD056: SQL still calls an `rls.migrate` helper by its legacy name, so the
+ * shim (or the legacy function) cannot be dropped yet.
+ */
+export function pd056(
+  cwd: string,
+  config: PermDockConfig,
+): readonly DoctorFinding[] {
+  const helpers = Object.keys(config.rls?.migrate?.helpers ?? {}).filter(
+    (name) => /^[a-z_][a-z0-9_]*$/u.test(name),
+  );
+  if (helpers.length === 0) {
+    return [];
+  }
+  const statements = migrationStatements(cwd, config);
+  const findings: DoctorFinding[] = [];
+  for (const name of helpers) {
+    const own = new RegExp(
+      String.raw`^\s*(?:create\s+(?:or\s+replace\s+)?function|drop\s+function|revoke|grant|alter\s+function|comment\s+on\s+function)\b[^(]*?(?:^|[\s."])${name}"?\s*\(`,
+      "iu",
+    );
+    const call = new RegExp(
+      String.raw`(?<![\w$])(?:(?:"[^"]+"|\w+)\s*\.\s*)?"?${name}"?\s*\(`,
+      "giu",
+    );
+    let count = 0;
+    const files = new Set<string>();
+    for (const statement of statements) {
+      const hits = own.test(statement.text)
+        ? 0
+        : (statement.text.match(call) ?? []).length;
+      if (hits > 0) {
+        count += hits;
+        files.add(statement.file);
+      }
+    }
+    if (count === 0) {
+      continue;
+    }
+    findings.push({
+      code: "PD056",
+      severity: "warning",
+      message: `legacy helper ${name} is still called ${String(count)} time(s), in ${[...files].toSorted().join(", ")}`,
+      fix: `run permdock rls migrate --write for policies, rewrite function bodies, views and triggers onto the permdock helpers by hand, then drop function ${name}`,
+    });
+  }
+  return findings;
+}

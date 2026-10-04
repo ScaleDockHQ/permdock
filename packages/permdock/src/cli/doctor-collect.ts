@@ -15,12 +15,14 @@ import {
   resolveScope,
   scopeList,
 } from "../core/scopes.ts";
+import { quoteSqlLiteral } from "../core/sql.ts";
 import {
   hasConditionOp,
   parseCredential,
   separationConflicts,
   validateCustomRole,
 } from "../index.ts";
+import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
 import { jsonSchemaOf, policyRowConditionKeys } from "./catalog-doc.ts";
 import { runCollect } from "./collect.ts";
 import { MIGRATION_DIRS } from "./doctor-project.ts";
@@ -555,6 +557,48 @@ export async function pd023(input: {
             : entry.reason === "condition-not-allowed"
               ? "remove the condition; custom-role grants inherit the declared grant condition"
               : "use a declared permission key or assignable role name",
+      });
+    }
+  }
+  return findings;
+}
+
+/**
+ * PD055: a stored custom role names a permission by a key it was renamed
+ * from. It still resolves; the alias can only be dropped once storage holds
+ * the current key.
+ */
+export async function pd055(input: {
+  readonly cwd: string;
+  readonly config: PermDockConfig;
+}): Promise<readonly DoctorFinding[]> {
+  const fixturePath = input.config.doctor?.memberships;
+  if (input.config.policy === undefined || fixturePath === undefined) {
+    return [];
+  }
+  const absolute = resolve(input.cwd, fixturePath);
+  if (!existsSync(absolute)) {
+    return [];
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(readFileSync(absolute, "utf8"));
+  } catch {
+    return [];
+  }
+  const policy = await loadPolicy(input.cwd, input.config.policy);
+  if (policy === undefined) {
+    return [];
+  }
+  const table = `${input.config.rls?.schema ?? PERMDOCK_SCHEMA}.custom_role_permissions`;
+  const findings: DoctorFinding[] = [];
+  for (const custom of asMembershipsFixture(parsed).customRoles ?? []) {
+    for (const { from, to } of validateCustomRole(policy, custom).renamed) {
+      findings.push({
+        code: "PD055",
+        severity: "warning",
+        message: `custom role ${custom.name} in ${custom.tenant} stores ${from}, which was renamed to ${to}`,
+        fix: `rewrite the stored key before removing the alias: update ${table} set permission = ${quoteSqlLiteral(to)} where permission = ${quoteSqlLiteral(from)};`,
       });
     }
   }
