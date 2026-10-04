@@ -208,6 +208,7 @@ export async function runRlsGenerate(input: {
     scopes,
     tenantClaim: rls?.tenantClaim ?? supabaseTenantClaim,
     gucPrefix: input.gucPrefix ?? rls?.gucPrefix ?? "app",
+    ...(rls?.actions === undefined ? {} : { actions: rls.actions }),
     inlineFunctions: input.inlineFunctions || rls?.inlineFunctions === true,
     schema,
     authorize,

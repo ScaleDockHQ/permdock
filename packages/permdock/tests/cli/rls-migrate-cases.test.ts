@@ -153,7 +153,7 @@ describe("runRlsMigrate skips", () => {
       `create policy p on t using (is_admin('doc.audit'));`,
       [
         "not-granted-on-scope",
-        "doc.audit has no role_permissions row: rls generate seeds only read, list, get, create, update and delete grants",
+        "doc.audit has no unconditional allow row in role_permissions: a conditional, time-bounded or deny-mixed grant splits its grant key, so the helper would always deny",
       ],
     ],
     [

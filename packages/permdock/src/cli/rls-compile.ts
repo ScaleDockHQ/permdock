@@ -3,6 +3,7 @@ import type { Condition, Policy, ResourceNode } from "../index.ts";
 import type { RlsGrant } from "./rls-grants.ts";
 import type { RolePermission } from "./rls-helpers.ts";
 import type { RlsSqlContext } from "./rls-sql.ts";
+import type { RlsActions } from "./types.ts";
 
 import { sole } from "../core/compact.ts";
 import { hasConditionOp, requiresApproval } from "../index.ts";
@@ -72,7 +73,15 @@ export type CompiledGrants = {
   }[];
 };
 
-export function commandFor(action: string): SqlCommand | undefined {
+/** The SQL command `action` compiles to: `rls.actions` first, then the six default verbs. */
+export function commandFor(
+  action: string,
+  actions?: RlsActions,
+): SqlCommand | undefined {
+  if (actions !== undefined && Object.hasOwn(actions, action)) {
+    const configured = actions[action];
+    return configured === "none" ? undefined : configured;
+  }
   switch (action) {
     case "read":
     case "list":
@@ -208,7 +217,8 @@ function capabilityAccess(
 
 type Prepared = {
   readonly item: RlsGrant;
-  readonly command: SqlCommand;
+  /** `'none'`: the action has no SQL command, so the grant is only seeded for `permdock_has`. */
+  readonly command: SqlCommand | "none";
   readonly table: string;
   /** Row condition on the current row (`USING`). */
   readonly using?: Condition;
@@ -221,6 +231,7 @@ function prepare(
   tables: Readonly<Record<string, string>> | undefined,
   warnings: string[],
   skipClosures: boolean,
+  actions: RlsActions | undefined,
 ): Prepared | undefined {
   const { grant, label } = item;
   if (grant.breakGlass !== undefined) {
@@ -260,14 +271,32 @@ function prepare(
     warnings.push(`skipped approval grant ${label}/${grant.permission.key}`);
     return undefined;
   }
-  const command = commandFor(grant.permission.action);
-  if (command === undefined) {
-    warnings.push(
-      `skipped ${grant.permission.key}: action is not a SQL command`,
-    );
-    return undefined;
-  }
+  const command = commandFor(grant.permission.action, actions);
   const table = tableFor(grant.permission.resource, tables);
+  if (command === undefined) {
+    if (item.access.kind !== "role") {
+      warnings.push(
+        `skipped ${label}/${grant.permission.key}: action '${grant.permission.action}' has no SQL command (rls.actions) and only role grants are seeded`,
+      );
+      return undefined;
+    }
+    if (grant.validity !== undefined && grant.effect === "allow") {
+      warnings.push(
+        `skipped ${label}/${grant.permission.key}: a role_permissions row cannot carry validFrom / validUntil, so a time-bounded grant on an action with no SQL command is not seeded`,
+      );
+      return undefined;
+    }
+    warnings.push(
+      `no policy for ${label}/${grant.permission.key}: action '${grant.permission.action}' has no SQL command (rls.actions); seeded for permdock_has and permitted_<scope>_ids`,
+    );
+    return {
+      item,
+      command: "none",
+      table,
+      ...(item.where === undefined ? {} : { using: item.where }),
+      ...(grant.check === undefined ? {} : { check: grant.check }),
+    };
+  }
   const using = command === "insert" ? undefined : item.where;
   const check =
     command === "insert"
@@ -377,7 +406,7 @@ export function compileGrants(
 ): CompiledGrants {
   const items = collectGrants(policy);
   const entries = items.flatMap((item) => {
-    const entry = prepare(item, tables, warnings, skipClosures);
+    const entry = prepare(item, tables, warnings, skipClosures, ctx.actions);
     return entry === undefined ? [] : [entry];
   });
   const keys = assignKeys(entries, ctx.fields === "views");
@@ -419,8 +448,22 @@ export function compileGrants(
   };
   for (const entry of entries) {
     const { item, command, table } = entry;
-    const rowCtx = contextFor(item.grant.permission.resource);
     const { grant, access, label } = item;
+    if (command === "none") {
+      const grantKey = keys.get(entry);
+      if (access.kind === "role" && grantKey !== undefined) {
+        const row: RolePermission = {
+          role: access.role,
+          permission: grant.permission.key,
+          grantKey,
+          scope: access.scope,
+          effect: grant.effect,
+        };
+        rows.set(`${row.role}\u0000${row.grantKey}\u0000${row.scope}`, row);
+      }
+      continue;
+    }
+    const rowCtx = contextFor(item.grant.permission.resource);
     noteConditions(entry, warnings);
     for (const field of [
       ...conditionFields(entry.using),

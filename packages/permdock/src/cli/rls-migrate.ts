@@ -262,7 +262,7 @@ class Rewriter {
         "not-granted-on-scope",
         seeded
           ? `no role grants ${key} on ${scope}, so the helper would always deny`
-          : `${key} has no role_permissions row: rls generate seeds only read, list, get, create, update and delete grants`,
+          : `${key} has no unconditional allow row in role_permissions: a conditional, time-bounded or deny-mixed grant splits its grant key, so the helper would always deny`,
       );
     }
     return { to: literal(key) };

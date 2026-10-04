@@ -150,11 +150,23 @@ export type RlsConfig = {
   };
   /** The global-roles table `permdock_has` reads in `database` mode. Default `<schema>.user_roles (user_id, role)`, which the helpers create. */
   readonly roles?: GlobalRoles;
+  /**
+   * The SQL command each action verb compiles to, merged over the defaults
+   * (`read`, `list`, `get` → `select`; `create` → `insert`; `update`; `delete`).
+   * `'none'` compiles no policy. Every granted action is seeded into
+   * `role_permissions` either way, so `permdock_has` answers for it.
+   */
+  readonly actions?: RlsActions;
   /** Emit only the helpers, their seeds and the scaffold; the table policies stay hand-written. */
   readonly helpersOnly?: boolean;
   /** `rls migrate`: how existing helper calls map onto the generated helpers. */
   readonly migrate?: RlsMigrateConfig;
 };
+
+/** An action verb's SQL command, or `'none'` for a verb that only `permdock_has` answers. */
+export type RlsActions = Readonly<
+  Record<string, "select" | "insert" | "update" | "delete" | "none">
+>;
 
 /**
  * One existing SQL helper `rls migrate` rewrites. `form` names its arguments:

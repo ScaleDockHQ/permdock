@@ -8,7 +8,7 @@ import type {
   TenantSettings,
 } from "../index.ts";
 import type { DoctorFinding } from "./doctor-types.ts";
-import type { CliIo, PermDockConfig } from "./types.ts";
+import type { CliIo, PermDockConfig, RlsActions } from "./types.ts";
 
 import {
   normalizeMemberships,
@@ -723,12 +723,16 @@ export async function pd025(input: {
 }
 
 /** Columns of `resource` a field-limited read grant can hide: missing from an allow's list, or on a deny's. */
-function limitedColumns(policy: Policy, resource: string): readonly string[] {
+function limitedColumns(
+  policy: Policy,
+  resource: string,
+  actions: RlsActions | undefined,
+): readonly string[] {
   const reads = policy.grants.filter(
     (grant) =>
       grant.permission.resource === resource &&
       grant.fields !== undefined &&
-      commandFor(grant.permission.action) === "select",
+      commandFor(grant.permission.action, actions) === "select",
   );
   const node = policy.resources.get(resource);
   const schema = node === undefined ? null : jsonSchemaOf(node);
@@ -776,14 +780,14 @@ export async function pd030(input: {
         .filter(
           (grant) =>
             grant.fields !== undefined &&
-            commandFor(grant.permission.action) === "select",
+            commandFor(grant.permission.action, rls.actions) === "select",
         )
         .map((grant) => grant.permission.resource),
     ),
   ].toSorted();
   const findings: DoctorFinding[] = [];
   for (const resource of resources) {
-    const columns = limitedColumns(policy, resource);
+    const columns = limitedColumns(policy, resource, rls.actions);
     if (columns.length === 0) {
       continue;
     }

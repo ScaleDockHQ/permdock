@@ -30,7 +30,22 @@ export type ActionMeta = {
   readonly manageRoles?: boolean;
   /** Set by a generator (`permdock openapi import`) to the operation an action was inferred from. */
   readonly inferredFrom?: string;
+  /**
+   * Data the application owns, such as a risk level or an undo window. Plain
+   * JSON; PermDock carries it on the leaf, the catalog and snapshots and
+   * never reads it.
+   */
+  readonly x?: Readonly<Record<string, MetaValue>>;
 };
+
+/** A JSON value in `ActionMeta.x`. */
+export type MetaValue =
+  | string
+  | number
+  | boolean
+  | null
+  | readonly MetaValue[]
+  | { readonly [key: string]: MetaValue };
 
 export type PermissionKind = "instance" | "collection";
 
@@ -193,6 +208,11 @@ export type ResourceOptions<
   A extends ActionList | undefined = ActionList | undefined,
   C extends ActionList | undefined = ActionList | undefined,
 > = {
+  /**
+   * The resource name leaves, tables, relations and AuthZEN types use; the
+   * last path segment when absent. Names are unique across a tree.
+   */
+  readonly name?: string;
   readonly id?: string;
   readonly actions?: A;
   readonly collection?: C;
@@ -327,7 +347,48 @@ function metaFor(list: ActionList | undefined, action: string): ActionMeta {
   }
   // SAFETY: Array.isArray does not narrow a readonly array; the non-array ActionList is this map.
   const meta = (list as Record<string, ActionMeta>)[action];
+  if (meta?.x !== undefined) {
+    assertMetaValue(meta.x, `meta.x of action '${action}'`, 0);
+    if (Array.isArray(meta.x)) {
+      throw new TypeError(
+        `PermDock: meta.x of action '${action}' must be a JSON object`,
+      );
+    }
+  }
   return freezeDeep({ ...meta });
+}
+
+const MAX_META_DEPTH = 8;
+
+function assertMetaValue(value: unknown, label: string, depth: number): void {
+  if (depth > MAX_META_DEPTH) {
+    throw new Error(`PermDock: ${label} nests deeper than ${MAX_META_DEPTH}`);
+  }
+  if (
+    value === null ||
+    typeof value === "string" ||
+    typeof value === "boolean" ||
+    (typeof value === "number" && Number.isFinite(value))
+  ) {
+    return;
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      assertMetaValue(item, label, depth + 1);
+    }
+    return;
+  }
+  if (
+    typeof value === "object" &&
+    Object.getPrototypeOf(value) === Object.prototype
+  ) {
+    for (const key of Object.keys(value)) {
+      assertSafeKey(key, "meta.x key");
+      assertMetaValue(Reflect.get(value, key), label, depth + 1);
+    }
+    return;
+  }
+  throw new Error(`PermDock: ${label} must be plain JSON`);
 }
 
 export type ToolHints = {
@@ -427,6 +488,8 @@ export function resource(
     "PermDock: resource() first argument must be a schema or options",
   );
 }
+
+const RESOURCE_NAME = /^[A-Za-z][A-Za-z0-9_-]*$/u;
 
 const EDGE_TABLE = /^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)?$/u;
 
@@ -708,13 +771,19 @@ function materialiseResource(
   registry: Map<string, ResourceNode>,
   leaves: Permission[],
 ): PermissionTree {
-  const name = path.at(-1);
-  if (name === undefined) {
+  const segment = path.at(-1);
+  if (segment === undefined) {
     throw new Error(
       "PermDock: resource() cannot be the root of definePermissions",
     );
   }
+  const name = init.options.name ?? segment;
   assertSafeKey(name, "resource");
+  if (init.options.name !== undefined && !RESOURCE_NAME.test(name)) {
+    throw new Error(
+      `PermDock: resource name '${name}' must start with a letter and hold only letters, digits, '_' and '-'`,
+    );
+  }
   if (registry.has(name)) {
     throw new Error(`PermDock: duplicate resource name '${name}'`);
   }

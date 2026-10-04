@@ -672,7 +672,7 @@ export async function runRlsVerify(input: {
     const reads =
       fieldsMode &&
       permission.kind === "instance" &&
-      commandFor(permission.action) === "select";
+      commandFor(permission.action, input.config.rls?.actions) === "select";
     // SAFETY: reads is only true when permission.kind === 'instance'.
     const fields = reads
       ? expectedFields(

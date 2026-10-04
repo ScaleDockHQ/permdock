@@ -20,7 +20,11 @@ export {
   isSqlFunctionField,
 } from "./conditions/ast.ts";
 export { describe, requiredPlans } from "./core/describe.ts";
-export type { DecisionDescription } from "./core/describe.ts";
+export type {
+  DecisionDescription,
+  DescribeMessages,
+  DescribeOptions,
+} from "./core/describe.ts";
 export type {
   ApprovalRequiredDecision,
   Decision,
@@ -164,6 +168,7 @@ export {
 export { crud, readable, writable } from "./core/presets.ts";
 export type {
   ActionMeta,
+  MetaValue,
   Permission,
   PermissionKind,
   PermissionTree,
