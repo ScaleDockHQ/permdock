@@ -80,6 +80,26 @@ const invalid: readonly (readonly [string, unknown])[] = [
   ["nested act sub number", { sub, act: { sub: "a", act: { sub: 2 } } }],
   ["act without sub", { sub, act: {} }],
   ["nested act empty sub", { sub, act: { sub: "a", act: { sub: "" } } }],
+  ["act unknown kind", { sub, act: { sub: "a", kind: "root" } }],
+  [
+    "act support without session_id",
+    { sub, act: { sub: "a", kind: "support" } },
+  ],
+  [
+    "act support empty session_id",
+    { sub, act: { sub: "a", kind: "support", session_id: "" } },
+  ],
+  [
+    "act support read_only string",
+    {
+      sub,
+      act: { sub: "a", kind: "support", session_id: "s", read_only: "y" },
+    },
+  ],
+  [
+    "act reason number",
+    { sub, act: { sub: "a", kind: "impersonation", reason: 1 } },
+  ],
   [
     "membership member without group",
     { sub, memberships: [{ tenant: "t", roles: ["a"], member: {} }] },

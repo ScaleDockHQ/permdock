@@ -62,13 +62,22 @@
       }
     },
     "act": {
-      "description": "RFC 8693 actor chain: the outermost sub is the current actor, each nested act a prior one.",
+      "description": "RFC 8693 actor chain: the outermost sub is the current actor, each nested act a prior one. The outermost kind names the actor: none is an OAuth client or agent, support a support session (needs session_id), impersonation an admin acting as the user.",
       "type": "object",
       "required": ["sub"],
       "properties": {
         "sub": { "type": "string", "minLength": 1 },
+        "kind": { "enum": ["support", "impersonation"] },
+        "session_id": { "type": "string", "minLength": 1 },
+        "read_only": { "type": "boolean" },
+        "reason": { "type": "string" },
         "act": { "$ref": "#/$defs/act" }
-      }
+      },
+      "if": {
+        "required": ["kind"],
+        "properties": { "kind": { "const": "support" } }
+      },
+      "then": { "required": ["session_id"] }
     },
     "membership": {
       "type": "object",

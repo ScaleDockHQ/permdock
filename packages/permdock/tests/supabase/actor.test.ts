@@ -23,12 +23,12 @@ describe("actorOf and delegationOf", () => {
         return;
       }
       const actor = result.actor;
-      expect(subject.actor).toEqual(
-        actor === undefined ? undefined : { id: actor.id, kind: actor.kind },
-      );
+      expect(subject.actor).toEqual(fixture.expect.actor);
+      expect(subject.actor?.kind).toBe(actor?.kind);
+      expect(subject.delegation).toEqual(fixture.expect.delegation);
       const scopes = delegationOf(fixture.claims)?.scopes;
       const expected =
-        actor === undefined ||
+        actor?.kind !== "oauth-client" ||
         (scopes === undefined && actor.chain === undefined)
           ? undefined
           : {
@@ -53,6 +53,96 @@ describe("actorOf and delegationOf", () => {
         chain: { sub: "runner", act: { sub: "client-9", iss: "x" } },
       },
     });
+  });
+
+  it("reads a support session from act.kind, with its session, read-only flag and reason", () => {
+    const act = {
+      kind: "support",
+      sub: "admin-1",
+      session_id: "s-1",
+      read_only: true,
+      reason: "ticket 42",
+    };
+    expect(actorOf({ sub, act })).toEqual({
+      ok: true,
+      actor: {
+        id: "admin-1",
+        kind: "support",
+        sessionId: "s-1",
+        readOnly: true,
+        reason: "ticket 42",
+        chain: act,
+      },
+    });
+    const { read_only: _, ...writable } = act;
+    expect(actorOf({ sub, act: writable })).toMatchObject({
+      ok: true,
+      actor: { kind: "support", readOnly: false },
+    });
+  });
+
+  it("reads an impersonation from act.kind and gives it no delegation", () => {
+    const act = { kind: "impersonation", sub: "admin-1", reason: "ticket 42" };
+    expect(actorOf({ sub, act })).toEqual({
+      ok: true,
+      actor: {
+        id: "admin-1",
+        kind: "impersonation",
+        reason: "ticket 42",
+        chain: act,
+      },
+    });
+    const subject = subjectFromSupabase({ sub, act, scope: "posts:read" });
+    expect(subject.actor).toEqual({ id: "admin-1", kind: "impersonation" });
+    expect(subject.delegation).toBeUndefined();
+  });
+
+  it("reads a 0.5.0 support token (session_id without kind) as support, as better-supabase does", () => {
+    const subject = subjectFromSupabase({
+      sub,
+      act: { sub: "admin-1", session_id: "s-1", read_only: true },
+    });
+    expect(subject.actor).toEqual({
+      id: "admin-1",
+      kind: "support",
+      sessionId: "s-1",
+      readOnly: true,
+    });
+    expect(subject.delegation).toBeUndefined();
+  });
+
+  it.each([
+    ["an unknown kind", { kind: "delegate", sub: "admin-1" }],
+    ["a non-string kind", { kind: 1, sub: "admin-1" }],
+    ["support without session_id", { kind: "support", sub: "admin-1" }],
+    [
+      "support with an empty session_id",
+      { kind: "support", sub: "admin-1", session_id: "" },
+    ],
+    [
+      "support with a non-boolean read_only",
+      { kind: "support", sub: "admin-1", session_id: "s-1", read_only: "yes" },
+    ],
+  ])("rejects %s as invalid-chain", (_, act) => {
+    expect(actorOf({ sub, act })).toEqual({
+      ok: false,
+      reason: "invalid-chain",
+    });
+    expect(subjectFromSupabase({ sub, act }).principal).toBeNull();
+  });
+
+  it("maps an anonymous sign-in to anonymous only with anonymousSignIns: 'deny'", () => {
+    const claims = { sub, role: "authenticated", is_anonymous: true };
+    expect(subjectFromSupabase(claims).principal?.id).toBe(sub);
+    expect(
+      subjectFromSupabase(claims, { anonymousSignIns: "deny" }).principal,
+    ).toBeNull();
+    expect(
+      subjectFromSupabase(
+        { ...claims, is_anonymous: false },
+        { anonymousSignIns: "deny" },
+      ).principal?.id,
+    ).toBe(sub);
   });
 
   it("reads client_id when there is no act", () => {

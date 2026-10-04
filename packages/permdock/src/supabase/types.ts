@@ -107,16 +107,38 @@ export type SupabaseSubjectOptions = {
   readonly declared?: readonly string[];
   /** Claim holding plan names per tenant id; the active tenant's entry becomes `principal.plans`. */
   readonly plans?: string;
+  /** `'deny'` maps a token with `is_anonymous: true` (`signInAnonymously()`) to the anonymous subject, as `rls.anonymousSignIns: 'deny'` does in RLS. */
+  readonly anonymousSignIns?: "deny";
   /** Audit hook: `membership-dropped` for a `memberships` entry that could not be read, `invalid-chain` for a malformed `act`. */
   readonly onAuth?: (event: AuthEvent) => void;
 };
 
-/** The app acting for the user; `chain` is a copy of the token's `act` claim when it has one. */
-export type SupabaseActor = {
-  readonly id: string;
-  readonly kind: "oauth-client";
-  readonly chain?: SupabaseActClaim;
-};
+/**
+ * Who acts for the user. `oauth-client`: a third-party app or an agent chain (`client_id`, or an
+ * `act` without `kind`). `support`: a support session (`act.kind: "support"` with `session_id`).
+ * `impersonation`: an admin acting as the user (`act.kind: "impersonation"`). `chain` is a copy of
+ * the token's `act` claim when it has one.
+ */
+export type SupabaseActor =
+  | {
+      readonly id: string;
+      readonly kind: "oauth-client";
+      readonly chain?: SupabaseActClaim;
+    }
+  | {
+      readonly id: string;
+      readonly kind: "support";
+      readonly sessionId: string;
+      readonly readOnly: boolean;
+      readonly reason?: string;
+      readonly chain: SupabaseActClaim;
+    }
+  | {
+      readonly id: string;
+      readonly kind: "impersonation";
+      readonly reason?: string;
+      readonly chain: SupabaseActClaim;
+    };
 
 /** `actorOf` output: `{ ok: false }` must deny. */
 export type SupabaseActorResult =

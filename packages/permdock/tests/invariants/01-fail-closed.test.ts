@@ -9,6 +9,7 @@ import {
   resource,
   role,
 } from "../../src/index.ts";
+import { subjectFromSupabase } from "../../src/supabase/index.ts";
 import { reasonOf } from "../fixtures/decisions.ts";
 import {
   adminUser,
@@ -83,6 +84,26 @@ describe("invariant 1: fail-closed", () => {
     const decision = permdock.decide(permissions.post.read, ownPost);
     expect(decision.outcome).toBe("denied");
     expect(reasonOf(decision)).toBe("no-delegation");
+  });
+
+  it("denies a support or impersonation actor no policy delegation names", async () => {
+    for (const actor of [
+      { id: "admin-1", kind: "support", sessionId: "s-1", readOnly: true },
+      { id: "admin-1", kind: "impersonation" },
+    ]) {
+      const permdock = await createPermDock(policy, memberUser, { actor });
+      const decision = permdock.decide(permissions.post.read, ownPost);
+      expect(reasonOf(decision)).toBe("no-delegation");
+    }
+  });
+
+  it("denies a Supabase token whose act names an unknown kind", () => {
+    const subject = subjectFromSupabase({
+      sub: "u1",
+      role: "authenticated",
+      act: { kind: "root", sub: "admin-1" },
+    });
+    expect(subject.principal).toBeNull();
   });
 
   it("denies a permission from another catalogue", async () => {

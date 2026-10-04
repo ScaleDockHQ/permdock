@@ -9,6 +9,7 @@ import type {
 } from "../core/subject.ts";
 import type { SupabaseActClaim } from "./claims.ts";
 import type {
+  SupabaseActor,
   SupabaseActorResult,
   SupabaseDelegation,
   SupabasePrincipal,
@@ -218,6 +219,69 @@ function copyAct(level: Record<string, unknown>): SupabaseActClaim {
   return Object.fromEntries(entries) as SupabaseActClaim;
 }
 
+/**
+ * The outer `act` level by its `kind`, the marker better-supabase writes: none is an OAuth client
+ * or agent chain, `support` a support session (with `session_id`), `impersonation` an admin acting
+ * as the user. Any other `kind`, or a support level without `session_id`, is invalid.
+ */
+function actingParty(
+  outer: Record<string, unknown>,
+  id: string,
+): SupabaseActorResult {
+  const marked = Object.hasOwn(outer, "kind") ? outer["kind"] : undefined;
+  // better-supabase 0.5.0 minted support tokens with `session_id` and no `kind`; it reads them as support until 0.6.
+  const kind =
+    marked === undefined && Object.hasOwn(outer, "session_id")
+      ? "support"
+      : marked;
+  const chain = copyAct(outer);
+  const reason =
+    typeof outer["reason"] === "string" ? outer["reason"] : undefined;
+  switch (kind) {
+    case undefined:
+      return freezeDeep({
+        ok: true,
+        actor: { id, kind: "oauth-client", chain },
+      });
+    case "support": {
+      const session = outer["session_id"];
+      const readOnly = Object.hasOwn(outer, "read_only")
+        ? outer["read_only"]
+        : false;
+      if (
+        typeof session !== "string" ||
+        session === "" ||
+        typeof readOnly !== "boolean"
+      ) {
+        return INVALID_CHAIN;
+      }
+      return freezeDeep({
+        ok: true,
+        actor: compact<SupabaseActor>({
+          id,
+          kind: "support",
+          sessionId: session,
+          readOnly,
+          reason,
+          chain,
+        }),
+      });
+    }
+    case "impersonation":
+      return freezeDeep({
+        ok: true,
+        actor: compact<SupabaseActor>({
+          id,
+          kind: "impersonation",
+          reason,
+          chain,
+        }),
+      });
+    default:
+      return INVALID_CHAIN;
+  }
+}
+
 function readActor(claims: Record<string, unknown>): SupabaseActorResult {
   if (Object.hasOwn(claims, "act") && claims["act"] !== undefined) {
     let current: unknown = claims["act"];
@@ -233,10 +297,7 @@ function readActor(claims: Record<string, unknown>): SupabaseActorResult {
     if (!isRecord(outer) || typeof sub !== "string") {
       return INVALID_CHAIN;
     }
-    return freezeDeep({
-      ok: true,
-      actor: { id: sub, kind: "oauth-client", chain: copyAct(outer) },
-    });
+    return actingParty(outer, sub);
   }
   const client = Object.hasOwn(claims, "client_id")
     ? claims["client_id"]
@@ -251,11 +312,14 @@ function readActor(claims: Record<string, unknown>): SupabaseActorResult {
 }
 
 /**
- * The app acting for the user: the outermost `sub` of an RFC 8693 `act` chain (the current
+ * Who acts for the user: the outermost `sub` of an RFC 8693 `act` chain (the current
  * actor; nested levels are prior actors, kept on `chain` for audit), else the
- * OAuth `client_id` of a third-party app. Reads only `act` and `client_id`; the caller applies
- * the role rule first (`anon` and `service_role` are anonymous and carry no actor). An
- * `act` that is not a chain of objects each with a non-empty `sub` is `{ ok: false }` and must deny.
+ * OAuth `client_id` of a third-party app. The outer level's `kind` names the actor:
+ * none is `oauth-client`, `support` a support session, `impersonation` an admin acting as the
+ * user. Reads only `act` and `client_id`; the caller applies the role rule first (`anon` and
+ * `service_role` are anonymous and carry no actor). An `act` that is not a chain of objects each
+ * with a non-empty `sub`, that names another `kind`, or a support level without `session_id`,
+ * is `{ ok: false }` and must deny.
  */
 export function actorOf(claims: unknown): SupabaseActorResult {
   try {
@@ -356,10 +420,20 @@ function mapClaims(
     emit(options, "invalid-token", act.reason);
     return anonymousSubject();
   }
+  if (options.anonymousSignIns === "deny" && claims["is_anonymous"] === true) {
+    return anonymousSubject();
+  }
   const actor: Actor | undefined =
     act.actor === undefined
       ? undefined
-      : { id: act.actor.id, kind: act.actor.kind };
+      : act.actor.kind === "support"
+        ? {
+            id: act.actor.id,
+            kind: act.actor.kind,
+            sessionId: act.actor.sessionId,
+            readOnly: act.actor.readOnly,
+          }
+        : { id: act.actor.id, kind: act.actor.kind };
   const roleClaim = options.roles ?? "user_role";
   const tenantClaim = options.tenant ?? supabaseTenantClaim;
   const membershipsClaim = options.memberships ?? "memberships";
@@ -417,9 +491,9 @@ function mapClaims(
       principal,
       actor,
       delegation:
-        act.actor === undefined
-          ? undefined
-          : subjectDelegation(claims, act.actor.chain),
+        act.actor?.kind === "oauth-client"
+          ? subjectDelegation(claims, act.actor.chain)
+          : undefined,
       context: {},
       session,
       expiresAt,
