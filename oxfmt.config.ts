@@ -12,11 +12,6 @@ export default oxfmt({
     "tests/integration/src/support/prisma/**",
     "apps/examples/prisma/src/generated/**",
     "apps/examples/next-better-supabase/src/lib/supabase/{generated.*,database.types.ts}",
-    "**/.nuxt/**",
-    "**/.output/**",
-    "**/.svelte-kit/**",
-    "tests/e2e/fixtures/*/build/**",
-    "**/routeTree.gen.ts",
   ],
   tailwindStylesheets: [
     { files: ["apps/docs/**"], stylesheet: "apps/docs/app/global.css" },

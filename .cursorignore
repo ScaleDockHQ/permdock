@@ -12,9 +12,6 @@
 **/.turbo/
 **/.source/
 **/coverage/
-**/playwright-report/
-**/test-results/
-**/blob-report/
 **/*.tsbuildinfo
 **/*.tgz
 

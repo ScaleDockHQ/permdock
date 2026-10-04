@@ -1,8 +1,8 @@
 import type { KnipConfig } from "knip";
 
 // Entries below are files something starts or loads by path: the `permdock`
-// CLI through `permdock.config.ts`, `scripts/serve.ts`, Playwright, or a
-// test's child process.
+// CLI through `permdock.config.ts`, `scripts/serve.ts`, or a test's child
+// process.
 const config: KnipConfig = {
   treatConfigHintsAsErrors: true,
   // The Vercel CLI is installed globally, not per repository.
@@ -63,14 +63,6 @@ const config: KnipConfig = {
       ],
     },
     "tests/*": {},
-    "tests/e2e": {
-      // Listed so turbo builds every app Playwright starts.
-      ignoreDependencies: [
-        /^@permdock\/(?:e2e|example)-/u,
-        "docs",
-        "marketing",
-      ],
-    },
     "tests/bundle": {
       entry: ["src/fixtures/rsc/{register,render}.ts"],
     },
@@ -91,60 +83,6 @@ const config: KnipConfig = {
       // Listed so turbo builds them before this TypeScript version checks `../src`.
       ignoreDependencies: ["permdock", "zod"],
     },
-    "tests/e2e/fixtures/*": {},
-    "tests/e2e/fixtures/ai-chat": {
-      entry: ["src/server/index.ts"],
-    },
-    "tests/e2e/fixtures/b2b-scim": {
-      entry: ["src/server.ts"],
-    },
-    "tests/e2e/fixtures/cloud-contract": {
-      entry: ["permdock.config.ts", "src/server.ts"],
-    },
-    "tests/e2e/fixtures/expo-saas": {
-      entry: ["scripts/start.ts"],
-      // Expo resolves these native peers and config plugins at build time.
-      ignoreDependencies: [
-        "@react-native/metro-config",
-        "expo-modules-core",
-        "expo-updates",
-        "react-native-worklets",
-      ],
-    },
-    "tests/e2e/fixtures/mcp-oauth": {
-      entry: ["src/server.ts"],
-    },
-    "tests/e2e/fixtures/realtime-collab": {
-      entry: ["src/server.ts"],
-    },
-    "tests/e2e/fixtures/solidstart-saas": {
-      // The SolidStart Vite plugin only loads with the fixture as the working directory.
-      vite: false,
-      entry: [
-        "src/{app,entry-client,entry-server}.tsx",
-        "src/middleware.ts",
-        "src/routes/**/*.tsx",
-      ],
-    },
-    "tests/e2e/fixtures/tanstack-start-saas": {
-      entry: ["scripts/start.ts", "src/routes/**/*.tsx"],
-    },
-    "tests/e2e/fixtures/turborepo": {
-      entry: ["permdock.config.ts", "scripts/build.ts"],
-      // Listed so the fixture's own turbo run builds its apps.
-      ignoreDependencies: [/^@permdock\/e2e-turbo-/u],
-    },
-    "tests/e2e/fixtures/turborepo/apps/*": {},
-    "tests/e2e/fixtures/turborepo/apps/api": {
-      entry: ["src/server.ts"],
-    },
-    "tests/e2e/fixtures/turborepo/apps/web": {
-      entry: ["permdock.config.ts"],
-    },
-    "tests/e2e/fixtures/turborepo/apps/worker": {
-      entry: ["src/worker.ts"],
-    },
-    "tests/e2e/fixtures/turborepo/packages/*": {},
   },
 };
 

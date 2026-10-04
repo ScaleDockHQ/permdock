@@ -27,7 +27,5 @@ Where things live:
 - `src/lib/supabase/index.ts`: the `betterSupabase` definition; sessions validated with `supabaseClaims().extend(...)`.
 - `src/lib/supabase/server.ts`: `import 'server-only'`, then `bs = createNext(betterSupabase, ...)` with direct Postgres, an inline JWKS and explicit issuer and audience.
 - `src/lib/access.ts`: the shared slug lookup (`'use cache'`), the snapshot loader and the RLS reads (`'use cache: private'` over `bs.cached({ tags })`), tagged `snapshotTag(sub)`. After a role or plan change, `bs.invalidateSession(userId, { tags: [snapshotTag(userId)] })` drops them.
-- `src/app/api/test/sign-in/route.ts`: e2e only. Runs the hook as `supabase_auth_admin`, signs the claims and sets the `@supabase/ssr` cookie, as Supabase Auth would.
+- `src/app/api/test/sign-in/route.ts`: `serve` only (`DEMO_SIGN_IN=1`). Runs the hook as `supabase_auth_admin`, signs the claims and sets the `@supabase/ssr` cookie, as Supabase Auth would.
 - `src/lib/supabase/generated.ts`, `generated.meta.js` and `generated.meta.d.ts`: `pnpm gen` regenerates them from the migrations; `pnpm gen:check` fails on drift.
-
-`tests/e2e/src/next-better-supabase.spec.ts` asserts with `@next/playwright` `instant()` that page and organization switches render gated nav without a request, and that no request reaches `/api/permdock`.

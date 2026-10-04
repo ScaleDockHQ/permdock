@@ -6,7 +6,6 @@
 **/dist
 **/node_modules
 *.tgz
-.e2e
 .testcontainers
 .kilo
 .kilocode

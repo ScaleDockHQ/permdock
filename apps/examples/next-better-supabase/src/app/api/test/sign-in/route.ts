@@ -65,9 +65,9 @@ function sessionCookie(token: string, user: string, now: number): string {
   return `base64-${Buffer.from(JSON.stringify(session)).toString("base64url")}`;
 }
 
-/** E2e build only: what Supabase Auth does at sign-in, against the inline JWKS's private key. */
+/** `serve` build only: what Supabase Auth does at sign-in, against the inline JWKS's private key. */
 export async function GET(request: NextRequest): Promise<Response> {
-  if (!env.e2e || typeof env.signingKey !== "string") {
+  if (!env.demoSignIn || typeof env.signingKey !== "string") {
     return new Response(null, { status: 404 });
   }
   const input = SignIn.safeParse(

@@ -21,7 +21,6 @@ env:
   NEXT_APPS: >-
     --filter=docs --filter=marketing --filter=@permdock/example-next
     --filter=@permdock/example-next-better-supabase
-    --filter=@permdock/e2e-next-saas --filter=@permdock/e2e-turbo-web
 
 jobs:
   verify:
@@ -80,9 +79,7 @@ jobs:
           path: |
             apps/*/.next/cache
             apps/examples/*/.next/cache
-            tests/e2e/fixtures/*/.next/cache
-            tests/e2e/fixtures/turborepo/apps/*/.next/cache
-          key: next-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('apps/**/*.ts', 'apps/**/*.tsx', 'apps/**/*.mdx', 'apps/**/*.css', 'tests/e2e/fixtures/**/*.tsx', '!**/node_modules/**') }}
+          key: next-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('apps/**/*.ts', 'apps/**/*.tsx', 'apps/**/*.mdx', 'apps/**/*.css', '!**/node_modules/**') }}
           restore-keys: next-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
 
       - name: Build Next.js apps

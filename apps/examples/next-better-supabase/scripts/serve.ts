@@ -9,10 +9,9 @@ const next = path.join(cwd, "node_modules/.bin/next");
 const port = process.env["PORT"] ?? "3489";
 
 /**
- * The e2e server: a throwaway Postgres with the migrations and seed, a fresh
+ * The demo server: a throwaway Postgres with the migrations and seed, a fresh
  * ES256 key whose public half the app verifies against inline, then
- * `next build` and `next start` (instant() measures prefetches, which only a
- * production server performs).
+ * `next build` and `next start` (only a production server prefetches).
  */
 const database = await startDatabase();
 const { publicKey, privateKey } = await generateKeyPair("ES256", {
@@ -21,13 +20,13 @@ const { publicKey, privateKey } = await generateKeyPair("ES256", {
 const kid = crypto.randomUUID();
 const env: NodeJS.ProcessEnv = {
   ...process.env,
-  NEXT_E2E: "1",
+  DEMO_SIGN_IN: "1",
   NEXT_TELEMETRY_DISABLED: "1",
   DATABASE_URL: database.url,
   SUPABASE_JWKS: JSON.stringify({
     keys: [{ ...(await exportJWK(publicKey)), kid, alg: "ES256", use: "sig" }],
   }),
-  E2E_SIGNING_JWK: JSON.stringify({
+  DEMO_SIGNING_JWK: JSON.stringify({
     ...(await exportJWK(privateKey)),
     kid,
     alg: "ES256",

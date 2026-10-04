@@ -20,7 +20,7 @@ export const env = {
   /** The pool connects on the first query, so the placeholder never reaches a socket during `next build`. */
   databaseUrl:
     read("DATABASE_URL") ?? "postgres://postgres@127.0.0.1:5432/postgres",
-  /** Only the e2e build mints sessions, with the private half of the JWKS key. */
-  e2e: read("NEXT_E2E") === "1",
-  signingKey: read("E2E_SIGNING_JWK"),
+  /** Only the `serve` build mints demo sessions, with the private half of the JWKS key. */
+  demoSignIn: read("DEMO_SIGN_IN") === "1",
+  signingKey: read("DEMO_SIGNING_JWK"),
 };

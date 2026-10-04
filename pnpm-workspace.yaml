@@ -2,11 +2,8 @@ packages:
   - apps/*
   - packages/*
   - tests/*
-  # One workspace per adapter example, scenario fixture and TypeScript version under test.
+  # One workspace per adapter example and TypeScript version under test.
   - apps/examples/*
-  - tests/e2e/fixtures/*
-  - tests/e2e/fixtures/turborepo/apps/*
-  - tests/e2e/fixtures/turborepo/packages/*
   - tests/types/*
 
 catalog:
@@ -26,15 +23,6 @@ catalog:
   "@expo/metro-runtime": 57.0.16
   "@react-native/metro-config": 0.87.1
   "@sveltejs/vite-plugin-svelte": 7.3.1
-  "@sveltejs/kit": 2.70.3
-  "@sveltejs/adapter-node": 5.5.7
-  nuxt: 4.5.2
-  "@tanstack/react-start": 1.168.60
-  "@tanstack/react-router": 1.170.41
-  "@solidjs/start": 2.0.5
-  "@solidjs/router": 1.0.0
-  nitro: 3.0.260903-beta
-  "@react-native-async-storage/async-storage": 3.1.1
   "@vitejs/plugin-react": 6.1.1
   "@vitejs/plugin-vue": 6.0.9
   ai: 7.0.127
@@ -78,7 +66,6 @@ catalog:
   "@types/pg": 8.23.1
   "@types/react": 19.3.0
   "@types/react-dom": 19.3.0
-  "@types/ws": 8.18.2
   "@vitest/coverage-v8": 5.0.3
   class-variance-authority: 0.7.1
   cn: 0.4.0
@@ -98,7 +85,6 @@ catalog:
   expo-linking: 57.0.11
   expo-modules-core: 57.0.20
   expo-router: 57.0.24
-  expo-server: 57.0.3
   express: 5.2.1
   kysely: 0.29.6
   multer: 2.4.0
@@ -120,14 +106,11 @@ catalog:
   oxc-parser: 0.152.0
   "@oxlint/plugins": 1.86.0
   eslint-plugin-turbo: 2.11.6
-  eslint-plugin-playwright: 2.12.0
   oxlint-plugin-react-doctor: 0.9.14
   "@shadcn/lint": 0.2.0
   oxfmt: 0.71.0
   oxlint: 1.86.0
   oxlint-tsgolint: 7.0.2003
-  "@next/playwright": 16.3.8
-  "@playwright/test": 1.63.0
   pgsql-parser: 18.2.8
   pg: 8.23.1
   postcss: 8.5.28
@@ -155,7 +138,6 @@ catalog:
   vite: 8.3.2
   vite-plugin-solid: 2.11.14
   vitest: 5.0.3
-  ws: 8.22.0
   zod: 4.6.5
   motion: 14.0.0
   sonner: 2.0.8
@@ -168,7 +150,6 @@ catalog:
   "@ai-sdk/otel": 1.0.127
   dotenv-cli: 11.0.0
   portless: 0.15.7
-  "@axe-core/playwright": 4.13.0
   better-supabase: 0.4.0
   supabase: 2.119.0
   server-only: 0.0.1
@@ -221,8 +202,8 @@ catalogs:
 auditConfig:
   # No patched release yet; drop each entry once one ships.
   ignoreGhsas:
-    # node-forge <=1.4.0, through listhen in the Nuxt dev server (the nuxt-saas fixture,
-    # and nuxt as a peer of @vercel/analytics); no signature verification at runtime.
+    # node-forge <=1.4.0, through listhen in the Nuxt dev server (nuxt as a peer of
+    # @vercel/analytics); no signature verification at runtime.
     - GHSA-86w9-cpqp-85rv
     # braces <=3.0.3, through micromatch in Expo's Metro file map; build-time globs only.
     - GHSA-vfj7-8cjw-p6xm
@@ -251,8 +232,6 @@ peerDependencyRules:
   allowedVersions:
     # Only its optional Nest integration needs the peer; tests/integration runs Nest 12.
     "@supabase/server>@nestjs/common": "12"
-    # Only `svelte-kit sync` type generation reads it; the e2e fixture builds with Vite.
-    "@sveltejs/kit>typescript": "7"
     # Pins oxfmt 0.66.0 exactly; better-supabase, its only parent, accepts >=0.66.
     "@supabase/postgrest-typegen>oxfmt": "0.71"
 
@@ -264,10 +243,6 @@ publicHoistPattern:
 packageExtensions:
   # Oxlint loads these plugins through `jsPlugins`; they import only ESLint types.
   eslint-plugin-turbo:
-    peerDependenciesMeta:
-      eslint:
-        optional: true
-  eslint-plugin-playwright:
     peerDependenciesMeta:
       eslint:
         optional: true
@@ -290,7 +265,7 @@ overrides:
   next: "catalog:"
   react: "catalog:"
   react-dom: "catalog:"
-  # Expo SDK 57 packages ask for their own copies; one version keeps the Expo example and fixture on one Metro and worklets runtime.
+  # Expo SDK 57 packages ask for their own copies; one version keeps the Expo example on one Metro and worklets runtime.
   "@react-native/metro-config": "catalog:"
   react-native-worklets: "catalog:"
   # Patched releases for exact pins whose parent has no fixed stable release; drop each once the parent ships one.

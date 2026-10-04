@@ -5,7 +5,7 @@ import { DirectoryUniquenessError, memoryDirectoryStore } from "permdock/scim";
 import { testDirectoryStore } from "permdock/testing";
 import { beforeAll, describe, expect, it } from "vitest";
 
-import { pgDirectoryStore } from "./pg-store.ts";
+import { pgDirectoryStore } from "../fixtures/directory-store/pg.ts";
 
 async function freshStore() {
   const store = pgDirectoryStore(new PGlite());

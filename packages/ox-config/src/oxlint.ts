@@ -22,20 +22,16 @@ export const ignorePatterns: readonly string[] = [
   "**/{dist,.next,.nuxt,.output,.svelte-kit,.source,.expo,coverage,.turbo,node_modules}/**",
 ];
 
-// Read by servers Playwright or Vitest start and by CI scripts, never by a turbo task.
+// Read by servers Vitest or an example's `serve` script start and by CI scripts, never by a turbo task.
 const runtimeOnlyEnv = [
   "AGENT_USER",
-  "API_ORIGIN",
   "HOST",
   "INIT_CWD",
-  "MEMBERSHIP_MODE",
-  "PERMDOCK_E2E_NO_PRIVATE_CACHE",
   "PG_URI",
   "PORT",
   "RUNNER_TEMP",
   "SESSION_SECRET",
   "SKIP_BUILD",
-  "WORKER_TOKEN",
 ];
 
 // eslint-plugin-turbo reads only the legacy `globalEnv` keys, not the
@@ -649,36 +645,6 @@ export const react: OxlintConfig = defineConfig({
 });
 
 /**
- * Playwright specs and their fixtures.
- */
-export const playwright: OxlintConfig = defineConfig({
-  jsPlugins: [
-    {
-      name: "playwright",
-      specifier: fileURLToPath(import.meta.resolve("eslint-plugin-playwright")),
-    },
-  ],
-  rules: {
-    "playwright/missing-playwright-await": "error",
-    "playwright/no-focused-test": "error",
-    // A suite may skip itself when its external service is not configured.
-    "playwright/no-skipped-test": ["error", { allowConditional: true }],
-    "playwright/no-page-pause": "error",
-    "playwright/no-useless-await": "error",
-    "playwright/no-wait-for-timeout": "error",
-    "playwright/no-element-handle": "error",
-    "playwright/no-eval": "error",
-    "playwright/no-force-option": "error",
-    "playwright/no-networkidle": "error",
-    "playwright/no-unsafe-references": "error",
-    "playwright/no-useless-not": "error",
-    "playwright/prefer-web-first-assertions": "error",
-    "playwright/valid-expect": "error",
-    "playwright/valid-title": "error",
-  },
-});
-
-/**
  * Adapter example apps under `apps/examples`.
  */
 export const example: OxlintConfig = defineConfig({
@@ -691,35 +657,5 @@ export const example: OxlintConfig = defineConfig({
     "typescript/no-unsafe-type-assertion": "off",
     // Example servers read PORT from the environment (25 findings).
     "node/no-process-env": "off",
-  },
-});
-
-/**
- * Scenario apps under `tests/e2e/fixtures`, built on several frameworks.
- */
-export const fixture: OxlintConfig = defineConfig({
-  rules: {
-    // Framework route, loader and SFC props are mutable types (196 findings).
-    "typescript/prefer-readonly-parameter-types": "off",
-    // Loaders return framework promises directly (38 findings).
-    "typescript/promise-function-async": "off",
-    // Framework file conventions infer route types (78 findings).
-    "typescript/explicit-function-return-type": "off",
-    // Fixture stores copy rows with spread; clarity over speed (2 findings).
-    "oxc/no-map-spread": "off",
-    // Framework APIs take `undefined` for an absent value (145 findings).
-    "eslint/no-undefined": "off",
-    // Framework handlers return `undefined` to fall through (10 findings).
-    "unicorn/no-useless-undefined": "off",
-    // SFC scripts define helpers below the component (6 findings).
-    "eslint/no-use-before-define": "off",
-    // `void` marks deliberately ignored navigation promises (13 findings).
-    "eslint/no-void": "off",
-    // Svelte and Vue script blocks can have no import or export (4 findings).
-    "import/unambiguous": "off",
-    // Server entries boot with top-level await (11 findings).
-    "node/no-top-level-await": "off",
-    // Route folders import shared lib files (64 findings).
-    "import/no-relative-parent-imports": "off",
   },
 });
