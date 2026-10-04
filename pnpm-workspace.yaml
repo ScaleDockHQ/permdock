@@ -62,7 +62,7 @@ catalog:
   "@types/express": 5.0.6
   "@types/multer": 2.3.0
   "@types/mdx": 2.0.14
-  "@types/node": 24.19.1
+  "@types/node": 26.6.4
   "@types/pg": 8.23.1
   "@types/react": 19.3.0
   "@types/react-dom": 19.3.0
@@ -73,7 +73,7 @@ catalog:
   deno: 2.9.6
   elysia: 1.4.30
   esbuild: 0.28.2
-  drizzle-orm: 1.0.0-rc.4
+  drizzle-orm: 1.0.0-rc.5-5935859
   "@electric-sql/pglite": 0.5.8
   "@electric-sql/pglite-socket": 0.2.11
   "@prisma/adapter-pg": 7.10.0
