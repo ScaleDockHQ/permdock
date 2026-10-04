@@ -51,6 +51,23 @@ Dialects decide how the subject reaches SQL. `--dialect` overrides `rls.dialect`
 
 Semantics: `read` becomes `FOR SELECT USING`, `create` becomes `FOR INSERT WITH CHECK`, `update` becomes `FOR UPDATE USING (where) WITH CHECK (check)`, `delete` becomes `FOR DELETE USING`; `allow` grants are `PERMISSIVE`, `deny` grants are `RESTRICTIVE` with `NOT (condition)`; a `SELECT` policy is emitted whenever `UPDATE` or `DELETE` is, because Postgres needs it; the default target role is `authenticated` (`anyone()` grants also target `anon`, or `anonymous` on `neon`); `service_role` is never emitted. Grants come from `definePolicy({ roles })` and from top-level `definePolicy({ grants })`; a grant limited to a grantee Postgres cannot see (`plan()`, `actor()`, `assurance()`) or to several roles at once fails the command with the permission named.
 
+### Action verbs
+
+Each action verb compiles to one SQL command. The defaults are `read`, `list` and `get` to `select`, `create` to `insert`, `update` to `update` and `delete` to `delete`. `rls.actions` merges over them, so an app whose verbs are `view` or `archive` says what each one means in SQL:
+
+```ts
+rls: {
+  actions: {
+    view: "select",
+    edit: "update",
+    archive: "update",
+    approve: "none", // no policy; permdock_has('expense.approve') still answers
+  },
+}
+```
+
+`'none'` compiles no policy for the verb. Every granted action is seeded into `role_permissions` either way, so a hand-written policy or function can still ask `permdock_has` about it. A verb with no entry and no default, such as `publish`, compiles no policy.
+
 ### Role checks: per-statement helpers
 
 Every generated file starts with the helper functions and the table they read, all in one schema (`--rbac-schema`, `rls.schema`, default `public`): `permdock_has` for global roles and one `permitted_<scope>_ids` per [named scope](/docs/concepts/scopes) the policy declares (`permitted_tenant_ids` and `permitted_team_ids` for a policy that declares none):
@@ -222,12 +239,14 @@ create policy customer_contacts_insert on public.customer_contacts for insert to
 | -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `custom_role_permissions (tenant_id, scope, scope_id, role, permission, effect)` | `database` mode: one row per `CustomRole.grants` entry; `scope` is the scope the role is held at (default the first), `scope_id` pins it to one instance or is null, `effect` is `allow` or `deny` |
 | `custom_role_includes (tenant_id, scope, scope_id, role, include_role)`          | `database` mode: one row per `CustomRole.includes` entry                                                                                                                                           |
-| `permdock_ceiling` (view)                                                        | The `role_permissions` rows of declared roles marked `assignable`, in every non-global scope, plus those roles' denies on the same permissions                                                     |
+| `permdock_ceiling` (view)                                                        | The `role_permissions` rows of declared roles marked `assignable`, in every scope including `global`, plus those roles' denies on the same permissions                                             |
 | `permdock_custom_keys(p_allow, p_deny, p_include, p_scope)`                      | The grant keys one custom role holds in a scope, computed from the ceiling exactly as `resolveCustomRole` does                                                                                     |
 
 The membership table (or claim) holds the custom role's name like any role; a declared role name never resolves as custom. Each `permitted_<scope>_ids` unions the declared branch with the custom one, so a policy needs no change. Both tables have RLS enabled and every privilege revoked from `anon`, `authenticated` and `public`; the application writes them from its own server connection, the same data its `RoleSource` reads. A row naming a permission outside the ceiling reaches no key, so writing to the tables directly can never widen access.
 
 In `jwt` mode each membership may carry `grants`, a map from custom role name to compact entries: `key` allows, `-key` denies, `@role` includes. A custom role rides the membership of the scope it is held at. `customRoleClaim(roles)` from `permdock` builds the map for a token hook; the claim is read only with `--custom-roles`, and it adds a few bytes per entry to every token.
+
+A [platform custom role](/docs/concepts/custom-roles#platform-custom-roles) is a row with `scope = 'global'` and null `tenant_id` and `scope_id`; check constraints refuse any other combination. `permdock_has` unions its keys from `user_roles` in `database` mode, and from the top-level `role_grants` claim (the same compact map, keyed by role name) in `jwt` mode, so a global custom role answers in every tenant like a declared global role.
 
 ### Link capabilities
 

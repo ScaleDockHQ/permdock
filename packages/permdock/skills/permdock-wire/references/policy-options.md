@@ -26,6 +26,15 @@ Access that ends on a date (a contractor's engagement, a change freeze until lau
 
 Hardware-key step-up is `to: assurance({ amr: ['hwk'], maxAge: 300 })` and renders `/step-up-required`.
 
+## Existing apps
+
+Adopting PermDock in an app with its own keys, SQL helpers and tokens is a step-by-step guide ([existing apps](https://permdock.dev/docs/getting-started/existing-apps)):
+
+- Keep the app's keys. Map verbs such as `view` to SQL with `rls.actions`, and give colliding resources a distinct `name` on `resource()`.
+- Put application-owned metadata in `meta.x`; PermDock carries it and never reads it.
+- Rename a key later with `definePermissions(tree, { renamed: { "old.key": "new.key" } })`. Remove the alias only when `permdock doctor` PD055 and PD056 are quiet; `permdock diff` reports the removal as the breaking `alias-removed`.
+- Generate helpers beside legacy SQL with `permdock rls generate --helpers-only --shims`, then rewrite policies with `permdock rls migrate --write`.
+
 ## CLI starting points
 
 - When the app already has an OpenAPI document and no definitions yet, start from `permdock openapi import --doc <doc> --out src/permissions.generated.ts --schema zod` and review each action's `meta.inferredFrom`.

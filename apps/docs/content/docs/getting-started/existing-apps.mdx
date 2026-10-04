@@ -1,0 +1,81 @@
+---
+title: Existing apps
+description: Adopt PermDock in an app that already has permission keys, SQL helpers, tokens and stored custom roles, then move to its conventions one step at a time without breaking signed-in users.
+---
+
+An app with its own authorization adopts PermDock in steps. Each step leaves the app working: legacy SQL keeps answering, tokens already issued keep their access, stored custom roles keep resolving, and old permission keys keep working until `permdock doctor` shows nothing uses them.
+
+| Step                    | What changes                                                    | What keeps working                                    |
+| ----------------------- | --------------------------------------------------------------- | ----------------------------------------------------- |
+| 1. Model the vocabulary | `definePermissions` with the app's own keys, names and verbs    | Everything; nothing is generated yet                  |
+| 2. Helpers beside SQL   | `rls generate --helpers-only --shims`                           | Every hand-written policy, function, view and trigger |
+| 3. Rewrite policies     | `rls migrate --write`                                           | Function bodies, views and triggers, through shims    |
+| 4. Token cutover        | The Supabase token hook, `claimsFirst`, legacy claims           | Tokens issued before the deploy                       |
+| 5. Custom-role data     | Rows copied into `custom_role_permissions`                      | Roles stored under old keys                           |
+| 6. Rename keys          | `renamed` aliases, then a deprecation window measured by doctor | Old keys in SQL, tokens and stored roles              |
+
+## Model the existing vocabulary
+
+Keep the keys the app already uses. A key renamed on day one is a migration for every stored role and every SQL call; step 6 does it later, with aliases.
+
+- **Verbs.** An action named `view` or `archive` is fine. `rls.actions` says which SQL command each verb compiles to, and `'none'` keeps a verb out of row policies while `permdock_has` still answers for it ([action verbs](/docs/cli/rls#action-verbs)).
+- **Colliding resource names.** A platform `billing` and an organisation `billing` keep their keys under two groups, and `name` gives one of them a distinct resource name for tables, relations and AuthZEN ([resource names](/docs/concepts/permissions#resource-names)).
+- **Application metadata.** Risk levels, undo windows and UI hints go in `meta.x`, which PermDock carries to the catalog and snapshots and never reads.
+- **Platform roles.** Operator roles such as support tiers are declared global roles. Tiers an operator defines at runtime are [platform custom roles](/docs/concepts/custom-roles#platform-custom-roles), capped by the global roles marked `assignable`.
+- **Approval rules kept as data.** Thresholds an organisation configures, such as "payments over 1000 need finance", come from an `ApprovalPolicySource` instead of code ([approval policies as data](/docs/adapters/approvals#approval-policies-as-data)). Two-step sign-off is `mode: 'sequential'` with `stages`, and "the expense's manager" is a `relation()` approver ([approval security](/docs/security/approvals#stages)).
+
+`permdock rls import` reads the existing policies into a generated `definePermissions` module when the database is the better starting point ([import](/docs/cli/rls#import)).
+
+## Generate helpers beside the existing SQL
+
+```bash
+permdock rls generate --target sql --rbac supabase --helpers-only --shims \
+  --out supabase/migrations/0056_permdock.sql
+```
+
+`--helpers-only` writes the helper functions, `role_permissions` and its seeds, and no policies, so the app's hand-written policies stay in charge ([helpers only](/docs/cli/rls#helpers-only)). `--shims` adds a wrapper under each legacy helper name listed in `rls.migrate.helpers`, which maps the old key and calls the generated helper ([shims](/docs/cli/rls#shims)). From this deploy on, legacy SQL answers from PermDock's grants.
+
+## Rewrite policies
+
+```bash
+permdock rls migrate --rbac supabase --sql supabase              # dry run
+permdock rls migrate --rbac supabase --sql supabase --write
+```
+
+`migrate` rewrites calls to the legacy helpers inside `create policy` and `alter policy` onto the generated helpers, and maps keys through `rls.migrate.keys`, then `renamed`, then `rls.migrate.prefixes` ([migrate](/docs/cli/rls#migrate)). It lists every call it skipped: function bodies, views and triggers stay on the shims until they are rewritten by hand. `permdock doctor` PD056 counts the remaining callers of each legacy name; drop a shim and its legacy function once its count is zero.
+
+## Cut tokens over
+
+Tokens issued before the deploy carry the old claims until they expire. Two settings keep them working:
+
+- `claimsFirst(sources)` on the membership source trusts the verified token's memberships and reads the database only when the token says it was truncated ([tenancy](/docs/concepts/tenancy)).
+- `supabase.hook.claims` keeps writing a claim legacy code still reads, from a schema-qualified function, next to the claims PermDock owns ([claims other packages own](/docs/adapters/supabase-hook#claims-other-packages-own)). Remove the entry once nothing reads the claim.
+
+Keep the old claims for at least one `jwt_expiry` after the hook deploys, so every live token has been reissued before the old reader goes.
+
+## Move custom-role data
+
+Copy each stored custom role into `custom_role_permissions` and `custom_role_includes` (`database` mode) or the `grants` claim (`jwt` mode) with `customRoleClaim(roles, policy)` ([custom roles](/docs/concepts/custom-roles#row-level-security)). Platform roles go in the same tables with `scope = 'global'` and a null `tenant_id`. Run `validateCustomRole` over every role first: a key outside the ceiling is dropped, never widened, and `dropped` names each one so an admin can fix it before the copy.
+
+The app's `RoleSource` reads the same rows. Roles stored under old keys keep resolving through `renamed`, so the copy does not have to rewrite keys.
+
+## Rename keys
+
+```ts
+export const permissions = definePermissions(
+  { customer: resource(Customer, { actions: ["read", "update"] }) },
+  { renamed: { "organization.customers.view": "customer.read" } },
+);
+```
+
+1. Rename the leaf in code and add the old key to `renamed`. Code and new tokens use `customer.read`; stored roles, OAuth scopes, AuthZEN actions, hosted grants and `findPermission` still accept `organization.customers.view` ([renamed keys](/docs/concepts/permissions#renamed-keys)). `rls generate` seeds `role_permissions` under both keys, so SQL that passes the old key keeps its access. `permdock diff` reports the change as `renamed`, which is not breaking.
+2. Wait out the deprecation window. `permdock doctor` PD055 prints the `update` statements that rewrite stored custom roles still on the old key; PD056 counts SQL that still calls a legacy helper. Tokens carry the old key until they expire.
+3. Remove the alias once both checks are quiet and one `jwt_expiry` has passed. `permdock diff` reports `alias-removed` as breaking, so CI holds the pull request until someone confirms the window is over.
+
+An approval pending when the rename deploys does not resume, because its token binds the old key. The call asks again.
+
+## Why
+
+- **Coexistence before replacement.** A big-bang switch from hand-written SQL and custom tokens to generated policies breaks every signed-in user at once if one key maps wrong. Helpers beside the old SQL, shims under the old names and aliases for old keys let each piece move on its own deploy, and doctor and diff measure when the old path is unused instead of leaving it to a guess.
+- **Aliases resolve; they never widen.** A former key resolves to exactly one current leaf, and decisions, snapshots and audit events name only the current key, so an alias cannot create access the current key lacks and the audit trail has one name per permission.
+- **Removing an alias is the breaking step.** Adding `renamed` changes nothing for anyone; dropping it denies whatever still sends the old key. Classifying `alias-removed` as breaking puts the decision where the risk is.

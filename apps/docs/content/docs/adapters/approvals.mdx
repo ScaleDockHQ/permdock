@@ -29,6 +29,8 @@ const { toolApproval } = createPermDock(policy, {
 const handler = approvalsHandler(store, {
   subject: (request) => subjectFromJwt(request), // the approver, from real authentication
   requireDistinctApprover: false, // true = refuse the principal even where a grant sets distinct: false
+  relations, // RelationSource for relation() approvers; without it they match nobody
+  permissions, // the permission tree, for approvers reached through links
 });
 app.all("/permdock/approvals/*", (c) => handler(c.req.raw));
 ```
@@ -64,13 +66,13 @@ interface ApprovalStore {
 ```
 
 - `create` is called by an adapter when `decide` returns `approval-required`; the record is an [approval request](/docs/concepts/wire-formats) (`v: 1`) and carries the `token`, the permission key, the resource id, a subject summary (including the active `tenant`, `session` and the `membership` that supplied the matched role), `approvers` from `grant.approval` when present, the model-readable `detail`, `createdAt` and `expiresAt`. The token is bound to permission key, resource id, subject and actor; because the subject summary includes the tenant, an approval obtained in one tenant cannot resume the same call in another. `create` is idempotent per token: a repeated call for a pending or resolved request keeps the existing record, and only an expired record is replaced, so an agent loop that asks twice never resets an approval to pending.
-- `resolve` requires an approver `Subject` produced by authentication. A store must refuse an approver whose id equals the request's `actor.id`, and one whose id equals the request's principal id unless `approvers.distinct` is `false` (`approver-is-principal`); a request without `approvers` (`approval: 'human'`) refuses the principal too. When `approvers` is set, the approver must belong to the request tenant and match `by`, or match `escalation.to` once `escalation.after` has passed since `createdAt`. `approvalsHandler` enforces this before calling the store, and a custom store should too (`approver-not-eligible`).
-- `resolve` with `status: 'approved'` appends `{ by, at }` to `approvals`. The request becomes `approved` when there are `approvers.quorum` of them (default 1); until then it stays `pending`, `consume` returns `null`, and the same principal is refused a second time (`approver-repeated`, a `409`). One `rejected` verdict ends the request whatever the quorum. `applyApprovalVerdict(request, verdict, now?)` computes the next request for a custom store, which should write it only over a row that is still pending with the same number of approvals so two approvers racing both count.
+- `resolve` requires an approver `Subject` produced by authentication. A store must refuse an approver whose id equals the request's `actor.id`, and one whose id equals the request's principal id unless `approvers.distinct` is `false` (`approver-is-principal`); a request without `approvers` (`approval: 'human'`) refuses the principal too. When `approvers` is set, the approver must belong to the request tenant and match `by` (or an open stage's `by`), or match `escalation.to` once `escalation.after` has passed since `createdAt`. A relation approver matches only through `verdict.relations`, the facts the handler computed; a store never derives them. `approvalsHandler` enforces this before calling the store, and a custom store should too (`approver-not-eligible`).
+- `resolve` with `status: 'approved'` appends `{ by, at, stage? }` to `approvals`. The request becomes `approved` when there are `approvers.quorum` of them (default 1), or when every stage has its quorum; until then it stays `pending`, `consume` returns `null`, and the same principal is refused a second time (`approver-repeated`, a `409`). One `rejected` verdict ends the request whatever the quorum. `applyApprovalVerdict(request, verdict, now?)` computes the next request for a custom store, which should write it only over a row that is still pending with the same number of approvals so two approvers racing both count.
 - `cancel(filter, { by, note })` is optional. It marks matching pending requests `rejected` with `resolvedBy: 'system:<by>'` and does not run eligibility, because a rejection never grants. `cancelApprovals` in `permdock/approvals` calls it, or falls back to `list` plus a system `resolve`.
 - `list` returns one page, oldest `createdAt` first (ties broken by `token`): `limit` is 1 to 200 and defaults to 50, `next` is present only when more requests match, and passing it back as `cursor` returns the following page. The cursor is opaque to callers; an unreadable one returns an empty last page, never the first page again. `testApprovalStore` checks the order, the page boundary and the unreadable cursor. `cancelApprovals` and other callers that need every match follow `next`.
 - `list({ tenant })` scopes the approver inbox to one tenant, which is how a tenant admin sees only their organisation's pending requests; `approvalsHandler` applies it from the approver's active tenant and the approver must hold a membership there ([tenancy](/docs/concepts/tenancy)).
 - `consume` is the atomic step that makes an approval single-use: it sets `consumedAt` on an approved, unexpired, unconsumed request and returns it, or returns `null`. Two concurrent calls never both succeed. Adapters call it when a resume enforces the call (`protect`, tool execution, MCP); the decision endpoint only inspects. A store without `consume` cannot resume.
-- A request with a tenant can be resolved only by an approver with a membership in that tenant, whether or not the grant names `approvers`. `assertApprover(request, by, requireDistinct)` applies these checks and throws `ApprovalError`; custom stores call it in `resolve`.
+- A request with a tenant can be resolved only by an approver with a membership in that tenant, whether or not the grant names `approvers`. `assertApprover(request, by, requireDistinct, now?, relations?)` applies these checks, returns the stage the approval counts towards, and throws `ApprovalError`; custom stores call it in `resolve` with `verdict.relations`.
 - `list` powers the approver UI and the `permdock/terminal` interactive prompt. `approvalsHandler`'s pending inbox lists the requested tenant, else the active tenant, else every tenant the approver holds a membership in; requests without a tenant appear only in the last case.
 - `expire` is called opportunistically by adapters and by `approvalsHandler`; a scheduled job may call it as well.
 - `requestApproval(store, decision, meta)` and `resolveApproval(store, token, verdict)` are the two internal helpers agent adapters share; applications rarely call them directly.
@@ -85,6 +87,41 @@ interface ApprovalStore {
 | `POST /:token/approve` | Appends to `approvals`; once the quorum is met, marks approved and records `resolvedBy` and `resolvedAt`                                                                                                                                                                                | `403` Problem Details when the approver is the actor, the principal (unless the grant sets `distinct: false` and `requireDistinctApprover` is off), or when neither `approvers.by` nor an open `approvers.escalation.to` matches (`approver-not-eligible`); `409` when the same approver answers twice (`approver-repeated`) |
 | `POST /:token/reject`  | Marks rejected with an optional `note`                                                                                                                                                                                                                                                  | Same                                                                                                                                                                                                                                                                                                                         |
 | `GET /:token`          | One request, for a confirmation screen                                                                                                                                                                                                                                                  | `404` for unknown or foreign tokens                                                                                                                                                                                                                                                                                          |
+
+## Relation approvers
+
+A `relation()` approver ([approval security](/docs/security/approvals#relation-approvers)) is a fact about the requested row, so the handler reads it at the verdict. With `relations` set, `approvalsHandler` calls `approverRelations(request, approver, { relations, permissions })` before `resolve`: it follows the approver's `through` links from the request's resource id, asks the `RelationSource` who holds the relation, and passes the matching approvers to `resolve` as `verdict.relations`. Each entry is `approverRelationKey(approver)`. The `GET /pending` inbox uses the same check, so a manager sees only their reports' requests.
+
+A custom resolve path calls `resolveApproval(store, token, verdict, { relations, permissions })`, which reads the facts the same way. Never fill `verdict.relations` from a request body: the facts must come from your own `RelationSource`.
+
+## Approval policies as data
+
+`approvalPolicies` on `createPermDock` takes an `ApprovalPolicySource`, for approval rules an organisation configures at runtime, such as "payments over 1000 need finance". An entry adds stages to a matching allow; it never grants, never removes a code requirement and never lowers a quorum.
+
+```ts
+import { memoryApprovalPolicies } from "permdock";
+
+const permdock = await createPermDock(policy, user, {
+  approvalPolicies: memoryApprovalPolicies([
+    {
+      permission: "expense.pay", // a key; a former key from renamed resolves
+      tenant: "o_acme", // absent: every tenant
+      actors: ["agent"], // absent: every call; a call without an actor never matches a list
+      where: { op: "gt", field: "amount", value: 1000 }, // a portable condition over the row
+      approval: { by: "finance" }, // the approval option shape, without escalation
+    },
+  ]),
+});
+```
+
+- The source is read once, when the instance is created, for the subject's tenants. Entries are plain JSON; `where` and `check` are portable conditions.
+- An entry matches an allowed call for its permission when its tenant is the decision's tenant (the matched membership's root scope, else the active tenant), its `actors` list contains the actor's kind, and its `where` and `check` hold.
+- The effective requirement combines the grant's own approval and every matching entry as stages: `sequential` when any part is sequential, `all` otherwise. Identical stages appear once. The grant's escalation is kept, the shortest `ttl` wins, and `distinct` stays on unless every part turns it off.
+- A call that ends up needing approval does not consume quota.
+- A source that throws, rejects or returns an entry that does not load makes every call an allow would grant deny with reason `approval` and detail `approval-policy-unavailable`. An entry naming a permission the policy does not declare applies to nothing.
+- Client snapshots do not carry the entries: `fromSnapshot` and `usePermission` answer from the code grants, and the server's `decide` adds the approval.
+
+`testApprovalPolicySource` in `permdock/testing` checks a source ([extension interfaces](/docs/concepts/extension-interfaces#conformance-runners)).
 
 ## Request lifecycle
 

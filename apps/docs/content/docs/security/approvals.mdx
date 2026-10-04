@@ -18,7 +18,7 @@ const clerk = role("clerk", [
 ]);
 ```
 
-`approval: 'human'` marks a grant that any authenticated person other than the requester may resolve: neither the actor nor the principal can approve. `{ by }` names the eligible approvers with the same grantee selectors as `to` (`role`, `assurance`, `authenticated`, an array as intersection; not `relation()`, which `definePolicy` refuses) and refuses the principal and the actor the same way. `distinct` defaults to `true`; `{ distinct: false }` lets the principal approve their own request (a user confirming their own agent's call), and `permdock doctor` PD024 lists every grant that sets it. The actor is refused either way.
+`approval: 'human'` marks a grant that any authenticated person other than the requester may resolve: neither the actor nor the principal can approve. `{ by }` names the eligible approvers with the same grantee selectors as `to` (`role`, `assurance`, `authenticated`, `relation()`, an array as intersection), plus `user(id)` for one named person, and refuses the principal and the actor the same way. `distinct` defaults to `true`; `{ distinct: false }` lets the principal approve their own request (a user confirming their own agent's call), and `permdock doctor` PD024 lists every grant that sets it. The actor is refused either way.
 
 Three more fields shape the request the grant produces:
 
@@ -37,7 +37,34 @@ allow(permissions.payout.release, {
 - `ttl` (a duration such as `'30m'` or `'2d'`) caps how long the request stays open. The store has its own default (one hour for `memoryApprovalStore`); the grant can shorten it, never extend it.
 - `escalation` names, with the same selectors as `by`, who may approve in addition to `by` once `after` has passed since the request was created. It widens the approver set; it does not change the quorum or remove anyone.
 
-`definePolicy` refuses a `quorum` below 1 or a `ttl` or `after` that is not a duration, and `relation()` is refused in `escalation.to` as it is in `by`. When the grant matches, `decide` returns:
+`definePolicy` refuses a `quorum` below 1 or a `ttl` or `after` that is not a duration.
+
+### Stages
+
+`mode` orders several approver sets. `'any'` (the default) is the single `by` set above. `'all'` and `'sequential'` take `stages`, each with its own `by` and `quorum`; `by` and `quorum` are then refused at the top level.
+
+```ts
+allow(permissions.expense.pay, {
+  approval: {
+    mode: "sequential",
+    stages: [
+      { by: relation(permissions.expense, "manager") }, // the expense's manager first
+      { by: relation(permissions.report, "approver", { through: ["report"] }) }, // then the report's approver
+      { by: roles.finance, quorum: 2 },
+    ],
+  },
+});
+```
+
+- `'all'` needs every stage's quorum, in any order. `'sequential'` opens a stage only when the previous one is complete.
+- Each signature records its `stage`. One approver signs once per request, so one person never completes two stages.
+- `escalation.to` may approve any open stage once `after` has passed.
+
+### Relation approvers
+
+`relation(resource, name)` in `by`, a stage or `escalation.to` names whoever holds that relation on the requested row, such as the manager on an expense. It is checked when the verdict is given, by the request's resource id, so a manager who changes between the ask and the answer is the one who may approve. `definePolicy` refuses a relation approver on a collection permission, on a resource other than the permission's own or the end of its `through` links, on an undeclared relation, and in an activation approval. The approvals handler reads the relation through its `relations` source ([approvals adapter](/docs/adapters/approvals#relation-approvers)); without one, a relation approver matches nobody.
+
+When the grant matches, `decide` returns:
 
 ```ts
 {
@@ -145,14 +172,15 @@ The second `decide` matters: the policy, the resource and the subject are re-eva
 - It does not grant a permission the subject lacks. Approval sits on top of a matching grant.
 - It does not outlive its request. Each call needs its own approval, which is consumed on use; the record expires at `expiresAt`, and a `simulate()` plan is approved step by step with no plan-level token.
 - It is not remembered. A rejection applies to one call; the next call asks again, and the OpenAI SDK's `alwaysReject` is never set.
-- It does not decide who may approve beyond the grant and the actor rule. `approval.by`, `approval.distinct`, `approval.quorum` and `approval.escalation` on the grant are copied to the `ApprovalRequest` as `approvers` and enforced by `ApprovalStore.resolve` and `approvalsHandler`. Adapter `approvers` lists (Eve, OpenAI, Chat SDK) are an extra restriction; both must pass. `requireDistinctApprover` on the handler is an application-wide floor: with it on, `distinct: false` on a grant no longer lets the principal approve.
+- It does not decide who may approve beyond the grant and the actor rule. `approval.by`, `approval.mode`, `approval.stages`, `approval.distinct`, `approval.quorum` and `approval.escalation` on the grant, tightened by any matching [approval policy entries](/docs/adapters/approvals#approval-policies-as-data), are copied to the `ApprovalRequest` as `approvers` and enforced by `ApprovalStore.resolve` and `approvalsHandler`. Adapter `approvers` lists (Eve, OpenAI, Chat SDK) are an extra restriction; both must pass. `requireDistinctApprover` on the handler is an application-wide floor: with it on, `distinct: false` on a grant no longer lets the principal approve.
 - It is never given by a link alone. An emailed or chat link carries only the token and opens a page where the approver authenticates; the verdict goes through `approvalsHandler` with that session's subject. A link that approves without a session would make possession of the message the approver's identity ([approvals](/docs/adapters/approvals)).
 
 ## Why
 
 - **Approvals can bind content, not only identity.** An approval is a person's judgement about what they saw. When the row can change between the ask and the resume, someone could get a small refund approved and then raise the amount before the retry. The version field is the cheapest stable signal of "the row changed" that every database already has, and putting it in the token reuses the existing comparison instead of adding a second check. It is opt-in per grant because most approvals are about the action on a row ("delete this post"), and forcing re-approval on every unrelated edit would train approvers to click yes. The resume says `stale-approval` rather than a generic mismatch, so the client can tell the user to ask again instead of retrying the same token.
 - **A call without a row id binds its arguments.** A collection action has no row to name, so a token of key, subject and actor alone would let one approval cover every later call of that action until it is consumed, and an agent could swap the arguments after the human said yes. Hashing the validated data costs one digest per approval-required decision and needs no new field on the record. Rows with an id keep binding the id, with `staleOn` for content, because a row's content changes for reasons unrelated to the approval.
-- **Approvers are subjects, not relations.** `relation()` answers "does this subject relate to this row", which needs the row and a relation reader at resolve time; the store has neither. A store that let a relation approver through would let anyone approve, so the store refuses every approver for such a request and `definePolicy` refuses `relation()` in `approval.by`. A relation-aware approver check can come later through the approvals handler, which can load the row.
+- **Relation approvers are checked at the verdict, outside the store.** `relation()` answers "does this subject relate to this row", which needs a relation reader at resolve time; the store has none and stays synchronous. The approvals handler asks its `RelationSource` which relation approvers the approver satisfies for the request's resource id and passes those facts to `resolve` as `verdict.relations`. A store never derives them, so without the facts a relation approver matches nobody. Reading at the verdict, not at the ask, means the current holder approves: a manager who left the team the day before cannot approve.
+- **Stages are ordered sets, not a workflow engine.** Two-step sign-off (a line manager, then finance) is common enough to live on the grant, where `permdock diff` and a policy review see it. `sequential` refuses a later stage until the earlier one is complete, so finance never signs something the manager has not seen. Branching, parallel paths with different outcomes and delegation of a stage are left to the application.
 - **Quorum, ttl and escalation are grant fields, not store configuration.** How many people must agree, how long an ask may wait and who may step in when nobody answers are statements about the action, the same as who may approve, so they live next to `by` on the grant, appear in the catalog and in `permdock diff`, and travel with the request as `approvers`. A store setting would apply to every permission at once and would be invisible to a policy review. The request records each approval as `{ by, at }` rather than a counter so an audit can see who agreed, and the quorum counts distinct principals because a quorum one person can satisfy alone is a single approval with extra clicks. Escalation only widens the approver set, because a workflow where the fallback approver replaces the first set would let anyone wait out the timer to pick their approver. Recurring windows and per-approver weights are left out: both are approval workflow design, which an application or PermDock Cloud builds on these primitives.
 - **Four eyes is the default, not an option.** A user who can approve their own request turns an approval into a confirmation dialog: the person who wants the refund is the person who says yes. So the principal is refused unless the grant opts out. Where a confirmation is what the product wants (the user approving their own agent's call in a chat), `approval: { distinct: false }` says so on the grant and PD024 keeps the list visible in review. Separation between the agent and its user was already guaranteed by the actor rule; this closes the one between the user and themselves.
 

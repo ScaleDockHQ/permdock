@@ -1,5 +1,12 @@
 {
   "title": "Getting started",
   "defaultOpen": true,
-  "pages": ["installation", "quick-start", "larger-apps", "naming", "devtools"]
+  "pages": [
+    "installation",
+    "quick-start",
+    "larger-apps",
+    "existing-apps",
+    "naming",
+    "devtools"
+  ]
 }

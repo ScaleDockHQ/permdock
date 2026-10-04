@@ -63,8 +63,8 @@ Generated RLS applies the same rules at commit. Map `rls.memberships.scopes.<sco
 
 ```ts
 type CustomRole = {
-  tenant: string;
-  scope?: string; // default: the first scope
+  tenant: string; // absent when scope is 'global'
+  scope?: string; // default: the first scope; 'global' for a platform role
   id?: string; // pins it to one instance
   name: string;
   includes?: string[]; // declared roles to start from
@@ -78,4 +78,6 @@ type CustomRole = {
 - Pass a `RoleSource` (`memoryRoleSource(roles)` in tests) as `customRoles` on `createPermDock`.
 - `permdock.assignablePermissions({ tenant })` is the ceiling intersected with what the subject holds. `useAssignablePermissions()` in `permdock/react` builds the editor from it.
 - The save action runs `validateCustomRole(policy, role)` and refuses the role when `ok` is false or `permissions` contains a key outside `assignablePermissions()`. `dropped` names each entry left out (`unknown-permission`, `outside-ceiling`, `condition-not-allowed`, `unknown-role`).
-- For generated RLS, add `--custom-roles` (or `rls.customRoles: true`) to `permdock rls generate`.
+- A platform custom role (`scope: 'global'`, no `tenant`, `team` or `id`) is held through `principal.roles` and capped by the allows of declared global roles marked `assignable`. `RoleSource.globalRoles()` returns them.
+- A stored grant under a key renamed with `definePermissions(..., { renamed })` still resolves; `validateCustomRole` lists it in `renamed` as `{ from, to }`, and `permdock doctor` PD055 prints the `update` that rewrites it.
+- For generated RLS, add `--custom-roles` (or `rls.customRoles: true`) to `permdock rls generate`. Platform roles are rows with `scope = 'global'` and a null `tenant_id`, or the top-level `role_grants` claim in `jwt` mode.

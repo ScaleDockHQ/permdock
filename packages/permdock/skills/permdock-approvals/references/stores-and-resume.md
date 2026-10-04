@@ -16,14 +16,38 @@ export const { protect } = createPermDock(policy, { subject, store });
 const handler = approvalsHandler(store, {
   subject: (request) => approverFromSession(request), // the approver, from real authentication
   requireDistinctApprover: false, // true refuses the principal even where a grant sets distinct: false
+  relations, // RelationSource: needed when a grant uses relation() approvers
+  permissions, // the permission tree, for relation approvers reached through links
 });
 app.all("/permdock/approvals/*", (c) => handler(c.req.raw));
 ```
 
 - `memoryApprovalStore` is per process. On serverless or with several replicas, implement `ApprovalStore` over the app's database; the Drizzle recipe on the adapter page is the template, and `cloud().approvals` from `permdock/cloud` is the hosted implementation of the same interface.
-- A custom store calls `assertApprover(request, by, requireDistinct)` in `resolve` and computes the next record with `applyApprovalVerdict`. `consume` must be atomic: two concurrent calls never both succeed.
+- A custom store calls `assertApprover(request, by, requireDistinct, now, verdict.relations)` in `resolve` and computes the next record with `applyApprovalVerdict`, which records each signature's `stage`. `verdict.relations` holds `approverRelationKey` values that the handler, or `resolveApproval(store, token, verdict, { relations, permissions })`, computed with `approverRelations`; a store never derives them. `consume` must be atomic: two concurrent calls never both succeed.
 - Run `testApprovalStore(store, { reopen })` from `permdock/testing` on every custom store.
 - `cancelApprovals` rejects matching pending requests (for example when a session ends).
+
+## Approval policies as data
+
+```ts
+import { memoryApprovalPolicies } from "permdock";
+
+const permdock = await createPermDock(policy, user, {
+  approvalPolicies: memoryApprovalPolicies([
+    {
+      permission: "expense.pay",
+      tenant: "o_acme", // absent: every tenant
+      actors: ["agent"], // absent: every call
+      where: { op: "gt", field: "amount", value: 1000 },
+      approval: { by: "finance" }, // no escalation in data
+    },
+  ]),
+});
+```
+
+- Entries are read once per instance and combine with the grant's own approval as stages (`sequential` if any part is, else `all`); the shortest `ttl` wins.
+- A throw or an invalid entry denies with detail `approval-policy-unavailable`. An unknown permission applies to nothing.
+- Client snapshots do not see the entries; the server's `decide` adds the approval.
 
 ## Resume
 

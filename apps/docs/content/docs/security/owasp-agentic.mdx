@@ -62,7 +62,7 @@ Tool arguments are model output and therefore untrusted. `validate: 'boundary'` 
 
 ### Human-in-the-loop gates
 
-`approval: 'human'` on a grant produces `outcome: 'approval-required'`, which the adapters surface as AI SDK `user-approval`, `WorkflowAgent` `needsApproval`, Claude Agent SDK `canUseTool` asking, or an MCP `input_required` result, always with a replay-safe `token`. See [approvals](/docs/security/approvals).
+`approval: 'human'` on a grant produces `outcome: 'approval-required'`, which the adapters surface as AI SDK `user-approval`, `WorkflowAgent` `needsApproval`, Claude Agent SDK `canUseTool` asking, or an MCP `input_required` result, always with a replay-safe `token`. An organisation adds its own gates as data through an `ApprovalPolicySource`, for example "an agent paying more than 1000 needs finance": entries apply only to the actor kinds they list, only add approval stages, and deny every allowed call when they fail to load. See [approvals](/docs/security/approvals) and [approval policies as data](/docs/adapters/approvals#approval-policies-as-data).
 
 ### Least Agency
 
