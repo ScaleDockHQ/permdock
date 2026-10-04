@@ -124,7 +124,11 @@ process.stdout.write(
 
 if (!dryRun) {
   if (!published) {
-    execFileSync("npm", publishArgs, { cwd: ROOT, stdio: "inherit" });
+    // The root manifest's devEngines.packageManager is pnpm, which npm refuses to run under.
+    execFileSync("npm", publishArgs, {
+      cwd: dirname(tarball),
+      stdio: "inherit",
+    });
   }
   execFileSync("pnpm", ["exec", "changeset", "git-tag"], {
     cwd: ROOT,
