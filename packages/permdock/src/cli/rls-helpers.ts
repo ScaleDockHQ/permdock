@@ -262,9 +262,10 @@ function hasBody(ctx: RlsSqlContext): string {
   const active = userActive(ctx, "      ")
     .map((line) => `\n${line}`)
     .join("");
+  const custom = ctx.customRoles;
   if (ctx.authorize === "database") {
     const ur = globalRoleRows(ctx);
-    return `  select exists (
+    const declared = `  select exists (
     select 1
     from ${ur.from}
     join ${rp} rp on rp.role = ${ur.roleSql}
@@ -272,15 +273,59 @@ function hasBody(ctx: RlsSqlContext): string {
       and rp.grant_key = p_grant
       and rp.scope = 'global'${andLine("      ", globalKindFilterSql(ctx, ur.roleSql))}${active}
   )`;
+    if (custom === undefined) {
+      return declared;
+    }
+    // A platform custom role: rows with no tenant at scope global, held through the global roles table.
+    const match = `c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ${ur.roleSql}`;
+    const rows = (source: string, value: string, extra: string): string =>
+      `array(select c.${value} from ${qualified(ctx, source)} c where ${match}${extra})`;
+    return `${declared}
+  or exists (
+    select 1
+    from ${ur.from}
+    where ${ur.userSql} = ${subjectIdSql(ctx)}
+      and not (${ur.roleSql} = any(${textArray(custom.declared)}))${active}
+      ${customKeysSql(
+        ctx,
+        "global",
+        rows(CUSTOM_ROLES.permissions, "permission", " and c.effect = 'allow'"),
+        rows(CUSTOM_ROLES.permissions, "permission", " and c.effect = 'deny'"),
+        rows(CUSTOM_ROLES.includes, "include_role", ""),
+      ).trimStart()}
+  )`;
   }
-  return `  select ${signedIn(ctx)} and exists (
+  const declared = `  select ${signedIn(ctx)} and exists (
     select 1
     from ${roleRows(ctx)}
     join ${rp} rp on rp.role = r.role
     where rp.grant_key = p_grant
       and rp.scope = 'global'${andLine("      ", globalKindFilterSql(ctx, "r.role"))}${active}
   )`;
+  if (custom === undefined) {
+    return declared;
+  }
+  // A platform custom role's entries ride the top-level role_grants claim, keyed by role name.
+  const claim = subjectClaimJsonSql(ctx, GLOBAL_GRANTS_CLAIM);
+  return `${declared}
+  or (${signedIn(ctx)} and exists (
+    select 1
+    from ${roleRows(ctx)}
+    cross join lateral (select ${claim} -> r.role as g) cg
+    where jsonb_typeof(cg.g) = 'array'
+      and not (r.role = any(${textArray(custom.declared)}))${active}
+      ${customKeysSql(
+        ctx,
+        "global",
+        claimEntries("left(e, 1) not in ('-', '@')", "e"),
+        claimEntries("left(e, 1) = '-'", "substr(e, 2)"),
+        claimEntries("left(e, 1) = '@'", "substr(e, 2)"),
+      ).trimStart()}
+  ))`;
 }
+
+/** The claim `jwt` mode reads platform custom roles from: `customRoleClaim(globalRoles)`. */
+export const GLOBAL_GRANTS_CLAIM = "role_grants";
 
 export function memberColumn(name: string): string {
   return `m.${quoteIdent(name)}`;
@@ -481,14 +526,16 @@ function customRolesSql(ctx: RlsSqlContext): string {
       const table = qualified(ctx, name);
       const unique = `${column}${name === CUSTOM_ROLES.permissions ? ", effect" : ""}`;
       chunks.push(`create table if not exists ${table} (
-  tenant_id ${tenantType} not null,
+  tenant_id ${tenantType},
   scope text not null default ${quoteLiteral(rootName(ctx))},
   scope_id text,
   role text not null,
-  ${column} text not null${check}
+  ${column} text not null${check},
+  check ((scope = 'global') = (tenant_id is null)),
+  check (scope <> 'global' or scope_id is null)
 );
 create unique index if not exists ${quoteIdent(`${name}_key`)}
-  on ${table} (tenant_id, scope, coalesce(scope_id, ''), role, ${unique});
+  on ${table} (coalesce(tenant_id::text, ''), scope, coalesce(scope_id, ''), role, ${unique});
 alter table ${table} enable row level security;
 revoke all on table ${table} from anon, authenticated, public;`);
     }
@@ -497,8 +544,7 @@ revoke all on table ${table} from anon, authenticated, public;`);
 create or replace view ${ceiling} with (security_invoker = true) as
 select rp.scope, rp.role, rp.permission, rp.grant_key, rp.effect
 from ${rp} rp
-where rp.scope <> 'global'
-  and rp.role = any(${textArray(custom.assignable)})
+where rp.role = any(${textArray(custom.assignable)})
   and exists (
     select 1 from ${rp} a
     where a.role = rp.role

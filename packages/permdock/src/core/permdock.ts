@@ -210,9 +210,15 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
   readonly assignableRoles: (options?: {
     readonly tenant?: string;
   }) => readonly Role[];
-  /** The tenant custom-role ceiling the subject may hand out; empty without a tenant. */
+  /**
+   * The custom-role ceiling the subject may hand out: in a tenant (empty
+   * without one), or with `scope: 'global'` for platform custom roles, the
+   * allows of assignable global roles the subject holds. A snapshot answers
+   * only the tenant form.
+   */
   readonly assignablePermissions: (options?: {
     readonly tenant?: string;
+    readonly scope?: "global";
   }) => readonly Permission[];
   /**
    * Whether the subject may assign, revoke or transfer a role in one scope
@@ -304,7 +310,12 @@ function instantiate(
 ): PermDock | Promise<PermDock> {
   const { policy, errors } = hostedPolicy(codePolicy, options.policies);
   const tenants = tenantsOf(subject.principal, scopeList(policy.scopes));
-  const customRoles = customRolesFor(options.customRoles, tenants, auth);
+  const customRoles = customRolesFor(
+    options.customRoles,
+    tenants,
+    auth,
+    subject.principal !== null,
+  );
   const assignable = assignableNamesFor(options.customRoles, tenants, auth);
   const build = (
     roles: readonly CustomRole[],

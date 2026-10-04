@@ -303,7 +303,7 @@ export const policy = definePolicy(permissions, {
     expect(database).toContain(
       'create table if not exists "permdock".custom_role_includes',
     );
-    expect(database).toContain("and rp.role = any(array['admin']::text[])");
+    expect(database).toContain("where rp.role = any(array['admin']::text[])");
     expect(database).toContain(
       "and not (m.\"role\"::text = any(array['admin', 'owner']::text[]))",
     );

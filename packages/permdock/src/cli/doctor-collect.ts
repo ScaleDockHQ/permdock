@@ -392,7 +392,7 @@ export async function pd018(input: {
     const conflicts = separationConflicts(policy, [
       {
         principal: custom.name,
-        tenant: custom.tenant,
+        ...(custom.tenant === undefined ? {} : { tenant: custom.tenant }),
         roles: custom.includes ?? [],
       },
     ]);
@@ -518,6 +518,12 @@ export async function pd019(input: {
   ];
 }
 
+function customRoleLabel(role: CustomRole): string {
+  return role.tenant === undefined
+    ? `global custom role ${role.name}`
+    : `custom role ${role.name} in ${role.tenant}`;
+}
+
 export async function pd023(input: {
   readonly cwd: string;
   readonly config: PermDockConfig;
@@ -550,7 +556,7 @@ export async function pd023(input: {
       findings.push({
         code: "PD023",
         severity: "warning",
-        message: `custom role ${custom.name} in ${custom.tenant} drops ${what} (${entry.reason})`,
+        message: `${customRoleLabel(custom)} drops ${what} (${entry.reason})`,
         fix:
           entry.reason === "outside-ceiling"
             ? "grant it to a declared assignable role, or remove it from the custom role"
@@ -597,7 +603,7 @@ export async function pd055(input: {
       findings.push({
         code: "PD055",
         severity: "warning",
-        message: `custom role ${custom.name} in ${custom.tenant} stores ${from}, which was renamed to ${to}`,
+        message: `${customRoleLabel(custom)} stores ${from}, which was renamed to ${to}`,
         fix: `rewrite the stored key before removing the alias: update ${table} set permission = ${quoteSqlLiteral(to)} where permission = ${quoteSqlLiteral(from)};`,
       });
     }

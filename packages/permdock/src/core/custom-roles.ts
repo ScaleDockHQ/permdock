@@ -80,6 +80,9 @@ export function customRoleScope(
   role: Pick<CustomRole, "scope" | "team">,
   scopes: readonly Scope[],
 ): CeilingScope | undefined {
+  if (role.scope === "global") {
+    return "global";
+  }
   if (role.scope !== undefined) {
     return resolveScope(scopes, role.scope);
   }
@@ -91,8 +94,13 @@ function customRoleId(role: CustomRole): string | undefined {
   return role.scope === undefined ? role.team : role.id;
 }
 
+/** A platform custom role: held through `principal.roles`, capped by the assignable global roles. */
+export function isGlobalCustomRole(role: CustomRole): boolean {
+  return role.scope === "global";
+}
+
 function isCeilingScope(scope: Grant["scope"]): scope is CeilingScope {
-  return typeof scope === "string" && scope !== "global";
+  return typeof scope === "string";
 }
 
 function soleRole(grant: Grant): string | undefined {
@@ -122,10 +130,10 @@ function isAssignableRole(policy: Policy, name: string): boolean {
 }
 
 /**
- * Every scope's ceiling, keyed by scope name: the code allows of declared
- * `assignable` roles in that scope, everything a custom role of the scope may
- * ever reach. Hosted grants never widen it. `assignable` narrows it to those
- * role names (`RoleSource.assignable`).
+ * Every scope's ceiling, keyed by scope name (`global` for platform custom
+ * roles): the code allows of declared `assignable` roles in that scope,
+ * everything a custom role of the scope may ever reach. Hosted grants never
+ * widen it. `assignable` narrows it to those role names (`RoleSource.assignable`).
  */
 function ceilings(
   policy: Policy,
@@ -340,10 +348,22 @@ export function validateCustomRole(
 }
 
 function wellFormed(role: CustomRole): boolean {
+  if (
+    role === null ||
+    typeof role !== "object" ||
+    typeof role.name !== "string"
+  ) {
+    return false;
+  }
+  if (role.scope === "global") {
+    // A tenant, team or id on a platform role is a mistake, not a narrowing to trust.
+    return (
+      role.tenant === undefined &&
+      role.team === undefined &&
+      role.id === undefined
+    );
+  }
   return (
-    role !== null &&
-    typeof role === "object" &&
-    typeof role.name === "string" &&
     typeof role.tenant === "string" &&
     (role.team === undefined || typeof role.team === "string") &&
     (role.scope === undefined || typeof role.scope === "string") &&
@@ -375,6 +395,9 @@ export function holdsCustomRole(
   role: CustomRole,
   scopes: readonly Scope[],
 ): boolean {
+  if (isGlobalCustomRole(role)) {
+    return false;
+  }
   const scope = customRoleScope(role, scopes);
   const id = customRoleId(role);
   return (
@@ -386,17 +409,26 @@ export function holdsCustomRole(
   );
 }
 
+/** Whether `principal.roles` names the platform custom role. */
+export function holdsGlobalCustomRole(
+  roles: readonly string[] | undefined,
+  role: CustomRole,
+): boolean {
+  return isGlobalCustomRole(role) && (roles ?? []).includes(role.name);
+}
+
+/** A tenant's custom role inside that tenant, or a platform custom role anywhere. */
 export function isCustomRoleName(
   name: string,
   roles: readonly CustomRole[],
   tenant: string | undefined,
 ): boolean {
-  return (
-    tenant !== undefined &&
-    roles.some(
-      (item) =>
-        wellFormed(item) && item.name === name && item.tenant === tenant,
-    )
+  return roles.some(
+    (item) =>
+      wellFormed(item) &&
+      item.name === name &&
+      (isGlobalCustomRole(item) ||
+        (tenant !== undefined && item.tenant === tenant)),
   );
 }
 

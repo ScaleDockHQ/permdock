@@ -18,7 +18,12 @@ import type { CustomRole, Membership, Subject } from "./subject.ts";
 
 import { evaluateCondition } from "../conditions/evaluate.ts";
 import { compact } from "./compact.ts";
-import { isCustomRoleName, holdsCustomRole } from "./custom-roles.ts";
+import {
+  isCustomRoleName,
+  holdsCustomRole,
+  holdsGlobalCustomRole,
+  isGlobalCustomRole,
+} from "./custom-roles.ts";
 import {
   coveredByDelegation,
   delegatedPermissions,
@@ -86,10 +91,23 @@ function isRowPair(value: unknown): value is RowPair<unknown> {
   );
 }
 
+function isGlobalRole(value: unknown): value is CustomRole {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    Reflect.get(value, "scope") === "global"
+  );
+}
+
+function onlyGlobal(roles: unknown): CustomRole[] {
+  return Array.isArray(roles) ? roles.filter(isGlobalRole) : [];
+}
+
 export function customRolesFor(
   source: RoleSource | undefined,
   tenants: readonly string[],
   auth: AuthEvent[],
+  signedIn = false,
 ): CustomRole[] | Promise<CustomRole[]> {
   if (source === undefined) {
     return [];
@@ -98,6 +116,17 @@ export function customRolesFor(
   for (const tenant of tenants) {
     try {
       loaded.push(source.rolesFor(tenant));
+    } catch {
+      auth.push({ reason: "source-threw", source: "customRoles" });
+      loaded.push([]);
+    }
+  }
+  if (signedIn && source.globalRoles !== undefined) {
+    try {
+      const roles = source.globalRoles();
+      loaded.push(
+        isThenable(roles) ? roles.then(onlyGlobal) : onlyGlobal(roles),
+      );
     } catch {
       auth.push({ reason: "source-threw", source: "customRoles" });
       loaded.push([]);
@@ -635,11 +664,13 @@ export function evaluate(
   }
 
   const holdsCustom = (custom: CustomRole): boolean =>
-    (subject.principal?.memberships ?? []).some(
-      (membership) =>
-        inTeam(membership, scopes, env.team) &&
-        holdsCustomRole(membership, custom, scopes),
-    );
+    isGlobalCustomRole(custom)
+      ? holdsGlobalCustomRole(principalRoles, custom)
+      : (subject.principal?.memberships ?? []).some(
+          (membership) =>
+            inTeam(membership, scopes, env.team) &&
+            holdsCustomRole(membership, custom, scopes),
+        );
 
   const walkRole: ResourceRoleWalk | undefined =
     env.relations?.available === true

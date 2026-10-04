@@ -134,7 +134,7 @@ describe("rls generate context from the config", () => {
     expect(outcome.code).toBe(0);
     expect(outcome.text).toContain("custom_role_permissions");
     expect(outcome.text).toContain(
-      "and rp.role = any(array['editor', 'lead']::text[])",
+      "where rp.role = any(array['editor', 'lead']::text[])",
     );
     expect(outcome.text).not.toContain("service_role");
   });

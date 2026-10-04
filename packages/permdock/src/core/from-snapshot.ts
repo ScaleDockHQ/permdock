@@ -317,7 +317,13 @@ export function fromSnapshot(
         (leaf) => leaf.assignable && names.has(leaf.key),
       );
     },
-    assignablePermissions(query?: { readonly tenant?: string }) {
+    assignablePermissions(query?: {
+      readonly tenant?: string;
+      readonly scope?: "global";
+    }) {
+      if (query?.scope === "global") {
+        return [];
+      }
       const tenant = query?.tenant ?? subject.principal?.tenant;
       return assignableEntry(snapshot, tenant)?.permissions ?? [];
     },

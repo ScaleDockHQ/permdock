@@ -69,7 +69,15 @@ export type CustomRoleGrant = {
   readonly effect?: "allow" | "deny";
 };
 
-export type CustomRole = {
+type CustomRoleBody = {
+  readonly name: string;
+  readonly includes?: readonly string[];
+  readonly grants?: readonly CustomRoleGrant[];
+  readonly meta?: Readonly<Record<string, unknown>>;
+};
+
+/** A role a tenant defines, held on memberships inside that tenant. */
+export type TenantCustomRole = CustomRoleBody & {
   /** The instance of the first scope that owns the role. */
   readonly tenant: string;
   /** The scope the role is held at; defaults to the first scope. Its ceiling is that scope's assignable roles. */
@@ -78,11 +86,21 @@ export type CustomRole = {
   readonly id?: string;
   /** Input only: `scope` = the second scope, `id` = this team. */
   readonly team?: string;
-  readonly name: string;
-  readonly includes?: readonly string[];
-  readonly grants?: readonly CustomRoleGrant[];
-  readonly meta?: Readonly<Record<string, unknown>>;
 };
+
+/**
+ * A role the platform defines, held through `principal.roles` like a declared
+ * global role. Its ceiling is the allows of the declared global roles marked
+ * `assignable`.
+ */
+export type GlobalCustomRole = CustomRoleBody & {
+  readonly scope: "global";
+  readonly tenant?: undefined;
+  readonly id?: undefined;
+  readonly team?: undefined;
+};
+
+export type CustomRole = TenantCustomRole | GlobalCustomRole;
 
 export type Principal = {
   readonly id: string;

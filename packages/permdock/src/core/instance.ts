@@ -33,6 +33,7 @@ import {
   ceilingGrants,
   customGrantsFor,
   holdsCustomRole,
+  holdsGlobalCustomRole,
   roleAllowKeys,
 } from "./custom-roles.ts";
 import { delegatedPermissions } from "./delegation.ts";
@@ -302,10 +303,11 @@ export function collectSnapshotGrants(
     }
   }
   for (const { grant, role } of customGrants) {
+    const globalHeld = holdsGlobalCustomRole(subject.principal?.roles, role);
     const holders = held.filter((entry) =>
       holdsCustomRole(entry.membership, role, scopes),
     );
-    if (holders.length === 0) {
+    if (holders.length === 0 && !globalHeld) {
       continue;
     }
     const resource = getResource(policy.permissions, grant.permission.resource);
@@ -321,6 +323,9 @@ export function collectSnapshotGrants(
       continue;
     }
     const merged: Grant = graphAware(grant, match.where);
+    if (globalHeld) {
+      out.push({ grant: merged });
+    }
     for (const entry of holders) {
       out.push({ grant: merged, membership: entry.membership });
     }
@@ -377,6 +382,7 @@ function assignableIn(
   tenant: string | undefined,
   allowed: readonly string[] | undefined,
   now: number = nowSeconds(),
+  global = false,
 ): Assignable {
   const principal = subject.principal;
   if (principal === null) {
@@ -401,7 +407,8 @@ function assignableIn(
         (item) =>
           item.grant.effect === "allow" &&
           (item.membership === undefined ||
-            (tenantOf(item.membership, scopes) === tenant &&
+            (!global &&
+              tenantOf(item.membership, scopes) === tenant &&
               !isMembershipExpired(item.membership, now))),
       )
       .map((item) => item.grant.permission.key),
@@ -459,7 +466,7 @@ function assignableIn(
         const keys = [...roleAllowKeys(policy, leaf.key)];
         return keys.length > 0 && keys.every((key) => heldKeys.has(key));
       });
-  const root = rootScope(scopes);
+  const root = global ? "global" : rootScope(scopes);
   const ceiling = new Set(
     (root === undefined ? [] : ceilingGrants(policy, root, allowed)).map(
       (grant) => grant.permission.key,
@@ -1158,7 +1165,20 @@ export function buildInstance(
     },
     assignablePermissions(options?: {
       readonly tenant?: string;
+      readonly scope?: "global";
     }): readonly Permission[] {
+      if (options?.scope === "global") {
+        return assignableIn(
+          policy,
+          subject,
+          envBase.customRoles,
+          customGrants,
+          undefined,
+          undefined,
+          nowSeconds(),
+          true,
+        ).permissions;
+      }
       const tenant = options?.tenant ?? subject.principal?.tenant;
       return tenant === undefined ? [] : assignableAt(tenant).permissions;
     },

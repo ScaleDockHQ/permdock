@@ -325,7 +325,7 @@ async function seedCustomRoles(
       await write(
         `insert into ${table("custom_role_permissions")} (tenant_id, scope, scope_id, role, permission, effect) values ($1, $2, $3, $4, $5, $6)`,
         [
-          role.tenant,
+          role.tenant ?? null,
           at.scope,
           at.id ?? null,
           role.name,
@@ -337,7 +337,7 @@ async function seedCustomRoles(
     for (const name of role.includes ?? []) {
       await write(
         `insert into ${table("custom_role_includes")} (tenant_id, scope, scope_id, role, include_role) values ($1, $2, $3, $4, $5)`,
-        [role.tenant, at.scope, at.id ?? null, role.name, name],
+        [role.tenant ?? null, at.scope, at.id ?? null, role.name, name],
       );
     }
   }
