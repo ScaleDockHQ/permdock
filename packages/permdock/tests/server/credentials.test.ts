@@ -310,7 +310,8 @@ describe("subjectFromApiKey", () => {
   it("touches the verifier on a resolved key only, and ignores a throwing touch", async () => {
     const { store, key } = await issue();
     const options = { verifier: store, permissions, owner: () => owner };
-    await resolve(`${key.slice(0, -1)}x`, options);
+    const wrong = key.endsWith("x") ? "y" : "x";
+    await resolve(`${key.slice(0, -1)}${wrong}`, options);
     expect(store.lastUsedAt("key_1")).toBeUndefined();
     await resolve(key, options);
     expect(store.lastUsedAt("key_1")).toBeGreaterThanOrEqual(NOW);
