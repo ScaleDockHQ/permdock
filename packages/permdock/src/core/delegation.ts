@@ -161,6 +161,7 @@ function handsOver(
  * `subject.principal` right now: the union over every active delegation whose
  * `to` matches the actor and whose `from` the principal holds. `undefined`
  * when none applies, so the call falls back to the token delegation alone.
+ * An actor with `readOnly: true` gets only each delegation's read-only keys.
  * Attenuation only: a key here still needs a matching allow and no deny.
  */
 export function delegatedPermissions(
@@ -184,7 +185,9 @@ export function delegatedPermissions(
       continue;
     }
     keys ??= new Set<string>();
-    for (const key of delegation.permissions) {
+    for (const key of actor.readOnly === true
+      ? delegation.readOnly
+      : delegation.permissions) {
       keys.add(key);
     }
   }

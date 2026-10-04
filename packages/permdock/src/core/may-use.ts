@@ -50,11 +50,15 @@ export function mayUse(permdock: PermDock, permission: Permission): boolean {
     if (!("grants" in snapshot)) {
       return false;
     }
+    const ceiling = snapshot.delegated;
+    if (ceiling !== undefined && !ceiling.includes(permission.key)) {
+      return false;
+    }
     if (
       !delegationMayCover(
         permission,
         permdock.subject.delegation,
-        permdock.subject.actor !== undefined,
+        permdock.subject.actor !== undefined && ceiling === undefined,
       )
     ) {
       return false;

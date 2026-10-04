@@ -40,6 +40,7 @@ import {
   type PermissionKind,
   type PermissionTree,
   type ResourceNode,
+  annotationsFor,
   findPermission,
   getRegistry,
   isFieldRelation,
@@ -330,6 +331,8 @@ export type PolicyDelegation = {
   readonly from: Grantee | readonly Grantee[];
   readonly to: DelegationTarget;
   readonly permissions: readonly string[];
+  /** The keys of `permissions` whose `readOnlyHint` is true: all a `readOnly` actor may use. */
+  readonly readOnly: readonly string[];
   readonly validity?: GrantValidity;
 };
 
@@ -712,20 +715,18 @@ function normalizeDelegation(
       `PermDock: ${label}.from names an actor; the principal hands over, the actor is \`to\``,
     );
   }
-  const keys = [
-    ...new Set(
-      input.permissions
-        .flatMap((item) => flattenPermissions(item))
-        .map((leaf) => {
-          if (findPermission(tree, leaf.key) === undefined) {
-            throw new Error(
-              `PermDock: ${label} names unknown permission '${leaf.key}'`,
-            );
-          }
-          return leaf.key;
-        }),
-    ),
-  ].toSorted();
+  const leaves = new Map<string, Permission>();
+  for (const leaf of input.permissions.flatMap((item) =>
+    flattenPermissions(item),
+  )) {
+    if (findPermission(tree, leaf.key) === undefined) {
+      throw new Error(
+        `PermDock: ${label} names unknown permission '${leaf.key}'`,
+      );
+    }
+    leaves.set(leaf.key, leaf);
+  }
+  const keys = [...leaves.keys()].toSorted();
   if (keys.length === 0) {
     throw new Error(`PermDock: ${label}.permissions is empty`);
   }
@@ -733,6 +734,10 @@ function normalizeDelegation(
     from,
     to: delegationTarget(input.to, index),
     permissions: keys,
+    readOnly: [...leaves.values()]
+      .filter((leaf) => annotationsFor(leaf).readOnlyHint)
+      .map((leaf) => leaf.key)
+      .toSorted(),
     validity: normalizeValidity(input, label),
   });
 }
