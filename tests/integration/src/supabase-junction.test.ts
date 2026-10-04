@@ -30,7 +30,7 @@ grant usage on schema auth to supabase_auth_admin;
 grant select on auth.users to supabase_auth_admin;
 insert into auth.users (id) values ('${MEMBER}'), ('${OUTSIDER}');
 create schema better_supabase;
-create table better_supabase.memberships (org_id text not null, user_id uuid not null, role text not null);
+create table better_supabase.memberships (organization_id text not null, user_id uuid not null, role text not null);
 insert into better_supabase.memberships values ('T', '${MEMBER}', 'admin'), ('B', '${MEMBER}', 'viewer');
 `;
 
