@@ -63,6 +63,7 @@ export type {
 } from "./authzen.ts";
 export type { ApprovalStoreOptions } from "./conformance.ts";
 export {
+  testApprovalPolicySource,
   testApprovalStore,
   testCredentialVerifier,
   testDecisionSink,

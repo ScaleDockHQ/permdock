@@ -1,3 +1,4 @@
+import type { LoadedApprovalPolicies } from "./approval-policies.ts";
 import type { CustomGrant } from "./custom-roles.ts";
 import type { Decision } from "./decision.ts";
 import type {
@@ -69,6 +70,8 @@ export type EvalEnv = {
   readonly team: string | undefined;
   /** Relation facts, read through the instance's per-request cache. */
   readonly relations?: RelationReader;
+  /** Data-driven approval requirements, loaded with the instance. */
+  readonly approvalPolicies?: LoadedApprovalPolicies;
 };
 
 function credentialRef(

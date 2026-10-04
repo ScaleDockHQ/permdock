@@ -1,4 +1,5 @@
-import type { Grantee } from "../core/grantee.ts";
+import type { RelationGrantee } from "../core/grantee.ts";
+import type { Approver, ApprovalMode, ApprovalStage } from "../core/policy.ts";
 import type { Membership, Subject } from "../core/subject.ts";
 
 import { parseDuration } from "../core/duration.ts";
@@ -6,24 +7,29 @@ import { parseDuration } from "../core/duration.ts";
 export type ApprovalStatus = "pending" | "approved" | "rejected" | "expired";
 
 export type ApprovalApprovers = {
-  readonly by: Grantee | readonly Grantee[];
+  /** Under `mode: 'any'` (the default). */
+  readonly by?: Approver | readonly Approver[];
+  readonly mode?: ApprovalMode;
+  /** Under `mode: 'all'` or `'sequential'`. */
+  readonly stages?: readonly ApprovalStage[];
   /** `false` lets the request's principal approve it; absent means `true`. */
   readonly distinct?: boolean;
   /** Set when the approval no longer applies once the row's `version` changes. */
   readonly staleOn?: "resource-change";
-  /** Distinct approvers needed before `status` becomes `approved`; absent means 1. */
+  /** Distinct approvers of `by` needed before `status` becomes `approved`; absent means 1. */
   readonly quorum?: number;
   /** Who else may approve once the request has waited `after` (a duration such as `'4h'`) since `createdAt`. */
   readonly escalation?: {
     readonly after: string;
-    readonly to: Grantee | readonly Grantee[];
+    readonly to: Approver | readonly Approver[];
   };
 };
 
-/** One recorded approval: who gave it and when. */
+/** One recorded approval: who gave it, when, and under `stages` the index of the stage it counts for. */
 export type ApprovalSignature = {
   readonly by: string;
   readonly at: string;
+  readonly stage?: number;
 };
 
 export type ApprovalSubjectSummary = {
@@ -67,6 +73,13 @@ export type ApprovalVerdict = {
   readonly status: "approved" | "rejected";
   readonly by: Subject;
   readonly note?: string;
+  /**
+   * The relation approvers (by `approverRelationKey`) that `by` holds on the
+   * request's resource, as `approverRelations` read them. Server-side input:
+   * set it from a `RelationSource`, never from the request body. Absent means
+   * none, so relation approvers match nobody.
+   */
+  readonly relations?: readonly string[];
 };
 
 export type ApprovalListFilter = {
@@ -137,8 +150,12 @@ export const APPROVAL_HEADER = "PermDock-Approval" as const;
 
 export const DEFAULT_APPROVAL_TTL_MS: number = 60 * 60 * 1000;
 
-/** The approvers a request needs: `approvers.quorum`, or 1. */
+/** The approvals a request needs in total: `approvers.quorum` (or 1), or the sum of its stages' quorums. */
 export function approvalQuorum(request: ApprovalRequest): number {
+  const stages = request.approvers?.stages;
+  if (stages !== undefined) {
+    return stages.reduce((sum, stage) => sum + (stage.quorum ?? 1), 0);
+  }
   return request.approvers?.quorum ?? 1;
 }
 
@@ -154,4 +171,14 @@ export function escalationOpenAt(request: ApprovalRequest): number | undefined {
     return undefined;
   }
   return Date.parse(request.createdAt) + seconds * 1000;
+}
+
+/** The key a verdict's `relations` lists a relation approver under. */
+export function approverRelationKey(item: RelationGrantee): string {
+  return JSON.stringify([
+    item.resource,
+    item.relation,
+    item.through ?? null,
+    item.depth ?? null,
+  ]);
 }

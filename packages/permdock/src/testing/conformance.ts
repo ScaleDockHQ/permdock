@@ -2,6 +2,7 @@ import { expect, it, vi } from "vitest";
 
 import type { ApprovalRequest, ApprovalStore } from "../approvals/index.ts";
 import type {
+  ApprovalPolicySource,
   CredentialVerifier,
   DecisionSink,
   EntitlementSource,
@@ -28,6 +29,7 @@ import type {
 import type { DirectoryStore } from "../scim/index.ts";
 import type { ReplayStore } from "../ssf/index.ts";
 
+import { approvalPoliciesFor } from "../core/approval-policies.ts";
 import { normalizeMemberships, scopeList } from "../core/scopes.ts";
 import {
   memoryRevocationFeed,
@@ -994,6 +996,58 @@ export function testApprovalStore(
     expect(resolved.status).toBe("approved");
     expect(resolved.resolvedBy).toBe("u_11");
   });
+
+  it("completes sequential stages in order and records each stage", async () => {
+    await store.create({
+      ...sampleApproval("stages-token"),
+      approvers: {
+        mode: "sequential",
+        stages: [{ by: { kind: "user", id: "u_10" } }, { by: admin }],
+      },
+    });
+    await expect(
+      Promise.resolve().then(() =>
+        store.resolve("stages-token", { status: "approved", by: approver }),
+      ),
+    ).rejects.toThrow(/eligible/u);
+    const first = await store.resolve("stages-token", {
+      status: "approved",
+      by: secondApprover,
+    });
+    expect(first.status).toBe("pending");
+    expect(first.approvals).toEqual([
+      { by: "u_10", at: expect.any(String), stage: 0 },
+    ]);
+    const second = await store.resolve("stages-token", {
+      status: "approved",
+      by: approver,
+    });
+    expect(second.status).toBe("approved");
+    expect(second.approvals?.map((item) => item.stage)).toEqual([0, 1]);
+  });
+
+  it("matches a relation approver only through the verdict's relations", async () => {
+    const manager = {
+      kind: "relation" as const,
+      resource: "post",
+      relation: "manager",
+    };
+    await store.create({
+      ...sampleApproval("relation-token"),
+      approvers: { by: manager },
+    });
+    await expect(
+      Promise.resolve().then(() =>
+        store.resolve("relation-token", { status: "approved", by: approver }),
+      ),
+    ).rejects.toThrow(/eligible/u);
+    const resolved = await store.resolve("relation-token", {
+      status: "approved",
+      by: approver,
+      relations: [JSON.stringify(["post", "manager", null, null])],
+    });
+    expect(resolved.status).toBe("approved");
+  });
 }
 
 function decodeHeader(token: string): Record<string, unknown> {
@@ -1078,6 +1132,42 @@ export function testSettingsSource(
     expect(
       await source.settingsFor(options.unknown ?? "__permdock_unknown__"),
     ).toBeUndefined();
+  });
+}
+
+/**
+ * Checks an `ApprovalPolicySource`: entries are plain JSON, belong to the
+ * queried tenant or to none, and every entry loads against `policy` (an
+ * entry that does not would deny every call).
+ */
+export function testApprovalPolicySource(
+  source: ApprovalPolicySource,
+  options: {
+    readonly policy: Policy;
+    readonly tenant: string;
+    readonly unknown?: string;
+  },
+): void {
+  it("answers per tenant with plain entries that load against the policy", async () => {
+    const entries = await source.approvalPoliciesFor({
+      tenants: [options.tenant],
+    });
+    expect(Array.isArray(entries)).toBe(true);
+    for (const entry of entries) {
+      expect(JSON.parse(JSON.stringify(entry))).toEqual(entry);
+      expect([undefined, options.tenant]).toContain(entry.tenant);
+    }
+    const loaded = await approvalPoliciesFor(
+      options.policy,
+      source,
+      [options.tenant],
+      [],
+    );
+    expect(loaded).not.toBe("failed");
+    const other = await source.approvalPoliciesFor({
+      tenants: [options.unknown ?? "__permdock_unknown__"],
+    });
+    expect(other.filter((entry) => entry.tenant !== undefined)).toEqual([]);
   });
 }
 

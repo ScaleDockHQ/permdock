@@ -1,10 +1,16 @@
-import type { TokenSigner } from "../core/interfaces.ts";
+import type { RelationSource, TokenSigner } from "../core/interfaces.ts";
+import type { PermissionTree } from "../core/permissions.ts";
 import type { Subject } from "../core/subject.ts";
-import type { ApprovalRequest, ApprovalStore } from "./types.ts";
+import type {
+  ApprovalRequest,
+  ApprovalStore,
+  ApprovalVerdict,
+} from "./types.ts";
 
 import { compact } from "../core/compact.ts";
 import { rootMembershipId } from "../core/scopes.ts";
 import { isApprovalError } from "./errors.ts";
+import { approverRelations } from "./relations.ts";
 import { assertApprover } from "./store.ts";
 
 const PROBLEM_BASE = "https://permdock.dev/problems";
@@ -17,6 +23,10 @@ export type ApprovalsHandlerOptions = {
   readonly requireDistinctApprover?: boolean;
   readonly signer?: TokenSigner;
   readonly audience?: string | readonly string[];
+  /** Where `relation()` approvers are read, by the request's resource id; without it they match nobody. */
+  readonly relations?: RelationSource;
+  /** The policy's permission tree, for `through` links and `includes` on relation approvers. */
+  readonly permissions?: PermissionTree;
 };
 
 type ProblemBody = {
@@ -120,13 +130,15 @@ function belongsToTenant(subject: Subject, tenant: string): boolean {
   return membershipTenants(subject).includes(tenant);
 }
 
-function mayResolve(
+async function mayResolve(
   request: ApprovalRequest,
   subject: Subject,
   requireDistinct: boolean,
-): boolean {
+  options: ApprovalsHandlerOptions,
+): Promise<boolean> {
   try {
-    assertApprover(request, subject, requireDistinct);
+    const relations = await approverRelations(request, subject, options);
+    assertApprover(request, subject, requireDistinct, new Date(), relations);
     return true;
   } catch {
     return false;
@@ -306,15 +318,21 @@ export function approvalsHandler(
         }
         const page = await store.list({ ...pageQuery(url), status: "pending" });
         const tenants = new Set(scoped.tenants);
+        const eligible = await Promise.all(
+          page.items.map(async (item) => {
+            const tenant = item.subject.principal?.tenant;
+            const inScope =
+              tenant === undefined ? scoped.tenantless : tenants.has(tenant);
+            return (
+              inScope &&
+              (await mayResolve(item, subject, requireDistinct, options))
+            );
+          }),
+        );
         return json(
           200,
           compact({
-            items: page.items.filter((item) => {
-              const tenant = item.subject.principal?.tenant;
-              const inScope =
-                tenant === undefined ? scoped.tenantless : tenants.has(tenant);
-              return inScope && mayResolve(item, subject, requireDistinct);
-            }),
+            items: page.items.filter((_, index) => eligible[index] === true),
             next: page.next,
           }),
         );
@@ -342,18 +360,16 @@ export function approvalsHandler(
       if (current === null) {
         return problem(404, "Not found", "approval was not found", "not-found");
       }
-      assertApprover(current, subject, requireDistinct);
+      const relations = await approverRelations(current, subject, options);
+      assertApprover(current, subject, requireDistinct, new Date(), relations);
       const note = await readNote(request);
       const resolved = await store.resolve(
         route.token,
-        compact<{
-          readonly status: "approved" | "rejected";
-          readonly by: Subject;
-          readonly note?: string;
-        }>({
+        compact<ApprovalVerdict>({
           status: route.kind === "approve" ? "approved" : "rejected",
           by: subject,
           note,
+          relations,
         }),
       );
       const signed = await signedApproval(

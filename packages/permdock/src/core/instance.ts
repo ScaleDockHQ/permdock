@@ -1,3 +1,4 @@
+import type { LoadedApprovalPolicies } from "./approval-policies.ts";
 import type { Decision, ExplainedDecision } from "./decision.ts";
 import type { GranteeMatch } from "./grantee.ts";
 import type {
@@ -606,6 +607,8 @@ export function buildInstance(
     readonly relationCache?: RelationCache;
     /** The membership source, for `whoCan`'s member lists. */
     readonly memberships?: MembershipSource;
+    /** `ApprovalPolicySource` entries, loaded once with the instance. */
+    readonly approvalPolicies?: LoadedApprovalPolicies;
   },
   team?: string,
 ): PermDock {
@@ -640,6 +643,9 @@ export function buildInstance(
     limitCache: envBase.limitCache,
     team,
     relations,
+    ...(envBase.approvalPolicies === undefined
+      ? {}
+      : { approvalPolicies: envBase.approvalPolicies }),
   });
 
   /** The one `simulate` event for a batch: the worst decision, with the counts. */

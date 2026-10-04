@@ -62,6 +62,11 @@ export {
   memoryRoleSource,
   memorySettings,
 } from "./core/interfaces.ts";
+export { memoryApprovalPolicies } from "./core/approval-policies.ts";
+export type {
+  ApprovalPolicy,
+  ApprovalPolicySource,
+} from "./core/approval-policies.ts";
 export {
   claimsFirst,
   composeMemberships,
@@ -198,12 +203,18 @@ export {
   requiresApproval,
   role,
   separationConflicts,
+  user,
 } from "./core/policy.ts";
 export type {
   ActivationOption,
   ApprovalEscalation,
+  ApprovalMode,
   ApprovalOption,
   ApprovalRequirement,
+  ApprovalStage,
+  Approver,
+  ApproverInput,
+  UserApprover,
   AssuranceRequirement,
   BreakGlassOptions,
   BreakGlassRequirements,

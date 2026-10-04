@@ -17,6 +17,7 @@ import type { RelationReader } from "./relations.ts";
 import type { CustomRole, Membership, Subject } from "./subject.ts";
 
 import { evaluateCondition } from "../conditions/evaluate.ts";
+import { decisionTenant, tightenApproval } from "./approval-policies.ts";
 import { compact } from "./compact.ts";
 import {
   isCustomRoleName,
@@ -1000,12 +1001,40 @@ export function evaluate(
     });
   }
 
+  const approvalPolicies = env.approvalPolicies;
+  if (approvalPolicies === "failed" && allows.length > 0) {
+    return complete({
+      outcome: "denied",
+      denials: [
+        {
+          role: null,
+          reason: "approval",
+          detail: "approval-policy-unavailable",
+        },
+      ],
+      alternatives: [],
+    });
+  }
+  const approvalOf = (candidate: (typeof allows)[number]): Grant["approval"] =>
+    approvalPolicies === undefined || approvalPolicies === "failed"
+      ? candidate.grant.approval
+      : tightenApproval(candidate.grant.approval, approvalPolicies, {
+          permission: permission.key,
+          tenant: decisionTenant(subject, candidate.membership),
+          subject,
+          current,
+          next,
+          now,
+          scopes: scopeList(policy.scopes),
+        });
   const quotaDenials: Denial[] = [];
   let matchedAllow: (typeof allows)[number] | undefined;
+  let approval: Grant["approval"];
   let quotaState: Pick<GrantedDecision, "quota" | "obligations"> = {};
   for (const candidate of allows) {
+    approval = approvalOf(candidate);
     const consume =
-      !requiresApproval(candidate.grant.approval) &&
+      !requiresApproval(approval) &&
       shouldConsumeQuota(options.source, env.simulated);
     const quota = applyQuota({
       store: env.limits,
@@ -1050,7 +1079,6 @@ export function evaluate(
             (current as Record<string, unknown>)[resource?.id ?? "id"] ?? "*",
           )
         : "*";
-  const approval = matchedAllow.grant.approval;
   const version =
     approval !== undefined &&
     approval !== "human" &&
@@ -1072,17 +1100,16 @@ export function evaluate(
             ? payloadDigest(next ?? current)
             : undefined,
       });
-  const matched = matchedOf(
-    matchedAllow.grant,
-    permission.key,
-    matchedAllow.breakGlass,
-  );
+  const matched = compact<MatchedGrant>({
+    ...matchedOf(matchedAllow.grant, permission.key, matchedAllow.breakGlass),
+    approval,
+  });
   const obligations = [
     ...(quotaState.obligations ?? []),
     ...(matchedAllow.obligations ?? []),
   ];
   return complete(
-    requiresApproval(matchedAllow.grant.approval)
+    requiresApproval(approval)
       ? {
           outcome: "approval-required",
           grant: matched,

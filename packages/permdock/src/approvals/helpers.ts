@@ -9,6 +9,10 @@ import { parseDuration } from "../core/duration.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import { ApprovalError } from "./errors.ts";
 import { listAll } from "./page.ts";
+import {
+  type ApproverRelationsOptions,
+  approverRelations,
+} from "./relations.ts";
 import { assertApprover } from "./store.ts";
 import {
   APPROVAL_HEADER,
@@ -113,6 +117,8 @@ export async function requestApproval(
       ? undefined
       : compact<ApprovalApprovers>({
           by: approval.by,
+          mode: approval.mode,
+          stages: approval.stages,
           distinct: approval.distinct,
           staleOn: approval.staleOn,
           quorum: approval.quorum,
@@ -142,18 +148,33 @@ export async function requestApproval(
   return request;
 }
 
+/**
+ * Checks `verdict.by` and resolves the request. Relation approvers are read
+ * through `options.relations` unless `verdict.relations` is already set.
+ */
 export async function resolveApproval(
   store: ApprovalStore,
   token: string,
   verdict: ApprovalVerdict,
-  options: { readonly requireDistinctApprover?: boolean } = {},
+  options: ApproverRelationsOptions & {
+    readonly requireDistinctApprover?: boolean;
+  } = {},
 ): Promise<ApprovalRequest> {
   const current = await store.get(token);
   if (current === null) {
     throw new ApprovalError("approval-not-found", "approval was not found");
   }
-  assertApprover(current, verdict.by, options.requireDistinctApprover === true);
-  return store.resolve(token, verdict);
+  const relations =
+    verdict.relations ??
+    (await approverRelations(current, verdict.by, options));
+  assertApprover(
+    current,
+    verdict.by,
+    options.requireDistinctApprover === true,
+    options.now,
+    relations,
+  );
+  return store.resolve(token, { ...verdict, relations });
 }
 
 export async function inspectApproval(

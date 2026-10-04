@@ -62,12 +62,12 @@ describe("policy", () => {
     ).toThrow(/unknown resource/);
   });
 
-  it("refuses a relation approver, which no approval store can check", () => {
-    expect(() =>
-      allow(permissions.post.update, {
-        approval: { by: relation(permissions.post, "owner") },
-      }),
-    ).toThrow(/post\.update.*relation/);
+  it("keeps a relation approver for the verdict to check", () => {
+    expect(
+      normalizeApproval({ by: relation(permissions.post, "owner") }),
+    ).toEqual({
+      by: { kind: "relation", resource: "post", relation: "owner" },
+    });
   });
 
   it("requires scopes.tenant for on: tenant roles", () => {
@@ -180,14 +180,16 @@ describe("policy", () => {
         "org.delete",
       ),
     ).toThrow(/escalation\.after.*duration/u);
-    expect(() =>
+    expect(
       normalizeApproval(
         {
           escalation: { after: "1h", to: relation(permissions.post, "owner") },
         },
         "org.delete",
       ),
-    ).toThrow(/escalation\.to.*relation/u);
+    ).toMatchObject({
+      escalation: { to: { kind: "relation", relation: "owner" } },
+    });
   });
 
   it("records exclusiveWith and reports membership conflicts", () => {

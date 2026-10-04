@@ -1,4 +1,8 @@
 import type { Condition } from "../conditions/ast.ts";
+import type {
+  ApprovalPolicySource,
+  LoadedApprovalPolicies,
+} from "./approval-policies.ts";
 import type { ArazzoPlan, ArazzoSimulateInput } from "./arazzo.ts";
 import type { Decision, ExplainedDecision } from "./decision.ts";
 import type { ActivateInput } from "./elevated.ts";
@@ -34,6 +38,7 @@ import type { Boundary } from "./validation.ts";
 import type { PlanTree, Role, RoleTree } from "./vocabulary.ts";
 import type { WhoCan } from "./who-can.ts";
 
+import { approvalPoliciesFor } from "./approval-policies.ts";
 import { compact } from "./compact.ts";
 import { assignableNamesFor, customRolesFor } from "./evaluate.ts";
 import {
@@ -283,6 +288,8 @@ export type PermDockOptions = {
   readonly policies?: PolicySource;
   /** The object graph for `through` and edge-table relations; without it they deny with `relation-unavailable`. */
   readonly relations?: RelationSource;
+  /** Approval requirements kept as data; they add to the code's and never remove one. A throw denies. */
+  readonly approvalPolicies?: ApprovalPolicySource;
 };
 
 function hostedPolicy(
@@ -317,9 +324,16 @@ function instantiate(
     subject.principal !== null,
   );
   const assignable = assignableNamesFor(options.customRoles, tenants, auth);
+  const approvals = approvalPoliciesFor(
+    policy,
+    options.approvalPolicies,
+    tenants,
+    auth,
+  );
   const build = (
     roles: readonly CustomRole[],
     names: ReadonlyMap<string, readonly string[]> | undefined,
+    approvalPolicies: LoadedApprovalPolicies | undefined,
   ): PermDock =>
     buildInstance(
       policy,
@@ -335,18 +349,23 @@ function instantiate(
         queuedAuth: auth,
         queuedErrors: errors,
         relations: options.relations,
+        approvalPolicies,
         memberships:
           options.memberships === undefined
             ? undefined
             : asMembershipSource(options.memberships),
       }),
     );
-  if (isThenable(customRoles) || isThenable(assignable)) {
-    return Promise.all([customRoles, assignable]).then(([roles, names]) =>
-      build(roles, names),
+  if (
+    isThenable(customRoles) ||
+    isThenable(assignable) ||
+    isThenable(approvals)
+  ) {
+    return Promise.all([customRoles, assignable, approvals]).then(
+      ([roles, names, loaded]) => build(roles, names, loaded),
     );
   }
-  return build(customRoles, assignable);
+  return build(customRoles, assignable, approvals);
 }
 
 export function createPermDock<

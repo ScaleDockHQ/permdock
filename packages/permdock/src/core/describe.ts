@@ -1,7 +1,9 @@
+import type { Approver } from "./approvers.ts";
 import type { Decision, DenialReason, MatchedGrant } from "./decision.ts";
 import type { Grantee } from "./grantee.ts";
 import type { Permission } from "./permissions.ts";
 
+import { flattenApprovers } from "./approvers.ts";
 import { flattenGrantee } from "./grantee.ts";
 
 export type DecisionDescription = {
@@ -116,11 +118,20 @@ const TITLES: Readonly<Record<DecisionDescription["kind"], string>> = {
   upgrade: "Upgrade required",
 };
 
+function labelApprover(approver: Approver): string {
+  return approver.kind === "user"
+    ? `user ${approver.id}`
+    : labelGrantee(approver);
+}
+
 function approvers(approval: MatchedGrant["approval"]): readonly string[] {
   if (approval === undefined || approval === "human") {
     return [];
   }
-  return flattenGrantee(approval.by).map(labelGrantee);
+  return [
+    ...flattenApprovers(approval.by),
+    ...(approval.stages ?? []).flatMap((stage) => flattenApprovers(stage.by)),
+  ].map(labelApprover);
 }
 
 function approvalDetail(permission: string, labels: readonly string[]): string {

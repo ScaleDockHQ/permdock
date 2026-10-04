@@ -13,6 +13,8 @@ export {
   resumeFromHeader,
   summariseSubject,
 } from "./helpers.ts";
+export { approverRelations } from "./relations.ts";
+export type { ApproverRelationsOptions } from "./relations.ts";
 export {
   applyApprovalVerdict,
   assertApprover,
@@ -23,6 +25,7 @@ export {
   APPROVAL_HEADER,
   DEFAULT_APPROVAL_TTL_MS,
   approvalQuorum,
+  approverRelationKey,
   escalationOpenAt,
 } from "./types.ts";
 export type {
