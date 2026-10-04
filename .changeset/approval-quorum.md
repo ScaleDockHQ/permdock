@@ -1,5 +1,0 @@
----
-"permdock": patch
----
-
-Approval grants take `quorum`, `ttl` and `escalation`. `quorum` (default 1) is the number of distinct approvers a request needs: `ApprovalStore.resolve` appends each approval to the request's new `approvals: { by, at }[]`, keeps the request `pending` until the quorum is met, and refuses a repeat approver with the new `approver-repeated` code (`409` from `approvalsHandler`); one rejection ends the request. `ttl` (a duration such as `'30m'`) caps the store's window when `requestApproval` sets `expiresAt`. `escalation: { after, to }` lets `to` approve once `after` has passed since `createdAt`. The request's `approvers` carries `quorum` and `escalation`; `applyApprovalVerdict`, `approvalQuorum` and `escalationOpenAt` are exported from `permdock/approvals` for custom stores, and the Drizzle recipe uses them. `definePolicy` rejects a quorum below 1, a malformed duration or a relation in `escalation.to`; hosted grants with a smaller quorum or a longer ttl than a code allow are dropped as `weaker-approval`. The catalog `approval` carries the three fields, so `permdock diff` reports a change to any of them.
