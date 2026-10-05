@@ -617,6 +617,50 @@ create or replace function "permdock".member_organization_ids_for(p_user uuid) r
     );
   });
 
+  it("finds helpers written by rls generate --split, through rls.out or next to the hook", async () => {
+    const OUT = "db/schemas/identity/054_permdock_{part}.sql";
+    const HOOK = "db/schemas/identity/056_permdock_hook.sql";
+    const configured = await generate(
+      `{ memberships: [${SOURCES}] }`,
+      [],
+      `{ dialect: 'supabase', out: ${JSON.stringify(OUT)}, authorize: 'database', helpersOnly: true, memberships: { scopes: { organization: { table: 'memberships', user: 'user_id', role: 'role', columns: { organization: 'organization_id' } }, customer: { table: 'contacts', user: 'user_id', role: 'role', columns: { customer: 'customer_id', organization: 'organization_id' } } } } }`,
+    );
+    const split = await run(
+      ["rls", "generate", "--target", "sql", "--split", "helpers"],
+      { cwd: configured.cwd },
+    );
+    expect(split.code).toBe(0);
+    const doctor = await run(["doctor", "--json", "--only", "PD039"], {
+      cwd: configured.cwd,
+    });
+    expect(doctor.stdout).not.toContain("has no");
+    const beside = await run(["supabase", "hook", "generate", "--out", HOOK], {
+      cwd: configured.cwd,
+    });
+    expect(beside.stdout).not.toContain("PD039");
+
+    const unconfigured = await generate(`{ memberships: [${SOURCES}] }`);
+    mkdirSync(join(unconfigured.cwd, "db/schemas/identity"), {
+      recursive: true,
+    });
+    writeFileSync(
+      join(unconfigured.cwd, "db/schemas/identity/054_permdock_helpers.sql"),
+      readFileSync(
+        join(configured.cwd, "db/schemas/identity/054_permdock_helpers.sql"),
+        "utf8",
+      ),
+    );
+    const sibling = await run(["supabase", "hook", "generate", "--out", HOOK], {
+      cwd: unconfigured.cwd,
+    });
+    expect(sibling.stdout).not.toContain("PD039");
+    const elsewhere = await run(
+      ["supabase", "hook", "generate", "--out", "hook.sql"],
+      { cwd: unconfigured.cwd },
+    );
+    expect(elsewhere.stdout).toContain("PD039 schema permdock has no");
+  });
+
   it("doctor PD039 reports missing helpers, oversized extra claims and dropped memberships", async () => {
     const { cwd } = await generate(
       `{ memberships: [${SOURCES}], claims: { features: 'better_supabase.feature_claims' } }`,
