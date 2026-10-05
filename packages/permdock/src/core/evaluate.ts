@@ -22,6 +22,7 @@ import type { RelationReader } from "./relations.ts";
 import type { CustomRole, Membership, Subject } from "./subject.ts";
 
 import { evaluateCondition } from "../conditions/evaluate.ts";
+import { APPROVAL_POLICY_UNAVAILABLE } from "./approval-policies.ts";
 import { decisionTenant, tightenApproval } from "./approval-policies.ts";
 import { compact } from "./compact.ts";
 import {
@@ -1034,7 +1035,7 @@ export function evaluate(
         {
           role: null,
           reason: "approval",
-          detail: "approval-policy-unavailable",
+          detail: APPROVAL_POLICY_UNAVAILABLE,
         },
       ],
       alternatives: [],

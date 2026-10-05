@@ -144,7 +144,7 @@ const permdock = await createPermDock(policy, user, {
 - An entry matches an allowed call for its permission when its tenant is the decision's tenant (the matched membership's root scope, else the active tenant), its `actors` list contains the actor's kind, and its `where` and `check` hold.
 - The effective requirement combines the grant's own approval and every matching entry as stages: `sequential` when any part is sequential, `all` otherwise. Identical stages appear once. The grant's escalation is kept and still applies to every stage; an entry's `escalation` is attached to that entry's own stages only, so data can never let someone step in on the code's stages. The shortest `ttl` wins, and `distinct` stays on unless every part turns it off.
 - A call that ends up needing approval does not consume quota.
-- A source that throws, rejects or returns an entry that does not load makes every call an allow would grant deny with reason `approval` and detail `approval-policy-unavailable`. An entry naming a permission the policy does not declare applies to nothing.
+- A source that throws, rejects or returns an entry that does not load makes every call an allow would grant deny with reason `approval` and detail `approval-policy-unavailable` (`APPROVAL_POLICY_UNAVAILABLE` from `permdock`, for an app that tells this denial apart). An entry naming a permission the policy does not declare applies to nothing.
 - `where` reads the row, so it is allowed only on an instance permission. On a collection permission (`invoice.create`) an entry with `where` does not load, because a collection action has no row and the entry could never match; use `check`, which reads the call's input (the proposed row).
 - `validateApprovalPolicy(policy, entry)` checks one entry the way the source is loaded and returns `{ ok: true }` or `{ ok: false, problem }`, with `problem` one of `unknown-permission`, `invalid`, `where-on-collection` and `stale-on-without-version`. Call it where entries are saved, so a bad entry is refused there instead of denying every call.
 - Client snapshots do not carry the entries: `fromSnapshot` and `usePermission` answer from the code grants, and the server's `decide` adds the approval.
@@ -362,6 +362,30 @@ export function drizzleApprovalStore(db: NodePgDatabase): ApprovalStore {
 ```
 
 `create` uses `onConflictDoUpdate` with `setWhere` so a repeated ask keeps the existing record and only an expired one is replaced. `resolve` writes the whole next body, never a partial one; `applyApprovalVerdict` applies the actor, four-eyes, tenant, `approvers`, escalation and quorum rules with the same `ApprovalError` codes `approvalsHandler` maps to Problem Details, and the `jsonb_array_length` guard makes a quorum race lose the write rather than an approval.
+
+## A generated store for Postgres and Supabase
+
+`rls.approvals: true` makes `permdock rls generate` add the store to the helpers: an `approval_requests` table in the helper schema (`permdock` unless `rls.schema` says otherwise) holding each request's body with the columns `list` filters on, and one `security definer` function per method (`permdock_approval_open`, `_get`, `_resolve`, `_consume`, `_list`, `_expire`, `_cancel`), each one statement, so a repeated ask keeps the open request, a quorum race loses the write and not an approval, and two resumes never both consume. RLS is on, and no client role may read the table or execute the functions. `supabaseApprovalStore(client, { schema?, ttl?, onOpen? })` from `permdock/supabase` implements `ApprovalStore` over them through supabase-js; grant the functions to the role of the client you pass, which is a server-side one:
+
+```sql
+grant usage on schema permdock to service_role;
+grant execute on function permdock.permdock_approval_open(jsonb), permdock.permdock_approval_get(text),
+  permdock.permdock_approval_resolve(text, jsonb, integer), permdock.permdock_approval_consume(text, text),
+  permdock.permdock_approval_list(jsonb, text, text, integer), permdock.permdock_approval_expire(text),
+  permdock.permdock_approval_cancel(jsonb, text, text, text) to service_role;
+```
+
+```ts
+import { approvalsHandler } from "permdock/approvals";
+import { supabaseApprovalStore } from "permdock/supabase";
+
+const store = supabaseApprovalStore(admin, {
+  // the app's own semantics on open: notify approvers, cancel the requests this one replaces
+  onOpen: async (request) => notifyApprovers(request),
+});
+```
+
+`onOpen` runs after a request is stored, with the stored request; a throw fails the open, so the action does not run. Routing to a manager chain or a delegate is the app's: `approverRelations` and `approverPermissions` feed the facts `applyApprovalVerdict` checks, and `cancelApprovals` rejects the requests a newer one supersedes. The same conformance runner as the Drizzle recipe runs it against Postgres. Schedule `store.expire()` (a cron or `pg_cron`) to mark overdue requests expired.
 
 ## Recipes for other stores
 

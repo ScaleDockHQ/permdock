@@ -25,6 +25,7 @@ import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
 import { policyRowConditionKeys } from "./catalog-doc.ts";
 import { asPolicy, loadModule, pickNamed } from "./load.ts";
 import { GRANTS_MARKER, INDEXES_MARKER, SEEDS_MARKER } from "./markers.ts";
+import { approvalStoreSql } from "./rls-approvals.ts";
 import { breakGlassEntries, breakGlassSql } from "./rls-break-glass.ts";
 import { compileGrants } from "./rls-compile.ts";
 import {
@@ -554,6 +555,7 @@ export async function runRlsGenerate(input: {
       withoutSeeds: splitsPart(input.split, "seeds"),
     }),
     permissionHelpersSql(ctx, grants, renamed, anonExecute),
+    rls?.approvals === true ? approvalStoreSql(ctx) : undefined,
     owned === "" ? undefined : owned,
     graphed === "" ? undefined : graphed,
     breakGlass === "" ? undefined : breakGlass,

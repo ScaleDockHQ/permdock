@@ -188,6 +188,12 @@ export type RlsConfig = {
     | true
     | { readonly tables?: readonly RlsAssignmentTable[] };
   /**
+   * Add the approval store `supabaseApprovalStore` reads and writes: the
+   * `approval_requests` table and one function per `ApprovalStore` method, in
+   * the helper schema, executable by no client role. Off by default.
+   */
+  readonly approvals?: boolean;
+  /**
    * `false` leaves out the holder-count and transfer-only triggers `min`,
    * `max` and `transferOnly` put on the membership tables; a map with
    * `<scope>: false` leaves them out for those scopes only. Those rules are
