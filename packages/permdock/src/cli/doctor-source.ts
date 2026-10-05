@@ -7,33 +7,66 @@ import { parseSync } from "oxc-parser";
 
 import type { DoctorFinding, DoctorSource } from "./doctor-types.ts";
 
-const SERVER_SPECIFIERS = [
-  "permdock/server",
-  "permdock/next",
-  "permdock/hono",
-  "permdock/mcp",
+/** Entries a client file must not import; `tests/cli/doctor-entries.test.ts` keeps it in step with `exports`. */
+export const SERVER_SPECIFIERS = [
+  "permdock/a2a",
+  "permdock/ai-sdk",
   "permdock/approvals",
-  "permdock/jwt",
-  "permdock/supabase",
-  "permdock/ssf",
+  "permdock/authzen",
   "permdock/better-auth",
+  "permdock/claude-agent",
   "permdock/clerk",
+  "permdock/cloud",
   "permdock/convex",
-  "permdock/pdp",
-  "permdock/ai-sdk",
-  "permdock/claude-agent",
+  "permdock/drizzle",
+  "permdock/elysia",
   "permdock/eve",
-  "permdock/openai",
-] as const;
-
-const ADAPTER_SPECIFIERS = [
-  "permdock/hono",
-  "permdock/next",
-  "permdock/mcp",
-  "permdock/ai-sdk",
-  "permdock/claude-agent",
   "permdock/express",
   "permdock/fastify",
+  "permdock/hono",
+  "permdock/jwt",
+  "permdock/kysely",
+  "permdock/mcp",
+  "permdock/nest",
+  "permdock/next",
+  "permdock/node",
+  "permdock/openai",
+  "permdock/openapi",
+  "permdock/orpc",
+  "permdock/otel",
+  "permdock/pdp",
+  "permdock/prisma",
+  "permdock/scim",
+  "permdock/server",
+  "permdock/ssf",
+  "permdock/supabase",
+  "permdock/supabase/middleware",
+  "permdock/terminal",
+  "permdock/trpc",
+] as const;
+
+/** Entries that feed request, tool or model data into a check. */
+export const ADAPTER_SPECIFIERS = [
+  "permdock/a2a",
+  "permdock/ai-sdk",
+  "permdock/authzen",
+  "permdock/claude-agent",
+  "permdock/elysia",
+  "permdock/eve",
+  "permdock/express",
+  "permdock/fastify",
+  "permdock/hono",
+  "permdock/mcp",
+  "permdock/nest",
+  "permdock/next",
+  "permdock/node",
+  "permdock/openai",
+  "permdock/orpc",
+  "permdock/server",
+  "permdock/supabase/middleware",
+  "permdock/terminal",
+  "permdock/trpc",
+  "permdock/webmcp",
 ] as const;
 
 const UNTRUSTED_CLAIMS = [
