@@ -45,6 +45,11 @@ const SESSIONS_PER_SERVER = 1000;
 
 const CLIENT_CAPABILITIES = "io.modelcontextprotocol/clientCapabilities";
 
+const PROTOCOL_VERSION = "io.modelcontextprotocol/protocolVersion";
+
+/** The first protocol revision whose list results define `ttlMs` and `cacheScope`. */
+const CACHEABLE_LISTS_SINCE = "2026-07-28";
+
 type Context = {
   readonly sessionId?: string;
   readonly mcpReq?: {
@@ -178,6 +183,16 @@ function sameResource(
   } catch {
     return false;
   }
+}
+
+/**
+ * Whether the request was sent under a revision that defines `cacheScope` on
+ * list results. Only those requests carry the per-request envelope; a
+ * 2025-era request has none and gets no cache fields.
+ */
+function definesCacheScope(context: Context): boolean {
+  const version = context.mcpReq?.envelope?.[PROTOCOL_VERSION];
+  return typeof version === "string" && version >= CACHEABLE_LISTS_SINCE;
 }
 
 function acceptsUrlElicitation(
@@ -810,7 +825,9 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         if (remember) {
           lastListed.set(sessionKey(context), [...shown].toSorted().join(","));
         }
-        return { ...result, [field]: kept, cacheScope: "private" };
+        return definesCacheScope(context)
+          ? { ...result, [field]: kept, cacheScope: "private" }
+          : { ...result, [field]: kept };
       };
 
     const filters: Readonly<
