@@ -21,7 +21,7 @@ import type { WebBotAuthVerifier } from "../server/web-bot-auth.ts";
 
 import { compact } from "../core/compact.ts";
 import { instanceOptions } from "../core/instance-options.ts";
-import { createKernel, tenantScope } from "../server/create.ts";
+import { createServerKernel, tenantScope } from "../server/create.ts";
 import { parsedBody } from "../server/http.ts";
 import { problemFromError } from "../server/map-error.ts";
 import { POLICY_VIOLATION, onRevoked } from "../server/stream.ts";
@@ -109,7 +109,7 @@ export function createPermDock<
   const contexts = new WeakMap<Request, ElysiaCtx>();
   const bound = new WeakMap<ElysiaCtx, Request>();
   const seed = globalThis.crypto.randomUUID();
-  const kernel = createKernel(
+  const kernel = createServerKernel(
     policy,
     compact({
       subject: (request: Request) => {

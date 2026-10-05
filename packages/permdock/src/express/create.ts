@@ -27,7 +27,7 @@ import type { WebBotAuthVerifier } from "../server/web-bot-auth.ts";
 
 import { compact } from "../core/compact.ts";
 import { instanceOptions } from "../core/instance-options.ts";
-import { createKernel, tenantScope } from "../server/create.ts";
+import { createServerKernel, tenantScope } from "../server/create.ts";
 import { problemFromError } from "../server/map-error.ts";
 import { sendResponse, toRequest } from "./http.ts";
 
@@ -119,7 +119,7 @@ export function createPermDock<
 ): ExpressPermDock<V> {
   const contexts = new WeakMap<globalThis.Request, Request>();
   const bound = new WeakMap<Request, globalThis.Request>();
-  const kernel = createKernel(
+  const kernel = createServerKernel(
     policy,
     compact({
       subject: (request: globalThis.Request) =>

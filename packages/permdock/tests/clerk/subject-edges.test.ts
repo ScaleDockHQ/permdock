@@ -4,8 +4,15 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import { subjectFromClerk } from "../../src/clerk/index.ts";
+import { testSubjectResolver } from "../../src/testing/conformance.ts";
 
 const has = (): boolean => false;
+
+describe("subjectFromClerk conformance", () => {
+  testSubjectResolver((input: unknown) => subjectFromClerk(input), {
+    invalid: { userId: "user_1" },
+  });
+});
 
 describe("subjectFromClerk claim parsing", () => {
   it("reads id, tenant, role and session from sessionClaims when the fields are absent", async () => {

@@ -19,6 +19,7 @@ import {
   subjectFromJwt,
 } from "../../src/jwt/subject.ts";
 import { joseTokenVerifier } from "../../src/jwt/verifier.ts";
+import { testSubjectResolver } from "../../src/testing/conformance.ts";
 import { memberUser, policy } from "../fixtures/quick-start.ts";
 
 const PRIVATE_JWK = {
@@ -290,6 +291,18 @@ describe("joseTokenVerifier", () => {
       fetch: fetchImpl,
     }).verify(token, { audience: AUDIENCE });
     expect(checked.ok).toBe(true);
+  });
+});
+
+describe("createJwtSubjectResolver conformance", () => {
+  const resolver = createJwtSubjectResolver({
+    jwks: PUBLIC_JWKS,
+    issuer: ISSUER,
+    audience: AUDIENCE,
+    sender: "none",
+  });
+  testSubjectResolver((token: string) => resolver(token), {
+    invalid: "not.a.jwt",
   });
 });
 

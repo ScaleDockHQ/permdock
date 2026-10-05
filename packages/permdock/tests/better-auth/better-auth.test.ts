@@ -9,6 +9,10 @@ import {
 } from "../../src/better-auth/index.ts";
 import { definePermissions, resource } from "../../src/core/permissions.ts";
 import { memorySink } from "../../src/core/sink.ts";
+import {
+  testRoleSource,
+  testSubjectResolver,
+} from "../../src/testing/conformance.ts";
 
 const Post = z.object({ id: z.string(), authorId: z.string() });
 
@@ -305,6 +309,33 @@ describe("rolesFromAccessControl", () => {
       { role: "admin", resource: "ghost", action: "haunt" },
     ]);
   });
+});
+
+describe("betterAuthRoleSource conformance", () => {
+  testRoleSource(
+    betterAuthRoleSource(
+      {
+        api: {
+          listOrganizationRoles: async () => [
+            { role: "billing-admin", permission: { post: ["read", "create"] } },
+          ],
+        },
+      },
+      {
+        assignable: [
+          { name: "member", statements: { post: ["read", "create"] } },
+        ],
+      },
+    ),
+    { tenant: "o_acme", declared: ["member"] },
+  );
+});
+
+describe("subjectFromBetterAuth conformance", () => {
+  testSubjectResolver(
+    (input: unknown) => subjectFromBetterAuth({ api: {} }, input),
+    { invalid: { user: "not a user" } },
+  );
 });
 
 describe("betterAuthRoleSource", () => {

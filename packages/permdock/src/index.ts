@@ -59,7 +59,9 @@ export type {
 } from "./core/revocations.ts";
 export {
   memoryEntitlementSource,
+  memoryMembershipSource,
   memoryRoleSource,
+  memorySnapshotSource,
   memorySettings,
 } from "./core/interfaces.ts";
 export {

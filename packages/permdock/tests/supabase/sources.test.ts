@@ -7,6 +7,7 @@ import {
   fromJunction,
   fromTable,
 } from "../../src/supabase/sources.ts";
+import { testMembershipSource } from "../../src/testing/conformance.ts";
 
 type Call = { readonly text: string; readonly values: readonly unknown[] };
 
@@ -25,6 +26,30 @@ function recording(
 }
 
 const principal = { id: "u1", roles: [] };
+
+const tableRows = [
+  { user_id: "u1", scope: "tenant", id: "o1", roles: ["admin"] },
+  { user_id: "u2", scope: "tenant", id: "o1", roles: ["member"] },
+];
+
+const tableQuery: SqlQuery = async (text, values) => ({
+  rows: text.includes('where m."user_id"')
+    ? tableRows.filter((row) => row.user_id === values[0])
+    : tableRows.filter(
+        (row) => row.scope === values[0] && row.id === values[1],
+      ),
+});
+
+describe("fromTable conformance", () => {
+  testMembershipSource(fromTable({ table: "memberships", query: tableQuery }), {
+    principals: [{ id: "u1" }, { id: "u2" }, { id: "u3" }],
+    expect: {
+      u1: [{ scope: "tenant", id: "o1", roles: ["admin"] }],
+      u2: [{ scope: "tenant", id: "o1", roles: ["member"] }],
+      u3: [],
+    },
+  });
+});
 
 describe("fromTable", () => {
   it("selects one row per instance with the default columns", () => {

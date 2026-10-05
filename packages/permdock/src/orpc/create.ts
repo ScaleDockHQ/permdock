@@ -23,7 +23,7 @@ import type { WebBotAuthVerifier } from "../server/web-bot-auth.ts";
 import { compact } from "../core/compact.ts";
 import { instanceOptions } from "../core/instance-options.ts";
 import { isPermission } from "../core/permissions.ts";
-import { createKernel, tenantScope } from "../server/create.ts";
+import { createServerKernel, tenantScope } from "../server/create.ts";
 import { problemMessage, requestFromContext } from "../server/http.ts";
 import { problemFromError } from "../server/map-error.ts";
 import { guardIterable, isAsyncIterable } from "../server/stream.ts";
@@ -265,7 +265,7 @@ export function createPermDock<
 ): OrpcPermDock<TCtx, V> {
   const optsByRequest = new WeakMap<Request, OrpcMiddlewareOpts<TCtx>>();
   const requestByCtx = new WeakMap<object, Request>();
-  const kernel = createKernel(
+  const kernel = createServerKernel(
     policy,
     compact({
       subject: (request: Request) => {

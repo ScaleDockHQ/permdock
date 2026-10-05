@@ -29,7 +29,7 @@ import type { WebBotAuthVerifier } from "../server/web-bot-auth.ts";
 
 import { compact } from "../core/compact.ts";
 import { instanceOptions } from "../core/instance-options.ts";
-import { createKernel, tenantScope } from "../server/create.ts";
+import { createServerKernel, tenantScope } from "../server/create.ts";
 import { problemFromError } from "../server/map-error.ts";
 import { sendReply, toRequest } from "./http.ts";
 
@@ -130,7 +130,7 @@ export function createPermDock<
 ): FastifyPermDock<V> {
   const contexts = new WeakMap<Request, FastifyRequest>();
   const bound = new WeakMap<FastifyRequest, Request>();
-  const kernel = createKernel(
+  const kernel = createServerKernel(
     policy,
     compact({
       subject: (request: Request) => {

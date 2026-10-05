@@ -634,6 +634,57 @@ export function memorySettings(
   });
 }
 
+/** Memberships keyed by principal id; `tenant` is not a filter, as for a database source. */
+export function memoryMembershipSource(
+  entries: Readonly<Record<string, readonly Membership[]>>,
+): MembershipSource {
+  const byPrincipal = new Map(Object.entries(entries));
+  return Object.freeze({
+    membershipsFor(principal: { readonly id: string }): Membership[] {
+      return [...(byPrincipal.get(principal.id) ?? [])];
+    },
+    list(query: {
+      readonly scope: string;
+      readonly id: string;
+    }): MemberEntry[] {
+      const members: MemberEntry[] = [];
+      for (const [id, memberships] of byPrincipal) {
+        for (const membership of memberships) {
+          if (membership.scope === query.scope && membership.id === query.id) {
+            members.push({ principal: { id }, membership });
+          }
+        }
+      }
+      return members;
+    },
+  });
+}
+
+/** A snapshot held in memory; `set` replaces it and notifies every subscriber. */
+export function memorySnapshotSource(
+  initial: Snapshot | string,
+): SnapshotSource & {
+  set(snapshot: Snapshot | string): void;
+} {
+  let current = initial;
+  const listeners = new Set<() => void>();
+  return Object.freeze({
+    get: (): Snapshot | string => current,
+    subscribe(listener: () => void): () => void {
+      listeners.add(listener);
+      return (): void => {
+        listeners.delete(listener);
+      };
+    },
+    set(snapshot: Snapshot | string): void {
+      current = snapshot;
+      for (const listener of listeners) {
+        listener();
+      }
+    },
+  });
+}
+
 export function memoryRoleSource(
   customRoles: readonly CustomRole[],
 ): RoleSource {
