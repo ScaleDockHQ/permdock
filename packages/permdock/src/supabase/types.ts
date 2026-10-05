@@ -13,10 +13,24 @@ export type SupabasePrincipal = Principal & {
 
 export type SupabaseInclude = "email" | "phone" | "is_anonymous";
 
+/**
+ * A role column that holds a foreign key: the role key is `column` of
+ * `through`, joined on `on` (`{ role_id: 'id' }`).
+ */
+export type RoleThrough = {
+  /** The roles table; unqualified, it is in the schema of the table that references it. */
+  readonly through: string;
+  /** One entry: the referencing column to the roles table column it references. */
+  readonly on: Readonly<Record<string, string>>;
+  /** The roles table column that holds the role key. */
+  readonly column: string;
+};
+
 export type SupabaseMembershipTable = {
   readonly table: string;
   readonly user: string;
-  readonly role: string;
+  /** The role key column, or a reference to a roles table that holds the key. */
+  readonly role: string | RoleThrough;
   /** Per scope name, the column holding that scope's id: the table's own scope and its ancestors. */
   readonly columns?: Readonly<Record<string, string>>;
   readonly tenant?: string;

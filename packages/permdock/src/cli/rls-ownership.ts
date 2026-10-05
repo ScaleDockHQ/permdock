@@ -1,5 +1,6 @@
 import type { Policy } from "../core/policy.ts";
 import type { Scope } from "../core/scopes.ts";
+import type { SqlMembershipSource } from "../supabase/sources.ts";
 import type { RlsMembershipTable } from "./types.ts";
 
 import { resolveScope, scopeChain } from "../core/scopes.ts";
@@ -12,15 +13,18 @@ import {
   qualified,
   roleRows,
   signedIn,
+  sourceFilters,
 } from "./rls-helpers.ts";
 import {
   type RlsOwnership,
   type RlsSqlContext,
   globalKindFilterSql,
   kindFilterSql,
+  memberRoleOf,
   quoteIdent,
   quoteLiteral,
   roleKindSql,
+  scopeSources,
   scopeTable,
   subjectIdSql,
 } from "./rls-sql.ts";
@@ -105,9 +109,10 @@ function holdersSql(
   into: string,
 ): string {
   const roleExpr = typeof role === "string" ? quoteLiteral(role) : role.expr;
+  const held = memberRoleOf(table, "m", "      ");
   const filters = [
     `m.${quoteIdent(column)} = ${idExpr}`,
-    `m.${quoteIdent(table.role)}::text = ${roleExpr}`,
+    `${held.sql} = ${roleExpr}`,
   ];
   if (table.expiresAt !== undefined) {
     const expires = memberColumn(table.expiresAt);
@@ -123,7 +128,7 @@ function holdersSql(
     filters.push(kind);
   }
   return `select count(distinct m.${quoteIdent(table.user)}) into ${into}
-      from ${membershipTable(table.table)} m
+      from ${membershipTable(table.table)} m${held.join}
       where ${filters.join("\n        and ")}`;
 }
 
@@ -214,10 +219,11 @@ function transferTriggerSql(
 ): string {
   const fn = qualified(ctx, `${OWNERSHIP.transferOnly}_${scope}`);
   const col = quoteIdent(column);
-  const role = quoteIdent(table.role);
   const list = `array[${roles.map(quoteLiteral).join(", ")}]::text[]`;
-  const rows = (alias: string, source: string, delta: string): string =>
-    `select ${alias}.${col} as id, ${alias}.${role}::text as role, ${delta} as delta from ${source} ${alias} where ${alias}.${role}::text = any(${list})`;
+  const rows = (alias: string, source: string, delta: string): string => {
+    const role = memberRoleOf(table, alias);
+    return `select ${alias}.${col} as id, ${role.sql} as role, ${delta} as delta from ${source} ${alias}${role.join} where ${role.sql} = any(${list})`;
+  };
   const loop = (source: string): string => `    for v_change in
       select c.id, c.role, sum(c.delta) as delta
       from (${source}) c
@@ -283,10 +289,32 @@ function pairsSql(pairs: RlsOwnership["assigns"]): string {
     .join(", ")}`;
 }
 
+/**
+ * Membership rows of the membership sources for scope `name`, each source's
+ * `select` comparing its user column with a variable `user` names.
+ */
+function sourceRowsSql(
+  sources: readonly SqlMembershipSource[],
+  user: (source: SqlMembershipSource) => string,
+): string {
+  return sources
+    .map((source) =>
+      source.sql.select(user(source)).replaceAll(/^/gmu, "        "),
+    )
+    .join("\n        union all\n");
+}
+
 /** Whether the signed-in user holds, in instance `p_scope_id`, a role whose `assigns` lists `p_role`. */
 function canAssignSql(ctx: RlsSqlContext, own: RlsOwnership): string {
   const fn = qualified(ctx, OWNERSHIP.canAssign);
   const parts: string[] = [];
+  const used: SqlMembershipSource[] = [];
+  const userOf = (source: SqlMembershipSource): string => {
+    const index = used.includes(source)
+      ? used.indexOf(source)
+      : used.push(source) - 1;
+    return `v_user_${String(index)}`;
+  };
   const global = own.assigns.filter((pair) => pair.scope === "global");
   if (global.length > 0) {
     if (ctx.authorize === "database") {
@@ -310,16 +338,34 @@ function canAssignSql(ctx: RlsSqlContext, own: RlsOwnership): string {
     if (pairs.length === 0) {
       continue;
     }
+    const sources = scopeSources(ctx, name);
+    if (sources.length > 0) {
+      const kind = kindFilterSql(ctx, "r.role", "ms.via");
+      parts.push(`exists (
+      select 1
+      from (
+${sourceRowsSql(sources, userOf)}
+      ) ms
+      cross join lateral jsonb_array_elements_text(
+        case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
+      ) r(role)
+      where ms.scope = ${quoteLiteral(name)}
+        and ms.id = p_scope_id
+        and (r.role, p_role) in (${pairsSql(pairs)})${kind === undefined ? "" : `\n        and ${kind}`}${sourceFilters(ctx, name).replaceAll("\n    and ", "\n        and ")}
+    )`);
+      continue;
+    }
     if (ctx.authorize === "database") {
       const mapped = scopeTable(ctx, name);
       if (mapped === undefined) {
         continue;
       }
       const { table, column } = mapped;
+      const role = memberRoleOf(table, "m", "      ");
       const filters = [
         `${memberColumn(table.user)} = ${subjectIdSql(ctx)}`,
         `${memberColumn(column)}::text = p_scope_id`,
-        `(${memberColumn(table.role)}::text, p_role) in (${pairsSql(pairs)})`,
+        `(${role.sql}, p_role) in (${pairsSql(pairs)})`,
       ];
       if (table.expiresAt !== undefined) {
         const expires = memberColumn(table.expiresAt);
@@ -327,7 +373,7 @@ function canAssignSql(ctx: RlsSqlContext, own: RlsOwnership): string {
       }
       const kind = kindFilterSql(
         ctx,
-        `${memberColumn(table.role)}::text`,
+        role.sql,
         table.via === undefined
           ? "null::text"
           : `${memberColumn(table.via)}::text`,
@@ -336,7 +382,7 @@ function canAssignSql(ctx: RlsSqlContext, own: RlsOwnership): string {
         filters.push(kind);
       }
       parts.push(`exists (
-      select 1 from ${membershipTable(table.table)} m
+      select 1 from ${membershipTable(table.table)} m${role.join}
       where ${filters.join("\n        and ")}
     )`);
     } else {
@@ -354,10 +400,9 @@ function canAssignSql(ctx: RlsSqlContext, own: RlsOwnership): string {
     }
   }
   const body = parts.length === 0 ? "false" : parts.join("\n    or ");
-  return `-- who may assign: a held role whose assigns lists p_role, in instance p_scope_id (its scope or an ancestor's)
-create or replace function ${fn}(p_role text, p_scope_id text)
-returns boolean
-language sql
+  const language =
+    used.length === 0
+      ? `language sql
 stable
 security definer
 set search_path = ''
@@ -365,7 +410,24 @@ as $$
   select ${signedIn(ctx)} and (
     ${body}
   )
-$$;
+$$;`
+      : `language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+${used.map((source, index) => `  v_user_${String(index)} ${source.sql.userType} := ${subjectIdSql(ctx)};`).join("\n")}
+begin
+  return ${signedIn(ctx)} and (
+    ${body}
+  );
+end;
+$$;`;
+  return `-- who may assign: a held role whose assigns lists p_role, in instance p_scope_id (its scope or an ancestor's)
+create or replace function ${fn}(p_role text, p_scope_id text)
+returns boolean
+${language}
 revoke execute on function ${fn}(text, text) from public, anon;
 grant execute on function ${fn}(text, text) to authenticated;`;
 }

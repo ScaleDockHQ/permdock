@@ -25,6 +25,7 @@ import {
   quoteSqlTable,
 } from "../core/sql.ts";
 import { isSqlFunctionField } from "../index.ts";
+import { type RoleColumn, roleColumn } from "../supabase/roles.ts";
 import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
 
 const CLI = "PermDock CLI";
@@ -339,6 +340,23 @@ export function graphSqlText(parts: GraphSql, ctx: RlsSqlContext): string {
         : String(part.value);
     })
     .join("");
+}
+
+/**
+ * The role column of an `rls.memberships` table aliased `alias`; a `through`
+ * column joins its roles table as `<alias>k`, after a newline and `indent`
+ * (inline without one).
+ */
+export function memberRoleOf(
+  table: RlsMembershipTable,
+  alias = "m",
+  indent?: string,
+): RoleColumn {
+  return roleColumn(table.role, qualifiedTable(table.table), alias, {
+    label: `rls.memberships ${table.table} role`,
+    prefix: CLI,
+    ...(indent === undefined ? {} : { indent }),
+  });
 }
 
 /** The schema-qualified name of a table under `search_path = ''`. */
@@ -869,9 +887,12 @@ function existsSql(
     `m.${quoteIdent(rowColumn)} = ${quoteIdent(rowField)}`,
     `m.${quoteIdent(table.user)} = ${subjectIdSql(ctx)}`,
   ];
+  const role = memberRoleOf(table);
   if (roles.length > 0) {
-    const roleList = roles.map((role) => role.replaceAll("'", "''")).join(",");
-    parts.push(`m.${quoteIdent(table.role)} = any('{${roleList}}')`);
+    const roleList = roles.map((name) => name.replaceAll("'", "''")).join(",");
+    const held =
+      role.through === undefined ? `m.${quoteIdent(role.column)}` : role.lookup;
+    parts.push(`${held} = any('{${roleList}}')`);
     const via =
       table.via === undefined
         ? "null::text"
@@ -879,7 +900,7 @@ function existsSql(
     const single = sole(roles);
     const kind =
       single === undefined
-        ? kindFilterSql(ctx, `m.${quoteIdent(table.role)}::text`, via)
+        ? kindFilterSql(ctx, role.lookup, via)
         : roleKindSql(ctx, single, via);
     if (kind !== undefined) {
       parts.push(kind);

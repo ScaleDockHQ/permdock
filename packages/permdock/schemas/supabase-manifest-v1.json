@@ -159,7 +159,7 @@
         "user": { "$ref": "#/$defs/column" },
         "scope": { "$ref": "#/$defs/value" },
         "id": { "$ref": "#/$defs/column" },
-        "role": { "$ref": "#/$defs/value" },
+        "role": { "$ref": "#/$defs/role" },
         "within": {
           "oneOf": [
             { "$ref": "#/$defs/column" },
@@ -194,6 +194,32 @@
       "required": ["column"],
       "additionalProperties": false,
       "properties": { "column": { "$ref": "#/$defs/identifier" } }
+    },
+    "role": {
+      "oneOf": [
+        { "$ref": "#/$defs/value" },
+        {
+          "type": "object",
+          "required": ["column", "through"],
+          "additionalProperties": false,
+          "properties": {
+            "column": { "$ref": "#/$defs/identifier" },
+            "through": {
+              "type": "object",
+              "required": ["table", "id", "column"],
+              "additionalProperties": false,
+              "properties": {
+                "table": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$"
+                },
+                "id": { "$ref": "#/$defs/identifier" },
+                "column": { "$ref": "#/$defs/identifier" }
+              }
+            }
+          }
+        }
+      ]
     },
     "value": {
       "oneOf": [

@@ -177,12 +177,12 @@ A graph grant then compiles to the subquery in the table above. The helper sits 
 create or replace view "invoice_visible" with (security_invoker = true) as
 select
   "id",
-  case when ("orgId" in (select "public".permitted_tenant_ids('invoice.read#1')))
-         or ("orgId" in (select "public".permitted_tenant_ids('invoice.read#2')))
-         or (("orgId" in (select "public".permitted_tenant_ids('invoice.read#4')))
+  case when ("orgId" in (select "permdock".permitted_tenant_ids('invoice.read#1')))
+         or ("orgId" in (select "permdock".permitted_tenant_ids('invoice.read#2')))
+         or (("orgId" in (select "permdock".permitted_tenant_ids('invoice.read#4')))
              and ("authorId" = (select auth.uid())))
     then "amount" end as "amount",
-  case when (...) and not (select "public".permdock_has('invoice.read#5'))
+  case when (...) and not (select "permdock".permdock_has('invoice.read#5'))
     then "note" end as "note",
   "title"
 from "invoice";

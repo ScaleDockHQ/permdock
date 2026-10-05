@@ -10,6 +10,7 @@ import type {
 import { compact } from "../core/compact.ts";
 import { quoteSqlIdent, quoteSqlLiteral, quoteSqlTable } from "../core/sql.ts";
 import { supabaseTenantClaim } from "./budget.ts";
+import { type RoleColumn, roleColumn } from "./roles.ts";
 import { PERMDOCK_SCHEMA } from "./sources.ts";
 
 function isTable(
@@ -46,6 +47,18 @@ const literal = quoteSqlLiteral;
 // `authorize()` runs with `search_path = ''`, so a bare table name must be qualified.
 function qualifiedTable(name: string): string {
   return table(name.includes(".") ? name : `public.${name}`);
+}
+
+/** The memberships table's role key over alias `m`, joined to its roles table when it holds a reference. */
+function tenantRole(memberships: SupabaseMembershipTable): RoleColumn {
+  return roleColumn(
+    memberships.role,
+    memberships.table.includes(".")
+      ? memberships.table
+      : `public.${memberships.table}`,
+    "m",
+    { label: "authorizeSql tenant.role", indent: "      " },
+  );
 }
 
 function textArray(values: readonly string[]): string {
@@ -129,15 +142,16 @@ function customDatabaseBranch(
   memberships: SupabaseMembershipTable & { readonly tenant: string },
   declared: readonly string[],
 ): string {
-  const match = `c.tenant_id::text = requested_tenant and c.scope = ${literal(scope)} and c.scope_id is null and c.role = m.${ident(memberships.role)}::text`;
+  const role = tenantRole(memberships);
+  const match = `c.tenant_id::text = requested_tenant and c.scope = ${literal(scope)} and c.scope_id is null and c.role = ${role.sql}`;
   const rows = (source: string, value: string, extra: string): string =>
     `array(select c.${value} from ${q(source)} c where ${match}${extra})`;
   return ` or exists (
       select 1
-      from ${qualifiedTable(memberships.table)} m
+      from ${qualifiedTable(memberships.table)} m${role.join}
       where m.${ident(memberships.user)} = v_member_user
         and m.${ident(memberships.tenant)} = v_member_tenant
-        and not (m.${ident(memberships.role)}::text = any(${textArray(declared)}))${
+        and not (${role.sql} = any(${textArray(declared)}))${
           memberships.expiresAt === undefined
             ? ""
             : `\n        and (m.${ident(memberships.expiresAt)} is null or m.${ident(memberships.expiresAt)} > now())`
@@ -190,10 +204,11 @@ function databaseBody(
     return false; -- no memberships table configured
   end if;`;
   if (memberships !== undefined && tenantColumn !== undefined) {
+    const role = tenantRole(memberships);
     const held = (effect: "allow" | "deny"): string => `exists (
       select 1
-      from ${qualifiedTable(memberships.table)} m
-      join ${q("role_permissions")} rp on rp.role = m.${ident(memberships.role)}::text
+      from ${qualifiedTable(memberships.table)} m${role.join}
+      join ${q("role_permissions")} rp on rp.role = ${role.sql}
       where m.${ident(memberships.user)} = v_member_user
         and m.${ident(tenantColumn)} = v_member_tenant
         and ${effectMatch(literal(scope), effect)}${

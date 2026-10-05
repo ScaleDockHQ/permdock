@@ -8,6 +8,7 @@ import type {
   SupabaseManifestHelper,
   SupabaseManifestMembership,
 } from "../supabase/manifest.ts";
+import type { RoleKeys } from "../supabase/roles.ts";
 import type { SqlMembershipSource } from "../supabase/sources.ts";
 import type { RlsSqlContext } from "./rls-sql.ts";
 import type {
@@ -26,13 +27,14 @@ import {
   scopeChain,
   scopeList,
 } from "../core/scopes.ts";
+import { roleManifest } from "../supabase/roles.ts";
 import {
   AUTHZ_VERSION_TABLE,
   PERMDOCK_SCHEMA,
   supabaseMembershipsBudget,
   supabaseTenantClaim,
 } from "../supabase/sources.ts";
-import { decidingColumns } from "./deciding-columns.ts";
+import { decidingColumns, tableKey } from "./deciding-columns.ts";
 import { globalRoleSource, type RoleRows } from "./global-roles.ts";
 import { asPolicy, loadModule, pickNamed } from "./load.ts";
 import { GRANTS_MARKER, HOOK_MARKER, hookMarkerFields } from "./markers.ts";
@@ -45,6 +47,7 @@ import {
   memberForSources,
   memberForTable,
   memberIdsHelper,
+  memberRoleOf,
   quoteIdent,
   quoteLiteral,
   quoteTable,
@@ -307,10 +310,11 @@ function mappedMembership(
       within[ancestor] = column;
     }
   }
+  const role = memberRoleOf(mapped);
   const columns = [
     mapped.user,
     id,
-    mapped.role,
+    role.column,
     ...Object.values(within),
     ...(mapped.via === undefined ? [] : [mapped.via]),
     ...(mapped.expiresAt === undefined ? [] : [mapped.expiresAt]),
@@ -320,7 +324,7 @@ function mappedMembership(
     user: { column: mapped.user },
     scope: { value: name },
     id: { column: id },
-    role: { column: mapped.role },
+    role: roleManifest(role),
     ...(Object.keys(within).length === 0
       ? {}
       : { within: { columns: within } }),
@@ -665,6 +669,10 @@ function readsSql(parts: Parts): string {
     for (const name of source.sql.reads) {
       reads.set(name, reads.get(name) ?? "status");
     }
+    const through = source.sql.through;
+    if (through !== undefined) {
+      reads.set(through.table, reads.get(through.table) ?? "role_keys");
+    }
   }
   if (parts.roles !== undefined) {
     const { table: rolesTable, through } = parts.roles;
@@ -767,18 +775,133 @@ revoke execute on function ${bump}() from public, anon, authenticated;
 ${triggers}${roleKeysVersionSql(parts, versionTable)}`;
 }
 
-/** A renamed role key changes every holder's `roles` claim, so updates to the roles table bump each holder. */
+type RoleKeyHolder = {
+  readonly table: string;
+  readonly user: string;
+  readonly through: RoleKeys;
+};
+
+/** Every table whose role column references a roles table: the global roles and the membership sources. */
+function roleKeyHolders(parts: Parts): readonly RoleKeyHolder[] {
+  const holders: RoleKeyHolder[] = [];
+  if (parts.roles?.through !== undefined) {
+    holders.push({
+      table: parts.roles.table,
+      user: parts.roles.user,
+      through: parts.roles.through,
+    });
+  }
+  for (const source of parts.sources) {
+    if (source.sql.through !== undefined) {
+      holders.push({
+        table: source.sql.table,
+        user: source.sql.user,
+        through: source.sql.through,
+      });
+    }
+  }
+  const seen = new Set<string>();
+  return holders.filter((holder) => {
+    const key = JSON.stringify([
+      tableKey(holder.table),
+      holder.user,
+      tableKey(holder.through.table),
+      holder.through.id,
+      holder.through.key,
+      holder.through.ref,
+    ]);
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+}
+
+/** The bump for one roles table: unchanged keys and ids return early, else every holder of `old` is bumped. */
+function roleKeysBumpSql(
+  holders: readonly RoleKeyHolder[],
+  versionTable: string,
+  indent: string,
+): string {
+  const columns = [
+    ...new Set(
+      holders.flatMap((holder) => [holder.through.key, holder.through.id]),
+    ),
+  ];
+  const unchanged = columns
+    .map(
+      (column) =>
+        `new.${quoteIdent(column)} is not distinct from old.${quoteIdent(column)}`,
+    )
+    .join(`\n${indent}  and `);
+  const selects = holders
+    .map(
+      (holder) =>
+        `select h.${quoteIdent(holder.user)}::uuid as user_id from ${table(holder.table)} h where h.${quoteIdent(holder.through.ref)} = old.${quoteIdent(holder.through.id)}`,
+    )
+    .join(`\n${indent}  union\n${indent}  `);
+  return `${indent}if tg_op = 'UPDATE'
+${indent}  and ${unchanged} then
+${indent}  return null;
+${indent}end if;
+${indent}insert into ${versionTable} as v (user_id, version)
+${indent}select distinct h.user_id, 1
+${indent}from (
+${indent}  ${selects}
+${indent}) h
+${indent}where h.user_id is not null
+${indent}on conflict (user_id) do update set version = v.version + 1;`;
+}
+
+/**
+ * A renamed role key changes the `roles` claim of everyone who holds it and
+ * the `roles` of every membership that references it, so updates to a roles
+ * table bump each holder.
+ */
 function roleKeysVersionSql(parts: Parts, versionTable: string): string {
-  const through = parts.roles?.through;
-  if (parts.roles === undefined || through === undefined) {
+  const holders = roleKeyHolders(parts);
+  if (holders.length === 0) {
     return "";
   }
+  const byTable = new Map<
+    string,
+    { readonly table: string; readonly holders: RoleKeyHolder[] }
+  >();
+  for (const holder of holders) {
+    const key = tableKey(holder.through.table);
+    const group = byTable.get(key);
+    if (group === undefined) {
+      byTable.set(key, { table: holder.through.table, holders: [holder] });
+    } else {
+      group.holders.push(holder);
+    }
+  }
   const bump = `${quoteIdent(parts.schema)}.permdock_bump_authz_version_role_keys`;
-  const id = quoteIdent(through.id);
-  const key = quoteIdent(through.key);
+  const groups = [...byTable];
+  const body = groups
+    .map(([key, group]) => {
+      if (groups.length === 1) {
+        return roleKeysBumpSql(group.holders, versionTable, "  ");
+      }
+      const dot = key.indexOf(".");
+      return `  if tg_table_schema = ${quoteLiteral(key.slice(0, dot))} and tg_table_name = ${quoteLiteral(key.slice(dot + 1))} then
+${roleKeysBumpSql(group.holders, versionTable, "    ")}
+  end if;`;
+    })
+    .join("\n");
+  const triggers = groups
+    .map(([, group]) => {
+      const target = table(group.table);
+      return `drop trigger if exists ${quoteIdent(VERSION_TRIGGER)} on ${target};
+create trigger ${quoteIdent(VERSION_TRIGGER)}
+  after update or delete on ${target}
+  for each row execute function ${bump}();`;
+    })
+    .join("\n");
   return `
 
--- a renamed role key changes the roles claim of everyone who holds it
+-- a renamed role key changes the roles of everyone who holds it, globally or through a membership
 create or replace function ${bump}()
 returns trigger
 language plpgsql
@@ -786,24 +909,12 @@ security definer
 set search_path = ''
 as $$
 begin
-  if tg_op = 'UPDATE'
-    and new.${key} is not distinct from old.${key}
-    and new.${id} is not distinct from old.${id} then
-    return null;
-  end if;
-  insert into ${versionTable} as v (user_id, version)
-  select distinct h.${quoteIdent(parts.roles.user)}::uuid, 1
-  from ${table(parts.roles.table)} h
-  where h.${quoteIdent(through.ref)} = old.${id}
-  on conflict (user_id) do update set version = v.version + 1;
+${body}
   return null;
 end;
 $$;
 revoke execute on function ${bump}() from public, anon, authenticated;
-drop trigger if exists ${quoteIdent(VERSION_TRIGGER)} on ${table(through.table)};
-create trigger ${quoteIdent(VERSION_TRIGGER)}
-  after update or delete on ${table(through.table)}
-  for each row execute function ${bump}();`;
+${triggers}`;
 }
 
 /**

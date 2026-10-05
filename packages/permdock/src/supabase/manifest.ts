@@ -66,6 +66,18 @@ export type SupabaseManifestValue =
   | SupabaseManifestColumn
   | { readonly value: string | readonly string[] };
 
+/** A role column that references a roles table: the key is `column` of `table`, matched on `id`. */
+export type SupabaseManifestThrough = {
+  readonly table: string;
+  readonly id: string;
+  readonly column: string;
+};
+
+/** A role column (with `through` when it references a roles table), or the fixed roles every row holds. */
+export type SupabaseManifestRole =
+  | SupabaseManifestValue
+  | (SupabaseManifestColumn & { readonly through: SupabaseManifestThrough });
+
 /** One `fromTable` or `fromJunction` source. */
 export type SupabaseManifestMembership = {
   /** `schema.table`, `public` when the source names no schema. */
@@ -75,7 +87,7 @@ export type SupabaseManifestMembership = {
   readonly scope: SupabaseManifestValue;
   readonly id: SupabaseManifestColumn;
   /** A role column, or the fixed roles every row holds. */
-  readonly role: SupabaseManifestValue;
+  readonly role: SupabaseManifestRole;
   /** A `jsonb` column of ancestor ids keyed by scope, or one column per ancestor scope. */
   readonly within?:
     | SupabaseManifestColumn

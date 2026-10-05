@@ -14,6 +14,7 @@ import {
   memberForHelper,
   memberForSources,
   memberIdsHelper,
+  memberRoleOf,
   permittedIdsHelper,
   scopeSources,
   quoteIdent,
@@ -389,15 +390,16 @@ function tableBody(ctx: RlsSqlContext, scope: string, type: string): string {
     ),
   );
   const [owner, ...rest] = filters;
+  const role = memberRoleOf(table, "m", "  ");
   const kind = kindFilterSql(
     ctx,
-    `${memberColumn(table.role)}::text`,
+    role.sql,
     table.via === undefined ? "null::text" : `${memberColumn(table.via)}::text`,
   );
   const lines = [
     `  select ${memberColumn(column)}::${type}`,
-    `  from ${membershipTable(table.table)} m`,
-    `  join ${qualified(ctx, "role_permissions")} rp on rp.role = ${memberColumn(table.role)}::text`,
+    `  from ${membershipTable(table.table)} m${role.join}`,
+    `  join ${qualified(ctx, "role_permissions")} rp on rp.role = ${role.sql}`,
     owner ?? "",
     "    and rp.grant_key = p_grant",
     `    and rp.scope = ${quoteLiteral(scope)}`,
@@ -414,7 +416,7 @@ function tableBody(ctx: RlsSqlContext, scope: string, type: string): string {
     `c.tenant_id::text = ${memberColumn(tenantOf)}::text`,
     `c.scope = ${quoteLiteral(scope)}`,
     `(c.scope_id is null or c.scope_id = ${memberColumn(column)}::text)`,
-    `c.role = ${memberColumn(table.role)}::text`,
+    `c.role = ${role.sql}`,
   ].join(" and ");
   const rows = (source: string, value: string, extra: string): string =>
     `array(select c.${value} from ${qualified(ctx, source)} c where ${match}${extra})`;
@@ -422,9 +424,9 @@ function tableBody(ctx: RlsSqlContext, scope: string, type: string): string {
     ...lines,
     "  union",
     `  select ${memberColumn(column)}::${type}`,
-    `  from ${membershipTable(table.table)} m`,
+    `  from ${membershipTable(table.table)} m${role.join}`,
     ...filters,
-    `    and not (${memberColumn(table.role)}::text = any(${textArray(custom.declared)}))`,
+    `    and not (${role.sql} = any(${textArray(custom.declared)}))`,
     customKeysSql(
       ctx,
       scope,
@@ -743,7 +745,7 @@ function sourceIdOf(scope: string): (name: string) => string {
     name === scope ? "ms.id" : `ms.within ->> ${quoteLiteral(name)}`;
 }
 
-function sourceFilters(
+export function sourceFilters(
   ctx: RlsSqlContext,
   scope: string,
   user: string = subjectIdSql(ctx),
@@ -869,11 +871,12 @@ ${sourceRows(sources)}
     );
   }
   const { table, column } = mapped;
+  const role = memberRoleOf(table, "m", "  ");
   const lines = [
     `  select distinct ${memberColumn(column)}::${type}`,
-    `  from ${membershipTable(table.table)} m`,
+    `  from ${membershipTable(table.table)} m${role.join}`,
     `  where ${memberColumn(table.user)} = ${user}`,
-    `    and ${memberColumn(table.role)} is not null`,
+    `    and ${role.through === undefined ? memberColumn(role.column) : role.sql} is not null`,
   ];
   if (table.expiresAt !== undefined) {
     const expires = memberColumn(table.expiresAt);
