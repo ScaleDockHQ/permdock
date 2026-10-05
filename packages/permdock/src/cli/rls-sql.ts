@@ -50,6 +50,11 @@ export type RlsSqlContext = {
   readonly memberSources?: readonly SqlMembershipSource[];
   readonly tenantClaim: string;
   /**
+   * SQL for the subject's user id in place of the dialect's (`auth.uid()`):
+   * `p_user` inside a `_for` helper, which answers for a user the caller names.
+   */
+  readonly subjectId?: string;
+  /**
    * `'all'` (`rls.tenants`): the helpers and `memberOf` checks admit every
    * tenant the subject holds a membership in, ignoring the tenant claim.
    * Unset, they narrow to the tenant claim when the token carries one.
@@ -413,6 +418,11 @@ export function permittedIdsHelper(name: string): string {
   return `permitted_${name}_ids`;
 }
 
+/** `permitted_<scope>_ids_for(p_user, p_grant)`: the same ids for a user the caller names. */
+export function permittedForHelper(name: string): string {
+  return `${permittedIdsHelper(name)}_for`;
+}
+
 /** The helper returning the ids of scope `name` the subject holds any live membership of. */
 export function memberIdsHelper(name: string): string {
   if (!/^[a-z][a-z0-9_]*$/u.test(name)) {
@@ -556,6 +566,9 @@ export function quoteLiteral(value: string): string {
 }
 
 export function subjectIdSql(ctx: RlsSqlContext): string {
+  if (ctx.subjectId !== undefined) {
+    return ctx.subjectId;
+  }
   switch (ctx.dialect) {
     case "supabase":
       return "(select auth.uid())";

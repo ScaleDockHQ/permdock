@@ -234,6 +234,91 @@ end;
 $$;
 revoke execute on function "permdock".member_customer_ids_for(uuid) from public, anon, authenticated;
 
+-- the helpers for a user the caller names: trusted SQL acting for a stored user; no client role may execute them
+create or replace function "permdock".permdock_has_for(p_user uuid, p_grant text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1
+    from "permdock".user_roles ur
+    join "permdock".role_permissions rp on rp.role = ur.role::text
+    where ur.user_id = p_user
+      and rp.grant_key = p_grant
+      and rp.scope = 'global'
+  )
+$$;
+revoke execute on function "permdock".permdock_has_for(uuid, text) from public, anon, authenticated;
+
+create or replace function "permdock".permitted_organization_ids_for(p_user uuid, p_grant text)
+returns setof uuid
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_user_0 "public"."memberships"."user_id"%type := p_user;
+begin
+  return query
+  select (ms.id)::uuid
+  from (
+    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."memberships" m
+    where m."user_id" = v_user_0
+    group by m."scope"::text, m."scope_id"::text
+  ) ms
+  cross join lateral jsonb_array_elements_text(
+    case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
+  ) r(role)
+  join "permdock".role_permissions rp on rp.role = r.role
+  where coalesce(p_user::text, '') <> ''
+    and ms.scope = 'organization'
+    and rp.grant_key = p_grant
+    and rp.scope = 'organization';
+end;
+$$;
+revoke execute on function "permdock".permitted_organization_ids_for(uuid, text) from public, anon, authenticated;
+
+create or replace function "permdock".permitted_customer_ids_for(p_user uuid, p_grant text)
+returns setof uuid
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_user_0 "public"."memberships"."user_id"%type := p_user;
+  v_user_1 "public"."contacts"."user_id"%type := p_user;
+begin
+  return query
+  select (ms.id)::uuid
+  from (
+    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."memberships" m
+    where m."user_id" = v_user_0
+    group by m."scope"::text, m."scope_id"::text
+    union all
+    select 'customer'::text as scope, m."customer_id"::text as id, jsonb_build_object('organization', m."organization_id"::text) as within, jsonb_build_array('contact') as roles, 'contact'::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."contacts" m
+    where m."user_id" = v_user_1
+    group by m."customer_id", m."organization_id"
+  ) ms
+  cross join lateral jsonb_array_elements_text(
+    case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
+  ) r(role)
+  join "permdock".role_permissions rp on rp.role = r.role
+  where coalesce(p_user::text, '') <> ''
+    and ms.scope = 'customer'
+    and rp.grant_key = p_grant
+    and rp.scope = 'customer';
+end;
+$$;
+revoke execute on function "permdock".permitted_customer_ids_for(uuid, text) from public, anon, authenticated;
+
 -- organization: holder counts (min / max) over the membership sources, checked at commit
 create or replace function "permdock".permdock_holders_organization()
 returns trigger
