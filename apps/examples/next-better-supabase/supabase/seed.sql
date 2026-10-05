@@ -1,9 +1,11 @@
--- Two organizations. Olivia owns Acme and is a member of Globex, Mason is a
--- member of Acme, and Carla is a portal contact of Acme's customer Initech.
+-- Two organizations. Olivia owns Acme and is a member of Globex, Gus owns
+-- Globex, Mason is a member of Acme, and Carla is a portal contact of Acme's
+-- customer Initech. Every organization keeps an owner (the owner role's min).
 insert into auth.users (id, email) values
   ('00000000-0000-4000-8000-0000000000a1', 'olivia@acme.test'),
   ('00000000-0000-4000-8000-0000000000a2', 'mason@acme.test'),
-  ('00000000-0000-4000-8000-0000000000a3', 'carla@initech.test');
+  ('00000000-0000-4000-8000-0000000000a3', 'carla@initech.test'),
+  ('00000000-0000-4000-8000-0000000000a4', 'gus@globex.test');
 
 insert into public.organizations (id, slug, name) values
   ('00000000-0000-4000-8000-0000000000b1', 'acme', 'Acme'),
@@ -12,6 +14,7 @@ insert into public.organizations (id, slug, name) values
 insert into public.memberships (user_id, scope, scope_id, role) values
   ('00000000-0000-4000-8000-0000000000a1', 'organization', '00000000-0000-4000-8000-0000000000b1', 'owner'),
   ('00000000-0000-4000-8000-0000000000a1', 'organization', '00000000-0000-4000-8000-0000000000b2', 'member'),
+  ('00000000-0000-4000-8000-0000000000a4', 'organization', '00000000-0000-4000-8000-0000000000b2', 'owner'),
   ('00000000-0000-4000-8000-0000000000a2', 'organization', '00000000-0000-4000-8000-0000000000b1', 'member');
 
 insert into public.customers (id, organization_id, name) values

@@ -234,4 +234,57 @@ end;
 $$;
 revoke execute on function "permdock".member_customer_ids_for(uuid) from public, anon, authenticated;
 
--- organization: no memberships table configured, so min, max and transferOnly are checked only by decideRoleChange
+-- organization: holder counts (min / max) over the membership sources, checked at commit
+create or replace function "permdock".permdock_holders_organization()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_ids text[] := '{}';
+  v_id text;
+  v_key_0 "public"."memberships"."scope_id"%type;
+  v_total bigint;
+  v_count bigint;
+begin
+  if tg_relid = '"public"."memberships"'::regclass then
+    if tg_op in ('UPDATE', 'DELETE') then
+      v_ids := v_ids || case when old."scope"::text = 'organization' then old."scope_id"::text end;
+    end if;
+    if tg_op in ('INSERT', 'UPDATE') then
+      v_ids := v_ids || case when new."scope"::text = 'organization' then new."scope_id"::text end;
+    end if;
+  end if;
+  foreach v_id in array v_ids loop
+    continue when v_id is null;
+    v_key_0 := v_id;
+    select count(*) into v_total
+      from (
+        select m."scope_id"::text as id, m."user_id"::text as user_id, m."role"::text as role, null::text as via, true as live
+        from "public"."memberships" m
+        where m."scope"::text = 'organization' and m."scope_id" = v_key_0
+      ) h;
+    select count(distinct h.user_id) into v_count
+      from (
+        select m."scope_id"::text as id, m."user_id"::text as user_id, m."role"::text as role, null::text as via, true as live
+        from "public"."memberships" m
+        where m."scope"::text = 'organization' and m."scope_id" = v_key_0
+      ) h
+      where h.live
+        and h.role = 'owner';
+    if v_total > 0 and v_count < 1 then
+      raise exception using
+        errcode = '23514',
+        message = 'permdock: organization ' || v_id || ' keeps at least 1 owner',
+        hint = 'last-holder';
+    end if;
+  end loop;
+  return null;
+end;
+$$;
+drop trigger if exists "permdock_holders_organization" on "public"."memberships";
+create constraint trigger "permdock_holders_organization"
+  after insert or update or delete on "public"."memberships"
+  deferrable initially deferred
+  for each row execute function "permdock".permdock_holders_organization();

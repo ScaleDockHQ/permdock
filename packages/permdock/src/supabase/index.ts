@@ -19,6 +19,7 @@ export {
   supabaseTenantClaim,
 } from "./sources.ts";
 export type {
+  MembershipHolders,
   MembershipJunctionOptions,
   MembershipSql,
   MembershipTableOptions,
