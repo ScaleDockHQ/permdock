@@ -27,7 +27,7 @@ export const { toolApproval, capabilityMiddleware, needsApproval } =
   });
 ```
 
-Pass `toolApproval` into `generateText` / `ToolLoopAgent`. Wrap the model with `wrapLanguageModel({ model, middleware: capabilityMiddleware({ user }) })` per caller. Use `needsApproval(permissions.post.delete)` only on `WorkflowAgent`. `denied` maps to `'denied'`, `approval-required` to `'user-approval'`, and `'not-applicable'` is never returned ([AI SDK adapter](https://permdock.com/docs/adapters/ai-sdk)).
+Pass `toolApproval` into `generateText` / `ToolLoopAgent`. Wrap the model with `wrapLanguageModel({ model, middleware: capabilityMiddleware({ user }) })` per caller. Use `needsApproval(permissions.post.delete)` only on `WorkflowAgent`. `denied` maps to `'denied'`, `approval-required` to `'user-approval'`, and `'not-applicable'` is never returned ([AI SDK adapter](https://permdock.com/docs/adapters/ai-sdk)). Tools without a permission are hidden and denied unless `unmapped: 'allow'`; to combine PermDock with the app's own confirmation, pass `composeToolApproval(appApproval)` as `toolApproval` instead of wrapping the adapter: the app's function is asked only for calls PermDock grants.
 
 ## Claude Agent SDK — `permdock/claude-agent`
 
@@ -117,7 +117,7 @@ server.registerTool(
 
 An MCP server that is not an SDK `McpServer` cannot be wrapped: narrow the tool's `meta` with `isPermission`, filter its tool list with `mayUse(permdock, permission)` from `permdock`, and decide each call with `permdock.decide(permission, args)` in its `authorize` hook. `mayUse` is a listing hint, never a decision.
 
-When a tool's handler calls an oRPC procedure that runs `protect`, use `protectServer(server, { enforce: 'procedure', permissionFor: (name) => permissionOf(procedures.get(name)) })` with `permissionOf` from `permdock/orpc`. `tools/list` and annotations follow the permission; the call is not guarded, so each call decides once, in the procedure. `data` and `longRunning` throw in this mode, and the mode covers the whole server.
+When a tool's handler calls an oRPC procedure that runs `protect`, use `protectServer(server, { enforce: 'procedure', permissionFor: (name) => permissionOf(procedures.get(name)) })` with `permissionOf` from `permdock/orpc`. `tools/list` and annotations follow the permission; the call is not guarded, so each call decides once, in the procedure. `data` and `longRunning` throw in this mode, and the mode covers the whole server. When the same operations are REST routes, declare each permission once with `operationPermissions({ 'GET /customers/{id}': { permission, operationId } })` from `permdock/openapi` and pass `permissionFor: operations.forOperation`; the HTTP gate reads `operations.forRequest(method, path)` from the same object.
 
 ## A2A — `permdock/a2a`
 
