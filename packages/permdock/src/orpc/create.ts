@@ -1,24 +1,15 @@
 import { ORPCError, type Middleware } from "@orpc/server";
 
 import type { ApprovalStore } from "../approvals/types.ts";
-import type { ApprovalPolicySource } from "../core/approval-policies.ts";
 import type { PermDockRevokedError } from "../core/errors.ts";
-import type { PolicySource } from "../core/hosted.ts";
-import type {
-  DecisionSink,
-  EntitlementSource,
-  LimitStore,
-  MembershipSource,
-  RelationSource,
-  RoleSource,
-  RoleSourceFactory,
-  SnapshotSource,
-} from "../core/interfaces.ts";
+import type { InstanceOptions } from "../core/instance-options.ts";
+import type { SnapshotSource } from "../core/interfaces.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permissions.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy.ts";
 import type { RevocationFeed } from "../core/revocations.ts";
 import type { Principal } from "../core/subject.ts";
+import type { OtelWrap } from "../otel/types.ts";
 import type { PdpFactory } from "../pdp/types.ts";
 import type { Connection, ConnectionOptions } from "../server/connection.ts";
 import type {
@@ -30,6 +21,7 @@ import type { StreamProtectOptions } from "../server/stream.ts";
 import type { WebBotAuthVerifier } from "../server/web-bot-auth.ts";
 
 import { compact } from "../core/compact.ts";
+import { instanceOptions } from "../core/instance-options.ts";
 import { isPermission } from "../core/permissions.ts";
 import { createKernel, tenantScope } from "../server/create.ts";
 import { problemFromError } from "../server/map-error.ts";
@@ -66,26 +58,19 @@ export type OrpcMiddleware<
 export type OrpcPermDockOptions<
   TCtx extends object = object,
   TUser = unknown,
-> = {
+> = InstanceOptions & {
   readonly subject: (opts: OrpcMiddlewareOpts<TCtx>) => TUser | Promise<TUser>;
+  /** The agent or service acting for the subject; anything but an `Actor` is ignored. */
+  readonly actor?: (opts: OrpcMiddlewareOpts<TCtx>) => unknown;
+  /** `(permdock) => withOtel(permdock, options)` from `permdock/otel`. */
+  readonly otel?: OtelWrap;
   readonly tenant?: TenantOption<OrpcMiddlewareOpts<TCtx>>;
   /** The Web `Request` behind a context; defaults to `context.request` or `context.req`. */
   readonly request?: (context: TCtx) => Request | null | undefined;
-  readonly memberships?: MembershipSource | readonly MembershipSource[];
-  /** The object graph for relation grants that walk a parent chain; without it they deny. */
-  readonly relations?: RelationSource;
-  /** Approval requirements kept as data (`ApprovalPolicySource`); they add to the code's and never remove one. A throw denies. */
-  readonly approvalPolicies?: ApprovalPolicySource;
-  readonly entitlements?: EntitlementSource;
-  readonly customRoles?: RoleSource | RoleSourceFactory;
-  /** Hosted grants, read once per instance; see `PolicySource`. */
-  readonly policies?: PolicySource;
   readonly store?: ApprovalStore;
-  readonly sink?: DecisionSink;
-  readonly limits?: LimitStore;
   /** `createPermDock` from `permdock/pdp`; `protect` then decides delegated permissions remotely. */
   readonly pdp?: PdpFactory;
-  /** Accepted for adapter parity; not read by this adapter. */
+  /** @deprecated Not read by any adapter. */
   readonly snapshots?: SnapshotSource;
   /** `(request) => verifyWebBotAuth(request, options)`; a verified bot becomes the actor. */
   readonly webBotAuth?: WebBotAuthVerifier;
@@ -309,19 +294,20 @@ export function createPermDock<
         const opts = optsByRequest.get(request);
         return opts === undefined ? null : options.subject(opts);
       },
-      memberships: options.memberships,
-      relations: options.relations,
-      approvalPolicies: options.approvalPolicies,
-      entitlements: options.entitlements,
-      customRoles: options.customRoles,
-      policies: options.policies,
+      actor:
+        options.actor === undefined
+          ? undefined
+          : (request: Request): unknown => {
+              const opts = optsByRequest.get(request);
+              return opts === undefined ? undefined : options.actor?.(opts);
+            },
+      ...instanceOptions(options),
       store: options.store,
-      sink: options.sink,
-      limits: options.limits,
       pdp: options.pdp,
       webBotAuth: options.webBotAuth,
       revocations: options.revocations,
       adapter: "orpc",
+      wrap: options.otel,
     }),
   );
 

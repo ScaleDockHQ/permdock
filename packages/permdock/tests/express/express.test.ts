@@ -77,6 +77,26 @@ describe("permdock/express", () => {
     );
   });
 
+  it("resolves the actor from the Express request", async () => {
+    const { permdock, withPermDock } = createPermDock(policy, {
+      subject: () => memberUser,
+      actor: (req) => ({ id: req.path, kind: "agent" }),
+    });
+    const app = express();
+    app.use(permdock());
+    app.get(
+      "/posts",
+      withPermDock((req, res) => {
+        res.json(req.permdock.subject.actor);
+      }),
+    );
+    const request = await listen(app);
+    expect(await (await request("/posts")).json()).toEqual({
+      id: "/posts",
+      kind: "agent",
+    });
+  });
+
   it("answers 401 with a bare Bearer challenge to a caller without credentials", async () => {
     const { protect } = createPermDock(policy, {
       subject: () => null,

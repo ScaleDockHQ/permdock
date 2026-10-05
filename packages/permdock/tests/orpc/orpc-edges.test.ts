@@ -57,6 +57,27 @@ describe("permdock/orpc request discovery and failures", () => {
     ]).toEqual(["FORBIDDEN", "resolved"]);
   });
 
+  it("resolves the actor and wraps the instance with otel", async () => {
+    const wrapped: string[] = [];
+    const { permdock } = createPermDock<Ctx>(policy, {
+      subject: () => memberUser,
+      actor: (opts) => ({ id: (opts.path ?? []).join("."), kind: "agent" }),
+      otel: (instance) => {
+        wrapped.push(instance.subject.principal?.id ?? "anonymous");
+        return instance;
+      },
+    });
+    const read = os
+      .$context<Ctx>()
+      .use(permdock())
+      .handler(({ context }) => context.permdock.subject.actor);
+    const request = new Request("http://localhost/orpc/read");
+    expect(
+      await call(read, undefined, { context: { request }, path: ["posts"] }),
+    ).toEqual({ id: "posts", kind: "agent" });
+    expect(wrapped).toEqual(["u1"]);
+  });
+
   it("treats a null or throwing request option as no request", async () => {
     const results = [];
     for (const request of [

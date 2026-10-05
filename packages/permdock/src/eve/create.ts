@@ -1,17 +1,7 @@
 import type { ToolBinding, ToolMap, ToolVerdict } from "../agent/types.ts";
 import type { ApprovalRequest, ApprovalStore } from "../approvals/types.ts";
-import type { ApprovalPolicySource } from "../core/approval-policies.ts";
-import type { PolicySource } from "../core/hosted.ts";
-import type {
-  DecisionSink,
-  EntitlementSource,
-  LimitStore,
-  MembershipSource,
-  RelationSource,
-  RoleSource,
-  RoleSourceFactory,
-  SnapshotSource,
-} from "../core/interfaces.ts";
+import type { InstanceOptions } from "../core/instance-options.ts";
+import type { SnapshotSource } from "../core/interfaces.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permissions.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy.ts";
@@ -23,6 +13,7 @@ import { isApprovalError } from "../approvals/errors.ts";
 import { resolveApproval } from "../approvals/helpers.ts";
 import { memoryApprovalStore } from "../approvals/store.ts";
 import { compact } from "../core/compact.ts";
+import { instanceOptions } from "../core/instance-options.ts";
 
 /** Structural `SessionAuthContext` from `eve`. */
 export type EvePrincipal = {
@@ -74,7 +65,7 @@ export type EveApprovers =
   | { readonly roles: readonly string[] }
   | ((responder: EvePrincipal, request: ApprovalRequest) => boolean);
 
-export type EvePermDockOptions<TUser = unknown> = {
+export type EvePermDockOptions<TUser = unknown> = InstanceOptions & {
   readonly subject?: (context: EveContext) => TUser | Promise<TUser>;
   readonly actor?: (context: EveContext) => unknown;
   readonly delegation?: (
@@ -87,18 +78,8 @@ export type EvePermDockOptions<TUser = unknown> = {
       ) => string | undefined | Promise<string | undefined>);
   readonly tools: ToolMap;
   readonly approvers?: EveApprovers;
-  readonly memberships?: MembershipSource | readonly MembershipSource[];
-  /** The object graph for relation grants that walk a parent chain; without it they deny. */
-  readonly relations?: RelationSource;
-  /** Approval requirements kept as data (`ApprovalPolicySource`); they add to the code's and never remove one. A throw denies. */
-  readonly approvalPolicies?: ApprovalPolicySource;
-  readonly entitlements?: EntitlementSource;
-  readonly customRoles?: RoleSource | RoleSourceFactory;
-  /** Hosted grants, read once per instance; see `PolicySource`. */
-  readonly policies?: PolicySource;
   readonly store?: ApprovalStore;
-  readonly sink?: DecisionSink;
-  readonly limits?: LimitStore;
+  /** @deprecated Not read by any adapter. */
   readonly snapshots?: SnapshotSource;
 };
 
@@ -207,16 +188,8 @@ export function createPermDock<
     ...compact({
       tenant: options.tenant,
       delegation: options.delegation,
-      memberships: options.memberships,
-      relations: options.relations,
-      approvalPolicies: options.approvalPolicies,
-      entitlements: options.entitlements,
-      customRoles: options.customRoles,
-      policies: options.policies,
-      sink: options.sink,
-      limits: options.limits,
-      snapshots: options.snapshots,
     }),
+    ...instanceOptions(options),
     subject:
       options.subject ??
       (subjectFromSession as (context: EveContext) => TUser | Promise<TUser>),

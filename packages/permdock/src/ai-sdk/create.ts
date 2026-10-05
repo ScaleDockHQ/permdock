@@ -1,18 +1,8 @@
 import type { ToolMap } from "../agent/types.ts";
 import type { ToolVerdict } from "../agent/types.ts";
 import type { ApprovalStore } from "../approvals/types.ts";
-import type { ApprovalPolicySource } from "../core/approval-policies.ts";
-import type { PolicySource } from "../core/hosted.ts";
-import type {
-  DecisionSink,
-  EntitlementSource,
-  LimitStore,
-  MembershipSource,
-  RelationSource,
-  RoleSource,
-  RoleSourceFactory,
-  SnapshotSource,
-} from "../core/interfaces.ts";
+import type { InstanceOptions } from "../core/instance-options.ts";
+import type { SnapshotSource } from "../core/interfaces.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permissions.ts";
 import type { Policy } from "../core/policy.ts";
@@ -24,6 +14,7 @@ import {
   PermDockApprovalRequiredError,
   PermDockDeniedError,
 } from "../core/errors.ts";
+import { instanceOptions } from "../core/instance-options.ts";
 
 export type AiSdkContext = {
   readonly runtimeContext?: unknown;
@@ -31,7 +22,7 @@ export type AiSdkContext = {
   readonly [key: string]: unknown;
 };
 
-export type AiSdkPermDockOptions<TUser = unknown> = {
+export type AiSdkPermDockOptions<TUser = unknown> = InstanceOptions & {
   readonly subject: (context: AiSdkContext) => TUser | Promise<TUser>;
   readonly actor?: (context: AiSdkContext) => unknown;
   readonly delegation?: (
@@ -43,18 +34,8 @@ export type AiSdkPermDockOptions<TUser = unknown> = {
         context: AiSdkContext,
       ) => string | undefined | Promise<string | undefined>);
   readonly tools: ToolMap;
-  readonly memberships?: MembershipSource | readonly MembershipSource[];
-  /** The object graph for relation grants that walk a parent chain; without it they deny. */
-  readonly relations?: RelationSource;
-  /** Approval requirements kept as data (`ApprovalPolicySource`); they add to the code's and never remove one. A throw denies. */
-  readonly approvalPolicies?: ApprovalPolicySource;
-  readonly entitlements?: EntitlementSource;
-  readonly customRoles?: RoleSource | RoleSourceFactory;
-  /** Hosted grants, read once per instance; see `PolicySource`. */
-  readonly policies?: PolicySource;
   readonly store?: ApprovalStore;
-  readonly sink?: DecisionSink;
-  readonly limits?: LimitStore;
+  /** @deprecated Not read by any adapter. */
   readonly snapshots?: SnapshotSource;
   /**
    * Tools the `tools` map does not bind to a permission. `'deny'` (default):
@@ -235,22 +216,14 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
   policy: Policy<TUser, TPrincipal>,
   options: AiSdkPermDockOptions<TUser>,
 ): AiSdkPermDock {
-  const kernel = createAgentKernel(policy, {
+  const kernel = createAgentKernel<AiSdkContext, TUser>(policy, {
     ...compact({
       actor: options.actor,
       delegation: options.delegation,
       tenant: options.tenant,
-      memberships: options.memberships,
-      relations: options.relations,
-      approvalPolicies: options.approvalPolicies,
-      entitlements: options.entitlements,
-      customRoles: options.customRoles,
-      policies: options.policies,
       store: options.store,
-      sink: options.sink,
-      limits: options.limits,
-      snapshots: options.snapshots,
     }),
+    ...instanceOptions(options),
     subject: options.subject,
     tools: options.tools,
     adapter: "ai-sdk",

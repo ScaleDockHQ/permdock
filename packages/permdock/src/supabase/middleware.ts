@@ -1,18 +1,8 @@
 import { type Middleware, defineMiddleware } from "@supabase/middleware";
 
 import type { ApprovalStore } from "../approvals/types.ts";
-import type { ApprovalPolicySource } from "../core/approval-policies.ts";
-import type { PolicySource } from "../core/hosted.ts";
-import type {
-  DecisionSink,
-  EntitlementSource,
-  LimitStore,
-  MembershipSource,
-  RelationSource,
-  RoleSource,
-  RoleSourceFactory,
-  SnapshotSource,
-} from "../core/interfaces.ts";
+import type { InstanceOptions } from "../core/instance-options.ts";
+import type { SnapshotSource } from "../core/interfaces.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permissions.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy.ts";
@@ -23,6 +13,7 @@ import type { OpenApiHooks } from "../server/create.ts";
 import type { WebBotAuthVerifier } from "../server/web-bot-auth.ts";
 
 import { compact } from "../core/compact.ts";
+import { instanceOptions } from "../core/instance-options.ts";
 import { createKernel } from "../server/create.ts";
 import { invalidSignatureResponse } from "../server/web-bot-auth.ts";
 
@@ -54,38 +45,28 @@ export type SupabaseMiddlewareContext = {
   readonly jwtClaims: SupabaseJwtClaims | null;
 };
 
-export type SupabaseMiddlewarePermDockOptions<TUser = unknown> = {
-  readonly subject: (
-    ctx: SupabaseMiddlewareContext,
-    request: Request,
-  ) => TUser | Subject | null | Promise<TUser | Subject | null>;
-  readonly tenant?:
-    | string
-    | ((
-        ctx: SupabaseMiddlewareContext,
-        request: Request,
-      ) => string | undefined | Promise<string | undefined>);
-  readonly memberships?: MembershipSource | readonly MembershipSource[];
-  /** The object graph for relation grants that walk a parent chain; without it they deny. */
-  readonly relations?: RelationSource;
-  /** Approval requirements kept as data (`ApprovalPolicySource`); they add to the code's and never remove one. A throw denies. */
-  readonly approvalPolicies?: ApprovalPolicySource;
-  readonly entitlements?: EntitlementSource;
-  readonly customRoles?: RoleSource | RoleSourceFactory;
-  /** Hosted grants, read once per instance; see `PolicySource`. */
-  readonly policies?: PolicySource;
-  readonly store?: ApprovalStore;
-  readonly sink?: DecisionSink;
-  readonly limits?: LimitStore;
-  /** `createPermDock` from `permdock/pdp`; `protect` then decides delegated permissions remotely. */
-  readonly pdp?: PdpFactory;
-  /** Accepted for adapter parity; not read by this adapter. */
-  readonly snapshots?: SnapshotSource;
-  /** `(permdock) => withOtel(permdock, options)` from `permdock/otel`. */
-  readonly otel?: OtelWrap;
-  /** `(request) => verifyWebBotAuth(request, options)`; a verified bot becomes the actor. */
-  readonly webBotAuth?: WebBotAuthVerifier;
-};
+export type SupabaseMiddlewarePermDockOptions<TUser = unknown> =
+  InstanceOptions & {
+    readonly subject: (
+      ctx: SupabaseMiddlewareContext,
+      request: Request,
+    ) => TUser | Subject | null | Promise<TUser | Subject | null>;
+    readonly tenant?:
+      | string
+      | ((
+          ctx: SupabaseMiddlewareContext,
+          request: Request,
+        ) => string | undefined | Promise<string | undefined>);
+    readonly store?: ApprovalStore;
+    /** `createPermDock` from `permdock/pdp`; `protect` then decides delegated permissions remotely. */
+    readonly pdp?: PdpFactory;
+    /** @deprecated Not read by any adapter. */
+    readonly snapshots?: SnapshotSource;
+    /** `(permdock) => withOtel(permdock, options)` from `permdock/otel`. */
+    readonly otel?: OtelWrap;
+    /** `(request) => verifyWebBotAuth(request, options)`; a verified bot becomes the actor. */
+    readonly webBotAuth?: WebBotAuthVerifier;
+  };
 
 export type WithPermDockConfig = {
   /** Run `protect` before the handler; a denial short-circuits with Problem Details. */
@@ -146,15 +127,8 @@ export function createPermDock<
             ): string | undefined | Promise<string | undefined> =>
               tenantOption(contextFor(request), request)
           : tenantOption,
-      memberships: options.memberships,
-      relations: options.relations,
-      approvalPolicies: options.approvalPolicies,
-      entitlements: options.entitlements,
-      customRoles: options.customRoles,
-      policies: options.policies,
+      ...instanceOptions(options),
       store: options.store,
-      sink: options.sink,
-      limits: options.limits,
       pdp: options.pdp,
       webBotAuth: options.webBotAuth,
       adapter: "supabase-middleware",

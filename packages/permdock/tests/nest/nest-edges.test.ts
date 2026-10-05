@@ -67,6 +67,28 @@ function methodOf(cls: { readonly prototype: object }, key: string) {
 }
 
 describe("permdock/nest Protect", () => {
+  it("resolves the actor from the Nest request", async () => {
+    const { PermDockGuard } = createPermDock(policy, {
+      subject: () => memberUser,
+      actor: (req) => ({ id: req.url, kind: "agent" }),
+    });
+    class Posts {
+      public list(): string {
+        return "ok";
+      }
+    }
+    const descriptor = methodOf(Posts, "list");
+    const req = fakeRequest("p1");
+    const guard = new PermDockGuard(new Reflector());
+    expect(
+      await guard.canActivate(httpContext(Posts, descriptor.value, req)),
+    ).toBe(true);
+    expect(req.permdock?.subject.actor).toEqual({
+      id: "/posts/p1",
+      kind: "agent",
+    });
+  });
+
   it("stacks class and method rules and rejects a non-callable target", async () => {
     const { PermDockGuard, Protect } = createPermDock(policy, {
       subject: () => memberUser,

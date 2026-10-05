@@ -21,6 +21,7 @@ import type {
 
 import { compact } from "../core/compact.ts";
 import { emptySnapshot } from "../core/from-snapshot.ts";
+import { instanceOptions } from "../core/instance-options.ts";
 import { createPermDock as createCorePermDock } from "../core/permdock.ts";
 import { createEvaluationsHandler } from "./handler.ts";
 import { renderClientProvider } from "./provider.tsx";
@@ -163,14 +164,8 @@ export function createPermDock<
       user,
       compact({
         tenant,
-        memberships: options.memberships,
-        relations: options.relations,
-        approvalPolicies: options.approvalPolicies,
-        entitlements: options.entitlements,
-        customRoles: options.customRoles,
-        policies: options.policies,
+        ...instanceOptions(options),
         sink,
-        limits: options.limits,
       }),
     );
     const instance = options.otel === undefined ? built : options.otel(built);

@@ -23,6 +23,7 @@ import {
   PermDockApprovalRequiredError,
   PermDockDeniedError,
 } from "../core/errors.ts";
+import { instanceOptions } from "../core/instance-options.ts";
 import { mayUse } from "../core/may-use.ts";
 import { challengeScope, scopesReaching } from "../core/oauth-scopes.ts";
 import { createPermDock as createCorePermDock } from "../core/permdock.ts";
@@ -306,14 +307,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         tenant,
         actor: actorOf(auth),
         delegation: delegationOf(auth),
-        memberships: options.memberships,
-        relations: options.relations,
-        approvalPolicies: options.approvalPolicies,
-        entitlements: options.entitlements,
-        customRoles: options.customRoles,
-        policies: options.policies,
-        sink: options.sink,
-        limits: options.limits,
+        ...instanceOptions(options),
       }),
     );
   };

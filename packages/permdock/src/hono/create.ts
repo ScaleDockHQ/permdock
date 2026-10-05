@@ -4,18 +4,8 @@ import type { WSEvents } from "hono/ws";
 import { Hono, type Context, type MiddlewareHandler, type Next } from "hono";
 
 import type { ApprovalStore } from "../approvals/types.ts";
-import type { ApprovalPolicySource } from "../core/approval-policies.ts";
-import type { PolicySource } from "../core/hosted.ts";
-import type {
-  DecisionSink,
-  EntitlementSource,
-  LimitStore,
-  MembershipSource,
-  RelationSource,
-  RoleSource,
-  RoleSourceFactory,
-  SnapshotSource,
-} from "../core/interfaces.ts";
+import type { InstanceOptions } from "../core/instance-options.ts";
+import type { SnapshotSource } from "../core/interfaces.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permissions.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy.ts";
@@ -34,6 +24,7 @@ import type { WebBotAuthVerifier } from "../server/web-bot-auth.ts";
 
 import { compact } from "../core/compact.ts";
 import { PermDockRevokedError } from "../core/errors.ts";
+import { instanceOptions } from "../core/instance-options.ts";
 import { createKernel, tenantScope } from "../server/create.ts";
 import { problemFromError } from "../server/map-error.ts";
 import {
@@ -43,24 +34,15 @@ import {
 } from "../server/stream.ts";
 import { invalidSignatureResponse } from "../server/web-bot-auth.ts";
 
-export type HonoPermDockOptions<TUser = unknown> = {
+export type HonoPermDockOptions<TUser = unknown> = InstanceOptions & {
   readonly subject: (c: Context) => TUser | Promise<TUser>;
+  /** The agent or service acting for the subject; anything but an `Actor` is ignored. */
+  readonly actor?: (c: Context) => unknown;
   readonly tenant?: TenantOption<Context>;
-  readonly memberships?: MembershipSource | readonly MembershipSource[];
-  /** The object graph for relation grants that walk a parent chain; without it they deny. */
-  readonly relations?: RelationSource;
-  /** Approval requirements kept as data (`ApprovalPolicySource`); they add to the code's and never remove one. A throw denies. */
-  readonly approvalPolicies?: ApprovalPolicySource;
-  readonly entitlements?: EntitlementSource;
-  readonly customRoles?: RoleSource | RoleSourceFactory;
-  /** Hosted grants, read once per instance; see `PolicySource`. */
-  readonly policies?: PolicySource;
   readonly store?: ApprovalStore;
-  readonly sink?: DecisionSink;
-  readonly limits?: LimitStore;
   /** `createPermDock` from `permdock/pdp`; `protect` then decides delegated permissions remotely. */
   readonly pdp?: PdpFactory;
-  /** Accepted for adapter parity; not read by this adapter. */
+  /** @deprecated Not read by any adapter. */
   readonly snapshots?: SnapshotSource;
   /** `(permdock) => withOtel(permdock, options)` from `permdock/otel`. */
   readonly otel?: OtelWrap;
@@ -218,15 +200,15 @@ export function createPermDock<
         const c = contexts.get(request);
         return c === undefined ? null : options.subject(c);
       },
-      memberships: options.memberships,
-      relations: options.relations,
-      approvalPolicies: options.approvalPolicies,
-      entitlements: options.entitlements,
-      customRoles: options.customRoles,
-      policies: options.policies,
+      actor:
+        options.actor === undefined
+          ? undefined
+          : (request: Request): unknown => {
+              const c = contexts.get(request);
+              return c === undefined ? undefined : options.actor?.(c);
+            },
+      ...instanceOptions(options),
       store: options.store,
-      sink: options.sink,
-      limits: options.limits,
       pdp: options.pdp,
       webBotAuth: options.webBotAuth,
       revocations: options.revocations,

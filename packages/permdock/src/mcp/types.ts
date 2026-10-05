@@ -19,20 +19,10 @@ import type {
 } from "@modelcontextprotocol/server";
 
 import type { ApprovalStore } from "../approvals/types.ts";
-import type { ApprovalPolicySource } from "../core/approval-policies.ts";
 import type { ClientNames } from "../core/clients.ts";
 import type { ApprovalHint } from "../core/errors.ts";
-import type { PolicySource } from "../core/hosted.ts";
-import type {
-  DecisionSink,
-  EntitlementSource,
-  LimitStore,
-  MembershipSource,
-  RelationSource,
-  RoleSource,
-  RoleSourceFactory,
-  SnapshotSource,
-} from "../core/interfaces.ts";
+import type { InstanceOptions } from "../core/instance-options.ts";
+import type { SnapshotSource } from "../core/interfaces.ts";
 import type { Permission } from "../core/permissions.ts";
 import type { Principal } from "../core/subject.ts";
 import type { OtelWrap } from "../otel/types.ts";
@@ -169,7 +159,7 @@ export type McpProcedureEnforcement = {
   readonly permissionFor: (name: string) => Permission | undefined;
 };
 
-export type McpPermDockOptions<TUser = unknown> = {
+export type McpPermDockOptions<TUser = unknown> = InstanceOptions & {
   /** Receives the verified auth info, or `{}` on a transport without one (stdio). */
   readonly subject: (authInfo: McpAuthInfo) => TUser | Promise<TUser>;
   /**
@@ -207,18 +197,8 @@ export type McpPermDockOptions<TUser = unknown> = {
   readonly requestState?: {
     readonly mint: (token: string, context?: never) => Promise<string>;
   };
-  readonly memberships?: MembershipSource | readonly MembershipSource[];
-  /** The object graph for relation grants that walk a parent chain; without it they deny. */
-  readonly relations?: RelationSource;
-  /** Approval requirements kept as data (`ApprovalPolicySource`); they add to the code's and never remove one. A throw denies. */
-  readonly approvalPolicies?: ApprovalPolicySource;
-  readonly entitlements?: EntitlementSource;
-  readonly customRoles?: RoleSource | RoleSourceFactory;
-  /** Hosted grants, read once per instance; see `PolicySource`. */
-  readonly policies?: PolicySource;
   readonly store?: ApprovalStore;
-  readonly sink?: DecisionSink;
-  readonly limits?: LimitStore;
+  /** @deprecated Not read by any adapter. */
   readonly snapshots?: SnapshotSource;
   /** `(permdock) => withOtel(permdock, options)` from `permdock/otel`. */
   readonly otel?: OtelWrap;

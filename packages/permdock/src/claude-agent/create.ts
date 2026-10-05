@@ -1,23 +1,14 @@
 import type { ToolMap, ToolVerdict } from "../agent/types.ts";
 import type { ApprovalStore } from "../approvals/types.ts";
-import type { ApprovalPolicySource } from "../core/approval-policies.ts";
-import type { PolicySource } from "../core/hosted.ts";
-import type {
-  DecisionSink,
-  EntitlementSource,
-  LimitStore,
-  MembershipSource,
-  RelationSource,
-  RoleSource,
-  RoleSourceFactory,
-  SnapshotSource,
-} from "../core/interfaces.ts";
+import type { InstanceOptions } from "../core/instance-options.ts";
+import type { SnapshotSource } from "../core/interfaces.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy.ts";
 import type { Delegation, Principal } from "../core/subject.ts";
 
 import { createAgentKernel } from "../agent/kernel.ts";
 import { compact } from "../core/compact.ts";
+import { instanceOptions } from "../core/instance-options.ts";
 
 /** Structural `McpServerProvenance` from `@anthropic-ai/claude-agent-sdk`. */
 export type ClaudeMcpServer = {
@@ -37,7 +28,7 @@ export type ClaudeAgentContext = {
   readonly agentId?: string;
 };
 
-export type ClaudeAgentPermDockOptions<TUser = unknown> = {
+export type ClaudeAgentPermDockOptions<TUser = unknown> = InstanceOptions & {
   readonly subject: (context: ClaudeAgentContext) => TUser | Promise<TUser>;
   readonly actor?: (context: ClaudeAgentContext) => unknown;
   readonly delegation?: (
@@ -51,18 +42,8 @@ export type ClaudeAgentPermDockOptions<TUser = unknown> = {
   readonly tools: ToolMap;
   /** MCP server sources whose `mcp__*` tools may be decided; default `['sdk']`. */
   readonly mcpSources?: readonly string[];
-  readonly memberships?: MembershipSource | readonly MembershipSource[];
-  /** The object graph for relation grants that walk a parent chain; without it they deny. */
-  readonly relations?: RelationSource;
-  /** Approval requirements kept as data (`ApprovalPolicySource`); they add to the code's and never remove one. A throw denies. */
-  readonly approvalPolicies?: ApprovalPolicySource;
-  readonly entitlements?: EntitlementSource;
-  readonly customRoles?: RoleSource | RoleSourceFactory;
-  /** Hosted grants, read once per instance; see `PolicySource`. */
-  readonly policies?: PolicySource;
   readonly store?: ApprovalStore;
-  readonly sink?: DecisionSink;
-  readonly limits?: LimitStore;
+  /** @deprecated Not read by any adapter. */
   readonly snapshots?: SnapshotSource;
 };
 
@@ -174,17 +155,9 @@ export function createPermDock<
       actor: options.actor,
       delegation: options.delegation,
       tenant: options.tenant,
-      memberships: options.memberships,
-      relations: options.relations,
-      approvalPolicies: options.approvalPolicies,
-      entitlements: options.entitlements,
-      customRoles: options.customRoles,
-      policies: options.policies,
       store: options.store,
-      sink: options.sink,
-      limits: options.limits,
-      snapshots: options.snapshots,
     }),
+    ...instanceOptions(options),
     subject: options.subject,
     tools: options.tools,
     adapter: "claude-agent",
