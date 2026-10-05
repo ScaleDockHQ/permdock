@@ -442,6 +442,27 @@ describe("compileConditionSql memberOf", () => {
     );
   });
 
+  it("reads a constant via as the kind of every row", () => {
+    const out = sql(
+      { op: "memberOf", scope: "team", field: "team_id", roles: ["lead"] },
+      {
+        memberships: {
+          scopes: {
+            team: {
+              ...memberships.scopes.team,
+              via: { value: "staff" },
+            },
+          },
+        },
+        ownership: { kinds: { lead: ["staff"] }, assigns: [], counted: [] },
+      },
+    );
+    expect(out).toContain(
+      `coalesce('staff'::text, '') = any(array['staff']::text[])`,
+    );
+    expect(out).not.toContain(`m."via"`);
+  });
+
   it("walks resource parents through their own tables", () => {
     const out = sql(
       {

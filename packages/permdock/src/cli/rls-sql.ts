@@ -505,6 +505,17 @@ export function quoteTable(name: string): string {
   return quoteSqlTable(name, CLI);
 }
 
+/** The membership kind of a row `m` of `table`, as text: its column, its constant, or null. */
+export function memberViaSql(table: RlsMembershipTable): string {
+  const via = table.via;
+  if (via === undefined) {
+    return "null::text";
+  }
+  return typeof via === "string"
+    ? `m.${quoteIdent(via)}::text`
+    : `${quoteLiteral(via.value)}::text`;
+}
+
 export function quoteLiteral(value: string): string {
   return quoteSqlLiteral(value);
 }
@@ -901,10 +912,7 @@ function existsSql(
         ? `m.${quoteIdent(role.column)}`
         : role.lookup;
     parts.push(`${held} = any('{${roleList}}')`);
-    const via =
-      table.via === undefined
-        ? "null::text"
-        : `m.${quoteIdent(table.via)}::text`;
+    const via = memberViaSql(table);
     const single = sole(roles);
     const kind =
       single === undefined

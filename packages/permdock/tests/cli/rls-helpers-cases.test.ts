@@ -119,6 +119,27 @@ describe("helpersSql database mode", () => {
     expect(sql).toContain(`'{}'::text[]`);
   });
 
+  it("checks a role's kinds against a constant via", () => {
+    const sql = helpers({
+      authorize: "database",
+      memberships: {
+        scopes: {
+          org: {
+            table: "staff_members",
+            user: "user_id",
+            role: "role",
+            columns: { org: "org_id" },
+            via: { value: "staff" },
+          },
+        },
+      },
+      ownership: { kinds: { admin: ["staff"] }, assigns: [], counted: [] },
+    });
+    const org = fnBody(sql, "permitted_org_ids");
+    expect(org).toContain("'staff'::text");
+    expect(org).not.toContain('m."via"');
+  });
+
   it("types user_roles.user_id as text outside Supabase", () => {
     expect(helpers({ authorize: "database", dialect: "guc" }, true)).toContain(
       "  user_id text not null,",

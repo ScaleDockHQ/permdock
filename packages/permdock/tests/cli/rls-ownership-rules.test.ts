@@ -115,6 +115,21 @@ describe("ownershipRules", () => {
   });
 });
 
+describe("ownershipSql with a constant via", () => {
+  it("counts holders of the constant kind without a via column", () => {
+    const sql = ownershipSql(
+      context({
+        authorize: "database",
+        memberships: {
+          scopes: { org: { ...orgTable, via: { value: "staff" } } },
+        },
+      }),
+    );
+    expect(sql).toContain("'staff'::text");
+    expect(sql).not.toContain('m."via"');
+  });
+});
+
 describe("ownershipSql in database mode", () => {
   const sql = ownershipSql(
     context({
