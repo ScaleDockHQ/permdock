@@ -73,6 +73,23 @@ describe("describe", () => {
     });
   });
 
+  it("passes each reason and the decision to a reasons function", () => {
+    const decision = denied("no-grant", "condition", "tenant-mismatch");
+    const seen: unknown[] = [];
+    const result = describeDecision(decision, {
+      messages: {
+        reasons: (reason, full) => {
+          seen.push(full);
+          return reason === "no-grant"
+            ? `geen toegang (${String(full.denials.length)})`
+            : undefined;
+        },
+      },
+    });
+    expect(result.detail).toBe("geen toegang (3), condition, tenant-mismatch");
+    expect(seen).toEqual([decision, decision, decision]);
+  });
+
   it("uses a message table and falls back to English per entry", () => {
     const messages = {
       titles: { denied: "Geweigerd", approval: "Goedkeuring nodig" },

@@ -1,5 +1,10 @@
 import type { Approver } from "./approvers.ts";
-import type { Decision, DenialReason, MatchedGrant } from "./decision.ts";
+import type {
+  Decision,
+  DeniedDecision,
+  DenialReason,
+  MatchedGrant,
+} from "./decision.ts";
 import type { Grantee } from "./grantee.ts";
 import type { Permission } from "./permissions.ts";
 
@@ -91,8 +96,14 @@ export function requiredPlans(decision: Decision): readonly string[] {
  */
 export type DescribeMessages = {
   readonly titles?: Partial<Record<DecisionDescription["kind"], string>>;
-  /** Text per denial reason; a denied detail joins the texts of its reasons with `separator`. */
-  readonly reasons?: Partial<Record<DenialReason, string>>;
+  /**
+   * Text per denial reason; a denied detail joins the texts of its reasons
+   * with `separator`. The function form also sees the decision; `undefined`
+   * keeps the reason code, as a missing record entry does.
+   */
+  readonly reasons?:
+    | Partial<Record<DenialReason, string>>
+    | ((reason: DenialReason, decision: DeniedDecision) => string | undefined);
   /** Joins denial reason texts. Default `', '`. */
   readonly separator?: string;
   readonly granted?: (permission: string) => string;
@@ -188,8 +199,14 @@ export function describe(
       : reasons.includes("opaque-condition") || reasons.includes("server-only")
         ? "server-only"
         : "denied";
+  const texts = messages?.reasons;
   const detail = reasons
-    .map((reason) => messages?.reasons?.[reason] ?? reason)
+    .map(
+      (reason) =>
+        (typeof texts === "function"
+          ? texts(reason, decision)
+          : texts?.[reason]) ?? reason,
+    )
     .join(messages?.separator ?? ", ");
   return {
     kind,
