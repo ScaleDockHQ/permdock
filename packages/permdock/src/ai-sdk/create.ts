@@ -56,7 +56,30 @@ export type AiSdkPermDockOptions<TUser = unknown> = {
   readonly sink?: DecisionSink;
   readonly limits?: LimitStore;
   readonly snapshots?: SnapshotSource;
+  /**
+   * Tools the `tools` map does not bind to a permission. `'deny'` (default):
+   * the middleware hides them and `toolApproval` denies them. `'allow'`: they
+   * pass through both, to the application's own `toolApproval`.
+   */
+  readonly unmapped?: "deny" | "allow";
 };
+
+/** What an AI SDK tool approval function may return; `undefined` is `not-applicable`. */
+export type ToolApprovalResult =
+  | ToolApprovalStatus
+  | undefined
+  | "not-applicable"
+  | "denied"
+  | "user-approval"
+  | { readonly type: "not-applicable" }
+  | { readonly type: "approved"; readonly reason?: string }
+  | { readonly type: "denied"; readonly reason?: string }
+  | { readonly type: "user-approval"; readonly reason?: string };
+
+/** An application's own tool approval function, in the AI SDK's generic form. */
+export type AppToolApproval = (
+  call: ToolApprovalCall,
+) => ToolApprovalResult | PromiseLike<ToolApprovalResult>;
 
 export type ToolApprovalStatus =
   | "approved"
@@ -102,6 +125,15 @@ export type AiSdkPermDock = {
   readonly toolApproval: (
     call: ToolApprovalCall,
   ) => Promise<ToolApprovalStatus>;
+  /**
+   * PermDock's `toolApproval` followed by the application's own: `app` is
+   * asked only for a call PermDock grants (or an unmapped tool under
+   * `unmapped: 'allow'`), its answer is returned as is, and `undefined`
+   * means approved. PermDock's denials and approval requests come first.
+   */
+  readonly composeToolApproval: (
+    app: AppToolApproval,
+  ) => (call: ToolApprovalCall) => Promise<ToolApprovalResult>;
   /** Hides tools the subject in `context` can never use, before the model sees them. */
   readonly capabilityMiddleware: (
     context: AiSdkContext,
@@ -228,6 +260,8 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
   for (const [name, binding] of Object.entries(options.tools)) {
     byPermission.set(binding.permission.key, name);
   }
+  const passes = (toolName: string): boolean =>
+    options.unmapped === "allow" && !Object.hasOwn(options.tools, toolName);
 
   const decide = (
     toolName: string,
@@ -244,6 +278,9 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
   const toolApproval = async (
     call: ToolApprovalCall,
   ): Promise<ToolApprovalStatus> => {
+    if (passes(call.toolCall.toolName)) {
+      return "approved";
+    }
     const context = contextOf(call);
     const verdict = await decide(
       call.toolCall.toolName,
@@ -282,16 +319,14 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         return params;
       }
       const allowed = await kernel.allowedToolNames(context);
-      const tools = params.tools.filter(
-        (tool) => typeof tool.name === "string" && allowed.has(tool.name),
-      );
+      const keeps = (name: unknown): boolean =>
+        typeof name === "string" && (allowed.has(name) || passes(name));
+      const tools = params.tools.filter((tool) => keeps(tool.name));
       // SAFETY: every read is optional and compared, so any other toolChoice leaves forcedAway false.
       const choice = params.toolChoice as
         | { readonly type?: unknown; readonly toolName?: unknown }
         | undefined;
-      const forcedAway =
-        choice?.type === "tool" &&
-        !(typeof choice.toolName === "string" && allowed.has(choice.toolName));
+      const forcedAway = choice?.type === "tool" && !keeps(choice.toolName);
       return {
         ...params,
         tools,
@@ -339,5 +374,19 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       return true;
     };
 
-  return { toolApproval, capabilityMiddleware, needsApproval };
+  const composeToolApproval =
+    (app: AppToolApproval) =>
+    async (call: ToolApprovalCall): Promise<ToolApprovalResult> => {
+      const verdict = await toolApproval(call);
+      return verdict === "approved"
+        ? ((await app(call)) ?? "approved")
+        : verdict;
+    };
+
+  return {
+    toolApproval,
+    composeToolApproval,
+    capabilityMiddleware,
+    needsApproval,
+  };
 }
