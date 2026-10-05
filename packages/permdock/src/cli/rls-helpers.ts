@@ -408,7 +408,7 @@ function tableBody(ctx: RlsSqlContext, scope: string, type: string): string {
     table.via === undefined ? "null::text" : `${memberColumn(table.via)}::text`,
   );
   const lines = [
-    `  select ${memberColumn(column)}::${type}`,
+    `  select${role.lateral ? " distinct" : ""} ${memberColumn(column)}::${type}`,
     `  from ${membershipTable(table.table)} m${role.join}`,
     `  join ${qualified(ctx, "role_permissions")} rp on rp.role = ${role.sql}`,
     owner ?? "",
@@ -1017,7 +1017,7 @@ ${sourceRows(sources)}
     `  select distinct ${memberColumn(column)}::${type}`,
     `  from ${membershipTable(table.table)} m${role.join}`,
     `  where ${memberColumn(table.user)} = ${user}`,
-    `    and ${role.through === undefined ? memberColumn(role.column) : role.sql} is not null`,
+    `    and ${role.through === undefined && !role.lateral ? memberColumn(role.column) : role.sql} is not null`,
   ];
   if (table.expiresAt !== undefined) {
     const expires = memberColumn(table.expiresAt);

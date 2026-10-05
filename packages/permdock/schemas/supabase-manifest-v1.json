@@ -159,7 +159,16 @@
         "user": { "$ref": "#/$defs/column" },
         "scope": { "$ref": "#/$defs/value" },
         "id": { "$ref": "#/$defs/column" },
-        "role": { "$ref": "#/$defs/role" },
+        "role": {
+          "oneOf": [
+            { "$ref": "#/$defs/role" },
+            {
+              "type": "array",
+              "minItems": 2,
+              "items": { "$ref": "#/$defs/role" }
+            }
+          ]
+        },
         "within": {
           "oneOf": [
             { "$ref": "#/$defs/column" },

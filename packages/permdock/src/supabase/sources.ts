@@ -12,6 +12,7 @@ import { quoteSqlIdent, quoteSqlLiteral, quoteSqlTable } from "../core/sql.ts";
 import {
   type RoleColumn,
   type RoleKeys,
+  type RoleSpec,
   roleColumn,
   roleManifest,
 } from "./roles.ts";
@@ -44,8 +45,11 @@ export type MembershipTableOptions = Common & {
     readonly id?: string;
     /** A `jsonb` column of ancestor ids keyed by scope name. */
     readonly within?: string;
-    /** The role key column, or a reference to a roles table that holds the key. */
-    readonly role?: string | RoleThrough;
+    /**
+     * The role key column, a reference to a roles table that holds the key,
+     * or several of them: the row holds every non-null key.
+     */
+    readonly role?: string | RoleThrough | readonly (string | RoleThrough)[];
     readonly via?: string;
     readonly expiresAt?: string;
     /** The principal id that wrote the membership (`grantedBy`). */
@@ -71,10 +75,15 @@ export type MembershipJunctionOptions = Common & {
   /** Ancestor id columns keyed by scope name. */
   readonly within?: Readonly<Record<string, string>>;
   /**
-   * A role column, a reference to a roles table that holds the key, or fixed
-   * roles every row holds (a contact table with no role column).
+   * A role column, a reference to a roles table that holds the key, fixed
+   * roles every row holds (a contact table with no role column), or
+   * `{ sources }`: several role columns whose non-null keys the row holds.
    */
-  readonly roles: string | RoleThrough | readonly string[];
+  readonly roles:
+    | string
+    | RoleThrough
+    | readonly string[]
+    | { readonly sources: readonly (string | RoleThrough)[] };
   /** The membership kind every row has (`contact`, `staff`, `partner`). */
   readonly via?: string;
   readonly expiresAt?: string;
@@ -111,6 +120,8 @@ export type MembershipSql = {
   readonly reads: readonly string[];
   /** The roles table the role column references; a key change bumps every holder's authorization version. */
   readonly through?: RoleKeys;
+  /** Every roles table the role columns reference, `through` first. */
+  readonly throughs: readonly RoleKeys[];
   /** Every column that decides who holds which membership: user, scope, id, `within`, role, `via` and expiry. */
   readonly columns: readonly string[];
   /** For a single-scope source: its scope and the scopes whose ids each row carries. */
@@ -168,6 +179,7 @@ type Shape = {
   /** Joins after `from <table> m`: the roles table of a `through` role column. */
   readonly join: string;
   readonly through: RoleKeys | undefined;
+  readonly throughs: readonly RoleKeys[];
   readonly user: string;
   readonly scope: string;
   readonly id: string;
@@ -249,6 +261,7 @@ function sqlOf(shape: Shape): MembershipSql {
     ],
     managed: shape.managedColumn,
     through: shape.through,
+    throughs: shape.throughs,
     columns: [...new Set(shape.columns)],
     manifest: {
       table: qualifiedName(shape.table),
@@ -273,11 +286,7 @@ function isFixed(
 }
 
 /** A role column of the membership table, aliased `m`; a `through` column joins its roles table as `mk`. */
-function memberRole(
-  role: string | RoleThrough,
-  table: string,
-  label: string,
-): RoleColumn {
+function memberRole(role: RoleSpec, table: string, label: string): RoleColumn {
   return roleColumn(role, qualifiedName(table), "m", { label, indent: "" });
 }
 
@@ -415,6 +424,7 @@ export function fromTable(
     table: options.table,
     join: role.join,
     through: role.through,
+    throughs: role.throughs,
     user: c.user ?? "user_id",
     scope,
     id,
@@ -451,7 +461,7 @@ export function fromTable(
       c.user ?? "user_id",
       c.scope ?? "scope",
       c.id ?? "scope_id",
-      role.column,
+      ...role.columns,
       ...[c.within, c.via, c.expiresAt].filter(
         (name): name is string => name !== undefined,
       ),
@@ -490,7 +500,11 @@ export function fromJunction(
   }
   const role = isFixed(roles)
     ? undefined
-    : memberRole(roles, options.table, "fromJunction roles");
+    : memberRole(
+        typeof roles === "object" && "sources" in roles ? roles.sources : roles,
+        options.table,
+        "fromJunction roles",
+      );
   const managedColumn =
     options.managedBy === undefined
       ? undefined
@@ -505,6 +519,7 @@ export function fromJunction(
     table: options.table,
     join: role?.join ?? "",
     through: role?.through,
+    throughs: role?.throughs ?? [],
     user: options.user ?? "user_id",
     scope: `${literal(options.scope)}::text`,
     id: `${col(idColumn)}::text`,
@@ -572,7 +587,8 @@ export function fromJunction(
       options.user ?? "user_id",
       idColumn,
       ...withinEntries.map(([, column]) => column),
-      ...[role?.column, options.expiresAt].filter(
+      ...(role?.columns ?? []),
+      ...[options.expiresAt].filter(
         (name): name is string => name !== undefined,
       ),
     ],

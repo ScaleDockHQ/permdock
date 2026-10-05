@@ -897,7 +897,9 @@ function existsSql(
   if (roles.length > 0) {
     const roleList = roles.map((name) => name.replaceAll("'", "''")).join(",");
     const held =
-      role.through === undefined ? `m.${quoteIdent(role.column)}` : role.lookup;
+      role.through === undefined && !role.lateral
+        ? `m.${quoteIdent(role.column)}`
+        : role.lookup;
     parts.push(`${held} = any('{${roleList}}')`);
     const via =
       table.via === undefined
@@ -929,7 +931,8 @@ function existsSql(
       }),
     );
   }
-  return `exists (select 1 from ${quoteTable(table.table)} m where ${parts.join(" and ")})`;
+  const expand = roles.length > 0 && role.lateral ? role.join : "";
+  return `exists (select 1 from ${quoteTable(table.table)} m${expand} where ${parts.join(" and ")})`;
 }
 
 function compileMemberOf(

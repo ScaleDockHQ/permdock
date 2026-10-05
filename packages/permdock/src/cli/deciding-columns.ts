@@ -27,8 +27,7 @@ export function membershipColumns(
       columns.add(column);
     }
     byTable.set(table, columns);
-    const through = source.sql.through;
-    if (through !== undefined) {
+    for (const through of source.sql.throughs) {
       const keys = tableKey(through.table);
       byTable.set(
         keys,

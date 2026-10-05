@@ -86,8 +86,8 @@ export type SupabaseManifestMembership = {
   /** A column for `fromTable`, the fixed scope for `fromJunction`. */
   readonly scope: SupabaseManifestValue;
   readonly id: SupabaseManifestColumn;
-  /** A role column, or the fixed roles every row holds. */
-  readonly role: SupabaseManifestRole;
+  /** A role column, the fixed roles every row holds, or several role columns whose keys the row holds together. */
+  readonly role: SupabaseManifestRole | readonly SupabaseManifestRole[];
   /** A `jsonb` column of ancestor ids keyed by scope, or one column per ancestor scope. */
   readonly within?:
     | SupabaseManifestColumn
