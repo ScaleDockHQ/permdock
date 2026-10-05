@@ -71,6 +71,13 @@ export type DecideOptions = {
   readonly field?: string;
   /** `true` attaches a `trace` to the decision: the grants evaluated, matched and skipped. Off by default and free when off. */
   readonly explain?: boolean;
+  /**
+   * A declared scope name: only memberships of that scope answer the check.
+   * Naming the first scope keeps nested memberships out of a tenant-level
+   * guard on a collection action. Global roles still apply; resource roles
+   * and memberships of other scopes are skipped with reason `scope`.
+   */
+  readonly scope?: string;
 };
 
 export type SimulateOptions = {
