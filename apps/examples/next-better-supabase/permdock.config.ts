@@ -1,7 +1,7 @@
 import { sources } from "./src/sources.ts";
 
 export default {
-  permissions: "./src/policy.ts",
+  permissions: "./src/permissions.ts",
   policy: "./src/policy.ts",
   collect: { srcPath: ["./src"] },
   rls: {
