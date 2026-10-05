@@ -23,7 +23,7 @@
   "./openai": 97022,
   "./mcp": 106997,
   "./authzen": 106527,
-  "./openapi": 13631,
+  "./openapi": 13967,
   "./terminal": 100529,
   "./webmcp": 22432,
   "./a2a": 99894,
@@ -44,7 +44,7 @@
   "./testing": 161128,
   "./testing/saas": 100079,
   "./testing/saas/permissions": 91291,
-  "./cli": 397919,
+  "./cli": 398189,
   "./unplugin": 105672,
   "./next/plugin": 104546,
   "./next/client": 1022

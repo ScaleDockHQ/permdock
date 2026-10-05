@@ -54,6 +54,31 @@ export const list = base
 | `permdockHandler`                      | Procedure or Fetch handler for the AuthZEN-shaped decision endpoint.                                                                                                                                                                                                                                                                      |
 | `request` option                       | `(context) => Request \| null \| undefined`. The Web `Request` behind a context; defaults to `context.request` or `context.req`.                                                                                                                                                                                                          |
 
+### Contract-first
+
+`protect` and `permdock()` attach to procedures from `implement(contract)` as they do to `os` procedures, including procedures whose contract declares an `output`. The contract package imports `securityFor` from `permdock/openapi` for each operation's `security`, without the policy ([contract packages](/docs/adapters/openapi#contract-packages)).
+
+```ts
+// contract.ts: permissions only
+export const contract = { posts: { update: oc.input(byId).output(post) } };
+export const security = {
+  "posts.update": securityFor(permissions.post.update),
+};
+
+// server.ts
+const os = implement(contract).$context<Context>();
+export const router = os.router({
+  posts: {
+    update: os
+      .use(permdock())
+      .posts.update.use(
+        protect(permissions.post.update, ({ input }) => loadPost(input.id)),
+      )
+      .handler(({ context }) => context.permdockData),
+  },
+});
+```
+
 ### Event iterators
 
 A procedure behind `protect(permission, load?, { items })` whose handler returns an event iterator is wrapped the same way as a [tRPC subscription](/docs/adapters/trpc#subscriptions): items the subscriber cannot read are dropped, and an abort ends the iterator with an `ORPCError` (`UNAUTHORIZED` or `FORBIDDEN`) whose `data` is the Problem Details body. Pass `revocations` to `createPermDock`; `connection(opts, options?)` opens a [`Connection`](/docs/adapters/server-kernel#connections) by hand.

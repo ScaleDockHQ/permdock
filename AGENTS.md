@@ -134,7 +134,7 @@ Each is a record in `docs/decisions`:
 
 ## Pre-release pins
 
-- `@orpc/server`, `@orpc/client` 2.0.0-beta.41: `permdock/orpc` targets oRPC 2's `openapi()` metadata.
+- `@orpc/server`, `@orpc/client`, `@orpc/contract` 2.0.0-beta.41: `permdock/orpc` targets oRPC 2's `openapi()` metadata.
 - `drizzle-orm` 1.0.0-rc.4: the release candidate the standard asks for; the peer also accepts 0.40.
 - Prisma 8 and Expo SDK 58 stay on 7.10.0 and SDK 57 until their blockers clear (0018).
 

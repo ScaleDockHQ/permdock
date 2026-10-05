@@ -65,6 +65,8 @@ Until the registration lands, the extensions are still valid OpenAPI (any `x-` f
 
 Every value is plain JSON that survives the same round trips as a permission leaf; nothing in an extension is a reference to a runtime object.
 
+`x-permdock-permissions` needs only the permission references, so `permissionsExtension(permissions)` and `securityFor(permission)` in `permdock/openapi` build it without a policy, for contract packages that cannot import server code ([contract packages](/docs/adapters/openapi#contract-packages)). The other operation extensions read the grants and come from the policy-backed emitter.
+
 ```json
 {
   "paths": {

@@ -54,7 +54,8 @@ export type OrpcMiddleware<
     readonly permdockData?: unknown;
   },
   TInput,
-  unknown,
+  // oxlint-disable-next-line typescript/no-explicit-any -- oRPC's middleware default; `unknown` rejects procedures with a declared output
+  any,
   // oxlint-disable-next-line typescript/no-generated-empty-object-type -- oRPC's own "no meta" type
   Record<never, never>
 >;

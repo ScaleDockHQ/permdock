@@ -102,6 +102,34 @@ generateSpecs(app, { components: { securitySchemes: securitySchemes() } })
 - `target: '3.3'` with `securityProfile` set additionally emits the pinned Security Profile draft: `securitySchemes()` returns a second, `type: profile` scheme (`profileScheme`, default `permdockFapi2`) with `profileMetadata.name: fapi-20-security-profile`, `supportedParametersSchema` and `servers` from `scheme.oauth2MetadataUrl`; `describe()` and `spec()` are unchanged (operations keep `security` and the extension twin); `securityProfileRequirements(scopeSets?)` returns the `components.securityProfileRequirements` map, one entry per distinct scope set (one per permission without `scopeSets`), each naming the profile scheme, the FAPI 2.0 client authentication methods and the grant types of the configured flows; `overlay()` includes it. The root `x-permdock-catalog.drafts` records the pin. The shape follows the pinned draft until 3.3.0 is released, then switches to the released construct ([OpenAPI 3.2 and 3.3](/docs/standards/openapi)).
 - `scheme.type: 'gnap'` is a reserved value that throws with a pointer to the [watch list](/docs/standards/watch-list); no GNAP scheme is emitted until the OpenAPI Initiative defines one.
 
+### Contract packages
+
+`securityFor` and `permissionsExtension` take permission references only, so a contract package that imports the permissions but never the policy can write the security of each operation. A `tests/bundle` case asserts that the two helpers bundle without any policy, evaluation or permission-definition code.
+
+```ts
+// contract/posts.ts: imports permissions.ts, never policy.ts
+import { permissionsExtension, securityFor } from "permdock/openapi";
+import { permissions } from "./permissions";
+
+export const security = {
+  "posts.delete": securityFor(permissions.post.delete),
+  // { security: [{ oauth2: ['post:delete'] }], 'x-permdock-permissions': ['post.delete'] }
+  "posts.review": securityFor(
+    [permissions.post.update, permissions.post.publish],
+    { anyOf: true },
+  ),
+};
+
+permissionsExtension(permissions.post.delete); // ['post.delete']
+```
+
+| Option   | Default    | Effect                                                                                    |
+| -------- | ---------- | ----------------------------------------------------------------------------------------- |
+| `scheme` | `'oauth2'` | The security scheme name. `'oauth2'` matches the adapters' `openapi.securitySchemes()`.   |
+| `anyOf`  | `false`    | One requirement per scope (any one suffices) instead of one requirement with every scope. |
+
+`securityFor(permission)` returns the same object as the server adapters' `openapi.security(permission)`. It differs from `createPermDock(...).describe` in one case: without the policy it cannot tell that a permission is public, so it never returns an empty `security`. It also omits `x-permdock-conditions` and `x-permdock-approval`, which need the grants. Write those on the server or with `permdock openapi emit`. An empty list still returns `[{ oauth2: [] }]`, because an empty `security` array marks an operation public.
+
 ## Registry and namespace
 
 Every PermDock-specific field in a document is an OpenAPI extension under the `x-permdock-` prefix. PermDock registers the `permdock` namespace in the OAI [Namespace Registry](https://spec.openapis.org/registry/namespace/) (the pull request is described on [OpenAPI registries](/docs/standards/openapi-registry)). When the OpenAPI Initiative has already registered an extension for the same purpose (`x-oai-deprecated`, `x-oai-deviceAuthorization`, `x-oai-deviceAuthorizationUrl` for 3.1 targets) the adapter emits the registered name instead of inventing one; it never coins an `x-oai-*` name. The full extension table and the rules are on [OpenAPI registries](/docs/standards/openapi-registry).

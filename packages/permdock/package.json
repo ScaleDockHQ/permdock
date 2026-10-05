@@ -264,6 +264,7 @@
     "@nestjs/core": "catalog:",
     "@nestjs/platform-express": "catalog:",
     "@openai/agents": "catalog:",
+    "@orpc/contract": "catalog:",
     "@orpc/server": "catalog:",
     "@permdock/ox-config": "workspace:*",
     "@permdock/typescript-config": "workspace:*",

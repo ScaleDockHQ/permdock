@@ -125,6 +125,8 @@ const { describe, securitySchemes, overlay } = createPermDock(policy, {
 
 `describe(permission)` returns `security` plus `x-permdock-permissions`. `overlay({ version: '1.2' })` emits the pinned Overlay 1.2 draft. `target: '3.3'` emits the pinned Security Profile draft next to `x-permdock-securityProfile`. `scheme.type: 'gnap'` throws and emits nothing. CLI: `permdock openapi emit --doc openapi.json`; add `--arity` when a generated MCP server or SDK needs `x-permdock-arity` (instance or collection, and the id path parameter).
 
+In a contract package that must not import the policy, use `securityFor(permission, { scheme?, anyOf? })` and `permissionsExtension(permissions)` from `permdock/openapi`: they take permission references only and return the same `security` and `x-permdock-permissions` as the server's `openapi.security(permission)`. They never mark a permission public and omit `x-permdock-conditions` and `x-permdock-approval`; those need the policy.
+
 ## React Native — `permdock/react-native`
 
 No factory. Same hooks and `<Protected>` as `permdock/react`, plus `storage` so Expo Router `Stack.Protected` can answer on the first frame:
@@ -262,7 +264,7 @@ base
   .handler(({ context }) => deletePost(context.permdockData));
 ```
 
-`protect` throws `ORPCError` (`FORBIDDEN`, `BAD_REQUEST`, `UNAUTHORIZED`) with Problem Details as `data`, and so does `context.permdock.assert` in a handler. Read the tenant from each procedure's input. `openapi.protect` is the same guard; pass `openapi.security(permission)` to oRPC 2's `openapi({ spec })` metadata helper. Event iterators behind `protect(permission, load, { items })` end and filter like tRPC subscriptions.
+`protect` throws `ORPCError` (`FORBIDDEN`, `BAD_REQUEST`, `UNAUTHORIZED`) with Problem Details as `data`, and so does `context.permdock.assert` in a handler. Read the tenant from each procedure's input. `openapi.protect` is the same guard; pass `openapi.security(permission)` to oRPC 2's `openapi({ spec })` metadata helper. Event iterators behind `protect(permission, load, { items })` end and filter like tRPC subscriptions. `protect` also attaches to `implement(contract)` procedures, including ones with a declared `output`.
 
 ## Vue — `permdock/vue`
 

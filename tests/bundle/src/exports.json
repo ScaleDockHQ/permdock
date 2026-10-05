@@ -326,6 +326,8 @@
     "catalogOf",
     "createPermDock",
     "openapiVersion",
+    "permissionsExtension",
+    "securityFor",
     "securitySchemesOf"
   ],
   "./terminal": [

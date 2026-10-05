@@ -13,5 +13,6 @@
   "jwt subjectFromJwt": 8334,
   "mcp createPermDock": 41414,
   "ai-sdk createPermDock": 39188,
-  "supabase/middleware createPermDock": 42498
+  "supabase/middleware createPermDock": 42498,
+  "openapi securityFor + permissionsExtension": 250
 }
