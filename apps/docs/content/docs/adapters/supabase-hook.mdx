@@ -183,7 +183,7 @@ const actor = await createPermDock(policy, await sources.subject(userId), {
 });
 ```
 
-`sources.memberships` answers `membershipsFor` and `version`, so `claimsFirst` freshness works without a `SqlQuery`. `sources.customRoles(principal)` returns the custom roles that principal holds; a role-management page that needs every role of a tenant composes [`customRoleSource`](/docs/concepts/extension-interfaces#rolesource) over its own read. `sources.subject(userId)` is the anonymous subject for a suspended or unknown user, and a failed call rejects, which `createPermDock` turns into a denial.
+`sources.memberships` answers `membershipsFor` and `version`, so `claimsFirst` freshness works without a `SqlQuery`. `sources.customRoles(principal)` returns the custom roles that principal holds; a role-management page that needs every role of a tenant composes [`customRoleSource`](/docs/concepts/extension-interfaces#membershipsource-and-rolesource) over its own read. `sources.subject(userId)` is the anonymous subject for a suspended or unknown user, and a failed call rejects, which `createPermDock` turns into a denial.
 
 ## Generate
 

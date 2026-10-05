@@ -15,6 +15,7 @@ import type {
   MembershipSource,
   RelationSource,
   RoleSource,
+  RoleSourceFactory,
   Snapshot,
   TokenSigner,
 } from "./interfaces.ts";
@@ -40,7 +41,11 @@ import type { WhoCan } from "./who-can.ts";
 
 import { approvalPoliciesFor } from "./approval-policies.ts";
 import { compact } from "./compact.ts";
-import { assignableNamesFor, customRolesFor } from "./evaluate.ts";
+import {
+  assignableNamesFor,
+  customRolesFor,
+  roleSourceFor,
+} from "./evaluate.ts";
 import {
   type PolicyDocument,
   type PolicySource,
@@ -334,7 +339,7 @@ export type PermDockOptions = {
   readonly tenant?: string;
   /** One source, or several composed with `composeMemberships`. */
   readonly memberships?: MembershipSource | readonly MembershipSource[];
-  readonly customRoles?: RoleSource;
+  readonly customRoles?: RoleSource | RoleSourceFactory;
   /** Plans and seats from billing, merged into `principal.plans` for the active tenant. */
   readonly entitlements?: EntitlementSource;
   readonly actor?: Actor;
@@ -377,14 +382,15 @@ function instantiate(
   const { policy, errors } = hostedPolicy(codePolicy, options.policies);
   const scopes = scopeList(policy.scopes);
   const tenants = tenantsOf(subject.principal, scopes);
+  const roleSource = roleSourceFor(options.customRoles, subject, auth);
   const customRoles = customRolesFor(
-    options.customRoles,
+    roleSource,
     tenants,
     auth,
     subject.principal !== null,
     (tenant) => heldRoleNamesIn(subject.principal, scopes, tenant),
   );
-  const assignable = assignableNamesFor(options.customRoles, tenants, auth);
+  const assignable = assignableNamesFor(roleSource, tenants, auth);
   const approvals = approvalPoliciesFor(
     policy,
     options.approvalPolicies,
@@ -405,7 +411,7 @@ function instantiate(
         limits: options.limits,
         limitCache: new Map<string, number>(),
         simulated: false,
-        roleSource: options.customRoles,
+        roleSource,
         assignable: names,
         queuedAuth: auth,
         queuedErrors: errors,

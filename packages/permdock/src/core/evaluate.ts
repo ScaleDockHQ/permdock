@@ -10,7 +10,12 @@ import type {
   TraceSkip,
   TraceSkipReason,
 } from "./decision.ts";
-import type { AuthEvent, DecisionEvent, RoleSource } from "./interfaces.ts";
+import type {
+  AuthEvent,
+  DecisionEvent,
+  RoleSource,
+  RoleSourceFactory,
+} from "./interfaces.ts";
 import type { DecideOptions, RowPair } from "./permdock.ts";
 import type { Permission } from "./permissions.ts";
 import type { RelationReader } from "./relations.ts";
@@ -102,6 +107,23 @@ function isGlobalRole(value: unknown): value is CustomRole {
 
 function onlyGlobal(roles: unknown): CustomRole[] {
   return Array.isArray(roles) ? roles.filter(isGlobalRole) : [];
+}
+
+/** The `customRoles` option as a source: a factory is called with the resolved subject, and a throw reads none. */
+export function roleSourceFor(
+  option: RoleSource | RoleSourceFactory | undefined,
+  subject: Subject,
+  auth: AuthEvent[],
+): RoleSource | undefined {
+  if (typeof option !== "function") {
+    return option;
+  }
+  try {
+    return option(subject);
+  } catch {
+    auth.push({ reason: "source-threw", source: "customRoles" });
+    return undefined;
+  }
 }
 
 export function customRolesFor(
