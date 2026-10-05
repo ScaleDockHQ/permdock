@@ -11,6 +11,7 @@ export {
   resolveApproval,
   resumeDecision,
   resumeFromHeader,
+  storedApprovalToken,
   summariseSubject,
 } from "./helpers.ts";
 export { approverRelations } from "./relations.ts";

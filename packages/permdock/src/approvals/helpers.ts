@@ -433,26 +433,32 @@ export function resumeFromHeader(
 }
 
 /**
- * The stored token for a decision that is waiting on approval: an approved or
- * rejected record for the recomputed token resumes without the caller
- * carrying it, since the token already binds permission, resource (or the
- * call's data when there is no row id), subject and actor.
+ * The token to resume `decision` with when the caller carries none: the
+ * decision's own token when the store holds an approved or rejected request
+ * for it, so `resumeDecision` resumes (or denies) the call without the
+ * caller passing the token back. The token already binds permission,
+ * resource (or the call's data when there is no row id), subject and actor.
+ * A pending request counts only with `denyPending: true`, which makes the
+ * call deny with `approval-pending` instead of asking again. `undefined` when
+ * the decision needs no approval, there is no store, or the store has no
+ * unexpired request for the token; a store that throws counts as none.
  */
 export async function storedApprovalToken(
   store: ApprovalStore | undefined,
   decision: Decision,
-  denyPending: boolean,
+  options: { readonly denyPending?: boolean; readonly now?: Date } = {},
 ): Promise<string | undefined> {
   if (store === undefined || decision.outcome !== "approval-required") {
     return undefined;
   }
+  const now = (options.now ?? new Date()).getTime();
   try {
     const record = await store.get(decision.token);
     if (
       record === null ||
-      (record.status === "pending" && !denyPending) ||
+      (record.status === "pending" && options.denyPending !== true) ||
       record.status === "expired" ||
-      Date.parse(record.expiresAt) <= Date.now()
+      Date.parse(record.expiresAt) <= now
     ) {
       return undefined;
     }

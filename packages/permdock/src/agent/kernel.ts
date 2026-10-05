@@ -243,11 +243,9 @@ export function createAgentKernel<
         adapter: options.adapter,
         token:
           decideOptions.resumeToken ??
-          (await storedApprovalToken(
-            options.store,
-            raw,
-            decideOptions.denyPending === true,
-          )),
+          (await storedApprovalToken(options.store, raw, {
+            denyPending: decideOptions.denyPending === true,
+          })),
       });
       if (decision.outcome === "granted") {
         return {

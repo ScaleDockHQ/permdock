@@ -78,6 +78,29 @@ interface ApprovalStore {
 - `requestApproval(store, decision, meta)` and `resolveApproval(store, token, verdict)` are the two internal helpers agent adapters share; applications rarely call them directly.
 - `signer` (optional, a `TokenSigner` such as `joseTokenSigner` from `permdock/jwt`) makes `approvalsHandler` return, on approve, a compact JWS with `typ: permdock-approval+jwt` alongside the bare token: registered claims `iss`, `aud`, `sub` (the principal), `iat`, `exp` (= the request's `expiresAt`), `jti`, and `{ token, permission, resource, status }` under the `approval` claim ([wire formats](/docs/concepts/wire-formats)). It exists for a resume that crosses services or trust domains, where the resuming side wants proof of who resolved the request before it spends a `decide`. The bound hash `token` stays the thing that is compared: the adapter verifies the JWS with its `verifier`, extracts `approval.token`, and then runs the unchanged step 5 below. `PermDock-Approval` carries either form; the kernel tells them apart by the `pd1.` prefix versus the three-segment JWS shape.
 
+An application that decides approvals in its own gate, outside an adapter, resumes a call the way the adapters do: `resumeDecision({ decision, permission, subject, store, resource, adapter, token })` with `token: await storedApprovalToken(store, decision)`. `storedApprovalToken` returns the decision's own token when the store holds an approved or rejected request for it, so a retried call resumes (or is denied) without the caller carrying the token; it returns `undefined` for no record, an expired one, a store that throws, or a decision that needs no approval. A pending request counts only with `{ denyPending: true }`, which denies the call with `approval-pending` instead of asking again; `now` sets the clock for the expiry check.
+
+```ts
+import {
+  readApprovalHeader,
+  resumeDecision,
+  storedApprovalToken,
+} from "permdock/approvals";
+
+const raw = permdock.decide(permissions.payment.send, payment);
+const decision = await resumeDecision({
+  decision: raw,
+  permission: permissions.payment.send,
+  subject: permdock.subject,
+  store,
+  resource: { type: "payment", id: payment.id },
+  adapter: "app",
+  token:
+    readApprovalHeader(request.headers) ??
+    (await storedApprovalToken(store, raw)),
+});
+```
+
 `approvalsHandler` routes, all Fetch `Request` to `Response`:
 
 | Route                  | Purpose                                                                                                                                                                                                                                                                                 | Denial                                                                                                                                                                                                                                                                                                                       |
