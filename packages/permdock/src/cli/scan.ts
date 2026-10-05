@@ -60,7 +60,17 @@ type Estree = {
   readonly properties?: readonly Estree[];
   readonly key?: Estree;
   readonly elements?: readonly Estree[];
+  readonly params?: readonly Estree[];
+  readonly param?: Estree | null;
+  readonly parameter?: Estree;
+  readonly left?: Estree;
+  readonly argument?: Estree | null;
+  readonly cases?: readonly Estree[];
+  readonly consequent?: Estree | readonly Estree[];
 };
+
+/** Whether an identifier, where it is read, is bound to a permission tree. */
+type RootTest = (name: string) => boolean;
 
 export function scanSources(
   cwd: string,
@@ -77,16 +87,40 @@ export function scanSources(
   const allowKeys = new Set<string>();
   const snapshots: SnapshotSite[] = [];
 
+  const parsed: {
+    readonly file: string;
+    readonly source: string;
+    readonly program: Program;
+  }[] = [];
   for (const file of files) {
     const source = readFileSync(file, "utf8");
-    let program: Program;
     try {
-      program = parseSync(file, source).program;
+      parsed.push({ file, source, program: parseSync(file, source).program });
     } catch {
       continue;
     }
+  }
+  // Every `definePermissions` binding name, so an import of one resolves in any file.
+  const definitions = new Set<string>(["permissions"]);
+  for (const { program } of parsed) {
+    walk(program, (node) => {
+      if (
+        node.type === "VariableDeclarator" &&
+        node.id?.type === "Identifier" &&
+        node.id.name !== undefined &&
+        isDefinePermissions(node.init)
+      ) {
+        definitions.add(node.id.name);
+      }
+    });
+  }
+
+  for (const { file, source, program } of parsed) {
     const fileRel = rel(cwd, file);
-    walk(program, (node, parent) => {
+    const scopes = new WeakMap<Estree, ReadonlyMap<string, boolean>>();
+    walk(program, (node, parent, ancestors) => {
+      const isRoot: RootTest = (name) =>
+        boundToRoot(name, ancestors, definitions, scopes);
       if (node.type === "CallExpression") {
         recordCall(
           node,
@@ -110,7 +144,7 @@ export function scanSources(
             line: lineAt(source, node.start ?? 0),
             include: includeOf(
               node.arguments?.[callee === "snapshot" ? 0 : 2],
-              roots,
+              isRoot,
             ),
           });
         }
@@ -124,7 +158,7 @@ export function scanSources(
           parent,
           source,
           fileRel,
-          roots,
+          isRoot,
           usages,
           unknown,
           dynamic,
@@ -133,7 +167,7 @@ export function scanSources(
         );
       }
       if (node.type === "ImportDeclaration") {
-        recordImport(node, roots);
+        recordImport(node, roots, definitions);
       }
     });
   }
@@ -153,7 +187,7 @@ export function scanSources(
 
 function includeOf(
   options: Estree | undefined,
-  roots: ReadonlySet<string>,
+  isRoot: RootTest,
 ): readonly string[] | null | undefined {
   if (options?.type !== "ObjectExpression") {
     return options === undefined ? undefined : null;
@@ -176,7 +210,7 @@ function includeOf(
     const path =
       element.type === "MemberExpression" ? memberPath(element) : undefined;
     const [root, ...rest] = path ?? [];
-    if (root === undefined || !roots.has(root) || rest.length === 0) {
+    if (root === undefined || !isRoot(root) || rest.length === 0) {
       return null;
     }
     keys.push(rest.join("."));
@@ -184,14 +218,193 @@ function includeOf(
   return keys;
 }
 
-function recordImport(node: Estree, roots: Set<string>): void {
+function recordImport(
+  node: Estree,
+  roots: Set<string>,
+  definitions: ReadonlySet<string>,
+): void {
   for (const spec of node.specifiers ?? []) {
-    const imported = spec.imported?.name ?? spec.local?.name;
     const local = spec.local?.name;
-    if (imported === "permissions" && local !== undefined) {
+    if (local !== undefined && importsRoot(spec, definitions)) {
       roots.add(local);
     }
   }
+}
+
+function isDefinePermissions(node: Estree | undefined): boolean {
+  return (
+    node?.type === "CallExpression" &&
+    calleeName(node.callee) === "definePermissions"
+  );
+}
+
+/** An import binding of a permission tree: by its imported name, or a default import named `permissions`. */
+function importsRoot(spec: Estree, definitions: ReadonlySet<string>): boolean {
+  if (spec.type === "ImportSpecifier") {
+    const imported = spec.imported?.name ?? spec.local?.name;
+    return imported !== undefined && definitions.has(imported);
+  }
+  return (
+    spec.type === "ImportDefaultSpecifier" && spec.local?.name === "permissions"
+  );
+}
+
+function patternNames(
+  pattern: Estree | null | undefined,
+  into: string[],
+): void {
+  if (pattern === null || pattern === undefined) {
+    return;
+  }
+  const type = pattern.type;
+  if (type === "Identifier" && pattern.name !== undefined) {
+    into.push(pattern.name);
+  } else if (type === "ObjectPattern") {
+    for (const property of pattern.properties ?? []) {
+      // SAFETY: a pattern Property's value is the bound pattern node.
+      const value = property.value as Estree | undefined;
+      patternNames(
+        property.type === "RestElement" ? property.argument : value,
+        into,
+      );
+    }
+  } else if (type === "ArrayPattern") {
+    for (const element of pattern.elements ?? []) {
+      patternNames(element, into);
+    }
+  } else {
+    patternNames(pattern.left ?? pattern.argument ?? pattern.parameter, into);
+  }
+}
+
+const NAMED_DECLARATIONS: ReadonlySet<string | undefined> = new Set([
+  "FunctionDeclaration",
+  "ClassDeclaration",
+  "TSEnumDeclaration",
+]);
+
+function declareStatement(
+  statement: Estree,
+  bindings: Map<string, boolean>,
+  definitions: ReadonlySet<string>,
+): void {
+  const type = statement.type;
+  if (type === "VariableDeclaration") {
+    for (const declarator of statement.declarations ?? []) {
+      const names: string[] = [];
+      patternNames(declarator.id, names);
+      const root =
+        declarator.id?.type === "Identifier" &&
+        isDefinePermissions(declarator.init);
+      for (const name of names) {
+        bindings.set(name, root);
+      }
+    }
+  } else if (NAMED_DECLARATIONS.has(type)) {
+    if (statement.id?.name !== undefined) {
+      bindings.set(statement.id.name, false);
+    }
+  } else if (
+    type === "ExportNamedDeclaration" ||
+    type === "ExportDefaultDeclaration"
+  ) {
+    const declaration: Estree | null | undefined = statement.declaration;
+    if (declaration !== undefined && declaration !== null) {
+      declareStatement(declaration, bindings, definitions);
+    }
+  } else if (type === "ImportDeclaration") {
+    for (const spec of statement.specifiers ?? []) {
+      if (spec.local?.name !== undefined) {
+        bindings.set(spec.local.name, importsRoot(spec, definitions));
+      }
+    }
+  }
+}
+
+function isNodeList(value: unknown): value is readonly Estree[] {
+  return Array.isArray(value);
+}
+
+const BLOCK_SCOPES: ReadonlySet<string | undefined> = new Set([
+  "Program",
+  "BlockStatement",
+  "StaticBlock",
+]);
+
+const FUNCTION_SCOPES: ReadonlySet<string | undefined> = new Set([
+  "FunctionDeclaration",
+  "FunctionExpression",
+  "ArrowFunctionExpression",
+]);
+
+/** The names a scope node declares, each with whether it is a permission tree; `undefined` for a node that opens no scope. */
+function bindingsOf(
+  node: Estree,
+  definitions: ReadonlySet<string>,
+): ReadonlyMap<string, boolean> | undefined {
+  const bindings = new Map<string, boolean>();
+  const type = node.type;
+  const declare = (statements: unknown): void => {
+    for (const statement of isNodeList(statements) ? statements : []) {
+      declareStatement(statement, bindings, definitions);
+    }
+  };
+  const names: string[] = [];
+  if (BLOCK_SCOPES.has(type)) {
+    declare(node.body);
+  } else if (FUNCTION_SCOPES.has(type)) {
+    for (const param of node.params ?? []) {
+      patternNames(param, names);
+    }
+    if (type === "FunctionExpression") {
+      patternNames(node.id, names);
+    }
+  } else if (type === "ForStatement") {
+    declare(node.init === undefined ? [] : [node.init]);
+  } else if (type === "ForInStatement" || type === "ForOfStatement") {
+    declare(node.left === undefined ? [] : [node.left]);
+  } else if (type === "CatchClause") {
+    patternNames(node.param, names);
+  } else if (type === "SwitchStatement") {
+    for (const branch of node.cases ?? []) {
+      declare(branch.consequent);
+    }
+  } else {
+    return undefined;
+  }
+  for (const name of names) {
+    bindings.set(name, false);
+  }
+  return bindings;
+}
+
+/**
+ * Whether `name`, read inside `ancestors`, is bound to a permission tree: the
+ * innermost scope that declares it decides. A name no scope declares keeps
+ * matching by name, as a global or generated reference does.
+ */
+function boundToRoot(
+  name: string,
+  ancestors: readonly Estree[],
+  definitions: ReadonlySet<string>,
+  cache: WeakMap<Estree, ReadonlyMap<string, boolean>>,
+): boolean {
+  for (const scope of ancestors.toReversed()) {
+    let bindings = cache.get(scope);
+    if (bindings === undefined) {
+      const found = bindingsOf(scope, definitions);
+      if (found === undefined) {
+        continue;
+      }
+      bindings = found;
+      cache.set(scope, bindings);
+    }
+    const bound = bindings.get(name);
+    if (bound !== undefined) {
+      return bound;
+    }
+  }
+  return definitions.has(name);
 }
 
 function recordCall(
@@ -264,7 +477,7 @@ function recordMember(
   parent: Estree | undefined,
   source: string,
   fileRel: string,
-  roots: Set<string>,
+  isRoot: RootTest,
   usages: Record<string, CatalogUsage[]>,
   unknown: CatalogUsage[],
   dynamic: DynamicUsage[],
@@ -273,7 +486,7 @@ function recordMember(
 ): void {
   if (node.computed === true) {
     const root = rootName(node);
-    if (root !== undefined && roots.has(root)) {
+    if (root !== undefined && isRoot(root)) {
       dynamic.push({
         file: fileRel,
         line: lineAt(source, node.start ?? 0),
@@ -287,7 +500,7 @@ function recordMember(
     return;
   }
   const [root, ...rest] = path;
-  if (root === undefined || !roots.has(root)) {
+  if (root === undefined || !isRoot(root)) {
     return;
   }
   const key = rest.join(".");
@@ -444,13 +657,17 @@ function collectObjectKeys(node: Estree | undefined, into: Set<string>): void {
 /** Every node in source order, with its parent: Oxc nodes carry none, so enter and exit keep a stack. */
 function walk(
   program: Program,
-  visit: (node: Estree, parent: Estree | undefined) => void,
+  visit: (
+    node: Estree,
+    parent: Estree | undefined,
+    ancestors: readonly Estree[],
+  ) => void,
 ): void {
   const stack: Estree[] = [];
   const handlers: Record<string, (node: Estree) => void> = {};
   for (const type of Object.keys(visitorKeys)) {
     handlers[type] = (node) => {
-      visit(node, stack.at(-1));
+      visit(node, stack.at(-1), stack);
       stack.push(node);
     };
     handlers[`${type}:exit`] = () => {
