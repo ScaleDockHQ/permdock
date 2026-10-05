@@ -1,8 +1,8 @@
 import type { WhereResult } from "../core/permdock.ts";
 import type { Condition, RelatedCondition } from "./ast.ts";
 
-import { PermDockValidationError } from "../core/errors.ts";
 import { freezeDeep } from "../core/freeze.ts";
+import { PermDockValidationError } from "../core/validation-error.ts";
 import {
   type RelationsMapping,
   relatedRowGuard,

@@ -184,7 +184,9 @@ export function createPermDock<
       reply: FastifyReply,
     ) => unknown = app.errorHandler;
     app.setErrorHandler(async function permdockErrors(err, request, reply) {
-      const problem = problemFromError(err);
+      const problem = problemFromError(err, {
+        credentials: request.headers.authorization !== undefined,
+      });
       if (problem === undefined) {
         await previous.call(this, err, request, reply);
         return undefined;

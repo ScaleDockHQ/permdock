@@ -207,7 +207,10 @@ describe("permdock/nest exception filter", () => {
     // SAFETY: stub implements every ArgumentsHost method the filter calls for http.
     return {
       getType: () => "http",
-      switchToHttp: () => ({ getResponse: () => res }),
+      switchToHttp: () => ({
+        getResponse: () => res,
+        getRequest: () => ({ headers: {} }),
+      }),
     } as unknown as ArgumentsHost;
   }
 

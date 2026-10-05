@@ -3,8 +3,8 @@ import type { StandardSchemaV1 } from "@standard-schema/spec";
 import type { CatalogSchemaNode } from "./schema.ts";
 import type { CatalogDocument } from "./types.ts";
 
-import { PermDockValidationError } from "../core/errors.ts";
 import { freezeDeep } from "../core/freeze.ts";
+import { PermDockValidationError } from "../core/validation-error.ts";
 import { catalogSchema } from "./schema.ts";
 
 type Path = readonly PropertyKey[];

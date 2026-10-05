@@ -15,6 +15,7 @@ import type { WebBotAuthVerifier } from "../server/web-bot-auth.ts";
 import { compact } from "../core/compact.ts";
 import { instanceOptions } from "../core/instance-options.ts";
 import { createKernel } from "../server/create.ts";
+import { methodNotAllowed } from "../server/problem.ts";
 import { invalidSignatureResponse } from "../server/web-bot-auth.ts";
 
 /**
@@ -191,12 +192,7 @@ export function createPermDock<
         case "GET":
           return GET(request);
         default:
-          return Promise.resolve(
-            new Response(null, {
-              status: 405,
-              headers: { Allow: "GET, POST" },
-            }),
-          );
+          return Promise.resolve(methodNotAllowed("GET, POST"));
       }
     };
   };

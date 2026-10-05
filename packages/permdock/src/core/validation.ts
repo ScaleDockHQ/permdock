@@ -2,8 +2,8 @@ import type { StandardSchemaV1 } from "@standard-schema/spec";
 
 import type { Permission, ResourceNode } from "./permissions.ts";
 
-import { PermDockValidationError } from "./errors.ts";
 import { ignoreRejection, isThenable } from "./thenable.ts";
+import { PermDockValidationError } from "./validation-error.ts";
 
 export type Boundary =
   | "http-body"

@@ -972,6 +972,9 @@ export function buildInstance(
         decision.denials,
         decision.alternatives.map((leaf) => leaf.key),
       ),
+      ...(data === undefined || resource === undefined
+        ? {}
+        : { disclosure: resource.disclosure }),
     });
   };
 

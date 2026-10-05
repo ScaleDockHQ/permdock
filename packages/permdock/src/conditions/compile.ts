@@ -3,7 +3,6 @@ import type { ResourceNode } from "../core/permissions.ts";
 import type { Membership, Subject } from "../core/subject.ts";
 
 import { compact, isReadonlyArray, sole } from "../core/compact.ts";
-import { PermDockValidationError } from "../core/errors.ts";
 import { assertSafeKey } from "../core/paths.ts";
 import {
   type Scope,
@@ -14,6 +13,7 @@ import {
   subjectMemberships,
   tenantOf,
 } from "../core/scopes.ts";
+import { PermDockValidationError } from "../core/validation-error.ts";
 import {
   type Condition,
   type ConditionValue,

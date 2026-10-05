@@ -13,6 +13,7 @@ import { compact } from "../core/compact.ts";
 import {
   PermDockApprovalRequiredError,
   PermDockDeniedError,
+  PermDockValidationError,
 } from "../core/errors.ts";
 import { createPermDock as createCore } from "../core/permdock.ts";
 
@@ -31,7 +32,8 @@ export class ConvexError extends Error {
 function toConvexError(error: unknown): unknown {
   if (
     error instanceof PermDockDeniedError ||
-    error instanceof PermDockApprovalRequiredError
+    error instanceof PermDockApprovalRequiredError ||
+    error instanceof PermDockValidationError
   ) {
     return new ConvexError(error.toProblemDetails());
   }

@@ -49,6 +49,7 @@ import {
 import { instanceOptions } from "../core/instance-options.ts";
 import { createKernel, tenantScope } from "../server/create.ts";
 import { problemFromError } from "../server/map-error.ts";
+import { notFoundProblem } from "../server/problem.ts";
 import { POLICY_VIOLATION, onRevoked } from "../server/stream.ts";
 import { InvalidSignatureError } from "../server/web-bot-auth.ts";
 import { sendNestResponse, toRequest, type NestHttpRequest } from "./http.ts";
@@ -332,7 +333,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         // oxlint-disable-next-line no-await-in-loop -- rules apply in order
         data = req === undefined ? undefined : await loader(req);
         if (data === null || data === undefined) {
-          throw new PermDockHttpError(new Response(null, { status: 404 }));
+          throw new PermDockHttpError(notFoundProblem());
         }
       }
       const decision = conn.check(
@@ -407,7 +408,12 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       const problem =
         exception instanceof PermDockHttpError
           ? exception.response
-          : problemFromError(exception);
+          : problemFromError(exception, {
+              credentials:
+                host.getType() === "http" &&
+                host.switchToHttp().getRequest<NestRequest>().headers
+                  .authorization !== undefined,
+            });
       if (problem === undefined) {
         throw new TypeError("unhandled permdock exception");
       }

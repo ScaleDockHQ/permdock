@@ -170,7 +170,7 @@ const permdock = withOtel(await createPermDock(policy, user), {
 
 ## Problem Details
 
-HTTP adapters answer a denied `assert` with `403 application/problem+json` per [RFC 9457](/docs/standards/problem-details), generated from the `Decision`. The `denied`, `approval-required` and `validation` bodies are on [wire formats](/docs/concepts/wire-formats#problem-details).
+HTTP adapters answer a denied `assert` with the status `protect` sends for the same decision (403, or 401, 404, 429 or 503) as `application/problem+json` per [RFC 9457](/docs/standards/problem-details), generated from the `Decision`. The `denied`, `approval-required` and `validation` bodies are on [wire formats](/docs/concepts/wire-formats#problem-details).
 
 Rules the adapters follow:
 

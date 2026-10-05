@@ -4,6 +4,7 @@ import { z } from "zod";
 import type { PermDock } from "../../src/core/permdock.ts";
 import type { Principal, Subject } from "../../src/core/subject.ts";
 
+import { PermDockDeniedError } from "../../src/core/errors.ts";
 import { memoryLimitStore } from "../../src/core/limits.ts";
 import { createPermDock as createCorePermDock } from "../../src/core/permdock.ts";
 import { definePermissions, resource } from "../../src/core/permissions.ts";
@@ -16,7 +17,7 @@ import {
   principal,
   role,
 } from "../../src/index.ts";
-import { createPermDock } from "../../src/server/index.ts";
+import { createPermDock, problemFromError } from "../../src/server/index.ts";
 import {
   rateLimitHeaders,
   stepUpOf,
@@ -313,5 +314,138 @@ describe("step-up challenges", () => {
       id: "t1",
     });
     expect(stepUpOf(elevated)).toEqual({ acrValues: ["mfa"], maxAge: 60 });
+  });
+});
+
+describe("assert and protect parity", () => {
+  const member: User = { id: "u1", roles: ["member"] };
+
+  function setup(disclosure: "hide" | "reveal") {
+    const permissions = permissionsWith(disclosure);
+    const policy = definePolicy(permissions, {
+      roles: [
+        role("member", [
+          allow(permissions.report.read, { where: { ownerId: principal.id } }),
+          allow(permissions.report.export, {
+            where: { ownerId: principal.id },
+            to: assurance({ acr: "mfa" }),
+          }),
+        ]),
+      ],
+      subject: (user: User) => user,
+    });
+    const kernel = createPermDock(policy, {
+      subject: (req) => (req.headers.has("anonymous") ? null : member),
+    });
+    return { permissions, policy, kernel };
+  }
+
+  async function both(
+    disclosure: "hide" | "reveal",
+    action: "read" | "export",
+    row: { readonly id: string; readonly ownerId: string },
+    headers: Readonly<Record<string, string>>,
+  ): Promise<readonly [Response, Response]> {
+    const { permissions, policy, kernel } = setup(disclosure);
+    const permission = permissions.report[action];
+    const guard = await kernel.protect(
+      permission,
+      () => row,
+    )(new Request("https://api.example/reports/r1", { headers }));
+    if (guard.ok) {
+      throw new Error("expected protect to deny");
+    }
+    const instance = await createCorePermDock(
+      policy,
+      "anonymous" in headers ? null : member,
+    );
+    let error: unknown;
+    try {
+      instance.assert(permission, row);
+    } catch (caught) {
+      error = caught;
+    }
+    const mapped = problemFromError(error, {
+      credentials: "authorization" in headers,
+    });
+    if (mapped === undefined) {
+      throw new Error("expected assert to throw a PermDock error");
+    }
+    return [guard.response, mapped];
+  }
+
+  async function shape(response: Response) {
+    // SAFETY: Problem Details JSON built by PermDock.
+    const body = (await response.json()) as { readonly type: string };
+    return {
+      status: response.status,
+      type: body.type,
+      challenge: response.headers.get("www-authenticate"),
+    };
+  }
+
+  it.each([
+    ["an anonymous caller", "reveal", "read", { anonymous: "1" }, 401],
+    [
+      "an anonymous caller with a bad token",
+      "reveal",
+      "read",
+      { anonymous: "1", authorization: "Bearer x" },
+      401,
+    ],
+    [
+      "an anonymous caller on a hidden row",
+      "hide",
+      "read",
+      { anonymous: "1" },
+      404,
+    ],
+    ["a hidden row", "hide", "read", {}, 404],
+    ["a missing step-up", "hide", "export", {}, 401],
+  ] as const)(
+    "answers %s alike",
+    async (_name, disclosure, action, headers, status) => {
+      const row =
+        action === "read"
+          ? { id: "r2", ownerId: "u2" }
+          : { id: "r1", ownerId: "u1" };
+      const [fromProtect, fromAssert] = await both(
+        disclosure,
+        action,
+        row,
+        headers,
+      );
+      const expected = await shape(fromProtect);
+      expect(expected.status).toBe(status);
+      expect(await shape(fromAssert)).toEqual(expected);
+    },
+  );
+
+  it("answers an exhausted limit thrown by assert with 429 and the RateLimit fields", () => {
+    const now = Math.floor(Date.now() / 1000);
+    const error = new PermDockDeniedError({
+      decision: {
+        outcome: "denied",
+        denials: [
+          {
+            role: "member",
+            reason: "limit",
+            detail: { count: 2, window: 3600, resetsAt: now + 60 },
+          },
+        ],
+        alternatives: [],
+      },
+      permission: "report.export",
+      scope: "report:export",
+      resource: { type: "report" },
+      subject: { principal: null, context: {} },
+      message: "limited",
+    });
+    const response = problemFromError(error);
+    expect(response?.status).toBe(429);
+    expect(response?.headers.get("retry-after")).not.toBeNull();
+    expect(error.toProblemDetails().type).toBe(
+      "https://permdock.com/problems/rate-limited",
+    );
   });
 });
