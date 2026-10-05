@@ -328,6 +328,7 @@ export async function runRlsGenerate(input: {
     dialect: input.dialect,
     scopes,
     tenantClaim: rls?.tenantClaim ?? supabaseTenantClaim,
+    ...(rls?.tenants === "all" ? { tenants: "all" as const } : {}),
     gucPrefix: input.gucPrefix ?? rls?.gucPrefix ?? "app",
     ...(rls?.actions === undefined ? {} : { actions: rls.actions }),
     inlineFunctions: input.inlineFunctions || rls?.inlineFunctions === true,

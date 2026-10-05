@@ -176,7 +176,7 @@ The output is one idempotent migration:
 - `custom_access_token_hook(event jsonb)`, `stable`, `search_path = ''`, which writes:
   - `roles` (every global role) and `user_role` (a string for one role, an array for several; absent for none, so `app_metadata` still applies) from `supabase.hook.roles`, by default `rls.roles`, else `<schema>.user_roles (user_id, role)`. A `role` of `{ through: 'roles', on: { role_id: 'id' }, column: 'key' }` reads the key through a roles table, which also gets the auth-admin read;
   - `memberships`: a `union all` over every source, in the canonical `{ scope, id, within?, roles, via?, expiresAt?, managedBy?, entitlements? }` form;
-  - the active tenant claim (`rls.tenantClaim`, default `tenant_id`), only when the user holds a membership in it. The active first-scope id comes from `app_metadata.active_<first scope>` by default; `--active-from` (or `supabase.hook.activeFrom`) takes `app_metadata.<key>`, `<table>.<column>` joined on `id`, or `{ table, id, column }`;
+  - the active tenant claim (`rls.tenantClaim`, default `tenant_id`), only when the user holds a membership in it. The generated RLS helpers narrow to it unless `rls.tenants` is `'all'` ([active tenant](/docs/cli/rls#active-tenant)). The active first-scope id comes from `app_metadata.active_<first scope>` by default; `--active-from` (or `supabase.hook.activeFrom`) takes `app_metadata.<key>`, `<table>.<column>` joined on `id`, or `{ table, id, column }`;
   - `attrs`: the allow-listed attribute columns and `app_metadata` keys (below), never other columns;
   - `authz_ver`: the user's authorization version (below);
   - the claims other packages own, from `supabase.hook.claims` (below).
