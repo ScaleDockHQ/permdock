@@ -71,11 +71,17 @@ export type CompileWhereOptions = {
 };
 
 /** The membership table mapped for scope `name`, through the `tenant` / `team` shorthands. */
-export function scopeMembershipTable(
-  mapping: MembershipsMapping | undefined,
+export function scopeMembershipTable<T extends Pick<MembershipTable, "table">>(
+  mapping:
+    | {
+        readonly scopes?: Readonly<Record<string, T>>;
+        readonly tenant?: T;
+        readonly team?: T;
+      }
+    | undefined,
   scopes: readonly Scope[],
   name: string,
-): MembershipTable | undefined {
+): T | undefined {
   const table = mapping?.scopes?.[name];
   if (table !== undefined) {
     return table;
@@ -91,7 +97,7 @@ export function scopeMembershipTable(
 
 /** The column of `table` holding scope `name`'s id, through the `tenant` / `team` shorthands. */
 export function scopeColumn(
-  table: MembershipTable,
+  table: Pick<MembershipTable, "columns" | "tenant" | "team">,
   scopes: readonly Scope[],
   name: string,
 ): string | undefined {

@@ -38,10 +38,13 @@ export type {
   SupabaseManifestHelper,
   SupabaseManifestMembership,
   SupabaseManifestRls,
+  SupabaseManifestRole,
+  SupabaseManifestThrough,
   SupabaseManifestValue,
 } from "./manifest.ts";
 export type {
   AuthorizeSqlOptions,
+  RoleThrough,
   SupabaseActiveRow,
   SupabaseActor,
   SupabaseActorResult,

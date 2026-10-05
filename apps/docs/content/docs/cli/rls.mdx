@@ -70,7 +70,7 @@ rls: {
 
 ### Role checks: per-statement helpers
 
-Every generated file starts with the helper functions and the table they read, all in one schema (`--rbac-schema`, `rls.schema`, default `public`): `permdock_has` for global roles and one `permitted_<scope>_ids` per [named scope](/docs/concepts/scopes) the policy declares (`permitted_tenant_ids` and `permitted_team_ids` for a policy that declares none):
+Every generated file starts with the helper functions and the table they read, all in one schema (`--rbac-schema`, `rls.schema`, default `permdock`): `permdock_has` for global roles and one `permitted_<scope>_ids` per [named scope](/docs/concepts/scopes) the policy declares (`permitted_tenant_ids` and `permitted_team_ids` for a policy that declares none):
 
 | Object                                                           | What it answers                                                                                                                                                                                                                                                |
 | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -84,7 +84,7 @@ Every generated file starts with the helper functions and the table they read, a
 
 ```sql
 create policy "organizations_select" on "organizations" as permissive for select to authenticated
-  using ("id" in (select "public".member_organization_ids()));
+  using ("id" in (select "permdock".member_organization_ids()));
 ```
 
 It drops expired memberships, suspended users and suspended instances by the same rules as `permitted_<scope>_ids`. A portal contact on `customer` is not in `member_organization_ids()`, because a membership of a child scope is not one of its parent. A `memberOf` condition with no roles compiles to the same call when the scope's memberships come from `rls.membershipSources`.
@@ -93,8 +93,8 @@ The helpers are `language sql stable security definer set search_path = ''` with
 
 ```sql
 create policy "post_select" on "post" as permissive for select to authenticated
-  using ((select "public".permdock_has('post.read'))
-      or ("orgId" in (select "public".permitted_tenant_ids('post.read'))));
+  using ((select "permdock".permdock_has('post.read'))
+      or ("orgId" in (select "permdock".permitted_tenant_ids('post.read'))));
 ```
 
 A grant key is the permission key. When roles grant one permission with different portable conditions (or effects), each condition group gets its own key, `post.update#1`, `post.update#2`, and becomes one OR branch with its condition ANDed on. Row conditions (`where`, `relation`, `principal.id`) stay in the policy; resource-scoped roles keep their `exists` join over the mapped membership table.
@@ -118,6 +118,26 @@ rls: {
 ```
 
 `permdock_has` and `permdock_can_assign` then join `user_roles` to `roles` on `on` and compare `roles.key`, and `generate` no longer creates `user_roles`. An unqualified `through` is in the table's schema. `--rbac supabase` brings its own `user_roles (user_id, role app_role)`, so it refuses `rls.roles`.
+
+A scope's membership role takes the same `through`, on an `rls.memberships` table (`role`) and on a membership source (`fromTable` `columns.role`, `fromJunction` `roles`):
+
+```ts
+rls: {
+  authorize: 'database',
+  memberships: {
+    scopes: {
+      organization: {
+        table: 'organization_users',                                         // user_id, organization_id, role_id
+        user: 'user_id',
+        role: { through: 'roles', on: { role_id: 'id' }, column: 'key' },
+        columns: { organization: 'organization_id' },
+      },
+    },
+  },
+},
+```
+
+Every object that reads the membership role joins the roles table and compares its key: `permitted_<scope>_ids`, `member_<scope>_ids` and `member_<scope>_ids_for`, the custom-role match, the ownership triggers, `permdock_can_assign`, `authorize()` and the `exists` of a role-bound `memberOf` (a scalar subquery there, so the roles table cannot capture a column the policy names unqualified). A membership whose reference matches no roles row holds no role. In `jwt` mode the helpers read keys from the `memberships` claim, which the token hook mints through the same join. A tenant's custom role is a roles row whose key is unique within its tenant; the membership holds that key and resolves as a [custom role](/docs/concepts/custom-roles) of the tenant. Keep tenant keys apart from the declared role names (a check constraint on the roles table): a tenant row keyed `owner` would hold the declared `owner` role.
 
 With the `guc` dialect the claims are settings: `<prefix>.user_role` holds a comma-separated role list and `<prefix>.memberships` holds the JSON array. When the active-tenant claim is set, the helper of every scope under the first only returns memberships inside that tenant (the membership's `id` for the first scope, its `within` entry for the others).
 
@@ -164,6 +184,8 @@ export default {
 };
 ```
 
+With membership sources in `database` mode (`rls.membershipSources`, default `supabase.hook.memberships`), `permdock_can_assign` reads the sources for a scope that has no mapped table; the holder-count and transfer-only triggers still need the table.
+
 `tenant` and `team` on a table are shorthands for the first and second scope's column, so `{ table, tenant: 'org_id', user, role }` keeps working. `via` names the column holding the membership kind (`Membership.via`): when a role declares `for`, the helpers and the `exists` checks on resource and nested-scope membership tables count it only on rows whose kind is listed, and a table without a `via` column holds such a role for nothing. In `jwt` mode the kind is the membership entry's `via`, and a role with `for` in the global role claim grants nothing.
 
 ### Suspension
@@ -197,7 +219,7 @@ With `--rbac-scaffold` and `--dialect supabase`, the output also contains Supaba
 | Flag                | Values                                  | Default                                                                                                         | Effect                                                                                                                                                                                                                                                                                                                                                                         |
 | ------------------- | --------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `--rbac`            | `supabase`                              | off                                                                                                             | Emit the RBAC scaffold (`--rbac-scaffold` is an equivalent spelling). Any other value exits 2; so does a dialect other than `supabase`.                                                                                                                                                                                                                                        |
-| `--rbac-schema`     | a Postgres identifier                   | `rls.schema`, `rls.rbac.schema`, or `public`                                                                    | Schema for `role_permissions`, the helpers, and the RBAC scaffold.                                                                                                                                                                                                                                                                                                             |
+| `--rbac-schema`     | a Postgres identifier                   | `rls.schema`, `rls.rbac.schema`, or `permdock`                                                                  | Schema for `role_permissions`, the helpers, and the RBAC scaffold.                                                                                                                                                                                                                                                                                                             |
 | `--authorize`       | `database`, `jwt`                       | `rls.authorize`, `rls.rbac.authorize`, else `database` with `--rbac` or a memberships table and `jwt` otherwise | Where the helpers (and `authorize()`) read roles and memberships. `jwt` needs no query but stays stale until the token refreshes (doctor PD019).                                                                                                                                                                                                                               |
 | `--memberships`     | `<table>:tenant,user,role[,expires_at]` | `rls.memberships.tenant`                                                                                        | The first scope's memberships table `database` mode reads. Other scopes come from `rls.memberships.scopes`.                                                                                                                                                                                                                                                                    |
 | `--tenant-type`     | a Postgres type                         | `rls.tenantType`, or `uuid`                                                                                     | Type of the first scope's columns: the tenant claim is cast to it and its helper returns it. `rls.teamType` does the same for the second scope and defaults to the tenant type; `rls.scopeTypes` sets any scope by name.                                                                                                                                                       |
@@ -222,7 +244,7 @@ When a role declares [`min`, `max`, `transferOnly`, `assigns` or `for`](/docs/co
 | `permdock_transfer_only_<scope>_insert` / `_update` / `_delete` (statement triggers over transition tables) | A `transferOnly` role's holder count in an instance that had holders before a statement and has some after it must not change: move it in one `UPDATE`, or delete the only holder and insert the next one in the same transaction. Hint `transfer-only`                              |
 | `permdock_can_assign(p_role text, p_scope_id text) returns boolean`                                         | Whether the signed-in user holds, on a live membership of instance `p_scope_id` (the role's own scope or an ancestor's), a role whose `assigns` lists `p_role`; global assigners count everywhere. `stable security definer`, `search_path = ''`, `execute` for `authenticated` only |
 
-The triggers need the scope's membership table in `rls.memberships`; without one the output says so and only `decideRoleChange` checks the counts. PermDock generates no policies on your membership tables. Use the helper in your own:
+The triggers need the scope's membership table in `rls.memberships`; without one the output says so and only `decideRoleChange` checks the counts. PermDock generates no policies on your membership tables. Use the helper in your own (for a role column `through` a roles table, pass the key: `(select key from public.roles where id = role_id)`):
 
 ```sql
 create policy organization_users_insert on public.organization_users for insert to authenticated
@@ -276,8 +298,8 @@ The claim is the `Capability` object ([wire formats](/docs/concepts/wire-formats
 create or replace view "invoice_visible" with (security_invoker = true) as
 select
   "id",
-  case when ("orgId" in (select "public".permitted_tenant_ids('invoice.read#1')))
-         or ("orgId" in (select "public".permitted_tenant_ids('invoice.read#2')))
+  case when ("orgId" in (select "permdock".permitted_tenant_ids('invoice.read#1')))
+         or ("orgId" in (select "permdock".permitted_tenant_ids('invoice.read#2')))
     then "amount" end as "amount",
   "title"
 from "invoice";

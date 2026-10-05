@@ -1,6 +1,10 @@
-import { sources, suspension } from "../centrakit/sources.ts";
+import { roleKey, sources, suspension } from "./sources.ts";
 
-/** CentraKit's real `user_roles (user_id, role_id references roles(id))`: role keys live on `roles.key`. */
+/**
+ * CentraKit's real role tables: `user_roles (user_id, role_id)` and
+ * `organization_users (user_id, organization_id, role_id)` both reference
+ * `roles (id, scope, key, organization_id)`, and role keys live on `roles.key`.
+ */
 export default {
   permissions: "../centrakit/policy.ts",
   policy: "../centrakit/policy.ts",
@@ -9,10 +13,7 @@ export default {
     authorize: "database",
     tenantType: "uuid",
     suspension,
-    roles: {
-      table: "user_roles",
-      role: { through: "roles", on: { role_id: "id" }, column: "key" },
-    },
+    roles: { table: "user_roles", role: roleKey },
   },
   supabase: { hook: { memberships: sources(), suspension } },
 };

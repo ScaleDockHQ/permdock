@@ -1,4 +1,8 @@
-/** CentraKit adopting PermDock: generated policies, its own verbs, shims under its legacy helpers, platform custom roles. */
+/**
+ * CentraKit adopting PermDock: generated policies, its own verbs, shims under
+ * its legacy helpers, platform and organization custom roles, and
+ * `organization_users.role_id` read through `roles.key`.
+ */
 export default {
   permissions: "./policy.ts",
   policy: "./policy.ts",
@@ -11,10 +15,10 @@ export default {
     actions: { view: "select", archive: "none", pay: "none" },
     memberships: {
       tenant: {
-        table: "organization_members",
+        table: "organization_users",
         tenant: "organization_id",
         user: "user_id",
-        role: "role",
+        role: { through: "roles", on: { role_id: "id" }, column: "key" },
       },
     },
     migrate: {

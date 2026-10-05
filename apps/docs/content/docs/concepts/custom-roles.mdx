@@ -121,6 +121,7 @@ For every custom role, `decide` on the server and `fromSnapshot(snapshot).decide
 - Platform custom roles live in the same tables with `scope = 'global'` and a null `tenant_id` and `scope_id`. In `jwt` mode their entries ride the top-level `role_grants` claim, keyed by role name and built with `customRoleClaim(roles)`. `permdock_has` unions them into every tenant check.
 - Both intersect with the generated `permdock_ceiling` view, so a row or claim entry naming a permission outside the ceiling reaches nothing.
 - With `--rbac supabase`, `authorize(permission, tenant)` answers from custom roles too.
+- A membership table that stores a role id reads the key through the app's roles table (`role: { through: 'roles', on: { role_id: 'id' }, column: 'key' }`). Custom roles are then roles rows owned by a tenant, with a key unique within it; the tables above match that key and the membership's tenant, so two tenants may each define `dispatcher` ([RLS](/docs/cli/rls#role-checks-per-statement-helpers)).
 
 The parity suite runs `permdock rls verify --db` over every custom role, table and command in both modes, including a custom role that adds one permission and denies one.
 

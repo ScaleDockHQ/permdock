@@ -1,10 +1,20 @@
 import type { MemberEntry, MembershipSource } from "../core/interfaces.ts";
 import type { Membership } from "../core/subject.ts";
 import type { SupabaseManifestMembership } from "./manifest.ts";
-import type { SupabaseActiveRow, SupabaseSuspension } from "./types.ts";
+import type {
+  RoleThrough,
+  SupabaseActiveRow,
+  SupabaseSuspension,
+} from "./types.ts";
 
 import { compact } from "../core/compact.ts";
 import { quoteSqlIdent, quoteSqlLiteral, quoteSqlTable } from "../core/sql.ts";
+import {
+  type RoleColumn,
+  type RoleKeys,
+  roleColumn,
+  roleManifest,
+} from "./roles.ts";
 
 /**
  * Runs one parameterised statement: `pg`'s `client.query` (which resolves
@@ -34,7 +44,8 @@ export type MembershipTableOptions = Common & {
     readonly id?: string;
     /** A `jsonb` column of ancestor ids keyed by scope name. */
     readonly within?: string;
-    readonly role?: string;
+    /** The role key column, or a reference to a roles table that holds the key. */
+    readonly role?: string | RoleThrough;
     readonly via?: string;
     readonly expiresAt?: string;
     /** The principal id that wrote the membership (`grantedBy`). */
@@ -59,8 +70,11 @@ export type MembershipJunctionOptions = Common & {
   readonly id?: string;
   /** Ancestor id columns keyed by scope name. */
   readonly within?: Readonly<Record<string, string>>;
-  /** A role column, or fixed roles every row holds (a contact table with no role column). */
-  readonly roles: string | readonly string[];
+  /**
+   * A role column, a reference to a roles table that holds the key, or fixed
+   * roles every row holds (a contact table with no role column).
+   */
+  readonly roles: string | RoleThrough | readonly string[];
   /** The membership kind every row has (`contact`, `staff`, `partner`). */
   readonly via?: string;
   readonly expiresAt?: string;
@@ -95,6 +109,8 @@ export type MembershipSql = {
   readonly managed?: string;
   /** Other tables the `select` reads (suspension tables). */
   readonly reads: readonly string[];
+  /** The roles table the role column references; a key change bumps every holder's authorization version. */
+  readonly through?: RoleKeys;
   /** Every column that decides who holds which membership: user, scope, id, `within`, role, `via` and expiry. */
   readonly columns: readonly string[];
   /** For a single-scope source: its scope and the scopes whose ids each row carries. */
@@ -149,6 +165,9 @@ function activeRow(row: SupabaseActiveRow, id: string): string {
 
 type Shape = {
   readonly table: string;
+  /** Joins after `from <table> m`: the roles table of a `through` role column. */
+  readonly join: string;
+  readonly through: RoleKeys | undefined;
   readonly user: string;
   readonly scope: string;
   readonly id: string;
@@ -210,7 +229,7 @@ function selectOf(
   ];
   const group = [...(user ? [col(shape.user)] : []), ...shape.groupBy];
   return `select ${fields.join(", ")}
-from ${qualified(shape.table)} m
+from ${qualified(shape.table)} m${shape.join}
 where ${where.join("\n  and ")}
 group by ${group.join(", ")}`;
 }
@@ -229,6 +248,7 @@ function sqlOf(shape: Shape): MembershipSql {
       ),
     ],
     managed: shape.managedColumn,
+    through: shape.through,
     columns: [...new Set(shape.columns)],
     manifest: {
       table: qualifiedName(shape.table),
@@ -244,6 +264,25 @@ function sqlOf(shape: Shape): MembershipSql {
         true,
       ),
   });
+}
+
+function isFixed(
+  roles: MembershipJunctionOptions["roles"],
+): roles is readonly string[] {
+  return Array.isArray(roles);
+}
+
+/** A role column of the membership table, aliased `m`; a `through` column joins its roles table as `mk`. */
+function memberRole(
+  role: string | RoleThrough,
+  table: string,
+  label: string,
+): RoleColumn {
+  return roleColumn(role, qualifiedName(table), "m", { label, indent: "" });
+}
+
+function roleAgg(role: RoleColumn): string {
+  return `jsonb_agg(distinct ${role.sql} order by ${role.sql})`;
 }
 
 function rowsOf(
@@ -367,13 +406,20 @@ export function fromTable(
   const within = c.within === undefined ? "null::jsonb" : col(c.within);
   const optional = (name: string | undefined, cast: string): string =>
     name === undefined ? `null::${cast}` : `${col(name)}::${cast}`;
+  const role = memberRole(
+    c.role ?? "role",
+    options.table,
+    "fromTable columns.role",
+  );
   const shape: Shape = {
     table: options.table,
+    join: role.join,
+    through: role.through,
     user: c.user ?? "user_id",
     scope,
     id,
     within,
-    roles: `jsonb_agg(distinct ${col(c.role ?? "role")}::text order by ${col(c.role ?? "role")}::text)`,
+    roles: roleAgg(role),
     via: optional(c.via, "text"),
     expiresAt: c.expiresAt,
     grantedBy: optional(c.grantedBy, "text"),
@@ -405,7 +451,7 @@ export function fromTable(
       c.user ?? "user_id",
       c.scope ?? "scope",
       c.id ?? "scope_id",
-      c.role ?? "role",
+      role.column,
       ...[c.within, c.via, c.expiresAt].filter(
         (name): name is string => name !== undefined,
       ),
@@ -414,7 +460,7 @@ export function fromTable(
       user: { column: c.user ?? "user_id" },
       scope: { column: c.scope ?? "scope" },
       id: { column: c.id ?? "scope_id" },
-      role: { column: c.role ?? "role" },
+      role: roleManifest(role),
       within: c.within === undefined ? undefined : { column: c.within },
       via: c.via === undefined ? undefined : { column: c.via },
       expiresAt:
@@ -437,10 +483,14 @@ export function fromJunction(
   }
   const idColumn = options.id ?? `${options.scope}_id`;
   const withinEntries = Object.entries(options.within ?? {});
-  const fixed = typeof options.roles === "string" ? undefined : options.roles;
+  const roles = options.roles;
+  const fixed = isFixed(roles) ? roles : undefined;
   if (fixed?.length === 0) {
     throw new TypeError("PermDock: fromJunction needs at least one role");
   }
+  const role = isFixed(roles)
+    ? undefined
+    : memberRole(roles, options.table, "fromJunction roles");
   const managedColumn =
     options.managedBy === undefined
       ? undefined
@@ -453,6 +503,8 @@ export function fromJunction(
       : options.group.column;
   const shape: Shape = {
     table: options.table,
+    join: role?.join ?? "",
+    through: role?.through,
     user: options.user ?? "user_id",
     scope: `${literal(options.scope)}::text`,
     id: `${col(idColumn)}::text`,
@@ -460,11 +512,10 @@ export function fromJunction(
       withinEntries.length === 0
         ? "null::jsonb"
         : `jsonb_build_object(${withinEntries.map(([name, column]) => `${literal(name)}, ${col(column)}::text`).join(", ")})`,
-    // SAFETY: fixed is undefined only when options.roles is a column name string.
     roles:
-      fixed === undefined
-        ? `jsonb_agg(distinct ${col(options.roles as string)}::text order by ${col(options.roles as string)}::text)`
-        : `jsonb_build_array(${fixed.map(literal).join(", ")})`,
+      role === undefined
+        ? `jsonb_build_array(${(fixed ?? []).map(literal).join(", ")})`
+        : roleAgg(role),
     via:
       options.via === undefined
         ? "null::text"
@@ -521,19 +572,16 @@ export function fromJunction(
       options.user ?? "user_id",
       idColumn,
       ...withinEntries.map(([, column]) => column),
-      ...[
-        typeof options.roles === "string" ? options.roles : undefined,
-        options.expiresAt,
-      ].filter((name): name is string => name !== undefined),
+      ...[role?.column, options.expiresAt].filter(
+        (name): name is string => name !== undefined,
+      ),
     ],
     manifest: compact<Shape["manifest"]>({
       user: { column: options.user ?? "user_id" },
       scope: { value: options.scope },
       id: { column: idColumn },
       role:
-        typeof options.roles === "string"
-          ? { column: options.roles }
-          : { value: [...options.roles] },
+        role === undefined ? { value: [...(fixed ?? [])] } : roleManifest(role),
       within:
         withinEntries.length === 0
           ? undefined

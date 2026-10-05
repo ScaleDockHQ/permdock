@@ -322,3 +322,93 @@ describe("authzVersion", () => {
     });
   });
 });
+
+describe("a role column through a roles table", () => {
+  const through = { through: "roles", on: { role_id: "id" }, column: "key" };
+
+  it("reads fromTable role keys from the roles table", async () => {
+    const { query, calls } = recording([
+      { scope: "organization", id: "o1", roles: ["admin", "auditor"] },
+    ]);
+    const source = fromTable({
+      table: "identity.memberships",
+      columns: { role: through },
+      query,
+    });
+    const select = source.sql.select("$1");
+    expect(select).toContain(
+      `jsonb_agg(distinct mk."key"::text order by mk."key"::text) as roles`,
+    );
+    expect(select).toContain(`from "identity"."memberships" m
+join "identity"."roles" mk on mk."id" = m."role_id"
+where m."user_id" = $1`);
+    expect(source.sql.list()).toContain(
+      'join "identity"."roles" mk on mk."id" = m."role_id"',
+    );
+    expect(source.sql.through).toEqual({
+      table: "identity.roles",
+      id: "id",
+      key: "key",
+      ref: "role_id",
+    });
+    expect(source.sql.columns).toEqual([
+      "user_id",
+      "scope",
+      "scope_id",
+      "role_id",
+    ]);
+    expect(source.sql.manifest.role).toEqual({
+      column: "role_id",
+      through: { table: "identity.roles", id: "id", column: "key" },
+    });
+    expect(await source.membershipsFor(principal, {})).toEqual([
+      { scope: "organization", id: "o1", roles: ["admin", "auditor"] },
+    ]);
+    expect(calls[0]?.text).toContain('join "identity"."roles" mk');
+  });
+
+  it("reads fromJunction role keys from a qualified roles table", () => {
+    const source = fromJunction({
+      table: "organization_users",
+      scope: "organization",
+      roles: { ...through, through: "identity.roles" },
+      suspension: {
+        users: { table: "profiles", id: "user_id", disabledAt: "disabled_at" },
+      },
+    });
+    const select = source.sql.select("$1");
+    expect(select).toContain(`from "public"."organization_users" m
+join "identity"."roles" mk on mk."id" = m."role_id"`);
+    expect(select).toContain('s."disabled_at" is null');
+    expect(source.sql.columns).toEqual([
+      "user_id",
+      "organization_id",
+      "role_id",
+    ]);
+    expect(source.sql.manifest).toMatchObject({
+      scope: { value: "organization" },
+      role: {
+        column: "role_id",
+        through: { table: "identity.roles", id: "id", column: "key" },
+      },
+    });
+  });
+
+  it("needs exactly one join column", () => {
+    expect(() =>
+      fromJunction({
+        table: "organization_users",
+        scope: "organization",
+        roles: { ...through, on: {} },
+      }),
+    ).toThrow(
+      "PermDock: fromJunction roles.on must map exactly one column of public.organization_users to roles",
+    );
+    expect(() =>
+      fromTable({
+        table: "memberships",
+        columns: { role: { ...through, on: { a: "id", b: "id" } } },
+      }),
+    ).toThrow("fromTable columns.role.on must map exactly one column");
+  });
+});

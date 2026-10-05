@@ -44,6 +44,12 @@ const CUST_B = id(0xc2);
 const BILL_A = id(0xd1);
 const BILL_B = id(0xd2);
 const PLATFORM_BILL = id(0xd9);
+const DISPATCHER = id(0xa7);
+const ADMIN_ROLE = id(0xf1);
+const MEMBER_ROLE = id(0xf2);
+const VIEWER_ROLE = id(0xf3);
+const DISPATCH_A_ROLE = id(0xf4);
+const DISPATCH_B_ROLE = id(0xf5);
 const REPORT = id(0xe1);
 const EXPENSE = id(0xe2);
 
@@ -63,10 +69,36 @@ grant usage on schema auth to authenticated, anon;
 grant execute on all functions in schema auth to authenticated, anon;
 grant usage on schema public to authenticated, anon;
 insert into auth.users (id) values
-  ('${ADMIN}'), ('${MEMBER}'), ('${VIEWER}'), ('${TIER2}'), ('${MANAGER}'), ('${APPROVER}');
-create table organization_members (organization_id uuid not null, user_id uuid not null, role text not null);
-insert into organization_members values
-  ('${ORG_A}', '${ADMIN}', 'admin'), ('${ORG_A}', '${MEMBER}', 'member'), ('${ORG_A}', '${VIEWER}', 'viewer');
+  ('${ADMIN}'), ('${MEMBER}'), ('${VIEWER}'), ('${TIER2}'), ('${MANAGER}'), ('${APPROVER}'), ('${DISPATCHER}');
+create table organizations (id uuid primary key);
+insert into organizations values ('${ORG_A}'), ('${ORG_B}');
+create type scope_type as enum ('system', 'organization', 'user', 'team');
+create table roles (
+  id uuid primary key,
+  scope scope_type not null,
+  key text not null,
+  name text not null,
+  system boolean not null default false,
+  organization_id uuid references organizations (id) on delete cascade
+);
+create unique index roles_builtin_key on roles (scope, key) where organization_id is null;
+create unique index roles_custom_key on roles (scope, key, organization_id);
+insert into roles values
+  ('${ADMIN_ROLE}', 'organization', 'admin', 'Admin', true, null),
+  ('${MEMBER_ROLE}', 'organization', 'member', 'Member', true, null),
+  ('${VIEWER_ROLE}', 'organization', 'viewer', 'Viewer', true, null),
+  ('${DISPATCH_A_ROLE}', 'organization', 'dispatcher', 'Dispatcher', false, '${ORG_A}'),
+  ('${DISPATCH_B_ROLE}', 'organization', 'dispatcher', 'Dispatcher', false, '${ORG_B}');
+create table organization_users (
+  user_id uuid not null references auth.users (id) on delete cascade,
+  organization_id uuid not null references organizations (id) on delete cascade,
+  role_id uuid not null references roles (id),
+  unique (user_id, organization_id)
+);
+insert into organization_users values
+  ('${ADMIN}', '${ORG_A}', '${ADMIN_ROLE}'), ('${MEMBER}', '${ORG_A}', '${MEMBER_ROLE}'),
+  ('${VIEWER}', '${ORG_A}', '${VIEWER_ROLE}'), ('${DISPATCHER}', '${ORG_A}', '${DISPATCH_A_ROLE}'),
+  ('${DISPATCHER}', '${ORG_B}', '${DISPATCH_B_ROLE}');
 create table customers (id uuid primary key, organization_id uuid not null);
 insert into customers values ('${CUST_A}', '${ORG_A}'), ('${CUST_B}', '${ORG_B}');
 create table billing (id uuid primary key, organization_id uuid not null);
@@ -80,8 +112,15 @@ create table expenses (
 );
 `;
 
-/** A support tier an operator defined: `support` plus platform billing, and one key outside the global ceiling. */
+/**
+ * A support tier an operator defined: `support` plus platform billing, and one
+ * key outside the global ceiling. Each organization's `dispatcher` reaches a
+ * different permission.
+ */
 const TIER2_ROWS = `
+insert into permdock.custom_role_permissions (tenant_id, scope, scope_id, role, permission)
+  values ('${ORG_A}', 'organization', null, 'dispatcher', 'customers.view'),
+         ('${ORG_B}', 'organization', null, 'dispatcher', 'billing.view');
 insert into permdock.user_roles (user_id, role) values ('${TIER2}', 'tier2');
 insert into permdock.custom_role_includes (tenant_id, scope, scope_id, role, include_role)
   values (null, 'global', null, 'tier2', 'support');
@@ -235,6 +274,47 @@ describe("CentraKit adoption shapes", () => {
         id: CUST_A,
         organization_id: ORG_A,
       }),
+    ).toBe(false);
+  });
+
+  it("reads organization_users.role_id through roles.key", async () => {
+    expect(generated).toContain(
+      'join "public"."roles" mk on mk."id" = m."role_id"',
+    );
+    expect(await ids(ADMIN, "customers")).toEqual([CUST_A]);
+    expect(await ids(MEMBER, "billing")).toEqual([]);
+    expect(
+      await answer(
+        ADMIN,
+        `select permdock.authorize('customers.update'::permdock.app_permission, $1::text) as ok`,
+        [ORG_A],
+      ),
+    ).toBe(true);
+    expect(
+      await answer(
+        VIEWER,
+        `select permdock.authorize('customers.update'::permdock.app_permission, $1::text) as ok`,
+        [ORG_A],
+      ),
+    ).toBe(false);
+  });
+
+  it("resolves an organization custom role by its key within that organization", async () => {
+    expect(await ids(DISPATCHER, "customers")).toEqual([CUST_A]);
+    expect(await ids(DISPATCHER, "billing")).toEqual([BILL_B]);
+    expect(
+      await answer(
+        DISPATCHER,
+        `select permdock.authorize('billing.view'::permdock.app_permission, $1::text) as ok`,
+        [ORG_B],
+      ),
+    ).toBe(true);
+    expect(
+      await answer(
+        DISPATCHER,
+        `select permdock.authorize('billing.view'::permdock.app_permission, $1::text) as ok`,
+        [ORG_A],
+      ),
     ).toBe(false);
   });
 

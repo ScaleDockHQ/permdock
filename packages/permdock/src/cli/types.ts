@@ -1,5 +1,8 @@
 import type { CatalogUsage } from "../catalog/types.ts";
 import type { SqlMembershipSource } from "../supabase/sources.ts";
+import type { RoleThrough } from "../supabase/types.ts";
+
+export type { RoleThrough } from "../supabase/types.ts";
 
 export type CollectConfig = {
   readonly srcPath?: readonly string[];
@@ -18,7 +21,8 @@ export type RlsTarget = "sql" | "drizzle" | "prisma";
 export type RlsMembershipTable = {
   readonly table: string;
   readonly user: string;
-  readonly role: string;
+  /** The role key column, or a reference to a roles table that holds the key. */
+  readonly role: string | RoleThrough;
   /** Per scope name, the column holding that scope's id: the table's own scope and its ancestors. */
   readonly columns?: Readonly<Record<string, string>>;
   /** Column of the first scope's id; shorthand for `columns[<first scope>]`. */
@@ -201,19 +205,6 @@ export type RlsMigrateConfig = {
   readonly globalScopes?: readonly string[];
   /** For `scoped` helpers, a scope literal's PermDock scope when the names differ. */
   readonly scopes?: Readonly<Record<string, string>>;
-};
-
-/**
- * The role column of a global-roles table that holds a foreign key: the role
- * key is `column` of `through`, joined on `on` (`{ role_id: 'id' }`).
- */
-export type RoleThrough = {
-  /** The roles table; unqualified, it is in the global-roles table's schema. */
-  readonly through: string;
-  /** One entry: the global-roles column to the roles table column it references. */
-  readonly on: Readonly<Record<string, string>>;
-  /** The roles table column that holds the role key. */
-  readonly column: string;
 };
 
 /** Where global roles live: `table (user, role)`. Defaults `user_id` and `role`. */
