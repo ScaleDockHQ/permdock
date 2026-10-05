@@ -428,6 +428,9 @@ describe("permdock/mcp on @modelcontextprotocol/server 2", () => {
         'Bearer error="insufficient_user_authentication", acr_values="mfa", max_age="300"',
     });
 
+    await plain.client.close();
+    await server.close();
+
     const urls: string[] = [];
     const eliciting = await connect(
       server,
