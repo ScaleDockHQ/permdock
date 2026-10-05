@@ -4,7 +4,9 @@ import type { Permission } from "./permissions.ts";
 import type { Delegation } from "./subject.ts";
 
 import { coveredByDelegation } from "./delegation.ts";
-import { scopeList, tenantOf } from "./scopes.ts";
+import { resolveScope, scopeList, tenantOf } from "./scopes.ts";
+import { isMembershipExpired, nowSeconds } from "./tenancy.ts";
+import { isActive } from "./validity.ts";
 
 function delegationMayCover(
   permission: Permission,
@@ -81,5 +83,72 @@ export function mayUse(permdock: PermDock, permission: Permission): boolean {
     return grants.some((grant) => grant.effect === "allow");
   } catch {
     return false;
+  }
+}
+
+/**
+ * The instances of `scope` in which the subject holds `permission` with no
+ * row condition: an unconditional allow on a live membership of exactly that
+ * scope, minus the instances a deny of the permission reaches there, within
+ * its delegation. The in-process mirror of the SQL
+ * `permitted_<scope>_ids_by_permission`; `within` keeps the instances of one
+ * tenant. A listing, never a decision: a row's own check still runs `can`.
+ */
+export function permittedIds(
+  permdock: PermDock,
+  permission: Permission,
+  scope: string,
+  options: { readonly within?: string } = {},
+): readonly string[] {
+  try {
+    const snapshot = permdock.snapshot({ tenants: "all" });
+    if (!("grants" in snapshot)) {
+      return [];
+    }
+    const scopes = scopeList(snapshot.scopes);
+    const name = resolveScope(scopes, scope);
+    const ceiling = snapshot.delegated;
+    if (
+      name === undefined ||
+      (ceiling !== undefined && !ceiling.includes(permission.key)) ||
+      !delegationMayCover(
+        permission,
+        permdock.subject.delegation,
+        permdock.subject.actor !== undefined && ceiling === undefined,
+      )
+    ) {
+      return [];
+    }
+    const now = nowSeconds();
+    const allowed = new Set<string>();
+    const denied = new Set<string>();
+    for (const grant of snapshot.grants) {
+      const membership = grant.membership;
+      if (
+        grant.permission !== permission.key ||
+        grant.scope !== name ||
+        membership?.scope !== name ||
+        membership.id === undefined ||
+        isMembershipExpired(membership, now) ||
+        (options.within !== undefined &&
+          tenantOf(membership, scopes) !== options.within)
+      ) {
+        continue;
+      }
+      if (grant.effect === "deny") {
+        denied.add(membership.id);
+      } else if (
+        grant.where === undefined &&
+        grant.check === undefined &&
+        grant.portable !== false &&
+        grant.fields === undefined &&
+        isActive(grant.validity, now)
+      ) {
+        allowed.add(membership.id);
+      }
+    }
+    return [...allowed].filter((id) => !denied.has(id)).toSorted();
+  } catch {
+    return [];
   }
 }
