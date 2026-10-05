@@ -100,6 +100,8 @@ This is the permix issue #49 class of bug (server code leaking into client bundl
 
 Member accesses rooted at a definition export that do not resolve to a leaf (`permissions.post.archive` when `archive` is not an action), and `findPermission(permissions, 'literal')` calls with a literal that no key matches. These are type errors in TypeScript projects; `doctor` catches them in JavaScript files, MDX and generated code too.
 
+A member access counts only when its root identifier is bound to a permission tree where it is read: an import of `permissions` or of any `definePermissions` export, a default import named `permissions`, or a `definePermissions(...)` declaration. A parameter, local variable, catch binding or module variable with the same name shadows it, so `function grant(permissions: string[]) { return permissions.length }` is not a reference. An identifier no scope declares still matches by name, as in generated code. The same rule decides the references `collect` and `usage` record.
+
 ### PD003: used but ungranted
 
 The same analysis as [usage](/docs/cli/usage), reported here at warning level so a single `doctor` run covers it.
