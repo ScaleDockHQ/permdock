@@ -336,6 +336,11 @@ export function testRoleSource(
     readonly declared: readonly (string | Role)[];
     /** When set, every custom role's `grants` must resolve inside the ceiling. */
     readonly policy?: Policy;
+    /**
+     * Names of every custom role the tenant has. When set, `rolesFor` must
+     * return each of them with nothing held, as role management needs.
+     */
+    readonly every?: readonly string[];
   },
 ): void {
   it("only resolves declared role names", async () => {
@@ -359,6 +364,15 @@ export function testRoleSource(
       }
     }
   });
+  const every = options.every;
+  if (every !== undefined) {
+    it("returns every custom role of the tenant, held or not", async () => {
+      const roles = await source.rolesFor(options.tenant, { held: [] });
+      expect([...new Set(roles.map((role) => role.name))].toSorted()).toEqual(
+        [...new Set(every)].toSorted(),
+      );
+    });
+  }
 }
 
 export function testLimitStore(store: LimitStore): void {
