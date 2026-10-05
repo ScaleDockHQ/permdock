@@ -11,6 +11,7 @@ import type {
 
 import { compact } from "../core/compact.ts";
 import { emptySnapshot, fromSnapshot } from "../core/from-snapshot.ts";
+import { rowIdOf } from "../core/row-pair.ts";
 import { parseSnapshot } from "../core/snapshot.ts";
 import { nowSeconds } from "../core/tenancy.ts";
 import { timeoutSignal } from "../core/timeout.ts";
@@ -50,12 +51,7 @@ type CacheEntry = {
 };
 
 function cacheKey(permission: Permission, data: unknown): string {
-  if (data === null || typeof data !== "object") {
-    return `${permission.key}:*`;
-  }
-  // SAFETY: checked above to be a non-null object; id is typeof-checked below.
-  const id = (data as Record<string, unknown>)["id"];
-  return `${permission.key}:${typeof id === "string" || typeof id === "number" ? String(id) : "*"}`;
+  return `${permission.key}:${rowIdOf(data)}`;
 }
 
 function withTenant(source: string, tenant: string | undefined): string {

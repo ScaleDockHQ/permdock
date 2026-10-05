@@ -24,6 +24,8 @@ export type PermDockPluginOptions = {
     | MaybeRefOrGetter<Snapshot | string>
     | PromiseLike<Snapshot | string>;
   readonly endpoint?: string;
+  /** Where `refresh()` fetches a fresh snapshot. Defaults to `endpoint`. */
+  readonly snapshotUrl?: string;
   readonly approvals?: string;
   readonly tenant?: string;
   readonly fetch?: typeof fetch;

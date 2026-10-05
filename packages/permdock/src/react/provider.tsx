@@ -3,13 +3,13 @@ import { type ReactElement, useMemo } from "react";
 import type { Permission } from "../core/permissions.ts";
 import type { PermDockProviderProps } from "./types.ts";
 
+import { adapterStore } from "../client/store-options.ts";
 import { compact } from "../core/compact.ts";
 import { emptySnapshot } from "../core/from-snapshot.ts";
 import {
   PermDockSnapshotPromiseContext,
   PermDockStoreContext,
 } from "./context.ts";
-import { createClientStore } from "./store.ts";
 
 /** One hint per provider: the first check `endpoint: false` turns into a `server-only` denial. */
 function hintOnce(): (permission: Permission) => void {
@@ -30,11 +30,11 @@ export function PermDockProvider(props: PermDockProviderProps): ReactElement {
   const promise = props.snapshotPromise ?? null;
   const store = useMemo(
     () =>
-      createClientStore(
+      adapterStore(
         compact({
-          snapshot: props.snapshot ?? emptySnapshot(),
           endpoint: props.endpoint === false ? undefined : props.endpoint,
           onServerOnly: props.endpoint === false ? hintOnce() : undefined,
+          snapshotUrl: props.snapshotUrl,
           approvals: props.approvals,
           tenant: props.tenant,
           fetch: props.fetch,
@@ -42,10 +42,12 @@ export function PermDockProvider(props: PermDockProviderProps): ReactElement {
           maxAge: props.maxAge,
           verifier: props.verifier,
         }),
+        props.snapshot ?? emptySnapshot(),
       ),
     [
       props.snapshot,
       props.endpoint,
+      props.snapshotUrl,
       props.approvals,
       props.tenant,
       props.fetch,
