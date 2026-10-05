@@ -58,7 +58,7 @@ export function supabase(ctx: CliContext): Command {
       },
       "grants-out": {
         type: "string",
-        description: "File for the supabase_auth_admin grants",
+        description: "File for the privileges db diff drops",
         valueHint: "file",
       },
     },

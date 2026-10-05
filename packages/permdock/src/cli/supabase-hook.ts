@@ -60,6 +60,7 @@ import {
   STDOUT,
   writeSqlFiles,
 } from "./sql-files.ts";
+import { splitUndiffed } from "./sql-statements.ts";
 import { supabaseConfig } from "./supabase-config.ts";
 import {
   missingHelpersInDb,
@@ -77,7 +78,7 @@ const SUPABASE_HELP = `permdock supabase hook generate | inspect
 
 Reads supabase.hook from permdock.config.ts: the fromTable / fromJunction sources the app
 passes as memberships. hook generate emits custom_access_token_hook(jsonb), the grants it
-needs (in --grants-out instead, for declarative schemas), the permdock_authz_version table
+needs (the ones db diff drops in --grants-out, for declarative schemas), the permdock_authz_version table
 and its triggers. Never grants anything to
 service_role. inspect prints the manifest: helper schema, names and signatures, tenant claim,
 budget, the claims the hook writes, the membership sources and the columns that decide them.
@@ -607,11 +608,7 @@ end;
 $$;`;
 }
 
-/**
- * Everything the hook grants `supabase_auth_admin`, and the execute revoke:
- * the statements `supabase db diff` drops, so `--grants-out` moves them to
- * their own file.
- */
+/** Everything the hook grants `supabase_auth_admin`, and the execute revoke. */
 function grantsSql(parts: Parts): string {
   const schema = quoteIdent(parts.schema);
   const fn = `${schema}.custom_access_token_hook`;
@@ -1416,8 +1413,8 @@ export function supabaseHookManifest(
 }
 
 /**
- * The hook migration. With `grantsOut`, the `supabase_auth_admin` grants are
- * left out of `sql` and returned in `grants` for that file.
+ * The hook migration. With `grantsOut`, the statements `supabase db diff`
+ * drops are left out of `sql` and returned in `grants` for that file.
  */
 export function supabaseHookSql(
   scopes: readonly Scope[],
@@ -1439,19 +1436,21 @@ export function supabaseHookSql(
     `${hookMarker(manifest)}
 -- custom_access_token_hook(jsonb): memberships go active ${parts.root} first and stop at the budget
 -- supabase/config.toml:
-${toml}${grantsOut === undefined ? "" : `\n-- the supabase_auth_admin grants are in ${grantsOut}`}`,
+${toml}${grantsOut === undefined ? "" : `\n-- what supabase db diff drops from this part is in ${grantsOut}`}`,
     attrsGuardSql(parts.attrs),
     hookSql(parts),
     versionSql(parts),
-    grantsOut === undefined ? grantsSql(parts) : "",
+    grantsSql(parts),
     managedSql(parts),
   ]
     .filter((chunk) => chunk !== "")
     .join("\n\n");
+  const { kept, moved } = splitUndiffed(`${sql}\n`);
   const grants = `${GRANTS_MARKER} schema=${parts.schema}
-${grantsSql(parts)}
+-- the privileges and view options supabase db diff drops from the hook part
+${moved.join("\n")}
 `;
-  return { sql: `${sql}\n`, grants, manifest };
+  return { sql: grantsOut === undefined ? `${sql}\n` : kept, grants, manifest };
 }
 
 /** What the hook file's header says about where its grants went. */

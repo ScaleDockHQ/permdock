@@ -201,7 +201,7 @@ uri = "pg-functions://postgres/public/custom_access_token_hook"
 
 With pg-delta (`[experimental.pgdelta] enabled = true`), `supabase db schema declarative sync` keeps grants and policies, so the hook file keeps its grants. Without `--out`, `hook generate` writes it to `supabase/schemas/<schema>/functions/custom_access_token_hook.sql`, under `declarative_schema_path` when that is set.
 
-A project that writes migrations with `supabase db diff` instead cannot keep the grants in the hook file: `db diff` drops grants and policies for `supabase_auth_admin`, so the hook would land executable by `public` and not by the auth server. `--grants-out` moves those statements to a migration of their own and leaves a comment in the hook file that says where they went:
+A project that writes migrations with `supabase db diff` instead cannot keep every privilege in the hook file: `db diff` drops schema and function privileges, so the hook would land executable by `public` and not by the auth server. `--grants-out` moves those statements to a migration of their own and leaves a comment in the hook file that says where they went:
 
 ```bash
 permdock supabase hook generate --out supabase/schemas/identity/056_permdock_hook.sql --grants-out -
@@ -211,7 +211,7 @@ permdock supabase hook generate --out supabase/schemas/identity/056_permdock_hoo
   --grants-out supabase/migrations/<timestamp>_permdock_hook_grants.sql
 ```
 
-The grants file starts with `-- permdock:grants v1 schema=<schema>` and holds `usage` on the schema, `execute` on the hook and on each `supabase.hook.claims` function, the revoke from `authenticated`, `anon` and `public`, and the `select` grants and `permdock_auth_admin_read_*` policies on the tables the hook reads. `--check` compares both files. `permdock rls generate --split helpers,policies,hook` writes the hook as one part next to the helpers and policies and takes the same `--grants-out` ([declarative schemas](/docs/cli/rls#declarative-schemas)). Doctor PD042 errors while no migration from the one that creates the hook on carries the grants.
+The grants file starts with `-- permdock:grants v1 schema=<schema>` and holds `usage` on each schema the hook reads, `execute` on the hook and on each `supabase.hook.claims` function, the revoke on the hook from `authenticated`, `anon` and `public`, the revokes on the version and protection trigger functions, and the revoke on the hook schema from `public`. The `select` grants and `permdock_auth_admin_read_*` policies on the tables the hook reads stay in the hook file, because `db diff` diffs table privileges and policies and would drop them from a migration that held them. `--check` compares both files. `permdock rls generate --split helpers,policies,hook` writes the hook as one part next to the helpers and policies and takes the same `--grants-out` ([declarative schemas](/docs/cli/rls#declarative-schemas)). Doctor PD042 errors while no migration from the one that creates the hook on carries the grants.
 
 ## Attributes
 

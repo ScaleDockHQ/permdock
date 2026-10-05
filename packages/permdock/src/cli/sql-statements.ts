@@ -57,3 +57,45 @@ export function group(
 ): string {
   return match[index] ?? "";
 }
+
+const VIEW =
+  /^create\s+(?:or\s+replace\s+)?view\s+(?<name>\S+?)(?:\s+with\s*\((?<options>[^)]*)\))?\s+as\b/iu;
+const PRIVILEGE =
+  /^(?:grant|revoke)\s[\s\S]*?\son\s+(?<target>[\s\S]+?)\s+(?:to|from)\s/iu;
+const UNDIFFED_TARGET =
+  /^(?:schema|function|procedure|routine|all\s+(?:functions|procedures|routines)\s+in\s+schema)\s/iu;
+
+function privilegeTable(target: string): string {
+  return target.replace(/^table\s+/iu, "").trim();
+}
+
+export function splitUndiffed(sql: string): {
+  readonly kept: string;
+  readonly moved: readonly string[];
+} {
+  const statements = sqlStatements(sql);
+  const views = new Set<string>();
+  const moved: string[] = [];
+  let kept = sql;
+  for (const { text } of statements) {
+    const view = VIEW.exec(text)?.groups;
+    if (view !== undefined) {
+      views.add(view["name"] ?? "");
+      if (view["options"] !== undefined) {
+        moved.push(
+          `alter view ${view["name"] ?? ""} set (${view["options"]});`,
+        );
+      }
+      continue;
+    }
+    const target = PRIVILEGE.exec(text)?.groups?.["target"];
+    if (
+      target !== undefined &&
+      (UNDIFFED_TARGET.test(target) || views.has(privilegeTable(target)))
+    ) {
+      moved.push(`${text};`);
+      kept = kept.replace(`${text};\n`, "");
+    }
+  }
+  return { kept, moved };
+}

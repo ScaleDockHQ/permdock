@@ -156,7 +156,7 @@ export function rls(ctx: CliContext): Command {
       },
       "grants-out": {
         type: "string",
-        description: "File for the helper and hook grants db diff drops",
+        description: "File for the helper and hook privileges db diff drops",
         valueHint: "file",
       },
       "seeds-out": {
