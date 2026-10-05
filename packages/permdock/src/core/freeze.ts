@@ -1,12 +1,37 @@
+function refuse(): never {
+  throw new TypeError("PermDock: this collection is frozen");
+}
+
+const LOCKED = { value: refuse, writable: false, enumerable: false };
+
+/**
+ * `Object.freeze` leaves a `Map` or `Set` writable through `set`, `add`,
+ * `delete` and `clear`, so those are shadowed on the instance with a method
+ * that throws. Identity and `instanceof` stay as they were.
+ */
+function freezeCollection(value: Map<unknown, unknown> | Set<unknown>): void {
+  Object.defineProperties(
+    value,
+    value instanceof Map
+      ? { set: LOCKED, delete: LOCKED, clear: LOCKED }
+      : { add: LOCKED, delete: LOCKED, clear: LOCKED },
+  );
+  Object.freeze(value);
+  for (const [key, item] of value.entries()) {
+    freezeDeep(key);
+    freezeDeep(item);
+  }
+}
+
 export function freezeDeep<T>(value: T): T {
   if (value === null || typeof value !== "object") {
     return value;
   }
-  if (value instanceof Map || value instanceof Set) {
-    Object.freeze(value);
+  if (Object.isFrozen(value)) {
     return value;
   }
-  if (Object.isFrozen(value)) {
+  if (value instanceof Map || value instanceof Set) {
+    freezeCollection(value);
     return value;
   }
   Object.freeze(value);
