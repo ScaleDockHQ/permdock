@@ -3,6 +3,7 @@ import type { Principal, Subject } from "./subject.ts";
 
 import { compact } from "./compact.ts";
 import { freezeDeep } from "./freeze.ts";
+import { sameId } from "./ids.ts";
 import { type Scope, resolveScope, scopeList, tenantOf } from "./scopes.ts";
 import { isMembershipExpired, resolveActiveTenant } from "./tenancy.ts";
 
@@ -71,7 +72,7 @@ export function heldRoleNames(
       scope === undefined
         ? tenantOf(membership, scopes) === tenant
         : membership.scope === scope &&
-          (only?.id === undefined || membership.id === only.id);
+          (only?.id === undefined || sameId(membership.id, only.id));
     if (!matches) {
       continue;
     }

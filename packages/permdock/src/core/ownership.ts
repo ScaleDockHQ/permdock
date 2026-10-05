@@ -10,6 +10,7 @@ import {
   tenantCustomRoles,
 } from "./custom-roles.ts";
 import { freezeDeep } from "./freeze.ts";
+import { sameId } from "./ids.ts";
 import { isExternallyManaged } from "./memberships.ts";
 import { declaredRoleNames } from "./policy.ts";
 import {
@@ -238,7 +239,7 @@ function coversInstance(
     return false;
   }
   if (membership.scope === scope) {
-    return membership.id === id;
+    return sameId(membership.id, id);
   }
   const ancestors = scopeChain(scopes, scope).slice(1);
   if (!ancestors.includes(membership.scope)) {
@@ -293,7 +294,7 @@ function holdsAt(
   return (principal.memberships ?? []).some(
     (membership) =>
       membership.scope === scope &&
-      membership.id === id &&
+      sameId(membership.id, id) &&
       !isMembershipExpired(membership, now) &&
       membership.roles.includes(role),
   );
@@ -513,9 +514,9 @@ export function decideRoleChange(
   }
   const custom = named.find(
     (role) =>
-      role.tenant === tenant &&
+      sameId(role.tenant, tenant) &&
       customRoleScope(role, scopes) === scope &&
-      (customRoleId(role) ?? change.id) === change.id,
+      sameId(customRoleId(role) ?? change.id, change.id),
   );
   if (!declared && custom === undefined) {
     deny("unknown-role");

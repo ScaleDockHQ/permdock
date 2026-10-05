@@ -1,5 +1,6 @@
 import type { Membership } from "./subject.ts";
 
+import { idText } from "./ids.ts";
 import { isForbiddenKey } from "./paths.ts";
 
 /** One entry of `definePolicy({ scopes })`: the row field holding the scope id, and its parent scope. */
@@ -283,13 +284,14 @@ export function normalizeMembership(
     if (named || legacy || on === null || typeof on !== "object") {
       return undefined;
     }
-    // SAFETY: on is a non-null object checked above; resource and id are checked with isId below.
+    // SAFETY: on is a non-null object checked above; resource and id are checked below.
     const target = on as Record<string, unknown>;
-    if (!isId(target["resource"]) || !isId(target["id"])) {
+    const targetId = idText(target["id"]);
+    if (!isId(target["resource"]) || targetId === undefined) {
       return undefined;
     }
     return Object.freeze({
-      on: Object.freeze({ resource: target["resource"], id: target["id"] }),
+      on: Object.freeze({ resource: target["resource"], id: targetId }),
       roles: Object.freeze([...roles]),
       ...extra,
     });
@@ -327,7 +329,8 @@ export function normalizeMembership(
     scope = resolveScope(scopes, "tenant");
     id = raw["tenant"];
   }
-  if (scope === undefined || !isId(id)) {
+  const text = idText(id);
+  if (scope === undefined || text === undefined) {
     return undefined;
   }
   const ancestors = scopeChain(scopes, scope).slice(1);
@@ -337,8 +340,8 @@ export function normalizeMembership(
       return undefined;
     }
     const name = resolveScope(scopes, key);
-    const value = within[key];
-    if (name !== undefined && ancestors.includes(name) && isId(value)) {
+    const value = idText(within[key]);
+    if (name !== undefined && ancestors.includes(name) && value !== undefined) {
       resolved[name] = value;
     }
   }
@@ -347,7 +350,7 @@ export function normalizeMembership(
   }
   return Object.freeze({
     scope,
-    id,
+    id: text,
     ...(ancestors.length === 0 ? {} : { within: Object.freeze(resolved) }),
     roles: Object.freeze([...roles]),
     ...extra,

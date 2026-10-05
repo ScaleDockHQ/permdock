@@ -64,6 +64,7 @@ import { type EvalEnv, emitSafe, emptyListeners, finish } from "./events.ts";
 import { pickVisible } from "./fields.ts";
 import { freezeDeep } from "./freeze.ts";
 import { combineWhere, flattenGrantee, matchGrantee } from "./grantee.ts";
+import { sameId } from "./ids.ts";
 import {
   type RoleChange,
   type RoleChangeDecision,
@@ -179,7 +180,7 @@ function heldRoleNames(
       scope === undefined
         ? tenantOf(membership, scopes) === tenant
         : membership.scope === scope &&
-          (only?.id === undefined || membership.id === only.id);
+          (only?.id === undefined || sameId(membership.id, only.id));
     if (!matches) {
       continue;
     }
