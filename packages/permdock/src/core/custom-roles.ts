@@ -76,7 +76,7 @@ export type CustomGrant = {
 const GRANT_KEYS = new Set(["permission", "effect", "level"]);
 
 /** Every level of a permission an own allow reaches: `'all'` for an allow without a level. */
-type AllowLevels = "all" | Set<string>;
+type AllowLevels = "all" | Map<string, Condition>;
 
 /** `where` narrowed by a level; the empty level (`{}`) leaves it as is. */
 export function andWhere(
@@ -330,13 +330,14 @@ export function resolveCustomRole(
       denyKeys.add(key);
       continue;
     }
+    let narrowing: readonly [string, Condition] | undefined;
     if (level !== undefined) {
       const leaf = findPermission(policy.permissions, key);
-      const known =
-        typeof level === "string" &&
-        leaf?.kind === "instance" &&
-        levelCondition(policy, leaf.resource, level) !== undefined;
-      if (!known) {
+      const condition =
+        typeof level === "string" && leaf?.kind === "instance"
+          ? levelCondition(policy, leaf.resource, level)
+          : undefined;
+      if (condition === undefined) {
         drop({
           permission: key,
           reason: "unknown-level",
@@ -346,18 +347,19 @@ export function resolveCustomRole(
         denyKeys.add(key);
         continue;
       }
+      narrowing = [String(level), condition];
     }
     if (!ceilingKeys.has(key)) {
       drop({ permission: key, reason: "outside-ceiling" });
       continue;
     }
     const held = allowKeys.get(key);
-    if (typeof level !== "string") {
+    if (narrowing === undefined) {
       allowAll(key);
     } else if (held === undefined) {
-      allowKeys.set(key, new Set([level]));
+      allowKeys.set(key, new Map([narrowing]));
     } else if (held !== "all") {
-      held.add(level);
+      held.set(...narrowing);
     }
   }
 
@@ -386,15 +388,8 @@ export function resolveCustomRole(
         push(grant);
         continue;
       }
-      for (const level of levels) {
-        const condition = levelCondition(
-          policy,
-          grant.permission.resource,
-          level,
-        );
-        if (condition !== undefined) {
-          push(leveled(grant, level, condition));
-        }
+      for (const [level, condition] of levels) {
+        push(leveled(grant, level, condition));
       }
     }
     for (const grant of all) {

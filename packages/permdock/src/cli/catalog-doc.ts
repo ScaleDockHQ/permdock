@@ -74,7 +74,7 @@ function leafLevels(
   if (leaf.kind !== "instance") {
     return undefined;
   }
-  const names = Object.keys(getResource(tree, leaf.resource)?.levels ?? {});
+  const names = Object.keys({ ...getResource(tree, leaf.resource)?.levels });
   return names.length === 0 ? undefined : names;
 }
 

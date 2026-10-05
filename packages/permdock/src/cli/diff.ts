@@ -454,15 +454,7 @@ function diffLevels(
       }
     }
   }
-  const order = (x: PermissionLevel, y: PermissionLevel): number =>
-    x.permission === y.permission
-      ? x.level < y.level
-        ? -1
-        : 1
-      : x.permission < y.permission
-        ? -1
-        : 1;
-  return { added: added.toSorted(order), removed: removed.toSorted(order) };
+  return { added, removed };
 }
 
 export function diffCatalogs(original: Side, b: Side): CatalogDiff {

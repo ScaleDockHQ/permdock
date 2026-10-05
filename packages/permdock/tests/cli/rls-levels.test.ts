@@ -24,14 +24,18 @@ afterEach(() => {
   }
 });
 
-function appWith(levels: boolean, authorize: "database" | "jwt"): string {
+function appWith(
+  levels: boolean,
+  authorize: "database" | "jwt",
+  renamed = false,
+): string {
   mkdirSync(TMP, { recursive: true });
   const dir = mkdtempSync(join(TMP, "rls-levels-"));
   temps.push(dir);
   cpSync(FIXTURE, dir, { recursive: true });
   writeFileSync(
     join(dir, "src/levels.ts"),
-    `import { allow, definePermissions, definePolicy, principal, resource, role } from 'permdock';
+    `import { allow, definePermissions, definePolicy, deny, principal, resource, role } from 'permdock';
 
 export const permissions = definePermissions({
   job: resource({
@@ -40,11 +44,12 @@ export const permissions = definePermissions({
     relations: { org: { field: 'orgId', memberOf: 'tenant' } },
     ${levels ? "levels: { own: { ownerId: principal.id }, all: {} }," : ""}
   }),
-});
+}${renamed ? ", { renamed: { 'task.read': 'job.read' } }" : ""});
 
 export const policy = definePolicy(permissions, {
   roles: [
-    role('admin', [allow([permissions.job.read, permissions.job.update])], { on: 'tenant' }),
+    role('admin', [allow([permissions.job.read, permissions.job.update]), deny(permissions.job.update, { where: { locked: true } })], { on: 'tenant' }),
+    role('owner', [allow(permissions.job.update)], { on: 'tenant', assignable: false }),
   ],
   scopes: { tenant: { key: 'orgId' } },
   subject: () => null,
@@ -73,9 +78,12 @@ export const policy = definePolicy(permissions, {
   return dir;
 }
 
-async function generate(cwd: string): Promise<string> {
+async function generate(
+  cwd: string,
+  extra: readonly string[] = [],
+): Promise<string> {
   const result = await run(
-    ["rls", "generate", "--target", "sql", "--out", "rls.sql"],
+    ["rls", "generate", "--target", "sql", "--out", "rls.sql", ...extra],
     { cwd },
   );
   if (result.code !== 0) {
@@ -91,7 +99,7 @@ describe("rls generate with resource levels", () => {
       "add column if not exists level text check (level ~ '^[a-z][a-z0-9_]*$')",
     );
     expect(sql).toContain("'job.read@own'");
-    expect(sql).toContain("'job.update@all'");
+    expect(sql).toMatch(/'job\.update#\d@all'/u);
     expect(sql).toContain("permission || coalesce('@' || c.level, '')");
     expect(sql).not.toMatch(/service_role/iu);
   });
@@ -111,5 +119,17 @@ describe("rls generate with resource levels", () => {
       expect(sql).not.toContain("add column if not exists level");
       expect(sql).not.toContain("allowed_levels");
     }
+  });
+
+  it("maps a stored former key before splitting off its level", async () => {
+    const sql = await generate(appWith(true, "database", true));
+    expect(sql).toContain("('task.read', 'job.read')");
+    expect(sql).toContain("allowed_levels");
+  });
+
+  it("passes levels to the rbac scaffold", async () => {
+    const sql = await generate(appWith(true, "database"), ["--rbac-scaffold"]);
+    expect(sql).toContain("coalesce('@' || c.level, '')");
+    expect(sql).toContain('create or replace function "permdock"."authorize"(');
   });
 });

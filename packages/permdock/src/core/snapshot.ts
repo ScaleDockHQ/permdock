@@ -47,11 +47,8 @@ const CARRIED = new Set(["id", "roles", "plans", "tenant", "memberships"]);
 
 /** Principal refs the snapshot principal does not carry (`claims`, `teamIds`, …) are bound to the subject's values. */
 function isClaimRef(ref: string): boolean {
-  if (!ref.startsWith("principal.")) {
-    return false;
-  }
-  const head = ref.slice("principal.".length).split(".")[0] ?? "";
-  return !CARRIED.has(head);
+  const [root, head] = ref.split(".", 2);
+  return root === "principal" && !CARRIED.has(String(head));
 }
 
 function bindClaims(grant: SnapshotGrant, subject: Subject): SnapshotGrant {

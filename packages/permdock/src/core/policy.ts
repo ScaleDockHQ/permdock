@@ -1127,7 +1127,7 @@ function normalizeLevels(
 ): PolicyLevels | undefined {
   const out: Record<string, Record<string, Condition>> = {};
   for (const node of resources.values()) {
-    const entries = Object.entries(node.levels ?? {});
+    const entries = Object.entries({ ...node.levels });
     if (entries.length === 0) {
       continue;
     }
@@ -1140,7 +1140,7 @@ function normalizeLevels(
             : normalizeWhere(input);
       } catch (error) {
         throw new Error(
-          `PermDock: level '${name}' on '${node.name}': ${error instanceof Error ? error.message : String(error)}`,
+          `PermDock: level '${name}' on '${node.name}' is not a valid condition`,
           { cause: error },
         );
       }
@@ -1150,20 +1150,24 @@ function normalizeLevels(
   return Object.keys(out).length === 0 ? undefined : freezeDeep(out);
 }
 
+/** Declared levels of `resource` with their conditions, in declaration order. */
+export function policyLevels(
+  policy: Pick<Policy, "levels">,
+  resource: string,
+): readonly (readonly [string, Condition])[] {
+  const levels = policy.levels;
+  return levels !== undefined && Object.hasOwn(levels, resource)
+    ? Object.entries({ ...levels[resource] })
+    : [];
+}
+
 /** The condition of `level` on `resource`, if the policy declares it. */
 export function levelCondition(
   policy: Pick<Policy, "levels">,
   resource: string,
   level: string,
 ): Condition | undefined {
-  const levels = policy.levels;
-  if (levels === undefined || !Object.hasOwn(levels, resource)) {
-    return undefined;
-  }
-  const own = levels[resource];
-  return own !== undefined && Object.hasOwn(own, level)
-    ? own[level]
-    : undefined;
+  return policyLevels(policy, resource).find(([name]) => name === level)?.[1];
 }
 
 /** Declared level names of `resource`, in declaration order. */
@@ -1171,11 +1175,7 @@ export function levelNames(
   policy: Pick<Policy, "levels">,
   resource: string,
 ): readonly string[] {
-  const levels = policy.levels;
-  if (levels === undefined || !Object.hasOwn(levels, resource)) {
-    return [];
-  }
-  return Object.keys(levels[resource] ?? {});
+  return policyLevels(policy, resource).map(([name]) => name);
 }
 
 function canonicalGrants(grants: readonly Grant[]): string {

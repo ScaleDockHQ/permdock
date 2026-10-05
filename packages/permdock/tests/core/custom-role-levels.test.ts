@@ -8,6 +8,7 @@ import { diffCatalogs } from "../../src/cli/diff.ts";
 import { principal } from "../../src/conditions/refs.ts";
 import {
   customRoleClaim,
+  leveled,
   resolveCustomRole,
   validateCustomRole,
 } from "../../src/core/custom-roles.ts";
@@ -121,6 +122,29 @@ describe("resource levels", () => {
     ).toThrow(/level/u);
   });
 
+  it("rejects a level that is not a condition object or not a valid condition", () => {
+    expect(() =>
+      definePermissions({
+        job: resource({
+          id: "id",
+          actions: ["read"],
+          // SAFETY: a deliberately malformed level, which resource() must reject.
+          levels: { own: "mine" as unknown as { ownerId: string } },
+        }),
+      }),
+    ).toThrow(/must be a condition object/u);
+    const bad = definePermissions({
+      job: resource({
+        id: "id",
+        actions: ["read"],
+        levels: { own: { ownerId: { near: 1 } } },
+      }),
+    });
+    expect(() =>
+      definePolicy(bad, { subject: () => null, grants: [] }),
+    ).toThrow(/level 'own' on 'job' is not a valid condition/u);
+  });
+
   it("freezes the levels on the resource node", () => {
     expect(Object.isFrozen(policy.levels)).toBe(true);
     expect(Object.keys(policy.levels?.["job"] ?? {})).toEqual([
@@ -174,19 +198,40 @@ describe("resolveCustomRole with levels", () => {
     expect(update.every((grant) => grant.level === "all")).toBe(true);
   });
 
-  it("an allow without a level keeps every level of the ceiling", () => {
-    const resolved = resolveCustomRole(policy, {
+  it("an allow without a level keeps every level of the ceiling, in either order", () => {
+    for (const grants of [
+      [{ permission: "job.read", level: "own" }, { permission: "job.read" }],
+      [{ permission: "job.read" }, { permission: "job.read", level: "own" }],
+    ]) {
+      const resolved = resolveCustomRole(policy, {
+        tenant: "acme",
+        name: "wide",
+        grants,
+      });
+      const read = resolved.grants.filter(
+        (grant) => grant.permission.key === "job.read",
+      );
+      expect(read.every((grant) => grant.level === undefined)).toBe(true);
+    }
+  });
+
+  it("ANDs a level into a grant's check as well as its where", () => {
+    const [grant] = resolveCustomRole(policy, {
       tenant: "acme",
-      name: "wide",
-      grants: [
-        { permission: "job.read", level: "own" },
-        { permission: "job.read" },
-      ],
-    });
-    const read = resolved.grants.filter(
-      (grant) => grant.permission.key === "job.read",
-    );
-    expect(read.every((grant) => grant.level === undefined)).toBe(true);
+      name: "reader",
+      grants: [{ permission: "job.read" }],
+    }).grants;
+    if (grant === undefined) {
+      throw new Error("expected a grant");
+    }
+    const own = { op: "eq", field: "ownerId", value: "u1" } as const;
+    const narrowed = leveled({ ...grant, check: own }, "own", own);
+    expect(narrowed.level).toBe("own");
+    expect(narrowed.where).toEqual(own);
+    expect(narrowed.check).toEqual({ op: "and", conditions: [own, own] });
+    expect(
+      leveled(grant, "all", { op: "and", conditions: [] }).where,
+    ).toBeUndefined();
   });
 
   it("drops an unknown level and denies the permission, never widening", async () => {
@@ -332,6 +377,61 @@ describe("assignableLevels", () => {
       "own",
       "team",
     ]);
+  });
+
+  it("answers for the global scope and needs a tenant", async () => {
+    const steward = await permdockFor(
+      [{ scope: "tenant", id: "acme", roles: ["steward"] }],
+      [],
+    );
+    expect(
+      steward.assignableLevels(permissions.job.read, { scope: "global" }),
+    ).toEqual([]);
+    const outside = await createPermDock(
+      policy,
+      { principal: { id: "u1" }, context: {} },
+      {},
+    );
+    expect(outside.assignableLevels(permissions.job.read)).toEqual([]);
+  });
+
+  it("reads levels from the snapshot, ignoring malformed entries", async () => {
+    const steward = await permdockFor(
+      [{ scope: "tenant", id: "acme", roles: ["steward"] }],
+      [],
+    );
+    const snapshot = steward.snapshot();
+    if (snapshot instanceof Promise) {
+      throw new Error("expected JSON snapshot");
+    }
+    const client = fromSnapshot(JSON.parse(JSON.stringify(snapshot)));
+    expect(
+      client.assignableLevels(permissions.job.read, { scope: "global" }),
+    ).toEqual([]);
+    expect(client.assignableLevels(permissions.job.read)).toEqual([
+      "own",
+      "team",
+      "all",
+    ]);
+    const malformed = fromSnapshot({
+      ...JSON.parse(JSON.stringify(snapshot)),
+      assignable: [
+        {
+          tenant: "acme",
+          roles: [],
+          permissions: [],
+          levels: { "job.read": "own", "job.update": ["own", 3] },
+        },
+      ],
+    });
+    expect(malformed.assignableLevels(permissions.job.read)).toEqual([]);
+    expect(malformed.assignableLevels(permissions.job.update)).toEqual(["own"]);
+    expect(malformed.assignableLevels(permissions.job.close)).toEqual([]);
+    const trimmed = steward.snapshot({ include: [permissions.member] });
+    if (trimmed instanceof Promise) {
+      throw new Error("expected JSON snapshot");
+    }
+    expect(trimmed.assignable?.[0]?.levels).toBeUndefined();
   });
 
   it("matches the snapshot and returns nothing for a collection permission", async () => {

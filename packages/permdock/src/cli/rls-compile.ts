@@ -7,7 +7,7 @@ import type { RlsActions } from "./types.ts";
 
 import { sole } from "../core/compact.ts";
 import { andWhere, leveled } from "../core/custom-roles.ts";
-import { levelCondition, levelNames } from "../core/policy.ts";
+import { policyLevels } from "../core/policy.ts";
 import {
   formerKeys,
   hasConditionOp,
@@ -374,9 +374,10 @@ function assignKeys(
 function levelEntries(
   policy: Policy,
   ctx: RlsSqlContext,
-  entries: readonly Prepared[],
   keys: Map<Prepared, string>,
   tables: Readonly<Record<string, string>> | undefined,
+  warnings: string[],
+  skipClosures: boolean,
 ): Prepared[] {
   const custom = ctx.customRoles;
   if (custom?.levels !== true) {
@@ -384,12 +385,11 @@ function levelEntries(
   }
   const assignable = new Set(custom.assignable);
   const out: Prepared[] = [];
-  for (const entry of entries) {
+  // The loop adds the leveled keys to `keys`, so it walks a copy.
+  for (const [entry, grantKey] of Array.from(keys)) {
     const { item } = entry;
     const { grant } = item;
-    const grantKey = keys.get(entry);
     if (
-      grantKey === undefined ||
       item.access.kind !== "role" ||
       grant.effect !== "allow" ||
       grant.permission.kind !== "instance" ||
@@ -402,22 +402,23 @@ function levelEntries(
         `PermDock CLI: permission key '${grant.permission.key}' holds '@', which separates a level in custom-role grant keys`,
       );
     }
-    for (const level of levelNames(policy, grant.permission.resource)) {
-      const condition = levelCondition(
-        policy,
-        grant.permission.resource,
-        level,
-      );
-      if (condition === undefined) {
-        continue;
-      }
+    for (const [level, condition] of policyLevels(
+      policy,
+      grant.permission.resource,
+    )) {
       const where = andWhere(item.where, condition);
       const narrowed: RlsGrant = {
         ...item,
         grant: leveled(grant, level, condition),
         ...(where === undefined ? {} : { where }),
       };
-      const prepared = prepare(narrowed, tables, [], true, ctx.actions);
+      const prepared = prepare(
+        narrowed,
+        tables,
+        warnings,
+        skipClosures,
+        ctx.actions,
+      );
       if (prepared !== undefined) {
         keys.set(prepared, `${grantKey}@${level}`);
         out.push(prepared);
@@ -478,7 +479,9 @@ export function compileGrants(
     return entry === undefined ? [] : [entry];
   });
   const keys = assignKeys(entries, ctx.fields === "views");
-  entries.push(...levelEntries(policy, ctx, entries, keys, tables));
+  entries.push(
+    ...levelEntries(policy, ctx, keys, tables, warnings, skipClosures),
+  );
   const rows = new Map<string, RolePermission>();
   for (const item of items) {
     const holder =

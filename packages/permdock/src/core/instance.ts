@@ -1245,9 +1245,9 @@ export function buildInstance(
       options?: { readonly tenant?: string; readonly scope?: "global" },
     ): readonly string[] {
       const of = (found: Assignable): readonly string[] =>
-        Object.hasOwn(found.levels, permission.key)
-          ? (found.levels[permission.key] ?? [])
-          : [];
+        (Object.hasOwn(found.levels, permission.key)
+          ? found.levels[permission.key]
+          : undefined) ?? [];
       if (options?.scope === "global") {
         return of(
           assignableIn(
