@@ -126,7 +126,7 @@ Runs `collect --check` in memory. A stale `permissions.catalog.json` is an error
 
 ### PD005: skills
 
-Checks that the PermDock skills are installed (it looks for the `permdock` skill) for the agents configured in the repository (`.agents/skills`, `.claude/skills`, `.cursor/skills`) and that their version matches the installed `permdock`. `--fix` runs `permdock skills install`. See [skills](/docs/cli/skills).
+Checks that the PermDock skills are installed (it looks for the `permdock` skill) for the agents configured in the repository (`.agents/skills`, `.claude/skills`, `.cursor/skills`) and that their version matches the installed `permdock`. It looks in the working directory and every directory above it up to the workspace root (the first with `pnpm-workspace.yaml`, a `package.json` that declares `workspaces`, or `.git`), so skills installed once at a monorepo's root count for a package that runs `doctor`. The lock is `.permdock/skills-lock.json`, or a `skills-lock.json` from the `skills` CLI that lists the `permdock` skill. `--fix` runs `permdock skills install`. See [skills](/docs/cli/skills).
 
 ### PD006: TypeScript version
 

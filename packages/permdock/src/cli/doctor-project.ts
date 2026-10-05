@@ -10,15 +10,81 @@ import { rel, sqlFiles } from "./files.ts";
 import { FIELD_VIEWS } from "./rls-fields.ts";
 import { sqlStatements } from "./sql-statements.ts";
 
+/**
+ * The directories from `cwd` up to the workspace root: the first one with a
+ * `pnpm-workspace.yaml`, a `package.json` that declares `workspaces`, or a
+ * `.git`. Skills are often installed once at a monorepo's root.
+ */
+function workspaceDirs(cwd: string): readonly string[] {
+  const dirs: string[] = [];
+  let dir = resolve(cwd);
+  for (;;) {
+    dirs.push(dir);
+    if (isWorkspaceRoot(dir)) {
+      return dirs;
+    }
+    const parent = dirname(dir);
+    if (parent === dir) {
+      return [resolve(cwd)];
+    }
+    dir = parent;
+  }
+}
+
+function isWorkspaceRoot(dir: string): boolean {
+  if (
+    existsSync(join(dir, "pnpm-workspace.yaml")) ||
+    existsSync(join(dir, ".git"))
+  ) {
+    return true;
+  }
+  const manifest = join(dir, "package.json");
+  if (!existsSync(manifest)) {
+    return false;
+  }
+  try {
+    const parsed: unknown = JSON.parse(readFileSync(manifest, "utf8"));
+    return (
+      parsed !== null &&
+      typeof parsed === "object" &&
+      Object.hasOwn(parsed, "workspaces")
+    );
+  } catch {
+    return false;
+  }
+}
+
+/** Whether `dir` holds a skills lock: PermDock's own, or the `skills` CLI's naming the `permdock` skill. */
+function hasSkillsLock(dir: string): boolean {
+  if (existsSync(join(dir, ".permdock/skills-lock.json"))) {
+    return true;
+  }
+  const shared = join(dir, "skills-lock.json");
+  if (!existsSync(shared)) {
+    return false;
+  }
+  try {
+    const parsed: unknown = JSON.parse(readFileSync(shared, "utf8"));
+    const skills: unknown =
+      parsed !== null && typeof parsed === "object"
+        ? Reflect.get(parsed, "skills")
+        : undefined;
+    return (
+      skills !== null &&
+      typeof skills === "object" &&
+      Object.hasOwn(skills, "permdock")
+    );
+  } catch {
+    return false;
+  }
+}
+
 export function pd005(cwd: string): readonly DoctorFinding[] {
-  const lockPath = join(cwd, ".permdock/skills-lock.json");
-  const folders = [
-    join(cwd, ".agents/skills"),
-    join(cwd, ".claude/skills"),
-    join(cwd, ".cursor/skills"),
-  ];
-  const installed = folders.some((folder) =>
-    existsSync(join(folder, "permdock/SKILL.md")),
+  const dirs = workspaceDirs(cwd);
+  const installed = dirs.some((dir) =>
+    [".agents/skills", ".claude/skills", ".cursor/skills"].some((folder) =>
+      existsSync(join(dir, folder, "permdock/SKILL.md")),
+    ),
   );
   if (!installed) {
     return [
@@ -30,7 +96,7 @@ export function pd005(cwd: string): readonly DoctorFinding[] {
       },
     ];
   }
-  if (!existsSync(lockPath)) {
+  if (!dirs.some(hasSkillsLock)) {
     return [
       {
         code: "PD005",
