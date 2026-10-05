@@ -47,6 +47,7 @@ function databaseUri(uri: string, database: string): string {
 
 describe("a constant via on an rls.memberships table", () => {
   let db: Postgres | undefined;
+  const generated = new Map<string, string>();
 
   beforeAll(async () => {
     db = await startPostgres([ROLES]);
@@ -67,7 +68,9 @@ describe("a constant via on an rls.memberships table", () => {
         });
         await client.connect();
         try {
-          await client.query(`${TABLES}\n${readFileSync(out, "utf8")}`);
+          const sql = readFileSync(out, "utf8");
+          generated.set(shape.name, sql);
+          await client.query(`${TABLES}\n${sql}`);
         } finally {
           await client.end();
         }
@@ -80,6 +83,22 @@ describe("a constant via on an rls.memberships table", () => {
   afterAll(async () => {
     await db?.stop();
   });
+
+  it.each(SHAPES)(
+    "$name: folds the constant kind instead of a per-row case",
+    (shape) => {
+      const sql = generated.get(shape.name) ?? "";
+      expect(sql).not.toMatch(/case [^\n]* when 'admin' then/u);
+      expect(sql).not.toContain(`coalesce('${shape.via}'::text`);
+      if (shape.via === "staff") {
+        expect(sql).not.toContain(`not (m."role"`);
+      } else {
+        expect(sql).toContain(
+          `not (m."role"::text = any(array['admin']::text[]))`,
+        );
+      }
+    },
+  );
 
   it.each(SHAPES)(
     "$name: a role with for applies only when the constant kind is listed",

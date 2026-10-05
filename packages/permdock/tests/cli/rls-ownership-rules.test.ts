@@ -126,7 +126,7 @@ describe("ownershipSql with a constant via", () => {
         },
       }),
     );
-    expect(sql).toContain("'staff'::text");
+    expect(sql).not.toContain("coalesce('staff'");
     expect(sql).not.toContain('m."via"');
   });
 });

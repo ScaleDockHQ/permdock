@@ -143,8 +143,29 @@ describe("helpersSql database mode", () => {
       ownership: { kinds: { admin: ["staff"] }, assigns: [], counted: [] },
     });
     const org = fnBody(sql, "permitted_org_ids");
-    expect(org).toContain("'staff'::text");
+    expect(org).not.toContain("coalesce");
     expect(org).not.toContain('m."via"');
+    const contact = fnBody(
+      helpers({
+        authorize: "database",
+        memberships: {
+          scopes: {
+            org: {
+              table: "contacts",
+              user: "user_id",
+              role: "role",
+              columns: { org: "org_id" },
+              via: { value: "contact" },
+            },
+          },
+        },
+        ownership: { kinds: { admin: ["staff"] }, assigns: [], counted: [] },
+      }),
+      "permitted_org_ids",
+    );
+    expect(contact).toContain(
+      `not (m."role"::text = any(array['admin']::text[]))`,
+    );
   });
 
   it("types user_roles.user_id as text outside Supabase", () => {

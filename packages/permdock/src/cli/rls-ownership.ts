@@ -25,7 +25,7 @@ import {
   kindFilterSql,
   memberForSources,
   memberRoleOf,
-  memberViaSql,
+  memberVia,
   quoteIdent,
   quoteLiteral,
   roleKindSql,
@@ -123,7 +123,7 @@ function holdersSql(
     const expires = memberColumn(table.expiresAt);
     filters.push(`(${expires} is null or ${expires} > now())`);
   }
-  const via = memberViaSql(table);
+  const via = memberVia(table);
   const kind =
     typeof role === "string"
       ? roleKindSql(ctx, role, via)
@@ -617,7 +617,7 @@ ${sourceRowsSql(sources, userOf)}
         const expires = memberColumn(table.expiresAt);
         filters.push(`(${expires} is null or ${expires} > now())`);
       }
-      const kind = kindFilterSql(ctx, role.sql, memberViaSql(table));
+      const kind = kindFilterSql(ctx, role.sql, memberVia(table));
       if (kind !== undefined) {
         filters.push(kind);
       }
