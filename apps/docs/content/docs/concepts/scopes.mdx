@@ -111,18 +111,35 @@ A role applies only at the scope it is declared on, through a membership of exac
 
 Collection actions (`quote.create`, `quote.list`) have no row: they need a membership of the role's scope inside the active tenant.
 
+## Checks without a row
+
+An instance action checked without a row (`permdock.can(permissions.customer.read, undefined)` in a page guard) asks about the active tenant as a whole, so only memberships of the first scope answer it. A membership of a nested scope applies to an instance action only when one of these holds:
+
+- The decision has a row, and the row carries the nested scope's key with the membership's id (and the keys of its ancestors with the ids in `within`).
+- The caller selected that instance with `permdock.team(id)`, for a membership of the second scope.
+
+Otherwise the grant is skipped and the check is `denied` with `scope`. A portal contact of customer A therefore fails `can(permissions.customer.read, undefined)` in organization T, passes `can(permissions.customer.read, customerA)`, and passes `permdock.team('A').can(permissions.customer.read, undefined)`. A staff member of T who is also a contact passes the first check through the organization membership.
+
+```ts
+permdock.can(permissions.customer.read, undefined); // organization memberships only
+permdock.team(customerId).can(permissions.customer.read, undefined); // the contact's own customer
+permdock.can(permissions.customer.read, customer); // any membership whose scope keys match the row
+```
+
+A snapshot is stricter: it carries no tenant-level answer for a partitioned scope, so `fromSnapshot(...).can(permission, undefined)` is `denied` for every instance action on a resource that declares the scope. Collection actions keep the rule above, because `where()` and RLS narrow what a nested membership lists or creates to its own instance.
+
 ## Where scopes are read
 
-| Surface                                     | What it does with scopes                                                                                                                                                                           |
-| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `decide`, `can`, `filter`                   | Matches each scoped grant against a membership of its scope, inside the active tenant, then checks the row keys of the scope and its declared ancestors                                            |
-| `where()`                                   | One equality per partitioning key on the membership's chain, outermost first (`organization_id = 'T' and customer_id = 'A'`), ORed across memberships; the result carries the scopes for `toWhere` |
-| `snapshot()`, `snapshotFor`, `fromSnapshot` | `scopes` lists `{ name, key, within, resources }` in order; grants carry the scope name and the membership they came from ([wire formats](/docs/concepts/wire-formats))                            |
-| `memberOf` conditions and relations         | A `memberOf: S` relation on the first scope means "the row is in the active tenant"; on any other scope, "the subject holds a membership in the row's instance of S"                               |
-| Custom roles                                | `CustomRole.scope` (default the first scope) and optional `id`; the ceiling is keyed by scope name ([custom roles](/docs/concepts/custom-roles))                                                   |
-| RLS                                         | One `permitted_<scope>_ids(p_grant)` and one membership-only `member_<scope>_ids()` helper per declared scope, applied to that scope's key ([Postgres RLS](/docs/standards/postgres-rls))          |
-| Catalog                                     | `scopes[]` in order and `roles[].on` as a scope name or `resource`                                                                                                                                 |
-| Membership events                           | `scope`, `id` and `within`, like a membership, so a role change at any depth is recorded ([wire formats](/docs/concepts/wire-formats))                                                             |
+| Surface                                     | What it does with scopes                                                                                                                                                                                                                                   |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `decide`, `can`, `filter`                   | Matches each scoped grant against a membership of its scope, inside the active tenant, then checks the row keys of the scope and its declared ancestors; an instance check without a row answers from the first scope, or the instance `team(id)` selected |
+| `where()`                                   | One equality per partitioning key on the membership's chain, outermost first (`organization_id = 'T' and customer_id = 'A'`), ORed across memberships; the result carries the scopes for `toWhere`                                                         |
+| `snapshot()`, `snapshotFor`, `fromSnapshot` | `scopes` lists `{ name, key, within, resources }` in order; grants carry the scope name and the membership they came from ([wire formats](/docs/concepts/wire-formats))                                                                                    |
+| `memberOf` conditions and relations         | A `memberOf: S` relation on the first scope means "the row is in the active tenant"; on any other scope, "the subject holds a membership in the row's instance of S"                                                                                       |
+| Custom roles                                | `CustomRole.scope` (default the first scope) and optional `id`; the ceiling is keyed by scope name ([custom roles](/docs/concepts/custom-roles))                                                                                                           |
+| RLS                                         | One `permitted_<scope>_ids(p_grant)` and one membership-only `member_<scope>_ids()` helper per declared scope, applied to that scope's key ([Postgres RLS](/docs/standards/postgres-rls))                                                                  |
+| Catalog                                     | `scopes[]` in order and `roles[].on` as a scope name or `resource`                                                                                                                                                                                         |
+| Membership events                           | `scope`, `id` and `within`, like a membership, so a role change at any depth is recorded ([wire formats](/docs/concepts/wire-formats))                                                                                                                     |
 
 ## RLS
 
@@ -150,5 +167,7 @@ Real SaaS products nest tenants: organizations and their customers, districts an
 No implicit cascade is the rule every access-control incident in multi-level tenancy argues for: an organization admin who can open a customer portal "because they are above it" leaks the portal's scoping, and a customer contact who inherits an organization role is worse. CentraKit, the field-service product this page's example comes from, had to route its portal through security-definer RPCs because staff table policies could not express contact access; per-scope helpers remove that workaround. Requiring each resource to declare every scope key it carries turns a silent parity gap (a row checked in memory but not narrowed by `where()` or RLS) into a definition-time error.
 
 Suspension is checked live in `jwt` mode too, even though the helpers otherwise trust the token. A disabled organization is an incident response, and waiting up to an hour for every member's token to refresh is the wrong default. The cost is one indexed lookup per helper call, still once per statement. A missing status row suspends because the alternative (a row nobody created grants access) fails open.
+
+An instance check without a row answers from the first scope because that is the question a page guard or a navigation item asks: may this subject use this feature of the organization? A nested membership that answered it would let a portal contact of one customer through every organization-level guard that names a permission the contact holds on their own rows. The row, or an explicit `team(id)`, says which nested instance the caller means; without either there is none to check.
 
 A single tree rooted at the first scope keeps "the active tenant" meaningful: every nested membership lives inside exactly one instance of the first scope, so tenant switching, per-tenant snapshots and the active-tenant claim need no per-scope variant.

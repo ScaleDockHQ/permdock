@@ -367,6 +367,13 @@ export const saasScenarios: readonly SaasScenario[] = Object.freeze([
     clientOutcome: "denied",
   },
   {
+    name: "team lead does not pass a tenant-level doc check without a row",
+    user: "gina",
+    tenant: "acme",
+    permission: p.doc.update,
+    expected: { outcome: "denied", reason: "scope" },
+  },
+  {
     name: "team lead cannot update a locked doc",
     user: "gina",
     tenant: "acme",

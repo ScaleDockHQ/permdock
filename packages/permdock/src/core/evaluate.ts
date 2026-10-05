@@ -801,6 +801,7 @@ export function evaluate(
             },
             env.team,
             walkRole,
+            permission.kind === "instance",
           );
         const scopeMatch = matchWriteScope(
           matchRow,
