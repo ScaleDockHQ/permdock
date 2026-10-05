@@ -164,24 +164,10 @@ export function createPermDock<
       if (binding === undefined) {
         return true;
       }
-      try {
-        const permdock = await kernel.instance(context);
-        // SAFETY: can's instance and collection overloads share one implementation that takes either kind.
-        const can = permdock.can as (
-          next: Permission,
-          row?: unknown,
-        ) => boolean;
-        if (binding.data === undefined) {
-          return !can(permission);
-        }
-        const data: unknown = await binding.data(input);
-        if (data === null || data === undefined) {
-          return true;
-        }
-        return !can(permission, data);
-      } catch {
-        return true;
-      }
+      const checked = await kernel.check(binding, input, context, {
+        simulate: true,
+      });
+      return !checked.ok || checked.raw.outcome !== "granted";
     };
 
   const guardTools = async <T extends OpenAiTool>(

@@ -1,9 +1,9 @@
 import type { Decision } from "../core/decision.ts";
 import type { ProblemDetails } from "../core/errors.ts";
-import type { DecideOptions, PermDock } from "../core/permdock.ts";
+import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permissions.ts";
 import type { Policy } from "../core/policy.ts";
-import type { Actor, Delegation, Principal } from "../core/subject.ts";
+import type { Actor, Delegation, Principal, Subject } from "../core/subject.ts";
 import type {
   A2aAgentCard,
   A2aAuth,
@@ -16,7 +16,7 @@ import type {
   A2aWireSecurityScheme,
 } from "./types.ts";
 
-import { resumeDecision, storedApprovalToken } from "../approvals/helpers.ts";
+import { createAgentKernel } from "../agent/kernel.ts";
 import { canonicalJson } from "../core/canonical-json.ts";
 import { compact } from "../core/compact.ts";
 import {
@@ -26,9 +26,8 @@ import {
 import { instanceOptions } from "../core/instance-options.ts";
 import { mayUse } from "../core/may-use.ts";
 import { challengeScope, scopesReaching } from "../core/oauth-scopes.ts";
-import { createPermDock as createCorePermDock } from "../core/permdock.ts";
 import { bytesToBase64Url } from "../core/sha256.ts";
-import { bearerChallenge } from "../server/problem.ts";
+import { bearerChallenge, wwwAuthenticate } from "../server/problem.ts";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -156,20 +155,6 @@ function actorOf(auth: A2aAuth): Actor | undefined {
     : undefined;
 }
 
-async function resolveTenant(
-  tenant: A2aPermDockOptions["tenant"],
-  auth: A2aAuth,
-): Promise<string | undefined> {
-  if (tenant === undefined || typeof tenant === "string") {
-    return tenant;
-  }
-  try {
-    return await tenant(auth);
-  } catch {
-    return undefined;
-  }
-}
-
 function hasScope(auth: A2aAuth, scopes: readonly string[]): boolean {
   return scopes.some((scope) => auth.scopes?.includes(scope) === true);
 }
@@ -193,26 +178,33 @@ const LOAD_FAILED: Extract<Decision, { readonly outcome: "denied" }> = {
   alternatives: [],
 };
 
+const NO_SUBJECT: Subject = { principal: null, context: {} };
+
+function taskStatus(status: number): 401 | 403 | 429 | 503 {
+  return status === 401 || status === 429 || status === 503 ? status : 403;
+}
+
 function deniedOutcome(
   decision: Extract<Decision, { readonly outcome: "denied" }>,
   permission: Permission,
   data: unknown,
-  permdock: PermDock,
+  subject: Subject | undefined,
 ): A2aTaskOutcome {
-  const error = new PermDockDeniedError({
+  const problem = new PermDockDeniedError({
     decision,
     permission: permission.key,
     scope: permission.scope,
     resource: resourceRef(permission, data),
-    subject: permdock.subject,
+    subject: subject ?? NO_SUBJECT,
     message: `${permission.key} denied.`,
-  });
-  return {
+  }).toProblemDetails();
+  return compact<A2aTaskOutcome>({
     ok: false,
-    status: 403,
+    status: taskStatus(problem.status),
     state: "failed",
-    problem: error.toProblemDetails(),
-  };
+    problem,
+    wwwAuthenticate: wwwAuthenticate(decision, permission, false),
+  });
 }
 
 function approvalOutcome(
@@ -292,30 +284,29 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       );
     }
   }
-  const instanceFor = async (auth: A2aAuth): Promise<PermDock> => {
-    let user: TUser | null = null;
-    try {
-      user = await options.subject(auth);
-    } catch {
-      user = null;
-    }
-    const tenant = await resolveTenant(options.tenant, auth);
-    return createCorePermDock(
-      policy,
-      user,
-      compact({
-        tenant,
-        actor: actorOf(auth),
-        delegation: delegationOf(auth),
-        ...instanceOptions(options),
-      }),
-    );
-  };
+  const kernel = createAgentKernel<A2aAuth, TUser>(
+    // SAFETY: the kernel reads the principal only through the policy's own subject function.
+    policy as Policy<TUser>,
+    compact({
+      subject: options.subject,
+      actor: actorOf,
+      delegation: delegationOf,
+      tenant: options.tenant,
+      store: options.store,
+      adapter: "a2a",
+      ...instanceOptions(options),
+    }),
+  );
 
   const agentCard = (): A2aAgentCard => cardOf(options, publicSkills(options));
 
   const extendedAgentCard = async (auth: A2aAuth): Promise<A2aAgentCard> => {
-    const permdock = await instanceFor(auth);
+    let permdock: PermDock;
+    try {
+      permdock = await kernel.instance(auth);
+    } catch {
+      return cardOf(options, []);
+    }
     const scheme = firstScheme(options);
     const skills: A2aSkill[] = [];
     for (const [id, config] of Object.entries(options.skills)) {
@@ -352,69 +343,31 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
           challengeScope(policy, config.permission),
         );
       }
-      const permdock = await instanceFor(auth);
-      let data: unknown;
-      if (config.data !== undefined) {
-        try {
-          data = await config.data(task);
-        } catch {
-          return deniedOutcome(
-            LOAD_FAILED,
-            config.permission,
-            undefined,
-            permdock,
-          );
-        }
-        if (
-          config.permission.kind === "instance" &&
-          (data === null || data === undefined)
-        ) {
-          return deniedOutcome(
-            LOAD_FAILED,
-            config.permission,
-            undefined,
-            permdock,
-          );
-        }
-      }
-      let decision: Decision;
-      try {
-        // SAFETY: decide's instance and collection overloads share one implementation that takes either kind.
-        const raw = (
-          permdock.decide as (
-            next: Permission,
-            row?: unknown,
-            decideOptions?: DecideOptions,
-          ) => Decision
-        )(
+      const checked = await kernel.check(
+        compact({ permission: config.permission, data: config.data }),
+        task,
+        auth,
+        compact({ resumeToken: auth.extra?.approval }),
+      );
+      if (!checked.ok) {
+        return deniedOutcome(
+          LOAD_FAILED,
           config.permission,
-          data,
-          compact<DecideOptions>({
-            source: "adapter",
-            adapter: "a2a",
-            trusted: false,
-            boundary: "tool-args",
-          }),
+          undefined,
+          checked.permdock?.subject,
         );
-        decision = await resumeDecision({
-          decision: raw,
-          permission: config.permission,
-          subject: permdock.subject,
-          store: options.store,
-          resource: resourceRef(config.permission, data),
-          adapter: "a2a",
-          token:
-            auth.extra?.approval ??
-            (await storedApprovalToken(options.store, raw)),
-        });
-      } catch {
-        return deniedOutcome(LOAD_FAILED, config.permission, data, permdock);
       }
+      const { decision, data, permdock } = checked;
       switch (decision.outcome) {
         case "granted":
           return { ok: true };
         case "denied":
-          return deniedOutcome(decision, config.permission, data, permdock);
+          return deniedOutcome(
+            decision,
+            config.permission,
+            data,
+            permdock.subject,
+          );
         case "approval-required":
           return approvalOutcome(decision, config.permission, data);
         default: {

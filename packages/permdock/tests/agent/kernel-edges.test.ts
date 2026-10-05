@@ -154,3 +154,104 @@ describe("createAgentKernel edge cases", () => {
     });
   });
 });
+
+describe("createAgentKernel check", () => {
+  const update = {
+    permission: permissions.post.update,
+    data: (): unknown => ownPost,
+  };
+
+  it("returns the instance, the row and the decision", async () => {
+    const kernel = createAgentKernel(policy, {
+      adapter: "test",
+      subject: () => memberUser,
+    });
+    const checked = await kernel.check(update, {}, {});
+    expect(checked.ok).toBe(true);
+    if (checked.ok) {
+      expect(checked.data).toBe(ownPost);
+      expect(checked.decision.outcome).toBe("granted");
+      expect(checked.permdock.subject.principal?.id).toBe(memberUser.id);
+    }
+  });
+
+  it("names the failure and keeps the instance once it was built", async () => {
+    const kernel = createAgentKernel(policy, {
+      adapter: "test",
+      subject: () => memberUser,
+    });
+    const thrown = await kernel.check(
+      {
+        permission: permissions.post.update,
+        data: () => {
+          throw new Error("store down");
+        },
+      },
+      {},
+      {},
+    );
+    expect(thrown).toMatchObject({ ok: false, failure: "load-failed" });
+    expect(thrown.permdock?.subject.principal?.id).toBe(memberUser.id);
+
+    const missing = await kernel.check(
+      { permission: permissions.post.update, data: () => null },
+      {},
+      {},
+    );
+    expect(missing).toMatchObject({ ok: false, failure: "no-data" });
+
+    const collection = await kernel.check(
+      { permission: permissions.post.list, data: () => null },
+      {},
+      {},
+    );
+    expect(collection.ok).toBe(true);
+  });
+
+  it("fails without an instance when wrap throws", async () => {
+    const kernel = createAgentKernel(policy, {
+      adapter: "test",
+      subject: () => memberUser,
+      wrap: () => {
+        throw new Error("tracer down");
+      },
+    });
+    const checked = await kernel.check(update, {}, {});
+    expect(checked).toEqual({ ok: false, failure: "failed" });
+  });
+
+  it("decides on the wrapped instance", async () => {
+    const wrapped: unknown[] = [];
+    const kernel = createAgentKernel(policy, {
+      adapter: "test",
+      subject: () => memberUser,
+      wrap: (instance) => {
+        wrapped.push(instance);
+        return instance;
+      },
+    });
+    const checked = await kernel.check(update, {}, {});
+    expect(wrapped).toHaveLength(1);
+    expect(checked.permdock).toBe(wrapped[0]);
+  });
+
+  it("records an adapter check and leaves a simulated one out of the sink", async () => {
+    const sources: unknown[] = [];
+    const kernel = createAgentKernel(policy, {
+      adapter: "test",
+      subject: () => memberUser,
+      sink: {
+        write: (events) => {
+          for (const event of events) {
+            if (event.type === "decision") {
+              sources.push(event.source);
+            }
+          }
+        },
+      },
+    });
+    await kernel.check(update, {}, {}, { simulate: true });
+    await kernel.check(update, {}, {});
+    expect(sources).toEqual(["adapter"]);
+  });
+});

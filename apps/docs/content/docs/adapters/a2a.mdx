@@ -74,7 +74,7 @@ app.post(
 ## How denials surface
 
 - In discovery: the skill is absent from the extended card. The public card is never filtered, so a caller can always learn what scopes to request.
-- At execution: an A2A task in the failed state whose error is an RFC 9457 Problem Details object: `type` ending in `/denied` or `/approval-required`, `permission`, `denials`, `alternatives`. HTTP status `403`.
+- At execution: an A2A task in the failed state whose error is an RFC 9457 Problem Details object with `permission`, `denials` and `alternatives`. `status` follows the [Problem Details status matrix](/docs/concepts/errors): `401` with a `Bearer` `wwwAuthenticate` challenge for a caller with no subject, `429` for a rate limit, `503` when the limit store is unreachable, `403` otherwise. A loader that throws, or returns nothing for an instance permission, is a `403` denial with reason `validation`; a subject resolver that throws makes the caller anonymous.
 - `approval-required`: the task enters an input-required state with the `Decision.token` and a human-readable prompt in the message, and the pending request is written to the `store`. When the caller continues the task, the adapter recomputes the token (or reads the one the verified token carries in `auth.extra.approval`) and resumes only if the store holds an approved record for the same permission, resource, principal and client; the approval is consumed, so a second run fails with `approval-consumed`. A token issued to another client never matches.
 - An unknown skill id, including `__proto__`, `constructor` and other inherited names, fails with `403`; skills are looked up by own key only.
 - Missing scope: standard OAuth step-up (`insufficient_scope`), not a denial.

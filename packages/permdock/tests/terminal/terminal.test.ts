@@ -18,6 +18,7 @@ import {
 } from "../../src/index.ts";
 import {
   createPermDock,
+  EX_NOPERM,
   EX_USAGE,
   TerminalExit,
 } from "../../src/terminal/index.ts";
@@ -732,5 +733,18 @@ describe("permdock/terminal destructive and dry-run", () => {
     expect(lines.join("")).toBe(
       "dry run: environment.delete on environment staging is granted; nothing ran\n",
     );
+  });
+});
+
+describe("permdock/terminal fail-closed", () => {
+  it("denies when the loader throws", async () => {
+    const { protect } = createPermDock(policy, {
+      subject: () => memberUser,
+      runtime: { exit: throwExit, write: (): void => undefined },
+    });
+    const run = protect(permissions.post.update, () => {
+      throw new Error("db down");
+    })(() => "ran");
+    await expect(run()).rejects.toMatchObject({ code: EX_NOPERM });
   });
 });

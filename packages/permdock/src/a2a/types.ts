@@ -146,7 +146,7 @@ export type A2aTaskOutcome =
   | { readonly ok: true }
   | {
       readonly ok: false;
-      readonly status: 401 | 403;
+      readonly status: 401 | 403 | 429 | 503;
       readonly state: "failed" | "input-required";
       readonly problem: ProblemDetails;
       readonly wwwAuthenticate?: string;

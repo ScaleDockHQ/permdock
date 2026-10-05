@@ -5,6 +5,7 @@ import type { InstanceOptions } from "../../src/core/instance-options.ts";
 import type { Subject } from "../../src/core/subject.ts";
 
 import { createAgentKernel } from "../../src/agent/kernel.ts";
+import { createPermDock as createConvexPermDock } from "../../src/convex/create.ts";
 import { memoryApprovalPolicies } from "../../src/core/approval-policies.ts";
 import { instanceOptions } from "../../src/core/instance-options.ts";
 import { createPermDock as createHonoPermDock } from "../../src/hono/create.ts";
@@ -56,6 +57,17 @@ describe("adapters forward InstanceOptions to core", () => {
     expect(permdock.decide(permissions.expense.read, large).outcome).toBe(
       "approval-required",
     );
+  });
+
+  it("applies approvalPolicies through convex", async () => {
+    const { withPermDock } = createConvexPermDock(policy, {
+      subject: () => ({ id: "alice" }),
+      approvalPolicies,
+    });
+    const outcome = await withPermDock(
+      (ctx) => ctx.permdock.decide(permissions.expense.read, large).outcome,
+    )({}, {});
+    expect(outcome).toBe("approval-required");
   });
 
   it("applies approvalPolicies through the agent kernel", async () => {

@@ -92,13 +92,13 @@ All sources end in the same verification step. A `--user` flag, a `USER` environ
 
 Codes follow the BSD `sysexits.h` conventions so shell scripts and agents can branch without parsing output.
 
-| Code | Name          | When                                                                                                                                                                           |
-| ---- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `0`  | `EX_OK`       | `granted` and the action completed, or `granted` under `--dry-run`                                                                                                             |
-| `64` | `EX_USAGE`    | A `destructive` permission in a process with no terminal and no `--yes`                                                                                                        |
-| `75` | `EX_TEMPFAIL` | `approval-required` with the request recorded in `store`, or a self-approvable request in a non-interactive process: the command can succeed once someone approves             |
-| `77` | `EX_NOPERM`   | `denied`, including anonymous subjects, a declined approval prompt, an approval someone else must give with no `store` configured, and a typed confirmation that did not match |
-| `78` | `EX_CONFIG`   | The adapter is misconfigured: no verifier, unreachable authorization server metadata, async schema at a boundary                                                               |
+| Code | Name          | When                                                                                                                                                                                                                                               |
+| ---- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `0`  | `EX_OK`       | `granted` and the action completed, or `granted` under `--dry-run`                                                                                                                                                                                 |
+| `64` | `EX_USAGE`    | A `destructive` permission in a process with no terminal and no `--yes`                                                                                                                                                                            |
+| `75` | `EX_TEMPFAIL` | `approval-required` with the request recorded in `store`, or a self-approvable request in a non-interactive process: the command can succeed once someone approves                                                                                 |
+| `77` | `EX_NOPERM`   | `denied`, including anonymous subjects, a declined approval prompt, an approval someone else must give with no `store` configured, a typed confirmation that did not match, and a `load` that throws or returns nothing for an instance permission |
+| `78` | `EX_CONFIG`   | The adapter is misconfigured: no verifier, unreachable authorization server metadata, async schema at a boundary                                                                                                                                   |
 
 Failures inside your action keep whatever code your framework assigns; the adapter only sets codes for outcomes it produced. This is a different contract from the `0` / `1` / `2` codes of the [`permdock` binary](/docs/cli), which reports findings, not permissions.
 

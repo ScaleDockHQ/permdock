@@ -102,7 +102,8 @@ describe("A2A skill protection edges", () => {
       skills: { list: { permission: permissions.post.list } },
     }).protectSkill(() => "list");
     const result = await run({}, { clientId: "agent", scopes });
-    expect(result.ok ? "granted" : result.status).toBe(403);
+    expect(result).toMatchObject({ ok: false, status: 401 });
+    expect(result.ok ? undefined : result.wwwAuthenticate).toBe("Bearer");
   });
 
   it("names a numeric row id in the denied problem", async () => {

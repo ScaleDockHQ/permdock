@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 
 import { createPermDock as createAiSdkPermDock } from "../../src/ai-sdk/index.ts";
 import { memoryApprovalStore } from "../../src/approvals/index.ts";
+import { instanceOptions } from "../../src/core/instance-options.ts";
 import { memoryApprovalPolicies } from "../../src/index.ts";
 import { createPermDock as createMcpPermDock } from "../../src/mcp/index.ts";
 import { createPermDock as createServerPermDock } from "../../src/server/index.ts";
@@ -30,18 +31,23 @@ function sourceFiles(dir: string): readonly string[] {
 }
 
 describe("adapters forward approvalPolicies", () => {
-  it("every adapter that builds an instance with a role source forwards approvalPolicies", () => {
-    const builders = sourceFiles(src).filter((file) =>
-      readFileSync(file, "utf8").includes("customRoles: options.customRoles"),
+  it("every adapter forwards its sources through instanceOptions, which carries approvalPolicies", () => {
+    const files = sourceFiles(src).map((file) => ({
+      file: path.relative(src, file),
+      text: readFileSync(file, "utf8"),
+    }));
+    const builders = files.filter(({ text }) =>
+      text.includes("...instanceOptions(options)"),
     );
     expect(builders.length).toBeGreaterThan(15);
-    const missing = builders.filter(
-      (file) =>
-        !readFileSync(file, "utf8").includes(
-          "approvalPolicies: options.approvalPolicies",
-        ),
-    );
-    expect(missing.map((file) => path.relative(src, file))).toEqual([]);
+    expect(
+      files
+        .filter(({ text }) => text.includes("customRoles: options.customRoles"))
+        .map(({ file }) => file),
+    ).toEqual([]);
+    expect(instanceOptions({ approvalPolicies: listsNeedApproval })).toEqual({
+      approvalPolicies: listsNeedApproval,
+    });
   });
 
   it("the server kernel asks for approval an entry requires", async () => {

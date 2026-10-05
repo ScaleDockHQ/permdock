@@ -3,8 +3,11 @@ import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permissions.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy.ts";
 import type { Actor, Delegation, Principal } from "../core/subject.ts";
+import type { Boundary } from "../core/validation.ts";
 import type {
   AgentKernelOptions,
+  CheckOptions,
+  CheckResult,
   DecideToolOptions,
   ToolBinding,
   ToolVerdict,
@@ -80,7 +83,11 @@ function runDecide(
   permdock: PermDock,
   permission: Permission,
   data: unknown,
-  adapter: string,
+  how: {
+    readonly adapter: string;
+    readonly boundary: Boundary;
+    readonly source: "adapter" | "simulate";
+  },
 ): Decision {
   // SAFETY: decide's instance and collection overloads share one implementation that takes either kind.
   return (
@@ -88,20 +95,12 @@ function runDecide(
       next: Permission,
       row?: unknown,
       decideOptions?: {
-        readonly source: "adapter";
+        readonly source: "adapter" | "simulate";
         readonly adapter: string;
-        readonly boundary: "tool-args";
+        readonly boundary: Boundary;
       },
     ) => Decision
-  )(
-    permission,
-    data,
-    compact({
-      source: "adapter" as const,
-      adapter,
-      boundary: "tool-args" as const,
-    }),
-  );
+  )(permission, data, how);
 }
 
 export function createAgentKernel<
@@ -127,6 +126,17 @@ export function createAgentKernel<
     context: TContext,
     decideOptions?: DecideToolOptions,
   ) => Promise<ToolVerdict>;
+  /**
+   * Builds the instance, loads and checks the row, decides and resumes an
+   * approval. Never throws: a throwing loader, a missing row and any other
+   * error come back as a failure, which denies.
+   */
+  readonly check: (
+    binding: ToolBinding,
+    args: unknown,
+    context: TContext,
+    checkOptions?: CheckOptions,
+  ) => Promise<CheckResult<V>>;
   /** The approval token a call would park under, without touching the store. */
   readonly tokenFor: (
     binding: ToolBinding,
@@ -170,7 +180,7 @@ export function createAgentKernel<
         }
       }
       const tenant = await resolveTenant(options.tenant, context);
-      return createCorePermDock(
+      const created = await createCorePermDock(
         policy,
         user,
         compact({
@@ -180,6 +190,8 @@ export function createAgentKernel<
           ...instanceOptions(options),
         }),
       );
+      // SAFETY: wrap returns the instance it was given, decorated; the vocabulary is unchanged.
+      return (options.wrap?.(created) ?? created) as PermDock<V>;
     })();
     if (typeof context === "object" && context !== null) {
       cache.set(context, built);
@@ -193,6 +205,78 @@ export function createAgentKernel<
     return built;
   };
 
+  const boundary = options.boundary ?? "tool-args";
+  const tools = options.tools ?? {};
+
+  const run = async (
+    binding: ToolBinding,
+    args: unknown,
+    context: TContext,
+    how: {
+      readonly resume: boolean;
+      readonly source: "adapter" | "simulate";
+      readonly decideOptions: DecideToolOptions;
+    },
+  ): Promise<CheckResult<V>> => {
+    let permdock: PermDock<V> | undefined;
+    try {
+      permdock = await instance(context);
+      let data: unknown;
+      if (binding.data !== undefined) {
+        try {
+          data = await binding.data(args);
+        } catch {
+          return { ok: false, failure: "load-failed", permdock };
+        }
+        if (
+          binding.permission.kind === "instance" &&
+          (data === null || data === undefined)
+        ) {
+          return { ok: false, failure: "no-data", permdock };
+        }
+      }
+      const raw = runDecide(permdock, binding.permission, data, {
+        adapter: options.adapter,
+        boundary,
+        source: how.source,
+      });
+      const decision = how.resume
+        ? await resumeDecision({
+            decision: raw,
+            permission: binding.permission,
+            subject: permdock.subject,
+            store: options.store,
+            resource: resourceRef(binding.permission, data),
+            adapter: options.adapter,
+            token:
+              how.decideOptions.resumeToken ??
+              (await storedApprovalToken(options.store, raw, {
+                denyPending: how.decideOptions.denyPending === true,
+              })),
+          })
+        : raw;
+      return { ok: true, permdock, data, raw, decision };
+    } catch {
+      return compact<CheckResult<V>>({
+        ok: false,
+        failure: "failed",
+        permdock,
+      });
+    }
+  };
+
+  const check = (
+    binding: ToolBinding,
+    args: unknown,
+    context: TContext,
+    checkOptions: CheckOptions = {},
+  ): Promise<CheckResult<V>> =>
+    run(binding, args, context, {
+      resume: checkOptions.simulate !== true,
+      source: checkOptions.simulate === true ? "simulate" : "adapter",
+      decideOptions: checkOptions,
+    });
+
   const evaluate = async (
     binding: ToolBinding,
     toolName: string,
@@ -200,70 +284,21 @@ export function createAgentKernel<
     context: TContext,
     decideOptions: DecideToolOptions = {},
   ): Promise<ToolVerdict> => {
-    try {
-      const permdock = await instance(context);
-      let data: unknown;
-      if (binding.data !== undefined) {
-        data = await binding.data(args);
-        if (data === null || data === undefined) {
-          const decision = {
-            outcome: "denied" as const,
-            denials: [{ role: null, reason: "validation" as const }],
-            alternatives: [],
-          };
-          return {
-            outcome: "denied",
-            decision,
-            permission: binding.permission,
-            reason: modelReason(
-              decision,
-              binding.permission,
-              permdock.subject.principal?.id,
-            ),
-          };
-        }
-      }
-      const raw = runDecide(
-        permdock,
-        binding.permission,
-        data,
-        options.adapter,
-      );
-      const decision = await resumeDecision({
-        decision: raw,
-        permission: binding.permission,
-        subject: permdock.subject,
-        store: options.store,
-        resource: resourceRef(binding.permission, data),
-        adapter: options.adapter,
-        token:
-          decideOptions.resumeToken ??
-          (await storedApprovalToken(options.store, raw, {
-            denyPending: decideOptions.denyPending === true,
-          })),
-      });
-      if (decision.outcome === "granted") {
+    const checked = await check(binding, args, context, decideOptions);
+    if (!checked.ok) {
+      if (checked.failure !== "no-data" || checked.permdock === undefined) {
         return {
-          outcome: "granted",
-          decision,
+          outcome: "denied",
+          decision: null,
           permission: binding.permission,
-          data,
+          reason: thrownReason(toolName),
         };
       }
-      if (decision.outcome === "approval-required") {
-        return {
-          outcome: "approval-required",
-          decision,
-          permission: binding.permission,
-          data,
-          token: decision.token,
-          summary: modelReason(
-            decision,
-            binding.permission,
-            permdock.subject.principal?.id,
-          ),
-        };
-      }
+      const decision = {
+        outcome: "denied" as const,
+        denials: [{ role: null, reason: "validation" as const }],
+        alternatives: [],
+      };
       return {
         outcome: "denied",
         decision,
@@ -271,17 +306,43 @@ export function createAgentKernel<
         reason: modelReason(
           decision,
           binding.permission,
+          checked.permdock.subject.principal?.id,
+        ),
+      };
+    }
+    const { permdock, decision, data } = checked;
+    if (decision.outcome === "granted") {
+      return {
+        outcome: "granted",
+        decision,
+        permission: binding.permission,
+        data,
+      };
+    }
+    if (decision.outcome === "approval-required") {
+      return {
+        outcome: "approval-required",
+        decision,
+        permission: binding.permission,
+        data,
+        token: decision.token,
+        summary: modelReason(
+          decision,
+          binding.permission,
           permdock.subject.principal?.id,
         ),
       };
-    } catch {
-      return {
-        outcome: "denied",
-        decision: null,
-        permission: binding.permission,
-        reason: thrownReason(toolName),
-      };
     }
+    return {
+      outcome: "denied",
+      decision,
+      permission: binding.permission,
+      reason: modelReason(
+        decision,
+        binding.permission,
+        permdock.subject.principal?.id,
+      ),
+    };
   };
 
   const tokenFor = async (
@@ -289,25 +350,14 @@ export function createAgentKernel<
     args: unknown,
     context: TContext,
   ): Promise<string | undefined> => {
-    try {
-      const permdock = await instance(context);
-      let data: unknown;
-      if (binding.data !== undefined) {
-        data = await binding.data(args);
-        if (data === null || data === undefined) {
-          return undefined;
-        }
-      }
-      const raw = runDecide(
-        permdock,
-        binding.permission,
-        data,
-        options.adapter,
-      );
-      return raw.outcome === "approval-required" ? raw.token : undefined;
-    } catch {
-      return undefined;
-    }
+    const checked = await run(binding, args, context, {
+      resume: false,
+      source: "adapter",
+      decideOptions: {},
+    });
+    return checked.ok && checked.raw.outcome === "approval-required"
+      ? checked.raw.token
+      : undefined;
   };
 
   const decideTool = (
@@ -316,7 +366,9 @@ export function createAgentKernel<
     context: TContext,
     decideOptions: DecideToolOptions = {},
   ): Promise<ToolVerdict> => {
-    const binding = options.tools[toolName];
+    const binding = Object.hasOwn(tools, toolName)
+      ? tools[toolName]
+      : undefined;
     if (binding === undefined) {
       return Promise.resolve({
         outcome: "denied",
@@ -333,7 +385,7 @@ export function createAgentKernel<
   ): Promise<ReadonlySet<string>> => {
     const permdock = await instance(context);
     const allowed = new Set<string>();
-    for (const [name, binding] of Object.entries(options.tools)) {
+    for (const [name, binding] of Object.entries(tools)) {
       if (mayUse(permdock, binding.permission)) {
         allowed.add(name);
       }
@@ -341,5 +393,12 @@ export function createAgentKernel<
     return allowed;
   };
 
-  return { instance, decideTool, evaluate, tokenFor, allowedToolNames };
+  return {
+    instance,
+    decideTool,
+    evaluate,
+    check,
+    tokenFor,
+    allowedToolNames,
+  };
 }
