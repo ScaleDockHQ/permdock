@@ -7,6 +7,8 @@
     "lint": "oxlint --disable-nested-config --type-aware"
   },
   "devDependencies": {
+    "@orpc/contract": "catalog:",
+    "@orpc/server": "catalog:",
     "@permdock/ox-config": "workspace:*",
     "oxlint": "catalog:",
     "oxlint-tsgolint": "catalog:",

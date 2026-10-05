@@ -128,6 +128,8 @@ permissionsExtension(permissions.post.delete); // ['post.delete']
 | `scheme` | `'oauth2'` | The security scheme name. `'oauth2'` matches the adapters' `openapi.securitySchemes()`.   |
 | `anyOf`  | `false`    | One requirement per scope (any one suffices) instead of one requirement with every scope. |
 
+`problemDetails` is the Standard Schema of the Problem Details body every adapter sends on a denial, with a JSON Schema for generators. oRPC contracts use it as the `data` of `FORBIDDEN` ([typed errors](/docs/adapters/orpc#typed-errors)).
+
 `securityFor(permission)` returns the same object as the server adapters' `openapi.security(permission)`. It differs from `createPermDock(...).describe` in one case: without the policy it cannot tell that a permission is public, so it never returns an empty `security`. It also omits `x-permdock-conditions` and `x-permdock-approval`, which need the grants. Write those on the server or with `permdock openapi emit`. An empty list still returns `[{ oauth2: [] }]`, because an empty `security` array marks an operation public.
 
 ## Registry and namespace

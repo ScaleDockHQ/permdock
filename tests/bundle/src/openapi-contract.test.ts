@@ -1,18 +1,50 @@
+import { build } from "esbuild";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-import { OPENAPI_CONTRACT, bundled } from "./consumers.ts";
-
-const decoder = new TextDecoder();
+const SRC = fileURLToPath(
+  new URL("../../../packages/permdock/src/", import.meta.url),
+);
 
 describe("permdock/openapi contract helpers", () => {
-  it("bundle without policy, evaluation or permission-definition code", async () => {
-    const files = await bundled(OPENAPI_CONTRACT);
-    const code = files.map((contents) => decoder.decode(contents)).join("\n");
-    expect(code).toContain("x-permdock-permissions");
-    expect(code).toContain("oauth2");
-    // Every core module that validates or evaluates a policy throws a `PermDock: …` message.
-    expect(code).not.toContain("PermDock:");
-    expect(code).not.toMatch(/\bimport\b/u);
-    expect(code.length).toBeLessThan(600);
+  it("reach no module outside their own two files", async () => {
+    const result = await build({
+      stdin: {
+        contents: `export { permissionsExtension, problemDetails, securityFor } from './openapi/index.ts';`,
+        resolveDir: SRC,
+        loader: "ts",
+      },
+      bundle: true,
+      write: false,
+      treeShaking: true,
+      format: "esm",
+      platform: "neutral",
+      metafile: true,
+      logLevel: "silent",
+      plugins: [
+        {
+          name: "relative-only",
+          setup(pluginBuild): void {
+            pluginBuild.onResolve({ filter: /^[^./]/ }, (args) => ({
+              path: args.path,
+              external: true,
+            }));
+          },
+        },
+      ],
+    });
+    const contributing = Object.values(result.metafile.outputs).flatMap(
+      (output) =>
+        Object.entries(output.inputs)
+          .filter(([, input]) => input.bytesInOutput > 0)
+          .map(([path]) => path.replace(/^.*packages\/permdock\/src\//u, "")),
+    );
+    expect(contributing.toSorted()).toEqual([
+      "openapi/problem-details.ts",
+      "openapi/security.ts",
+    ]);
+    expect(result.outputFiles.map((file) => file.text).join("")).not.toMatch(
+      /\bimport\b/u,
+    );
   });
 });

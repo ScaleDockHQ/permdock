@@ -8,8 +8,6 @@ import { gzipSync } from "node:zlib";
  * consumer's bundler would (tree-shaken, minified, framework and peer
  * packages external), then gzipped.
  */
-export const OPENAPI_CONTRACT = `export { permissionsExtension, securityFor } from 'permdock/openapi';`;
-
 const CONSUMERS = {
   "core definePolicy + createPermDock": `import { createPermDock, definePermissions, definePolicy } from 'permdock'; export { createPermDock, definePermissions, definePolicy };`,
   "react PermDockProvider + usePermission": `export { PermDockProvider, usePermission } from 'permdock/react';`,
@@ -26,13 +24,13 @@ const CONSUMERS = {
   "mcp createPermDock": `export { createPermDock } from 'permdock/mcp';`,
   "ai-sdk createPermDock": `export { createPermDock } from 'permdock/ai-sdk';`,
   "supabase/middleware createPermDock": `export { createPermDock } from 'permdock/supabase/middleware';`,
-  "openapi securityFor + permissionsExtension": OPENAPI_CONTRACT,
+  "openapi securityFor + permissionsExtension + problemDetails": `export { permissionsExtension, problemDetails, securityFor } from 'permdock/openapi';`,
 } as const;
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
 /** The minified, tree-shaken output files a consumer's bundler emits for `source`. */
-export async function bundled(source: string): Promise<readonly Uint8Array[]> {
+async function bundled(source: string): Promise<readonly Uint8Array[]> {
   const result = await build({
     stdin: { contents: source, resolveDir: HERE, loader: "js" },
     bundle: true,

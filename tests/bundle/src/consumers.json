@@ -14,5 +14,5 @@
   "mcp createPermDock": 41414,
   "ai-sdk createPermDock": 39188,
   "supabase/middleware createPermDock": 42498,
-  "openapi securityFor + permissionsExtension": 250
+  "openapi securityFor + permissionsExtension + problemDetails": 845
 }

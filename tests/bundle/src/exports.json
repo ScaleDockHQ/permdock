@@ -327,6 +327,7 @@
     "createPermDock",
     "openapiVersion",
     "permissionsExtension",
+    "problemDetails",
     "securityFor",
     "securitySchemesOf"
   ],

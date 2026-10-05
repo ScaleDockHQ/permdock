@@ -185,17 +185,46 @@ function orpcCode(status: number): string {
   }
 }
 
-function orpcErrorFrom(
-  error: PermDockRevokedError,
-): ORPCError<string, unknown> {
-  const problem = error.toProblemDetails();
-  return new ORPCError(orpcCode(problem.status), {
-    message: error.code,
-    data: problem,
-  });
+/** The procedure's `errors` from its contract or `.errors()`, keyed by code. */
+type ErrorConstructors = Readonly<Record<string, unknown>>;
+
+function isErrorConstructor(
+  value: unknown,
+): value is (options: {
+  readonly message: string;
+  readonly data: unknown;
+}) => Error {
+  return typeof value === "function";
 }
 
-async function throwOrpcError(response: Response): Promise<never> {
+/** Uses the procedure's own constructor when it declares the code, so the declared status and `defined` apply. */
+function orpcError(
+  code: string,
+  message: string,
+  data: unknown,
+  errors: ErrorConstructors | undefined,
+): Error {
+  const declared =
+    errors !== undefined && Object.hasOwn(errors, code)
+      ? errors[code]
+      : undefined;
+  return isErrorConstructor(declared)
+    ? declared({ message, data })
+    : new ORPCError(code, { message, data });
+}
+
+function orpcErrorFrom(
+  error: PermDockRevokedError,
+  errors?: ErrorConstructors,
+): Error {
+  const problem = error.toProblemDetails();
+  return orpcError(orpcCode(problem.status), error.code, problem, errors);
+}
+
+async function throwOrpcError(
+  response: Response,
+  errors?: ErrorConstructors,
+): Promise<never> {
   let data: unknown;
   try {
     data = await response.json();
@@ -203,14 +232,14 @@ async function throwOrpcError(response: Response): Promise<never> {
     data = { status: response.status };
   }
   const code = orpcCode(response.status);
-  throw new ORPCError(code, {
-    message: problemMessage(data, code),
-    data,
-  });
+  throw orpcError(code, problemMessage(data, code), data, errors);
 }
 
 /** A PermDock error thrown further down (an `assert` in a handler) becomes the ORPCError `protect` throws. */
-function mapDownstream<T>(run: () => T | PromiseLike<T>): Promise<T> {
+function mapDownstream<T>(
+  run: () => T | PromiseLike<T>,
+  errors?: ErrorConstructors,
+): Promise<T> {
   return new Promise<T>((resolve) => {
     resolve(run());
   }).catch((error: unknown) => {
@@ -218,7 +247,7 @@ function mapDownstream<T>(run: () => T | PromiseLike<T>): Promise<T> {
     if (mapped === undefined) {
       throw error;
     }
-    return throwOrpcError(mapped);
+    return throwOrpcError(mapped, errors);
   });
 }
 
@@ -322,12 +351,15 @@ export function createPermDock<
           (instance) => {
             const nextCtx = { ...opts.context, permdock: instance };
             attach(nextCtx, request);
-            return mapDownstream(() => mwOptions.next({ context: nextCtx }));
+            return mapDownstream(
+              () => mwOptions.next({ context: nextCtx }),
+              mwOptions.errors,
+            );
           },
           (error: unknown) => {
             const response = invalidSignatureResponse(error);
             if (response !== undefined) {
-              return throwOrpcError(response);
+              return throwOrpcError(response, mwOptions.errors);
             }
             throw error;
           },
@@ -347,6 +379,7 @@ export function createPermDock<
     permission: Permission,
     loadData: (() => unknown) | undefined,
     protectOptions: StreamProtectOptions | undefined,
+    errors: ErrorConstructors,
   ): Promise<unknown> => {
     const output =
       result !== null && typeof result === "object" && "output" in result
@@ -365,7 +398,11 @@ export function createPermDock<
       output: guardIterable(
         output,
         conn,
-        compact({ items: protectOptions?.items, onRevoked: orpcErrorFrom }),
+        compact({
+          items: protectOptions?.items,
+          onRevoked: (error: PermDockRevokedError) =>
+            orpcErrorFrom(error, errors),
+        }),
       ),
     };
   };
@@ -402,14 +439,18 @@ export function createPermDock<
         };
         attach(nextCtx, request);
         return guardOutput(
-          await mapDownstream(() => mwOptions.next({ context: nextCtx })),
+          await mapDownstream(
+            () => mwOptions.next({ context: nextCtx }),
+            mwOptions.errors,
+          ),
           opts,
           permission,
           loadData === undefined ? undefined : (): unknown => loadData(opts),
           protectOptions,
+          mwOptions.errors,
         );
       }
-      return throwOrpcError(guard.response);
+      return throwOrpcError(guard.response, mwOptions.errors);
     }) as OrpcMiddleware<TCtx, unknown, V>;
 
   const permdockHandler = (request: Request): Promise<Response> => {

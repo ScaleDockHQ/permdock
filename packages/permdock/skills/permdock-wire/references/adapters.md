@@ -264,7 +264,7 @@ base
   .handler(({ context }) => deletePost(context.permdockData));
 ```
 
-`protect` throws `ORPCError` (`FORBIDDEN`, `BAD_REQUEST`, `UNAUTHORIZED`) with Problem Details as `data`, and so does `context.permdock.assert` in a handler. Read the tenant from each procedure's input. `openapi.protect` is the same guard; pass `openapi.security(permission)` to oRPC 2's `openapi({ spec })` metadata helper. Event iterators behind `protect(permission, load, { items })` end and filter like tRPC subscriptions. `protect` also attaches to `implement(contract)` procedures, including ones with a declared `output`.
+`protect` throws `ORPCError` (`FORBIDDEN`, `BAD_REQUEST`, `UNAUTHORIZED`) with Problem Details as `data`, and so does `context.permdock.assert` in a handler. Read the tenant from each procedure's input. `openapi.protect` is the same guard; pass `openapi.security(permission)` to oRPC 2's `openapi({ spec })` metadata helper. Event iterators behind `protect(permission, load, { items })` end and filter like tRPC subscriptions. `protect` also attaches to `implement(contract)` procedures, including ones with a declared `output`. Declare `oc.errors({ FORBIDDEN: { status: 403, data: problemDetails } })` with `problemDetails` from `permdock/openapi` and `protect` throws through that constructor: clients get a defined error with `data: ProblemDetails`, and the generated OpenAPI documents the 403 body.
 
 ## Vue — `permdock/vue`
 
