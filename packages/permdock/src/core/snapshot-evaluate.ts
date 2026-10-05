@@ -23,6 +23,7 @@ import {
   activeFor,
   inTeam,
   isMembershipExpired,
+  nestedAppliesWithoutRow,
   nowSeconds,
   rowInScope,
 } from "./tenancy.ts";
@@ -109,19 +110,17 @@ function scopeOk(
     if (!inTeam(membership, scopes, team)) {
       return { ok: false, reason: "scope" };
     }
-    if (
-      permission.kind !== "instance" &&
-      (data === null || typeof data !== "object")
-    ) {
-      return { ok: true };
+    if (data === null || typeof data !== "object") {
+      return permission.kind !== "instance" ||
+        nestedAppliesWithoutRow(membership, scopes, data, team)
+        ? { ok: true }
+        : { ok: false, reason: "scope" };
     }
     const partitioned = (name: string): boolean =>
       snapshot.scopes
         ?.find((entry) => entry.name === name)
         ?.resources?.includes(permission.resource) === true;
-    // An instance action with no row object still fails a partitioned scope.
-    const row: object = data !== null && typeof data === "object" ? data : {};
-    return rowInScope(membership, scopes, row, partitioned);
+    return rowInScope(membership, scopes, data, partitioned);
   }
   const on = membership.on;
   // A snapshot carries no parent graph: only a row of the membership's own
