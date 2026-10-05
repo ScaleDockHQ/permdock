@@ -41,7 +41,25 @@ tool({ ..., needsApproval: needsApproval(permissions.post.delete) })
 - `subject` and `actor` read from `runtimeContext` (or any per-call context the caller provides), so one configuration serves many tenants when returned from `prepareCall`.
 - `delegation` is what the user handed the agent: `scopes`, `authorizationDetails` or `access`. It has no default. With an `actor` and no `delegation`, every tool is denied with reason `no-delegation`, and `capabilityMiddleware` offers the model no tools. A resolver that throws counts as no delegation.
 - `toolApproval` is a plain function compatible with the AI SDK signature; `capabilityMiddleware(context)` returns a `LanguageModelMiddleware` (specification `v4`) for that caller, because the middleware sees only the model parameters and no per-call context; `needsApproval(permission)` returns the predicate `WorkflowAgent` expects. A boolean cannot say "denied", so the predicate returns `false` only when granted, `true` for approval-required, and throws `PermDockDeniedError` for a denial or an unmapped call (the AI SDK rejects the run). On the re-check after an approval, it throws `PermDockApprovalRequiredError` unless the approval is recorded.
-- Tool names not present in `tools` are treated as unmapped and denied (see fail-closed rules below).
+- `unmapped` decides what happens to a tool the `tools` map does not bind to a permission: `'deny'` (the default) hides it in `capabilityMiddleware` and denies it in `toolApproval`; `'allow'` keeps it in both, for an app that registers tools of its own that need no permission. `composeToolApproval(app)` returns a tool approval function that runs PermDock's `toolApproval` first and asks `app`, the application's own approval function, only for a call PermDock grants (or an unmapped tool under `'allow'`), returning its answer (`undefined` is approved). PermDock's `denied` and `user-approval` are never passed to `app`, so a registry confirmation composes with PermDock without a wrapper:
+
+```ts
+const { composeToolApproval, capabilityMiddleware } = createPermDock(policy, {
+  subject: (context) => context.user,
+  tools: { delete_post: { permission: permissions.post.delete } },
+  unmapped: "allow", // the app's own tools without a permission pass through
+});
+
+generateText({
+  model,
+  tools,
+  toolApproval: composeToolApproval(({ toolCall }) =>
+    toolCall.toolName === "send_email" ? "user-approval" : undefined,
+  ),
+});
+```
+
+- Tool names not present in `tools` are treated as unmapped and denied unless `unmapped` is `'allow'` (see fail-closed rules below).
 
 ## Request lifecycle
 
