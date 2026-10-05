@@ -26,21 +26,48 @@ function messages(findings: readonly DoctorFinding[]): readonly string[] {
 const SKILL = "---\nname: permdock\n---\n";
 
 describe("PD005 Agent Skills", () => {
+  const ROOT = { "pnpm-workspace.yaml": "packages:\n  - packages/*\n" };
+
   it("warns when skills are missing, then when only the lock is missing", () => {
-    expect(messages(pd005(project({})))).toEqual([
+    expect(messages(pd005(project(ROOT)))).toEqual([
       "Agent Skills are not installed",
     ]);
     expect(
-      messages(pd005(project({ ".cursor/skills/permdock/SKILL.md": SKILL }))),
+      messages(
+        pd005(project({ ...ROOT, ".cursor/skills/permdock/SKILL.md": SKILL })),
+      ),
     ).toEqual(["skills lock is missing"]);
     expect(
       pd005(
         project({
+          ...ROOT,
           ".claude/skills/permdock/SKILL.md": SKILL,
           ".permdock/skills-lock.json": "{}",
         }),
       ),
     ).toEqual([]);
+  });
+
+  it("finds skills and the skills CLI lock at the workspace root of a package", () => {
+    const root = project({
+      ...ROOT,
+      ".agents/skills/permdock/SKILL.md": SKILL,
+      "skills-lock.json": JSON.stringify({
+        version: 1,
+        skills: { permdock: { source: "ScaleDockHQ/PermDock" } },
+      }),
+      "packages/identity/package.json": '{"name":"identity"}',
+    });
+    expect(pd005(path.join(root, "packages/identity"))).toEqual([]);
+    const otherLock = project({
+      ...ROOT,
+      ".agents/skills/permdock/SKILL.md": SKILL,
+      "skills-lock.json": JSON.stringify({ version: 1, skills: {} }),
+      "packages/identity/package.json": '{"name":"identity"}',
+    });
+    expect(messages(pd005(path.join(otherLock, "packages/identity")))).toEqual([
+      "skills lock is missing",
+    ]);
   });
 });
 
