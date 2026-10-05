@@ -3,7 +3,7 @@
   "react PermDockProvider + usePermission": 16750,
   "react-native PermDockProvider + usePermission": 17199,
   "react-native PermDockProvider + localSnapshot": 18343,
-  "next createPermDock": 45516,
+  "next createPermDock": 45522,
   "server createPermDock": 42845,
   "server createPermDock + verifyWebBotAuth": 44412,
   "hono createPermDock": 43772,

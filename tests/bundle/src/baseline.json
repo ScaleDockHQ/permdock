@@ -4,7 +4,7 @@
   "./jwt": 26868,
   "./react": 48376,
   "./react-native": 51798,
-  "./next": 114322,
+  "./next": 114326,
   "./server": 119214,
   "./hono": 109508,
   "./express": 109435,
@@ -47,5 +47,5 @@
   "./cli": 407348,
   "./unplugin": 106806,
   "./next/plugin": 105682,
-  "./next/client": 1022
+  "./next/client": 1048
 }
