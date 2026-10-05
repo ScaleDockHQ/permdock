@@ -32,6 +32,8 @@ export type CollectOutcome = {
   readonly scan: ScanResult | undefined;
   readonly outPath: string;
   readonly message: string;
+  /** Absolute paths this run wrote, so a watcher can ignore its own output. */
+  readonly written?: readonly string[];
 };
 
 export async function runCollect(input: {
@@ -43,7 +45,9 @@ export async function runCollect(input: {
   readonly io?: CliIo;
   /** Files to scan for references instead of `srcPath`, for doctor's own scan path. */
   readonly scanPath?: readonly string[];
+  readonly fresh?: boolean;
 }): Promise<CollectOutcome> {
+  const load = { fresh: input.fresh === true };
   const srcPath =
     input.collect.srcPath ?? input.config.collect?.srcPath ?? defaultSrcPath();
   const outPath = catalogPath(input.config, input.cwd, input.collect.out);
@@ -71,7 +75,7 @@ export async function runCollect(input: {
   }
   let tree;
   try {
-    const mod = await loadModule(permissionsAbs);
+    const mod = await loadModule(permissionsAbs, load);
     tree = asPermissionTree(pickNamed(mod, ["permissions"]));
   } catch (error) {
     return {
@@ -89,7 +93,7 @@ export async function runCollect(input: {
     tree,
     scan,
     input.now.toISOString(),
-    await loadConfiguredPolicy(input.cwd, input.config.policy),
+    await loadConfiguredPolicy(input.cwd, input.config.policy, load),
   );
   const next = formatCatalogJson(document);
   if (input.check) {
@@ -127,6 +131,7 @@ export async function runCollect(input: {
   }
   mkdirSync(dirname(outPath), { recursive: true });
   writeFileSync(outPath, next);
+  const written = [outPath];
   const barrel = input.collect.barrel ?? input.config.collect?.barrel;
   if (barrel !== undefined && barrel !== false) {
     const barrelPath = resolve(
@@ -134,6 +139,7 @@ export async function runCollect(input: {
       barrel === true ? "src/permissions.generated.ts" : barrel,
     );
     writeBarrel(barrelPath, permissionsAbs);
+    written.push(barrelPath);
   }
   return {
     code: 0,
@@ -141,6 +147,7 @@ export async function runCollect(input: {
     scan,
     outPath,
     message: `wrote ${rel(input.cwd, outPath)}`,
+    written,
   };
 }
 

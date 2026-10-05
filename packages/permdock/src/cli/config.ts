@@ -14,9 +14,14 @@ export function defineConfig<T extends PermDockConfig>(config: T): T {
   return config;
 }
 
+export function isConfigFile(name: string): boolean {
+  return CONFIG_FILES.some((file) => file === name);
+}
+
 export async function loadConfig(
   cwd: string,
   fromFlag?: string,
+  options?: { readonly fresh?: boolean },
 ): Promise<PermDockConfig> {
   const path = fromFlag
     ? resolve(cwd, fromFlag)
@@ -31,7 +36,7 @@ export async function loadConfig(
   }
   // Lazy: jiti and the core load only when there is a config file to read.
   const { loadModule, pickNamed } = await import("./load.ts");
-  const mod = await loadModule(path);
+  const mod = await loadModule(path, options);
   const value = pickNamed(mod, ["default"]);
   if (value === null || typeof value !== "object") {
     return {};

@@ -1,10 +1,12 @@
-import { watch } from "node:fs";
-import { resolve } from "node:path";
-
 import type { PermDockPluginOptions } from "./types.ts";
 
-import { runCollect } from "./collect.ts";
-import { loadConfig } from "./config.ts";
+import {
+  collectOnce,
+  createCollectScheduler,
+  describeError,
+  report,
+  type CollectScheduler,
+} from "./watch.ts";
 
 export type { PermDockPluginOptions } from "./types.ts";
 
@@ -27,22 +29,12 @@ export type NextConfigFunction<T extends NextConfigLike> = (
 const PHASE_BUILD = "phase-production-build";
 const PHASE_DEV = "phase-development-server";
 
-function report(message: string | undefined): void {
-  if (message !== undefined) {
-    process.stderr.write(`permdock: ${message}\n`);
-  }
-}
-
-function describeError(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
 export function createPermDockPlugin(
   options?: PermDockPluginOptions,
 ): <T extends NextConfigLike>(
   nextConfig: NextConfigInput<T>,
 ) => NextConfigFunction<T> {
-  const watching = new Set<string>();
+  const schedulers = new Map<string, CollectScheduler>();
   return function permdockPlugin<T extends NextConfigLike>(
     nextConfig: NextConfigInput<T>,
   ): NextConfigFunction<T> {
@@ -56,15 +48,15 @@ export function createPermDockPlugin(
         const check = process.env["PERMDOCK_COLLECT"] !== "write";
         report(await runPluginCollect(cwd, options, check));
       } else if (phase === PHASE_DEV) {
+        const scheduler =
+          schedulers.get(cwd) ?? createCollectScheduler(cwd, options);
+        schedulers.set(cwd, scheduler);
         try {
-          report(await runPluginCollect(cwd, options, false));
+          report(await scheduler.run(false));
         } catch (error) {
           report(describeError(error));
         }
-        if (!watching.has(cwd)) {
-          watching.add(cwd);
-          startWatch(cwd, options);
-        }
+        scheduler.watch();
       }
       return resolved;
     };
@@ -76,44 +68,5 @@ export async function runPluginCollect(
   options: PermDockPluginOptions | undefined,
   check: boolean,
 ): Promise<string | undefined> {
-  const config = await loadConfig(cwd);
-  const collect = {
-    ...config.collect,
-    ...options?.collect,
-  };
-  const result = await runCollect({
-    cwd,
-    config,
-    collect,
-    check,
-    now: new Date(),
-  });
-  if (result.code === 0) {
-    return undefined;
-  }
-  if (check && options?.onDrift === "warn") {
-    return result.message;
-  }
-  if (check && result.code === 1) {
-    throw new Error(result.message);
-  }
-  return result.message;
-}
-
-function startWatch(
-  cwd: string,
-  options: PermDockPluginOptions | undefined,
-): void {
-  const srcPath = options?.collect?.srcPath ?? ["./src"];
-  for (const entry of srcPath) {
-    try {
-      watch(resolve(cwd, entry), { recursive: true }, () => {
-        runPluginCollect(cwd, options, false).then(report, (error: unknown) => {
-          report(describeError(error));
-        });
-      });
-    } catch {
-      // watch is best-effort in next dev
-    }
-  }
+  return (await collectOnce(cwd, options, check, false)).message;
 }

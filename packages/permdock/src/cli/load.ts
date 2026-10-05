@@ -29,6 +29,26 @@ function loadsWithJiti(error: unknown): boolean {
   return typeof code === "string" && NOT_NATIVE.has(code);
 }
 
+export type LoadOptions = {
+  /**
+   * Evaluate the module and its project imports again. Node keeps the first
+   * evaluation of an ESM graph for the life of the process, so a watcher
+   * that imports natively never sees an edited file.
+   */
+  readonly fresh?: boolean;
+};
+
+function importWithJiti(abs: string, fresh: boolean): Promise<unknown> {
+  const jiti = createJiti(import.meta.url, {
+    interopDefault: false,
+    jsx: true,
+    tsconfigPaths: dirname(abs),
+    moduleCache: !fresh,
+    fsCache: !fresh,
+  });
+  return jiti.import(abs);
+}
+
 /**
  * Imports a project module the way its bundler would. Node's own `import()`
  * comes first; a module it cannot resolve or parse (tsconfig `paths`
@@ -38,20 +58,20 @@ function loadsWithJiti(error: unknown): boolean {
  */
 export async function loadModule(
   abs: string,
+  options?: LoadOptions,
 ): Promise<Record<string, unknown>> {
   let loaded: unknown;
-  try {
-    loaded = await import(pathToFileURL(abs).href);
-  } catch (error) {
-    if (!loadsWithJiti(error)) {
-      throw error;
+  if (options?.fresh === true) {
+    loaded = await importWithJiti(abs, true);
+  } else {
+    try {
+      loaded = await import(pathToFileURL(abs).href);
+    } catch (error) {
+      if (!loadsWithJiti(error)) {
+        throw error;
+      }
+      loaded = await importWithJiti(abs, false);
     }
-    const jiti = createJiti(import.meta.url, {
-      interopDefault: false,
-      jsx: true,
-      tsconfigPaths: dirname(abs),
-    });
-    loaded = await jiti.import(abs);
   }
   if (loaded === null || typeof loaded !== "object") {
     throw new Error(`PermDock CLI: module '${abs}' did not export an object`);
@@ -103,13 +123,14 @@ export function leavesOf(tree: PermissionTree): readonly Permission[] {
 export async function loadConfiguredPolicy(
   cwd: string,
   path: string | undefined,
+  options?: LoadOptions,
 ): Promise<Policy | undefined> {
   if (path === undefined) {
     return undefined;
   }
   try {
     return asPolicy(
-      pickNamed(await loadModule(resolve(cwd, path)), ["policy"]),
+      pickNamed(await loadModule(resolve(cwd, path), options), ["policy"]),
     );
   } catch {
     return undefined;

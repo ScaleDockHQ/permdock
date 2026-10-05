@@ -2,6 +2,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -245,6 +246,63 @@ describe("createPermDockPlugin", () => {
     } finally {
       process.chdir(previous);
       write.mockRestore();
+    }
+  });
+
+  it("recollects an edited permissions file, not the first import of it", async () => {
+    const cwd = copyFixture();
+    const previous = process.cwd();
+    process.chdir(cwd);
+    try {
+      const config = createPermDockPlugin({
+        collect: { srcPath: ["./src"] },
+      })({});
+      await config("phase-development-server", {});
+      const catalog = join(cwd, "permissions.catalog.json");
+      expect(readFileSync(catalog, "utf8")).not.toContain("post.export");
+
+      const permissions = join(cwd, "src/permissions.ts");
+      writeFileSync(
+        permissions,
+        readFileSync(permissions, "utf8").replace(
+          '"archive"]',
+          '"archive", "export"]',
+        ),
+      );
+      await vi.waitFor(
+        () => {
+          expect(readFileSync(catalog, "utf8")).toContain("post.export");
+        },
+        { timeout: 5000 },
+      );
+    } finally {
+      process.chdir(previous);
+    }
+  });
+
+  it("does not recollect for a catalog it wrote into a watched folder", async () => {
+    const cwd = copyFixture();
+    writeFileSync(
+      join(cwd, "permdock.config.ts"),
+      `export default {
+  permissions: "./src/permissions.ts",
+  collect: { srcPath: ["./src"] },
+  catalog: { out: "./src/permissions.catalog.json" },
+};
+`,
+    );
+    const previous = process.cwd();
+    process.chdir(cwd);
+    try {
+      await createPermDockPlugin()({})("phase-development-server", {});
+      const catalog = join(cwd, "src/permissions.catalog.json");
+      const first = readFileSync(catalog, "utf8");
+      await new Promise((done) => {
+        setTimeout(done, 300);
+      });
+      expect(readFileSync(catalog, "utf8")).toBe(first);
+    } finally {
+      process.chdir(previous);
     }
   });
 
