@@ -262,12 +262,16 @@ create policy customer_contacts_insert on public.customer_contacts for insert to
 
 `--custom-roles` (or `rls.customRoles: true`) adds, next to the helpers:
 
-| Object                                                                           | What it holds                                                                                                                                                                                      |
-| -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `custom_role_permissions (tenant_id, scope, scope_id, role, permission, effect)` | `database` mode: one row per `CustomRole.grants` entry; `scope` is the scope the role is held at (default the first), `scope_id` pins it to one instance or is null, `effect` is `allow` or `deny` |
-| `custom_role_includes (tenant_id, scope, scope_id, role, include_role)`          | `database` mode: one row per `CustomRole.includes` entry                                                                                                                                           |
-| `permdock_ceiling` (view)                                                        | The `role_permissions` rows of declared roles marked `assignable`, in every scope including `global`, plus those roles' denies on the same permissions                                             |
-| `permdock_custom_keys(p_allow, p_deny, p_include, p_scope)`                      | The grant keys one custom role holds in a scope, computed from the ceiling exactly as `resolveCustomRole` does                                                                                     |
+| Object                                                                                                   | What it holds                                                                                                                                                                                      |
+| -------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `custom_role_permissions (tenant_id, scope, scope_id, role, permission, effect)`                         | `database` mode: one row per `CustomRole.grants` entry; `scope` is the scope the role is held at (default the first), `scope_id` pins it to one instance or is null, `effect` is `allow` or `deny` |
+| `custom_role_includes (tenant_id, scope, scope_id, role, include_role)`                                  | `database` mode: one row per `CustomRole.includes` entry                                                                                                                                           |
+| `permdock_ceiling` (view)                                                                                | The `role_permissions` rows of declared roles marked `assignable`, in every scope including `global`, plus those roles' denies on the same permissions                                             |
+| `permdock_custom_keys(p_allow, p_deny, p_include, p_scope)`                                              | The grant keys one custom role holds in a scope, computed from the ceiling exactly as `resolveCustomRole` does                                                                                     |
+| `permdock_replace_custom_role_grants(p_tenant, p_scope, p_scope_id, p_role, p_allow, p_deny, p_include)` | `database` mode: saves one custom role, replacing its rows in both tables after the checks below; `execute` goes to `authenticated`                                                                |
+| `permdock_rename_custom_role_grants(p_tenant, p_scope, p_scope_id, p_from, p_to)`                        | `database` mode: moves a custom role's rows to a new name that has none                                                                                                                            |
+| `permdock_delete_custom_role_grants(p_tenant, p_scope, p_scope_id, p_role)`                              | `database` mode: removes a custom role's rows                                                                                                                                                      |
+| `permdock_custom_role_guard`, `permdock_custom_role_beyond`                                              | `database` mode: the shared checks of the three functions above; no `execute` for `anon` or `authenticated`                                                                                        |
 
 The membership table, membership source (`fromTable`, `fromJunction`) or claim holds the custom role's name like any role; a declared role name never resolves as custom. With membership sources in `database` mode, a custom role matches on the source row's instance of the first scope (its `id` for that scope, `within` for a nested one) as `tenant_id`, and on its `id` as `scope_id`, so a nested source needs `within` set to match. Each `permitted_<scope>_ids` unions the declared branch with the custom one, so a policy needs no change. Both tables have RLS enabled and every privilege revoked from `anon`, `authenticated` and `public`; the application writes them from its own server connection, the same data its `RoleSource` reads. A row naming a permission outside the ceiling reaches no key, so writing to the tables directly can never widen access.
 
@@ -276,6 +280,25 @@ In `jwt` mode each membership may carry `grants`, a map from custom role name to
 A [platform custom role](/docs/concepts/custom-roles#platform-custom-roles) is a row with `scope = 'global'` and null `tenant_id` and `scope_id`; check constraints refuse any other combination. `permdock_has` unions its keys from `user_roles` in `database` mode, and from the top-level `role_grants` claim (the same compact map, keyed by role name) in `jwt` mode, so a global custom role answers in every tenant like a declared global role. With `--rbac supabase`, the scaffold's `user_roles.role` is `text` instead of the `app_role` enum when `--custom-roles` is on, because a custom role name is data, not a declared value.
 
 A stored entry under a key renamed with `definePermissions(..., { renamed })` resolves like the current key: `permdock_custom_keys` reads each former key as its current key, for allows, denies and the ceiling alike, so the database and `resolveCustomRole` agree during the deprecation window.
+
+#### Saving a custom role
+
+In `database` mode, save a custom role with `permdock_replace_custom_role_grants` instead of writing the tables. It runs as `security definer` and applies the rules of `validateCustomRole` and `assignablePermissions` to the signed-in caller (`auth.uid()` or the dialect's subject):
+
+- `p_scope` is a declared scope, never `global`, and `p_role` is not a declared role name (`declared-role`).
+- The caller holds a live membership of `p_tenant`, or of instance `p_scope_id` of `p_scope` (`not-member`).
+- Each `p_allow` entry (`key`, or `key@level` when resources declare levels) is a declared key (`unknown-permission`), inside the ceiling of `p_scope` (`outside-ceiling`) and at a declared level (`unknown-level`). Each `p_deny` entry is a declared key; each `p_include` entry is a declared role whose allows are inside the ceiling (`unknown-role`, `outside-ceiling`). A former key is stored as its current key.
+- The caller may hand out every permission the role would allow, and every level of a leveled one: it holds the permission in `p_tenant` (or at instance `p_scope_id`), through declared roles, custom roles or global grants, and its own grants reach the level. Holding a permission with `meta.manageRoles` lifts this check, as in-process (`not-assignable-by`).
+- The same hand-out check runs on the role's stored definition, so a caller cannot rewrite or remove a role that allows more than it may hand out.
+
+A failed check raises `22023` (invalid definition) or `42501` (caller), with the reason above as the error `hint`. `permdock_rename_custom_role_grants` and `permdock_delete_custom_role_grants` run the same membership and stored-definition checks; a rename refuses a declared name and a name that already has rows (`role-exists`). Call them in the transaction that renames or deletes the role in the application's own roles table, and in the one that updates memberships naming it. A role held only through `meta.manageRoles` on the role, not on a permission, does not lift the check in SQL. `jwt` mode has no tables, so these functions are not emitted.
+
+```sql
+select permdock.permdock_replace_custom_role_grants(
+  'o_acme', 'organization', null, 'dispatcher',
+  array['job.read', 'job.update@own'], array['job.delete'], array['viewer']
+);
+```
 
 ### Link capabilities
 
