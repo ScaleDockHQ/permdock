@@ -14,6 +14,7 @@ import {
   pd028,
 } from "../../src/cli/doctor-project.ts";
 import { sqlFiles } from "../../src/cli/files.ts";
+import { fromJunction } from "../../src/supabase/sources.ts";
 import { project, removeProjects } from "./doctor-kit.ts";
 
 afterAll(removeProjects);
@@ -252,6 +253,41 @@ revoke all on profiles from public cascade;
         fix: "list server-owned columns or app_metadata.<key> entries; user_metadata is user-editable",
       },
     ]);
+  });
+
+  it("holds the user id of a profile table a membership source reads through to the same rule", () => {
+    const cwd = project({
+      "a/001.sql": `create table public.contact_profiles (id uuid primary key, user_id uuid, name text);
+revoke insert, update on public.contact_profiles from anon, authenticated;
+grant update (user_id, name) on public.contact_profiles to authenticated;
+`,
+    });
+    const findings = pd028(
+      cwd,
+      {
+        doctor: { migrations: ["a"] },
+        supabase: {
+          hook: {
+            memberships: [
+              fromJunction({
+                table: "customer_contacts",
+                scope: "customer",
+                user: {
+                  through: "contact_profiles",
+                  on: { contact_profile_id: "id" },
+                  column: "user_id",
+                },
+                roles: ["customer"],
+              }),
+            ],
+          },
+        },
+      },
+      () => ({ columns: [], errors: [] }),
+    );
+    expect(messages(findings)).toContain(
+      "public.contact_profiles.user_id decides memberships, and the migrations let anon or authenticated insert or update it: a user could give themselves a membership",
+    );
   });
 
   it("returns only membership findings without attrs", () => {

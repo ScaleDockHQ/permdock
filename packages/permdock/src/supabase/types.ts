@@ -14,15 +14,18 @@ export type SupabasePrincipal = Principal & {
 export type SupabaseInclude = "email" | "phone" | "is_anonymous";
 
 /**
- * A role column that holds a foreign key: the role key is `column` of
- * `through`, joined on `on` (`{ role_id: 'id' }`).
+ * A column that holds a foreign key: the value is `column` of `through`,
+ * joined on `on`. A role reads its key from a roles table
+ * (`{ through: 'roles', on: { role_id: 'id' }, column: 'key' }`); a
+ * membership source's user can read its user id from a profile table
+ * (`{ through: 'contact_profiles', on: { contact_profile_id: 'id' }, column: 'user_id' }`).
  */
 export type RoleThrough = {
-  /** The roles table; unqualified, it is in the schema of the table that references it. */
+  /** The referenced table; unqualified, it is in the schema of the table that references it. */
   readonly through: string;
-  /** One entry: the referencing column to the roles table column it references. */
+  /** One entry: the referencing column to the column of `through` it references. */
   readonly on: Readonly<Record<string, string>>;
-  /** The roles table column that holds the role key. */
+  /** The column of `through` that holds the value: the role key, or the user id. */
   readonly column: string;
 };
 

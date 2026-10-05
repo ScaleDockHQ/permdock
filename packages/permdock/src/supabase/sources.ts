@@ -39,7 +39,8 @@ type Common = {
 export type MembershipTableOptions = Common & {
   /** Column names; `user`, `scope`, `id` and `role` default to `user_id`, `scope`, `scope_id`, `role`. */
   readonly columns?: {
-    readonly user?: string;
+    /** The user id column, or a reference to a table that holds the user id. */
+    readonly user?: string | RoleThrough;
     readonly scope?: string;
     readonly id?: string;
     /** A `jsonb` column of ancestor ids keyed by scope name. */
@@ -64,8 +65,8 @@ export type MembershipTableOptions = Common & {
 export type MembershipJunctionOptions = Common & {
   /** The declared scope every row is a membership of. */
   readonly scope: string;
-  /** Default `user_id`. */
-  readonly user?: string;
+  /** The user id column (default `user_id`), or a reference to a table that holds the user id. */
+  readonly user?: string | RoleThrough;
   /** The column holding the scope instance id. Default `<scope>_id`. */
   readonly id?: string;
   /** Ancestor id columns keyed by scope name. */
@@ -93,9 +94,11 @@ export type MembershipJunctionOptions = Common & {
 /** What `permdock supabase hook generate` compiles; the same SQL the source runs. */
 export type MembershipSql = {
   readonly table: string;
-  /** Columns of the table that decide a membership; triggers bump the authorization version on them. */
+  /** The table's user column: the user id, or with `userThrough` the reference to the row holding it. */
   readonly user: string;
-  /** `<table>.<user>%type`: the PL/pgSQL type of the user column, for a variable `select` compares with. */
+  /** The table that holds the user id when `user` references it; a change of that id bumps the old and the new user. */
+  readonly userThrough?: RoleKeys;
+  /** `<table>.<user>%type`: the PL/pgSQL type of the user id column, for a variable `select` compares with. */
   readonly userType: string;
   /**
    * The `select` of claim rows for one user, with every filter applied.
@@ -165,10 +168,13 @@ function activeRow(row: SupabaseActiveRow, id: string): string {
 
 type Shape = {
   readonly table: string;
-  /** Joins after `from <table> m`: the roles table of a `through` role column. */
+  /** Joins after `from <table> m`: the user table of a `through` user, the roles table of a `through` role column. */
   readonly join: string;
   readonly through: RoleKeys | undefined;
   readonly user: string;
+  /** The user id, uncast: `m.<user>`, or `mu.<column>` of a `through` user. */
+  readonly userSql: string;
+  readonly userThrough: RoleKeys | undefined;
   readonly scope: string;
   readonly id: string;
   readonly within: string;
@@ -197,7 +203,7 @@ function filters(shape: Shape, owner: string): string[] {
   }
   const users = shape.suspension?.users;
   if (users !== undefined) {
-    lines.push(activeRow(users, col(shape.user)));
+    lines.push(activeRow(users, shape.userSql));
   }
   for (const [name, row] of Object.entries(shape.suspension?.scopes ?? {})) {
     const id = shape.idOf(name);
@@ -214,7 +220,7 @@ function selectOf(
   user: boolean,
 ): string {
   const fields = [
-    ...(user ? [`${col(shape.user)}::text as user_id`] : []),
+    ...(user ? [`${shape.userSql}::text as user_id`] : []),
     `${shape.scope} as scope`,
     `${shape.id} as id`,
     `${shape.within} as within`,
@@ -227,7 +233,7 @@ function selectOf(
     `${shape.managed} as managed_by`,
     `${shape.seats} as seats`,
   ];
-  const group = [...(user ? [col(shape.user)] : []), ...shape.groupBy];
+  const group = [...(user ? [shape.userSql] : []), ...shape.groupBy];
   return `select ${fields.join(", ")}
 from ${qualified(shape.table)} m${shape.join}
 where ${where.join("\n  and ")}
@@ -239,7 +245,11 @@ function sqlOf(shape: Shape): MembershipSql {
   return compact<MembershipSql>({
     table: shape.table,
     user: shape.user,
-    userType: `${qualified(shape.table)}.${ident(shape.user)}%type`,
+    userThrough: shape.userThrough,
+    userType:
+      shape.userThrough === undefined
+        ? `${qualified(shape.table)}.${ident(shape.user)}%type`
+        : `${quoteSqlTable(shape.userThrough.table)}.${ident(shape.userThrough.key)}%type`,
     reads: [
       ...new Set(
         [suspension?.users, ...Object.values(suspension?.scopes ?? {})].flatMap(
@@ -256,7 +266,7 @@ function sqlOf(shape: Shape): MembershipSql {
       columns: [...new Set(shape.columns)],
     },
     select: (user: string) =>
-      selectOf(shape, filters(shape, `${col(shape.user)} = ${user}`), false),
+      selectOf(shape, filters(shape, `${shape.userSql} = ${user}`), false),
     list: () =>
       selectOf(
         shape,
@@ -279,6 +289,27 @@ function memberRole(
   label: string,
 ): RoleColumn {
   return roleColumn(role, qualifiedName(table), "m", { label, indent: "" });
+}
+
+/** The user of the membership table, aliased `m`; a `through` user joins its table as `mu`. */
+function memberUser(
+  user: string | RoleThrough,
+  table: string,
+  label: string,
+): { readonly column: RoleColumn; readonly sql: string } {
+  const column = roleColumn(user, qualifiedName(table), "m", {
+    label,
+    indent: "",
+    joined: "mu",
+    example: "{ contact_profile_id: 'id' }",
+  });
+  return {
+    column,
+    sql:
+      column.through === undefined
+        ? col(column.column)
+        : `mu.${ident(column.through.key)}`,
+  };
 }
 
 function roleAgg(role: RoleColumn): string {
@@ -406,6 +437,11 @@ export function fromTable(
   const within = c.within === undefined ? "null::jsonb" : col(c.within);
   const optional = (name: string | undefined, cast: string): string =>
     name === undefined ? `null::${cast}` : `${col(name)}::${cast}`;
+  const user = memberUser(
+    c.user ?? "user_id",
+    options.table,
+    "fromTable columns.user",
+  );
   const role = memberRole(
     c.role ?? "role",
     options.table,
@@ -413,9 +449,11 @@ export function fromTable(
   );
   const shape: Shape = {
     table: options.table,
-    join: role.join,
+    join: `${user.column.join}${role.join}`,
     through: role.through,
-    user: c.user ?? "user_id",
+    user: user.column.column,
+    userSql: user.sql,
+    userThrough: user.column.through,
     scope,
     id,
     within,
@@ -448,7 +486,7 @@ export function fromTable(
     ],
     suspension: options.suspension,
     columns: [
-      c.user ?? "user_id",
+      user.column.column,
       c.scope ?? "scope",
       c.id ?? "scope_id",
       role.column,
@@ -457,7 +495,7 @@ export function fromTable(
       ),
     ],
     manifest: compact<Shape["manifest"]>({
-      user: { column: c.user ?? "user_id" },
+      user: roleManifest(user.column),
       scope: { column: c.scope ?? "scope" },
       id: { column: c.id ?? "scope_id" },
       role: roleManifest(role),
@@ -491,6 +529,11 @@ export function fromJunction(
   const role = isFixed(roles)
     ? undefined
     : memberRole(roles, options.table, "fromJunction roles");
+  const user = memberUser(
+    options.user ?? "user_id",
+    options.table,
+    "fromJunction user",
+  );
   const managedColumn =
     options.managedBy === undefined
       ? undefined
@@ -503,9 +546,11 @@ export function fromJunction(
       : options.group.column;
   const shape: Shape = {
     table: options.table,
-    join: role?.join ?? "",
+    join: `${user.column.join}${role?.join ?? ""}`,
     through: role?.through,
-    user: options.user ?? "user_id",
+    user: user.column.column,
+    userSql: user.sql,
+    userThrough: user.column.through,
     scope: `${literal(options.scope)}::text`,
     id: `${col(idColumn)}::text`,
     within:
@@ -569,7 +614,7 @@ export function fromJunction(
     ],
     suspension: options.suspension,
     columns: [
-      options.user ?? "user_id",
+      user.column.column,
       idColumn,
       ...withinEntries.map(([, column]) => column),
       ...[role?.column, options.expiresAt].filter(
@@ -577,7 +622,7 @@ export function fromJunction(
       ),
     ],
     manifest: compact<Shape["manifest"]>({
-      user: { column: options.user ?? "user_id" },
+      user: roleManifest(user.column),
       scope: { value: options.scope },
       id: { column: idColumn },
       role:

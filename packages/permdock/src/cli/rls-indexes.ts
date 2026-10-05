@@ -82,6 +82,10 @@ export function indexTargets(
   }
   for (const source of [...(ctx.sources ?? []), ...(ctx.memberSources ?? [])]) {
     add(source.sql.table, [source.sql.user]);
+    const users = source.sql.userThrough;
+    if (users !== undefined) {
+      add(users.table, [users.key]);
+    }
   }
   return [...targets.values()].toSorted((a, b) =>
     `${a.table}.${a.columns.join(",")}` < `${b.table}.${b.columns.join(",")}`

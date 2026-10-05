@@ -1,4 +1,7 @@
-import type { SupabaseManifestRole } from "./manifest.ts";
+import type {
+  SupabaseManifestColumn,
+  SupabaseManifestThrough,
+} from "./manifest.ts";
 import type { RoleThrough } from "./types.ts";
 
 import { quoteSqlIdent, quoteSqlTable } from "../core/sql.ts";
@@ -14,7 +17,7 @@ export type RoleKeys = {
   readonly ref: string;
 };
 
-/** A role column as SQL over the row alias `alias`, joined to its roles table aliased `<alias>k`. */
+/** A role column as SQL over the row alias `alias`, joined to its roles table aliased `<alias>k` (or `joined`). */
 export type RoleColumn = {
   /** The referencing table's column: the key itself, or the reference. */
   readonly column: string;
@@ -45,6 +48,8 @@ export function roleColumn(
     readonly label: string;
     readonly prefix?: string;
     readonly indent?: string;
+    readonly joined?: string;
+    readonly example?: string;
   },
 ): RoleColumn {
   const prefix = options.prefix ?? "PermDock";
@@ -61,7 +66,7 @@ export function roleColumn(
   const [pair] = pairs;
   if (pair === undefined || pairs.length !== 1) {
     throw new TypeError(
-      `${prefix}: ${options.label}.on must map exactly one column of ${table} to ${role.through}, for example { role_id: 'id' }`,
+      `${prefix}: ${options.label}.on must map exactly one column of ${table} to ${role.through}, for example ${options.example ?? "{ role_id: 'id' }"}`,
     );
   }
   const [ref, id] = pair;
@@ -71,7 +76,7 @@ export function roleColumn(
   const through = role.through.includes(".")
     ? role.through
     : `${schema}.${role.through}`;
-  const keys = `${alias}k`;
+  const keys = options.joined ?? `${alias}k`;
   const target = quoteSqlTable(through, prefix);
   return {
     column: ref,
@@ -82,8 +87,12 @@ export function roleColumn(
   };
 }
 
-/** The manifest entry of a role column: the column, and the roles table it references. */
-export function roleManifest(role: RoleColumn): SupabaseManifestRole {
+/** The manifest entry of a role or user column: the column, and the table it references. */
+export function roleManifest(
+  role: RoleColumn,
+):
+  | SupabaseManifestColumn
+  | (SupabaseManifestColumn & { readonly through: SupabaseManifestThrough }) {
   return role.through === undefined
     ? { column: role.column }
     : {
