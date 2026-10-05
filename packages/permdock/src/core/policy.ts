@@ -61,7 +61,7 @@ import {
   resolveScope,
 } from "./scopes.ts";
 import { sha256, bytesToBase64Url } from "./sha256.ts";
-import { relatesTo } from "./tenancy.ts";
+import { memberOfFields, relatesTo, scopeField } from "./tenancy.ts";
 import { normalizeValidity } from "./validity.ts";
 import {
   type PlanTree,
@@ -1478,11 +1478,17 @@ function assertScopeKeys(
     }
     const key = scopes.find((scope) => scope.name === grant.scope)?.key;
     const node = resources.get(grant.permission.resource);
-    if (
-      key === undefined ||
-      node === undefined ||
-      relatesTo(node, key, grant.scope, scopes)
-    ) {
+    if (key === undefined || node === undefined) {
+      continue;
+    }
+    const fields = memberOfFields(node, grant.scope, scopes);
+    if (fields.length > 1 && !fields.includes(key)) {
+      throw new Error(
+        `PermDock: resource '${node.name}' declares several memberOf relations to '${grant.scope}' (${fields.join(", ")}); name the one holding the instance with the scope's key '${key}'`,
+      );
+    }
+    const field = scopeField(node, grant.scope, scopes);
+    if (field !== undefined && relatesTo(node, field, grant.scope, scopes)) {
       continue;
     }
     throw new Error(

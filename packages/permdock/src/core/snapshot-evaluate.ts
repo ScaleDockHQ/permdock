@@ -64,6 +64,17 @@ export function rowId(data: unknown): string {
   return typeof id === "string" || typeof id === "number" ? String(id) : "*";
 }
 
+/** The field of `resource` that holds scope `name`'s id in a snapshot: its `fields` entry, else the scope's key. */
+function snapshotField(
+  snapshot: Snapshot,
+  name: string,
+  resource: string,
+): string | undefined {
+  const entry = snapshot.scopes?.find((item) => item.name === name);
+  const field = entry?.fields?.[resource];
+  return field ?? entry?.key;
+}
+
 function scopeOk(
   snapshot: Snapshot,
   grant: SnapshotGrant,
@@ -120,7 +131,9 @@ function scopeOk(
       snapshot.scopes
         ?.find((entry) => entry.name === name)
         ?.resources?.includes(permission.resource) === true;
-    return rowInScope(membership, scopes, data, partitioned);
+    return rowInScope(membership, scopes, data, partitioned, (name) =>
+      snapshotField(snapshot, name, permission.resource),
+    );
   }
   const on = membership.on;
   // A snapshot carries no parent graph: only a row of the membership's own
@@ -490,6 +503,7 @@ export function whereFromSnapshot(
         snapshot.scopes
           ?.find((entry) => entry.name === name)
           ?.resources?.includes(permission.resource) === true,
+      fieldOf: (name) => snapshotField(snapshot, name, permission.resource),
       tenant: subject.principal?.tenant,
       team,
       now: nowSeconds(),

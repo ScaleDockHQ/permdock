@@ -35,13 +35,12 @@ import {
   relationWalk,
 } from "./relations.ts";
 import {
-  findScope,
   normalizeMemberships,
   resolveScope,
   rootScope,
   scopeList,
 } from "./scopes.ts";
-import { nowSeconds } from "./tenancy.ts";
+import { nowSeconds, scopeField } from "./tenancy.ts";
 
 /** One way a principal holds a permission on an object. */
 export type HoldingVia =
@@ -173,7 +172,7 @@ async function discoverRole(
     ctx.incomplete();
     return;
   }
-  const key = findScope(ctx.scopes, item.scope)?.key;
+  const key = scopeField(ctx.resource, item.scope, ctx.scopes);
   const id = key === undefined ? undefined : relationId(ownGet(ctx.row, key));
   if (id === undefined) {
     return;
@@ -520,7 +519,13 @@ export async function whoCan(input: {
   );
   const root = rootScope(scopes);
   const tenantKey =
-    root === undefined ? undefined : findScope(scopes, root)?.key;
+    root === undefined
+      ? undefined
+      : scopeField(
+          getResource(policy.permissions, permission.resource),
+          root,
+          scopes,
+        );
   const tenant =
     tenantKey === undefined ? undefined : relationId(ownGet(row, tenantKey));
   const env: EvalEnv = {

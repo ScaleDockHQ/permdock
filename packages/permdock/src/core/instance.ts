@@ -102,6 +102,7 @@ import {
   nowSeconds,
   partitionsOf,
   relatesTo,
+  scopeField,
   resolveActiveTenant,
   tenantsOf,
 } from "./tenancy.ts";
@@ -745,14 +746,24 @@ export function snapshotScopes(policy: Policy): Snapshot["scopes"] {
   }
   const resources = [...policy.resources.values()];
   return policy.scopes.map((scope) => {
-    const partitioned = resources
-      .filter((node) => partitionsOf(node, policy.scopes).includes(scope.name))
-      .map((node) => node.name);
+    const nodes = resources.filter((node) =>
+      partitionsOf(node, policy.scopes).includes(scope.name),
+    );
+    const partitioned = nodes.map((node) => node.name);
+    const fields = Object.fromEntries(
+      nodes.flatMap((node) => {
+        const field = scopeField(node, scope.name, policy.scopes);
+        return field === undefined || field === scope.key
+          ? []
+          : [[node.name, field] as const];
+      }),
+    );
     return compact<NonNullable<Snapshot["scopes"]>[number]>({
       name: scope.name,
       key: scope.key ?? "",
       within: scope.within,
       resources: partitioned.length === 0 ? undefined : partitioned,
+      fields: Object.keys(fields).length === 0 ? undefined : fields,
     });
   });
 }
@@ -1074,6 +1085,12 @@ export function buildInstance(
             relatesTo(
               getResource(policy.permissions, permission.resource),
               key,
+              name,
+              scopeList(policy.scopes),
+            ),
+          fieldOf: (name: string) =>
+            scopeField(
+              getResource(policy.permissions, permission.resource),
               name,
               scopeList(policy.scopes),
             ),
