@@ -645,10 +645,10 @@ export function memoryRoleSource(
   }
   return {
     rolesFor(tenant: string): CustomRole[] {
-      return byTenant.get(tenant) ?? [];
+      return [...(byTenant.get(tenant) ?? [])];
     },
     globalRoles(): CustomRole[] {
-      return global;
+      return [...global];
     },
   };
 }
