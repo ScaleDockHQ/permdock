@@ -188,6 +188,39 @@ describe("rls migrate on CentraKit, then verify --introspect with --helpers-only
     expect(verified.out).toContain("helpers only: no drift");
   });
 
+  it("checks indexes only on resources rls.tables maps", async () => {
+    if (db === undefined) {
+      throw new Error("PermDock: Postgres was not started");
+    }
+    const mapped = mkdtempSync(join(tmpdir(), "permdock-mapped-"));
+    try {
+      writeFileSync(
+        join(mapped, "permdock.config.ts"),
+        `import legacy from ${JSON.stringify(join(FIXTURE, "permdock.config.ts"))};
+const policy = ${JSON.stringify(join(FIXTURE, "../centrakit/policy.ts"))};
+export default {
+  ...legacy,
+  permissions: policy,
+  policy,
+  rls: { ...legacy.rls, tables: { customers: "customers" } },
+};
+`,
+      );
+      const result = await run(
+        ["rls", "verify", "--introspect", "--db", db.uri, "--rbac", "supabase"],
+        { cwd: mapped },
+      );
+      expect(result.stdout).toContain(
+        "warning: public.customers: no index starts with organization_id",
+      );
+      expect(result.stdout).not.toContain("public.quotes: no index");
+      expect(result.stdout).toContain("helpers only: no drift");
+      expect(result.code).toBe(0);
+    } finally {
+      rmSync(mapped, { recursive: true, force: true });
+    }
+  });
+
   it("fails on a seed or key the generator does not write", async () => {
     if (db === undefined) {
       throw new Error("PermDock: Postgres was not started");

@@ -1,7 +1,7 @@
 import { basename, resolve } from "node:path";
 
 import type { Policy } from "../index.ts";
-import type { CompiledPolicy } from "./rls-compile.ts";
+import type { CompiledGrants, CompiledPolicy } from "./rls-compile.ts";
 import type { RolePermission } from "./rls-helpers.ts";
 import type { IndexTarget } from "./rls-indexes.ts";
 import type { RlsSqlContext } from "./rls-sql.ts";
@@ -52,6 +52,7 @@ import {
   checkSuspension,
   graphHelper,
   parseMembershipsFlag,
+  qualifiedTable,
   scopeSources,
   scopeTable,
 } from "./rls-sql.ts";
@@ -159,6 +160,42 @@ function moveGrants(
     sql: [first, `-- the helpers' grants are in ${label}`, ...rest].join("\n"),
     grants: `-- the grants and view options supabase db diff drops from the helpers part\n${moved.join("\n")}`,
   };
+}
+
+/**
+ * The row columns that belong to a table. With `rls.tables` set, a resource
+ * it does not name is a table only when generated policies are written for
+ * it; with `--helpers-only` it has none, so it gets no index.
+ */
+function tableColumns(
+  rowColumns: CompiledGrants["rowColumns"],
+  tables: Readonly<Record<string, string>> | undefined,
+  helpersOnly: boolean,
+  warnings: string[],
+): CompiledGrants["rowColumns"] {
+  if (tables === undefined) {
+    return rowColumns;
+  }
+  const unmapped = [
+    ...new Set(
+      rowColumns
+        .map((item) => item.resource)
+        .filter((resource) => !Object.hasOwn(tables, resource)),
+    ),
+  ].toSorted();
+  if (unmapped.length === 0) {
+    return rowColumns;
+  }
+  if (helpersOnly) {
+    warnings.push(
+      `no index is suggested for resources without an rls.tables entry: ${unmapped.join(", ")}; map each one that is a table`,
+    );
+    return rowColumns.filter((item) => Object.hasOwn(tables, item.resource));
+  }
+  warnings.push(
+    `policies for resources without an rls.tables entry target a table named after the resource: ${unmapped.map((resource) => qualifiedTable(resource)).join(", ")}; map each one to its table`,
+  );
+  return rowColumns;
 }
 
 export async function runRlsGenerate(input: {
@@ -480,7 +517,10 @@ export async function runRlsGenerate(input: {
       return exhaustive;
     }
   }
-  const indexes = indexTargets(ctx, compiled.rowColumns);
+  const indexes = indexTargets(
+    ctx,
+    tableColumns(compiled.rowColumns, rls?.tables, helpersOnly, warnings),
+  );
   if (!splitsPart(input.split, "indexes")) {
     for (const target of indexes) {
       warnings.push(

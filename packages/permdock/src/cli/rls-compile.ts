@@ -72,9 +72,9 @@ export type CompiledPolicy = {
 export type CompiledGrants = {
   readonly branches: readonly CompiledBranch[];
   readonly rolePermissions: readonly RolePermission[];
-  /** Tables and columns that row conditions filter on, for index suggestions. */
   /** The row columns policies filter on: scope keys and condition fields. */
   readonly rowColumns: readonly {
+    readonly resource: string;
     readonly table: string;
     readonly column: string;
   }[];
@@ -498,9 +498,12 @@ export function compileGrants(
     }
   }
   const branches: CompiledBranch[] = [];
-  const rowColumns = new Map<string, { table: string; column: string }>();
-  const filters = (table: string, column: string): void => {
-    rowColumns.set(`${table}\u0000${column}`, { table, column });
+  const rowColumns = new Map<
+    string,
+    { resource: string; table: string; column: string }
+  >();
+  const filters = (resource: string, table: string, column: string): void => {
+    rowColumns.set(`${table}\u0000${column}`, { resource, table, column });
   };
   const typed = new Map<string, RlsSqlContext>();
   const contextFor = (name: string): RlsSqlContext => {
@@ -541,7 +544,7 @@ export function compileGrants(
       ...conditionFields(entry.using),
       ...conditionFields(entry.check),
     ]) {
-      filters(table, field);
+      filters(grant.permission.resource, table, field);
     }
     const grantKey = keys.get(entry);
     let accessExpr: string | undefined;
@@ -552,7 +555,7 @@ export function compileGrants(
           : policy.scopes.find((scope) => scope.name === access.scope)?.key;
       accessExpr = accessSql(ctx, access.scope, grantKey, column);
       if (column !== undefined) {
-        filters(table, column);
+        filters(grant.permission.resource, table, column);
       }
       const row: RolePermission = {
         role: access.role,
