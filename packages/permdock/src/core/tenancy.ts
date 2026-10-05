@@ -2,6 +2,7 @@ import type { ResourceNode } from "./permissions.ts";
 import type { GrantScope } from "./policy.ts";
 import type { Membership, Principal, Subject } from "./subject.ts";
 
+import { sameId } from "./ids.ts";
 import { isFieldRelation } from "./permissions.ts";
 import {
   type Scope,
@@ -177,7 +178,7 @@ export function rowInScope(
       : undefined;
     if (
       (value !== undefined || partitioned(name, key)) &&
-      value !== scopeIdOf(membership, name)
+      !sameId(value, scopeIdOf(membership, name))
     ) {
       return {
         ok: false,
@@ -376,7 +377,8 @@ function matchResourceMembership(
   const field = membershipField(resource, on.resource, resources);
   // SAFETY: row is a non-null object checked above; the read value is only compared with on.id.
   return (
-    field !== undefined && (row as Record<string, unknown>)[field] === on.id
+    field !== undefined &&
+    sameId((row as Record<string, unknown>)[field], on.id)
   );
 }
 

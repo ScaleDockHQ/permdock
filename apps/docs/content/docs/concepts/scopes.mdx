@@ -100,6 +100,8 @@ memberships: [
 
 Evaluation only sees this canonical form. Every entry is normalised when the subject is resolved (`createPermDock`, `snapshotFor`, `mayAccess`, `simulate`), whatever produced it: alias names resolve to declared names, the `{ tenant, team }` input shape becomes `{ scope, id, within }`, and anything else is dropped (fail-closed). A nested membership without the id of every ancestor in `within`, a scope the policy does not declare, or a mix of `scope`, `tenant` and `on` grants nothing. `permdock doctor` PD025 reports each such entry in the `doctor.memberships` fixture.
 
+Scope ids are text. A number or a bigint in a membership's `id`, `within` or `on.id` is read as its decimal text, and every comparison of a row's key column, a custom role's tenant or a caller's id with a membership id compares the two as text, so a `bigint` key that a client such as supabase-js reads as a number (`customer_id: 42`) matches the membership `"42"`. Any other value is no id: the membership is dropped and the row matches nothing.
+
 ## No implicit cascade
 
 A role applies only at the scope it is declared on, through a membership of exactly that scope:

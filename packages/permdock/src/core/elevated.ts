@@ -12,6 +12,7 @@ import { compact, isReadonlyArray, sole } from "./compact.ts";
 import { parseDuration } from "./duration.ts";
 import { freezeDeep } from "./freeze.ts";
 import { asGrantee, assurance, authenticated } from "./grantee.ts";
+import { sameId } from "./ids.ts";
 import { listPermissions } from "./permissions.ts";
 import {
   type BreakGlassOptions,
@@ -322,7 +323,7 @@ export function activate(
   const eligible = (principal.memberships ?? []).find(
     (membership) =>
       membership.scope === scope &&
-      membership.id === input.id &&
+      sameId(membership.id, input.id) &&
       !isMembershipExpired(membership, now) &&
       (membership.eligible ?? []).includes(roleName) &&
       withinAgrees(scopes, membership.within, input.within),

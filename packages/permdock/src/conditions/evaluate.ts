@@ -1,6 +1,7 @@
 import type { Membership, Subject } from "../core/subject.ts";
 
 import { isReadonlyArray } from "../core/compact.ts";
+import { sameId } from "../core/ids.ts";
 import { ownGet } from "../core/paths.ts";
 import {
   type Scope,
@@ -171,7 +172,7 @@ function matchesParentHop(
     if (hop.resource !== undefined && hop.resource !== on.resource) {
       continue;
     }
-    if (ownGet(data, hop.field) === on.id) {
+    if (sameId(ownGet(data, hop.field), on.id)) {
       return true;
     }
   }
@@ -214,7 +215,7 @@ function evaluateMemberOf(
       continue;
     }
     if (scope !== undefined) {
-      if (membership.scope !== scope || membership.id !== rowValue) {
+      if (membership.scope !== scope || !sameId(membership.id, rowValue)) {
         continue;
       }
       // With an active tenant, only memberships inside it count.
@@ -236,7 +237,7 @@ function evaluateMemberOf(
       }
       continue;
     }
-    if (membership.on.id === rowValue) {
+    if (sameId(membership.on.id, rowValue)) {
       return true;
     }
     if (matchesParentHop(data, condition.parents, membership.on)) {

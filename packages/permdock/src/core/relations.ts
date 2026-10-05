@@ -12,6 +12,7 @@ import type {
 } from "./permissions.ts";
 import type { Subject } from "./subject.ts";
 
+import { idText } from "./ids.ts";
 import { ownGet } from "./paths.ts";
 import {
   expandRelation,
@@ -277,16 +278,7 @@ export function pendingRelations(
 }
 
 export function relationId(value: unknown): string | undefined {
-  if (typeof value === "string") {
-    return value === "" ? undefined : value;
-  }
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return String(value);
-  }
-  if (typeof value === "bigint") {
-    return String(value);
-  }
-  return undefined;
+  return idText(value);
 }
 
 /** Whether the holder's period covers `now`. */

@@ -4,6 +4,7 @@ import type { Membership, Principal, Subject } from "./subject.ts";
 
 import { compact } from "./compact.ts";
 import { freezeDeep } from "./freeze.ts";
+import { sameId } from "./ids.ts";
 import { isForbiddenKey } from "./paths.ts";
 import { listPermissions } from "./permissions.ts";
 import { anonymousSubject } from "./subject.ts";
@@ -313,12 +314,12 @@ function holdsScope(
   if (membership.expiresAt !== undefined && membership.expiresAt <= now) {
     return false;
   }
-  if (membership.scope === scope && membership.id === id) {
+  if (membership.scope === scope && sameId(membership.id, id)) {
     return true;
   }
   return (
-    (scope === "tenant" && membership.tenant === id) ||
-    (scope === "team" && membership.team === id)
+    (scope === "tenant" && sameId(membership.tenant, id)) ||
+    (scope === "team" && sameId(membership.team, id))
   );
 }
 

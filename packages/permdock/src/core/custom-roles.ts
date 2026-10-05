@@ -5,6 +5,7 @@ import type { CustomRole, CustomRoleGrant, Membership } from "./subject.ts";
 
 import { freezeDeep } from "./freeze.ts";
 import { flattenGrantee } from "./grantee.ts";
+import { sameId } from "./ids.ts";
 import { isForbiddenKey } from "./paths.ts";
 import { findPermission, formerKeys } from "./permissions.ts";
 import { declaredRoleNames, grantList, levelCondition } from "./policy.ts";
@@ -497,8 +498,8 @@ export function holdsCustomRole(
   return (
     scope !== undefined &&
     membership.scope === scope &&
-    tenantOf(membership, scopes) === role.tenant &&
-    (id === undefined || membership.id === id) &&
+    sameId(tenantOf(membership, scopes), role.tenant) &&
+    (id === undefined || sameId(membership.id, id)) &&
     membership.roles.includes(role.name)
   );
 }
@@ -522,7 +523,7 @@ export function isCustomRoleName(
       wellFormed(item) &&
       item.name === name &&
       (isGlobalCustomRole(item) ||
-        (tenant !== undefined && item.tenant === tenant)),
+        (tenant !== undefined && sameId(item.tenant, tenant))),
   );
 }
 
