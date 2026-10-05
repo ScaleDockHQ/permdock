@@ -153,3 +153,75 @@ describe("rls generate options", () => {
     expect(jwt.sql).not.toContain("custom_role_permissions");
   });
 });
+
+writeFileSync(
+  path.join(cwd, "fields.ts"),
+  `import { allow, definePermissions, definePolicy, resource, role } from 'permdock';
+import { z } from 'zod';
+
+const Quote = z.object({ id: z.string(), orgId: z.string(), customerId: z.string(), total: z.number(), margin: z.number() });
+const permissions = definePermissions({
+  quote: resource(Quote, {
+    id: 'id',
+    actions: ['read'],
+    relations: {
+      org: { field: 'orgId', memberOf: 'tenant' },
+      customer: { field: 'customerId', memberOf: 'customer' },
+    },
+  }),
+});
+
+export const policy = definePolicy(permissions, {
+  scopes: { tenant: { key: 'orgId' }, customer: { key: 'customerId', within: 'tenant' } },
+  roles: [
+    role('staff', [allow(permissions.quote.read)], { on: 'tenant' }),
+    role('contact', [allow(permissions.quote.read, { fields: ['id', 'orgId', 'customerId', 'total'] })], { on: 'customer' }),
+  ],
+  subject: () => null,
+});
+`,
+);
+
+describe("field views with hand-written policies", () => {
+  const run = (rls: NonNullable<PermDockConfig["rls"]>) =>
+    runRlsGenerate({
+      cwd,
+      config: { policy: "./fields.ts", rls },
+      target: "sql",
+      dialect: "supabase",
+      rbac: false,
+      check: false,
+      skipClosures: false,
+      inlineFunctions: false,
+      io,
+      write: false,
+    });
+
+  it("writes the per-scope field view next to the helpers and no policy", async () => {
+    const outcome = await run({
+      helpersOnly: true,
+      fields: "views",
+      tables: { quote: "quotes" },
+    });
+    expect(outcome.code).toBe(0);
+    expect(outcome.text).toContain(
+      'create or replace view "public"."quotes_visible" with (security_invoker = true) as',
+    );
+    expect(outcome.text).toContain(
+      `case when "orgId" in (select "permdock".permitted_tenant_ids('quote.read#1'))`,
+    );
+    expect(outcome.text).not.toContain("create policy");
+    expect(outcome.output).toContain(
+      "revoke select on those columns from client roles in your own grants",
+    );
+  });
+
+  it("refuses --revoke-columns, whose grants it does not own", async () => {
+    const outcome = await run({
+      helpersOnly: true,
+      fields: "views",
+      revokeColumns: true,
+    });
+    expect(outcome.code).toBe(2);
+  });
+});

@@ -195,7 +195,7 @@ select
 from "invoice";
 ```
 
-- **Rows** come from the table's own policies, because the view is `security_invoker`: a row the caller cannot select is not in the view either.
+- **Rows** come from the table's own policies, because the view is `security_invoker`: a row the caller cannot select is not in the view either. With `--helpers-only` those policies are hand-written and the views are still generated, one mask per column over the same grants, so a customer-scope role with `fields` and a staff role without them read the same view with different columns.
 - **Columns** are restricted when a read allow's `fields` leaves them out or a read deny's `fields` lists them. A restricted column is `case when <permitted> then col end`, where `<permitted>` is `can(permission, row, { field })`: covering allows ORed, covering denies negated. The row key and every other column pass through unchanged.
 - **Grant keys** split by field set as well as by condition, so each helper call names the roles that reach a column: above, `invoice.read#2` is finance with `['id', 'orgId', 'title', 'amount']` and `invoice.read#5` is the auditor's deny on `note`.
 - **Field-only grants** (a read deny with `fields`, an allow with an empty list) leave the row policy, because in the application they never decide the row; they live in the masks.

@@ -438,10 +438,25 @@ export async function runRlsGenerate(input: {
     warnings,
     input.skipClosures,
   );
+  const helpersOnly = input.helpersOnly === true || rls?.helpersOnly === true;
+  if (helpersOnly && (input.target !== "sql" || revokeColumns)) {
+    return {
+      code: 2,
+      output:
+        "rls generate --helpers-only needs --target sql and no --revoke-columns: the table grants are hand-written, so revoke the restricted columns there",
+      text: "",
+    };
+  }
   const views =
     fieldsMode === undefined
       ? []
-      : fieldViews(policy, ctx, compiled.branches, { revokeColumns }, warnings);
+      : fieldViews(
+          policy,
+          ctx,
+          compiled.branches,
+          { revokeColumns, helpersOnly },
+          warnings,
+        );
   const force = input.force === true || rls?.force === true;
   if (force && views.some((view) => view.companion !== undefined)) {
     warnings.push(
@@ -449,14 +464,6 @@ export async function runRlsGenerate(input: {
     );
   }
   const policyName = input.policyName ?? rls?.policyName;
-  const helpersOnly = input.helpersOnly === true || rls?.helpersOnly === true;
-  if (helpersOnly && (input.target !== "sql" || fieldsMode !== undefined)) {
-    return {
-      code: 2,
-      output: "rls generate --helpers-only needs --target sql and no --fields",
-      text: "",
-    };
-  }
   const policies = helpersOnly
     ? []
     : assemblePolicies(
@@ -676,7 +683,10 @@ export async function runRlsGenerate(input: {
     helpersOnly,
     sql: () => ({
       policies: dialectRoles(emitSql(policies, "", force, views), ctx.dialect),
-      helpers: dialectRoles(emitSql([], preamble), ctx.dialect),
+      helpers: dialectRoles(
+        emitSql([], preamble, false, helpersOnly ? views : []),
+        ctx.dialect,
+      ),
       seeds: `${SEEDS_MARKER} schema=${schema}\n${seedSql(ctx, compiled.rolePermissions)}\n`,
       indexes: `${INDEXES_MARKER}\n${indexesSql(indexes)}\n`,
     }),

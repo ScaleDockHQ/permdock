@@ -148,7 +148,7 @@ export function fieldViews(
   policy: Policy,
   ctx: RlsSqlContext,
   branches: readonly CompiledBranch[],
-  options: { readonly revokeColumns: boolean },
+  options: { readonly revokeColumns: boolean; readonly helpersOnly?: boolean },
   warnings: string[],
 ): readonly FieldView[] {
   const byTable = new Map<string, CompiledBranch[]>();
@@ -207,7 +207,11 @@ export function fieldViews(
     const hidden = columns
       .filter((column) => column.mask !== undefined)
       .map((column) => column.name);
-    if (!options.revokeColumns) {
+    if (options.helpersOnly === true) {
+      warnings.push(
+        `field view ${view}: ${table} still returns ${hidden.join(", ")} to direct reads; revoke select on those columns from client roles in your own grants, or read them through a function`,
+      );
+    } else if (!options.revokeColumns) {
       warnings.push(
         `field view ${view}: ${table} still returns ${hidden.join(", ")} to direct reads; add --revoke-columns so clients read through the view`,
       );
