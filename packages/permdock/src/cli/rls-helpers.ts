@@ -51,9 +51,14 @@ const CUSTOM_ROLES = {
   keys: "permdock_custom_keys",
   beyond: "permdock_custom_role_beyond",
   guard: "permdock_custom_role_guard",
+  shape: "permdock_custom_role_shape",
+  entries: "permdock_custom_role_entries",
   replace: "permdock_replace_custom_role_grants",
   rename: "permdock_rename_custom_role_grants",
   remove: "permdock_delete_custom_role_grants",
+  trustedReplace: "permdock_trusted_replace_custom_role_grants",
+  trustedRename: "permdock_trusted_rename_custom_role_grants",
+  trustedRemove: "permdock_trusted_delete_custom_role_grants",
 } as const;
 
 /** `'global'` or a scope name. */
@@ -1315,7 +1320,11 @@ ${indent}  hint = ${quoteLiteral(hint)};`;
  * role in \`database\` mode, with the rules of \`validateCustomRole\` and
  * \`assignablePermissions\`: entries inside the ceiling of the role's scope,
  * includes naming declared roles, and only permissions and levels the caller
- * may hand out, for the new definition and the stored one alike.
+ * may hand out, for the new definition and the stored one alike. A platform
+ * custom role (\`p_scope = 'global'\`, no tenant) is written by a caller who
+ * holds a \`meta.manageRoles\` permission through a global role. The
+ * \`permdock_trusted_*\` variants skip the caller checks and keep the
+ * definition checks; no client role may execute them.
  */
 function customRoleWritesSql(
   ctx: RlsSqlContext,
@@ -1339,9 +1348,8 @@ function customRoleWritesSql(
   const includes = qualified(ctx, CUSTOM_ROLES.includes);
   const beyond = qualified(ctx, CUSTOM_ROLES.beyond);
   const guard = qualified(ctx, CUSTOM_ROLES.guard);
-  const replace = qualified(ctx, CUSTOM_ROLES.replace);
-  const rename = qualified(ctx, CUSTOM_ROLES.rename);
-  const remove = qualified(ctx, CUSTOM_ROLES.remove);
+  const shape = qualified(ctx, CUSTOM_ROLES.shape);
+  const entries = qualified(ctx, CUSTOM_ROLES.entries);
   const has = qualified(ctx, HELPERS.has);
   const renames = Object.entries(custom.renamed ?? {}).toSorted(([a], [b]) =>
     a < b ? -1 : a > b ? 1 : 0,
@@ -1354,18 +1362,25 @@ function customRoleWritesSql(
   const ids = (helper: string, arg: string): string =>
     `(select x::text from ${qualified(ctx, helper)}(${arg}) x)`;
   const heldKey = (key: string): string =>
-    `(p_tenant::text in ${ids(permittedIdsHelper(root), key)}
-        or ${perScope(ctx, (scope) => (scope === root ? "false" : `p_scope_id in ${ids(permittedIdsHelper(scope), key)}`))}
-        or ${has}(${key}))`;
-  const manage =
-    custom.manage === undefined
+    `(${has}(${key})
+        or (p_scope <> 'global'
+          and (p_tenant::text in ${ids(permittedIdsHelper(root), key)}
+            or ${perScope(ctx, (scope) => (scope === root ? "false" : `p_scope_id in ${ids(permittedIdsHelper(scope), key)}`))})))`;
+  const holdsAny = (
+    permissions: readonly string[],
+    held: (key: string) => string,
+  ): string =>
+    permissions.length === 0
       ? "false"
       : `exists (
     select 1 from ${rp} rp
     where rp.effect = 'allow'
-      and rp.permission = any(${textArray(custom.manage)})
-      and ${heldKey("rp.grant_key")}
+      and rp.permission = any(${textArray(permissions)})
+      and ${held("rp.grant_key")}
   )`;
+  const manageKeys = custom.manage ?? [];
+  const manage = holdsAny(manageKeys, heldKey);
+  const platform = holdsAny(manageKeys, (key) => `${has}(${key})`);
   const reachRows = levelReach
     .map(
       ([grantKey, level]) =>
@@ -1391,7 +1406,7 @@ function customRoleWritesSql(
       ? `,
     reach (grant_key, level) as (values ${reachRows})`
       : "";
-  const match = `c.tenant_id = p_tenant and c.scope = p_scope and c.scope_id is not distinct from p_scope_id`;
+  const match = `c.tenant_id is not distinct from p_tenant and c.scope = p_scope and c.scope_id is not distinct from p_scope_id`;
   const memberOf = `p_tenant::text in ${ids(memberIdsHelper(root), "")}
       or ${perScope(ctx, (scope) => (scope === root ? "false" : `p_scope_id in ${ids(memberIdsHelper(scope), "")}`))}`;
   const scopes = textArray(ctx.scopes.map((scope) => scope.name));
@@ -1399,6 +1414,57 @@ function customRoleWritesSql(
     `coalesce(${param}, '') = '' or ${param} = any(${textArray(custom.declared)})`;
   const levelOf = leveled ? ", nullif(split_part(e, '@', 2), '')" : "";
   const levelColumn = leveled ? ", level" : "";
+  const write = `  delete from ${perms} c where ${match} and c.role = p_role;
+  delete from ${includes} c where ${match} and c.role = p_role;
+  insert into ${perms} (tenant_id, scope, scope_id, role, permission, effect${levelColumn})
+  select distinct p_tenant, p_scope, p_scope_id, p_role, ${current(leveled ? "split_part(e, '@', 1)" : "e")}, 'allow'${levelOf}
+  from unnest(coalesce(p_allow, '{}'::text[])) e
+  union
+  select distinct p_tenant, p_scope, p_scope_id, p_role, ${current("e")}, 'deny'${leveled ? ", null" : ""}
+  from unnest(coalesce(p_deny, '{}'::text[])) e;
+  insert into ${includes} (tenant_id, scope, scope_id, role, include_role)
+  select distinct p_tenant, p_scope, p_scope_id, p_role, e
+  from unnest(coalesce(p_include, '{}'::text[])) e;`;
+  const move = `  if ${roleName("p_to")} then
+${raiseSql("    ", "22023", `'permdock: ' || coalesce(p_to, 'null') || ' is not a custom role name'`, "declared-role")}
+  end if;
+  if exists (select 1 from ${perms} c where ${match} and c.role = p_to)
+    or exists (select 1 from ${includes} c where ${match} and c.role = p_to) then
+${raiseSql("    ", "22023", `'permdock: ' || p_to || ' already has grants'`, "role-exists")}
+  end if;
+  update ${perms} c set role = p_to where ${match} and c.role = p_from;
+  update ${includes} c set role = p_to where ${match} and c.role = p_from;`;
+  const remove = `  delete from ${perms} c where ${match} and c.role = p_role;
+  delete from ${includes} c where ${match} and c.role = p_role;`;
+  const writeArgs = `${tenantType}, text, text, text, text[], text[], text[]`;
+  const renameArgs = `${tenantType}, text, text, text, text`;
+  const removeArgs = `${tenantType}, text, text, text`;
+  const fn = (
+    comment: string,
+    name: string,
+    params: string,
+    args: string,
+    body: string,
+    member: boolean,
+  ): string => `-- ${comment}
+create or replace function ${qualified(ctx, name)}(${params})
+returns void
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+${body}
+$$;
+${
+  member
+    ? `revoke execute on function ${qualified(ctx, name)}(${args}) from public, anon;
+grant execute on function ${qualified(ctx, name)}(${args}) to authenticated;`
+    : `revoke execute on function ${qualified(ctx, name)}(${args}) from public, anon, authenticated;`
+}`;
+  const writeParams = `p_tenant ${tenantType}, p_scope text, p_scope_id text, p_role text, p_allow text[], p_deny text[], p_include text[]`;
+  const renameParams = `p_tenant ${tenantType}, p_scope text, p_scope_id text, p_from text, p_to text`;
+  const removeParams = `p_tenant ${tenantType}, p_scope text, p_scope_id text, p_role text`;
   return `-- custom-role writes: the permission keys of a definition the caller may not hand out in the tenant, as assignablePermissions computes them
 create or replace function ${beyond}(p_tenant ${tenantType}, p_scope text, p_scope_id text, p_allow text[], p_deny text[], p_include text[])
 returns setof text
@@ -1431,7 +1497,29 @@ end;
 $$;
 revoke execute on function ${beyond}(${tenantType}, text, text, text[], text[], text[]) from public, anon, authenticated;
 
--- a custom role the caller may change: a tenant scope, an undeclared name, membership of the tenant or the instance, and authority over the stored definition
+-- where a custom role may live: a scope of a tenant, or the platform (scope global, no tenant or instance), under an undeclared name
+create or replace function ${shape}(p_tenant ${tenantType}, p_scope text, p_scope_id text, p_role text)
+returns void
+language plpgsql
+stable
+set search_path = ''
+as $$
+begin
+  if p_scope = 'global' then
+    if p_tenant is not null or p_scope_id is not null then
+${raiseSql("      ", "22023", `'permdock: a platform custom role has no tenant or instance'`, "unknown-scope")}
+    end if;
+  elsif p_tenant is null or not (p_scope = any(${scopes})) then
+${raiseSql("    ", "22023", `'permdock: custom roles are held at a scope of a tenant or at global, not ' || coalesce(p_scope, 'null')`, "unknown-scope")}
+  end if;
+  if ${roleName("p_role")} then
+${raiseSql("    ", "22023", `'permdock: ' || coalesce(p_role, 'null') || ' is not a custom role name'`, "declared-role")}
+  end if;
+end;
+$$;
+revoke execute on function ${shape}(${tenantType}, text, text, text) from public, anon, authenticated;
+
+-- a custom role the caller may change: membership of the tenant or the instance (a platform role, or a caller holding a manageRoles permission through a global role, needs none), and authority over the stored definition
 create or replace function ${guard}(p_tenant ${tenantType}, p_scope text, p_scope_id text, p_role text)
 returns void
 language plpgsql
@@ -1445,14 +1533,12 @@ declare
   v_include text[];
   v_beyond text;
 begin
-  if p_tenant is null or not (p_scope = any(${scopes})) then
-${raiseSql("    ", "22023", `'permdock: custom roles are held at a scope of a tenant, not ' || coalesce(p_scope, 'null')`, "unknown-scope")}
-  end if;
-  if ${roleName("p_role")} then
-${raiseSql("    ", "22023", `'permdock: ' || coalesce(p_role, 'null') || ' is not a custom role name'`, "declared-role")}
-  end if;
-  if not (${signedIn(ctx)} and (${memberOf})) then
-${raiseSql("    ", "42501", `'permdock: the caller is not a member of ' || p_tenant::text`, "not-member")}
+  perform ${shape}(p_tenant, p_scope, p_scope_id, p_role);
+  if not (${signedIn(ctx)} and (
+    ${platform}
+    or (p_scope <> 'global' and (${memberOf}))
+  )) then
+${raiseSql("    ", "42501", `'permdock: the caller is not a member of ' || coalesce(p_tenant::text, 'the platform')`, "not-member")}
   end if;
   select array_agg(${allowEntry(ctx)}) filter (where c.effect = 'allow'),
     array_agg(c.permission) filter (where c.effect = 'deny')
@@ -1471,20 +1557,18 @@ end;
 $$;
 revoke execute on function ${guard}(${tenantType}, text, text, text) from public, anon, authenticated;
 
--- save a custom role: replace its grants and includes after checking each entry against the ceiling and the caller's own permissions
-create or replace function ${replace}(p_tenant ${tenantType}, p_scope text, p_scope_id text, p_role text, p_allow text[], p_deny text[], p_include text[])
+-- the entries of a definition: declared keys and levels inside the ceiling of the scope, and declared includes
+create or replace function ${entries}(p_scope text, p_allow text[], p_deny text[], p_include text[])
 returns void
 language plpgsql
-volatile
+stable
 security definer
 set search_path = ''
 as $$
 declare
   v_entry text;
   v_key text;
-  v_beyond text;
 begin
-  perform ${guard}(p_tenant, p_scope, p_scope_id, p_role);
   foreach v_entry in array coalesce(p_allow, '{}'::text[]) loop
     v_key := ${current(leveled ? "split_part(v_entry, '@', 1)" : "v_entry")};
     if not (v_key = any(${known})) then
@@ -1529,65 +1613,88 @@ ${raiseSql("      ", "22023", `'permdock: ' || v_entry || ' is not a declared ro
   if v_key is not null then
 ${raiseSql("    ", "22023", `'permdock: an included role allows ' || v_key || ', outside the ceiling of ' || p_scope`, "outside-ceiling")}
   end if;
+end;
+$$;
+revoke execute on function ${entries}(text, text[], text[], text[]) from public, anon, authenticated;
+
+${fn(
+  "save a custom role: replace its grants and includes after checking each entry against the ceiling and the caller's own permissions",
+  CUSTOM_ROLES.replace,
+  writeParams,
+  writeArgs,
+  `declare
+  v_beyond text;
+begin
+  perform ${guard}(p_tenant, p_scope, p_scope_id, p_role);
+  perform ${entries}(p_scope, p_allow, p_deny, p_include);
   select string_agg(b, ', ' order by b) into v_beyond
   from ${beyond}(p_tenant, p_scope, p_scope_id, p_allow, p_deny, p_include) b;
   if v_beyond is not null then
 ${raiseSql("    ", "42501", `'permdock: ' || p_role || ' would allow ' || v_beyond || ', which the caller may not hand out'`, "not-assignable-by")}
   end if;
-  delete from ${perms} c where ${match} and c.role = p_role;
-  delete from ${includes} c where ${match} and c.role = p_role;
-  insert into ${perms} (tenant_id, scope, scope_id, role, permission, effect${levelColumn})
-  select distinct p_tenant, p_scope, p_scope_id, p_role, ${current(leveled ? "split_part(e, '@', 1)" : "e")}, 'allow'${levelOf}
-  from unnest(coalesce(p_allow, '{}'::text[])) e
-  union
-  select distinct p_tenant, p_scope, p_scope_id, p_role, ${current("e")}, 'deny'${leveled ? ", null" : ""}
-  from unnest(coalesce(p_deny, '{}'::text[])) e;
-  insert into ${includes} (tenant_id, scope, scope_id, role, include_role)
-  select distinct p_tenant, p_scope, p_scope_id, p_role, e
-  from unnest(coalesce(p_include, '{}'::text[])) e;
-end;
-$$;
-revoke execute on function ${replace}(${tenantType}, text, text, text, text[], text[], text[]) from public, anon;
-grant execute on function ${replace}(${tenantType}, text, text, text, text[], text[], text[]) to authenticated;
+${write}
+end;`,
+  true,
+)}
 
--- rename a custom role: move its grants and includes to the new name
-create or replace function ${rename}(p_tenant ${tenantType}, p_scope text, p_scope_id text, p_from text, p_to text)
-returns void
-language plpgsql
-volatile
-security definer
-set search_path = ''
-as $$
-begin
+${fn(
+  "rename a custom role: move its grants and includes to the new name",
+  CUSTOM_ROLES.rename,
+  renameParams,
+  renameArgs,
+  `begin
   perform ${guard}(p_tenant, p_scope, p_scope_id, p_from);
-  if ${roleName("p_to")} then
-${raiseSql("    ", "22023", `'permdock: ' || coalesce(p_to, 'null') || ' is not a custom role name'`, "declared-role")}
-  end if;
-  if exists (select 1 from ${perms} c where ${match} and c.role = p_to)
-    or exists (select 1 from ${includes} c where ${match} and c.role = p_to) then
-${raiseSql("    ", "22023", `'permdock: ' || p_to || ' already has grants'`, "role-exists")}
-  end if;
-  update ${perms} c set role = p_to where ${match} and c.role = p_from;
-  update ${includes} c set role = p_to where ${match} and c.role = p_from;
-end;
-$$;
-revoke execute on function ${rename}(${tenantType}, text, text, text, text) from public, anon;
-grant execute on function ${rename}(${tenantType}, text, text, text, text) to authenticated;
+${move}
+end;`,
+  true,
+)}
 
--- delete a custom role: remove its grants and includes
-create or replace function ${remove}(p_tenant ${tenantType}, p_scope text, p_scope_id text, p_role text)
-returns void
-language plpgsql
-volatile
-security definer
-set search_path = ''
-as $$
-begin
+${fn(
+  "delete a custom role: remove its grants and includes",
+  CUSTOM_ROLES.remove,
+  removeParams,
+  removeArgs,
+  `begin
   perform ${guard}(p_tenant, p_scope, p_scope_id, p_role);
-  delete from ${perms} c where ${match} and c.role = p_role;
-  delete from ${includes} c where ${match} and c.role = p_role;
-end;
-$$;
-revoke execute on function ${remove}(${tenantType}, text, text, text) from public, anon;
-grant execute on function ${remove}(${tenantType}, text, text, text) to authenticated;`;
+${remove}
+end;`,
+  true,
+)}
+
+${fn(
+  "save a custom role for a trusted caller (a migration, a job, a backend role granted execute): the definition checks without the caller checks",
+  CUSTOM_ROLES.trustedReplace,
+  writeParams,
+  writeArgs,
+  `begin
+  perform ${shape}(p_tenant, p_scope, p_scope_id, p_role);
+  perform ${entries}(p_scope, p_allow, p_deny, p_include);
+${write}
+end;`,
+  false,
+)}
+
+${fn(
+  "rename a custom role for a trusted caller",
+  CUSTOM_ROLES.trustedRename,
+  renameParams,
+  renameArgs,
+  `begin
+  perform ${shape}(p_tenant, p_scope, p_scope_id, p_from);
+${move}
+end;`,
+  false,
+)}
+
+${fn(
+  "delete a custom role for a trusted caller",
+  CUSTOM_ROLES.trustedRemove,
+  removeParams,
+  removeArgs,
+  `begin
+  perform ${shape}(p_tenant, p_scope, p_scope_id, p_role);
+${remove}
+end;`,
+  false,
+)}`;
 }

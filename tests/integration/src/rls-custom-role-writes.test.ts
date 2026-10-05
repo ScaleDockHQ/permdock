@@ -16,6 +16,7 @@ const FIXTURE = join(HERE, "../fixtures/custom-role-writes");
 const ADMIN = "00000000-0000-4000-8000-0000000000a1";
 const MANAGER = "00000000-0000-4000-8000-0000000000b2";
 const STEWARD = "00000000-0000-4000-8000-0000000000c3";
+const OPERATOR = "00000000-0000-4000-8000-0000000000d4";
 
 const SETUP = `
 create role authenticated nologin;
@@ -32,7 +33,7 @@ $$;
 grant usage on schema auth to authenticated, anon;
 grant execute on all functions in schema auth to authenticated, anon;
 grant usage on schema public to authenticated, anon;
-insert into auth.users (id) values ('${ADMIN}'), ('${MANAGER}'), ('${STEWARD}');
+insert into auth.users (id) values ('${ADMIN}'), ('${MANAGER}'), ('${STEWARD}'), ('${OPERATOR}');
 create table public.organization_members (
   organization_id text not null,
   user_id uuid not null references auth.users on delete cascade,
@@ -66,15 +67,26 @@ describe("permdock_replace_custom_role_grants with levels, renamed keys and mana
     await db?.stop();
   });
 
-  const save = async (
-    sub: string,
-    role: string,
-    allow: readonly string[],
-  ): Promise<string> => {
-    if (db === undefined) {
-      throw new Error("PermDock: Postgres was not started");
-    }
+  const outcome = async (work: () => Promise<unknown>): Promise<string> => {
     try {
+      await work();
+      return "ok";
+    } catch (error) {
+      return error instanceof DatabaseError
+        ? `${error.code ?? ""} ${error.hint ?? ""}`.trim()
+        : String(error);
+    }
+  };
+
+  const call = (
+    sub: string,
+    sql: string,
+    values: readonly unknown[],
+  ): Promise<string> =>
+    outcome(async () => {
+      if (db === undefined) {
+        throw new Error("PermDock: Postgres was not started");
+      }
       await db.as(
         {
           role: "authenticated",
@@ -86,19 +98,39 @@ describe("permdock_replace_custom_role_grants with levels, renamed keys and mana
           },
         },
         async () => {
-          await db?.tester.query(
-            "select permdock.permdock_replace_custom_role_grants('acme', 'tenant', null, $1, $2, '{}', '{}')",
-            [role, [...allow]],
-          );
+          await db?.tester.query(sql, [...values]);
         },
       );
-      return "ok";
-    } catch (error) {
-      return error instanceof DatabaseError
-        ? `${error.code ?? ""} ${error.hint ?? ""}`
-        : String(error);
-    }
-  };
+    });
+
+  const acme = { tenant: "acme", scope: "tenant" } as const;
+  const platform = { tenant: null, scope: "global" } as const;
+
+  const save = (
+    sub: string,
+    role: string,
+    allow: readonly string[],
+    at: { readonly tenant: string | null; readonly scope: string } = acme,
+  ): Promise<string> =>
+    call(
+      sub,
+      "select permdock.permdock_replace_custom_role_grants($1, $2, null, $3, $4, '{}', '{}')",
+      [at.tenant, at.scope, role, [...allow]],
+    );
+
+  /** Runs `sql` as the table owner, the way a migration or a job does, and rolls back. */
+  const asOwner = (sql: string, values: readonly unknown[]): Promise<string> =>
+    outcome(async () => {
+      if (db === undefined) {
+        throw new Error("PermDock: Postgres was not started");
+      }
+      await db.admin.query("begin");
+      try {
+        await db.admin.query(sql, [...values]);
+      } finally {
+        await db.admin.query("rollback");
+      }
+    });
 
   it("hands out only the levels the caller's own grants reach", async () => {
     expect(await save(MANAGER, "self-service", ["job.update@own"])).toBe("ok");
@@ -150,5 +182,74 @@ describe("permdock_replace_custom_role_grants with levels, renamed keys and mana
     } finally {
       await db.admin.query("rollback");
     }
+  });
+
+  it("lets a manageRoles holder through a global role write any tenant without a membership", async () => {
+    if (db === undefined) {
+      throw new Error("PermDock: Postgres was not started");
+    }
+    await db.admin.query(
+      `insert into permdock.user_roles (user_id, role) values ('${OPERATOR}', 'operator') on conflict do nothing`,
+    );
+    expect(await save(OPERATOR, "night-shift", ["job.update@all"])).toBe("ok");
+    expect(await save(OPERATOR, "night-shift", ["member.assignRole"])).toBe(
+      "22023 outside-ceiling",
+    );
+  });
+
+  it("saves a platform custom role only for a global manageRoles holder, inside the global ceiling", async () => {
+    if (db === undefined) {
+      throw new Error("PermDock: Postgres was not started");
+    }
+    await db.admin.query(
+      `insert into permdock.user_roles (user_id, role) values ('${OPERATOR}', 'operator') on conflict do nothing`,
+    );
+    expect(await save(OPERATOR, "auditor", ["job.read"], platform)).toBe("ok");
+    expect(await save(OPERATOR, "auditor", ["job.update"], platform)).toBe(
+      "22023 outside-ceiling",
+    );
+    expect(await save(ADMIN, "auditor", ["job.read"], platform)).toBe(
+      "42501 not-member",
+    );
+    expect(await save(STEWARD, "auditor", ["job.read"], platform)).toBe(
+      "42501 not-member",
+    );
+    expect(
+      await save(OPERATOR, "auditor", ["job.read"], {
+        tenant: "acme",
+        scope: "global",
+      }),
+    ).toBe("22023 unknown-scope");
+  });
+
+  it("keeps the trusted functions to the owner and checks the definition there", async () => {
+    const trusted =
+      "select permdock.permdock_trusted_replace_custom_role_grants($1, $2, null, $3, $4, '{}', '{}')";
+    expect(
+      await call(ADMIN, trusted, ["acme", "tenant", "seeded", ["job.read"]]),
+    ).toBe("42501");
+    expect(
+      await asOwner(trusted, ["acme", "tenant", "seeded", ["job.update@all"]]),
+    ).toBe("ok");
+    expect(
+      await asOwner(trusted, [
+        "acme",
+        "tenant",
+        "seeded",
+        ["member.assignRole"],
+      ]),
+    ).toBe("22023 outside-ceiling");
+    expect(
+      await asOwner(trusted, [null, "global", "auditor", ["job.read"]]),
+    ).toBe("ok");
+    expect(
+      await asOwner(trusted, ["acme", "tenant", "admin", ["job.read"]]),
+    ).toBe("22023 declared-role");
+    expect(
+      await asOwner(
+        "select permdock.permdock_trusted_delete_custom_role_grants('acme', 'tenant', null, 'seeded')",
+        [],
+      ),
+    ).toBe("ok");
   });
 });
