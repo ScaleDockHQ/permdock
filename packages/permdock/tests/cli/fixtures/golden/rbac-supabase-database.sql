@@ -136,6 +136,41 @@ as $$
 $$;
 revoke execute on function "permdock".member_tenant_ids_for(uuid) from public, anon, authenticated;
 
+-- the helpers for a user the caller names: trusted SQL acting for a stored user; no client role may execute them
+create or replace function "permdock".permdock_has_for(p_user uuid, p_grant text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1
+    from "permdock".user_roles ur
+    join "permdock".role_permissions rp on rp.role = ur.role::text
+    where ur.user_id = p_user
+      and rp.grant_key = p_grant
+      and rp.scope = 'global'
+  )
+$$;
+revoke execute on function "permdock".permdock_has_for(uuid, text) from public, anon, authenticated;
+
+create or replace function "permdock".permitted_tenant_ids_for(p_user uuid, p_grant text)
+returns setof uuid
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select m."organization_id"::uuid
+  from "public"."organization_members" m
+  join "permdock".role_permissions rp on rp.role = m."role"::text
+  where m."user_id" = p_user
+    and rp.grant_key = p_grant
+    and rp.scope = 'tenant'
+$$;
+revoke execute on function "permdock".permitted_tenant_ids_for(uuid, text) from public, anon, authenticated;
+
 create or replace function "permdock"."authorize"(
   requested_permission "permdock"."app_permission",
   requested_tenant text default null

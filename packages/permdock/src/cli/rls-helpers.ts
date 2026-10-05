@@ -16,6 +16,7 @@ import {
   memberIdsHelper,
   memberRoleOf,
   memberVia,
+  permittedForHelper,
   permittedIdsHelper,
   scopeSources,
   quoteIdent,
@@ -36,6 +37,7 @@ import {
  */
 export const HELPERS = {
   has: "permdock_has",
+  hasFor: "permdock_has_for",
 } as const;
 
 /** The helper `--capabilities` adds: ids of one resource a link capability claim reaches. Part of the SQL contract. */
@@ -1144,6 +1146,47 @@ ${functionBody(body)}
 ${grants}`;
 }
 
+/**
+ * `permdock_has_for(p_user, p_grant)` and one
+ * `permitted_<scope>_ids_for(p_user, p_grant)` per scope in `database` mode:
+ * the bodies of `permdock_has` and `permitted_<scope>_ids` with `p_user` for
+ * the signed-in user and no tenant-claim narrowing, since a named user has
+ * no token. For trusted SQL that acts for a stored user (jobs, triggers,
+ * approvals resolved later). Naming the user is why no client role may
+ * execute them: `security definer` callers run them as their owner, and a
+ * backend role needs its own grant.
+ */
+function forUserSql(ctx: RlsSqlContext): string {
+  if (ctx.authorize !== "database") {
+    return "";
+  }
+  const forUser: RlsSqlContext = {
+    ...ctx,
+    subjectId: "p_user",
+    tenants: "all",
+  };
+  const type = ctx.dialect === "supabase" ? "uuid" : "text";
+  const fn = (name: string, returns: string, body: Body): string => {
+    const qualifiedName = qualified(ctx, name);
+    return `create or replace function ${qualifiedName}(p_user ${type}, p_grant text)
+returns ${returns}
+${functionBody(body)}
+revoke execute on function ${qualifiedName}(${type}, text) from public, anon, authenticated;`;
+  };
+  return [
+    `-- the helpers for a user the caller names: trusted SQL acting for a stored user; no client role may execute them
+${fn(HELPERS.hasFor, "boolean", sqlBody(hasBody(forUser)))}`,
+    ...ctx.scopes.map((scope) => {
+      const scopeType = scopeTypeOf(ctx, scope.name);
+      return fn(
+        permittedForHelper(scope.name),
+        `setof ${scopeType}`,
+        scopedBody(forUser, scope.name, scopeType),
+      );
+    }),
+  ].join("\n\n");
+}
+
 function userIdType(ctx: RlsSqlContext): string {
   return ctx.dialect === "supabase"
     ? "uuid not null references auth.users on delete cascade"
@@ -1275,6 +1318,10 @@ revoke all on table ${ur} from anon, authenticated, public;`);
     if (hasMemberFor(ctx, scope.name)) {
       chunks.push(memberForFunction(ctx, scope.name, type));
     }
+  }
+  const forUser = forUserSql(ctx);
+  if (forUser !== "") {
+    chunks.push(forUser);
   }
   const writes = customRoleWritesSql(ctx, options.levelReach ?? []);
   if (writes !== "") {

@@ -118,4 +118,28 @@ describe("rls.tenants", () => {
     ]);
     expect(await visible("rls-tenants-all", {})).toEqual(["j1", "j2"]);
   });
+
+  it("answers for a named user with the _for helpers, which no client role may call", async () => {
+    const db = databases["custom-role-writes"];
+    if (db === undefined) {
+      throw new Error("PermDock: Postgres was not started");
+    }
+    const ids = await db.admin.query<{ id: string }>(
+      "select id from permdock.permitted_tenant_ids_for($1, 'job.read') id order by id",
+      [ADMIN],
+    );
+    expect(ids.rows.map((row) => row.id)).toEqual(["acme", "globex"]);
+    const has = await db.admin.query<{ has: boolean }>(
+      "select permdock.permdock_has_for($1, 'job.read') as has",
+      [ADMIN],
+    );
+    expect(has.rows[0]?.has).toBe(false);
+    await expect(
+      db.as({ role: "authenticated" }, async () =>
+        db.tester.query(
+          `select permdock.permitted_tenant_ids_for('${ADMIN}', 'job.read')`,
+        ),
+      ),
+    ).rejects.toThrow(/permission denied/u);
+  });
 });
