@@ -274,6 +274,24 @@ create policy customer_contacts_insert on public.customer_contacts for insert to
   with check ((select permdock.permdock_can_assign(role, organization_id::text)));
 ```
 
+#### Assignment triggers
+
+`rls.assignments` writes those checks for you as triggers. Each scope's table in `rls.memberships`, and each table listed in `tables` (an invitations table that names a role), gets `permdock_assignment_<table>()` and a `before insert or update or delete` trigger. On a write by a client role (`authenticated`, `anon`), every role the old row and the new row hold must be one the caller may assign at that instance: a declared role through `permdock_can_assign`, a custom role through `permdock_can_assign_custom_role(p_tenant, p_scope, p_scope_id, p_role)`, which runs the custom-role write checks (membership, `rls.customRoleWrites.requires`, and authority over every permission the role allows) on its stored definition. A role that is neither is refused. A refusal raises SQLSTATE `42501` with hint `not-assignable-by`, so removing or demoting a holder of a role the caller may not assign fails too.
+
+The trigger functions run as the invoker, so a write that does not run as a client role is trusted: the table owner, a migration, a `security definer` function such as an onboarding or invitation-accept function, and a backend role. That is the bootstrap path for the first owner of a new tenant; it needs no setting the client could also set. The triggers need a role that declares `assigns`; without one, `generate` writes none and warns.
+
+```ts title="permdock.config.ts"
+rls: {
+  authorize: "database",
+  customRoles: true,
+  assignments: {
+    tables: [{ table: "invitations", scope: "organization", id: "organization_id", role: "role" }],
+  },
+},
+```
+
+An entry in `tables` assigns at `scope`, with the instance id in `id` and the tenant column in `tenant` for a scope below the first; `role` takes the same forms as a membership table's (a column, a `through` reference, or a list). A membership source that is not a mapped table gets no assignment trigger.
+
 ### Custom roles
 
 `--custom-roles` (or `rls.customRoles: true`) adds, next to the helpers:

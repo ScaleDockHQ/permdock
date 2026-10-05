@@ -4,11 +4,17 @@ import type {
   MembershipHolders,
   SqlMembershipSource,
 } from "../supabase/sources.ts";
-import type { RlsMembershipTable } from "./types.ts";
+import type {
+  RlsAssignmentTable,
+  RlsMembershipTable,
+  RoleThrough,
+} from "./types.ts";
 
 import { resolveScope, scopeChain } from "../core/scopes.ts";
 import { findRole } from "../core/vocabulary.ts";
+import { roleColumn } from "../supabase/roles.ts";
 import {
+  CUSTOM_ROLES,
   globalRoleRows,
   memberColumn,
   membershipRows,
@@ -28,6 +34,9 @@ import {
   memberVia,
   quoteIdent,
   quoteLiteral,
+  quoteTable,
+  qualifiedTable,
+  tenantTypeOf,
   roleKindSql,
   scopeSources,
   scopeTable,
@@ -723,4 +732,207 @@ export function ownershipSql(ctx: RlsSqlContext): string {
     chunks.push(canAssignSql(ctx, own));
   }
   return chunks.length === 0 ? "" : `${chunks.join("\n\n")}\n`;
+}
+
+/** Objects `rls.assignments` adds. Names are part of the SQL contract. */
+const ASSIGNMENTS = {
+  custom: "permdock_can_assign_custom_role",
+  trigger: "permdock_assignment",
+} as const;
+
+/** The client roles whose writes the assignment triggers check; any other role is a trusted path. */
+const CLIENT_ROLES = ["anon", "anonymous", "authenticated"] as const;
+
+/** One table whose rows assign a role at a scope instance. */
+type AssignedTable = {
+  readonly table: string;
+  readonly scope: string;
+  readonly id: string;
+  readonly tenant: string;
+  readonly role: RlsAssignmentTable["role"];
+};
+
+/** The mapped membership tables and `rls.assignments.tables`, deduplicated by table. */
+function assignedTables(ctx: RlsSqlContext): readonly AssignedTable[] {
+  const out: AssignedTable[] = [];
+  for (const { name } of ctx.scopes) {
+    const mapped = scopeTable(ctx, name);
+    if (mapped === undefined) {
+      continue;
+    }
+    out.push({
+      table: mapped.table.table,
+      scope: name,
+      id: mapped.column,
+      tenant: mapped.tenantColumn ?? mapped.column,
+      role: mapped.table.role,
+    });
+  }
+  for (const extra of ctx.assignments?.tables ?? []) {
+    const scope = resolveScope(ctx.scopes, extra.scope);
+    if (scope === undefined) {
+      throw new Error(
+        `PermDock CLI: rls.assignments.tables names scope '${extra.scope}', which the policy does not declare`,
+      );
+    }
+    if (scope !== ctx.scopes[0]?.name && extra.tenant === undefined) {
+      throw new Error(
+        `PermDock CLI: rls.assignments.tables entry ${extra.table} assigns at ${scope}, below the first scope: name its tenant column`,
+      );
+    }
+    out.push({
+      table: extra.table,
+      scope,
+      id: extra.id,
+      tenant: extra.tenant ?? extra.id,
+      role: extra.role,
+    });
+  }
+  return out;
+}
+
+function isRoleList(
+  role: RlsAssignmentTable["role"],
+): role is readonly (string | RoleThrough)[] {
+  return Array.isArray(role);
+}
+
+/** The role keys a row variable holds, one scalar per role source. */
+function rowRoles(entry: AssignedTable, row: string): readonly string[] {
+  const parts: readonly (string | RoleThrough)[] = isRoleList(entry.role)
+    ? entry.role
+    : [entry.role];
+  return parts.map(
+    (part) =>
+      roleColumn(part, qualifiedTable(entry.table), row, {
+        label: `rls.assignments ${entry.table} role`,
+        prefix: "PermDock CLI",
+      }).lookup,
+  );
+}
+
+/**
+ * `permdock_can_assign_custom_role`: whether the signed-in caller may assign a
+ * custom role of the tenant at the instance, by the checks the custom-role
+ * write functions run on its stored definition.
+ */
+function canAssignCustomSql(ctx: RlsSqlContext): string {
+  const tenantType = tenantTypeOf(ctx);
+  const fn = qualified(ctx, ASSIGNMENTS.custom);
+  const perms = qualified(ctx, CUSTOM_ROLES.permissions);
+  const includes = qualified(ctx, CUSTOM_ROLES.includes);
+  const guard = qualified(ctx, CUSTOM_ROLES.guard);
+  const stored = `c.tenant_id = p_tenant and c.scope = p_scope and c.role = p_role and (c.scope_id is null or c.scope_id = p_scope_id)`;
+  return `-- whether the caller may assign custom role p_role at instance p_scope_id: the custom-role write checks on its stored definition
+create or replace function ${fn}(p_tenant ${tenantType}, p_scope text, p_scope_id text, p_role text)
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_scope_id text;
+  v_found boolean := false;
+begin
+  select true, c.scope_id into v_found, v_scope_id
+  from (
+    select c.scope_id from ${perms} c where ${stored}
+    union all
+    select c.scope_id from ${includes} c where ${stored}
+  ) c
+  order by c.scope_id nulls first
+  limit 1;
+  if not coalesce(v_found, false) then
+    return false;
+  end if;
+  perform ${guard}(p_tenant, p_scope, v_scope_id, p_role);
+  return true;
+exception
+  when insufficient_privilege or invalid_parameter_value then
+    return false;
+end;
+$$;
+revoke execute on function ${fn}(${tenantType}, text, text, text) from public, anon;
+grant execute on function ${fn}(${tenantType}, text, text, text) to authenticated;`;
+}
+
+/**
+ * The assignment triggers (\`rls.assignments\`): before a client role inserts,
+ * updates or deletes a row that assigns a role, every role the old and new
+ * row hold must be one the caller may assign at that instance, by
+ * \`permdock_can_assign\` for a declared role and
+ * \`permdock_can_assign_custom_role\` for a custom one. The functions run as
+ * the invoker, so \`current_user\` tells a client write from a trusted one.
+ */
+export function assignmentSql(ctx: RlsSqlContext): string {
+  const own = ctx.ownership;
+  if (
+    ctx.assignments === undefined ||
+    own === undefined ||
+    own.assigns.length === 0
+  ) {
+    return "";
+  }
+  const canAssign = qualified(ctx, OWNERSHIP.canAssign);
+  const custom = ctx.customRoles !== undefined && ctx.authorize === "database";
+  const declared = ctx.customRoles?.declared;
+  const tenantType = tenantTypeOf(ctx);
+  const chunks: string[] = custom ? [canAssignCustomSql(ctx)] : [];
+  const clients = `current_user::text = any(array[${CLIENT_ROLES.map(quoteLiteral).join(", ")}])`;
+  for (const entry of assignedTables(ctx)) {
+    const table = quoteTable(qualifiedTable(entry.table));
+    const suffix = entry.table.replaceAll(/[^a-z0-9_]/gu, "_");
+    const fn = qualified(ctx, quoteIdent(`${ASSIGNMENTS.trigger}_${suffix}`));
+    const check = (row: string): string => {
+      const id = `${row}.${quoteIdent(entry.id)}::text`;
+      const tenant = `${row}.${quoteIdent(entry.tenant)}::${tenantType}`;
+      const allowed =
+        custom && declared !== undefined
+          ? `case when v_role = any(${declaredArray(declared)}) then ${canAssign}(v_role, ${id}) else ${qualified(ctx, ASSIGNMENTS.custom)}(${tenant}, ${quoteLiteral(entry.scope)}, ${id}, v_role) end`
+          : `${canAssign}(v_role, ${id})`;
+      return `    foreach v_role in array array[${rowRoles(entry, row).join(", ")}]::text[] loop
+      if v_role is not null and not coalesce(${allowed}, false) then
+        raise exception using
+          errcode = '42501',
+          message = 'permdock: the caller may not assign ' || v_role || ' in ' || coalesce(${id}, 'null'),
+          hint = 'not-assignable-by';
+      end if;
+    end loop;`;
+    };
+    chunks.push(`-- ${entry.table}: a client role may write only the ${entry.scope} roles it may assign
+create or replace function ${fn}()
+returns trigger
+language plpgsql
+volatile
+set search_path = ''
+as $$
+declare
+  v_role text;
+begin
+  if not (${clients}) then
+    return coalesce(new, old);
+  end if;
+  if tg_op in ('UPDATE', 'DELETE') then
+${check("old")}
+  end if;
+  if tg_op in ('INSERT', 'UPDATE') then
+${check("new")}
+  end if;
+  return coalesce(new, old);
+end;
+$$;
+revoke execute on function ${fn}() from public, anon, authenticated;
+drop trigger if exists "permdock_assignment" on ${table};
+create trigger "permdock_assignment"
+  before insert or update or delete on ${table}
+  for each row execute function ${fn}();`);
+  }
+  return `${chunks.join("\n\n")}\n`;
+}
+
+function declaredArray(values: readonly string[]): string {
+  return values.length === 0
+    ? `'{}'::text[]`
+    : `array[${values.map(quoteLiteral).join(", ")}]::text[]`;
 }
