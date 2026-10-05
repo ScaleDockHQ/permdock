@@ -12,6 +12,7 @@ import { createPermDock } from "../../src/core/permdock.ts";
 import { definePermissions, resource } from "../../src/core/permissions.ts";
 import { allow, definePolicy, role } from "../../src/core/policy.ts";
 import { parseSnapshot } from "../../src/core/snapshot.ts";
+import { reasonOf } from "../fixtures/decisions.ts";
 import {
   assets,
   customRoles,
@@ -159,6 +160,34 @@ describe("named scopes: the scenario", () => {
     expect(portal.decide(permissions.quote.read, documents[5]!).outcome).toBe(
       "denied",
     );
+  });
+
+  it("answers an instance check without a row from the first scope only", async () => {
+    const contact = await permdockFor(personas.privateContact);
+    for (const permission of [permissions.asset.read, permissions.quote.read]) {
+      const decision = contact.decide(permission, undefined);
+      expect(decision.outcome).toBe("denied");
+      expect(reasonOf(decision)).toBe("scope");
+    }
+    const client = fromSnapshot(
+      parseSnapshot(JSON.stringify(contact.snapshot())),
+    );
+    expect(client.can(permissions.asset.read, undefined)).toBe(false);
+    expect(contact.can(permissions.asset.read, assets[0]!)).toBe(true);
+    expect(contact.team("A").can(permissions.asset.read, undefined)).toBe(true);
+    expect(contact.team("G").can(permissions.asset.read, undefined)).toBe(
+      false,
+    );
+
+    const staff = await permdockFor(personas.admin);
+    expect(staff.can(permissions.asset.read, undefined)).toBe(true);
+
+    const both = await permdockFor(personas.staffContact);
+    expect(both.can(permissions.asset.read, undefined)).toBe(true);
+    expect(both.tenant("B").can(permissions.asset.read, undefined)).toBe(false);
+    expect(
+      both.tenant("B").team("C").can(permissions.asset.read, undefined),
+    ).toBe(true);
   });
 
   it("gives platform operators system permissions and no tenant data", async () => {

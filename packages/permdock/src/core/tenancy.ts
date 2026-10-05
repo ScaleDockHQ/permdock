@@ -168,6 +168,21 @@ export function rowInScope(
   return { ok: true };
 }
 
+function nestedAppliesWithoutRow(
+  membership: Membership,
+  scopes: readonly Scope[],
+  row: unknown,
+  team: string | undefined,
+): boolean {
+  if (row !== null && typeof row === "object") {
+    return true;
+  }
+  return (
+    membership.scope === rootScope(scopes) ||
+    (team !== undefined && membership.scope === scopes[1]?.name)
+  );
+}
+
 export type ScopeMatch =
   | { readonly ok: true; readonly membership?: Membership }
   | {
@@ -200,6 +215,7 @@ export function matchScopedMembership(
     membership.roles,
   team?: string,
   walk?: ResourceRoleWalk,
+  instance = false,
 ): ScopeMatch {
   if (scope === "global") {
     return { ok: true };
@@ -229,6 +245,10 @@ export function matchScopedMembership(
         !inTeam(membership, scopes, team) ||
         !activeFor(membership, scopes, principal.tenant)
       ) {
+        continue;
+      }
+      if (instance && !nestedAppliesWithoutRow(membership, scopes, row, team)) {
+        sawWrongScope = true;
         continue;
       }
       const inside = rowInScope(membership, scopes, row, (name, key) =>

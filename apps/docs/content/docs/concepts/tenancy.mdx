@@ -279,7 +279,7 @@ The instance stays frozen and request-scoped; tenancy adds derived instances and
 
 ```ts
 await permdock.tenant("o_globex").assert(permissions.post.update, post); // a derived instance with another active tenant
-permdock.team("t_design").can(permissions.post.publish); // scope a team for collection actions
+permdock.team("t_design").can(permissions.post.publish); // scope a team for collection actions and checks without a row
 
 permdock.memberships(); // Membership[]           for org lists and role chips
 permdock.tenants(); // string[]               tenants the subject belongs to
