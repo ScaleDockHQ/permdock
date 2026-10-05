@@ -3,27 +3,18 @@ import { effectScope, isRef, toValue, watch, type App, type Plugin } from "vue";
 import type { Snapshot } from "../core/interfaces.ts";
 import type { PermDockPluginOptions } from "./types.ts";
 
-import { compact } from "../core/compact.ts";
+import { adapterStore } from "../client/store-options.ts";
 import { emptySnapshot } from "../core/from-snapshot.ts";
 import { isPromiseLike } from "../react/source.ts";
-import { createClientStore } from "../react/store.ts";
 import { permDockKey } from "./context.ts";
 
 export const permdockPlugin: Plugin<PermDockPluginOptions> = {
   install(app: App, options: PermDockPluginOptions): void {
     const source = options.snapshot;
     const promised = isPromiseLike(source);
-    const store = createClientStore(
-      compact({
-        snapshot: promised ? emptySnapshot() : toValue(source),
-        endpoint: options.endpoint,
-        approvals: options.approvals,
-        tenant: options.tenant,
-        fetch: options.fetch,
-        headers: options.headers,
-        maxAge: options.maxAge,
-        verifier: options.verifier,
-      }),
+    const store = adapterStore(
+      options,
+      promised ? emptySnapshot() : toValue(source),
     );
     if (promised) {
       store.follow(source);

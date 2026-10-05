@@ -7,7 +7,6 @@ import type { Role } from "../core/vocabulary.ts";
 import type { ClientStore } from "../react/store.ts";
 import type {
   ApprovalHandle,
-  ApprovalState,
   ClientPermDock,
   FilterResult,
   PermissionSet,
@@ -17,6 +16,14 @@ import type {
   UseRolesOptions,
 } from "./types.ts";
 
+import {
+  approvalHandle,
+  filterResult,
+  permissionSet,
+  rolesView,
+  subjectView,
+  tenantView,
+} from "../client/views.ts";
 import { useStore } from "./context.ts";
 
 function useVersion(store: ClientStore): Accessor<number> {
@@ -63,29 +70,7 @@ export function usePermissions(
   const version = useVersion(store);
   return createMemo(() => {
     version();
-    const granted: Permission[] = [];
-    const byKey: Record<string, PermissionState> = {};
-    for (const permission of permissions()) {
-      const next = store.permissionState(permission, data?.());
-      byKey[permission.key] = next;
-      if (next.allowed) {
-        granted.push(permission);
-      }
-    }
-    const base: PermissionSet = {
-      granted,
-      get(permission: Permission): PermissionState | undefined {
-        return byKey[permission.key];
-      },
-    };
-    return new Proxy(base, {
-      get(target, prop, receiver): unknown {
-        if (typeof prop === "string" && Object.hasOwn(byKey, prop)) {
-          return byKey[prop];
-        }
-        return Reflect.get(target, prop, receiver);
-      },
-    });
+    return permissionSet(store, permissions(), data?.());
   });
 }
 
@@ -94,24 +79,12 @@ export function useFilter<T>(
   rows: Accessor<readonly T[]>,
 ): Accessor<FilterResult<T>> {
   const permdock = usePermDock();
-  return createMemo(() => {
-    // SAFETY: filter returns a fresh array; the next line sets partial on it.
-    const next = permdock.filter(permission, rows()) as T[] & {
-      partial: boolean;
-    };
-    next.partial = permdock.where(permission).partial;
-    return next;
-  });
+  return createMemo(() => filterResult(permdock, permission, rows()));
 }
 
 export function useTenant(): Accessor<TenantView> {
   const permdock = usePermDock();
-  return createMemo(() => ({
-    tenant: permdock.subject.principal?.tenant ?? null,
-    tenants: permdock.tenants(),
-    switchTo: (id: string) => permdock.refresh({ tenant: id }),
-    status: permdock.status(),
-  }));
+  return createMemo(() => tenantView(permdock));
 }
 
 export function useMemberships(): Accessor<readonly Membership[]> {
@@ -123,16 +96,7 @@ export function useRoles(
   options: Accessor<UseRolesOptions> = () => ({}),
 ): Accessor<{ readonly roles: readonly Role[] }> {
   const permdock = usePermDock();
-  return createMemo(() => {
-    const next = options();
-    const scoped =
-      next.team === undefined ? permdock : permdock.team(next.team);
-    return {
-      roles: scoped.heldRoles(
-        next.tenant === undefined ? undefined : { tenant: next.tenant },
-      ),
-    };
-  });
+  return createMemo(() => rolesView(permdock, options()));
 }
 
 export function useAssignableRoles(): Accessor<readonly Role[]> {
@@ -149,21 +113,7 @@ export function useAssignablePermissions(
 
 export function useSubject(): Accessor<SubjectView> {
   const permdock = usePermDock();
-  return createMemo(() => {
-    const snapshot = permdock.snapshot();
-    const simulated =
-      typeof snapshot === "object" &&
-      snapshot !== null &&
-      "simulated" in snapshot &&
-      snapshot.simulated === true;
-    return {
-      principal: permdock.subject.principal,
-      actor: permdock.subject.actor,
-      delegation: permdock.subject.delegation,
-      expiresAt: permdock.subject.expiresAt,
-      simulated,
-    };
-  });
+  return createMemo(() => subjectView(permdock));
 }
 
 export function useApproval(
@@ -173,12 +123,6 @@ export function useApproval(
   const version = useVersion(store);
   return createMemo(() => {
     version();
-    const next = decision();
-    const state: ApprovalState = store.approvalState(next);
-    return {
-      state,
-      token: next.outcome === "approval-required" ? next.token : undefined,
-      request: (note?: string) => store.requestApproval(next, note),
-    };
+    return approvalHandle(store, decision());
   });
 }

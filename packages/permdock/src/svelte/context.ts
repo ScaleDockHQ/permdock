@@ -5,10 +5,9 @@ import type { Snapshot } from "../core/interfaces.ts";
 import type { ClientStore } from "../react/store.ts";
 import type { PermDockSvelteOptions } from "./types.ts";
 
-import { compact } from "../core/compact.ts";
+import { adapterStore } from "../client/store-options.ts";
 import { emptySnapshot } from "../core/from-snapshot.ts";
 import { isPromiseLike } from "../react/source.ts";
-import { createClientStore } from "../react/store.ts";
 
 const permDockKey: unique symbol = Symbol("permdock");
 
@@ -50,18 +49,7 @@ function connectSvelteStore(options: PermDockSvelteOptions): {
     // SAFETY: not a promise, function or store, so it is the plain Snapshot or string the option allows.
     initial = source as Snapshot | string;
   }
-  const store = createClientStore(
-    compact({
-      snapshot: initial,
-      endpoint: options.endpoint,
-      approvals: options.approvals,
-      tenant: options.tenant,
-      fetch: options.fetch,
-      headers: options.headers,
-      maxAge: options.maxAge,
-      verifier: options.verifier,
-    }),
-  );
+  const store = adapterStore(options, initial);
   if (promised) {
     store.follow(source);
     return { store, stop: () => undefined };

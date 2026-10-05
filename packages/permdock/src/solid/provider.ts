@@ -3,10 +3,9 @@ import { createComponent, createComputed, on, type JSX } from "solid-js";
 import type { Snapshot } from "../core/interfaces.ts";
 import type { PermDockProviderProps } from "./types.ts";
 
-import { compact } from "../core/compact.ts";
+import { adapterStore } from "../client/store-options.ts";
 import { emptySnapshot } from "../core/from-snapshot.ts";
 import { isPromiseLike } from "../react/source.ts";
-import { createClientStore } from "../react/store.ts";
 import { PermDockContext } from "./context.ts";
 
 type ProviderProps = Parameters<typeof PermDockContext.Provider>[0];
@@ -25,18 +24,7 @@ export function PermDockProvider(props: PermDockProviderProps): JSX.Element {
     : read === undefined
       ? (source as Snapshot | string)
       : read();
-  const store = createClientStore(
-    compact({
-      snapshot: initial ?? emptySnapshot(),
-      endpoint: props.endpoint,
-      approvals: props.approvals,
-      tenant: props.tenant,
-      fetch: props.fetch,
-      headers: props.headers,
-      maxAge: props.maxAge,
-      verifier: props.verifier,
-    }),
-  );
+  const store = adapterStore(props, initial ?? emptySnapshot());
   if (promised) {
     store.follow(source);
   } else if (read !== undefined) {

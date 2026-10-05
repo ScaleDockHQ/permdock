@@ -76,6 +76,8 @@ export type PermDockProviderProps = (
    * fetches: those checks answer `denied` with reason `server-only`.
    */
   readonly endpoint?: string | false;
+  /** Where `refresh()` fetches a fresh snapshot. Defaults to `endpoint`. */
+  readonly snapshotUrl?: string;
   readonly approvals?: string;
   readonly tenant?: string;
   readonly fetch?: typeof fetch;

@@ -7,7 +7,6 @@ import type { Role } from "../core/vocabulary.ts";
 import type { ClientStore } from "../react/store.ts";
 import type {
   ApprovalHandle,
-  ApprovalState,
   ClientPermDock,
   FilterResult,
   PermissionSet,
@@ -18,6 +17,14 @@ import type {
 } from "./types.ts";
 import type { PermDockSvelteOptions } from "./types.ts";
 
+import {
+  approvalHandle,
+  filterResult,
+  permissionSet,
+  rolesView,
+  subjectView,
+  tenantView,
+} from "../client/views.ts";
 import { getStore, providePermDock } from "./context.ts";
 
 // Recomputes on a store change and, in the browser build, when a rune read
@@ -79,31 +86,7 @@ export function permissionsFor(
   references: () => readonly Permission[],
   data?: () => unknown,
 ): Readable<PermissionSet> {
-  return fromStore(store, () => {
-    const granted: Permission[] = [];
-    const byKey: Record<string, PermissionState> = {};
-    for (const reference of references()) {
-      const next = store.permissionState(reference, data?.());
-      byKey[reference.key] = next;
-      if (next.allowed) {
-        granted.push(reference);
-      }
-    }
-    const base: PermissionSet = {
-      granted,
-      get(reference: Permission): PermissionState | undefined {
-        return byKey[reference.key];
-      },
-    };
-    return new Proxy(base, {
-      get(target, prop, receiver): unknown {
-        if (typeof prop === "string" && Object.hasOwn(byKey, prop)) {
-          return byKey[prop];
-        }
-        return Reflect.get(target, prop, receiver);
-      },
-    });
-  });
+  return fromStore(store, () => permissionSet(store, references(), data?.()));
 }
 
 export function filtered<T>(
@@ -118,15 +101,7 @@ export function filteredFor<T>(
   reference: Permission<string, T, "instance">,
   rows: () => readonly T[],
 ): Readable<FilterResult<T>> {
-  return fromStore(store, () => {
-    const permdock = store.get();
-    // SAFETY: filter returns a fresh array; the next line sets partial on it.
-    const next = permdock.filter(reference, rows()) as T[] & {
-      partial: boolean;
-    };
-    next.partial = permdock.where(reference).partial;
-    return next;
-  });
+  return fromStore(store, () => filterResult(store.get(), reference, rows()));
 }
 
 export function tenant(): Readable<TenantView> {
@@ -134,15 +109,7 @@ export function tenant(): Readable<TenantView> {
 }
 
 export function tenantFor(store: ClientStore): Readable<TenantView> {
-  return fromStore(store, () => {
-    const permdock = store.get();
-    return {
-      tenant: permdock.subject.principal?.tenant ?? null,
-      tenants: permdock.tenants(),
-      switchTo: (id: string) => permdock.refresh({ tenant: id }),
-      status: permdock.status(),
-    };
-  });
+  return fromStore(store, () => tenantView(store.get()));
 }
 
 export function memberships(): Readable<readonly Membership[]> {
@@ -165,17 +132,7 @@ export function rolesFor(
   store: ClientStore,
   options: () => UseRolesOptions = () => ({}),
 ): Readable<{ readonly roles: readonly Role[] }> {
-  return fromStore(store, () => {
-    const next = options();
-    const permdock = store.get();
-    const scoped =
-      next.team === undefined ? permdock : permdock.team(next.team);
-    return {
-      roles: scoped.heldRoles(
-        next.tenant === undefined ? undefined : { tenant: next.tenant },
-      ),
-    };
-  });
+  return fromStore(store, () => rolesView(store.get(), options()));
 }
 
 export function assignable(): Readable<readonly Role[]> {
@@ -204,22 +161,7 @@ export function subject(): Readable<SubjectView> {
 }
 
 export function subjectFor(store: ClientStore): Readable<SubjectView> {
-  return fromStore(store, () => {
-    const permdock = store.get();
-    const snapshot = permdock.snapshot();
-    const simulated =
-      typeof snapshot === "object" &&
-      snapshot !== null &&
-      "simulated" in snapshot &&
-      snapshot.simulated === true;
-    return {
-      principal: permdock.subject.principal,
-      actor: permdock.subject.actor,
-      delegation: permdock.subject.delegation,
-      expiresAt: permdock.subject.expiresAt,
-      simulated,
-    };
-  });
+  return fromStore(store, () => subjectView(store.get()));
 }
 
 export function approval(decision: () => Decision): Readable<ApprovalHandle> {
@@ -230,13 +172,5 @@ export function approvalFor(
   store: ClientStore,
   decision: () => Decision,
 ): Readable<ApprovalHandle> {
-  return fromStore(store, () => {
-    const next = decision();
-    const state: ApprovalState = store.approvalState(next);
-    return {
-      state,
-      token: next.outcome === "approval-required" ? next.token : undefined,
-      request: (note?: string) => store.requestApproval(next, note),
-    };
-  });
+  return fromStore(store, () => approvalHandle(store, decision()));
 }
