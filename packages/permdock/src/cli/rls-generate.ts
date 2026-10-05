@@ -1,6 +1,7 @@
 import { basename, resolve } from "node:path";
 
 import type { Policy } from "../index.ts";
+import type { SqlConnect } from "./pg.ts";
 import type { CompiledGrants, CompiledPolicy } from "./rls-compile.ts";
 import type { RolePermission } from "./rls-helpers.ts";
 import type { IndexTarget } from "./rls-indexes.ts";
@@ -39,7 +40,12 @@ import { fieldViews, rowBranches } from "./rls-fields.ts";
 import { roleNames } from "./rls-grants.ts";
 import { closureDepths, graphPlan, graphSql } from "./rls-graph.ts";
 import { helpersSql, seedSql } from "./rls-helpers.ts";
-import { indexesSql, indexTargets } from "./rls-indexes.ts";
+import {
+  indexesSql,
+  indexTargets,
+  pruneIndexTargets,
+  readTableIndexFacts,
+} from "./rls-indexes.ts";
 import { ownershipRules, ownershipSql } from "./rls-ownership.ts";
 import { assemblePolicies } from "./rls-policies.ts";
 import {
@@ -216,6 +222,9 @@ export async function runRlsGenerate(input: {
   readonly shims?: boolean;
   /** `false` returns the SQL and its policies without touching `out`. */
   readonly write?: boolean;
+  /** `--db`: index suggestions leave out what the database already indexes or lacks. */
+  readonly db?: string;
+  readonly connect?: SqlConnect;
   readonly io: CliIo;
 }): Promise<GenerateOutcome> {
   const rls = input.config.rls;
@@ -505,10 +514,30 @@ export async function runRlsGenerate(input: {
       return exhaustive;
     }
   }
-  const indexes = indexTargets(
+  let indexes = indexTargets(
     ctx,
     tableColumns(compiled.rowColumns, rls?.tables, helpersOnly, warnings),
   );
+  if (input.db !== undefined) {
+    try {
+      const pruned = pruneIndexTargets(
+        indexes,
+        await readTableIndexFacts(
+          input.db,
+          [...new Set(indexes.map((target) => target.table))],
+          input.connect,
+        ),
+      );
+      indexes = pruned.targets;
+      warnings.push(...pruned.warnings);
+    } catch (cause) {
+      return {
+        code: 2,
+        output: cause instanceof Error ? cause.message : String(cause),
+        text: "",
+      };
+    }
+  }
   if (!splitsPart(input.split, "indexes")) {
     for (const target of indexes) {
       warnings.push(

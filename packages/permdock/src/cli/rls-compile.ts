@@ -21,7 +21,7 @@ import {
   collectGrants,
 } from "./rls-grants.ts";
 import { accessSql, capabilityAccessSql } from "./rls-helpers.ts";
-import { conditionFields } from "./rls-indexes.ts";
+import { indexedFields } from "./rls-indexes.ts";
 import {
   arrayColumnsOf,
   columnTypesOf,
@@ -553,8 +553,8 @@ export function compileGrants(
     const rowCtx = contextFor(item.grant.permission.resource);
     noteConditions(entry, warnings);
     for (const field of [
-      ...conditionFields(entry.using),
-      ...conditionFields(entry.check),
+      ...indexedFields(entry.using),
+      ...indexedFields(entry.check),
     ]) {
       filters(grant.permission.resource, table, field);
     }

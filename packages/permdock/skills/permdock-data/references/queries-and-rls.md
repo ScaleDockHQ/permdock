@@ -41,6 +41,7 @@ pnpm exec permdock rls verify --introspect --db $DATABASE_URL
 - `--force` (or `rls.force: true`) only when the app connects as the table owner. Create views over RLS tables `with (security_invoker = true)` (PD022).
 - When read grants set `fields` and clients read tables directly, add `--fields views --revoke-columns`: clients read `<table>_visible`, whose restricted columns are null unless a grant covers them. PD030 names columns still readable.
 - `rls.suspension` drops suspended users' roles and memberships of suspended scope instances, live in both modes.
+- Index suggestions (the `indexes` part of `--split`, or `index suggestion` warnings) cover only the columns the policies and helpers look rows up by. Add `--db $DATABASE_URL` to `generate` so it leaves out indexes an existing index already leads with and columns the table lacks; never hand-copy a suggestion that duplicates an existing composite index.
 - Never emit `service_role`. Fixtures may carry `memberships`, `tenant` and `customRoles`.
 
 ## SQL as the authority

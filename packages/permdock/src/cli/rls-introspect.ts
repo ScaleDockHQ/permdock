@@ -6,6 +6,7 @@ import type { IndexTarget } from "./rls-indexes.ts";
 import { escapeSqlIdent } from "../core/sql.ts";
 import { callsHelper, HELPER_TABLES, helperCallKeys } from "./helper-calls.ts";
 import { connectPgPool } from "./pg.ts";
+import { COLUMNS_SQL } from "./rls-indexes.ts";
 
 const ROLES = ["anon", "authenticated"] as const;
 /** Neon's `anonymous` is the role `rls generate` writes as `anon` for the other dialects. */
@@ -61,6 +62,8 @@ export type ActualRls = {
   >;
   /** Per table, the first column of each of its plain-column indexes. */
   readonly leadingColumns: Readonly<Record<string, readonly string[]>>;
+  /** Per table, its columns; a target on a column the table lacks is not checked. */
+  readonly columns?: Readonly<Record<string, readonly string[]>>;
 };
 
 /** `posts` and `"app"."posts"` as `public.posts` and `app.posts`. */
@@ -135,7 +138,9 @@ export function missingIndexes(
 ): readonly string[] {
   return expected.indexes.flatMap((target) => {
     const column = target.columns[0];
+    const columns = actual.columns?.[target.table];
     return column === undefined ||
+      (columns !== undefined && !columns.includes(column)) ||
       actual.leadingColumns[target.table]?.includes(column) === true
       ? []
       : [
@@ -289,15 +294,22 @@ export async function introspectRls(
   const client = await connect(db);
   try {
     const tables = [...expected.tables];
-    const [policies, enabled, grants, helpers, indexes] = await Promise.all([
-      client.query(POLICIES_SQL, [tables]),
-      client.query(TABLES_SQL, [tables]),
-      client.query(GRANTS_SQL, [tables]),
-      client.query(HELPERS_SQL, [[...expected.helpers]]),
-      client.query(INDEXES_SQL, [
-        [...new Set(expected.indexes.map((target) => target.table))],
-      ]),
-    ]);
+    const indexed = [
+      ...new Set(expected.indexes.map((target) => target.table)),
+    ];
+    const [policies, enabled, grants, helpers, indexes, columns] =
+      await Promise.all([
+        client.query(POLICIES_SQL, [tables]),
+        client.query(TABLES_SQL, [tables]),
+        client.query(GRANTS_SQL, [tables]),
+        client.query(HELPERS_SQL, [[...expected.helpers]]),
+        client.query(INDEXES_SQL, [indexed]),
+        client.query(COLUMNS_SQL, [indexed]),
+      ]);
+    const columnsOf: Record<string, string[]> = {};
+    for (const row of columns.rows) {
+      (columnsOf[String(row["target"])] ??= []).push(String(row["name"]));
+    }
     const leadingColumns: Record<string, string[]> = {};
     for (const row of indexes.rows) {
       (leadingColumns[String(row["target"])] ??= []).push(
@@ -343,6 +355,7 @@ export async function introspectRls(
         ]),
       ),
       leadingColumns,
+      columns: columnsOf,
     };
   } finally {
     await client.end();
