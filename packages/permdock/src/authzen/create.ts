@@ -14,7 +14,9 @@ import {
   DEFAULT_MAX_EVALUATIONS,
   PROBLEM_BASE,
   batchTooLarge,
+  methodNotAllowed,
   problemResponse,
+  unauthenticatedProblem,
   validationProblem,
 } from "../server/problem.ts";
 import {
@@ -35,34 +37,6 @@ import {
   tenantOf,
   userFromEntity,
 } from "./map.ts";
-
-function unauthorized(): Response {
-  return problemResponse(
-    {
-      type: `${PROBLEM_BASE}/unauthenticated`,
-      title: "Unauthenticated",
-      status: 401,
-      detail: "AuthZEN decision endpoint requires authentication",
-    },
-    undefined,
-    {
-      outcome: "denied",
-      denials: [{ role: null, reason: "anonymous" }],
-      alternatives: [],
-    },
-  );
-}
-
-function methodNotAllowed(allow: string): Response {
-  const response = problemResponse({
-    type: `${PROBLEM_BASE}/method-not-allowed`,
-    title: "Method not allowed",
-    status: 405,
-    detail: `use ${allow}`,
-  });
-  response.headers.set("Allow", allow);
-  return response;
-}
 
 function notFound(detail: string): Response {
   return problemResponse({
@@ -152,7 +126,7 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
       pep = null;
     }
     if ((pep === null || pep === undefined) && !allowAnonymous) {
-      return unauthorized();
+      return unauthenticatedProblem(request.headers.has("authorization"));
     }
     return { pep: pep ?? null };
   }

@@ -1,20 +1,23 @@
 import type { Decision, LimitDetail } from "../core/decision.ts";
 import type { ApprovalHint, ProblemDetails } from "../core/errors.ts";
-import type { Grantee } from "../core/grantee.ts";
 import type { Permission } from "../core/permissions.ts";
+import type { Disclosure } from "../core/problem-details.ts";
 import type { Subject } from "../core/subject.ts";
 
 import { compact } from "../core/compact.ts";
-import { requiredPlans } from "../core/describe.ts";
 import {
-  PermDockApprovalRequiredError,
-  PermDockDeniedError,
   PermDockValidationError,
   approvalMessage,
   deniedMessage,
 } from "../core/errors.ts";
+import {
+  PROBLEM_BASE,
+  notFoundDetails,
+  problemDetails,
+  stepUpOf,
+} from "../core/problem-details.ts";
 
-export const PROBLEM_BASE = "https://permdock.com/problems";
+export { PROBLEM_BASE, stepUpOf };
 
 function quoted(value: string): string {
   return `"${value.replaceAll(/["\\]/gu, "")}"`;
@@ -82,48 +85,6 @@ export function protectedResourceMetadataUrl(resource: URL): string {
   return `${resource.origin}/.well-known/oauth-protected-resource${path}`;
 }
 
-/** The `acr` values and the tightest `maxAge` the failing assurance grants ask for. */
-export function stepUpOf(decision: Decision): {
-  readonly acrValues?: readonly string[];
-  readonly maxAge?: number;
-} {
-  if (decision.outcome !== "denied") {
-    return {};
-  }
-  const acr = new Set<string>();
-  let maxAge: number | undefined;
-  for (const denial of decision.denials) {
-    if (denial.reason !== "insufficient-user-authentication") {
-      continue;
-    }
-    const grantees =
-      denial.to === undefined
-        ? []
-        : Array.isArray(denial.to)
-          ? denial.to
-          : [denial.to];
-    // SAFETY: to is Grantee | readonly Grantee[]; Array.isArray does not narrow readonly arrays.
-    for (const grantee of grantees as readonly Grantee[]) {
-      if (grantee.kind !== "assurance") {
-        continue;
-      }
-      for (const value of grantee.acr ?? []) {
-        acr.add(value);
-      }
-      if (grantee.maxAge !== undefined) {
-        maxAge =
-          maxAge === undefined
-            ? grantee.maxAge
-            : Math.min(maxAge, grantee.maxAge);
-      }
-    }
-  }
-  return compact({
-    acrValues: acr.size === 0 ? undefined : [...acr],
-    maxAge,
-  });
-}
-
 /** The `error_description` of every `invalid_token` challenge (RFC 6750 section 3.1). */
 const INVALID_TOKEN = "The access token is invalid";
 
@@ -131,6 +92,14 @@ export function wwwAuthenticate(
   decision: Decision,
   permission: Permission | undefined,
   /** Whether the request carried credentials; without any, the challenge has no error code. */
+  credentials = true,
+): string | undefined {
+  return challengeFor(decision, permission?.scope, credentials);
+}
+
+function challengeFor(
+  decision: Decision,
+  scope: string | undefined,
   credentials = true,
 ): string | undefined {
   if (decision.outcome !== "denied") {
@@ -152,7 +121,7 @@ export function wwwAuthenticate(
     return bearerChallenge(
       compact<BearerChallenge>({
         error: "insufficient_scope",
-        scopes: permission === undefined ? undefined : [permission.scope],
+        scopes: scope === undefined ? undefined : [scope],
       }),
     );
   }
@@ -206,19 +175,8 @@ export function validationProblem(detail: string): Response {
   );
 }
 
-function resourceRef(
-  permission: Permission,
-  data: unknown,
-): { readonly type: string; readonly id?: string } {
-  const id =
-    data !== null && typeof data === "object" && "id" in data
-      ? data.id
-      : undefined;
-  return compact({
-    type: permission.resource,
-    id:
-      typeof id === "string" || typeof id === "number" ? String(id) : undefined,
-  });
+function resourceRef(permission: Permission): { readonly type: string } {
+  return { type: permission.resource };
 }
 
 function isLimitDetail(value: unknown): value is LimitDetail {
@@ -277,189 +235,136 @@ export function rateLimitHeaders(
   };
 }
 
-/** Reasons that only arise once a matching grant was found, so they reveal nothing hidden. */
-const HOLDS_GRANT = new Set<string>([
-  "insufficient-user-authentication",
-  "limit",
-  "limit-unavailable",
-]);
+/**
+ * The response for a decision's Problem Details: `WWW-Authenticate` for a
+ * `401` or a missing delegation, and the rate-limit fields for a `429`. A
+ * hidden row's `404` carries neither, so it reads like a missing one.
+ */
+export function decisionResponse(
+  details: ProblemDetails,
+  decision: Decision,
+  options: {
+    readonly scope?: string;
+    /** Whether the request carried credentials, which picks the `401` challenge. */
+    readonly credentials?: boolean;
+  } = {},
+): Response {
+  const headers = new Headers({
+    ...(details.status === 429 ? rateLimitHeaders(decision) : {}),
+    "content-type": "application/problem+json",
+  });
+  const challenge =
+    details.status === 404
+      ? undefined
+      : challengeFor(decision, options.scope, options.credentials);
+  if (challenge !== undefined) {
+    headers.set("WWW-Authenticate", challenge);
+  }
+  return new Response(JSON.stringify(details), {
+    status: details.status,
+    headers,
+  });
+}
 
 export function problemFromDecision(
   decision: Decision,
   permission: Permission,
-  subject: Subject,
+  /** Words the `detail`; without one the detail names no subject. */
+  subject: Subject | undefined,
   options: {
     readonly instance?: string;
     readonly approval?: ApprovalHint;
     /** `'hide'` on a loaded row: a denial answers as `404` `/not-found`. */
-    readonly disclosure?: "hide" | "reveal";
+    readonly disclosure?: Disclosure;
     /** Whether the request carried credentials, which picks the `401` challenge. */
     readonly credentials?: boolean;
     /** The scope an `insufficient_scope` challenge names; the permission's own scope when absent. */
     readonly scope?: string;
   } = {},
 ): Response {
-  const challenged =
-    options.scope === undefined
-      ? permission
-      : { ...permission, scope: options.scope };
-  const base = PROBLEM_BASE;
   if (decision.outcome === "granted") {
     return new Response(null, { status: 204 });
   }
-  if (decision.outcome === "approval-required") {
-    const error = new PermDockApprovalRequiredError({
+  const validation =
+    decision.outcome === "denied" ? decision.denials[0]?.detail : undefined;
+  if (
+    options.disclosure !== "hide" &&
+    validation instanceof PermDockValidationError
+  ) {
+    return problemResponse(
+      validation.toProblemDetails(),
+      options.scope === undefined
+        ? permission
+        : { ...permission, scope: options.scope },
       decision,
+    );
+  }
+  const details = problemDetails(
+    compact({
+      decision,
+      detail:
+        decision.outcome === "approval-required"
+          ? approvalMessage(permission.key, decision.reason, decision.token)
+          : deniedMessage(
+              permission.key,
+              subject?.principal?.id,
+              decision.denials,
+              decision.alternatives.map((leaf) => leaf.key),
+              subject !== undefined,
+            ),
+      instance: options.instance,
       permission: permission.key,
       scope: permission.scope,
-      resource: resourceRef(permission, undefined),
-      message: approvalMessage(permission.key, decision.reason, decision.token),
-    });
-    const details = error.toProblemDetails(
-      compact({ instance: options.instance }),
-    );
-    const approval =
-      options.approval === undefined ||
-      (options.approval.at === undefined && options.approval.hint === undefined)
-        ? undefined
-        : compact<ApprovalHint>({
-            at: options.approval.at,
-            hint: options.approval.hint,
-          });
-    return problemResponse(
-      compact<ProblemDetails>({
-        ...details,
-        type: `${base}/approval-required`,
-        approval,
-      }),
-      challenged,
-      decision,
-    );
-  }
-  const reasons = new Set(decision.denials.map((denial) => denial.reason));
-  if (
-    options.disclosure === "hide" &&
-    ![...reasons].every((reason) => HOLDS_GRANT.has(reason))
-  ) {
-    return notFoundProblem(options.instance);
-  }
-  if (
-    decision.denials.some(
-      (denial) => denial.detail instanceof PermDockValidationError,
-    )
-  ) {
-    const validation = decision.denials[0]?.detail;
-    if (validation instanceof PermDockValidationError) {
-      return problemResponse(
-        validation.toProblemDetails(),
-        challenged,
-        decision,
-      );
-    }
-  }
-  const error = new PermDockDeniedError({
-    decision,
-    permission: permission.key,
-    scope: permission.scope,
-    resource: resourceRef(permission, undefined),
-    subject,
-    message: deniedMessage(
-      permission.key,
-      subject.principal?.id,
-      decision.denials,
-      decision.alternatives.map((leaf) => leaf.key),
-    ),
-  });
-  const details = error.toProblemDetails(
-    compact({ instance: options.instance }),
+      resource: resourceRef(permission),
+      disclosure: options.disclosure,
+    }),
   );
-  if (reasons.has("anonymous")) {
-    return problemResponse(
-      compact<ProblemDetails>({
-        type: `${base}/unauthenticated`,
-        title: "Authentication required",
-        status: 401,
-        detail: "Authenticate and repeat the request",
-        instance: options.instance,
-        permission: permission.key,
-      }),
-      challenged,
-      decision,
-      undefined,
-      options.credentials,
-    );
-  }
-  if (reasons.has("insufficient-user-authentication")) {
-    return problemResponse(
-      compact<ProblemDetails>({
-        ...details,
-        status: 401,
-        type: `${base}/step-up-required`,
-        ...stepUpOf(decision),
-      }),
-      challenged,
-      decision,
-    );
-  }
-  const plans = requiredPlans(decision);
-  if (plans.length > 0) {
-    return problemResponse(
-      {
-        ...details,
-        type: `${base}/not-entitled`,
-        title: "Plan upgrade required",
-        plans,
-      },
-      challenged,
-      decision,
-    );
-  }
-  if (reasons.size > 0 && [...reasons].every((reason) => reason === "limit")) {
-    return problemResponse(
-      {
-        ...details,
-        status: 429,
-        type: `${base}/rate-limited`,
-        title: "Rate limit exceeded",
-      },
-      challenged,
-      decision,
-      rateLimitHeaders(decision),
-    );
-  }
-  if (
-    reasons.has("limit-unavailable") &&
-    [...reasons].every(
-      (reason) => reason === "limit" || reason === "limit-unavailable",
-    )
-  ) {
-    return problemResponse(
-      {
-        ...details,
-        status: 503,
-        type: `${base}/limit-unavailable`,
-        title: "Rate limit unavailable",
-      },
-      challenged,
-      decision,
-    );
-  }
-  return problemResponse(
-    { ...details, type: `${base}/denied` },
-    challenged,
+  const approval =
+    decision.outcome !== "approval-required" ||
+    options.approval === undefined ||
+    (options.approval.at === undefined && options.approval.hint === undefined)
+      ? undefined
+      : compact<ApprovalHint>({
+          at: options.approval.at,
+          hint: options.approval.hint,
+        });
+  return decisionResponse(
+    approval === undefined ? details : { ...details, approval },
     decision,
+    compact({
+      scope: options.scope ?? permission.scope,
+      credentials: options.credentials,
+    }),
   );
 }
 
 /** The `404` a missing row and a hidden one share, so the two read the same. */
 export function notFoundProblem(instance?: string): Response {
-  return problemResponse(
-    compact<ProblemDetails>({
-      type: `${PROBLEM_BASE}/not-found`,
-      title: "Not found",
-      status: 404,
-      detail: "No such resource",
-      instance,
-    }),
+  return problemResponse(notFoundDetails(instance));
+}
+
+const ANONYMOUS: Extract<Decision, { readonly outcome: "denied" }> = {
+  outcome: "denied",
+  denials: [{ role: null, reason: "anonymous" }],
+  alternatives: [],
+};
+
+/** The `401` for a request with no subject, with the RFC 6750 challenge its credentials call for. */
+export function unauthenticatedProblem(credentials: boolean): Response {
+  return decisionResponse(
+    problemDetails({ decision: ANONYMOUS, detail: "anonymous" }),
+    ANONYMOUS,
+    { credentials },
   );
+}
+
+export function methodNotAllowed(allow: string): Response {
+  const response = problemResponse({
+    type: `${PROBLEM_BASE}/method-not-allowed`,
+    title: "Method not allowed",
+    status: 405,
+    detail: `use ${allow}`,
+  });
+  response.headers.set("Allow", allow);
+  return response;
 }

@@ -10,6 +10,7 @@ import type {
 
 import { compact } from "../core/compact.ts";
 import { rootMembershipId } from "../core/scopes.ts";
+import { unauthenticatedProblem } from "../server/problem.ts";
 import { isApprovalError } from "./errors.ts";
 import { approverPermissions } from "./permissions.ts";
 import { approverRelations } from "./relations.ts";
@@ -293,7 +294,7 @@ async function readNote(request: Request): Promise<string | undefined> {
   return undefined;
 }
 
-function mapError(error: unknown): Response {
+function mapError(error: unknown, credentials: boolean): Response {
   if (!isApprovalError(error)) {
     return problem(500, "Internal error", "approval store failed", "internal");
   }
@@ -308,7 +309,7 @@ function mapError(error: unknown): Response {
     return problem(409, "Conflict", error.message, "conflict");
   }
   if (error.code === "approver-unauthenticated") {
-    return problem(401, "Unauthenticated", error.message, "unauthenticated");
+    return unauthenticatedProblem(credentials);
   }
   return problem(403, "Permission denied", error.message, "denied");
 }
@@ -336,12 +337,7 @@ export function approvalsHandler(
     const subject = await resolveSubject(request, options.subject);
     const principal = subject?.principal ?? null;
     if (subject === null || principal === null) {
-      return problem(
-        401,
-        "Unauthenticated",
-        "approver must be authenticated",
-        "unauthenticated",
-      );
+      return unauthenticatedProblem(request.headers.has("authorization"));
     }
 
     try {
@@ -437,7 +433,7 @@ export function approvalsHandler(
         }),
       );
     } catch (error) {
-      return mapError(error);
+      return mapError(error, request.headers.has("authorization"));
     }
   };
 }

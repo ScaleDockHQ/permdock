@@ -1,12 +1,17 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 
 import type { Decision } from "./decision.ts";
+import type { Disclosure } from "./problem-details.ts";
 import type { Subject } from "./subject.ts";
 import type { WireDenial } from "./wire-denial.ts";
 
 import { compact } from "./compact.ts";
 import { approvalDigest, deniedDigest } from "./digest.ts";
+import { PROBLEM_BASE, problemDetails } from "./problem-details.ts";
+import { PermDockValidationError } from "./validation-error.ts";
 import { wireDenials } from "./wire-denial.ts";
+
+export { PermDockValidationError };
 
 /** Where and how a human approves; carries no secret. */
 export type ApprovalHint = {
@@ -36,8 +41,6 @@ export type ProblemDetails = {
   readonly plans?: readonly string[];
 };
 
-const PROBLEM_BASE = "https://permdock.com/problems";
-
 export class PermDockDeniedError extends Error {
   public override readonly name = "PermDockDeniedError" as const;
   public readonly decision: Extract<Decision, { readonly outcome: "denied" }>;
@@ -45,6 +48,8 @@ export class PermDockDeniedError extends Error {
   public readonly scope: string;
   public readonly resource: { readonly type: string; readonly id?: string };
   public readonly subject: Subject;
+  /** The resource's `disclosure` when the denied check carried a row; `'hide'` answers as `404`. */
+  public readonly disclosure?: Disclosure;
   /** `PERMDOCK_DENIED;<permission>`; survives the Server Component boundary (`parsePermDockDigest`). */
   public readonly digest: string;
 
@@ -55,6 +60,7 @@ export class PermDockDeniedError extends Error {
     readonly resource: { readonly type: string; readonly id?: string };
     readonly subject: Subject;
     readonly message: string;
+    readonly disclosure?: Disclosure;
   }) {
     super(input.message);
     this.decision = input.decision;
@@ -62,24 +68,28 @@ export class PermDockDeniedError extends Error {
     this.scope = input.scope;
     this.resource = input.resource;
     this.subject = input.subject;
+    if (input.disclosure !== undefined) {
+      this.disclosure = input.disclosure;
+    }
     this.digest = deniedDigest(input.permission);
   }
 
+  /** The same status matrix as `protect`: `401`, `404`, `429`, `503` or `403`. */
   public toProblemDetails(options?: {
     readonly instance?: string;
+    readonly disclosure?: Disclosure;
   }): ProblemDetails {
-    return compact<ProblemDetails>({
-      type: `${PROBLEM_BASE}/denied`,
-      title: "Permission denied",
-      status: 403,
-      detail: this.message,
-      instance: options?.instance,
-      permission: this.permission,
-      scope: this.scope,
-      resource: this.resource,
-      denials: wireDenials(this.decision.denials),
-      alternatives: this.decision.alternatives.map((leaf) => leaf.key),
-    });
+    return problemDetails(
+      compact({
+        decision: this.decision,
+        detail: this.message,
+        instance: options?.instance,
+        permission: this.permission,
+        scope: this.scope,
+        resource: this.resource,
+        disclosure: options?.disclosure ?? this.disclosure,
+      }),
+    );
   }
 }
 
@@ -120,65 +130,16 @@ export class PermDockApprovalRequiredError extends Error {
   public toProblemDetails(options?: {
     readonly instance?: string;
   }): ProblemDetails {
-    return compact<ProblemDetails>({
-      type: `${PROBLEM_BASE}/approval-required`,
-      title: "Approval required",
-      status: 403,
-      detail: this.message,
-      instance: options?.instance,
-      permission: this.permission,
-      scope: this.scope,
-      resource: this.resource,
-      reason: this.reason,
-      token: this.token,
-    });
-  }
-}
-
-export class PermDockValidationError extends Error {
-  public override readonly name = "PermDockValidationError" as const;
-  public readonly code:
-    | "invalid-data"
-    | "async-schema"
-    | "no-schema"
-    | "non-portable-condition";
-  public readonly permission: string;
-  public readonly resource: string;
-  public readonly issues: readonly StandardSchemaV1.Issue[];
-  public readonly boundary: string;
-
-  public constructor(input: {
-    readonly code:
-      | "invalid-data"
-      | "async-schema"
-      | "no-schema"
-      | "non-portable-condition";
-    readonly permission: string;
-    readonly resource: string;
-    readonly issues?: readonly StandardSchemaV1.Issue[];
-    readonly boundary: string;
-    readonly message: string;
-  }) {
-    super(input.message);
-    this.code = input.code;
-    this.permission = input.permission;
-    this.resource = input.resource;
-    this.issues = input.issues ?? [];
-    this.boundary = input.boundary;
-  }
-
-  public toProblemDetails(options?: {
-    readonly instance?: string;
-  }): ProblemDetails {
-    return compact<ProblemDetails>({
-      type: `${PROBLEM_BASE}/validation`,
-      title: "Invalid resource data",
-      status: 400,
-      detail: this.message,
-      instance: options?.instance,
-      permission: this.permission,
-      issues: this.issues,
-    });
+    return problemDetails(
+      compact({
+        decision: this.decision,
+        detail: this.message,
+        instance: options?.instance,
+        permission: this.permission,
+        scope: this.scope,
+        resource: this.resource,
+      }),
+    );
   }
 }
 
@@ -199,6 +160,8 @@ export function deniedMessage(
     readonly detail?: unknown;
   }[],
   alternatives: readonly string[],
+  /** `false` when no subject was resolved, so the message names none. */
+  named = true,
 ): string {
   const clauses = denials
     .map((denial) => {
@@ -213,7 +176,8 @@ export function deniedMessage(
     alternatives.length === 0
       ? ""
       : ` Alternatives: ${alternatives.join(", ")}.`;
-  return `${permission} denied for subject ${subjectId ?? "anonymous"}: ${clauses}.${alt}`;
+  const who = named ? ` for subject ${subjectId ?? "anonymous"}` : "";
+  return `${permission} denied${who}: ${clauses}.${alt}`;
 }
 
 export function approvalMessage(

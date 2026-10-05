@@ -74,8 +74,10 @@ function run(work: () => Promise<void>, next: (err?: unknown) => void): void {
   work().catch(next);
 }
 
-const errorHandler = (): ErrorRequestHandler => (err, _req, res, next) => {
-  const problem = problemFromError(err);
+const errorHandler = (): ErrorRequestHandler => (err, req, res, next) => {
+  const problem = problemFromError(err, {
+    credentials: req.headers.authorization !== undefined,
+  });
   if (problem === undefined) {
     next(err);
     return;

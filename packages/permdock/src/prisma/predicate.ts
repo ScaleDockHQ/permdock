@@ -9,8 +9,8 @@ import {
   escapeLike,
 } from "../conditions/compile.ts";
 import { compact } from "../core/compact.ts";
-import { PermDockValidationError } from "../core/errors.ts";
 import { assertSafeKey } from "../core/paths.ts";
+import { PermDockValidationError } from "../core/validation-error.ts";
 
 /** A Prisma 8 ORM field proxy: `u.email` inside `.where((u) => ...)`. */
 export type PrismaFieldProxy = {

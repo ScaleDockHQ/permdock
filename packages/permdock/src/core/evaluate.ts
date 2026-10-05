@@ -42,7 +42,6 @@ import {
   isSupportMembership,
   purposesOf,
 } from "./elevated.ts";
-import { PermDockValidationError } from "./errors.ts";
 import { type EvalEnv, emitSafe, finish } from "./events.ts";
 import { grantCoversField } from "./fields.ts";
 import { freezeDeep } from "./freeze.ts";
@@ -66,6 +65,7 @@ import {
 } from "./tenancy.ts";
 import { isThenable } from "./thenable.ts";
 import { decisionToken, payloadDigest, versionOf } from "./token.ts";
+import { PermDockValidationError } from "./validation-error.ts";
 import { validateBoundary } from "./validation.ts";
 import { isActive } from "./validity.ts";
 

@@ -28,6 +28,7 @@ export type {
 } from "./credentials.ts";
 export { createEvaluationsHandler } from "./evaluations.ts";
 export { problemFromError } from "./map-error.ts";
+export type { ProblemFromErrorOptions } from "./map-error.ts";
 export {
   PROBLEM_BASE,
   problemFromDecision,

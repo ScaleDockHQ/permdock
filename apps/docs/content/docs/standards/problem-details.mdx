@@ -23,7 +23,7 @@ Model readability is a design goal: an agent that receives a 403 should be able 
 
 ## How PermDock uses it
 
-`assert` runs layered unauthorized handlers and rethrows `PermDockDeniedError` or `PermDockApprovalRequiredError`; the [server kernel](/docs/adapters/server-kernel) converts those errors into a 403 with `Content-Type: application/problem+json`.
+`assert` runs layered unauthorized handlers and rethrows `PermDockDeniedError` or `PermDockApprovalRequiredError`; the [server kernel](/docs/adapters/server-kernel) converts those errors into `application/problem+json` with the status `protect` sends for the same decision: 401 for no subject or a missing step-up, 404 for a hidden row, 429 for an exhausted limit, 503 for an unavailable limit store, 403 otherwise.
 
 A denial:
 

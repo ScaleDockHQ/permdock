@@ -167,8 +167,10 @@ export function createPermDock<
         decorate(ctx, instance);
         return { permdock: instance };
       })
-      .onError({ as: "global" }, ({ error }) =>
-        problemFromError(error),
+      .onError({ as: "global" }, ({ error, request }) =>
+        problemFromError(error, {
+          credentials: request.headers.has("authorization"),
+        }),
       ) as unknown as ElysiaPermDockPlugin<V>;
 
   const protect: ElysiaProtect =

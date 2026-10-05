@@ -29,8 +29,12 @@ class PermDockDeniedError extends Error {
   readonly scope: string; // 'post:delete'
   readonly resource: { type: string; id?: string };
   readonly subject: Subject; // principal may be null
+  readonly disclosure?: "hide" | "reveal"; // the resource's, when assert was given a row
   readonly digest: string; // 'PERMDOCK_DENIED;post.delete'
-  toProblemDetails(options?: { instance?: string }): ProblemDetails;
+  toProblemDetails(options?: {
+    instance?: string;
+    disclosure?: "hide" | "reveal";
+  }): ProblemDetails;
 }
 ```
 
@@ -104,7 +108,9 @@ Adapters send `toProblemDetails()` in the transport's own close frame: an SSE `e
 
 | Situation                                                                                                                | `decide`                                                                                  | `assert`                               | Adapter behaviour                                                                                                                                                  |
 | ------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| No grant, deny matched, condition false, anonymous                                                                       | `denied`                                                                                  | throws `PermDockDeniedError`           | 403 Problem Details; MCP `isError` refusal; AI SDK `denied`                                                                                                        |
+| No grant, deny matched, condition false                                                                                  | `denied`                                                                                  | throws `PermDockDeniedError`           | 403 Problem Details; 404 `/not-found` on a row of a `disclosure: 'hide'` resource; MCP `isError` refusal; AI SDK `denied`                                          |
+| No subject                                                                                                               | `denied` with `anonymous`                                                                 | throws `PermDockDeniedError`           | 401 `/unauthenticated` with `WWW-Authenticate: Bearer`                                                                                                             |
+| Every failing grant is out of quota                                                                                      | `denied` with `limit`                                                                     | throws `PermDockDeniedError`           | 429 `/rate-limited` with `Retry-After` and the `RateLimit` fields; 503 `/limit-unavailable` when the `LimitStore` failed                                           |
 | Delegation does not cover the permission                                                                                 | `denied` with `not-delegated`                                                             | throws `PermDockDeniedError`           | 403 with `WWW-Authenticate: Bearer error="insufficient_scope"`; MCP adds a `scopeChallenge` so the client can step up                                              |
 | Only `subject.assurance` conditions failed                                                                               | `denied` with `insufficient-user-authentication`                                          | throws `PermDockDeniedError`           | 401 `/step-up-required` with `WWW-Authenticate: Bearer error="insufficient_user_authentication", acr_values=…` (RFC 9470); agent surfaces carry the required `acr` |
 | Only a `plan` grantee failed, on grants whose roles are held                                                             | `denied` with `not-entitled`                                                              | throws `PermDockDeniedError`           | 403 `/not-entitled` with `plans`; `describe` returns `kind: 'upgrade'`                                                                                             |
@@ -121,13 +127,15 @@ The only case where `decide` throws is a misconfigured schema. Everything a requ
 ## How adapters map them
 
 ```text
-PermDockDeniedError            → 403 application/problem+json  type .../denied
+PermDockDeniedError            → the decision's status: 401, 404, 429, 503 or 403  type .../denied and siblings
 PermDockApprovalRequiredError  → 403 application/problem+json  type .../approval-required
 PermDockValidationError        → 400 application/problem+json  type .../validation
 PermDockRevokedError           → 401 type .../unauthenticated, or 403 type .../denied when re-denied
 ```
 
-- HTTP adapters (`permdock/hono` and siblings) call `toProblemDetails({ instance: request.url })` and set `Content-Type: application/problem+json`. Nothing else is needed in your handlers. Over plain HTTP the `approval-required` body is the whole surface: the caller orchestrates the wait and retries with the `PermDock-Approval` header ([approvals adapter](/docs/adapters/approvals)).
+`toProblemDetails()` on the denied and approval classes uses the same status matrix as `protect`, so a thrown `assert` and a `protect` denial of the same decision answer with the same status, `type` and `WWW-Authenticate` challenge.
+
+- HTTP adapters (`permdock/hono` and siblings) call `problemFromError(error, { credentials })` from their error hook and set `Content-Type: application/problem+json`. Nothing else is needed in your handlers. Over plain HTTP the `approval-required` body is the whole surface: the caller orchestrates the wait and retries with the `PermDock-Approval` header ([approvals adapter](/docs/adapters/approvals)).
 - `permdock/next`: `assert` inside a Server Component or Action runs your `onDenied` handler first (typically `redirect()` or `notFound()`); in a Route Handler the error becomes Problem Details.
 - `permdock/mcp`: denied and validation errors become a tool result with `isError: true`, the `message` as text content and the Decision fields as `structuredContent`; a missing scope also produces the `scopeChallenge` step-up; approval becomes an `input_required` URL request when `approval.at` is set and the client takes URL elicitations, otherwise a refusal carrying the token.
 - `permdock/ai-sdk`: never throws into the model loop; `toolApproval` returns `denied` with the message as the reason, or `user-approval`.
@@ -137,7 +145,7 @@ PermDockRevokedError           → 401 type .../unauthenticated, or 403 type ...
 
 ## Problem Details shape
 
-All three `toProblemDetails()` results share the RFC 9457 members plus PermDock extensions:
+All `toProblemDetails()` results share the RFC 9457 members plus PermDock extensions:
 
 ```json
 {

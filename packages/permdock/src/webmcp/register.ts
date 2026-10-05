@@ -18,7 +18,6 @@ import type {
 
 import { compact } from "../core/compact.ts";
 import { describe } from "../core/describe.ts";
-import { PermDockValidationError } from "../core/errors.ts";
 import {
   annotationsFor,
   getRegistry,
@@ -27,6 +26,7 @@ import {
   listPermissions,
 } from "../core/permissions.ts";
 import { ignoreRejection, isThenable } from "../core/thenable.ts";
+import { PermDockValidationError } from "../core/validation-error.ts";
 import { wireDenials } from "../core/wire-denial.ts";
 
 const MISSING_CONTEXT =

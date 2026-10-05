@@ -21,6 +21,7 @@ import {
   memoryRevocationFeed,
   memoryRoleSource,
 } from "../index.ts";
+import { problemFromDecision } from "../server/index.ts";
 import { saasPolicy } from "./saas/policy.ts";
 import {
   saasCustomRoles,
@@ -734,7 +735,7 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
 
     scenario(
       "assert",
-      "maps assert inside a handler to a 403 Problem",
+      "maps assert inside a handler to the Problem protect sends",
       async () => {
         const denied = await send("bob", {
           op: "project.delete",
@@ -745,6 +746,23 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
         expect(field(denied.body, "type")).toBe(
           "https://permdock.com/problems/denied",
         );
+        const bob = await createPermDock(
+          saasPolicy,
+          saasPrincipal("bob", "acme"),
+          { tenant: "acme" },
+        );
+        const permission = saasPolicy.permissions.project.delete;
+        const fromProtect = await readResult(
+          problemFromDecision(
+            bob.decide(permission, project("p2")),
+            permission,
+            bob.subject,
+          ),
+        );
+        expect(denied.status).toBe(fromProtect.status);
+        for (const key of ["type", "title", "permission", "denials"]) {
+          expect(field(denied.body, key)).toEqual(field(fromProtect.body, key));
+        }
         expect(
           (await send("bob", { op: "project.delete", org: "acme", id: "p3" }))
             .status,

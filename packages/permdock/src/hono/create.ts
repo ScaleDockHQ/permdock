@@ -177,7 +177,12 @@ async function sse<T>(
 }
 
 function mapDownstream(c: Context): void {
-  const mapped = c.error === undefined ? undefined : problemFromError(c.error);
+  const mapped =
+    c.error === undefined
+      ? undefined
+      : problemFromError(c.error, {
+          credentials: c.req.header("authorization") !== undefined,
+        });
   if (mapped !== undefined) {
     c.res = undefined;
     c.res = mapped;

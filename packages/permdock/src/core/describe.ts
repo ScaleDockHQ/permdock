@@ -9,7 +9,9 @@ import type { Grantee } from "./grantee.ts";
 import type { Permission } from "./permissions.ts";
 
 import { flattenApprovers } from "./approvers.ts";
-import { flattenGrantee } from "./grantee.ts";
+import { requiredPlans } from "./problem-details.ts";
+
+export { requiredPlans };
 
 export type DecisionDescription = {
   readonly kind:
@@ -65,29 +67,6 @@ function labelGrantee(grantee: Grantee): string {
       return exhaustive;
     }
   }
-}
-
-/**
- * The plans named by the `not-entitled` denials of a decision, when every
- * denial is `not-entitled`; otherwise empty, since a plan alone would not grant.
- */
-export function requiredPlans(decision: Decision): readonly string[] {
-  if (
-    decision.outcome !== "denied" ||
-    decision.denials.length === 0 ||
-    decision.denials.some((denial) => denial.reason !== "not-entitled")
-  ) {
-    return [];
-  }
-  const plans = new Set<string>();
-  for (const denial of decision.denials) {
-    for (const item of flattenGrantee(denial.to)) {
-      if (item.kind === "plan") {
-        plans.add(item.plan);
-      }
-    }
-  }
-  return [...plans];
 }
 
 /**

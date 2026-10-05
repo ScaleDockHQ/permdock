@@ -17,16 +17,16 @@ import { instanceOptions } from "../core/instance-options.ts";
 import { challengeScope } from "../core/oauth-scopes.ts";
 import { createPermDock as createCorePermDock } from "../core/permdock.ts";
 import { listPermissions } from "../core/permissions.ts";
+import { problemDetails } from "../core/problem-details.ts";
 import { isActor } from "../core/subject.ts";
 import {
   applyApprovalResume,
   createEvaluationsHandler,
 } from "./evaluations.ts";
 import {
-  PROBLEM_BASE,
+  decisionResponse,
   notFoundProblem,
   problemFromDecision,
-  problemResponse,
 } from "./problem.ts";
 import { InvalidSignatureError } from "./web-bot-auth.ts";
 
@@ -207,16 +207,19 @@ function problemFor(
     return problemFromDecision(
       decision,
       init.permission,
-      { principal: null, context: {} },
+      undefined,
       compact({ instance: init.instance, approval }),
     );
   }
-  return problemResponse({
-    type: `${PROBLEM_BASE}/denied`,
-    title: "Permission denied",
-    status: 403,
-    detail: decision.outcome,
-  });
+  if (decision.outcome === "granted") {
+    return new Response(null, { status: 204 });
+  }
+  return decisionResponse(
+    problemDetails(
+      compact({ decision, detail: decision.outcome, instance: init?.instance }),
+    ),
+    decision,
+  );
 }
 
 /**
