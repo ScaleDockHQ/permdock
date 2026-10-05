@@ -16,7 +16,7 @@ import type {
   RoleSource,
   RoleSourceFactory,
 } from "./interfaces.ts";
-import type { DecideOptions, RowPair } from "./permdock.ts";
+import type { DecideOptions } from "./permdock.ts";
 import type { Permission } from "./permissions.ts";
 import type { RelationReader } from "./relations.ts";
 import type { CustomRole, Membership, Subject } from "./subject.ts";
@@ -55,6 +55,7 @@ import { applyQuota } from "./limits.ts";
 import { getResource, listPermissions } from "./permissions.ts";
 import { requiresApproval, type Grant, type Policy } from "./policy.ts";
 import { resolveRelated } from "./relations.ts";
+import { isRowPair, rowIdOf, rowValues } from "./row-pair.ts";
 import { scopeList, tenantOf } from "./scopes.ts";
 import {
   inTeam,
@@ -87,15 +88,6 @@ function matchWriteScope(
   }
   const moved = match(next);
   return moved.ok ? first : moved;
-}
-
-function isRowPair(value: unknown): value is RowPair<unknown> {
-  return (
-    value !== null &&
-    typeof value === "object" &&
-    "current" in value &&
-    "next" in value
-  );
 }
 
 function isGlobalRole(value: unknown): value is CustomRole {
@@ -489,8 +481,7 @@ export function evaluate(
   const now = options.now ?? nowSeconds();
   const trusted = options.trusted === true;
   const resource = getResource(policy.permissions, permission.resource);
-  let current: unknown = data;
-  let next: unknown = data;
+  let { current, next } = rowValues(permission, data);
   const tracer: Tracer | undefined =
     options.explain === true
       ? { evaluated: 0, allows: [], denies: [], skipped: [] }
@@ -512,14 +503,6 @@ export function evaluate(
     );
     return final;
   };
-  if (permission.kind === "instance" && isRowPair(data)) {
-    current = data.current;
-    next = data.next;
-  }
-  if (permission.kind === "collection") {
-    current = undefined;
-    next = data;
-  }
   try {
     if (
       data !== undefined ||
@@ -1096,15 +1079,8 @@ export function evaluate(
     });
   }
 
-  // SAFETY: current is a non-null object checked in the condition; the read value stays unknown.
   const resourceId =
-    permission.kind === "collection"
-      ? "*"
-      : current !== null && typeof current === "object"
-        ? String(
-            (current as Record<string, unknown>)[resource?.id ?? "id"] ?? "*",
-          )
-        : "*";
+    permission.kind === "collection" ? "*" : rowIdOf(current, resource?.id);
   const version =
     approval !== undefined &&
     approval !== "human" &&

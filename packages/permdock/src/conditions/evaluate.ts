@@ -1,6 +1,7 @@
-import type { Membership, Subject } from "../core/subject.ts";
+import type { Subject } from "../core/subject.ts";
 
 import { isReadonlyArray } from "../core/compact.ts";
+import { expiredAt } from "../core/expiry.ts";
 import { sameId } from "../core/ids.ts";
 import { ownGet } from "../core/paths.ts";
 import {
@@ -20,10 +21,6 @@ import {
   parentHop,
 } from "./ast.ts";
 import { resolveConditionRef } from "./refs.ts";
-
-function isExpired(membership: Membership, now: number): boolean {
-  return membership.expiresAt !== undefined && membership.expiresAt <= now;
-}
 
 function resolveRef(ref: string, subject: Subject): unknown {
   return resolveConditionRef(ref, subject);
@@ -208,7 +205,7 @@ function evaluateMemberOf(
     return false;
   }
   for (const membership of memberships) {
-    if (isExpired(membership, now)) {
+    if (expiredAt(membership, now)) {
       continue;
     }
     if (wanted.size > 0 && !membership.roles.some((role) => wanted.has(role))) {

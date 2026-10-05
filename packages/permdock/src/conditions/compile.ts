@@ -3,6 +3,7 @@ import type { ResourceNode } from "../core/permissions.ts";
 import type { Membership, Subject } from "../core/subject.ts";
 
 import { compact, isReadonlyArray, sole } from "../core/compact.ts";
+import { expiredAt } from "../core/expiry.ts";
 import { assertSafeKey } from "../core/paths.ts";
 import {
   type Scope,
@@ -175,10 +176,6 @@ export type CompiledSql = {
 const NEVER: CompiledWhere = { kind: "never" };
 const ALWAYS: CompiledWhere = { kind: "always" };
 
-function isExpired(membership: Membership, now: number): boolean {
-  return membership.expiresAt !== undefined && membership.expiresAt <= now;
-}
-
 function isScalar(value: unknown): boolean {
   return (
     typeof value === "string" ||
@@ -306,7 +303,7 @@ function matchingMemberships(
   );
   const wanted = new Set(condition.roles);
   return memberships.filter((membership) => {
-    if (isExpired(membership, now)) {
+    if (expiredAt(membership, now)) {
       return false;
     }
     if (wanted.size === 0) {

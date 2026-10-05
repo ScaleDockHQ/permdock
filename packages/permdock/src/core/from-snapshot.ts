@@ -16,20 +16,21 @@ import {
 import { pickVisible } from "./fields.ts";
 import { freezeDeep } from "./freeze.ts";
 import { listPermissions } from "./permissions.ts";
+import { rowIdOf } from "./row-pair.ts";
 import { normalizeMemberships, scopeList } from "./scopes.ts";
-import {
-  evaluateSnapshot,
-  rowId,
-  whereFromSnapshot,
-} from "./snapshot-evaluate.ts";
+import { evaluateSnapshot, whereFromSnapshot } from "./snapshot-evaluate.ts";
 import { heldRoleNames, subjectFromSnapshot } from "./snapshot-subject.ts";
 import { findRole, listRoles, synthesiseRole } from "./vocabulary.ts";
 
 function resourceRef(
+  snapshot: Snapshot,
   permission: Permission,
   data: unknown,
 ): { readonly type: string; readonly id?: string } {
-  const id = permission.kind === "collection" ? undefined : rowId(data);
+  const id =
+    permission.kind === "collection"
+      ? undefined
+      : rowIdOf(data, snapshot.ids?.[permission.resource]);
   return id === undefined || id === "*"
     ? { type: permission.resource }
     : { type: permission.resource, id };
@@ -71,9 +72,13 @@ export function fromSnapshot(
     permission: Permission,
     data?: unknown,
     decideOptions?: DecideOptions,
-  ): boolean =>
-    run(permission, data, decideOptions).outcome ===
-    "granted") as PermDock["can"];
+  ): boolean => {
+    try {
+      return run(permission, data, decideOptions).outcome === "granted";
+    } catch {
+      return false;
+    }
+  }) as PermDock["can"];
 
   // SAFETY: one implementation serves every PermDock['assert'] overload; it returns only a grant.
   const assert = ((
@@ -90,7 +95,7 @@ export function fromSnapshot(
         decision,
         permission: permission.key,
         scope: permission.scope,
-        resource: resourceRef(permission, data),
+        resource: resourceRef(snapshot, permission, data),
         message: approvalMessage(
           permission.key,
           decision.reason,
@@ -102,7 +107,7 @@ export function fromSnapshot(
       decision,
       permission: permission.key,
       scope: permission.scope,
-      resource: resourceRef(permission, data),
+      resource: resourceRef(snapshot, permission, data),
       subject,
       message: deniedMessage(
         permission.key,

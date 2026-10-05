@@ -300,6 +300,11 @@ export type Snapshot = {
    */
   readonly notEntitled?: readonly SnapshotNotEntitled[];
   /**
+   * The row id field per resource whose `id` option is not `id`, for the
+   * grants in `grants`. Absent when every one reads `id`.
+   */
+  readonly ids?: Readonly<Record<string, string>>;
+  /**
    * The permission keys the policy's delegations let the actor use for the
    * principal, sorted; present only when one applies. Outside it a check is
    * `not-delegated`; inside it a token delegation, when there is one, must

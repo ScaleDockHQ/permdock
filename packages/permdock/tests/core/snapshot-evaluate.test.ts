@@ -5,7 +5,6 @@ import type { Snapshot, SnapshotGrant } from "../../src/core/interfaces.ts";
 
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { definePermissions, resource } from "../../src/core/permissions.ts";
-import { rowId } from "../../src/core/snapshot-evaluate.ts";
 import { parseSnapshot } from "../../src/core/snapshot.ts";
 import { reasonOf } from "../fixtures/decisions.ts";
 
@@ -51,19 +50,6 @@ const allowRead: SnapshotGrant = {
 };
 
 const opaque: Condition = { op: "opaque", sql: "true", fingerprint: "f" };
-
-describe("rowId", () => {
-  it.each([
-    [null, "*"],
-    ["p1", "*"],
-    [{}, "*"],
-    [{ id: true }, "*"],
-    [{ id: "p1" }, "p1"],
-    [{ id: 7 }, "7"],
-  ])("reads the id of %j as %s", (data, expected) => {
-    expect(rowId(data)).toBe(expected);
-  });
-});
 
 describe("evaluateSnapshot", () => {
   it("denies a grantee that does not match with its reason", () => {

@@ -3,6 +3,7 @@ import type { Permission, PermissionTree } from "./permissions.ts";
 import type { Membership, Principal, Subject } from "./subject.ts";
 
 import { compact } from "./compact.ts";
+import { expiredAt } from "./expiry.ts";
 import { freezeDeep } from "./freeze.ts";
 import { sameId } from "./ids.ts";
 import { isForbiddenKey } from "./paths.ts";
@@ -311,7 +312,7 @@ function holdsScope(
   id: string,
   now: number,
 ): boolean {
-  if (membership.expiresAt !== undefined && membership.expiresAt <= now) {
+  if (expiredAt(membership, now)) {
     return false;
   }
   if (membership.scope === scope && sameId(membership.id, id)) {
