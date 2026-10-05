@@ -12,7 +12,10 @@ import {
 import {
   type Approver,
   type ApproverInput,
+  approverLeaves,
   flattenApprovers,
+  isAnyOfInput,
+  isPermissionApprover,
   isUserApprover,
   user,
 } from "./approvers.ts";
@@ -86,17 +89,23 @@ export type ClosureGrantFn<T = unknown> = (
   ctx: ClosureContext,
 ) => boolean;
 
-export type { Approver, ApproverInput, UserApprover } from "./approvers.ts";
-export { user } from "./approvers.ts";
+export type {
+  AnyOfApprover,
+  Approver,
+  ApproverInput,
+  PermissionApprover,
+  UserApprover,
+} from "./approvers.ts";
+export { allOf, anyOf, holder, user } from "./approvers.ts";
 
-/** Every approver a requirement names: `by`, each stage and `escalation.to`. */
+/** Every approver a requirement names: `by`, each stage and its escalation, and `escalation.to`, inside `anyOf` groups too. */
 function approversOf(requirement: ApprovalRequirement): readonly Approver[] {
   return [
-    ...flattenApprovers(requirement.by),
+    ...approverLeaves(requirement.by),
     ...(requirement.stages ?? []).flatMap((stage) =>
-      flattenApprovers(stage.by),
+      approverLeaves(stage.by).concat(approverLeaves(stage.escalation?.to)),
     ),
-    ...flattenApprovers(requirement.escalation?.to),
+    ...approverLeaves(requirement.escalation?.to),
   ];
 }
 
@@ -112,6 +121,8 @@ export type ApprovalStage = {
   readonly by: Approver | readonly Approver[];
   /** Absent means 1. */
   readonly quorum?: number;
+  /** After `after`, `to` may approve this stage as well as `by`; other stages are unaffected. */
+  readonly escalation?: ApprovalEscalation;
 };
 
 /**
@@ -148,6 +159,11 @@ export type ApprovalOption =
       readonly stages?: readonly {
         readonly by: ApproverInput;
         readonly quorum?: number;
+        /** After `after`, `to` may approve this stage as well as `by`. */
+        readonly escalation?: {
+          readonly after: string;
+          readonly to: ApproverInput;
+        };
       }[];
       /** `false` lets the request's principal approve it; absent means `true`. */
       readonly distinct?: boolean;
@@ -169,6 +185,31 @@ export type ApprovalOption =
     };
 
 function asApprover(input: ApproverInput): Approver | readonly Approver[] {
+  if (isPermissionApprover(input)) {
+    if (typeof input.permission !== "string" || input.permission === "") {
+      throw new Error("PermDock: a permission approver needs a permission key");
+    }
+    return Object.freeze({
+      kind: "permission" as const,
+      permission: input.permission,
+    });
+  }
+  if (isAnyOfInput(input)) {
+    if (!Array.isArray(input.of) || input.of.length === 0) {
+      throw new Error("PermDock: anyOf() needs at least one approver");
+    }
+    // SAFETY: Array.isArray does not narrow a readonly array; the any-of form lists ApproverInput.
+    const of = (input.of as readonly ApproverInput[]).map((item) => {
+      const normalized = asApprover(item);
+      const items = flattenApprovers(normalized);
+      if (items.length === 0) {
+        throw new Error("PermDock: an anyOf() item names no approver");
+      }
+      const [first] = items;
+      return isReadonlyArray(normalized) || first === undefined ? items : first;
+    });
+    return Object.freeze({ kind: "any-of" as const, of: Object.freeze(of) });
+  }
   if (isReadonlyArray(input)) {
     const items: Approver[] = [];
     // SAFETY: isReadonlyArray does not narrow the element type; the only array form is ApproverInput[].
@@ -317,10 +358,15 @@ export type GrantValidity = {
   readonly until?: number;
 };
 
-/** The actor a policy delegation is for: an actor kind, narrowed to one id when `id` is set. */
+/**
+ * The actor a policy delegation is for: an actor kind, narrowed to one id
+ * when `id` is set, or to one named client when `client` is set (the name
+ * the subject resolver gives a verified client id through `clients`).
+ */
 export type DelegationTarget = {
   readonly kind: string;
   readonly id?: string;
+  readonly client?: string;
 };
 
 /**
@@ -340,7 +386,7 @@ export type PolicyDelegation = {
 export type DelegationInput = {
   /** Who hands over: the same subject-only selectors as `approval.by` (a role, `authenticated()`, a plan, `assurance()`); not `relation()`. */
   readonly from: GranteeInput;
-  /** Which actor may act: `actor('eve')`, an actor kind, or `{ kind, id }` for one agent. */
+  /** Which actor may act: `actor('eve')`, an actor kind, `{ kind, id }` for one agent, or `{ kind, client }` for one named OAuth client. */
   readonly to: ActorGrantee | string | DelegationTarget;
   /** The leaves or subtrees the actor may use; a deny grant still applies. */
   readonly permissions: readonly (Permission | PermissionTree)[];
@@ -488,7 +534,19 @@ export type Policy<
   readonly delegations?: readonly PolicyDelegation[];
   /** Grant levels by resource (`resource(…, { levels })`), normalised; absent when none are declared. */
   readonly levels?: PolicyLevels;
+  /** Coarse OAuth scopes in declaration order; absent when the policy declares none. */
+  readonly oauthScopes?: readonly PolicyOAuthScope[];
   readonly index: PolicyIndex;
+};
+
+/**
+ * A coarse OAuth scope an authorization server issues (`mcp:read`) and the
+ * permission keys it covers, with their own scopes (`task:read`).
+ */
+export type PolicyOAuthScope = {
+  readonly scope: string;
+  readonly permissions: readonly string[];
+  readonly scopes: readonly string[];
 };
 
 /** Lookups built once per policy, so a decision does not rescan every role and grant. */
@@ -634,7 +692,11 @@ function normalizeStages(
         `PermDock: approval.stages[${index}].by on '${label}' names no approver`,
       );
     }
-    return compact<ApprovalStage>({ by, quorum: stage.quorum });
+    return compact<ApprovalStage>({
+      by,
+      quorum: stage.quorum,
+      escalation: normalizeEscalation(stage.escalation, label),
+    });
   });
 }
 
@@ -682,7 +744,11 @@ function delegationTarget(
   if ("actor" in to) {
     return { kind: to.actor };
   }
-  const target = compact<DelegationTarget>({ kind: to.kind, id: to.id });
+  const target = compact<DelegationTarget>({
+    kind: to.kind,
+    id: to.id,
+    client: to.client,
+  });
   if (typeof target.kind !== "string" || target.kind === "") {
     throw new Error(
       `PermDock: delegations[${index}].to needs an actor kind, such as actor('eve')`,
@@ -694,6 +760,19 @@ function delegationTarget(
   ) {
     throw new Error(
       `PermDock: delegations[${index}].to.id must be a non-empty string`,
+    );
+  }
+  if (
+    target.client !== undefined &&
+    (typeof target.client !== "string" || target.client === "")
+  ) {
+    throw new Error(
+      `PermDock: delegations[${index}].to.client must be a non-empty string`,
+    );
+  }
+  if (target.id !== undefined && target.client !== undefined) {
+    throw new Error(
+      `PermDock: delegations[${index}].to names both an id and a client; name one`,
     );
   }
   return target;
@@ -744,6 +823,55 @@ function normalizeDelegation(
       .map((leaf) => leaf.key)
       .toSorted(),
     validity: normalizeValidity(input, label),
+  });
+}
+
+/** RFC 6749 section 3.3 `scope-token`: printable ASCII without space, `"` or `\`. */
+function isScopeToken(value: string): boolean {
+  return /^[!#-[\]-~]+$/u.test(value);
+}
+
+function normalizeOAuthScopes(
+  input: DefinePolicyOptions<unknown, Principal>["oauthScopes"],
+  tree: PermissionTree,
+): readonly PolicyOAuthScope[] {
+  if (input === undefined) {
+    return [];
+  }
+  const own = new Set(listPermissions(tree).map((leaf) => leaf.scope));
+  return Object.entries(input).map(([scope, items]) => {
+    if (!isScopeToken(scope)) {
+      throw new Error(
+        `PermDock: oauthScopes key '${scope}' is not an OAuth scope token`,
+      );
+    }
+    if (own.has(scope)) {
+      throw new Error(
+        `PermDock: oauthScopes key '${scope}' is a permission's own scope`,
+      );
+    }
+    const leaves = new Map<string, Permission>();
+    for (const leaf of (Array.isArray(items) ? items : []).flatMap(
+      (item: Permission | PermissionTree) => flattenPermissions(item),
+    )) {
+      if (findPermission(tree, leaf.key) === undefined) {
+        throw new Error(
+          `PermDock: oauthScopes '${scope}' names unknown permission '${leaf.key}'`,
+        );
+      }
+      leaves.set(leaf.key, leaf);
+    }
+    if (leaves.size === 0) {
+      throw new Error(`PermDock: oauthScopes '${scope}' covers no permission`);
+    }
+    const sorted = [...leaves.values()].toSorted((a, b) =>
+      a.key.localeCompare(b.key),
+    );
+    return {
+      scope,
+      permissions: sorted.map((leaf) => leaf.key),
+      scopes: sorted.map((leaf) => leaf.scope),
+    };
   });
 }
 
@@ -1567,6 +1695,15 @@ export type DefinePolicyOptions<
    * the call still applies as well; both must cover.
    */
   readonly delegations?: readonly DelegationInput[];
+  /**
+   * Coarse OAuth scopes the authorization server issues, each covering
+   * permissions: a token holding `mcp:read` is delegated every permission
+   * listed under it, as if it held each permission's own scope. Scope
+   * challenges name the first coarse scope that covers the permission.
+   */
+  readonly oauthScopes?: Readonly<
+    Record<string, readonly (Permission | PermissionTree)[]>
+  >;
 };
 
 export function definePolicy<
@@ -1621,8 +1758,13 @@ export function definePolicy<
     normalizeDelegation(item, index, tree),
   );
   const levels = normalizeLevels(resources);
+  const oauthScopes = normalizeOAuthScopes(options.oauthScopes, tree);
   const fingerprint = bytesToBase64Url(
-    sha256(canonicalPolicy(grants, delegations, levels)),
+    sha256(
+      oauthScopes.length === 0
+        ? canonicalPolicy(grants, delegations, levels)
+        : `${canonicalPolicy(grants, delegations, levels)}\noauthScopes:${canonicalJson(oauthScopes)}`,
+    ),
   );
   const hostable = [
     ...new Set(
@@ -1658,6 +1800,7 @@ export function definePolicy<
     fresh,
     delegations: delegations.length === 0 ? undefined : delegations,
     levels,
+    oauthScopes: oauthScopes.length === 0 ? undefined : oauthScopes,
     index: indexPolicy(roles, grants, vocabulary),
   }) as Policy<TUser, TPrincipal, VocabularyFromInput<Input>>;
 }

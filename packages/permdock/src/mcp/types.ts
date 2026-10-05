@@ -19,6 +19,8 @@ import type {
 } from "@modelcontextprotocol/server";
 
 import type { ApprovalStore } from "../approvals/types.ts";
+import type { ApprovalPolicySource } from "../core/approval-policies.ts";
+import type { ClientNames } from "../core/clients.ts";
 import type { ApprovalHint } from "../core/errors.ts";
 import type { PolicySource } from "../core/hosted.ts";
 import type {
@@ -169,6 +171,15 @@ export type McpProcedureEnforcement = {
 export type McpPermDockOptions<TUser = unknown> = {
   /** Receives the verified auth info, or `{}` on a transport without one (stdio). */
   readonly subject: (authInfo: McpAuthInfo) => TUser | Promise<TUser>;
+  /**
+   * The `kind` of the actor built from `authInfo.clientId`; `'mcp-client'`
+   * when absent. `'oauth-client'` decides the token under the kind
+   * `subjectFromSupabase`, `subjectFromJwt` and `permdock/a2a` give an OAuth
+   * client, so one policy delegation covers the token on every surface.
+   */
+  readonly actorKind?: string;
+  /** Names for OAuth client ids (`ClientNames`): the actor gets `client` set to the name of `authInfo.clientId`, which a policy delegation matches with `to: { kind, client }`. */
+  readonly clients?: ClientNames;
   readonly tenant?:
     | string
     | ((
@@ -198,6 +209,8 @@ export type McpPermDockOptions<TUser = unknown> = {
   readonly memberships?: MembershipSource | readonly MembershipSource[];
   /** The object graph for relation grants that walk a parent chain; without it they deny. */
   readonly relations?: RelationSource;
+  /** Approval requirements kept as data (`ApprovalPolicySource`); they add to the code's and never remove one. A throw denies. */
+  readonly approvalPolicies?: ApprovalPolicySource;
   readonly entitlements?: EntitlementSource;
   readonly customRoles?: RoleSource;
   /** Hosted grants, read once per instance; see `PolicySource`. */

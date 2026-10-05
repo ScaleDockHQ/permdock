@@ -8,6 +8,7 @@ import { describe } from "../core/describe.ts";
 import { parseDuration } from "../core/duration.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import { ApprovalError } from "./errors.ts";
+import { type ApprovalsHandlerOptions, heldPermissions } from "./handler.ts";
 import { listAll } from "./page.ts";
 import {
   type ApproverRelationsOptions,
@@ -73,7 +74,7 @@ export function summariseSubject(subject: Subject): ApprovalRequest["subject"] {
 }
 
 /**
- * The store's window (`meta.ttl`, else the default) capped by the grant's
+ * The window (`meta.ttl`, else the store's `ttl`, else the default) capped by the grant's
  * `approval.ttl`: a grant shortens how long a request stays open, never
  * extends it.
  */
@@ -81,6 +82,14 @@ function approvalTtl(
   storeTtl: number | undefined,
   approval: ApprovalRequirement | "human" | undefined,
 ): number {
+  if (
+    storeTtl !== undefined &&
+    (!Number.isSafeInteger(storeTtl) || storeTtl <= 0)
+  ) {
+    throw new RangeError(
+      `PermDock: approval ttl must be a positive whole number of milliseconds, got ${String(storeTtl)}`,
+    );
+  }
   const base = storeTtl ?? DEFAULT_APPROVAL_TTL_MS;
   const grant =
     approval === undefined || approval === "human"
@@ -124,7 +133,7 @@ export async function requestApproval(
           quorum: approval.quorum,
           escalation: approval.escalation,
         });
-  const ttl = approvalTtl(meta.ttl, approval);
+  const ttl = approvalTtl(meta.ttl ?? store.ttl, approval);
   const request = freezeDeep(
     compact<ApprovalRequest>({
       v: 1,
@@ -158,6 +167,7 @@ export async function resolveApproval(
   verdict: ApprovalVerdict,
   options: ApproverRelationsOptions & {
     readonly requireDistinctApprover?: boolean;
+    readonly permdockFor?: ApprovalsHandlerOptions["permdockFor"];
   } = {},
 ): Promise<ApprovalRequest> {
   const current = await store.get(token);
@@ -167,14 +177,18 @@ export async function resolveApproval(
   const relations =
     verdict.relations ??
     (await approverRelations(current, verdict.by, options));
+  const permissions =
+    verdict.permissions ??
+    (await heldPermissions(current, verdict.by, options.permdockFor));
   assertApprover(
     current,
     verdict.by,
     options.requireDistinctApprover === true,
     options.now,
     relations,
+    permissions,
   );
-  return store.resolve(token, { ...verdict, relations });
+  return store.resolve(token, { ...verdict, relations, permissions });
 }
 
 export async function inspectApproval(
@@ -305,6 +319,12 @@ export async function resumeDecision(input: {
   /** `false` for checks that do not run the action, such as the decision endpoint. */
   readonly consume?: boolean;
   readonly now?: Date;
+  /**
+   * How long a request this call opens stays open, in milliseconds; absent
+   * means the store's `ttl`, else `DEFAULT_APPROVAL_TTL_MS`. The grant's
+   * `approval.ttl` still caps it.
+   */
+  readonly ttl?: number;
 }): Promise<Decision> {
   const { decision, store, token } = input;
   if (decision.outcome !== "approval-required") {
@@ -332,6 +352,7 @@ export async function resumeDecision(input: {
           resource: input.resource,
           subject: input.subject,
           adapter: input.adapter,
+          ttl: input.ttl,
         }),
       );
     }
@@ -433,26 +454,32 @@ export function resumeFromHeader(
 }
 
 /**
- * The stored token for a decision that is waiting on approval: an approved or
- * rejected record for the recomputed token resumes without the caller
- * carrying it, since the token already binds permission, resource (or the
- * call's data when there is no row id), subject and actor.
+ * The token to resume `decision` with when the caller carries none: the
+ * decision's own token when the store holds an approved or rejected request
+ * for it, so `resumeDecision` resumes (or denies) the call without the
+ * caller passing the token back. The token already binds permission,
+ * resource (or the call's data when there is no row id), subject and actor.
+ * A pending request counts only with `denyPending: true`, which makes the
+ * call deny with `approval-pending` instead of asking again. `undefined` when
+ * the decision needs no approval, there is no store, or the store has no
+ * unexpired request for the token; a store that throws counts as none.
  */
 export async function storedApprovalToken(
   store: ApprovalStore | undefined,
   decision: Decision,
-  denyPending: boolean,
+  options: { readonly denyPending?: boolean; readonly now?: Date } = {},
 ): Promise<string | undefined> {
   if (store === undefined || decision.outcome !== "approval-required") {
     return undefined;
   }
+  const now = (options.now ?? new Date()).getTime();
   try {
     const record = await store.get(decision.token);
     if (
       record === null ||
-      (record.status === "pending" && !denyPending) ||
+      (record.status === "pending" && options.denyPending !== true) ||
       record.status === "expired" ||
-      Date.parse(record.expiresAt) <= Date.now()
+      Date.parse(record.expiresAt) <= now
     ) {
       return undefined;
     }

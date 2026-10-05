@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import type { AuthEvent } from "../../src/core/interfaces.ts";
+import type { ClientNames } from "../../src/index.ts";
 
 import {
   allow,
@@ -415,5 +416,67 @@ describe("subjectFromSupabase with Supabase OAuth server tokens", () => {
       subjectFromSupabase({ ...claims, scope: "openid invoice.pay" }),
     );
     expect(scoped.can(permissions.invoice.read, invoice)).toBe(false);
+  });
+
+  describe("a delegation that names a client, not its id", () => {
+    const named = definePolicy(permissions, {
+      roles: [role("member", grants)],
+      subject: (user: { readonly id: string }) => user,
+      delegations: [
+        {
+          from: "member",
+          to: { kind: "oauth-client", client: "cli" },
+          permissions: [permissions.invoice.read],
+        },
+      ],
+    });
+    const decide = async (clientId: string, clients: ClientNames | undefined) =>
+      (
+        await createPermDock(
+          named,
+          subjectFromSupabase(
+            { ...claims, client_id: clientId },
+            clients === undefined ? {} : { clients },
+          ),
+        )
+      ).can(permissions.invoice.read, invoice);
+
+    it("matches the client the resolver names from the verified id", async () => {
+      const subject = subjectFromSupabase(claims, {
+        clients: { cli: "first-party-cli" },
+      });
+      expect(subject.actor).toEqual({
+        id: "first-party-cli",
+        kind: "oauth-client",
+        client: "cli",
+      });
+      expect(await decide("first-party-cli", { cli: "first-party-cli" })).toBe(
+        true,
+      );
+      expect(
+        await decide("dyn-7f3a", (id) =>
+          id.startsWith("dyn-") ? "cli" : undefined,
+        ),
+      ).toBe(true);
+    });
+
+    it("fails closed for an unmapped, unset, ambiguous or throwing mapping", async () => {
+      expect(await decide("third-party", { cli: "first-party-cli" })).toBe(
+        false,
+      );
+      expect(await decide("first-party-cli", { cli: undefined })).toBe(false);
+      expect(await decide("first-party-cli", undefined)).toBe(false);
+      expect(
+        await decide("first-party-cli", {
+          cli: "first-party-cli",
+          other: ["first-party-cli"],
+        }),
+      ).toBe(false);
+      expect(
+        await decide("first-party-cli", () => {
+          throw new Error("lookup down");
+        }),
+      ).toBe(false);
+    });
   });
 });

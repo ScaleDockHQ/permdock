@@ -29,13 +29,12 @@ function exportNames(source: string): readonly string[] {
   return names;
 }
 
-// What Next's bundler does for `permdock/next`'s bare `next/*` imports in the
-// server layer: `next` has no exports map, so plain Node needs the file, and
-// `next/navigation` resolves to its react-server build.
+// What Next's bundler does in the server layer: `permdock/next` imports
+// `#next/navigation`, which permdock's package.json maps to the bare
+// `next/navigation` under the `react-server` condition, and Next aliases that
+// to the react-server build.
 const SERVER_LAYER_ALIASES: Readonly<Record<string, string>> = {
-  "next/cache": "next/cache.js",
-  "next/server": "next/server.js",
-  "next/navigation": "next/dist/client/components/navigation.react-server.js",
+  "#next/navigation": "next/dist/client/components/navigation.react-server.js",
 };
 
 export const resolve: ResolveHookSync = (specifier, context, nextResolve) =>

@@ -6,7 +6,7 @@ import Link from "next/link";
 import { usePermission } from "permdock/react";
 import { use } from "react";
 
-import { permissions } from "../../../../policy.ts";
+import { permissions } from "../../../../permissions.ts";
 
 type Item = {
   readonly id: string;

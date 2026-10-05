@@ -104,14 +104,25 @@ describe("evaluateSnapshot", () => {
     expect(reasonOf(scoped.decide(permissions.doc.read, row))).toBe("scope");
   });
 
-  it("fails a partitioned scope closed for an instance check with no row", () => {
-    const snapshot = snapshotWith([
-      { ...allowRead, scope: "org", membership: orgMembership },
-    ]);
+  it("answers an instance check with no row from a first-scope membership only", () => {
+    const teamMembership = {
+      scope: "team",
+      id: "t1",
+      within: { org: "o1" },
+      roles: ["member"],
+    } as const;
     // SAFETY: an instance check without a row, as an untyped caller could make it.
     const read = permissions.doc.read as never;
-    expect(reasonOf(fromSnapshot(snapshot).decide(read))).toBe(
-      "tenant-mismatch",
+    const org = fromSnapshot(
+      snapshotWith([{ ...allowRead, scope: "org", membership: orgMembership }]),
+    );
+    expect(org.decide(read).outcome).toBe("granted");
+    const team = snapshotWith([
+      { ...allowRead, scope: "team", membership: teamMembership },
+    ]);
+    expect(reasonOf(fromSnapshot(team).decide(read))).toBe("scope");
+    expect(fromSnapshot(team, { team: "t1" }).decide(read).outcome).toBe(
+      "granted",
     );
   });
 

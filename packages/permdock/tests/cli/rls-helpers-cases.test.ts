@@ -106,6 +106,53 @@ describe("helpersSql scopes off the root chain", () => {
   });
 });
 
+describe("helpersSql custom-role writes", () => {
+  it("lifts the hand-out check through manageRoles permissions and checks nested instances", () => {
+    const sql = helpers({
+      authorize: "database",
+      sources: [fromTable({ table: "memberships" })],
+      customRoles: {
+        declared: ["admin"],
+        assignable: ["admin"],
+        permissions: ["member.assign", "post.read"],
+        manage: ["member.assign"],
+      },
+    });
+    const beyond = fnBody(sql, "permdock_custom_role_beyond");
+    expect(beyond).toContain(
+      "rp.permission = any(array['member.assign']::text[])",
+    );
+    expect(beyond).toContain(
+      `when 'team' then p_scope_id in (select x::text from "permdock".permitted_team_ids(rp.grant_key) x)`,
+    );
+    expect(beyond).not.toContain("reach");
+    const guard = fnBody(sql, "permdock_custom_role_guard");
+    expect(guard).toContain(
+      `p_tenant::text in (select x::text from "permdock".member_org_ids() x)`,
+    );
+    expect(guard).toContain(
+      "p_scope = any(array['org', 'team', 'region']::text[])",
+    );
+    expect(fnBody(sql, "permdock_replace_custom_role_grants")).toContain(
+      "v_key = any(array['member.assign', 'post.read']::text[])",
+    );
+  });
+
+  it("is left out in jwt mode and without scopes", () => {
+    const custom = { declared: [], assignable: [] };
+    expect(helpers({ customRoles: custom })).not.toContain(
+      "permdock_replace_custom_role_grants",
+    );
+    expect(
+      helpersSql(
+        { ...ctx({ authorize: "database", customRoles: custom }), scopes: [] },
+        [],
+        { userRoles: false },
+      ),
+    ).not.toContain("permdock_replace_custom_role_grants");
+  });
+});
+
 describe("helpersSql database mode", () => {
   it("matches custom roles on the scope column when the table holds no tenant column", () => {
     const sql = helpers({

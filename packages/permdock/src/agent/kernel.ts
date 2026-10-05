@@ -178,6 +178,7 @@ export function createAgentKernel<
           delegation,
           memberships: options.memberships,
           relations: options.relations,
+          approvalPolicies: options.approvalPolicies,
           entitlements: options.entitlements,
           customRoles: options.customRoles,
           policies: options.policies,
@@ -243,11 +244,9 @@ export function createAgentKernel<
         adapter: options.adapter,
         token:
           decideOptions.resumeToken ??
-          (await storedApprovalToken(
-            options.store,
-            raw,
-            decideOptions.denyPending === true,
-          )),
+          (await storedApprovalToken(options.store, raw, {
+            denyPending: decideOptions.denyPending === true,
+          })),
       });
       if (decision.outcome === "granted") {
         return {

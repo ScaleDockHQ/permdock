@@ -62,10 +62,15 @@ export {
   memoryRoleSource,
   memorySettings,
 } from "./core/interfaces.ts";
-export { memoryApprovalPolicies } from "./core/approval-policies.ts";
+export {
+  memoryApprovalPolicies,
+  validateApprovalPolicy,
+} from "./core/approval-policies.ts";
 export type {
   ApprovalPolicy,
+  ApprovalPolicyProblem,
   ApprovalPolicySource,
+  ApprovalPolicyValidation,
 } from "./core/approval-policies.ts";
 export {
   claimsFirst,
@@ -199,9 +204,12 @@ export type {
   ResourceRelationInput,
 } from "./core/permissions.ts";
 export {
+  allOf,
   allow,
+  anyOf,
   definePolicy,
   deny,
+  holder,
   normalizeApproval,
   normalizeAssurance,
   requiresApproval,
@@ -216,8 +224,10 @@ export type {
   ApprovalOption,
   ApprovalRequirement,
   ApprovalStage,
+  AnyOfApprover,
   Approver,
   ApproverInput,
+  PermissionApprover,
   UserApprover,
   AssuranceRequirement,
   BreakGlassOptions,
@@ -227,6 +237,7 @@ export type {
   ClosureGrantFn,
   DelegationInput,
   DelegationTarget,
+  PolicyOAuthScope,
   Grant,
   GrantCondition,
   GrantLimit,
@@ -364,3 +375,4 @@ export type {
   Subject,
   VerifiedClaims,
 } from "./core/subject.ts";
+export type { ClientNames } from "./core/clients.ts";

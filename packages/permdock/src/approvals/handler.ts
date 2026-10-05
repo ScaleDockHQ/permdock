@@ -1,4 +1,5 @@
 import type { RelationSource, TokenSigner } from "../core/interfaces.ts";
+import type { PermDock } from "../core/permdock.ts";
 import type { PermissionTree } from "../core/permissions.ts";
 import type { Subject } from "../core/subject.ts";
 import type {
@@ -10,6 +11,7 @@ import type {
 import { compact } from "../core/compact.ts";
 import { rootMembershipId } from "../core/scopes.ts";
 import { isApprovalError } from "./errors.ts";
+import { approverPermissions } from "./permissions.ts";
 import { approverRelations } from "./relations.ts";
 import { assertApprover } from "./store.ts";
 
@@ -27,7 +29,32 @@ export type ApprovalsHandlerOptions = {
   readonly relations?: RelationSource;
   /** The policy's permission tree, for `through` links and `includes` on relation approvers. */
   readonly permissions?: PermissionTree;
+  /**
+   * The approver's own instance in the request's tenant, for
+   * `holder(permission)` approvers (custom roles included when the instance
+   * reads a `RoleSource`). Without it, or when it throws, they match nobody.
+   */
+  readonly permdockFor?: (
+    approver: Subject,
+    request: ApprovalRequest,
+  ) => PermDock | Promise<PermDock>;
 };
+
+/** The permission approvers `subject` holds on `request`, read through `permdockFor`. */
+export async function heldPermissions(
+  request: ApprovalRequest,
+  subject: Subject,
+  permdockFor: ApprovalsHandlerOptions["permdockFor"],
+): Promise<readonly string[]> {
+  if (permdockFor === undefined || request.approvers === undefined) {
+    return [];
+  }
+  try {
+    return approverPermissions(request, await permdockFor(subject, request));
+  } catch {
+    return [];
+  }
+}
 
 type ProblemBody = {
   readonly type: string;
@@ -138,7 +165,19 @@ async function mayResolve(
 ): Promise<boolean> {
   try {
     const relations = await approverRelations(request, subject, options);
-    assertApprover(request, subject, requireDistinct, new Date(), relations);
+    const permissions = await heldPermissions(
+      request,
+      subject,
+      options.permdockFor,
+    );
+    assertApprover(
+      request,
+      subject,
+      requireDistinct,
+      new Date(),
+      relations,
+      permissions,
+    );
     return true;
   } catch {
     return false;
@@ -361,7 +400,19 @@ export function approvalsHandler(
         return problem(404, "Not found", "approval was not found", "not-found");
       }
       const relations = await approverRelations(current, subject, options);
-      assertApprover(current, subject, requireDistinct, new Date(), relations);
+      const permissions = await heldPermissions(
+        current,
+        subject,
+        options.permdockFor,
+      );
+      assertApprover(
+        current,
+        subject,
+        requireDistinct,
+        new Date(),
+        relations,
+        permissions,
+      );
       const note = await readNote(request);
       const resolved = await store.resolve(
         route.token,
@@ -370,6 +421,7 @@ export function approvalsHandler(
           by: subject,
           note,
           relations,
+          permissions,
         }),
       );
       const signed = await signedApproval(

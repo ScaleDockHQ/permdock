@@ -126,10 +126,16 @@ function customRoleNames(
       ),
   );
   const renamed = renamedKeys(policy.vocabulary.permissions);
+  const leaves = listPermissions(policy.permissions);
+  const manage = leaves
+    .filter((leaf) => leaf.meta.manageRoles === true)
+    .map((leaf) => leaf.key);
   return {
     declared,
     assignable,
     ...(renamed.size === 0 ? {} : { renamed: Object.fromEntries(renamed) }),
+    permissions: leaves.map((leaf) => leaf.key).toSorted(),
+    ...(manage.length === 0 ? {} : { manage: manage.toSorted() }),
     ...(policy.levels === undefined ? {} : { levels: true as const }),
   };
 }
@@ -449,6 +455,7 @@ export async function runRlsGenerate(input: {
   const preamble = [
     rbac?.head,
     helpersSql(ctx, compiled.rolePermissions, {
+      levelReach: compiled.levelReach,
       userRoles: !input.rbac,
       anonExecute: views.some((view) => view.roles.includes("anon")),
       withoutSeeds: splitsPart(input.split, "seeds"),

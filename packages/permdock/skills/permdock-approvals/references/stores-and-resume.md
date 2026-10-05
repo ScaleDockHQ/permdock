@@ -22,6 +22,8 @@ const handler = approvalsHandler(store, {
 app.all("/permdock/approvals/*", (c) => handler(c.req.raw));
 ```
 
+The store's `ttl` is the window a request stays open when the call sets none; `resumeDecision({ ..., ttl })` sets it per call (milliseconds). A grant's `approval.ttl` only shortens either.
+
 - `memoryApprovalStore` is per process. On serverless or with several replicas, implement `ApprovalStore` over the app's database; the Drizzle recipe on the adapter page is the template, and `cloud().approvals` from `permdock/cloud` is the hosted implementation of the same interface.
 - A custom store calls `assertApprover(request, by, requireDistinct, now, verdict.relations)` in `resolve` and computes the next record with `applyApprovalVerdict`, which records each signature's `stage`. `verdict.relations` holds `approverRelationKey` values that the handler, or `resolveApproval(store, token, verdict, { relations, permissions })`, computed with `approverRelations`; a store never derives them. `consume` must be atomic: two concurrent calls never both succeed.
 - Run `testApprovalStore(store, { reopen })` from `permdock/testing` on every custom store.
@@ -39,14 +41,16 @@ const permdock = await createPermDock(policy, user, {
       tenant: "o_acme", // absent: every tenant
       actors: ["agent"], // absent: every call
       where: { op: "gt", field: "amount", value: 1000 },
-      approval: { by: "finance" }, // no escalation in data
+      approval: { by: "finance" }, // an escalation here widens only this entry's stages
     },
   ]),
 });
 ```
 
+- Every adapter's `createPermDock` takes `approvalPolicies` (HTTP, MCP, A2A, AuthZEN, terminal and the agent adapters), so an entry also turns an agent call into `user-approval` or an MCP call into `approval-required`.
 - Entries are read once per instance and combine with the grant's own approval as stages (`sequential` if any part is, else `all`); the shortest `ttl` wins.
 - A throw or an invalid entry denies with detail `approval-policy-unavailable`. An unknown permission applies to nothing.
+- `where` reads the row, so it works only on instance permissions; on a collection permission the entry does not load. Use `check` (the proposed row) there. Validate entries where they are saved with `validateApprovalPolicy(policy, entry)` (`{ ok: false, problem }` names `unknown-permission`, `invalid`, `where-on-collection` or `stale-on-without-version`).
 - Client snapshots do not see the entries; the server's `decide` adds the approval.
 
 ## Resume
@@ -56,6 +60,8 @@ const permdock = await createPermDock(policy, user, {
 3. The original call is retried with the token. The adapter re-runs `decide`, recomputes the token, compares it, and calls `store.consume`. Only then does the tool or route run.
 
 The token binds the permission key, the resource id (or a digest of the data when there is no id), the principal, the tenant, the actor and the matched grant's conditions. Under `staleOn: 'resource-change'` it also binds the row's `version`.
+
+A gate in your own code resumes the same way with `resumeDecision` from `permdock/approvals`, passing `token: carried ?? (await storedApprovalToken(store, decision))`: `storedApprovalToken` finds an approved or rejected request for the recomputed token, so the caller need not carry it. Do not reimplement it.
 
 Over HTTP, the client retries the same request with the `PermDock-Approval: <token>` header. In React, `approvalHeaders(token)` builds that header and `useApproval(decision)` requests and polls an approval from the UI.
 
@@ -81,3 +87,7 @@ For AG-UI event shapes, defer to the `ag-ui` spec skill (`npx skills add ScaleDo
 ## Delivery
 
 Notifying an approver is a listener on the `approval` event (`permdock.on('approval', …)`), never a package. A message or email carries only the token and links to a page where the approver signs in; the verdict goes through `approvalsHandler` with that session's subject. A link never approves on its own ([approvals adapter, Delivery](https://permdock.com/docs/adapters/approvals#delivery)).
+
+## Approvers
+
+`by` takes roles, `user(id)`, `relation()`, `holder(permission)` and `anyOf(...)`. A list is all-of; use `anyOf(user(id), holder(permissions.x.approve))` for "this person or anyone who holds the permission". `holder()` needs `approvalsHandler(store, { permdockFor: (approver, request) => createPermDock(policy, approver, { customRoles }) })`, so custom roles count. Stages may carry their own `escalation`.

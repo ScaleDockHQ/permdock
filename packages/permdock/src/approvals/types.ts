@@ -80,6 +80,13 @@ export type ApprovalVerdict = {
    * none, so relation approvers match nobody.
    */
   readonly relations?: readonly string[];
+  /**
+   * The `holder(permission)` approvers (by permission key) that `by` holds
+   * in the request's tenant, as `approverPermissions` read them from the
+   * approver's own instance. Server-side input, never from the request body.
+   * Absent means none, so permission approvers match nobody.
+   */
+  readonly permissions?: readonly string[];
 };
 
 export type ApprovalListFilter = {
@@ -112,6 +119,12 @@ export type ApprovalCancelMeta = {
 };
 
 export type ApprovalStore = {
+  /**
+   * How long a request opened against this store stays open, in
+   * milliseconds, when the caller sets no `ttl`; absent means
+   * `DEFAULT_APPROVAL_TTL_MS`. A grant's `approval.ttl` still caps it.
+   */
+  readonly ttl?: number;
   create(request: ApprovalRequest): Promise<void> | void;
   get(token: string): Promise<ApprovalRequest | null> | ApprovalRequest | null;
   resolve(
@@ -167,6 +180,18 @@ export function approvalQuorum(request: ApprovalRequest): number {
 export function escalationOpenAt(request: ApprovalRequest): number | undefined {
   const after = request.approvers?.escalation?.after;
   const seconds = parseDuration(after);
+  if (seconds === undefined) {
+    return undefined;
+  }
+  return Date.parse(request.createdAt) + seconds * 1000;
+}
+
+/** The instant from which a stage's own `escalation.to` may approve it, in epoch milliseconds; `undefined` when it has none or `after` does not parse. */
+export function stageEscalationOpenAt(
+  request: ApprovalRequest,
+  stage: ApprovalStage,
+): number | undefined {
+  const seconds = parseDuration(stage.escalation?.after);
   if (seconds === undefined) {
     return undefined;
   }

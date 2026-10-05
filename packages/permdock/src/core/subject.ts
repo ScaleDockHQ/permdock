@@ -127,6 +127,8 @@ export type Actor = {
   readonly binding?: Binding;
   /** `true` narrows every policy delegation to this actor to its read-only permissions (`readOnlyHint`). */
   readonly readOnly?: boolean;
+  /** The stable name the application gives this OAuth client (`ClientNames`), set by the subject resolver from the verified client id; policy delegations match it with `to: { kind, client }`. */
+  readonly client?: string;
   readonly [key: string]: unknown;
 };
 

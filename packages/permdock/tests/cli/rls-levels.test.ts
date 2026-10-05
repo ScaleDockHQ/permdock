@@ -28,6 +28,7 @@ function appWith(
   levels: boolean,
   authorize: "database" | "jwt",
   renamed = false,
+  manager = false,
 ): string {
   mkdirSync(TMP, { recursive: true });
   const dir = mkdtempSync(join(TMP, "rls-levels-"));
@@ -49,7 +50,11 @@ export const permissions = definePermissions({
 export const policy = definePolicy(permissions, {
   roles: [
     role('admin', [allow([permissions.job.read, permissions.job.update]), deny(permissions.job.update, { where: { locked: true } })], { on: 'tenant' }),
-    role('owner', [allow(permissions.job.update)], { on: 'tenant', assignable: false }),
+    role('owner', [allow(permissions.job.update)], { on: 'tenant', assignable: false }),${
+      manager
+        ? "\n    role('manager', [allow(permissions.job.update, { where: { ownerId: principal.id } })], { on: 'tenant' }),"
+        : ""
+    }
   ],
   scopes: { tenant: { key: 'orgId' } },
   subject: () => null,
@@ -125,6 +130,53 @@ describe("rls generate with resource levels", () => {
     const sql = await generate(appWith(true, "database", true));
     expect(sql).toContain("('task.read', 'job.read')");
     expect(sql).toContain("allowed_levels");
+  });
+
+  it("emits the custom-role write functions in database mode only", async () => {
+    const leveled = await generate(appWith(true, "database", true));
+    for (const name of [
+      "permdock_custom_role_beyond",
+      "permdock_custom_role_guard",
+      "permdock_replace_custom_role_grants",
+      "permdock_rename_custom_role_grants",
+      "permdock_delete_custom_role_grants",
+    ]) {
+      expect(leveled).toContain(
+        `create or replace function "permdock".${name}(`,
+      );
+    }
+    expect(leveled).toContain(
+      'grant execute on function "permdock".permdock_replace_custom_role_grants(text, text, text, text, text[], text[], text[]) to authenticated;',
+    );
+    expect(leveled).toContain(
+      'revoke execute on function "permdock".permdock_custom_role_beyond(text, text, text, text[], text[], text[]) from public, anon, authenticated;',
+    );
+    expect(leveled).toContain(
+      "reach (grant_key, level) as (values ('job.read', 'all'), ('job.read', 'own')",
+    );
+    expect(leveled).toContain("when 'task.read' then 'job.read'");
+    expect(leveled).toContain("hint = 'unknown-level'");
+    expect(leveled).not.toMatch(/service_role/iu);
+    const plain = await generate(appWith(false, "database"));
+    expect(plain).toContain("permdock_replace_custom_role_grants");
+    expect(plain).not.toContain("reach (grant_key, level)");
+    expect(plain).not.toContain("unknown-level");
+    expect(plain).toContain("if false then");
+    const jwt = await generate(appWith(true, "jwt"));
+    expect(jwt).not.toContain("permdock_replace_custom_role_grants");
+  });
+
+  it("reaches only the levels whose condition a conditioned grant matches", async () => {
+    const sql = await generate(appWith(true, "database", false, true));
+    const reach = /reach \(grant_key, level\) as \(values ([^\n]+)\)/u.exec(
+      sql,
+    )?.[1];
+    expect(reach).toContain(
+      "('job.update#3', 'own'), ('job.update#3@own', 'own')",
+    );
+    expect(reach).not.toContain("('job.update#3', 'all')");
+    expect(reach).not.toContain("'job.update#3@all'");
+    expect(reach).toContain("('job.update#1', 'all'), ('job.update#1', 'own')");
   });
 
   it("passes levels to the rbac scaffold", async () => {

@@ -10,7 +10,9 @@
     "accessEvent",
     "accessToOcsf",
     "actor",
+    "allOf",
     "allow",
+    "anyOf",
     "anyone",
     "arazzoFindings",
     "assurance",
@@ -45,6 +47,7 @@
     "fromStripeEntitlements",
     "getResource",
     "hasConditionOp",
+    "holder",
     "isCondition",
     "isConditionDate",
     "isConditionRef",
@@ -102,6 +105,7 @@
     "toCsvRow",
     "toOcsf",
     "user",
+    "validateApprovalPolicy",
     "validateCustomRole",
     "writable"
   ],
@@ -112,6 +116,7 @@
     "applyApprovalVerdict",
     "approvalQuorum",
     "approvalsHandler",
+    "approverPermissions",
     "approverRelationKey",
     "approverRelations",
     "assertApprover",
@@ -126,6 +131,7 @@
     "resolveApproval",
     "resumeDecision",
     "resumeFromHeader",
+    "storedApprovalToken",
     "summariseSubject"
   ],
   "./jwt": [

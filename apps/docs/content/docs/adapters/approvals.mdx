@@ -37,6 +37,7 @@ app.all("/permdock/approvals/*", (c) => handler(c.req.raw));
 
 ```ts
 interface ApprovalStore {
+  readonly ttl?: number; // ms a new request stays open; default one hour
   create(request: ApprovalRequest): Promise<void> | void;
   get(token: string): Promise<ApprovalRequest | null> | ApprovalRequest | null;
   resolve(
@@ -78,6 +79,31 @@ interface ApprovalStore {
 - `requestApproval(store, decision, meta)` and `resolveApproval(store, token, verdict)` are the two internal helpers agent adapters share; applications rarely call them directly.
 - `signer` (optional, a `TokenSigner` such as `joseTokenSigner` from `permdock/jwt`) makes `approvalsHandler` return, on approve, a compact JWS with `typ: permdock-approval+jwt` alongside the bare token: registered claims `iss`, `aud`, `sub` (the principal), `iat`, `exp` (= the request's `expiresAt`), `jti`, and `{ token, permission, resource, status }` under the `approval` claim ([wire formats](/docs/concepts/wire-formats)). It exists for a resume that crosses services or trust domains, where the resuming side wants proof of who resolved the request before it spends a `decide`. The bound hash `token` stays the thing that is compared: the adapter verifies the JWS with its `verifier`, extracts `approval.token`, and then runs the unchanged step 5 below. `PermDock-Approval` carries either form; the kernel tells them apart by the `pd1.` prefix versus the three-segment JWS shape.
 
+An application that decides approvals in its own gate, outside an adapter, resumes a call the way the adapters do: `resumeDecision({ decision, permission, subject, store, resource, adapter, token })` with `token: await storedApprovalToken(store, decision)`. `storedApprovalToken` returns the decision's own token when the store holds an approved or rejected request for it, so a retried call resumes (or is denied) without the caller carrying the token; it returns `undefined` for no record, an expired one, a store that throws, or a decision that needs no approval. A pending request counts only with `{ denyPending: true }`, which denies the call with `approval-pending` instead of asking again; `now` sets the clock for the expiry check.
+
+```ts
+import {
+  readApprovalHeader,
+  resumeDecision,
+  storedApprovalToken,
+} from "permdock/approvals";
+
+const raw = permdock.decide(permissions.payment.send, payment);
+const decision = await resumeDecision({
+  decision: raw,
+  permission: permissions.payment.send,
+  subject: permdock.subject,
+  store,
+  resource: { type: "payment", id: payment.id },
+  adapter: "app",
+  token:
+    readApprovalHeader(request.headers) ??
+    (await storedApprovalToken(store, raw)),
+});
+```
+
+`approvalsHandler` options take `permdockFor: (approver, request) => PermDock` for [`holder()` approvers](/docs/security/approvals#any-of-several-approvers-and-permission-holders): it builds the approver's instance in the request's tenant, and the handler passes the permission keys `approverPermissions` reads from it on `verdict.permissions`.
+
 `approvalsHandler` routes, all Fetch `Request` to `Response`:
 
 | Route                  | Purpose                                                                                                                                                                                                                                                                                 | Denial                                                                                                                                                                                                                                                                                                                       |
@@ -96,7 +122,7 @@ A custom resolve path calls `resolveApproval(store, token, verdict, { relations,
 
 ## Approval policies as data
 
-`approvalPolicies` on `createPermDock` takes an `ApprovalPolicySource`, for approval rules an organisation configures at runtime, such as "payments over 1000 need finance". An entry adds stages to a matching allow; it never grants, never removes a code requirement and never lowers a quorum.
+`approvalPolicies` on `createPermDock` takes an `ApprovalPolicySource`, on the core factory and on every adapter that builds an instance (`permdock/next`, `permdock/server` and the HTTP adapters, `permdock/supabase/middleware`, `permdock/mcp`, `permdock/a2a`, `permdock/authzen`, `permdock/terminal` and the agent adapters `ai-sdk`, `claude-agent`, `eve` and `openai`), for approval rules an organisation configures at runtime, such as "payments over 1000 need finance". An entry adds stages to a matching allow; it never grants, never removes a code requirement and never lowers a quorum.
 
 ```ts
 import { memoryApprovalPolicies } from "permdock";
@@ -108,7 +134,7 @@ const permdock = await createPermDock(policy, user, {
       tenant: "o_acme", // absent: every tenant
       actors: ["agent"], // absent: every call; a call without an actor never matches a list
       where: { op: "gt", field: "amount", value: 1000 }, // a portable condition over the row
-      approval: { by: "finance" }, // the approval option shape, without escalation
+      approval: { by: "finance" }, // the approval option shape
     },
   ]),
 });
@@ -116,9 +142,11 @@ const permdock = await createPermDock(policy, user, {
 
 - The source is read once, when the instance is created, for the subject's tenants. Entries are plain JSON; `where` and `check` are portable conditions.
 - An entry matches an allowed call for its permission when its tenant is the decision's tenant (the matched membership's root scope, else the active tenant), its `actors` list contains the actor's kind, and its `where` and `check` hold.
-- The effective requirement combines the grant's own approval and every matching entry as stages: `sequential` when any part is sequential, `all` otherwise. Identical stages appear once. The grant's escalation is kept, the shortest `ttl` wins, and `distinct` stays on unless every part turns it off.
+- The effective requirement combines the grant's own approval and every matching entry as stages: `sequential` when any part is sequential, `all` otherwise. Identical stages appear once. The grant's escalation is kept and still applies to every stage; an entry's `escalation` is attached to that entry's own stages only, so data can never let someone step in on the code's stages. The shortest `ttl` wins, and `distinct` stays on unless every part turns it off.
 - A call that ends up needing approval does not consume quota.
 - A source that throws, rejects or returns an entry that does not load makes every call an allow would grant deny with reason `approval` and detail `approval-policy-unavailable`. An entry naming a permission the policy does not declare applies to nothing.
+- `where` reads the row, so it is allowed only on an instance permission. On a collection permission (`invoice.create`) an entry with `where` does not load, because a collection action has no row and the entry could never match; use `check`, which reads the call's input (the proposed row).
+- `validateApprovalPolicy(policy, entry)` checks one entry the way the source is loaded and returns `{ ok: true }` or `{ ok: false, problem }`, with `problem` one of `unknown-permission`, `invalid`, `where-on-collection` and `stale-on-without-version`. Call it where entries are saved, so a bad entry is refused there instead of denying every call.
 - Client snapshots do not carry the entries: `fromSnapshot` and `usePermission` answer from the code grants, and the server's `decide` adds the approval.
 
 `testApprovalPolicySource` in `permdock/testing` checks a source ([extension interfaces](/docs/concepts/extension-interfaces#conformance-runners)).
@@ -138,7 +166,7 @@ Over plain HTTP, step 5 is the retried request with a `PermDock-Approval: <token
 - The approver comes from `subject` in `approvalsHandler` options or from the adapter's verified session, never from the approve request body.
 - The approver is not the request's actor, and optionally not its principal.
 - Status transitions: only `pending` can become `approved` or `rejected`; `expired` is terminal; a second resolve of a resolved request, or a second approval from the same principal, is a `409`.
-- `expiresAt` is the store's `ttl` from `createdAt`, shortened to the grant's `approval.ttl` when that is shorter; a grant never keeps a request open longer than the store would.
+- `expiresAt` is the window from `createdAt`, shortened to the grant's `approval.ttl` when that is shorter; a grant never keeps a request open longer than the window. The window is the `ttl` the call passes (`resumeDecision({ ..., ttl })`, `requestApproval(store, decision, { ..., ttl })`, in milliseconds), else the store's own `ttl` (`memoryApprovalStore({ ttl })`, or a custom store's optional `ttl` field), else `DEFAULT_APPROVAL_TTL_MS` (one hour). A `ttl` that is not a positive whole number of milliseconds throws a `RangeError`, which an adapter turns into a denial.
 - Tokens on resume: a token only applies to the call it was issued for. On that call, unknown, pending, rejected, expired, consumed or mismatched tokens are `denied` with reason kind `approval`; on any other call, or when the decision needs no approval, the token is ignored. Under `approval: { staleOn: 'resource-change' }`, a token issued for an earlier `version` of the same row (same permission, resource and principal, still pending or approved) is `denied` with reason `stale-approval` and is not consumed; the call without it asks again ([approval security](/docs/security/approvals#approvals-that-go-stale)). No token is ever accepted without a fresh `decide`. Agent adapters read it from the `permdockApproval` context key. Approvals are per call; a session-scoped approval such as Eve's `once()` helper is not expressible in the store.
 - `memoryApprovalStore` is per process. The adapter logs a development warning when it is used in a serverless runtime, because a request that resumes on another instance will not find its record.
 

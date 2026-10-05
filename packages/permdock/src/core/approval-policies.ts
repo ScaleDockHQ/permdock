@@ -31,11 +31,14 @@ export type ApprovalPolicy = {
   readonly tenant?: string;
   /** Actor kinds it applies to (`['agent']`); absent: every call. A call without an actor never matches a list. */
   readonly actors?: readonly string[];
-  /** A portable condition over the row. */
+  /** A portable condition over the row; instance permissions only, since a collection action has no row. */
   readonly where?: Condition;
   /** A portable condition over the call's input (the proposed row). */
   readonly check?: Condition;
-  /** The same shape as `allow(..., { approval })`, without `escalation`. */
+  /**
+   * The same shape as `allow(..., { approval })`. An `escalation` here widens
+   * only this entry's stages, never the code's.
+   */
   readonly approval: ApprovalOption;
 };
 
@@ -91,20 +94,35 @@ function isStringList(value: unknown): value is readonly string[] {
 }
 
 /**
- * One raw entry checked against the policy: `null` when it names no
- * permission the policy declares (it applies to nothing), `undefined` when
- * it is invalid.
+ * Why an `ApprovalPolicy` entry does not load. `unknown-permission`: the
+ * policy declares no such key (the entry applies to nothing). `invalid`: a
+ * field has the wrong shape or the approval option does not normalise.
+ * `where-on-collection`: `where` reads a row, which a collection action
+ * never has, so the entry could never match; use `check` over the input.
+ * `stale-on-without-version`: `staleOn` needs an instance permission whose
+ * resource declares `version`.
  */
-function loadOne(
-  policy: Policy,
-  raw: unknown,
-): LoadedApprovalPolicy | null | undefined {
+export type ApprovalPolicyProblem =
+  | "unknown-permission"
+  | "invalid"
+  | "where-on-collection"
+  | "stale-on-without-version";
+
+export type ApprovalPolicyValidation =
+  | { readonly ok: true }
+  | { readonly ok: false; readonly problem: ApprovalPolicyProblem };
+
+type Checked =
+  | { readonly entry: LoadedApprovalPolicy }
+  | { readonly problem: ApprovalPolicyProblem };
+
+function checkOne(policy: Policy, raw: unknown): Checked {
   if (!isRecord(raw) || typeof raw["permission"] !== "string") {
-    return undefined;
+    return { problem: "invalid" };
   }
   const permission = findPermission(policy.permissions, raw["permission"]);
   if (permission === undefined) {
-    return null;
+    return { problem: "unknown-permission" };
   }
   const { tenant, actors, where, check, approval } = raw;
   if (
@@ -112,10 +130,12 @@ function loadOne(
     (actors !== undefined && !isStringList(actors)) ||
     (where !== undefined && !isPortableCondition(where)) ||
     (check !== undefined && !isPortableCondition(check)) ||
-    (isRecord(approval) && approval["escalation"] !== undefined) ||
     (approval !== "human" && !isRecord(approval))
   ) {
-    return undefined;
+    return { problem: "invalid" };
+  }
+  if (where !== undefined && permission.kind !== "instance") {
+    return { problem: "where-on-collection" };
   }
   let normalized: Grant["approval"];
   try {
@@ -128,10 +148,10 @@ function loadOne(
       );
     }
   } catch {
-    return undefined;
+    return { problem: "invalid" };
   }
   if (normalized === undefined) {
-    return undefined;
+    return { problem: "invalid" };
   }
   if (
     normalized !== "human" &&
@@ -139,16 +159,53 @@ function loadOne(
     (permission.kind !== "instance" ||
       policy.resources.get(permission.resource)?.version === undefined)
   ) {
-    return undefined;
+    return { problem: "stale-on-without-version" };
   }
-  return compact<LoadedApprovalPolicy>({
-    permission: permission.key,
-    tenant,
-    actors: actors === undefined ? undefined : new Set(actors),
-    where: where === undefined ? undefined : normalizeWhere(where),
-    check: check === undefined ? undefined : normalizeWhere(check),
-    approval: normalized,
-  });
+  return {
+    entry: compact<LoadedApprovalPolicy>({
+      permission: permission.key,
+      tenant,
+      actors: actors === undefined ? undefined : new Set(actors),
+      where: where === undefined ? undefined : normalizeWhere(where),
+      check: check === undefined ? undefined : normalizeWhere(check),
+      approval: normalized,
+    }),
+  };
+}
+
+/**
+ * Checks one entry against the policy the way `approvalPoliciesFor` loads
+ * it, for an application to refuse a bad entry when it is saved instead of
+ * finding every call denied. Never throws.
+ */
+export function validateApprovalPolicy(
+  policy: Policy,
+  entry: unknown,
+): ApprovalPolicyValidation {
+  try {
+    const checked = checkOne(policy, entry);
+    return "problem" in checked
+      ? { ok: false, problem: checked.problem }
+      : { ok: true };
+  } catch {
+    return { ok: false, problem: "invalid" };
+  }
+}
+
+/**
+ * One raw entry checked against the policy: `null` when it names no
+ * permission the policy declares (it applies to nothing), `undefined` when
+ * it does not load.
+ */
+function loadOne(
+  policy: Policy,
+  raw: unknown,
+): LoadedApprovalPolicy | null | undefined {
+  const checked = checkOne(policy, raw);
+  if ("entry" in checked) {
+    return checked.entry;
+  }
+  return checked.problem === "unknown-permission" ? null : undefined;
 }
 
 function loadAll(policy: Policy, raw: unknown): LoadedApprovalPolicies {
@@ -241,6 +298,26 @@ function asStages(
   ];
 }
 
+/** An entry's stages, each carrying the entry's escalation unless it has its own. */
+function entryStages(
+  approval: NonNullable<Grant["approval"]>,
+): readonly ApprovalStage[] {
+  const stages = asStages(approval);
+  if (approval === "human" || approval.escalation === undefined) {
+    return stages;
+  }
+  const escalation = approval.escalation;
+  return stages.map((stage) =>
+    stage.escalation === undefined
+      ? compact<ApprovalStage>({
+          by: stage.by,
+          quorum: stage.quorum,
+          escalation,
+        })
+      : stage,
+  );
+}
+
 function shorter(
   a: string | undefined,
   b: string | undefined,
@@ -301,8 +378,9 @@ export function tightenApproval(
   let distinct = false;
   let staleOn: ApprovalRequirement["staleOn"];
   let ttl: string | undefined;
-  for (const part of parts) {
-    for (const stage of asStages(part)) {
+  for (const [index, part] of parts.entries()) {
+    const fromCode = code !== undefined && index === 0;
+    for (const stage of fromCode ? asStages(part) : entryStages(part)) {
       const key = JSON.stringify(stage);
       if (!seen.has(key)) {
         seen.add(key);

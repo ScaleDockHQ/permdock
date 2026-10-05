@@ -261,6 +261,7 @@ export function createPermDock<
         delegation,
         memberships: options.memberships,
         relations: options.relations,
+        approvalPolicies: options.approvalPolicies,
         entitlements: options.entitlements,
         customRoles: options.customRoles,
         policies: options.policies,
@@ -431,7 +432,7 @@ export function createPermDock<
           store: options.store,
           resource: resourceRef(permission, data),
           adapter: "terminal",
-          token: await storedApprovalToken(options.store, first, false),
+          token: await storedApprovalToken(options.store, first),
         });
         if (resumed.outcome !== "granted") {
           write(format(resumed, { permission, subject: instance.subject }));

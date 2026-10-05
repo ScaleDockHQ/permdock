@@ -35,6 +35,12 @@
   ],
   "type": "module",
   "sideEffects": false,
+  "imports": {
+    "#next/navigation": {
+      "react-server": "next/navigation",
+      "default": "next/navigation.js"
+    }
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

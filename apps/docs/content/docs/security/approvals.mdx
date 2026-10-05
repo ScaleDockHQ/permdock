@@ -34,7 +34,7 @@ allow(permissions.payout.release, {
 ```
 
 - `quorum` (an integer, default 1) is how many distinct approvers the request needs. Each approval is recorded as `{ by, at }` on the request's `approvals`, the same principal counts once, and the request stays `pending` (so it cannot be consumed) until the quorum is met. One rejection ends it.
-- `ttl` (a duration such as `'30m'` or `'2d'`) caps how long the request stays open. The store has its own default (one hour for `memoryApprovalStore`); the grant can shorten it, never extend it.
+- `ttl` (a duration such as `'30m'` or `'2d'`) caps how long the request stays open. The window comes from the call's `ttl` (`resumeDecision`), else the store's `ttl`, else one hour; the grant can shorten it, never extend it.
 - `escalation` names, with the same selectors as `by`, who may approve in addition to `by` once `after` has passed since the request was created. It widens the approver set; it does not change the quorum or remove anyone.
 
 `definePolicy` refuses a `quorum` below 1 or a `ttl` or `after` that is not a duration.
@@ -58,7 +58,19 @@ allow(permissions.expense.pay, {
 
 - `'all'` needs every stage's quorum, in any order. `'sequential'` opens a stage only when the previous one is complete.
 - Each signature records its `stage`. One approver signs once per request, so one person never completes two stages.
-- `escalation.to` may approve any open stage once `after` has passed.
+- `escalation.to` may approve any open stage once `after` has passed. A stage may carry its own `escalation` (`stages: [{ by, quorum, escalation }]`), which widens only that stage.
+
+### Any of several approvers, and permission holders
+
+A list in `by` (or `allOf(...)`) is a conjunction: the approver must match every item. `anyOf(...)` matches an approver who matches at least one item, and a list inside it is an all-of group. `holder(permission)` names whoever holds that permission in the request's tenant through any role, custom roles included:
+
+```ts
+allow(permissions.payment.send, {
+  approval: { by: anyOf(user("cfo-id"), holder(permissions.payment.approve)) },
+});
+```
+
+`holder()` is checked when the verdict is given, from the approver's own instance: `approvalsHandler(store, { permdockFor })` (and `resolveApproval(..., { permdockFor })`) builds it with `permdockFor(approver, request)`, and `approverPermissions(request, instance)` lists the permission keys it grants without a row as `verdict.permissions`. An instance for another tenant or an anonymous one holds nothing; without `permdockFor`, or when it throws, `holder()` matches nobody. A custom store receives the same facts on `verdict.permissions` and passes them to `assertApprover(request, by, requireDistinct, now, relations, permissions)`; it never derives them.
 
 ### Relation approvers
 

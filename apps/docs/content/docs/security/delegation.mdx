@@ -44,7 +44,7 @@ const policy = definePolicy(permissions, {
   delegations: [
     {
       from: roles.member, // who hands over: the same selectors as approval.by
-      to: actor("eve"), // which actor kind; { kind, id } names one agent
+      to: actor("eve"), // which actor kind; { kind, id } names one agent, { kind, client } one named OAuth client
       permissions: [permissions.post.read, permissions.post.update],
       validUntil: "2027-06-01T00:00:00Z", // optional, as on a grant
     },
@@ -58,7 +58,7 @@ const policy = definePolicy(permissions, {
 });
 ```
 
-Each entry is normalised to `{ from, to: { kind, id? }, permissions: string[], readOnly: string[], validity? }` on `policy.delegations`, where `readOnly` is the subset of `permissions` whose `readOnlyHint` is true, in the fingerprint, and in the catalog's `delegations` section, so `permdock diff` reports a removed or narrowed one as breaking. `from` takes a role, `authenticated()`, a plan or `assurance()`; `relation()` and `actor()` are refused, because a delegation is matched without a row and the actor is `to`. `permissions` names leaves or subtrees of the policy's own tree.
+Each entry is normalised to `{ from, to: { kind, id?, client? }, permissions: string[], readOnly: string[], validity? }` on `policy.delegations`, where `readOnly` is the subset of `permissions` whose `readOnlyHint` is true, in the fingerprint, and in the catalog's `delegations` section, so `permdock diff` reports a removed or narrowed one as breaking. `from` takes a role, `authenticated()`, a plan or `assurance()`; `relation()` and `actor()` are refused, because a delegation is matched without a row and the actor is `to`. `permissions` names leaves or subtrees of the policy's own tree.
 
 How it applies, in `decide` and on the snapshot client alike:
 
@@ -72,8 +72,28 @@ How it applies, in `decide` and on the snapshot client alike:
 - **A standing delegation belongs in the policy.** "This agent kind may act for members on these permissions" is a statement about the application, the same kind as a grant, and it was being made in three places with no shared source: the AI SDK `delegation` option, the token scopes an authorization server mints, and prose. Putting it in `definePolicy` gives it a fingerprint, a catalog entry, a `diff`, and a policy-matrix vector, and lets `permdock doctor` and an audit see which actors may act for whom.
 - **It is a ceiling, not a grant.** The design that would have been easiest, treating a delegation as a grant to the actor, breaks "Agent ≤ user": an agent would hold access the user does not. So the delegation never enters the allow list; it only replaces the token in the delegation check, after the principal's grants have decided. Every attenuation invariant above holds without a special case.
 - **Token and policy intersect.** When both are present the call must satisfy both, because either one may be the narrower statement: the token knows this session's consent, the policy knows the application's standing rule. Letting one override the other would make the wider one the effective rule.
+- **A client name, not a client id.** An authorization server assigns client ids per environment and at dynamic registration, so an id in the policy would make its fingerprint and catalog differ per deployment. `to: { kind, client }` names the client; the subject resolver maps the verified client id to that name through `clients` (`ClientNames`) on `subjectFromSupabase`, `permdock/mcp` and `permdock/jwt`'s `actor` option, and sets `actor.client`. An id the mapping does not name, or names twice, leaves `client` unset, so the delegation fails closed. The name comes only from a verified id, never from the token's own claims.
 - **Actor kind, optionally id.** Agents are typically a fleet of one kind (`'eve'`, `'mcp-client'`), so the kind is the natural unit; a single trusted agent is `{ kind, id }`. Matching only on id would make a renamed agent silently lose its delegation, matching only on kind could not express a one-agent rule.
 - **The feed does not revoke a delegation.** `RevocationFeed` means "end this session" and is kept that way by `naming.mdc`; a feed that also edited the policy would be a second decision path (invariant 15). Removing the entry, or letting `validUntil` pass, is the revocation, and both are visible in the catalog and `diff`.
+
+## Coarse OAuth scopes
+
+A permission's OAuth scope is its key with `:` for `.` (`task:read`). An authorization server often issues coarser scopes instead (`mcp:read`, `mcp:write`). `definePolicy({ oauthScopes })` maps each coarse scope to the permissions it covers:
+
+```ts
+export const policy = definePolicy(permissions, {
+  roles: [...],
+  oauthScopes: {
+    "mcp:read": [permissions.task.read, permissions.task.list, permissions.project],
+    "mcp:write": [permissions.task.update],
+  },
+  subject,
+});
+```
+
+- When an instance is created, a token delegation's `scopes` keep their order and are followed by the scopes of every permission a held coarse scope covers, so `decide`, `snapshot`, `mayUse` and the client snapshot all read the same expanded list. A coarse scope only adds what it lists; the user's grants and policy delegations still decide.
+- `permdock/mcp` and `permdock/a2a` accept a coarse scope in their scope pre-check and list filter. Their `insufficient_scope` challenges, and the `WWW-Authenticate` challenge of the server kernel, name the first coarse scope (in declaration order) that covers the permission, because that is the scope the authorization server can issue; a permission no coarse scope covers is challenged with its own scope.
+- A key must be an RFC 6749 scope token that is not a permission's own scope, and must cover at least one declared permission; `definePolicy` throws otherwise. The mapping is part of the policy fingerprint.
 
 ## Coverage check
 
@@ -88,7 +108,7 @@ A PDP outside PermDock core, such as the PermDock Cloud AuthZEN endpoint, calls 
 
 | Adapter                                                 | `actor`                                                                                                                              | `delegation`                                                                                                                                                                             |
 | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `permdock/mcp`                                          | `authInfo.clientId` (an OAuth client id or a CIMD URL), `kind: 'mcp-client'`                                                         | `authInfo.scopes`; `authorization_details` when the token carries them (including ID-JAG-derived tokens under Enterprise-Managed Authorization)                                          |
+| `permdock/mcp`                                          | `authInfo.clientId` (an OAuth client id or a CIMD URL), `kind: 'mcp-client'`, or `actorKind`                                         | `authInfo.scopes`; `authorization_details` when the token carries them (including ID-JAG-derived tokens under Enterprise-Managed Authorization)                                          |
 | `permdock/ai-sdk`                                       | `actor: ({ runtimeContext }) => ({ id: runtimeContext.agentId, kind: 'ai-sdk' })`                                                    | The `delegation` option, resolved per call by the application; none by default, so an agent without it is denied                                                                         |
 | `permdock/claude-agent`                                 | The Claude Agent SDK session, `kind: 'claude-agent'`                                                                                 | The `delegation` option, resolved per session; none by default. The `tools` map separately bounds what the agent can even ask for                                                        |
 | `permdock/openai`                                       | The `actor` option, from the run context                                                                                             | The `delegation` option, from the run context; none by default                                                                                                                           |
@@ -100,6 +120,8 @@ A PDP outside PermDock core, such as the PermDock Cloud AuthZEN endpoint, calls 
 | Human-only adapters (`permdock/next`, `permdock/react`) | None                                                                                                                                 | None; principal grants apply directly                                                                                                                                                    |
 
 The AI SDK case deserves a note: the SDK gives PermDock the agent's identity but not a token, so what the agent is delegated is an application decision, stated in the `delegation` option of `createPermDock`. There is deliberately no default: an in-process agent with no `delegation` is denied every check with reason `no-delegation`, so an application that wants the agent to act as the user lists those scopes explicitly. See the [ai-sdk adapter](/docs/adapters/ai-sdk).
+
+One OAuth access token can reach an application through several adapters: an MCP tool that calls the app's own API with the caller's token is decided by `permdock/mcp` and then by `permdock/supabase` (or `permdock/jwt`). Those adapters name the client `oauth-client`, and `permdock/mcp` names it `mcp-client` unless `actorKind` says otherwise. Set `actorKind: 'oauth-client'` on the MCP adapter and on `subjectFromMcp` so the token is one actor kind everywhere and one policy delegation or `actor('oauth-client')` grant covers it; keep `'mcp-client'` when MCP clients should get rules of their own.
 
 ## RAR `authorization_details`
 

@@ -261,7 +261,7 @@ A top-level claim set to `null` counts as absent. The RBAC hook writes `user_rol
 
 Supabase's OAuth 2.1 server issues tokens with `client_id` and the OpenID Connect scopes the client asked for, such as `openid email profile`. Those scopes say which identity claims the client may read; they say nothing about what it may do in the app. `delegationOf` therefore leaves them out, and a token whose `scope` holds nothing else is an `oauth-client` actor with no delegation: every check is `denied` with `no-delegation`, as for any actor nothing delegated to.
 
-To let a client act for its users, state it in the policy. A [policy delegation](/docs/security/delegation#policy-delegations) names the actor kind, optionally the client id, the users who hand over and the permissions:
+To let a client act for its users, state it in the policy. A [policy delegation](/docs/security/delegation#policy-delegations) names the actor kind, optionally the client, the users who hand over and the permissions. Supabase assigns client ids per project (and at dynamic registration), so the policy names a stable client name and `subjectFromSupabase(claims, { clients })` maps the verified `client_id` to it:
 
 ```ts
 export const policy = definePolicy(
@@ -271,7 +271,7 @@ export const policy = definePolicy(
     delegations: [
       {
         from: authenticated(),
-        to: { kind: "oauth-client", id: CLI_CLIENT_ID }, // the client id Supabase assigned
+        to: { kind: "oauth-client", client: "cli" }, // a name, the same in every environment
         permissions: [permissions.customer.read, permissions.quote],
       },
     ],
@@ -279,6 +279,14 @@ export const policy = definePolicy(
   },
 );
 ```
+
+```ts
+const subject = subjectFromSupabase(claims, {
+  clients: { cli: env.CLI_CLIENT_ID }, // name to id; an unset id names nothing
+});
+```
+
+`clients` is a `ClientNames`: a record from name to client id (or a list of ids), or a function from a verified client id to a name, for clients registered at runtime that the app looks up before it maps the claims. The `oauth-client` actor gets `client: 'cli'` when exactly one name claims its id; an unknown id, an unset entry, an id two names claim, or a function that throws or returns no name leaves `client` unset, and the delegation does not apply. `to: { kind, id }` still matches one literal id; a target cannot name both.
 
 The user's own grants still decide inside that ceiling. A token that names permission scopes as well (`openid quote:read`) narrows the ceiling further, because token and policy delegations intersect. A client the policy does not name keeps reaching nothing.
 

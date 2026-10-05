@@ -1,9 +1,9 @@
 {
   "$schema": "https://permdock.com/schemas/catalog-v1.json",
   "version": 1,
-  "generatedAt": "2026-10-05T11:49:16.139Z",
+  "generatedAt": "2026-10-05T17:02:37.954Z",
   "generator": "permdock@0.1.0",
-  "fingerprint": "pZeqg-KJ8Zvy9aYnYeOeWHCo--D0Kxix1if1U_2ShRs",
+  "fingerprint": "rq6xVNcSm8Wu0GTMxFGxfW0dk8a3yWJn97SVoemr7iY",
   "resources": {
     "staff": {
       "id": "id",
@@ -42,7 +42,7 @@
         ],
         "additionalProperties": false
       },
-      "definedIn": "src/policy.ts",
+      "definedIn": "src/permissions.ts",
       "relations": {
         "organization": {
           "field": "organization_id",
@@ -95,7 +95,7 @@
         ],
         "additionalProperties": false
       },
-      "definedIn": "src/policy.ts",
+      "definedIn": "src/permissions.ts",
       "relations": {
         "organization": {
           "field": "organization_id",
@@ -134,12 +134,12 @@
         },
         {
           "file": "src/policy.ts",
-          "line": 78,
+          "line": 26,
           "call": "reference"
         },
         {
           "file": "src/policy.ts",
-          "line": 91,
+          "line": 39,
           "call": "reference"
         }
       ],
@@ -155,12 +155,12 @@
       "usages": [
         {
           "file": "src/policy.ts",
-          "line": 77,
+          "line": 25,
           "call": "reference"
         },
         {
           "file": "src/policy.ts",
-          "line": 91,
+          "line": 39,
           "call": "reference"
         }
       ],
@@ -176,7 +176,7 @@
       "usages": [
         {
           "file": "src/policy.ts",
-          "line": 79,
+          "line": 27,
           "call": "reference"
         }
       ],
@@ -202,12 +202,12 @@
         },
         {
           "file": "src/policy.ts",
-          "line": 76,
+          "line": 24,
           "call": "reference"
         },
         {
           "file": "src/policy.ts",
-          "line": 86,
+          "line": 34,
           "call": "reference"
         }
       ],
@@ -223,12 +223,12 @@
       "usages": [
         {
           "file": "src/policy.ts",
-          "line": 75,
+          "line": 23,
           "call": "reference"
         },
         {
           "file": "src/policy.ts",
-          "line": 86,
+          "line": 34,
           "call": "reference"
         }
       ],

@@ -188,7 +188,12 @@ export function rowInScope(
   return { ok: true };
 }
 
-function nestedAppliesWithoutRow(
+/**
+ * Whether a membership answers an instance check for `row`: any membership
+ * with a row object, otherwise only the first scope or the instance of the
+ * second scope that `team(id)` selected.
+ */
+export function nestedAppliesWithoutRow(
   membership: Membership,
   scopes: readonly Scope[],
   row: unknown,

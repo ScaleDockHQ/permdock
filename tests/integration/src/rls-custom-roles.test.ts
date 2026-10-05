@@ -8,7 +8,7 @@ import { customRoleClaim } from "permdock";
 import { run } from "permdock/cli";
 import { authorizeSql } from "permdock/supabase";
 import { rlsParity } from "permdock/testing";
-import { Client } from "pg";
+import { Client, DatabaseError } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
@@ -27,6 +27,7 @@ const REVIEWER = "00000000-0000-4000-8000-0000000000d4";
 const GLOBEX = "00000000-0000-4000-8000-0000000000e5";
 const SHADOW = "00000000-0000-4000-8000-0000000000f6";
 const OTHER = "00000000-0000-4000-8000-000000000099";
+const ADMIN = "00000000-0000-4000-8000-0000000000a7";
 
 const CUSTOM_ROLES: readonly CustomRole[] = [
   // Adds one permission and denies one.
@@ -660,4 +661,182 @@ describe("custom roles in generated RLS (database and jwt modes)", () => {
       await client.end();
     }
   });
+
+  it.each(SHAPES.filter((shape) => shape.name !== "custom_jwt"))(
+    "$name: the generated functions save, rename and delete a custom role within what the caller may hand out",
+    async (shape) => {
+      if (db === undefined) {
+        throw new Error("PermDock: Postgres was not started");
+      }
+      const client = new Client({
+        connectionString: databaseUri(db.uri, shape.name),
+      });
+      await client.connect();
+      let step = 0;
+      const call = async (
+        sub: string,
+        sql: string,
+        values: readonly unknown[],
+      ): Promise<string> => {
+        step += 1;
+        const savepoint = `s${String(step)}`;
+        await client.query(`savepoint ${savepoint}`);
+        await client.query("set local role authenticated");
+        await client.query(
+          `select set_config('request.jwt.claims', $1, true)`,
+          [JSON.stringify({ sub, role: "authenticated" })],
+        );
+        try {
+          await client.query(sql, [...values]);
+          await client.query("reset role");
+          await client.query(`release savepoint ${savepoint}`);
+          return "ok";
+        } catch (error) {
+          await client.query(`rollback to savepoint ${savepoint}`);
+          await client.query("reset role");
+          return error instanceof DatabaseError
+            ? `${error.code ?? ""} ${error.hint ?? ""}`
+            : String(error);
+        }
+      };
+      const save = (
+        sub: string,
+        role: string,
+        entries: {
+          readonly allow?: readonly string[];
+          readonly deny?: readonly string[];
+          readonly include?: readonly string[];
+          readonly scope?: string;
+          readonly id?: string | null;
+        },
+      ): Promise<string> =>
+        call(
+          sub,
+          "select permdock.permdock_replace_custom_role_grants($1, $2, $3, $4, $5, $6, $7)",
+          [
+            "acme",
+            entries.scope ?? "tenant",
+            entries.id ?? null,
+            role,
+            entries.allow ?? [],
+            entries.deny ?? [],
+            entries.include ?? [],
+          ],
+        );
+      const stored = async (role: string): Promise<readonly string[]> => {
+        const result = await client.query<{ entry: string }>(
+          `select effect || ':' || permission as entry from permdock.custom_role_permissions where role = $1
+           union all
+           select 'include:' || include_role from permdock.custom_role_includes where role = $1
+           order by 1`,
+          [role],
+        );
+        return result.rows.map((row) => row.entry);
+      };
+      try {
+        await client.query("begin");
+        await client.query(
+          `insert into auth.users (id) values ('${ADMIN}');
+           insert into public.organization_members values ('acme', '${ADMIN}', 'admin');
+           insert into permdock.custom_role_permissions (tenant_id, scope, scope_id, role, permission)
+             values ('acme', 'team', 't1', 'reviewer', 'board.read');`,
+        );
+
+        expect(
+          await save(ADMIN, "triage", {
+            allow: ["task.update", "task.update"],
+            deny: ["project.read"],
+            include: ["viewer"],
+          }),
+        ).toBe("ok");
+        expect(await stored("triage")).toEqual([
+          "allow:task.update",
+          "deny:project.read",
+          "include:viewer",
+        ]);
+        expect(await save(ADMIN, "wide", { allow: ["project.delete"] })).toBe(
+          "22023 outside-ceiling",
+        );
+        expect(await save(ADMIN, "wide", { include: ["owner"] })).toBe(
+          "22023 outside-ceiling",
+        );
+        expect(await save(ADMIN, "wide", { allow: ["nope.read"] })).toBe(
+          "22023 unknown-permission",
+        );
+        expect(await save(ADMIN, "wide", { deny: ["nope.read"] })).toBe(
+          "22023 unknown-permission",
+        );
+        expect(await save(ADMIN, "wide", { include: ["ghost"] })).toBe(
+          "22023 unknown-role",
+        );
+        expect(await save(ADMIN, "viewer", { allow: ["task.read"] })).toBe(
+          "22023 declared-role",
+        );
+        expect(
+          await save(ADMIN, "wide", { allow: ["task.read"], scope: "global" }),
+        ).toBe("22023 unknown-scope");
+
+        expect(await save(SHADOW, "reader", { allow: ["task.read"] })).toBe(
+          "ok",
+        );
+        expect(await save(SHADOW, "editor", { allow: ["task.update"] })).toBe(
+          "42501 not-assignable-by",
+        );
+        expect(await save(SHADOW, "editor", { include: ["admin"] })).toBe(
+          "42501 not-assignable-by",
+        );
+        expect(await save(SHADOW, "triage", { allow: ["task.read"] })).toBe(
+          "42501 not-assignable-by",
+        );
+        expect(await stored("triage")).toHaveLength(3);
+        expect(await save(GLOBEX, "outsider", { allow: ["task.read"] })).toBe(
+          "42501 not-member",
+        );
+
+        const onTeam = { scope: "team", allow: ["board.read"] };
+        expect(await save(REVIEWER, "peer", { ...onTeam, id: "t1" })).toBe(
+          "ok",
+        );
+        expect(await save(REVIEWER, "peer", { ...onTeam, id: "t2" })).toBe(
+          "42501 not-member",
+        );
+        expect(await save(ADMIN, "peer-2", { ...onTeam, id: "t1" })).toBe(
+          "42501 not-assignable-by",
+        );
+
+        const rename = (sub: string, from: string, to: string) =>
+          call(
+            sub,
+            "select permdock.permdock_rename_custom_role_grants($1, 'tenant', null, $2, $3)",
+            ["acme", from, to],
+          );
+        const remove = (sub: string, role: string) =>
+          call(
+            sub,
+            "select permdock.permdock_delete_custom_role_grants($1, 'tenant', null, $2)",
+            ["acme", role],
+          );
+        expect(await rename(ADMIN, "triage", "viewer")).toBe(
+          "22023 declared-role",
+        );
+        expect(await rename(ADMIN, "triage", "reader")).toBe(
+          "22023 role-exists",
+        );
+        expect(await rename(SHADOW, "triage", "mine")).toBe(
+          "42501 not-assignable-by",
+        );
+        expect(await rename(ADMIN, "triage", "triage-2")).toBe("ok");
+        expect(await stored("triage")).toEqual([]);
+        expect(await stored("triage-2")).toHaveLength(3);
+        expect(await remove(SHADOW, "triage-2")).toBe(
+          "42501 not-assignable-by",
+        );
+        expect(await remove(ADMIN, "triage-2")).toBe("ok");
+        expect(await stored("triage-2")).toEqual([]);
+      } finally {
+        await client.query("rollback");
+        await client.end();
+      }
+    },
+  );
 });

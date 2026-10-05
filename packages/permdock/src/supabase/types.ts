@@ -1,5 +1,6 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 
+import type { ClientNames } from "../core/clients.ts";
 import type { AuthEvent } from "../core/interfaces.ts";
 import type { Principal } from "../core/subject.ts";
 import type { SupabaseActClaim } from "./claims.ts";
@@ -131,6 +132,8 @@ export type SupabaseSubjectOptions = {
   readonly declared?: readonly string[];
   /** Claim holding plan names per tenant id; the active tenant's entry becomes `principal.plans`. */
   readonly plans?: string;
+  /** Names for OAuth client ids: an `oauth-client` actor gets `client` set to the name of its id, which a policy delegation matches with `to: { kind: 'oauth-client', client }`. */
+  readonly clients?: ClientNames;
   /** `'deny'` maps a token with `is_anonymous: true` (`signInAnonymously()`) to the anonymous subject, as `rls.anonymousSignIns: 'deny'` does in RLS. */
   readonly anonymousSignIns?: "deny";
   /** Audit hook: `membership-dropped` for a `memberships` entry that could not be read, `invalid-chain` for a malformed `act`. */

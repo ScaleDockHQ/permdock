@@ -92,11 +92,15 @@ export default defineConfig({
 });
 ```
 
+`doctor` also reports a client entry that imports the module `policy` names in `permdock.config.ts`. It resolves each value import, re-export and literal dynamic `import()` of the client entry from that file, as the bundler would: relative paths with or without an extension, the `paths` of the nearest `tsconfig.json`, and package names through `node_modules` and the package's `exports`. A monorepo that exposes the policy as `@acme/access/permdock/policy` from a workspace package is therefore caught in the app that imports it. A type-only import is not reported, because the bundler erases it.
+
 This is the permix issue #49 class of bug (server code leaking into client bundles), caught before the bundler does something surprising. The bundle check in `tests/bundle` covers what a transitive import would reach.
 
 ### PD002: unknown permission references
 
 Member accesses rooted at a definition export that do not resolve to a leaf (`permissions.post.archive` when `archive` is not an action), and `findPermission(permissions, 'literal')` calls with a literal that no key matches. These are type errors in TypeScript projects; `doctor` catches them in JavaScript files, MDX and generated code too.
+
+A member access counts only when its root identifier is bound to a permission tree where it is read: an import of `permissions` or of any `definePermissions` export, a default import named `permissions`, or a `definePermissions(...)` declaration. A parameter, local variable, catch binding or module variable with the same name shadows it, so `function grant(permissions: string[]) { return permissions.length }` is not a reference. An identifier no scope declares still matches by name, as in generated code. The same rule decides the references `collect` and `usage` record.
 
 ### PD003: used but ungranted
 

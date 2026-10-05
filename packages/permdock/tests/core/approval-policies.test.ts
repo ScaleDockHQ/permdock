@@ -7,9 +7,14 @@ import type {
 import type { Decision } from "../../src/core/decision.ts";
 import type { Subject } from "../../src/core/subject.ts";
 
-import { memoryApprovalPolicies } from "../../src/core/approval-policies.ts";
+import {
+  memoryApprovalPolicies,
+  validateApprovalPolicy,
+} from "../../src/core/approval-policies.ts";
 import { describe as describeDecision } from "../../src/core/describe.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
+import { definePermissions, resource } from "../../src/core/permissions.ts";
+import { allow, definePolicy, role } from "../../src/core/policy.ts";
 import { testApprovalPolicySource } from "../../src/testing/conformance.ts";
 import { permissions, policy, rows } from "../fixtures/expenses.ts";
 
@@ -140,7 +145,7 @@ describe("ApprovalPolicySource", () => {
     const escalating = memoryApprovalPolicies([
       {
         permission: "expense.read",
-        approval: { by: "finance", escalation: { after: "1h", to: "x" } },
+        approval: { by: "finance", escalation: { after: "soon", to: "x" } },
       },
     ]);
     const junk: ApprovalPolicySource = {
@@ -291,5 +296,118 @@ describe("ApprovalPolicySource", () => {
     expect(permdock.decide(permissions.expense.read, large)).toMatchObject({
       outcome: "denied",
     });
+  });
+
+  describe("an entry on a collection permission", () => {
+    const ledger = definePermissions({
+      invoice: resource({
+        id: "id",
+        actions: ["read", "void"],
+        collection: ["create", "export"],
+        version: "revision",
+        relations: { org: { field: "orgId", memberOf: "tenant" } },
+      }),
+    });
+    const ledgerPolicy = definePolicy(ledger, {
+      scopes: { tenant: { key: "orgId" } },
+      roles: [
+        role(
+          "clerk",
+          [
+            allow(ledger.invoice.create),
+            allow(ledger.invoice.export),
+            allow(ledger.invoice.read),
+          ],
+          { on: "tenant" },
+        ),
+      ],
+      subject: (user: { readonly id: string } | null) =>
+        user === null ? null : { id: user.id },
+    });
+    const clerk: Subject = {
+      principal: {
+        id: "cara",
+        tenant: "o1",
+        memberships: [{ scope: "tenant", id: "o1", roles: ["clerk"] }],
+      },
+      context: {},
+    };
+    const big = { orgId: "o1", amount: 5000 };
+    const decideCreate = async (entry: ApprovalPolicy): Promise<Decision> =>
+      (
+        await createPermDock(ledgerPolicy, clerk, {
+          approvalPolicies: memoryApprovalPolicies([entry]),
+        })
+      ).decide(ledger.invoice.create, big);
+
+    it("refuses where, which reads a row a collection action never has", async () => {
+      const entry: ApprovalPolicy = {
+        permission: "invoice.create",
+        where: { op: "gt", field: "amount", value: 1000 },
+        approval: "human",
+      };
+      expect(validateApprovalPolicy(ledgerPolicy, entry)).toEqual({
+        ok: false,
+        problem: "where-on-collection",
+      });
+      expect(await decideCreate(entry)).toMatchObject({
+        outcome: "denied",
+        denials: [
+          { reason: "approval", detail: "approval-policy-unavailable" },
+        ],
+      });
+    });
+
+    it("matches check against the proposed row instead", async () => {
+      const entry: ApprovalPolicy = {
+        permission: "invoice.create",
+        check: { op: "gt", field: "amount", value: 1000 },
+        approval: "human",
+      };
+      expect(validateApprovalPolicy(ledgerPolicy, entry)).toEqual({ ok: true });
+      expect((await decideCreate(entry)).outcome).toBe("approval-required");
+    });
+
+    it("keeps where on an instance permission of the same resource", () => {
+      expect(
+        validateApprovalPolicy(ledgerPolicy, {
+          permission: "invoice.read",
+          where: { op: "gt", field: "amount", value: 1000 },
+          approval: "human",
+        }),
+      ).toEqual({ ok: true });
+    });
+  });
+
+  it("validateApprovalPolicy names why an entry does not load and never throws", () => {
+    const cases: readonly [unknown, unknown][] = [
+      [overLimit, { ok: true }],
+      [
+        { permission: "expense.gone", approval: "human" },
+        { ok: false, problem: "unknown-permission" },
+      ],
+      [null, { ok: false, problem: "invalid" }],
+      [
+        { permission: "expense.read", approval: 42 },
+        { ok: false, problem: "invalid" },
+      ],
+      [
+        {
+          permission: "expense.read",
+          approval: { by: "finance", escalation: { after: "soon", to: "x" } },
+        },
+        { ok: false, problem: "invalid" },
+      ],
+      [
+        {
+          permission: "expense.read",
+          approval: { by: "finance", staleOn: "resource-change" },
+        },
+        { ok: false, problem: "stale-on-without-version" },
+      ],
+    ];
+    for (const [entry, expected] of cases) {
+      expect(validateApprovalPolicy(policy, entry)).toEqual(expected);
+    }
   });
 });

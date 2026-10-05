@@ -295,8 +295,14 @@ export function problemFromDecision(
     readonly disclosure?: "hide" | "reveal";
     /** Whether the request carried credentials, which picks the `401` challenge. */
     readonly credentials?: boolean;
+    /** The scope an `insufficient_scope` challenge names; the permission's own scope when absent. */
+    readonly scope?: string;
   } = {},
 ): Response {
+  const challenged =
+    options.scope === undefined
+      ? permission
+      : { ...permission, scope: options.scope };
   const base = PROBLEM_BASE;
   if (decision.outcome === "granted") {
     return new Response(null, { status: 204 });
@@ -326,7 +332,7 @@ export function problemFromDecision(
         type: `${base}/approval-required`,
         approval,
       }),
-      permission,
+      challenged,
       decision,
     );
   }
@@ -346,7 +352,7 @@ export function problemFromDecision(
     if (validation instanceof PermDockValidationError) {
       return problemResponse(
         validation.toProblemDetails(),
-        permission,
+        challenged,
         decision,
       );
     }
@@ -377,7 +383,7 @@ export function problemFromDecision(
         instance: options.instance,
         permission: permission.key,
       }),
-      permission,
+      challenged,
       decision,
       undefined,
       options.credentials,
@@ -391,7 +397,7 @@ export function problemFromDecision(
         type: `${base}/step-up-required`,
         ...stepUpOf(decision),
       }),
-      permission,
+      challenged,
       decision,
     );
   }
@@ -404,7 +410,7 @@ export function problemFromDecision(
         title: "Plan upgrade required",
         plans,
       },
-      permission,
+      challenged,
       decision,
     );
   }
@@ -416,7 +422,7 @@ export function problemFromDecision(
         type: `${base}/rate-limited`,
         title: "Rate limit exceeded",
       },
-      permission,
+      challenged,
       decision,
       rateLimitHeaders(decision),
     );
@@ -434,13 +440,13 @@ export function problemFromDecision(
         type: `${base}/limit-unavailable`,
         title: "Rate limit unavailable",
       },
-      permission,
+      challenged,
       decision,
     );
   }
   return problemResponse(
     { ...details, type: `${base}/denied` },
-    permission,
+    challenged,
     decision,
   );
 }
