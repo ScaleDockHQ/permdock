@@ -19,6 +19,8 @@ export const policy = definePolicy(permissions, {
       on: "tenant",
       assignable: false,
     }),
+    role("support", [allow(job.read)], { assignable: true }),
+    role("operator", [allow(member.assignRole)], { assignable: false }),
   ],
   scopes: { tenant: { key: "orgId" } },
   subject: () => null,

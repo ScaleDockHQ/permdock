@@ -130,12 +130,68 @@ describe("helpersSql custom-role writes", () => {
     expect(guard).toContain(
       `p_tenant::text in (select x::text from "permdock".member_org_ids() x)`,
     );
-    expect(guard).toContain(
+    expect(fnBody(sql, "permdock_custom_role_shape")).toContain(
       "p_scope = any(array['org', 'team', 'region']::text[])",
     );
-    expect(fnBody(sql, "permdock_replace_custom_role_grants")).toContain(
+    expect(fnBody(sql, "permdock_custom_role_entries")).toContain(
       "v_key = any(array['member.assign', 'post.read']::text[])",
     );
+  });
+
+  it("lets a global manageRoles holder write any tenant's roles and the platform's", () => {
+    const sql = helpers({
+      authorize: "database",
+      sources: [fromTable({ table: "memberships" })],
+      customRoles: {
+        declared: ["admin"],
+        assignable: ["admin"],
+        permissions: ["member.assign", "post.read"],
+        manage: ["member.assign"],
+      },
+    });
+    const guard = fnBody(sql, "permdock_custom_role_guard");
+    expect(guard).toContain(
+      `and rp.permission = any(array['member.assign']::text[])
+      and "permdock".permdock_has(rp.grant_key)`,
+    );
+    expect(guard).toContain("or (p_scope <> 'global' and (p_tenant::text in");
+    expect(fnBody(sql, "permdock_custom_role_shape")).toContain(
+      "if p_tenant is not null or p_scope_id is not null then",
+    );
+    const without = helpers({
+      authorize: "database",
+      sources: [fromTable({ table: "memberships" })],
+      customRoles: { declared: ["admin"], assignable: ["admin"] },
+    });
+    expect(fnBody(without, "permdock_custom_role_guard")).toContain(
+      "\n    false\n    or (p_scope <> 'global'",
+    );
+  });
+
+  it("emits trusted variants that keep the definition checks and no caller check", () => {
+    const sql = helpers({
+      authorize: "database",
+      sources: [fromTable({ table: "memberships" })],
+      customRoles: { declared: ["admin"], assignable: ["admin"] },
+    });
+    for (const verb of ["replace", "rename", "delete"]) {
+      const name = `permdock_trusted_${verb}_custom_role_grants`;
+      const body = fnBody(sql, name);
+      expect(body).toContain('perform "permdock".permdock_custom_role_shape(');
+      expect(body).not.toContain("permdock_custom_role_guard");
+      expect(sql).toMatch(
+        new RegExp(
+          `revoke execute on function "permdock"\\.${name}\\([^)]*\\) from public, anon, authenticated;`,
+          "u",
+        ),
+      );
+      expect(sql).not.toMatch(
+        new RegExp(`grant execute on function "permdock"\\.${name}\\(`, "u"),
+      );
+    }
+    expect(
+      fnBody(sql, "permdock_trusted_replace_custom_role_grants"),
+    ).toContain('perform "permdock".permdock_custom_role_entries(');
   });
 
   it("is left out in jwt mode and without scopes", () => {
