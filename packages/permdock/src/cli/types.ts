@@ -145,6 +145,14 @@ export type RlsConfig = {
      * Unset, any member may write a role within what they may hand out.
      */
     readonly requires?: "manageRoles" | readonly string[];
+    /**
+     * The application's own roles table, one row per custom role. A trigger
+     * on it moves a role's grants and includes when the row's name, tenant,
+     * scope or instance changes, and deletes them with the row. A signed-in
+     * caller goes through the same checks as the write functions; a trusted
+     * path (a migration, a job, a nested trigger) moves the rows directly.
+     */
+    readonly roles?: RlsCustomRoleTable;
   };
   /**
    * Let link capabilities reach resource-scoped grants: `anon` policies that call
@@ -203,6 +211,21 @@ export type RlsConfig = {
    * them in `public`. Off by default; `--shims` turns it on.
    */
   readonly shims?: boolean | RlsShimsConfig;
+};
+
+/** `rls.customRoleWrites.roles`: the application's table of custom roles. */
+export type RlsCustomRoleTable = {
+  readonly table: string;
+  /** The column holding the role name. */
+  readonly key: string;
+  /** The tenant column; a row with no tenant is a platform custom role (`scope: 'global'`). Without it every row is a platform role. */
+  readonly tenant?: string;
+  /** A text column holding the scope name; without it a row with a tenant lives at the first scope. */
+  readonly scope?: string;
+  /** A column pinning the role to one instance of its scope. */
+  readonly id?: string;
+  /** A boolean column marking rows that are not custom roles (declared or system roles); those rows are skipped. */
+  readonly skip?: string;
 };
 
 /** `rls.shims`: where the legacy-named wrappers go. */

@@ -153,13 +153,13 @@ By default (`rls.tenants: 'active'`) the helpers narrow to the tenant claim (`rl
 
 An application whose tenant comes from the URL or the query, where one session works in several tenants, sets `rls.tenants: 'all'`. The helpers then ignore the claim and admit every tenant the subject holds the permission in, the root `memberOf` compiles to `"orgId" in (select <schema>.member_<first scope>_ids())`, and the nested `exists` drops the tenant comparison. Each query still filters to the tenant the request names; the database guarantees membership, not the request's tenant.
 
-`rls.anonExecute: true` grants `anon` usage on the helper schema and `execute` on the helpers, for hand-written policies that apply to `public` or `anon` and call them. Prefer `to authenticated` on those policies: a statement `anon` runs that reaches a helper it may not execute fails, and as an InitPlan it has crashed the backend on some Postgres builds. The helpers find no subject for `anon` and return nothing.
-
 ```ts title="permdock.config.ts"
 export default defineConfig({
   rls: { authorize: "database", tenants: "all" },
 });
 ```
+
+`rls.anonExecute: true` grants `anon` usage on the helper schema and `execute` on the helpers, for hand-written policies that apply to `public` or `anon` and call them. Prefer `to authenticated` on those policies: a statement `anon` runs that reaches a helper it may not execute fails, and as an InitPlan it has crashed the backend on some Postgres builds. The helpers find no subject for `anon` and return nothing.
 
 A scope's membership table names the column of its own id and of each ancestor it carries:
 
@@ -323,6 +323,23 @@ export default defineConfig({
 `generate` exits `2` when `requires` names an undeclared key, no key, or `'manageRoles'` while no permission declares `meta.manageRoles`.
 
 A failed check raises `22023` (invalid definition) or `42501` (caller), with the reason above as the error `hint`. `permdock_rename_custom_role_grants` and `permdock_delete_custom_role_grants` run the same membership and stored-definition checks; a rename refuses a declared name and a name that already has rows (`role-exists`). Call them in the transaction that renames or deletes the role in the application's own roles table, and in the one that updates memberships naming it. A role held only through `meta.manageRoles` on the role, not on a permission, does not lift the check in SQL. `jwt` mode has no tables, so these functions are not emitted.
+
+When the application keeps one row per custom role in a table of its own, `rls.customRoleWrites.roles` names it and `generate` adds `permdock_cascade_custom_role()` and an `after update or delete` trigger on it, so the grants follow the row instead of every write path calling the rename and delete functions:
+
+```ts title="permdock.config.ts"
+customRoleWrites: {
+  roles: {
+    table: "roles", // one row per role
+    key: "key", // the role name
+    tenant: "organization_id", // null: a platform custom role (scope global)
+    scope: "scope", // optional text column naming the scope; default the first scope
+    id: "scope_id", // optional: the instance the role is pinned to
+    skip: "builtin", // optional boolean column: rows that are declared or system roles
+  },
+},
+```
+
+A rename, or a move to another tenant, scope or instance, carries the role's grants and includes along, refusing a target that already has rows (`role-exists`); a delete removes them; rows the `skip` column marks are ignored. A signed-in caller at trigger depth 1 passes the write functions' checks: membership and authority over the stored definition where the role was, and after a move, membership and authority where it lands and entries inside that scope's ceiling. A migration, a job or a nested trigger moves the rows as the function owner. The roles table's own RLS still decides who may update or delete its rows.
 
 ```sql
 select permdock.permdock_replace_custom_role_grants(
