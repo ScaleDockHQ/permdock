@@ -1,7 +1,9 @@
 import { existsSync } from "node:fs";
-import { resolve } from "node:path";
+import { relative, resolve } from "node:path";
 
 import type { PermDockConfig } from "./types.ts";
+
+import { type ParsedConfig, parseConfig } from "./config-schema.ts";
 
 const CONFIG_FILES = [
   "permdock.config.ts",
@@ -18,18 +20,23 @@ export function isConfigFile(name: string): boolean {
   return CONFIG_FILES.some((file) => file === name);
 }
 
-export async function loadConfig(
+export type LoadedConfig = ParsedConfig & {
+  /** The config file read, or `undefined` when there is none. */
+  readonly file: string | undefined;
+};
+
+export async function readConfig(
   cwd: string,
   fromFlag?: string,
   options?: { readonly fresh?: boolean },
-): Promise<PermDockConfig> {
+): Promise<LoadedConfig> {
   const path = fromFlag
     ? resolve(cwd, fromFlag)
     : CONFIG_FILES.map((name) => resolve(cwd, name)).find((file) =>
         existsSync(file),
       );
   if (path === undefined) {
-    return {};
+    return { config: {}, warnings: [], file: undefined };
   }
   if (!existsSync(path)) {
     throw new Error(`PermDock CLI: config file not found: ${path}`);
@@ -37,12 +44,21 @@ export async function loadConfig(
   // Lazy: jiti and the core load only when there is a config file to read.
   const { loadModule, pickNamed } = await import("./load.ts");
   const mod = await loadModule(path, options);
-  const value = pickNamed(mod, ["default"]);
-  if (value === null || typeof value !== "object") {
-    return {};
-  }
-  // SAFETY: the project's own permdock config default export, checked to be an object above.
-  return value as PermDockConfig;
+  return {
+    ...parseConfig(
+      pickNamed(mod, ["default"]),
+      relative(cwd, path).replaceAll("\\", "/"),
+    ),
+    file: path,
+  };
+}
+
+export async function loadConfig(
+  cwd: string,
+  fromFlag?: string,
+  options?: { readonly fresh?: boolean },
+): Promise<PermDockConfig> {
+  return (await readConfig(cwd, fromFlag, options)).config;
 }
 
 export function resolveCwd(cwd: string | undefined, fallback: string): string {

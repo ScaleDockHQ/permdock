@@ -1,8 +1,7 @@
-import { readFileSync } from "node:fs";
-
 import type { DoctorFinding } from "./doctor-types.ts";
 import type { CliIo, PermDockConfig } from "./types.ts";
 
+import { scopeList } from "../core/scopes.ts";
 import { supabaseTenantClaim } from "../supabase/budget.ts";
 import { runCollect } from "./collect.ts";
 import {
@@ -68,16 +67,12 @@ import {
   pd053,
   pd056,
 } from "./doctor-sql.ts";
-import { doctorSrcPath, listSourceFiles, rel } from "./files.ts";
+import { listSourceFiles, rel } from "./files.ts";
+import { type Project, loadProject } from "./project.ts";
 import { runSkillsInstall } from "./skills.ts";
 import { createStyle } from "./style.ts";
 import { pd045 } from "./supabase-config.ts";
-import {
-  attrsPlan,
-  hookOut,
-  loadScopes,
-  supabaseHookManifest,
-} from "./supabase-hook.ts";
+import { attrsPlan, hookOut, supabaseHookManifest } from "./supabase-hook.ts";
 import { pd039 } from "./supabase-setup.ts";
 import { DOCTOR_REPORT_SCHEMA } from "./version.ts";
 
@@ -101,6 +96,192 @@ export type DoctorReport = {
   readonly errors: number;
   readonly warnings: number;
 };
+
+/**
+ * One doctor check: its code, the `--only` groups that select it, and an
+ * optional precondition on the config. `runDoctor` runs the table in order.
+ */
+export type DoctorCheck = {
+  readonly code: `PD${string}`;
+  readonly groups: readonly string[];
+  readonly when?: (config: PermDockConfig) => boolean;
+  readonly run: (
+    project: Project,
+  ) => readonly DoctorFinding[] | Promise<readonly DoctorFinding[]>;
+};
+
+export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
+  {
+    code: "PD001",
+    groups: ["imports"],
+    run: (project) =>
+      pd001(
+        project.sources(),
+        new Set(
+          listSourceFiles(
+            project.cwd,
+            project.config.doctor?.clientEntries ?? [],
+          ).map((file) => rel(project.cwd, file)),
+        ),
+        project.config.policy === undefined
+          ? undefined
+          : { cwd: project.cwd, path: project.config.policy },
+      ),
+  },
+  { code: "PD059", groups: ["project"], run: pd059 },
+  { code: "PD060", groups: ["project"], run: pd060 },
+  { code: "PD002", groups: ["references"], run: pd002 },
+  { code: "PD003", groups: ["ungranted"], run: pd003 },
+  { code: "PD004", groups: ["catalog"], run: pd004 },
+  { code: "PD005", groups: ["skills"], run: (project) => pd005(project.cwd) },
+  {
+    code: "PD006",
+    groups: ["typescript"],
+    run: (project) => pd006(project.cwd),
+  },
+  {
+    code: "PD007",
+    groups: ["validation"],
+    run: (project) => pd007(project.sources()),
+  },
+  {
+    code: "PD008",
+    groups: ["naming"],
+    run: (project) => pd008(project.sources()),
+  },
+  {
+    code: "PD009",
+    groups: ["duplicates"],
+    run: (project) => pd009(project.cwd),
+  },
+  {
+    code: "PD010",
+    groups: ["claims"],
+    run: (project) => pd010(project.sources()),
+  },
+  {
+    code: "PD011",
+    groups: ["tenant"],
+    run: (project) => pd011(project.sources()),
+  },
+  {
+    code: "PD012",
+    groups: ["drafts"],
+    run: (project) => pd012(project.cwd, project.config),
+  },
+  {
+    code: "PD013",
+    groups: ["algorithms"],
+    run: (project) => pd013(project.sources()),
+  },
+  {
+    code: "PD014",
+    groups: ["discovery"],
+    run: (project) => pd014(project.sources()),
+  },
+  {
+    code: "PD015",
+    groups: ["typ"],
+    run: (project) => pd015(project.sources()),
+  },
+  { code: "PD016", groups: ["rls"], run: pd016 },
+  { code: "PD017", groups: ["sensitive"], run: pd017 },
+  { code: "PD018", groups: ["separation"], run: pd018 },
+  { code: "PD019", groups: ["jwt-roles"], run: pd019 },
+  { code: "PD020", groups: ["hosted"], run: pd020 },
+  {
+    code: "PD021",
+    groups: ["hosted"],
+    run: (project) => pd021({ ...project, env: project.io.env ?? process.env }),
+  },
+  {
+    code: "PD022",
+    groups: ["views"],
+    run: (project) => pd022(project.cwd, project.config),
+  },
+  { code: "PD023", groups: ["custom-roles"], run: pd023 },
+  { code: "PD024", groups: ["self-approval"], run: pd024 },
+  { code: "PD025", groups: ["scopes"], run: pd025 },
+  { code: "PD026", groups: ["ownership"], run: pd026 },
+  { code: "PD027", groups: ["rls", "context-refs"], run: pd027 },
+  {
+    code: "PD028",
+    groups: ["attrs", "supabase"],
+    run: (project) => pd028(project.cwd, project.config, attrsPlan),
+  },
+  { code: "PD029", groups: ["credentials"], run: pd029 },
+  { code: "PD030", groups: ["fields"], run: pd030 },
+  { code: "PD031", groups: ["graph"], run: pd031 },
+  { code: "PD032", groups: ["graph", "rls"], run: pd032 },
+  { code: "PD033", groups: ["activation"], run: pd033 },
+  { code: "PD034", groups: ["break-glass"], run: pd034 },
+  { code: "PD035", groups: ["support"], run: pd035 },
+  {
+    code: "PD036",
+    groups: ["bola"],
+    run: (project) => pd036(project.sources()),
+  },
+  { code: "PD037", groups: ["supabase", "row-conditions"], run: pd037 },
+  {
+    code: "PD039",
+    groups: ["supabase", "helpers"],
+    when: (config) => config.supabase?.hook !== undefined,
+    run: supabaseSetup,
+  },
+  {
+    code: "PD038",
+    groups: ["supabase", "tenant"],
+    when: (config) =>
+      config.rls !== undefined || config.supabase?.hook !== undefined,
+    run: (project) =>
+      pd038(
+        project.sources(),
+        project.config.rls?.tenantClaim ?? supabaseTenantClaim,
+        supabaseTenantClaim,
+      ),
+  },
+  {
+    code: "PD057",
+    groups: ["supabase", "anonymous"],
+    when: (config) => config.rls?.anonymousSignIns === "deny",
+    run: (project) => pd057(project.sources()),
+  },
+  {
+    code: "PD040",
+    groups: ["supabase", "auth-role"],
+    run: (project) => pd040(project.cwd, project.config),
+  },
+  {
+    code: "PD041",
+    groups: ["supabase", "capabilities"],
+    run: (project) => pd041(project.sources()),
+  },
+  {
+    code: "PD042",
+    groups: ["supabase", "declarative"],
+    run: (project) => pd042(project.cwd, project.config),
+  },
+  {
+    code: "PD043",
+    groups: ["supabase", "declarative"],
+    run: (project) => pd043(project.cwd),
+  },
+  { code: "PD045", groups: ["supabase"], run: (project) => pd045(project.cwd) },
+  ...SQL_CHECKS.map(([code, check]): DoctorCheck => ({
+    code,
+    groups: ["supabase", "sql"],
+    run: (project) => check(project.cwd, project.config),
+  })),
+  { code: "PD054", groups: ["supabase", "seeds"], run: pd054 },
+  { code: "PD055", groups: ["custom-roles", "renamed"], run: pd055 },
+  {
+    code: "PD056",
+    groups: ["sql", "shims"],
+    run: (project) => pd056(project.cwd, project.config),
+  },
+  { code: "PD058", groups: ["powersync"], run: pd058 },
+  { code: "PD044", groups: ["next", "endpoint"], run: pd044 },
+];
 
 export async function runDoctor(input: {
   readonly cwd: string;
@@ -127,202 +308,21 @@ export async function runDoctor(input: {
       io: input.io,
     });
   }
+  const project = loadProject(input);
+  const wanted = new Set(input.only.map((item) => item.toLowerCase()));
+  const selected = (check: DoctorCheck): boolean =>
+    wanted.size === 0 ||
+    wanted.has(check.code.toLowerCase()) ||
+    check.groups.some((group) => wanted.has(group));
+
   const findings: DoctorFinding[] = [];
-  const wanted = new Set(input.only);
-  const include = (group: string): boolean =>
-    wanted.size === 0 || wanted.has(group) || wanted.has(group.toLowerCase());
-
-  const files = listSourceFiles(input.cwd, doctorSrcPath(input.config));
-  const sources = files.map((file) => ({
-    file: rel(input.cwd, file),
-    text: readFileSync(file, "utf8"),
-  }));
-
-  if (include("imports") || include("PD001")) {
-    const clientEntries = new Set(
-      listSourceFiles(input.cwd, input.config.doctor?.clientEntries ?? []).map(
-        (file) => rel(input.cwd, file),
-      ),
-    );
-    findings.push(
-      ...pd001(
-        sources,
-        clientEntries,
-        input.config.policy === undefined
-          ? undefined
-          : { cwd: input.cwd, path: input.config.policy },
-      ),
-    );
-  }
-  if (include("references") || include("PD002")) {
-    findings.push(...(await pd002(input)));
-  }
-  if (include("ungranted") || include("PD003")) {
-    findings.push(...(await pd003(input)));
-  }
-  if (include("catalog") || include("PD004")) {
-    findings.push(...(await pd004(input)));
-  }
-  if (include("skills") || include("PD005")) {
-    findings.push(...pd005(input.cwd));
-  }
-  if (include("typescript") || include("PD006")) {
-    findings.push(...pd006(input.cwd));
-  }
-  if (include("validation") || include("PD007")) {
-    findings.push(...pd007(sources));
-  }
-  if (include("naming") || include("PD008")) {
-    findings.push(...pd008(sources));
-  }
-  if (include("duplicates") || include("PD009")) {
-    findings.push(...pd009(input.cwd));
-  }
-  if (include("claims") || include("PD010")) {
-    findings.push(...pd010(sources));
-  }
-  if (include("tenant") || include("PD011")) {
-    findings.push(...pd011(sources));
-  }
-  if (include("drafts") || include("PD012")) {
-    findings.push(...pd012(input.cwd, input.config));
-  }
-  if (include("algorithms") || include("PD013")) {
-    findings.push(...pd013(sources));
-  }
-  if (include("discovery") || include("PD014")) {
-    findings.push(...pd014(sources));
-  }
-  if (include("typ") || include("PD015")) {
-    findings.push(...pd015(sources));
-  }
-  if (include("rls") || include("PD016")) {
-    findings.push(...(await pd016(input)));
-  }
-  if (include("sensitive") || include("PD017")) {
-    findings.push(...(await pd017(input)));
-  }
-  if (include("separation") || include("PD018")) {
-    findings.push(...(await pd018(input)));
-  }
-  if (include("jwt-roles") || include("PD019")) {
-    findings.push(...(await pd019(input)));
-  }
-  if (include("hosted") || include("PD020")) {
-    findings.push(...(await pd020(input)));
-  }
-  if (include("hosted") || include("PD021")) {
-    findings.push(
-      ...(await pd021({ ...input, env: input.io.env ?? process.env })),
-    );
-  }
-  if (include("views") || include("PD022")) {
-    findings.push(...pd022(input.cwd, input.config));
-  }
-  if (include("custom-roles") || include("PD023")) {
-    findings.push(...(await pd023(input)));
-  }
-  if (include("self-approval") || include("PD024")) {
-    findings.push(...(await pd024(input)));
-  }
-  if (include("scopes") || include("PD025")) {
-    findings.push(...(await pd025(input)));
-  }
-  if (include("ownership") || include("PD026")) {
-    findings.push(...(await pd026(input)));
-  }
-  if (include("rls") || include("context-refs") || include("PD027")) {
-    findings.push(...(await pd027(input)));
-  }
-  if (include("attrs") || include("supabase") || include("PD028")) {
-    findings.push(...pd028(input.cwd, input.config, attrsPlan));
-  }
-  if (include("credentials") || include("PD029")) {
-    findings.push(...pd029(input));
-  }
-  if (include("fields") || include("PD030")) {
-    findings.push(...(await pd030(input)));
-  }
-  if (include("graph") || include("PD031")) {
-    findings.push(...(await pd031(input)));
-  }
-  if (include("graph") || include("rls") || include("PD032")) {
-    findings.push(...(await pd032(input)));
-  }
-  if (include("activation") || include("PD033")) {
-    findings.push(...(await pd033(input)));
-  }
-  if (include("break-glass") || include("PD034")) {
-    findings.push(...(await pd034(input)));
-  }
-  if (include("support") || include("PD035")) {
-    findings.push(...(await pd035(input)));
-  }
-  if (include("bola") || include("PD036")) {
-    findings.push(...pd036(sources));
-  }
-  if (include("supabase") || include("row-conditions") || include("PD037")) {
-    findings.push(...(await pd037(input)));
-  }
-  if (
-    input.config.supabase?.hook !== undefined &&
-    (include("supabase") || include("helpers") || include("PD039"))
-  ) {
-    findings.push(...(await supabaseSetup(input)));
-  }
-  if (
-    (input.config.rls !== undefined ||
-      input.config.supabase?.hook !== undefined) &&
-    (include("supabase") || include("tenant") || include("PD038"))
-  ) {
-    findings.push(
-      ...pd038(
-        sources,
-        input.config.rls?.tenantClaim ?? supabaseTenantClaim,
-        supabaseTenantClaim,
-      ),
-    );
-  }
-  if (
-    input.config.rls?.anonymousSignIns === "deny" &&
-    (include("supabase") || include("anonymous") || include("PD057"))
-  ) {
-    findings.push(...pd057(sources));
-  }
-  if (include("supabase") || include("auth-role") || include("PD040")) {
-    findings.push(...pd040(input.cwd, input.config));
-  }
-  if (include("supabase") || include("capabilities") || include("PD041")) {
-    findings.push(...pd041(sources));
-  }
-  if (include("supabase") || include("declarative") || include("PD042")) {
-    findings.push(...pd042(input.cwd, input.config));
-  }
-  if (include("supabase") || include("declarative") || include("PD043")) {
-    findings.push(...pd043(input.cwd));
-  }
-  if (include("supabase") || include("PD045")) {
-    findings.push(...pd045(input.cwd));
-  }
-  for (const [code, check] of SQL_CHECKS) {
-    if (include("supabase") || include("sql") || include(code)) {
-      findings.push(...check(input.cwd, input.config));
+  for (const check of DOCTOR_CHECKS) {
+    if (check.when !== undefined && !check.when(input.config)) {
+      continue;
     }
-  }
-  if (include("supabase") || include("seeds") || include("PD054")) {
-    findings.push(...(await pd054(input)));
-  }
-  if (include("custom-roles") || include("renamed") || include("PD055")) {
-    findings.push(...(await pd055(input)));
-  }
-  if (include("sql") || include("shims") || include("PD056")) {
-    findings.push(...pd056(input.cwd, input.config));
-  }
-  if (include("powersync") || include("PD058")) {
-    findings.push(...(await pd058(input)));
-  }
-  if (include("next") || include("endpoint") || include("PD044")) {
-    findings.push(...(await pd044(input)));
+    if (selected(check)) {
+      findings.push(...(await check.run(project)));
+    }
   }
 
   const errors = findings.filter((item) => item.severity === "error").length;
@@ -342,6 +342,33 @@ export async function runDoctor(input: {
       ? `${JSON.stringify(report, null, 2)}\n`
       : formatDoctor(report, input.color),
   };
+}
+
+/** PD059: the configured policy module throws or exports no policy, so every policy check is skipped. */
+async function pd059(project: Project): Promise<readonly DoctorFinding[]> {
+  const load = await project.policyLoad();
+  if (load.status !== "failed") {
+    return [];
+  }
+  return [
+    {
+      code: "PD059",
+      severity: "error",
+      message: `policy module ${load.path} did not load (${load.message}), so doctor skipped every check that reads the policy`,
+      fix: "fix the module so it exports policy from definePolicy, or point policy in permdock.config.ts at the module that does",
+    },
+  ];
+}
+
+/** PD060: a source file under srcPath has a syntax error, so collect and usage miss what it references. */
+async function pd060(project: Project): Promise<readonly DoctorFinding[]> {
+  const collected = await project.collected();
+  return (collected.scan?.unparsed ?? []).map((item) => ({
+    code: "PD060",
+    severity: "warning" as const,
+    message: `${item.file}:${String(item.line)} does not parse (${item.message}), so the catalog and usage report miss the permissions it references`,
+    fix: "fix the syntax error, or exclude the file from collect.srcPath",
+  }));
 }
 
 function formatDoctor(report: DoctorReport, color: boolean): string {
@@ -365,17 +392,18 @@ function formatDoctor(report: DoctorReport, color: boolean): string {
   return `${lines.join("\n")}\n`;
 }
 
-async function supabaseSetup(input: {
-  readonly cwd: string;
-  readonly config: PermDockConfig;
-}): Promise<readonly DoctorFinding[]> {
+async function supabaseSetup(
+  input: Project,
+): Promise<readonly DoctorFinding[]> {
+  const policy = await input.policy();
+  if (policy === undefined) {
+    return [];
+  }
   let manifest;
   try {
-    manifest = supabaseHookManifest(
-      await loadScopes(input.cwd, input.config),
-      input.config,
-      { out: hookOut(input.cwd, input.config) },
-    );
+    manifest = supabaseHookManifest(scopeList(policy.scopes), input.config, {
+      out: hookOut(input.cwd, input.config),
+    });
   } catch {
     return [];
   }

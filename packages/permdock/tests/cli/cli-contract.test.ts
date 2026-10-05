@@ -6,7 +6,7 @@ import { commands, isCommand } from "../../src/cli/commands/index.ts";
 import { CliError, usageResult } from "../../src/cli/errors.ts";
 import { packageRoot } from "../../src/cli/package-root.ts";
 import { run } from "../../src/cli/run.ts";
-import { project, removeProjects } from "./doctor-kit.ts";
+import { PERMISSIONS, project, removeProjects } from "./doctor-kit.ts";
 
 const NAMES = Object.keys(commands).filter(isCommand);
 const FIXTURE = join(import.meta.dirname, "fixtures/mini-app");
@@ -73,6 +73,34 @@ describe("Problem Details under --json", () => {
       detail: "PermDock CLI: rls verify --introspect could not connect",
       command: "rls",
       exitCode: 1,
+    });
+  });
+
+  it("wraps a failed check's text report as a failed problem", async () => {
+    const cwd = project({
+      "permdock.config.ts":
+        "export default { permissions: './permissions.ts' };\n",
+      "permissions.ts": PERMISSIONS,
+    });
+    const result = await run(["collect", "--check", "--json", "--cwd", cwd]);
+    expect(result.code).toBe(1);
+    expect(JSON.parse(result.stdout)).toEqual({
+      type: "https://permdock.com/problems/cli-failed",
+      title: "The check the command ran found a problem",
+      detail: "catalog missing: permissions.catalog.json",
+      command: "collect",
+      exitCode: 1,
+    });
+  });
+
+  it("wraps a usage result's text as a usage problem", async () => {
+    const cwd = project({ "permdock.config.ts": "export default {};\n" });
+    const result = await run(["usage", "--json", "--cwd", cwd]);
+    expect(result.code).toBe(2);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      type: "https://permdock.com/problems/cli-usage",
+      command: "usage",
+      exitCode: 2,
     });
   });
 

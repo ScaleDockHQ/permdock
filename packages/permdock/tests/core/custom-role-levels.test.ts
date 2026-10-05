@@ -524,6 +524,7 @@ const EMPTY_SCAN: ScanResult = {
   planNames: [],
   allowKeys: [],
   snapshots: [],
+  unparsed: [],
 };
 
 describe("catalog and diff with levels", () => {

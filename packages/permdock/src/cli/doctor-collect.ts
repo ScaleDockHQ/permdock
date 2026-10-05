@@ -7,8 +7,9 @@ import type {
   Policy,
   TenantSettings,
 } from "../index.ts";
-import type { DoctorFinding } from "./doctor-types.ts";
-import type { CliIo, PermDockConfig, RlsActions } from "./types.ts";
+import type { CollectOutcome } from "./collect.ts";
+import type { DoctorFinding, DoctorInput } from "./doctor-types.ts";
+import type { CliIo, RlsActions } from "./types.ts";
 
 import {
   normalizeMemberships,
@@ -39,21 +40,10 @@ import { contextRefs } from "./rls-sql.ts";
 import { supabaseConfig } from "./supabase-config.ts";
 import { runUsage } from "./usage.ts";
 
-export async function pd002(input: {
-  readonly cwd: string;
-  readonly config: PermDockConfig;
-  readonly now: Date;
-  readonly io: CliIo;
-}): Promise<readonly DoctorFinding[]> {
-  const collected = await runCollect({
-    cwd: input.cwd,
-    config: input.config,
-    collect: input.config.collect ?? {},
-    scanPath: doctorSrcPath(input.config),
-    check: true,
-    now: input.now,
-    io: input.io,
-  });
+export async function pd002(
+  input: DoctorInput & { readonly now: Date; readonly io: CliIo },
+): Promise<readonly DoctorFinding[]> {
+  const collected = await collectedOf(input);
   if (collected.scan === undefined) {
     return [];
   }
@@ -65,12 +55,9 @@ export async function pd002(input: {
   }));
 }
 
-export async function pd003(input: {
-  readonly cwd: string;
-  readonly config: PermDockConfig;
-  readonly now: Date;
-  readonly io: CliIo;
-}): Promise<readonly DoctorFinding[]> {
+export async function pd003(
+  input: DoctorInput & { readonly now: Date; readonly io: CliIo },
+): Promise<readonly DoctorFinding[]> {
   if (input.config.policy === undefined) {
     return [];
   }
@@ -83,6 +70,8 @@ export async function pd003(input: {
     dynamicAsUsed: false,
     now: input.now,
     io: input.io,
+    collected: () => collectedOf(input),
+    policy: () => policyOf(input),
   });
   if (usage.code === 2) {
     return [];
@@ -102,20 +91,10 @@ export async function pd003(input: {
   }));
 }
 
-export async function pd004(input: {
-  readonly cwd: string;
-  readonly config: PermDockConfig;
-  readonly now: Date;
-  readonly io: CliIo;
-}): Promise<readonly DoctorFinding[]> {
-  const collected = await runCollect({
-    cwd: input.cwd,
-    config: input.config,
-    collect: input.config.collect ?? {},
-    check: true,
-    now: input.now,
-    io: input.io,
-  });
+export async function pd004(
+  input: DoctorInput & { readonly now: Date; readonly io: CliIo },
+): Promise<readonly DoctorFinding[]> {
+  const collected = await collectedOf(input);
   if (collected.code === 0) {
     return [];
   }
@@ -132,14 +111,13 @@ export async function pd004(input: {
   ];
 }
 
-export async function pd027(input: {
-  readonly cwd: string;
-  readonly config: PermDockConfig;
-}): Promise<readonly DoctorFinding[]> {
+export async function pd027(
+  input: DoctorInput,
+): Promise<readonly DoctorFinding[]> {
   if (input.config.rls === undefined || input.config.policy === undefined) {
     return [];
   }
-  const policy = await loadPolicy(input.cwd, input.config.policy);
+  const policy = await policyOf(input);
   if (policy === undefined) {
     return [];
   }
@@ -161,21 +139,14 @@ export async function pd027(input: {
   return findings;
 }
 
-export async function pd016(input: {
-  readonly cwd: string;
-  readonly config: PermDockConfig;
-}): Promise<readonly DoctorFinding[]> {
+export async function pd016(
+  input: DoctorInput,
+): Promise<readonly DoctorFinding[]> {
   if (input.config.rls === undefined || input.config.policy === undefined) {
     return [];
   }
-  let policy: Policy;
-  try {
-    policy = asPolicy(
-      pickNamed(await loadModule(resolve(input.cwd, input.config.policy)), [
-        "policy",
-      ]),
-    );
-  } catch {
+  const policy = await policyOf(input);
+  if (policy === undefined) {
     return [];
   }
   const findings: DoctorFinding[] = [];
@@ -220,7 +191,7 @@ export async function pd016(input: {
   return findings;
 }
 
-const DEFAULT_SENSITIVE_ACTIONS = [
+export const DEFAULT_SENSITIVE_ACTIONS = [
   "approve",
   "pay",
   "settle",
@@ -230,7 +201,7 @@ const DEFAULT_SENSITIVE_ACTIONS = [
   "disburse",
 ] as const;
 
-export async function loadPolicy(
+async function loadPolicy(
   cwd: string,
   path: string,
 ): Promise<Policy | undefined> {
@@ -243,14 +214,41 @@ export async function loadPolicy(
   }
 }
 
-export async function pd017(input: {
-  readonly cwd: string;
-  readonly config: PermDockConfig;
-}): Promise<readonly DoctorFinding[]> {
+/** The configured policy, through the project's memoised load when there is one. */
+export function policyOf(input: DoctorInput): Promise<Policy | undefined> {
+  const path = input.config.policy;
+  if (path === undefined) {
+    return Promise.resolve(undefined);
+  }
+  return input.policy === undefined
+    ? loadPolicy(input.cwd, path)
+    : input.policy();
+}
+
+/** `collect --check`, through the project's memoised run when there is one. */
+export function collectedOf(
+  input: DoctorInput & { readonly now: Date; readonly io: CliIo },
+): Promise<CollectOutcome> {
+  return input.collected === undefined
+    ? runCollect({
+        cwd: input.cwd,
+        config: input.config,
+        collect: input.config.collect ?? {},
+        scanPath: doctorSrcPath(input.config),
+        check: true,
+        now: input.now,
+        io: input.io,
+      })
+    : input.collected();
+}
+
+export async function pd017(
+  input: DoctorInput,
+): Promise<readonly DoctorFinding[]> {
   if (input.config.policy === undefined) {
     return [];
   }
-  const policy = await loadPolicy(input.cwd, input.config.policy);
+  const policy = await policyOf(input);
   if (policy === undefined) {
     return [];
   }
@@ -291,14 +289,13 @@ export async function pd017(input: {
   return findings;
 }
 
-export async function pd024(input: {
-  readonly cwd: string;
-  readonly config: PermDockConfig;
-}): Promise<readonly DoctorFinding[]> {
+export async function pd024(
+  input: DoctorInput,
+): Promise<readonly DoctorFinding[]> {
   if (input.config.policy === undefined) {
     return [];
   }
-  const policy = await loadPolicy(input.cwd, input.config.policy);
+  const policy = await policyOf(input);
   if (policy === undefined) {
     return [];
   }
@@ -337,14 +334,13 @@ function asMembershipsFixture(parsed: unknown): MembershipsFixture {
     : {};
 }
 
-export async function pd018(input: {
-  readonly cwd: string;
-  readonly config: PermDockConfig;
-}): Promise<readonly DoctorFinding[]> {
+export async function pd018(
+  input: DoctorInput,
+): Promise<readonly DoctorFinding[]> {
   if (input.config.policy === undefined) {
     return [];
   }
-  const policy = await loadPolicy(input.cwd, input.config.policy);
+  const policy = await policyOf(input);
   if (policy === undefined) {
     return [];
   }
@@ -420,14 +416,13 @@ export async function pd018(input: {
   return findings;
 }
 
-export async function pd020(input: {
-  readonly cwd: string;
-  readonly config: PermDockConfig;
-}): Promise<readonly DoctorFinding[]> {
+export async function pd020(
+  input: DoctorInput,
+): Promise<readonly DoctorFinding[]> {
   if (input.config.rls === undefined || input.config.policy === undefined) {
     return [];
   }
-  const policy = await loadPolicy(input.cwd, input.config.policy);
+  const policy = await policyOf(input);
   if (policy === undefined) {
     return [];
   }
@@ -449,15 +444,15 @@ export async function pd020(input: {
   ];
 }
 
-export async function pd021(input: {
-  readonly cwd: string;
-  readonly config: PermDockConfig;
-  readonly env: Readonly<Record<string, string | undefined>>;
-}): Promise<readonly DoctorFinding[]> {
+export async function pd021(
+  input: DoctorInput & {
+    readonly env: Readonly<Record<string, string | undefined>>;
+  },
+): Promise<readonly DoctorFinding[]> {
   if (input.config.policy === undefined) {
     return [];
   }
-  const policy = await loadPolicy(input.cwd, input.config.policy);
+  const policy = await policyOf(input);
   if (policy === undefined || (policy.hostable ?? []).length === 0) {
     return [];
   }
@@ -477,10 +472,9 @@ export async function pd021(input: {
   ];
 }
 
-export async function pd019(input: {
-  readonly cwd: string;
-  readonly config: PermDockConfig;
-}): Promise<readonly DoctorFinding[]> {
+export async function pd019(
+  input: DoctorInput,
+): Promise<readonly DoctorFinding[]> {
   const rls = input.config.rls;
   if ((rls?.authorize ?? rls?.rbac?.authorize) !== "jwt") {
     return [];
@@ -489,7 +483,7 @@ export async function pd019(input: {
   if (expiry <= 3600 || input.config.policy === undefined) {
     return [];
   }
-  const policy = await loadPolicy(input.cwd, input.config.policy);
+  const policy = await policyOf(input);
   if (policy === undefined) {
     return [];
   }
@@ -525,10 +519,9 @@ function customRoleLabel(role: CustomRole): string {
     : `custom role ${role.name} in ${role.tenant}`;
 }
 
-export async function pd023(input: {
-  readonly cwd: string;
-  readonly config: PermDockConfig;
-}): Promise<readonly DoctorFinding[]> {
+export async function pd023(
+  input: DoctorInput,
+): Promise<readonly DoctorFinding[]> {
   const fixturePath = input.config.doctor?.memberships;
   if (input.config.policy === undefined || fixturePath === undefined) {
     return [];
@@ -543,7 +536,7 @@ export async function pd023(input: {
   } catch {
     return [];
   }
-  const policy = await loadPolicy(input.cwd, input.config.policy);
+  const policy = await policyOf(input);
   if (policy === undefined) {
     return [];
   }
@@ -575,10 +568,9 @@ export async function pd023(input: {
  * from. It still resolves; the alias can only be dropped once storage holds
  * the current key.
  */
-export async function pd055(input: {
-  readonly cwd: string;
-  readonly config: PermDockConfig;
-}): Promise<readonly DoctorFinding[]> {
+export async function pd055(
+  input: DoctorInput,
+): Promise<readonly DoctorFinding[]> {
   const fixturePath = input.config.doctor?.memberships;
   if (input.config.policy === undefined || fixturePath === undefined) {
     return [];
@@ -593,7 +585,7 @@ export async function pd055(input: {
   } catch {
     return [];
   }
-  const policy = await loadPolicy(input.cwd, input.config.policy);
+  const policy = await policyOf(input);
   if (policy === undefined) {
     return [];
   }
@@ -637,10 +629,7 @@ function listField(value: unknown, field: string): readonly unknown[] {
 }
 
 /** Fixture API keys that never expire, credential policies that allow it, and records that are not v1 credentials. */
-export function pd029(input: {
-  readonly cwd: string;
-  readonly config: PermDockConfig;
-}): readonly DoctorFinding[] {
+export function pd029(input: DoctorInput): readonly DoctorFinding[] {
   const parsed = readJson(input.cwd, input.config.doctor?.credentials);
   const findings: DoctorFinding[] = [];
   for (const [index, record] of listField(parsed, "credentials").entries()) {
@@ -697,14 +686,13 @@ export function pd029(input: {
  * manage it. Setting `min` on any of its roles (even `min: 0`) records the
  * decision and silences the warning.
  */
-export async function pd026(input: {
-  readonly cwd: string;
-  readonly config: PermDockConfig;
-}): Promise<readonly DoctorFinding[]> {
+export async function pd026(
+  input: DoctorInput,
+): Promise<readonly DoctorFinding[]> {
   if (input.config.policy === undefined) {
     return [];
   }
-  const policy = await loadPolicy(input.cwd, input.config.policy);
+  const policy = await policyOf(input);
   if (policy === undefined) {
     return [];
   }
@@ -732,10 +720,9 @@ export async function pd026(input: {
   return findings;
 }
 
-export async function pd025(input: {
-  readonly cwd: string;
-  readonly config: PermDockConfig;
-}): Promise<readonly DoctorFinding[]> {
+export async function pd025(
+  input: DoctorInput,
+): Promise<readonly DoctorFinding[]> {
   const fixturePath = input.config.doctor?.memberships;
   if (input.config.policy === undefined || fixturePath === undefined) {
     return [];
@@ -750,7 +737,7 @@ export async function pd025(input: {
   } catch {
     return [];
   }
-  const policy = await loadPolicy(input.cwd, input.config.policy);
+  const policy = await policyOf(input);
   if (policy === undefined) {
     return [];
   }
@@ -813,15 +800,14 @@ function limitedColumns(
  * compile, and a field view protects nothing while the base table still
  * returns the columns to a direct read.
  */
-export async function pd030(input: {
-  readonly cwd: string;
-  readonly config: PermDockConfig;
-}): Promise<readonly DoctorFinding[]> {
+export async function pd030(
+  input: DoctorInput,
+): Promise<readonly DoctorFinding[]> {
   const rls = input.config.rls;
   if (rls === undefined || input.config.policy === undefined) {
     return [];
   }
-  const policy = await loadPolicy(input.cwd, input.config.policy);
+  const policy = await policyOf(input);
   if (policy === undefined) {
     return [];
   }
@@ -869,14 +855,13 @@ export async function pd030(input: {
  * column no graph grant reaches: the declaration has no effect on any
  * decision, and `rls generate` keeps no closure for it.
  */
-export async function pd031(input: {
-  readonly cwd: string;
-  readonly config: PermDockConfig;
-}): Promise<readonly DoctorFinding[]> {
+export async function pd031(
+  input: DoctorInput,
+): Promise<readonly DoctorFinding[]> {
   if (input.config.policy === undefined) {
     return [];
   }
-  const policy = await loadPolicy(input.cwd, input.config.policy);
+  const policy = await policyOf(input);
   if (policy === undefined) {
     return [];
   }
@@ -915,14 +900,13 @@ export async function pd031(input: {
  * for: one that shares a scope's name (its `permitted_<name>_ids` would
  * replace the scope helper) or is not a lowercase SQL name.
  */
-export async function pd032(input: {
-  readonly cwd: string;
-  readonly config: PermDockConfig;
-}): Promise<readonly DoctorFinding[]> {
+export async function pd032(
+  input: DoctorInput,
+): Promise<readonly DoctorFinding[]> {
   if (input.config.rls === undefined || input.config.policy === undefined) {
     return [];
   }
-  const policy = await loadPolicy(input.cwd, input.config.policy);
+  const policy = await policyOf(input);
   if (policy === undefined) {
     return [];
   }
@@ -949,10 +933,7 @@ export async function pd032(input: {
 }
 
 /** Reads the doctor memberships fixture, if one is configured and parseable. */
-function membershipsFixture(input: {
-  readonly cwd: string;
-  readonly config: PermDockConfig;
-}): MembershipsFixture {
+function membershipsFixture(input: DoctorInput): MembershipsFixture {
   const fixturePath = input.config.doctor?.memberships;
   if (fixturePath === undefined) {
     return {};
@@ -974,14 +955,13 @@ function membershipsFixture(input: {
  * membership also holds standing (an eligible-only role must never be held
  * directly).
  */
-export async function pd033(input: {
-  readonly cwd: string;
-  readonly config: PermDockConfig;
-}): Promise<readonly DoctorFinding[]> {
+export async function pd033(
+  input: DoctorInput,
+): Promise<readonly DoctorFinding[]> {
   if (input.config.policy === undefined) {
     return [];
   }
-  const policy = await loadPolicy(input.cwd, input.config.policy);
+  const policy = await policyOf(input);
   if (policy === undefined) {
     return [];
   }
@@ -1032,14 +1012,13 @@ export async function pd033(input: {
  * break-glass override; the server must read through a `security definer`
  * function that checks a signed break-glass session and writes an audit row.
  */
-export async function pd034(input: {
-  readonly cwd: string;
-  readonly config: PermDockConfig;
-}): Promise<readonly DoctorFinding[]> {
+export async function pd034(
+  input: DoctorInput,
+): Promise<readonly DoctorFinding[]> {
   if (input.config.policy === undefined || input.config.rls === undefined) {
     return [];
   }
-  const policy = await loadPolicy(input.cwd, input.config.policy);
+  const policy = await policyOf(input);
   if (policy === undefined) {
     return [];
   }
@@ -1061,14 +1040,13 @@ export async function pd034(input: {
  * PD035: a `supportAccess` role without `actorRequired`. Support access is
  * impersonation; without an actor the session is unattributed.
  */
-export async function pd035(input: {
-  readonly cwd: string;
-  readonly config: PermDockConfig;
-}): Promise<readonly DoctorFinding[]> {
+export async function pd035(
+  input: DoctorInput,
+): Promise<readonly DoctorFinding[]> {
   if (input.config.policy === undefined) {
     return [];
   }
-  const policy = await loadPolicy(input.cwd, input.config.policy);
+  const policy = await policyOf(input);
   if (policy === undefined) {
     return [];
   }
@@ -1091,14 +1069,13 @@ export async function pd035(input: {
  * `permdock` mode) that call the SQL helpers for a permission whose grants
  * carry row conditions: the helpers check only role and scope.
  */
-export async function pd037(input: {
-  readonly cwd: string;
-  readonly config: PermDockConfig;
-}): Promise<readonly DoctorFinding[]> {
+export async function pd037(
+  input: DoctorInput,
+): Promise<readonly DoctorFinding[]> {
   if (input.config.policy === undefined) {
     return [];
   }
-  const policy = await loadPolicy(input.cwd, input.config.policy);
+  const policy = await policyOf(input);
   if (policy === undefined) {
     return [];
   }

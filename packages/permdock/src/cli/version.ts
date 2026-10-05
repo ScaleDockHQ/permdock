@@ -25,3 +25,5 @@ export const USAGE_REPORT_SCHEMA =
   "https://permdock.com/schemas/usage-report-v1.json" as const;
 export const DOCTOR_REPORT_SCHEMA =
   "https://permdock.com/schemas/doctor-report-v1.json" as const;
+export const CONFIG_REPORT_SCHEMA =
+  "https://permdock.com/schemas/config-report-v1.json" as const;

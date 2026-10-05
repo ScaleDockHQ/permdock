@@ -7,7 +7,7 @@ import {
 } from "citty";
 import { stripVTControlCharacters } from "node:util";
 
-import type { CliIo, PermDockConfig, RunResult } from "./types.ts";
+import type { CliIo, RunResult } from "./types.ts";
 
 import {
   type CliContext,
@@ -23,7 +23,7 @@ import {
   commands,
   isCommand,
 } from "./commands/index.ts";
-import { loadConfig, resolveCwd } from "./config.ts";
+import { type LoadedConfig, readConfig, resolveCwd } from "./config.ts";
 import {
   type CliErrorKind,
   cliErrorKind,
@@ -33,6 +33,8 @@ import {
 import { cliVersion } from "./version.ts";
 
 const NAMES = Object.keys(commands).filter(isCommand);
+
+const NO_CONFIG: LoadedConfig = { config: {}, warnings: [], file: undefined };
 
 export async function run(
   argv: readonly string[],
@@ -83,10 +85,15 @@ export async function run(
 
   let result: CommandResult | undefined;
   const configFile = stringArg(globals.config);
-  const contextFor = (cwd: string, config: PermDockConfig): CliContext => ({
+  const contextFor = (
+    cwd: string,
+    loaded: LoadedConfig = NO_CONFIG,
+  ): CliContext => ({
     cwd,
-    config,
+    config: loaded.config,
     ...(configFile === undefined ? {} : { configFile }),
+    ...(loaded.file === undefined ? {} : { configPath: loaded.file }),
+    configWarnings: loaded.warnings,
     io,
     now: io.now?.() ?? new Date(),
     json,
@@ -130,7 +137,7 @@ export async function run(
       name === undefined
         ? await renderUsage(root)
         : await renderUsage(
-            await load(name, contextFor(options?.cwd ?? process.cwd(), {})),
+            await load(name, contextFor(options?.cwd ?? process.cwd())),
             root,
           );
     if (name === undefined && !askedHelp && first !== "help") {
@@ -142,17 +149,22 @@ export async function run(
   }
 
   const cwd = resolveCwd(stringArg(globals.cwd), options?.cwd ?? process.cwd());
-  let config: PermDockConfig;
+  let loaded: LoadedConfig;
   try {
-    config = await loadConfig(cwd, configFile);
+    loaded = await readConfig(cwd, configFile);
   } catch (error) {
     return fail(
       cliErrorKind(error),
       error instanceof Error ? error.message : String(error),
     );
   }
+  if (name !== "config") {
+    for (const warning of loaded.warnings) {
+      writeErr(`permdock: warning: ${warning}`);
+    }
+  }
   try {
-    const command = await load(name, contextFor(cwd, config));
+    const command = await load(name, contextFor(cwd, loaded));
     const rawArgs = withoutCommand(argv, name);
     await runCommand(command, {
       rawArgs: normaliseValues(rawArgs, await resolveArgs(command)),
@@ -172,6 +184,9 @@ export async function run(
   }
   if (result === undefined) {
     return done(0);
+  }
+  if (json && result.code !== 0 && !isJson(result.output)) {
+    return fail(result.code === 2 ? "usage" : "failed", result.output, name);
   }
   writeOut(result.output);
   return done(result.code);
@@ -206,6 +221,15 @@ function rootCommand(): Command {
 
 async function load(name: CommandName, ctx: CliContext): Promise<Command> {
   return (await commands[name]())(ctx);
+}
+
+function isJson(text: string): boolean {
+  try {
+    JSON.parse(text);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function lined(text: string): string {

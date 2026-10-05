@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 
-import type { DoctorFinding } from "./doctor-types.ts";
+import type { DoctorFinding, DoctorInput } from "./doctor-types.ts";
 import type { RlsSqlContext } from "./rls-sql.ts";
 import type { PermDockConfig } from "./types.ts";
 
@@ -8,7 +8,7 @@ import { scopeList } from "../core/scopes.ts";
 import { supabaseTenantClaim } from "../supabase/budget.ts";
 import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
 import { tableKey } from "./deciding-columns.ts";
-import { loadPolicy } from "./doctor-collect.ts";
+import { policyOf } from "./doctor-collect.ts";
 import { MIGRATION_DIRS } from "./doctor-project.ts";
 import { rel, sqlFiles } from "./files.ts";
 import { compileGrants } from "./rls-compile.ts";
@@ -77,10 +77,9 @@ function sample(rows: readonly string[]): string {
  * PD054: the `role_permissions` rows the migrations seed last are not the
  * rows the policy compiles to, so the helpers answer from a stale policy.
  */
-export async function pd054(input: {
-  readonly cwd: string;
-  readonly config: PermDockConfig;
-}): Promise<readonly DoctorFinding[]> {
+export async function pd054(
+  input: DoctorInput,
+): Promise<readonly DoctorFinding[]> {
   const { cwd, config } = input;
   const rls = config.rls;
   if (
@@ -94,7 +93,7 @@ export async function pd054(input: {
   if (seeded === undefined) {
     return [];
   }
-  const policy = await loadPolicy(cwd, config.policy);
+  const policy = await policyOf(input);
   if (policy === undefined) {
     return [];
   }

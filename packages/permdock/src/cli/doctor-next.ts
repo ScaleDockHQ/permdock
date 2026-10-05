@@ -1,16 +1,14 @@
 import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 
 import type { Grant, Policy } from "../index.ts";
-import type { DoctorFinding } from "./doctor-types.ts";
-import type { CliIo, PermDockConfig } from "./types.ts";
+import type { DoctorFinding, DoctorInput } from "./doctor-types.ts";
+import type { CliIo } from "./types.ts";
 
 import { hasConditionOp } from "../conditions/ast.ts";
 import { flattenGrantee } from "../core/grantee.ts";
 import { isPrincipalRelation } from "../core/permissions.ts";
-import { runCollect } from "./collect.ts";
+import { collectedOf, policyOf } from "./doctor-collect.ts";
 import { doctorSrcPath, listSourceFiles, rel } from "./files.ts";
-import { asPolicy, loadModule, pickNamed } from "./load.ts";
 
 const ROUTE_GLOBS = ["**/api/permdock/route.{ts,tsx,js,jsx,mjs}"];
 const ENDPOINT = /\bendpoint\s*(?::|=)\s*\{?\s*['"`]/u;
@@ -69,39 +67,18 @@ function hasEndpoint(cwd: string, sources: readonly string[]): boolean {
  * PD044: `usePermission` reads a permission whose grant the snapshot cannot
  * answer, and the app has no endpoint to ask, so the client always denies it.
  */
-export async function pd044(input: {
-  readonly cwd: string;
-  readonly config: PermDockConfig;
-  readonly now: Date;
-  readonly io: CliIo;
-}): Promise<readonly DoctorFinding[]> {
-  if (input.config.policy === undefined) {
-    return [];
-  }
-  let policy: Policy;
-  try {
-    policy = asPolicy(
-      pickNamed(await loadModule(resolve(input.cwd, input.config.policy)), [
-        "policy",
-      ]),
-    );
-  } catch {
+export async function pd044(
+  input: DoctorInput & { readonly now: Date; readonly io: CliIo },
+): Promise<readonly DoctorFinding[]> {
+  const policy = await policyOf(input);
+  if (policy === undefined) {
     return [];
   }
   const keys = serverOnlyKeys(policy);
   if (keys.size === 0) {
     return [];
   }
-  const srcPath = doctorSrcPath(input.config);
-  const collected = await runCollect({
-    cwd: input.cwd,
-    config: input.config,
-    collect: input.config.collect ?? {},
-    scanPath: srcPath,
-    check: true,
-    now: input.now,
-    io: input.io,
-  });
+  const collected = await collectedOf(input);
   const usages = collected.scan?.usages ?? {};
   const hooked = [...keys]
     .toSorted()
@@ -113,7 +90,7 @@ export async function pd044(input: {
   if (hooked.length === 0) {
     return [];
   }
-  const sources = listSourceFiles(input.cwd, srcPath);
+  const sources = listSourceFiles(input.cwd, doctorSrcPath(input.config));
   if (hasEndpoint(input.cwd, sources)) {
     return [];
   }

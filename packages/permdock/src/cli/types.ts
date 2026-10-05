@@ -431,6 +431,14 @@ export type ScanResult = {
   readonly planNames: readonly string[];
   readonly allowKeys: readonly string[];
   readonly snapshots: readonly SnapshotSite[];
+  /** Files under `srcPath` with a syntax error; the scan covers what parsed. */
+  readonly unparsed: readonly UnparsedSource[];
+};
+
+export type UnparsedSource = {
+  readonly file: string;
+  readonly line: number;
+  readonly message: string;
 };
 
 /** `include` is `undefined` for an unscoped call and `null` when it is not a literal list. */

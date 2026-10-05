@@ -91,6 +91,7 @@ const EMPTY_SCAN: ScanResult = {
   planNames: [],
   allowKeys: [],
   snapshots: [],
+  unparsed: [],
 };
 
 describe("definePermissions renamed", () => {

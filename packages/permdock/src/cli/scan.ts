@@ -12,9 +12,13 @@ import type {
   DynamicUsage,
   ScanResult,
   SnapshotSite,
+  UnparsedSource,
 } from "./types.ts";
 
 import { rel } from "./files.ts";
+
+/** oxc reports recoverable problems as `Warning` or `Advice`; only `Error` leaves the program incomplete. */
+const PARSE_ERRORS: ReadonlySet<string> = new Set(["Error"]);
 
 const CHECK_CALLS = new Set([
   "can",
@@ -86,6 +90,7 @@ export function scanSources(
   const planNames = new Set<string>();
   const allowKeys = new Set<string>();
   const snapshots: SnapshotSite[] = [];
+  const unparsed: UnparsedSource[] = [];
 
   const parsed: {
     readonly file: string;
@@ -94,10 +99,26 @@ export function scanSources(
   }[] = [];
   for (const file of files) {
     const source = readFileSync(file, "utf8");
+    const fileRel = rel(cwd, file);
     try {
-      parsed.push({ file, source, program: parseSync(file, source).program });
-    } catch {
-      continue;
+      const result = parseSync(file, source);
+      const error = result.errors.find((item) =>
+        PARSE_ERRORS.has(item.severity),
+      );
+      if (error !== undefined) {
+        unparsed.push({
+          file: fileRel,
+          line: lineIndex(source)(error.labels[0]?.start ?? 0),
+          message: error.message,
+        });
+      }
+      parsed.push({ file, source, program: result.program });
+    } catch (error) {
+      unparsed.push({
+        file: fileRel,
+        line: 1,
+        message: error instanceof Error ? error.message : String(error),
+      });
     }
   }
   // Every `definePermissions` binding name, so an import of one resolves in any file.
@@ -117,6 +138,7 @@ export function scanSources(
 
   for (const { file, source, program } of parsed) {
     const fileRel = rel(cwd, file);
+    const lineAt = lineIndex(source);
     const scopes = new WeakMap<Estree, ReadonlyMap<string, boolean>>();
     walk(program, (node, parent, ancestors) => {
       const isRoot: RootTest = (name) =>
@@ -125,7 +147,7 @@ export function scanSources(
         recordCall(
           node,
           parent,
-          source,
+          lineAt,
           fileRel,
           roots,
           definitionFiles,
@@ -141,7 +163,7 @@ export function scanSources(
         if (callee === "snapshot" || callee === "snapshotFor") {
           snapshots.push({
             file: fileRel,
-            line: lineAt(source, node.start ?? 0),
+            line: lineAt(node.start ?? 0),
             include: includeOf(
               node.arguments?.[callee === "snapshot" ? 0 : 2],
               isRoot,
@@ -156,7 +178,7 @@ export function scanSources(
         recordMember(
           node,
           parent,
-          source,
+          lineAt,
           fileRel,
           isRoot,
           usages,
@@ -182,6 +204,7 @@ export function scanSources(
     planNames: [...planNames].toSorted(),
     allowKeys: [...allowKeys].toSorted(),
     snapshots,
+    unparsed,
   };
 }
 
@@ -410,7 +433,7 @@ function boundToRoot(
 function recordCall(
   node: Estree,
   parent: Estree | undefined,
-  source: string,
+  lineAt: LineAt,
   fileRel: string,
   roots: Set<string>,
   definitionFiles: Record<string, string>,
@@ -423,7 +446,7 @@ function recordCall(
   knownKeys: ReadonlySet<string>,
 ): void {
   const callee = calleeName(node.callee);
-  const line = lineAt(source, node.start ?? 0);
+  const line = lineAt(node.start ?? 0);
   if (
     callee === "definePermissions" ||
     callee === "defineRoles" ||
@@ -475,7 +498,7 @@ function recordCall(
 function recordMember(
   node: Estree,
   parent: Estree | undefined,
-  source: string,
+  lineAt: LineAt,
   fileRel: string,
   isRoot: RootTest,
   usages: Record<string, CatalogUsage[]>,
@@ -489,7 +512,7 @@ function recordMember(
     if (root !== undefined && isRoot(root)) {
       dynamic.push({
         file: fileRel,
-        line: lineAt(source, node.start ?? 0),
+        line: lineAt(node.start ?? 0),
         call: callName(parent),
       });
     }
@@ -510,7 +533,7 @@ function recordMember(
   const call = callName(parent);
   const usage = {
     file: fileRel,
-    line: lineAt(source, node.start ?? 0),
+    line: lineAt(node.start ?? 0),
     call,
   };
   if (call === "allow") {
@@ -627,15 +650,29 @@ function rootName(node: Estree): string | undefined {
   return current?.type === "Identifier" ? current.name : undefined;
 }
 
-function lineAt(source: string, index: number): number {
-  let line = 1;
-  const end = Math.min(index, source.length);
-  for (let i = 0; i < end; i += 1) {
+type LineAt = (index: number) => number;
+
+/** One pass over the file, then a binary search per node. */
+function lineIndex(source: string): LineAt {
+  const starts = [0];
+  for (let i = 0; i < source.length; i += 1) {
     if (source.charCodeAt(i) === 10) {
-      line += 1;
+      starts.push(i + 1);
     }
   }
-  return line;
+  return (index) => {
+    let low = 0;
+    let high = starts.length - 1;
+    while (low < high) {
+      const mid = (low + high + 1) >> 1;
+      if ((starts[mid] ?? 0) <= index) {
+        low = mid;
+      } else {
+        high = mid - 1;
+      }
+    }
+    return low + 1;
+  };
 }
 
 function collectObjectKeys(node: Estree | undefined, into: Set<string>): void {

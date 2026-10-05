@@ -20,6 +20,7 @@ const scan: ScanResult = {
   planNames: [],
   allowKeys: [],
   snapshots: [],
+  unparsed: [],
 };
 
 const scopes = scopeList(policy.scopes);

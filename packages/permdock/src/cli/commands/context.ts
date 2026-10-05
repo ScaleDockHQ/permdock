@@ -20,6 +20,10 @@ export type CliContext = {
   readonly config: PermDockConfig;
   /** The `--config` value as given; unset when the default file was found. */
   readonly configFile?: string;
+  /** The config file read, absolute; unset when there is none. */
+  readonly configPath?: string;
+  /** Keys in the config file PermDock does not read. */
+  readonly configWarnings: readonly string[];
   readonly io: CliIo;
   readonly now: Date;
   readonly json: boolean;
