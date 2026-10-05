@@ -128,17 +128,60 @@ export function relatesTo(
   );
 }
 
-/** The scopes whose key partitions `resource`, from its `memberOf` relations. */
+/** The fields of `resource`'s `memberOf` relations to `scope`. */
+export function memberOfFields(
+  resource: ResourceNode,
+  scope: string,
+  scopes: readonly Scope[],
+): readonly string[] {
+  return [
+    ...new Set(
+      Object.values(resource.relations).flatMap((relation) =>
+        isFieldRelation(relation) &&
+        relation.memberOf !== undefined &&
+        resolveScope(scopes, relation.memberOf) === scope
+          ? [relation.field]
+          : [],
+      ),
+    ),
+  ];
+}
+
+/**
+ * The field of `resource` that holds `scope`'s instance id: the scope's
+ * `key` when one of the resource's `memberOf` relations names it, otherwise
+ * the field of its one `memberOf` relation to the scope. A table whose own
+ * id is the instance (`organizations.id`) declares
+ * `{ self: { field: 'id', memberOf: 'organization' } }`.
+ */
+export function scopeField(
+  resource: ResourceNode | undefined,
+  scope: string,
+  scopes: readonly Scope[],
+): string | undefined {
+  const key = findScope(scopes, scope)?.key;
+  if (resource === undefined) {
+    return key;
+  }
+  const fields = memberOfFields(resource, scope, scopes);
+  if (key !== undefined && fields.includes(key)) {
+    return key;
+  }
+  return fields.length === 1 ? fields[0] : key;
+}
+
+/** The scopes that partition `resource`, from its `memberOf` relations. */
 export function partitionsOf(
   resource: ResourceNode,
   scopes: readonly Scope[],
 ): readonly string[] {
   return scopes
-    .filter(
-      (scope) =>
-        scope.key !== undefined &&
-        relatesTo(resource, scope.key, scope.name, scopes),
-    )
+    .filter((scope) => {
+      const field = scopeField(resource, scope.name, scopes);
+      return (
+        field !== undefined && relatesTo(resource, field, scope.name, scopes)
+      );
+    })
     .map((scope) => scope.name);
 }
 
@@ -157,6 +200,7 @@ export function rowInScope(
   scopes: readonly Scope[],
   row: unknown,
   partitioned: (scope: string, key: string) => boolean,
+  fieldOf?: (scope: string) => string | undefined,
 ): RowScope {
   if (
     membership.scope === undefined ||
@@ -168,7 +212,7 @@ export function rowInScope(
   const root = rootScope(scopes);
   const chain = scopeChain(scopes, membership.scope).toReversed();
   for (const name of chain) {
-    const key = findScope(scopes, name)?.key;
+    const key = fieldOf?.(name) ?? findScope(scopes, name)?.key;
     if (key === undefined) {
       continue;
     }
@@ -281,8 +325,12 @@ export function matchScopedMembership(
         sawWrongScope = true;
         continue;
       }
-      const inside = rowInScope(membership, scopes, row, (name, key) =>
-        relatesTo(resource, key, name, scopes),
+      const inside = rowInScope(
+        membership,
+        scopes,
+        row,
+        (name, key) => relatesTo(resource, key, name, scopes),
+        (name) => scopeField(resource, name, scopes),
       );
       if (!inside.ok) {
         if (inside.reason === "tenant-mismatch") {

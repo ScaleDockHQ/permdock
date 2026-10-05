@@ -9,6 +9,7 @@ import { canonicalJson } from "../core/canonical-json.ts";
 import { sole } from "../core/compact.ts";
 import { andWhere, leveled } from "../core/custom-roles.ts";
 import { policyLevels } from "../core/policy.ts";
+import { scopeField } from "../core/tenancy.ts";
 import {
   formerKeys,
   hasConditionOp,
@@ -629,7 +630,11 @@ export function compileGrants(
       const column =
         access.scope === "global"
           ? undefined
-          : policy.scopes.find((scope) => scope.name === access.scope)?.key;
+          : scopeField(
+              policy.resources.get(grant.permission.resource),
+              access.scope,
+              policy.scopes,
+            );
       accessExpr = accessSql(ctx, access.scope, grantKey, column);
       if (column !== undefined) {
         filters(grant.permission.resource, table, column);

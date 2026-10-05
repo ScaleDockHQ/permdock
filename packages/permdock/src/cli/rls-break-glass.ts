@@ -1,6 +1,7 @@
 import type { Policy } from "../index.ts";
 import type { RlsSqlContext } from "./rls-sql.ts";
 
+import { scopeField } from "../core/tenancy.ts";
 import { tableFor } from "./rls-compile.ts";
 import {
   breakGlassHolder,
@@ -65,7 +66,14 @@ export function breakGlassEntries(
       grants.push({
         permission: grant.permission.key,
         scope: "anyone",
-        column: root?.key,
+        column:
+          root === undefined
+            ? undefined
+            : scopeField(
+                policy.resources.get(resource),
+                root.name,
+                policy.scopes,
+              ),
         ...(root === undefined ? {} : { root: root.name }),
       });
       continue;
@@ -76,7 +84,11 @@ export function breakGlassEntries(
       column:
         holder.scope === "global"
           ? undefined
-          : policy.scopes.find((scope) => scope.name === holder.scope)?.key,
+          : scopeField(
+              policy.resources.get(resource),
+              holder.scope,
+              policy.scopes,
+            ),
     });
   }
   return [...byResource].map(([resource, grants]) => ({

@@ -322,6 +322,8 @@ export type SnapshotScope = {
   readonly within?: string;
   /** Resources whose rows this scope's key partitions, from their `memberOf` relations. */
   readonly resources?: readonly string[];
+  /** Resource name to the field holding this scope's id, for a resource whose field is not `key` (its own `id`). */
+  readonly fields?: Readonly<Record<string, string>>;
 };
 
 /** The declared roles and the custom-role ceiling the subject may assign in one tenant. */

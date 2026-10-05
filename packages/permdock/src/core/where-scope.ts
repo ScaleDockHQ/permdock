@@ -28,6 +28,8 @@ export type WhereScope = {
   readonly scopes: readonly Scope[];
   /** Whether `resource`'s rows are partitioned by the scope's key. */
   readonly partitioned: (scope: string, key: string) => boolean;
+  /** The field of `resource` holding the scope's id, where it is not the scope's key. */
+  readonly fieldOf?: (scope: string) => string | undefined;
   readonly tenant: string | undefined;
   readonly team: string | undefined;
   readonly now: number;
@@ -55,7 +57,7 @@ function namedFilters(
   }
   const filters: Condition[] = [];
   for (const name of scopeChain(scope.scopes, membership.scope).toReversed()) {
-    const key = findScope(scope.scopes, name)?.key;
+    const key = scope.fieldOf?.(name) ?? findScope(scope.scopes, name)?.key;
     if (key !== undefined && scope.partitioned(name, key)) {
       filters.push(eq(key, scopeIdOf(membership, name)));
     }
