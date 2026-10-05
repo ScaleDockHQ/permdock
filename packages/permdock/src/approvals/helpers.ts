@@ -2,14 +2,15 @@ import type { Decision } from "../core/decision.ts";
 import type { Permission } from "../core/permissions.ts";
 import type { ApprovalRequirement } from "../core/policy.ts";
 import type { Membership, Subject } from "../core/subject.ts";
+import type { ApprovalsHandlerOptions } from "./handler.ts";
 
 import { compact } from "../core/compact.ts";
 import { describe } from "../core/describe.ts";
 import { parseDuration } from "../core/duration.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import { ApprovalError } from "./errors.ts";
-import { type ApprovalsHandlerOptions, heldPermissions } from "./handler.ts";
 import { listAll } from "./page.ts";
+import { heldPermissions } from "./permissions.ts";
 import {
   type ApproverRelationsOptions,
   approverRelations,

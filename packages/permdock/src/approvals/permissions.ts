@@ -1,5 +1,7 @@
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permissions.ts";
+import type { Subject } from "../core/subject.ts";
+import type { ApprovalsHandlerOptions } from "./handler.ts";
 import type { ApprovalRequest } from "./types.ts";
 
 import { findPermission } from "../core/permissions.ts";
@@ -48,4 +50,20 @@ export function approverPermissions(
       return false;
     }
   });
+}
+
+/** The permission approvers `subject` holds on `request`, read through `permdockFor`. */
+export async function heldPermissions(
+  request: ApprovalRequest,
+  subject: Subject,
+  permdockFor: ApprovalsHandlerOptions["permdockFor"],
+): Promise<readonly string[]> {
+  if (permdockFor === undefined || request.approvers === undefined) {
+    return [];
+  }
+  try {
+    return approverPermissions(request, await permdockFor(subject, request));
+  } catch {
+    return [];
+  }
 }
