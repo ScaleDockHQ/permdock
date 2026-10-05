@@ -102,6 +102,7 @@
     "toCsvRow",
     "toOcsf",
     "user",
+    "validateApprovalPolicy",
     "validateCustomRole",
     "writable"
   ],

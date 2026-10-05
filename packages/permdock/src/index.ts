@@ -62,10 +62,15 @@ export {
   memoryRoleSource,
   memorySettings,
 } from "./core/interfaces.ts";
-export { memoryApprovalPolicies } from "./core/approval-policies.ts";
+export {
+  memoryApprovalPolicies,
+  validateApprovalPolicy,
+} from "./core/approval-policies.ts";
 export type {
   ApprovalPolicy,
+  ApprovalPolicyProblem,
   ApprovalPolicySource,
+  ApprovalPolicyValidation,
 } from "./core/approval-policies.ts";
 export {
   claimsFirst,
