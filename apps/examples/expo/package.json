@@ -7,8 +7,10 @@
   "scripts": {
     "dev": "expo start --web --port 3486",
     "doctor": "permdock doctor",
+    "gen": "node scripts/manifest.ts",
+    "gen:check": "node scripts/manifest.ts --check",
     "lint": "oxlint --disable-nested-config --type-aware",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit && tsc --noEmit -p scripts"
   },
   "dependencies": {
     "@expo/log-box": "catalog:",
@@ -20,6 +22,7 @@
     "expo-linking": "catalog:",
     "expo-modules-core": "catalog:",
     "expo-router": "catalog:",
+    "expo-secure-store": "catalog:",
     "permdock": "workspace:*",
     "react": "catalog:",
     "react-dom": "catalog:",
@@ -33,6 +36,7 @@
   "devDependencies": {
     "@permdock/ox-config": "workspace:*",
     "@permdock/typescript-config": "workspace:*",
+    "@types/node": "catalog:",
     "@types/react": "catalog:",
     "oxlint": "catalog:",
     "oxlint-tsgolint": "catalog:",

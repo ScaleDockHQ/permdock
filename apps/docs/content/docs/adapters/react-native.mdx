@@ -23,6 +23,92 @@ The guard has no promise, loading state or pending value: when it flips to `fals
 
 Everything above the transport is shared: the snapshot format, the condition evaluator, `usePermission`'s return shape and the decision endpoint.
 
+## Set up an Expo app
+
+These steps build a native Expo Router app with tabs that a role hides, a snapshot kept in the device keychain, and a refresh when the app returns to the foreground. `apps/examples/expo` runs them.
+
+### 1. Store the snapshot
+
+`expo-secure-store` has synchronous `getItem` and `setItem`, so guards answer on the first frame. Its keys may contain only letters, digits, `.`, `-` and `_`; PermDock writes `permdock.snapshot` and `permdock.tenant`. It has no web implementation, so a universal app picks another store on web:
+
+```ts title="src/storage.ts"
+import * as SecureStore from "expo-secure-store";
+import { memoryStorage, type PermDockStorage } from "permdock/react-native";
+import { Platform } from "react-native";
+
+export const storage: PermDockStorage =
+  Platform.OS === "web"
+    ? memoryStorage()
+    : {
+        getItem: (key) => SecureStore.getItem(key),
+        setItem: (key, value) => {
+          SecureStore.setItem(key, value);
+        },
+        removeItem: async (key) => {
+          await SecureStore.deleteItemAsync(key);
+        },
+      };
+```
+
+MMKV is the faster choice when the snapshot need not be encrypted at rest; [what it validates](#what-it-validates) lists what a snapshot reveals.
+
+### 2. Guard the tabs
+
+`Tabs.Protected` takes a boolean, so the hook runs in a component inside the provider:
+
+```tsx title="src/app/_layout.tsx"
+import { Tabs } from "expo-router";
+import { AppState } from "react-native";
+import { PermDockProvider, usePermission } from "permdock/react-native";
+
+const onForeground = (listener: () => void) => {
+  const subscription = AppState.addEventListener("change", (state) => {
+    if (state === "active") listener();
+  });
+  return () => subscription.remove();
+};
+
+function AppTabs() {
+  const billing = usePermission(permissions.billing.manage);
+  return (
+    <Tabs>
+      <Tabs.Screen name="index" />
+      <Tabs.Protected guard={billing.allowed}>
+        <Tabs.Screen name="billing" />
+      </Tabs.Protected>
+    </Tabs>
+  );
+}
+
+export default function Layout() {
+  return (
+    <PermDockProvider
+      storage={storage}
+      snapshotUrl="https://api.example.com/permdock/snapshot"
+      headers={{ authorization: `Bearer ${accessToken}` }}
+      revalidate="focus"
+      subscribeForeground={onForeground}
+    >
+      <AppTabs />
+    </PermDockProvider>
+  );
+}
+```
+
+Define `onForeground` outside the component: the provider rebuilds its store when the function identity changes. When the guard turns `false`, the tab stops existing and Expo Router moves the user to the first allowed route.
+
+### 3. Refresh on foreground
+
+`revalidate: 'focus'` with `subscribeForeground` fetches `snapshotUrl` on launch and whenever `AppState` reports `active`, so a role removed while the app was in the background applies when the user returns. It refreshes only `snapshotUrl`. A [local snapshot](#local-snapshot) re-reads its rows when its own `subscribe` fires; add the same `AppState` listener there.
+
+### 4. Clear on sign-out
+
+Call `usePermDock().clear()` before switching user. It removes `permdock.snapshot` from the keychain and drops every cached decision, so nothing from the previous user is read on the next launch. Pass `subjectId` as well: a persisted snapshot for another user is then treated as empty storage.
+
+### 5. Plan for offline
+
+Portable grants, including ownership conditions, answer offline from the stored snapshot. Closure grants report `server-only` and `allowed: false` until the device is back online ([offline behaviour](#offline-behaviour)). A guard that must work offline needs a portable grant.
+
 ## API
 
 ```tsx
@@ -89,12 +175,16 @@ writeFileSync(
 ```
 
 ```tsx
-import { localSnapshot, PermDockProvider } from "permdock/react-native";
+import {
+  localSnapshot,
+  PermDockProvider,
+  type LocalSnapshotManifest,
+} from "permdock/react-native";
 import manifest from "./permdock-manifest.json";
 
 // readMemberships, readCustomRoles and watchTables are the app's own queries over its local database.
 const source = localSnapshot({
-  manifest,
+  manifest: manifest as LocalSnapshotManifest, // a JSON import widens `v: 1` to number
   read: async () => ({
     principal: {
       id: userId,
@@ -139,7 +229,7 @@ The snapshot is stored as the `storage` implementation stores it. The entry ship
 
 ## Example app
 
-`apps/examples/expo`: an Expo Router web app with an inline snapshot, `memoryStorage`, and `Protected` / `usePermission`. `http://127.0.0.1:3486/` shows `edit` for a granted update and `locked` for a denied publish.
+`apps/examples/expo`: an Expo Router app with `expo-secure-store` storage (`memoryStorage` on web), a `localSnapshot` over in-memory rows that stand in for a sync engine, an `AppState` foreground listener, `Tabs.Protected` and `Protected`. `pnpm gen` writes `src/permdock-manifest.json` from the policy; the app bundle never imports the policy. `http://127.0.0.1:3486/` shows `edit`, `locked` for publish and one tab; "Sync admin role" changes the row, and `publish` and the Publish tab appear with no request.
 
 ## Related standards
 

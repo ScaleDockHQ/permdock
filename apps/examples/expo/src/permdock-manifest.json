@@ -1,0 +1,183 @@
+{
+  "v": 1,
+  "vocabulary": {},
+  "roles": ["admin", "member"],
+  "grants": [
+    {
+      "permission": "post.read",
+      "effect": "allow",
+      "role": "member",
+      "to": {
+        "kind": "role",
+        "role": "member",
+        "scope": "global"
+      }
+    },
+    {
+      "permission": "post.list",
+      "effect": "allow",
+      "role": "member",
+      "to": {
+        "kind": "role",
+        "role": "member",
+        "scope": "global"
+      }
+    },
+    {
+      "permission": "post.create",
+      "effect": "allow",
+      "role": "member",
+      "to": {
+        "kind": "role",
+        "role": "member",
+        "scope": "global"
+      }
+    },
+    {
+      "permission": "post.update",
+      "effect": "allow",
+      "role": "member",
+      "to": {
+        "kind": "role",
+        "role": "member",
+        "scope": "global"
+      },
+      "where": {
+        "op": "eq",
+        "field": "authorId",
+        "value": {
+          "ref": "principal.id"
+        }
+      }
+    },
+    {
+      "permission": "post.delete",
+      "effect": "allow",
+      "role": "member",
+      "to": {
+        "kind": "role",
+        "role": "member",
+        "scope": "global"
+      },
+      "where": {
+        "op": "eq",
+        "field": "authorId",
+        "value": {
+          "ref": "principal.id"
+        }
+      },
+      "approval": "human"
+    },
+    {
+      "permission": "post.read",
+      "effect": "allow",
+      "role": "admin",
+      "to": {
+        "kind": "role",
+        "role": "admin",
+        "scope": "global"
+      }
+    },
+    {
+      "permission": "post.list",
+      "effect": "allow",
+      "role": "admin",
+      "to": {
+        "kind": "role",
+        "role": "admin",
+        "scope": "global"
+      }
+    },
+    {
+      "permission": "post.create",
+      "effect": "allow",
+      "role": "admin",
+      "to": {
+        "kind": "role",
+        "role": "admin",
+        "scope": "global"
+      }
+    },
+    {
+      "permission": "post.update",
+      "effect": "allow",
+      "role": "admin",
+      "to": {
+        "kind": "role",
+        "role": "admin",
+        "scope": "global"
+      },
+      "where": {
+        "op": "eq",
+        "field": "authorId",
+        "value": {
+          "ref": "principal.id"
+        }
+      }
+    },
+    {
+      "permission": "post.delete",
+      "effect": "allow",
+      "role": "admin",
+      "to": {
+        "kind": "role",
+        "role": "admin",
+        "scope": "global"
+      },
+      "where": {
+        "op": "eq",
+        "field": "authorId",
+        "value": {
+          "ref": "principal.id"
+        }
+      },
+      "approval": "human"
+    },
+    {
+      "permission": "post.update",
+      "effect": "allow",
+      "role": "admin",
+      "to": {
+        "kind": "role",
+        "role": "admin",
+        "scope": "global"
+      }
+    },
+    {
+      "permission": "post.delete",
+      "effect": "allow",
+      "role": "admin",
+      "to": {
+        "kind": "role",
+        "role": "admin",
+        "scope": "global"
+      }
+    },
+    {
+      "permission": "post.publish",
+      "effect": "allow",
+      "role": "admin",
+      "to": {
+        "kind": "role",
+        "role": "admin",
+        "scope": "global"
+      }
+    },
+    {
+      "permission": "post.publish",
+      "effect": "deny",
+      "role": "admin",
+      "to": {
+        "kind": "role",
+        "role": "admin",
+        "scope": "global"
+      },
+      "where": {
+        "op": "eq",
+        "field": "published",
+        "value": true
+      }
+    }
+  ],
+  "custom": {}
+}
