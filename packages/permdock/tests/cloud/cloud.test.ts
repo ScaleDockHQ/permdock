@@ -14,6 +14,12 @@ import { memoryApprovalStore } from "../../src/approvals/store.ts";
 import { cloud, cloudEndpoints } from "../../src/cloud/create.ts";
 import { joseTokenSigner } from "../../src/jwt/signer.ts";
 import { joseTokenVerifier } from "../../src/jwt/verifier.ts";
+import {
+  testApprovalStore,
+  testDecisionSink,
+  testPolicySource,
+  testSnapshotSource,
+} from "../../src/testing/conformance.ts";
 
 const CLOUD_URL = "https://cloud.permdock.test";
 const KEY = "env-key";
@@ -96,8 +102,10 @@ function fakeCloud(options: { readonly snapshot?: Snapshot | string } = {}): {
               ? 409
               : error.code === "approval-expired"
                 ? 410
-                : 404;
-          return json({ code: error.code }, status);
+                : error.code === "approval-not-found"
+                  ? 404
+                  : 403;
+          return json({ code: error.code, detail: error.message }, status);
         }
         throw error;
       }
@@ -609,5 +617,78 @@ describe("cloud", () => {
     await client.policies.refresh();
     expect(client.policies.current()).toBeNull();
     expect(calls).toBe(0);
+  });
+});
+
+describe("cloud conformance", () => {
+  const client = cloud({
+    url: CLOUD_URL,
+    key: KEY,
+    flushAt: 1,
+    fetch: fakeCloud({ snapshot: "aaa.bbb.ccc" }).fetch,
+  });
+  describe("approvals", () => {
+    testApprovalStore(client.approvals);
+  });
+  describe("sink", () => {
+    testDecisionSink(client.sink);
+  });
+  describe("snapshots", () => {
+    testSnapshotSource(client.snapshots);
+  });
+  describe("policies", () => {
+    testPolicySource(client.policies);
+  });
+});
+
+describe("cloud approval refusals", () => {
+  it.each([
+    [
+      "a named code with its detail",
+      json({ code: "approver-is-actor", detail: "no" }, 403),
+      "approver-is-actor",
+      "no",
+    ],
+    [
+      "a named code without detail",
+      json({ code: "approver-repeated" }, 403),
+      "approver-repeated",
+      "approver-repeated",
+    ],
+    [
+      "an unknown code",
+      json({ code: "nope" }, 409),
+      "approval-not-pending",
+      "approval is not pending",
+    ],
+    [
+      "a body without code",
+      json({}, 410),
+      "approval-expired",
+      "approval has expired",
+    ],
+    [
+      "a body that is not JSON",
+      new Response("down", { status: 500 }),
+      "approval-not-found",
+      "approval was not found",
+    ],
+  ])("maps %s", async (_name, response, code, message) => {
+    const client = cloud({
+      url: CLOUD_URL,
+      key: KEY,
+      fetch: () => Promise.resolve(response),
+    });
+    const refused = await Promise.resolve(
+      client.approvals.resolve("t", {
+        status: "approved",
+        by: { principal: null, context: {} },
+      }),
+    ).then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+    expect(isApprovalError(refused)).toBe(true);
+    expect(refused).toMatchObject({ code, message });
   });
 });
