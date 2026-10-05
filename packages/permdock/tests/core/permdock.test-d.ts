@@ -1,6 +1,7 @@
 import { describe, expectTypeOf, it } from "vitest";
 
 import type { Decision } from "../../src/core/decision.ts";
+import type { Permission } from "../../src/index.ts";
 
 import {
   allow,
@@ -32,6 +33,20 @@ describe("permission arity", () => {
     ).toBeObject();
     // @ts-expect-error collection grants cannot carry `where`
     allow(permissions.post.create, { where: { authorId: "u1" } });
+    // @ts-expect-error an instance action needs its row
+    permdock.can(permissions.post.update);
+  });
+
+  it("takes a permission held as Permission at run time, with data", async () => {
+    const permdock = await createPermDock(policy, memberUser);
+    const leaf: Permission = permissions.post.update;
+    expectTypeOf(permdock.can(leaf, ownPost)).toEqualTypeOf<boolean>();
+    expectTypeOf(permdock.can(leaf, undefined)).toEqualTypeOf<boolean>();
+    expectTypeOf(permdock.decide(leaf, ownPost)).toEqualTypeOf<Decision>();
+    expectTypeOf(permdock.assert).toBeCallableWith(leaf, ownPost);
+    expectTypeOf(permdock.explain).toBeCallableWith(leaf, undefined);
+    // @ts-expect-error a runtime permission still names its data
+    permdock.can(leaf);
   });
 });
 
