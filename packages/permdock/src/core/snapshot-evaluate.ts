@@ -18,6 +18,7 @@ import { coveredByDelegation, resourceIdOf } from "./delegation.ts";
 import { grantCoversField } from "./fields.ts";
 import { freezeDeep } from "./freeze.ts";
 import { matchGrantee } from "./grantee.ts";
+import { rowIdOf, rowValues } from "./row-pair.ts";
 import { type Scope, scopeList } from "./scopes.ts";
 import {
   activeFor,
@@ -31,17 +32,6 @@ import { decisionToken, payloadDigest } from "./token.ts";
 import { isActive } from "./validity.ts";
 import { whereFromGrants } from "./where-scope.ts";
 
-function isRowPair(
-  value: unknown,
-): value is { readonly current: unknown; readonly next: unknown } {
-  return (
-    value !== null &&
-    typeof value === "object" &&
-    "current" in value &&
-    "next" in value
-  );
-}
-
 function coveredByInclude(snapshot: Snapshot, permission: Permission): boolean {
   const include = snapshot.include;
   if (include === undefined || include.length === 0) {
@@ -53,15 +43,6 @@ function coveredByInclude(snapshot: Snapshot, permission: Permission): boolean {
       permission.key.startsWith(`${prefix}.`) ||
       permission.resource === prefix,
   );
-}
-
-export function rowId(data: unknown): string {
-  if (data === null || typeof data !== "object") {
-    return "*";
-  }
-  // SAFETY: data is a non-null object checked above; the read id stays unknown and is checked below.
-  const id = (data as Record<string, unknown>)["id"];
-  return typeof id === "string" || typeof id === "number" ? String(id) : "*";
 }
 
 /** The field of `resource` that holds scope `name`'s id in a snapshot: its `fields` entry, else the scope's key. */
@@ -145,7 +126,7 @@ function scopeOk(
   ) {
     return { ok: false, reason: "scope" };
   }
-  if (on.id !== rowId(data)) {
+  if (on.id !== rowIdOf(data, snapshot.ids?.[permission.resource])) {
     return { ok: false, reason: "scope" };
   }
   return { ok: true };
@@ -277,16 +258,8 @@ export function evaluateSnapshot(
       alternatives: [],
     });
   }
-  let current: unknown = data;
-  let next: unknown = data;
-  if (permission.kind === "instance" && isRowPair(data)) {
-    current = data.current;
-    next = data.next;
-  }
-  if (permission.kind === "collection") {
-    current = undefined;
-    next = data;
-  }
+  const { current, next } = rowValues(permission, data);
+  const scopes = scopeList(snapshot.scopes);
   const denials: Denial[] = [];
   const allows: SnapshotGrant[] = [];
   for (const grant of snapshot.grants) {
@@ -301,7 +274,7 @@ export function evaluateSnapshot(
       subject,
       now,
       undefined,
-      undefined,
+      scopes,
       undefined,
       grant.effect === "deny",
     );
@@ -374,7 +347,7 @@ export function evaluateSnapshot(
       next,
       subject,
       now,
-      scopeList(snapshot.scopes),
+      scopes,
     );
     if (
       !condition.matched &&
@@ -459,7 +432,10 @@ export function evaluateSnapshot(
       alternatives: [],
     });
   }
-  const resourceId = permission.kind === "collection" ? "*" : rowId(current);
+  const resourceId =
+    permission.kind === "collection"
+      ? "*"
+      : rowIdOf(current, snapshot.ids?.[permission.resource]);
   const token = decisionToken({
     key: permission.key,
     resourceId,

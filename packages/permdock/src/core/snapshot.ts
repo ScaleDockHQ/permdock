@@ -104,6 +104,8 @@ export function buildSnapshot(input: {
   readonly assignable?: (tenant: string) => SnapshotAssignable;
   readonly notEntitled?: readonly { readonly grant: Grant }[];
   readonly delegated?: ReadonlySet<string>;
+  /** The id field of a resource, when its `id` option names one. */
+  readonly idOf?: (resource: string) => string | undefined;
 }): Snapshot {
   const now = input.now ?? Math.floor(Date.now() / 1000);
   const principal = input.subject.principal;
@@ -129,6 +131,18 @@ export function buildSnapshot(input: {
     .map((item) =>
       bindClaims(snapshotGrant(item.grant, item.membership), input.subject),
     );
+  const ids: Record<string, string> = {};
+  for (const item of input.grants) {
+    const name = item.grant.permission.resource;
+    const field = input.idOf?.(name);
+    if (
+      field !== undefined &&
+      field !== "id" &&
+      included(item.grant.permission)
+    ) {
+      ids[name] = field;
+    }
+  }
   const assignableFor = input.assignable;
   const assignable =
     assignableFor === undefined
@@ -178,6 +192,7 @@ export function buildSnapshot(input: {
       simulated: input.simulated === true ? true : undefined,
       expiresAt: input.subject.expiresAt,
       scopes: input.scopes,
+      ids: Object.keys(ids).length === 0 ? undefined : ids,
       assignable: assignable.length > 0 ? assignable : undefined,
       delegated:
         input.delegated === undefined

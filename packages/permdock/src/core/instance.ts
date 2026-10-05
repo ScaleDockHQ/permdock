@@ -711,6 +711,7 @@ export function snapshotOf(
       now: Math.floor(now),
       vocabulary: policy.vocabulary,
       scopes: snapshotScopes(policy),
+      idOf: (name: string) => getResource(policy.permissions, name)?.id,
       delegated: delegatedPermissions(
         policy.delegations,
         subject,

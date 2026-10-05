@@ -2,6 +2,7 @@ import type { ResourceNode } from "./permissions.ts";
 import type { GrantScope } from "./policy.ts";
 import type { Membership, Principal, Subject } from "./subject.ts";
 
+import { expiredAt } from "./expiry.ts";
 import { sameId } from "./ids.ts";
 import { isFieldRelation } from "./permissions.ts";
 import {
@@ -25,10 +26,7 @@ export function isMembershipExpired(
   membership: Membership,
   now?: number,
 ): boolean {
-  return (
-    membership.expiresAt !== undefined &&
-    membership.expiresAt <= (now ?? nowSeconds())
-  );
+  return expiredAt(membership, now ?? nowSeconds());
 }
 
 /** The instances of the first scope the subject holds a live membership in. */
