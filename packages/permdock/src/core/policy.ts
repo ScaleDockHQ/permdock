@@ -12,7 +12,10 @@ import {
 import {
   type Approver,
   type ApproverInput,
+  approverLeaves,
   flattenApprovers,
+  isAnyOfInput,
+  isPermissionApprover,
   isUserApprover,
   user,
 } from "./approvers.ts";
@@ -86,17 +89,23 @@ export type ClosureGrantFn<T = unknown> = (
   ctx: ClosureContext,
 ) => boolean;
 
-export type { Approver, ApproverInput, UserApprover } from "./approvers.ts";
-export { user } from "./approvers.ts";
+export type {
+  AnyOfApprover,
+  Approver,
+  ApproverInput,
+  PermissionApprover,
+  UserApprover,
+} from "./approvers.ts";
+export { allOf, anyOf, holder, user } from "./approvers.ts";
 
-/** Every approver a requirement names: `by`, each stage and `escalation.to`. */
+/** Every approver a requirement names: `by`, each stage and its escalation, and `escalation.to`, inside `anyOf` groups too. */
 function approversOf(requirement: ApprovalRequirement): readonly Approver[] {
   return [
-    ...flattenApprovers(requirement.by),
+    ...approverLeaves(requirement.by),
     ...(requirement.stages ?? []).flatMap((stage) =>
-      flattenApprovers(stage.by),
+      approverLeaves(stage.by).concat(approverLeaves(stage.escalation?.to)),
     ),
-    ...flattenApprovers(requirement.escalation?.to),
+    ...approverLeaves(requirement.escalation?.to),
   ];
 }
 
@@ -112,6 +121,8 @@ export type ApprovalStage = {
   readonly by: Approver | readonly Approver[];
   /** Absent means 1. */
   readonly quorum?: number;
+  /** After `after`, `to` may approve this stage as well as `by`; other stages are unaffected. */
+  readonly escalation?: ApprovalEscalation;
 };
 
 /**
@@ -148,6 +159,11 @@ export type ApprovalOption =
       readonly stages?: readonly {
         readonly by: ApproverInput;
         readonly quorum?: number;
+        /** After `after`, `to` may approve this stage as well as `by`. */
+        readonly escalation?: {
+          readonly after: string;
+          readonly to: ApproverInput;
+        };
       }[];
       /** `false` lets the request's principal approve it; absent means `true`. */
       readonly distinct?: boolean;
@@ -169,6 +185,31 @@ export type ApprovalOption =
     };
 
 function asApprover(input: ApproverInput): Approver | readonly Approver[] {
+  if (isPermissionApprover(input)) {
+    if (typeof input.permission !== "string" || input.permission === "") {
+      throw new Error("PermDock: a permission approver needs a permission key");
+    }
+    return Object.freeze({
+      kind: "permission" as const,
+      permission: input.permission,
+    });
+  }
+  if (isAnyOfInput(input)) {
+    if (!Array.isArray(input.of) || input.of.length === 0) {
+      throw new Error("PermDock: anyOf() needs at least one approver");
+    }
+    // SAFETY: Array.isArray does not narrow a readonly array; the any-of form lists ApproverInput.
+    const of = (input.of as readonly ApproverInput[]).map((item) => {
+      const normalized = asApprover(item);
+      const items = flattenApprovers(normalized);
+      if (items.length === 0) {
+        throw new Error("PermDock: an anyOf() item names no approver");
+      }
+      const [first] = items;
+      return isReadonlyArray(normalized) || first === undefined ? items : first;
+    });
+    return Object.freeze({ kind: "any-of" as const, of: Object.freeze(of) });
+  }
   if (isReadonlyArray(input)) {
     const items: Approver[] = [];
     // SAFETY: isReadonlyArray does not narrow the element type; the only array form is ApproverInput[].
@@ -651,7 +692,11 @@ function normalizeStages(
         `PermDock: approval.stages[${index}].by on '${label}' names no approver`,
       );
     }
-    return compact<ApprovalStage>({ by, quorum: stage.quorum });
+    return compact<ApprovalStage>({
+      by,
+      quorum: stage.quorum,
+      escalation: normalizeEscalation(stage.escalation, label),
+    });
   });
 }
 

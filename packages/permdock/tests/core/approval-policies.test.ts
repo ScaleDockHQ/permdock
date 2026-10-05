@@ -145,7 +145,7 @@ describe("ApprovalPolicySource", () => {
     const escalating = memoryApprovalPolicies([
       {
         permission: "expense.read",
-        approval: { by: "finance", escalation: { after: "1h", to: "x" } },
+        approval: { by: "finance", escalation: { after: "soon", to: "x" } },
       },
     ]);
     const junk: ApprovalPolicySource = {
@@ -394,7 +394,7 @@ describe("ApprovalPolicySource", () => {
       [
         {
           permission: "expense.read",
-          approval: { by: "finance", escalation: { after: "1h", to: "x" } },
+          approval: { by: "finance", escalation: { after: "soon", to: "x" } },
         },
         { ok: false, problem: "invalid" },
       ],

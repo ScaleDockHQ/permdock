@@ -41,7 +41,7 @@ const permdock = await createPermDock(policy, user, {
       tenant: "o_acme", // absent: every tenant
       actors: ["agent"], // absent: every call
       where: { op: "gt", field: "amount", value: 1000 },
-      approval: { by: "finance" }, // no escalation in data
+      approval: { by: "finance" }, // an escalation here widens only this entry's stages
     },
   ]),
 });
@@ -87,3 +87,7 @@ For AG-UI event shapes, defer to the `ag-ui` spec skill (`npx skills add ScaleDo
 ## Delivery
 
 Notifying an approver is a listener on the `approval` event (`permdock.on('approval', …)`), never a package. A message or email carries only the token and links to a page where the approver signs in; the verdict goes through `approvalsHandler` with that session's subject. A link never approves on its own ([approvals adapter, Delivery](https://permdock.com/docs/adapters/approvals#delivery)).
+
+## Approvers
+
+`by` takes roles, `user(id)`, `relation()`, `holder(permission)` and `anyOf(...)`. A list is all-of; use `anyOf(user(id), holder(permissions.x.approve))` for "this person or anyone who holds the permission". `holder()` needs `approvalsHandler(store, { permdockFor: (approver, request) => createPermDock(policy, approver, { customRoles }) })`, so custom roles count. Stages may carry their own `escalation`.

@@ -22,6 +22,7 @@ import {
   approverRelationKey,
   DEFAULT_APPROVAL_TTL_MS,
   escalationOpenAt,
+  stageEscalationOpenAt,
 } from "./types.ts";
 
 function tenantOf(request: ApprovalRequest): string | undefined {
@@ -71,18 +72,40 @@ function holdsRole(subject: Subject, role: string, tenant?: string): boolean {
   return false;
 }
 
+/** Facts the handler computed for the approver: relation keys held on the row, and permission keys held in the tenant. */
+type ApproverFacts = {
+  readonly relations: ReadonlySet<string>;
+  readonly permissions: ReadonlySet<string>;
+};
+
 function matchesApprovers(
   by: Approver | readonly Approver[],
   subject: Subject,
   tenant: string | undefined,
   now: number,
-  relations: ReadonlySet<string>,
+  facts: ApproverFacts,
 ): boolean {
   const items = flattenApprovers(by);
   if (items.length === 0) {
     return false;
   }
   for (const item of items) {
+    if (item.kind === "any-of") {
+      if (
+        !item.of.some((entry) =>
+          matchesApprovers(entry, subject, tenant, now, facts),
+        )
+      ) {
+        return false;
+      }
+      continue;
+    }
+    if (item.kind === "permission") {
+      if (!facts.permissions.has(item.permission)) {
+        return false;
+      }
+      continue;
+    }
     if (item.kind === "role") {
       if (!holdsRole(subject, item.role, tenant)) {
         return false;
@@ -96,7 +119,7 @@ function matchesApprovers(
       continue;
     }
     if (item.kind === "relation") {
-      if (!relations.has(approverRelationKey(item))) {
+      if (!facts.relations.has(approverRelationKey(item))) {
         return false;
       }
       continue;
@@ -185,6 +208,7 @@ export function assertApprover(
   requireDistinctApprover: boolean,
   now: Date = new Date(),
   relations: readonly string[] = [],
+  permissions: readonly string[] = [],
 ): number | undefined {
   const principal = by.principal;
   if (principal === null) {
@@ -231,10 +255,22 @@ export function assertApprover(
   if (approvers === undefined) {
     return undefined;
   }
-  const held = new Set(relations);
+  const facts: ApproverFacts = {
+    relations: new Set(relations),
+    permissions: new Set(permissions),
+  };
   const instant = now.getTime() / 1000;
   const eligible = (target: Approver | readonly Approver[]): boolean =>
-    matchesApprovers(target, by, tenant, instant, held);
+    matchesApprovers(target, by, tenant, instant, facts);
+  const stageEscalated = (stage: ApprovalStage): boolean => {
+    const openAt = stageEscalationOpenAt(request, stage);
+    return (
+      stage.escalation !== undefined &&
+      openAt !== undefined &&
+      now.getTime() >= openAt &&
+      eligible(stage.escalation.to)
+    );
+  };
   const openAt = escalationOpenAt(request);
   const escalated =
     approvers.escalation !== undefined &&
@@ -258,7 +294,10 @@ export function assertApprover(
   const candidates = approvers.mode === "sequential" ? open.slice(0, 1) : open;
   for (const index of candidates) {
     const stage = stages[index];
-    if (stage !== undefined && (escalated || eligible(stage.by))) {
+    if (
+      stage !== undefined &&
+      (escalated || eligible(stage.by) || stageEscalated(stage))
+    ) {
       return index;
     }
   }
@@ -303,7 +342,14 @@ export function applyApprovalVerdict(
   const stage =
     verdict.status === "rejected" && isSystemSubject(verdict.by)
       ? undefined
-      : assertApprover(request, verdict.by, false, now, verdict.relations);
+      : assertApprover(
+          request,
+          verdict.by,
+          false,
+          now,
+          verdict.relations,
+          verdict.permissions,
+        );
   if (verdict.status === "rejected") {
     return freezeDeep(
       compact<ApprovalRequest>({

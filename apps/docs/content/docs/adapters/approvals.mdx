@@ -102,6 +102,8 @@ const decision = await resumeDecision({
 });
 ```
 
+`approvalsHandler` options take `permdockFor: (approver, request) => PermDock` for [`holder()` approvers](/docs/security/approvals#any-of-several-approvers-and-permission-holders): it builds the approver's instance in the request's tenant, and the handler passes the permission keys `approverPermissions` reads from it on `verdict.permissions`.
+
 `approvalsHandler` routes, all Fetch `Request` to `Response`:
 
 | Route                  | Purpose                                                                                                                                                                                                                                                                                 | Denial                                                                                                                                                                                                                                                                                                                       |
@@ -132,7 +134,7 @@ const permdock = await createPermDock(policy, user, {
       tenant: "o_acme", // absent: every tenant
       actors: ["agent"], // absent: every call; a call without an actor never matches a list
       where: { op: "gt", field: "amount", value: 1000 }, // a portable condition over the row
-      approval: { by: "finance" }, // the approval option shape, without escalation
+      approval: { by: "finance" }, // the approval option shape
     },
   ]),
 });
@@ -140,7 +142,7 @@ const permdock = await createPermDock(policy, user, {
 
 - The source is read once, when the instance is created, for the subject's tenants. Entries are plain JSON; `where` and `check` are portable conditions.
 - An entry matches an allowed call for its permission when its tenant is the decision's tenant (the matched membership's root scope, else the active tenant), its `actors` list contains the actor's kind, and its `where` and `check` hold.
-- The effective requirement combines the grant's own approval and every matching entry as stages: `sequential` when any part is sequential, `all` otherwise. Identical stages appear once. The grant's escalation is kept, the shortest `ttl` wins, and `distinct` stays on unless every part turns it off.
+- The effective requirement combines the grant's own approval and every matching entry as stages: `sequential` when any part is sequential, `all` otherwise. Identical stages appear once. The grant's escalation is kept and still applies to every stage; an entry's `escalation` is attached to that entry's own stages only, so data can never let someone step in on the code's stages. The shortest `ttl` wins, and `distinct` stays on unless every part turns it off.
 - A call that ends up needing approval does not consume quota.
 - A source that throws, rejects or returns an entry that does not load makes every call an allow would grant deny with reason `approval` and detail `approval-policy-unavailable`. An entry naming a permission the policy does not declare applies to nothing.
 - `where` reads the row, so it is allowed only on an instance permission. On a collection permission (`invoice.create`) an entry with `where` does not load, because a collection action has no row and the entry could never match; use `check`, which reads the call's input (the proposed row).

@@ -35,7 +35,10 @@ export type ApprovalPolicy = {
   readonly where?: Condition;
   /** A portable condition over the call's input (the proposed row). */
   readonly check?: Condition;
-  /** The same shape as `allow(..., { approval })`, without `escalation`. */
+  /**
+   * The same shape as `allow(..., { approval })`. An `escalation` here widens
+   * only this entry's stages, never the code's.
+   */
   readonly approval: ApprovalOption;
 };
 
@@ -127,7 +130,6 @@ function checkOne(policy: Policy, raw: unknown): Checked {
     (actors !== undefined && !isStringList(actors)) ||
     (where !== undefined && !isPortableCondition(where)) ||
     (check !== undefined && !isPortableCondition(check)) ||
-    (isRecord(approval) && approval["escalation"] !== undefined) ||
     (approval !== "human" && !isRecord(approval))
   ) {
     return { problem: "invalid" };
@@ -296,6 +298,26 @@ function asStages(
   ];
 }
 
+/** An entry's stages, each carrying the entry's escalation unless it has its own. */
+function entryStages(
+  approval: NonNullable<Grant["approval"]>,
+): readonly ApprovalStage[] {
+  const stages = asStages(approval);
+  if (approval === "human" || approval.escalation === undefined) {
+    return stages;
+  }
+  const escalation = approval.escalation;
+  return stages.map((stage) =>
+    stage.escalation === undefined
+      ? compact<ApprovalStage>({
+          by: stage.by,
+          quorum: stage.quorum,
+          escalation,
+        })
+      : stage,
+  );
+}
+
 function shorter(
   a: string | undefined,
   b: string | undefined,
@@ -356,8 +378,9 @@ export function tightenApproval(
   let distinct = false;
   let staleOn: ApprovalRequirement["staleOn"];
   let ttl: string | undefined;
-  for (const part of parts) {
-    for (const stage of asStages(part)) {
+  for (const [index, part] of parts.entries()) {
+    const fromCode = code !== undefined && index === 0;
+    for (const stage of fromCode ? asStages(part) : entryStages(part)) {
       const key = JSON.stringify(stage);
       if (!seen.has(key)) {
         seen.add(key);

@@ -130,9 +130,19 @@ const TITLES: Readonly<Record<DecisionDescription["kind"], string>> = {
 };
 
 function labelApprover(approver: Approver): string {
-  return approver.kind === "user"
-    ? `user ${approver.id}`
-    : labelGrantee(approver);
+  if (approver.kind === "user") {
+    return `user ${approver.id}`;
+  }
+  if (approver.kind === "permission") {
+    return `a holder of ${approver.permission}`;
+  }
+  if (approver.kind === "any-of") {
+    const groups = approver.of.map((entry) =>
+      flattenApprovers(entry).map(labelApprover).join(" and "),
+    );
+    return `one of (${groups.join(", ")})`;
+  }
+  return labelGrantee(approver);
 }
 
 function approvers(approval: MatchedGrant["approval"]): readonly string[] {

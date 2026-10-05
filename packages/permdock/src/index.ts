@@ -204,9 +204,12 @@ export type {
   ResourceRelationInput,
 } from "./core/permissions.ts";
 export {
+  allOf,
   allow,
+  anyOf,
   definePolicy,
   deny,
+  holder,
   normalizeApproval,
   normalizeAssurance,
   requiresApproval,
@@ -221,8 +224,10 @@ export type {
   ApprovalOption,
   ApprovalRequirement,
   ApprovalStage,
+  AnyOfApprover,
   Approver,
   ApproverInput,
+  PermissionApprover,
   UserApprover,
   AssuranceRequirement,
   BreakGlassOptions,

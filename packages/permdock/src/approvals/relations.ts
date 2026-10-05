@@ -1,11 +1,12 @@
 import type { RelatedCondition } from "../conditions/ast.ts";
+import type { Approver } from "../core/approvers.ts";
 import type { RelationGrantee } from "../core/grantee.ts";
 import type { RelationSource } from "../core/interfaces.ts";
 import type { PermissionTree, ResourceNode } from "../core/permissions.ts";
 import type { Subject } from "../core/subject.ts";
 import type { ApprovalRequest } from "./types.ts";
 
-import { flattenApprovers } from "../core/approvers.ts";
+import { approverLeaves } from "../core/approvers.ts";
 import { getRegistry } from "../core/permissions.ts";
 import {
   type RelationCache,
@@ -25,6 +26,19 @@ export type ApproverRelationsOptions = {
 };
 
 const DEFAULT_PARENT_DEPTH = 16;
+
+/** Every approver a request names: `by`, each stage and its escalation, and `escalation.to`, inside `anyOf` groups too. */
+export function requestApprovers(
+  approvers: NonNullable<ApprovalRequest["approvers"]>,
+): readonly Approver[] {
+  return [
+    ...approverLeaves(approvers.by),
+    ...(approvers.stages ?? []).flatMap((stage) =>
+      approverLeaves(stage.by).concat(approverLeaves(stage.escalation?.to)),
+    ),
+    ...approverLeaves(approvers.escalation?.to),
+  ];
+}
 
 /** Reads until nothing is in flight: each round loads one more layer of facts. */
 async function settled<T>(
@@ -120,11 +134,7 @@ export async function approverRelations(
     return [];
   }
   const items = new Map<string, RelationGrantee>();
-  for (const item of [
-    ...flattenApprovers(approvers.by),
-    ...(approvers.stages ?? []).flatMap((stage) => flattenApprovers(stage.by)),
-    ...flattenApprovers(approvers.escalation?.to),
-  ]) {
+  for (const item of requestApprovers(approvers)) {
     if (item.kind === "relation") {
       items.set(approverRelationKey(item), item);
     }

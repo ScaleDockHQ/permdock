@@ -8,6 +8,7 @@ import { describe } from "../core/describe.ts";
 import { parseDuration } from "../core/duration.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import { ApprovalError } from "./errors.ts";
+import { type ApprovalsHandlerOptions, heldPermissions } from "./handler.ts";
 import { listAll } from "./page.ts";
 import {
   type ApproverRelationsOptions,
@@ -166,6 +167,7 @@ export async function resolveApproval(
   verdict: ApprovalVerdict,
   options: ApproverRelationsOptions & {
     readonly requireDistinctApprover?: boolean;
+    readonly permdockFor?: ApprovalsHandlerOptions["permdockFor"];
   } = {},
 ): Promise<ApprovalRequest> {
   const current = await store.get(token);
@@ -175,14 +177,18 @@ export async function resolveApproval(
   const relations =
     verdict.relations ??
     (await approverRelations(current, verdict.by, options));
+  const permissions =
+    verdict.permissions ??
+    (await heldPermissions(current, verdict.by, options.permdockFor));
   assertApprover(
     current,
     verdict.by,
     options.requireDistinctApprover === true,
     options.now,
     relations,
+    permissions,
   );
-  return store.resolve(token, { ...verdict, relations });
+  return store.resolve(token, { ...verdict, relations, permissions });
 }
 
 export async function inspectApproval(
