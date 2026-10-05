@@ -347,7 +347,14 @@ export async function runRlsGenerate(input: {
     ...(suspension === undefined ? {} : { suspension }),
     ...(roles === undefined ? {} : { roles }),
     ...(input.customRoles === true || rls?.customRoles === true
-      ? { customRoles: customRoleNames(policy, requires.keys) }
+      ? {
+          customRoles: {
+            ...customRoleNames(policy, requires.keys),
+            ...(rls?.customRoleWrites?.roles === undefined
+              ? {}
+              : { table: rls.customRoleWrites.roles }),
+          },
+        }
       : {}),
     ...(input.capabilities === true || rls?.capabilities === true
       ? { capabilities: true as const }
