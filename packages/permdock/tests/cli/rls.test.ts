@@ -383,7 +383,7 @@ export const policy = definePolicy(permissions, {
       { cwd },
     );
     expect(pgtap.stdout).toContain(
-      '\\"grants\\":{\\"reader\\":[\\"post.read\\",\\"post.delete\\"]}',
+      '"grants":{"reader":["post.read","post.delete"]}',
     );
   });
 

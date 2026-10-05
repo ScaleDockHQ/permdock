@@ -69,8 +69,17 @@ function rowsFor(
 }
 
 describe("rls verify --format pgtap", () => {
-  it("writes one ok per fixture with a null tenant and no memberships", async () => {
-    const cwd = app([{ subject: { id: "u1" }, row: own, action: "post.read" }]);
+  it("asserts the in-process outcome of each fixture against the database", async () => {
+    const cwd = app([
+      { subject: { id: "u1" }, row: own, action: "post.read" },
+      { subject: author, row: own, action: "post.publish" },
+      { subject: author, row: own, action: "post.update" },
+      {
+        subject: author,
+        row: { id: "p'3", authorId: "u1", orgId: "o1", published: false },
+        action: "post.create",
+      },
+    ]);
     const outcome = await runRlsVerify({
       cwd,
       config: config(),
@@ -78,11 +87,100 @@ describe("rls verify --format pgtap", () => {
       io,
     });
     expect(outcome.code).toBe(0);
-    expect(outcome.output).toContain("select plan(1);");
-    expect(outcome.output).toContain(
-      String.raw`\"tenant_id\":null,\"memberships\":[]`,
+    const lines = outcome.output.split("\n");
+    expect(lines.slice(0, 3)).toEqual([
+      "begin;",
+      "select plan(4);",
+      "create function pg_temp.permdock_decision(statement text) returns text",
+    ]);
+    expect(lines).toContain(
+      `select set_config('request.jwt.claims', '{"sub":"u1","role":"authenticated","user_role":[],"memberships":[]}', true);`,
     );
-    expect(outcome.output).toContain("select ok(true, 'fixture 0 post.read');");
+    expect(lines).toContain(
+      `select is(pg_temp.permdock_decision('select "id" from "post" where "id" = ''p1'''), 'denied', 'fixture 0 post.read denied');`,
+    );
+    expect(lines).toContain(
+      `select is(pg_temp.permdock_decision('select "id" from "post" where "id" = ''p1'''), 'granted', 'fixture 1 post.publish granted');`,
+    );
+    expect(lines).toContain(
+      "select skip('fixture 2 post.update: opaque grant untestable app-side', 1);",
+    );
+    expect(lines).toContain(
+      `select is(pg_temp.permdock_decision('insert into "post" ("id", "authorId", "orgId", "published") values (''p''''3'', ''u1'', ''o1'', ''false'') returning "id"'), 'granted', 'fixture 3 post.create granted');`,
+    );
+    expect(
+      lines.filter((line) => line === "savepoint permdock_fixture;"),
+    ).toHaveLength(3);
+    expect(lines.slice(-3)).toEqual([
+      "select * from finish();",
+      "rollback;",
+      "",
+    ]);
+  });
+
+  it("binds the guc settings and seeds custom roles without replacing existing rows", async () => {
+    const cwd = app({
+      fixtures: [
+        {
+          subject: {
+            id: "u1",
+            tenant: "o1",
+            memberships: [{ tenant: "o1", roles: ["editor"] }],
+          },
+          row: own,
+          action: "post.publish",
+        },
+      ],
+      customRoles: [
+        {
+          name: "editor",
+          tenant: "o1",
+          grants: [{ permission: "post.publish" }],
+          includes: ["member"],
+        },
+      ],
+    });
+    const outcome = await runRlsVerify({
+      cwd,
+      config: config({
+        dialect: "guc",
+        customRoles: true,
+        authorize: "database",
+      }),
+      format: "pgtap",
+      io,
+    });
+    expect(outcome.code).toBe(0);
+    expect(outcome.output).toContain(
+      `insert into "permdock"."custom_role_permissions" (tenant_id, scope, scope_id, role, permission, effect) values ('o1', 'tenant', null, 'editor', 'post.publish', 'allow') on conflict do nothing;`,
+    );
+    expect(outcome.output).toContain(
+      `insert into "permdock"."custom_role_includes" (tenant_id, scope, scope_id, role, include_role) values ('o1', 'tenant', null, 'editor', 'member') on conflict do nothing;`,
+    );
+    expect(outcome.output).toContain(
+      "select set_config('app.user_id', 'u1', true);",
+    );
+    expect(outcome.output).toContain(
+      "select set_config('app.tenant_id', 'o1', true);",
+    );
+  });
+
+  it("refuses to write a script when a fixture disagrees with can()", async () => {
+    const cwd = app([
+      { subject: author, row: own, action: "post.publish", expected: "denied" },
+      { subject: author, row: own, action: "post.nope" },
+    ]);
+    const outcome = await runRlsVerify({
+      cwd,
+      config: config(),
+      format: "pgtap",
+      io,
+    });
+    expect(outcome).toEqual({
+      code: 1,
+      output:
+        "post.publish: in-process granted, expected denied\npost.nope: unknown permission",
+    });
   });
 });
 
@@ -106,7 +204,7 @@ describe("rls verify --db grant kinds and statements", () => {
     });
     expect(outcome.output).toBe(
       [
-        "verified 5 fixture(s) in-process",
+        "verified 5 fixture(s) in-process and against the database",
         "post.update: opaque grant untestable app-side",
         "post.read: verified through twin",
         "post.read: verified through twin",
@@ -156,7 +254,7 @@ describe("rls verify --db grant kinds and statements", () => {
     expect(outcome).toEqual({
       code: 0,
       output:
-        "verified 2 fixture(s) in-process\npost.update: opaque grant untestable app-side\npost.update: opaque grant untestable app-side",
+        "verified 2 fixture(s) in-process and against the database\npost.update: opaque grant untestable app-side\npost.update: opaque grant untestable app-side",
     });
   });
 
@@ -214,7 +312,7 @@ describe("rls verify --db field views", () => {
     expect(outcome).toEqual({
       code: 0,
       output:
-        "verified 2 fixture(s) in-process\npost.read: verified through twin\npost.read: verified through twin",
+        "verified 2 fixture(s) in-process and against the database\npost.read: verified through twin\npost.read: verified through twin",
     });
   });
 });

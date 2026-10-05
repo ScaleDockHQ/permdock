@@ -31,7 +31,7 @@ import { asPolicy, loadModule, pickNamed } from "./load.ts";
 import { connectPg, type SqlConnect } from "./pg.ts";
 import { commandFor } from "./rls-compile.ts";
 import { FIELD_VIEWS, viewName } from "./rls-fields.ts";
-import { quoteIdent } from "./rls-sql.ts";
+import { quoteIdent, quoteLiteral } from "./rls-sql.ts";
 import { verifyTree } from "./rls-verify-tree.ts";
 
 export type VerifyOutcome = {
@@ -176,32 +176,215 @@ function rowId(row: unknown): unknown {
   return undefined;
 }
 
-function emitPgtap(
-  fixtures: readonly RlsFixture[],
+/** A fixture value as a SQL literal; untyped, so it coerces to the column like a bound parameter. */
+function sqlValue(value: unknown): string {
+  if (value === null || value === undefined) {
+    return "null";
+  }
+  return quoteLiteral(
+    typeof value === "string" ? value : JSON.stringify(value),
+  );
+}
+
+function inlineStatement(statement: Statement): string {
+  return statement.sql.replaceAll(/\$(\d+)/gu, (_, index: string) =>
+    sqlValue(statement.values[Number(index) - 1]),
+  );
+}
+
+const PGTAP_DECISION = "pg_temp.permdock_decision";
+
+const PGTAP_DECISION_SQL = `create function ${PGTAP_DECISION}(statement text) returns text
+language plpgsql
+as $$
+declare
+  affected bigint;
+begin
+  execute statement;
+  get diagnostics affected = row_count;
+  return case when affected > 0 then 'granted' else 'denied' end;
+exception
+  when others then
+    return 'denied';
+end;
+$$;`;
+
+type Subject = {
+  readonly dialect: RlsDialect;
+  readonly gucPrefix: string;
+  readonly tenantClaim: string;
+  readonly roleClaim: string;
+  readonly customRoles: readonly CustomRole[];
+  readonly scopes: readonly Scope[];
+};
+
+function subjectOf(
+  config: PermDockConfig,
   customRoles: readonly CustomRole[],
   scopes: readonly Scope[],
-): string {
+): Subject {
+  return {
+    dialect: config.rls?.dialect ?? "supabase",
+    gucPrefix: config.rls?.gucPrefix ?? "app",
+    tenantClaim: config.rls?.tenantClaim ?? supabaseTenantClaim,
+    roleClaim: config.rls?.roleClaim ?? "user_role",
+    customRoles,
+    scopes,
+  };
+}
+
+/** The settings that bind a fixture's subject: the GUCs, or the Supabase JWT claims. */
+function subjectSettings(
+  fixture: RlsFixture,
+  subject: Subject,
+): readonly (readonly [string, string])[] {
+  const roles = fixture.subject.roles ?? [];
+  const memberships = membershipsClaim(
+    fixture.subject.memberships ?? [],
+    subject.customRoles,
+    subject.scopes,
+  );
+  if (subject.dialect === "guc") {
+    const settings: (readonly [string, string])[] = [
+      [`${subject.gucPrefix}.user_id`, fixture.subject.id],
+      [`${subject.gucPrefix}.${subject.roleClaim}`, roles.join(",")],
+      [`${subject.gucPrefix}.memberships`, JSON.stringify(memberships)],
+    ];
+    if (fixture.subject.tenant !== undefined) {
+      settings.push([
+        `${subject.gucPrefix}.${subject.tenantClaim}`,
+        fixture.subject.tenant,
+      ]);
+    }
+    return settings;
+  }
+  const claims = {
+    sub: fixture.subject.id,
+    role: "authenticated",
+    [subject.roleClaim]: roles.length === 1 ? roles[0] : roles,
+    [subject.tenantClaim]: fixture.subject.tenant,
+    memberships,
+  };
+  return [
+    ["request.jwt.claims", JSON.stringify(claims)],
+    ["request.jwt.claim.sub", fixture.subject.id],
+  ];
+}
+
+type CustomRoleRow = {
+  readonly sql: string;
+  readonly values: readonly unknown[];
+};
+
+/** The `custom_role_*` rows for the fixtures' custom roles; existing rows are kept. */
+function customRoleRows(
+  schema: string,
+  customRoles: readonly CustomRole[],
+  scopes: readonly Scope[],
+): readonly CustomRoleRow[] {
+  const table = (name: string): string =>
+    `${quoteIdent(schema)}.${quoteIdent(name)}`;
+  const rows: CustomRoleRow[] = [];
+  for (const role of customRoles) {
+    const at = customRoleAt(role, scopes);
+    if (at.scope === undefined) {
+      continue;
+    }
+    for (const grant of role.grants ?? []) {
+      rows.push({
+        sql:
+          grant.level === undefined
+            ? `insert into ${table("custom_role_permissions")} (tenant_id, scope, scope_id, role, permission, effect) values ($1, $2, $3, $4, $5, $6) on conflict do nothing`
+            : `insert into ${table("custom_role_permissions")} (tenant_id, scope, scope_id, role, permission, effect, level) values ($1, $2, $3, $4, $5, $6, $7) on conflict do nothing`,
+        values: [
+          role.tenant ?? null,
+          at.scope,
+          at.id ?? null,
+          role.name,
+          grant.permission,
+          grant.effect ?? "allow",
+          ...(grant.level === undefined ? [] : [grant.level]),
+        ],
+      });
+    }
+    for (const name of role.includes ?? []) {
+      rows.push({
+        sql: `insert into ${table("custom_role_includes")} (tenant_id, scope, scope_id, role, include_role) values ($1, $2, $3, $4, $5) on conflict do nothing`,
+        values: [role.tenant ?? null, at.scope, at.id ?? null, role.name, name],
+      });
+    }
+  }
+  return rows;
+}
+
+function seedsCustomRoleTables(config: PermDockConfig): boolean {
+  const rls = config.rls;
+  return (
+    rls?.customRoles === true &&
+    (rls.authorize ?? rls.rbac?.authorize ?? "jwt") === "database"
+  );
+}
+
+function customRoleSchema(config: PermDockConfig): string {
+  return config.rls?.schema ?? config.rls?.rbac?.schema ?? PERMDOCK_SCHEMA;
+}
+
+/**
+ * A pgTAP script that runs each fixture's statement under the fixture's
+ * subject and asserts the outcome `can()` gave in-process.
+ */
+function emitPgtap(input: {
+  readonly fixtures: readonly RlsFixture[];
+  readonly inProcess: readonly InProcess[];
+  readonly policy: Policy;
+  readonly config: PermDockConfig;
+  readonly customRoles: readonly CustomRole[];
+}): string {
+  const scopes = scopeList(input.policy.scopes);
+  const subject = subjectOf(input.config, input.customRoles, scopes);
   const lines = [
     "begin;",
-    `select plan(${fixtures.length});`,
-    "-- fixtures carry memberships and tenant for the exists join",
+    `select plan(${String(input.fixtures.length)});`,
+    PGTAP_DECISION_SQL,
   ];
-  for (const [index, fixture] of fixtures.entries()) {
-    const claims = JSON.stringify({
-      sub: fixture.subject.id,
-      role: "authenticated",
-      tenant_id: fixture.subject.tenant ?? null,
-      memberships: membershipsClaim(
-        fixture.subject.memberships ?? [],
-        customRoles,
-        scopes,
-      ),
-    });
+  if (seedsCustomRoleTables(input.config)) {
+    for (const row of customRoleRows(
+      customRoleSchema(input.config),
+      input.customRoles,
+      scopes,
+    )) {
+      lines.push(`${inlineStatement(row)};`);
+    }
+  }
+  for (const [index, fixture] of input.fixtures.entries()) {
+    const permission = findPermission(input.policy.permissions, fixture.action);
+    const status = input.inProcess[index];
+    const label = `fixture ${String(index)} ${fixture.action}`;
+    if (permission === undefined || status === undefined) {
+      continue;
+    }
+    if (status.kind === "opaque") {
+      lines.push(
+        `select skip(${quoteLiteral(`${label}: opaque grant untestable app-side`)}, 1);`,
+      );
+      continue;
+    }
+    const outcome = status.granted ? "granted" : "denied";
+    const table =
+      input.config.rls?.tables?.[permission.resource] ?? permission.resource;
+    const statement = inlineStatement(
+      statementFor(fixture, permission.action, table),
+    );
     lines.push(
-      `-- ${fixture.action}`,
-      `select set_config('request.jwt.claims', ${JSON.stringify(claims)}, true);`,
-      `select set_config('request.jwt.claim.sub', ${JSON.stringify(fixture.subject.id)}, true);`,
-      `select ok(true, 'fixture ${index} ${fixture.action}');`,
+      `-- ${label}`,
+      "savepoint permdock_fixture;",
+      'set local role "authenticated";',
+      ...subjectSettings(fixture, subject).map(
+        ([name, value]) =>
+          `select set_config(${quoteLiteral(name)}, ${quoteLiteral(value)}, true);`,
+      ),
+      `select is(${PGTAP_DECISION}(${quoteLiteral(statement)}), ${quoteLiteral(outcome)}, ${quoteLiteral(`${label} ${outcome}`)});`,
+      "rollback to savepoint permdock_fixture;",
     );
   }
   lines.push("select * from finish();", "rollback;");
@@ -303,44 +486,11 @@ async function seedCustomRoles(
   customRoles: readonly CustomRole[],
   scopes: readonly Scope[],
 ): Promise<void> {
-  const table = (name: string): string =>
-    `${quoteIdent(schema)}.${quoteIdent(name)}`;
-  const write = async (
-    sql: string,
-    values: readonly unknown[],
-  ): Promise<void> => {
-    const result = await query(sql, values);
+  for (const row of customRoleRows(schema, customRoles, scopes)) {
+    const result = await query(row.sql, row.values);
     if (result.code !== undefined) {
       throw new Error(
         `PermDock CLI: rls verify --db could not seed custom roles (${result.code}); connect as a role that owns the custom_role_* tables`,
-      );
-    }
-  };
-  for (const role of customRoles) {
-    const at = customRoleAt(role, scopes);
-    if (at.scope === undefined) {
-      continue;
-    }
-    for (const grant of role.grants ?? []) {
-      await write(
-        grant.level === undefined
-          ? `insert into ${table("custom_role_permissions")} (tenant_id, scope, scope_id, role, permission, effect) values ($1, $2, $3, $4, $5, $6)`
-          : `insert into ${table("custom_role_permissions")} (tenant_id, scope, scope_id, role, permission, effect, level) values ($1, $2, $3, $4, $5, $6, $7)`,
-        [
-          role.tenant ?? null,
-          at.scope,
-          at.id ?? null,
-          role.name,
-          grant.permission,
-          grant.effect ?? "allow",
-          ...(grant.level === undefined ? [] : [grant.level]),
-        ],
-      );
-    }
-    for (const name of role.includes ?? []) {
-      await write(
-        `insert into ${table("custom_role_includes")} (tenant_id, scope, scope_id, role, include_role) values ($1, $2, $3, $4, $5)`,
-        [role.tenant ?? null, at.scope, at.id ?? null, role.name, name],
       );
     }
   }
@@ -349,49 +499,12 @@ async function seedCustomRoles(
 async function bindSubject(
   query: QueryFn,
   fixture: RlsFixture,
-  dialect: RlsDialect,
-  gucPrefix: string,
-  tenantClaim: string,
-  roleClaim: string,
-  customRoles: readonly CustomRole[],
-  scopes: readonly Scope[],
+  subject: Subject,
 ): Promise<void> {
   await query('set local role "authenticated"');
-  const roles = fixture.subject.roles ?? [];
-  const memberships = membershipsClaim(
-    fixture.subject.memberships ?? [],
-    customRoles,
-    scopes,
-  );
-  if (dialect === "guc") {
-    const settings: [string, string][] = [
-      [`${gucPrefix}.user_id`, fixture.subject.id],
-      [`${gucPrefix}.${roleClaim}`, roles.join(",")],
-      [`${gucPrefix}.memberships`, JSON.stringify(memberships)],
-    ];
-    if (fixture.subject.tenant !== undefined) {
-      settings.push([`${gucPrefix}.${tenantClaim}`, fixture.subject.tenant]);
-    }
-    for (const [name, value] of settings) {
-      await query("select set_config($1, $2, true)", [name, value]);
-    }
-    return;
+  for (const [name, value] of subjectSettings(fixture, subject)) {
+    await query("select set_config($1, $2, true)", [name, value]);
   }
-  const claims = {
-    sub: fixture.subject.id,
-    role: "authenticated",
-    [roleClaim]: roles.length === 1 ? roles[0] : roles,
-    [tenantClaim]: fixture.subject.tenant,
-    memberships,
-  };
-  await query("select set_config($1, $2, true)", [
-    "request.jwt.claims",
-    JSON.stringify(claims),
-  ]);
-  await query("select set_config($1, $2, true)", [
-    "request.jwt.claim.sub",
-    fixture.subject.id,
-  ]);
 }
 
 async function verifyAgainstDatabase(input: {
@@ -404,16 +517,10 @@ async function verifyAgainstDatabase(input: {
   readonly connect: SqlConnect;
 }): Promise<{ readonly mismatches: string[]; readonly notes: string[] }> {
   const client = await input.connect(input.db);
-  const dialect = input.config.rls?.dialect ?? "supabase";
-  const gucPrefix = input.config.rls?.gucPrefix ?? "app";
-  const tenantClaim = input.config.rls?.tenantClaim ?? supabaseTenantClaim;
-  const roleClaim = input.config.rls?.roleClaim ?? "user_role";
-  const rls = input.config.rls;
-  const seedsTables =
-    rls?.customRoles === true &&
-    (rls.authorize ?? rls.rbac?.authorize ?? "jwt") === "database";
-  const schema = rls?.schema ?? rls?.rbac?.schema ?? PERMDOCK_SCHEMA;
+  const seedsTables = seedsCustomRoleTables(input.config);
+  const schema = customRoleSchema(input.config);
   const scopes = scopeList(input.policy.scopes);
+  const subject = subjectOf(input.config, input.customRoles, scopes);
   const query: QueryFn = async (sql, values) => {
     try {
       const result = await client.query(
@@ -467,16 +574,7 @@ async function verifyAgainstDatabase(input: {
         if (seedsTables) {
           await seedCustomRoles(query, schema, input.customRoles, scopes);
         }
-        await bindSubject(
-          query,
-          fixture,
-          dialect,
-          gucPrefix,
-          tenantClaim,
-          roleClaim,
-          input.customRoles,
-          scopes,
-        );
+        await bindSubject(query, fixture, subject);
         const statement = statementFor(fixture, permission.action, table);
         const result = await query(statement.sql, statement.values);
         const count = result.rowCount ?? result.rows.length;
@@ -548,12 +646,7 @@ async function verifyTreeAgainstDatabase(
         bindSubject(
           loose,
           { subject: { id: subject }, row: {}, action: "read" },
-          config.rls?.dialect ?? "supabase",
-          config.rls?.gucPrefix ?? "app",
-          config.rls?.tenantClaim ?? supabaseTenantClaim,
-          config.rls?.roleClaim ?? "user_role",
-          [],
-          scopes,
+          subjectOf(config, [], scopes),
         ),
     });
     if (result.mismatches.length > 0) {
@@ -629,12 +722,6 @@ export async function runRlsVerify(input: {
   const fixturesPath =
     input.fixtures ?? input.config.rls?.fixtures ?? "rls.fixtures.json";
   const { fixtures, customRoles } = await loadFixtures(input.cwd, fixturesPath);
-  if (input.format === "pgtap") {
-    return {
-      code: 0,
-      output: emitPgtap(fixtures, customRoles, scopeList(policy.scopes)),
-    };
-  }
   const mismatches: string[] = [];
   const notes: string[] = [];
   const inProcess: InProcess[] = [];
@@ -695,6 +782,20 @@ export async function runRlsVerify(input: {
       ...(fields === undefined ? {} : { fields }),
     });
   }
+  if (input.format === "pgtap") {
+    return mismatches.length > 0
+      ? { code: 1, output: mismatches.join("\n") }
+      : {
+          code: 0,
+          output: emitPgtap({
+            fixtures,
+            inProcess,
+            policy,
+            config: input.config,
+            customRoles,
+          }),
+        };
+  }
   if (input.db !== undefined) {
     try {
       const database = await verifyAgainstDatabase({
@@ -715,7 +816,7 @@ export async function runRlsVerify(input: {
   if (mismatches.length > 0) {
     return { code: 1, output: [...mismatches, ...notes].join("\n") };
   }
-  const verified = `verified ${fixtures.length} fixture(s) in-process`;
+  const verified = `verified ${String(fixtures.length)} fixture(s) ${input.db === undefined ? "in-process" : "in-process and against the database"}`;
   return {
     code: 0,
     output: notes.length === 0 ? verified : `${verified}\n${notes.join("\n")}`,

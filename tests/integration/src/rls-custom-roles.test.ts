@@ -258,6 +258,46 @@ const SHAPES = [
   { name: "custom_jwt", cwd: join(FIXTURE, "jwt") },
 ] as const;
 
+// The four pgTAP functions the emitted script calls, reporting each result as a row.
+const PGTAP = `
+create or replace function public.plan(integer) returns text
+language sql as $$ select '1..' || $1 $$;
+create or replace function public.is(have text, want text, description text) returns text
+language sql as $$
+  select case when have is not distinct from want
+    then 'ok - ' || description
+    else 'not ok - ' || description || ' (have ' || coalesce(have, 'null') || ')'
+  end
+$$;
+create or replace function public.skip(why text, how_many integer) returns text
+language sql as $$ select 'ok - # skip ' || why $$;
+create or replace function public.finish() returns setof text
+language sql as $$ select null::text where false $$;
+grant usage on schema public to authenticated;
+`;
+
+async function runPgtap(uri: string, script: string): Promise<string[]> {
+  const client = new Client({ connectionString: uri });
+  await client.connect();
+  try {
+    // SAFETY: a multi-statement simple query resolves to one result per statement.
+    const results = (await client.query(script)) as unknown as readonly {
+      readonly rows: readonly Record<string, unknown>[];
+    }[];
+    return results.flatMap((result) =>
+      result.rows.flatMap((row) =>
+        typeof row["is"] === "string"
+          ? [row["is"]]
+          : typeof row["skip"] === "string"
+            ? [row["skip"]]
+            : [],
+      ),
+    );
+  } finally {
+    await client.end();
+  }
+}
+
 function databaseUri(uri: string, database: string): string {
   const url = new URL(uri);
   url.pathname = `/${database}`;
@@ -545,4 +585,80 @@ describe("custom roles in generated RLS (database and jwt modes)", () => {
       }
     },
   );
+
+  it.each(SHAPES)(
+    "$name: the pgTAP script asserts every fixture against the database",
+    async (shape) => {
+      if (db === undefined) {
+        throw new Error("PermDock: Postgres was not started");
+      }
+      const emitted = await run(
+        ["rls", "verify", "--fixtures", fixturesPath, "--format", "pgtap"],
+        { cwd: shape.cwd },
+      );
+      expect(emitted.code).toBe(0);
+      const admin = databaseUri(db.uri, shape.name);
+      const setup = new Client({ connectionString: admin });
+      await setup.connect();
+      try {
+        await setup.query(PGTAP);
+      } finally {
+        await setup.end();
+      }
+      const uri =
+        shape.name === "custom_database"
+          ? admin
+          : testerUri(db.uri, shape.name);
+      const results = await runPgtap(uri, emitted.stdout);
+      expect(results).toHaveLength(fixtures().length);
+      expect(results.filter((line) => !line.startsWith("ok - "))).toEqual([]);
+      const open = new Client({ connectionString: admin });
+      await open.connect();
+      try {
+        await open.query("alter table public.task disable row level security");
+        const widened = await runPgtap(uri, emitted.stdout);
+        expect(
+          widened.filter((line) => line.startsWith("not ok - ")).length,
+        ).toBeGreaterThan(0);
+      } finally {
+        await open.query("alter table public.task enable row level security");
+        await open.end();
+      }
+    },
+  );
+
+  it("verify --db keeps custom roles that already exist in the database", async () => {
+    if (db === undefined) {
+      throw new Error("PermDock: Postgres was not started");
+    }
+    const emitted = await run(
+      ["rls", "verify", "--fixtures", fixturesPath, "--format", "pgtap"],
+      { cwd: FIXTURE },
+    );
+    const seeds = emitted.stdout
+      .split("\n")
+      .filter((line) =>
+        line.startsWith('insert into "permdock"."custom_role_'),
+      );
+    expect(seeds.length).toBeGreaterThan(0);
+    const uri = databaseUri(db.uri, "custom_database");
+    const client = new Client({ connectionString: uri });
+    await client.connect();
+    try {
+      await client.query(seeds.join("\n"));
+      const result = await run(
+        ["rls", "verify", "--db", uri, "--fixtures", fixturesPath],
+        { cwd: FIXTURE },
+      );
+      expect(result.stdout).toContain(
+        `verified ${String(fixtures().length)} fixture(s) in-process and against the database`,
+      );
+      expect(result.code).toBe(0);
+    } finally {
+      await client.query(
+        "delete from permdock.custom_role_permissions; delete from permdock.custom_role_includes",
+      );
+      await client.end();
+    }
+  });
 });
