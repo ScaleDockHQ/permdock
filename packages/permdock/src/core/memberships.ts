@@ -187,3 +187,44 @@ export function claimsFirst(
 export function isExternallyManaged(membership: Membership): boolean {
   return membership.managedBy === "idp";
 }
+
+/**
+ * How many principals hold `role` in one scope instance now, from the
+ * source's member list (`MembershipSource.list`): live memberships of exactly
+ * that scope and instance, each principal counted once. The `holders` a
+ * `decideRoleChange` with `min`, `max` or `transferOnly` needs. `undefined`
+ * when the source cannot list or the read fails, which that check denies.
+ */
+export async function countHolders(
+  source: MembershipSource | readonly MembershipSource[],
+  query: {
+    readonly scope: string;
+    readonly id: string;
+    readonly role: string | { readonly key: string };
+  },
+): Promise<number | undefined> {
+  const composed = asMembershipSource(source);
+  if (composed.list === undefined) {
+    return undefined;
+  }
+  const role = typeof query.role === "string" ? query.role : query.role.key;
+  try {
+    const entries = await composed.list({ scope: query.scope, id: query.id });
+    const now = Math.floor(Date.now() / 1000);
+    const holders = new Set<string>();
+    for (const entry of entries) {
+      const membership = entry.membership;
+      if (
+        membership.scope === query.scope &&
+        membership.id === query.id &&
+        membership.roles.includes(role) &&
+        (membership.expiresAt === undefined || membership.expiresAt > now)
+      ) {
+        holders.add(entry.principal.id);
+      }
+    }
+    return holders.size;
+  } catch {
+    return undefined;
+  }
+}
