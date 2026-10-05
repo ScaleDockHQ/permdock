@@ -48,7 +48,11 @@ const result = permdock.decideRoleChange({
   scope: "organization",
   id: "o_acme",
   target: { id: "u_bob", via: "staff", roles: ["member"] }, // their membership there now
-  holders: 1, // how many hold the role in the instance now, from the app's store
+  holders: await countHolders(memberships, {
+    scope: "organization",
+    id,
+    role: "owner",
+  }), // from MembershipSource.list
 });
 // { outcome: 'granted', change, role } or { outcome: 'denied', change, denials }
 ```
@@ -76,7 +80,7 @@ type CustomRole = {
 - An own allow inherits the conditions of the ceiling grants for that permission. To keep a narrower condition ("own posts only"), include the declared role that has it.
 - A resource may declare `levels: { own: { ownerId: principal.id }, team: { teamId: { in: principal.teamIds } }, all: {} }`. A grant `{ permission: 'job.read', level: 'team' }` ANDs that condition into the ceiling grant. An undeclared level, or a level on a collection action, is dropped as `unknown-level` and removes the permission; a level on a deny is `condition-not-allowed`. `permdock.assignableLevels(leaf)` lists the levels the subject may hand out.
 - An own deny removes the permission from this custom role only. Deny it in code when it must win across roles.
-- Pass a `RoleSource` (`memoryRoleSource(roles)` in tests) as `customRoles` on `createPermDock`. Build it with `customRoleSource({ rolesOf })`, where `rolesOf(tenant)` reads every custom role of the tenant, not only the held ones: `assignableRoles` and `decideRoleChange` see only what the source returns. `{ read: 'held', policy }` skips the read on requests that never manage roles. Check it with `testRoleSource(source, { every })`.
+- Pass a `RoleSource` (`memoryRoleSource(roles)` in tests), or a `RoleSourceFactory` `(subject) => RoleSource` when the source reads one principal's roles, as `customRoles` on `createPermDock` or any adapter. To add every role of a tenant on a role-management request, `await permdock.derive({ customRoles })` instead of building a second instance. Build it with `customRoleSource({ rolesOf })`, where `rolesOf(tenant)` reads every custom role of the tenant, not only the held ones: `assignableRoles` and `decideRoleChange` see only what the source returns. `{ read: 'held', policy }` skips the read on requests that never manage roles. Check it with `testRoleSource(source, { every })`.
 - `permdock.assignableRoles({ tenant })` lists declared roles, then the tenant's custom roles whose every permission and level the subject may hand out at the custom role's scope. `decideRoleChange` assigns and revokes a custom role like a declared one, with no holder count; it inherits `for` and `exclusiveWith` from its included roles.
 - `permdock.assignablePermissions({ tenant })` is the ceiling intersected with what the subject holds. `useAssignablePermissions()` in `permdock/react` builds the editor from it.
 - The save action runs `validateCustomRole(policy, role)` and refuses the role when `ok` is false or `permissions` contains a key outside `assignablePermissions()`. `dropped` names each entry left out (`unknown-permission`, `outside-ceiling`, `condition-not-allowed`, `unknown-level`, `unknown-role`).
