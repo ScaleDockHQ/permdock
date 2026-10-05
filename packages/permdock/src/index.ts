@@ -232,6 +232,7 @@ export type {
   ClosureGrantFn,
   DelegationInput,
   DelegationTarget,
+  PolicyOAuthScope,
   Grant,
   GrantCondition,
   GrantLimit,

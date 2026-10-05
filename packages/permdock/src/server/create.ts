@@ -22,6 +22,7 @@ import type { Connection, ConnectionOptions } from "./connection.ts";
 import type { WebBotAuthVerifier } from "./web-bot-auth.ts";
 
 import { compact } from "../core/compact.ts";
+import { challengeScope } from "../core/oauth-scopes.ts";
 import { createPermDock as createCorePermDock } from "../core/permdock.ts";
 import { listPermissions } from "../core/permissions.ts";
 import { isActor } from "../core/subject.ts";
@@ -447,6 +448,7 @@ export function createKernel<
           compact({
             approval: options.approval,
             credentials: request.headers.has("authorization"),
+            scope: challengeScope(policy, permission),
             disclosure:
               data === undefined
                 ? undefined

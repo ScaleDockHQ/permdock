@@ -493,7 +493,19 @@ export type Policy<
   readonly delegations?: readonly PolicyDelegation[];
   /** Grant levels by resource (`resource(…, { levels })`), normalised; absent when none are declared. */
   readonly levels?: PolicyLevels;
+  /** Coarse OAuth scopes in declaration order; absent when the policy declares none. */
+  readonly oauthScopes?: readonly PolicyOAuthScope[];
   readonly index: PolicyIndex;
+};
+
+/**
+ * A coarse OAuth scope an authorization server issues (`mcp:read`) and the
+ * permission keys it covers, with their own scopes (`task:read`).
+ */
+export type PolicyOAuthScope = {
+  readonly scope: string;
+  readonly permissions: readonly string[];
+  readonly scopes: readonly string[];
 };
 
 /** Lookups built once per policy, so a decision does not rescan every role and grant. */
@@ -766,6 +778,55 @@ function normalizeDelegation(
       .map((leaf) => leaf.key)
       .toSorted(),
     validity: normalizeValidity(input, label),
+  });
+}
+
+/** RFC 6749 section 3.3 `scope-token`: printable ASCII without space, `"` or `\`. */
+function isScopeToken(value: string): boolean {
+  return /^[!#-[\]-~]+$/u.test(value);
+}
+
+function normalizeOAuthScopes(
+  input: DefinePolicyOptions<unknown, Principal>["oauthScopes"],
+  tree: PermissionTree,
+): readonly PolicyOAuthScope[] {
+  if (input === undefined) {
+    return [];
+  }
+  const own = new Set(listPermissions(tree).map((leaf) => leaf.scope));
+  return Object.entries(input).map(([scope, items]) => {
+    if (!isScopeToken(scope)) {
+      throw new Error(
+        `PermDock: oauthScopes key '${scope}' is not an OAuth scope token`,
+      );
+    }
+    if (own.has(scope)) {
+      throw new Error(
+        `PermDock: oauthScopes key '${scope}' is a permission's own scope`,
+      );
+    }
+    const leaves = new Map<string, Permission>();
+    for (const leaf of (Array.isArray(items) ? items : []).flatMap(
+      (item: Permission | PermissionTree) => flattenPermissions(item),
+    )) {
+      if (findPermission(tree, leaf.key) === undefined) {
+        throw new Error(
+          `PermDock: oauthScopes '${scope}' names unknown permission '${leaf.key}'`,
+        );
+      }
+      leaves.set(leaf.key, leaf);
+    }
+    if (leaves.size === 0) {
+      throw new Error(`PermDock: oauthScopes '${scope}' covers no permission`);
+    }
+    const sorted = [...leaves.values()].toSorted((a, b) =>
+      a.key.localeCompare(b.key),
+    );
+    return {
+      scope,
+      permissions: sorted.map((leaf) => leaf.key),
+      scopes: sorted.map((leaf) => leaf.scope),
+    };
   });
 }
 
@@ -1589,6 +1650,15 @@ export type DefinePolicyOptions<
    * the call still applies as well; both must cover.
    */
   readonly delegations?: readonly DelegationInput[];
+  /**
+   * Coarse OAuth scopes the authorization server issues, each covering
+   * permissions: a token holding `mcp:read` is delegated every permission
+   * listed under it, as if it held each permission's own scope. Scope
+   * challenges name the first coarse scope that covers the permission.
+   */
+  readonly oauthScopes?: Readonly<
+    Record<string, readonly (Permission | PermissionTree)[]>
+  >;
 };
 
 export function definePolicy<
@@ -1643,8 +1713,13 @@ export function definePolicy<
     normalizeDelegation(item, index, tree),
   );
   const levels = normalizeLevels(resources);
+  const oauthScopes = normalizeOAuthScopes(options.oauthScopes, tree);
   const fingerprint = bytesToBase64Url(
-    sha256(canonicalPolicy(grants, delegations, levels)),
+    sha256(
+      oauthScopes.length === 0
+        ? canonicalPolicy(grants, delegations, levels)
+        : `${canonicalPolicy(grants, delegations, levels)}\noauthScopes:${canonicalJson(oauthScopes)}`,
+    ),
   );
   const hostable = [
     ...new Set(
@@ -1680,6 +1755,7 @@ export function definePolicy<
     fresh,
     delegations: delegations.length === 0 ? undefined : delegations,
     levels,
+    oauthScopes: oauthScopes.length === 0 ? undefined : oauthScopes,
     index: indexPolicy(roles, grants, vocabulary),
   }) as Policy<TUser, TPrincipal, VocabularyFromInput<Input>>;
 }

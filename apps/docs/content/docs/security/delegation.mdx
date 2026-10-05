@@ -76,6 +76,25 @@ How it applies, in `decide` and on the snapshot client alike:
 - **Actor kind, optionally id.** Agents are typically a fleet of one kind (`'eve'`, `'mcp-client'`), so the kind is the natural unit; a single trusted agent is `{ kind, id }`. Matching only on id would make a renamed agent silently lose its delegation, matching only on kind could not express a one-agent rule.
 - **The feed does not revoke a delegation.** `RevocationFeed` means "end this session" and is kept that way by `naming.mdc`; a feed that also edited the policy would be a second decision path (invariant 15). Removing the entry, or letting `validUntil` pass, is the revocation, and both are visible in the catalog and `diff`.
 
+## Coarse OAuth scopes
+
+A permission's OAuth scope is its key with `:` for `.` (`task:read`). An authorization server often issues coarser scopes instead (`mcp:read`, `mcp:write`). `definePolicy({ oauthScopes })` maps each coarse scope to the permissions it covers:
+
+```ts
+export const policy = definePolicy(permissions, {
+  roles: [...],
+  oauthScopes: {
+    "mcp:read": [permissions.task.read, permissions.task.list, permissions.project],
+    "mcp:write": [permissions.task.update],
+  },
+  subject,
+});
+```
+
+- When an instance is created, a token delegation's `scopes` keep their order and are followed by the scopes of every permission a held coarse scope covers, so `decide`, `snapshot`, `mayUse` and the client snapshot all read the same expanded list. A coarse scope only adds what it lists; the user's grants and policy delegations still decide.
+- `permdock/mcp` and `permdock/a2a` accept a coarse scope in their scope pre-check and list filter. Their `insufficient_scope` challenges, and the `WWW-Authenticate` challenge of the server kernel, name the first coarse scope (in declaration order) that covers the permission, because that is the scope the authorization server can issue; a permission no coarse scope covers is challenged with its own scope.
+- A key must be an RFC 6749 scope token that is not a permission's own scope, and must cover at least one declared permission; `definePolicy` throws otherwise. The mapping is part of the policy fingerprint.
+
 ## Coverage check
 
 `decide`, `snapshot` and the agent kernel share one coverage check, exported from `permdock` as `coveredByDelegation(permission, delegation, resourceId?, hasActor?)`. `permission` needs only `scope`, `resource` and `action`, so a leaf that crossed a serialisation boundary works. It returns `undefined` when the delegation covers the permission, and otherwise the denial reason `decide` adds:

@@ -30,6 +30,7 @@ import { clientNameOf } from "../core/clients.ts";
 import { compact } from "../core/compact.ts";
 import { describe } from "../core/describe.ts";
 import { mayUse } from "../core/may-use.ts";
+import { challengeScope, scopesReaching } from "../core/oauth-scopes.ts";
 import { createPermDock as createCorePermDock } from "../core/permdock.ts";
 import { annotationsFor } from "../core/permissions.ts";
 import { wireDenials } from "../core/wire-denial.ts";
@@ -159,8 +160,8 @@ function delegationOf(authInfo: McpAuthInfo): Delegation | undefined {
   });
 }
 
-function hasScope(authInfo: McpAuthInfo, scope: string): boolean {
-  return (authInfo.scopes ?? []).includes(scope);
+function hasScope(authInfo: McpAuthInfo, scopes: readonly string[]): boolean {
+  return scopes.some((scope) => (authInfo.scopes ?? []).includes(scope));
 }
 
 function resourceMetadataOf(authInfo: McpAuthInfo): string | undefined {
@@ -355,8 +356,9 @@ function throwRefusal(refusal: Refusal): unknown {
 }
 
 function challengeFor(
-  permission: Permission,
   own: ScopeChallengeHandler | undefined,
+  reaching: readonly string[],
+  challenged: string,
 ): ScopeChallengeHandler {
   return async (context) => {
     const first = await own?.(context);
@@ -364,10 +366,10 @@ function challengeFor(
       return first;
     }
     const authInfo = context.authInfo;
-    if (authInfo === undefined || hasScope(authInfo, permission.scope)) {
+    if (authInfo === undefined || hasScope(authInfo, reaching)) {
       return undefined;
     }
-    return { scopes: [permission.scope] } satisfies ScopeChallenge;
+    return { scopes: [challenged] } satisfies ScopeChallenge;
   };
 }
 
@@ -460,7 +462,8 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
   ): boolean =>
     authInfo === undefined
       ? options.requireAuthInfo !== true
-      : forThisServer(authInfo) && hasScope(authInfo, permission.scope);
+      : forThisServer(authInfo) &&
+        hasScope(authInfo, scopesReaching(policy, permission));
 
   const approvalInput = async (
     decision: Extract<Decision, { readonly outcome: "approval-required" }>,
@@ -563,21 +566,25 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         ),
       };
     }
-    if (authInfo !== undefined && !hasScope(authInfo, permission.scope)) {
+    if (
+      authInfo !== undefined &&
+      !hasScope(authInfo, scopesReaching(policy, permission))
+    ) {
       const resourceMetadata = resourceMetadataOf(authInfo);
+      const challenged = challengeScope(policy, permission);
       return {
         ok: false,
         refusal: plainRefusal(
           permission,
-          `Denied: ${permission.key} needs the ${permission.scope} scope.`,
+          `Denied: ${permission.key} needs the ${challenged} scope.`,
           compact({
             error: "insufficient_scope",
-            scope: permission.scope,
+            scope: challenged,
             resource_metadata: resourceMetadata,
             www_authenticate: bearerChallenge(
               compact({
                 error: "insufficient_scope" as const,
-                scopes: [permission.scope],
+                scopes: [challenged],
                 resourceMetadata,
               }),
             ),
@@ -1004,8 +1011,9 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
             ...(passthrough["annotations"] as ToolHints | undefined),
           },
           scopeChallenge: challengeFor(
-            permission,
             scopeChallenge as ScopeChallengeHandler | undefined,
+            scopesReaching(policy, permission),
+            challengeScope(policy, permission),
           ),
         },
         wrapTool(permission, load, handler, longRunning),
@@ -1063,8 +1071,9 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         {
           ...passthrough,
           scopeChallenge: challengeFor(
-            permission,
             scopeChallenge as ScopeChallengeHandler | undefined,
+            scopesReaching(policy, permission),
+            challengeScope(policy, permission),
           ),
         },
         wrap(handler),
@@ -1114,8 +1123,9 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         {
           ...passthrough,
           scopeChallenge: challengeFor(
-            permission,
             scopeChallenge as ScopeChallengeHandler | undefined,
+            scopesReaching(policy, permission),
+            challengeScope(policy, permission),
           ),
         },
         wrap(read),

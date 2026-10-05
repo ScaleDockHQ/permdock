@@ -24,6 +24,7 @@ import {
   PermDockDeniedError,
 } from "../core/errors.ts";
 import { mayUse } from "../core/may-use.ts";
+import { challengeScope, scopesReaching } from "../core/oauth-scopes.ts";
 import { createPermDock as createCorePermDock } from "../core/permdock.ts";
 import { bytesToBase64Url } from "../core/sha256.ts";
 import { bearerChallenge } from "../server/problem.ts";
@@ -168,8 +169,8 @@ async function resolveTenant(
   }
 }
 
-function hasScope(auth: A2aAuth, scope: string): boolean {
-  return auth.scopes?.includes(scope) === true;
+function hasScope(auth: A2aAuth, scopes: readonly string[]): boolean {
+  return scopes.some((scope) => auth.scopes?.includes(scope) === true);
 }
 
 function resourceRef(
@@ -258,14 +259,14 @@ async function signCard(
   };
 }
 
-function missingScope(permission: Permission): A2aTaskOutcome {
+function missingScope(permission: Permission, scope: string): A2aTaskOutcome {
   const problem: ProblemDetails = {
     type: "https://permdock.com/problems/unauthenticated",
     title: "Insufficient scope",
     status: 401,
-    detail: `insufficient_scope: ${permission.scope}`,
+    detail: `insufficient_scope: ${scope}`,
     permission: permission.key,
-    scope: permission.scope,
+    scope,
   };
   return {
     ok: false,
@@ -274,7 +275,7 @@ function missingScope(permission: Permission): A2aTaskOutcome {
     problem,
     wwwAuthenticate: bearerChallenge({
       error: "insufficient_scope",
-      scopes: [permission.scope],
+      scopes: [scope],
     }),
   };
 }
@@ -351,8 +352,11 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
           },
         };
       }
-      if (!hasScope(auth, config.permission.scope)) {
-        return missingScope(config.permission);
+      if (!hasScope(auth, scopesReaching(policy, config.permission))) {
+        return missingScope(
+          config.permission,
+          challengeScope(policy, config.permission),
+        );
       }
       const permdock = await instanceFor(auth);
       let data: unknown;

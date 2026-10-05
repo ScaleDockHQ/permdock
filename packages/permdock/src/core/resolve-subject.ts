@@ -6,6 +6,7 @@ import { compact } from "./compact.ts";
 import { sanitizeContext } from "./fields.ts";
 import { freezeCopy } from "./freeze.ts";
 import { asMembershipSource } from "./memberships.ts";
+import { expandOAuthScopes } from "./oauth-scopes.ts";
 import { applyRoleKinds } from "./ownership.ts";
 import { normalizeMemberships, scopeList } from "./scopes.ts";
 import {
@@ -93,7 +94,7 @@ function assemblePrincipal(
     principal,
     context: contextResult,
     actor,
-    delegation,
+    delegation: expandOAuthScopes(policy, delegation),
     session,
     expiresAt,
     memberships,
