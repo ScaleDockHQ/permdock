@@ -9,6 +9,7 @@ import type { Subject } from "../../src/core/subject.ts";
 
 import { storedApprovalToken } from "../../src/approvals/helpers.ts";
 import {
+  DEFAULT_APPROVAL_TTL_MS,
   cancelApprovals,
   consumeApproval,
   memoryApprovalStore,
@@ -278,6 +279,66 @@ describe("resumeDecision edges", () => {
       ).outcome,
     ).toBe("approval-required");
   });
+});
+
+describe("resumeDecision ttl", () => {
+  const openFor = async (
+    ttl: number | undefined,
+    approval: unknown = "human",
+    store: ApprovalStore = memoryApprovalStore(),
+  ): Promise<number> => {
+    const before = Date.now();
+    await resumeDecision({
+      decision: required("t-ttl", approval),
+      permission: deletePost,
+      subject: requester,
+      store,
+      resource: { type: "post", id: "42" },
+      adapter: "test",
+      token: undefined,
+      ...(ttl === undefined ? {} : { ttl }),
+    });
+    const request = await store.get("t-ttl");
+    if (request === null) {
+      throw new Error("expected a request");
+    }
+    return Date.parse(request.expiresAt) - before;
+  };
+
+  it("opens the request for ttl milliseconds instead of the one-hour default", async () => {
+    const day = 24 * 60 * 60 * 1000;
+    expect(await openFor(day)).toBeGreaterThan(day - 5_000);
+    expect(await openFor(day)).toBeLessThanOrEqual(day + 5_000);
+    expect(await openFor(undefined)).toBeLessThanOrEqual(
+      DEFAULT_APPROVAL_TTL_MS + 5_000,
+    );
+  });
+
+  it("defaults to the store's ttl, which the call's ttl overrides", async () => {
+    const twoHours = 2 * 60 * 60 * 1000;
+    const minute = 60 * 1000;
+    const store = (): ApprovalStore => memoryApprovalStore({ ttl: twoHours });
+    expect(await openFor(undefined, "human", store())).toBeGreaterThan(
+      twoHours - 5_000,
+    );
+    expect(await openFor(minute, "human", store())).toBeLessThanOrEqual(
+      minute + 5_000,
+    );
+  });
+
+  it("is still capped by the grant's approval.ttl", async () => {
+    const day = 24 * 60 * 60 * 1000;
+    expect(await openFor(day, { by: "admin", ttl: "30m" })).toBeLessThanOrEqual(
+      30 * 60 * 1000 + 5_000,
+    );
+  });
+
+  it.each([0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY])(
+    "refuses ttl %s",
+    async (ttl) => {
+      await expect(openFor(ttl)).rejects.toThrow(RangeError);
+    },
+  );
 });
 
 describe("consumeApproval", () => {

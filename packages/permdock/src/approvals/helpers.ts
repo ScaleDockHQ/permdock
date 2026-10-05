@@ -73,7 +73,7 @@ export function summariseSubject(subject: Subject): ApprovalRequest["subject"] {
 }
 
 /**
- * The store's window (`meta.ttl`, else the default) capped by the grant's
+ * The window (`meta.ttl`, else the store's `ttl`, else the default) capped by the grant's
  * `approval.ttl`: a grant shortens how long a request stays open, never
  * extends it.
  */
@@ -81,6 +81,14 @@ function approvalTtl(
   storeTtl: number | undefined,
   approval: ApprovalRequirement | "human" | undefined,
 ): number {
+  if (
+    storeTtl !== undefined &&
+    (!Number.isSafeInteger(storeTtl) || storeTtl <= 0)
+  ) {
+    throw new RangeError(
+      `PermDock: approval ttl must be a positive whole number of milliseconds, got ${String(storeTtl)}`,
+    );
+  }
   const base = storeTtl ?? DEFAULT_APPROVAL_TTL_MS;
   const grant =
     approval === undefined || approval === "human"
@@ -124,7 +132,7 @@ export async function requestApproval(
           quorum: approval.quorum,
           escalation: approval.escalation,
         });
-  const ttl = approvalTtl(meta.ttl, approval);
+  const ttl = approvalTtl(meta.ttl ?? store.ttl, approval);
   const request = freezeDeep(
     compact<ApprovalRequest>({
       v: 1,
@@ -305,6 +313,12 @@ export async function resumeDecision(input: {
   /** `false` for checks that do not run the action, such as the decision endpoint. */
   readonly consume?: boolean;
   readonly now?: Date;
+  /**
+   * How long a request this call opens stays open, in milliseconds; absent
+   * means the store's `ttl`, else `DEFAULT_APPROVAL_TTL_MS`. The grant's
+   * `approval.ttl` still caps it.
+   */
+  readonly ttl?: number;
 }): Promise<Decision> {
   const { decision, store, token } = input;
   if (decision.outcome !== "approval-required") {
@@ -332,6 +346,7 @@ export async function resumeDecision(input: {
           resource: input.resource,
           subject: input.subject,
           adapter: input.adapter,
+          ttl: input.ttl,
         }),
       );
     }

@@ -112,6 +112,12 @@ export type ApprovalCancelMeta = {
 };
 
 export type ApprovalStore = {
+  /**
+   * How long a request opened against this store stays open, in
+   * milliseconds, when the caller sets no `ttl`; absent means
+   * `DEFAULT_APPROVAL_TTL_MS`. A grant's `approval.ttl` still caps it.
+   */
+  readonly ttl?: number;
   create(request: ApprovalRequest): Promise<void> | void;
   get(token: string): Promise<ApprovalRequest | null> | ApprovalRequest | null;
   resolve(

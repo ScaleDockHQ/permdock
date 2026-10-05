@@ -37,6 +37,7 @@ app.all("/permdock/approvals/*", (c) => handler(c.req.raw));
 
 ```ts
 interface ApprovalStore {
+  readonly ttl?: number; // ms a new request stays open; default one hour
   create(request: ApprovalRequest): Promise<void> | void;
   get(token: string): Promise<ApprovalRequest | null> | ApprovalRequest | null;
   resolve(
@@ -138,7 +139,7 @@ Over plain HTTP, step 5 is the retried request with a `PermDock-Approval: <token
 - The approver comes from `subject` in `approvalsHandler` options or from the adapter's verified session, never from the approve request body.
 - The approver is not the request's actor, and optionally not its principal.
 - Status transitions: only `pending` can become `approved` or `rejected`; `expired` is terminal; a second resolve of a resolved request, or a second approval from the same principal, is a `409`.
-- `expiresAt` is the store's `ttl` from `createdAt`, shortened to the grant's `approval.ttl` when that is shorter; a grant never keeps a request open longer than the store would.
+- `expiresAt` is the window from `createdAt`, shortened to the grant's `approval.ttl` when that is shorter; a grant never keeps a request open longer than the window. The window is the `ttl` the call passes (`resumeDecision({ ..., ttl })`, `requestApproval(store, decision, { ..., ttl })`, in milliseconds), else the store's own `ttl` (`memoryApprovalStore({ ttl })`, or a custom store's optional `ttl` field), else `DEFAULT_APPROVAL_TTL_MS` (one hour). A `ttl` that is not a positive whole number of milliseconds throws a `RangeError`, which an adapter turns into a denial.
 - Tokens on resume: a token only applies to the call it was issued for. On that call, unknown, pending, rejected, expired, consumed or mismatched tokens are `denied` with reason kind `approval`; on any other call, or when the decision needs no approval, the token is ignored. Under `approval: { staleOn: 'resource-change' }`, a token issued for an earlier `version` of the same row (same permission, resource and principal, still pending or approved) is `denied` with reason `stale-approval` and is not consumed; the call without it asks again ([approval security](/docs/security/approvals#approvals-that-go-stale)). No token is ever accepted without a fresh `decide`. Agent adapters read it from the `permdockApproval` context key. Approvals are per call; a session-scoped approval such as Eve's `once()` helper is not expressible in the store.
 - `memoryApprovalStore` is per process. The adapter logs a development warning when it is used in a serverless runtime, because a request that resumes on another instance will not find its record.
 

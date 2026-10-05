@@ -22,6 +22,8 @@ const handler = approvalsHandler(store, {
 app.all("/permdock/approvals/*", (c) => handler(c.req.raw));
 ```
 
+The store's `ttl` is the window a request stays open when the call sets none; `resumeDecision({ ..., ttl })` sets it per call (milliseconds). A grant's `approval.ttl` only shortens either.
+
 - `memoryApprovalStore` is per process. On serverless or with several replicas, implement `ApprovalStore` over the app's database; the Drizzle recipe on the adapter page is the template, and `cloud().approvals` from `permdock/cloud` is the hosted implementation of the same interface.
 - A custom store calls `assertApprover(request, by, requireDistinct, now, verdict.relations)` in `resolve` and computes the next record with `applyApprovalVerdict`, which records each signature's `stage`. `verdict.relations` holds `approverRelationKey` values that the handler, or `resolveApproval(store, token, verdict, { relations, permissions })`, computed with `approverRelations`; a store never derives them. `consume` must be atomic: two concurrent calls never both succeed.
 - Run `testApprovalStore(store, { reopen })` from `permdock/testing` on every custom store.
