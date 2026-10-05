@@ -1,4 +1,4 @@
-import type { Snapshot } from "../core/interfaces.ts";
+import type { Snapshot, SnapshotSource } from "../core/interfaces.ts";
 import type { ClientStore } from "../react/store.ts";
 import type { NativePermDockProviderProps } from "./types.ts";
 
@@ -18,6 +18,35 @@ export type NativeStoreOptions = Omit<NativePermDockProviderProps, "children">;
 function isJws(value: string): boolean {
   const parts = value.split(".");
   return parts.length === 3 && parts.every((part) => part.length > 0);
+}
+
+/**
+ * Hydrates `store` from `source` now and on every change it reports. A
+ * failed read keeps the current snapshot. Returns the unsubscribe.
+ */
+export function connectSource(
+  store: ClientStore,
+  source: SnapshotSource,
+): () => void {
+  let active = true;
+  const pull = (): void => {
+    void Promise.resolve()
+      .then(() => source.get())
+      .then(
+        (next) => {
+          if (active) {
+            store.replace(next);
+          }
+        },
+        () => undefined,
+      );
+  };
+  pull();
+  const unsubscribe = source.subscribe?.(pull);
+  return (): void => {
+    active = false;
+    unsubscribe?.();
+  };
 }
 
 export function createNativeStore(options: NativeStoreOptions): ClientStore {

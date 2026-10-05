@@ -4,7 +4,7 @@ import type { NativePermDockProviderProps } from "./types.ts";
 
 import { compact } from "../core/compact.ts";
 import { PermDockStoreContext } from "../react/context.ts";
-import { createNativeStore } from "./store.ts";
+import { connectSource, createNativeStore } from "./store.ts";
 
 export function PermDockProvider(
   props: NativePermDockProviderProps,
@@ -43,6 +43,14 @@ export function PermDockProvider(
       props.maxAge,
       props.verifier,
     ],
+  );
+
+  useEffect(
+    () =>
+      props.source === undefined
+        ? undefined
+        : connectSource(store, props.source),
+    [store, props.source],
   );
 
   useEffect(() => {

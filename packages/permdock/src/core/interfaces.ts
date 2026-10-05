@@ -334,6 +334,41 @@ export type SnapshotGrant = {
   readonly validity?: GrantValidity;
 };
 
+/**
+ * What a policy grants, as JSON a client builds snapshots from without the
+ * policy: `localSnapshotManifest(policy)` writes it, `localSnapshot` in
+ * `permdock/react-native` reads it.
+ */
+export type LocalSnapshotManifest = {
+  readonly v: 1;
+  readonly scopes?: readonly SnapshotScope[];
+  readonly vocabulary?: Snapshot["vocabulary"];
+  /** Declared role names; a custom role cannot take one. */
+  readonly roles: readonly string[];
+  /** Declared role names in rank order, when an `assigns` graph ranks them. */
+  readonly rank?: readonly string[];
+  /** Every declared grant, without a membership. */
+  readonly grants: readonly SnapshotGrant[];
+  /** Per custom-role scope (`global` for platform roles): the grants each entry resolves to. */
+  readonly custom: Readonly<Record<string, LocalCustomRoleTable>>;
+};
+
+/** Grants a custom role entry resolves to, held by a placeholder role the client renames. */
+export type LocalCustomRoleTable = {
+  /** `{ permission }` per permission key, and `{ permission, level }` per declared level. */
+  readonly permissions: Readonly<
+    Record<
+      string,
+      {
+        readonly all: readonly SnapshotGrant[];
+        readonly levels?: Readonly<Record<string, readonly SnapshotGrant[]>>;
+      }
+    >
+  >;
+  /** `includes: [role]` per declared role. */
+  readonly includes: Readonly<Record<string, readonly SnapshotGrant[]>>;
+};
+
 export type SnapshotSource = {
   get(): Promise<Snapshot | string> | Snapshot | string;
   subscribe?(listener: () => void): () => void;

@@ -135,6 +135,8 @@ import { PermDockProvider, usePermission } from "permdock/react-native";
 
 `storage` is `{ getItem, setItem, removeItem }` (MMKV, SecureStore, AsyncStorage). `snapshotUrl` revalidates in the background. `permdock.clear()` drops the persisted snapshot on sign-out. Do not import `policy.ts` on the client.
 
+To answer guards from synced rows, write `localSnapshotManifest(policy)` (from `permdock`) to a JSON file at build time and pass `source={localSnapshot({ manifest, read, subscribe })}`. `read()` returns `{ principal: { id, tenant, roles, memberships, attributes }, customRoles }` from the local database; `subscribe` re-reads on row changes. It decides like the server snapshot except relation grantees (server-only) and the assignable lists (empty). Never import `policy.ts` into the app for this. Docs: [local snapshot](https://permdock.com/docs/adapters/react-native#local-snapshot).
+
 For an offline app on PowerSync, set `powersync: { out: 'sync-config.yaml' }` in `permdock.config.ts` and run `permdock powersync generate`: one edition 3 Sync Stream per resource, from the `rls.tables` and `rls.memberships` the RLS generator reads. It under-syncs, never over-syncs: a resource with a deny grant gets no stream, and a grant with a global role, approval, break-glass, validity, request context or a condition without a Sync Streams form syncs nothing, each with a warning. The app reads what does not sync from the server. `permdock powersync verify --db $DATABASE_URL` fails when a stream holds a fixture row the policy denies; doctor PD058 flags a stale file. Docs: [`permdock powersync`](https://permdock.com/docs/cli/powersync).
 
 ## Express — `permdock/express`

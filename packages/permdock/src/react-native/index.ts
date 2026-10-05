@@ -28,9 +28,15 @@ export type {
   SubjectView,
   TenantView,
 } from "../react/types.ts";
+export { buildLocalSnapshot, localSnapshot } from "./local.ts";
+export type { LocalSnapshotData, LocalSnapshotOptions } from "./local.ts";
 export { PermDockProvider } from "./provider.tsx";
 export { memoryStorage } from "./storage.ts";
-export { createNativeStore } from "./store.ts";
+export { connectSource, createNativeStore } from "./store.ts";
+export type {
+  LocalSnapshotManifest,
+  SnapshotSource,
+} from "../core/interfaces.ts";
 export type {
   NativePermDockProviderProps,
   NativeRevalidate,

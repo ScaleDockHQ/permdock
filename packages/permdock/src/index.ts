@@ -103,6 +103,8 @@ export type {
   MembershipEvent,
   LimitConsumeInput,
   LimitRemaining,
+  LocalCustomRoleTable,
+  LocalSnapshotManifest,
   LimitStore,
   SinkEvent,
   EntitlementSource,
@@ -137,6 +139,7 @@ export type {
   ArazzoStepResult,
 } from "./core/arazzo.ts";
 export { emptySnapshot, fromSnapshot } from "./core/from-snapshot.ts";
+export { localSnapshotManifest } from "./core/local-manifest.ts";
 export { createPermDock, parseSnapshot } from "./core/permdock.ts";
 export { mayAccess } from "./core/may-access.ts";
 export { mayUse } from "./core/may-use.ts";

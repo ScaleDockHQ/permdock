@@ -11,6 +11,8 @@ import { gzipSync } from "node:zlib";
 const CONSUMERS = {
   "core definePolicy + createPermDock": `import { createPermDock, definePermissions, definePolicy } from 'permdock'; export { createPermDock, definePermissions, definePolicy };`,
   "react PermDockProvider + usePermission": `export { PermDockProvider, usePermission } from 'permdock/react';`,
+  "react-native PermDockProvider + usePermission": `export { PermDockProvider, usePermission } from 'permdock/react-native';`,
+  "react-native PermDockProvider + localSnapshot": `export { PermDockProvider, localSnapshot, usePermission } from 'permdock/react-native';`,
   "next createPermDock": `export { createPermDock } from 'permdock/next';`,
   "server createPermDock": `export { createPermDock } from 'permdock/server';`,
   "server createPermDock + verifyWebBotAuth": `export { createPermDock, verifyWebBotAuth } from 'permdock/server';`,

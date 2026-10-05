@@ -51,6 +51,7 @@ import { permissions } from "@/permissions";
 | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `storage`                                                                                                                                               | Any object with `getItem`, `setItem`, `removeItem` (MMKV, `expo-secure-store`, AsyncStorage). Synchronous stores answer on the first frame; asynchronous stores answer on the second frame with `status: 'pending'` in between.                                                                                                                                                                                                                                                                             |
 | `snapshotUrl`                                                                                                                                           | Where to fetch a fresh snapshot after launch and on `refresh()`. The request carries the app's session token through the `headers` or `fetch` option.                                                                                                                                                                                                                                                                                                                                                       |
+| `source`                                                                                                                                                | A `SnapshotSource` such as `localSnapshot({ manifest, read, subscribe })`: the snapshot is built from the device's own rows ([Local snapshot](#local-snapshot)).                                                                                                                                                                                                                                                                                                                                            |
 | `endpoint`                                                                                                                                              | Same batched decision endpoint as React, for closure grants.                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `revalidate`                                                                                                                                            | `'launch'` (default), `'focus'` (also on app foreground when `subscribeForeground` is set) or a number of seconds.                                                                                                                                                                                                                                                                                                                                                                                          |
 | `subscribeForeground`                                                                                                                                   | Optional `(listener) => unsubscribe` for `revalidate: 'focus'`. Pass `AppState.addEventListener('change', ...)` from `react-native` so the snapshot refreshes when the app returns to the foreground.                                                                                                                                                                                                                                                                                                       |
@@ -71,6 +72,56 @@ If `storage` is empty (first launch) the store starts in `pending`; guards recei
 A device with no connectivity keeps answering from the persisted snapshot. Portable grants (including ownership conditions such as `authorId` equals `principal.id`, and `sqlFunction` grants whose `twin` is portable) work fully offline because the condition and the resource are both on the device. Closure grants cannot be answered offline: the hook reports `server-only` and `allowed: false`, and `Protected` renders `fallback`. Apps that need a specific permission offline should express it with a portable condition rather than a closure; `permdock doctor` lists closure grants that are referenced from React Native code.
 
 Because the on-device answer is a UI hint, an API request made while offline and replayed later is still checked by the server with the current policy, so a stale local grant can never turn into a successful write.
+
+### Local snapshot
+
+An app that syncs its membership and custom-role rows to the device (SQLite, a [PowerSync](/docs/cli/powersync) or Electric replica) can build the snapshot from those rows instead of fetching it. The policy stays on the server: `localSnapshotManifest(policy)` from `permdock` writes, at build time, the JSON that `localSnapshot` reads on the device.
+
+```ts title="scripts/permdock-manifest.ts"
+import { writeFileSync } from "node:fs";
+import { localSnapshotManifest } from "permdock";
+import { policy } from "../src/policy";
+
+writeFileSync(
+  "app/permdock-manifest.json",
+  JSON.stringify(localSnapshotManifest(policy)),
+);
+```
+
+```tsx
+import { localSnapshot, PermDockProvider } from "permdock/react-native";
+import manifest from "./permdock-manifest.json";
+
+// readMemberships, readCustomRoles and watchTables are the app's own queries over its local database.
+const source = localSnapshot({
+  manifest,
+  read: async () => ({
+    principal: {
+      id: userId,
+      tenant: organizationId,
+      memberships: await readMemberships(userId), // [{ tenant: 'acme', roles: ['admin'] }]
+      attributes: { claims: { team_ids: teamIds } },
+    },
+    customRoles: await readCustomRoles(organizationId),
+  }),
+  subscribe: (listener) =>
+    watchTables(["organization_users", "roles"], listener),
+});
+
+<PermDockProvider storage={secureStorage} source={source}>
+  {children}
+</PermDockProvider>;
+```
+
+`read()` returns what a [`MembershipSource`](/docs/concepts/tenancy) and a [`RoleSource`](/docs/concepts/custom-roles) would on the server: the memberships, global roles, plans and custom roles of the signed-in user. `attributes` carries the principal values conditions read, such as `principal.claims.team_ids`. On every `subscribe` call the provider rebuilds the snapshot and persists it to `storage`. A failed `read()` keeps the current snapshot.
+
+The local snapshot decides like the server snapshot for the same rows, with these limits:
+
+- A grant on a relation grantee (`relation(job, 'watcher')`) is `server-only` on the device: the relation graph is not in the manifest.
+- A custom role resolves through tables the server computed per permission, level and included role. An entry the manifest does not know, such as a permission added after the build, grants nothing until the manifest is rebuilt.
+- `useAssignableRoles` and `useAssignablePermissions` return nothing; the role editor needs the server snapshot.
+
+With `snapshotUrl` set as well, the latest answer wins: the server snapshot after a revalidation, the local one after the next row change.
 
 ## What it validates
 

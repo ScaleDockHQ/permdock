@@ -1,6 +1,10 @@
 import type { ReactNode } from "react";
 
-import type { Snapshot, TokenVerifier } from "../core/interfaces.ts";
+import type {
+  Snapshot,
+  SnapshotSource,
+  TokenVerifier,
+} from "../core/interfaces.ts";
 
 export type PermDockStorage = {
   getItem(key: string): string | null | Promise<string | null>;
@@ -14,6 +18,8 @@ export type NativePermDockProviderProps = {
   readonly storage: PermDockStorage;
   readonly snapshot?: Snapshot | string;
   readonly snapshotUrl?: string;
+  /** Hydrates from the device's own rows (`localSnapshot`); with `snapshotUrl` too, the latest answer wins. */
+  readonly source?: SnapshotSource;
   readonly endpoint?: string;
   readonly approvals?: string;
   readonly tenant?: string;

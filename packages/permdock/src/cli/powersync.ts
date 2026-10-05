@@ -25,7 +25,7 @@ import {
 import { quoteIdent } from "./rls-sql.ts";
 import { canFixture } from "./rls-verify.ts";
 
-export const POWERSYNC_HELP = `permdock powersync generate [--out sync-config.yaml] [--check]
+const POWERSYNC_HELP = `permdock powersync generate [--out sync-config.yaml] [--check]
 permdock powersync verify [--db <url>] [--fixtures rls.fixtures.json]`;
 
 const DEFAULT_OUT = "sync-config.yaml";
