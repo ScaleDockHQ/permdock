@@ -176,6 +176,18 @@ export type RlsConfig = {
    */
   readonly anonExecute?: boolean;
   /**
+   * Check role assignments in the database: a trigger on each scope's
+   * `rls.memberships` table (and each table in `tables`, such as
+   * invitations) refuses a client write that assigns, changes or removes a
+   * role the caller may not assign there, by the policy's `assigns` graph or,
+   * for a custom role, by what the caller may hand out. Writes that do not run
+   * as a client role (the table owner, a `security definer` function, a
+   * backend role) are trusted. Needs a role that declares `assigns`.
+   */
+  readonly assignments?:
+    | true
+    | { readonly tables?: readonly RlsAssignmentTable[] };
+  /**
    * `'views'`: one `security_invoker` view `<table>_visible` per table with field-limited
    * read grants, whose restricted columns are `case when <permitted> then col end`. Off by default.
    */
@@ -211,6 +223,19 @@ export type RlsConfig = {
    * them in `public`. Off by default; `--shims` turns it on.
    */
   readonly shims?: boolean | RlsShimsConfig;
+};
+
+/** One more table whose rows assign a role, such as invitations (`rls.assignments.tables`). */
+export type RlsAssignmentTable = {
+  readonly table: string;
+  /** The declared scope the row assigns the role at. */
+  readonly scope: string;
+  /** The column holding the scope instance id. */
+  readonly id: string;
+  /** The tenant column for a scope below the first; defaults to `id` at the first scope. */
+  readonly tenant?: string;
+  /** The role key column, a reference to a roles table that holds the key, or several of them. */
+  readonly role: string | RoleThrough | readonly (string | RoleThrough)[];
 };
 
 /** `rls.customRoleWrites.roles`: the application's table of custom roles. */

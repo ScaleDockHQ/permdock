@@ -46,7 +46,7 @@ const CAPABILITIES = {
 } as const;
 
 /** Objects `--custom-roles` adds next to the helpers. Names are part of the SQL contract. */
-const CUSTOM_ROLES = {
+export const CUSTOM_ROLES = {
   permissions: "custom_role_permissions",
   includes: "custom_role_includes",
   ceiling: "permdock_ceiling",

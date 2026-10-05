@@ -46,7 +46,11 @@ import {
   pruneIndexTargets,
   readTableIndexFacts,
 } from "./rls-indexes.ts";
-import { ownershipRules, ownershipSql } from "./rls-ownership.ts";
+import {
+  assignmentSql,
+  ownershipRules,
+  ownershipSql,
+} from "./rls-ownership.ts";
 import { permissionHelpersSql } from "./rls-permission-keys.ts";
 import { assemblePolicies } from "./rls-policies.ts";
 import {
@@ -363,6 +367,14 @@ export async function runRlsGenerate(input: {
       ? { anonymousSignIns: "deny" as const }
       : {}),
     ...(ownership === undefined ? {} : { ownership }),
+    ...(rls?.assignments === undefined
+      ? {}
+      : {
+          assignments: {
+            tables:
+              rls.assignments === true ? [] : (rls.assignments.tables ?? []),
+          },
+        }),
     ...(fieldsMode === undefined ? {} : { fields: fieldsMode }),
     ...(graph.size === 0
       ? {}
@@ -468,7 +480,17 @@ export async function runRlsGenerate(input: {
       "the token hook that writes user_role and memberships comes from permdock supabase hook generate",
     );
   }
-  const owned = ownershipSql(ctx);
+  const owned = [ownershipSql(ctx), assignmentSql(ctx)]
+    .filter((part) => part !== "")
+    .join("\n");
+  if (
+    ctx.assignments !== undefined &&
+    (ownership === undefined || ownership.assigns.length === 0)
+  ) {
+    warnings.push(
+      "rls.assignments needs a role that declares assigns: no assignment trigger is written",
+    );
+  }
   const graphed = graphSql(ctx, graph, rls?.tables);
   const breakGlass = breakGlassSql(ctx, breakGlassEntries(policy, rls?.tables));
   const configured = rls?.shims;

@@ -6,6 +6,7 @@ import type {
   GlobalRoles,
   RlsActions,
   RlsActiveRow,
+  RlsAssignmentTable,
   RlsCustomRoleTable,
   RlsDialect,
   RlsMembershipTable,
@@ -105,6 +106,8 @@ export type RlsSqlContext = {
   readonly capabilities?: true;
   /** Role ownership rules (`for`, `assigns`, `min`, `max`, `transferOnly`), when any role declares one. */
   readonly ownership?: RlsOwnership;
+  /** `rls.assignments`: assignment triggers on the membership tables and these extra tables. */
+  readonly assignments?: { readonly tables: readonly RlsAssignmentTable[] };
   /**
    * Postgres types of the current table's columns, read from the resource
    * schema (`columnTypesOf`). A claim compared with a typed column is cast to
