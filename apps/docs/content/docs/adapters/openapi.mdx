@@ -179,6 +179,40 @@ Nothing to wire. Point Hey API, Orval, Kubb, Redocly `generate-client`, OpenAPI 
 
 Optional, off by default: `docsHints: { badges: true }` adds `x-badges: [{ name: 'Approval required' }]` to operations whose permission carries `approval`, so portals that render `x-badges` (Scalar does) show the hint without understanding PermDock. It is a rendering hint with no semantics and the only field PermDock writes outside `x-permdock-*` and the registered set. Scalar's plugin API binds custom components to Info, Tag and Schema objects rather than operations, and Hey API's plugin API iterates operations, so a first-party plugin for either is considered only if these recipes prove insufficient.
 
+### One declaration for REST and MCP
+
+An API that serves the same operations as REST routes and as MCP tools declares each operation's permission once. `operationPermissions(operations, { base? })` takes `"METHOD /path/{param}"` keys, the OpenAPI path templates, mapped to a permission or to `{ permission, operationId }`, and answers `forRequest(method, path)` for the HTTP gate (a literal segment wins over a `{param}`; an undeclared operation is `undefined`, which a gate denies) and `forOperation(id)` for `permdock/mcp`'s `permissionFor` when tool names are operation ids. `operationPermissionsFromOpenApi(document, permissions, { base? })` builds the same object from the `x-permdock-permissions` a description already carries, keeping each operation that names exactly one known permission:
+
+```ts
+import { operationPermissions } from "permdock/openapi";
+
+export const operations = operationPermissions(
+  {
+    "GET /customers": permissions.customer.list,
+    "GET /customers/{id}": {
+      permission: permissions.customer.read,
+      operationId: "get_customer",
+    },
+    "DELETE /customers/{id}": {
+      permission: permissions.customer.delete,
+      operationId: "delete_customer",
+    },
+  },
+  { base: "/api/v1" },
+);
+
+// the REST gate
+const permission = operations.forRequest(
+  request.method,
+  new URL(request.url).pathname,
+);
+// the MCP server
+protectServer(server, {
+  enforce: "procedure",
+  permissionFor: operations.forOperation,
+});
+```
+
 ### OpenAPI-to-MCP bridges
 
 Bridges generate one MCP tool per operation. Without PermDock the generated tools have no `permission` binding, so `permdock/mcp`'s `list_tools` filtering and `approval-required` parking never run. Read each operation's `x-permdock-permissions` from the applied description and bind it as the tool's `permission`. Standard `security` is not enough here because the bridge needs the permission key, not the scope.
