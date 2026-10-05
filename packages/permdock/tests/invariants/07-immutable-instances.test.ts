@@ -22,6 +22,34 @@ function sources(dir: string): string[] {
 
 const coreSources = [...sources("core"), ...sources("conditions")];
 
+/** Process-wide memo caches of values that never depend on a request. */
+const MEMO_CACHES: Readonly<Record<string, string>> = {
+  [path.join("jwt", "load-jose.ts")]: "the optional jose module promise",
+  [path.join("cli", "package-root.ts")]: "the permdock package directory",
+  [path.join("cli", "openapi-schema.ts")]: "compiled JSON Schema validators",
+};
+
+function moduleState(file: string): string[] {
+  const text = readFileSync(path.join(src, file), "utf8");
+  const offenders: string[] = [];
+  if (/^(?:export )?(?:let|var) /mu.test(text)) {
+    offenders.push(`${file}: top-level let or var`);
+  }
+  if (text.includes("AsyncLocalStorage")) {
+    offenders.push(`${file}: AsyncLocalStorage`);
+  }
+  for (const [, name] of text.matchAll(
+    /^const (\w+) = new (?:Map|Set|WeakMap|WeakSet)\b/gmu,
+  )) {
+    if (
+      new RegExp(`\\b${name}\\.(?:add|set|delete|clear)\\(`, "u").test(text)
+    ) {
+      offenders.push(`${file}: ${name} is mutated`);
+    }
+  }
+  return offenders;
+}
+
 describe("invariant 7: immutable, request-scoped instances", () => {
   it("freezes the instance and its subject", async () => {
     const permdock = await createPermDock(policy, memberUser);
@@ -58,25 +86,16 @@ describe("invariant 7: immutable, request-scoped instances", () => {
   });
 
   it("holds no module-level mutable state in core", () => {
-    const offenders: string[] = [];
-    for (const file of coreSources) {
-      const text = readFileSync(path.join(src, file), "utf8");
-      if (/^(?:export )?(?:let|var) /mu.test(text)) {
-        offenders.push(`${file}: top-level let or var`);
-      }
-      if (text.includes("AsyncLocalStorage")) {
-        offenders.push(`${file}: AsyncLocalStorage`);
-      }
-      for (const [, name] of text.matchAll(
-        /^const (\w+) = new (?:Map|Set|WeakMap|WeakSet)\b/gmu,
-      )) {
-        if (
-          new RegExp(`\\b${name}\\.(?:add|set|delete|clear)\\(`, "u").test(text)
-        ) {
-          offenders.push(`${file}: ${name} is mutated`);
-        }
-      }
-    }
+    expect(coreSources.flatMap(moduleState)).toEqual([]);
+  });
+
+  it("holds module-level state elsewhere in src only as a listed memo cache", () => {
+    const offenders = sources("")
+      .filter((file) => !(file in MEMO_CACHES))
+      .flatMap(moduleState);
     expect(offenders).toEqual([]);
+    expect(
+      Object.keys(MEMO_CACHES).filter((file) => moduleState(file).length === 0),
+    ).toEqual([]);
   });
 });
