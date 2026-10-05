@@ -127,6 +127,9 @@ describe("permdock supabase hook generate", () => {
     expect(sql).toContain(
       'revoke execute on function "permdock".permdock_bump_authz_version_for(uuid[]) from public, anon, authenticated;',
     );
+    expect(sql).toContain(
+      "where u is not null and exists (select 1 from auth.users au where au.id = u)",
+    );
     expect(sql).not.toMatch(/grant execute on function [^;]*_for\(uuid\[\]\)/u);
     expect(sql).not.toMatch(/service_role/iu);
   });

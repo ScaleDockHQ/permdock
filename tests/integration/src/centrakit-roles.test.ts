@@ -547,4 +547,69 @@ describe("CentraKit user_roles and organization_users through roles.key", () => 
     );
     expect(rows?.rows).toEqual([{ user_id: null }]);
   });
+  it("deletes an auth user whose memberships cascade, with and without a version row", async () => {
+    const admin = db?.admin;
+    if (admin === undefined) {
+      throw new Error("PermDock: Postgres was not started");
+    }
+    await admin.query(
+      "delete from permdock.permdock_authz_version where user_id = $1",
+      [DISPATCH_A],
+    );
+    await admin.query(
+      "update organization_users set role_id = role_id where user_id = $1",
+      [DISPATCH_B],
+    );
+    expect(await version(DISPATCH_A)).toBe(0);
+    expect(await version(DISPATCH_B)).toBeGreaterThan(0);
+    const owner = await version(OWNER);
+    await admin.query("delete from auth.users where id = $1", [DISPATCH_A]);
+    await admin.query("delete from auth.users where id = $1", [DISPATCH_B]);
+    const left = await admin.query<{ count: string }>(
+      "select count(*) from organization_users where user_id = any($1::uuid[])",
+      [[DISPATCH_A, DISPATCH_B]],
+    );
+    expect(Number(left.rows[0]?.count)).toBe(0);
+    expect(await version(DISPATCH_A)).toBe(0);
+    expect(await version(DISPATCH_B)).toBe(0);
+    expect(await version(OWNER)).toBe(owner);
+    await admin.query(
+      "update organization_users set role_id = role_id where user_id = $1",
+      [OWNER],
+    );
+    expect(await version(OWNER)).toBeGreaterThan(owner);
+  });
+
+  it("bumps the listed users that still exist and skips the ones that do not", async () => {
+    const admin = db?.admin;
+    if (admin === undefined) {
+      throw new Error("PermDock: Postgres was not started");
+    }
+    const ghost = id(0xff);
+    const owner = await version(OWNER);
+    await admin.query(
+      "select permdock.permdock_bump_authz_version_for(array[$1, $2]::uuid[])",
+      [ghost, OWNER],
+    );
+    expect(await version(OWNER)).toBe(owner + 1);
+    expect(await version(ghost)).toBe(0);
+  });
+
+  it("skips a role holder missing from auth.users when a role key is renamed", async () => {
+    const admin = db?.admin;
+    if (admin === undefined) {
+      throw new Error("PermDock: Postgres was not started");
+    }
+    const ghost = id(0xfe);
+    await admin.query("insert into user_roles values ($1, $2)", [
+      ghost,
+      SUPPORT_ROLE,
+    ]);
+    const other = await version(OTHER);
+    await admin.query(`update roles set key = 'helpdesk' where id = $1`, [
+      SUPPORT_ROLE,
+    ]);
+    expect(await version(OTHER)).toBe(other + 1);
+    expect(await version(ghost)).toBe(0);
+  });
 });

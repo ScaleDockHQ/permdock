@@ -748,7 +748,7 @@ create table if not exists ${versionTable} (
 alter table ${versionTable} enable row level security;
 revoke all on table ${versionTable} from anon, authenticated, public;
 
--- bumps each listed user once, for a membership source outside the hook; no client role may call it
+-- bumps each listed user once, skipping users already deleted from auth.users; no client role may call it
 create or replace function ${bumpFor}(p_users uuid[])
 returns void
 language sql
@@ -756,7 +756,8 @@ security definer
 set search_path = ''
 as $$
   insert into ${versionTable} as v (user_id, version)
-  select distinct u, 1 from unnest(p_users) u where u is not null
+  select distinct u, 1 from unnest(p_users) u
+  where u is not null and exists (select 1 from auth.users au where au.id = u)
   on conflict (user_id) do update set version = v.version + 1
 $$;
 revoke execute on function ${bumpFor}(uuid[]) from public, anon, authenticated;
@@ -1013,6 +1014,7 @@ ${indent}from (
 ${indent}  ${selects}
 ${indent}) h
 ${indent}where h.user_id is not null
+${indent}  and exists (select 1 from auth.users au where au.id = h.user_id)
 ${indent}on conflict (user_id) do update set version = v.version + 1;`;
 }
 
