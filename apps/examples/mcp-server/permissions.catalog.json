@@ -1,7 +1,7 @@
 {
   "$schema": "https://permdock.com/schemas/catalog-v1.json",
   "version": 1,
-  "generatedAt": "2026-10-04T22:04:42.393Z",
+  "generatedAt": "2026-10-05T12:40:08.713Z",
   "generator": "permdock@0.1.0",
   "fingerprint": "E7G4R7NhectdtojbU3Zsh6WN8PJnXy5K7ZLDvAjp7gk",
   "resources": {
@@ -118,6 +118,11 @@
           "call": "deny"
         },
         {
+          "file": "src/procedures.ts",
+          "line": 37,
+          "call": "protect"
+        },
+        {
           "file": "src/server.ts",
           "line": 70,
           "call": "tools"
@@ -158,6 +163,11 @@
           "file": "src/policy.ts",
           "line": 24,
           "call": "allow"
+        },
+        {
+          "file": "src/procedures.ts",
+          "line": 30,
+          "call": "protect"
         },
         {
           "file": "src/server.ts",
