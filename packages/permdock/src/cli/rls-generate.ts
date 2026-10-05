@@ -18,7 +18,7 @@ import type {
 
 import { compact } from "../core/compact.ts";
 import { renamedKeys } from "../core/permissions.ts";
-import { scopeList } from "../core/scopes.ts";
+import { resolveScope, scopeList } from "../core/scopes.ts";
 import { listPermissions, listRoles } from "../index.ts";
 import { supabaseTenantClaim } from "../supabase/budget.ts";
 import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
@@ -367,6 +367,22 @@ export async function runRlsGenerate(input: {
       ? { anonymousSignIns: "deny" as const }
       : {}),
     ...(ownership === undefined ? {} : { ownership }),
+    ...(rls?.ownershipTriggers === undefined
+      ? {}
+      : {
+          skipOwnershipTriggers:
+            rls.ownershipTriggers === false
+              ? ("all" as const)
+              : Object.keys(rls.ownershipTriggers).map((key) => {
+                  const name = resolveScope(scopes, key);
+                  if (name === undefined) {
+                    throw new Error(
+                      `PermDock CLI: rls.ownershipTriggers.${key} names a scope the policy does not declare`,
+                    );
+                  }
+                  return name;
+                }),
+        }),
     ...(rls?.assignments === undefined
       ? {}
       : {

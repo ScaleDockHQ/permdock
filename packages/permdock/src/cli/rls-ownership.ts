@@ -692,9 +692,16 @@ export function ownershipSql(ctx: RlsSqlContext): string {
     return "";
   }
   const chunks: string[] = [];
+  const skipped = ctx.skipOwnershipTriggers;
   for (const { name } of ctx.scopes) {
     const counted = own.counted.filter((rule) => rule.scope === name);
     if (counted.length === 0) {
+      continue;
+    }
+    if (skipped === "all" || skipped?.includes(name) === true) {
+      chunks.push(
+        `-- ${name}: rls.ownershipTriggers leaves out the triggers, so min, max and transferOnly are checked only by decideRoleChange`,
+      );
       continue;
     }
     const transfer = counted

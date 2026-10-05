@@ -188,6 +188,13 @@ export type RlsConfig = {
     | true
     | { readonly tables?: readonly RlsAssignmentTable[] };
   /**
+   * `false` leaves out the holder-count and transfer-only triggers `min`,
+   * `max` and `transferOnly` put on the membership tables; a map with
+   * `<scope>: false` leaves them out for those scopes only. Those rules are
+   * then checked by `decideRoleChange` alone. On by default.
+   */
+  readonly ownershipTriggers?: false | Readonly<Record<string, false>>;
+  /**
    * `'views'`: one `security_invoker` view `<table>_visible` per table with field-limited
    * read grants, whose restricted columns are `case when <permitted> then col end`. Off by default.
    */
