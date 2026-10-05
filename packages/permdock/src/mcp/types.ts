@@ -169,6 +169,13 @@ export type McpProcedureEnforcement = {
 export type McpPermDockOptions<TUser = unknown> = {
   /** Receives the verified auth info, or `{}` on a transport without one (stdio). */
   readonly subject: (authInfo: McpAuthInfo) => TUser | Promise<TUser>;
+  /**
+   * The `kind` of the actor built from `authInfo.clientId`; `'mcp-client'`
+   * when absent. `'oauth-client'` decides the token under the kind
+   * `subjectFromSupabase`, `subjectFromJwt` and `permdock/a2a` give an OAuth
+   * client, so one policy delegation covers the token on every surface.
+   */
+  readonly actorKind?: string;
   readonly tenant?:
     | string
     | ((

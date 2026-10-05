@@ -16,12 +16,19 @@ import {
   memoryApprovalStore,
   resolveApproval,
 } from "../../src/approvals/index.ts";
-import { allow, assurance, definePolicy } from "../../src/index.ts";
+import {
+  actor,
+  allow,
+  assurance,
+  definePolicy,
+  deny,
+} from "../../src/index.ts";
 import {
   APPROVAL_META_KEY,
   createPermDock,
   subjectFromMcp,
 } from "../../src/mcp/index.ts";
+import { subjectFromSupabase } from "../../src/supabase/index.ts";
 import {
   adminUser,
   memberUser,
@@ -757,5 +764,69 @@ describe("subjectFromMcp", () => {
       arguments: { id: "p1" },
     });
     expect(granted.isError).not.toBe(true);
+  });
+});
+
+describe("actorKind", () => {
+  const appOnly = definePolicy(permissions, {
+    roles: policy.roles,
+    grants: [deny(permissions.post.update, { to: actor("oauth-client") })],
+    subject: (user: typeof adminUser | null) =>
+      user === null ? null : { id: user.id, roles: user.roles },
+  });
+
+  const updateServer = (actorKind?: string) => {
+    const server = new McpServer({ name: "posts", version: "1.0.0" });
+    createPermDock(appOnly, {
+      subject: () => adminUser,
+      ...(actorKind === undefined ? {} : { actorKind }),
+    })
+      .protectServer(server)
+      .registerTool(
+        "update_post",
+        {
+          permission: permissions.post.update,
+          inputSchema: idInput,
+          data: byId,
+        },
+        ({ id }) => ({ content: [{ type: "text", text: `updated ${id}` }] }),
+      );
+    return server;
+  };
+
+  it("decides the client under the configured kind", async () => {
+    const session = { authInfo: auth(["post:update"]) };
+    const byDefault = await connect(updateServer(), session);
+    const asOAuth = await connect(updateServer("oauth-client"), session);
+    const call = { name: "update_post", arguments: { id: "p1" } };
+    expect((await byDefault.client.callTool(call)).isError).not.toBe(true);
+    expect(await asOAuth.client.callTool(call)).toMatchObject({
+      isError: true,
+      structuredContent: { outcome: "denied" },
+    });
+  });
+
+  it("gives an MCP token the same actor as subjectFromSupabase when set to oauth-client", () => {
+    const viaMcp = subjectFromMcp(
+      auth(["post:update"], { sub: "u1", roles: ["member"] }),
+      { actorKind: "oauth-client" },
+    );
+    const viaSupabase = subjectFromSupabase({
+      sub: "u1",
+      role: "authenticated",
+      client_id: "mcp-tester",
+      scope: "post:update",
+    });
+    expect(viaMcp.actor).toEqual(viaSupabase.actor);
+    expect(viaMcp.delegation?.scopes).toEqual(viaSupabase.delegation?.scopes);
+  });
+
+  it("refuses a kind that is not a non-empty string", () => {
+    expect(() =>
+      createPermDock(policy, { subject: () => adminUser, actorKind: "" }),
+    ).toThrow(TypeError);
+    expect(
+      subjectFromMcp(auth([], { sub: "u1" }), { actorKind: "" }).principal,
+    ).toBeNull();
   });
 });

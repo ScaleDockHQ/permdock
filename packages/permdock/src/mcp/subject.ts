@@ -11,7 +11,20 @@ import { mapClaimsToSubject } from "../jwt/map-claims.ts";
 export type McpSubjectOptions = Pick<
   JwtSubjectOptions,
   "claims" | "groupRoles" | "schema" | "delegation"
->;
+> & {
+  /** The `kind` of the actor built from `authInfo.clientId`; `'mcp-client'` when absent. Match `createPermDock`'s `actorKind`. */
+  readonly actorKind?: string;
+};
+
+const DEFAULT_MCP_ACTOR_KIND = "mcp-client";
+
+/** `kind`, or the default when absent; `undefined` for a kind that is not a non-empty string. */
+export function mcpActorKind(kind: unknown): string | undefined {
+  if (kind === undefined) {
+    return DEFAULT_MCP_ACTOR_KIND;
+  }
+  return typeof kind === "string" && kind !== "" ? kind : undefined;
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -20,15 +33,22 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 /**
  * Maps the `AuthInfo` the MCP SDK's bearer verification produced to a
  * `Subject`: the principal from the verified claims in `extra`, the client
- * as an `mcp-client` actor, the granted scopes as the delegation. Never
- * verifies and never throws; anything unusable is the anonymous subject.
+ * as an actor of kind `actorKind` (`mcp-client` by default), the granted
+ * scopes as the delegation. Never verifies and never throws; anything
+ * unusable, including an `actorKind` that is not a non-empty string, is
+ * the anonymous subject.
  */
 export function subjectFromMcp(
   authInfo: McpAuthInfo | undefined,
   options: McpSubjectOptions = {},
 ): Subject<McpPrincipal> {
   try {
-    if (authInfo === undefined || !isRecord(authInfo.extra)) {
+    const kind = mcpActorKind(options.actorKind);
+    if (
+      authInfo === undefined ||
+      !isRecord(authInfo.extra) ||
+      kind === undefined
+    ) {
       return anonymousSubject();
     }
     // SAFETY: extra is checked to be a record above; mapClaimsToSubject type-checks each claim it reads.
@@ -56,7 +76,7 @@ export function subjectFromMcp(
         ...mapped.subject,
         actor:
           typeof clientId === "string" && clientId !== ""
-            ? { id: clientId, kind: "mcp-client" as const }
+            ? { id: clientId, kind }
             : mapped.subject.actor,
       }),
     ) as Subject<McpPrincipal>;
