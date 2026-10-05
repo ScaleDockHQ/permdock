@@ -3,8 +3,7 @@ CREATE POLICY "quotes_support_read_only" ON "public"."quotes"
   FOR UPDATE
   TO "authenticated"
   USING
-    (((NOT COALESCE(((( SELECT ((auth.jwt() -> 'act'::text) ->> 'kind'::text)) = 'support'::text) OR (( SELECT (auth.jwt() -> 'act'::text)) ? 'session_id'::text)), false)) OR ((
-    SELECT ((auth.jwt() -> 'act'::text) ->> 'read_only'::text)) = 'false'::text)));
+    (((NOT COALESCE(((((( SELECT auth.jwt() AS jwt) -> 'act'::text) ->> 'kind'::text) = 'support'::text) OR ((( SELECT auth.jwt() AS jwt) -> 'act'::text) ? 'session_id'::text)), false)) OR (((( SELECT auth.jwt() AS jwt) -> 'act'::text) ->> 'read_only'::text) = 'false'::text)));
 
 CREATE POLICY "quotes_update" ON "public"."quotes"
   FOR UPDATE

@@ -8,9 +8,9 @@ create policy "quotes_support_read_only"
   to authenticated
   using (
     not coalesce(
-      (select auth.jwt() -> 'act' ->> 'kind') = 'support'
-        or (select auth.jwt() -> 'act') ? 'session_id',
+      ((select auth.jwt()) -> 'act' ->> 'kind') = 'support'
+        or ((select auth.jwt()) -> 'act') ? 'session_id',
       false
     )
-    or (select auth.jwt() -> 'act' ->> 'read_only') = 'false'
+    or ((select auth.jwt()) -> 'act' ->> 'read_only') = 'false'
   );
