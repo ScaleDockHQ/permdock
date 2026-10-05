@@ -68,7 +68,7 @@ import {
   pd053,
   pd056,
 } from "./doctor-sql.ts";
-import { defaultSrcPath, listSourceFiles, rel } from "./files.ts";
+import { doctorSrcPath, listSourceFiles, rel } from "./files.ts";
 import { runSkillsInstall } from "./skills.ts";
 import { createStyle } from "./style.ts";
 import { pd045 } from "./supabase-config.ts";
@@ -132,8 +132,7 @@ export async function runDoctor(input: {
   const include = (group: string): boolean =>
     wanted.size === 0 || wanted.has(group) || wanted.has(group.toLowerCase());
 
-  const srcPath = input.config.collect?.srcPath ?? defaultSrcPath();
-  const files = listSourceFiles(input.cwd, srcPath);
+  const files = listSourceFiles(input.cwd, doctorSrcPath(input.config));
   const sources = files.map((file) => ({
     file: rel(input.cwd, file),
     text: readFileSync(file, "utf8"),

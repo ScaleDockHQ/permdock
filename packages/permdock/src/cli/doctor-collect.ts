@@ -26,7 +26,7 @@ import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
 import { jsonSchemaOf, policyRowConditionKeys } from "./catalog-doc.ts";
 import { runCollect } from "./collect.ts";
 import { MIGRATION_DIRS } from "./doctor-project.ts";
-import { sqlFiles } from "./files.ts";
+import { doctorSrcPath, sqlFiles } from "./files.ts";
 import {
   ROW_CONDITION_FIX,
   helperTablePolicies,
@@ -49,6 +49,7 @@ export async function pd002(input: {
     cwd: input.cwd,
     config: input.config,
     collect: input.config.collect ?? {},
+    scanPath: doctorSrcPath(input.config),
     check: true,
     now: input.now,
     io: input.io,

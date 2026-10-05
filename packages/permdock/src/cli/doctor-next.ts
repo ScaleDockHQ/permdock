@@ -9,7 +9,7 @@ import { hasConditionOp } from "../conditions/ast.ts";
 import { flattenGrantee } from "../core/grantee.ts";
 import { isPrincipalRelation } from "../core/permissions.ts";
 import { runCollect } from "./collect.ts";
-import { defaultSrcPath, listSourceFiles, rel } from "./files.ts";
+import { doctorSrcPath, listSourceFiles, rel } from "./files.ts";
 import { asPolicy, loadModule, pickNamed } from "./load.ts";
 
 const ROUTE_GLOBS = ["**/api/permdock/route.{ts,tsx,js,jsx,mjs}"];
@@ -92,10 +92,12 @@ export async function pd044(input: {
   if (keys.size === 0) {
     return [];
   }
+  const srcPath = doctorSrcPath(input.config);
   const collected = await runCollect({
     cwd: input.cwd,
     config: input.config,
     collect: input.config.collect ?? {},
+    scanPath: srcPath,
     check: true,
     now: input.now,
     io: input.io,
@@ -111,10 +113,7 @@ export async function pd044(input: {
   if (hooked.length === 0) {
     return [];
   }
-  const sources = listSourceFiles(
-    input.cwd,
-    input.config.collect?.srcPath ?? defaultSrcPath(),
-  );
+  const sources = listSourceFiles(input.cwd, srcPath);
   if (hasEndpoint(input.cwd, sources)) {
     return [];
   }

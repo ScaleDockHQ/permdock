@@ -87,7 +87,7 @@ Three files and one guard: `src/permissions.ts` (definitions), `src/policy.ts` (
    ✓ The factory file compiles and exports the adapter's public members.
 5. **Guard.** Add one check on the path the user asked for: `assert` or `protect` / `getPermission` with a permission reference on the server, `<Protected permission={permissions.post.update}>` inside `PermDockProvider` in React.
    ✓ That path cannot run without a `granted` decision, and the adapter handles a denial (Problem Details or fallback UI).
-6. **Check.** Run `permdock collect`, `permdock catalog`, `permdock usage` and `permdock doctor`, and add `permdock collect --check` to CI. For a Vite SPA, Expo or another framework without `'use client'`, set `doctor.clientEntries` to the client source globs so PD001 checks them. Add a `describePolicy` suite from `permdock/testing` ([scenario testing](https://permdock.com/docs/guides/scenario-testing)). -> [references/policy-options.md](references/policy-options.md#cli-starting-points)
+6. **Check.** Run `permdock collect`, `permdock catalog`, `permdock usage` and `permdock doctor`, and add `permdock collect --check` to CI. For a Vite SPA, Expo or another framework without `'use client'`, set `doctor.clientEntries` to the client source globs so PD001 checks them. When client code lives outside `collect.srcPath`, list every source folder in `doctor.srcPath` instead of widening the catalog. Add a `describePolicy` suite from `permdock/testing` ([scenario testing](https://permdock.com/docs/guides/scenario-testing)). -> [references/policy-options.md](references/policy-options.md#cli-starting-points)
    ✓ Collect and doctor findings are fixed, or the three files typecheck and one matrix test passes.
 
 ## Next skills

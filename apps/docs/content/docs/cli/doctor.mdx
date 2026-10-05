@@ -18,6 +18,20 @@ Exit code `1` on any error, `0` otherwise; warnings only fail with `--strict`.
 
 Without `--fix`, doctor only reads: it never writes the catalog or any other file. On a terminal, `--fix` asks before it writes; answering no prints the report without fixing, and cancelling exits `2`. In CI, in a pipe or with `--json` it fixes without asking.
 
+### Where doctor reads source files
+
+The checks over source files (PD001, PD002, PD007 to PD015, PD044 and the others that read code) scan `doctor.srcPath`, an array of directories or globs relative to the project root. It defaults to `collect.srcPath`, then `./src`. Set it when the catalog should come from one folder and the checks should cover more, such as client components outside the folder that defines the permissions:
+
+```ts title="permdock.config.ts"
+export default defineConfig({
+  permissions: "./src/permdock/permissions.ts",
+  collect: { srcPath: ["./src/permdock"] },
+  doctor: { srcPath: ["./src", "./app", "./components"] },
+});
+```
+
+PD003 and PD004 compare against the catalog, so they keep reading `collect.srcPath`.
+
 ## Checks
 
 | Code    | Check                                                                                                                                                                                                                                                                                                      | Severity        |
@@ -83,7 +97,7 @@ Without `--fix`, doctor only reads: it never writes the catalog or any other fil
 
 ### PD001: server-only imports in client entries
 
-Policy modules, `createPermDock` from `permdock/next` and any file that imports from `permdock/hono`, `permdock/mcp` or a provider must never be reachable from a client bundle. `doctor` reads every file under `collect.srcPath`, treats a file as a client entry when it carries `'use client'`, has `.client.` in its name, or matches `doctor.clientEntries`, and reports each client entry that imports a server-only entry directly. Frameworks with no client marker (a Vite SPA, an Expo app, a Chrome extension) list their client code in `doctor.clientEntries`, an array of directories or globs relative to the project root:
+Policy modules, `createPermDock` from `permdock/next` and any file that imports from `permdock/hono`, `permdock/mcp` or a provider must never be reachable from a client bundle. `doctor` reads every file under `doctor.srcPath` (default `collect.srcPath`), treats a file as a client entry when it carries `'use client'`, has `.client.` in its name, or matches `doctor.clientEntries`, and reports each client entry that imports a server-only entry directly. Frameworks with no client marker (a Vite SPA, an Expo app, a Chrome extension) list their client code in `doctor.clientEntries`, an array of directories or globs relative to the project root:
 
 ```ts title="permdock.config.ts"
 export default defineConfig({

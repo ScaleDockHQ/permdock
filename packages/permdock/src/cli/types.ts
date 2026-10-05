@@ -282,6 +282,12 @@ export type SupabaseConfig = {
 };
 
 export type DoctorConfig = {
+  /**
+   * Directories or globs the source checks read (PD001, PD002, PD007 to
+   * PD015, PD044 and the other checks over files), default `collect.srcPath`.
+   * The catalog `collect` writes still comes from `collect.srcPath`.
+   */
+  readonly srcPath?: readonly string[];
   readonly sensitiveActions?: readonly string[];
   readonly memberships?: string;
   /** A JSON fixture `{ credentials?, settings? }` of API-key credentials and per-tenant settings (the `memorySettings` input) for PD029. */
