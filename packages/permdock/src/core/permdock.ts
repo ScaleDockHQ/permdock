@@ -119,6 +119,12 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
       data?: unknown,
       options?: DecideOptions,
     ): boolean;
+    /**
+     * A permission held as `Permission` at run time (from a list, a catalog
+     * or `findPermission`), whose kind the type does not say: pass `data`,
+     * or `undefined` for a check without a row.
+     */
+    (permission: Permission, data: unknown, options?: DecideOptions): boolean;
   };
   readonly decide: {
     (
@@ -131,6 +137,12 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
       data?: unknown,
       options?: DecideOptions,
     ): Decision;
+    /**
+     * A permission held as `Permission` at run time (from a list, a catalog
+     * or `findPermission`), whose kind the type does not say: pass `data`,
+     * or `undefined` for a check without a row.
+     */
+    (permission: Permission, data: unknown, options?: DecideOptions): Decision;
   };
   readonly assert: {
     (
@@ -141,6 +153,16 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
     (
       permission: Permission<string, unknown, "collection">,
       data?: unknown,
+      options?: DecideOptions,
+    ): Extract<Decision, { readonly outcome: "granted" }>;
+    /**
+     * A permission held as `Permission` at run time (from a list, a catalog
+     * or `findPermission`), whose kind the type does not say: pass `data`,
+     * or `undefined` for a check without a row.
+     */
+    (
+      permission: Permission,
+      data: unknown,
       options?: DecideOptions,
     ): Extract<Decision, { readonly outcome: "granted" }>;
   };
@@ -159,6 +181,11 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
     (
       permission: Permission<string, unknown, "collection">,
       data?: unknown,
+      options?: Omit<DecideOptions, "explain">,
+    ): ExplainedDecision;
+    (
+      permission: Permission,
+      data: unknown,
       options?: Omit<DecideOptions, "explain">,
     ): ExplainedDecision;
   };
