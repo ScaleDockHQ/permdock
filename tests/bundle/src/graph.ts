@@ -295,16 +295,62 @@ export function policyChunks(files: readonly string[]): readonly string[] {
   );
 }
 
+/** Dist folders of server-only entries; a client entry must reach none of them. */
+export const SERVER_FOLDERS = [
+  "a2a",
+  "ai-sdk",
+  "approvals",
+  "authzen",
+  "better-auth",
+  "claude-agent",
+  "clerk",
+  "cloud",
+  "convex",
+  "drizzle",
+  "elysia",
+  "eve",
+  "express",
+  "fastify",
+  "hono",
+  "jwt",
+  "kysely",
+  "mcp",
+  "nest",
+  "next",
+  "node",
+  "openai",
+  "openapi",
+  "orpc",
+  "otel",
+  "pdp",
+  "prisma",
+  "scim",
+  "server",
+  "ssf",
+  "supabase",
+  "terminal",
+  "trpc",
+] as const;
+
+/** Dist folders that are neither server-only nor a client entry. */
+export const NEUTRAL_FOLDERS = [
+  "catalog",
+  "cli",
+  "testing",
+  "unplugin",
+] as const;
+
+const SERVER_FOLDER = new RegExp(
+  `[/\\\\](?:${SERVER_FOLDERS.join("|")})[/\\\\]`,
+  "u",
+);
+
 export function serverOnlyFiles(files: readonly string[]): readonly string[] {
   // The client half of a server adapter lives in the adapter's folder.
   const clientHalves = new Set(
     [ENTRIES["./next/client"]].map((file) => join(DIST, file)),
   );
   return files.filter(
-    (file) =>
-      !clientHalves.has(file) &&
-      /[/\\](?:jwt|next|hono|express|fastify|elysia|nest|node|trpc|orpc|server|approvals|mcp|authzen|openapi|a2a|terminal|otel|scim|cloud|drizzle|prisma|kysely|supabase|ssf|better-auth|clerk|convex|pdp)[/\\]/u.test(
-        file,
-      ),
+    (file) => !clientHalves.has(file) && SERVER_FOLDER.test(file),
   );
 }

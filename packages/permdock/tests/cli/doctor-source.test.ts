@@ -52,8 +52,8 @@ describe("PD001 server imports in client entries", () => {
       src("b.client.ts", `import 'permdock/react'\n`),
     ]);
     expect(messages(findings)).toEqual([
-      "a.client.ts imports permdock/mcp",
       "a.client.ts imports permdock/jwt",
+      "a.client.ts imports permdock/mcp",
     ]);
   });
 });
