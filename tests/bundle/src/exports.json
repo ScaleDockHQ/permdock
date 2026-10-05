@@ -253,7 +253,7 @@
     "verifyWebBotAuth"
   ],
   "./trpc": ["createPermDock", "errorFormatter"],
-  "./orpc": ["createPermDock"],
+  "./orpc": ["createPermDock", "permissionOf"],
   "./vue": [
     "Protected",
     "approvalHeaders",

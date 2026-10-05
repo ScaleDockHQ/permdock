@@ -1359,6 +1359,9 @@ importers:
       '@modelcontextprotocol/server':
         specifier: 'catalog:'
         version: 2.3.0
+      '@orpc/server':
+        specifier: 'catalog:'
+        version: 2.0.0-beta.41(crossws@0.4.12)(fastify@5.12.5)
       permdock:
         specifier: workspace:*
         version: link:../../../packages/permdock
@@ -1598,7 +1601,7 @@ importers:
         version: 2.0.0-beta.41
       '@orpc/server':
         specifier: 'catalog:'
-        version: 2.0.0-beta.41(crossws@0.4.12(srvx@1.0.4))(fastify@5.12.5)
+        version: 2.0.0-beta.41(crossws@0.4.12)(fastify@5.12.5)
       permdock:
         specifier: workspace:*
         version: link:../../../packages/permdock
@@ -2262,7 +2265,7 @@ importers:
         version: 2.0.0-beta.41(crossws@0.4.12(srvx@1.0.4))(fastify@5.12.5)
       '@orpc/server':
         specifier: 'catalog:'
-        version: 2.0.0-beta.41(crossws@0.4.12(srvx@1.0.4))(fastify@5.12.5)
+        version: 2.0.0-beta.41(crossws@0.4.12)(fastify@5.12.5)
       '@permdock/ox-config':
         specifier: workspace:*
         version: link:../ox-config
@@ -2698,6 +2701,9 @@ importers:
 
   tests/types:
     devDependencies:
+      '@modelcontextprotocol/server':
+        specifier: 'catalog:'
+        version: 2.3.0
       '@orpc/contract':
         specifier: 'catalog:'
         version: 2.0.0-beta.41
@@ -2707,6 +2713,9 @@ importers:
       '@permdock/ox-config':
         specifier: workspace:*
         version: link:../../packages/ox-config
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.6.4
       oxlint:
         specifier: 'catalog:'
         version: 1.86.0(oxlint-tsgolint@7.0.2003)
@@ -18228,7 +18237,7 @@ snapshots:
       '@openapi-spec/types': 0.1.0
       '@orpc/client': 2.0.0-beta.41
       '@orpc/contract': 2.0.0-beta.41
-      '@orpc/server': 2.0.0-beta.41(crossws@0.4.12(srvx@1.0.4))(fastify@5.12.5)
+      '@orpc/server': 2.0.0-beta.41(crossws@0.4.12)(fastify@5.12.5)
       '@orpc/shared': 2.0.0-beta.41
       '@standard-schema/spec': 1.1.0
     transitivePeerDependencies:
@@ -18242,7 +18251,7 @@ snapshots:
       '@orpc/client': 2.0.0-beta.41
       '@orpc/contract': 2.0.0-beta.41
       '@orpc/json-schema': 2.0.0-beta.41(crossws@0.4.12(srvx@1.0.4))(fastify@5.12.5)
-      '@orpc/server': 2.0.0-beta.41(crossws@0.4.12(srvx@1.0.4))(fastify@5.12.5)
+      '@orpc/server': 2.0.0-beta.41(crossws@0.4.12)(fastify@5.12.5)
       '@orpc/shared': 2.0.0-beta.41
       '@standard-server/core': 0.10.0
       '@standard-server/fetch': 0.10.0
@@ -18250,22 +18259,6 @@ snapshots:
     transitivePeerDependencies:
       - crossws
       - fastify
-
-  '@orpc/server@2.0.0-beta.41(crossws@0.4.12(srvx@1.0.4))(fastify@5.12.5)':
-    dependencies:
-      '@orpc/client': 2.0.0-beta.41
-      '@orpc/contract': 2.0.0-beta.41
-      '@orpc/shared': 2.0.0-beta.41
-      '@standard-server/aws-lambda': 0.10.0
-      '@standard-server/core': 0.10.0
-      '@standard-server/fastify': 0.10.0(fastify@5.12.5)
-      '@standard-server/fetch': 0.10.0
-      '@standard-server/node': 0.10.0
-      '@standard-server/peer': 0.10.0
-      cookie: 2.0.1
-    optionalDependencies:
-      crossws: 0.4.12(srvx@1.0.4)
-      fastify: 5.12.5
 
   '@orpc/server@2.0.0-beta.41(crossws@0.4.12)(fastify@5.12.5)':
     dependencies:
@@ -21613,7 +21606,7 @@ snapshots:
       '@supabase/supabase-js': 2.117.2(@opentelemetry/api@1.9.1)
     optionalDependencies:
       '@opentelemetry/api': 1.9.1
-      '@orpc/server': 2.0.0-beta.41(crossws@0.4.12(srvx@1.0.4))(fastify@5.12.5)
+      '@orpc/server': 2.0.0-beta.41(crossws@0.4.12)(fastify@5.12.5)
       hono: 4.13.11
       next: 16.3.8(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@playwright/test@1.63.0)(@types/node@26.6.4)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       oxfmt: 0.71.0(svelte@5.57.1(@typescript-eslint/types@8.71.0))

@@ -6,6 +6,7 @@
     "moduleResolution": "nodenext",
     "target": "es2022",
     "lib": ["ES2022", "ESNext", "DOM"],
+    "types": ["node"],
     "noEmit": true,
     "declaration": true,
     "skipLibCheck": false,

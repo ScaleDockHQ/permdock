@@ -6,12 +6,19 @@ import {
 import { createServer, type IncomingMessage } from "node:http";
 import { resolveApproval } from "permdock/approvals";
 
-import { createServer as createMcpServer, store, verifier } from "./server.ts";
+import { createProcedureServer } from "./procedures.ts";
+import {
+  createServer as createMcpServer,
+  store,
+  userFor,
+  verifier,
+} from "./server.ts";
 
 const port = Number(process.env["PORT"] ?? 3478);
 const host = "127.0.0.1";
 
 const mcp = createMcpHandler(() => createMcpServer({ requireAuthInfo: true }));
+const rpc = createMcpHandler(() => createProcedureServer(userFor));
 
 async function toRequest(req: IncomingMessage): Promise<Request> {
   const url = new URL(req.url ?? "/", `http://${host}:${String(port)}`);
@@ -49,7 +56,7 @@ async function route(request: Request): Promise<Response> {
   if (request.method === "GET" && path === "/health") {
     return json({ ok: true });
   }
-  if (path === "/mcp") {
+  if (path === "/mcp" || path === "/rpc/mcp") {
     let authInfo;
     try {
       authInfo = await verifyBearerToken(request.headers.get("authorization"), {
@@ -58,7 +65,7 @@ async function route(request: Request): Promise<Response> {
     } catch (error) {
       return bearerAuthChallengeResponse(error);
     }
-    return mcp.fetch(request, { authInfo });
+    return (path === "/mcp" ? mcp : rpc).fetch(request, { authInfo });
   }
   // Stands in for the reviewer UI: a real app authenticates the reviewer
   // and checks they may approve before resolving.

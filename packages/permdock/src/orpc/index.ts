@@ -1,4 +1,4 @@
-export { createPermDock } from "./create.ts";
+export { createPermDock, permissionOf } from "./create.ts";
 export type {
   OrpcMiddleware,
   OrpcMiddlewareOpts,
