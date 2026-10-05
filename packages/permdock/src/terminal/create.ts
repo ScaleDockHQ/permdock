@@ -431,7 +431,7 @@ export function createPermDock<
           store: options.store,
           resource: resourceRef(permission, data),
           adapter: "terminal",
-          token: await storedApprovalToken(options.store, first, false),
+          token: await storedApprovalToken(options.store, first),
         });
         if (resumed.outcome !== "granted") {
           write(format(resumed, { permission, subject: instance.subject }));

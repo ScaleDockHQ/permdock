@@ -57,6 +57,8 @@ const permdock = await createPermDock(policy, user, {
 
 The token binds the permission key, the resource id (or a digest of the data when there is no id), the principal, the tenant, the actor and the matched grant's conditions. Under `staleOn: 'resource-change'` it also binds the row's `version`.
 
+A gate in your own code resumes the same way with `resumeDecision` from `permdock/approvals`, passing `token: carried ?? (await storedApprovalToken(store, decision))`: `storedApprovalToken` finds an approved or rejected request for the recomputed token, so the caller need not carry it. Do not reimplement it.
+
 Over HTTP, the client retries the same request with the `PermDock-Approval: <token>` header. In React, `approvalHeaders(token)` builds that header and `useApproval(decision)` requests and polls an approval from the UI.
 
 A bad resume is denied with detail `approval-not-found`, `approval-pending`, `approval-rejected`, `approval-expired`, `approval-consumed` or `approval-mismatch`; a changed row is `stale-approval`. `approvalsHandler` answers `403` for an ineligible approver (`approver-not-eligible`, the actor, or the principal without `distinct: false`) and `409` for a repeated one (`approver-repeated`).

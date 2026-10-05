@@ -7,13 +7,14 @@ import type {
 import type { Decision } from "../../src/core/decision.ts";
 import type { Subject } from "../../src/core/subject.ts";
 
-import { storedApprovalToken } from "../../src/approvals/helpers.ts";
 import {
   cancelApprovals,
   consumeApproval,
   memoryApprovalStore,
   requestApproval,
+  resolveApproval,
   resumeDecision,
+  storedApprovalToken,
   summariseSubject,
 } from "../../src/approvals/index.ts";
 
@@ -346,9 +347,9 @@ describe("storedApprovalToken", () => {
     if (overrides !== null) {
       store.create(pending("t1", overrides));
     }
-    expect(await storedApprovalToken(store, required("t1"), denyPending)).toBe(
-      expected,
-    );
+    expect(
+      await storedApprovalToken(store, required("t1"), { denyPending }),
+    ).toBe(expected);
   });
 
   it("answers undefined without a store, for another outcome and when the store throws", async () => {
@@ -363,9 +364,40 @@ describe("storedApprovalToken", () => {
       alternatives: [],
     } as Decision;
     expect([
-      await storedApprovalToken(undefined, required("t1"), false),
-      await storedApprovalToken(memoryApprovalStore(), denied, false),
-      await storedApprovalToken(failing, required("t1"), false),
+      await storedApprovalToken(undefined, required("t1")),
+      await storedApprovalToken(memoryApprovalStore(), denied),
+      await storedApprovalToken(failing, required("t1")),
     ]).toEqual([undefined, undefined, undefined]);
+  });
+
+  it("reads expiry against the now option", async () => {
+    const store = memoryApprovalStore();
+    store.create(pending("t1", { status: "approved" }));
+    const later = new Date(Date.parse(future) + 1_000);
+    expect([
+      await storedApprovalToken(store, required("t1")),
+      await storedApprovalToken(store, required("t1"), { now: later }),
+    ]).toEqual(["t1", undefined]);
+  });
+
+  it("resumes a call in an application gate without the caller carrying the token", async () => {
+    const store = memoryApprovalStore();
+    const decision = required("t1");
+    const resource = { type: "post", id: "42" };
+    const gate = async (): Promise<Decision> =>
+      resumeDecision({
+        decision,
+        permission: deletePost,
+        subject: requester,
+        store,
+        resource,
+        adapter: "app",
+        token: await storedApprovalToken(store, decision),
+      });
+    expect((await gate()).outcome).toBe("approval-required");
+    await resolveApproval(store, "t1", { status: "approved", by: approver });
+    expect((await gate()).outcome).toBe("granted");
+    const again = await gate();
+    expect(again.outcome).toBe("denied");
   });
 });

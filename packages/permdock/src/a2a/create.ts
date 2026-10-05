@@ -406,7 +406,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
           adapter: "a2a",
           token:
             auth.extra?.approval ??
-            (await storedApprovalToken(options.store, raw, false)),
+            (await storedApprovalToken(options.store, raw)),
         });
       } catch {
         return deniedOutcome(LOAD_FAILED, config.permission, data, permdock);

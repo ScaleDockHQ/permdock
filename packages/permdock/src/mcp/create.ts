@@ -627,7 +627,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         adapter: "mcp",
         token:
           approvalTokenOf(context) ??
-          (await storedApprovalToken(options.store, raw, false)),
+          (await storedApprovalToken(options.store, raw)),
       });
       switch (decision.outcome) {
         case "granted":

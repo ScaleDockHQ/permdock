@@ -126,6 +126,7 @@
     "resolveApproval",
     "resumeDecision",
     "resumeFromHeader",
+    "storedApprovalToken",
     "summariseSubject"
   ],
   "./jwt": [
