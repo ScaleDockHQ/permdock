@@ -1,0 +1,254 @@
+{
+  "customRoles": [
+    {
+      "tenant": "acme",
+      "name": "dispatcher",
+      "grants": [
+        {
+          "permission": "job.read",
+          "level": "own"
+        }
+      ]
+    }
+  ],
+  "fixtures": [
+    {
+      "subject": {
+        "id": "u-admin",
+        "tenant": "acme",
+        "memberships": [
+          {
+            "scope": "organization",
+            "id": "acme",
+            "roles": ["admin"]
+          }
+        ]
+      },
+      "action": "job.read",
+      "row": {
+        "id": "j-other",
+        "organization_id": "acme",
+        "assignee_id": "u-other",
+        "team_id": "t2"
+      },
+      "expected": "granted"
+    },
+    {
+      "subject": {
+        "id": "u-admin",
+        "tenant": "globex",
+        "memberships": [
+          {
+            "scope": "organization",
+            "id": "acme",
+            "roles": ["admin"]
+          }
+        ]
+      },
+      "action": "job.read",
+      "row": {
+        "id": "j-globex",
+        "organization_id": "globex",
+        "assignee_id": "u-globex",
+        "team_id": "t9"
+      },
+      "expected": "denied"
+    },
+    {
+      "subject": {
+        "id": "u-tech",
+        "tenant": "acme",
+        "memberships": [
+          {
+            "scope": "organization",
+            "id": "acme",
+            "roles": ["pro", "technician"]
+          }
+        ]
+      },
+      "action": "job.read",
+      "row": {
+        "id": "j-own",
+        "organization_id": "acme",
+        "assignee_id": "u-tech",
+        "team_id": "t1"
+      },
+      "expected": "granted"
+    },
+    {
+      "subject": {
+        "id": "u-tech",
+        "tenant": "acme",
+        "memberships": [
+          {
+            "scope": "organization",
+            "id": "acme",
+            "roles": ["pro", "technician"]
+          }
+        ]
+      },
+      "action": "job.read",
+      "row": {
+        "id": "j-other",
+        "organization_id": "acme",
+        "assignee_id": "u-other",
+        "team_id": "t2"
+      },
+      "expected": "denied"
+    },
+    {
+      "subject": {
+        "id": "u-tech",
+        "tenant": "acme",
+        "memberships": [
+          {
+            "scope": "organization",
+            "id": "acme",
+            "roles": ["pro", "technician"]
+          }
+        ]
+      },
+      "action": "customer.read",
+      "row": {
+        "id": "c-acme",
+        "organization_id": "acme"
+      },
+      "expected": "granted"
+    },
+    {
+      "subject": {
+        "id": "u-pro",
+        "tenant": "acme",
+        "memberships": [
+          {
+            "scope": "organization",
+            "id": "acme",
+            "roles": ["pro"]
+          }
+        ]
+      },
+      "action": "customer.read",
+      "row": {
+        "id": "c-acme",
+        "organization_id": "acme"
+      },
+      "expected": "granted"
+    },
+    {
+      "subject": {
+        "id": "u-pro",
+        "tenant": "acme",
+        "memberships": [
+          {
+            "scope": "organization",
+            "id": "acme",
+            "roles": ["pro"]
+          }
+        ]
+      },
+      "action": "job.read",
+      "row": {
+        "id": "j-own",
+        "organization_id": "acme",
+        "assignee_id": "u-tech",
+        "team_id": "t1"
+      },
+      "expected": "denied"
+    },
+    {
+      "subject": {
+        "id": "u-dispatch",
+        "tenant": "acme",
+        "memberships": [
+          {
+            "scope": "organization",
+            "id": "acme",
+            "roles": ["dispatcher"]
+          }
+        ]
+      },
+      "action": "job.read",
+      "row": {
+        "id": "j-dispatch",
+        "organization_id": "acme",
+        "assignee_id": "u-dispatch",
+        "team_id": "t1"
+      },
+      "expected": "granted"
+    },
+    {
+      "subject": {
+        "id": "u-dispatch",
+        "tenant": "acme",
+        "memberships": [
+          {
+            "scope": "organization",
+            "id": "acme",
+            "roles": ["dispatcher"]
+          }
+        ]
+      },
+      "action": "job.read",
+      "row": {
+        "id": "j-other",
+        "organization_id": "acme",
+        "assignee_id": "u-other",
+        "team_id": "t2"
+      },
+      "expected": "denied"
+    },
+    {
+      "subject": {
+        "id": "u-support",
+        "tenant": "globex",
+        "roles": ["support"]
+      },
+      "action": "job.read",
+      "row": {
+        "id": "j-globex",
+        "organization_id": "globex",
+        "assignee_id": "u-globex",
+        "team_id": "t9"
+      },
+      "expected": "granted"
+    },
+    {
+      "subject": {
+        "id": "u-globex",
+        "tenant": "acme",
+        "memberships": [
+          {
+            "scope": "organization",
+            "id": "globex",
+            "roles": ["admin"]
+          }
+        ]
+      },
+      "action": "customer.read",
+      "row": {
+        "id": "c-acme",
+        "organization_id": "acme"
+      },
+      "expected": "denied"
+    },
+    {
+      "subject": {
+        "id": "u-globex",
+        "tenant": "globex",
+        "memberships": [
+          {
+            "scope": "organization",
+            "id": "globex",
+            "roles": ["admin"]
+          }
+        ]
+      },
+      "action": "customer.read",
+      "row": {
+        "id": "c-globex",
+        "organization_id": "globex"
+      },
+      "expected": "granted"
+    }
+  ]
+}
