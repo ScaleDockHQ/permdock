@@ -37,6 +37,7 @@ import {
   protectedResourceMetadataUrl,
   stepUpOf,
 } from "../server/problem.ts";
+import { mcpActorKind } from "./subject.ts";
 
 /** `_meta` key on `tools/call`, `resources/read` and `prompts/get` carrying an approval token. */
 export const APPROVAL_META_KEY = "dev.permdock/approval";
@@ -381,6 +382,10 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
   policy: Policy<TUser, TPrincipal>,
   options: McpPermDockOptions<TUser>,
 ): McpPermDock {
+  const actorKind = mcpActorKind(options.actorKind);
+  if (actorKind === undefined) {
+    throw new TypeError("permdock/mcp: actorKind must be a non-empty string");
+  }
   const instanceFor = async (
     authInfo: McpAuthInfo | undefined,
   ): Promise<PermDock> => {
@@ -403,7 +408,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     const clientId = authInfo?.clientId;
     const actor =
       typeof clientId === "string" && clientId !== ""
-        ? { id: clientId, kind: "mcp-client" as const }
+        ? { id: clientId, kind: actorKind }
         : undefined;
     const built = await createCorePermDock(
       policy,
