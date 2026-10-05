@@ -133,6 +133,29 @@ export type MembershipSql = {
   readonly holds?: readonly string[];
   /** The source's entry in the hook manifest's `memberships`. */
   readonly manifest: SupabaseManifestMembership;
+  /** What the ownership triggers count; absent on a source that is not a table. */
+  readonly holders?: MembershipHolders;
+};
+
+/**
+ * The rows of a membership table, for the holder-count and transfer-only
+ * triggers `permdock rls generate` puts on it. No suspension filter: a
+ * suspended holder still holds the role.
+ */
+export type MembershipHolders = {
+  /** `<table>.<id column>%type`: the type of a variable `rows` compares the id column with. */
+  readonly idType: string;
+  /** The instance id of scope `scope` the PL/pgSQL record `row` holds, as text; null on a row of another scope. */
+  id(scope: string, row: string): string;
+  /**
+   * `select id, user_id, role, via, live` over the rows of scope `scope`
+   * in `from` (default the table): one row per held role key, `live` false
+   * once expired. `id` is an expression of `idType` the id column must equal.
+   */
+  rows(
+    scope: string,
+    options?: { readonly id?: string; readonly from?: string },
+  ): string;
 };
 
 export type SqlMembershipSource = MembershipSource & {
@@ -202,6 +225,12 @@ type Shape = {
   readonly seats: string;
   /** SQL for the id the row holds for scope `name`, or `null` when it holds none. */
   readonly idOf: (name: string) => string | undefined;
+  /** The id column, and the filter keeping the rows of scope `name` over `alias` (`undefined` for none). */
+  readonly idColumn: string;
+  readonly holds: (name: string, alias: string) => string | undefined;
+  /** The role key of one row, after `join` and `roleJoin`: one row per held key. */
+  readonly roleKey: string;
+  readonly roleJoin: string;
   readonly groupBy: readonly string[];
   readonly suspension: SupabaseSuspension | undefined;
   readonly columns: readonly string[];
@@ -253,9 +282,38 @@ where ${where.join("\n  and ")}
 group by ${group.join(", ")}`;
 }
 
+function holdersOf(shape: Shape): MembershipHolders {
+  const id = ident(shape.idColumn);
+  return {
+    idType: `${qualified(shape.table)}.${id}%type`,
+    id: (scope, row) => {
+      const filter = shape.holds(scope, row);
+      return filter === undefined
+        ? "null::text"
+        : filter === "true"
+          ? `${row}.${id}::text`
+          : `case when ${filter} then ${row}.${id}::text end`;
+    },
+    rows: (scope, options = {}) => {
+      const where = [shape.holds(scope, "m") ?? "false"];
+      if (options.id !== undefined) {
+        where.push(`m.${id} = ${options.id}`);
+      }
+      const live =
+        shape.expiresAt === undefined
+          ? "true"
+          : `(${col(shape.expiresAt)} is null or ${col(shape.expiresAt)} > now())`;
+      const kept = where.filter((part) => part !== "true");
+      return `select m.${id}::text as id, ${shape.userSql}::text as user_id, ${shape.roleKey} as role, ${shape.via} as via, ${live} as live
+from ${options.from ?? qualified(shape.table)} m${shape.join}${shape.roleJoin}${kept.length === 0 ? "" : `\nwhere ${kept.join(" and ")}`}`;
+    },
+  };
+}
+
 function sqlOf(shape: Shape): MembershipSql {
   const suspension = shape.suspension;
   return compact<MembershipSql>({
+    holders: holdersOf(shape),
     table: shape.table,
     user: shape.user,
     userThrough: shape.userThrough,
@@ -479,6 +537,11 @@ export function fromTable(
     seats: c.seats === undefined ? "null::jsonb" : `to_jsonb(${col(c.seats)})`,
     idOf: (name) =>
       `coalesce(case when ${scope} = ${literal(name)} then ${id} end${c.within === undefined ? "" : `, ${within} ->> ${literal(name)}`})`,
+    idColumn: c.id ?? "scope_id",
+    holds: (name, alias) =>
+      `${alias}.${ident(c.scope ?? "scope")}::text = ${literal(name)}`,
+    roleKey: role.sql,
+    roleJoin: "",
     groupBy: [
       scope,
       id,
@@ -607,6 +670,13 @@ export function fromJunction(
       options.seats === undefined
         ? "null::jsonb"
         : `to_jsonb(${col(options.seats)})`,
+    idColumn,
+    holds: (name) => (name === options.scope ? "true" : undefined),
+    roleKey: role === undefined ? "mf.role" : role.sql,
+    roleJoin:
+      role === undefined
+        ? ` cross join lateral unnest(array[${(fixed ?? []).map(literal).join(", ")}]::text[]) mf(role)`
+        : "",
     idOf: (name) => {
       if (name === options.scope) {
         return `${col(idColumn)}::text`;

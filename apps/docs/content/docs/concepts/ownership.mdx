@@ -155,7 +155,7 @@ Use it to pick a layout or a landing page (the staff app, the customer portal, t
 `permdock rls generate` turns the rules into database objects ([CLI](/docs/cli/rls)):
 
 - The `permitted_<scope>_ids` helpers, and the `exists` check on a resource role's membership table, count a role with `for` only on rows whose `via` column (or claim entry) is listed; a table without a `via` column holds it for nothing.
-- A deferred constraint trigger per scope membership table checks `min` and `max` at commit. A transfer done as two statements in one transaction passes; a commit that leaves an organization without an owner fails with SQLSTATE `23514` and hint `last-holder`.
+- A deferred constraint trigger per scope membership table, or on each table of the scope's `fromTable` / `fromJunction` membership sources, checks `min` and `max` at commit. A transfer done as two statements in one transaction passes; a commit that leaves an organization without an owner fails with SQLSTATE `23514` and hint `last-holder`.
 - Statement triggers over transition tables refuse a statement that changes a `transferOnly` role's holder count.
 - `permdock_can_assign(p_role, p_scope_id)` answers the `assigns` graph for the application's own policies on its membership tables.
 

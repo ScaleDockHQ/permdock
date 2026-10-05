@@ -12,6 +12,7 @@ import {
   resource,
   role,
 } from "../../src/index.ts";
+import { fromJunction, fromTable } from "../../src/supabase/sources.ts";
 
 const Doc = {
   "~standard": {
@@ -166,6 +167,54 @@ describe("ownershipSql in database mode", () => {
     expect(canAssign).toContain("in (values ('owner', 'manager'))");
     expect(canAssign).not.toContain("('lead', 'manager')");
     expect(sql).not.toMatch(/service_role/iu);
+  });
+});
+
+describe("ownershipSql over membership sources", () => {
+  const memberSources = [
+    fromTable({ table: "grants", columns: { via: "kind" } }),
+    fromJunction({
+      table: "team_leads",
+      scope: "team",
+      within: { org: "org_id" },
+      roles: { sources: ["role", "backup_role"] },
+    }),
+  ];
+  const sql = ownershipSql(context({ authorize: "jwt", memberSources }));
+
+  it("collects each source table's changed rows into one transfer check", () => {
+    const transfer = sql.slice(
+      sql.indexOf("-- org: transfer-only roles (owner)"),
+      sql.indexOf("-- team:"),
+    );
+    expect(transfer).toContain(
+      `if tg_relid = '"public"."grants"'::regclass then`,
+    );
+    expect(transfer).not.toContain("team_leads");
+    expect(transfer).toContain(
+      "from permdock_new m where m.\"scope\"::text = 'org'",
+    );
+    expect(transfer).toContain(
+      "from permdock_old m where m.\"scope\"::text = 'org'",
+    );
+    expect(transfer).toContain(
+      "from jsonb_to_recordset(v_changes) x(id text, role text, delta bigint)",
+    );
+    expect(transfer).toContain("hint = 'transfer-only'");
+    for (const op of ["insert", "update", "delete"]) {
+      expect(transfer).toContain(
+        `create trigger "permdock_transfer_only_org_${op}"\n  after ${op} on "public"."grants"`,
+      );
+    }
+  });
+
+  it("counts a nested scope over the sources that hold it", () => {
+    const team = sql.slice(sql.indexOf("-- team:"));
+    expect(team).toContain('on "public"."team_leads"');
+    expect(team).toContain('on "public"."grants"');
+    expect(team).toContain(`m."scope"::text = 'team'`);
+    expect(team).toContain(`"mr".permdock_role as role`);
+    expect(team).not.toContain("transfer-only roles");
   });
 });
 
