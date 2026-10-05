@@ -158,6 +158,26 @@ describe("rls generate context from the config", () => {
     expect(outcome.text).not.toContain("service_role");
   });
 
+  it("grants anon the helpers with rls.anonExecute", async () => {
+    const plain = await generate({ config: { policy: MINI } });
+    expect(plain.text).toContain(
+      'revoke execute on function "permdock".permdock_has(text) from public, anon;',
+    );
+    const outcome = await generate({
+      config: { policy: MINI, rls: { anonExecute: true } },
+    });
+    expect(outcome.code).toBe(0);
+    expect(outcome.text).toContain(
+      'grant usage on schema "permdock" to anon, authenticated;',
+    );
+    expect(outcome.text).toContain(
+      'grant execute on function "permdock".permdock_has(text) to anon, authenticated;',
+    );
+    expect(outcome.text).toContain(
+      'grant execute on function "permdock".permdock_has_permission(text) to anon, authenticated;',
+    );
+  });
+
   it("maps stored former keys in custom roles and reads rls.actions", async () => {
     const outcome = await generate({
       from: "./renamed.ts",

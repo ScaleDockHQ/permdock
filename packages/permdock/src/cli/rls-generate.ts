@@ -487,7 +487,9 @@ export async function runRlsGenerate(input: {
     compiled.conditionedKeys,
     renamed,
   );
-  const anonExecute = views.some((view) => view.roles.includes("anon"));
+  const anonExecute =
+    rls?.anonExecute === true ||
+    views.some((view) => view.roles.includes("anon"));
   const shims =
     shimsConfig === undefined || rls?.migrate === undefined
       ? undefined
