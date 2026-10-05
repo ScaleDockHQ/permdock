@@ -429,6 +429,9 @@ describe("permdock/mcp on @modelcontextprotocol/server 2", () => {
     });
     await server.close();
 
+    await plain.client.close();
+    await server.close();
+
     const urls: string[] = [];
     const eliciting = await connect(
       server,

@@ -14,7 +14,7 @@ export type RoleKeys = {
   readonly ref: string;
 };
 
-/** A role column as SQL over the row alias `alias`, joined to its roles table aliased `<alias>k`. */
+/** A role column as SQL over the row alias `alias`, joined to its roles table aliased `<alias>k` (or `joined`). */
 export type RoleColumn = {
   /** The referencing table's column: the key itself, or the reference. */
   readonly column: string;
@@ -50,6 +50,8 @@ type RoleOptions = {
   readonly label: string;
   readonly prefix?: string;
   readonly indent?: string;
+  readonly joined?: string;
+  readonly example?: string;
 };
 
 function isRoleList(role: RoleSpec): role is readonly RoleSource[] {
@@ -125,7 +127,7 @@ function singleRole(
   const [pair] = pairs;
   if (pair === undefined || pairs.length !== 1) {
     throw new TypeError(
-      `${prefix}: ${options.label}.on must map exactly one column of ${table} to ${role.through}, for example { role_id: 'id' }`,
+      `${prefix}: ${options.label}.on must map exactly one column of ${table} to ${role.through}, for example ${options.example ?? "{ role_id: 'id' }"}`,
     );
   }
   const [ref, id] = pair;
@@ -135,7 +137,7 @@ function singleRole(
   const through = role.through.includes(".")
     ? role.through
     : `${schema}.${role.through}`;
-  const keys = `${alias}k`;
+  const keys = options.joined ?? `${alias}k`;
   const target = quoteSqlTable(through, prefix);
   const keyed = { table: through, id, key: role.column, ref };
   return {
@@ -161,6 +163,11 @@ function sourceManifest(
         column,
         through: { table: through.table, id: through.id, column: through.key },
       };
+}
+
+/** The manifest entry of a single-source column, such as a membership's user. */
+export function columnManifest(role: RoleColumn): SupabaseManifestRole {
+  return sourceManifest(role.column, role.through);
 }
 
 /** The manifest entry of a role column, or one entry per source of a row with several. */

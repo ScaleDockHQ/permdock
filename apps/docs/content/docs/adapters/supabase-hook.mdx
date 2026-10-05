@@ -51,8 +51,8 @@ export function sources(query?: SqlQuery) {
 }
 ```
 
-- `fromTable({ table, columns?, query?, suspension? })` reads a table that holds every scope. `columns.user`, `scope`, `id` and `role` default to `user_id`, `scope`, `scope_id` and `role`. `columns.role` may be a reference to a roles table (below). `within` names a `jsonb` column of ancestor ids; `via`, `expiresAt`, `managedBy` (a text column where `idp` marks an IdP-owned row) and `seats` (a `text[]` column) are optional. Rows for the same instance, kind, expiry, owner and seats merge into one membership with every role.
-- `fromJunction({ table, scope, roles, user?, id?, within?, via?, expiresAt?, managedBy?, seats?, query?, suspension? })` reads a table of one scope. `roles` is a role column, a reference to a roles table (below), or fixed roles (`['contact']`), so a contact table needs no role column. `id` defaults to `<scope>_id`, `within` maps each ancestor scope to its column, `via` is the kind every row has, and `managedBy` is `'idp'` (every row) or `{ column }`.
+- `fromTable({ table, columns?, query?, suspension? })` reads a table that holds every scope. `columns.user`, `scope`, `id` and `role` default to `user_id`, `scope`, `scope_id` and `role`. `columns.role` may be a reference to a roles table, and `columns.user` a reference to a table that holds the user id (below). `within` names a `jsonb` column of ancestor ids; `via`, `expiresAt`, `managedBy` (a text column where `idp` marks an IdP-owned row) and `seats` (a `text[]` column) are optional. Rows for the same instance, kind, expiry, owner and seats merge into one membership with every role.
+- `fromJunction({ table, scope, roles, user?, id?, within?, via?, expiresAt?, managedBy?, seats?, query?, suspension? })` reads a table of one scope. `roles` is a role column, a reference to a roles table (below), or fixed roles (`['contact']`), so a contact table needs no role column. `user` is the user id column (default `user_id`) or a reference to a table that holds the user id (below). `id` defaults to `<scope>_id`, `within` maps each ancestor scope to its column, `via` is the kind every row has, and `managedBy` is `'idp'` (every row) or `{ column }`.
 - `query(text, values)` runs one statement: `pg`'s `client.query` and `postgres`'s `sql.unsafe` both fit. Without it a source only describes SQL, which is all `permdock.config.ts` needs.
 - `suspension` has the shape of [`rls.suspension`](/docs/cli/rls): rows of a suspended user, instance or ancestor instance are left out, and a missing status row counts as suspended.
 - Each source also implements `list({ scope, id })`, which returns every member of one instance for member lists, share dialogs and access reviews.
@@ -91,7 +91,30 @@ fromJunction({
 
 The row holds every non-null key of its sources: a user with `tier = 'member'` and a `role_id` keyed `admin` gets `roles: ["admin", "member"]`, and a row whose sources are all null holds no membership. The hook, `membershipsFor`, `list` and the `database` mode helpers expand the row with one `cross join lateral`, and a key rename on any referenced roles table bumps every holder's authorization version. Each source column is a deciding column, and the manifest lists the sources as an array under `role`.
 
-A source's deciding columns (the user, scope, id, `within`, role, `via` and expiry columns, and the `id` and key columns of a roles table its role references) must not be client-writable, or a user can give themselves a membership: a portal contact who may edit their own `customer_contacts` row could set `user_id` on another row, or `customer_id` on their own. Revoke `insert` and `update` on the table from `anon` and `authenticated` and grant `update` back only on the columns clients edit:
+A membership table whose rows name a profile instead of a login reads the user id through the profile table, with the same shape. CentraKit's portal contacts are `customer_contacts (customer_id, organization_id, contact_profile_id)`, and the login is `contact_profiles.user_id`:
+
+```ts
+// contact_profiles (id, user_id references auth.users (id) on delete set null)
+// customer_contacts (customer_id, organization_id, contact_profile_id references contact_profiles (id))
+fromJunction({
+  table: "customer_contacts",
+  scope: "customer",
+  id: "customer_id",
+  within: { organization: "organization_id" },
+  user: {
+    through: "contact_profiles",
+    on: { contact_profile_id: "id" },
+    column: "user_id",
+  },
+  roles: ["customer"],
+  via: "contact",
+  ...shared,
+});
+```
+
+The `select` joins the profile table and filters on its user column, so a row whose profile is missing or has no `user_id` holds no membership, and `suspension.users` checks the joined user id. A source may read both its user and its role through other tables. The hook declares the lookup variable with the profile column's type, so its index applies; `rls generate` indexes the profile's user column and the reference.
+
+A source's deciding columns (the user, scope, id, `within`, role, `via` and expiry columns, the `id` and key columns of a roles table its role references, and the `id` and user columns of a table its user references) must not be client-writable, or a user can give themselves a membership: a portal contact who may edit their own `customer_contacts` row could set `user_id` on another row, or `customer_id` on their own. Revoke `insert` and `update` on the table from `anon` and `authenticated` and grant `update` back only on the columns clients edit:
 
 ```sql
 revoke insert, update on public.customer_contacts from anon, authenticated;
@@ -157,8 +180,8 @@ The output is one idempotent migration:
   - `attrs`: the allow-listed attribute columns and `app_metadata` keys (below), never other columns;
   - `authz_ver`: the user's authorization version (below);
   - the claims other packages own, from `supabase.hook.claims` (below).
-- The `supabase_auth_admin` grants: `usage` on the schema, `execute` on the hook, `select` and a read policy on every table the hook reads (sources, their suspension tables, global roles, every roles table a `through` references, the `attrs` table, version). `execute` is revoked from `authenticated`, `anon` and `public`. Nothing is granted to `service_role`.
-- `permdock_authz_version (user_id, version)` and the `permdock_bump_authz_version` trigger on every source table and the global-roles table. With `through` on the global roles or on a source, `permdock_bump_authz_version_role_keys` on each referenced roles table bumps every user who holds a renamed role, globally or through a membership, when its key or id changes, since a rename changes their `roles` and `memberships` claims.
+- The `supabase_auth_admin` grants: `usage` on the schema, `execute` on the hook, `select` and a read policy on every table the hook reads (sources, their suspension tables, global roles, every roles table and user table a `through` references, the `attrs` table, version). `execute` is revoked from `authenticated`, `anon` and `public`. Nothing is granted to `service_role`.
+- `permdock_authz_version (user_id, version)` and the `permdock_bump_authz_version` trigger on every source table and the global-roles table. With `through` on the global roles or on a source, `permdock_bump_authz_version_role_keys` on each referenced roles table bumps every user who holds a renamed role, globally or through a membership, when its key or id changes, since a rename changes their `roles` and `memberships` claims. A source that reads its user through another table gets `permdock_bump_authz_version_member_users` instead, which bumps the users its old and new rows reference, and the referenced table gets `permdock_bump_authz_version_linked_users` on updates of its user and id columns and on delete, which bumps both the old and the new user when a profile is re-linked to another login. That trigger skips a login that no longer exists in `auth.users`, so deleting a user whose profile is set to `null` still succeeds.
 - `permdock_bump_authz_version_for(p_users uuid[])`, which bumps each listed user once, for membership data the hook does not read (below).
 - The `permdock_protect_managed` trigger on sources with `managedBy`.
 - The `config.toml` block, printed and repeated as a comment:
@@ -280,7 +303,7 @@ A seat belongs to one membership, not the tenant: a Dev Mode seat in one organiz
 | `hook`, `markers`                                                     | Where `custom_access_token_hook` lives and the majors of the `-- permdock:hook` / `-- permdock:grants` lines its migrations start with                 |
 | `claims`, `tenantClaim`, `budget`, `authzVersion`, `authzVersionBump` | Every claim the hook writes, who owns it, what the budget measures, and the function that bumps `authz_ver` for a list of users                        |
 | `helpers`, `rls`                                                      | The helper schema, each helper's arguments, return type and the roles that may execute it, the RLS mode (`jwt` or `database`) and each scope's id type |
-| `memberships`                                                         | Each source's table and the columns (or fixed values) for user, scope, id, role (with its roles table), `within`, `via` and expiry                     |
+| `memberships`                                                         | Each source's table and the columns (or fixed values) for user and role (each with the table it reads through), scope, id, `within`, `via` and expiry  |
 | `rls.memberships`                                                     | The same shape for the tables `member_<scope>_ids_for` reads, which differ from the hook's when `rls.memberships` or `rls.membershipSources` is set    |
 | `decidingColumns`                                                     | Every `schema.table.column` a membership or an `attrs` claim is computed from, which clients must not be able to write                                 |
 
@@ -292,6 +315,7 @@ The format, its JSON Schema (`schemas/supabase-manifest-v1.json`) and the versio
 - **One definition, two readers.** The sources run the exact `select` the hook compiles, and the integration suite checks that the claim equals what `composeMemberships` returns for the same user. A hand-written hook next to a hand-written source is two definitions of who belongs where.
 - **The active scope first, then truncation.** A token that cannot hold every membership should hold the ones the next request needs. Truncating silently would turn a large customer into a user with random missing access; the flag makes the server read the rest.
 - **Roles are read by key, through a roles table when the app has one.** Role grants, `role_permissions` seeds, the `roles` claim and each membership's `roles` all name roles by key, while apps that manage roles in a UI usually keep `user_roles.role_id` and `organization_users.role_id` referencing a `roles` table. Copying keys into those tables would make a rename a data migration; joining at read time keeps one source of truth, and the version trigger on `roles` makes a rename reach existing tokens at the next `fresh` check. Global roles and membership sources take the same `{ through, on, column }` shape, so one roles table serves both and gets one trigger.
+- **A membership's user can be read through a profile table.** Portal contacts are often rows of a contact or profile table that a login is attached to later, or moved between logins. Copying `user_id` onto every membership row would make each re-link a fan-out update that the app has to keep consistent; reading it through the profile keeps one place to change, and the trigger on that column bumps both logins, so the old one loses the memberships and the new one gains them at the next `fresh` check.
 - **A version, not a shorter expiry, for sensitive verbs.** Dropping `jwt_expiry` to a minute taxes every request to protect a few. The version costs one indexed lookup per request that uses `claimsFirst` with `version`, and only `fresh` permissions depend on it. Missing either side counts as stale, because a check that passes when it cannot compare fails open.
 - **Attributes are server-owned or absent.** An attribute that decides row access and that the user can edit is a self-grant. Refusing `user_metadata` catches the obvious case; the migration guard catches a `profiles` table with a broad `update` grant, which is the common one.
 - **IdP ownership is enforced where edits happen.** The member list, `decideRoleChange` and the database all refuse, so a client that skips the UI still cannot edit a SCIM-provisioned row.

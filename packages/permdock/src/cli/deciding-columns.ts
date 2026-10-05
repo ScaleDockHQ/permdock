@@ -11,7 +11,7 @@ export function tableKey(name: string): string {
 /**
  * The columns of each membership source's table that decide who holds which
  * membership (user, scope, id, `within`, role, `via`, expiry), and the id and
- * key columns of a roles table a role column references, keyed by
+ * value columns of a table a role or user column references, keyed by
  * {@link tableKey}. A client that can write one can give itself a membership.
  */
 export function membershipColumns(
@@ -27,7 +27,10 @@ export function membershipColumns(
       columns.add(column);
     }
     byTable.set(table, columns);
-    for (const through of source.sql.throughs) {
+    for (const through of [
+      ...source.sql.throughs,
+      ...(source.sql.userThrough === undefined ? [] : [source.sql.userThrough]),
+    ]) {
       const keys = tableKey(through.table);
       byTable.set(
         keys,

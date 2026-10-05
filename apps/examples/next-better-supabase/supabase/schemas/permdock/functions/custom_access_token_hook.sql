@@ -119,7 +119,7 @@ create table if not exists "permdock"."permdock_authz_version" (
 alter table "permdock"."permdock_authz_version" enable row level security;
 revoke all on table "permdock"."permdock_authz_version" from anon, authenticated, public;
 
--- bumps each listed user once, for a membership source outside the hook; no client role may call it
+-- bumps each listed user once, skipping users already deleted from auth.users; no client role may call it
 create or replace function "permdock".permdock_bump_authz_version_for(p_users uuid[])
 returns void
 language sql
@@ -127,7 +127,8 @@ security definer
 set search_path = ''
 as $$
   insert into "permdock"."permdock_authz_version" as v (user_id, version)
-  select distinct u, 1 from unnest(p_users) u where u is not null
+  select distinct u, 1 from unnest(p_users) u
+  where u is not null and exists (select 1 from auth.users au where au.id = u)
   on conflict (user_id) do update set version = v.version + 1
 $$;
 revoke execute on function "permdock".permdock_bump_authz_version_for(uuid[]) from public, anon, authenticated;

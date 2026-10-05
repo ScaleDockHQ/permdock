@@ -156,7 +156,7 @@
           "type": "string",
           "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$"
         },
-        "user": { "$ref": "#/$defs/column" },
+        "user": { "$ref": "#/$defs/user" },
         "scope": { "$ref": "#/$defs/value" },
         "id": { "$ref": "#/$defs/column" },
         "role": {
@@ -205,30 +205,31 @@
       "properties": { "column": { "$ref": "#/$defs/identifier" } }
     },
     "role": {
-      "oneOf": [
-        { "$ref": "#/$defs/value" },
-        {
+      "oneOf": [{ "$ref": "#/$defs/value" }, { "$ref": "#/$defs/through" }]
+    },
+    "user": {
+      "oneOf": [{ "$ref": "#/$defs/column" }, { "$ref": "#/$defs/through" }]
+    },
+    "through": {
+      "type": "object",
+      "required": ["column", "through"],
+      "additionalProperties": false,
+      "properties": {
+        "column": { "$ref": "#/$defs/identifier" },
+        "through": {
           "type": "object",
-          "required": ["column", "through"],
+          "required": ["table", "id", "column"],
           "additionalProperties": false,
           "properties": {
-            "column": { "$ref": "#/$defs/identifier" },
-            "through": {
-              "type": "object",
-              "required": ["table", "id", "column"],
-              "additionalProperties": false,
-              "properties": {
-                "table": {
-                  "type": "string",
-                  "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$"
-                },
-                "id": { "$ref": "#/$defs/identifier" },
-                "column": { "$ref": "#/$defs/identifier" }
-              }
-            }
+            "table": {
+              "type": "string",
+              "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$"
+            },
+            "id": { "$ref": "#/$defs/identifier" },
+            "column": { "$ref": "#/$defs/identifier" }
           }
         }
-      ]
+      }
     },
     "value": {
       "oneOf": [

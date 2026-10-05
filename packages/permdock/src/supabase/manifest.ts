@@ -66,7 +66,7 @@ export type SupabaseManifestValue =
   | SupabaseManifestColumn
   | { readonly value: string | readonly string[] };
 
-/** A role column that references a roles table: the key is `column` of `table`, matched on `id`. */
+/** A column that references another table: the value (role key or user id) is `column` of `table`, matched on `id`. */
 export type SupabaseManifestThrough = {
   readonly table: string;
   readonly id: string;
@@ -82,7 +82,10 @@ export type SupabaseManifestRole =
 export type SupabaseManifestMembership = {
   /** `schema.table`, `public` when the source names no schema. */
   readonly table: string;
-  readonly user: SupabaseManifestColumn;
+  /** The user id column, with `through` when it references the table that holds the user id. */
+  readonly user:
+    | SupabaseManifestColumn
+    | (SupabaseManifestColumn & { readonly through: SupabaseManifestThrough });
   /** A column for `fromTable`, the fixed scope for `fromJunction`. */
   readonly scope: SupabaseManifestValue;
   readonly id: SupabaseManifestColumn;
