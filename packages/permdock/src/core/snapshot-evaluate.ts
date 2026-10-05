@@ -71,12 +71,16 @@ function scopeOk(
   data: unknown,
   team: string | undefined,
   now: number,
+  only: string | undefined,
 ):
   | { readonly ok: true }
   | { readonly ok: false; readonly reason: DenialReason } {
   const scope = grant.scope;
   if (scope === undefined) {
     return { ok: true };
+  }
+  if (only !== undefined && scope !== only) {
+    return { ok: false, reason: "scope" };
   }
   const principal = subject.principal;
   const membership = grant.membership;
@@ -307,9 +311,19 @@ export function evaluateSnapshot(
       permission.kind === "instance" ? current : next,
       team,
       now,
+      options.scope,
     );
     if (scoped.ok && permission.kind === "instance" && next !== current) {
-      scoped = scopeOk(snapshot, grant, permission, subject, next, team, now);
+      scoped = scopeOk(
+        snapshot,
+        grant,
+        permission,
+        subject,
+        next,
+        team,
+        now,
+        options.scope,
+      );
     }
     if (!scoped.ok) {
       denials.push(

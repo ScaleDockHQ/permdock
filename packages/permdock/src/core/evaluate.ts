@@ -803,6 +803,7 @@ export function evaluate(
             env.team,
             walkRole,
             permission.kind === "instance",
+            options.scope,
           );
         const scopeMatch = matchWriteScope(
           matchRow,

@@ -236,9 +236,13 @@ export function matchScopedMembership(
   team?: string,
   walk?: ResourceRoleWalk,
   instance = false,
+  only?: string,
 ): ScopeMatch {
   if (scope === "global") {
     return { ok: true };
+  }
+  if (only !== undefined && scope !== only) {
+    return { ok: false, reason: "scope" };
   }
   const principal = subject.principal;
   if (principal === null) {
