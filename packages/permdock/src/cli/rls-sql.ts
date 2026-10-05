@@ -106,6 +106,8 @@ export type RlsSqlContext = {
   readonly capabilities?: true;
   /** Role ownership rules (`for`, `assigns`, `min`, `max`, `transferOnly`), when any role declares one. */
   readonly ownership?: RlsOwnership;
+  /** Scopes whose holder-count and transfer-only triggers `rls.ownershipTriggers` leaves out; `'all'` for every scope. */
+  readonly skipOwnershipTriggers?: "all" | readonly string[];
   /** `rls.assignments`: assignment triggers on the membership tables and these extra tables. */
   readonly assignments?: { readonly tables: readonly RlsAssignmentTable[] };
   /**
