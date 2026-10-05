@@ -184,4 +184,44 @@ describe("rls generate with resource levels", () => {
     expect(sql).toContain("coalesce('@' || c.level, '')");
     expect(sql).toContain('create or replace function "permdock"."authorize"(');
   });
+
+  it("checks rls.customRoleWrites.requires before the hand-out check", async () => {
+    const requiring = (requires: string): string => {
+      const dir = appWith(false, "database");
+      const configPath = join(dir, "permdock.config.ts");
+      writeFileSync(
+        configPath,
+        readFileSync(configPath, "utf8").replace(
+          "customRoles: true,",
+          `customRoles: true,\n    customRoleWrites: { requires: ${requires} },`,
+        ),
+      );
+      return dir;
+    };
+    const sql = await generate(requiring("['job.update']"));
+    const guard = sql.slice(
+      sql.indexOf(
+        'create or replace function "permdock".permdock_custom_role_guard(',
+      ),
+    );
+    const check = guard.indexOf("hint = 'manage-roles'");
+    expect(check).toBeGreaterThan(guard.indexOf("hint = 'not-member'"));
+    expect(check).toBeLessThan(guard.indexOf("hint = 'not-assignable-by'"));
+    expect(guard).toContain("rp.permission = any(array['job.update']::text[])");
+    expect(await generate(appWith(false, "database"))).not.toContain(
+      "manage-roles",
+    );
+    for (const [requires, message] of [
+      ["'manageRoles'", "no permission declares meta.manageRoles"],
+      ["['job.nope']", "undeclared permissions: job.nope"],
+      ["[]", "names no permission"],
+    ] as const) {
+      const result = await run(
+        ["rls", "generate", "--target", "sql", "--out", "rls.sql"],
+        { cwd: requiring(requires) },
+      );
+      expect(result.code).toBe(2);
+      expect(result.stdout).toContain(message);
+    }
+  });
 });

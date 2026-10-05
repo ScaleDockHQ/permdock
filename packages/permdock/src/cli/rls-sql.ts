@@ -78,6 +78,8 @@ export type RlsSqlContext = {
     readonly permissions?: readonly string[];
     /** Keys of permissions with `meta.manageRoles`: holding one lifts the hand-out check, as in-process. */
     readonly manage?: readonly string[];
+    /** Keys of which the caller must hold one before any custom-role write (`rls.customRoleWrites.requires`). */
+    readonly requires?: readonly string[];
     /**
      * Set when a resource declares levels: stored allows may carry a level
      * (`custom_role_permissions.level`, `key@level` in claims), and the

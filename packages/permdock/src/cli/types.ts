@@ -127,6 +127,17 @@ export type RlsConfig = {
    * always intersected with the `permdock_ceiling` view. Off by default.
    */
   readonly customRoles?: boolean;
+  /** How the generated custom-role write functions check the caller (`database` mode with `customRoles`). */
+  readonly customRoleWrites?: {
+    /**
+     * Who may change custom roles at all, checked before the hand-out check:
+     * permission keys of which the caller must hold one in the tenant (or
+     * through a global role; only through a global role for a platform custom
+     * role), or `'manageRoles'` for any permission with `meta.manageRoles`.
+     * Unset, any member may write a role within what they may hand out.
+     */
+    readonly requires?: "manageRoles" | readonly string[];
+  };
   /**
    * Let link capabilities reach resource-scoped grants: `anon` policies that call
    * `permdock_capability_ids`, which reads the `capability` claim `exchangeCapability`

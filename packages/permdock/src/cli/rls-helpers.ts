@@ -1381,6 +1381,13 @@ function customRoleWritesSql(
   const manageKeys = custom.manage ?? [];
   const manage = holdsAny(manageKeys, heldKey);
   const platform = holdsAny(manageKeys, (key) => `${has}(${key})`);
+  const requires =
+    custom.requires === undefined
+      ? ""
+      : `
+  if not ${holdsAny(custom.requires, heldKey)} then
+${raiseSql("    ", "42501", `'permdock: the caller may not manage roles in ' || coalesce(p_tenant::text, 'the platform')`, "manage-roles")}
+  end if;`;
   const reachRows = levelReach
     .map(
       ([grantKey, level]) =>
@@ -1539,7 +1546,7 @@ begin
     or (p_scope <> 'global' and (${memberOf}))
   )) then
 ${raiseSql("    ", "42501", `'permdock: the caller is not a member of ' || coalesce(p_tenant::text, 'the platform')`, "not-member")}
-  end if;
+  end if;${requires}
   select array_agg(${allowEntry(ctx)}) filter (where c.effect = 'allow'),
     array_agg(c.permission) filter (where c.effect = 'deny')
   into v_allow, v_deny

@@ -113,9 +113,43 @@ async function loadPolicy(
   );
 }
 
+/** `rls.customRoleWrites.requires` as permission keys, or why it names none. */
+function writeRequirement(
+  policy: Policy,
+  requires: "manageRoles" | readonly string[] | undefined,
+): { readonly keys?: readonly string[]; readonly error?: string } {
+  if (requires === undefined) {
+    return {};
+  }
+  const leaves = listPermissions(policy.permissions);
+  const keys =
+    requires === "manageRoles"
+      ? leaves
+          .filter((leaf) => leaf.meta.manageRoles === true)
+          .map((leaf) => leaf.key)
+      : [...requires];
+  if (keys.length === 0) {
+    return {
+      error:
+        requires === "manageRoles"
+          ? "rls.customRoleWrites.requires is 'manageRoles', but no permission declares meta.manageRoles"
+          : "rls.customRoleWrites.requires names no permission",
+    };
+  }
+  const known = new Set(leaves.map((leaf) => leaf.key));
+  const unknown = keys.filter((key) => !known.has(key));
+  if (unknown.length > 0) {
+    return {
+      error: `rls.customRoleWrites.requires names undeclared permissions: ${unknown.join(", ")}`,
+    };
+  }
+  return { keys: [...new Set(keys)].toSorted() };
+}
+
 /** Declared role names, and those a tenant admin may compose into custom roles. */
 function customRoleNames(
   policy: Policy,
+  requires: readonly string[] | undefined,
 ): NonNullable<RlsSqlContext["customRoles"]> {
   const declared = [...roleNames(policy)].toSorted();
   const assignable = declared.filter(
@@ -136,6 +170,7 @@ function customRoleNames(
     ...(renamed.size === 0 ? {} : { renamed: Object.fromEntries(renamed) }),
     permissions: leaves.map((leaf) => leaf.key).toSorted(),
     ...(manage.length === 0 ? {} : { manage: manage.toSorted() }),
+    ...(requires === undefined ? {} : { requires }),
     ...(policy.levels === undefined ? {} : { levels: true as const }),
   };
 }
@@ -283,6 +318,10 @@ export async function runRlsGenerate(input: {
       text: "",
     };
   }
+  const requires = writeRequirement(policy, rls?.customRoleWrites?.requires);
+  if (requires.error !== undefined) {
+    return { code: 2, output: requires.error, text: "" };
+  }
   const ownership = ownershipRules(policy, scopes);
   const graph = graphPlan(policy);
   const ctx: RlsSqlContext = {
@@ -306,7 +345,7 @@ export async function runRlsGenerate(input: {
     ...(suspension === undefined ? {} : { suspension }),
     ...(roles === undefined ? {} : { roles }),
     ...(input.customRoles === true || rls?.customRoles === true
-      ? { customRoles: customRoleNames(policy) }
+      ? { customRoles: customRoleNames(policy, requires.keys) }
       : {}),
     ...(input.capabilities === true || rls?.capabilities === true
       ? { capabilities: true as const }

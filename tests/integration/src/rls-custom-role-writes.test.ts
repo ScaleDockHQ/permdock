@@ -12,6 +12,7 @@ import { startPostgres } from "./support/postgres.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/custom-role-writes");
+const REQUIRES_FIXTURE = join(HERE, "../fixtures/custom-role-writes-requires");
 
 const ADMIN = "00000000-0000-4000-8000-0000000000a1";
 const MANAGER = "00000000-0000-4000-8000-0000000000b2";
@@ -251,5 +252,85 @@ describe("permdock_replace_custom_role_grants with levels, renamed keys and mana
         [],
       ),
     ).toBe("ok");
+  });
+});
+
+describe("rls.customRoleWrites.requires", () => {
+  let db: Postgres | undefined;
+  const dir = mkdtempSync(join(tmpdir(), "permdock-custom-role-requires-"));
+
+  beforeAll(async () => {
+    const out = join(dir, "rls.sql");
+    const result = await run(
+      ["rls", "generate", "--target", "sql", "--out", out],
+      { cwd: REQUIRES_FIXTURE },
+    );
+    if (result.code !== 0) {
+      throw new Error(`rls generate: ${result.stdout}`);
+    }
+    db = await startPostgres([
+      SETUP,
+      readFileSync(out, "utf8"),
+      `insert into permdock.user_roles (user_id, role) values ('${OPERATOR}', 'operator');`,
+    ]);
+  }, 180_000);
+
+  afterAll(async () => {
+    rmSync(dir, { recursive: true, force: true });
+    await db?.stop();
+  });
+
+  const call = async (
+    sub: string,
+    sql: string,
+    values: readonly unknown[],
+  ): Promise<string> => {
+    try {
+      await db?.as(
+        {
+          role: "authenticated",
+          settings: {
+            "request.jwt.claims": JSON.stringify({
+              sub,
+              role: "authenticated",
+            }),
+          },
+        },
+        async () => {
+          await db?.tester.query(sql, [...values]);
+        },
+      );
+      return "ok";
+    } catch (error) {
+      return error instanceof DatabaseError
+        ? `${error.code ?? ""} ${error.hint ?? ""}`.trim()
+        : String(error);
+    }
+  };
+
+  const save = (sub: string, tenant: string | null, scope: string) =>
+    call(
+      sub,
+      "select permdock.permdock_replace_custom_role_grants($1, $2, null, 'reader', array['job.read'], '{}', '{}')",
+      [tenant, scope],
+    );
+
+  it("refuses a member who holds no manageRoles permission before checking what they may hand out", async () => {
+    expect(await save(ADMIN, "acme", "tenant")).toBe("42501 manage-roles");
+    expect(await save(MANAGER, "acme", "tenant")).toBe("42501 manage-roles");
+    expect(
+      await call(
+        ADMIN,
+        "select permdock.permdock_delete_custom_role_grants('acme', 'tenant', null, 'reader')",
+        [],
+      ),
+    ).toBe("42501 manage-roles");
+  });
+
+  it("lets a holder in the tenant or through a global role write", async () => {
+    expect(await save(STEWARD, "acme", "tenant")).toBe("ok");
+    expect(await save(OPERATOR, "acme", "tenant")).toBe("ok");
+    expect(await save(OPERATOR, null, "global")).toBe("ok");
+    expect(await save(STEWARD, null, "global")).toBe("42501 not-member");
   });
 });
