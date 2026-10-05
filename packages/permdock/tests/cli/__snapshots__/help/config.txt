@@ -1,0 +1,14 @@
+Check permdock.config.ts for unknown keys, or print the effective config (permdock config)
+
+USAGE permdock config [OPTIONS] 
+
+OPTIONS
+
+      --cwd=<dir>    Run as if started in this directory                                       
+  --config=<file>    Config file (default permdock.config.{ts,mts,js,mjs})                     
+           --json    Machine-readable output                                                   
+        -y, --yes    Never prompt; take the answer the flags give                              
+          --color    Styled output on a colour terminal (Default: true)                        
+       --no-color    Plain output                                                              
+          --print    Print the effective config as JSON: the file, as written, and each default
+         --strict    Exit 1 on warnings                                                        

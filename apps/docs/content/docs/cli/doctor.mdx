@@ -94,6 +94,8 @@ PD003 and PD004 compare against the catalog, so they keep reading `collect.srcPa
 | `PD056` | A migration still calls an `rls.migrate` helper by its legacy name                                                                                                                                                                                                                                         | warning         |
 | `PD057` | `rls.anonymousSignIns` is `'deny'`, but a `subjectFromSupabase` or `subjectFromSupabaseSession` call does not pass `anonymousSignIns: 'deny'`                                                                                                                                                              | warning         |
 | `PD058` | `sync-config.yaml` is missing or differs from the Sync Streams the policy compiles to                                                                                                                                                                                                                      | warning         |
+| `PD059` | The configured `policy` module throws or exports no policy, so every check that reads the policy is skipped                                                                                                                                                                                                | error           |
+| `PD060` | A source file under `collect.srcPath` has a syntax error, so the catalog and the usage report miss what it references                                                                                                                                                                                      | warning         |
 
 ### PD001: server-only imports in client entries
 
@@ -357,12 +359,21 @@ With `rls.anonymousSignIns: 'deny'`, the generated policies refuse a `signInAnon
 
 With `powersync` in the config, the check compiles the policy to Sync Streams and compares the result with `powersync.out` (default `sync-config.yaml`). A missing or different file means the PowerSync service syncs by an older policy: a revoked grant still syncs rows to devices. Run `permdock powersync generate` and deploy the file. `--only powersync` runs PD058.
 
+### PD059: policy module did not load
+
+Doctor loads the `policy` module once and every policy check reads that load. When the module throws, or exports no `policy` from `definePolicy`, those checks have nothing to read; without PD059 the report would be clean for the wrong reason. The finding names the path and the error. `--only project` runs PD059 and PD060 alone.
+
+### PD060: unparsable source file
+
+`collect`, `usage` and doctor scan every file under `collect.srcPath` with `oxc-parser`. A file with a syntax error is scanned only as far as it parses, so a permission it references can be missing from the catalog. The finding names the file, the line and the parser's message.
+
 ## Why
 
 - **`config.toml` goes through a TOML parser.** Line-by-line matching misreads comments, multi-line arrays and quoted section names, and a misread `jwt_expiry` would silence PD019, a security warning.
 - **PD001 reads direct imports, not an import graph.** A graph needs module resolution for every bundler's aliases, and a wrong resolution produces a false path to a server module. The bundle measurement already fails on a server import reachable from a client entry; `doctor` catches the common case, a client file importing a server entry, in milliseconds. `doctor.clientEntries` replaces guessing client roots from folder names.
 - **`security_invoker` is a warning, not generated SQL.** A view over application data is application SQL, and some views are meant to bypass RLS (a public aggregate), so the warning names the view and the choice stays explicit. The only views `permdock rls` writes are the opt-in field views, which are `security_invoker`, and their owner-rights companion, which is marked so the check can tell it apart.
 - **PD030 is a warning, not an error.** Many apps never expose a table to clients (a server-only connection, no Data API), and there `pick` is the whole control. Where clients do read the table, the warning names each column so the fix is one flag.
+- **One project load per run.** Doctor reads the config, the source files, the policy module and the `collect --check` scan once, on first use, and passes them to every check in a table of checks. Each check used to load the policy and rescan the sources itself; on a 2,000-file tree that halved the run, from 850 ms to 429 ms. A `--only` run still loads only what its checks read.
 - **Docs drift is a maintainer check, not a `doctor` check.** Whether the PermDock docs list every CLI flag and public export is a property of this repository; `scripts/check-docs-drift.ts` and a CLI test, which reads each command's flag definitions, run it in the PermDock CI, and `doctor` stays about the consumer's project.
 
 ## Related

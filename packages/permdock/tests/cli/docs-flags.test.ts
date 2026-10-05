@@ -17,6 +17,7 @@ const CLI_DOCS = path.join(
 const ctx: CliContext = {
   cwd: import.meta.dirname,
   config: {},
+  configWarnings: [],
   io: { stdout: () => undefined, stderr: () => undefined },
   now: new Date(0),
   json: false,

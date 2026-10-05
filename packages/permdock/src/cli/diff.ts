@@ -128,6 +128,7 @@ const EMPTY_SCAN: ScanResult = {
   planNames: [],
   allowKeys: [],
   snapshots: [],
+  unparsed: [],
 };
 
 async function loadSide(cwd: string, source: string, now: Date): Promise<Side> {

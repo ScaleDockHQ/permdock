@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 
+import type { Policy } from "../index.ts";
 import type {
   CatalogDocument,
   CliIo,
@@ -46,6 +47,8 @@ export async function runCollect(input: {
   /** Files to scan for references instead of `srcPath`, for doctor's own scan path. */
   readonly scanPath?: readonly string[];
   readonly fresh?: boolean;
+  /** The policy for the catalog's grants; default the configured policy module. */
+  readonly loadPolicy?: () => Promise<Policy | undefined>;
 }): Promise<CollectOutcome> {
   const load = { fresh: input.fresh === true };
   const srcPath =
@@ -93,7 +96,9 @@ export async function runCollect(input: {
     tree,
     scan,
     input.now.toISOString(),
-    await loadConfiguredPolicy(input.cwd, input.config.policy, load),
+    input.loadPolicy === undefined
+      ? await loadConfiguredPolicy(input.cwd, input.config.policy, load)
+      : await input.loadPolicy(),
   );
   const next = formatCatalogJson(document);
   if (input.check) {
@@ -134,10 +139,7 @@ export async function runCollect(input: {
   const written = [outPath];
   const barrel = input.collect.barrel ?? input.config.collect?.barrel;
   if (barrel !== undefined && barrel !== false) {
-    const barrelPath = resolve(
-      input.cwd,
-      barrel === true ? "src/permissions.generated.ts" : barrel,
-    );
+    const barrelPath = resolve(input.cwd, barrelFile(barrel));
     writeBarrel(barrelPath, permissionsAbs);
     written.push(barrelPath);
   }
@@ -151,7 +153,8 @@ export async function runCollect(input: {
   };
 }
 
-function guessPermissions(
+/** The permissions module `collect` reads when the config names none. */
+export function guessPermissions(
   cwd: string,
   srcPath: readonly string[],
 ): string | undefined {
@@ -161,6 +164,10 @@ function guessPermissions(
     ...srcPath.map((entry) => `${entry.replace(/\/$/, "")}/permissions.ts`),
   ];
   return candidates.find((file) => existsSync(resolve(cwd, file)));
+}
+
+export function barrelFile(barrel: true | string): string {
+  return barrel === true ? "src/permissions.generated.ts" : barrel;
 }
 
 function writeBarrel(abs: string, permissionsAbs: string): void {

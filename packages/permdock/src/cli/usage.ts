@@ -11,7 +11,7 @@ import type {
 
 import { getResource } from "../index.ts";
 import { jsonSchemaOf } from "./catalog-doc.ts";
-import { runCollect } from "./collect.ts";
+import { type CollectOutcome, runCollect } from "./collect.ts";
 import { isClientSource } from "./doctor-source.ts";
 import { usageResult } from "./errors.ts";
 import { listSourceFiles, rel } from "./files.ts";
@@ -51,15 +51,22 @@ export async function runUsage(input: {
   readonly dynamicAsUsed: boolean;
   readonly now: Date;
   readonly io: CliIo;
+  /** `collect --check` already run for this project. */
+  readonly collected?: () => Promise<CollectOutcome>;
+  /** The configured policy already loaded, or `undefined` when it failed to load. */
+  readonly policy?: () => Promise<Policy | undefined>;
 }): Promise<{ readonly code: 0 | 1 | 2; readonly output: string }> {
-  const collected = await runCollect({
-    cwd: input.cwd,
-    config: input.config,
-    collect: input.config.collect ?? {},
-    check: true,
-    now: input.now,
-    io: input.io,
-  });
+  const collected =
+    input.collected === undefined
+      ? await runCollect({
+          cwd: input.cwd,
+          config: input.config,
+          collect: input.config.collect ?? {},
+          check: true,
+          now: input.now,
+          io: input.io,
+        })
+      : await input.collected();
   if (collected.document === undefined || collected.scan === undefined) {
     return { code: 2, output: collected.message };
   }
@@ -67,18 +74,9 @@ export async function runUsage(input: {
   if (policyRel === undefined) {
     return { code: 2, output: "usage: set policy in permdock.config.ts" };
   }
-  const policyAbs = resolve(input.cwd, policyRel);
-  if (!existsSync(policyAbs)) {
-    return {
-      code: 2,
-      output: `PermDock CLI: policy module not found: ${policyRel}`,
-    };
-  }
-  let policy: Policy;
-  try {
-    policy = asPolicy(pickNamed(await loadModule(policyAbs), ["policy"]));
-  } catch (error) {
-    return usageResult(error);
+  const policy = await usagePolicy(input.cwd, policyRel, input.policy);
+  if (!("roles" in policy)) {
+    return policy;
   }
   const granted = new Set<string>();
   const mergedRoles = new Set<string>();
@@ -180,6 +178,33 @@ export async function runUsage(input: {
       ? `${JSON.stringify(report, null, 2)}\n`
       : formatUsage(report),
   };
+}
+
+async function usagePolicy(
+  cwd: string,
+  policyRel: string,
+  loaded: (() => Promise<Policy | undefined>) | undefined,
+): Promise<Policy | { readonly code: 2; readonly output: string }> {
+  if (loaded !== undefined) {
+    return (
+      (await loaded()) ?? {
+        code: 2,
+        output: `PermDock CLI: policy module failed to load: ${policyRel}`,
+      }
+    );
+  }
+  const policyAbs = resolve(cwd, policyRel);
+  if (!existsSync(policyAbs)) {
+    return {
+      code: 2,
+      output: `PermDock CLI: policy module not found: ${policyRel}`,
+    };
+  }
+  try {
+    return asPolicy(pickNamed(await loadModule(policyAbs), ["policy"]));
+  } catch (error) {
+    return usageResult(error);
+  }
 }
 
 const CLIENT_CALLS = new Set([

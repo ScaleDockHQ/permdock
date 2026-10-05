@@ -3,9 +3,10 @@ import { stripVTControlCharacters } from "node:util";
 /**
  * `usage`: a flag, config or definition module the command cannot use (exit
  * 2). `unavailable`: a database or service the command needs did not answer
- * (exit 1, like the Cloud being unreachable).
+ * (exit 1, like the Cloud being unreachable). `failed`: the check the command
+ * ran found a problem, such as catalog drift (exit 1).
  */
-export type CliErrorKind = "usage" | "unavailable";
+export type CliErrorKind = "usage" | "unavailable" | "failed";
 
 export class CliError extends Error {
   public readonly kind: CliErrorKind;
@@ -33,6 +34,7 @@ export type CliProblem = {
 const TITLES: Readonly<Record<CliErrorKind, string>> = {
   usage: "Usage or configuration error",
   unavailable: "A database or service the command needs did not answer",
+  failed: "The check the command ran found a problem",
 };
 
 /** An unclassified error is a usage error: a module that throws while loading is the project's to fix. */

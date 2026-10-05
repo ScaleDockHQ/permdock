@@ -1,0 +1,79 @@
+---
+title: config
+description: Check permdock.config.ts for keys PermDock does not read, or print the effective config with every default filled in.
+---
+
+`permdock config` reads the config file and lists each key PermDock does not read, such as a misspelt `srcPaths`. `permdock config --print` prints the effective config as JSON: the file, the config as written, and the value every command uses where the config is silent.
+
+## Usage
+
+```bash
+permdock config            # warnings for unknown keys
+permdock config --strict   # exit 1 on a warning, for CI
+permdock config --print    # the effective config as JSON
+permdock config --config apps/web/permdock.config.ts --print
+```
+
+`--json` prints the same report as `--print`.
+
+```json
+{
+  "$schema": "https://permdock.com/schemas/config-report-v1.json",
+  "file": "permdock.config.ts",
+  "config": {
+    "permissions": "./src/permissions.ts",
+    "collect": { "barrel": true }
+  },
+  "resolved": {
+    "permissions": "./src/permissions.ts",
+    "policy": null,
+    "srcPath": ["./src"],
+    "catalog": "permissions.catalog.json",
+    "barrel": "src/permissions.generated.ts",
+    "migrations": [
+      "supabase/migrations",
+      "supabase/schemas",
+      "migrations",
+      "drizzle",
+      "prisma/migrations",
+      "db/migrations"
+    ],
+    "sensitiveActions": [
+      "approve",
+      "pay",
+      "settle",
+      "submit",
+      "transfer",
+      "refund",
+      "disburse"
+    ],
+    "rlsSchema": "permdock"
+  },
+  "warnings": []
+}
+```
+
+| `resolved` field   | Unset default                                                                                  | Read by                           |
+| ------------------ | ---------------------------------------------------------------------------------------------- | --------------------------------- |
+| `permissions`      | The first of `src/permissions.ts`, `permissions.ts` and `<srcPath>/permissions.ts` that exists | `collect`, `catalog`, `usage`     |
+| `srcPath`          | `["./src"]`                                                                                    | `collect`, `usage`, `doctor`      |
+| `catalog`          | `collect.out`, then `catalog.out`, then `permissions.catalog.json`                             | `collect`, `catalog`, `cloud`     |
+| `barrel`           | `false`; `true` writes `src/permissions.generated.ts`                                          | `collect`                         |
+| `migrations`       | `doctor.migrations`, then the six folders above                                                | `doctor` SQL checks               |
+| `sensitiveActions` | `doctor.sensitiveActions`, then the seven verbs above                                          | `doctor` PD017                    |
+| `rlsSchema`        | `rls.schema`, then `rls.rbac.schema`, then `permdock`                                          | `rls`, `supabase`, `doctor` PD054 |
+
+## Validation
+
+Every command checks the config before it runs. A module path that is not a string, or a section (`collect`, `rls`, `doctor`, …) that is not an object, exits `2` with the key named, as Problem Details under `--json`. A key PermDock does not read is a warning on stderr, `permdock: warning: permdock.config.ts: unknown key collect.srcPaths; PermDock reads srcPath, out, barrel`, and the command still runs.
+
+## Why
+
+- **Unknown keys warn instead of failing.** A config written for a newer PermDock still loads in an older CLI, and a monorepo can pin two versions. The cost of a typo is a key that does nothing, so the warning names it and the key list, and `config --strict` turns it into a CI failure for a project that wants one.
+- **The known keys come from the config types.** Each list is checked against `keyof` its section type when PermDock builds, so a new option cannot ship without the validator knowing it.
+
+## Related
+
+- [CLI](/docs/cli)
+- [doctor](/docs/cli/doctor)
+- [collect](/docs/cli/collect)

@@ -1,25 +1,23 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-import type { DoctorFinding } from "./doctor-types.ts";
-import type { PermDockConfig } from "./types.ts";
+import type { DoctorFinding, DoctorInput } from "./doctor-types.ts";
 
-import { loadPolicy } from "./doctor-collect.ts";
+import { policyOf } from "./doctor-collect.ts";
 import { powersyncFile, powersyncOut } from "./powersync.ts";
 
 /**
  * PD058: `sync-config.yaml` is not what the policy compiles to, so the
  * PowerSync service syncs rows by an older policy.
  */
-export async function pd058(input: {
-  readonly cwd: string;
-  readonly config: PermDockConfig;
-}): Promise<readonly DoctorFinding[]> {
+export async function pd058(
+  input: DoctorInput,
+): Promise<readonly DoctorFinding[]> {
   const { cwd, config } = input;
   if (config.powersync === undefined || config.policy === undefined) {
     return [];
   }
-  const policy = await loadPolicy(cwd, config.policy);
+  const policy = await policyOf(input);
   if (policy === undefined) {
     return [];
   }

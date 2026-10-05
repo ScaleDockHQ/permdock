@@ -34,6 +34,7 @@ const scan: ScanResult = {
   planNames: [],
   allowKeys: [],
   snapshots: [],
+  unparsed: [],
 };
 
 const permissions = definePermissions({

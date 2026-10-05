@@ -1,6 +1,6 @@
 Collect, export, diff and check the permissions a PermDock policy declares (permdock)
 
-USAGE permdock [OPTIONS] collect|catalog|diff|usage|doctor|skills|openapi|rls|arazzo|cloud|supabase|powersync
+USAGE permdock [OPTIONS] collect|catalog|diff|usage|doctor|config|skills|openapi|rls|arazzo|cloud|supabase|powersync
 
 OPTIONS
 
@@ -19,6 +19,7 @@ COMMANDS
        diff    Compare two policies or catalogs; exit 1 on a breaking change                                   
       usage    Report unused, ungranted and role-less permissions and conditions on undeclared fields          
      doctor    Check a PermDock installation and print a fix for each finding                                  
+     config    Check permdock.config.ts for unknown keys, or print the effective config                        
      skills    Install, update or list the PermDock Agent Skills                                               
     openapi    Emit security into an OpenAPI document, or import one into a generated definition               
         rls    Generate, import, verify or migrate Postgres RLS policies from the policy                       

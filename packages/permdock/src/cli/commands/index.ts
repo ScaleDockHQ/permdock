@@ -8,6 +8,7 @@ export type CommandName =
   | "diff"
   | "usage"
   | "doctor"
+  | "config"
   | "skills"
   | "openapi"
   | "rls"
@@ -25,6 +26,8 @@ export const COMMAND_DESCRIPTIONS: Readonly<Record<CommandName, string>> = {
   usage:
     "Report unused, ungranted and role-less permissions and conditions on undeclared fields",
   doctor: "Check a PermDock installation and print a fix for each finding",
+  config:
+    "Check permdock.config.ts for unknown keys, or print the effective config",
   skills: "Install, update or list the PermDock Agent Skills",
   openapi:
     "Emit security into an OpenAPI document, or import one into a generated definition",
@@ -47,6 +50,7 @@ export const commands: Readonly<
   diff: async () => (await import("./diff.ts")).diff,
   usage: async () => (await import("./usage.ts")).usage,
   doctor: async () => (await import("./doctor.ts")).doctor,
+  config: async () => (await import("./config.ts")).config,
   skills: async () => (await import("./skills.ts")).skills,
   openapi: async () => (await import("./openapi.ts")).openapi,
   rls: async () => (await import("./rls.ts")).rls,
