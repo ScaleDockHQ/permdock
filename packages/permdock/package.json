@@ -227,6 +227,10 @@
       "types": "./dist/testing/saas/permissions.d.ts",
       "default": "./dist/testing/saas/permissions.js"
     },
+    "./compile": {
+      "types": "./dist/compile/index.d.ts",
+      "default": "./dist/compile/index.js"
+    },
     "./catalog": {
       "types": "./dist/catalog/index.d.ts",
       "default": "./dist/catalog/index.js"
