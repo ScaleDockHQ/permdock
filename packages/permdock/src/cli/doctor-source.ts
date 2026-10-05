@@ -1,3 +1,8 @@
+import { createJiti } from "jiti";
+import { existsSync, realpathSync } from "node:fs";
+import { isBuiltin } from "node:module";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseSync } from "oxc-parser";
 
 import type { DoctorFinding, DoctorSource } from "./doctor-types.ts";
@@ -66,14 +71,108 @@ export function isClientSource(
   );
 }
 
+/** Specifiers a module loads at runtime: value imports, re-exports and literal dynamic imports. */
+export function runtimeSpecifiers(source: DoctorSource): readonly string[] {
+  const { module } = parseSync(source.file, source.text);
+  const out = new Set<string>();
+  for (const item of module.staticImports) {
+    if (
+      item.entries.length === 0 ||
+      item.entries.some((entry) => !entry.isType)
+    ) {
+      out.add(item.moduleRequest.value);
+    }
+  }
+  for (const item of module.staticExports) {
+    for (const entry of item.entries) {
+      if (entry.moduleRequest !== null && !entry.isType) {
+        out.add(entry.moduleRequest.value);
+      }
+    }
+  }
+  for (const item of module.dynamicImports) {
+    const literal = /^\s*(['"`])([^'"`$]+)\1\s*$/u.exec(
+      source.text.slice(item.moduleRequest.start, item.moduleRequest.end),
+    );
+    if (literal?.[2] !== undefined) {
+      out.add(literal[2]);
+    }
+  }
+  return [...out];
+}
+
+function realFile(path: string): string {
+  try {
+    return realpathSync(path);
+  } catch {
+    return path;
+  }
+}
+
+/**
+ * A resolver for imports of `file`, the way the bundler resolves them:
+ * relative paths with or without an extension, the `paths` of the nearest
+ * `tsconfig.json`, and package names through `node_modules` and each
+ * package's `exports`. An unresolvable specifier gives `undefined`.
+ */
+export function resolverFor(
+  file: string,
+): (specifier: string) => string | undefined {
+  const jiti = createJiti(file, { tsconfigPaths: dirname(file) });
+  const parentURL = pathToFileURL(file);
+  return (specifier) => {
+    if (specifier === "" || isBuiltin(specifier)) {
+      return undefined;
+    }
+    try {
+      const url = jiti.esmResolve(specifier, { parentURL, try: true });
+      const path =
+        url?.startsWith("file:") === true ? fileURLToPath(url) : undefined;
+      return path !== undefined && existsSync(path)
+        ? realFile(path)
+        : undefined;
+    } catch {
+      return undefined;
+    }
+  };
+}
+
+export type PolicyModule = {
+  readonly cwd: string;
+  /** The configured `policy` path, relative to `cwd`. */
+  readonly path: string;
+};
+
 export function pd001(
   sources: readonly DoctorSource[],
   clientEntries: ReadonlySet<string> = new Set(),
+  policy?: PolicyModule,
 ): readonly DoctorFinding[] {
   const findings: DoctorFinding[] = [];
+  const policyFile =
+    policy === undefined
+      ? undefined
+      : realFile(resolve(policy.cwd, policy.path));
   for (const source of sources) {
     if (!isClientSource(source, clientEntries)) {
       continue;
+    }
+    if (policy !== undefined && policyFile !== undefined) {
+      const resolveImport = resolverFor(resolve(policy.cwd, source.file));
+      for (const specifier of runtimeSpecifiers(source)) {
+        if (
+          specifier !== "permdock" &&
+          !specifier.startsWith("permdock/") &&
+          resolveImport(specifier) === policyFile
+        ) {
+          findings.push({
+            code: "PD001",
+            severity: "error",
+            message: `${source.file} imports the policy module through ${specifier}`,
+            fix: "decide on the server and pass a snapshot to the client ('permdock/react'); never import the policy into a client entry",
+          });
+        }
+      }
     }
     for (const spec of SERVER_SPECIFIERS) {
       if (

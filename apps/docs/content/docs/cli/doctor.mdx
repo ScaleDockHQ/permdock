@@ -92,6 +92,8 @@ export default defineConfig({
 });
 ```
 
+`doctor` also reports a client entry that imports the module `policy` names in `permdock.config.ts`. It resolves each value import, re-export and literal dynamic `import()` of the client entry from that file, as the bundler would: relative paths with or without an extension, the `paths` of the nearest `tsconfig.json`, and package names through `node_modules` and the package's `exports`. A monorepo that exposes the policy as `@acme/access/permdock/policy` from a workspace package is therefore caught in the app that imports it. A type-only import is not reported, because the bundler erases it.
+
 This is the permix issue #49 class of bug (server code leaking into client bundles), caught before the bundler does something surprising. The bundle check in `tests/bundle` covers what a transitive import would reach.
 
 ### PD002: unknown permission references
