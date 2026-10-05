@@ -153,6 +153,11 @@ export {
   resolveCustomRole,
   validateCustomRole,
 } from "./core/custom-roles.ts";
+export { customRoleSource } from "./core/custom-role-source.ts";
+export type {
+  CustomRoleReader,
+  CustomRoleSourceOptions,
+} from "./core/custom-role-source.ts";
 export type {
   CustomRoleDrop,
   CustomRoleDropReason,
