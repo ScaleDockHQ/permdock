@@ -23,7 +23,7 @@ import { supabaseTenantClaim } from "../supabase/budget.ts";
 import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
 import { policyRowConditionKeys } from "./catalog-doc.ts";
 import { asPolicy, loadModule, pickNamed } from "./load.ts";
-import { INDEXES_MARKER, SEEDS_MARKER } from "./markers.ts";
+import { GRANTS_MARKER, INDEXES_MARKER, SEEDS_MARKER } from "./markers.ts";
 import { breakGlassEntries, breakGlassSql } from "./rls-break-glass.ts";
 import { compileGrants } from "./rls-compile.ts";
 import {
@@ -63,6 +63,7 @@ import {
   type SqlFile,
   writeSqlFiles,
 } from "./sql-files.ts";
+import { sqlStatements } from "./sql-statements.ts";
 import { supabaseConfig } from "./supabase-config.ts";
 import { grantsLabel, supabaseHookSql } from "./supabase-hook.ts";
 
@@ -123,6 +124,40 @@ function customRoleNames(
     assignable,
     ...(renamed.size === 0 ? {} : { renamed: Object.fromEntries(renamed) }),
     ...(policy.levels === undefined ? {} : { levels: true as const }),
+  };
+}
+
+const SECURITY_VIEW =
+  /^create\s+(?:or\s+replace\s+)?view\s+(?<name>\S+)\s+with\s*\((?<options>[^)]*)\)/iu;
+
+/**
+ * Moves the helpers' grants and revokes, which `supabase db diff` drops, out
+ * of the helpers part, with an `alter view ... set (...)` for each view
+ * option it drops as well.
+ */
+function moveGrants(
+  helpers: string,
+  label: string,
+): { readonly sql: string; readonly grants: string } {
+  const moved: string[] = [];
+  let sql = helpers;
+  for (const { text } of sqlStatements(helpers)) {
+    const view = SECURITY_VIEW.exec(text)?.groups;
+    if (view !== undefined) {
+      moved.push(
+        `alter view ${view["name"] ?? ""} set (${view["options"] ?? ""});`,
+      );
+      continue;
+    }
+    if (/^(?:grant|revoke)\s/iu.test(text)) {
+      moved.push(`${text};`);
+      sql = sql.replace(`${text};\n`, "");
+    }
+  }
+  const [first = "", ...rest] = sql.split("\n");
+  return {
+    sql: [first, `-- the helpers' grants are in ${label}`, ...rest].join("\n"),
+    grants: `-- the grants and view options supabase db diff drops from the helpers part\n${moved.join("\n")}`,
   };
 }
 
@@ -547,7 +582,7 @@ function outputFiles(plan: {
   }
   if (split === undefined) {
     if (input.grantsOut !== undefined) {
-      return "rls generate --grants-out needs --split with the hook part: the grants are the token hook's";
+      return "rls generate --grants-out needs --split with the helpers or hook part";
     }
     if (input.seedsOut !== undefined) {
       return "rls generate --seeds-out needs --split with the seeds part";
@@ -582,8 +617,12 @@ function outputFiles(plan: {
     pgDelta === undefined
       ? partPath(plan.outRel, part)
       : pgDeltaPath(pgDelta.schemaDir, part, schema);
-  if (input.grantsOut !== undefined && !split.includes("hook")) {
-    return "rls generate --grants-out needs the hook part in --split";
+  if (
+    input.grantsOut !== undefined &&
+    !split.includes("hook") &&
+    !split.includes("helpers")
+  ) {
+    return "rls generate --grants-out needs the helpers or hook part in --split";
   }
   if (input.seedsOut !== undefined && !split.includes("seeds")) {
     return "rls generate --seeds-out needs the seeds part in --split";
@@ -593,11 +632,21 @@ function outputFiles(plan: {
   }
   const sql = plan.sql();
   const files: SqlFile[] = [];
+  const label = grantsLabel(input.grantsOut);
+  let grantsMarker = `${GRANTS_MARKER} schema=${plan.schema}`;
+  const grants: string[] = [];
   for (const part of split) {
     switch (part) {
-      case "helpers":
-        files.push({ part, rel: at(part), text: sql.helpers });
+      case "helpers": {
+        if (label === undefined) {
+          files.push({ part, rel: at(part), text: sql.helpers });
+          break;
+        }
+        const moved = moveGrants(sql.helpers, label);
+        files.push({ part, rel: at(part), text: moved.sql });
+        grants.push(moved.grants);
         break;
+      }
       case "seeds":
         files.push({
           part,
@@ -612,24 +661,15 @@ function outputFiles(plan: {
         files.push({ part, rel: at(part), text: sql.policies });
         break;
       case "hook": {
-        const hook = supabaseHookSql(
-          plan.scopes,
-          input.config,
-          {},
-          grantsLabel(input.grantsOut),
-        );
+        const hook = supabaseHookSql(plan.scopes, input.config, {}, label);
         files.push({
           part,
           rel: at(part, hook.manifest.hook.schema),
           text: hook.sql,
         });
-        if (input.grantsOut !== undefined) {
-          files.push({
-            part: "grants",
-            rel: input.grantsOut,
-            text: hook.grants,
-          });
-        }
+        const [marker = grantsMarker, ...rest] = hook.grants.split("\n");
+        grantsMarker = marker;
+        grants.push(rest.join("\n").trimEnd());
         break;
       }
       default: {
@@ -637,6 +677,13 @@ function outputFiles(plan: {
         return exhaustive;
       }
     }
+  }
+  if (input.grantsOut !== undefined) {
+    files.push({
+      part: "grants",
+      rel: input.grantsOut,
+      text: `${[grantsMarker, ...grants].join("\n")}\n`,
+    });
   }
   return files;
 }
