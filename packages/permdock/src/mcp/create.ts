@@ -5,6 +5,7 @@ import type {
   ScopeChallengeHandler,
 } from "@modelcontextprotocol/server";
 
+import type { CheckFailure, ToolBinding } from "../agent/types.ts";
 import type { Decision } from "../core/decision.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission, ToolHints } from "../core/permissions.ts";
@@ -24,15 +25,14 @@ import type {
   ProcedureMcpServer,
 } from "./types.ts";
 
+import { createAgentKernel } from "../agent/kernel.ts";
 import { boundedMap } from "../agent/lru.ts";
-import { resumeDecision, storedApprovalToken } from "../approvals/helpers.ts";
 import { clientNameOf } from "../core/clients.ts";
 import { compact } from "../core/compact.ts";
 import { describe } from "../core/describe.ts";
 import { instanceOptions } from "../core/instance-options.ts";
 import { mayUse } from "../core/may-use.ts";
 import { challengeScope, scopesReaching } from "../core/oauth-scopes.ts";
-import { createPermDock as createCorePermDock } from "../core/permdock.ts";
 import { annotationsFor } from "../core/permissions.ts";
 import { wireDenials } from "../core/wire-denial.ts";
 import {
@@ -319,6 +319,50 @@ function plainRefusal(
   };
 }
 
+function tenantOf(
+  tenant: McpPermDockOptions["tenant"],
+):
+  | string
+  | ((call: McpCall) => ReturnType<Exclude<typeof tenant, string | undefined>>)
+  | undefined {
+  if (typeof tenant !== "function") {
+    return tenant;
+  }
+  return (call) => tenant(call.authInfo ?? {});
+}
+
+/** What the kernel sees of one MCP request; built per call so no two share an instance. */
+type McpCall = { readonly authInfo?: McpAuthInfo };
+
+function failedRefusal(permission: Permission, failure: CheckFailure): Refusal {
+  switch (failure) {
+    case "load-failed":
+      return plainRefusal(
+        permission,
+        `Denied: ${permission.key} failed closed.`,
+        {
+          denials: [{ role: null, reason: "validation" }],
+        },
+      );
+    case "no-data":
+      return plainRefusal(
+        permission,
+        `Denied: ${permission.key} found nothing to decide on.`,
+        { denials: [{ role: null, reason: "validation" }] },
+      );
+    case "failed":
+      return plainRefusal(
+        permission,
+        `Denied: ${permission.key} failed closed.`,
+        {},
+      );
+    default: {
+      const exhaustive: never = failure;
+      return exhaustive;
+    }
+  }
+}
+
 function toolRefusal(refusal: Refusal): unknown {
   if (refusal.inputRequired !== undefined) {
     return refusal.inputRequired;
@@ -405,46 +449,31 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
   if (actorKind === undefined) {
     throw new TypeError("permdock/mcp: actorKind must be a non-empty string");
   }
-  const instanceFor = async (
-    authInfo: McpAuthInfo | undefined,
-  ): Promise<PermDock> => {
-    const material = authInfo ?? {};
-    let user: TUser | null = null;
-    try {
-      user = await options.subject(material);
-    } catch {
-      user = null;
-    }
-    let tenant: string | undefined;
-    try {
-      tenant =
-        typeof options.tenant === "function"
-          ? await options.tenant(material)
-          : options.tenant;
-    } catch {
-      tenant = undefined;
-    }
-    const clientId = authInfo?.clientId;
-    const actor =
-      typeof clientId === "string" && clientId !== ""
-        ? compact({
-            id: clientId,
-            kind: actorKind,
-            client: clientNameOf(options.clients, clientId),
-          })
-        : undefined;
-    const built = await createCorePermDock(
-      policy,
-      user,
-      compact({
-        tenant,
-        actor,
-        delegation: authInfo === undefined ? undefined : delegationOf(authInfo),
-        ...instanceOptions(options),
-      }),
-    );
-    return options.otel === undefined ? built : options.otel(built);
-  };
+  const kernel = createAgentKernel<McpCall, TUser>(
+    // SAFETY: the kernel reads the principal only through the policy's own subject function.
+    policy as Policy<TUser>,
+    compact({
+      subject: (call: McpCall) => options.subject(call.authInfo ?? {}),
+      actor: (call: McpCall) => {
+        const clientId = call.authInfo?.clientId;
+        return typeof clientId === "string" && clientId !== ""
+          ? compact({
+              id: clientId,
+              kind: actorKind,
+              client: clientNameOf(options.clients, clientId),
+            })
+          : undefined;
+      },
+      delegation: (call: McpCall) =>
+        call.authInfo === undefined ? undefined : delegationOf(call.authInfo),
+      tenant: tenantOf(options.tenant),
+      store: options.store,
+      adapter: "mcp",
+      boundary: "mcp-args" as const,
+      wrap: options.otel,
+      ...instanceOptions(options),
+    }),
+  );
 
   const forThisServer = (authInfo: McpAuthInfo): boolean =>
     options.resource === undefined ||
@@ -586,91 +615,62 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         ),
       };
     }
-    let data: unknown;
-    if (load !== undefined) {
-      try {
-        data = await load();
-      } catch {
+    const binding = compact<ToolBinding>({
+      permission,
+      data: load === undefined ? undefined : (): unknown => load(),
+    });
+    const call: McpCall = compact({ authInfo });
+    if (completion !== undefined) {
+      const rechecked = await kernel.check(binding, undefined, call, {
+        simulate: true,
+      });
+      if (!rechecked.ok) {
         return {
           ok: false,
-          refusal: plainRefusal(
-            permission,
-            `Denied: ${permission.key} failed closed.`,
-            { denials: [{ role: null, reason: "validation" }] },
-          ),
+          refusal: failedRefusal(permission, rechecked.failure),
         };
       }
-      if (data === null || data === undefined) {
-        return {
-          ok: false,
-          refusal: plainRefusal(
-            permission,
-            `Denied: ${permission.key} found nothing to decide on.`,
-            { denials: [{ role: null, reason: "validation" }] },
-          ),
-        };
+      if (stillAllowed(rechecked.raw, completion.approved)) {
+        return { ok: true };
       }
+      return {
+        ok: false,
+        refusal:
+          rechecked.raw.outcome === "denied"
+            ? deniedRefusal(rechecked.raw, permission, rechecked.data)
+            : plainRefusal(
+                permission,
+                `Denied: ${permission.key} was revoked before the call completed.`,
+                {},
+              ),
+      };
     }
-    try {
-      const permdock = await instanceFor(authInfo);
-      // SAFETY: decide's instance and collection overloads share one implementation that takes either kind.
-      const raw = (
-        permdock.decide as (
-          next: Permission,
-          row?: unknown,
-          decideOptions?: {
-            readonly source: "adapter" | "simulate";
-            readonly adapter: string;
-            readonly boundary: "mcp-args";
-          },
-        ) => Decision
-      )(permission, data, {
-        source: completion === undefined ? "adapter" : "simulate",
-        adapter: "mcp",
-        boundary: "mcp-args",
-      });
-      if (completion !== undefined) {
-        if (stillAllowed(raw, completion.approved)) {
-          return { ok: true };
-        }
+    const checked = await kernel.check(
+      binding,
+      undefined,
+      call,
+      compact({ resumeToken: approvalTokenOf(context) }),
+    );
+    if (!checked.ok) {
+      return { ok: false, refusal: failedRefusal(permission, checked.failure) };
+    }
+    const { raw, decision, data } = checked;
+    switch (decision.outcome) {
+      case "granted":
+        return raw.outcome === "approval-required"
+          ? { ok: true, approved: raw.token }
+          : { ok: true };
+      case "denied":
         return {
           ok: false,
-          refusal:
-            raw.outcome === "denied"
-              ? deniedRefusal(raw, permission, data)
-              : plainRefusal(
-                  permission,
-                  `Denied: ${permission.key} was revoked before the call completed.`,
-                  {},
-                ),
+          refusal: decision.denials.some(
+            (denial) => denial.reason === "insufficient-user-authentication",
+          )
+            ? stepUpRefusal(decision, permission, data, context, capabilities)
+            : deniedRefusal(decision, permission, data),
         };
-      }
-      const decision = await resumeDecision({
-        decision: raw,
-        permission,
-        subject: permdock.subject,
-        store: options.store,
-        resource: resourceRef(permission, data),
-        adapter: "mcp",
-        token:
-          approvalTokenOf(context) ??
-          (await storedApprovalToken(options.store, raw)),
-      });
-      switch (decision.outcome) {
-        case "granted":
-          return raw.outcome === "approval-required"
-            ? { ok: true, approved: raw.token }
-            : { ok: true };
-        case "denied":
-          return {
-            ok: false,
-            refusal: decision.denials.some(
-              (denial) => denial.reason === "insufficient-user-authentication",
-            )
-              ? stepUpRefusal(decision, permission, data, context, capabilities)
-              : deniedRefusal(decision, permission, data),
-          };
-        case "approval-required":
+      case "approval-required":
+        try {
           return {
             ok: false,
             refusal: compact<Refusal>({
@@ -683,20 +683,13 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
               ),
             }),
           };
-        default: {
-          const exhaustive: never = decision;
-          return exhaustive;
+        } catch {
+          return { ok: false, refusal: failedRefusal(permission, "failed") };
         }
+      default: {
+        const exhaustive: never = decision;
+        return exhaustive;
       }
-    } catch {
-      return {
-        ok: false,
-        refusal: plainRefusal(
-          permission,
-          `Denied: ${permission.key} failed closed.`,
-          {},
-        ),
-      };
     }
   };
 
@@ -724,7 +717,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     }
     let permdock: PermDock;
     try {
-      permdock = await instanceFor(authInfo);
+      permdock = await kernel.instance(compact({ authInfo }));
     } catch {
       // A subject that cannot be built sees no guarded entry.
       return shown;

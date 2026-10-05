@@ -15,6 +15,7 @@ import {
   PermDockDeniedError,
   PermDockValidationError,
 } from "../core/errors.ts";
+import { instanceOptions } from "../core/instance-options.ts";
 import { createPermDock as createCore } from "../core/permdock.ts";
 
 export class ConvexError extends Error {
@@ -59,7 +60,7 @@ export function createPermDock<
       } catch {
         user = null;
       }
-      const permdock = await createCore(policy, user);
+      const permdock = await createCore(policy, user, instanceOptions(options));
       // SAFETY: the spread keeps every TCtx field and adds the permdock instance built above.
       const next = { ...ctx, permdock } as ConvexPermDockCtx<TCtx, V>;
       try {

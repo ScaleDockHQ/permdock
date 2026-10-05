@@ -432,6 +432,8 @@
   "./pdp": ["createPermDock", "openfga", "remotePdp", "spicedb"],
   "./catalog": ["parseCatalog", "rowConditionKeys"],
   "./testing": [
+    "AGENT_THROWING_ROW",
+    "AGENT_THROWING_USER",
     "authzenTodoData",
     "authzenTodoPermissions",
     "authzenTodoPolicy",
@@ -449,6 +451,7 @@
     "supabaseClaimFixtures",
     "supabaseHookManifestFixture",
     "supabaseMembershipsBudget",
+    "testAgentAdapter",
     "testApprovalPolicySource",
     "testApprovalStore",
     "testAuthZen",

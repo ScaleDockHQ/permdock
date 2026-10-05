@@ -33,6 +33,13 @@ import { exitCode, formatDecision } from "./format.ts";
 import { deleteCredentials, readCredentials } from "./storage.ts";
 import { profileFromArgv, resolveToken, warnJwtInArgv } from "./token.ts";
 
+/** A thrown subject, loader or decision, or an instance check without a row. */
+const FAILED_CLOSED: Extract<Decision, { readonly outcome: "denied" }> = {
+  outcome: "denied",
+  denials: [{ role: null, reason: "validation" }],
+  alternatives: [],
+};
+
 function writeOf(options: TerminalPermDockOptions): (text: string) => void {
   return (
     options.runtime?.write ??
@@ -306,13 +313,10 @@ export function createPermDock<
     ) =>
     (action: (context: ProtectContext<TData, V>, ...args: TArgs) => unknown) =>
     async (...args: TArgs): Promise<unknown> => {
-      const instance = await permdock();
+      const dryRun = flag(options, options.dryRun, ["--dry-run"]);
+      let instance: PermDock<V>;
       let data: TData | undefined;
-      if (load !== undefined) {
-        data = await load(...args);
-      }
-      // SAFETY: decide's generics only tie the row type to the permission; it accepts any row.
-      const decide = instance.decide as (
+      let decide: (
         next: Permission,
         row?: unknown,
         decideOptions?: {
@@ -320,14 +324,34 @@ export function createPermDock<
           readonly adapter: string;
         },
       ) => Decision;
-      const dryRun = flag(options, options.dryRun, ["--dry-run"]);
-      const first = decide(
-        permission,
-        data,
-        dryRun
-          ? { source: "simulate", adapter: "terminal" }
-          : { source: "adapter", adapter: "terminal" },
-      );
+      let first: Decision;
+      try {
+        instance = await permdock();
+        if (load !== undefined) {
+          data = await load(...args);
+          if (
+            permission.kind === "instance" &&
+            (data === null || data === undefined)
+          ) {
+            write(
+              format(FAILED_CLOSED, { permission, subject: instance.subject }),
+            );
+            return exit(exitCode(FAILED_CLOSED));
+          }
+        }
+        // SAFETY: decide's generics only tie the row type to the permission; it accepts any row.
+        decide = instance.decide as typeof decide;
+        first = decide(
+          permission,
+          data,
+          dryRun
+            ? { source: "simulate", adapter: "terminal" }
+            : { source: "adapter", adapter: "terminal" },
+        );
+      } catch {
+        write(format(FAILED_CLOSED, { permission }));
+        return exit(exitCode(FAILED_CLOSED));
+      }
 
       if (dryRun) {
         write(

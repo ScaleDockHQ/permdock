@@ -47,6 +47,20 @@ export type {
   HttpScenarioName,
 } from "./http-adapter.ts";
 export {
+  AGENT_THROWING_ROW,
+  AGENT_THROWING_USER,
+  testAgentAdapter,
+} from "./agent-adapter.ts";
+export type {
+  AgentAdapterOptions,
+  AgentCall,
+  AgentMounted,
+  AgentOutcome,
+  AgentScenarioDomain,
+  AgentScenarioName,
+  AgentToolName,
+} from "./agent-adapter.ts";
+export {
   authzenTodoData,
   authzenTodoPermissions,
   authzenTodoPolicy,

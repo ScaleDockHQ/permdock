@@ -109,7 +109,7 @@ describe("permdock/a2a", () => {
     if (forged.ok) {
       return;
     }
-    expect(forged.status).toBe(403);
+    expect(forged.status).toBe(401);
   });
 
   it("rejects a task when the token is missing the skill scope", async () => {

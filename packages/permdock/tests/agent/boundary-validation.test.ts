@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import { createAgentKernel } from "../../src/agent/kernel.ts";
+import { PermDockValidationError } from "../../src/core/validation-error.ts";
 import {
   allow,
   createPermDock,
@@ -74,5 +75,34 @@ describe("tool arguments are boundary data", () => {
       amount: "50000",
     });
     expect(reasonOf(decision)).toBe("validation");
+  });
+
+  it("names the adapter's boundary in the validation error", async () => {
+    const boundaryOf = async (
+      boundary: "mcp-args" | undefined,
+    ): Promise<unknown> => {
+      const named = createAgentKernel(policy, {
+        adapter: "test",
+        subject: () => user,
+        ...(boundary === undefined ? {} : { boundary }),
+      });
+      const checked = await named.check(
+        {
+          permission: permissions.invoice.create,
+          data: (args: unknown) => args,
+        },
+        { id: "i1", amount: "50000" },
+        {},
+      );
+      if (!checked.ok || checked.decision.outcome !== "denied") {
+        return undefined;
+      }
+      const [denial] = checked.decision.denials;
+      return denial?.detail instanceof PermDockValidationError
+        ? denial.detail.boundary
+        : undefined;
+    };
+    expect(await boundaryOf(undefined)).toBe("tool-args");
+    expect(await boundaryOf("mcp-args")).toBe("mcp-args");
   });
 });
