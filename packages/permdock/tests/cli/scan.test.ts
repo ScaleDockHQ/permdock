@@ -268,6 +268,20 @@ export function fixture() {
     ]);
   });
 
+  it("follows an import whose specifier is a string literal", () => {
+    const result = scan({
+      "use.ts": `import { "appPermissions" as tree } from './defs.ts';
+can(tree.post.read);
+`,
+      "defs.ts": `import { definePermissions } from 'permdock';
+export const appPermissions = definePermissions({});
+`,
+    });
+    expect(result.usages["post.read"]).toEqual([
+      { file: "use.ts", line: 2, call: "can" },
+    ]);
+  });
+
   it("still reads an unbound permissions reference by name", () => {
     const result = scan({
       "generated.js": `can(permissions.post.read);

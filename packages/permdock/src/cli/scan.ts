@@ -264,7 +264,8 @@ function isDefinePermissions(node: Estree | null | undefined): boolean {
 /** An import binding of a permission tree: by its imported name, or a default import named `permissions`. */
 function importsRoot(spec: Estree, definitions: ReadonlySet<string>): boolean {
   if (spec.type === "ImportSpecifier") {
-    const imported = spec.imported?.name ?? spec.local?.name;
+    const value = spec.imported?.value;
+    const imported = typeof value === "string" ? value : spec.imported?.name;
     return imported !== undefined && definitions.has(imported);
   }
   return (

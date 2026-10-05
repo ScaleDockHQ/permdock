@@ -104,6 +104,21 @@ describe("permdock collect --watch", () => {
     }
   });
 
+  it("reports a config that fails to load and keeps watching", async () => {
+    const cwd = copyFixture();
+    writeFileSync(
+      join(cwd, "broken.config.ts"),
+      "export default { collect: { srcPath: 5 } };\n",
+    );
+    const result = await run(
+      ["collect", "--watch", "--config", "broken.config.ts"],
+      { cwd, io: { stdout: () => undefined, stderr: () => undefined } },
+    );
+    expect(result.code).toBe(0);
+    expect(result.stdout).not.toContain("watching for changes");
+    expect(result.stdout).toContain("srcPath");
+  });
+
   it("rejects --watch with --check", async () => {
     const result = await run(["collect", "--watch", "--check"], {
       cwd: copyFixture(),

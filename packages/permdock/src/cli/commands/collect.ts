@@ -53,7 +53,8 @@ export function collect(ctx: CliContext): Command {
           return;
         }
         // Lazy: the watcher loads only when this command runs, not for --help.
-        const { createCollectScheduler } = await import("../watch.ts");
+        const { createCollectScheduler, describeError } =
+          await import("../watch.ts");
         const scheduler = createCollectScheduler(
           ctx.cwd,
           { collect: overrides },
@@ -70,7 +71,7 @@ export function collect(ctx: CliContext): Command {
         try {
           message = await scheduler.run(false);
         } catch (error) {
-          message = error instanceof Error ? error.message : String(error);
+          message = describeError(error);
         }
         scheduler.watch();
         ctx.report({
