@@ -152,6 +152,7 @@ export default defineConfig({
   // command chunks; `oxc-parser` is a dependency and the other CLI packages
   // are optional peers, so they stay external.
   deps: {
+    neverBundle: [/^#next\//u],
     onlyBundle: [
       "ajv",
       "fast-deep-equal",

@@ -1,9 +1,9 @@
 "use client";
 
-import type { ErrorInfo } from "next/error";
+import type { ErrorInfo } from "next/error.js";
 import type { ComponentType, ReactNode } from "react";
 
-import { catchError } from "next/error";
+import * as nextError from "next/error.js";
 import { createContext, useContext } from "react";
 
 import type { PermDockDigest } from "../core/digest.ts";
@@ -21,6 +21,11 @@ export type PermissionBoundaryProps = {
   /** Rendered when a child throws `PermDockApprovalRequiredError`; defaults to `denied`. */
   readonly approval?: ReactNode;
 };
+
+// SAFETY: Node ESM loads next/error.js as CommonJS, where catchError is a getter only the default export (module.exports) carries; bundlers expose the named export.
+const catchError: typeof nextError.catchError =
+  nextError.catchError ??
+  (nextError.default as unknown as typeof nextError).catchError;
 
 const BoundaryContext = createContext<PermissionBoundaryState | null>(null);
 
