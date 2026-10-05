@@ -374,6 +374,8 @@ export type Assignable = {
   readonly levels: Readonly<Record<string, readonly string[]>>;
   /** A `meta.manageRoles` role or permission lifted the intersection. */
   readonly manage: boolean;
+  /** Custom roles held at a scope the subject assigns at that allow nothing: never offered, still revocable. */
+  readonly inert: readonly string[];
 };
 
 /**
@@ -417,7 +419,7 @@ function assignableIn(
 ): Assignable {
   const principal = subject.principal;
   if (principal === null) {
-    return { roles: [], permissions: [], levels: {}, manage: false };
+    return { roles: [], permissions: [], levels: {}, manage: false, inert: [] };
   }
   const scopes = scopeList(policy.scopes);
   const scoped: Subject =
@@ -562,7 +564,7 @@ function assignableIn(
   };
   const custom =
     global || tenant === undefined
-      ? []
+      ? { roles: [], inert: [] }
       : assignableCustomRoles(
           policy,
           customRoles,
@@ -570,13 +572,20 @@ function assignableIn(
           manage ? undefined : roles,
           mayHandOut,
         );
-  return { roles: [...roles, ...custom], permissions, levels, manage };
+  return {
+    roles: [...roles, ...custom.roles],
+    permissions,
+    levels,
+    manage,
+    inert: custom.inert,
+  };
 }
 
 /**
  * The tenant's custom roles the subject may hand out: held at a scope it may
- * assign declared roles at (any scope with `meta.manageRoles`), and allowing
- * only permissions and levels it may hand out at that scope.
+ * assign declared roles at (any scope with `meta.manageRoles`), allowing at
+ * least one permission after the ceiling, and only permissions and levels it
+ * may hand out at that scope. A role that allows nothing is `inert`.
  */
 function assignableCustomRoles(
   policy: Policy,
@@ -584,7 +593,7 @@ function assignableCustomRoles(
   tenant: string,
   declared: readonly Role[] | undefined,
   mayHandOut: (scope: string, grant: Grant) => boolean,
-): readonly Role[] {
+): { readonly roles: readonly Role[]; readonly inert: readonly string[] } {
   const scopes = scopeList(policy.scopes);
   const root = rootScope(scopes);
   const assignsAt =
@@ -596,6 +605,7 @@ function assignableCustomRoles(
           ),
         );
   const out = new Map<string, Role>();
+  const inert = new Set<string>();
   for (const role of tenantCustomRoles(policy, customRoles)) {
     if (role.tenant !== tenant || out.has(role.name)) {
       continue;
@@ -604,7 +614,12 @@ function assignableCustomRoles(
     if (at === undefined || (assignsAt !== undefined && !assignsAt.has(at))) {
       continue;
     }
-    const within = resolveCustomRole(policy, role).grants.every(
+    const { grants } = resolveCustomRole(policy, role);
+    if (!grants.some((grant) => grant.effect === "allow")) {
+      inert.add(role.name);
+      continue;
+    }
+    const within = grants.every(
       (grant) => grant.effect === "deny" || mayHandOut(at, grant),
     );
     if (within) {
@@ -614,7 +629,10 @@ function assignableCustomRoles(
       );
     }
   }
-  return [...out.values()].toSorted((a, b) => a.key.localeCompare(b.key));
+  return {
+    roles: [...out.values()].toSorted((a, b) => a.key.localeCompare(b.key)),
+    inert: [...inert].filter((name) => !out.has(name)).toSorted(),
+  };
 }
 
 export type SnapshotInclude = readonly (
@@ -1368,6 +1386,7 @@ export function buildInstance(
           return {
             assignable: new Set(found.roles.map((leaf) => leaf.key)),
             manage: found.manage,
+            inert: new Set(found.inert),
           };
         },
         nowSeconds(),

@@ -414,6 +414,8 @@ export type AssignAuthority = {
   readonly assignable: ReadonlySet<string>;
   /** The actor holds a `meta.manageRoles` role or permission there. */
   readonly manage: boolean;
+  /** Custom roles that allow nothing after the ceiling: not assignable, but revocable by an actor who assigns at their scope. */
+  readonly inert?: ReadonlySet<string>;
 };
 
 /**
@@ -544,7 +546,9 @@ export function decideRoleChange(
       });
     }
     const allowed = authority(tenant);
-    if (!allowed.assignable.has(name)) {
+    const revocable =
+      kind === "revoke" && custom !== undefined && allowed.inert?.has(name);
+    if (!allowed.assignable.has(name) && revocable !== true) {
       deny("not-assignable-by");
     } else if (custom === undefined && usesAssigns(policy) && !allowed.manage) {
       const held = rolesAtInstance(
