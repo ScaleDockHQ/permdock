@@ -48,7 +48,7 @@ type Estree = {
   readonly computed?: boolean;
   readonly callee?: Estree;
   readonly arguments?: readonly Estree[];
-  readonly init?: Estree;
+  readonly init?: Estree | null;
   readonly id?: Estree;
   readonly source?: Estree;
   readonly specifiers?: readonly Estree[];
@@ -59,7 +59,7 @@ type Estree = {
   readonly body?: Estree | readonly Estree[];
   readonly properties?: readonly Estree[];
   readonly key?: Estree;
-  readonly elements?: readonly Estree[];
+  readonly elements?: readonly (Estree | null)[];
   readonly params?: readonly Estree[];
   readonly param?: Estree | null;
   readonly parameter?: Estree;
@@ -208,7 +208,7 @@ function includeOf(
   const keys: string[] = [];
   for (const element of list.elements ?? []) {
     const path =
-      element.type === "MemberExpression" ? memberPath(element) : undefined;
+      element?.type === "MemberExpression" ? memberPath(element) : undefined;
     const [root, ...rest] = path ?? [];
     if (root === undefined || !isRoot(root) || rest.length === 0) {
       return null;
@@ -231,7 +231,7 @@ function recordImport(
   }
 }
 
-function isDefinePermissions(node: Estree | undefined): boolean {
+function isDefinePermissions(node: Estree | null | undefined): boolean {
   return (
     node?.type === "CallExpression" &&
     calleeName(node.callee) === "definePermissions"
@@ -360,7 +360,7 @@ function bindingsOf(
       patternNames(node.id, names);
     }
   } else if (type === "ForStatement") {
-    declare(node.init === undefined ? [] : [node.init]);
+    declare(node.init === null || node.init === undefined ? [] : [node.init]);
   } else if (type === "ForInStatement" || type === "ForOfStatement") {
     declare(node.left === undefined ? [] : [node.left]);
   } else if (type === "CatchClause") {

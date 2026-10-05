@@ -279,4 +279,52 @@ can(permissions.post.archive);
       "can:post.archive",
     ]);
   });
+
+  it("reads every form of for loop without throwing", () => {
+    const result = scan({
+      "loops.ts": `import { permissions } from './p.ts';
+for (;;) {
+  can(permissions.post.read);
+  break;
+}
+for (; ready(); ) {
+  can(permissions.post.read);
+}
+for (;; step()) {
+  break;
+}
+for (let index = 0; ; index += 1) {
+  break;
+}
+for (index = 0; index < 1; ) {}
+for (var permissions = 0; permissions < 1; permissions += 1) {
+  count(permissions.toFixed);
+}
+for (key in table) {}
+for (item of list) {}
+async function drain() {
+  for await (const permissions of stream) {
+    count(permissions.length);
+  }
+}
+for (using handle of handles) {}
+can(permissions.post.update);
+`,
+    });
+    expect(result.unknown).toEqual([]);
+    expect(Object.keys(result.usages).toSorted()).toEqual([
+      "post.read",
+      "post.update",
+    ]);
+  });
+
+  it("reads a snapshot include with a hole", () => {
+    const result = scan({
+      "holes.ts": `import { permissions } from './p.ts';
+permdock.snapshot({ include: [, permissions.post.read] });
+const [, second] = pair;
+`,
+    });
+    expect(result.snapshots.map((site) => site.include)).toEqual([null]);
+  });
 });
