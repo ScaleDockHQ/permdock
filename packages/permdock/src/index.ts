@@ -63,6 +63,7 @@ export {
   memorySettings,
 } from "./core/interfaces.ts";
 export {
+  APPROVAL_POLICY_UNAVAILABLE,
   memoryApprovalPolicies,
   validateApprovalPolicy,
 } from "./core/approval-policies.ts";

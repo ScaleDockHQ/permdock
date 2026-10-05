@@ -54,6 +54,9 @@ export type ApprovalPolicySource = {
   }): readonly ApprovalPolicy[] | Promise<readonly ApprovalPolicy[]>;
 };
 
+/** The denial detail when an `ApprovalPolicySource` fails: every call an allow would grant denies with reason `approval`. */
+export const APPROVAL_POLICY_UNAVAILABLE = "approval-policy-unavailable";
+
 export function memoryApprovalPolicies(
   policies: readonly ApprovalPolicy[],
 ): ApprovalPolicySource {
