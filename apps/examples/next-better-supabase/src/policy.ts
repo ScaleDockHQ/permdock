@@ -1,62 +1,10 @@
 import type { Principal } from "permdock";
 
-import {
-  actor,
-  allow,
-  definePermissions,
-  definePolicy,
-  defineRoles,
-  resource,
-  role,
-} from "permdock";
-import { z } from "zod";
+import { actor, allow, definePolicy, role } from "permdock";
 
-/**
- * The CentraKit shape: staff hold one role per organization in `memberships`,
- * and a portal contact holds `contact` on their customer through `contacts.user_id`.
- */
-const Staff = z.object({
-  id: z.uuid(),
-  organization_id: z.uuid(),
-  user_id: z.uuid(),
-  name: z.string(),
-  title: z.string(),
-});
+import { permissions, roles } from "./permissions.ts";
 
-const Quote = z.object({
-  id: z.uuid(),
-  organization_id: z.uuid(),
-  customer_id: z.uuid(),
-  title: z.string(),
-  amount_minor: z.number().int(),
-  currency: z.string().length(3),
-});
-
-export const permissions = definePermissions({
-  staff: resource(Staff, {
-    id: "id",
-    actions: ["read"],
-    collection: ["list"],
-    relations: {
-      organization: { field: "organization_id", memberOf: "organization" },
-    },
-  }),
-  quotes: resource(Quote, {
-    id: "id",
-    actions: ["read", "update"],
-    collection: ["list"],
-    relations: {
-      organization: { field: "organization_id", memberOf: "organization" },
-      customer: { field: "customer_id", memberOf: "customer" },
-    },
-  }),
-});
-
-export const roles = defineRoles({
-  owner: { on: "organization" },
-  member: { on: "organization" },
-  contact: { on: "customer", assignable: false },
-});
+export { permissions, roles };
 
 export const policy = definePolicy(
   { permissions, roles },
