@@ -434,6 +434,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         delegation: authInfo === undefined ? undefined : delegationOf(authInfo),
         memberships: options.memberships,
         relations: options.relations,
+        approvalPolicies: options.approvalPolicies,
         entitlements: options.entitlements,
         customRoles: options.customRoles,
         policies: options.policies,

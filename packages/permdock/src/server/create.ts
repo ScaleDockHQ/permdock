@@ -1,4 +1,5 @@
 import type { ApprovalStore } from "../approvals/types.ts";
+import type { ApprovalPolicySource } from "../core/approval-policies.ts";
 import type { Decision } from "../core/decision.ts";
 import type { ApprovalHint } from "../core/errors.ts";
 import type { PolicySource } from "../core/hosted.ts";
@@ -50,6 +51,8 @@ export type ServerPermDockOptions<TUser = unknown> = {
   readonly memberships?: MembershipSource | readonly MembershipSource[];
   /** The object graph for relation grants that walk a parent chain; without it they deny. */
   readonly relations?: RelationSource;
+  /** Approval requirements kept as data (`ApprovalPolicySource`); they add to the code's and never remove one. A throw denies. */
+  readonly approvalPolicies?: ApprovalPolicySource;
   readonly entitlements?: EntitlementSource;
   readonly customRoles?: RoleSource;
   /** Hosted grants, read once per instance; see `PolicySource`. */
@@ -290,6 +293,7 @@ export function createKernel<
       tenant,
       memberships: options.memberships,
       relations: options.relations,
+      approvalPolicies: options.approvalPolicies,
       entitlements: options.entitlements,
       customRoles: options.customRoles,
       policies: options.policies,

@@ -47,6 +47,7 @@ const permdock = await createPermDock(policy, user, {
 });
 ```
 
+- Every adapter's `createPermDock` takes `approvalPolicies` (HTTP, MCP, A2A, AuthZEN, terminal and the agent adapters), so an entry also turns an agent call into `user-approval` or an MCP call into `approval-required`.
 - Entries are read once per instance and combine with the grant's own approval as stages (`sequential` if any part is, else `all`); the shortest `ttl` wins.
 - A throw or an invalid entry denies with detail `approval-policy-unavailable`. An unknown permission applies to nothing.
 - `where` reads the row, so it works only on instance permissions; on a collection permission the entry does not load. Use `check` (the proposed row) there. Validate entries where they are saved with `validateApprovalPolicy(policy, entry)` (`{ ok: false, problem }` names `unknown-permission`, `invalid`, `where-on-collection` or `stale-on-without-version`).

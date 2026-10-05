@@ -172,6 +172,7 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
         tenant: tenantOf(item),
         memberships: options.memberships,
         relations: options.relations,
+        approvalPolicies: options.approvalPolicies,
         entitlements: options.entitlements,
         customRoles: options.customRoles,
         policies: options.policies,

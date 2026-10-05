@@ -120,7 +120,7 @@ A custom resolve path calls `resolveApproval(store, token, verdict, { relations,
 
 ## Approval policies as data
 
-`approvalPolicies` on `createPermDock` takes an `ApprovalPolicySource`, for approval rules an organisation configures at runtime, such as "payments over 1000 need finance". An entry adds stages to a matching allow; it never grants, never removes a code requirement and never lowers a quorum.
+`approvalPolicies` on `createPermDock` takes an `ApprovalPolicySource`, on the core factory and on every adapter that builds an instance (`permdock/next`, `permdock/server` and the HTTP adapters, `permdock/supabase/middleware`, `permdock/mcp`, `permdock/a2a`, `permdock/authzen`, `permdock/terminal` and the agent adapters `ai-sdk`, `claude-agent`, `eve` and `openai`), for approval rules an organisation configures at runtime, such as "payments over 1000 need finance". An entry adds stages to a matching allow; it never grants, never removes a code requirement and never lowers a quorum.
 
 ```ts
 import { memoryApprovalPolicies } from "permdock";
