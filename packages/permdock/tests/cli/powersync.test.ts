@@ -278,6 +278,36 @@ describe("powersync streams", () => {
     expect(powersyncYaml(plan)).toContain("streams: {}");
   });
 
+  it("applies a constant via instead of a kind filter", () => {
+    const withVia = (value: string): PermDockConfig => ({
+      ...config,
+      rls: {
+        ...config.rls,
+        memberships: {
+          scopes: {
+            organization: {
+              table: "organization_users",
+              user: "user_id",
+              role: "role",
+              via: { value },
+              columns: { organization: "organization_id" },
+            },
+          },
+        },
+      },
+    });
+    const contract = queries("job", withVia("contract"));
+    expect(contract).toContain(
+      "SELECT * FROM jobs WHERE jobs.org_id IN (SELECT organization_users.organization_id FROM organization_users WHERE organization_users.user_id = auth.user_id() AND organization_users.role IN ('contractor'))",
+    );
+    expect(contract.some((query) => query.includes(".kind IN"))).toBe(false);
+    expect(
+      queries("job", withVia("staff")).some((query) =>
+        query.includes("IN ('contractor')"),
+      ),
+    ).toBe(false);
+  });
+
   it("leaves out memberships with an expiry and kinds without a via column", () => {
     const expiring = powersyncPlan(policy, {
       ...config,

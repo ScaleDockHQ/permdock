@@ -279,11 +279,15 @@ function membershipIn(
   if (restricted && (table.via === undefined || roles.length !== 1)) {
     return undefined;
   }
+  const via = table.via;
+  if (restricted && typeof via === "object" && !kinds.includes(via.value)) {
+    return [];
+  }
   const filters = [
     `${ctx.dialect.column(name, table.user)} = ${ctx.dialect.user}`,
-    ...(restricted && table.via !== undefined
+    ...(restricted && typeof via === "string"
       ? [
-          `${ctx.dialect.column(name, table.via)} IN (${kinds.map((kind) => ctx.dialect.literal(kind)).join(", ")})`,
+          `${ctx.dialect.column(name, via)} IN (${kinds.map((kind) => ctx.dialect.literal(kind)).join(", ")})`,
         ]
       : []),
   ];
