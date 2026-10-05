@@ -86,15 +86,22 @@ describe("helpersSql scopes off the root chain", () => {
     expect(fnBody(sql, "permitted_region_ids")).not.toContain("is null or");
   });
 
-  it("refuses custom roles over membership sources", () => {
-    expect(() =>
-      helpers({
-        authorize: "database",
-        sources: [fromTable({ table: "memberships" })],
-        customRoles: { declared: [], assignable: [] },
-      }),
-    ).toThrow(
-      "--custom-roles in database mode needs rls.memberships.scopes.org",
+  it("resolves custom roles over membership sources", () => {
+    const sql = helpers({
+      authorize: "database",
+      sources: [fromTable({ table: "memberships" })],
+      customRoles: { declared: ["admin"], assignable: ["admin"] },
+    });
+    const org = fnBody(sql, "permitted_org_ids");
+    expect(org).toContain("  union\n  select (ms.id)::uuid");
+    expect(org).toContain("and not (r.role = any(array['admin']::text[]))");
+    expect(org).toContain(
+      "c.tenant_id::text = (ms.id)::text and c.scope = 'org' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role",
+    );
+    expect(org).toContain('"permdock".permdock_custom_keys(');
+    const team = fnBody(sql, "permitted_team_ids");
+    expect(team).toContain(
+      "c.tenant_id::text = (ms.within ->> 'org')::text and c.scope = 'team'",
     );
   });
 });

@@ -255,6 +255,7 @@ const DECLARED = ["admin", "auditor", "lead", "member", "owner", "viewer"];
 
 const SHAPES = [
   { name: "custom_database", cwd: FIXTURE },
+  { name: "custom_sources", cwd: join(FIXTURE, "sources") },
   { name: "custom_jwt", cwd: join(FIXTURE, "jwt") },
 ] as const;
 
@@ -345,7 +346,7 @@ describe("custom roles in generated RLS (database and jwt modes)", () => {
             generated[shape.name] ?? "",
             `create type permdock.app_permission as enum (${PERMISSION_KEYS.map((key) => `'${key}'`).join(", ")});`,
             authorizeSql({
-              authorize: shape.name === "custom_database" ? "database" : "jwt",
+              authorize: shape.name === "custom_jwt" ? "jwt" : "database",
               tenant: {
                 table: "organization_members",
                 tenant: "organization_id",
@@ -402,9 +403,9 @@ describe("custom roles in generated RLS (database and jwt modes)", () => {
           "--db",
           // Database mode seeds each fixture's custom roles, which needs the
           // table owner; the checked statement still runs as authenticated.
-          shape.name === "custom_database"
-            ? databaseUri(db.uri, shape.name)
-            : testerUri(db.uri, shape.name),
+          shape.name === "custom_jwt"
+            ? testerUri(db.uri, shape.name)
+            : databaseUri(db.uri, shape.name),
           "--fixtures",
           fixturesPath,
         ],
@@ -534,7 +535,7 @@ describe("custom roles in generated RLS (database and jwt modes)", () => {
       await client.connect();
       try {
         await client.query("begin");
-        if (shape.name === "custom_database") {
+        if (shape.name !== "custom_jwt") {
           await client.query(`insert into permdock.custom_role_permissions (tenant_id, role, permission, effect) values
             ('acme', 'editor-plus', 'task.update', 'allow'),
             ('acme', 'editor-plus', 'project.read', 'deny'),
@@ -606,9 +607,7 @@ describe("custom roles in generated RLS (database and jwt modes)", () => {
         await setup.end();
       }
       const uri =
-        shape.name === "custom_database"
-          ? admin
-          : testerUri(db.uri, shape.name);
+        shape.name === "custom_jwt" ? testerUri(db.uri, shape.name) : admin;
       const results = await runPgtap(uri, emitted.stdout);
       expect(results).toHaveLength(fixtures().length);
       expect(results.filter((line) => !line.startsWith("ok - "))).toEqual([]);
