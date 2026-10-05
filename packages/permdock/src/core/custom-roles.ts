@@ -130,7 +130,7 @@ export function customRoleScope(
 }
 
 /** The instance of its scope a custom role is pinned to, if any. */
-function customRoleId(role: CustomRole): string | undefined {
+export function customRoleId(role: CustomRole): string | undefined {
   return role.scope === undefined ? role.team : role.id;
 }
 
@@ -469,6 +469,18 @@ export function customGrantsFor(
     }
   }
   return out;
+}
+
+/** The well-formed tenant (not platform) custom roles; a declared role name is never one. */
+export function tenantCustomRoles(
+  policy: Policy,
+  roles: readonly CustomRole[],
+): readonly CustomRole[] {
+  const declared = declaredRoleNames(policy);
+  return roles.filter(
+    (role) =>
+      wellFormed(role) && !isGlobalCustomRole(role) && !declared.has(role.name),
+  );
 }
 
 /** A membership at the role's scope, inside its tenant (and instance, when pinned), naming it. */

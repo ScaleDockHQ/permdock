@@ -219,11 +219,13 @@ describe("ownership: decideRoleChange (CentraKit assertion 8)", () => {
       "member",
       "viewer",
       "contact",
+      "mechanic",
     ]);
     expect(admin.assignableRoles().map((leaf) => leaf.key)).toEqual([
       "member",
       "viewer",
       "contact",
+      "mechanic",
     ]);
   });
 
@@ -327,6 +329,27 @@ describe("ownership: decideRoleChange (CentraKit assertion 8)", () => {
       inT({ role: "admin", target: { id: "u_c", via: "contact", roles: [] } }),
     );
     expect(reasons(admin)).toEqual(["not-allowed-for-membership"]);
+  });
+
+  it("keeps a custom role off the membership kinds its included roles exclude", async () => {
+    const owner = await permdockFor(personas.owner);
+    expect(owner.decideRoleChange(inT({ role: "mechanic" }))).toMatchObject({
+      outcome: "granted",
+    });
+    const contact = owner.decideRoleChange(
+      inT({
+        role: "mechanic",
+        target: { id: "u_c", via: "contact", roles: [] },
+      }),
+    );
+    expect(contact).toMatchObject({
+      denials: [
+        {
+          reason: "not-allowed-for-membership",
+          detail: { via: "contact", for: ["staff"] },
+        },
+      ],
+    });
   });
 
   it("lets an organization admin assign a customer role through a trusted within", async () => {

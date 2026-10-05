@@ -35,9 +35,12 @@ import {
   type CustomGrant,
   ceilingGrants,
   customGrantsFor,
+  customRoleScope,
   holdsCustomRole,
   holdsGlobalCustomRole,
+  resolveCustomRole,
   roleAllowKeys,
+  tenantCustomRoles,
 } from "./custom-roles.ts";
 import { delegatedPermissions } from "./delegation.ts";
 import { type ActivateInput, activate } from "./elevated.ts";
@@ -508,25 +511,110 @@ function assignableIn(
   const permissions = listPermissions(policy.permissions).filter(
     (leaf) => ceiling.has(leaf.key) && (manage || heldKeys.has(leaf.key)),
   );
+  const offeredLevels = (
+    key: string,
+    names: readonly string[],
+  ): readonly string[] => {
+    if (manage) {
+      return names;
+    }
+    const reached = new Set(
+      heldGrants
+        .filter((grant) => grant.permission.key === key)
+        .flatMap((grant) => heldLevels(policy, grant, names)),
+    );
+    return names.filter((name) => reached.has(name));
+  };
   const levels: Record<string, readonly string[]> = {};
   for (const leaf of permissions) {
     const names =
       leaf.kind === "instance" ? levelNames(policy, leaf.resource) : [];
-    if (names.length === 0) {
-      continue;
+    if (names.length > 0) {
+      levels[leaf.key] = offeredLevels(leaf.key, names);
     }
-    if (manage) {
-      levels[leaf.key] = names;
-      continue;
-    }
-    const reached = new Set(
-      heldGrants
-        .filter((grant) => grant.permission.key === leaf.key)
-        .flatMap((grant) => heldLevels(policy, grant, names)),
-    );
-    levels[leaf.key] = names.filter((name) => reached.has(name));
   }
-  return { roles, permissions, levels, manage };
+  const ceilingKeys = new Map<string, ReadonlySet<string>>();
+  const mayHandOut = (scope: string, grant: Grant): boolean => {
+    const key = grant.permission.key;
+    let keys = ceilingKeys.get(scope);
+    if (keys === undefined) {
+      keys = new Set(
+        ceilingGrants(policy, scope, allowed).map(
+          (item) => item.permission.key,
+        ),
+      );
+      ceilingKeys.set(scope, keys);
+    }
+    if (!keys.has(key) || !(manage || heldKeys.has(key))) {
+      return false;
+    }
+    const names =
+      grant.permission.kind === "instance"
+        ? levelNames(policy, grant.permission.resource)
+        : [];
+    if (names.length === 0) {
+      return true;
+    }
+    const offered = offeredLevels(key, names);
+    return heldLevels(policy, grant, names).every((name) =>
+      offered.includes(name),
+    );
+  };
+  const custom =
+    global || tenant === undefined
+      ? []
+      : assignableCustomRoles(
+          policy,
+          customRoles,
+          tenant,
+          manage ? undefined : roles,
+          mayHandOut,
+        );
+  return { roles: [...roles, ...custom], permissions, levels, manage };
+}
+
+/**
+ * The tenant's custom roles the subject may hand out: held at a scope it may
+ * assign declared roles at (any scope with `meta.manageRoles`), and allowing
+ * only permissions and levels it may hand out at that scope.
+ */
+function assignableCustomRoles(
+  policy: Policy,
+  customRoles: readonly CustomRole[],
+  tenant: string,
+  declared: readonly Role[] | undefined,
+  mayHandOut: (scope: string, grant: Grant) => boolean,
+): readonly Role[] {
+  const scopes = scopeList(policy.scopes);
+  const root = rootScope(scopes);
+  const assignsAt =
+    declared === undefined
+      ? undefined
+      : new Set(
+          declared.map((leaf) =>
+            leaf.on === undefined ? root : resolveScope(scopes, leaf.on),
+          ),
+        );
+  const out = new Map<string, Role>();
+  for (const role of tenantCustomRoles(policy, customRoles)) {
+    if (role.tenant !== tenant || out.has(role.name)) {
+      continue;
+    }
+    const at = customRoleScope(role, scopes);
+    if (at === undefined || (assignsAt !== undefined && !assignsAt.has(at))) {
+      continue;
+    }
+    const within = resolveCustomRole(policy, role).grants.every(
+      (grant) => grant.effect === "deny" || mayHandOut(at, grant),
+    );
+    if (within) {
+      out.set(
+        role.name,
+        synthesiseRole(role.name, { on: at, assignable: true }),
+      );
+    }
+  }
+  return [...out.values()].toSorted((a, b) => a.key.localeCompare(b.key));
 }
 
 export type SnapshotInclude = readonly (
@@ -1274,6 +1362,7 @@ export function buildInstance(
         subject.principal,
         scopeList(policy.scopes),
         change,
+        envBase.customRoles,
         (tenant) => {
           const found = assignableAt(tenant);
           return {
