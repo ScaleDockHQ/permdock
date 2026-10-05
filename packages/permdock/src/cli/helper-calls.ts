@@ -7,12 +7,12 @@ import { HELPERS } from "./rls-helpers.ts";
 export const HELPER_TABLES = ["storage.objects", "realtime.messages"] as const;
 
 const HELPER_CALL = new RegExp(
-  String.raw`\b(?:${HELPERS.has}|permitted_[a-z][a-z0-9_]*_ids)\s*\(\s*'((?:[^']|'')+)'`,
+  String.raw`\b(?:${HELPERS.has}(?:_permission)?|permitted_[a-z][a-z0-9_]*_ids(?:_by_permission)?)\s*\(\s*'((?:[^']|'')+)'`,
   "giu",
 );
 
 const ANY_HELPER = new RegExp(
-  String.raw`\b(?:${HELPERS.has}|permitted_[a-z][a-z0-9_]*_ids|member_[a-z][a-z0-9_]*_ids)\s*\(`,
+  String.raw`\b(?:${HELPERS.has}(?:_permission)?(?:_for)?|permitted_[a-z][a-z0-9_]*_ids(?:_by_permission)?(?:_for)?|member_[a-z][a-z0-9_]*_ids(?:_for)?)\s*\(`,
   "iu",
 );
 
@@ -21,7 +21,7 @@ export function callsHelper(sql: string): boolean {
   return ANY_HELPER.test(sql);
 }
 
-/** The permission keys a policy expression passes to `permdock_has` or `permitted_<scope>_ids`, `#n` stripped. */
+/** The permission keys a policy expression passes to `permdock_has`, `permitted_<scope>_ids` or their permission-key forms, `#n` stripped. */
 export function helperCallKeys(sql: string): readonly string[] {
   const keys = new Set<string>();
   for (const [, literal = ""] of sql.matchAll(HELPER_CALL)) {

@@ -6,6 +6,7 @@ import type {
   RlsShimsConfig,
 } from "./types.ts";
 
+import { breakGlassKey } from "./rls-grants.ts";
 import { HELPERS, qualified } from "./rls-helpers.ts";
 import {
   memberIdsHelper,
@@ -68,7 +69,8 @@ export type ShimGrants = ReadonlyMap<
  * The grant keys behind each permission, per scope: the keys of its
  * unconditional allows, and every deny key. A shim cannot apply a row
  * condition or a validity window, so a conditional allow answers nothing and
- * a conditional deny always subtracts. Rows seeded under a former key are
+ * a conditional deny always subtracts. A break-glass key answers only the
+ * break-glass read, so it is left out too. Rows seeded under a former key are
  * left out; the shim maps a former key to the current one first.
  */
 export function shimGrants(
@@ -86,7 +88,11 @@ export function shimGrants(
     if (Object.hasOwn(renamed, row.permission)) {
       continue;
     }
-    if (row.effect === "allow" && conditioned.has(row.grantKey)) {
+    if (
+      row.effect === "allow" &&
+      (conditioned.has(row.grantKey) ||
+        row.grantKey === breakGlassKey(row.permission))
+    ) {
       continue;
     }
     const scope = byScope.get(row.scope) ?? {};
