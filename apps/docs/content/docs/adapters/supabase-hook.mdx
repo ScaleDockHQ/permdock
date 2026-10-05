@@ -145,6 +145,46 @@ const permdock = await createPermDock(
 
 `claimsFirst(sources, { version? })` keeps the memberships the verified token carries and reads the sources only when the token says it dropped some (`memberships_truncated`). Without `claimsFirst`, a `memberships` source is always read and the token's copy is ignored. `getPermDock` in [`permdock/next`](/docs/adapters/next) takes the same `memberships` option.
 
+### A stored user over PostgREST
+
+The sources above run SQL through `SqlQuery`. A backend that reaches Postgres only through supabase-js reads the same answers from `subject_for(p_user uuid) returns jsonb`, which the hook file defines next to the hook: the global roles, the memberships of every source with their expiry and suspension filters, the authorization version, and in `database` mode with `rls.customRoles` the custom roles the user holds with their grants and includes. A suspended user comes back as `{ id, active: false }`, an unknown one as `null`. `execute` is revoked from `public`, `anon` and `authenticated`, because the caller names the user; grant it to the role your backend client uses, and expose it through the Data API with a wrapper when `permdock` is not an exposed schema:
+
+```sql
+create function public.permdock_subject_for(p_user uuid) returns jsonb
+language sql stable security definer set search_path = ''
+as $$ select permdock.subject_for(p_user) $$;
+revoke execute on function public.permdock_subject_for(uuid) from public, anon, authenticated;
+grant execute on function public.permdock_subject_for(uuid) to service_role;
+```
+
+`postgrestSources(client, { schema?, fn? })` in `permdock/supabase` calls it once per user and returns the three inputs `createPermDock` takes:
+
+```ts
+import { claimsFirst, createPermDock } from "permdock";
+import { postgrestSources, subjectFromSupabase } from "permdock/supabase";
+
+const sources = postgrestSources(admin, {
+  schema: "public",
+  fn: "permdock_subject_for",
+});
+
+// a request: the token's memberships, the database's when it was truncated
+const subject = subjectFromSupabase(claims);
+const permdock = await createPermDock(policy, subject, {
+  memberships: claimsFirst(sources.memberships),
+  ...(subject.principal === null
+    ? {}
+    : { customRoles: sources.customRoles(subject.principal) }),
+});
+
+// a job acting for a stored user
+const actor = await createPermDock(policy, await sources.subject(userId), {
+  customRoles: sources.customRoles({ id: userId }),
+});
+```
+
+`sources.memberships` answers `membershipsFor` and `version`, so `claimsFirst` freshness works without a `SqlQuery`. `sources.customRoles(principal)` returns the custom roles that principal holds; a role-management page that needs every role of a tenant composes [`customRoleSource`](/docs/concepts/extension-interfaces#rolesource) over its own read. `sources.subject(userId)` is the anonymous subject for a suspended or unknown user, and a failed call rejects, which `createPermDock` turns into a denial.
+
 ## Generate
 
 ```ts

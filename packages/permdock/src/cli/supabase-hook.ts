@@ -785,6 +785,129 @@ revoke execute on function ${bump}() from public, anon, authenticated;
 ${triggers}${memberUsersVersionSql(parts, bumpFor)}${roleKeysVersionSql(parts, versionTable)}`;
 }
 
+const SUBJECT_FOR = "subject_for";
+
+/**
+ * `subject_for(p_user uuid) returns jsonb`: what the hook would put in a
+ * token for `p_user`, from the same membership, role, suspension and version
+ * reads, plus the custom roles the user holds when `database` mode keeps them
+ * in tables. A backend that only has PostgREST (`postgrestSources`) builds a
+ * subject for an acting user or a job from it. Naming the user is why no
+ * client role may execute it.
+ */
+function subjectForSql(parts: Parts, config: PermDockConfig): string {
+  const schema = quoteIdent(parts.schema);
+  const fn = `${schema}.${SUBJECT_FOR}`;
+  const rows = parts.roles;
+  const roles =
+    rows === undefined
+      ? `  held := '[]'::jsonb;`
+      : `  select coalesce(jsonb_agg(distinct ${rows.roleSql} order by ${rows.roleSql}), '[]'::jsonb)
+    into held
+    from ${rows.from}
+    where ${rows.userSql} = v_roles_user;`;
+  const suspended =
+    parts.users === undefined
+      ? ""
+      : `
+  if not ${activeRowSql(parts.users, "uid")} then
+    return jsonb_build_object('id', uid::text, 'active', false);
+  end if;`;
+  const version = parts.version
+    ? `
+  select v.version into ver from ${schema}.${quoteIdent(AUTHZ_VERSION_TABLE)} v where v.user_id = uid;
+  ver := coalesce(ver, 0);`
+    : "";
+  const custom =
+    config.rls?.customRoles === true && resolveAuthorize(config) === "database"
+      ? customRolesOfSql(parts)
+      : "";
+  return `-- the subject the hook would mint for p_user, for a backend acting for a stored user; no client role may execute it
+create or replace function ${fn}(p_user uuid)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  uid uuid := p_user;
+  held jsonb;
+  memberships jsonb;
+  custom jsonb := '[]'::jsonb;
+  ver bigint;${typedUsers(parts)}
+begin
+  if uid is null or not exists (select 1 from auth.users u where u.id = uid) then
+    return null;
+  end if;${suspended}
+${roles}
+  select coalesce(jsonb_agg(x.entry order by x.ord, x.entry ->> 'scope', x.entry ->> 'id', x.entry::text), '[]'::jsonb)
+    into memberships
+    from (
+${entriesSql(parts).replaceAll(/^/gmu, "      ")}
+    ) x;${custom}${version}
+  return jsonb_strip_nulls(jsonb_build_object(
+    'id', uid::text,
+    'active', true,
+    'roles', held,
+    'memberships', memberships,
+    'customRoles', custom,
+    'authzVersion', ver
+  ));
+end;
+$$;
+revoke execute on function ${fn}(uuid) from public, anon, authenticated;`;
+}
+
+/**
+ * The custom roles `p_user` holds: tenant roles named on a membership of the
+ * scope (and instance) they live at, and platform roles among the global
+ * roles, each with its grants and includes in `CustomRole` form.
+ */
+function customRolesOfSql(parts: Parts): string {
+  const helpers = quoteIdent(parts.helpers.schema);
+  const perms = `${helpers}.custom_role_permissions`;
+  const includes = `${helpers}.custom_role_includes`;
+  const root = quoteLiteral(parts.root);
+  const match = `p.tenant_id is not distinct from c.tenant_id and p.scope = c.scope and p.scope_id is not distinct from c.scope_id and p.role = c.role`;
+  return `
+  select coalesce(jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
+      'name', c.role,
+      'tenant', c.tenant_id::text,
+      'scope', c.scope,
+      'id', c.scope_id,
+      'grants', (
+        select coalesce(jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
+            'permission', p.permission,
+            'effect', p.effect,
+            'level', to_jsonb(p) ->> 'level'
+          )) order by p.permission, p.effect), '[]'::jsonb)
+        from ${perms} p
+        where ${match}
+      ),
+      'includes', (
+        select jsonb_agg(p.include_role order by p.include_role)
+        from ${includes} p
+        where ${match}
+      )
+    )) order by c.tenant_id::text, c.scope, c.scope_id, c.role), '[]'::jsonb)
+    into custom
+    from (
+      select tenant_id, scope, scope_id, role from ${perms}
+      union
+      select tenant_id, scope, scope_id, role from ${includes}
+    ) c
+    where (c.scope = 'global' and c.tenant_id is null and held ? c.role)
+      or exists (
+        select 1
+        from jsonb_array_elements(memberships) m
+        where m -> 'roles' ? c.role
+          and m ->> 'scope' = c.scope
+          and c.tenant_id::text = case when m ->> 'scope' = ${root} then m ->> 'id' else m -> 'within' ->> ${root} end
+          and (c.scope_id is null or c.scope_id = m ->> 'id')
+      );`;
+}
+
 function signedUp(user: string): string {
   return `exists (select 1 from auth.users a where a.id = ${user})`;
 }
@@ -1440,6 +1563,7 @@ ${toml}${grantsOut === undefined ? "" : `\n-- what supabase db diff drops from t
     attrsGuardSql(parts.attrs),
     hookSql(parts),
     versionSql(parts),
+    subjectForSql(parts, config),
     grantsSql(parts),
     managedSql(parts),
   ]

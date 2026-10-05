@@ -163,6 +163,78 @@ create trigger "permdock_authz_version"
   after insert or update or delete on "permdock"."user_roles"
   for each row execute function "permdock".permdock_bump_authz_version('user_id');
 
+-- the subject the hook would mint for p_user, for a backend acting for a stored user; no client role may execute it
+create or replace function "permdock".subject_for(p_user uuid)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  uid uuid := p_user;
+  held jsonb;
+  memberships jsonb;
+  custom jsonb := '[]'::jsonb;
+  ver bigint;
+  v_user_0 "public"."memberships"."user_id"%type := uid;
+  v_user_1 "public"."contacts"."user_id"%type := uid;
+  v_roles_user "permdock"."user_roles"."user_id"%type := uid;
+begin
+  if uid is null or not exists (select 1 from auth.users u where u.id = uid) then
+    return null;
+  end if;
+  select coalesce(jsonb_agg(distinct r."role"::text order by r."role"::text), '[]'::jsonb)
+    into held
+    from "permdock"."user_roles" r
+    where r."user_id" = v_roles_user;
+  select coalesce(jsonb_agg(x.entry order by x.ord, x.entry ->> 'scope', x.entry ->> 'id', x.entry::text), '[]'::jsonb)
+    into memberships
+    from (
+      select 0 as ord,
+        (case when s.scope = 'organization' then s.id else s.within ->> 'organization' end) as tenant,
+        jsonb_strip_nulls(jsonb_build_object(
+          'scope', s.scope, 'id', s.id, 'within', s.within, 'roles', s.roles, 'via', s.via,
+          'expiresAt', s.expires_at, 'grantedBy', s.granted_by, 'reason', s.reason,
+          'member', case when s.member_group is not null then jsonb_build_object('group', s.member_group) end,
+          'managedBy', s.managed_by, 'entitlements', s.seats
+        )) as entry
+      from (
+        select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+        from "public"."memberships" m
+        where m."user_id" = v_user_0
+        group by m."scope"::text, m."scope_id"::text
+      ) s
+      union all
+      select 1 as ord,
+        (case when s.scope = 'organization' then s.id else s.within ->> 'organization' end) as tenant,
+        jsonb_strip_nulls(jsonb_build_object(
+          'scope', s.scope, 'id', s.id, 'within', s.within, 'roles', s.roles, 'via', s.via,
+          'expiresAt', s.expires_at, 'grantedBy', s.granted_by, 'reason', s.reason,
+          'member', case when s.member_group is not null then jsonb_build_object('group', s.member_group) end,
+          'managedBy', s.managed_by, 'entitlements', s.seats
+        )) as entry
+      from (
+        select 'customer'::text as scope, m."customer_id"::text as id, jsonb_build_object('organization', m."organization_id"::text) as within, jsonb_build_array('contact') as roles, 'contact'::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+        from "public"."contacts" m
+        where m."user_id" = v_user_1
+        group by m."customer_id", m."organization_id"
+      ) s
+    ) x;
+  select v.version into ver from "permdock"."permdock_authz_version" v where v.user_id = uid;
+  ver := coalesce(ver, 0);
+  return jsonb_strip_nulls(jsonb_build_object(
+    'id', uid::text,
+    'active', true,
+    'roles', held,
+    'memberships', memberships,
+    'customRoles', custom,
+    'authzVersion', ver
+  ));
+end;
+$$;
+revoke execute on function "permdock".subject_for(uuid) from public, anon, authenticated;
+
 -- supabase_auth_admin: the grants and read policies the hook needs
 grant usage on schema "permdock" to supabase_auth_admin;
 grant execute on function "permdock".custom_access_token_hook(jsonb) to supabase_auth_admin;
