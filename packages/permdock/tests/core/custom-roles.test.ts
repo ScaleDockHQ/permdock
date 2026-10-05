@@ -696,6 +696,54 @@ describe("assigning custom roles", () => {
     ]);
   });
 
+  it("never offers a custom role that allows nothing after the ceiling, and still revokes it", async () => {
+    const voider: CustomRole = {
+      tenant: "acme",
+      name: "voider",
+      grants: [{ permission: "invoice.void" }],
+    };
+    const blank: CustomRole = { tenant: "acme", name: "blank" };
+    const denier: CustomRole = {
+      tenant: "acme",
+      name: "denier",
+      grants: [{ permission: "post.read", effect: "deny" }],
+    };
+    const inert = [voider, blank, denier];
+    for (const held of ["steward", "editor"]) {
+      const actor = await permdockFor(
+        [{ tenant: "acme", roles: [held] }],
+        [...all, ...inert],
+      );
+      const offered = actor.assignableRoles().map((leaf) => leaf.key);
+      for (const stored of inert) {
+        expect(offered).not.toContain(stored.name);
+        expect(actor.decideRoleChange(assign(stored.name))).toMatchObject({
+          outcome: "denied",
+          denials: [{ role: stored.name, reason: "not-assignable-by" }],
+        });
+        expect(
+          actor.decideRoleChange({
+            ...assign(stored.name),
+            kind: "revoke",
+            target: { id: "u2", roles: [stored.name] },
+          }).outcome,
+        ).toBe("granted");
+      }
+      expect(offered).toContain("post-reader");
+    }
+    const outsider = await permdockFor(
+      [{ tenant: "acme", roles: ["lead"] }],
+      inert,
+    );
+    expect(
+      outsider.decideRoleChange({
+        ...assign("voider"),
+        kind: "revoke",
+        target: { id: "u2", roles: ["voider"] },
+      }),
+    ).toMatchObject({ denials: [{ reason: "not-assignable-by" }] });
+  });
+
   it("answers the same from a snapshot", async () => {
     const editor = await permdockFor(
       [{ tenant: "acme", roles: ["editor"] }],
