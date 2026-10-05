@@ -11,6 +11,7 @@ import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { run } from "../../src/cli/run.ts";
+import { createCollectScheduler } from "../../src/cli/watch.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "./fixtures/mini-app");
@@ -49,6 +50,10 @@ describe("permdock collect --watch", () => {
     expect(result.stdout).toContain("watching for changes");
     const catalog = join(cwd, "permissions.catalog.json");
     expect(readFileSync(catalog, "utf8")).not.toContain("post.export");
+    // FSEvents drops changes made before its stream is live, and fs.watch has no ready event.
+    await new Promise((done) => {
+      setTimeout(done, 250);
+    });
 
     const permissions = join(cwd, "src/permissions.ts");
     writeFileSync(
@@ -62,9 +67,41 @@ describe("permdock collect --watch", () => {
       () => {
         expect(readFileSync(catalog, "utf8")).toContain("post.export");
       },
-      { timeout: 4000 },
+      { timeout: 10_000 },
     );
     expect(stderr).toContain("catalog updated");
+  }, 20_000);
+
+  it("runs once for a burst of changes and skips its own catalog", async () => {
+    const cwd = copyFixture();
+    const reports: (string | undefined)[] = [];
+    const scheduler = createCollectScheduler(
+      cwd,
+      { collect: { srcPath: ["./src", "./absent", "./packages/*/src"] } },
+      {
+        report: (message) => {
+          reports.push(message);
+        },
+      },
+    );
+    try {
+      await scheduler.run(false);
+      scheduler.watch();
+      scheduler.changed(join(cwd, "permissions.catalog.json"));
+      for (let index = 0; index < 5; index += 1) {
+        scheduler.changed(join(cwd, "src/check.ts"));
+      }
+      scheduler.changed(undefined);
+      await vi.waitFor(() => {
+        expect(reports).toEqual([undefined]);
+      });
+      await new Promise((done) => {
+        setTimeout(done, 200);
+      });
+      expect(reports).toEqual([undefined]);
+    } finally {
+      scheduler.close();
+    }
   });
 
   it("rejects --watch with --check", async () => {

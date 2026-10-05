@@ -31,6 +31,13 @@ function copyFixture(): string {
   return cwd;
 }
 
+// FSEvents drops changes made before its stream is live, and fs.watch has no ready event.
+function watcherStarted(): Promise<void> {
+  return new Promise((done) => {
+    setTimeout(done, 250);
+  });
+}
+
 afterEach(() => {
   for (const dir of temps.splice(0)) {
     rmSync(dir, { recursive: true, force: true });
@@ -260,6 +267,7 @@ describe("createPermDockPlugin", () => {
       await config("phase-development-server", {});
       const catalog = join(cwd, "permissions.catalog.json");
       expect(readFileSync(catalog, "utf8")).not.toContain("post.export");
+      await watcherStarted();
 
       const permissions = join(cwd, "src/permissions.ts");
       writeFileSync(
@@ -273,12 +281,12 @@ describe("createPermDockPlugin", () => {
         () => {
           expect(readFileSync(catalog, "utf8")).toContain("post.export");
         },
-        { timeout: 5000 },
+        { timeout: 10_000 },
       );
     } finally {
       process.chdir(previous);
     }
-  });
+  }, 20_000);
 
   it("does not recollect for a catalog it wrote into a watched folder", async () => {
     const cwd = copyFixture();
