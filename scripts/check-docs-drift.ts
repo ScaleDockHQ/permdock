@@ -43,7 +43,7 @@ const allDocs = docPages.map(read).join("\n");
 function doctorCodes(): readonly string[] {
   const codes = new Set<string>();
   for (const source of cliSources) {
-    for (const [, code = ""] of source.matchAll(/code: '(PD\d{3})'/gu)) {
+    for (const [, code = ""] of source.matchAll(/code: ["'](PD\d{3})["']/gu)) {
       codes.add(code);
     }
   }
@@ -160,7 +160,7 @@ function unknownImports(): readonly string[] {
   >;
   const found = new Set<string>();
   const importPattern =
-    /import\s+\{([^}]*)\}\s+from\s+'(permdock(?:\/[\w/-]+)?)'/gu;
+    /import\s+\{([^}]*)\}\s+from\s+["'](permdock(?:\/[\w/-]+)?)["']/gu;
   for (const page of docPages) {
     for (const [, names = "", specifier = ""] of read(page).matchAll(
       importPattern,
