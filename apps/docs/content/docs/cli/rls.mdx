@@ -23,7 +23,7 @@ permdock rls generate --target sql --split helpers,seeds,indexes,policies,hook \
 permdock rls generate --target sql --rbac supabase --helpers-only --out supabase/migrations/0056_permdock.sql   # policies stay hand-written
 ```
 
-Inputs: the policy module from `permdock.config.ts` (roles as data) and a mapping from resources to tables. The mapping is read from `--from drizzle` (table names and columns from the Drizzle schema, resource schemas via `drizzle-zod`) or declared in the config as `rls.tables`.
+Inputs: the policy module from `permdock.config.ts` (roles as data) and a mapping from resources to tables. The mapping is read from `--from drizzle` (table names and columns from the Drizzle schema, resource schemas via `drizzle-zod`) or declared in the config as `rls.tables`. Without `rls.tables`, every resource is a table of the same name in `public`. With it, a resource it does not name is not assumed to be a table: with `--helpers-only` it gets no index and `generate` prints `no index is suggested for resources without an rls.tables entry: <resources>`; otherwise its policies still target `public.<resource>` and `generate` prints that it does. Map every resource that is a table; a resource that only names permissions (an analytics area, a settings page) needs no entry.
 
 Targets:
 

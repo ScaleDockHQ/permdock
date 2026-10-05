@@ -27,7 +27,7 @@ afterEach(() => {
   }
 });
 
-function project(hook = true): string {
+function project(hook = true, rls = ""): string {
   mkdirSync(TMP, { recursive: true });
   const cwd = mkdtempSync(join(TMP, "declarative-"));
   temps.push(cwd);
@@ -41,7 +41,7 @@ const memberships = [
 export default {
   permissions: ${JSON.stringify(POLICY)},
   policy: ${JSON.stringify(POLICY)},
-  rls: { dialect: 'supabase', membershipSources: memberships },
+  rls: { dialect: 'supabase', membershipSources: memberships${rls} },
   ${hook ? "supabase: { hook: { memberships } }," : ""}
 };
 `,
@@ -316,6 +316,42 @@ describe("rls generate --split and --grants-out", () => {
     expect(indexes).toContain(
       'create index if not exists "permdock_invoice_status_idx" on "public"."invoice" ("status");',
     );
+  });
+
+  it("indexes only mapped resources with --helpers-only, and names the unmapped ones", async () => {
+    const cwd = project(
+      true,
+      ", helpersOnly: true, tables: { invoice: 'invoices', quote: 'quotes' }",
+    );
+    const result = await run(
+      ["rls", "generate", "--split", "helpers,indexes", "--out", OUT],
+      { cwd },
+    );
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain(
+      "no index is suggested for resources without an rls.tables entry: asset; map each one that is a table",
+    );
+    const indexes = read(cwd, part("indexes"));
+    expect(indexes).toContain('on "public"."invoices" ("organization_id");');
+    expect(indexes).toContain('on "public"."memberships" ("user_id");');
+    expect(indexes).not.toContain('"public"."asset"');
+    expect(indexes).not.toContain('"public"."invoice"');
+  });
+
+  it("keeps policies on unmapped resources and warns that they target the resource name", async () => {
+    const cwd = project(
+      true,
+      ", tables: { invoice: 'invoices', quote: 'quotes' }",
+    );
+    const result = await run(
+      ["rls", "generate", "--split", "indexes,policies", "--out", OUT],
+      { cwd },
+    );
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain(
+      "policies for resources without an rls.tables entry target a table named after the resource: public.asset; map each one to its table",
+    );
+    expect(read(cwd, part("indexes"))).toContain('on "public"."asset"');
   });
 
   it("refuses a split without {part}, grants without the helpers or hook part, and a hook part without supabase.hook", async () => {
