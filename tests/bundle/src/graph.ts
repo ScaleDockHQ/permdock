@@ -49,6 +49,7 @@ export const ENTRIES = {
   "./clerk": "clerk/index.js",
   "./convex": "convex/index.js",
   "./pdp": "pdp/index.js",
+  "./compile": "compile/index.js",
   "./catalog": "catalog/index.js",
   "./testing": "testing/index.js",
   "./testing/saas": "testing/saas/index.js",
@@ -336,6 +337,7 @@ export const SERVER_FOLDERS = [
 export const NEUTRAL_FOLDERS = [
   "catalog",
   "cli",
+  "compile",
   "testing",
   "unplugin",
 ] as const;

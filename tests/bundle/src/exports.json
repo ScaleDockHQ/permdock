@@ -430,6 +430,7 @@
   "./clerk": ["subjectFromClerk"],
   "./convex": ["ConvexError", "createPermDock"],
   "./pdp": ["createPermDock", "openfga", "remotePdp", "spicedb"],
+  "./compile": ["compileWhere", "escapeLike"],
   "./catalog": ["parseCatalog", "rowConditionKeys"],
   "./testing": [
     "AGENT_THROWING_ROW",

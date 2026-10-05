@@ -345,6 +345,20 @@ interface WhereCompiler<TTarget, TOptions = unknown> {
 
 `toWhere` from each query adapter is a `WhereCompiler`. A compiler receives the normalised JSON tree ([conditions](/docs/concepts/conditions)), including the `memberOf` node, and must return a fail-closed value (an always-false expression, `{ OR: [] }`, `eb.lit(false)`) when the condition is the empty allow set. It never receives closures; `permdock.where` has already excluded them and set `partial`. A community compiler for a new target (MongoDB, a sync engine's permission language) implements this interface and runs `testWhereCompiler` below; it does not become a package entry without a `Why` update on [adapters](/docs/adapters). `WhereCompiler` is exported from `permdock` as a type so such a compiler can be typed against it.
 
+A compiler for a query language need not walk the condition tree itself. `compileWhere(condition, options)` from `permdock/compile` lowers it, for one subject, to a `CompiledWhere` tree: `never`, `always`, `compare`, `isNull`, `and`, `or`, `not`, `exists` for a mapped membership table, and `sql` for a `related` subquery. Subject refs are already bound, `memberOf` is already an id list or an `exists`, and every `not` already admits the NULL field the in-memory evaluator treats as a failed comparison. `permdock/drizzle`, `prisma` and `kysely` render this tree, so a renderer is a switch over nine node kinds.
+
+```ts
+import { compileWhere, type CompiledWhere } from "permdock/compile";
+
+const tree: CompiledWhere = compileWhere(permdock.where(permissions.post.read));
+```
+
+`testWhereCompiler(compiler, { target, isFailClosed?, matches? })` checks the empty allow set and `sqlFunction` twins. With `matches(compiled, row)`, which answers whether the output selects one row, it also runs a table of comparisons, `contains` with literal `%` and `_`, lists, `isNull`, `and`, `or` and `not` over rows with NULL fields, and expects exactly the rows the in-memory evaluator keeps.
+
+### Why RLS and PowerSync do not render `CompiledWhere`
+
+`CompiledWhere` is bound to one subject at request time. Generated RLS and PowerSync sync rules are compiled once per policy and read the subject in SQL at query time (`auth.uid()`, JWT claims, a GUC), call membership helper functions, and pass `opaque` SQL through. Rendering them from `CompiledWhere` would need a second, subject-free tree, so they keep their own compilers over the condition AST. `rlsParity` holds the RLS compiler to the evaluator's answers instead, including a `not` or a deny over a NULL column, which RLS renders as `(…) is not true`.
+
 ## Events
 
 `permdock.on(event, handler)` registers observers on the request-scoped instance:
