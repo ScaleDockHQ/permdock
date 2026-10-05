@@ -227,6 +227,12 @@
               "type": "string"
             }
           },
+          "levels": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "hostable": {
             "const": true
           },

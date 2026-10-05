@@ -80,7 +80,11 @@ export type AuthorizeSqlOptions = {
    * `permdock rls generate --custom-roles` emits: the `custom_role_*` tables in `database` mode,
    * the `memberships[].grants` claim in `jwt` mode. `declared` role names never resolve as custom.
    */
-  readonly customRoles?: { readonly declared: readonly string[] };
+  readonly customRoles?: {
+    readonly declared: readonly string[];
+    /** Stored allows may carry a level (`custom_role_permissions.level`). */
+    readonly levels?: true;
+  };
   /** A suspended user, or a suspended instance of `scope` for a tenant request, answers `false`. */
   readonly suspension?: SupabaseSuspension;
 };

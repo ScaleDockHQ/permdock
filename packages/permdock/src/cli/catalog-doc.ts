@@ -1,6 +1,7 @@
 import type {
   ActionMeta,
   Grant,
+  Permission,
   PermissionTree,
   Policy,
   ResourceNode,
@@ -66,6 +67,17 @@ export function policyRowConditionKeys(policy: Policy): ReadonlySet<string> {
   return keys;
 }
 
+function leafLevels(
+  tree: PermissionTree,
+  leaf: Permission,
+): readonly string[] | undefined {
+  if (leaf.kind !== "instance") {
+    return undefined;
+  }
+  const names = Object.keys(getResource(tree, leaf.resource)?.levels ?? {});
+  return names.length === 0 ? undefined : names;
+}
+
 /** With `policy`, permissions carry `hostable` and a known `rowConditions` (without, it is `true`), and roles carry `on`, `assignable` and their ownership rules. */
 export function buildCatalog(
   tree: PermissionTree,
@@ -116,6 +128,7 @@ export function buildCatalog(
         usages: scan.usages[leaf.key] ?? [],
         renamedFrom:
           formerKeys(leaf).length === 0 ? undefined : formerKeys(leaf),
+        levels: leafLevels(tree, leaf),
         hostable: hostable.has(leaf.key) ? (true as const) : undefined,
         rowConditions: rowConditions?.has(leaf.key) ?? true,
         approvals: approvals.get(leaf.key),

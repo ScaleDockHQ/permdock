@@ -106,11 +106,9 @@ async function loadPolicy(
 }
 
 /** Declared role names, and those a tenant admin may compose into custom roles. */
-function customRoleNames(policy: Policy): {
-  readonly declared: readonly string[];
-  readonly assignable: readonly string[];
-  readonly renamed?: Readonly<Record<string, string>>;
-} {
+function customRoleNames(
+  policy: Policy,
+): NonNullable<RlsSqlContext["customRoles"]> {
   const declared = [...roleNames(policy)].toSorted();
   const assignable = declared.filter(
     (name) =>
@@ -120,9 +118,12 @@ function customRoleNames(policy: Policy): {
       ),
   );
   const renamed = renamedKeys(policy.vocabulary.permissions);
-  return renamed.size === 0
-    ? { declared, assignable }
-    : { declared, assignable, renamed: Object.fromEntries(renamed) };
+  return {
+    declared,
+    assignable,
+    ...(renamed.size === 0 ? {} : { renamed: Object.fromEntries(renamed) }),
+    ...(policy.levels === undefined ? {} : { levels: true as const }),
+  };
 }
 
 export async function runRlsGenerate(input: {
@@ -330,7 +331,14 @@ export async function runRlsGenerate(input: {
         ...(ctx.scopes[0] === undefined ? {} : { scope: ctx.scopes[0].name }),
         ...(ctx.customRoles === undefined
           ? {}
-          : { customRoles: { declared: ctx.customRoles.declared } }),
+          : {
+              customRoles: {
+                declared: ctx.customRoles.declared,
+                ...(ctx.customRoles.levels === true
+                  ? { levels: true as const }
+                  : {}),
+              },
+            }),
         context: ctx,
       })
     : undefined;

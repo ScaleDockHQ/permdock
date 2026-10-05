@@ -6,6 +6,8 @@ import type { RlsSqlContext } from "./rls-sql.ts";
 import type { RlsActions } from "./types.ts";
 
 import { sole } from "../core/compact.ts";
+import { andWhere, leveled } from "../core/custom-roles.ts";
+import { levelCondition, levelNames } from "../core/policy.ts";
 import {
   formerKeys,
   hasConditionOp,
@@ -364,6 +366,67 @@ function assignKeys(
   return keys;
 }
 
+/**
+ * One entry per level for every allow of an assignable role on a resource
+ * with levels, keyed `<grant key>@<level>`. Only `permdock_custom_keys`
+ * hands these keys out, to a custom role whose stored allow names the level.
+ */
+function levelEntries(
+  policy: Policy,
+  ctx: RlsSqlContext,
+  entries: readonly Prepared[],
+  keys: Map<Prepared, string>,
+  tables: Readonly<Record<string, string>> | undefined,
+): Prepared[] {
+  const custom = ctx.customRoles;
+  if (custom?.levels !== true) {
+    return [];
+  }
+  const assignable = new Set(custom.assignable);
+  const out: Prepared[] = [];
+  for (const entry of entries) {
+    const { item } = entry;
+    const { grant } = item;
+    const grantKey = keys.get(entry);
+    if (
+      grantKey === undefined ||
+      item.access.kind !== "role" ||
+      grant.effect !== "allow" ||
+      grant.permission.kind !== "instance" ||
+      !assignable.has(item.access.role)
+    ) {
+      continue;
+    }
+    if (grant.permission.key.includes("@")) {
+      throw new Error(
+        `PermDock CLI: permission key '${grant.permission.key}' holds '@', which separates a level in custom-role grant keys`,
+      );
+    }
+    for (const level of levelNames(policy, grant.permission.resource)) {
+      const condition = levelCondition(
+        policy,
+        grant.permission.resource,
+        level,
+      );
+      if (condition === undefined) {
+        continue;
+      }
+      const where = andWhere(item.where, condition);
+      const narrowed: RlsGrant = {
+        ...item,
+        grant: leveled(grant, level, condition),
+        ...(where === undefined ? {} : { where }),
+      };
+      const prepared = prepare(narrowed, tables, [], true, ctx.actions);
+      if (prepared !== undefined) {
+        keys.set(prepared, `${grantKey}@${level}`);
+        out.push(prepared);
+      }
+    }
+  }
+  return out;
+}
+
 function compileOptional(
   condition: Condition | undefined,
   ctx: RlsSqlContext,
@@ -415,6 +478,7 @@ export function compileGrants(
     return entry === undefined ? [] : [entry];
   });
   const keys = assignKeys(entries, ctx.fields === "views");
+  entries.push(...levelEntries(policy, ctx, entries, keys, tables));
   const rows = new Map<string, RolePermission>();
   for (const item of items) {
     const holder =

@@ -141,6 +141,7 @@ function customDatabaseBranch(
   scope: string,
   memberships: SupabaseMembershipTable & { readonly tenant: string },
   declared: readonly string[],
+  levels: boolean,
 ): string {
   const role = tenantRole(memberships);
   const match = `c.tenant_id::text = requested_tenant and c.scope = ${literal(scope)} and c.scope_id is null and c.role = ${role.sql}`;
@@ -161,7 +162,9 @@ function customDatabaseBranch(
           scope,
           rows(
             "custom_role_permissions",
-            "permission",
+            levels
+              ? "permission || coalesce('@' || c.level, '')"
+              : "permission",
             " and c.effect = 'allow'",
           ),
           rows(
@@ -224,7 +227,7 @@ function databaseBody(
     exception when invalid_text_representation or numeric_value_out_of_range then
       return false; -- not an id of the memberships table
     end;
-    return (${held("allow")}${custom === undefined ? "" : customDatabaseBranch(q, scope, { ...memberships, tenant: tenantColumn }, custom.declared)})
+    return (${held("allow")}${custom === undefined ? "" : customDatabaseBranch(q, scope, { ...memberships, tenant: tenantColumn }, custom.declared, custom.levels === true)})
     and not ${held("deny")}
     and not ${global("deny")};
   end if;`;

@@ -246,7 +246,17 @@ export type ResourceOptions<
    * exist (HTTP `404`), so an id never confirms a row the caller cannot read.
    */
   readonly disclosure?: "hide" | "reveal";
+  /**
+   * Named grant levels a custom role may pick per permission, each a row
+   * condition (`where` shorthand or a `Condition`), such as `own`, `team` and
+   * `all`. A level narrows the ceiling grant it applies to and never widens
+   * it; it reaches only instance actions. Names match `^[a-z][a-z0-9_]*$`.
+   */
+  readonly levels?: Readonly<Record<string, ResourceLevel>>;
 };
+
+/** A level's row condition: `where` shorthand or a normalised `Condition`, checked by `definePolicy`. */
+export type ResourceLevel = Readonly<Record<string, unknown>>;
 
 export type ResourceInit<
   T = unknown,
@@ -271,6 +281,8 @@ export type ResourceNode<T = unknown> = {
   readonly disclosure: "hide" | "reveal";
   readonly instanceActions: ReadonlySet<string>;
   readonly collectionActions: ReadonlySet<string>;
+  /** Declared level names to their raw condition; `definePolicy` normalises them. */
+  readonly levels?: Readonly<Record<string, ResourceLevel>>;
 };
 
 export type PermissionTree = {
@@ -543,6 +555,9 @@ export function resource(
 }
 
 const RESOURCE_NAME = /^[A-Za-z][A-Za-z0-9_-]*$/u;
+
+/** Level names ride claims and grant keys (`key@level`), so they stay SQL- and claim-safe. */
+const LEVEL_NAME = /^[a-z][a-z0-9_]*$/u;
 
 const EDGE_TABLE = /^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)?$/u;
 
@@ -931,6 +946,31 @@ function materialiseResource(
       resource: link.resource,
     });
   }
+  const levels: Record<string, ResourceLevel> = {};
+  for (const [levelName, condition] of Object.entries(
+    init.options.levels ?? {},
+  )) {
+    if (!LEVEL_NAME.test(levelName)) {
+      throw new Error(
+        `PermDock: level '${levelName}' on '${name}' must match ^[a-z][a-z0-9_]*$`,
+      );
+    }
+    if (
+      condition === null ||
+      typeof condition !== "object" ||
+      Array.isArray(condition)
+    ) {
+      throw new Error(
+        `PermDock: level '${levelName}' on '${name}' must be a condition object`,
+      );
+    }
+    levels[levelName] = freezeDeep({ ...condition });
+  }
+  if (Object.keys(levels).length > 0 && instanceSet.size === 0) {
+    throw new Error(
+      `PermDock: resource '${name}' declares levels but no instance actions`,
+    );
+  }
   const resourceNode: ResourceNode = Object.freeze({
     name,
     path: prefix,
@@ -944,6 +984,7 @@ function materialiseResource(
     disclosure,
     instanceActions: instanceSet,
     collectionActions: collectionSet,
+    levels: Object.freeze(levels),
   });
   assertIncludes(resourceNode);
   registry.set(name, resourceNode);

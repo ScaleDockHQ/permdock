@@ -313,6 +313,8 @@ export type SnapshotAssignable = {
   readonly tenant: string;
   readonly roles: readonly string[];
   readonly permissions: readonly Permission[];
+  /** Permission key to the levels the subject may hand out; only permissions whose resource declares levels. */
+  readonly levels?: Readonly<Record<string, readonly string[]>>;
 };
 
 export type SnapshotGrant = {

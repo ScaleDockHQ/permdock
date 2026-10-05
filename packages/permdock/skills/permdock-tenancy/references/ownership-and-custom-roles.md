@@ -68,16 +68,17 @@ type CustomRole = {
   id?: string; // pins it to one instance
   name: string;
   includes?: string[]; // declared roles to start from
-  grants?: { permission: string; effect?: "allow" | "deny" }[];
+  grants?: { permission: string; effect?: "allow" | "deny"; level?: string }[];
 };
 ```
 
 - The ceiling of a scope is the code allows of the declared roles marked `assignable` in that scope. A custom role never exceeds it, and hosted grants never widen it.
 - An own allow inherits the conditions of the ceiling grants for that permission. To keep a narrower condition ("own posts only"), include the declared role that has it.
+- A resource may declare `levels: { own: { ownerId: principal.id }, team: { teamId: { in: principal.teamIds } }, all: {} }`. A grant `{ permission: 'job.read', level: 'team' }` ANDs that condition into the ceiling grant. An undeclared level, or a level on a collection action, is dropped as `unknown-level` and removes the permission; a level on a deny is `condition-not-allowed`. `permdock.assignableLevels(leaf)` lists the levels the subject may hand out.
 - An own deny removes the permission from this custom role only. Deny it in code when it must win across roles.
 - Pass a `RoleSource` (`memoryRoleSource(roles)` in tests) as `customRoles` on `createPermDock`.
 - `permdock.assignablePermissions({ tenant })` is the ceiling intersected with what the subject holds. `useAssignablePermissions()` in `permdock/react` builds the editor from it.
-- The save action runs `validateCustomRole(policy, role)` and refuses the role when `ok` is false or `permissions` contains a key outside `assignablePermissions()`. `dropped` names each entry left out (`unknown-permission`, `outside-ceiling`, `condition-not-allowed`, `unknown-role`).
+- The save action runs `validateCustomRole(policy, role)` and refuses the role when `ok` is false or `permissions` contains a key outside `assignablePermissions()`. `dropped` names each entry left out (`unknown-permission`, `outside-ceiling`, `condition-not-allowed`, `unknown-level`, `unknown-role`).
 - A platform custom role (`scope: 'global'`, no `tenant`, `team` or `id`) is held through `principal.roles` and capped by the allows of declared global roles marked `assignable`. `RoleSource.globalRoles()` returns them.
 - A stored grant under a key renamed with `definePermissions(..., { renamed })` still resolves; `validateCustomRole` lists it in `renamed` as `{ from, to }`, and `permdock doctor` PD055 prints the `update` that rewrites it.
-- For generated RLS, add `--custom-roles` (or `rls.customRoles: true`) to `permdock rls generate`. Platform roles are rows with `scope = 'global'` and a null `tenant_id`, or the top-level `role_grants` claim in `jwt` mode.
+- For generated RLS, add `--custom-roles` (or `rls.customRoles: true`) to `permdock rls generate`. Platform roles are rows with `scope = 'global'` and a null `tenant_id`, or the top-level `role_grants` claim in `jwt` mode. With levels, `custom_role_permissions` gains a `level` column and the claim writes `key@level`.

@@ -9,6 +9,7 @@ import type {
   RelationSource,
   RoleSource,
   Snapshot,
+  SnapshotAssignable,
 } from "./interfaces.ts";
 import type {
   DecideOptions,
@@ -28,6 +29,7 @@ import {
   isArazzoSimulateInput,
   simulateArazzo,
 } from "./arazzo.ts";
+import { canonicalJson } from "./canonical-json.ts";
 import { compact, isReadonlyArray } from "./compact.ts";
 import {
   type CustomGrant,
@@ -67,7 +69,7 @@ import {
   isPrincipalRelation,
   listPermissions,
 } from "./permissions.ts";
-import { grantList } from "./policy.ts";
+import { grantList, levelCondition, levelNames } from "./policy.ts";
 import {
   type RelationCache,
   pendingRelations,
@@ -365,9 +367,34 @@ function assignableCandidates(policy: Policy): readonly Role[] {
 export type Assignable = {
   readonly roles: readonly Role[];
   readonly permissions: readonly Permission[];
+  /** Per assignable permission key with levels, the levels the subject may hand out. */
+  readonly levels: Readonly<Record<string, readonly string[]>>;
   /** A `meta.manageRoles` role or permission lifted the intersection. */
   readonly manage: boolean;
 };
+
+/**
+ * The levels a held allow of a permission covers: its own `level`, every
+ * level when it has no row condition, or the levels whose condition equals
+ * its condition.
+ */
+function heldLevels(
+  policy: Policy,
+  grant: Grant,
+  names: readonly string[],
+): readonly string[] {
+  if (grant.level !== undefined) {
+    return [grant.level];
+  }
+  if (grant.where === undefined) {
+    return names;
+  }
+  const held = canonicalJson(grant.where);
+  return names.filter((name) => {
+    const condition = levelCondition(policy, grant.permission.resource, name);
+    return condition !== undefined && canonicalJson(condition) === held;
+  });
+}
 
 /**
  * What the subject may hand out in `tenant`: declared assignable roles and the
@@ -387,7 +414,7 @@ function assignableIn(
 ): Assignable {
   const principal = subject.principal;
   if (principal === null) {
-    return { roles: [], permissions: [], manage: false };
+    return { roles: [], permissions: [], levels: {}, manage: false };
   }
   const scopes = scopeList(policy.scopes);
   const scoped: Subject =
@@ -402,18 +429,23 @@ function assignableIn(
             }),
           }),
         );
-  const heldKeys = new Set(
-    collectSnapshotGrants(policy, scoped, customRoles, now, customGrants)
-      .filter(
-        (item) =>
-          item.grant.effect === "allow" &&
-          (item.membership === undefined ||
-            (!global &&
-              tenantOf(item.membership, scopes) === tenant &&
-              !isMembershipExpired(item.membership, now))),
-      )
-      .map((item) => item.grant.permission.key),
-  );
+  const heldGrants = collectSnapshotGrants(
+    policy,
+    scoped,
+    customRoles,
+    now,
+    customGrants,
+  )
+    .filter(
+      (item) =>
+        item.grant.effect === "allow" &&
+        (item.membership === undefined ||
+          (!global &&
+            tenantOf(item.membership, scopes) === tenant &&
+            !isMembershipExpired(item.membership, now))),
+    )
+    .map((item) => item.grant);
+  const heldKeys = new Set(heldGrants.map((grant) => grant.permission.key));
   const heldNames = heldRoleNames(policy, subject, tenant, undefined, now);
   const quiet: EvalEnv = {
     emit: false,
@@ -476,7 +508,25 @@ function assignableIn(
   const permissions = listPermissions(policy.permissions).filter(
     (leaf) => ceiling.has(leaf.key) && (manage || heldKeys.has(leaf.key)),
   );
-  return { roles, permissions, manage };
+  const levels: Record<string, readonly string[]> = {};
+  for (const leaf of permissions) {
+    const names =
+      leaf.kind === "instance" ? levelNames(policy, leaf.resource) : [];
+    if (names.length === 0) {
+      continue;
+    }
+    if (manage) {
+      levels[leaf.key] = names;
+      continue;
+    }
+    const reached = new Set(
+      heldGrants
+        .filter((grant) => grant.permission.key === leaf.key)
+        .flatMap((grant) => heldLevels(policy, grant, names)),
+    );
+    levels[leaf.key] = names.filter((name) => reached.has(name));
+  }
+  return { roles, permissions, levels, manage };
 }
 
 export type SnapshotInclude = readonly (
@@ -558,11 +608,13 @@ export function snapshotOf(
           options.assignable?.get(tenant),
           now,
         );
-        return {
+        return compact<SnapshotAssignable>({
           tenant,
           roles: found.roles.map((leaf) => leaf.key),
           permissions: found.permissions,
-        };
+          levels:
+            Object.keys(found.levels).length === 0 ? undefined : found.levels,
+        });
       },
     }),
   );
@@ -1187,6 +1239,31 @@ export function buildInstance(
       }
       const tenant = options?.tenant ?? subject.principal?.tenant;
       return tenant === undefined ? [] : assignableAt(tenant).permissions;
+    },
+    assignableLevels(
+      permission: Permission,
+      options?: { readonly tenant?: string; readonly scope?: "global" },
+    ): readonly string[] {
+      const of = (found: Assignable): readonly string[] =>
+        Object.hasOwn(found.levels, permission.key)
+          ? (found.levels[permission.key] ?? [])
+          : [];
+      if (options?.scope === "global") {
+        return of(
+          assignableIn(
+            policy,
+            subject,
+            envBase.customRoles,
+            customGrants,
+            undefined,
+            undefined,
+            nowSeconds(),
+            true,
+          ),
+        );
+      }
+      const tenant = options?.tenant ?? subject.principal?.tenant;
+      return tenant === undefined ? [] : of(assignableAt(tenant));
     },
     decideRoleChange(
       change: RoleChange,

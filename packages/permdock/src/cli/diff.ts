@@ -22,6 +22,7 @@ import { asPolicy, loadModule, pickNamed } from "./load.ts";
 export type BreakingKind =
   | "permission-removed"
   | "alias-removed"
+  | "level-removed"
   | "scope-removed"
   | "role-removed"
   | "allow-removed"
@@ -66,6 +67,12 @@ export type PermissionRename = {
   readonly to: string;
 };
 
+/** One level of one permission (`resource(…, { levels })`). */
+export type PermissionLevel = {
+  readonly permission: string;
+  readonly level: string;
+};
+
 export type CatalogDiff = {
   readonly a: { readonly source: string; readonly fingerprint?: string };
   readonly b: { readonly source: string; readonly fingerprint?: string };
@@ -74,6 +81,11 @@ export type CatalogDiff = {
     readonly removed: readonly string[];
     /** Keys of `a` that `b` keeps as a `renamedFrom` alias of a new key; not breaking. */
     readonly renamed: readonly PermissionRename[];
+  };
+  /** Levels per permission kept on both sides; a removed level is breaking, since stored custom roles that pick it then deny. */
+  readonly levels: {
+    readonly added: readonly PermissionLevel[];
+    readonly removed: readonly PermissionLevel[];
   };
   readonly scopes: {
     readonly added: readonly string[];
@@ -409,6 +421,50 @@ function underNames(a: Side, aliases: ReadonlyMap<string, string>): Side {
   };
 }
 
+/** Levels of permissions on both sides, with `a`'s keys under `b`'s names. */
+function diffLevels(
+  a: CatalogDocument,
+  b: CatalogDocument,
+  aliases: ReadonlyMap<string, string>,
+): CatalogDiff["levels"] {
+  const after = new Map(
+    b.permissions.map((item) => [item.key, new Set(item.levels ?? [])]),
+  );
+  const before = new Map(
+    a.permissions.map((item) => [
+      aliases.get(item.key) ?? item.key,
+      new Set(item.levels ?? []),
+    ]),
+  );
+  const added: PermissionLevel[] = [];
+  const removed: PermissionLevel[] = [];
+  for (const [permission, levels] of before) {
+    const kept = after.get(permission);
+    if (kept === undefined) {
+      continue;
+    }
+    for (const level of levels) {
+      if (!kept.has(level)) {
+        removed.push({ permission, level });
+      }
+    }
+    for (const level of kept) {
+      if (!levels.has(level)) {
+        added.push({ permission, level });
+      }
+    }
+  }
+  const order = (x: PermissionLevel, y: PermissionLevel): number =>
+    x.permission === y.permission
+      ? x.level < y.level
+        ? -1
+        : 1
+      : x.permission < y.permission
+        ? -1
+        : 1;
+  return { added: added.toSorted(order), removed: removed.toSorted(order) };
+}
+
 export function diffCatalogs(original: Side, b: Side): CatalogDiff {
   const breaking: BreakingChange[] = [];
   const aliasesA = aliasesOf(original.catalog);
@@ -449,6 +505,14 @@ export function diffCatalogs(original: Side, b: Side): CatalogDiff {
         detail: `${old} no longer resolves to ${to}: stored custom roles, tokens and SQL that still name it now deny`,
       });
     }
+  }
+  const levels = diffLevels(a.catalog, b.catalog, aliasesB);
+  for (const item of levels.removed) {
+    breaking.push({
+      kind: "level-removed",
+      permission: item.permission,
+      detail: `level ${item.level} of ${item.permission} no longer exists: stored custom roles that pick it now deny the permission`,
+    });
   }
   const scopes = setDiff(
     (a.catalog.scopes ?? []).map((scope) => scope.name),
@@ -564,6 +628,7 @@ export function diffCatalogs(original: Side, b: Side): CatalogDiff {
     a: sideRef(a),
     b: sideRef(b),
     permissions,
+    levels,
     scopes,
     roles: { ...roleNames, changed: changedRoles },
     ...(grants === undefined ? {} : { grants }),
@@ -667,6 +732,11 @@ function formatText(diff: CatalogDiff): string {
     diff.permissions.renamed.map(
       (rename) => `${rename.from} → ${rename.to} (renamed)`,
     ),
+  );
+  section(
+    "levels",
+    diff.levels.added.map((item) => `${item.permission}@${item.level}`),
+    diff.levels.removed.map((item) => `${item.permission}@${item.level}`),
   );
   section("scopes", diff.scopes.added, diff.scopes.removed);
   section(

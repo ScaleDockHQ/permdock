@@ -16,6 +16,7 @@ import {
   isUserApprover,
   user,
 } from "./approvers.ts";
+import { canonicalJson } from "./canonical-json.ts";
 import { compact, isReadonlyArray, sole } from "./compact.ts";
 import { parseDuration } from "./duration.ts";
 import { sanitizeFields } from "./fields.ts";
@@ -409,6 +410,8 @@ export type Grant = {
   readonly hosted?: HostedGrantRef;
   /** When the grant applies; absent means always. */
   readonly validity?: GrantValidity;
+  /** Set on a custom-role grant narrowed by a resource level (`CustomRoleGrant.level`). */
+  readonly level?: string;
 };
 
 /** Which hosted policy document and grant a merged grant came from. */
@@ -483,6 +486,8 @@ export type Policy<
   readonly fresh?: readonly string[];
   /** Policy delegations in declaration order; absent or empty when the policy declares none. */
   readonly delegations?: readonly PolicyDelegation[];
+  /** Grant levels by resource (`resource(…, { levels })`), normalised; absent when none are declared. */
+  readonly levels?: PolicyLevels;
   readonly index: PolicyIndex;
 };
 
@@ -1100,12 +1105,77 @@ function roleRules(
 function canonicalPolicy(
   grants: readonly Grant[],
   delegations: readonly PolicyDelegation[],
+  levels: PolicyLevels | undefined,
 ): string {
   const payload = canonicalGrants(grants);
-  if (delegations.length === 0) {
-    return payload;
+  const withDelegations =
+    delegations.length === 0
+      ? payload
+      : `${payload}\n${JSON.stringify(delegations)}`;
+  return levels === undefined
+    ? withDelegations
+    : `${withDelegations}\nlevels:${canonicalJson(levels)}`;
+}
+
+/** Resource name to level name to its normalised condition. */
+export type PolicyLevels = Readonly<
+  Record<string, Readonly<Record<string, Condition>>>
+>;
+
+function normalizeLevels(
+  resources: ReadonlyMap<string, ResourceNode>,
+): PolicyLevels | undefined {
+  const out: Record<string, Record<string, Condition>> = {};
+  for (const node of resources.values()) {
+    const entries = Object.entries(node.levels ?? {});
+    if (entries.length === 0) {
+      continue;
+    }
+    const levels: Record<string, Condition> = {};
+    for (const [name, input] of entries) {
+      try {
+        levels[name] =
+          Object.keys(input).length === 0
+            ? { op: "and", conditions: [] }
+            : normalizeWhere(input);
+      } catch (error) {
+        throw new Error(
+          `PermDock: level '${name}' on '${node.name}': ${error instanceof Error ? error.message : String(error)}`,
+          { cause: error },
+        );
+      }
+    }
+    out[node.name] = levels;
   }
-  return `${payload}\n${JSON.stringify(delegations)}`;
+  return Object.keys(out).length === 0 ? undefined : freezeDeep(out);
+}
+
+/** The condition of `level` on `resource`, if the policy declares it. */
+export function levelCondition(
+  policy: Pick<Policy, "levels">,
+  resource: string,
+  level: string,
+): Condition | undefined {
+  const levels = policy.levels;
+  if (levels === undefined || !Object.hasOwn(levels, resource)) {
+    return undefined;
+  }
+  const own = levels[resource];
+  return own !== undefined && Object.hasOwn(own, level)
+    ? own[level]
+    : undefined;
+}
+
+/** Declared level names of `resource`, in declaration order. */
+export function levelNames(
+  policy: Pick<Policy, "levels">,
+  resource: string,
+): readonly string[] {
+  const levels = policy.levels;
+  if (levels === undefined || !Object.hasOwn(levels, resource)) {
+    return [];
+  }
+  return Object.keys(levels[resource] ?? {});
 }
 
 function canonicalGrants(grants: readonly Grant[]): string {
@@ -1550,8 +1620,9 @@ export function definePolicy<
   const delegations = (options.delegations ?? []).map((item, index) =>
     normalizeDelegation(item, index, tree),
   );
+  const levels = normalizeLevels(resources);
   const fingerprint = bytesToBase64Url(
-    sha256(canonicalPolicy(grants, delegations)),
+    sha256(canonicalPolicy(grants, delegations, levels)),
   );
   const hostable = [
     ...new Set(
@@ -1586,6 +1657,7 @@ export function definePolicy<
     hostable,
     fresh,
     delegations: delegations.length === 0 ? undefined : delegations,
+    levels,
     index: indexPolicy(roles, grants, vocabulary),
   }) as Policy<TUser, TPrincipal, VocabularyFromInput<Input>>;
 }

@@ -181,6 +181,7 @@ export type {
   PermissionKind,
   PermissionTree,
   ResourceInit,
+  ResourceLevel,
   ResourceNode,
   ResourceOptions,
   ComputedRelation,

@@ -1,3 +1,4 @@
+import type { Condition } from "../conditions/ast.ts";
 import type { RoleGrantee } from "./grantee.ts";
 import type { Grant, Policy } from "./policy.ts";
 import type { CustomRole, CustomRoleGrant, Membership } from "./subject.ts";
@@ -6,7 +7,7 @@ import { freezeDeep } from "./freeze.ts";
 import { flattenGrantee } from "./grantee.ts";
 import { isForbiddenKey } from "./paths.ts";
 import { findPermission, formerKeys } from "./permissions.ts";
-import { declaredRoleNames, grantList } from "./policy.ts";
+import { declaredRoleNames, grantList, levelCondition } from "./policy.ts";
 import {
   type Scope,
   normalizeMemberships,
@@ -19,11 +20,17 @@ import { findRole } from "./vocabulary.ts";
 export type CustomRoleDropReason =
   | "unknown-permission"
   | "outside-ceiling"
-  | "condition-not-allowed";
+  | "condition-not-allowed"
+  | "unknown-level";
 
 /** Why part of a custom role was left out: a permission, or an undeclared include. */
 export type CustomRoleDrop =
-  | { readonly permission: string; readonly reason: CustomRoleDropReason }
+  | {
+      readonly permission: string;
+      readonly reason: CustomRoleDropReason;
+      /** The stored level, for `unknown-level`. */
+      readonly level?: string;
+    }
   | { readonly role: string; readonly reason: "unknown-role" };
 
 /** A stored grant that named a permission by a key it was renamed from. */
@@ -66,7 +73,40 @@ export type CustomGrant = {
   readonly role: CustomRole;
 };
 
-const GRANT_KEYS = new Set(["permission", "effect"]);
+const GRANT_KEYS = new Set(["permission", "effect", "level"]);
+
+/** Every level of a permission an own allow reaches: `'all'` for an allow without a level. */
+type AllowLevels = "all" | Set<string>;
+
+/** `where` narrowed by a level; the empty level (`{}`) leaves it as is. */
+export function andWhere(
+  where: Condition | undefined,
+  level: Condition,
+): Condition | undefined {
+  if (level.op === "and" && level.conditions.length === 0) {
+    return where;
+  }
+  return where === undefined
+    ? level
+    : { op: "and", conditions: [where, level] };
+}
+
+/** A ceiling grant narrowed by a level's condition and marked with the level. */
+export function leveled(
+  grant: Grant,
+  level: string,
+  condition: Condition,
+): Grant {
+  const where = andWhere(grant.where, condition);
+  const check =
+    grant.check === undefined ? undefined : andWhere(grant.check, condition);
+  return freezeDeep({
+    ...grant,
+    level,
+    ...(where === undefined ? {} : { where }),
+    ...(check === undefined ? {} : { check }),
+  });
+}
 
 /** The named scope a custom-role ceiling is keyed by. */
 export type CeilingScope = string;
@@ -218,8 +258,11 @@ export function resolveCustomRole(
 
   const included: Grant[] = [];
   const includedKeys = new Set<string>();
-  const allowKeys = new Set<string>();
+  const allowKeys = new Map<string, AllowLevels>();
   const denyKeys = new Set<string>();
+  const allowAll = (key: string): void => {
+    allowKeys.set(key, "all");
+  };
 
   for (const name of Array.isArray(role.includes) ? role.includes : []) {
     if (typeof name !== "string" || !declared.has(name)) {
@@ -240,7 +283,7 @@ export function resolveCustomRole(
         included.push(grant);
         includedKeys.add(key);
       } else if (ceilingKeys.has(key)) {
-        allowKeys.add(key);
+        allowAll(key);
       } else {
         drop({ permission: key, reason: "outside-ceiling" });
       }
@@ -255,10 +298,11 @@ export function resolveCustomRole(
       drop({ permission: String(item), reason: "unknown-permission" });
       continue;
     }
-    // SAFETY: item is a non-null object checked above; both fields stay unknown until checked.
+    // SAFETY: item is a non-null object checked above; every field stays unknown until checked.
     const entry = item as {
       readonly permission?: unknown;
       readonly effect?: unknown;
+      readonly level?: unknown;
     };
     const raw = entry.permission;
     const key = typeof raw === "string" ? currentKey(policy, raw) : undefined;
@@ -271,7 +315,12 @@ export function resolveCustomRole(
     }
     const effect = entry.effect ?? "allow";
     const extra = Object.keys(entry).some((name) => !GRANT_KEYS.has(name));
-    if (extra || (effect !== "allow" && effect !== "deny")) {
+    const level = entry.level;
+    if (
+      extra ||
+      (effect !== "allow" && effect !== "deny") ||
+      (effect === "deny" && level !== undefined)
+    ) {
       drop({ permission: key, reason: "condition-not-allowed" });
       // A malformed entry can only narrow: it still removes the permission.
       denyKeys.add(key);
@@ -281,11 +330,35 @@ export function resolveCustomRole(
       denyKeys.add(key);
       continue;
     }
+    if (level !== undefined) {
+      const leaf = findPermission(policy.permissions, key);
+      const known =
+        typeof level === "string" &&
+        leaf?.kind === "instance" &&
+        levelCondition(policy, leaf.resource, level) !== undefined;
+      if (!known) {
+        drop({
+          permission: key,
+          reason: "unknown-level",
+          level: String(level),
+        });
+        // An unknown level never falls back to the wider grant.
+        denyKeys.add(key);
+        continue;
+      }
+    }
     if (!ceilingKeys.has(key)) {
       drop({ permission: key, reason: "outside-ceiling" });
       continue;
     }
-    allowKeys.add(key);
+    const held = allowKeys.get(key);
+    if (typeof level !== "string") {
+      allowAll(key);
+    } else if (held === undefined) {
+      allowKeys.set(key, new Set([level]));
+    } else if (held !== "all") {
+      held.add(level);
+    }
   }
 
   const out: Grant[] = [];
@@ -299,15 +372,29 @@ export function resolveCustomRole(
       push(grant);
     }
   }
-  for (const key of allowKeys) {
+  for (const [key, levels] of allowKeys) {
     if (denyKeys.has(key) || includedKeys.has(key)) {
       continue;
     }
     const sources = new Set<string>();
     for (const grant of ceiling) {
-      if (grant.permission.key === key) {
+      if (grant.permission.key !== key) {
+        continue;
+      }
+      sources.add(soleRole(grant) ?? "");
+      if (levels === "all") {
         push(grant);
-        sources.add(soleRole(grant) ?? "");
+        continue;
+      }
+      for (const level of levels) {
+        const condition = levelCondition(
+          policy,
+          grant.permission.resource,
+          level,
+        );
+        if (condition !== undefined) {
+          push(leveled(grant, level, condition));
+        }
       }
     }
     for (const grant of all) {
@@ -460,9 +547,14 @@ export function customRoleClaim(
       entries.push(`@${name}`);
     }
     for (const grant of grants) {
+      if (grant.effect === "deny") {
+        entries.push(`-${keyOf(grant.permission)}`);
+        continue;
+      }
+      const level = grant.level;
       entries.push(
-        grant.effect === "deny"
-          ? `-${keyOf(grant.permission)}`
+        typeof level === "string" && level !== ""
+          ? `${keyOf(grant.permission)}@${level}`
           : keyOf(grant.permission),
       );
     }

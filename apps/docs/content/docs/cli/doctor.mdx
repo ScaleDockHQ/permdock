@@ -196,7 +196,7 @@ A Postgres view runs with its owner's rights unless it is created `with (securit
 
 ### PD023: custom-role keys outside the ceiling
 
-When `doctor.memberships` points at a JSON fixture with a `customRoles` array, the check runs `validateCustomRole` on each custom role and warns once per dropped entry: a permission no assignable declared role of the role's scope allows (`outside-ceiling`), an unknown permission key or include (`unknown-permission`, `unknown-role`), or a grant carrying a condition (`condition-not-allowed`). Evaluation already drops these, so the warning is about intent: the tenant admin expected the key to stick. Fix it by granting the permission to a declared `assignable` role, or by removing it from the custom role ([custom roles](/docs/concepts/custom-roles)). `--only custom-roles` runs this check.
+When `doctor.memberships` points at a JSON fixture with a `customRoles` array, the check runs `validateCustomRole` on each custom role and warns once per dropped entry: a permission no assignable declared role of the role's scope allows (`outside-ceiling`), an unknown permission key or include (`unknown-permission`, `unknown-role`), a grant carrying a condition (`condition-not-allowed`), or a level the resource does not declare (`unknown-level`). Evaluation already drops these, so the warning is about intent: the tenant admin expected the key to stick. Fix it by granting the permission to a declared `assignable` role, or by removing it from the custom role ([custom roles](/docs/concepts/custom-roles)). `--only custom-roles` runs this check.
 
 ### PD024: approvals the requester can give
 

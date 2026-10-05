@@ -67,6 +67,8 @@ export type Membership = {
 export type CustomRoleGrant = {
   readonly permission: string;
   readonly effect?: "allow" | "deny";
+  /** A level the permission's resource declares (`resource(…, { levels })`); allows only. */
+  readonly level?: string;
 };
 
 type CustomRoleBody = {

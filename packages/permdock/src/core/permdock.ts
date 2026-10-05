@@ -226,6 +226,15 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
     readonly scope?: "global";
   }) => readonly Permission[];
   /**
+   * The levels of `permission` (`resource(…, { levels })`) the subject may
+   * hand out in a custom role: those it holds, or every level with
+   * `meta.manageRoles`. Empty when the permission is not assignable.
+   */
+  readonly assignableLevels: (
+    permission: Permission,
+    options?: { readonly tenant?: string; readonly scope?: "global" },
+  ) => readonly string[];
+  /**
    * Whether the subject may assign, revoke or transfer a role in one scope
    * instance: `assigns`, the ceiling, `for`, `exclusiveWith`, `min`, `max`
    * and `transferOnly`. It never writes; the application does, and generated
