@@ -10,6 +10,7 @@ import {
   definePolicy,
   defineRoles,
   resource,
+  role,
 } from "../../src/index.ts";
 import {
   authorizeSql,
@@ -222,7 +223,7 @@ describe("subjectFromSupabase", () => {
     });
     expect(client.principal?.id).toBe("user-7");
     expect(client.actor).toEqual({ id: "app-1", kind: "oauth-client" });
-    expect(client.delegation).toEqual({ scopes: ["openid", "invoice:read"] });
+    expect(client.delegation).toEqual({ scopes: ["invoice:read"] });
     expect(client.principal?.claims).toBeUndefined();
 
     const act = { sub: "agent-1", act: { sub: "agent-2" } };
@@ -350,5 +351,69 @@ describe("supabaseRls and authorizeSql", () => {
     expect(() => authorizeSql({ scope: "bad scope" })).toThrow(/unsafe scope/);
     expect(jwt).toContain("any('{}'::text[])");
     expect(jwt).not.toContain("custom_role_permissions");
+  });
+});
+
+describe("subjectFromSupabase with Supabase OAuth server tokens", () => {
+  const Invoice = z.object({ id: z.string() });
+  const permissions = definePermissions({
+    invoice: resource(Invoice, { id: "id", actions: ["read", "pay"] }),
+  });
+  const grants = [allow([permissions.invoice.read, permissions.invoice.pay])];
+  const claims = {
+    sub: "user-7",
+    role: "authenticated",
+    user_role: "member",
+    client_id: "first-party-cli",
+    scope: "openid email profile phone",
+  };
+  const invoice = { id: "i1" };
+
+  it("reads the OpenID Connect identity scopes as no delegation", async () => {
+    const subject = subjectFromSupabase(claims);
+    expect(subject.actor).toEqual({
+      id: "first-party-cli",
+      kind: "oauth-client",
+    });
+    expect(subject.delegation).toBeUndefined();
+    const policy = definePolicy(permissions, {
+      roles: [role("member", grants)],
+      subject: (user: { readonly id: string }) => user,
+    });
+    const decision = (await createPermDock(policy, subject)).decide(
+      permissions.invoice.read,
+      invoice,
+    );
+    expect(decision.outcome).toBe("denied");
+    expect(decision.outcome === "denied" && decision.denials[0]?.reason).toBe(
+      "no-delegation",
+    );
+  });
+
+  it("lets a policy delegation for the client act within its ceiling", async () => {
+    const policy = definePolicy(permissions, {
+      roles: [role("member", grants)],
+      subject: (user: { readonly id: string }) => user,
+      delegations: [
+        {
+          from: "member",
+          to: { kind: "oauth-client", id: "first-party-cli" },
+          permissions: [permissions.invoice.read],
+        },
+      ],
+    });
+    const permdock = await createPermDock(policy, subjectFromSupabase(claims));
+    expect(permdock.can(permissions.invoice.read, invoice)).toBe(true);
+    expect(permdock.can(permissions.invoice.pay, invoice)).toBe(false);
+    const other = await createPermDock(
+      policy,
+      subjectFromSupabase({ ...claims, client_id: "third-party" }),
+    );
+    expect(other.can(permissions.invoice.read, invoice)).toBe(false);
+    const scoped = await createPermDock(
+      policy,
+      subjectFromSupabase({ ...claims, scope: "openid invoice.pay" }),
+    );
+    expect(scoped.can(permissions.invoice.read, invoice)).toBe(false);
   });
 });

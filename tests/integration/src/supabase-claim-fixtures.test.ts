@@ -4,6 +4,22 @@ import { describe, expect, it } from "vitest";
 
 const NOW = Math.floor(Date.now() / 1000);
 
+const IDENTITY_SCOPES = new Set([
+  "openid",
+  "profile",
+  "email",
+  "address",
+  "phone",
+  "offline_access",
+]);
+
+function delegatedScopes(
+  scopes: readonly string[] | undefined,
+): readonly string[] | undefined {
+  const kept = scopes?.filter((scope) => !IDENTITY_SCOPES.has(scope)) ?? [];
+  return kept.length === 0 ? undefined : kept;
+}
+
 describe("better-supabase claim fixtures", () => {
   for (const [name, fixture] of Object.entries(supabaseClaimFixtures)) {
     const claims = { ...fixture.claims, iat: NOW, exp: NOW + 3600 };
@@ -24,7 +40,9 @@ describe("better-supabase claim fixtures", () => {
           readOnly: actor.readOnly,
         });
       }
-      expect(subject.delegation?.scopes).toEqual(delegation?.scopes);
+      expect(subject.delegation?.scopes).toEqual(
+        delegatedScopes(delegation?.scopes),
+      );
     });
   }
 });

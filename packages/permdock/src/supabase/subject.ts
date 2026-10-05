@@ -329,17 +329,30 @@ export function actorOf(claims: unknown): SupabaseActorResult {
   }
 }
 
-/** The OAuth `scope` claim (a space-separated string or a list) as `scopes`; `undefined` when empty. */
+const IDENTITY_SCOPES: ReadonlySet<string> = new Set([
+  "openid",
+  "profile",
+  "email",
+  "address",
+  "phone",
+  "offline_access",
+]);
+
+/**
+ * The OAuth `scope` claim (a space-separated string or a list) as `scopes`,
+ * without the OpenID Connect identity scopes; `undefined` when none is left.
+ */
 export function delegationOf(claims: unknown): SupabaseDelegation | undefined {
   try {
     if (!isRecord(claims) || !Object.hasOwn(claims, "scope")) {
       return undefined;
     }
     const scope = claims["scope"];
-    const scopes =
+    const scopes = (
       typeof scope === "string"
         ? scope.split(/\s+/u).filter(Boolean)
-        : asStrings(scope);
+        : asStrings(scope)
+    ).filter((name) => !IDENTITY_SCOPES.has(name));
     return scopes.length > 0 ? freezeDeep({ scopes }) : undefined;
   } catch {
     return undefined;

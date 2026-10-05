@@ -295,7 +295,7 @@ export const supabaseClaimFixtures: Readonly<
         id: "5f0e4d3c-2b1a-4098-8776-655443322110",
         kind: "oauth-client",
       },
-      delegation: { scopes: ["openid", "email", "posts:read"] },
+      delegation: { scopes: ["posts:read"] },
     },
   },
   actChain: {
