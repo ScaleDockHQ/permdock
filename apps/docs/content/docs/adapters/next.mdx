@@ -298,6 +298,10 @@ How `permdock/next` relates to each function in the [Next.js functions reference
 | `unstable_cache`, `unstable_noStore`, `revalidatePath`, `fetch`, `draftMode`                                                                                           | not relevant | `'use cache'` and tags replace them; no decision makes a network call                                                                                                                                 |
 | `generateMetadata`, `generateImageMetadata`, `generateSitemaps`, `generateViewport`, `ImageResponse`, `NextRequest`, `NextResponse`, `userAgent`, `useReportWebVitals` | not relevant | No permission surface; `permdockHandler` speaks the standard `Request` and `Response`                                                                                                                 |
 
+### Plain Node
+
+`permdock/next` and `permdock/next/client` also load without a bundler: in Vitest, which runs dependencies as plain Node ES modules, and in Node scripts. `next` publishes no `exports` map, so the entries import `next/cache.js`, `next/server.js` and `next/error.js` with their file extension. `next/navigation` goes through the package import `#next/navigation`: under the `react-server` condition it stays the bare `next/navigation`, which Next.js maps to its server build, and elsewhere it resolves to `next/navigation.js`. Turbopack and webpack builds are unchanged.
+
 ## Example app
 
 `apps/examples/next` is a field-service app on named scopes: organizations (`acme`, `globex`) with staff roles, and customers inside them whose portal contacts see only their own quotes. It turns on `cacheComponents`, `partialPrefetching`, `experimental.authInterrupts` and `experimental.useOffline`.
