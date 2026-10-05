@@ -77,7 +77,7 @@ describe("assemblePolicies", () => {
     );
     const denied = policies.find((item) => item.name === "deny_post_delete");
     expect(denied?.using).toBe(
-      `not (("orgId" in (select "permdock".permitted_tenant_ids('post.delete#2'))) and ("locked" = true))`,
+      `(("orgId" in (select "permdock".permitted_tenant_ids('post.delete#2'))) and ("locked" = true)) is not true`,
     );
   });
 
@@ -142,7 +142,7 @@ describe("delegated actor denies", () => {
     const denied = policies.find((item) => item.name === "deny_post_delete");
     expect(denied?.effect).toBe("deny");
     expect(denied?.using).toBe(
-      `not (((select auth.jwt()) ->> 'client_id') is not null or ((select auth.jwt()) -> 'act') is not null)`,
+      `(((select auth.jwt()) ->> 'client_id') is not null or ((select auth.jwt()) -> 'act') is not null) is not true`,
     );
   });
 

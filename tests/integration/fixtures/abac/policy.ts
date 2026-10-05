@@ -1,4 +1,4 @@
-import { allow, authenticated, definePolicy, principal } from "permdock";
+import { allow, authenticated, definePolicy, deny, principal } from "permdock";
 
 import { permissions } from "./permissions.ts";
 
@@ -31,6 +31,11 @@ export const policy = definePolicy(permissions, {
     allow(permissions.note.read, {
       to: authenticated(),
       where: { title: { contains: "50%_off" } },
+    }),
+    allow(permissions.memo.read, { to: authenticated() }),
+    deny(permissions.memo.read, {
+      to: authenticated(),
+      where: { archived: { eq: true } },
     }),
   ],
   principal: (user: { readonly id: string } | null) => user,

@@ -60,7 +60,7 @@ export function orSql(parts: readonly string[]): string {
 }
 
 function negate(sql: string | undefined): string | undefined {
-  return sql === undefined ? undefined : `not (${sql})`;
+  return sql === undefined ? undefined : `(${sql}) is not true`;
 }
 
 function policyOf(
