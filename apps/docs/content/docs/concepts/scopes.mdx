@@ -126,7 +126,7 @@ permdock.team(customerId).can(permissions.customer.read, undefined); // the cont
 permdock.can(permissions.customer.read, customer); // any membership whose scope keys match the row
 ```
 
-A snapshot is stricter: it carries no tenant-level answer for a partitioned scope, so `fromSnapshot(...).can(permission, undefined)` is `denied` for every instance action on a resource that declares the scope. Collection actions keep the rule above, because `where()` and RLS narrow what a nested membership lists or creates to its own instance.
+A snapshot follows the same rule: `fromSnapshot(...).can(permission, undefined)` answers an instance action from the first-scope memberships of the active tenant, or from the instance `team(id)` selected, so a page guard gives the same outcome on the server and on the client. Collection actions keep answering from nested memberships on both, because `where()` and RLS narrow what a nested membership lists or creates to its own instance.
 
 ## Collection checks
 
