@@ -41,6 +41,8 @@ export async function runCollect(input: {
   readonly check: boolean;
   readonly now: Date;
   readonly io?: CliIo;
+  /** Files to scan for references instead of `srcPath`, for doctor's own scan path. */
+  readonly scanPath?: readonly string[];
 }): Promise<CollectOutcome> {
   const srcPath =
     input.collect.srcPath ?? input.config.collect?.srcPath ?? defaultSrcPath();
@@ -80,7 +82,7 @@ export async function runCollect(input: {
       message: error instanceof Error ? error.message : String(error),
     };
   }
-  const files = listSourceFiles(input.cwd, srcPath);
+  const files = listSourceFiles(input.cwd, input.scanPath ?? srcPath);
   const knownKeys = new Set(leavesOf(tree).map((leaf) => leaf.key));
   const scan = scanSources(input.cwd, files, knownKeys);
   const document = buildCatalog(

@@ -161,3 +161,11 @@ export function rel(cwd: string, abs: string): string {
 export function defaultSrcPath(): readonly string[] {
   return ["./src"];
 }
+
+/** Where `doctor` reads source files: `doctor.srcPath`, else `collect.srcPath`, else `./src`. */
+export function doctorSrcPath(config: {
+  readonly collect?: { readonly srcPath?: readonly string[] };
+  readonly doctor?: { readonly srcPath?: readonly string[] };
+}): readonly string[] {
+  return config.doctor?.srcPath ?? config.collect?.srcPath ?? defaultSrcPath();
+}
