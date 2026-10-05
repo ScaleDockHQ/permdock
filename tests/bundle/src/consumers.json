@@ -11,7 +11,7 @@
   "express createPermDock": 43286,
   "fastify createPermDock": 43079,
   "jwt subjectFromJwt": 8334,
-  "mcp createPermDock": 41718,
+  "mcp createPermDock": 41776,
   "ai-sdk createPermDock": 39313,
   "supabase/middleware createPermDock": 42640,
   "openapi securityFor + permissionsExtension + problemDetails": 845

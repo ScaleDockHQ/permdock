@@ -325,6 +325,87 @@ describe("MCP 2026-07-28 Multi Round-Trip Requests", () => {
   });
 });
 
+function listResults(
+  bodies: readonly string[],
+): readonly Record<string, unknown>[] {
+  return bodies.flatMap((body) =>
+    body
+      .split("\n")
+      .map((line) => line.replace(/^data: /u, "").trim())
+      .filter((line) => line.startsWith("{"))
+      .flatMap((line) => {
+        const message: unknown = JSON.parse(line);
+        const result: unknown =
+          message !== null && typeof message === "object"
+            ? Reflect.get(message, "result")
+            : undefined;
+        return result !== null &&
+          typeof result === "object" &&
+          Array.isArray(Reflect.get(result, "tools"))
+          ? [Object.fromEntries(Object.entries(result))]
+          : [];
+      }),
+  );
+}
+
+describe("MCP list result cache fields", () => {
+  it("2026-07-28: a filtered list is private even when the server hints public", async () => {
+    const build = (): McpServer => {
+      const mcp = new McpServer(
+        { name: "posts", version: "1.0.0" },
+        {
+          cacheHints: { "tools/list": { cacheScope: "public", ttlMs: 60_000 } },
+        },
+      );
+      createPermDock(policy, { subject: () => memberUser, resource: RESOURCE })
+        .protectServer(mcp)
+        .registerTool(
+          "list_posts",
+          { permission: permissions.post.list },
+          () => ({ content: [{ type: "text", text: "[]" }] }),
+        );
+      return mcp;
+    };
+    const { client, bodies } = await overHttp(build, auth(["post:list"]), {});
+    expect(await names(client)).toEqual(["list_posts"]);
+    const [listed] = listResults(bodies);
+    expect(listed).toMatchObject({ cacheScope: "private" });
+  });
+
+  it("2025-11-25: a list result carries no cacheScope, which that revision does not define", async () => {
+    const { mcp } = server();
+    const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
+    const sent: unknown[] = [];
+    const send = serverSide.send.bind(serverSide);
+    serverSide.send = (message, options) => {
+      sent.push(message);
+      return send(message, options);
+    };
+    const authInfo = auth(["post:list"]);
+    const forward = clientSide.send.bind(clientSide);
+    clientSide.send = (message, options) =>
+      forward(message, { ...options, authInfo });
+    await mcp.connect(serverSide);
+    const client = new Client({ name: "agent", version: "1.0.0" });
+    await client.connect(clientSide);
+    expect(client.getNegotiatedProtocolVersion()).toBe("2025-11-25");
+    expect(await names(client)).toEqual(["list_posts"]);
+    const listed = sent.flatMap((message) => {
+      const result: unknown =
+        message !== null && typeof message === "object"
+          ? Reflect.get(message, "result")
+          : undefined;
+      return result !== null &&
+        typeof result === "object" &&
+        Array.isArray(Reflect.get(result, "tools"))
+        ? [result]
+        : [];
+    });
+    expect(listed).toHaveLength(1);
+    expect(listed[0]).not.toHaveProperty("cacheScope");
+  });
+});
+
 describe("MCP 2026-07-28 Authorization: the two-principal subject", () => {
   it("CIMD: the client id URL becomes the mcp-client actor verbatim, scopes the delegation", () => {
     const subject = subjectFromMcp(
