@@ -44,7 +44,7 @@ const policy = definePolicy(permissions, {
   delegations: [
     {
       from: roles.member, // who hands over: the same selectors as approval.by
-      to: actor("eve"), // which actor kind; { kind, id } names one agent
+      to: actor("eve"), // which actor kind; { kind, id } names one agent, { kind, client } one named OAuth client
       permissions: [permissions.post.read, permissions.post.update],
       validUntil: "2027-06-01T00:00:00Z", // optional, as on a grant
     },
@@ -58,7 +58,7 @@ const policy = definePolicy(permissions, {
 });
 ```
 
-Each entry is normalised to `{ from, to: { kind, id? }, permissions: string[], readOnly: string[], validity? }` on `policy.delegations`, where `readOnly` is the subset of `permissions` whose `readOnlyHint` is true, in the fingerprint, and in the catalog's `delegations` section, so `permdock diff` reports a removed or narrowed one as breaking. `from` takes a role, `authenticated()`, a plan or `assurance()`; `relation()` and `actor()` are refused, because a delegation is matched without a row and the actor is `to`. `permissions` names leaves or subtrees of the policy's own tree.
+Each entry is normalised to `{ from, to: { kind, id?, client? }, permissions: string[], readOnly: string[], validity? }` on `policy.delegations`, where `readOnly` is the subset of `permissions` whose `readOnlyHint` is true, in the fingerprint, and in the catalog's `delegations` section, so `permdock diff` reports a removed or narrowed one as breaking. `from` takes a role, `authenticated()`, a plan or `assurance()`; `relation()` and `actor()` are refused, because a delegation is matched without a row and the actor is `to`. `permissions` names leaves or subtrees of the policy's own tree.
 
 How it applies, in `decide` and on the snapshot client alike:
 
@@ -72,6 +72,7 @@ How it applies, in `decide` and on the snapshot client alike:
 - **A standing delegation belongs in the policy.** "This agent kind may act for members on these permissions" is a statement about the application, the same kind as a grant, and it was being made in three places with no shared source: the AI SDK `delegation` option, the token scopes an authorization server mints, and prose. Putting it in `definePolicy` gives it a fingerprint, a catalog entry, a `diff`, and a policy-matrix vector, and lets `permdock doctor` and an audit see which actors may act for whom.
 - **It is a ceiling, not a grant.** The design that would have been easiest, treating a delegation as a grant to the actor, breaks "Agent ≤ user": an agent would hold access the user does not. So the delegation never enters the allow list; it only replaces the token in the delegation check, after the principal's grants have decided. Every attenuation invariant above holds without a special case.
 - **Token and policy intersect.** When both are present the call must satisfy both, because either one may be the narrower statement: the token knows this session's consent, the policy knows the application's standing rule. Letting one override the other would make the wider one the effective rule.
+- **A client name, not a client id.** An authorization server assigns client ids per environment and at dynamic registration, so an id in the policy would make its fingerprint and catalog differ per deployment. `to: { kind, client }` names the client; the subject resolver maps the verified client id to that name through `clients` (`ClientNames`) on `subjectFromSupabase`, `permdock/mcp` and `permdock/jwt`'s `actor` option, and sets `actor.client`. An id the mapping does not name, or names twice, leaves `client` unset, so the delegation fails closed. The name comes only from a verified id, never from the token's own claims.
 - **Actor kind, optionally id.** Agents are typically a fleet of one kind (`'eve'`, `'mcp-client'`), so the kind is the natural unit; a single trusted agent is `{ kind, id }`. Matching only on id would make a renamed agent silently lose its delegation, matching only on kind could not express a one-agent rule.
 - **The feed does not revoke a delegation.** `RevocationFeed` means "end this session" and is kept that way by `naming.mdc`; a feed that also edited the policy would be a second decision path (invariant 15). Removing the entry, or letting `validUntil` pass, is the revocation, and both are visible in the catalog and `diff`.
 

@@ -1,8 +1,10 @@
+import type { ClientNames } from "../core/clients.ts";
 import type { JwtClaims } from "../core/interfaces.ts";
 import type { Subject } from "../core/subject.ts";
 import type { JwtSubjectOptions } from "../jwt/types.ts";
 import type { McpAuthInfo, McpPrincipal } from "./types.ts";
 
+import { clientNameOf } from "../core/clients.ts";
 import { compact } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import { anonymousSubject } from "../core/subject.ts";
@@ -14,6 +16,8 @@ export type McpSubjectOptions = Pick<
 > & {
   /** The `kind` of the actor built from `authInfo.clientId`; `'mcp-client'` when absent. Match `createPermDock`'s `actorKind`. */
   readonly actorKind?: string;
+  /** Names for OAuth client ids; match `createPermDock`'s `clients`. */
+  readonly clients?: ClientNames;
 };
 
 const DEFAULT_MCP_ACTOR_KIND = "mcp-client";
@@ -76,7 +80,11 @@ export function subjectFromMcp(
         ...mapped.subject,
         actor:
           typeof clientId === "string" && clientId !== ""
-            ? { id: clientId, kind }
+            ? compact({
+                id: clientId,
+                kind,
+                client: clientNameOf(options.clients, clientId),
+              })
             : mapped.subject.actor,
       }),
     ) as Subject<McpPrincipal>;

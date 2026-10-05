@@ -17,6 +17,7 @@ import type {
   SupabaseSubjectOptions,
 } from "./types.ts";
 
+import { clientNameOf } from "../core/clients.ts";
 import { compact } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import { anonymousSubject } from "../core/subject.ts";
@@ -446,7 +447,14 @@ function mapClaims(
             sessionId: act.actor.sessionId,
             readOnly: act.actor.readOnly,
           }
-        : { id: act.actor.id, kind: act.actor.kind };
+        : compact<Actor>({
+            id: act.actor.id,
+            kind: act.actor.kind,
+            client:
+              act.actor.kind === "oauth-client"
+                ? clientNameOf(options.clients, act.actor.id)
+                : undefined,
+          });
   const roleClaim = options.roles ?? "user_role";
   const tenantClaim = options.tenant ?? supabaseTenantClaim;
   const membershipsClaim = options.memberships ?? "memberships";

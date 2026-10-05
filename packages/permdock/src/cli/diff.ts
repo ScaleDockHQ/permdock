@@ -305,10 +305,11 @@ function delegationIdentity(delegation: CatalogDelegation): string {
 }
 
 function describeDelegation(delegation: CatalogDelegation): string {
+  const narrowed = delegation.to.id ?? delegation.to.client;
   const to =
-    delegation.to.id === undefined
+    narrowed === undefined
       ? delegation.to.kind
-      : `${delegation.to.kind} ${delegation.to.id}`;
+      : `${delegation.to.kind} ${narrowed}`;
   return `delegation ${canonicalJson(delegation.from)} → ${to} (${delegation.permissions.join(", ")})`;
 }
 

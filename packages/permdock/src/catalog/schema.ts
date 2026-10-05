@@ -249,7 +249,11 @@ export const catalogSchema: CatalogSchemaNode = freezeDeep({
           to: {
             type: "object",
             required: ["kind"],
-            properties: { kind: { type: "string" }, id: { type: "string" } },
+            properties: {
+              kind: { type: "string" },
+              id: { type: "string" },
+              client: { type: "string" },
+            },
           },
           permissions: strings,
           validity,

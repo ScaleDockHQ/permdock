@@ -18,6 +18,7 @@ import type {
   JwtSubjectOptions,
 } from "./types.ts";
 
+import { clientNameOf } from "../core/clients.ts";
 import { compact } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import { isForbiddenKey, readPath } from "../core/paths.ts";
@@ -368,6 +369,7 @@ function actorFromAct(
     actor: compact<Actor>({
       id: act.sub,
       kind: configured?.kind ?? "oauth-client",
+      client: clientNameOf(configured?.clients, act.sub),
     }),
     chain: act,
   };

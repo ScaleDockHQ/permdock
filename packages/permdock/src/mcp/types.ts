@@ -20,6 +20,7 @@ import type {
 
 import type { ApprovalStore } from "../approvals/types.ts";
 import type { ApprovalPolicySource } from "../core/approval-policies.ts";
+import type { ClientNames } from "../core/clients.ts";
 import type { ApprovalHint } from "../core/errors.ts";
 import type { PolicySource } from "../core/hosted.ts";
 import type {
@@ -177,6 +178,8 @@ export type McpPermDockOptions<TUser = unknown> = {
    * client, so one policy delegation covers the token on every surface.
    */
   readonly actorKind?: string;
+  /** Names for OAuth client ids (`ClientNames`): the actor gets `client` set to the name of `authInfo.clientId`, which a policy delegation matches with `to: { kind, client }`. */
+  readonly clients?: ClientNames;
   readonly tenant?:
     | string
     | ((

@@ -821,6 +821,18 @@ describe("actorKind", () => {
     expect(viaMcp.delegation?.scopes).toEqual(viaSupabase.delegation?.scopes);
   });
 
+  it("names the client from clients, for delegations that name it", () => {
+    const subject = subjectFromMcp(auth([], { sub: "u1" }), {
+      actorKind: "oauth-client",
+      clients: { tester: "mcp-tester" },
+    });
+    expect(subject.actor).toEqual({
+      id: "mcp-tester",
+      kind: "oauth-client",
+      client: "tester",
+    });
+  });
+
   it("refuses a kind that is not a non-empty string", () => {
     expect(() =>
       createPermDock(policy, { subject: () => adminUser, actorKind: "" }),

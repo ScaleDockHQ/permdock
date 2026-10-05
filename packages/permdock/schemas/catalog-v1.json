@@ -486,6 +486,9 @@
               },
               "id": {
                 "type": "string"
+              },
+              "client": {
+                "type": "string"
               }
             }
           },

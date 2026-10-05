@@ -175,7 +175,11 @@ export type CatalogDocument = {
 /** One `definePolicy({ delegations })` entry: who hands over, to which actor, which permission keys, and when. */
 export type CatalogDelegation = {
   readonly from: unknown;
-  readonly to: { readonly kind: string; readonly id?: string };
+  readonly to: {
+    readonly kind: string;
+    readonly id?: string;
+    readonly client?: string;
+  };
   readonly permissions: readonly string[];
   readonly validity?: CatalogValidity;
 };

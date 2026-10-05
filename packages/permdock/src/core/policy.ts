@@ -317,10 +317,15 @@ export type GrantValidity = {
   readonly until?: number;
 };
 
-/** The actor a policy delegation is for: an actor kind, narrowed to one id when `id` is set. */
+/**
+ * The actor a policy delegation is for: an actor kind, narrowed to one id
+ * when `id` is set, or to one named client when `client` is set (the name
+ * the subject resolver gives a verified client id through `clients`).
+ */
 export type DelegationTarget = {
   readonly kind: string;
   readonly id?: string;
+  readonly client?: string;
 };
 
 /**
@@ -340,7 +345,7 @@ export type PolicyDelegation = {
 export type DelegationInput = {
   /** Who hands over: the same subject-only selectors as `approval.by` (a role, `authenticated()`, a plan, `assurance()`); not `relation()`. */
   readonly from: GranteeInput;
-  /** Which actor may act: `actor('eve')`, an actor kind, or `{ kind, id }` for one agent. */
+  /** Which actor may act: `actor('eve')`, an actor kind, `{ kind, id }` for one agent, or `{ kind, client }` for one named OAuth client. */
   readonly to: ActorGrantee | string | DelegationTarget;
   /** The leaves or subtrees the actor may use; a deny grant still applies. */
   readonly permissions: readonly (Permission | PermissionTree)[];
@@ -682,7 +687,11 @@ function delegationTarget(
   if ("actor" in to) {
     return { kind: to.actor };
   }
-  const target = compact<DelegationTarget>({ kind: to.kind, id: to.id });
+  const target = compact<DelegationTarget>({
+    kind: to.kind,
+    id: to.id,
+    client: to.client,
+  });
   if (typeof target.kind !== "string" || target.kind === "") {
     throw new Error(
       `PermDock: delegations[${index}].to needs an actor kind, such as actor('eve')`,
@@ -694,6 +703,19 @@ function delegationTarget(
   ) {
     throw new Error(
       `PermDock: delegations[${index}].to.id must be a non-empty string`,
+    );
+  }
+  if (
+    target.client !== undefined &&
+    (typeof target.client !== "string" || target.client === "")
+  ) {
+    throw new Error(
+      `PermDock: delegations[${index}].to.client must be a non-empty string`,
+    );
+  }
+  if (target.id !== undefined && target.client !== undefined) {
+    throw new Error(
+      `PermDock: delegations[${index}].to names both an id and a client; name one`,
     );
   }
   return target;

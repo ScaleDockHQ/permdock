@@ -369,3 +369,4 @@ export type {
   Subject,
   VerifiedClaims,
 } from "./core/subject.ts";
+export type { ClientNames } from "./core/clients.ts";

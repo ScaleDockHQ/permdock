@@ -179,6 +179,8 @@ export function delegatedPermissions(
     if (
       delegation.to.kind !== actor.kind ||
       (delegation.to.id !== undefined && delegation.to.id !== actor.id) ||
+      (delegation.to.client !== undefined &&
+        delegation.to.client !== actor.client) ||
       !isActive(delegation.validity, now) ||
       !handsOver(delegation, subject, heldRoles, now)
     ) {

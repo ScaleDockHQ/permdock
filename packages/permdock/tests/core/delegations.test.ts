@@ -380,3 +380,39 @@ describe("read-only actors", () => {
     expect(markedPolicy.delegations?.[0]?.readOnly).toEqual(["report.export"]);
   });
 });
+
+describe("delegation target clients", () => {
+  it("refuses a target that names both an id and a client, or an empty client", () => {
+    for (const to of [
+      { kind: "oauth-client", id: "a", client: "cli" },
+      { kind: "oauth-client", client: "" },
+    ]) {
+      expect(() =>
+        definePolicy(permissions, {
+          roles: [role("member", [allow(permissions.post.read)])],
+          delegations: [
+            { from: "member", to, permissions: [permissions.post.read] },
+          ],
+          subject,
+        }),
+      ).toThrow(/to\.client|both an id and a client/u);
+    }
+  });
+
+  it("puts the client name, not an id, in the catalog", () => {
+    const named = definePolicy(permissions, {
+      roles: [role("member", [allow(permissions.post.read)])],
+      delegations: [
+        {
+          from: "member",
+          to: { kind: "oauth-client", client: "cli" },
+          permissions: [permissions.post.read],
+        },
+      ],
+      subject,
+    });
+    expect(catalogDelegations(named)).toMatchObject([
+      { to: { kind: "oauth-client", client: "cli" } },
+    ]);
+  });
+});

@@ -1,5 +1,6 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 
+import type { ClientNames } from "../core/clients.ts";
 import type {
   AuthEvent,
   JwtClaims,
@@ -106,6 +107,8 @@ export type JwtSubjectOptions = JoseTokenVerifierOptions & {
     | {
         readonly from?: "act";
         readonly kind?: string;
+        /** Names for client ids (`ClientNames`): the actor gets `client` set to the name of `act.sub`. */
+        readonly clients?: ClientNames;
       }
     | ((claims: JwtClaims) => Actor | undefined);
   readonly sender?: "none" | "dpop" | "mtls";

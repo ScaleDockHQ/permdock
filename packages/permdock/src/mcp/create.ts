@@ -26,6 +26,7 @@ import type {
 
 import { boundedMap } from "../agent/lru.ts";
 import { resumeDecision, storedApprovalToken } from "../approvals/helpers.ts";
+import { clientNameOf } from "../core/clients.ts";
 import { compact } from "../core/compact.ts";
 import { describe } from "../core/describe.ts";
 import { mayUse } from "../core/may-use.ts";
@@ -423,7 +424,11 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     const clientId = authInfo?.clientId;
     const actor =
       typeof clientId === "string" && clientId !== ""
-        ? { id: clientId, kind: actorKind }
+        ? compact({
+            id: clientId,
+            kind: actorKind,
+            client: clientNameOf(options.clients, clientId),
+          })
         : undefined;
     const built = await createCorePermDock(
       policy,
