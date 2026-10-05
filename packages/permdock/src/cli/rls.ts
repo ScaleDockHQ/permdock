@@ -27,7 +27,7 @@ export const RLS_HELP = `permdock rls generate | import | verify | migrate
            [--out <path>] [--check] [--skip-closures] [--inline-functions] [--force] [--guc-prefix app]
            [--split helpers,seeds,policies,hook --out <dir>/056_permdock_{part}.sql]
            [--grants-out <file>|-] [--seeds-out <file>|-]
-           [--helpers-only] [--shims]
+           [--helpers-only] [--shims] [--db $DATABASE_URL]
   import   --sql schema.sql | --db $DATABASE_URL --out src/permissions.generated.ts
            [--schema zod|valibot|arktype] [--memberships <table>:tenant,user,role]
   verify   [--db $DATABASE_URL] [--fixtures rls.fixtures.ts] [--format pgtap|node] [--tree]
@@ -308,7 +308,11 @@ export async function runRls(
             "rls generate --dialect (or rls.dialect) must be supabase, neon or guc",
         };
       }
-      return runRlsGenerate(generateInput(input, target, dialect));
+      return runRlsGenerate({
+        ...generateInput(input, target, dialect),
+        ...(input.db === undefined ? {} : { db: input.db }),
+        ...(input.connect === undefined ? {} : { connect: input.connect }),
+      });
     }
     case "import": {
       // Lazy: pgsql-parser is an optional peer that only migrate and import need.

@@ -339,9 +339,7 @@ describe("rls generate --split and --grants-out", () => {
     expect(indexes).toContain(
       'create index if not exists "permdock_invoice_organization_id_idx" on "public"."invoice" ("organization_id");',
     );
-    expect(indexes).toContain(
-      'create index if not exists "permdock_invoice_status_idx" on "public"."invoice" ("status");',
-    );
+    expect(indexes).not.toContain('("status")');
   });
 
   it("indexes only mapped resources with --helpers-only, and names the unmapped ones", async () => {

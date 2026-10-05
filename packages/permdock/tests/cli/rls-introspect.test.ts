@@ -138,6 +138,22 @@ describe("rls verify --introspect", () => {
     ]);
   });
 
+  it("does not check a target on a column the table lacks", () => {
+    const indexed = expectedRls([], SQL, [
+      { table: "post", columns: ["author_id"] },
+      { table: "post", columns: ["org_id"] },
+    ]);
+    expect(
+      missingIndexes(indexed, {
+        ...clean,
+        leadingColumns: { "public.post": ["id"] },
+        columns: { "public.post": ["id", "author_id"] },
+      }),
+    ).toEqual([
+      "warning: public.post: no index starts with author_id, which the policies or helpers filter on; add it, or write it with rls generate --split ...,indexes",
+    ]);
+  });
+
   it("needs --db", async () => {
     const result = await run(["rls", "verify", "--introspect"]);
     expect(result.code).toBe(2);
@@ -321,6 +337,7 @@ describe("introspectRls and introspectMixed through an injected client", () => {
         },
       ],
       leadingColumns: {},
+      columns: {},
       rlsEnabled: { "public.post": true, "public.off": false },
       grants: { "public.post": { anon: ["select", "update"] } },
       helpers: {

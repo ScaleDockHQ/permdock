@@ -139,6 +139,58 @@ describe("runRls dispatch", () => {
     expect(sql).not.toMatch(/service_role/u);
   });
 
+  it("leaves out index suggestions the database already serves with --db", async () => {
+    const reply =
+      (columns: readonly string[], index: readonly string[]) =>
+      (call: SqlCall): SqlReply =>
+        call.sql.includes("indnkeyatts")
+          ? { rows: [{ target: "public.post", columns: index }] }
+          : {
+              rows: columns.map((name) => ({ target: "public.post", name })),
+            };
+    const covered = fakeSql(reply(["id", "authorId"], ["authorId", "id"]));
+    const served = await runRls(
+      input({
+        rest: ["generate"],
+        dialect: "guc",
+        out: "db.sql",
+        db: "postgres://fake",
+        connect: covered.connect,
+      }),
+    );
+    expect(served.code).toBe(0);
+    expect(served.output).not.toContain("index suggestion");
+    const lacking = fakeSql(reply(["id", "author_id"], []));
+    const missing = await runRls(
+      input({
+        rest: ["generate"],
+        dialect: "guc",
+        out: "db.sql",
+        db: "postgres://fake",
+        connect: lacking.connect,
+      }),
+    );
+    expect(missing.output).toContain(
+      "no index suggested on public.post (authorId): the table has no column authorId",
+    );
+    expect(missing.output).not.toContain("index suggestion");
+    const failed = await runRls(
+      input({
+        rest: ["generate"],
+        dialect: "guc",
+        out: "db.sql",
+        db: "postgres://fake",
+        connect: async () => {
+          throw new Error("PermDock CLI: rls generate --db could not connect");
+        },
+      }),
+    );
+    expect(failed).toMatchObject({
+      code: 2,
+      output: "PermDock CLI: rls generate --db could not connect",
+    });
+  });
+
   it("refuses an unknown --authorize", async () => {
     await expect(
       runRls(input({ rest: ["generate"], out: "auth.sql", authorize: "nope" })),

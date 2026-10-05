@@ -134,6 +134,44 @@ describe("rls verify --introspect", () => {
     expect(result.code).toBe(0);
   });
 
+  it("suggests only indexes the database lacks with rls generate --db", async () => {
+    const pg = started();
+    const dir = mkdtempSync(join(tmpdir(), "permdock-introspect-db-"));
+    const suggest = async (): Promise<string> => {
+      const result = await run(
+        [
+          "rls",
+          "generate",
+          "--target",
+          "sql",
+          "--dialect",
+          "supabase",
+          "--out",
+          join(dir, "rls.sql"),
+          "--db",
+          pg.uri,
+        ],
+        { cwd: FIXTURE },
+      );
+      expect(result.code).toBe(0);
+      return `${result.stdout}${result.stderr}`;
+    };
+    try {
+      await pg.admin.query("drop index if exists doc_org_id_tags");
+      const suggestion = "index suggestion: create index on public.doc (orgId)";
+      expect(await suggest()).toContain(suggestion);
+      await pg.admin.query('create index doc_org_lead on doc ("orgId", id)');
+      const covered = await suggest();
+      expect(covered).not.toContain(suggestion);
+      expect(covered).not.toContain("(tags)");
+    } finally {
+      await pg.admin.query(
+        'drop index if exists doc_org_lead; create index if not exists doc_org_id_tags on doc ("orgId", tags)',
+      );
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("reports policies, grants, RLS and helpers that drifted", async () => {
     const pg = started();
     await pg.admin.query(`
