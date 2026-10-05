@@ -9,6 +9,7 @@ import type {
   MembershipSource,
   RelationSource,
   RoleSource,
+  RoleSourceFactory,
   SnapshotSource,
 } from "../core/interfaces.ts";
 import type { PermDock } from "../core/permdock.ts";
@@ -56,7 +57,7 @@ export type ClaudeAgentPermDockOptions<TUser = unknown> = {
   /** Approval requirements kept as data (`ApprovalPolicySource`); they add to the code's and never remove one. A throw denies. */
   readonly approvalPolicies?: ApprovalPolicySource;
   readonly entitlements?: EntitlementSource;
-  readonly customRoles?: RoleSource;
+  readonly customRoles?: RoleSource | RoleSourceFactory;
   /** Hosted grants, read once per instance; see `PolicySource`. */
   readonly policies?: PolicySource;
   readonly store?: ApprovalStore;

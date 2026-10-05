@@ -120,6 +120,7 @@ export type {
   RelationHolder,
   RelationSource,
   RoleSource,
+  RoleSourceFactory,
   SettingsSource,
   Snapshot,
   SnapshotAssignable,

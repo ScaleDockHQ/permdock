@@ -57,6 +57,14 @@ export type RoleSource = {
   globalRoles?(): CustomRole[] | Promise<CustomRole[]>;
 };
 
+/**
+ * A `RoleSource` built for the subject the instance serves, for an adapter
+ * option shared by every request: it gets the resolved subject (principal,
+ * actor and delegation) and returns that subject's source, or `undefined`
+ * for none. A throw reads no custom roles and reports `source-threw`.
+ */
+export type RoleSourceFactory = (subject: Subject) => RoleSource | undefined;
+
 /** One member of a scope instance, as `MembershipSource.list` returns it. */
 export type MemberEntry = {
   readonly principal: { readonly id: string };

@@ -59,6 +59,7 @@ import {
   declaredRoleNames,
   evaluate,
   expandRoleNames,
+  roleSourceFor,
 } from "./evaluate.ts";
 import { type EvalEnv, emitSafe, emptyListeners, finish } from "./events.ts";
 import { pickVisible } from "./fields.ts";
@@ -1411,12 +1412,17 @@ export function buildInstance(
       const scopes = scopeList(policy.scopes);
       const tenants = tenantsOf(subject.principal, scopes);
       const auth: AuthEvent[] = [];
-      const roleSource = options.customRoles ?? envBase.roleSource;
+      const named =
+        options.customRoles === undefined
+          ? undefined
+          : roleSourceFor(options.customRoles, subject, auth);
+      const roleSource =
+        options.customRoles === undefined ? envBase.roleSource : named;
       const roles =
         options.customRoles === undefined
           ? envBase.customRoles
           : customRolesFor(
-              options.customRoles,
+              named,
               tenants,
               auth,
               subject.principal !== null,
@@ -1425,7 +1431,7 @@ export function buildInstance(
       const names =
         options.customRoles === undefined
           ? envBase.assignable
-          : assignableNamesFor(options.customRoles, tenants, auth);
+          : assignableNamesFor(named, tenants, auth);
       const approvals =
         options.approvalPolicies === undefined
           ? envBase.approvalPolicies
