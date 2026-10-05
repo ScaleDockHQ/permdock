@@ -52,6 +52,26 @@ export function tenantsOf(
   return [...tenants];
 }
 
+export function heldRoleNamesIn(
+  principal: Principal | null,
+  scopes: readonly Scope[],
+  tenant: string,
+  now?: number,
+): readonly string[] {
+  const names = new Set<string>();
+  for (const membership of principal?.memberships ?? []) {
+    if (
+      !isMembershipExpired(membership, now) &&
+      tenantOf(membership, scopes) === tenant
+    ) {
+      for (const name of membership.roles) {
+        names.add(name);
+      }
+    }
+  }
+  return [...names];
+}
+
 /** `requested` when a live membership sits in that instance of the first scope; never a default. */
 export function resolveActiveTenant(
   principal: Principal,

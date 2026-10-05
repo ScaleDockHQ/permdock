@@ -51,7 +51,7 @@ import { asMembershipSource } from "./memberships.ts";
 import { resolveSubject } from "./resolve-subject.ts";
 import { scopeList } from "./scopes.ts";
 import { parseSnapshot } from "./snapshot.ts";
-import { tenantsOf } from "./tenancy.ts";
+import { heldRoleNamesIn, tenantsOf } from "./tenancy.ts";
 import { isThenable } from "./thenable.ts";
 
 export type DecideOptions = {
@@ -325,12 +325,14 @@ function instantiate(
   auth: AuthEvent[],
 ): PermDock | Promise<PermDock> {
   const { policy, errors } = hostedPolicy(codePolicy, options.policies);
-  const tenants = tenantsOf(subject.principal, scopeList(policy.scopes));
+  const scopes = scopeList(policy.scopes);
+  const tenants = tenantsOf(subject.principal, scopes);
   const customRoles = customRolesFor(
     options.customRoles,
     tenants,
     auth,
     subject.principal !== null,
+    (tenant) => heldRoleNamesIn(subject.principal, scopes, tenant),
   );
   const assignable = assignableNamesFor(options.customRoles, tenants, auth);
   const approvals = approvalPoliciesFor(

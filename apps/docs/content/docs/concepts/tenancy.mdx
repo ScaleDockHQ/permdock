@@ -233,7 +233,10 @@ type CustomRole = {
 
 ```ts
 interface RoleSource {
-  rolesFor(tenant: string): CustomRole[] | Promise<CustomRole[]>;
+  rolesFor(
+    tenant: string,
+    context?: { held: string[] }, // the role names the subject holds in that tenant
+  ): CustomRole[] | Promise<CustomRole[]>;
   assignable?(tenant: string): string[] | Promise<string[]>; // defaults to every declared assignable role
 }
 

@@ -43,7 +43,15 @@ export type DecisionProvider = {
 };
 
 export type RoleSource = {
-  rolesFor(tenant: string): CustomRole[] | Promise<CustomRole[]>;
+  /**
+   * The custom roles of one tenant. `createPermDock` passes `held`, the role
+   * names the subject's live memberships hold there, declared or not, so a
+   * source can skip its read when none of them is a custom role.
+   */
+  rolesFor(
+    tenant: string,
+    context?: { readonly held: readonly string[] },
+  ): CustomRole[] | Promise<CustomRole[]>;
   assignable?(tenant: string): string[] | Promise<string[]>;
   /** Platform custom roles (`scope: 'global'`), read once per signed-in subject. A role here with a tenant is ignored. */
   globalRoles?(): CustomRole[] | Promise<CustomRole[]>;
