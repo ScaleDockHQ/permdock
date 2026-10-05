@@ -245,7 +245,7 @@ const delegation = delegationOf(claims); // { scopes } | undefined
   | `{ kind: 'support', sub, session_id, read_only, reason }` | `{ kind: 'support', id, sessionId, readOnly, reason, chain }` |
   | `{ kind: 'impersonation', sub, reason }`                  | `{ kind: 'impersonation', id, reason, chain }`                |
 
-  A token better-supabase 0.5.0 minted for a support session (`session_id` without `kind`) reads as `support`, as better-supabase reads it until 0.6. `read_only` defaults to `false`.
+  A token better-supabase 0.5.0 minted for a support session (`session_id` without `kind`) reads as `support`, as better-supabase reads it until 0.6. A support level without `read_only` is read-only, as better-supabase reads it.
 
 - `{ ok: false, reason: 'invalid-chain' }` must deny. An `act` that is not a chain of objects ending in a non-empty `sub`, that names another `kind`, or a support level without a non-empty `session_id` or with a non-boolean `read_only`, is not proof of who acts, and treating the token as the user alone would drop the delegation limit. `actorOf` also returns it when reading the claims throws.
 - `delegationOf` reads only `scope`: a space-separated string or a list of strings becomes `scopes`, and an empty or malformed value is `undefined`. `subjectFromSupabase` sets `delegation` only for an `oauth-client` actor, as `{ scopes, chain }`. A support or impersonation actor has none, so it reaches nothing until the policy delegates to it ([support and impersonation actors](#support-and-impersonation-actors)).
