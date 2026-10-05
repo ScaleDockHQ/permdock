@@ -897,29 +897,53 @@ export function sourceFilters(
 }
 
 function sourcesBody(ctx: RlsSqlContext, scope: string, type: string): Body {
-  if (ctx.customRoles !== undefined) {
-    throw new Error(
-      `PermDock CLI: --custom-roles in database mode needs rls.memberships.scopes.${scope}: the membership sources carry no custom roles`,
-    );
-  }
   const root = rootName(ctx);
+  const tenant = sourceIdOf(scope)(root);
   const narrow = underRoot(ctx, scope)
-    ? `\n    and (${activeTenant(ctx)} is null or ${sourceIdOf(scope)(root)} = ${activeTenant(ctx)})`
+    ? `\n    and (${activeTenant(ctx)} is null or ${tenant} = ${activeTenant(ctx)})`
     : "";
   const sources = scopeSources(ctx, scope);
-  return sourcesBodyOf(
-    `  select (ms.id)::${type}
-  from (
+  const rows = `  from (
 ${sourceRows(sources)}
   ) ms
   cross join lateral jsonb_array_elements_text(
     case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
-  ) r(role)
+  ) r(role)`;
+  const declared = `  select (ms.id)::${type}
+${rows}
   join ${qualified(ctx, "role_permissions")} rp on rp.role = r.role
   where ${signedIn(ctx)}
     and ms.scope = ${quoteLiteral(scope)}
     and rp.grant_key = p_grant
-    and rp.scope = ${quoteLiteral(scope)}${andLine("    ", kindFilterSql(ctx, "r.role", "ms.via"))}${narrow}${sourceFilters(ctx, scope)}`,
+    and rp.scope = ${quoteLiteral(scope)}${andLine("    ", kindFilterSql(ctx, "r.role", "ms.via"))}${narrow}${sourceFilters(ctx, scope)}`;
+  const custom = ctx.customRoles;
+  if (custom === undefined) {
+    return sourcesBodyOf(declared, sources, subjectIdSql(ctx));
+  }
+  // A custom role belongs to a tenant, is held at one scope, and may be pinned to one instance of it.
+  const match = [
+    `c.tenant_id::text = (${tenant})::text`,
+    `c.scope = ${quoteLiteral(scope)}`,
+    "(c.scope_id is null or c.scope_id = (ms.id)::text)",
+    "c.role = r.role",
+  ].join(" and ");
+  const entries = (source: string, value: string, extra: string): string =>
+    `array(select c.${value} from ${qualified(ctx, source)} c where ${match}${extra})`;
+  return sourcesBodyOf(
+    `${declared}
+  union
+  select (ms.id)::${type}
+${rows}
+  where ${signedIn(ctx)}
+    and ms.scope = ${quoteLiteral(scope)}
+    and not (r.role = any(${textArray(custom.declared)}))${narrow}${sourceFilters(ctx, scope)}
+${customKeysSql(
+  ctx,
+  scope,
+  entries(CUSTOM_ROLES.permissions, "permission", " and c.effect = 'allow'"),
+  entries(CUSTOM_ROLES.permissions, "permission", " and c.effect = 'deny'"),
+  entries(CUSTOM_ROLES.includes, "include_role", ""),
+)}`,
     sources,
     subjectIdSql(ctx),
   );
