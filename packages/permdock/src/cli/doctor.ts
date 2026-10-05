@@ -145,7 +145,15 @@ export async function runDoctor(input: {
         (file) => rel(input.cwd, file),
       ),
     );
-    findings.push(...pd001(sources, clientEntries));
+    findings.push(
+      ...pd001(
+        sources,
+        clientEntries,
+        input.config.policy === undefined
+          ? undefined
+          : { cwd: input.cwd, path: input.config.policy },
+      ),
+    );
   }
   if (include("references") || include("PD002")) {
     findings.push(...(await pd002(input)));
