@@ -18,6 +18,7 @@ const subject = await subjectFromJwt(token, {
 - `jose` is an optional peer. A failure is the anonymous subject, never a throw; the cause is reported through `on('auth')`. A claimed `act` chain that does not nest is anonymous with cause `invalid-chain`.
 - When the app already called RFC 7662 or RFC 9767 introspection, pass the response JSON to `subjectFromIntrospection`. `active` other than `true` is anonymous, and the HTTP call stays the app's.
 - In CI, `subjectFromCiOidc(jwt, { provider: 'github', audience })` returns a `workload` principal, never a user.
+- A Supabase OAuth server token is an `oauth-client` actor. `subjectFromSupabase` drops the OpenID Connect identity scopes (`openid`, `profile`, `email`, `address`, `phone`, `offline_access`) from its delegation, so a token with only those reaches nothing. Let a client act for users with a policy `delegations` entry whose `to` is `{ kind: 'oauth-client', id: '<client id>' }`, never by reading identity scopes as permissions ([Supabase provider](https://permdock.com/docs/adapters/supabase#oauth-server-tokens)).
 
 ## API keys and service accounts
 

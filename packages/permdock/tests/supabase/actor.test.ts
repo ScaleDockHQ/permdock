@@ -215,12 +215,23 @@ describe("actorOf and delegationOf", () => {
 
   it("splits a scope string and keeps the strings of a scope list", () => {
     expect(delegationOf({ scope: " openid  posts:read " })).toEqual({
-      scopes: ["openid", "posts:read"],
+      scopes: ["posts:read"],
     });
     expect(delegationOf({ scope: ["posts:read", 3] })).toEqual({
       scopes: ["posts:read"],
     });
-    expect(Object.isFrozen(delegationOf({ scope: "openid" }))).toBe(true);
+    expect(Object.isFrozen(delegationOf({ scope: "posts:read" }))).toBe(true);
+  });
+
+  it("leaves out the OpenID Connect identity scopes", () => {
+    expect(
+      delegationOf({
+        scope: "openid profile email address phone offline_access",
+      }),
+    ).toBeUndefined();
+    expect(delegationOf({ scope: ["email", "posts:read"] })).toEqual({
+      scopes: ["posts:read"],
+    });
   });
 
   it("has no delegation for an empty, missing or malformed scope", () => {
