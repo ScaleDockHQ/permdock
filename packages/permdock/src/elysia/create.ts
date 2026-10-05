@@ -22,6 +22,7 @@ import type { WebBotAuthVerifier } from "../server/web-bot-auth.ts";
 import { compact } from "../core/compact.ts";
 import { instanceOptions } from "../core/instance-options.ts";
 import { createKernel, tenantScope } from "../server/create.ts";
+import { parsedBody } from "../server/http.ts";
 import { problemFromError } from "../server/map-error.ts";
 import { POLICY_VIOLATION, onRevoked } from "../server/stream.ts";
 
@@ -238,10 +239,6 @@ function toRequest(ctx: ElysiaCtx): Request {
     return ctx.request;
   }
   const headers = new Headers(ctx.request.headers);
-  const body =
-    typeof ctx.body === "string" ? ctx.body : JSON.stringify(ctx.body);
-  if (!headers.has("content-type")) {
-    headers.set("content-type", "application/json");
-  }
+  const body = parsedBody(ctx.body, headers) ?? null;
   return new Request(ctx.request.url, { method, headers, body });
 }

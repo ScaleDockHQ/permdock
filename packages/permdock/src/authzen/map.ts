@@ -3,7 +3,10 @@ import type { Permission, PermissionTree } from "../core/permissions.ts";
 import type { Actor, Delegation } from "../core/subject.ts";
 
 import { compact } from "../core/compact.ts";
-import { findPermission, listPermissions } from "../core/permissions.ts";
+import {
+  itemPermission,
+  itemResourceData,
+} from "../server/evaluation-items.ts";
 
 export type AuthzenEntity = {
   readonly type?: unknown;
@@ -50,38 +53,11 @@ export function permissionOf(
   tree: PermissionTree,
   item: AuthzenItem,
 ): Permission | undefined {
-  const actionName = actionNameOf(item);
-  if (actionName === undefined) {
-    return undefined;
-  }
-  const byKey = findPermission(tree, actionName);
-  if (byKey !== undefined) {
-    return byKey;
-  }
-  const resource =
-    typeof item.resource?.type === "string" ? item.resource.type : undefined;
-  if (resource === undefined) {
-    return undefined;
-  }
-  const dotted = findPermission(tree, `${resource}.${actionName}`);
-  if (dotted !== undefined) {
-    return dotted;
-  }
-  return listPermissions(tree).find(
-    (leaf) => leaf.resource === resource && leaf.action === actionName,
-  );
+  return itemPermission(tree, actionNameOf(item), item.resource);
 }
 
 export function resourceData(item: AuthzenItem): unknown {
-  const properties = item.resource?.properties;
-  if (properties !== null && typeof properties === "object") {
-    return properties;
-  }
-  const id = item.resource?.id;
-  if (typeof id === "string" || typeof id === "number") {
-    return { id: String(id) };
-  }
-  return undefined;
+  return itemResourceData(item.resource);
 }
 
 export function resourceIdOf(item: AuthzenItem): string | undefined {

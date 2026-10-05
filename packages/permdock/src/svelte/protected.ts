@@ -1,9 +1,13 @@
 import type { Snippet } from "svelte";
 
+import type { ProtectedView } from "../client/views.ts";
 import type { Decision } from "../core/decision.ts";
 import type { Permission } from "../core/permissions.ts";
 import type { ClientStore } from "../react/store.ts";
-import type { ClientStatus, PermissionState } from "./types.ts";
+
+import { protectedView as viewOf } from "../client/views.ts";
+
+export type { ProtectedView } from "../client/views.ts";
 
 export type ProtectedProps = {
   readonly permission: Permission;
@@ -14,17 +18,6 @@ export type ProtectedProps = {
   readonly fallback?: Snippet<[Decision]>;
 };
 
-type DecidePermDock = {
-  readonly decide: (permission: Permission, data?: unknown) => Decision;
-};
-
-export type ProtectedView = {
-  readonly allowed: boolean;
-  readonly status: ClientStatus;
-  readonly decision: Decision;
-  readonly slot: "pending" | "fallback" | "default";
-};
-
 export function protectedView(
   store: ClientStore,
   reference: Permission,
@@ -32,49 +25,11 @@ export function protectedView(
   tenant?: string,
   _generation?: number,
 ): ProtectedView {
-  const local: PermissionState = store.permissionState(reference, data);
-  // SAFETY: decide's instance and collection overloads share one implementation that takes either kind.
-  const scoped: ProtectedView =
-    tenant === undefined
-      ? {
-          allowed: local.allowed,
-          status: local.status,
-          decision: local.decision,
-          slot: slotOf(local.allowed, local.status, local.decision),
-        }
-      : tenantView(
-          store.get().tenant(tenant) as DecidePermDock,
-          reference,
-          data,
-        );
-  return scoped;
-}
-
-function tenantView(
-  permdock: DecidePermDock,
-  reference: Permission,
-  data: unknown,
-): ProtectedView {
-  const decision = permdock.decide(reference, data);
-  const allowed = decision.outcome === "granted";
-  return {
-    allowed,
-    status: "ready",
-    decision,
-    slot: slotOf(allowed, "ready", decision),
-  };
-}
-
-function slotOf(
-  allowed: boolean,
-  status: ClientStatus,
-  decision: Decision,
-): ProtectedView["slot"] {
-  if (status === "pending") {
-    return "pending";
-  }
-  if (!allowed || decision.outcome !== "granted") {
-    return "fallback";
-  }
-  return "default";
+  return viewOf(
+    store.permissionState(reference, data),
+    store.get(),
+    reference,
+    data,
+    tenant,
+  );
 }

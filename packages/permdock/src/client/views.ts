@@ -1,4 +1,4 @@
-import type { Decision } from "../core/decision.ts";
+import type { Decision, GrantedDecision } from "../core/decision.ts";
 import type { Permission } from "../core/permissions.ts";
 import type { Role } from "../core/vocabulary.ts";
 import type { ClientStore } from "../react/store.ts";
@@ -91,6 +91,52 @@ export function subjectView(permdock: ClientPermDock): SubjectView {
       "simulated" in snapshot &&
       snapshot.simulated === true,
   };
+}
+
+type DecidePermDock = {
+  readonly decide: (permission: Permission, data?: unknown) => Decision;
+};
+
+/** What `Protected` renders: `pending` while an endpoint answer is in flight, `fallback` unless granted. */
+export type ProtectedView =
+  | (PermissionState & { readonly slot: "pending" | "fallback" })
+  | {
+      readonly allowed: true;
+      readonly status: PermissionState["status"];
+      readonly decision: GrantedDecision;
+      readonly slot: "default";
+    };
+
+/** `local` answers the active tenant; another `tenant` is decided on the spot. */
+export function protectedView(
+  local: PermissionState,
+  root: ClientPermDock,
+  permission: Permission,
+  data: unknown,
+  tenant: string | undefined,
+): ProtectedView {
+  const state =
+    tenant === undefined ? local : decideIn(root, tenant, permission, data);
+  if (state.status === "pending") {
+    return { ...state, slot: "pending" };
+  }
+  const decision = state.decision;
+  if (!state.allowed || decision.outcome !== "granted") {
+    return { ...state, slot: "fallback" };
+  }
+  return { allowed: true, status: state.status, decision, slot: "default" };
+}
+
+function decideIn(
+  root: ClientPermDock,
+  tenant: string,
+  permission: Permission,
+  data: unknown,
+): PermissionState {
+  // SAFETY: decide's instance and collection overloads share one implementation that takes either kind.
+  const scoped = root.tenant(tenant) as DecidePermDock;
+  const decision = scoped.decide(permission, data);
+  return { allowed: decision.outcome === "granted", status: "ready", decision };
 }
 
 export function approvalHandle(

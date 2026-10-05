@@ -24,6 +24,7 @@ import { compact } from "../core/compact.ts";
 import { instanceOptions } from "../core/instance-options.ts";
 import { isPermission } from "../core/permissions.ts";
 import { createKernel, tenantScope } from "../server/create.ts";
+import { problemMessage, requestFromContext } from "../server/http.ts";
 import { problemFromError } from "../server/map-error.ts";
 import { guardIterable, isAsyncIterable } from "../server/stream.ts";
 import { invalidSignatureResponse } from "../server/web-bot-auth.ts";
@@ -122,16 +123,6 @@ function hasBoundPermDock(context: unknown): boolean {
   );
 }
 
-function requestFromCtx(ctx: object): Request | undefined {
-  if ("request" in ctx && ctx.request instanceof Request) {
-    return ctx.request;
-  }
-  if ("req" in ctx && ctx.req instanceof Request) {
-    return ctx.req;
-  }
-  return undefined;
-}
-
 function toOpts<TCtx extends object>(
   mw: { readonly context: TCtx; readonly path?: readonly string[] },
   input: unknown,
@@ -143,19 +134,6 @@ function toOpts<TCtx extends object>(
     path: mw.path,
     next,
   });
-}
-
-function problemMessage(cause: unknown, fallback: string): string {
-  if (
-    cause !== null &&
-    typeof cause === "object" &&
-    "detail" in cause &&
-    typeof cause.detail === "string" &&
-    cause.detail.length > 0
-  ) {
-    return cause.detail;
-  }
-  return fallback;
 }
 
 function orpcCode(status: number): string {
@@ -319,7 +297,7 @@ export function createPermDock<
         return undefined;
       }
     }
-    return requestFromCtx(ctx);
+    return requestFromContext(ctx);
   };
 
   /**

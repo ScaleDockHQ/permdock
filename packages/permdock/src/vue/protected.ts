@@ -5,21 +5,10 @@ import {
   type VNode,
 } from "vue";
 
-import type { Decision } from "../core/decision.ts";
 import type { Permission } from "../core/permissions.ts";
-import type { ClientStatus } from "./types.ts";
 
+import { protectedView } from "../client/views.ts";
 import { usePermission, usePermDock } from "./composables.ts";
-
-type ScopedView = {
-  readonly allowed: boolean;
-  readonly status: ClientStatus;
-  readonly decision: Decision;
-};
-
-type DecidePermDock = {
-  readonly decide: (permission: Permission, data?: unknown) => Decision;
-};
 
 type ProtectedProps = {
   readonly permission: Permission;
@@ -52,39 +41,29 @@ export const Protected: DefineComponent<ProtectedProps> = defineComponent({
     );
     const root = usePermDock();
     return (): VNode | VNode[] | string | null => {
-      // SAFETY: decide's instance and collection overloads share one implementation that takes either kind.
-      const scoped: ScopedView =
-        props.tenant === undefined
-          ? {
-              allowed: local.allowed.value,
-              status: local.status.value,
-              decision: local.decision.value,
-            }
-          : tenantView(
-              root.tenant(props.tenant) as DecidePermDock,
-              props.permission,
-              props.data,
-            );
-      if (scoped.status === "pending") {
-        return slots["pending"]?.() ?? null;
+      const view = protectedView(
+        {
+          allowed: local.allowed.value,
+          status: local.status.value,
+          decision: local.decision.value,
+        },
+        root,
+        props.permission,
+        props.data,
+        props.tenant,
+      );
+      switch (view.slot) {
+        case "pending":
+          return slots["pending"]?.() ?? null;
+        case "fallback":
+          return slots["fallback"]?.({ decision: view.decision }) ?? null;
+        case "default":
+          return slots["default"]?.({ decision: view.decision }) ?? null;
+        default: {
+          const exhausted: never = view;
+          return exhausted;
+        }
       }
-      if (!scoped.allowed || scoped.decision.outcome !== "granted") {
-        return slots["fallback"]?.({ decision: scoped.decision }) ?? null;
-      }
-      return slots["default"]?.({ decision: scoped.decision }) ?? null;
     };
   },
 });
-
-function tenantView(
-  permdock: DecidePermDock,
-  permission: Permission,
-  data: unknown,
-): ScopedView {
-  const decision = permdock.decide(permission, data);
-  return {
-    allowed: decision.outcome === "granted",
-    status: "ready",
-    decision,
-  };
-}
