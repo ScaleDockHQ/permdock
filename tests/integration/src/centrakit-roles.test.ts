@@ -29,6 +29,8 @@ const DISPATCH_A = id(0xa4);
 const DISPATCH_B = id(0xa5);
 const SUSPENDED = id(0xa6);
 const CONTACT = id(0xa7);
+const CONTACT_2 = id(0xa8);
+const LEAVER = id(0xa9);
 const USERS = [
   PLATFORM,
   OTHER,
@@ -37,11 +39,18 @@ const USERS = [
   DISPATCH_B,
   SUSPENDED,
   CONTACT,
+  CONTACT_2,
+  LEAVER,
 ];
 const ORG_A = id(0xb1);
 const ORG_B = id(0xb2);
 const ORG_CLOSED = id(0xb3);
 const CUST_A = id(0xc1);
+const CUST_B = id(0xc2);
+const CUST_CLOSED = id(0xc3);
+const PROFILE = id(0xd1);
+const PROFILE_UNLINKED = id(0xd2);
+const PROFILE_LEAVER = id(0xd3);
 const PLATFORM_ROLE = id(0xe1);
 const SUPPORT_ROLE = id(0xe2);
 const OWNER_ROLE = id(0xe3);
@@ -112,10 +121,27 @@ insert into organization_users values
   ('${DISPATCH_A}', '${ORG_A}', '${DISPATCH_A_ROLE}'),
   ('${DISPATCH_B}', '${ORG_B}', '${DISPATCH_B_ROLE}'),
   ('${SUSPENDED}', '${ORG_A}', '${ADMIN_ROLE}');
-create table contacts (
-  id uuid primary key, organization_id uuid not null, customer_id uuid not null, user_id uuid
+create table contact_profiles (
+  id uuid primary key,
+  user_id uuid unique references auth.users (id) on delete set null
 );
-insert into contacts values ('${id(0xd1)}', '${ORG_A}', '${CUST_A}', '${CONTACT}');
+alter table contact_profiles enable row level security;
+insert into contact_profiles values
+  ('${PROFILE}', '${CONTACT}'),
+  ('${PROFILE_UNLINKED}', null),
+  ('${PROFILE_LEAVER}', '${LEAVER}');
+create table customer_contacts (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references organizations (id) on delete cascade,
+  customer_id uuid not null,
+  contact_profile_id uuid not null references contact_profiles (id) on delete cascade
+);
+alter table customer_contacts enable row level security;
+insert into customer_contacts (organization_id, customer_id, contact_profile_id) values
+  ('${ORG_A}', '${CUST_A}', '${PROFILE}'),
+  ('${ORG_CLOSED}', '${CUST_CLOSED}', '${PROFILE}'),
+  ('${ORG_B}', '${CUST_B}', '${PROFILE_UNLINKED}'),
+  ('${ORG_A}', '${CUST_A}', '${PROFILE_LEAVER}');
 `;
 
 type Claims = Record<string, unknown>;
@@ -213,13 +239,34 @@ describe("CentraKit user_roles and organization_users through roles.key", () => 
       return result.rows.map((row) => row.id);
     });
 
-  const members = (schema: string, claims: Claims) =>
+  const members = (
+    schema: string,
+    claims: Claims,
+    scope: "organization" | "customer" = "organization",
+  ) =>
     as("authenticated", claims, async (client) => {
       const result = await client.query<{ id: string }>(
-        `select id from ${schema}.member_organization_ids() as t(id) order by id`,
+        `select id from ${schema}.member_${scope}_ids() as t(id) order by id`,
       );
       return result.rows.map((row) => row.id);
     });
+
+  const permittedCustomers = (schema: string, claims: Claims, key: string) =>
+    as("authenticated", claims, async (client) => {
+      const result = await client.query<{ id: string }>(
+        `select id from ${schema}.permitted_customer_ids($1) as t(id) order by id`,
+        [key],
+      );
+      return result.rows.map((row) => row.id);
+    });
+
+  const portal = (customer: string, organization: string) => ({
+    scope: "customer",
+    id: customer,
+    within: { organization },
+    roles: ["contact"],
+    via: "contact",
+  });
 
   const version = async (user: string) => {
     const result = await db?.admin.query<{ version: string }>(
@@ -397,5 +444,107 @@ describe("CentraKit user_roles and organization_users through roles.key", () => 
         },
       ]),
     );
+  });
+
+  it("reads a portal contact's login through contact_profiles and lets supabase_auth_admin read it", async () => {
+    expect(sql).toContain(
+      'join "public"."contact_profiles" mu on mu."id" = m."contact_profile_id"',
+    );
+    expect(sql).toContain(
+      'grant select on table "public"."contact_profiles" to supabase_auth_admin;',
+    );
+    expect((await mint(CONTACT))["memberships"]).toEqual([
+      portal(CUST_A, ORG_A),
+    ]);
+    expect((await mint(CONTACT_2))["memberships"]).toEqual([]);
+  });
+
+  it("answers the customer helpers in both modes and drops a suspended organization's contacts", async () => {
+    expect(await members("permdock", { sub: CONTACT }, "customer")).toEqual([
+      CUST_A,
+    ]);
+    expect(
+      await permittedCustomers("permdock", { sub: CONTACT }, "quotes.read"),
+    ).toEqual([CUST_A]);
+    const claims = await mint(CONTACT);
+    expect(await members("permdock_jwt", claims, "customer")).toEqual([CUST_A]);
+    expect(
+      await permittedCustomers("permdock_jwt", claims, "quotes.read"),
+    ).toEqual([CUST_A]);
+    expect(
+      await members(
+        "permdock_jwt",
+        {
+          sub: CONTACT,
+          memberships: [portal(CUST_A, ORG_A), portal(CUST_CLOSED, ORG_CLOSED)],
+        },
+        "customer",
+      ),
+    ).toEqual([CUST_A]);
+    const composed = composeMemberships(sources(query));
+    expect(await composed.membershipsFor({ id: CONTACT }, {})).toEqual([
+      portal(CUST_A, ORG_A),
+    ]);
+  });
+
+  it("holds no membership for a contact profile without a login", async () => {
+    const contacts = sources(query)[1];
+    expect(await contacts?.list?.({ scope: "customer", id: CUST_B })).toEqual(
+      [],
+    );
+    expect(
+      (await contacts?.list?.({ scope: "customer", id: CUST_A }))?.map(
+        (entry) => entry.principal.id,
+      ),
+    ).toEqual([CONTACT, LEAVER].toSorted());
+  });
+
+  it("bumps the old and the new login when a contact profile is re-linked", async () => {
+    const contact = await version(CONTACT);
+    const second = await version(CONTACT_2);
+    await db?.admin.query(
+      `update contact_profiles set user_id = $1 where id = $2`,
+      [CONTACT_2, PROFILE_UNLINKED],
+    );
+    expect(await version(CONTACT_2)).toBe(second + 1);
+    expect(await version(CONTACT)).toBe(contact);
+    expect((await mint(CONTACT_2))["memberships"]).toEqual([
+      portal(CUST_B, ORG_B),
+    ]);
+    await db?.admin.query(
+      `update contact_profiles set user_id = null where id = $1`,
+      [PROFILE_UNLINKED],
+    );
+    await db?.admin.query(
+      `update contact_profiles set user_id = $1 where id = $2`,
+      [CONTACT_2, PROFILE],
+    );
+    expect(await version(CONTACT)).toBe(contact + 1);
+    expect(await version(CONTACT_2)).toBe(second + 3);
+    expect((await mint(CONTACT))["memberships"]).toEqual([]);
+    expect((await mint(CONTACT_2))["memberships"]).toEqual([
+      portal(CUST_A, ORG_A),
+    ]);
+    expect(await members("permdock", { sub: CONTACT }, "customer")).toEqual([]);
+    await db?.admin.query(
+      `insert into customer_contacts (organization_id, customer_id, contact_profile_id) values ($1, $2, $3)`,
+      [ORG_B, CUST_B, PROFILE],
+    );
+    expect(await version(CONTACT_2)).toBe(second + 4);
+    await db?.admin.query(
+      `delete from customer_contacts where customer_id = $1 and contact_profile_id = $2`,
+      [CUST_B, PROFILE],
+    );
+    expect(await version(CONTACT_2)).toBe(second + 5);
+    expect(await version(CONTACT)).toBe(contact + 1);
+  });
+
+  it("deletes a login whose contact profile keeps its rows", async () => {
+    await db?.admin.query(`delete from auth.users where id = $1`, [LEAVER]);
+    const rows = await db?.admin.query(
+      `select user_id from contact_profiles where id = $1`,
+      [PROFILE_LEAVER],
+    );
+    expect(rows?.rows).toEqual([{ user_id: null }]);
   });
 });
