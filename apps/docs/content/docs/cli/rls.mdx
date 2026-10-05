@@ -153,6 +153,8 @@ By default (`rls.tenants: 'active'`) the helpers narrow to the tenant claim (`rl
 
 An application whose tenant comes from the URL or the query, where one session works in several tenants, sets `rls.tenants: 'all'`. The helpers then ignore the claim and admit every tenant the subject holds the permission in, the root `memberOf` compiles to `"orgId" in (select <schema>.member_<first scope>_ids())`, and the nested `exists` drops the tenant comparison. Each query still filters to the tenant the request names; the database guarantees membership, not the request's tenant.
 
+`rls.anonExecute: true` grants `anon` usage on the helper schema and `execute` on the helpers, for hand-written policies that apply to `public` or `anon` and call them. Prefer `to authenticated` on those policies: a statement `anon` runs that reaches a helper it may not execute fails, and as an InitPlan it has crashed the backend on some Postgres builds. The helpers find no subject for `anon` and return nothing.
+
 ```ts title="permdock.config.ts"
 export default defineConfig({
   rls: { authorize: "database", tenants: "all" },

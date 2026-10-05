@@ -161,6 +161,13 @@ export type RlsConfig = {
    */
   readonly anonymousSignIns?: "deny";
   /**
+   * Grant `anon` usage on the helper schema and `execute` on the helpers, for
+   * hand-written policies that apply to `public` or `anon` and call them. They
+   * find no subject for `anon` and return nothing. Off by default: a policy
+   * that calls a helper says `to authenticated`.
+   */
+  readonly anonExecute?: boolean;
+  /**
    * `'views'`: one `security_invoker` view `<table>_visible` per table with field-limited
    * read grants, whose restricted columns are `case when <permitted> then col end`. Off by default.
    */
