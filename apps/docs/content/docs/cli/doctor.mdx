@@ -79,6 +79,7 @@ Without `--fix`, doctor only reads: it never writes the catalog or any other fil
 | `PD055` | A custom role in the `doctor.memberships` fixture stores a permission under a key it was renamed from                                                                                                                                                                                                      | warning         |
 | `PD056` | A migration still calls an `rls.migrate` helper by its legacy name                                                                                                                                                                                                                                         | warning         |
 | `PD057` | `rls.anonymousSignIns` is `'deny'`, but a `subjectFromSupabase` or `subjectFromSupabaseSession` call does not pass `anonymousSignIns: 'deny'`                                                                                                                                                              | warning         |
+| `PD058` | `sync-config.yaml` is missing or differs from the Sync Streams the policy compiles to                                                                                                                                                                                                                      | warning         |
 
 ### PD001: server-only imports in client entries
 
@@ -333,6 +334,10 @@ With `rls.migrate.helpers` set, the check counts calls to each legacy helper nam
 ### PD057: anonymous sign-ins mapped as users
 
 With `rls.anonymousSignIns: 'deny'`, the generated policies refuse a `signInAnonymously()` token, but `subjectFromSupabase` maps it as a signed-in user unless it gets the same option, so the server and the database disagree. The check names each `subjectFromSupabase` or `subjectFromSupabaseSession` call whose options object does not set `anonymousSignIns: 'deny'`; options passed as a variable are not read. `--only anonymous` (or `--only supabase`) runs PD057.
+
+### PD058: stale Sync Streams
+
+With `powersync` in the config, the check compiles the policy to Sync Streams and compares the result with `powersync.out` (default `sync-config.yaml`). A missing or different file means the PowerSync service syncs by an older policy: a revoked grant still syncs rows to devices. Run `permdock powersync generate` and deploy the file. `--only powersync` runs PD058.
 
 ## Why
 

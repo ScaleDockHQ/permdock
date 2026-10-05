@@ -290,7 +290,18 @@ export type PermDockConfig = {
   };
   readonly rls?: RlsConfig;
   readonly supabase?: SupabaseConfig;
+  readonly powersync?: PowerSyncConfig;
   readonly doctor?: DoctorConfig;
+};
+
+/** `permdock powersync generate` and `verify` input. Tables and memberships come from `rls`. */
+export type PowerSyncConfig = {
+  /** The Sync Streams file; default `sync-config.yaml`. */
+  readonly out?: string;
+  /** Resources that get a stream; default every resource with a grant of `action`. */
+  readonly resources?: readonly string[];
+  /** The action whose grants decide which rows sync; default `read`. */
+  readonly action?: string;
 };
 
 export type {

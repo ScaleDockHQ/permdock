@@ -1,0 +1,21 @@
+Generate PowerSync Sync Streams from the policy, or verify them against the fixtures (permdock powersync)
+
+USAGE permdock powersync [OPTIONS] [VERB]
+
+ARGUMENTS
+
+  VERB    generate or verify
+
+OPTIONS
+
+        --cwd=<dir>    Run as if started in this directory                           
+    --config=<file>    Config file (default permdock.config.{ts,mts,js,mjs})         
+             --json    Machine-readable output                                       
+          -y, --yes    Never prompt; take the answer the flags give                  
+            --color    Styled output on a colour terminal (Default: true)            
+         --no-color    Plain output                                                  
+       --out=<file>    The Sync Streams file (default sync-config.yaml)              
+            --check    generate: exit 1 when the file on disk is stale; write nothing
+         --db=<url>    verify: Postgres connection string to run the fixtures against
+  --fixtures=<file>    verify: fixtures file (default rls.fixtures.json)             
+      --from=<file>    Module exporting policy (default: policy in the config)       

@@ -1,6 +1,6 @@
 Collect, export, diff and check the permissions a PermDock policy declares (permdock)
 
-USAGE permdock [OPTIONS] collect|catalog|diff|usage|doctor|skills|openapi|rls|arazzo|cloud|supabase
+USAGE permdock [OPTIONS] collect|catalog|diff|usage|doctor|skills|openapi|rls|arazzo|cloud|supabase|powersync
 
 OPTIONS
 
@@ -14,16 +14,17 @@ OPTIONS
 
 COMMANDS
 
-   collect    Scan the sources for definePermissions() and permission references; write the catalog and barrel
-   catalog    Export the catalog as JSON, JSON Schema or Markdown                                             
-      diff    Compare two policies or catalogs; exit 1 on a breaking change                                   
-     usage    Report unused, ungranted and role-less permissions and conditions on undeclared fields          
-    doctor    Check a PermDock installation and print a fix for each finding                                  
-    skills    Install, update or list the PermDock Agent Skills                                               
-   openapi    Emit security into an OpenAPI document, or import one into a generated definition               
-       rls    Generate, import, verify or migrate Postgres RLS policies from the policy                       
-    arazzo    Resolve every Arazzo step to x-permdock-permissions                                             
-     cloud    Publish the catalog, hostable flags and role assignability to a PermDock Cloud environment      
-  supabase    Generate the Supabase Custom Access Token Hook, or inspect its manifest                         
+    collect    Scan the sources for definePermissions() and permission references; write the catalog and barrel
+    catalog    Export the catalog as JSON, JSON Schema or Markdown                                             
+       diff    Compare two policies or catalogs; exit 1 on a breaking change                                   
+      usage    Report unused, ungranted and role-less permissions and conditions on undeclared fields          
+     doctor    Check a PermDock installation and print a fix for each finding                                  
+     skills    Install, update or list the PermDock Agent Skills                                               
+    openapi    Emit security into an OpenAPI document, or import one into a generated definition               
+        rls    Generate, import, verify or migrate Postgres RLS policies from the policy                       
+     arazzo    Resolve every Arazzo step to x-permdock-permissions                                             
+      cloud    Publish the catalog, hostable flags and role assignability to a PermDock Cloud environment      
+   supabase    Generate the Supabase Custom Access Token Hook, or inspect its manifest                         
+  powersync    Generate PowerSync Sync Streams from the policy, or verify them against the fixtures            
 
 Use permdock <command> --help for more information about a command.

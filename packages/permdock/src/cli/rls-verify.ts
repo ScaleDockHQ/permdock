@@ -54,7 +54,7 @@ function customRoleAt(
   };
 }
 
-function canFixture(
+export function canFixture(
   permdock: PermDock,
   permission: Permission,
   row: unknown,
