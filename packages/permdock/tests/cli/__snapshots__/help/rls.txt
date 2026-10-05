@@ -44,7 +44,7 @@ OPTIONS
                          --tree    verify: check the relationship closure                   
                    --introspect    verify: compare against the live database                
                 --split=<parts>    Write helpers, seeds, policies and hook as separate parts
-            --grants-out=<file>    File for the helper and hook grants db diff drops        
+            --grants-out=<file>    File for the helper and hook privileges db diff drops    
              --seeds-out=<file>    File for the role_permissions seeds                      
                  --helpers-only    Write the helpers and keep the policies hand-written     
                         --shims    Wrap each rls.migrate helper under its legacy name       

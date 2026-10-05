@@ -23,6 +23,8 @@
     "@orpc/server": "catalog:",
     "@permdock/ox-config": "workspace:*",
     "@permdock/typescript-config": "workspace:*",
+    "@pgkit/client": "catalog:",
+    "@pgkit/migra": "catalog:",
     "@prisma/adapter-pg": "catalog:",
     "@prisma/client": "catalog:",
     "@supabase/middleware": "catalog:",

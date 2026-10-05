@@ -21,4 +21,4 @@ OPTIONS
   --active-from=<source>    Where the hook reads the active tenant                              
         --budget=<bytes>    Byte budget for the memberships claim                               
          --schema=<name>    Schema for the hook function                                        
-     --grants-out=<file>    File for the supabase_auth_admin grants                             
+     --grants-out=<file>    File for the privileges db diff drops                               

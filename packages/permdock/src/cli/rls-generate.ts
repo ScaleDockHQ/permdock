@@ -64,7 +64,7 @@ import {
   type SqlFile,
   writeSqlFiles,
 } from "./sql-files.ts";
-import { sqlStatements } from "./sql-statements.ts";
+import { splitUndiffed } from "./sql-statements.ts";
 import { supabaseConfig } from "./supabase-config.ts";
 import { grantsLabel, supabaseHookSql } from "./supabase-hook.ts";
 
@@ -128,37 +128,20 @@ function customRoleNames(
   };
 }
 
-const SECURITY_VIEW =
-  /^create\s+(?:or\s+replace\s+)?view\s+(?<name>\S+)\s+with\s*\((?<options>[^)]*)\)/iu;
-
-/**
- * Moves the helpers' grants and revokes, which `supabase db diff` drops, out
- * of the helpers part, with an `alter view ... set (...)` for each view
- * option it drops as well.
- */
-function moveGrants(
-  helpers: string,
+function moveUndiffed(
+  sql: string,
   label: string,
+  part: string,
 ): { readonly sql: string; readonly grants: string } {
-  const moved: string[] = [];
-  let sql = helpers;
-  for (const { text } of sqlStatements(helpers)) {
-    const view = SECURITY_VIEW.exec(text)?.groups;
-    if (view !== undefined) {
-      moved.push(
-        `alter view ${view["name"] ?? ""} set (${view["options"] ?? ""});`,
-      );
-      continue;
-    }
-    if (/^(?:grant|revoke)\s/iu.test(text)) {
-      moved.push(`${text};`);
-      sql = sql.replace(`${text};\n`, "");
-    }
-  }
-  const [first = "", ...rest] = sql.split("\n");
+  const { kept, moved } = splitUndiffed(sql);
+  const [first = "", ...rest] = kept.split("\n");
   return {
-    sql: [first, `-- the helpers' grants are in ${label}`, ...rest].join("\n"),
-    grants: `-- the grants and view options supabase db diff drops from the helpers part\n${moved.join("\n")}`,
+    sql: [
+      first,
+      `-- what supabase db diff drops from this part is in ${label}`,
+      ...rest,
+    ].join("\n"),
+    grants: `-- the privileges and view options supabase db diff drops from the ${part} part\n${moved.join("\n")}`,
   };
 }
 
@@ -687,7 +670,7 @@ function outputFiles(plan: {
           files.push({ part, rel: at(part), text: sql.helpers });
           break;
         }
-        const moved = moveGrants(sql.helpers, label);
+        const moved = moveUndiffed(sql.helpers, label, part);
         files.push({ part, rel: at(part), text: moved.sql });
         grants.push(moved.grants);
         break;

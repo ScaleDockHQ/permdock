@@ -164,6 +164,8 @@ catalog:
   diff: 9.0.0
   "@vercel/firewall": 1.2.5
   botid: 1.5.11
+  "@pgkit/client": 0.6.1
+  "@pgkit/migra": 0.6.1
 
 catalogs:
   ts59:
