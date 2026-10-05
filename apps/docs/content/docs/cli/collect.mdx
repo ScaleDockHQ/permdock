@@ -16,6 +16,8 @@ permdock collect --watch               # rebuild on change (what the Next.js plu
 
 Options come from `permdock.config.ts` (`collect.srcPath`, `catalog.out`) and can be overridden with flags: `--src` (repeatable) for `collect.srcPath`, `--out <file>` for `catalog.out`.
 
+`--watch` collects once, then again 50 ms after the last change to a `srcPath` folder, the config file, or the configured `permissions` and `policy` modules. A glob entry watches the folder above its first wildcard. Changes to the catalog and barrel it wrote are ignored, and changes during a run queue one more run. Every run after the first loads the project modules again, so an edited import is picked up. Failures are printed and the watcher keeps running; `--watch` with `--check` is a usage error.
+
 ## What it scans
 
 `collect` parses every `.ts` and `.tsx` file under each `srcPath` entry with `oxc-parser` and records two things:
