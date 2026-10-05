@@ -23,6 +23,7 @@ import type {
 
 import { resumeDecision, storedApprovalToken } from "../approvals/helpers.ts";
 import { compact } from "../core/compact.ts";
+import { instanceOptions } from "../core/instance-options.ts";
 import { createPermDock as createCorePermDock } from "../core/permdock.ts";
 import { isSubject } from "../core/subject.ts";
 import { revokeCredential } from "./device.ts";
@@ -259,14 +260,7 @@ export function createPermDock<
         tenant: options.tenant,
         actor,
         delegation,
-        memberships: options.memberships,
-        relations: options.relations,
-        approvalPolicies: options.approvalPolicies,
-        entitlements: options.entitlements,
-        customRoles: options.customRoles,
-        policies: options.policies,
-        sink: options.sink,
-        limits: options.limits,
+        ...instanceOptions(options),
       }),
     );
     last = built;

@@ -1,18 +1,8 @@
 import type { ApprovalStore } from "../approvals/types.ts";
-import type { ApprovalPolicySource } from "../core/approval-policies.ts";
 import type { Decision } from "../core/decision.ts";
 import type { ApprovalHint } from "../core/errors.ts";
-import type { PolicySource } from "../core/hosted.ts";
-import type {
-  DecisionSink,
-  EntitlementSource,
-  LimitStore,
-  MembershipSource,
-  RelationSource,
-  RoleSource,
-  RoleSourceFactory,
-  SnapshotSource,
-} from "../core/interfaces.ts";
+import type { InstanceOptions } from "../core/instance-options.ts";
+import type { SnapshotSource } from "../core/interfaces.ts";
 import type { DecideOptions, PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permissions.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy.ts";
@@ -23,6 +13,7 @@ import type { Connection, ConnectionOptions } from "./connection.ts";
 import type { WebBotAuthVerifier } from "./web-bot-auth.ts";
 
 import { compact } from "../core/compact.ts";
+import { instanceOptions } from "../core/instance-options.ts";
 import { challengeScope } from "../core/oauth-scopes.ts";
 import { createPermDock as createCorePermDock } from "../core/permdock.ts";
 import { listPermissions } from "../core/permissions.ts";
@@ -39,7 +30,7 @@ import {
 } from "./problem.ts";
 import { InvalidSignatureError } from "./web-bot-auth.ts";
 
-export type ServerPermDockOptions<TUser = unknown> = {
+export type ServerPermDockOptions<TUser = unknown> = InstanceOptions & {
   /** The user, or a full `Subject` (core then skips `policy.subject`); `null` is anonymous. */
   readonly subject: (
     request: Request,
@@ -50,18 +41,7 @@ export type ServerPermDockOptions<TUser = unknown> = {
   readonly tenant?:
     | string
     | ((request: Request) => string | undefined | Promise<string | undefined>);
-  readonly memberships?: MembershipSource | readonly MembershipSource[];
-  /** The object graph for relation grants that walk a parent chain; without it they deny. */
-  readonly relations?: RelationSource;
-  /** Approval requirements kept as data (`ApprovalPolicySource`); they add to the code's and never remove one. A throw denies. */
-  readonly approvalPolicies?: ApprovalPolicySource;
-  readonly entitlements?: EntitlementSource;
-  readonly customRoles?: RoleSource | RoleSourceFactory;
-  /** Hosted grants, read once per instance; see `PolicySource`. */
-  readonly policies?: PolicySource;
   readonly store?: ApprovalStore;
-  readonly sink?: DecisionSink;
-  readonly limits?: LimitStore;
   /** Ends or revalidates open connections; never a decision input. */
   readonly revocations?: RevocationFeed;
   /**
@@ -70,7 +50,7 @@ export type ServerPermDockOptions<TUser = unknown> = {
    * synchronous and keeps denying delegated permissions (`pdp-unavailable`).
    */
   readonly pdp?: PdpFactory;
-  /** Accepted for adapter parity; HTTP adapters do not read it. */
+  /** @deprecated Not read by any adapter. */
   readonly snapshots?: SnapshotSource;
   /** Added as `approval` to every `approval-required` problem. */
   readonly approval?: ApprovalHint;
@@ -293,14 +273,7 @@ export function createKernel<
   ): Promise<Built<V>> => {
     const coreOptions = compact({
       tenant,
-      memberships: options.memberships,
-      relations: options.relations,
-      approvalPolicies: options.approvalPolicies,
-      entitlements: options.entitlements,
-      customRoles: options.customRoles,
-      policies: options.policies,
-      sink: options.sink,
-      limits: options.limits,
+      ...instanceOptions(options),
       actor,
     });
     const permdock = await createCorePermDock(policy, user, coreOptions);

@@ -1,17 +1,6 @@
 import type { ApprovalStore } from "../approvals/types.ts";
-import type { ApprovalPolicySource } from "../core/approval-policies.ts";
 import type { Decision } from "../core/decision.ts";
-import type { PolicySource } from "../core/hosted.ts";
-import type {
-  DecisionSink,
-  EntitlementSource,
-  LimitStore,
-  MembershipSource,
-  RelationSource,
-  RoleSource,
-  RoleSourceFactory,
-  SnapshotSource,
-} from "../core/interfaces.ts";
+import type { InstanceOptions } from "../core/instance-options.ts";
 import type { Permission } from "../core/permissions.ts";
 import type { Delegation } from "../core/subject.ts";
 
@@ -22,7 +11,7 @@ export type ToolBinding = {
 
 export type ToolMap = Readonly<Record<string, ToolBinding>>;
 
-export type AgentKernelOptions<TContext, TUser = unknown> = {
+export type AgentKernelOptions<TContext, TUser = unknown> = InstanceOptions & {
   readonly subject: (context: TContext) => TUser | Promise<TUser>;
   readonly actor?: (context: TContext) => unknown;
   readonly delegation?: (
@@ -32,19 +21,7 @@ export type AgentKernelOptions<TContext, TUser = unknown> = {
     | string
     | ((context: TContext) => string | undefined | Promise<string | undefined>);
   readonly tools: ToolMap;
-  readonly memberships?: MembershipSource | readonly MembershipSource[];
-  /** The object graph for relation grants that walk a parent chain; without it they deny. */
-  readonly relations?: RelationSource;
-  /** Approval requirements kept as data (`ApprovalPolicySource`); they add to the code's and never remove one. A throw denies. */
-  readonly approvalPolicies?: ApprovalPolicySource;
-  readonly entitlements?: EntitlementSource;
-  readonly customRoles?: RoleSource | RoleSourceFactory;
-  /** Hosted grants, read once per instance; see `PolicySource`. */
-  readonly policies?: PolicySource;
   readonly store?: ApprovalStore;
-  readonly sink?: DecisionSink;
-  readonly limits?: LimitStore;
-  readonly snapshots?: SnapshotSource;
   readonly adapter: string;
 };
 

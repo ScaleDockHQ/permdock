@@ -12,6 +12,7 @@ import type {
 
 import { resumeDecision, storedApprovalToken } from "../approvals/helpers.ts";
 import { compact } from "../core/compact.ts";
+import { instanceOptions } from "../core/instance-options.ts";
 import { mayUse } from "../core/may-use.ts";
 import { createPermDock as createCorePermDock } from "../core/permdock.ts";
 import { modelReason, thrownReason, unmappedReason } from "./reason.ts";
@@ -176,14 +177,7 @@ export function createAgentKernel<
           tenant,
           actor,
           delegation,
-          memberships: options.memberships,
-          relations: options.relations,
-          approvalPolicies: options.approvalPolicies,
-          entitlements: options.entitlements,
-          customRoles: options.customRoles,
-          policies: options.policies,
-          sink: options.sink,
-          limits: options.limits,
+          ...instanceOptions(options),
         }),
       );
     })();

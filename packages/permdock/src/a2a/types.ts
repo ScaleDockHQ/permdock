@@ -1,17 +1,7 @@
 import type { ApprovalStore } from "../approvals/types.ts";
-import type { ApprovalPolicySource } from "../core/approval-policies.ts";
 import type { ProblemDetails } from "../core/errors.ts";
-import type { PolicySource } from "../core/hosted.ts";
-import type {
-  DecisionSink,
-  EntitlementSource,
-  LimitStore,
-  MembershipSource,
-  RelationSource,
-  RoleSource,
-  RoleSourceFactory,
-  SnapshotSource,
-} from "../core/interfaces.ts";
+import type { InstanceOptions } from "../core/instance-options.ts";
+import type { SnapshotSource } from "../core/interfaces.ts";
 import type { Permission } from "../core/permissions.ts";
 import type { AuthorizationDetail } from "../core/subject.ts";
 
@@ -162,7 +152,7 @@ export type A2aTaskOutcome =
       readonly wwwAuthenticate?: string;
     };
 
-export type A2aPermDockOptions<TUser = unknown> = {
+export type A2aPermDockOptions<TUser = unknown> = InstanceOptions & {
   readonly subject: (auth: A2aAuth) => TUser | Promise<TUser>;
   readonly card: A2aCardInfo;
   readonly securitySchemes: Readonly<Record<string, A2aSecurityScheme>>;
@@ -170,18 +160,8 @@ export type A2aPermDockOptions<TUser = unknown> = {
   readonly tenant?:
     | string
     | ((auth: A2aAuth) => string | undefined | Promise<string | undefined>);
-  readonly memberships?: MembershipSource | readonly MembershipSource[];
-  /** The object graph for relation grants that walk a parent chain; without it they deny. */
-  readonly relations?: RelationSource;
-  /** Approval requirements kept as data (`ApprovalPolicySource`); they add to the code's and never remove one. A throw denies. */
-  readonly approvalPolicies?: ApprovalPolicySource;
-  readonly entitlements?: EntitlementSource;
-  readonly customRoles?: RoleSource | RoleSourceFactory;
-  /** Hosted grants, read once per instance; see `PolicySource`. */
-  readonly policies?: PolicySource;
   readonly store?: ApprovalStore;
-  readonly sink?: DecisionSink;
-  readonly limits?: LimitStore;
+  /** @deprecated Not read by any adapter. */
   readonly snapshots?: SnapshotSource;
 };
 

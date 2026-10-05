@@ -5,6 +5,7 @@ import type { AuthzenItem } from "./map.ts";
 import type { AuthzenFactory } from "./types.ts";
 
 import { compact } from "../core/compact.ts";
+import { instanceOptions } from "../core/instance-options.ts";
 import { ownGet } from "../core/paths.ts";
 import { createPermDock as createCorePermDock } from "../core/permdock.ts";
 import { getResource, listPermissions } from "../core/permissions.ts";
@@ -170,14 +171,7 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
         actor: trusted ? actorOf(item) : undefined,
         delegation: trusted ? delegationOf(item) : undefined,
         tenant: tenantOf(item),
-        memberships: options.memberships,
-        relations: options.relations,
-        approvalPolicies: options.approvalPolicies,
-        entitlements: options.entitlements,
-        customRoles: options.customRoles,
-        policies: options.policies,
-        sink: options.sink,
-        limits: options.limits,
+        ...instanceOptions(options),
       }),
     );
   }

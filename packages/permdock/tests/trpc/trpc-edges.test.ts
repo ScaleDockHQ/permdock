@@ -57,6 +57,30 @@ describe("permdock/trpc request discovery and failures", () => {
     ).toBe("resolved");
   });
 
+  it("resolves the actor and wraps the instance with otel", async () => {
+    const t = initTRPC.context<Ctx>().create();
+    const wrapped: string[] = [];
+    const { permdock } = createPermDock(policy, {
+      subject: () => memberUser,
+      actor: (opts) => ({ id: opts.type, kind: "agent" }),
+      otel: (instance) => {
+        wrapped.push(instance.subject.principal?.id ?? "anonymous");
+        return instance;
+      },
+    });
+    const router = t.router({
+      read: t.procedure
+        .use(permdock())
+        .query(({ ctx }) => ctx["permdock"].subject.actor),
+    });
+    const request = new Request("http://localhost/trpc/read");
+    expect(await router.createCaller({ request }).read()).toEqual({
+      id: "query",
+      kind: "agent",
+    });
+    expect(wrapped).toEqual(["u1"]);
+  });
+
   it("treats a null or throwing request option as no request", async () => {
     const t = initTRPC.context<Ctx>().create();
     const results = [];

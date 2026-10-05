@@ -46,6 +46,15 @@ describe("permdock/node edge cases", () => {
     }).toEqual({ principal: "u1", ok: true });
   });
 
+  it("resolves the actor from the incoming message", async () => {
+    const { permdock: permdockFor } = createPermDock(policy, {
+      subject: () => memberUser,
+      actor: (req) => ({ id: String(req.headers.host), kind: "agent" }),
+    });
+    const permdock = await permdockFor(get("/posts"));
+    expect(permdock.subject.actor).toEqual({ id: "api.test", kind: "agent" });
+  });
+
   it("serves the snapshot on GET and HEAD from the evaluations handler", async () => {
     const { permdockHandler } = createPermDock(policy, {
       subject: () => memberUser,

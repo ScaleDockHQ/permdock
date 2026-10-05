@@ -122,6 +122,24 @@ describe("permdock/fastify edge cases", () => {
     });
   });
 
+  it("resolves the actor from the Fastify request", async () => {
+    const { permdock } = createPermDock(policy, {
+      subject: () => memberUser,
+      actor: (request) => ({ id: request.url, kind: "agent" }),
+    });
+    const app = Fastify();
+    apps.push(app);
+    await app.register(permdock);
+    app.get(
+      "/posts",
+      (request) =>
+        // SAFETY: the permdock plugin decorates every request before the handler runs.
+        (request as PermDockRequest).permdock.subject.actor,
+    );
+    const posts = await app.inject({ method: "GET", url: "/posts" });
+    expect(posts.json()).toEqual({ id: "/posts", kind: "agent" });
+  });
+
   it("protects a collection without a loader and serves the snapshot on GET", async () => {
     const { protect, permdockHandler } = createPermDock(policy, {
       subject: () => memberUser,

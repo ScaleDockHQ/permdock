@@ -1,19 +1,9 @@
 import type { ReactElement, ReactNode } from "react";
 
 import type { ApprovalStore } from "../approvals/types.ts";
-import type { ApprovalPolicySource } from "../core/approval-policies.ts";
 import type { Decision } from "../core/decision.ts";
-import type { PolicySource } from "../core/hosted.ts";
-import type {
-  DecisionSink,
-  EntitlementSource,
-  LimitStore,
-  MembershipSource,
-  RelationSource,
-  RoleSource,
-  RoleSourceFactory,
-  SnapshotSource,
-} from "../core/interfaces.ts";
+import type { InstanceOptions } from "../core/instance-options.ts";
+import type { SnapshotSource } from "../core/interfaces.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permissions.ts";
 import type { PolicyVocabulary } from "../core/policy.ts";
@@ -22,24 +12,14 @@ import type { OtelWrap } from "../otel/types.ts";
 // oxlint-disable-next-line anti-slop/no-unknown-type-aliases -- public alias; the resolver parses it
 export type NextSubjectInput = unknown;
 
-export type NextPermDockOptions<TUser = NextSubjectInput> = {
+export type NextPermDockOptions<TUser = NextSubjectInput> = InstanceOptions & {
   readonly subject: () => TUser | Promise<TUser>;
   readonly tenant?:
     | string
     | (() => string | undefined | Promise<string | undefined>);
   readonly onDenied?: (decision: Decision) => never | void;
-  readonly memberships?: MembershipSource | readonly MembershipSource[];
-  /** The object graph for relation grants that walk a parent chain; without it they deny. */
-  readonly relations?: RelationSource;
-  /** Approval requirements kept as data (`ApprovalPolicySource`); they add to the code's and never remove one. A throw denies. */
-  readonly approvalPolicies?: ApprovalPolicySource;
-  readonly entitlements?: EntitlementSource;
-  readonly customRoles?: RoleSource | RoleSourceFactory;
-  /** Hosted grants, read once per instance; see `PolicySource`. */
-  readonly policies?: PolicySource;
   readonly store?: ApprovalStore;
-  readonly sink?: DecisionSink;
-  readonly limits?: LimitStore;
+  /** @deprecated Not read by any adapter. */
   readonly snapshots?: SnapshotSource;
   /** `(permdock) => withOtel(permdock, options)` from `permdock/otel`. */
   readonly otel?: OtelWrap;
