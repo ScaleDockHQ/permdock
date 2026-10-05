@@ -34,7 +34,7 @@ allow(permissions.payout.release, {
 ```
 
 - `quorum` (an integer, default 1) is how many distinct approvers the request needs. Each approval is recorded as `{ by, at }` on the request's `approvals`, the same principal counts once, and the request stays `pending` (so it cannot be consumed) until the quorum is met. One rejection ends it.
-- `ttl` (a duration such as `'30m'` or `'2d'`) caps how long the request stays open. The store has its own default (one hour for `memoryApprovalStore`); the grant can shorten it, never extend it.
+- `ttl` (a duration such as `'30m'` or `'2d'`) caps how long the request stays open. The window comes from the call's `ttl` (`resumeDecision`), else the store's `ttl`, else one hour; the grant can shorten it, never extend it.
 - `escalation` names, with the same selectors as `by`, who may approve in addition to `by` once `after` has passed since the request was created. It widens the approver set; it does not change the quorum or remove anyone.
 
 `definePolicy` refuses a `quorum` below 1 or a `ttl` or `after` that is not a duration.
