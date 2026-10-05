@@ -292,6 +292,10 @@ export function fromSnapshot(
         denials: [{ role: null, reason: "unsupported" as const }],
       });
     },
+    derive() {
+      // A snapshot carries its grants already resolved: no source applies to it.
+      return instance;
+    },
     activate() {
       // Activation is a server decision: a snapshot carries no activation rules.
       return freezeDeep({

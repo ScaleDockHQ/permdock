@@ -25,6 +25,7 @@ import {
 import { freezeDeep } from "../core/freeze.ts";
 import { createPermDock as createCore } from "../core/permdock.ts";
 import { getResource } from "../core/permissions.ts";
+import { isThenable } from "../core/thenable.ts";
 import { denied, resourceIdOf } from "./shared.ts";
 
 function withoutProviders<
@@ -398,6 +399,14 @@ function wrap<V extends PolicyVocabulary>(
     team: (id: string): PdpPermDock<V> => {
       const next = permdock.team(id);
       return wrap(next, policy, next.subject, providers);
+    },
+    derive: (options) => {
+      const next = permdock.derive(options);
+      return isThenable(next)
+        ? next.then((derived) =>
+            wrap(derived, policy, derived.subject, providers),
+          )
+        : wrap(next, policy, next.subject, providers);
     },
     memberships: permdock.memberships.bind(permdock),
     tenants: permdock.tenants.bind(permdock),
