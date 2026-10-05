@@ -108,7 +108,8 @@ export function customRolesFor(
   source: RoleSource | undefined,
   tenants: readonly string[],
   auth: AuthEvent[],
-  signedIn = false,
+  signedIn: boolean,
+  heldIn: (tenant: string) => readonly string[],
 ): CustomRole[] | Promise<CustomRole[]> {
   if (source === undefined) {
     return [];
@@ -116,7 +117,7 @@ export function customRolesFor(
   const loaded: (CustomRole[] | Promise<CustomRole[]>)[] = [];
   for (const tenant of tenants) {
     try {
-      loaded.push(source.rolesFor(tenant));
+      loaded.push(source.rolesFor(tenant, { held: heldIn(tenant) }));
     } catch {
       auth.push({ reason: "source-threw", source: "customRoles" });
       loaded.push([]);

@@ -163,7 +163,10 @@ interface EntitlementSource {
 }
 
 interface RoleSource {
-  rolesFor(tenant: string): CustomRole[] | Promise<CustomRole[]>;
+  rolesFor(
+    tenant: string,
+    context?: { held: string[] },
+  ): CustomRole[] | Promise<CustomRole[]>;
   assignable?(tenant: string): string[] | Promise<string[]>;
   globalRoles?(): CustomRole[] | Promise<CustomRole[]>; // scope: 'global'
 }
@@ -176,6 +179,23 @@ interface ApprovalPolicySource {
 ```
 
 Both are documented with their evaluation rules on the [tenancy](/docs/concepts/tenancy) page. They are read-only from PermDock's point of view: PermDock never creates, updates or deletes a membership or a custom role, so a source is a query, not a repository. A source that throws yields no memberships or no custom roles for that request (fewer grants, never more) and an `on('auth')` event; it never fails the request. A throwing `assignable` makes nothing assignable in that tenant. `globalRoles` returns [platform custom roles](/docs/concepts/custom-roles#platform-custom-roles), read once per signed-in subject.
+
+`createPermDock` calls `rolesFor` once for each tenant the subject has a live membership in, before the first check, and passes `held`: the role names those memberships hold there, nested scopes included, declared and custom alike. Checks are synchronous, so the source cannot be asked later, per decision. A source whose custom roles live in a database can return `[]` without reading when every held name is a declared role:
+
+```ts
+const declared = new Set(listRoles(roles).map((role) => role.key));
+
+const customRoles: RoleSource = {
+  rolesFor(tenant, context) {
+    if (context?.held.every((name) => declared.has(name))) {
+      return [];
+    }
+    return readCustomRoles(tenant);
+  },
+};
+```
+
+Skip it only on requests that do not manage roles. The instance knows only the custom roles the source returned, so `assignableRoles`, `assignablePermissions` and `decideRoleChange` do not see a custom role the subject does not hold. A role-management page should read them in full.
 
 `ApprovalPolicySource` is read once per instance for the subject's tenants, alongside the custom roles. Unlike the other sources it fails toward denial: a throw, a rejected promise or an entry that does not load against the policy makes every call an allow would grant deny with reason `approval` and detail `approval-policy-unavailable`, because dropping the entries would skip an approval someone configured. An entry for a permission the policy does not declare applies to nothing. [Approvals](/docs/adapters/approvals#approval-policies-as-data) covers the entry shape and how entries combine with the code requirement.
 
