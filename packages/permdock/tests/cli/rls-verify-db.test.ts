@@ -79,7 +79,7 @@ describe("rls verify --db through an injected client", () => {
     });
     expect(outcome).toEqual({
       code: 0,
-      output: "verified 2 fixture(s) in-process",
+      output: "verified 2 fixture(s) in-process and against the database",
     });
     const statements = sql.statements();
     expect(statements[0]).toBe(HELPER_TABLE_POLICIES_SQL);
