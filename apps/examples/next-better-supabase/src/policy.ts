@@ -1,6 +1,7 @@
 import type { Principal } from "permdock";
 
 import {
+  actor,
   allow,
   definePermissions,
   definePolicy,
@@ -42,7 +43,7 @@ export const permissions = definePermissions({
   }),
   quotes: resource(Quote, {
     id: "id",
-    actions: ["read"],
+    actions: ["read", "update"],
     collection: ["list"],
     relations: {
       organization: { field: "organization_id", memberOf: "organization" },
@@ -75,6 +76,7 @@ export const policy = definePolicy(
             permissions.staff.list,
             permissions.quotes.read,
             permissions.quotes.list,
+            permissions.quotes.update,
           ]),
         ],
         { on: "organization", min: 1 },
@@ -89,6 +91,15 @@ export const policy = definePolicy(
         [allow([permissions.quotes.read, permissions.quotes.list])],
         { on: "customer", min: 0 },
       ),
+    ],
+    // A better-supabase support session reaches only what the owner holds and this names;
+    // a `read_only` session keeps the read and list keys.
+    delegations: [
+      {
+        from: roles.owner,
+        to: actor("support"),
+        permissions: [permissions.quotes],
+      },
     ],
   },
 );
