@@ -287,9 +287,24 @@ In `database` mode, save a custom role with `permdock_replace_custom_role_grants
 
 - `p_scope` is a declared scope with a non-null `p_tenant`, or `global` with a null `p_tenant` and `p_scope_id` for a [platform custom role](/docs/concepts/custom-roles#platform-custom-roles) (`unknown-scope`). `p_role` is not a declared role name (`declared-role`).
 - The caller holds a live membership of `p_tenant`, or of instance `p_scope_id` of `p_scope`, or holds a permission with `meta.manageRoles` through a global role (`not-member`). A platform custom role takes the global `meta.manageRoles` permission; a membership is not enough.
+- With `rls.customRoleWrites.requires`, the caller holds one of the named permissions in `p_tenant` (or at instance `p_scope_id`, or through a global role), and only through a global role for a platform custom role (`manage-roles`). `requires: 'manageRoles'` names every permission with `meta.manageRoles`. The check runs before any hand-out check, so a member who may not manage roles cannot save, rename or delete a role, even one inside what they hold.
 - Each `p_allow` entry (`key`, or `key@level` when resources declare levels) is a declared key (`unknown-permission`), inside the ceiling of `p_scope` (`outside-ceiling`) and at a declared level (`unknown-level`). Each `p_deny` entry is a declared key; each `p_include` entry is a declared role whose allows are inside the ceiling (`unknown-role`, `outside-ceiling`). A former key is stored as its current key.
 - The caller may hand out every permission the role would allow, and every level of a leveled one: it holds the permission in `p_tenant` (or at instance `p_scope_id`), through declared roles, custom roles or global grants, and its own grants reach the level. A platform custom role counts only global grants. Holding a permission with `meta.manageRoles` lifts this check, as in-process (`not-assignable-by`).
 - The same hand-out check runs on the role's stored definition, so a caller cannot rewrite or remove a role that allows more than it may hand out.
+
+Without `rls.customRoleWrites.requires`, any member may write a role inside what they may hand out, and may remove a role whose permissions they all hold. Set it to the permission the application's role editor asserts (`member.assignRole` in the [recipe](/docs/concepts/custom-roles#recipe-a-permission-matrix-editor)), so the database repeats that check:
+
+```ts title="permdock.config.ts"
+export default defineConfig({
+  rls: {
+    authorize: "database",
+    customRoles: true,
+    customRoleWrites: { requires: ["member.assignRole"] },
+  },
+});
+```
+
+`generate` exits `2` when `requires` names an undeclared key, no key, or `'manageRoles'` while no permission declares `meta.manageRoles`.
 
 A failed check raises `22023` (invalid definition) or `42501` (caller), with the reason above as the error `hint`. `permdock_rename_custom_role_grants` and `permdock_delete_custom_role_grants` run the same membership and stored-definition checks; a rename refuses a declared name and a name that already has rows (`role-exists`). Call them in the transaction that renames or deletes the role in the application's own roles table, and in the one that updates memberships naming it. A role held only through `meta.manageRoles` on the role, not on a permission, does not lift the check in SQL. `jwt` mode has no tables, so these functions are not emitted.
 
