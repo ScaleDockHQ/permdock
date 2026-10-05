@@ -29,6 +29,12 @@ const CODES: ReadonlySet<string> = new Set<ApprovalErrorCode>([
   "approver-repeated",
 ]);
 
+export function isApprovalErrorCode(
+  value: unknown,
+): value is ApprovalErrorCode {
+  return typeof value === "string" && CODES.has(value);
+}
+
 /** Matches by `name` and `code`, so an error from another copy of the module still maps. */
 export function isApprovalError(value: unknown): value is ApprovalError {
   if (!(value instanceof Error) || value.name !== "ApprovalError") {

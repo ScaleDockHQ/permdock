@@ -20,7 +20,7 @@ import type {
   CloudOptions,
 } from "./types.ts";
 
-import { ApprovalError } from "../approvals/errors.ts";
+import { ApprovalError, isApprovalErrorCode } from "../approvals/errors.ts";
 import { compact } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import { parsePolicyDocument } from "../core/hosted.ts";
@@ -69,6 +69,28 @@ function asApproval(value: unknown): ApprovalRequest | null {
 
 function isCompactJws(value: string): boolean {
   return !value.startsWith("{") && value.split(".").length === 3;
+}
+
+/** The refusal PermDock Cloud names in its body, else the one its status implies. */
+async function approvalErrorFrom(response: Response): Promise<ApprovalError> {
+  let body: unknown;
+  try {
+    body = await response.json();
+  } catch {
+    return approvalErrorFromStatus(response.status);
+  }
+  if (body === null || typeof body !== "object" || !("code" in body)) {
+    return approvalErrorFromStatus(response.status);
+  }
+  const code = body.code;
+  if (!isApprovalErrorCode(code)) {
+    return approvalErrorFromStatus(response.status);
+  }
+  const detail = "detail" in body ? body.detail : undefined;
+  return new ApprovalError(
+    code,
+    typeof detail === "string" && detail.length > 0 ? detail : code,
+  );
 }
 
 function approvalErrorFromStatus(status: number): ApprovalError {
@@ -172,7 +194,7 @@ export function cloud(options: CloudOptions = {}): CloudClient {
         },
       );
       if (!response.ok) {
-        throw approvalErrorFromStatus(response.status);
+        throw await approvalErrorFrom(response);
       }
       const parsed = asApproval(await response.json());
       if (parsed === null) {
