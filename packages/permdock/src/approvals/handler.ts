@@ -12,7 +12,7 @@ import { compact } from "../core/compact.ts";
 import { rootMembershipId } from "../core/scopes.ts";
 import { unauthenticatedProblem } from "../server/problem.ts";
 import { isApprovalError } from "./errors.ts";
-import { approverPermissions } from "./permissions.ts";
+import { heldPermissions } from "./permissions.ts";
 import { approverRelations } from "./relations.ts";
 import { assertApprover } from "./store.ts";
 
@@ -40,22 +40,6 @@ export type ApprovalsHandlerOptions = {
     request: ApprovalRequest,
   ) => PermDock | Promise<PermDock>;
 };
-
-/** The permission approvers `subject` holds on `request`, read through `permdockFor`. */
-export async function heldPermissions(
-  request: ApprovalRequest,
-  subject: Subject,
-  permdockFor: ApprovalsHandlerOptions["permdockFor"],
-): Promise<readonly string[]> {
-  if (permdockFor === undefined || request.approvers === undefined) {
-    return [];
-  }
-  try {
-    return approverPermissions(request, await permdockFor(subject, request));
-  } catch {
-    return [];
-  }
-}
 
 type ProblemBody = {
   readonly type: string;
