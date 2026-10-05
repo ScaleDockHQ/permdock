@@ -26,7 +26,7 @@ A policy declares its scopes in order (an organization, the customers inside it)
 2. A requested tenant with no matching membership is no tenant, never a default one. Team and tenant ids are identifiers, never display names.
 3. No cascade. An organization owner sees no customer portal unless they also hold a contact membership, and a global role never reaches scoped rows.
 4. Role rules live on the role (`min`, `assigns`, `for`), not in handlers. `decideRoleChange` takes the actor from the instance and never writes.
-5. A custom role never exceeds the ceiling of declared `assignable` roles in its scope. Its grants carry no condition, approval or limit of their own.
+5. A custom role never exceeds the ceiling of declared `assignable` roles in its scope. Its grants carry no condition, approval or limit of their own; a `level` picks a condition the resource declares in code.
 
 ## Workflow
 
@@ -55,6 +55,9 @@ A policy declares its scopes in order (an organization, the customers inside it)
    ✓ `definePolicy` does not throw for a missing `memberOf` relation.
 3. **Load memberships.** Return memberships as `{ scope, id, within, roles, via, expiresAt }` from the subject resolver, or pass a `MembershipSource` (one, or an array) as `memberships` on `createPermDock`. A person's access ending is the membership's `expiresAt`.
    ✓ `permdock doctor` reports no PD025 for the `doctor.memberships` fixture.
+
+   An organisation role that reaches only the principal's teams is an organisation role with `where: { team_id: { in: principal.claims.team_ids } }`, not a team role. On Supabase, write the claim with `supabase.hook.claims` ([team reach](https://permdock.com/docs/concepts/tenancy#organisation-roles-with-team-reach)).
+
 4. **Put ownership on the roles.** Set `min: 1` on the role that manages each scope, `assigns` for who hands out what, `for: ['staff']` on admin-like roles, and `meta.audience` for the surface. Every server action that changes a membership calls `permdock.decideRoleChange(...)` with the target's current membership and the holder count before it writes. -> [references/ownership-and-custom-roles.md](references/ownership-and-custom-roles.md)
    ✓ PD026 is clean, and removing the last owner is denied with `last-holder`.
 5. **Custom roles, when tenant admins define roles.** Keep declared roles small and mark them in `defineRoles` (`editor: { on: 'organization', assignable: true }`). Pass a `RoleSource` as `customRoles`, build the editor from `useAssignablePermissions()`, and save through a server action that runs `validateCustomRole`. -> [references/ownership-and-custom-roles.md](references/ownership-and-custom-roles.md#custom-roles)
