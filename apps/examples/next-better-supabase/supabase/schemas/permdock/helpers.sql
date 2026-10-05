@@ -319,6 +319,119 @@ end;
 $$;
 revoke execute on function "permdock".permitted_customer_ids_for(uuid, text) from public, anon, authenticated;
 
+-- the grant keys a permission key reaches on one scope: its unconditional allows, or with p_effect 'deny' every deny
+create or replace function "permdock".grant_keys(p_permission text, p_scope text, p_effect text default 'allow')
+returns setof text
+language sql
+stable
+set search_path = ''
+as $$
+  select g.grant_key
+  from pg_catalog.jsonb_array_elements_text(coalesce(
+    '{"customer":{"quotes.list":{"allow":["quotes.list"],"deny":[]},"quotes.read":{"allow":["quotes.read"],"deny":[]}},"organization":{"quotes.list":{"allow":["quotes.list"],"deny":[]},"quotes.read":{"allow":["quotes.read"],"deny":[]},"quotes.update":{"allow":["quotes.update"],"deny":[]},"staff.list":{"allow":["staff.list"],"deny":[]},"staff.read":{"allow":["staff.read"],"deny":[]}}}'::jsonb -> p_scope -> p_permission -> p_effect,
+    '[]'::jsonb
+  )) g(grant_key)
+$$;
+revoke execute on function "permdock".grant_keys(text, text, text) from public, anon;
+grant execute on function "permdock".grant_keys(text, text, text) to authenticated;
+
+-- the helpers by permission key: unconditional allows minus any deny
+create or replace function "permdock".permdock_has_permission(p_permission text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (select 1 from "permdock".grant_keys(p_permission, 'global') g(grant_key) where "permdock".permdock_has(g.grant_key))
+    and not exists (select 1 from "permdock".grant_keys(p_permission, 'global', 'deny') g(grant_key) where "permdock".permdock_has(g.grant_key))
+$$;
+revoke execute on function "permdock".permdock_has_permission(text) from public, anon;
+grant execute on function "permdock".permdock_has_permission(text) to authenticated;
+
+create or replace function "permdock".permitted_organization_ids_by_permission(p_permission text)
+returns setof uuid
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select a.id
+  from "permdock".grant_keys(p_permission, 'organization') g(grant_key)
+  cross join lateral "permdock".permitted_organization_ids(g.grant_key) a(id)
+  except
+  select d.id
+  from "permdock".grant_keys(p_permission, 'organization', 'deny') g(grant_key)
+  cross join lateral "permdock".permitted_organization_ids(g.grant_key) d(id)
+$$;
+revoke execute on function "permdock".permitted_organization_ids_by_permission(text) from public, anon;
+grant execute on function "permdock".permitted_organization_ids_by_permission(text) to authenticated;
+
+create or replace function "permdock".permitted_customer_ids_by_permission(p_permission text)
+returns setof uuid
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select a.id
+  from "permdock".grant_keys(p_permission, 'customer') g(grant_key)
+  cross join lateral "permdock".permitted_customer_ids(g.grant_key) a(id)
+  except
+  select d.id
+  from "permdock".grant_keys(p_permission, 'customer', 'deny') g(grant_key)
+  cross join lateral "permdock".permitted_customer_ids(g.grant_key) d(id)
+$$;
+revoke execute on function "permdock".permitted_customer_ids_by_permission(text) from public, anon;
+grant execute on function "permdock".permitted_customer_ids_by_permission(text) to authenticated;
+
+-- the same for a user the caller names; no client role may execute them
+create or replace function "permdock".permdock_has_permission_for(p_user uuid, p_permission text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (select 1 from "permdock".grant_keys(p_permission, 'global') g(grant_key) where "permdock".permdock_has_for(p_user, g.grant_key))
+    and not exists (select 1 from "permdock".grant_keys(p_permission, 'global', 'deny') g(grant_key) where "permdock".permdock_has_for(p_user, g.grant_key))
+$$;
+revoke execute on function "permdock".permdock_has_permission_for(uuid, text) from public, anon, authenticated;
+
+create or replace function "permdock".permitted_organization_ids_by_permission_for(p_user uuid, p_permission text)
+returns setof uuid
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select a.id
+  from "permdock".grant_keys(p_permission, 'organization') g(grant_key)
+  cross join lateral "permdock".permitted_organization_ids_for(p_user, g.grant_key) a(id)
+  except
+  select d.id
+  from "permdock".grant_keys(p_permission, 'organization', 'deny') g(grant_key)
+  cross join lateral "permdock".permitted_organization_ids_for(p_user, g.grant_key) d(id)
+$$;
+revoke execute on function "permdock".permitted_organization_ids_by_permission_for(uuid, text) from public, anon, authenticated;
+
+create or replace function "permdock".permitted_customer_ids_by_permission_for(p_user uuid, p_permission text)
+returns setof uuid
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select a.id
+  from "permdock".grant_keys(p_permission, 'customer') g(grant_key)
+  cross join lateral "permdock".permitted_customer_ids_for(p_user, g.grant_key) a(id)
+  except
+  select d.id
+  from "permdock".grant_keys(p_permission, 'customer', 'deny') g(grant_key)
+  cross join lateral "permdock".permitted_customer_ids_for(p_user, g.grant_key) d(id)
+$$;
+revoke execute on function "permdock".permitted_customer_ids_by_permission_for(uuid, text) from public, anon, authenticated;
+
 -- organization: holder counts (min / max) over the membership sources, checked at commit
 create or replace function "permdock".permdock_holders_organization()
 returns trigger

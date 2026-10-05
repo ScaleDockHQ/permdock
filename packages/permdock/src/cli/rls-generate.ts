@@ -47,6 +47,7 @@ import {
   readTableIndexFacts,
 } from "./rls-indexes.ts";
 import { ownershipRules, ownershipSql } from "./rls-ownership.ts";
+import { permissionHelpersSql } from "./rls-permission-keys.ts";
 import { assemblePolicies } from "./rls-policies.ts";
 import {
   type RbacAuthorizeMode,
@@ -478,28 +479,28 @@ export async function runRlsGenerate(input: {
       text: "",
     };
   }
+  const renamed = Object.fromEntries(
+    renamedKeys(policy.vocabulary.permissions),
+  );
+  const grants = shimGrants(
+    compiled.rolePermissions,
+    compiled.conditionedKeys,
+    renamed,
+  );
+  const anonExecute = views.some((view) => view.roles.includes("anon"));
   const shims =
     shimsConfig === undefined || rls?.migrate === undefined
       ? undefined
-      : shimsSql(
-          ctx,
-          rls.migrate,
-          shimsConfig,
-          Object.fromEntries(renamedKeys(policy.vocabulary.permissions)),
-          shimGrants(
-            compiled.rolePermissions,
-            compiled.conditionedKeys,
-            Object.fromEntries(renamedKeys(policy.vocabulary.permissions)),
-          ),
-        );
+      : shimsSql(ctx, rls.migrate, shimsConfig, renamed, grants);
   const preamble = [
     rbac?.head,
     helpersSql(ctx, compiled.rolePermissions, {
       levelReach: compiled.levelReach,
       userRoles: !input.rbac,
-      anonExecute: views.some((view) => view.roles.includes("anon")),
+      anonExecute,
       withoutSeeds: splitsPart(input.split, "seeds"),
     }),
+    permissionHelpersSql(ctx, grants, renamed, anonExecute),
     owned === "" ? undefined : owned,
     graphed === "" ? undefined : graphed,
     breakGlass === "" ? undefined : breakGlass,
