@@ -5,6 +5,7 @@ import type { RolePermission } from "./rls-helpers.ts";
 import type { RlsSqlContext } from "./rls-sql.ts";
 import type { RlsActions } from "./types.ts";
 
+import { canonicalJson } from "../core/canonical-json.ts";
 import { sole } from "../core/compact.ts";
 import { andWhere, leveled } from "../core/custom-roles.ts";
 import { policyLevels } from "../core/policy.ts";
@@ -80,7 +81,71 @@ export type CompiledGrants = {
   }[];
   /** Grant keys whose grants carry a row condition or a validity window, which a key-only check cannot apply. */
   readonly conditionedKeys: ReadonlySet<string>;
+  /**
+   * `[grant key, level]` for every allow on a resource with levels: the
+   * levels a holder of the key may hand out in a custom role, as
+   * `assignableLevels` counts them in-process.
+   */
+  readonly levelReach: readonly (readonly [string, string])[];
 };
+
+/**
+ * The levels an allow reaches: every level without a row condition, else the
+ * levels whose condition equals its condition.
+ */
+function reachedLevels(
+  where: Condition | undefined,
+  levels: readonly (readonly [string, Condition])[],
+): readonly string[] {
+  if (where === undefined) {
+    return levels.map(([name]) => name);
+  }
+  const held = canonicalJson(where);
+  return levels
+    .filter(([, condition]) => canonicalJson(condition) === held)
+    .map(([name]) => name);
+}
+
+function levelReachOf(
+  policy: Policy,
+  keys: ReadonlyMap<Prepared, string>,
+): readonly (readonly [string, string])[] {
+  const reach = new Map<string, Set<string>>();
+  for (const [entry, grantKey] of keys) {
+    const { item } = entry;
+    const { grant } = item;
+    if (
+      item.access.kind !== "role" ||
+      grant.effect !== "allow" ||
+      grant.permission.kind !== "instance" ||
+      grant.level !== undefined
+    ) {
+      continue;
+    }
+    const levels = policyLevels(policy, grant.permission.resource);
+    if (levels.length > 0) {
+      const set = reach.get(grantKey) ?? new Set<string>();
+      for (const name of reachedLevels(grant.where, levels)) {
+        set.add(name);
+      }
+      reach.set(grantKey, set);
+    }
+  }
+  const out: (readonly [string, string])[] = [];
+  for (const grantKey of new Set(keys.values())) {
+    const at = grantKey.lastIndexOf("@");
+    const base = at === -1 ? grantKey : grantKey.slice(0, at);
+    const level = at === -1 ? undefined : grantKey.slice(at + 1);
+    for (const name of reach.get(base) ?? []) {
+      if (level === undefined || level === name) {
+        out.push([grantKey, name]);
+      }
+    }
+  }
+  return out.toSorted(([a, x], [b, y]) =>
+    a === b ? (x < y ? -1 : 1) : a < b ? -1 : 1,
+  );
+}
 
 /** The SQL command `action` compiles to: `rls.actions` first, then the six default verbs. */
 export function commandFor(
@@ -648,6 +713,8 @@ export function compileGrants(
     rolePermissions: withAliasRows(policy, [...rows.values()]),
     conditionedKeys,
     rowColumns: [...rowColumns.values()],
+    levelReach:
+      ctx.customRoles?.levels === true ? levelReachOf(policy, keys) : [],
   };
 }
 

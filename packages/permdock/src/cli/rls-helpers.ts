@@ -49,6 +49,11 @@ const CUSTOM_ROLES = {
   includes: "custom_role_includes",
   ceiling: "permdock_ceiling",
   keys: "permdock_custom_keys",
+  beyond: "permdock_custom_role_beyond",
+  guard: "permdock_custom_role_guard",
+  replace: "permdock_replace_custom_role_grants",
+  rename: "permdock_rename_custom_role_grants",
+  remove: "permdock_delete_custom_role_grants",
 } as const;
 
 /** `'global'` or a scope name. */
@@ -1181,6 +1186,8 @@ export type HelpersOptions = {
   readonly anonExecute?: boolean;
   /** Leave the `role_permissions` rows out: the `seeds` split part writes them. */
   readonly withoutSeeds?: boolean;
+  /** `[grant key, level]` pairs from `compileGrants`, for the custom-role writes. */
+  readonly levelReach?: readonly (readonly [string, string])[];
 };
 
 /**
@@ -1259,5 +1266,328 @@ revoke all on table ${ur} from anon, authenticated, public;`);
       chunks.push(memberForFunction(ctx, scope.name, type));
     }
   }
+  const writes = customRoleWritesSql(ctx, options.levelReach ?? []);
+  if (writes !== "") {
+    chunks.push(writes);
+  }
   return `${chunks.join("\n\n")}\n`;
+}
+
+/** `expr` read as its current key: a former key maps to the key it was renamed to. */
+function currentKeyExpr(
+  renames: readonly (readonly [string, string])[],
+  expr: string,
+): string {
+  if (renames.length === 0) {
+    return expr;
+  }
+  const arms = renames
+    .map(
+      ([former, current]) =>
+        `when ${quoteLiteral(former)} then ${quoteLiteral(current)}`,
+    )
+    .join(" ");
+  return `(case ${expr} ${arms} else ${expr} end)`;
+}
+
+/** `case p_scope when '<scope>' then <sql for scope> ... else false end` over the declared scopes. */
+function perScope(ctx: RlsSqlContext, sql: (scope: string) => string): string {
+  const arms = ctx.scopes
+    .map((scope) => `when ${quoteLiteral(scope.name)} then ${sql(scope.name)}`)
+    .join(" ");
+  return arms === "" ? "false" : `(case p_scope ${arms} else false end)`;
+}
+
+function raiseSql(
+  indent: string,
+  errcode: "22023" | "42501",
+  message: string,
+  hint: string,
+): string {
+  return `${indent}raise exception using
+${indent}  errcode = '${errcode}',
+${indent}  message = ${message},
+${indent}  hint = ${quoteLiteral(hint)};`;
+}
+
+/**
+ * The functions an application calls to save, rename and delete a custom
+ * role in \`database\` mode, with the rules of \`validateCustomRole\` and
+ * \`assignablePermissions\`: entries inside the ceiling of the role's scope,
+ * includes naming declared roles, and only permissions and levels the caller
+ * may hand out, for the new definition and the stored one alike.
+ */
+function customRoleWritesSql(
+  ctx: RlsSqlContext,
+  levelReach: readonly (readonly [string, string])[],
+): string {
+  const custom = ctx.customRoles;
+  const root = ctx.scopes[0]?.name;
+  if (
+    custom === undefined ||
+    ctx.authorize !== "database" ||
+    root === undefined
+  ) {
+    return "";
+  }
+  const leveled = custom.levels === true;
+  const tenantType = tenantTypeOf(ctx);
+  const rp = qualified(ctx, "role_permissions");
+  const ceiling = qualified(ctx, CUSTOM_ROLES.ceiling);
+  const keys = qualified(ctx, CUSTOM_ROLES.keys);
+  const perms = qualified(ctx, CUSTOM_ROLES.permissions);
+  const includes = qualified(ctx, CUSTOM_ROLES.includes);
+  const beyond = qualified(ctx, CUSTOM_ROLES.beyond);
+  const guard = qualified(ctx, CUSTOM_ROLES.guard);
+  const replace = qualified(ctx, CUSTOM_ROLES.replace);
+  const rename = qualified(ctx, CUSTOM_ROLES.rename);
+  const remove = qualified(ctx, CUSTOM_ROLES.remove);
+  const has = qualified(ctx, HELPERS.has);
+  const renames = Object.entries(custom.renamed ?? {}).toSorted(([a], [b]) =>
+    a < b ? -1 : a > b ? 1 : 0,
+  );
+  const current = (expr: string): string => currentKeyExpr(renames, expr);
+  const known = textArray([
+    ...(custom.permissions ?? []),
+    ...renames.map(([former]) => former),
+  ]);
+  const ids = (helper: string, arg: string): string =>
+    `(select x::text from ${qualified(ctx, helper)}(${arg}) x)`;
+  const heldKey = (key: string): string =>
+    `(p_tenant::text in ${ids(permittedIdsHelper(root), key)}
+        or ${perScope(ctx, (scope) => (scope === root ? "false" : `p_scope_id in ${ids(permittedIdsHelper(scope), key)}`))}
+        or ${has}(${key}))`;
+  const manage =
+    custom.manage === undefined
+      ? "false"
+      : `exists (
+    select 1 from ${rp} rp
+    where rp.effect = 'allow'
+      and rp.permission = any(${textArray(custom.manage)})
+      and ${heldKey("rp.grant_key")}
+  )`;
+  const reachRows = levelReach
+    .map(
+      ([grantKey, level]) =>
+        `(${quoteLiteral(grantKey)}, ${quoteLiteral(level)})`,
+    )
+    .join(", ");
+  const levelCheck =
+    leveled && reachRows !== ""
+      ? `
+      or exists (
+        select 1
+        from reach x
+        where x.grant_key = r.grant_key
+          and not exists (
+            select 1 from held h
+            join reach o on o.grant_key = h.grant_key
+            where h.permission = r.permission and o.level = x.level
+          )
+      )`
+      : "";
+  const reachCte =
+    leveled && reachRows !== ""
+      ? `,
+    reach (grant_key, level) as (values ${reachRows})`
+      : "";
+  const match = `c.tenant_id = p_tenant and c.scope = p_scope and c.scope_id is not distinct from p_scope_id`;
+  const memberOf = `p_tenant::text in ${ids(memberIdsHelper(root), "")}
+      or ${perScope(ctx, (scope) => (scope === root ? "false" : `p_scope_id in ${ids(memberIdsHelper(scope), "")}`))}`;
+  const scopes = textArray(ctx.scopes.map((scope) => scope.name));
+  const roleName = (param: string): string =>
+    `coalesce(${param}, '') = '' or ${param} = any(${textArray(custom.declared)})`;
+  const levelOf = leveled ? ", nullif(split_part(e, '@', 2), '')" : "";
+  const levelColumn = leveled ? ", level" : "";
+  return `-- custom-role writes: the permission keys of a definition the caller may not hand out in the tenant, as assignablePermissions computes them
+create or replace function ${beyond}(p_tenant ${tenantType}, p_scope text, p_scope_id text, p_allow text[], p_deny text[], p_include text[])
+returns setof text
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+begin
+  if ${manage} then
+    return;
+  end if;
+  return query
+  with resolved as (
+    select distinct rp.permission, k.key as grant_key
+    from ${keys}(p_allow, p_deny, p_include, p_scope) k(key)
+    join ${rp} rp on rp.grant_key = k.key and rp.effect = 'allow'
+  ),
+  held as (
+    select distinct rp.permission, rp.grant_key
+    from ${rp} rp
+    where rp.effect = 'allow'
+      and rp.permission in (select r.permission from resolved r)
+      and ${heldKey("rp.grant_key")}
+  )${reachCte}
+  select distinct r.permission
+  from resolved r
+  where not exists (select 1 from held h where h.permission = r.permission)${levelCheck};
+end;
+$$;
+revoke execute on function ${beyond}(${tenantType}, text, text, text[], text[], text[]) from public, anon, authenticated;
+
+-- a custom role the caller may change: a tenant scope, an undeclared name, membership of the tenant or the instance, and authority over the stored definition
+create or replace function ${guard}(p_tenant ${tenantType}, p_scope text, p_scope_id text, p_role text)
+returns void
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_allow text[];
+  v_deny text[];
+  v_include text[];
+  v_beyond text;
+begin
+  if p_tenant is null or not (p_scope = any(${scopes})) then
+${raiseSql("    ", "22023", `'permdock: custom roles are held at a scope of a tenant, not ' || coalesce(p_scope, 'null')`, "unknown-scope")}
+  end if;
+  if ${roleName("p_role")} then
+${raiseSql("    ", "22023", `'permdock: ' || coalesce(p_role, 'null') || ' is not a custom role name'`, "declared-role")}
+  end if;
+  if not (${signedIn(ctx)} and (${memberOf})) then
+${raiseSql("    ", "42501", `'permdock: the caller is not a member of ' || p_tenant::text`, "not-member")}
+  end if;
+  select array_agg(${allowEntry(ctx)}) filter (where c.effect = 'allow'),
+    array_agg(c.permission) filter (where c.effect = 'deny')
+  into v_allow, v_deny
+  from ${perms} c
+  where ${match} and c.role = p_role;
+  select array_agg(c.include_role) into v_include
+  from ${includes} c
+  where ${match} and c.role = p_role;
+  select string_agg(b, ', ' order by b) into v_beyond
+  from ${beyond}(p_tenant, p_scope, p_scope_id, v_allow, v_deny, v_include) b;
+  if v_beyond is not null then
+${raiseSql("    ", "42501", `'permdock: ' || p_role || ' allows ' || v_beyond || ', which the caller may not hand out'`, "not-assignable-by")}
+  end if;
+end;
+$$;
+revoke execute on function ${guard}(${tenantType}, text, text, text) from public, anon, authenticated;
+
+-- save a custom role: replace its grants and includes after checking each entry against the ceiling and the caller's own permissions
+create or replace function ${replace}(p_tenant ${tenantType}, p_scope text, p_scope_id text, p_role text, p_allow text[], p_deny text[], p_include text[])
+returns void
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+  v_entry text;
+  v_key text;
+  v_beyond text;
+begin
+  perform ${guard}(p_tenant, p_scope, p_scope_id, p_role);
+  foreach v_entry in array coalesce(p_allow, '{}'::text[]) loop
+    v_key := ${current(leveled ? "split_part(v_entry, '@', 1)" : "v_entry")};
+    if not (v_key = any(${known})) then
+${raiseSql("      ", "22023", `'permdock: ' || v_entry || ' is not a declared permission'`, "unknown-permission")}
+    end if;
+    if not exists (
+      select 1 from ${ceiling} c
+      where c.scope = p_scope and c.effect = 'allow' and ${current("c.permission")} = v_key
+    ) then
+${raiseSql("      ", "22023", `'permdock: ' || v_key || ' is outside the ceiling of ' || p_scope`, "outside-ceiling")}
+    end if;${
+      leveled
+        ? `
+    if strpos(v_entry, '@') > 0 and not exists (
+      select 1 from ${ceiling} c
+      where c.scope = p_scope and c.effect = 'allow' and ${current("c.permission")} = v_key
+        and split_part(c.grant_key, '@', 2) = split_part(v_entry, '@', 2)
+    ) then
+${raiseSql("      ", "22023", `'permdock: ' || v_entry || ' names a level the resource does not declare'`, "unknown-level")}
+    end if;`
+        : ""
+    }
+  end loop;
+  foreach v_entry in array coalesce(p_deny, '{}'::text[]) loop
+    if not (v_entry = any(${known})) then
+${raiseSql("      ", "22023", `'permdock: ' || v_entry || ' is not a declared permission'`, "unknown-permission")}
+    end if;
+  end loop;
+  foreach v_entry in array coalesce(p_include, '{}'::text[]) loop
+    if not (v_entry = any(${textArray(custom.declared)})) then
+${raiseSql("      ", "22023", `'permdock: ' || v_entry || ' is not a declared role'`, "unknown-role")}
+    end if;
+  end loop;
+  select string_agg(distinct ${current("rp.permission")}, ', ') into v_key
+  from ${rp} rp
+  where rp.role = any(coalesce(p_include, '{}'::text[]))
+    and rp.effect = 'allow'
+    and not exists (
+      select 1 from ${ceiling} c
+      where c.scope = p_scope and c.effect = 'allow' and ${current("c.permission")} = ${current("rp.permission")}
+    );
+  if v_key is not null then
+${raiseSql("    ", "22023", `'permdock: an included role allows ' || v_key || ', outside the ceiling of ' || p_scope`, "outside-ceiling")}
+  end if;
+  select string_agg(b, ', ' order by b) into v_beyond
+  from ${beyond}(p_tenant, p_scope, p_scope_id, p_allow, p_deny, p_include) b;
+  if v_beyond is not null then
+${raiseSql("    ", "42501", `'permdock: ' || p_role || ' would allow ' || v_beyond || ', which the caller may not hand out'`, "not-assignable-by")}
+  end if;
+  delete from ${perms} c where ${match} and c.role = p_role;
+  delete from ${includes} c where ${match} and c.role = p_role;
+  insert into ${perms} (tenant_id, scope, scope_id, role, permission, effect${levelColumn})
+  select distinct p_tenant, p_scope, p_scope_id, p_role, ${current(leveled ? "split_part(e, '@', 1)" : "e")}, 'allow'${levelOf}
+  from unnest(coalesce(p_allow, '{}'::text[])) e
+  union
+  select distinct p_tenant, p_scope, p_scope_id, p_role, ${current("e")}, 'deny'${leveled ? ", null" : ""}
+  from unnest(coalesce(p_deny, '{}'::text[])) e;
+  insert into ${includes} (tenant_id, scope, scope_id, role, include_role)
+  select distinct p_tenant, p_scope, p_scope_id, p_role, e
+  from unnest(coalesce(p_include, '{}'::text[])) e;
+end;
+$$;
+revoke execute on function ${replace}(${tenantType}, text, text, text, text[], text[], text[]) from public, anon;
+grant execute on function ${replace}(${tenantType}, text, text, text, text[], text[], text[]) to authenticated;
+
+-- rename a custom role: move its grants and includes to the new name
+create or replace function ${rename}(p_tenant ${tenantType}, p_scope text, p_scope_id text, p_from text, p_to text)
+returns void
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+begin
+  perform ${guard}(p_tenant, p_scope, p_scope_id, p_from);
+  if ${roleName("p_to")} then
+${raiseSql("    ", "22023", `'permdock: ' || coalesce(p_to, 'null') || ' is not a custom role name'`, "declared-role")}
+  end if;
+  if exists (select 1 from ${perms} c where ${match} and c.role = p_to)
+    or exists (select 1 from ${includes} c where ${match} and c.role = p_to) then
+${raiseSql("    ", "22023", `'permdock: ' || p_to || ' already has grants'`, "role-exists")}
+  end if;
+  update ${perms} c set role = p_to where ${match} and c.role = p_from;
+  update ${includes} c set role = p_to where ${match} and c.role = p_from;
+end;
+$$;
+revoke execute on function ${rename}(${tenantType}, text, text, text, text) from public, anon;
+grant execute on function ${rename}(${tenantType}, text, text, text, text) to authenticated;
+
+-- delete a custom role: remove its grants and includes
+create or replace function ${remove}(p_tenant ${tenantType}, p_scope text, p_scope_id text, p_role text)
+returns void
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+begin
+  perform ${guard}(p_tenant, p_scope, p_scope_id, p_role);
+  delete from ${perms} c where ${match} and c.role = p_role;
+  delete from ${includes} c where ${match} and c.role = p_role;
+end;
+$$;
+revoke execute on function ${remove}(${tenantType}, text, text, text) from public, anon;
+grant execute on function ${remove}(${tenantType}, text, text, text) to authenticated;`;
 }

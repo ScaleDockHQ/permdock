@@ -74,6 +74,10 @@ export type RlsSqlContext = {
     readonly assignable: readonly string[];
     /** Former key to current key; a stored custom-role entry under a former key resolves like the current one. */
     readonly renamed?: Readonly<Record<string, string>>;
+    /** Every declared permission key: a saved entry naming another key is `unknown-permission`. */
+    readonly permissions?: readonly string[];
+    /** Keys of permissions with `meta.manageRoles`: holding one lifts the hand-out check, as in-process. */
+    readonly manage?: readonly string[];
     /**
      * Set when a resource declares levels: stored allows may carry a level
      * (`custom_role_permissions.level`, `key@level` in claims), and the
