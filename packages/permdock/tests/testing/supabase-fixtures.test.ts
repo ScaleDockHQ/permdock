@@ -223,6 +223,22 @@ describe("supabase-manifest-v1.json", () => {
                 roles: "role",
                 via: "contact",
               }),
+              fromJunction({
+                table: "customer_contacts",
+                scope: "customer",
+                within: { organization: "organization_id" },
+                user: {
+                  through: "contact_profiles",
+                  on: { contact_profile_id: "id" },
+                  column: "user_id",
+                },
+                roles: {
+                  through: "roles",
+                  on: { role_id: "id" },
+                  column: "key",
+                },
+                via: "contact",
+              }),
             ],
             attrs: { table: "profiles", columns: ["locale"] },
           },

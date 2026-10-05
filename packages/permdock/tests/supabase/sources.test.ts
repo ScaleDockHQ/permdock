@@ -412,3 +412,155 @@ join "identity"."roles" mk on mk."id" = m."role_id"`);
     ).toThrow("fromTable columns.role.on must map exactly one column");
   });
 });
+
+describe("a user column through a profile table", () => {
+  const user = {
+    through: "contact_profiles",
+    on: { contact_profile_id: "id" },
+    column: "user_id",
+  };
+  const suspension = {
+    users: { table: "profiles", id: "user_id", disabledAt: "disabled_at" },
+    scopes: {
+      organization: {
+        table: "organizations",
+        id: "id",
+        disabledAt: "disabled_at",
+      },
+    },
+  };
+
+  it("reads fromJunction users from the profile table", async () => {
+    const { query, calls } = recording([
+      {
+        scope: "customer",
+        id: "c1",
+        within: { organization: "o1" },
+        roles: ["customer"],
+        via: "contact",
+      },
+    ]);
+    const source = fromJunction({
+      table: "customer_contacts",
+      scope: "customer",
+      id: "customer_id",
+      within: { organization: "organization_id" },
+      user,
+      roles: ["customer"],
+      via: "contact",
+      suspension,
+      query,
+    });
+    const select = source.sql.select("$1");
+    expect(select).toContain(`from "public"."customer_contacts" m
+join "public"."contact_profiles" mu on mu."id" = m."contact_profile_id"
+where mu."user_id" = $1`);
+    expect(select).toContain(
+      `exists (select 1 from "public"."profiles" s where s."user_id"::text = (mu."user_id")::text and s."disabled_at" is null)`,
+    );
+    expect(select).toContain('s."id"::text = (m."organization_id"::text)');
+    expect(source.sql.list()).toContain(`select mu."user_id"::text as user_id`);
+    expect(source.sql.list()).toContain(
+      `group by mu."user_id", m."customer_id"`,
+    );
+    expect(source.sql.user).toBe("contact_profile_id");
+    expect(source.sql.userThrough).toEqual({
+      table: "public.contact_profiles",
+      id: "id",
+      key: "user_id",
+      ref: "contact_profile_id",
+    });
+    expect(source.sql.userType).toBe(
+      '"public"."contact_profiles"."user_id"%type',
+    );
+    expect(source.sql.columns).toEqual([
+      "contact_profile_id",
+      "customer_id",
+      "organization_id",
+    ]);
+    expect(source.sql.manifest).toMatchObject({
+      user: {
+        column: "contact_profile_id",
+        through: {
+          table: "public.contact_profiles",
+          id: "id",
+          column: "user_id",
+        },
+      },
+      role: { value: ["customer"] },
+    });
+    expect(await source.membershipsFor(principal, {})).toEqual([
+      {
+        scope: "customer",
+        id: "c1",
+        within: { organization: "o1" },
+        roles: ["customer"],
+        via: "contact",
+      },
+    ]);
+    expect(calls[0]?.text).toContain('where mu."user_id" = $1');
+  });
+
+  it("lists the members a profile table names and skips a profile with no user", async () => {
+    const { query } = recording([
+      { user_id: "u1", scope: "customer", id: "c1", roles: ["customer"] },
+      { user_id: null, scope: "customer", id: "c1", roles: ["customer"] },
+    ]);
+    const source = fromJunction({
+      table: "customer_contacts",
+      scope: "customer",
+      id: "customer_id",
+      user,
+      roles: ["customer"],
+      query,
+    });
+    expect(await source.list?.({ scope: "customer", id: "c1" })).toEqual([
+      {
+        principal: { id: "u1" },
+        membership: { scope: "customer", id: "c1", roles: ["customer"] },
+      },
+    ]);
+  });
+
+  it("combines a user and a role through on fromTable", () => {
+    const source = fromTable({
+      table: "crm.memberships",
+      columns: {
+        user: { ...user, through: "identity.contact_profiles" },
+        role: { through: "roles", on: { role_id: "id" }, column: "key" },
+      },
+    });
+    const select = source.sql.select("$1");
+    expect(select).toContain(`from "crm"."memberships" m
+join "identity"."contact_profiles" mu on mu."id" = m."contact_profile_id"
+join "crm"."roles" mk on mk."id" = m."role_id"
+where mu."user_id" = $1`);
+    expect(source.sql.columns).toEqual([
+      "contact_profile_id",
+      "scope",
+      "scope_id",
+      "role_id",
+    ]);
+    expect(source.sql.through?.table).toBe("crm.roles");
+    expect(source.sql.userThrough?.table).toBe("identity.contact_profiles");
+  });
+
+  it("needs exactly one join column", () => {
+    expect(() =>
+      fromJunction({
+        table: "customer_contacts",
+        scope: "customer",
+        user: { ...user, on: {} },
+        roles: ["customer"],
+      }),
+    ).toThrow(
+      "PermDock: fromJunction user.on must map exactly one column of public.customer_contacts to contact_profiles, for example { contact_profile_id: 'id' }",
+    );
+    expect(() =>
+      fromTable({
+        table: "memberships",
+        columns: { user: { ...user, on: { a: "id", b: "id" } } },
+      }),
+    ).toThrow("fromTable columns.user.on must map exactly one column");
+  });
+});
