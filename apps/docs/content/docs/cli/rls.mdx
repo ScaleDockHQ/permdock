@@ -453,7 +453,13 @@ permdock rls generate --target sql --split helpers,seeds,indexes,policies,hook \
 supabase db schema declarative sync --no-apply -f permdock   # a reviewed migration for the schema files
 ```
 
-`declarative sync` replays the migrations before it diffs, so the seeds migration has to sort after the migration that creates `role_permissions`: generate the schema files, sync, then write the seeds to a migration named after the synced one. Doctor PD042 and PD043 are off under pg-delta. In CI, run the generate step with `--check`, and run `declarative sync` and expect `No schema changes found`.
+`declarative sync` replays the migrations before it diffs, so the seeds migration has to sort after the migration that creates `role_permissions`: generate the schema files, sync, then write the seeds to a migration named after the synced one.
+
+`--seeds-out` may name the migrations directory instead of a file (a path that ends in `/` or an existing directory). `generate` then compares the rows with the newest migration there that starts with `-- permdock:seeds v1` and writes a new `<version>_permdock_seeds.sql` (the current UTC time, as `supabase migration new` names it) only when they differ, so an unchanged policy writes nothing and an applied migration is never rewritten in place. With `--check` it fails when that newest migration is missing or out of date. Run it after `declarative sync` or `db diff`, so the new migration sorts after the one that creates `role_permissions`; doctor PD054 warns when the newest seeds migration no longer matches the policy.
+
+````bash
+permdock rls generate --target sql --split helpers,seeds,indexes,policies,hook --seeds-out supabase/migrations/
+``` Doctor PD042 and PD043 are off under pg-delta. In CI, run the generate step with `--check`, and run `declarative sync` and expect `No schema changes found`.
 
 #### supabase db diff
 
@@ -472,7 +478,7 @@ supabase migration new permdock_grants                       # empty migrations 
 supabase migration new permdock_seeds
 permdock rls generate $SPLIT --grants-out supabase/migrations/<timestamp>_permdock_grants.sql \
   --seeds-out supabase/migrations/<timestamp>_permdock_seeds.sql
-```
+````
 
 The grants migration has to sort after the `db diff` migration that first creates the hook, which is why it is created second. `create or replace function` keeps the grants, so later `db diff` migrations need no new grants file; one that drops and recreates the hook or a helper, or adds a helper, does. Every statement in the file can run again, so regenerate it into a new migration after such a change. Doctor PD042 fails while no migration from the one that creates the hook on grants it to `supabase_auth_admin`. PD043 warns when `schema_paths` applies a file that calls the helpers before the `helpers` part; with no `schema_paths`, files apply in path order, so number the helpers part below the files that call it. In CI, run the same command with `--check`.
 
