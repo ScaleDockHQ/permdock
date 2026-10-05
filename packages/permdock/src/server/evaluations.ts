@@ -7,8 +7,8 @@ import type { WireDecision } from "../core/wire-denial.ts";
 
 import { readApprovalHeader, resumeDecision } from "../approvals/helpers.ts";
 import { compact } from "../core/compact.ts";
-import { findPermission, listPermissions } from "../core/permissions.ts";
 import { wireDenials } from "../core/wire-denial.ts";
+import { itemPermission, itemResourceData } from "./evaluation-items.ts";
 import {
   DEFAULT_MAX_EVALUATIONS,
   batchTooLarge,
@@ -35,39 +35,11 @@ function permissionOf(
   tree: PermissionTree,
   item: EvaluationItem,
 ): Permission | undefined {
-  const action =
-    typeof item.action?.name === "string" ? item.action.name : undefined;
-  if (action === undefined) {
-    return undefined;
-  }
-  const byKey = findPermission(tree, action);
-  if (byKey !== undefined) {
-    return byKey;
-  }
-  const resource =
-    typeof item.resource?.type === "string" ? item.resource.type : undefined;
-  if (resource === undefined) {
-    return undefined;
-  }
-  const dotted = findPermission(tree, `${resource}.${action}`);
-  if (dotted !== undefined) {
-    return dotted;
-  }
-  return listPermissions(tree).find(
-    (leaf) => leaf.resource === resource && leaf.action === action,
+  return itemPermission(
+    tree,
+    typeof item.action?.name === "string" ? item.action.name : undefined,
+    item.resource,
   );
-}
-
-function resourceData(item: EvaluationItem): unknown {
-  const properties = item.resource?.properties;
-  if (properties !== null && typeof properties === "object") {
-    return properties;
-  }
-  const id = item.resource?.id;
-  if (typeof id === "string" || typeof id === "number") {
-    return { id: String(id) };
-  }
-  return undefined;
 }
 
 function resourceRef(
@@ -154,7 +126,7 @@ function evaluateOne(
   if (permission === undefined) {
     return Promise.resolve(DENIED);
   }
-  const data = resourceData(item);
+  const data = itemResourceData(item.resource);
   // SAFETY: decide's generics only tie the row type to the permission; it accepts any row.
   const decide = permdock.decide as (
     next: Permission,

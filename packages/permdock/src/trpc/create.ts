@@ -27,6 +27,7 @@ import type { WebBotAuthVerifier } from "../server/web-bot-auth.ts";
 import { compact } from "../core/compact.ts";
 import { instanceOptions } from "../core/instance-options.ts";
 import { createKernel, tenantScope } from "../server/create.ts";
+import { problemMessage, requestFromContext } from "../server/http.ts";
 import { problemFromError } from "../server/map-error.ts";
 import { guardIterable, isAsyncIterable } from "../server/stream.ts";
 import { invalidSignatureResponse } from "../server/web-bot-auth.ts";
@@ -94,29 +95,6 @@ export type TrpcPermDock<TCtx = object> = {
     readonly error: { readonly cause?: unknown };
   }) => TShape;
 };
-
-function requestFromCtx(ctx: object): Request | undefined {
-  if ("request" in ctx && ctx.request instanceof Request) {
-    return ctx.request;
-  }
-  if ("req" in ctx && ctx.req instanceof Request) {
-    return ctx.req;
-  }
-  return undefined;
-}
-
-function problemMessage(cause: unknown, fallback: string): string {
-  if (
-    cause !== null &&
-    typeof cause === "object" &&
-    "detail" in cause &&
-    typeof cause.detail === "string" &&
-    cause.detail.length > 0
-  ) {
-    return cause.detail;
-  }
-  return fallback;
-}
 
 const PROBLEM = Symbol.for("permdock.problem");
 
@@ -262,7 +240,7 @@ export function createPermDock<
       }
     }
     // SAFETY: tRPC always passes an object context; TCtx is unconstrained only for inference.
-    return requestFromCtx(ctx as object);
+    return requestFromContext(ctx as object);
   };
 
   /**
