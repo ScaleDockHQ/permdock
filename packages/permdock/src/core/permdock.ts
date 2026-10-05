@@ -312,7 +312,23 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
     ? V["permissions"]
     : Policy["permissions"];
   readonly subject: Subject;
+  /**
+   * The same subject, tenant, team, actor, delegation, sink and limits with
+   * other sources: `customRoles`, `approvalPolicies` or `relations`. The
+   * sources it names are read again for the subject's tenants; the others
+   * keep what this instance loaded. Returns a promise when a source it names
+   * answers asynchronously.
+   */
+  readonly derive: (
+    options: DeriveOptions,
+  ) => PermDock<V> | Promise<PermDock<V>>;
 };
+
+/** What `permdock.derive` may replace: the sources read after the subject is resolved. */
+export type DeriveOptions = Pick<
+  PermDockOptions,
+  "customRoles" | "approvalPolicies" | "relations"
+>;
 
 export type PermDockOptions = {
   readonly tenant?: string;

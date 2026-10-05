@@ -170,6 +170,7 @@ export type { SnapshotForOptions } from "./core/snapshot-for.ts";
 export type {
   PermDockOptions,
   DecideOptions,
+  DeriveOptions,
   PermDock,
   RowPair,
   SimulateOptions,

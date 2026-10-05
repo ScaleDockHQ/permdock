@@ -13,6 +13,7 @@ import type {
 } from "./interfaces.ts";
 import type {
   DecideOptions,
+  DeriveOptions,
   PermDock,
   SimulateOptions,
   WhereResult,
@@ -23,6 +24,7 @@ import type { CustomRole, Membership, Principal, Subject } from "./subject.ts";
 import type { Role } from "./vocabulary.ts";
 
 import { hasConditionOp } from "../conditions/ast.ts";
+import { approvalPoliciesFor } from "./approval-policies.ts";
 import {
   type ArazzoPlan,
   type ArazzoSimulateInput,
@@ -51,7 +53,13 @@ import {
   approvalMessage,
   deniedMessage,
 } from "./errors.ts";
-import { declaredRoleNames, evaluate, expandRoleNames } from "./evaluate.ts";
+import {
+  assignableNamesFor,
+  customRolesFor,
+  declaredRoleNames,
+  evaluate,
+  expandRoleNames,
+} from "./evaluate.ts";
 import { type EvalEnv, emitSafe, emptyListeners, finish } from "./events.ts";
 import { pickVisible } from "./fields.ts";
 import { freezeDeep } from "./freeze.ts";
@@ -87,6 +95,7 @@ import {
 } from "./scopes.ts";
 import { buildSnapshot, signSnapshot, snapshotGrant } from "./snapshot.ts";
 import {
+  heldRoleNamesIn,
   isMembershipExpired,
   nowSeconds,
   partitionsOf,
@@ -94,6 +103,7 @@ import {
   resolveActiveTenant,
   tenantsOf,
 } from "./tenancy.ts";
+import { isThenable } from "./thenable.ts";
 import { findRole, listRoles, synthesiseRole } from "./vocabulary.ts";
 import { whereFromGrants } from "./where-scope.ts";
 import { whoCan } from "./who-can.ts";
@@ -1395,6 +1405,65 @@ export function buildInstance(
     },
     activate(input: ActivateInput): Decision {
       return activate(policy, subject, input, nowSeconds());
+    },
+    derive(options: DeriveOptions): PermDock | Promise<PermDock> {
+      const scopes = scopeList(policy.scopes);
+      const tenants = tenantsOf(subject.principal, scopes);
+      const auth: AuthEvent[] = [];
+      const roleSource = options.customRoles ?? envBase.roleSource;
+      const roles =
+        options.customRoles === undefined
+          ? envBase.customRoles
+          : customRolesFor(
+              options.customRoles,
+              tenants,
+              auth,
+              subject.principal !== null,
+              (tenant) => heldRoleNamesIn(subject.principal, scopes, tenant),
+            );
+      const names =
+        options.customRoles === undefined
+          ? envBase.assignable
+          : assignableNamesFor(options.customRoles, tenants, auth);
+      const approvals =
+        options.approvalPolicies === undefined
+          ? envBase.approvalPolicies
+          : approvalPoliciesFor(
+              policy,
+              options.approvalPolicies,
+              tenants,
+              auth,
+            );
+      const relationSource = options.relations ?? envBase.relations;
+      const build = (
+        loadedRoles: readonly CustomRole[],
+        loadedNames: ReadonlyMap<string, readonly string[]> | undefined,
+        loadedApprovals: LoadedApprovalPolicies | undefined,
+      ): PermDock =>
+        buildInstance(
+          policy,
+          subject,
+          compact<Parameters<typeof buildInstance>[2]>({
+            ...envBase,
+            customRoles: loadedRoles,
+            roleSource,
+            assignable: loadedNames,
+            approvalPolicies: loadedApprovals,
+            relations: relationSource,
+            relationCache:
+              options.relations === undefined ? relationCache : undefined,
+            queuedAuth: auth,
+            queuedErrors: [],
+          }),
+          team,
+        );
+      if (isThenable(roles) || isThenable(names) || isThenable(approvals)) {
+        return Promise.all([roles, names, approvals]).then(
+          ([loadedRoles, loadedNames, loadedApprovals]) =>
+            build(loadedRoles, loadedNames, loadedApprovals),
+        );
+      }
+      return build(roles, names, approvals);
     },
     subject,
   };
