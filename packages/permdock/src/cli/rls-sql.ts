@@ -1168,7 +1168,7 @@ export function compileConditionSql(
       }
       return `(${condition.conditions.map((item) => compileConditionSql(item, ctx)).join(" or ")})`;
     case "not":
-      return `not (${compileConditionSql(condition.condition, ctx)})`;
+      return `(${compileConditionSql(condition.condition, ctx)}) is not true`;
     case "memberOf":
       return compileMemberOf(condition, ctx);
     case "related":

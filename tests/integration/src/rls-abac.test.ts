@@ -58,6 +58,8 @@ insert into ticket values ('t-eu', 'eu'), ('t-uk', 'uk'), ('t-us', 'us'), ('t-no
 insert into record values ('c-eu', 'eu'), ('c-us', 'us'), ('c-none', null);
 create table note (id text primary key, title text not null);
 insert into note values ('n-literal', 'save 50%_off today'), ('n-wildcard', 'save 50 percent off today');
+create table memo (id text primary key, archived boolean);
+insert into memo values ('m-live', false), ('m-archived', true), ('m-unknown', null);
 `;
 
 const GRANTS = `
@@ -65,6 +67,7 @@ grant select on report to authenticated;
 grant select, update on ticket to authenticated;
 grant select, delete on record to authenticated;
 grant select on note to authenticated;
+grant select on memo to authenticated;
 `;
 
 const EU = "00000000-0000-4000-8000-00000000e001";
@@ -136,7 +139,28 @@ function regionCase(
   };
 }
 
+function memoCase(
+  name: string,
+  id: string,
+  archived: boolean | null,
+): RlsParityFixture {
+  return {
+    name: `memo: ${name}`,
+    subject: subjects.eu,
+    permission: permissions.memo.read,
+    row: { id, archived },
+    table: "memo",
+  };
+}
+
 const fixtures: readonly RlsParityFixture[] = [
+  memoCase("a deny on archived leaves a live memo", "m-live", false),
+  memoCase("a deny on archived hides an archived memo", "m-archived", true),
+  memoCase(
+    "a deny on archived leaves a memo with no archived value",
+    "m-unknown",
+    null,
+  ),
   reportCase(
     "eu reads its region below its clearance",
     subjects.eu,
@@ -268,6 +292,9 @@ const fixtures: readonly RlsParityFixture[] = [
 ];
 
 const expected: Readonly<Record<string, boolean>> = {
+  "memo: a deny on archived leaves a live memo": true,
+  "memo: a deny on archived hides an archived memo": false,
+  "memo: a deny on archived leaves a memo with no archived value": true,
   "report: eu reads its region below its clearance": true,
   "report: eu reads nothing above its clearance": false,
   "report: eu reads nothing in another region": false,

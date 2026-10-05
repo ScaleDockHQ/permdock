@@ -68,6 +68,7 @@ create table report (id text primary key, region text not null, clearance intege
 create table ticket (id text primary key, region text not null);
 create table record (id text primary key, region text not null);
 create table note (id text primary key, title text not null);
+create table memo (id text primary key, archived boolean);
 insert into report values ${REPORTS.map((row) => `('${row.id}', '${row.region}', ${String(row.clearance)})`).join(", ")};
 insert into ticket values ${TICKETS.map((row) => `('${row.id}', '${row.region}')`).join(", ")};
 grant select on report, ticket, record, note to authenticated;

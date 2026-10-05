@@ -247,7 +247,9 @@ describe.each(DIALECTS)("rls generate --dialect %s", (dialect) => {
       "deny_post_delete",
     ]);
     for (const policy of restrictive) {
-      expect(child(policy.qual, "BoolExpr")?.["boolop"]).toBe("NOT_EXPR");
+      expect(child(policy.qual, "BooleanTest")?.["booltesttype"]).toBe(
+        "IS_NOT_TRUE",
+      );
     }
   });
 
