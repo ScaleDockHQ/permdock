@@ -339,6 +339,30 @@ describe("resolveCustomRole with levels", () => {
   });
 });
 
+describe("assigning a leveled custom role", () => {
+  it("offers it only when the subject may hand out each level it grants", async () => {
+    const teamUpdater: CustomRole = {
+      tenant: "acme",
+      name: "team-updater",
+      grants: [{ permission: "job.update", level: "team" }],
+    };
+    const ownUpdater: CustomRole = {
+      tenant: "acme",
+      name: "own-updater",
+      grants: [{ permission: "job.update", level: "own" }],
+    };
+    const manager = await permdockFor(
+      [{ scope: "tenant", id: "acme", roles: ["manager"] }],
+      [teamUpdater, ownUpdater],
+    );
+    expect(manager.assignableRoles().map((leaf) => leaf.key)).toEqual([
+      "manager",
+      "member",
+      "team-updater",
+    ]);
+  });
+});
+
 describe("assignableLevels", () => {
   it("lists every level for a manageRoles holder", async () => {
     const permdock = await permdockFor(

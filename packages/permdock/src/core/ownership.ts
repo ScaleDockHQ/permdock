@@ -1,9 +1,14 @@
 import type { Denial } from "./decision.ts";
 import type { Policy, RoleBinding } from "./policy.ts";
-import type { Membership, Principal } from "./subject.ts";
+import type { CustomRole, Membership, Principal } from "./subject.ts";
 import type { Role, RoleMeta } from "./vocabulary.ts";
 
 import { compact, isReadonlyArray } from "./compact.ts";
+import {
+  customRoleId,
+  customRoleScope,
+  tenantCustomRoles,
+} from "./custom-roles.ts";
 import { freezeDeep } from "./freeze.ts";
 import { isExternallyManaged } from "./memberships.ts";
 import { declaredRoleNames } from "./policy.ts";
@@ -294,6 +299,33 @@ function holdsAt(
   );
 }
 
+function includedRoles(role: CustomRole): readonly string[] {
+  return isReadonlyArray(role.includes)
+    ? role.includes.filter((name): name is string => typeof name === "string")
+    : [];
+}
+
+/**
+ * The membership kinds a custom role may be held through: those every
+ * included declared role with `for` allows. `undefined` when none restricts.
+ */
+function customForKinds(
+  policy: Policy,
+  role: CustomRole,
+): readonly string[] | undefined {
+  let kinds: readonly string[] | undefined;
+  for (const name of includedRoles(role)) {
+    const listed = bindingOf(policy, name)?.for;
+    if (listed !== undefined) {
+      kinds =
+        kinds === undefined
+          ? listed
+          : kinds.filter((kind) => listed.includes(kind));
+    }
+  }
+  return kinds;
+}
+
 function conflictsWith(policy: Policy, role: string): ReadonlySet<string> {
   const out = new Set(bindingOf(policy, role)?.exclusiveWith ?? []);
   for (const binding of policy.roles) {
@@ -393,6 +425,7 @@ export function decideRoleChange(
   principal: Principal | null,
   scopes: readonly Scope[],
   change: RoleChange,
+  customRoles: readonly CustomRole[],
   authority: (tenant: string) => AssignAuthority,
   now: number,
   options: RoleChangeOptions = {},
@@ -429,12 +462,23 @@ export function decideRoleChange(
     return done(null);
   }
   const binding = bindingOf(policy, name);
-  if (!declaredRoleNames(policy).has(name)) {
+  const declared = declaredRoleNames(policy).has(name);
+  const named = declared
+    ? []
+    : tenantCustomRoles(policy, customRoles).filter(
+        (role) => role.name === name,
+      );
+  if (!declared && named.length === 0) {
     deny("unknown-role");
     return done(null);
   }
   const scope = resolveScope(scopes, change.scope);
-  const on = binding?.on ?? findRole(policy.vocabulary?.roles, name)?.on;
+  const customAt = named.map((role) => customRoleScope(role, scopes));
+  const on = declared
+    ? (binding?.on ?? findRole(policy.vocabulary?.roles, name)?.on)
+    : customAt.includes(scope)
+      ? scope
+      : customAt[0];
   const heldAt = typeof on === "string" ? resolveScope(scopes, on) : undefined;
   if (scope === undefined || heldAt === undefined || heldAt !== scope) {
     deny("scope", { expected: heldAt ?? null });
@@ -465,6 +509,16 @@ export function decideRoleChange(
     deny("no-membership", { scope, id: change.id });
     return done(null);
   }
+  const custom = named.find(
+    (role) =>
+      role.tenant === tenant &&
+      customRoleScope(role, scopes) === scope &&
+      (customRoleId(role) ?? change.id) === change.id,
+  );
+  if (!declared && custom === undefined) {
+    deny("unknown-role");
+    return done(null);
+  }
   if (target.managedBy === "idp") {
     deny("externally-managed");
     return done(null);
@@ -492,7 +546,7 @@ export function decideRoleChange(
     const allowed = authority(tenant);
     if (!allowed.assignable.has(name)) {
       deny("not-assignable-by");
-    } else if (usesAssigns(policy) && !allowed.manage) {
+    } else if (custom === undefined && usesAssigns(policy) && !allowed.manage) {
       const held = rolesAtInstance(
         policy,
         principal,
@@ -513,13 +567,25 @@ export function decideRoleChange(
   }
 
   if (kind !== "revoke" && !already) {
-    if (!mayHoldVia(policy, name, target.via)) {
+    const kinds =
+      custom === undefined ? binding?.for : customForKinds(policy, custom);
+    if (
+      kinds !== undefined &&
+      (target.via === undefined || !kinds.includes(target.via))
+    ) {
       deny("not-allowed-for-membership", {
         via: target.via ?? null,
-        for: binding?.for,
+        for: kinds,
       });
     }
-    const conflicts = conflictsWith(policy, name);
+    const conflicts =
+      custom === undefined
+        ? conflictsWith(policy, name)
+        : new Set(
+            includedRoles(custom).flatMap((include) =>
+              Array.from(conflictsWith(policy, include)),
+            ),
+          );
     const clash = targetRoles.filter((role) => conflicts.has(role));
     if (clash.length > 0) {
       deny("conflicting-role", { with: clash });

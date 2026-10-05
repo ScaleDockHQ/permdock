@@ -464,6 +464,7 @@ describe("assignable roles and permissions", () => {
     );
     expect(permdock.assignableRoles().map((leaf) => leaf.key)).toEqual([
       "viewer",
+      "reader",
     ]);
   });
 
@@ -557,6 +558,157 @@ describe("assignable roles and permissions", () => {
     const anonymous = await createPermDock(policy, null);
     expect(anonymous.assignableRoles()).toEqual([]);
     expect(anonymous.assignablePermissions()).toEqual([]);
+  });
+});
+
+describe("assigning custom roles", () => {
+  const postReader: CustomRole = {
+    tenant: "acme",
+    name: "post-reader",
+    grants: [{ permission: "post.read" }],
+  };
+  const auditor: CustomRole = {
+    tenant: "acme",
+    name: "auditor",
+    grants: [{ permission: "invoice.read" }, { permission: "post.read" }],
+  };
+  const boardEditor: CustomRole = {
+    tenant: "acme",
+    team: "t1",
+    name: "board-editor",
+    grants: [{ permission: "board.edit" }],
+  };
+  const elsewhere: CustomRole = {
+    tenant: "globex",
+    name: "globex-only",
+    grants: [{ permission: "post.read" }],
+  };
+  const all = [postReader, auditor, boardEditor, elsewhere];
+  const assign = (name: string, scope = "tenant", id = "acme") => ({
+    kind: "assign" as const,
+    role: name,
+    scope,
+    id,
+    target: { id: "u2", roles: [] },
+  });
+
+  it("offers a custom role whose every permission the subject may hand out", async () => {
+    const editor = await permdockFor(
+      [{ tenant: "acme", roles: ["editor"] }],
+      all,
+    );
+    expect(editor.assignableRoles().map((leaf) => leaf.key)).toEqual([
+      "editor",
+      "post-reader",
+    ]);
+    expect(editor.assignableRoles().at(-1)).toMatchObject({
+      key: "post-reader",
+      on: "tenant",
+      assignable: true,
+    });
+    expect(editor.decideRoleChange(assign("post-reader"))).toMatchObject({
+      outcome: "granted",
+      role: null,
+    });
+    expect(editor.decideRoleChange(assign("auditor"))).toMatchObject({
+      outcome: "denied",
+      denials: [{ role: "auditor", reason: "not-assignable-by" }],
+    });
+  });
+
+  it("lets a manageRoles holder assign any custom role of the tenant, without holder counts", async () => {
+    const steward = await permdockFor(
+      [{ tenant: "acme", roles: ["steward"] }],
+      all,
+    );
+    expect(
+      steward
+        .assignableRoles()
+        .map((leaf) => leaf.key)
+        .filter((key) => !Object.hasOwn(roles, key)),
+    ).toEqual(["auditor", "board-editor", "post-reader"]);
+    for (const kind of ["assign", "revoke"] as const) {
+      expect(
+        steward.decideRoleChange({
+          ...assign("auditor"),
+          kind,
+          target: { id: "u2", roles: kind === "revoke" ? ["auditor"] : [] },
+        }).outcome,
+      ).toBe("granted");
+    }
+  });
+
+  it("holds a custom role at its own scope and pinned instance", async () => {
+    const steward = await permdockFor(
+      [{ tenant: "acme", roles: ["steward"] }],
+      all,
+    );
+    const onTeam = (id: string) => ({
+      ...assign("board-editor", "team", id),
+      within: { tenant: "acme" },
+    });
+    expect(
+      steward.decideRoleChange(onTeam("t1"), { trusted: true }).outcome,
+    ).toBe("granted");
+    expect(
+      steward.decideRoleChange(onTeam("t2"), { trusted: true }),
+    ).toMatchObject({ denials: [{ reason: "unknown-role" }] });
+    expect(steward.decideRoleChange(assign("board-editor"))).toMatchObject({
+      denials: [{ reason: "scope", detail: { expected: "team" } }],
+    });
+  });
+
+  it("finds a custom role only in the instance's tenant", async () => {
+    const steward = await permdockFor(
+      [
+        { tenant: "acme", roles: ["steward"] },
+        { tenant: "globex", roles: ["steward"] },
+      ],
+      all,
+    );
+    expect(steward.decideRoleChange(assign("globex-only"))).toMatchObject({
+      denials: [{ reason: "unknown-role" }],
+    });
+    expect(
+      steward.decideRoleChange(assign("globex-only", "tenant", "globex"))
+        .outcome,
+    ).toBe("granted");
+    expect(steward.decideRoleChange(assign("nobody"))).toMatchObject({
+      denials: [{ reason: "unknown-role" }],
+    });
+  });
+
+  it("follows RoleSource.assignable through the permissions it leaves", async () => {
+    const steward = await createPermDock(
+      policy,
+      subjectIn([{ tenant: "acme", roles: ["steward"] }]),
+      {
+        tenant: "acme",
+        customRoles: {
+          ...memoryRoleSource(all),
+          assignable: () => ["editor"],
+        },
+      },
+    );
+    expect(steward.assignableRoles().map((leaf) => leaf.key)).toEqual([
+      "editor",
+      "post-reader",
+    ]);
+  });
+
+  it("answers the same from a snapshot", async () => {
+    const editor = await permdockFor(
+      [{ tenant: "acme", roles: ["editor"] }],
+      all,
+    );
+    const snapshot = editor.snapshot();
+    if (snapshot instanceof Promise) {
+      throw new Error("expected JSON snapshot");
+    }
+    const client = fromSnapshot(snapshot);
+    expect(client.assignableRoles().map((leaf) => leaf.key)).toEqual(
+      editor.assignableRoles().map((leaf) => leaf.key),
+    );
   });
 });
 
