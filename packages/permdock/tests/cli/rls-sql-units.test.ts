@@ -525,6 +525,21 @@ describe("compileConditionSql memberOf", () => {
     expect(() => sql(condition, { memberships })).toThrow(message);
   });
 
+  it("admits every tenant of the subject with rls.tenants 'all'", () => {
+    expect(
+      sql(
+        { op: "memberOf", scope: "org", field: "org_id", roles: [] },
+        { tenants: "all" },
+      ),
+    ).toBe(`"org_id" in (select "permdock".member_org_ids())`);
+    const nested = sql(
+      { op: "memberOf", scope: "team", field: "team_id", roles: ["lead"] },
+      { memberships, tenants: "all" },
+    );
+    expect(nested).toContain(`m."role" = any('{lead}')`);
+    expect(nested).not.toContain("tenant_id");
+  });
+
   it("reads the root scope from the tenant claim with suspension checks", () => {
     expect(
       sql({ op: "memberOf", scope: "org", field: "org_id", roles: [] }),

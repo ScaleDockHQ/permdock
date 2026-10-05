@@ -143,7 +143,19 @@ An `rls.memberships` table whose rows hold roles in several columns lists them: 
 
 A membership source may also read its user through another table (`fromTable` `columns.user`, `fromJunction` `user`), for portal contacts whose login lives on a profile: `user: { through: 'contact_profiles', on: { contact_profile_id: 'id' }, column: 'user_id' }`. In `database` mode, `permitted_<scope>_ids`, `member_<scope>_ids`, `member_<scope>_ids_for` and `permdock_can_assign` join the profile table and compare its user column with the caller, and `rls.suspension` applies to that user and to the source's instances as for any other source: a suspended organization voids its customers' contact memberships. A row whose profile is missing or has no user holds no membership. `--indexes` adds the profile's user column and the reference. In `jwt` mode the helpers read the `memberships` claim, which the hook mints through the same join ([token hook](/docs/adapters/supabase-hook#sources)).
 
-With the `guc` dialect the claims are settings: `<prefix>.user_role` holds a comma-separated role list and `<prefix>.memberships` holds the JSON array. When the active-tenant claim is set, the helper of every scope under the first only returns memberships inside that tenant (the membership's `id` for the first scope, its `within` entry for the others).
+With the `guc` dialect the claims are settings: `<prefix>.user_role` holds a comma-separated role list and `<prefix>.memberships` holds the JSON array.
+
+#### Active tenant
+
+By default (`rls.tenants: 'active'`) the helpers narrow to the tenant claim (`rls.tenantClaim`, default `tenant_id`) when the token carries a non-empty one: the helper of every scope under the first only returns memberships inside that tenant (the membership's `id` for the first scope, its `within` entry for the others), in both modes. Without the claim they return every tenant the subject is a member of. A `memberOf` on the first scope with no memberships table compiles to `"orgId" = <tenant claim>`, and a nested scope's membership `exists` compares its tenant column with the claim. The Supabase token hook writes the claim from `supabase.hook.activeFrom` when the user holds a membership there, so a session whose user picked an organisation once is narrowed to it from then on.
+
+An application whose tenant comes from the URL or the query, where one session works in several tenants, sets `rls.tenants: 'all'`. The helpers then ignore the claim and admit every tenant the subject holds the permission in, the root `memberOf` compiles to `"orgId" in (select <schema>.member_<first scope>_ids())`, and the nested `exists` drops the tenant comparison. Each query still filters to the tenant the request names; the database guarantees membership, not the request's tenant.
+
+```ts title="permdock.config.ts"
+export default defineConfig({
+  rls: { authorize: "database", tenants: "all" },
+});
+```
 
 A scope's membership table names the column of its own id and of each ancestor it carries:
 

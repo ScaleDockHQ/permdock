@@ -49,6 +49,12 @@ export type RlsSqlContext = {
    */
   readonly memberSources?: readonly SqlMembershipSource[];
   readonly tenantClaim: string;
+  /**
+   * `'all'` (`rls.tenants`): the helpers and `memberOf` checks admit every
+   * tenant the subject holds a membership in, ignoring the tenant claim.
+   * Unset, they narrow to the tenant claim when the token carries one.
+   */
+  readonly tenants?: "all";
   readonly gucPrefix: string;
   /** `rls.actions`: verb to SQL command overrides. */
   readonly actions?: RlsActions;
@@ -956,7 +962,7 @@ function existsSql(
       `(m.${quoteIdent(table.expiresAt)} is null or m.${quoteIdent(table.expiresAt)} > now())`,
     );
   }
-  if (tenantColumn !== undefined) {
+  if (tenantColumn !== undefined && ctx.tenants !== "all") {
     parts.push(`m.${quoteIdent(tenantColumn)} = ${tenantClaimSql(ctx)}`);
   }
   parts.push(...activeUserSql(ctx));
@@ -1052,7 +1058,9 @@ function compileMemberOf(
   }
   if (scope !== undefined && scope === rootScope(ctx.scopes)) {
     const parts = [
-      `${quoteIdent(condition.field)} = ${tenantClaimSql(ctx)}`,
+      ctx.tenants === "all"
+        ? `${quoteIdent(condition.field)} in (select ${quoteIdent(ctx.schema ?? PERMDOCK_SCHEMA)}.${memberIdsHelper(scope)}())`
+        : `${quoteIdent(condition.field)} = ${tenantClaimSql(ctx)}`,
       ...activeUserSql(ctx),
       ...activeInstancesSql(ctx, scope, () => quoteIdent(condition.field)),
     ];

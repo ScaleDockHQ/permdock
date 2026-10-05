@@ -170,6 +170,11 @@ function rootName(ctx: RlsSqlContext): string {
   return ctx.scopes[0]?.name ?? "tenant";
 }
 
+/** Whether the helper for `scope` narrows to the tenant claim: unless `rls.tenants` is `'all'`, when the first scope is on its chain. */
+function narrowsTo(ctx: RlsSqlContext, scope: string): boolean {
+  return ctx.tenants !== "all" && underRoot(ctx, scope);
+}
+
 /** Whether the active tenant narrows memberships of `scope`: the first scope is on its chain. */
 function underRoot(ctx: RlsSqlContext, scope: string): boolean {
   const root = ctx.scopes[0]?.name;
@@ -394,7 +399,7 @@ function tableBody(ctx: RlsSqlContext, scope: string, type: string): string {
     const expires = memberColumn(table.expiresAt);
     filters.push(`    and (${expires} is null or ${expires} > now())`);
   }
-  if (tenantColumn !== undefined) {
+  if (tenantColumn !== undefined && ctx.tenants !== "all") {
     filters.push(
       `    and (${activeTenant(ctx)} is null or ${memberColumn(tenantColumn)}::text = ${activeTenant(ctx)})`,
     );
@@ -468,7 +473,7 @@ function claimTenant(ctx: RlsSqlContext, scope: string): string {
 }
 
 function claimBody(ctx: RlsSqlContext, scope: string, type: string): string {
-  const narrow = underRoot(ctx, scope)
+  const narrow = narrowsTo(ctx, scope)
     ? `
     and (${activeTenant(ctx)} is null or ${claimTenant(ctx, scope)} = ${activeTenant(ctx)})`
     : "";
@@ -909,7 +914,7 @@ export function sourceFilters(
 function sourcesBody(ctx: RlsSqlContext, scope: string, type: string): Body {
   const root = rootName(ctx);
   const tenant = sourceIdOf(scope)(root);
-  const narrow = underRoot(ctx, scope)
+  const narrow = narrowsTo(ctx, scope)
     ? `\n    and (${activeTenant(ctx)} is null or ${tenant} = ${activeTenant(ctx)})`
     : "";
   const sources = scopeSources(ctx, scope);

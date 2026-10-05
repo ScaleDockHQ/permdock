@@ -94,6 +94,14 @@ export type RlsConfig = {
   readonly force?: boolean;
   readonly fixtures?: string;
   readonly tenantClaim?: string;
+  /**
+   * Which tenants the helpers and `memberOf` checks admit. `'active'`
+   * (default): when the token carries a non-empty `tenantClaim`, only that
+   * tenant; without one, every tenant the subject is a member of. `'all'`:
+   * every such tenant whatever the claim says, for apps whose tenant comes
+   * from the URL or the query.
+   */
+  readonly tenants?: "active" | "all";
   /** Postgres type of tenant columns (`uuid` by default); the tenant claim and helper results are cast to it. */
   readonly tenantType?: string;
   /** Postgres type of team columns; defaults to `tenantType`. */

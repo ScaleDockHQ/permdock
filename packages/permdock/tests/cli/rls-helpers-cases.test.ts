@@ -106,6 +106,38 @@ describe("helpersSql scopes off the root chain", () => {
   });
 });
 
+describe("helpersSql with rls.tenants 'all'", () => {
+  it("never narrows a helper to the tenant claim, in either mode", () => {
+    for (const extra of [
+      {},
+      {
+        authorize: "database" as const,
+        sources: [fromTable({ table: "memberships" })],
+      },
+      {
+        authorize: "database" as const,
+        memberships: {
+          scopes: {
+            org: {
+              table: "org_members",
+              user: "user_id",
+              role: "role",
+              column: "org_id",
+            },
+            team: { ...teamMembers, tenant: "org_id" },
+          },
+        },
+      },
+    ]) {
+      const narrowed = helpers(extra);
+      const all = helpers({ ...extra, tenants: "all" });
+      expect(narrowed).toContain("'tenant_id'");
+      expect(fnBody(all, "permitted_org_ids")).not.toContain("'tenant_id'");
+      expect(fnBody(all, "permitted_team_ids")).not.toContain("'tenant_id'");
+    }
+  });
+});
+
 describe("helpersSql custom-role writes", () => {
   it("lifts the hand-out check through manageRoles permissions and checks nested instances", () => {
     const sql = helpers({
