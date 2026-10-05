@@ -77,7 +77,7 @@ const config: KnipConfig = {
       ignoreDependencies: ["deno"],
     },
     "tests/types": {
-      entry: ["src/smoke.ts"],
+      entry: ["src/*.ts"],
     },
     "tests/types/*": {
       // Listed so turbo builds them before this TypeScript version checks `../src`.

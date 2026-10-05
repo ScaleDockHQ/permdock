@@ -427,6 +427,7 @@ describe("permdock/mcp on @modelcontextprotocol/server 2", () => {
       www_authenticate:
         'Bearer error="insufficient_user_authentication", acr_values="mfa", max_age="300"',
     });
+    await server.close();
 
     await plain.client.close();
     await server.close();

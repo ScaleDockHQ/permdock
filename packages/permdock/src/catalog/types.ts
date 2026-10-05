@@ -16,6 +16,8 @@ export type CatalogPermission = {
   readonly usages: readonly CatalogUsage[];
   /** Keys the permission was renamed from (`definePermissions` `renamed`), sorted; absent when none. */
   readonly renamedFrom?: readonly string[];
+  /** Level names a custom role may pick for the permission (`resource(…, { levels })`); absent when none. */
+  readonly levels?: readonly string[];
   /** Present only when the policy lists the permission in `hostable`. */
   readonly hostable?: true;
   /**

@@ -32,8 +32,11 @@ export type RoleThrough = {
 export type SupabaseMembershipTable = {
   readonly table: string;
   readonly user: string;
-  /** The role key column, or a reference to a roles table that holds the key. */
-  readonly role: string | RoleThrough;
+  /**
+   * The role key column, a reference to a roles table that holds the key, or
+   * several of them: the row holds every non-null key.
+   */
+  readonly role: string | RoleThrough | readonly (string | RoleThrough)[];
   /** Per scope name, the column holding that scope's id: the table's own scope and its ancestors. */
   readonly columns?: Readonly<Record<string, string>>;
   readonly tenant?: string;
@@ -83,7 +86,11 @@ export type AuthorizeSqlOptions = {
    * `permdock rls generate --custom-roles` emits: the `custom_role_*` tables in `database` mode,
    * the `memberships[].grants` claim in `jwt` mode. `declared` role names never resolve as custom.
    */
-  readonly customRoles?: { readonly declared: readonly string[] };
+  readonly customRoles?: {
+    readonly declared: readonly string[];
+    /** Stored allows may carry a level (`custom_role_permissions.level`). */
+    readonly levels?: true;
+  };
   /** A suspended user, or a suspended instance of `scope` for a tenant request, answers `false`. */
   readonly suspension?: SupabaseSuspension;
 };

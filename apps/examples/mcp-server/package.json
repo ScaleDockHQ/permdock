@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/server": "catalog:",
+    "@orpc/server": "catalog:",
     "permdock": "workspace:*",
     "zod": "catalog:"
   },

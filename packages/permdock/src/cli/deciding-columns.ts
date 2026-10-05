@@ -27,14 +27,15 @@ export function membershipColumns(
       columns.add(column);
     }
     byTable.set(table, columns);
-    for (const through of [source.sql.through, source.sql.userThrough]) {
-      if (through !== undefined) {
-        const keys = tableKey(through.table);
-        byTable.set(
-          keys,
-          new Set([...(byTable.get(keys) ?? []), through.id, through.key]),
-        );
-      }
+    for (const through of [
+      ...source.sql.throughs,
+      ...(source.sql.userThrough === undefined ? [] : [source.sql.userThrough]),
+    ]) {
+      const keys = tableKey(through.table);
+      byTable.set(
+        keys,
+        new Set([...(byTable.get(keys) ?? []), through.id, through.key]),
+      );
     }
   }
   return byTable;

@@ -180,6 +180,32 @@ flowchart LR
 
 `can()` still never throws and a subject with memberships and no active tenant is simply denied everything tenant-scoped. `simulate` accepts `{ roles, memberships, tenant }` so a test or a "view as" screen can ask "what would a Globex viewer see" without a real membership ([UI](/docs/concepts/ui)).
 
+### Organisation roles with team reach
+
+A role held at the organisation that reaches only the rows of the principal's teams is an organisation role with an `in` condition on the team key. It needs no team-scoped role, and holding a team membership alone grants nothing through it.
+
+```ts
+role(roles.manager, [
+  allow([permissions.job.read, permissions.job.update], {
+    where: { teamId: { in: principal.claims.team_ids } },
+  }),
+]); // on: 'organization'
+```
+
+- **In-process**, the list comes from the subject: `principal.claims.team_ids` from a verified token, or a principal attribute such as `principal.teamIds` that `subject()` loads. A missing or non-array value matches no row.
+- **Snapshots** bind the list to the subject's value when they are built, because the snapshot principal carries only `id`, `roles`, `plans`, `tenant` and `memberships`. `fromSnapshot(snapshot).decide` therefore agrees with `decide`; a team change reaches the client with the next snapshot.
+- **RLS** compiles it in set form in both `database` and `jwt` mode: `"teamId" = any (array(... auth.jwt() -> 'team_ids' ...))`, one uncorrelated array per statement, never a per-row helper call. Only `principal.claims.*` refs compile to SQL, so name the claim, not an attribute.
+- **Supabase** writes the claim through `supabase.hook.claims` with a function that reads the same membership rule as the helpers ([custom claims](/docs/adapters/supabase-hook)):
+
+  ```sql
+  create function app.team_ids(user_id uuid) returns jsonb
+  language sql stable as $$
+    select to_jsonb(array(select permdock.member_team_ids_for(user_id)))
+  $$;
+  ```
+
+  `member_team_ids_for` exists when the team scope has a memberships source. The claim is as fresh as the token: a change to that source table bumps `authz_ver`, so a `fresh` permission denies with `stale-credentials` until the next refresh carries the new list ([authorization version](/docs/adapters/supabase-hook)).
+
 ## Tenant-defined custom roles
 
 A tenant admin wants a "Billing Manager" role. The policy did not declare it and must not have to. A custom role is data, composed from declared roles, from single permissions, or both:

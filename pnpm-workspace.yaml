@@ -47,6 +47,8 @@ catalog:
   "@commitlint/types": 21.2.3
   "@orpc/server": 2.0.0-beta.41
   "@orpc/client": 2.0.0-beta.41
+  "@orpc/contract": 2.0.0-beta.41
+  "@orpc/openapi": 2.0.0-beta.41
   vue: 3.5.43
   svelte: 5.57.1
   "solid-js": 1.9.15
@@ -85,6 +87,7 @@ catalog:
   expo-linking: 57.0.11
   expo-modules-core: 57.0.20
   expo-router: 57.0.24
+  expo-secure-store: 57.0.4
   express: 5.2.1
   kysely: 0.29.6
   multer: 2.4.0

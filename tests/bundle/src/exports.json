@@ -58,6 +58,7 @@
     "listPermissions",
     "listPlans",
     "listRoles",
+    "localSnapshotManifest",
     "mayAccess",
     "mayUse",
     "membershipEvent",
@@ -159,8 +160,11 @@
     "PermDockProvider",
     "Protected",
     "approvalHeaders",
+    "buildLocalSnapshot",
+    "connectSource",
     "createNativeStore",
     "describe",
+    "localSnapshot",
     "memoryStorage",
     "requiredPlans",
     "useApproval",
@@ -249,7 +253,7 @@
     "verifyWebBotAuth"
   ],
   "./trpc": ["createPermDock", "errorFormatter"],
-  "./orpc": ["createPermDock"],
+  "./orpc": ["createPermDock", "permissionOf"],
   "./vue": [
     "Protected",
     "approvalHeaders",
@@ -322,6 +326,9 @@
     "catalogOf",
     "createPermDock",
     "openapiVersion",
+    "permissionsExtension",
+    "problemDetails",
+    "securityFor",
     "securitySchemesOf"
   ],
   "./terminal": [

@@ -49,6 +49,48 @@ guarded.registerTool(
 - `longRunning: true` on a tool re-runs the decision when the handler resolves, reloading `data` and building a fresh subject (so a changed membership or role source counts). The re-check never consumes quota. It passes when the outcome is `granted`, when it is `approval-required` with the same token that was approved at submission, or when the only denial is a spent `limit`; anything else, including a throw, returns the refusal instead of the result. The re-check withholds the result; it cannot undo work the handler already did, so a handler that writes should write last.
 - `protectServer` also filters `tools/list`, `resources/list`, `resources/templates/list` and `prompts/list` per caller, including handlers the SDK installed before `protectServer` ran, and marks the filtered results `cacheScope: 'private'`.
 
+### Tools that call a protected procedure
+
+When a tool's handler calls an oRPC procedure that already runs `protect`, guarding the tool too would decide twice. `protectServer(server, { enforce: 'procedure', permissionFor })` keeps `tools/list` filtering, tool annotations and the scope challenge, but runs the handler without a decision. The procedure's `protect` makes the one decision per call, and its refusal reaches the handler as the `ORPCError` it throws.
+
+```ts
+import { call, ORPCError } from "@orpc/server";
+import { permissionOf } from "permdock/orpc";
+
+const procedures = new Map(Object.entries(router));
+const { protectServer } = createPermDock(policy, { subject });
+const guarded = protectServer(server, {
+  enforce: "procedure",
+  permissionFor: (name) => permissionOf(procedures.get(name)),
+});
+
+guarded.registerTool(
+  "update_post",
+  { inputSchema: byId },
+  async (args, ctx) => {
+    try {
+      const out = await call(router.update_post, args, {
+        context: { user: userFor(ctx.http?.authInfo) },
+      });
+      return { content: [{ type: "text", text: JSON.stringify(out) }] };
+    } catch (error) {
+      if (error instanceof ORPCError)
+        return {
+          content: [{ type: "text", text: JSON.stringify(error.data) }],
+          isError: true,
+        };
+      throw error;
+    }
+  },
+);
+```
+
+- `permissionFor(name)` names each tool's permission. A `permission` in the tool config overrides it; neither throws a `TypeError` at registration.
+- `permissionOf(procedure)` from `permdock/orpc` returns the permission of the procedure's first `protect`, or `undefined`. It reads the procedure definition and never decides.
+- `data` and `longRunning` throw at registration in this mode: the procedure loads its own row and decides on its own terms.
+- Resources and prompts are still guarded at the call.
+- The mode applies to the whole server. Register tools the adapter should guard on a separate `McpServer`.
+
 ## Hosting
 
 `protectServer` wraps an SDK v2 `McpServer` wherever it is created, so the hosting layer needs no PermDock code. The common host for Fetch frameworks is [`mcp-handler`](https://github.com/vercel/mcp-handler) 2.x, which turns an `McpServer` definition into a `(Request) => Promise<Response>` handler for Next.js route handlers, Nuxt and Nitro, SvelteKit, Hono and any Fetch-compatible framework, serves the 2026-07-28 stateless protocol natively and falls back to 2025-era Streamable HTTP for older clients.
@@ -268,7 +310,7 @@ This is a recipe, not a package: PermDock composes with the bridge through the e
 
 ## Example app
 
-`apps/examples/mcp-server`: a real SDK v2 `McpServer` with `list_posts`, `update_post`, `delete_post` and `publish_post`, served over Streamable HTTP (`createMcpHandler` behind `verifyBearerToken`, `requireAuthInfo: true`) and over stdio as the local user. Called through the SDK `Client`, a request without a token gets `401`, `tools/list` differs per token, a narrow token gets the `403` step-up naming `post:update`, and `delete_post` parks, runs once after `POST /approvals` and refuses the replay.
+`apps/examples/mcp-server`: a real SDK v2 `McpServer` with `list_posts`, `update_post`, `delete_post` and `publish_post`, served over Streamable HTTP (`createMcpHandler` behind `verifyBearerToken`, `requireAuthInfo: true`) and over stdio as the local user. Called through the SDK `Client`, a request without a token gets `401`, `tools/list` differs per token, a narrow token gets the `403` step-up naming `post:update`, and `delete_post` parks, runs once after `POST /approvals` and refuses the replay. `/rpc/mcp` serves the same posts as oRPC procedures through `enforce: 'procedure'` (`src/procedures.ts`).
 
 ## Why
 

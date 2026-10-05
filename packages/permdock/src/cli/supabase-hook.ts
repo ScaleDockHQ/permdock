@@ -314,7 +314,7 @@ function mappedMembership(
   const columns = [
     mapped.user,
     id,
-    role.column,
+    ...role.columns,
     ...Object.values(within),
     ...(mapped.via === undefined ? [] : [mapped.via]),
     ...(mapped.expiresAt === undefined ? [] : [mapped.expiresAt]),
@@ -669,8 +669,7 @@ function readsSql(parts: Parts): string {
     for (const name of source.sql.reads) {
       reads.set(name, reads.get(name) ?? "status");
     }
-    const through = source.sql.through;
-    if (through !== undefined) {
+    for (const through of source.sql.throughs) {
       reads.set(through.table, reads.get(through.table) ?? "role_keys");
     }
     const users = source.sql.userThrough;
@@ -944,14 +943,14 @@ function roleKeyHolders(parts: Parts): readonly RoleKeyHolder[] {
     });
   }
   for (const source of parts.sources) {
-    if (source.sql.through !== undefined) {
+    for (const through of source.sql.throughs) {
       holders.push({
         table: source.sql.table,
         user: source.sql.user,
         ...(source.sql.userThrough === undefined
           ? {}
           : { userThrough: source.sql.userThrough }),
-        through: source.sql.through,
+        through,
       });
     }
   }

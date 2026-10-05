@@ -44,6 +44,46 @@ permdock rls migrate --rbac supabase --sql supabase --write
 
 `migrate` rewrites calls to the legacy helpers inside `create policy` and `alter policy` onto the generated helpers, and maps keys through `rls.migrate.keys`, then `renamed`, then `rls.migrate.prefixes` ([migrate](/docs/cli/rls#migrate)). It lists every call it skipped: function bodies, views and triggers stay on the shims until they are rewritten by hand. `permdock doctor` PD056 counts the remaining callers of each legacy name; drop a shim and its legacy function once its count is zero.
 
+## Retire trigger-maintained permission tables
+
+Many Supabase apps keep a `user_permissions (user_id, organization_id, permission)` table that triggers on the membership and role tables keep in step, and read it through a `security definer` function in each policy:
+
+```sql
+create policy "post_select" on public.post for select to authenticated
+  using (public.has_permission("orgId", 'post.read'));
+```
+
+The call takes a row column, so Postgres runs the function once per row, and a `security definer` function is never inlined. The table is a second copy of the grants: an edit to which permissions a role carries has to re-sync every holder, and a missed trigger path leaves rows that grant too much or too little.
+
+The generated helpers read the grants where they live and return the permitted ids once per statement. `rls migrate` rewrites the call above (the `row` form in [`rls.migrate.helpers`](/docs/cli/rls#migrate)) to:
+
+```sql
+using ("orgId" in (select permdock.permitted_organization_ids('post.read')))
+```
+
+Where the helpers read roles and memberships is the `--authorize` mode ([modes](/docs/cli/rls#role-checks-per-statement-helpers)):
+
+| Mode       | Reads                                                                                          | A role change applies                                                                     | Triggers left                                                                                                                                                                       |
+| ---------- | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `database` | `role_permissions` and the membership tables, at query time                                    | On the next statement                                                                     | None for grants                                                                                                                                                                     |
+| `jwt`      | The `memberships` and `user_role` claims the [token hook](/docs/adapters/supabase-hook) writes | When the token is reissued; `fresh` permissions deny with `stale-credentials` before that | `permdock_bump_authz_version` on each source table, which bumps `authz_ver` instead of copying grants ([authorization version](/docs/adapters/supabase-hook#authorization-version)) |
+
+Pick `database` when a revoked role must stop working on the next request for every permission. Pick `jwt` when membership lookups must stay off the query path, and list the sensitive permissions in `fresh` so they check `authz_ver`.
+
+`tests/integration/bench/definer-helper.test.ts` measures the three shapes on one table: 100,000 `post` rows over 20 tenants, a member who reads one tenant's 5,000 rows, the median `EXPLAIN ANALYZE` execution time of 9 runs, on Postgres 16.15 in Docker on an Apple M5 Max.
+
+| Policy                                           | Median execution time |
+| ------------------------------------------------ | --------------------- |
+| Per-row `has_permission` over `user_permissions` | 980 ms                |
+| `permitted_tenant_ids`, `database` mode          | 5.8 ms                |
+| `permitted_tenant_ids`, `jwt` mode               | 6.4 ms                |
+
+To retire the table:
+
+1. Generate the helpers beside it with `--shims` and an `rls.migrate.helpers` entry for `has_permission` ([shims](/docs/cli/rls#shims)). The shim answers for function bodies and views that still call the old name.
+2. Run `rls migrate --write` to rewrite the policies.
+3. Drop the triggers, the `user_permissions` table and the shim once `permdock doctor` PD056 reports no remaining caller.
+
 ## Cut tokens over
 
 Tokens issued before the deploy carry the old claims until they expire. Two settings keep them working:

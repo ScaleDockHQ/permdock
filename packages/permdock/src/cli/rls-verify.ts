@@ -54,7 +54,7 @@ function customRoleAt(
   };
 }
 
-function canFixture(
+export function canFixture(
   permdock: PermDock,
   permission: Permission,
   row: unknown,
@@ -292,7 +292,10 @@ function customRoleRows(
     }
     for (const grant of role.grants ?? []) {
       rows.push({
-        sql: `insert into ${table("custom_role_permissions")} (tenant_id, scope, scope_id, role, permission, effect) values ($1, $2, $3, $4, $5, $6) on conflict do nothing`,
+        sql:
+          grant.level === undefined
+            ? `insert into ${table("custom_role_permissions")} (tenant_id, scope, scope_id, role, permission, effect) values ($1, $2, $3, $4, $5, $6) on conflict do nothing`
+            : `insert into ${table("custom_role_permissions")} (tenant_id, scope, scope_id, role, permission, effect, level) values ($1, $2, $3, $4, $5, $6, $7) on conflict do nothing`,
         values: [
           role.tenant ?? null,
           at.scope,
@@ -300,6 +303,7 @@ function customRoleRows(
           role.name,
           grant.permission,
           grant.effect ?? "allow",
+          ...(grant.level === undefined ? [] : [grant.level]),
         ],
       });
     }

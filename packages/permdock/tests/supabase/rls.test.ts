@@ -37,6 +37,17 @@ describe("authorizeSql", () => {
     }).toEqual({ table: true, expiry: 3, schemaTable: true });
   });
 
+  it("reads a custom role's stored level into the grant key", () => {
+    const leveled = authorizeSql({
+      tenant: members,
+      customRoles: { declared: ["owner"], levels: true },
+    });
+    expect(leveled).toContain("permission || coalesce('@' || c.level, '')");
+    expect(
+      authorizeSql({ tenant: members, customRoles: { declared: [] } }),
+    ).not.toContain("c.level");
+  });
+
   it("denies tenant requests when the membership table has no tenant column", () => {
     const sql = authorizeSql({
       tenant: { table: "members", user: "u", role: "r" },

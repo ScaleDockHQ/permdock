@@ -7,7 +7,10 @@ export type {
   McpPermDock,
   McpPermDockOptions,
   McpPrincipal,
+  McpProcedureEnforcement,
+  McpProcedureToolConfig,
   McpPromptConfig,
   McpResourceConfig,
   McpToolConfig,
+  ProcedureMcpServer,
 } from "./types.ts";

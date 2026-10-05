@@ -73,6 +73,24 @@ fromJunction({
 
 `on` maps exactly one column of the membership table to the roles table column it references, and an unqualified `through` is in the membership table's schema. The hook, the in-process `membershipsFor` and `list`, and the `database` mode helpers all run the same `select` with the join, so a membership's `roles` hold keys. A tenant's custom role is a roles row with a key unique within the tenant; the membership carries that key and resolves as a [custom role](/docs/concepts/custom-roles) of its tenant. A tenant row keyed like a declared role (`owner`) holds that declared role, so keep the keys apart with a check constraint or the code that writes roles.
 
+A membership row that holds roles in more than one column (a plan tier and a role id) lists them as role sources: `fromTable` `columns.role` takes an array, and `fromJunction` takes `roles: { sources }`, because an array of strings there is fixed roles.
+
+```ts
+// organization_users (user_id, organization_id, tier text, role_id references roles (id))
+fromJunction({
+  table: "organization_users",
+  scope: "organization",
+  roles: {
+    sources: [
+      "tier",
+      { through: "roles", on: { role_id: "id" }, column: "key" },
+    ],
+  },
+});
+```
+
+The row holds every non-null key of its sources: a user with `tier = 'member'` and a `role_id` keyed `admin` gets `roles: ["admin", "member"]`, and a row whose sources are all null holds no membership. The hook, `membershipsFor`, `list` and the `database` mode helpers expand the row with one `cross join lateral`, and a key rename on any referenced roles table bumps every holder's authorization version. Each source column is a deciding column, and the manifest lists the sources as an array under `role`.
+
 A membership table whose rows name a profile instead of a login reads the user id through the profile table, with the same shape. CentraKit's portal contacts are `customer_contacts (customer_id, organization_id, contact_profile_id)`, and the login is `contact_profiles.user_id`:
 
 ```ts

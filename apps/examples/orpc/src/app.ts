@@ -1,7 +1,7 @@
-import { os } from "@orpc/server";
+import { implement } from "@orpc/server";
 import { createPermDock } from "permdock/orpc";
-import { z } from "zod";
 
+import { contract } from "./contract.ts";
 import { ownPost, permissions } from "./permissions.ts";
 import { policy, type User } from "./policy.ts";
 
@@ -11,18 +11,17 @@ const { permdock, protect } = createPermDock<Ctx>(policy, {
   subject: (opts) => opts.context.user,
 });
 
-const base = os.$context<Ctx>().use(permdock());
+const os = implement(contract).$context<Ctx>();
+const base = os.use(permdock());
 
-export const router = {
-  health: os.handler(() => ({ ok: true as const })),
+export const router = os.router({
+  health: os.health.handler(() => ({ ok: true as const })),
   posts: {
-    update: base
-      .input(z.object({ id: z.string() }))
+    update: base.posts.update
       .use(protect(permissions.post.update, () => ownPost))
       .handler(() => ({ ok: true as const })),
-    publish: base
-      .input(z.object({ id: z.string() }))
+    publish: base.posts.publish
       .use(protect(permissions.post.publish, () => ownPost))
       .handler(() => ({ ok: true as const })),
   },
-};
+});

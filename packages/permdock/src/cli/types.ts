@@ -21,8 +21,11 @@ export type RlsTarget = "sql" | "drizzle" | "prisma";
 export type RlsMembershipTable = {
   readonly table: string;
   readonly user: string;
-  /** The role key column, or a reference to a roles table that holds the key. */
-  readonly role: string | RoleThrough;
+  /**
+   * The role key column, a reference to a roles table that holds the key, or
+   * several of them: the row holds every non-null key.
+   */
+  readonly role: string | RoleThrough | readonly (string | RoleThrough)[];
   /** Per scope name, the column holding that scope's id: the table's own scope and its ancestors. */
   readonly columns?: Readonly<Record<string, string>>;
   /** Column of the first scope's id; shorthand for `columns[<first scope>]`. */
@@ -287,7 +290,18 @@ export type PermDockConfig = {
   };
   readonly rls?: RlsConfig;
   readonly supabase?: SupabaseConfig;
+  readonly powersync?: PowerSyncConfig;
   readonly doctor?: DoctorConfig;
+};
+
+/** `permdock powersync generate` and `verify` input. Tables and memberships come from `rls`. */
+export type PowerSyncConfig = {
+  /** The Sync Streams file; default `sync-config.yaml`. */
+  readonly out?: string;
+  /** Resources that get a stream; default every resource with a grant of `action`. */
+  readonly resources?: readonly string[];
+  /** The action whose grants decide which rows sync; default `read`. */
+  readonly action?: string;
 };
 
 export type {

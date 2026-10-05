@@ -545,6 +545,47 @@ where mu."user_id" = $1`);
     expect(source.sql.userThrough?.table).toBe("identity.contact_profiles");
   });
 
+  it("reads the user through a profile table beside several role sources", () => {
+    const source = fromJunction({
+      table: "customer_contacts",
+      scope: "customer",
+      id: "customer_id",
+      user,
+      roles: {
+        sources: [
+          "tier",
+          { through: "roles", on: { role_id: "id" }, column: "key" },
+        ],
+      },
+    });
+    const select = source.sql.select("$1");
+    expect(select).toContain(
+      `join "public"."contact_profiles" mu on mu."id" = m."contact_profile_id"`,
+    );
+    expect(select).toContain("cross join lateral");
+    expect(select).toContain('where mu."user_id" = $1');
+    expect(source.sql.columns).toEqual([
+      "contact_profile_id",
+      "customer_id",
+      "tier",
+      "role_id",
+    ]);
+    expect(source.sql.throughs.map((through) => through.table)).toEqual([
+      "public.roles",
+    ]);
+    expect(source.sql.userThrough?.table).toBe("public.contact_profiles");
+    expect(source.sql.manifest).toMatchObject({
+      user: {
+        column: "contact_profile_id",
+        through: { table: "public.contact_profiles" },
+      },
+      role: [
+        { column: "tier" },
+        { column: "role_id", through: { table: "public.roles" } },
+      ],
+    });
+  });
+
   it("needs exactly one join column", () => {
     expect(() =>
       fromJunction({

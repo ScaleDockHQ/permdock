@@ -23,6 +23,92 @@ The guard has no promise, loading state or pending value: when it flips to `fals
 
 Everything above the transport is shared: the snapshot format, the condition evaluator, `usePermission`'s return shape and the decision endpoint.
 
+## Set up an Expo app
+
+These steps build a native Expo Router app with tabs that a role hides, a snapshot kept in the device keychain, and a refresh when the app returns to the foreground. `apps/examples/expo` runs them.
+
+### 1. Store the snapshot
+
+`expo-secure-store` has synchronous `getItem` and `setItem`, so guards answer on the first frame. Its keys may contain only letters, digits, `.`, `-` and `_`; PermDock writes `permdock.snapshot` and `permdock.tenant`. It has no web implementation, so a universal app picks another store on web:
+
+```ts title="src/storage.ts"
+import * as SecureStore from "expo-secure-store";
+import { memoryStorage, type PermDockStorage } from "permdock/react-native";
+import { Platform } from "react-native";
+
+export const storage: PermDockStorage =
+  Platform.OS === "web"
+    ? memoryStorage()
+    : {
+        getItem: (key) => SecureStore.getItem(key),
+        setItem: (key, value) => {
+          SecureStore.setItem(key, value);
+        },
+        removeItem: async (key) => {
+          await SecureStore.deleteItemAsync(key);
+        },
+      };
+```
+
+MMKV is the faster choice when the snapshot need not be encrypted at rest; [what it validates](#what-it-validates) lists what a snapshot reveals.
+
+### 2. Guard the tabs
+
+`Tabs.Protected` takes a boolean, so the hook runs in a component inside the provider:
+
+```tsx title="src/app/_layout.tsx"
+import { Tabs } from "expo-router";
+import { AppState } from "react-native";
+import { PermDockProvider, usePermission } from "permdock/react-native";
+
+const onForeground = (listener: () => void) => {
+  const subscription = AppState.addEventListener("change", (state) => {
+    if (state === "active") listener();
+  });
+  return () => subscription.remove();
+};
+
+function AppTabs() {
+  const billing = usePermission(permissions.billing.manage);
+  return (
+    <Tabs>
+      <Tabs.Screen name="index" />
+      <Tabs.Protected guard={billing.allowed}>
+        <Tabs.Screen name="billing" />
+      </Tabs.Protected>
+    </Tabs>
+  );
+}
+
+export default function Layout() {
+  return (
+    <PermDockProvider
+      storage={storage}
+      snapshotUrl="https://api.example.com/permdock/snapshot"
+      headers={{ authorization: `Bearer ${accessToken}` }}
+      revalidate="focus"
+      subscribeForeground={onForeground}
+    >
+      <AppTabs />
+    </PermDockProvider>
+  );
+}
+```
+
+Define `onForeground` outside the component: the provider rebuilds its store when the function identity changes. When the guard turns `false`, the tab stops existing and Expo Router moves the user to the first allowed route.
+
+### 3. Refresh on foreground
+
+`revalidate: 'focus'` with `subscribeForeground` fetches `snapshotUrl` on launch and whenever `AppState` reports `active`, so a role removed while the app was in the background applies when the user returns. It refreshes only `snapshotUrl`. A [local snapshot](#local-snapshot) re-reads its rows when its own `subscribe` fires; add the same `AppState` listener there.
+
+### 4. Clear on sign-out
+
+Call `usePermDock().clear()` before switching user. It removes `permdock.snapshot` from the keychain and drops every cached decision, so nothing from the previous user is read on the next launch. Pass `subjectId` as well: a persisted snapshot for another user is then treated as empty storage.
+
+### 5. Plan for offline
+
+Portable grants, including ownership conditions, answer offline from the stored snapshot. Closure grants report `server-only` and `allowed: false` until the device is back online ([offline behaviour](#offline-behaviour)). A guard that must work offline needs a portable grant.
+
 ## API
 
 ```tsx
@@ -51,6 +137,7 @@ import { permissions } from "@/permissions";
 | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `storage`                                                                                                                                               | Any object with `getItem`, `setItem`, `removeItem` (MMKV, `expo-secure-store`, AsyncStorage). Synchronous stores answer on the first frame; asynchronous stores answer on the second frame with `status: 'pending'` in between.                                                                                                                                                                                                                                                                             |
 | `snapshotUrl`                                                                                                                                           | Where to fetch a fresh snapshot after launch and on `refresh()`. The request carries the app's session token through the `headers` or `fetch` option.                                                                                                                                                                                                                                                                                                                                                       |
+| `source`                                                                                                                                                | A `SnapshotSource` such as `localSnapshot({ manifest, read, subscribe })`: the snapshot is built from the device's own rows ([Local snapshot](#local-snapshot)).                                                                                                                                                                                                                                                                                                                                            |
 | `endpoint`                                                                                                                                              | Same batched decision endpoint as React, for closure grants.                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `revalidate`                                                                                                                                            | `'launch'` (default), `'focus'` (also on app foreground when `subscribeForeground` is set) or a number of seconds.                                                                                                                                                                                                                                                                                                                                                                                          |
 | `subscribeForeground`                                                                                                                                   | Optional `(listener) => unsubscribe` for `revalidate: 'focus'`. Pass `AppState.addEventListener('change', ...)` from `react-native` so the snapshot refreshes when the app returns to the foreground.                                                                                                                                                                                                                                                                                                       |
@@ -72,6 +159,60 @@ A device with no connectivity keeps answering from the persisted snapshot. Porta
 
 Because the on-device answer is a UI hint, an API request made while offline and replayed later is still checked by the server with the current policy, so a stale local grant can never turn into a successful write.
 
+### Local snapshot
+
+An app that syncs its membership and custom-role rows to the device (SQLite, a [PowerSync](/docs/cli/powersync) or Electric replica) can build the snapshot from those rows instead of fetching it. The policy stays on the server: `localSnapshotManifest(policy)` from `permdock` writes, at build time, the JSON that `localSnapshot` reads on the device.
+
+```ts title="scripts/permdock-manifest.ts"
+import { writeFileSync } from "node:fs";
+import { localSnapshotManifest } from "permdock";
+import { policy } from "../src/policy";
+
+writeFileSync(
+  "app/permdock-manifest.json",
+  JSON.stringify(localSnapshotManifest(policy)),
+);
+```
+
+```tsx
+import {
+  localSnapshot,
+  PermDockProvider,
+  type LocalSnapshotManifest,
+} from "permdock/react-native";
+import manifest from "./permdock-manifest.json";
+
+// readMemberships, readCustomRoles and watchTables are the app's own queries over its local database.
+const source = localSnapshot({
+  manifest: manifest as LocalSnapshotManifest, // a JSON import widens `v: 1` to number
+  read: async () => ({
+    principal: {
+      id: userId,
+      tenant: organizationId,
+      memberships: await readMemberships(userId), // [{ tenant: 'acme', roles: ['admin'] }]
+      attributes: { claims: { team_ids: teamIds } },
+    },
+    customRoles: await readCustomRoles(organizationId),
+  }),
+  subscribe: (listener) =>
+    watchTables(["organization_users", "roles"], listener),
+});
+
+<PermDockProvider storage={secureStorage} source={source}>
+  {children}
+</PermDockProvider>;
+```
+
+`read()` returns what a [`MembershipSource`](/docs/concepts/tenancy) and a [`RoleSource`](/docs/concepts/custom-roles) would on the server: the memberships, global roles, plans and custom roles of the signed-in user. `attributes` carries the principal values conditions read, such as `principal.claims.team_ids`. On every `subscribe` call the provider rebuilds the snapshot and persists it to `storage`. A failed `read()` keeps the current snapshot.
+
+The local snapshot decides like the server snapshot for the same rows, with these limits:
+
+- A grant on a relation grantee (`relation(job, 'watcher')`) is `server-only` on the device: the relation graph is not in the manifest.
+- A custom role resolves through tables the server computed per permission, level and included role. An entry the manifest does not know, such as a permission added after the build, grants nothing until the manifest is rebuilt.
+- `useAssignableRoles` and `useAssignablePermissions` return nothing; the role editor needs the server snapshot.
+
+With `snapshotUrl` set as well, the latest answer wins: the server snapshot after a revalidation, the local one after the next row change.
+
 ## What it validates
 
 - The persisted snapshot against the snapshot v1 schema before use. A snapshot written by an older app version that fails validation is discarded and refetched rather than trusted.
@@ -88,7 +229,7 @@ The snapshot is stored as the `storage` implementation stores it. The entry ship
 
 ## Example app
 
-`apps/examples/expo`: an Expo Router web app with an inline snapshot, `memoryStorage`, and `Protected` / `usePermission`. `http://127.0.0.1:3486/` shows `edit` for a granted update and `locked` for a denied publish.
+`apps/examples/expo`: an Expo Router app with `expo-secure-store` storage (`memoryStorage` on web), a `localSnapshot` over in-memory rows that stand in for a sync engine, an `AppState` foreground listener, `Tabs.Protected` and `Protected`. `pnpm gen` writes `src/permdock-manifest.json` from the policy; the app bundle never imports the policy. `http://127.0.0.1:3486/` shows `edit`, `locked` for publish and one tab; "Sync admin role" changes the row, and `publish` and the Publish tab appear with no request.
 
 ## Related standards
 

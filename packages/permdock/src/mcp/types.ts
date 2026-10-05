@@ -131,6 +131,41 @@ export type GuardedMcpServer = Omit<
   ): RegisteredPrompt;
 };
 
+/** A tool config when the tool's own procedure decides: no loader, no re-check. */
+export type McpProcedureToolConfig<
+  TInput extends StandardSchemaWithJSON | undefined = undefined,
+  TOutput extends StandardSchemaWithJSON | undefined = undefined,
+> = Omit<
+  McpToolConfig<TInput, TOutput>,
+  "permission" | "data" | "longRunning"
+> & {
+  /** Overrides `permissionFor(name)`. */
+  readonly permission?: Permission;
+};
+
+/** `GuardedMcpServer` whose tools are listed and annotated by permission but decided by the procedure they call. */
+export type ProcedureMcpServer = Omit<GuardedMcpServer, "registerTool"> & {
+  registerTool<
+    TInput extends StandardSchemaWithJSON | undefined = undefined,
+    TOutput extends StandardSchemaWithJSON | undefined = undefined,
+  >(
+    name: string,
+    config: McpProcedureToolConfig<TInput, TOutput>,
+    handler: ToolCallback<TInput>,
+  ): RegisteredTool;
+};
+
+/**
+ * Tools whose handler calls a procedure that already runs `protect`, such as
+ * an oRPC procedure through `call()`. `tools/list` and annotations use the
+ * permission; the call itself is not guarded, so each call decides once.
+ */
+export type McpProcedureEnforcement = {
+  readonly enforce: "procedure";
+  /** The permission of the tool `name`; `permissionOf(procedure)` from `permdock/orpc` reads it. `undefined` throws at registration. */
+  readonly permissionFor: (name: string) => Permission | undefined;
+};
+
 export type McpPermDockOptions<TUser = unknown> = {
   /** Receives the verified auth info, or `{}` on a transport without one (stdio). */
   readonly subject: (authInfo: McpAuthInfo) => TUser | Promise<TUser>;
@@ -177,5 +212,8 @@ export type McpPermDockOptions<TUser = unknown> = {
 
 export type McpPermDock = {
   /** Call before registering anything: later `register*` calls must carry a `permission`. */
-  readonly protectServer: (server: McpServer) => GuardedMcpServer;
+  readonly protectServer: {
+    (server: McpServer): GuardedMcpServer;
+    (server: McpServer, options: McpProcedureEnforcement): ProcedureMcpServer;
+  };
 };

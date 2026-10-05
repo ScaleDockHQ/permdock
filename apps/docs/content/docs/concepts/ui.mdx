@@ -25,17 +25,23 @@ const why = describe(decision)   // { title: 'Approval required', detail: 'Publi
 <Button disabled={!allowed} aria-disabled={!allowed} title={allowed ? undefined : why.detail}>Publish</Button>
 ```
 
-`describe(decision)` is a pure function (importable from `permdock`, no React) that turns a `Decision` into `{ kind, title, detail, alternatives }` with `kind` one of `granted`, `denied`, `approval`, `tenant`, `delegation`, `server-only`, `upgrade`. `upgrade` means every denial is `not-entitled`, and adds `plans`: the plan keys that would grant the permission, for an upgrade link. `requiredPlans(decision)` returns the same list from any decision (empty unless every denial is `not-entitled`). It reads `meta.title` and `meta.description` from the permission and the grant's `reason`, and it never includes role names or condition internals a user should not see. Adapters use the same function for Problem Details `detail`, so the tooltip and the API error say the same thing. `describe(decision, { messages })` localises the text: `messages` has `titles` per `kind`, `reasons` per denial reason (joined with `separator`, default `', '`), and the functions `granted(permission)`, `approval(permission, approvers)` and `upgrade(plans)`. Anything left out keeps the English default.
+`describe(decision)` is a pure function (importable from `permdock`, no React) that turns a `Decision` into `{ kind, title, detail, alternatives }` with `kind` one of `granted`, `denied`, `approval`, `tenant`, `delegation`, `server-only`, `upgrade`. `upgrade` means every denial is `not-entitled`, and adds `plans`: the plan keys that would grant the permission, for an upgrade link. `requiredPlans(decision)` returns the same list from any decision (empty unless every denial is `not-entitled`). It reads `meta.title` and `meta.description` from the permission and the grant's `reason`, and it never includes role names or condition internals a user should not see. Adapters use the same function for Problem Details `detail`, so the tooltip and the API error say the same thing. `describe(decision, { messages })` localises the text: `messages` has `titles` per `kind`, `reasons` per denial reason (joined with `separator`, default `', '`) as a record or as `(reason, decision) => string | undefined`, and the functions `granted(permission)`, `approval(permission, approvers)` and `upgrade(plans)`. Anything left out keeps the English default. The `reasons` function sees the whole denied decision, for a translation layer that needs more than the code; returning `undefined` keeps the reason code, as a missing record entry does.
 
-````ts
+```ts
 describe(decision, {
   messages: {
     titles: { denied: "Geweigerd", approval: "Goedkeuring nodig" },
     approval: (permission, approvers) =>
       `${permission} wacht op ${approvers.join(" en ")}.`,
+    reasons: (reason, decision) =>
+      reason === "no-grant"
+        ? t("denied.noGrant", { count: decision.alternatives.length })
+        : undefined,
   },
 });
-``` There is no `useDecision` alias; `usePermission` already returns the `decision`.
+```
+
+There is no `useDecision` alias; `usePermission` already returns the `decision`.
 
 ## Menus and toolbars
 
@@ -48,7 +54,7 @@ const actions = usePermissions(
 );
 // actions[permissions.post.update.key] -> { allowed, status, decision }
 // actions.granted -> [permissions.post.update]      references, not strings
-````
+```
 
 It is the client form of AuthZEN action search and resolves the [React adapter](/docs/adapters/react) open question about `usePermittedActions`: the input is references (typed, rename-safe), the output is keyed by `.key` for lookup and exposes the granted references as an array. Entries that need the endpoint batch into one `evaluations` call.
 

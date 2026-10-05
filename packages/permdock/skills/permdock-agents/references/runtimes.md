@@ -117,6 +117,8 @@ server.registerTool(
 
 An MCP server that is not an SDK `McpServer` cannot be wrapped: narrow the tool's `meta` with `isPermission`, filter its tool list with `mayUse(permdock, permission)` from `permdock`, and decide each call with `permdock.decide(permission, args)` in its `authorize` hook. `mayUse` is a listing hint, never a decision.
 
+When a tool's handler calls an oRPC procedure that runs `protect`, use `protectServer(server, { enforce: 'procedure', permissionFor: (name) => permissionOf(procedures.get(name)) })` with `permissionOf` from `permdock/orpc`. `tools/list` and annotations follow the permission; the call is not guarded, so each call decides once, in the procedure. `data` and `longRunning` throw in this mode, and the mode covers the whole server.
+
 ## A2A — `permdock/a2a`
 
 ```ts

@@ -1,6 +1,6 @@
 ---
 title: Custom roles
-description: Tenant-defined roles composed from declared roles and single permissions, bounded by a ceiling of assignable declared roles; how grants inherit declared conditions, how denies subtract, what assignableRoles and assignablePermissions return, how snapshots carry the result, and a matrix-editor recipe.
+description: Tenant-defined roles composed from declared roles and single permissions, bounded by a ceiling of assignable declared roles; how grants inherit declared conditions, how levels narrow them, how denies subtract, what assignableRoles and assignablePermissions return, how snapshots carry the result, and a matrix-editor recipe.
 ---
 
 A custom role is a role a tenant admin defines at runtime. It is data from a `RoleSource`, never code, and it can only reach what the code already declared: every permission it grants is bounded by a **ceiling** built from the declared roles marked `assignable`.
@@ -13,7 +13,7 @@ type CustomRole = {
   team?: string; // input only: scope = the second scope, id = this team
   name: string; // unique within the tenant; a declared role name always wins
   includes?: string[]; // declared roles to start from
-  grants?: { permission: string; effect?: "allow" | "deny" }[]; // declared permission keys
+  grants?: { permission: string; effect?: "allow" | "deny"; level?: string }[]; // declared permission keys
   meta?: Record<string, unknown>;
 };
 ```
@@ -66,20 +66,56 @@ const tier2: CustomRole = {
 3. Remove every permission named by an own `deny`, whether it came from an include or an own allow.
 4. Re-target the result to the custom role: each grant keeps its permission, `where`, `check`, `approval`, `limit` and `fields`, and its grantee becomes the custom role in its scope. Other grantee items, such as a plan gate, stay.
 
-A custom-role grant never carries a condition or an approval of its own. Where the permission exists on an included role, it inherits that role's condition; otherwise it inherits the condition of each assignable declared grant of that permission, OR-ed like any allows. An own allow of `post.update`, where `editor` allows it on the author's own posts and `admin` allows it on any post, therefore reaches any post, exactly as far as the ceiling does. To keep "own posts only", include `editor` instead.
+A custom-role grant never carries a condition or an approval of its own; a [level](#levels) picks one of the conditions the code declares. Where the permission exists on an included role, it inherits that role's condition; otherwise it inherits the condition of each assignable declared grant of that permission, OR-ed like any allows. An own allow of `post.update`, where `editor` allows it on the author's own posts and `admin` allows it on any post, therefore reaches any post, exactly as far as the ceiling does. To keep "own posts only", include `editor` instead, or pick a level.
 
 Deny overrides allow inside the role: an own deny removes the permission even when an include or an own allow grants it, and the declared denies of the source roles keep applying (a `billing` deny on refunds above 1000 still denies them through a custom role that allows `invoice.refund`). An own deny subtracts from this custom role only. It is not a policy `deny`, so it does not take away a grant the member holds through another role. Deny the permission in code when it must win across roles.
+
+### Levels
+
+A resource may declare named levels: conditions in code that a custom role picks by name. A level never comes from data, so a stored role can only narrow to a condition that was reviewed.
+
+```ts
+const permissions = definePermissions({
+  job: resource({
+    id: "id",
+    actions: ["read", "update", "close"],
+    levels: {
+      own: { ownerId: principal.id },
+      team: { teamId: { in: principal.teamIds } },
+      all: {},
+    },
+  }),
+});
+
+const dispatcher: CustomRole = {
+  tenant: "o_acme",
+  name: "dispatcher",
+  grants: [
+    { permission: "job.read", level: "team" },
+    { permission: "job.close", level: "own" },
+    { permission: "job.close", level: "team" },
+  ],
+};
+```
+
+- A level name matches `^[a-z][a-z0-9_]*$`, and only a resource with instance actions declares levels. `all: {}` adds no condition.
+- An own allow with a `level` inherits each ceiling grant of the permission, as above, with the level's condition ANDed into its `where` and `check`. The ceiling condition still applies: `job.update` at `all` reaches only the rows the ceiling grant reaches.
+- Several allows of one permission at different levels are OR-ed. An allow without a level reaches every row the ceiling reaches.
+- A level is an allow refinement. A `deny` with a `level` is dropped as `condition-not-allowed` and removes the permission.
+- An unknown level, a level on a collection permission, or a level on a key outside the ceiling is dropped as `unknown-level`. The permission is then removed from the role, even when an include grants it, so a typo denies instead of widening.
+- `permdock catalog` lists the levels of each permission (`levels` in `catalog-v1.json`), and `permdock diff` reports a removed level as breaking (`level-removed`): a stored role that picks it starts denying ([diff](/docs/cli/diff)).
 
 ### Dropped entries
 
 Nothing that fails resolution widens a role. `dropped` names each entry that was left out:
 
-| Reason                  | Meaning                                                                                                                                                                     |
-| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `unknown-permission`    | The key is not a declared permission                                                                                                                                        |
-| `outside-ceiling`       | The permission is declared but no assignable declared role of the scope allows it                                                                                           |
-| `condition-not-allowed` | The entry carries a field other than `permission` and `effect` (a `where`, an `approval`, a `limit`), or an unknown `effect`. The permission is still removed, as if denied |
-| `unknown-role`          | An `includes` entry names no declared role; reported as `{ role, reason }`                                                                                                  |
+| Reason                  | Meaning                                                                                                                                                                                                   |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `unknown-permission`    | The key is not a declared permission                                                                                                                                                                      |
+| `outside-ceiling`       | The permission is declared but no assignable declared role of the scope allows it                                                                                                                         |
+| `condition-not-allowed` | The entry carries a field other than `permission`, `effect` and `level` (a `where`, an `approval`, a `limit`), an unknown `effect`, or a `level` on a deny. The permission is still removed, as if denied |
+| `unknown-level`         | The `level` is not declared on the permission's resource, or the permission is a collection action. Reported with `level`; the permission is removed, as if denied                                        |
+| `unknown-role`          | An `includes` entry names no declared role; reported as `{ role, reason }`                                                                                                                                |
 
 `validateCustomRole(policy, role)` returns `{ ok, permissions, dropped, renamed }`, where `permissions` is the sorted list of keys the role allows after the ceiling. Call it in the server action that saves a custom role. `permdock doctor` PD023 runs it over the `customRoles` of the `doctor.memberships` fixture ([doctor](/docs/cli/doctor)).
 
@@ -92,6 +128,7 @@ A stored grant may name a permission by a key it was renamed from with `definePe
 ```ts
 permdock.assignableRoles({ tenant? })        // Role[]
 permdock.assignablePermissions({ tenant? })  // Permission[]
+permdock.assignableLevels(permission, { tenant? }) // string[]
 ```
 
 Both answer for the active tenant unless `tenant` is passed, and both follow the rule that you cannot hand out what you do not hold:
@@ -100,6 +137,7 @@ Both answer for the active tenant unless `tenant` is passed, and both follow the
 - `assignableRoles` lists the declared assignable roles the subject holds there, plus those whose every allow the subject holds. A role without allows is assignable only by its holders, because hosted grants may give it permissions later. Once any role declares `assigns`, the graph replaces this rule: the list is exactly the roles the held roles' `assigns` name, in rank order ([ownership](/docs/concepts/ownership)).
 - `RoleSource.assignable(tenant)`, when the source implements it, narrows both to those role names. A source that throws assigns nothing and emits `on('auth')` with `source-threw`.
 - Holding a declared role with `meta.manageRoles: true`, or being granted a permission with `meta.manageRoles: true` (typically `member.assignRole`), lifts the intersection: the full ceiling, narrowed by `RoleSource.assignable`, is assignable.
+- `assignableLevels(permission)` lists the levels of that permission the subject may hand out: every level with `meta.manageRoles`, otherwise the levels it holds. A grant without a condition holds every level, a custom-role grant at a level holds that level, and a declared grant holds the levels whose condition equals its `where`. It is empty for a collection permission or a permission outside `assignablePermissions`.
 - Only live memberships count. A role held through a membership whose `expiresAt` has passed neither holds permissions nor lifts the intersection, so an expired elevation cannot hand out roles or mint credentials.
 
 `RoleSource.assignable` shapes what the editor offers and what a server action accepts. Evaluation always uses the declared ceiling, so a custom role saved before a plan downgrade keeps working until the application edits it.
@@ -108,7 +146,7 @@ Both answer for the active tenant unless `tenant` is passed, and both follow the
 
 `snapshot()` and `snapshotFor(policy, user, { customRoles, assignable? })` carry the resolved custom-role grants as ordinary `grants` entries: `role` is the custom role name and `membership` is the membership that holds it, so `fromSnapshot` scopes them to the right scope instance. `include` trims them like any grant. `snapshotFor` takes `assignable` as a record of role names per tenant, the values `RoleSource.assignable` would return.
 
-Snapshots also carry `assignable`: one `{ tenant, roles, permissions }` entry per tenant in `tenants`, where `roles` are role names and `permissions` are permission leaves, trimmed by `include`. The snapshot-backed instance reads them for `assignableRoles()` and `assignablePermissions()`, and `useAssignablePermissions()` reads them on the client. The format stays Snapshot `v: 1` ([snapshots](/docs/concepts/snapshots), [wire formats](/docs/concepts/wire-formats)).
+Snapshots also carry `assignable`: one `{ tenant, roles, permissions, levels? }` entry per tenant in `tenants`, where `roles` are role names, `permissions` are permission leaves and `levels` maps a permission key to its assignable levels, trimmed by `include`. The snapshot-backed instance reads them for `assignableRoles()`, `assignablePermissions()` and `assignableLevels()`, and `useAssignablePermissions()` reads them on the client. The format stays Snapshot `v: 1` ([snapshots](/docs/concepts/snapshots), [wire formats](/docs/concepts/wire-formats)).
 
 For every custom role, `decide` on the server and `fromSnapshot(snapshot).decide` agree; the parity suite checks includes, own allows, inherited denies, own denies, dropped keys and team scope.
 
@@ -116,10 +154,11 @@ For every custom role, `decide` on the server and `fromSnapshot(snapshot).decide
 
 `permdock rls generate --custom-roles` resolves custom roles inside the generated helpers, with the same rules and the same ceiling ([RLS](/docs/adapters/rls)):
 
-- `database` mode reads `custom_role_permissions (tenant_id, scope, scope_id, role, permission, effect)` and `custom_role_includes (tenant_id, scope, scope_id, role, include_role)`, written by the application from the same data its `RoleSource` reads.
-- `jwt` mode reads a compact `grants` map on each membership of the `memberships` claim, `{ "billing-manager": ["@billing", "post.read", "-invoice.refund"] }`, built with `customRoleClaim(roles)`. It is off unless `--custom-roles` is set, and it grows every token.
+- `database` mode reads `custom_role_permissions (tenant_id, scope, scope_id, role, permission, effect)` (plus a nullable `level` column when the policy declares levels) and `custom_role_includes (tenant_id, scope, scope_id, role, include_role)`, written by the application from the same data its `RoleSource` reads.
+- `jwt` mode reads a compact `grants` map on each membership of the `memberships` claim, `{ "billing-manager": ["@billing", "post.read", "-invoice.refund"] }`, built with `customRoleClaim(roles)`. A leveled allow is written `job.read@team`. It is off unless `--custom-roles` is set, and it grows every token.
 - Platform custom roles live in the same tables with `scope = 'global'` and a null `tenant_id` and `scope_id`. In `jwt` mode their entries ride the top-level `role_grants` claim, keyed by role name and built with `customRoleClaim(roles)`. `permdock_has` unions them into every tenant check.
 - Both intersect with the generated `permdock_ceiling` view, so a row or claim entry naming a permission outside the ceiling reaches nothing.
+- With levels declared, the ceiling gains one grant key per level, `job.read@own`, whose policy branch ANDs the level's condition into the ceiling grant. A stored level the code does not declare removes the permission, as in-process.
 - With `--rbac supabase`, `authorize(permission, tenant)` answers from custom roles too.
 - A membership table that stores a role id reads the key through the app's roles table (`role: { through: 'roles', on: { role_id: 'id' }, column: 'key' }`). Custom roles are then roles rows owned by a tenant, with a key unique within it; the tables above match that key and the membership's tenant, so two tenants may each define `dispatcher` ([RLS](/docs/cli/rls#role-checks-per-statement-helpers)).
 
@@ -184,3 +223,4 @@ export async function saveRole(input: unknown) {
 - Render `dropped` next to the column so the admin sees why a key did not stick, instead of silently losing it.
 - Save through the application's own table; PermDock never writes a custom role. The `RoleSource` reads the same table on the next request.
 - Include a declared role (`includes`) when the admin wants its conditions, such as "own posts only"; toggle single permissions (`grants`) for everything else.
+- Offer `assignableLevels(leaf)` as a select per cell when the resource declares levels, and save the choice as `{ permission, level }`.

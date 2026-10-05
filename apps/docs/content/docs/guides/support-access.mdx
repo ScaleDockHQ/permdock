@@ -1,0 +1,95 @@
+---
+title: Support access
+description: Let staff act inside a customer's account with better-supabase support sessions and a PermDock delegation, read-only by default, enforced in process and in Postgres, and attributed on every decision.
+---
+
+A support session lets a staff member see what a customer sees, without the customer's password and without becoming the customer. With better-supabase, the token belongs to the user and names the staff member in `act`; PermDock reads that as an actor and lets it reach only what a policy delegation names. A session is read-only unless better-supabase started it with `read_only: false`.
+
+`apps/examples/next-better-supabase` runs every step on this page: `tests/support-access.test.ts` for the in-process decisions and `supabase/tests/020_support_read_only.test.sql` for Postgres.
+
+## Pick the shape
+
+| Shape                           | Principal  | Actor        | Use it when                                                       |
+| ------------------------------- | ---------- | ------------ | ----------------------------------------------------------------- |
+| better-supabase support session | The user   | The admin    | Staff reproduce what one user sees, inside that user's grants     |
+| `supportAccess` with consent    | The vendor | The engineer | A vendor team works in a tenant under a consented, expiring grant |
+
+The first is this guide. The second is [support access with tenant consent](/docs/concepts/elevated-access#support-access-with-tenant-consent): the vendor holds its own `via: 'support'` membership, so it never reaches more than the tenant consented to, whoever the user is. Impersonation in the narrow sense (`act.kind: 'impersonation'`) is a third token kind; it reaches nothing until a delegation names `actor('impersonation')`, and this guide never adds one.
+
+## Delegate to the support actor
+
+A support token carries no delegation of its own, so every decision denies with `no-delegation` until the policy names the actor kind ([policy delegations](/docs/security/delegation#policy-delegations)):
+
+```ts
+// src/policy.ts
+export const policy = definePolicy(permissions, {
+  roles: [owner, member, contact],
+  delegations: [
+    {
+      from: roles.owner,
+      to: actor("support"),
+      permissions: [permissions.quotes],
+    },
+  ],
+});
+```
+
+The session reaches the intersection of three sets: what the user holds, what the delegation names, and, for a read-only session, the permissions whose `readOnlyHint` is true (`meta.readOnly`, else a `read` or `list` action).
+
+| Session                       | `quotes.read`           | `quotes.update`         | `staff.list` |
+| ----------------------------- | ----------------------- | ----------------------- | ------------ |
+| The owner's own               | granted                 | granted                 | granted      |
+| Support, `read_only: true`    | granted                 | denied, `not-delegated` | denied       |
+| Support, no `read_only` claim | granted                 | denied, `not-delegated` | denied       |
+| Support, `read_only: false`   | granted                 | granted                 | denied       |
+| Support without `session_id`  | denied                  | denied                  | denied       |
+| `act.kind: 'impersonation'`   | denied, `no-delegation` | denied, `no-delegation` | denied       |
+
+A support level without `read_only` is read-only, as better-supabase reads it. A support level without a `session_id`, or with a `read_only` that is not a boolean, is not proof of who acts: `subjectFromSupabase` returns the anonymous subject ([actors](/docs/adapters/supabase#support-and-impersonation-actors)).
+
+## Enforce it in Postgres
+
+PermDock's generated RLS helpers read memberships, not `act`. A support token sent straight to the Data API is the user to Postgres and writes whatever the user may write. Add one restrictive policy per writable table so the database applies the same read-only default:
+
+```sql
+-- supabase/schemas/public/policies/support.sql
+create policy "quotes_support_read_only"
+  on "public"."quotes"
+  as restrictive
+  for update
+  to authenticated
+  using (
+    not coalesce(
+      ((select auth.jwt()) -> 'act' ->> 'kind') = 'support'
+        or ((select auth.jwt()) -> 'act') ? 'session_id',
+      false
+    )
+    or ((select auth.jwt()) -> 'act' ->> 'read_only') = 'false'
+  );
+```
+
+A restrictive policy is combined with `and`, so it only ever removes rows the permissive `quotes_update` policy allows. Scope it to the write commands the table grants (`update` here; add `insert` with `with check` and `delete` where granted), never `for all`, which would also block reads. The `act ? 'session_id'` test covers better-supabase 0.5.0 tokens, which carry a `session_id` without `kind`. The policy does not narrow a session to the delegation's permissions; Postgres sees only the user's grants, so keep writable tables behind the server where the delegation applies, or add the delegation's limits to the policy.
+
+## Audit
+
+Every decision event carries both identities: `subject.principal` is the user and `subject.actor` is `{ id, kind: 'support' }`. Send them to a [decision sink](/docs/concepts/audit-and-observability) and a reviewer can list what a staff member did in each session. better-supabase's audit log fills `impersonated_by` (the `act.sub`) and `support_session_id` (the `act.session_id`) on every write the session makes. The decision event carries the actor id but not the session id, so join the two logs on the actor id and time.
+
+PermDock keeps no support-session state. A session ends when its token stops verifying, which is decided upstream ([authentication](/docs/concepts/authentication)).
+
+## Test it
+
+```ts
+const permdock = await createPermDock(
+  policy,
+  subjectFromSupabase(supportClaims),
+  {
+    tenant: organization,
+  },
+);
+expect(permdock.decide(permissions.quotes.update, quote)).toMatchObject({
+  outcome: "denied",
+  denials: [{ reason: "not-delegated" }],
+});
+```
+
+`supabaseClaimFixtures` in `permdock/testing` has `supportSession`, `supportSessionReadOnly` and `impersonation` tokens for the same cases ([Supabase claims schema](/docs/adapters/supabase)).

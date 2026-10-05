@@ -43,11 +43,12 @@ export function snapshotGrant(
   return freezeDeep(entry);
 }
 
-/** Claim refs: the snapshot principal does not carry `claims`, so they are bound to the subject's values. */
+const CARRIED = new Set(["id", "roles", "plans", "tenant", "memberships"]);
+
+/** Principal refs the snapshot principal does not carry (`claims`, `teamIds`, …) are bound to the subject's values. */
 function isClaimRef(ref: string): boolean {
-  return (
-    ref.startsWith("principal.claim.") || ref.startsWith("principal.claims.")
-  );
+  const [root, head] = ref.split(".", 2);
+  return root === "principal" && !CARRIED.has(String(head));
 }
 
 function bindClaims(grant: SnapshotGrant, subject: Subject): SnapshotGrant {
@@ -134,10 +135,19 @@ export function buildSnapshot(input: {
       ? []
       : tenants.map((tenant) => {
           const entry = assignableFor(tenant);
-          return {
+          const permissions = entry.permissions.filter(included);
+          if (entry.levels === undefined) {
+            return { ...entry, permissions };
+          }
+          const keys = new Set(permissions.map((leaf) => leaf.key));
+          const levels = Object.fromEntries(
+            Object.entries(entry.levels).filter(([key]) => keys.has(key)),
+          );
+          return compact<SnapshotAssignable>({
             ...entry,
-            permissions: entry.permissions.filter(included),
-          };
+            permissions,
+            levels: Object.keys(levels).length === 0 ? undefined : levels,
+          });
         });
   const snapshot = freezeDeep(
     compact<Snapshot>({

@@ -45,14 +45,60 @@ export const list = base
   );
 ```
 
-| Export                                 | Role                                                                                                                                                                                                                                                                                                                                      |
-| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `permdock()`                           | Middleware. Resolves the subject once per request (memoised on the request context) and adds `permdock` to the context with oRPC's context inference. Applied a second time on the same request, it is a no-op when `context.permdock` is already set, because oRPC 2 does not dedupe middleware.                                         |
-| `protect(permission, load?, options?)` | Middleware placed after `.input(...)`. The `tenant` option reads each procedure's own opts (`(opts) => opts.input?.org`), so procedures in one `BatchLinkPlugin` batch decide in their own tenant. Loads and boundary-validates the resource, decides, continues with `context.permdockData` or throws `ORPCError` with code `FORBIDDEN`. |
-| `openapi.protect(permission, load?)`   | Same as `protect`. Pair it with `openapi.security(permission)` in `.meta(orpcOpenapi({ spec }))` so the operation's `security` requirement and `x-permdock-permissions` extension are merged into the generated document.                                                                                                                 |
-| `openapi.securitySchemes()`            | Document-level `securitySchemes` (scopes from `listPermissions`, `oauth2MetadataUrl`, `deviceAuthorization`, `deprecated`) to pass to `OpenAPIGenerator`. Targets 3.2; 3.1 output uses the registered `x-oai-*` fallbacks and `x-permdock-oauth2MetadataUrl` (see [OpenAPI registries](/docs/standards/openapi-registry)).                |
-| `permdockHandler`                      | Procedure or Fetch handler for the AuthZEN-shaped decision endpoint.                                                                                                                                                                                                                                                                      |
-| `request` option                       | `(context) => Request \| null \| undefined`. The Web `Request` behind a context; defaults to `context.request` or `context.req`.                                                                                                                                                                                                          |
+| Export                                 | Role                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `permdock()`                           | Middleware. Resolves the subject once per request (memoised on the request context) and adds `permdock` to the context with oRPC's context inference. Applied a second time on the same request, it is a no-op when `context.permdock` is already set, because oRPC 2 does not dedupe middleware.                                                                                                                                       |
+| `protect(permission, load?, options?)` | Middleware placed after `.input(...)`. The `tenant` option reads each procedure's own opts (`(opts) => opts.input?.org`), so procedures in one `BatchLinkPlugin` batch decide in their own tenant. Loads and boundary-validates the resource, decides, continues with `context.permdockData` or throws `ORPCError` with code `FORBIDDEN`, through the procedure's declared constructor when it has one ([typed errors](#typed-errors)). |
+| `openapi.protect(permission, load?)`   | Same as `protect`. Pair it with `openapi.security(permission)` in `.meta(orpcOpenapi({ spec }))` so the operation's `security` requirement and `x-permdock-permissions` extension are merged into the generated document.                                                                                                                                                                                                               |
+| `openapi.securitySchemes()`            | Document-level `securitySchemes` (scopes from `listPermissions`, `oauth2MetadataUrl`, `deviceAuthorization`, `deprecated`) to pass to `OpenAPIGenerator`. Targets 3.2; 3.1 output uses the registered `x-oai-*` fallbacks and `x-permdock-oauth2MetadataUrl` (see [OpenAPI registries](/docs/standards/openapi-registry)).                                                                                                              |
+| `permissionOf(procedure)`              | The permission of the procedure's first `protect`, or `undefined`. It reads the procedure definition without deciding, for [MCP tools that call the procedure](/docs/adapters/mcp#tools-that-call-a-protected-procedure).                                                                                                                                                                                                               |
+| `permdockHandler`                      | Procedure or Fetch handler for the AuthZEN-shaped decision endpoint.                                                                                                                                                                                                                                                                                                                                                                    |
+| `request` option                       | `(context) => Request \| null \| undefined`. The Web `Request` behind a context; defaults to `context.request` or `context.req`.                                                                                                                                                                                                                                                                                                        |
+
+### Contract-first
+
+`protect` and `permdock()` attach to procedures from `implement(contract)` as they do to `os` procedures, including procedures whose contract declares an `output`. The contract package imports `securityFor` from `permdock/openapi` for each operation's `security`, without the policy ([contract packages](/docs/adapters/openapi#contract-packages)).
+
+```ts
+// contract.ts: permissions only
+export const contract = { posts: { update: oc.input(byId).output(post) } };
+export const security = {
+  "posts.update": securityFor(permissions.post.update),
+};
+
+// server.ts
+const os = implement(contract).$context<Context>();
+export const router = os.router({
+  posts: {
+    update: os
+      .use(permdock())
+      .posts.update.use(
+        protect(permissions.post.update, ({ input }) => loadPost(input.id)),
+      )
+      .handler(({ context }) => context.permdockData),
+  },
+});
+```
+
+### Typed errors
+
+Declare `FORBIDDEN` in the contract with `problemDetails` from `permdock/openapi` as its `data` schema. `protect` then throws through the procedure's own `errors.FORBIDDEN` constructor, so clients get a defined error whose `data` is typed as `ProblemDetails`, and the OpenAPI generator documents the 403 body. Without the declaration, `protect` throws a plain `ORPCError` with the same `data`. `UNAUTHORIZED`, `BAD_REQUEST` and the other codes `protect` uses work the same way when the contract declares them.
+
+```ts
+// contract.ts
+import { problemDetails } from "permdock/openapi";
+
+const guarded = oc.errors({ FORBIDDEN: { status: 403, data: problemDetails } });
+export const contract = { posts: { update: guarded.input(byId).output(post) } };
+
+// client
+const [error] = await safe(client.posts.update({ id }));
+if (isDefinedError(error) && error.code === "FORBIDDEN") {
+  error.data.permission; // 'post.update'
+}
+```
+
+`problemDetails` is a Standard Schema that also implements Standard JSON Schema (`draft-2020-12`, `draft-07`, `openapi-3.0`). It requires `type`, `title`, `status` (400 to 599) and `detail`, and passes extension members through. It imports nothing, so a contract package can use it.
 
 ### Event iterators
 

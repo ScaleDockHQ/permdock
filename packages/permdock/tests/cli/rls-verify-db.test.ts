@@ -315,6 +315,52 @@ describe("rls verify --db through an injected client", () => {
     expect(sql.ended()).toBe(true);
   });
 
+  it("seeds a custom role's level into the level column", async () => {
+    const sql = fakeSql((call) =>
+      call.sql.startsWith('insert into "permdock"."custom_role_permissions"')
+        ? { code: "42501" }
+        : rowsFor(() => 1)(call),
+    );
+    const cwd = app({
+      customRoles: [
+        {
+          tenant: "o1",
+          name: "reader",
+          grants: [{ permission: "post.read", level: "own" }],
+        },
+      ],
+      fixtures: [
+        {
+          subject: {
+            id: "u1",
+            tenant: "o1",
+            memberships: [{ tenant: "o1", roles: ["reader"] }],
+          },
+          row: own,
+          action: "post.read",
+        },
+      ],
+    });
+    const outcome = await runRlsVerify({
+      cwd,
+      config: config({ customRoles: true, authorize: "database" }),
+      db: "postgres://fake",
+      format: "node",
+      io,
+      connect: sql.connect,
+    });
+    expect(outcome.code).toBe(2);
+    expect(
+      sql
+        .statements()
+        .some((statement) =>
+          statement.includes(
+            "effect, level) values ($1, $2, $3, $4, $5, $6, $7)",
+          ),
+        ),
+    ).toBe(true);
+  });
+
   it("turns a connection failure into exit code 2", async () => {
     const cwd = app([{ subject: author, row: own, action: "post.read" }]);
     const outcome = await runRlsVerify({

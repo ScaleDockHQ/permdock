@@ -247,7 +247,7 @@ function actingParty(
       const session = outer["session_id"];
       const readOnly = Object.hasOwn(outer, "read_only")
         ? outer["read_only"]
-        : false;
+        : true;
       if (
         typeof session !== "string" ||
         session === "" ||

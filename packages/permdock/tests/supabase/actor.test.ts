@@ -55,7 +55,7 @@ describe("actorOf and delegationOf", () => {
     });
   });
 
-  it("reads a support session from act.kind, with its session, read-only flag and reason", () => {
+  it("reads a support session from act.kind, with its session, read-only flag (true when absent, as better-supabase reads it) and reason", () => {
     const act = {
       kind: "support",
       sub: "admin-1",
@@ -74,8 +74,12 @@ describe("actorOf and delegationOf", () => {
         chain: act,
       },
     });
-    const { read_only: _, ...writable } = act;
-    expect(actorOf({ sub, act: writable })).toMatchObject({
+    const { read_only: _, ...unmarked } = act;
+    expect(actorOf({ sub, act: unmarked })).toMatchObject({
+      ok: true,
+      actor: { kind: "support", readOnly: true },
+    });
+    expect(actorOf({ sub, act: { ...act, read_only: false } })).toMatchObject({
       ok: true,
       actor: { kind: "support", readOnly: false },
     });

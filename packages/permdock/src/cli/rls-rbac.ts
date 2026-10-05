@@ -24,7 +24,10 @@ export type RbacOptions = {
   /** The policy's first scope; `authorize(permission, tenant)` answers for an instance of it. */
   readonly scope?: string;
   /** Declared role names when custom roles compile; `authorize()` then answers from them too. */
-  readonly customRoles?: { readonly declared: readonly string[] };
+  readonly customRoles?: {
+    readonly declared: readonly string[];
+    readonly levels?: true;
+  };
   /** The helpers' context: `authorize()` reads its suspension tables. */
   readonly context?: RlsSqlContext;
 };

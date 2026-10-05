@@ -1,0 +1,8 @@
+{
+  "extends": "@permdock/typescript-config/base.json",
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "types": ["node"]
+  },
+  "include": ["."]
+}

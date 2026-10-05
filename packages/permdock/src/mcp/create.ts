@@ -20,6 +20,8 @@ import type {
   McpAuthInfo,
   McpPermDock,
   McpPermDockOptions,
+  McpProcedureEnforcement,
+  ProcedureMcpServer,
 } from "./types.ts";
 
 import { boundedMap } from "../agent/lru.ts";
@@ -758,7 +760,10 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       return result;
     };
 
-  const protectServer = (server: McpServer): GuardedMcpServer => {
+  const protectServer = (
+    server: McpServer,
+    enforcement?: McpProcedureEnforcement,
+  ): GuardedMcpServer | ProcedureMcpServer => {
     const tools = new Map<string, Permission>();
     const prompts = new Map<string, Permission>();
     const resources = new Map<string, Permission>();
@@ -913,12 +918,44 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       config: Readonly<Record<string, unknown>>,
       handler: Handler,
     ) => Registered;
+    const toolPermissionOf = (
+      name: string,
+      config: Readonly<Record<string, unknown>>,
+    ): Permission => {
+      if (enforcement === undefined || config["permission"] !== undefined) {
+        return requirePermission("tool", name, config);
+      }
+      for (const field of ["data", "longRunning"]) {
+        if (config[field] !== undefined) {
+          throw new TypeError(
+            `permdock/mcp: tool ${name} sets ${field}, but with enforce: 'procedure' its procedure decides.`,
+          );
+        }
+      }
+      return requirePermission("tool", name, {
+        permission: enforcement.permissionFor(name),
+      });
+    };
+    /** With `enforce: 'procedure'` the handler runs undecided: the procedure it calls decides. */
+    const wrapTool = (
+      permission: Permission,
+      load: ((args: unknown) => unknown) | undefined,
+      handler: Handler,
+      longRunning: boolean,
+    ): Handler =>
+      enforcement === undefined
+        ? guardTool(permission, load, handler, longRunning)
+        : async (...params: unknown[]): Promise<unknown> => {
+            const result: unknown = await handler(...params);
+            await announce(contextOf(params.at(-1)));
+            return result;
+          };
     const registerTool = (
       name: string,
       config: Readonly<Record<string, unknown>>,
       handler: Handler,
     ): Registered => {
-      const permission = requirePermission("tool", name, config);
+      const permission = toolPermissionOf(name, config);
       const {
         permission: _permission,
         data,
@@ -943,13 +980,13 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
             scopeChallenge as ScopeChallengeHandler | undefined,
           ),
         },
-        guardTool(permission, load, handler, longRunning),
+        wrapTool(permission, load, handler, longRunning),
       );
       tools.set(name, permission);
       let current = name;
       guardUpdates(
         registered,
-        (callback) => guardTool(permission, load, callback, longRunning),
+        (callback) => wrapTool(permission, load, callback, longRunning),
         (from, to) => {
           tools.delete(from);
           if (to !== null) {
@@ -1073,5 +1110,6 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     return server as unknown as GuardedMcpServer;
   };
 
-  return { protectServer };
+  // SAFETY: the implementation returns ProcedureMcpServer exactly when given McpProcedureEnforcement.
+  return { protectServer: protectServer as McpPermDock["protectServer"] };
 }

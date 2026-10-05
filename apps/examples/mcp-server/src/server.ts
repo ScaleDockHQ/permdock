@@ -28,7 +28,7 @@ const users: Readonly<Record<string, User>> = {
 
 // The verifier puts the user id under `extra.sub`; roles come from the
 // application's own user table, never from the token.
-function userFor(authInfo: McpAuthInfo): User | null {
+export function userFor(authInfo: McpAuthInfo): User | null {
   const sub = authInfo.extra?.["sub"];
   if (typeof sub !== "string" || !Object.hasOwn(users, sub)) {
     return null;

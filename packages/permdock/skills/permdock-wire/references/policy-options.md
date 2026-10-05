@@ -18,6 +18,8 @@ On a resource whose ids must not confirm a row exists (a private repository, a p
 
 Gate a paid feature with `to: [roles.admin, plans.pro]` (an array is an intersection). A held role without the plan is denied with `not-entitled`; the API answers `403` `/not-entitled` with `plans`, and `describe(decision)` returns `kind: 'upgrade'` with the same `plans` for an upgrade link.
 
+Localise `describe` with `messages`. `messages.reasons` is a record per denial reason or a function `(reason, decision) => string | undefined` that also sees the denied decision; `undefined` keeps the reason code.
+
 ## Validity windows
 
 Access that ends on a date (a contractor's engagement, a change freeze until launch) is `validFrom` / `validUntil` on the grant, RFC 3339 or Unix seconds. Outside the window an allow denies with `inactive-grant` and a deny does not apply; `where()` and generated RLS drop it, and `simulate(checks, { now })` previews a date. A person's access ending is the membership's `expiresAt` (see the `permdock-tenancy` skill).

@@ -327,6 +327,25 @@ export function fromSnapshot(
       const tenant = query?.tenant ?? subject.principal?.tenant;
       return assignableEntry(snapshot, tenant)?.permissions ?? [];
     },
+    assignableLevels(
+      permission: Permission,
+      query?: { readonly tenant?: string; readonly scope?: "global" },
+    ) {
+      if (query?.scope === "global") {
+        return [];
+      }
+      const levels = assignableEntry(
+        snapshot,
+        query?.tenant ?? subject.principal?.tenant,
+      )?.levels;
+      if (levels === undefined || !Object.hasOwn(levels, permission.key)) {
+        return [];
+      }
+      const names = levels[permission.key];
+      return Array.isArray(names)
+        ? names.filter((name): name is string => typeof name === "string")
+        : [];
+    },
     subject,
   };
   return Object.freeze(instance);
