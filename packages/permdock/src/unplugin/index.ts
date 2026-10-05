@@ -5,7 +5,11 @@ import { createRequire } from "node:module";
 import type { PermDockPluginOptions } from "../cli/types.ts";
 
 import { peerHint } from "../cli/peer.ts";
-import { runPluginCollect } from "../cli/plugin.ts";
+import {
+  createCollectScheduler,
+  report,
+  type CollectScheduler,
+} from "../cli/watch.ts";
 
 export type { PermDockPluginOptions } from "../cli/types.ts";
 
@@ -24,27 +28,21 @@ function loadCreateUnplugin(): CreateUnplugin {
   }
 }
 
-function report(message: string | undefined): void {
-  if (message !== undefined) {
-    process.stderr.write(`permdock: ${message}\n`);
-  }
-}
-
 function collectPlugin(options?: PermDockPluginOptions): UnpluginOptions {
+  const schedulers = new Map<string, CollectScheduler>();
+  function schedulerFor(cwd: string): CollectScheduler {
+    const scheduler =
+      schedulers.get(cwd) ?? createCollectScheduler(cwd, options);
+    schedulers.set(cwd, scheduler);
+    return scheduler;
+  }
   return {
     name: "permdock-collect",
     async buildStart() {
-      report(
-        await runPluginCollect(process.cwd(), options, options?.check === true),
-      );
+      report(await schedulerFor(process.cwd()).run(options?.check === true));
     },
-    watchChange() {
-      void runPluginCollect(process.cwd(), options, false).then(
-        report,
-        (error: unknown) => {
-          report(error instanceof Error ? error.message : String(error));
-        },
-      );
+    watchChange(id) {
+      schedulerFor(process.cwd()).changed(id);
     },
   };
 }
