@@ -77,13 +77,16 @@ export function testMembershipSource(
     readonly expect?: Record<string, readonly Membership[]>;
     /** With the policy, every membership must name one of its scopes and carry its parent ids. */
     readonly policy?: Policy;
+    /** Passed to every `membershipsFor`; a source keyed by tenant answers nothing without one. */
+    readonly tenant?: string;
   },
 ): void {
+  const query = options.tenant === undefined ? {} : { tenant: options.tenant };
   it("returns well-formed memberships and fails closed on throw", async () => {
     for (const principal of options.principals) {
       let memberships: Membership[] = [];
       try {
-        memberships = await source.membershipsFor(principal, {});
+        memberships = await source.membershipsFor(principal, query);
       } catch {
         memberships = [];
       }
@@ -116,7 +119,7 @@ export function testMembershipSource(
       for (const principal of options.principals) {
         let memberships: Membership[] = [];
         try {
-          memberships = await source.membershipsFor(principal, {});
+          memberships = await source.membershipsFor(principal, query);
         } catch {
           continue;
         }

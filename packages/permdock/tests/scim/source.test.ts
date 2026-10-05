@@ -11,6 +11,7 @@ import {
 import { directoryMembershipSource } from "../../src/scim/source.ts";
 import { memoryDirectoryStore } from "../../src/scim/store.ts";
 import { PATCH_SCHEMA, USER_SCHEMA } from "../../src/scim/types.ts";
+import { testMembershipSource } from "../../src/testing/conformance.ts";
 
 const TENANT = "o_acme";
 const META = { created: "", lastModified: "" };
@@ -38,6 +39,30 @@ async function seeded(): Promise<DirectoryStore> {
   });
   return store;
 }
+
+describe("directoryMembershipSource conformance", async () => {
+  testMembershipSource(
+    directoryMembershipSource(await seeded(), {
+      groupRoles: { g_mapped: ["editor"] },
+    }),
+    {
+      principals: [{ id: "ext-1" }, { id: "nobody" }],
+      tenant: TENANT,
+      expect: {
+        "ext-1": [
+          {
+            tenant: TENANT,
+            roles: ["editor"],
+            via: "group:g_mapped",
+            managedBy: "idp",
+          },
+          { tenant: TENANT, roles: [], via: "group:g_none", managedBy: "idp" },
+        ],
+        nobody: [],
+      },
+    },
+  );
+});
 
 describe("directoryMembershipSource", () => {
   it("answers nothing without a tenant", async () => {

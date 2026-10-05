@@ -20,7 +20,7 @@ import type { WebBotAuthVerifier } from "../server/web-bot-auth.ts";
 
 import { compact } from "../core/compact.ts";
 import { instanceOptions } from "../core/instance-options.ts";
-import { createKernel, tenantScope } from "../server/create.ts";
+import { createServerKernel, tenantScope } from "../server/create.ts";
 import {
   fromResponse,
   sendResponse,
@@ -71,7 +71,7 @@ export function createPermDock<
 ): NodePermDock<V> {
   const contexts = new WeakMap<globalThis.Request, NodeRequest>();
   const bound = new WeakMap<IncomingMessage, globalThis.Request>();
-  const kernel = createKernel(
+  const kernel = createServerKernel(
     policy,
     compact({
       subject: (request: globalThis.Request) => {

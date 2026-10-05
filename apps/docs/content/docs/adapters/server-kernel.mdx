@@ -75,6 +75,32 @@ export default async function handler(request: Request): Promise<Response> {
 
 `createPermDock` in the kernel is generic over the policy (for permission and subject types) and over an optional `Ctx` type that framework adapters bind to their context. Adapter factories forward those generics so `c.get('permdock')` in Hono, `req.permdock` in Express and `ctx.permdock` in tRPC are typed `PermDock` for that policy without casts. permix's `setupMiddleware` returned an untyped `MiddlewareHandler`, which its users hit in issue 27; here the middleware type is derived, not `any`.
 
+### Build an adapter
+
+`createServerKernel(policy, options)` is the kernel every in-tree HTTP and RPC adapter builds on; an out-of-tree adapter uses it the same way. It returns a `ServerKernel`: the members of `createPermDock`, each taking an optional `TenantScope` (`{ tenant }`) as its last argument. The adapter resolves its own `tenant` option against its framework context with `tenantScope(option, context)` and passes the result, so the kernel never reads the framework context. `ServerKernelOptions` adds two options to `ServerPermDockOptions`:
+
+| Option    | Role                                                                                                 |
+| --------- | ---------------------------------------------------------------------------------------------------- |
+| `adapter` | The label on decision events, revocations and approval records. Defaults to `server`.                |
+| `wrap`    | Wraps each instance the kernel builds, as `permdock/otel`'s `withOtel` does. Defaults to no wrapper. |
+
+```ts
+import { createServerKernel, tenantScope } from "permdock/server";
+
+const kernel = createServerKernel(policy, {
+  subject: (request) => userFrom(request),
+  adapter: "my-framework",
+});
+
+app.use(async (ctx) => {
+  const scope = await tenantScope(options.tenant, ctx);
+  const guard = await kernel.protect(permissions.post.read)(ctx.request, scope);
+  if (!guard.ok) return guard.response;
+});
+```
+
+`testHttpAdapter` in [`permdock/testing`](/docs/adapters/testing) runs the shared adapter contract against the result.
+
 ### `protect` semantics
 
 - Collection action (`permissions.post.create`): no `loadData`; `decide` runs on the subject alone.

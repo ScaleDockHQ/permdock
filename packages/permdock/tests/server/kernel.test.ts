@@ -4,7 +4,7 @@ import type { PermDock } from "../../src/core/permdock.ts";
 import type { PdpFactory, PdpPermDock } from "../../src/pdp/types.ts";
 
 import { createPermDock as createCorePermDock } from "../../src/core/permdock.ts";
-import { createKernel, tenantScope } from "../../src/server/create.ts";
+import { createServerKernel, tenantScope } from "../../src/server/create.ts";
 import { createPermDock } from "../../src/server/index.ts";
 import {
   memberUser,
@@ -54,11 +54,11 @@ describe("actor resolution", () => {
   });
 });
 
-describe("createKernel", () => {
+describe("createServerKernel", () => {
   it("resolves the subject once per request and wraps every instance", async () => {
     const subject = vi.fn<() => typeof memberUser>(() => memberUser);
     const wrapped: PermDock[] = [];
-    const kernel = createKernel(policy, {
+    const kernel = createServerKernel(policy, {
       subject,
       wrap: (permdock) => {
         wrapped.push(permdock);
@@ -84,7 +84,7 @@ describe("createKernel", () => {
         tenant: "o1",
       }),
     );
-    const kernel = createKernel(policy, { subject: () => memberUser });
+    const kernel = createServerKernel(policy, { subject: () => memberUser });
     const response = await kernel.permdockHandler(scope).POST(
       new Request("https://api.example/access/v1/evaluations", {
         method: "POST",

@@ -47,7 +47,7 @@ import {
   PermDockValidationError,
 } from "../core/errors.ts";
 import { instanceOptions } from "../core/instance-options.ts";
-import { createKernel, tenantScope } from "../server/create.ts";
+import { createServerKernel, tenantScope } from "../server/create.ts";
 import { problemFromError } from "../server/map-error.ts";
 import { notFoundProblem } from "../server/problem.ts";
 import { POLICY_VIOLATION, onRevoked } from "../server/stream.ts";
@@ -227,7 +227,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
 ): NestPermDock {
   const contexts = new WeakMap<globalThis.Request, NestRequest>();
   const bound = new WeakMap<IncomingMessage, globalThis.Request>();
-  const kernel = createKernel(
+  const kernel = createServerKernel(
     policy,
     compact({
       subject: (request: globalThis.Request) => {

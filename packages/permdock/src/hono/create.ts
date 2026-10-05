@@ -25,7 +25,7 @@ import type { WebBotAuthVerifier } from "../server/web-bot-auth.ts";
 import { compact } from "../core/compact.ts";
 import { PermDockRevokedError } from "../core/errors.ts";
 import { instanceOptions } from "../core/instance-options.ts";
-import { createKernel, tenantScope } from "../server/create.ts";
+import { createServerKernel, tenantScope } from "../server/create.ts";
 import { problemFromError } from "../server/map-error.ts";
 import {
   POLICY_VIOLATION,
@@ -198,7 +198,7 @@ export function createPermDock<
   options: HonoPermDockOptions<TUser>,
 ): HonoPermDock<V> {
   const contexts = new WeakMap<Request, Context>();
-  const kernel = createKernel(
+  const kernel = createServerKernel(
     policy,
     compact({
       subject: (request: Request) => {

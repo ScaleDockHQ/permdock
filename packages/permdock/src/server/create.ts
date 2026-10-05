@@ -107,7 +107,22 @@ export async function tenantScope<TContext>(
   }
 }
 
-export type Kernel<V extends PolicyVocabulary = PolicyVocabulary> = {
+export type ServerKernelOptions<
+  TUser,
+  V extends PolicyVocabulary = PolicyVocabulary,
+> = ServerPermDockOptions<TUser> & {
+  /** Wraps each instance the kernel builds, as `withOtel` does. */
+  readonly wrap?: (permdock: PermDock<V>) => PermDock<V>;
+  /** The `adapter` label on decision events, revocations and approvals. Defaults to `server`. */
+  readonly adapter?: string;
+};
+
+/**
+ * What an HTTP adapter builds on: `ServerPermDock` plus an explicit
+ * `TenantScope` on every call, so the adapter resolves the tenant from its
+ * own framework context.
+ */
+export type ServerKernel<V extends PolicyVocabulary = PolicyVocabulary> = {
   readonly permdock: (
     request: Request,
     scope?: TenantScope,
@@ -195,7 +210,7 @@ export function createPermDock<
   policy: Policy<TUser, TPrincipal, V>,
   options: ServerPermDockOptions<TUser>,
 ): ServerPermDock<V> {
-  return createKernel(policy, options);
+  return createServerKernel(policy, options);
 }
 
 function problemFor(
@@ -227,17 +242,14 @@ function problemFor(
  * once per `Request`; one instance is cached per `(Request, tenant)`, so a
  * global middleware and a later tenant-scoped `protect` never share a tenant.
  */
-export function createKernel<
+export function createServerKernel<
   TUser,
   TPrincipal extends Principal = Principal,
   V extends PolicyVocabulary = PolicyVocabulary,
 >(
   policy: Policy<TUser, TPrincipal, V>,
-  options: ServerPermDockOptions<TUser> & {
-    readonly wrap?: (permdock: PermDock<V>) => PermDock<V>;
-    readonly adapter?: string;
-  },
-): Kernel<V> {
+  options: ServerKernelOptions<TUser, V>,
+): ServerKernel<V> {
   const adapter = options.adapter ?? "server";
   const subjects = new WeakMap<Request, Promise<Resolved<TUser>>>();
   const instances = new WeakMap<Request, Map<string, Promise<Built<V>>>>();
