@@ -193,7 +193,8 @@ describe("rls generate with resource roles that set for", () => {
   });
 
   it("holds the role for nothing without a kind column", () => {
-    expect(select()).toContain(`coalesce(null::text, '')`);
+    expect(select()).toMatch(/\band false\b/u);
+    expect(select()).not.toContain("coalesce(null");
   });
 
   it("leaves a resource role without for unfiltered", () => {

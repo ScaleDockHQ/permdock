@@ -457,10 +457,23 @@ describe("compileConditionSql memberOf", () => {
         ownership: { kinds: { lead: ["staff"] }, assigns: [], counted: [] },
       },
     );
-    expect(out).toContain(
-      `coalesce('staff'::text, '') = any(array['staff']::text[])`,
-    );
+    expect(out).not.toContain("coalesce");
     expect(out).not.toContain(`m."via"`);
+    const other = sql(
+      { op: "memberOf", scope: "team", field: "team_id", roles: ["lead"] },
+      {
+        memberships: {
+          scopes: {
+            team: {
+              ...memberships.scopes.team,
+              via: { value: "contact" },
+            },
+          },
+        },
+        ownership: { kinds: { lead: ["staff"] }, assigns: [], counted: [] },
+      },
+    );
+    expect(other).toMatch(/\band false\b/u);
   });
 
   it("walks resource parents through their own tables", () => {

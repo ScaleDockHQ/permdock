@@ -262,20 +262,39 @@ export function scopeTypeOf(ctx: RlsSqlContext, name: string): string {
 }
 
 /**
+ * The membership kind of a row: SQL for a column (or a claim entry), or the
+ * value every row of the table has, `null` when the table has no kind.
+ */
+export type MemberVia = string | { readonly value: string | null };
+
+function viaAllowed(value: string | null, allowed: readonly string[]): boolean {
+  return allowed.includes(value ?? "");
+}
+
+/**
  * A role with `for` counts only on a membership of one of those kinds:
  * `case role when 'admin' then via = any(...) ... else true end`. A missing
- * kind (`viaExpr` null) holds none of them. `undefined` when no role has `for`.
+ * kind (`viaExpr` null) holds none of them. A constant kind folds into the
+ * roles it excludes, or no filter. `undefined` when nothing is filtered.
  */
 export function kindFilterSql(
   ctx: RlsSqlContext,
   roleExpr: string,
-  viaExpr: string,
+  viaExpr: MemberVia,
 ): string | undefined {
   const kinds = Object.entries(ctx.ownership?.kinds ?? {}).toSorted(
     ([a], [b]) => byCodePoint(a, b),
   );
   if (kinds.length === 0) {
     return undefined;
+  }
+  if (typeof viaExpr !== "string") {
+    const excluded = kinds
+      .filter(([, allowed]) => !viaAllowed(viaExpr.value, allowed))
+      .map(([role]) => role);
+    return excluded.length === 0
+      ? undefined
+      : `not (${roleExpr} = any(array[${excluded.map(quoteLiteral).join(", ")}]::text[]))`;
   }
   const arms = kinds.map(
     ([role, allowed]) =>
@@ -284,16 +303,20 @@ export function kindFilterSql(
   return `case ${roleExpr} ${arms.join(" ")} else true end`;
 }
 
-/** The kind check for one known role; `undefined` when it has no `for`. */
+/** The kind check for one known role; `undefined` when it has no `for` or a constant kind it allows. */
 export function roleKindSql(
   ctx: RlsSqlContext,
   role: string,
-  viaExpr: string,
+  viaExpr: MemberVia,
 ): string | undefined {
   const allowed = ctx.ownership?.kinds[role];
-  return allowed === undefined
-    ? undefined
-    : `coalesce(${viaExpr}, '') = any(array[${allowed.map(quoteLiteral).join(", ")}]::text[])`;
+  if (allowed === undefined) {
+    return undefined;
+  }
+  if (typeof viaExpr !== "string") {
+    return viaAllowed(viaExpr.value, allowed) ? undefined : "false";
+  }
+  return `coalesce(${viaExpr}, '') = any(array[${allowed.map(quoteLiteral).join(", ")}]::text[])`;
 }
 
 /** Roles with `for` held globally (no membership, so no kind) grant nothing. */
@@ -505,15 +528,15 @@ export function quoteTable(name: string): string {
   return quoteSqlTable(name, CLI);
 }
 
-/** The membership kind of a row `m` of `table`, as text: its column, its constant, or null. */
-export function memberViaSql(table: RlsMembershipTable): string {
+/** The membership kind of a row `m` of `table`: its column as text, or its constant (`null` without one). */
+export function memberVia(table: RlsMembershipTable): MemberVia {
   const via = table.via;
   if (via === undefined) {
-    return "null::text";
+    return { value: null };
   }
   return typeof via === "string"
     ? `m.${quoteIdent(via)}::text`
-    : `${quoteLiteral(via.value)}::text`;
+    : { value: via.value };
 }
 
 export function quoteLiteral(value: string): string {
@@ -912,7 +935,7 @@ function existsSql(
         ? `m.${quoteIdent(role.column)}`
         : role.lookup;
     parts.push(`${held} = any('{${roleList}}')`);
-    const via = memberViaSql(table);
+    const via = memberVia(table);
     const single = sole(roles);
     const kind =
       single === undefined

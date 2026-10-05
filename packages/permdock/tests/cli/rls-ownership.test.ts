@@ -118,7 +118,10 @@ describe("ownership in generated RLS", () => {
       [],
       { userRoles: false },
     );
-    expect(sql).toContain(`coalesce(null::text, '')`);
+    expect(sql).toContain(
+      `and not (m."role"::text = any(array['admin', 'contact', 'member', 'owner', 'viewer']::text[]))`,
+    );
+    expect(sql).not.toContain("coalesce(null");
   });
 
   it("emits the holder trigger only where a table is mapped", () => {

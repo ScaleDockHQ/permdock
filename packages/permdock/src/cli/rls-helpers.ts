@@ -15,7 +15,7 @@ import {
   memberForSources,
   memberIdsHelper,
   memberRoleOf,
-  memberViaSql,
+  memberVia,
   permittedIdsHelper,
   scopeSources,
   quoteIdent,
@@ -403,7 +403,7 @@ function tableBody(ctx: RlsSqlContext, scope: string, type: string): string {
   );
   const [owner, ...rest] = filters;
   const role = memberRoleOf(table, "m", "  ");
-  const kind = kindFilterSql(ctx, role.sql, memberViaSql(table));
+  const kind = kindFilterSql(ctx, role.sql, memberVia(table));
   const lines = [
     `  select${role.lateral ? " distinct" : ""} ${memberColumn(column)}::${type}`,
     `  from ${membershipTable(table.table)} m${role.join}`,
