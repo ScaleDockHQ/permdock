@@ -10,6 +10,14 @@ export type {
 } from "./claims.ts";
 export type { ExchangeCapabilityOptions } from "./capability.ts";
 export { authorizeSql, supabaseRls } from "./rls.ts";
+export { postgrestSources, readSubjectRecord } from "./postgrest.ts";
+export type {
+  PostgrestSources,
+  PostgrestSourcesOptions,
+  SubjectRecord,
+  SupabaseRpcClient,
+  SupabaseRpcResult,
+} from "./postgrest.ts";
 export {
   AUTHZ_VERSION_TABLE,
   authzVersion,
