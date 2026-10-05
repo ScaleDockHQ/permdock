@@ -1,5 +1,5 @@
-import { existsSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 
 import type { SupabaseHookManifest } from "../supabase/manifest.ts";
 import type { DoctorFinding } from "./doctor-types.ts";
@@ -10,6 +10,7 @@ import { readMemberships } from "../supabase/subject.ts";
 import { MIGRATION_DIRS } from "./doctor-project.ts";
 import { sqlFiles } from "./files.ts";
 import { connectPg } from "./pg.ts";
+import { partPath } from "./sql-files.ts";
 
 const HELPER_NAME =
   /^(?:permdock_has|permitted_[a-z][a-z0-9_]*_ids|member_[a-z][a-z0-9_]*_ids(?:_for)?)$/u;
@@ -38,7 +39,11 @@ function helpersDefined(sql: string, schema: string): ReadonlySet<string> {
   return names;
 }
 
-/** SQL files that may hold the generated helpers: `rls.out` (else `rls.sql`) and the migration folders, not the hook itself. */
+/**
+ * SQL files that may hold the generated helpers: `rls.out` (else `rls.sql`;
+ * its `helpers` part when it has `{part}`), the SQL files next to the hook,
+ * and the migration folders, not the hook itself.
+ */
 function helperSources(
   cwd: string,
   config: PermDockConfig,
@@ -48,9 +53,20 @@ function helperSources(
   const files = new Set(
     sqlFiles(cwd, config.doctor?.migrations ?? MIGRATION_DIRS),
   );
-  const rlsOut = resolve(cwd, config.rls?.out ?? "rls.sql");
+  const rlsOut = resolve(
+    cwd,
+    partPath(config.rls?.out ?? "rls.sql", "helpers"),
+  );
   if (rlsOut.endsWith(".sql") && existsSync(rlsOut)) {
     files.add(rlsOut);
+  }
+  const beside = dirname(hook);
+  if (existsSync(beside)) {
+    for (const entry of readdirSync(beside, { withFileTypes: true })) {
+      if (entry.isFile() && entry.name.endsWith(".sql")) {
+        files.add(join(beside, entry.name));
+      }
+    }
   }
   files.delete(hook);
   return [...files];
@@ -173,7 +189,7 @@ export function pd039(input: {
       message: missingHelpersMessage(input.manifest, missing).slice(
         "PD039 ".length,
       ),
-      fix: "run permdock rls generate, or set rls.out to the migration that holds the helpers",
+      fix: "run permdock rls generate, or set rls.out to the file that holds the helpers (with {part} for --split output) or write them next to the hook",
     });
   }
   const fixture = input.config.doctor?.claims;
