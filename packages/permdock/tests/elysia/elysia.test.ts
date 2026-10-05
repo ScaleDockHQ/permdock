@@ -41,7 +41,7 @@ describe("permdock/elysia sockets", () => {
     expect(closes).toEqual([]);
     await revocations.revoke({ principal: "u1", kind: "session-revoked" });
     expect(closes).toEqual([
-      [1008, "https://permdock.dev/problems/unauthenticated"],
+      [1008, "https://permdock.com/problems/unauthenticated"],
     ]);
   });
 });

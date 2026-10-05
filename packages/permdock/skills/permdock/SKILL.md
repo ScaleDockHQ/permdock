@@ -4,13 +4,13 @@ description: Explains how PermDock decides and routes to the right PermDock skil
 license: MIT
 metadata:
   author: ScaleDockHQ
-  homepage: https://permdock.dev/docs/for-ai-agents
+  homepage: https://permdock.com/docs/for-ai-agents
   repository: https://github.com/ScaleDockHQ/permdock
 ---
 
 # PermDock
 
-PermDock is typed permissions for TypeScript apps, APIs, databases and AI agents. Permissions are defined once, decided in process, compiled to queries and RLS, and serialised to client snapshots ([for AI agents](https://permdock.dev/docs/for-ai-agents)). This skill holds the model every other PermDock skill assumes, and says which one to load.
+PermDock is typed permissions for TypeScript apps, APIs, databases and AI agents. Permissions are defined once, decided in process, compiled to queries and RLS, and serialised to client snapshots ([for AI agents](https://permdock.com/docs/for-ai-agents)). This skill holds the model every other PermDock skill assumes, and says which one to load.
 
 ## Inputs (find out before starting)
 
@@ -44,13 +44,13 @@ PermDock is typed permissions for TypeScript apps, APIs, databases and AI agents
 
    ✓ The skill for the task is loaded, and `permdock-wire` has run first if the app has no factory file.
 
-2. **Look identifiers up, never guess them.** Read the owning page through the docs MCP (`https://permdock.dev/mcp`, tools `search`, `list_pages` and `get_page`), or append `.md` to any `https://permdock.dev/docs/...` URL. Every public name follows the [naming convention](https://permdock.dev/docs/getting-started/naming).
+2. **Look identifiers up, never guess them.** Read the owning page through the docs MCP (`https://permdock.com/mcp`, tools `search`, `list_pages` and `get_page`), or append `.md` to any `https://permdock.com/docs/...` URL. Every public name follows the [naming convention](https://permdock.com/docs/getting-started/naming).
    ✓ Each identifier written into the app appears on a docs page or in `node_modules/permdock`.
-3. **Read a decision.** `decide()` returns `{ outcome, denials: [{ reason, ... }], alternatives }`. `reason` is one of the closed list on [decisions](https://permdock.dev/docs/concepts/decisions); `alternatives` are permissions on the same resource the subject does hold. HTTP adapters answer RFC 9457 Problem Details ([errors](https://permdock.dev/docs/concepts/errors)); for the format, defer to the `problem-details` spec skill (`npx skills add ScaleDockHQ/scaledock-skills --skill problem-details`).
+3. **Read a decision.** `decide()` returns `{ outcome, denials: [{ reason, ... }], alternatives }`. `reason` is one of the closed list on [decisions](https://permdock.com/docs/concepts/decisions); `alternatives` are permissions on the same resource the subject does hold. HTTP adapters answer RFC 9457 Problem Details ([errors](https://permdock.com/docs/concepts/errors)); for the format, defer to the `problem-details` spec skill (`npx skills add ScaleDockHQ/scaledock-skills --skill problem-details`).
    ✓ Each denial the user asked about is named by its reason.
-4. **Explain an unexpected denial.** Run `permdock.explain(permission, data)` in a test or a script. `trace.denies[0]` is the deny that won (give denies a `name` so it reads as a rule), `trace.allows` the allows it overrode, `trace.skipped` the grants passed over and why ([explain](https://permdock.dev/docs/concepts/decisions#explain)). The trace never reaches the decision log. To preview a plan before acting, `simulate([[permission, data], ...])` returns every decision.
+4. **Explain an unexpected denial.** Run `permdock.explain(permission, data)` in a test or a script. `trace.denies[0]` is the deny that won (give denies a `name` so it reads as a rule), `trace.allows` the allows it overrode, `trace.skipped` the grants passed over and why ([explain](https://permdock.com/docs/concepts/decisions#explain)). The trace never reaches the decision log. To preview a plan before acting, `simulate([[permission, data], ...])` returns every decision.
    ✓ The cause is a named grant, condition or missing input, not a guess.
-5. **Check the project.** Run `pnpm exec permdock doctor` (`--json` for machine output). Each finding has a stable `PD0xx` code and a one-line fix ([doctor](https://permdock.dev/docs/cli/doctor)); the topic skills name the codes for their area.
+5. **Check the project.** Run `pnpm exec permdock doctor` (`--json` for machine output). Each finding has a stable `PD0xx` code and a one-line fix ([doctor](https://permdock.com/docs/cli/doctor)); the topic skills name the codes for their area.
    ✓ `permdock doctor` reports no error.
 
 ## Verify before done
@@ -63,4 +63,4 @@ PermDock is typed permissions for TypeScript apps, APIs, databases and AI agents
 ## Reference index
 
 - Skills: `permdock-wire`, `permdock-audit`, `permdock-agents`, `permdock-approvals`, `permdock-tenancy`, `permdock-data`, `permdock-credentials`, all from `npx skills add ScaleDockHQ/PermDock --skill <name>`.
-- Docs: [for AI agents](https://permdock.dev/docs/for-ai-agents), [naming](https://permdock.dev/docs/getting-started/naming), [policies](https://permdock.dev/docs/concepts/policies), [decisions](https://permdock.dev/docs/concepts/decisions), [threat model](https://permdock.dev/docs/security/threat-model), [doctor](https://permdock.dev/docs/cli/doctor), `https://permdock.dev/llms.txt`.
+- Docs: [for AI agents](https://permdock.com/docs/for-ai-agents), [naming](https://permdock.com/docs/getting-started/naming), [policies](https://permdock.com/docs/concepts/policies), [decisions](https://permdock.com/docs/concepts/decisions), [threat model](https://permdock.com/docs/security/threat-model), [doctor](https://permdock.com/docs/cli/doctor), `https://permdock.com/llms.txt`.

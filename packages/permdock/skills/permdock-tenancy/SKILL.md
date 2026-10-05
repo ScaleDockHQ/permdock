@@ -4,13 +4,13 @@ description: Models tenants, memberships and role rules in PermDock. Use when de
 license: MIT
 metadata:
   author: ScaleDockHQ
-  homepage: https://permdock.dev/docs/concepts/scopes
+  homepage: https://permdock.com/docs/concepts/scopes
   repository: https://github.com/ScaleDockHQ/permdock
 ---
 
 # PermDock tenancy
 
-A policy declares its scopes in order (an organization, the customers inside it). A role is held at one scope, a membership names one instance of that scope, and a grant reaches a row only through that scope's key. Roles never cascade between scopes ([named scopes](https://permdock.dev/docs/concepts/scopes), [tenancy](https://permdock.dev/docs/concepts/tenancy)). Set up the policy and factory first with the `permdock-wire` skill (`npx skills add ScaleDockHQ/PermDock --skill permdock-wire`).
+A policy declares its scopes in order (an organization, the customers inside it). A role is held at one scope, a membership names one instance of that scope, and a grant reaches a row only through that scope's key. Roles never cascade between scopes ([named scopes](https://permdock.com/docs/concepts/scopes), [tenancy](https://permdock.com/docs/concepts/tenancy)). Set up the policy and factory first with the `permdock-wire` skill (`npx skills add ScaleDockHQ/PermDock --skill permdock-wire`).
 
 ## Inputs (find out, or ask before starting)
 
@@ -59,7 +59,7 @@ A policy declares its scopes in order (an organization, the customers inside it)
    ✓ PD026 is clean, and removing the last owner is denied with `last-holder`.
 5. **Custom roles, when tenant admins define roles.** Keep declared roles small and mark them in `defineRoles` (`editor: { on: 'organization', assignable: true }`). Pass a `RoleSource` as `customRoles`, build the editor from `useAssignablePermissions()`, and save through a server action that runs `validateCustomRole`. -> [references/ownership-and-custom-roles.md](references/ownership-and-custom-roles.md#custom-roles)
    ✓ PD023 is clean, and saving a role with a permission outside the ceiling is refused.
-6. **Test.** Add `describePolicy` rows for a member of another tenant, a contact reaching an organization row, and a role change that breaks `min` ([scenario testing](https://permdock.dev/docs/guides/scenario-testing)). Run `testMembershipSource` and `testRoleSource` from `permdock/testing` on custom sources. For list queries and RLS over scoped tables, follow the `permdock-data` skill.
+6. **Test.** Add `describePolicy` rows for a member of another tenant, a contact reaching an organization row, and a role change that breaks `min` ([scenario testing](https://permdock.com/docs/guides/scenario-testing)). Run `testMembershipSource` and `testRoleSource` from `permdock/testing` on custom sources. For list queries and RLS over scoped tables, follow the `permdock-data` skill.
    ✓ The tests pass.
 
 ## Verify before done
@@ -74,4 +74,4 @@ A policy declares its scopes in order (an organization, the customers inside it)
 ## Reference index
 
 - [references/ownership-and-custom-roles.md](references/ownership-and-custom-roles.md): role options, `decideRoleChange` input and denial reasons, the SQL objects RLS uses, and the custom-role shape, ceiling and editor.
-- Docs: [named scopes](https://permdock.dev/docs/concepts/scopes), [tenancy](https://permdock.dev/docs/concepts/tenancy), [ownership](https://permdock.dev/docs/concepts/ownership), [custom roles](https://permdock.dev/docs/concepts/custom-roles), [extension interfaces](https://permdock.dev/docs/concepts/extension-interfaces).
+- Docs: [named scopes](https://permdock.com/docs/concepts/scopes), [tenancy](https://permdock.com/docs/concepts/tenancy), [ownership](https://permdock.com/docs/concepts/ownership), [custom roles](https://permdock.com/docs/concepts/custom-roles), [extension interfaces](https://permdock.com/docs/concepts/extension-interfaces).

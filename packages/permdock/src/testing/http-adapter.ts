@@ -743,7 +743,7 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
         });
         expect(denied.status).toBe(403);
         expect(field(denied.body, "type")).toBe(
-          "https://permdock.dev/problems/denied",
+          "https://permdock.com/problems/denied",
         );
         expect(
           (await send("bob", { op: "project.delete", org: "acme", id: "p3" }))
@@ -766,7 +766,7 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
         });
         expect(asked.status).toBe(403);
         expect(field(asked.body, "type")).toBe(
-          "https://permdock.dev/problems/approval-required",
+          "https://permdock.com/problems/approval-required",
         );
         const token = field(asked.body, "token");
         expect(typeof token).toBe("string");
@@ -933,7 +933,7 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
           });
           const end = await untilEnd(stream);
           expect(end.problem).toMatchObject({
-            type: "https://permdock.dev/problems/unauthenticated",
+            type: "https://permdock.com/problems/unauthenticated",
             status: 401,
             detail: "session-revoked",
           });
@@ -964,7 +964,7 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
           });
           const end = await untilEnd(stream);
           expect(end.problem).toMatchObject({
-            type: "https://permdock.dev/problems/denied",
+            type: "https://permdock.com/problems/denied",
             status: 403,
           });
           expect(end.ended).toBe(true);
@@ -1013,7 +1013,7 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
           expect((await stream.next())?.event).toBe("message");
           const end = await untilEnd(stream);
           expect(end.problem).toMatchObject({
-            type: "https://permdock.dev/problems/unauthenticated",
+            type: "https://permdock.com/problems/unauthenticated",
             detail: "expired",
           });
           expect(end.ended).toBe(true);

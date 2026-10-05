@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://permdock.dev/schemas/supabase-manifest-v1.json",
+  "$id": "https://permdock.com/schemas/supabase-manifest-v1.json",
   "title": "PermDock Supabase hook manifest v1",
   "description": "What `permdock supabase inspect --json` prints and `--out` writes: the generated hook, the SQL helpers, the claims, the membership sources and the columns that decide them. Fields are only added within v1.",
   "type": "object",
@@ -20,7 +20,7 @@
   ],
   "properties": {
     "$schema": {
-      "const": "https://permdock.dev/schemas/supabase-manifest-v1.json"
+      "const": "https://permdock.com/schemas/supabase-manifest-v1.json"
     },
     "version": { "const": 1 },
     "hook": {

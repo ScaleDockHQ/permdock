@@ -1,6 +1,6 @@
 # PermDock
 
-Typed permissions for TypeScript apps, APIs, databases and AI agents: one definition, one decision object, checked in the UI, the API, SQL, Postgres RLS and agent tool approvals.
+Typed permissions for TypeScript apps, APIs, databases and AI agents: one definition and one decision object, checked in the UI, the API, SQL, Postgres RLS and agent tool approvals.
 
 [![npm](https://img.shields.io/npm/v/permdock?label=permdock)](https://www.npmjs.com/package/permdock)
 [![CI](https://img.shields.io/github/actions/workflow/status/ScaleDockHQ/PermDock/ci.yml?label=CI)](https://github.com/ScaleDockHQ/PermDock/actions)
@@ -10,51 +10,79 @@ Typed permissions for TypeScript apps, APIs, databases and AI agents: one defini
 ![pnpm 12](https://img.shields.io/badge/pnpm-12.8.1-f69220.svg)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](./CODE_OF_CONDUCT.md)
 
-[**Docs**](https://permdock.dev/docs) · [**npm package**](./packages/permdock/README.md) · [**Product brief**](./PRODUCT.md) · [**Design**](./DESIGN.md) · [**Roadmap**](./apps/docs/content/docs/roadmap.mdx) · [**Agent guide**](./AGENTS.md) · [**Decisions**](./docs/decisions/README.md) · [**Contributing**](./CONTRIBUTING.md) · [**Report issue**](https://github.com/ScaleDockHQ/PermDock/issues)
+[**Docs**](https://permdock.com/docs) · [**npm package**](./packages/permdock/README.md) · [**Changelog**](./CHANGELOG.md) · [**Product brief**](./PRODUCT.md) · [**Roadmap**](./apps/docs/content/docs/roadmap.mdx) · [**Agent guide**](./AGENTS.md) · [**Contributing**](./CONTRIBUTING.md) · [**Report issue**](https://github.com/ScaleDockHQ/PermDock/issues)
 
-> **Pre-release.** Nothing is published yet. The first release of `permdock` is `0.1.0`: one package with core, every adapter, the `permdock` CLI and `permdock/testing`.
+`permdock@0.1.0` is on npm: one package with core, every adapter, the `permdock` CLI and `permdock/testing`. Releases follow semver; the [roadmap](./apps/docs/content/docs/roadmap.mdx) says how versions are numbered.
 
----
+```bash
+pnpm add permdock
+```
+
+```ts
+import { allow, createPermDock, definePolicy, principal, role } from "permdock";
+
+const policy = definePolicy(
+  { permissions, roles },
+  {
+    roles: [
+      role(roles.member, [
+        allow(permissions.post.read),
+        allow(permissions.post.update, { where: { authorId: principal.id } }),
+        allow(permissions.post.delete, { approval: "human" }),
+      ]),
+    ],
+    principal: (user: User | null) =>
+      user && { id: user.id, roles: user.roles },
+  },
+);
+
+const permdock = await createPermDock(policy, user);
+permdock.decide(permissions.post.delete, post); // { outcome: 'approval-required', token, ... }
+```
+
+The [npm README](./packages/permdock/README.md) walks through every surface with code; the [docs](https://permdock.com/docs) are the full reference.
 
 ## Why PermDock
 
 Permission logic in a typical TypeScript app lives in `if (user.role === 'admin')` checks in components, `'post:update'` strings in middleware, a hand-written client copy of the server rules, RLS policies nobody diffs against the app, and AI agents that call tools with no way to say "ask first". PermDock replaces them with one typed definition and one `Decision`.
 
-- **Typed references, not strings.** `permissions.post.update` is a frozen object with a `key`, a `scope` and the resource's Standard Schema. Renames are safe and the definition is the catalog.
+- **Typed references.** `permissions.post.update` is a frozen object with a `key`, a `scope` and the resource's Standard Schema. A rename is a type error everywhere it is used, and the definition is the catalog.
 - **Policy as data.** Roles are arrays of `allow` / `deny` grants with a portable condition AST that evaluates in the browser, filters arrays, compiles to Drizzle, Prisma and Kysely `where`, and generates Postgres RLS.
-- **Three outcomes.** `granted`, `denied` or `approval-required`, with denial reasons, permitted alternatives and a replay-safe approval token.
+- **Three outcomes.** `granted`, `denied` or `approval-required`, with denial reasons, permitted alternatives and a replay-safe approval token. `explain()` names the grant or deny that decided it.
+- **Agents as actors.** A subject carries the user and the agent acting for them. Policy delegations cap what an agent may do, and approvals take a quorum, stages and escalation.
+- **Changes reviewed in CI.** `permdock diff` fails a pull request that takes access away, and `permdock rls verify` checks the database against `can()`.
+- **Adoption in steps.** An app keeps its permission keys, SQL helpers, tokens and custom roles while it moves over ([existing apps](./apps/docs/content/docs/getting-started/existing-apps.mdx)).
 - **Embedded.** Every decision runs in-process. PermDock Cloud is optional and never on the decision path.
-
-The user-facing overview with code for every surface is the [npm README](./packages/permdock/README.md); the full reference is the [docs](https://permdock.dev/docs).
 
 ## What ships
 
-| Surface             | Entries                                                                                                                           |
-| ------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| UI                  | `permdock/react`, `react-native`, `vue`, `svelte`, `solid`                                                                        |
-| Full-stack and HTTP | `permdock/next`, `server`, `hono`, `express`, `fastify`, `elysia`, `nest`, `node`, `trpc`, `orpc`, `terminal`                     |
-| Agents              | `permdock/mcp`, `ai-sdk`, `claude-agent`, `eve`, `openai`, `webmcp`, `a2a`                                                        |
-| Decision plane      | `permdock/authzen`, `approvals`, `cloud`, `scim`, `ssf`, `openapi`, `otel`, `pdp`                                                 |
-| Data                | `permdock/drizzle`, `prisma`, `kysely`, and `permdock rls generate / import / verify`                                             |
-| Auth providers      | `permdock/jwt`, `supabase`, `supabase/middleware`, `better-auth`, `clerk`, `convex`                                               |
-| Tooling             | the `permdock` CLI, `permdock/testing`, `permdock/next/plugin`, `permdock/unplugin`, the `permdock` and `permdock-*` agent skills |
+| Surface             | Entries                                                                                                             |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| UI                  | `permdock/react`, `react-native`, `vue`, `svelte`, `solid`                                                          |
+| Full-stack and HTTP | `permdock/next`, `server`, `hono`, `express`, `fastify`, `elysia`, `nest`, `node`, `trpc`, `orpc`, `terminal`       |
+| Agents              | `permdock/mcp`, `ai-sdk`, `claude-agent`, `eve`, `openai`, `webmcp`, `a2a`                                          |
+| Decision plane      | `permdock/authzen`, `approvals`, `cloud`, `scim`, `ssf`, `openapi`, `otel`, `pdp`                                   |
+| Data                | `permdock/drizzle`, `prisma`, `kysely`, and `permdock rls generate / import / verify / migrate`                     |
+| Auth providers      | `permdock/jwt`, `supabase`, `supabase/middleware`, `better-auth`, `clerk`, `convex`                                 |
+| CLI                 | `permdock collect`, `catalog`, `diff`, `usage`, `doctor`, `skills`, `openapi`, `rls`, `arazzo`, `cloud`, `supabase` |
+| Tooling             | `permdock/testing`, `permdock/next/plugin`, `permdock/unplugin`, the `permdock` and `permdock-*` agent skills       |
 
 Every entry has a page under [`apps/docs/content/docs/adapters`](./apps/docs/content/docs/adapters/index.mdx) and, where it has a runtime, an app under [`apps/examples`](./apps/examples).
 
 ## For AI agents
 
-- Consumers: `npx skills add ScaleDockHQ/PermDock` installs the `permdock` skill, `permdock-wire`, `permdock-audit` and the topic skills; Claude Code can add the marketplace in [`.claude-plugin/marketplace.json`](./.claude-plugin/marketplace.json) with `/plugin marketplace add ScaleDockHQ/permdock`.
+- Consumers: `npx skills add ScaleDockHQ/PermDock` installs the `permdock` skill, `permdock-wire`, `permdock-audit` and the topic skills. Claude Code can add the marketplace in [`.claude-plugin/marketplace.json`](./.claude-plugin/marketplace.json) with `/plugin marketplace add ScaleDockHQ/permdock`.
 - Maintainers: [`AGENTS.md`](./AGENTS.md) (imported by `CLAUDE.md`) is the entry point, and the topic rules in [`.agents/rules`](./.agents/rules) attach by path in Cursor and Claude Code.
-- Every docs page is served as Markdown, plus `llms.txt`, `llms-full.txt` and a public docs MCP at `/mcp`. Read [For AI agents](./apps/docs/content/docs/for-ai-agents.mdx).
+- Every docs page is served as Markdown, with `llms.txt`, `llms-full.txt` and a public docs MCP server at `https://permdock.com/mcp`. Read [For AI agents](./apps/docs/content/docs/for-ai-agents.mdx).
 
-## Quick Start
+## Develop locally
 
 ### Prerequisites
 
-- Node.js 24 or later (`.node-version` pins 24, which CI runs)
-- pnpm 12.8.1 exactly: `devEngines` fails any other version
-- Docker, only for `pnpm test:integration`
-- Bun on `PATH`, only for `pnpm test:runtimes`
+- Node.js 24 or later (`.node-version` pins 24, which CI runs).
+- pnpm 12.8.1 exactly: `devEngines` fails any other version.
+- Docker, only for `pnpm test:integration`.
+- Bun on `PATH`, only for `pnpm test:runtimes`.
 
 ### First run
 
@@ -82,7 +110,7 @@ No environment variables are needed for build, verify or test; `.env.example` li
 
 In a git worktree the branch is prefixed: `https://<branch>.permdock.localhost`. Without Portless, `pnpm dev:marketing` serves `http://localhost:3000` with docs on `:3001`.
 
-## Common Commands
+## Common commands
 
 | Command                                | What it does                                                                                                                                                |
 | -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -109,7 +137,7 @@ In a git worktree the branch is prefixed: `https://<branch>.permdock.localhost`.
 | `pnpm standards:fixtures`              | Refresh the upstream schemas and RFC vectors `tests/standards` checks against                                                                               |
 | `pnpm changeset`                       | Record a user-visible change                                                                                                                                |
 
-## Code Standards
+## Code standards
 
 - Fifteen invariants (fail-closed, deny overrides allow, no string keys, frozen JSON leaves, zero runtime dependencies beyond `@standard-schema/spec`, authentication upstream, the Cloud optional, and more) are listed in [`AGENTS.md`](./AGENTS.md) and spelled out in [`.agents/rules/invariants.mdc`](./.agents/rules/invariants.mdc). A PR that breaks one is wrong.
 - The naming convention is public API: every adapter exports `createPermDock`, every provider is `subjectFrom*`. See [`.agents/rules/naming.mdc`](./.agents/rules/naming.mdc) and the [naming page](./apps/docs/content/docs/getting-started/naming.mdx).
@@ -118,20 +146,20 @@ In a git worktree the branch is prefixed: `https://<branch>.permdock.localhost`.
 - Exact dependency pins from the pnpm catalog, `trustPolicy: no-downgrade`, and a one-day minimum release age.
 - Conventional commits, enforced by commitlint on `commit-msg`. Prose follows [`.agents/rules/writing.mdc`](./.agents/rules/writing.mdc).
 
-## CI And Release
+## CI and release
 
 - `ci.yml` runs on pushes to `main` and on pull requests. It calls `verify.yml`, a matrix of format, lint, Knip, typecheck (with the TypeScript 5.9 / 6 / 7 type matrix), unit tests, boundaries, `audit:high`, catalog, docs and OpenAPI drift, `permdock doctor` over the examples, bundle size and publish checks, affected-only on pull requests. Integration and runtimes run against the built `dist/`. There are no end-to-end or browser tests: unit, integration, runtime, type and bundle tests cover the package.
-- `release.yml` runs `verify` and Changesets on `main`. Pending changesets open a version pull request (`pnpm version-packages` also updates the root `CHANGELOG.md`); merging it publishes `permdock` to npm with trusted publishing (OIDC and provenance, no npm token) once the `NPM_PUBLISH` repository variable is `true`.
+- `release.yml` runs `verify` and Changesets on `main`. Pending changesets open a `chore: version packages` pull request (`pnpm version-packages` also updates the root `CHANGELOG.md`); merging it publishes `permdock` to npm with trusted publishing (OIDC and provenance, no npm token) once the `NPM_PUBLISH` repository variable is `true`.
 
 ## Deploy
 
-The marketing and docs apps deploy as two Vercel Services of one project, declared in `vercel.json`: marketing owns `/` and docs owns `/docs`, `/mcp` and the `llms` routes on the same origin. Only `main` deploys (`git.deploymentEnabled`); other branches, including `changeset-release/*`, do not. Each service builds only when `turbo query affected` reports it changed. Functions run in `fra1`, and Ask AI reaches the AI Gateway through Vercel OIDC, with no API key. Route ownership and the build commands are in [`.agents/rules/deployment.mdc`](./.agents/rules/deployment.mdc); the exceptions to the repo standard are in [`docs/decisions`](./docs/decisions/README.md).
+The marketing and docs apps deploy as two Vercel Services of one project, declared in `vercel.json`, at `https://permdock.com`. Marketing owns `/` and docs owns `/docs`, `/mcp` and the `llms` routes on the same origin. Only `main` deploys (`git.deploymentEnabled`); other branches, including `changeset-release/*`, do not. Each service builds only when `turbo query affected` reports it changed. Functions run in `fra1`, and Ask AI reaches the AI Gateway through Vercel OIDC, with no API key. Route ownership and the build commands are in [`.agents/rules/deployment.mdc`](./.agents/rules/deployment.mdc); the exceptions to the repo standard are in [`docs/decisions`](./docs/decisions/README.md).
 
 ## Contributing
 
 Read [`CONTRIBUTING.md`](./CONTRIBUTING.md). Public API changes start as an RFC issue. Every user-visible change has a changeset, and every adapter ships with a docs page, a skill reference, an example app and tests ([change checklist](./.agents/rules/change-checklist.mdc)). This project follows the [Contributor Covenant](./CODE_OF_CONDUCT.md).
 
-## Monorepo Map
+## Monorepo map
 
 ### Packages
 
@@ -145,22 +173,22 @@ Read [`CONTRIBUTING.md`](./CONTRIBUTING.md). Public API changes start as an RFC 
 
 ### Apps
 
-| Path                                 | Contents                                                                                                                                                                                                                                                                                                                                                                                   |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| [`apps/docs`](./apps/docs)           | Fumadocs on Next.js 16.3; content in `apps/docs/content/docs`; served at `/docs`                                                                                                                                                                                                                                                                                                           |
-| [`apps/marketing`](./apps/marketing) | Next.js 16.3 marketing site; served at `/`                                                                                                                                                                                                                                                                                                                                                 |
-| [`apps/examples`](./apps/examples)   | One app per adapter: `next`, `react-vite`, `expo`, `vue`, `svelte`, `solid`, `hono`, `express`, `fastify`, `elysia`, `nest`, `terminal`, `trpc`, `orpc`, `mcp-server`, `ai-sdk-agent`, `claude-agent`, `eve-agent`, `openai-agent`, `webmcp`, `a2a-agent`, `authzen-pdp`, `scim`, `supabase-rls`, `supabase-middleware`, `drizzle`, `prisma`, `better-auth`, `clerk`, `convex`, `monorepo` |
+| Path                                 | Contents                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [`apps/docs`](./apps/docs)           | Fumadocs on Next.js 16.3; content in `apps/docs/content/docs`; served at `/docs`                                                                                                                                                                                                                                                                                                                                   |
+| [`apps/marketing`](./apps/marketing) | Next.js 16.3 marketing site; served at `/`                                                                                                                                                                                                                                                                                                                                                                         |
+| [`apps/examples`](./apps/examples)   | One app per adapter: `next`, `next-better-supabase`, `react-vite`, `expo`, `vue`, `svelte`, `solid`, `hono`, `express`, `fastify`, `elysia`, `nest`, `terminal`, `trpc`, `orpc`, `mcp-server`, `ai-sdk-agent`, `claude-agent`, `eve-agent`, `openai-agent`, `webmcp`, `a2a-agent`, `authzen-pdp`, `scim`, `supabase-rls`, `supabase-middleware`, `drizzle`, `prisma`, `better-auth`, `clerk`, `convex`, `monorepo` |
 
 ### Tests
 
-| Path                                       | Contents                                              |
-| ------------------------------------------ | ----------------------------------------------------- |
-| [`tests/integration`](./tests/integration) | Postgres via testcontainers: RLS parity and providers |
-| [`tests/runtimes`](./tests/runtimes)       | Bun, Deno and workerd                                 |
-| [`tests/types`](./tests/types)             | The public types under TypeScript 5.9, 6 and 7        |
-| [`tests/bundle`](./tests/bundle)           | Per-entry size baseline and client-entry assertions   |
+| Path                                       | Contents                                                                     |
+| ------------------------------------------ | ---------------------------------------------------------------------------- |
+| [`tests/integration`](./tests/integration) | Postgres via testcontainers: RLS parity, providers and the adoption fixtures |
+| [`tests/runtimes`](./tests/runtimes)       | Bun, Deno and workerd                                                        |
+| [`tests/types`](./tests/types)             | The public types under TypeScript 5.9, 6 and 7                               |
+| [`tests/bundle`](./tests/bundle)           | Per-entry size baseline and client-entry assertions                          |
 
-## Architecture At A Glance
+## Architecture at a glance
 
 ```mermaid
 flowchart LR
@@ -179,12 +207,12 @@ flowchart LR
 - The same portable conditions compile to SQL and RLS, and `permdock rls verify` checks the database against `can()`.
 - Stores, sinks and sources (`ApprovalStore`, `DecisionSink`, `SnapshotSource`, `MembershipSource`) are interfaces with in-process defaults; PermDock Cloud is one implementation.
 
-## Further Reading
+## Further reading
 
-- [Docs index](./apps/docs/content/docs/index.mdx), [installation](./apps/docs/content/docs/getting-started/installation.mdx) and [quick start](./apps/docs/content/docs/getting-started/quick-start.mdx)
-- [Concepts](./apps/docs/content/docs/concepts), [adapters](./apps/docs/content/docs/adapters), [CLI](./apps/docs/content/docs/cli), [standards](./apps/docs/content/docs/standards) and [security](./apps/docs/content/docs/security)
-- [Threat model](./apps/docs/content/docs/security/threat-model.mdx) and [comparison](./apps/docs/content/docs/comparison.mdx)
-- [`PRODUCT.md`](./PRODUCT.md), the product brief, and the [roadmap](./apps/docs/content/docs/roadmap.mdx)
+- [Docs index](./apps/docs/content/docs/index.mdx), [installation](./apps/docs/content/docs/getting-started/installation.mdx), [quick start](./apps/docs/content/docs/getting-started/quick-start.mdx) and [existing apps](./apps/docs/content/docs/getting-started/existing-apps.mdx).
+- [Concepts](./apps/docs/content/docs/concepts), [adapters](./apps/docs/content/docs/adapters), [CLI](./apps/docs/content/docs/cli), [standards](./apps/docs/content/docs/standards) and [security](./apps/docs/content/docs/security).
+- [Threat model](./apps/docs/content/docs/security/threat-model.mdx) and [comparison](./apps/docs/content/docs/comparison.mdx).
+- [`PRODUCT.md`](./PRODUCT.md), [`DESIGN.md`](./DESIGN.md), the [roadmap](./apps/docs/content/docs/roadmap.mdx) and the [decision records](./docs/decisions/README.md).
 
 ## Security
 

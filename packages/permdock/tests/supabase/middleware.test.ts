@@ -137,7 +137,7 @@ describe("permdock/supabase/middleware", () => {
     );
     // SAFETY: Problem Details JSON produced by the middleware under test.
     const body = (await response.json()) as { readonly type: string };
-    expect(body.type).toBe("https://permdock.dev/problems/denied");
+    expect(body.type).toBe("https://permdock.com/problems/denied");
   });
 
   it("lets a granted protect through and contributes the same instance", async () => {
@@ -264,7 +264,7 @@ describe("permdock/supabase/middleware", () => {
       readonly type: string;
       readonly token?: string;
     };
-    expect(body.type).toBe("https://permdock.dev/problems/approval-required");
+    expect(body.type).toBe("https://permdock.com/problems/approval-required");
     expect(typeof body.token).toBe("string");
     await resolveApproval(store, body.token!, {
       status: "approved",
@@ -338,7 +338,7 @@ describe("permdock/supabase/middleware", () => {
     expect(response.status).toBe(403);
     // SAFETY: Problem Details JSON produced by the middleware under test.
     const body = (await response.json()) as { readonly type: string };
-    expect(body.type).toBe("https://permdock.dev/problems/invalid-signature");
+    expect(body.type).toBe("https://permdock.com/problems/invalid-signature");
   });
 
   it("requires an upstream jwtClaims contribution at the type level", () => {

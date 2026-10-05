@@ -66,7 +66,7 @@ Warnings never change the exit code unless `--strict` is passed.
 
 ## Output
 
-Every command prints a human-readable report by default and supports `--json` for machine consumption. JSON reports carry a `$schema` field pointing at the report schema included in the package so agents can validate them. A command that fails under `--json` prints RFC 9457 Problem Details on stdout instead of a message on stderr: `type` is `https://permdock.dev/problems/cli-usage` or `https://permdock.dev/problems/cli-unavailable`, with `title`, `detail`, `command` and `exitCode`. Paths in reports are relative to `--cwd`. `--help` (or `permdock help`) prints the command list; `permdock <command> --help` (or `permdock help <command>`) prints that command's flags, their values and defaults.
+Every command prints a human-readable report by default and supports `--json` for machine consumption. JSON reports carry a `$schema` field pointing at the report schema included in the package so agents can validate them. A command that fails under `--json` prints RFC 9457 Problem Details on stdout instead of a message on stderr: `type` is `https://permdock.com/problems/cli-usage` or `https://permdock.com/problems/cli-unavailable`, with `title`, `detail`, `command` and `exitCode`. Paths in reports are relative to `--cwd`. `--help` (or `permdock help`) prints the command list; `permdock <command> --help` (or `permdock help <command>`) prints that command's flags, their values and defaults.
 
 When `--check` finds drift (`collect`, `openapi`, `rls generate`, `supabase hook generate`), it prints each stale file's name followed by a unified diff from the file on disk to what the command would write, cut to the first 40 lines, so the CI log shows what changed without a local run.
 

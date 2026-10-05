@@ -6,7 +6,7 @@
   "remotes": [
     {
       "type": "streamable-http",
-      "url": "https://permdock.dev/mcp"
+      "url": "https://permdock.com/mcp"
     }
   ]
 }

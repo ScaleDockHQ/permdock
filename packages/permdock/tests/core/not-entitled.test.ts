@@ -63,7 +63,7 @@ describe("not-entitled", () => {
       readonly type: string;
       readonly plans: readonly string[];
     };
-    expect(body.type).toBe("https://permdock.dev/problems/not-entitled");
+    expect(body.type).toBe("https://permdock.com/problems/not-entitled");
     expect(body.plans).toEqual(["pro"]);
     expect(response.headers.get("WWW-Authenticate")).toBeNull();
   });

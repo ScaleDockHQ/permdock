@@ -10,8 +10,8 @@ export const PROFILE_NAMES = {
 
 /** PermDock's published `supportedParametersSchema` per profile, stable across pins. */
 export const PROFILE_PARAMETERS = {
-  fapi2: "https://permdock.dev/schemas/security-profiles/fapi2.json",
+  fapi2: "https://permdock.com/schemas/security-profiles/fapi2.json",
 } as const;
 
 export const GNAP_RESERVED =
-  "scheme.type 'gnap' is reserved and emits nothing. See https://permdock.dev/docs/standards/watch-list#gnap";
+  "scheme.type 'gnap' is reserved and emits nothing. See https://permdock.com/docs/standards/watch-list#gnap";

@@ -181,7 +181,7 @@ describe("MCP Registry server.json", () => {
     expect(String(server["description"]).length).toBeLessThanOrEqual(100);
     expect(server["version"]).toMatch(/^\d+\.\d+\.\d+/u);
     expect(server["remotes"]).toEqual([
-      { type: "streamable-http", url: "https://permdock.dev/mcp" },
+      { type: "streamable-http", url: "https://permdock.com/mcp" },
     ]);
   });
 });

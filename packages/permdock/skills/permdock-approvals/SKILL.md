@@ -4,13 +4,13 @@ description: Requires human approval on PermDock grants and resumes the approved
 license: MIT
 metadata:
   author: ScaleDockHQ
-  homepage: https://permdock.dev/docs/security/approvals
+  homepage: https://permdock.com/docs/security/approvals
   repository: https://github.com/ScaleDockHQ/permdock
 ---
 
 # PermDock approvals
 
-`approval-required` is the third outcome: the subject may do it, but a person other than the requester confirms each call. An approval never grants something the subject could not do, and a `deny` still wins ([approval security](https://permdock.dev/docs/security/approvals)). Set up the policy and factory first with the `permdock-wire` skill (`npx skills add ScaleDockHQ/PermDock --skill permdock-wire`).
+`approval-required` is the third outcome: the subject may do it, but a person other than the requester confirms each call. An approval never grants something the subject could not do, and a `deny` still wins ([approval security](https://permdock.com/docs/security/approvals)). Set up the policy and factory first with the `permdock-wire` skill (`npx skills add ScaleDockHQ/PermDock --skill permdock-wire`).
 
 ## Inputs (find out, or ask before starting)
 
@@ -61,7 +61,7 @@ metadata:
    ✓ `testApprovalPolicySource` from `permdock/testing` passes on the source.
 6. **Surface and resume.** Map the outcome to each runtime's approval hook and resume with the token: the `PermDock-Approval` header over HTTP, the runtime's own resume for agents. -> [references/stores-and-resume.md](references/stores-and-resume.md#surfaces)
    ✓ The approved call runs once; a second resume is denied with `approval-consumed`.
-7. **Test.** Add a scenario test per approval grant: the ask, an approval by an eligible user, a refused self-approval, and the single resume ([scenario testing](https://permdock.dev/docs/guides/scenario-testing)). Run `testApprovalStore` on a custom store.
+7. **Test.** Add a scenario test per approval grant: the ask, an approval by an eligible user, a refused self-approval, and the single resume ([scenario testing](https://permdock.com/docs/guides/scenario-testing)). Run `testApprovalStore` on a custom store.
    ✓ The tests pass.
 
 ## Verify before done
@@ -77,4 +77,4 @@ metadata:
 ## Reference index
 
 - [references/stores-and-resume.md](references/stores-and-resume.md): `approvalsHandler` routes, custom stores, relation approvers, approval policies as data, the token, resume details and denial causes, the runtime surfaces table, delivery to chat and email.
-- Docs: [approval security](https://permdock.dev/docs/security/approvals), [approvals adapter](https://permdock.dev/docs/adapters/approvals), [wire formats](https://permdock.dev/docs/concepts/wire-formats).
+- Docs: [approval security](https://permdock.com/docs/security/approvals), [approvals adapter](https://permdock.com/docs/adapters/approvals), [wire formats](https://permdock.com/docs/concepts/wire-formats).

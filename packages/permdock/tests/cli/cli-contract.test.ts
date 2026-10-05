@@ -48,7 +48,7 @@ describe("Problem Details under --json", () => {
     expect(result.code).toBe(2);
     expect(result.stderr).toBe("");
     expect(JSON.parse(result.stdout)).toEqual({
-      type: "https://permdock.dev/problems/cli-usage",
+      type: "https://permdock.com/problems/cli-usage",
       title: "Usage or configuration error",
       detail: expect.stringContaining("unknown command 'nope'"),
       exitCode: 2,
@@ -68,7 +68,7 @@ describe("Problem Details under --json", () => {
     ]);
     expect(result.code).toBe(1);
     expect(JSON.parse(result.stdout)).toEqual({
-      type: "https://permdock.dev/problems/cli-unavailable",
+      type: "https://permdock.com/problems/cli-unavailable",
       title: "A database or service the command needs did not answer",
       detail: "PermDock CLI: rls verify --introspect could not connect",
       command: "rls",

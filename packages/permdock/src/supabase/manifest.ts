@@ -6,7 +6,7 @@
  * ever added within it. `schemas/supabase-manifest-v1.json` is its JSON Schema.
  */
 export type SupabaseHookManifest = {
-  readonly $schema: "https://permdock.dev/schemas/supabase-manifest-v1.json";
+  readonly $schema: "https://permdock.com/schemas/supabase-manifest-v1.json";
   readonly version: 1;
   readonly hook: {
     readonly schema: string;

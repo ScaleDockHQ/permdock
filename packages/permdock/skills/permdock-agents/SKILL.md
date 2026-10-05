@@ -4,13 +4,13 @@ description: Guards AI agent tool calls with PermDock subjects, actors and deleg
 license: MIT
 metadata:
   author: ScaleDockHQ
-  homepage: https://permdock.dev/docs/security/delegation
+  homepage: https://permdock.com/docs/security/delegation
   repository: https://github.com/ScaleDockHQ/permdock
 ---
 
 # PermDock agents
 
-An agent call has a principal (the user whose grants are evaluated), an actor (the agent making the call) and a delegation (what the user handed over). The decision is the principal's grants intersected with the delegation ([delegation](https://permdock.dev/docs/security/delegation)). Set up `permissions.ts`, `policy.ts` and the factory first with the `permdock-wire` skill (`npx skills add ScaleDockHQ/PermDock --skill permdock-wire`).
+An agent call has a principal (the user whose grants are evaluated), an actor (the agent making the call) and a delegation (what the user handed over). The decision is the principal's grants intersected with the delegation ([delegation](https://permdock.com/docs/security/delegation)). Set up `permissions.ts`, `policy.ts` and the factory first with the `permdock-wire` skill (`npx skills add ScaleDockHQ/PermDock --skill permdock-wire`).
 
 ## Inputs (find out, or ask before starting)
 
@@ -32,7 +32,7 @@ An agent call has a principal (the user whose grants are evaluated), an actor (t
 
 ## Workflow
 
-1. **Name the three parts per surface.** Write down the principal source, the actor source and the delegation source for each runtime from the Inputs. The adapter table on [delegation](https://permdock.dev/docs/security/delegation#how-adapters-fill-actor-and-delegation) shows what each adapter fills itself (MCP and A2A read token scopes; in-process runtimes take a `delegation` option).
+1. **Name the three parts per surface.** Write down the principal source, the actor source and the delegation source for each runtime from the Inputs. The adapter table on [delegation](https://permdock.com/docs/security/delegation#how-adapters-fill-actor-and-delegation) shows what each adapter fills itself (MCP and A2A read token scopes; in-process runtimes take a `delegation` option).
    ✓ Every surface has all three, and none reads from model-controlled input.
 2. **Map the tools.** Use the runtime's `createPermDock` with `subject`, `actor` and a `tools` map, and pass the returned hook to the runtime. -> [references/runtimes.md](references/runtimes.md)
    ✓ Every tool the agent can call has a `permission`, and every instance permission has a `data` loader that parses its arguments.
@@ -59,7 +59,7 @@ An agent call has a principal (the user whose grants are evaluated), an actor (t
    ✓ A destructive tool returns the runtime's approval outcome instead of running.
 5. **Wire the agent-facing surfaces.** A2A: serve `agentCard()` publicly, `extendedAgentCard(auth)` behind auth, and `protectSkill` on the task endpoint. WebMCP: `registerTools` from a snapshot, with the server re-checking. Web Bot Auth: `webBotAuth: (request) => verifyWebBotAuth(request, { verify: true, keys })` on the HTTP adapter. -> [references/runtimes.md](references/runtimes.md)
    ✓ Each surface passes the Verify list of its spec skill.
-6. **Test.** Add scenario tests with `permdock/testing` for one delegated grant, one `not-delegated` denial and one approval per destructive tool ([scenario testing](https://permdock.dev/docs/guides/scenario-testing)). Then review with the `permdock-audit` skill, which reports ASI02 and ASI03 per adapter.
+6. **Test.** Add scenario tests with `permdock/testing` for one delegated grant, one `not-delegated` denial and one approval per destructive tool ([scenario testing](https://permdock.com/docs/guides/scenario-testing)). Then review with the `permdock-audit` skill, which reports ASI02 and ASI03 per adapter.
    ✓ The tests pass and the audit has no blocker.
 
 ## Verify before done
@@ -74,4 +74,4 @@ An agent call has a principal (the user whose grants are evaluated), an actor (t
 ## Reference index
 
 - [references/runtimes.md](references/runtimes.md): factory shapes and outcome mapping for AI SDK, Claude Agent SDK, Eve, OpenAI Agents SDK, MCP, A2A, WebMCP, Web Bot Auth and `permdock/terminal`.
-- Docs: [delegation](https://permdock.dev/docs/security/delegation), [subject](https://permdock.dev/docs/concepts/subject), [OWASP Agentic mapping](https://permdock.dev/docs/security/owasp-agentic), adapter pages under `https://permdock.dev/docs/adapters/<name>`.
+- Docs: [delegation](https://permdock.com/docs/security/delegation), [subject](https://permdock.com/docs/concepts/subject), [OWASP Agentic mapping](https://permdock.com/docs/security/owasp-agentic), adapter pages under `https://permdock.com/docs/adapters/<name>`.

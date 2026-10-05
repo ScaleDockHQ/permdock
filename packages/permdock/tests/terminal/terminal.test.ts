@@ -73,7 +73,7 @@ describe("permdock/terminal", () => {
     const parsed: unknown = JSON.parse(body);
     expect(parsed).toEqual(
       expect.objectContaining({
-        type: "https://permdock.dev/problems/denied",
+        type: "https://permdock.com/problems/denied",
         title: "Permission denied",
         status: 403,
         permission: "post.publish",
@@ -189,7 +189,7 @@ describe("permdock/terminal", () => {
     const parsed: unknown = JSON.parse(lines.join(""));
     expect(parsed).toEqual(
       expect.objectContaining({
-        type: "https://permdock.dev/problems/approval-required",
+        type: "https://permdock.com/problems/approval-required",
         approval: {
           at: "https://console.acme.dev/approvals",
           hint: "Ask a release manager.",

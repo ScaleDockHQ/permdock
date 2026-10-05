@@ -3,14 +3,14 @@ title: Installation
 description: Install the permdock package, pick a Standard Schema validator, and learn which subpath exports exist.
 ---
 
-PermDock is pre-release; the first published version will be `0.1.0`. See the [roadmap](/docs/roadmap) for what is planned.
+The current release is `permdock@0.1.0`. See the [roadmap](/docs/roadmap) for what is planned and how versions are numbered.
 
 ## Packages
 
-| Package            | Purpose                                                                                                                                                                                                | Required   |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- |
-| `permdock`         | Core plus every adapter as a subpath export (`permdock/react`, `permdock/next`, `permdock/hono`, ...), and the `permdock` binary (`collect`, `catalog`, `usage`, `openapi`, `rls`, `doctor`, `skills`) | Yes        |
-| `permdock/testing` | Subpath of `permdock`: policy matrix tests, snapshot fixtures, RLS parity runner, conformance runners; Vitest is an optional peer                                                                      | Tests only |
+| Package            | Purpose                                                                                                                                                                                                                                       | Required   |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `permdock`         | Core plus every adapter as a subpath export (`permdock/react`, `permdock/next`, `permdock/hono`, ...), and the `permdock` binary (`collect`, `catalog`, `diff`, `usage`, `doctor`, `skills`, `openapi`, `rls`, `arazzo`, `cloud`, `supabase`) | Yes        |
+| `permdock/testing` | Subpath of `permdock`: policy matrix tests, snapshot fixtures, RLS parity runner, conformance runners; Vitest is an optional peer                                                                                                             | Tests only |
 
 ```bash
 pnpm add permdock

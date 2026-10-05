@@ -141,7 +141,7 @@ describe("permdock/orpc", () => {
     expect(denied.data).toEqual(
       expect.objectContaining({
         status: 403,
-        type: "https://permdock.dev/problems/denied",
+        type: "https://permdock.com/problems/denied",
       }),
     );
   });

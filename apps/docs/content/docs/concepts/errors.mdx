@@ -141,7 +141,7 @@ All three `toProblemDetails()` results share the RFC 9457 members plus PermDock 
 
 ```json
 {
-  "type": "https://permdock.dev/problems/denied",
+  "type": "https://permdock.com/problems/denied",
   "title": "Permission denied",
   "status": 403,
   "detail": "post.delete denied for subject u_1: member (condition). Alternatives: post.read, post.update.",
@@ -154,7 +154,7 @@ All three `toProblemDetails()` results share the RFC 9457 members plus PermDock 
 }
 ```
 
-The approval variant adds `reason` and `token`; the validation variant replaces `denials` with `issues` and uses status 400. The base URI for `type` is the fixed identifier `https://permdock.dev/problems`. The HTTP status lives only in `toProblemDetails()`; the error classes carry no `status` property, so non-HTTP callers map on the class. Full JSON for each is on [wire formats](/docs/concepts/wire-formats); the standard itself is described under [Problem Details](/docs/standards/problem-details).
+The approval variant adds `reason` and `token`; the validation variant replaces `denials` with `issues` and uses status 400. The base URI for `type` is the fixed identifier `https://permdock.com/problems`. The HTTP status lives only in `toProblemDetails()`; the error classes carry no `status` property, so non-HTTP callers map on the class. Full JSON for each is on [wire formats](/docs/concepts/wire-formats); the standard itself is described under [Problem Details](/docs/standards/problem-details).
 
 ## Writing error text for models
 

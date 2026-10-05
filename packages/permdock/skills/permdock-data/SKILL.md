@@ -4,13 +4,13 @@ description: Enforces PermDock permissions in database queries and Postgres row-
 license: MIT
 metadata:
   author: ScaleDockHQ
-  homepage: https://permdock.dev/docs/adapters/rls
+  homepage: https://permdock.com/docs/adapters/rls
   repository: https://github.com/ScaleDockHQ/permdock
 ---
 
 # PermDock data
 
-The same portable conditions decide `can()` in memory, narrow list queries through `where()`, and compile to Postgres RLS. Keep them portable and prove the three agree ([conditions](https://permdock.dev/docs/concepts/conditions), [RLS](https://permdock.dev/docs/adapters/rls)). Set up the policy and factory first with the `permdock-wire` skill (`npx skills add ScaleDockHQ/PermDock --skill permdock-wire`); named scopes and memberships come from the `permdock-tenancy` skill.
+The same portable conditions decide `can()` in memory, narrow list queries through `where()`, and compile to Postgres RLS. Keep them portable and prove the three agree ([conditions](https://permdock.com/docs/concepts/conditions), [RLS](https://permdock.com/docs/adapters/rls)). Set up the policy and factory first with the `permdock-wire` skill (`npx skills add ScaleDockHQ/PermDock --skill permdock-wire`); named scopes and memberships come from the `permdock-tenancy` skill.
 
 ## Inputs (find out, or ask before starting)
 
@@ -38,7 +38,7 @@ The same portable conditions decide `can()` in memory, narrow list queries throu
    ✓ `permdock rls generate --check` passes in CI.
 4. **Verify against a real database.** Run `permdock rls verify --db $DATABASE_URL` with fixtures, `--tree` for graph grants, and `--introspect` against a deployed database.
    ✓ Every verify run exits `0`.
-5. **Prove parity in tests.** Add `ormParity(policy, scenarios, { run, id })` for each list endpoint and `rlsParity(policy, options)` for RLS tables, from `permdock/testing` ([testing adapter](https://permdock.dev/docs/adapters/testing)). Run `testRelationSource` on a custom `RelationSource`.
+5. **Prove parity in tests.** Add `ormParity(policy, scenarios, { run, id })` for each list endpoint and `rlsParity(policy, options)` for RLS tables, from `permdock/testing` ([testing adapter](https://permdock.com/docs/adapters/testing)). Run `testRelationSource` on a custom `RelationSource`.
    ✓ The query and the database return exactly the rows `filter()` keeps.
 
 ## Verify before done
@@ -54,4 +54,4 @@ The same portable conditions decide `can()` in memory, narrow list queries throu
 
 - [references/queries-and-rls.md](references/queries-and-rls.md): `toWhere` per ORM, `checkRow`, `withSubject`, Convex, `rls generate` / `import` / `verify` / `migrate` flags and config, field views, SQL as the authority.
 - [references/relationships.md](references/relationships.md): `parent`, relation kinds, `restricted`, `links`, `relation(..., { through })`, `RelationSource`, `loadRelations`, `whoCan`, the closure table and `--tree`.
-- Docs: [conditions](https://permdock.dev/docs/concepts/conditions), [relationships](https://permdock.dev/docs/concepts/relationships), [RLS adapter](https://permdock.dev/docs/adapters/rls), [`permdock rls`](https://permdock.dev/docs/cli/rls), [Postgres RLS](https://permdock.dev/docs/standards/postgres-rls).
+- Docs: [conditions](https://permdock.com/docs/concepts/conditions), [relationships](https://permdock.com/docs/concepts/relationships), [RLS adapter](https://permdock.com/docs/adapters/rls), [`permdock rls`](https://permdock.com/docs/cli/rls), [Postgres RLS](https://permdock.com/docs/standards/postgres-rls).

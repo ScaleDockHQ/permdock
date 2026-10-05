@@ -1,9 +1,9 @@
 {
-  "$schema": "https://permdock.dev/schemas/catalog-v1.json",
+  "$schema": "https://permdock.com/schemas/catalog-v1.json",
   "version": 1,
-  "generatedAt": "2026-10-03T18:25:46.196Z",
-  "generator": "permdock@0.1.0-next.2",
-  "fingerprint": "0pEn4VWNuWmIHBOQKIgcpTpNZVoCnryw3dowbkW6ziY",
+  "generatedAt": "2026-10-04T22:04:40.298Z",
+  "generator": "permdock@0.1.0",
+  "fingerprint": "E7G4R7NhectdtojbU3Zsh6WN8PJnXy5K7ZLDvAjp7gk",
   "resources": {
     "post": {
       "id": "id",

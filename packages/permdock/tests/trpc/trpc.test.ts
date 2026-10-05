@@ -185,7 +185,7 @@ describe("permdock/trpc", () => {
     expect(shape.data).toEqual(
       expect.objectContaining({
         status: 403,
-        type: "https://permdock.dev/problems/denied",
+        type: "https://permdock.com/problems/denied",
       }),
     );
   });

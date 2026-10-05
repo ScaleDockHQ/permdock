@@ -4,13 +4,13 @@ description: Resolves PermDock subjects from access tokens, API keys and share l
 license: MIT
 metadata:
   author: ScaleDockHQ
-  homepage: https://permdock.dev/docs/concepts/authentication
+  homepage: https://permdock.com/docs/concepts/authentication
   repository: https://github.com/ScaleDockHQ/permdock
 ---
 
 # PermDock credentials
 
-Authentication is upstream: core never verifies a token. A `subjectFrom*` resolver verifies the material and hands core a `Subject`, and anything it cannot verify becomes the anonymous subject, never a throw ([authentication](https://permdock.dev/docs/concepts/authentication)). Set up the policy and factory first with the `permdock-wire` skill (`npx skills add ScaleDockHQ/PermDock --skill permdock-wire`).
+Authentication is upstream: core never verifies a token. A `subjectFrom*` resolver verifies the material and hands core a `Subject`, and anything it cannot verify becomes the anonymous subject, never a throw ([authentication](https://permdock.com/docs/concepts/authentication)). Set up the policy and factory first with the `permdock-wire` skill (`npx skills add ScaleDockHQ/PermDock --skill permdock-wire`).
 
 ## Inputs (find out, or ask before starting)
 
@@ -38,7 +38,7 @@ Authentication is upstream: core never verifies a token. A `subjectFrom*` resolv
    ✓ A revoked or expired key is anonymous, and a user key never exceeds its owner's current rights.
 4. **Share links, when the product has them.** Declare the link's roles on the resource, mint with `signCapability` behind a guard of its own, and resolve with `subjectFromCapability` and the tenant's `linkPolicy`. With Supabase RLS, exchange the link with `exchangeCapability` and generate with `--capabilities`. -> [references/tokens-keys-links.md](references/tokens-keys-links.md#share-links)
    ✓ An expired, revoked or replayed (`once`) link resolves to the anonymous subject.
-5. **Test.** Add scenario tests for each credential kind: a valid one, a forged or expired one, and a key or link used past its permissions ([scenario testing](https://permdock.dev/docs/guides/scenario-testing)). Run `permdock doctor`.
+5. **Test.** Add scenario tests for each credential kind: a valid one, a forged or expired one, and a key or link used past its permissions ([scenario testing](https://permdock.com/docs/guides/scenario-testing)). Run `permdock doctor`.
    ✓ The tests pass and PD029 is clean.
 
 ## Verify before done
@@ -52,4 +52,4 @@ Authentication is upstream: core never verifies a token. A `subjectFrom*` resolv
 ## Reference index
 
 - [references/tokens-keys-links.md](references/tokens-keys-links.md): `subjectFromJwt` options, introspection, CI OIDC, `decideCredential`, key storage and resolution, tenant settings, `signCapability`, `subjectFromCapability`, `exchangeCapability`.
-- Docs: [authentication](https://permdock.dev/docs/concepts/authentication), [subject](https://permdock.dev/docs/concepts/subject), [JWT adapter](https://permdock.dev/docs/adapters/jwt), [API keys](https://permdock.dev/docs/concepts/credentials), [link capabilities](https://permdock.dev/docs/concepts/capabilities), [JOSE](https://permdock.dev/docs/standards/jose).
+- Docs: [authentication](https://permdock.com/docs/concepts/authentication), [subject](https://permdock.com/docs/concepts/subject), [JWT adapter](https://permdock.com/docs/adapters/jwt), [API keys](https://permdock.com/docs/concepts/credentials), [link capabilities](https://permdock.com/docs/concepts/capabilities), [JOSE](https://permdock.com/docs/standards/jose).

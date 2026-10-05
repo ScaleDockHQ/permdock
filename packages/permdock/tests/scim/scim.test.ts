@@ -700,7 +700,7 @@ describe("scimHandler", () => {
           claims: {
             sub: "relay",
             tenant: token === "jwt-ok" ? TENANT : "o_other",
-            iss: "https://cloud.permdock.dev",
+            iss: "https://cloud.permdock.com",
           },
           header: { alg: "Ed25519" },
         };

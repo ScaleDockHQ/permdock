@@ -1,6 +1,6 @@
 # Ownership and custom roles
 
-Owning pages: [ownership](https://permdock.dev/docs/concepts/ownership) and [custom roles](https://permdock.dev/docs/concepts/custom-roles).
+Owning pages: [ownership](https://permdock.com/docs/concepts/ownership) and [custom roles](https://permdock.com/docs/concepts/custom-roles).
 
 ## Role options
 

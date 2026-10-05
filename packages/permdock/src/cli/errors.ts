@@ -50,7 +50,7 @@ export function cliProblem(
   command: string | undefined,
 ): CliProblem {
   return {
-    type: `https://permdock.dev/problems/cli-${kind}`,
+    type: `https://permdock.com/problems/cli-${kind}`,
     title: TITLES[kind],
     detail: stripVTControlCharacters(message),
     ...(command === undefined ? {} : { command }),

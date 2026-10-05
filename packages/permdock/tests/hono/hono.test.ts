@@ -125,7 +125,7 @@ describe("permdock/hono streams and sockets", () => {
     expect(opened).toEqual(["open"]);
     await revocations.revoke({ principal: "u1", kind: "session-revoked" });
     expect(closes).toEqual([
-      [1008, "https://permdock.dev/problems/unauthenticated"],
+      [1008, "https://permdock.com/problems/unauthenticated"],
     ]);
   });
 });
@@ -212,6 +212,6 @@ describe("permdock/hono", () => {
     expect(response.status).toBe(403);
     // SAFETY: Problem Details JSON produced by the middleware under test.
     const body = (await response.json()) as { readonly type: string };
-    expect(body.type).toBe("https://permdock.dev/problems/invalid-signature");
+    expect(body.type).toBe("https://permdock.com/problems/invalid-signature");
   });
 });

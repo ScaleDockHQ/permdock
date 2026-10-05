@@ -67,7 +67,7 @@ export function patchOas33(
   schema: Record<string, unknown>,
 ): Record<string, unknown> {
   schema["$id"] =
-    `https://permdock.dev/schemas/openapi/oas-3.3/${DRAFT_PINS.oas}`;
+    `https://permdock.com/schemas/openapi/oas-3.3/${DRAFT_PINS.oas}`;
   child(schema, "properties", "openapi")["pattern"] =
     String.raw`^3\.3\.\d+(-.+)?$`;
   const defs = child(schema, "$defs");

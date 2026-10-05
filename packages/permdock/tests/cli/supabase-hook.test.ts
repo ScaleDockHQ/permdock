@@ -308,7 +308,7 @@ describe("permdock supabase hook generate", () => {
     const inspect = await run(["supabase", "inspect", "--json"], { cwd });
     expect(inspect.code).toBe(0);
     expect(JSON.parse(inspect.stdout)).toMatchObject({
-      $schema: "https://permdock.dev/schemas/supabase-manifest-v1.json",
+      $schema: "https://permdock.com/schemas/supabase-manifest-v1.json",
       version: 1,
       hook: {
         schema: "permdock",

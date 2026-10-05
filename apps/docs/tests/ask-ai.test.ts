@@ -92,7 +92,7 @@ describe("parseChatRequest", () => {
 });
 
 describe("guardAskAi", () => {
-  const request = new Request("https://permdock.dev/docs/api/chat", {
+  const request = new Request("https://permdock.com/docs/api/chat", {
     method: "POST",
   });
 

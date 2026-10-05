@@ -77,7 +77,7 @@ describe("rate limit responses", () => {
     );
     expect(response.headers.get("WWW-Authenticate")).toBeNull();
     expect(await response.json()).toMatchObject({
-      type: "https://permdock.dev/problems/rate-limited",
+      type: "https://permdock.com/problems/rate-limited",
       status: 429,
       denials: [{ role: "member", reason: "limit" }],
     });
@@ -95,7 +95,7 @@ describe("rate limit responses", () => {
     expect(refused.response.status).toBe(503);
     expect(refused.response.headers.get("Retry-After")).toBeNull();
     expect(await refused.response.json()).toMatchObject({
-      type: "https://permdock.dev/problems/limit-unavailable",
+      type: "https://permdock.com/problems/limit-unavailable",
       denials: [{ reason: "limit-unavailable" }],
     });
   });
@@ -188,7 +188,7 @@ describe("disclosure", () => {
     expect(bodies[2]).toEqual(bodies[1]);
     expect(bodies[1]?.status).toBe(404);
     expect(JSON.parse(bodies[1]?.body ?? "{}")).toMatchObject({
-      type: "https://permdock.dev/problems/not-found",
+      type: "https://permdock.com/problems/not-found",
     });
   });
 
@@ -259,7 +259,7 @@ describe("step-up challenges", () => {
       'Bearer error="insufficient_user_authentication", acr_values="mfa phr", max_age="300"',
     );
     expect(await refused.response.json()).toMatchObject({
-      type: "https://permdock.dev/problems/step-up-required",
+      type: "https://permdock.com/problems/step-up-required",
       acrValues: ["mfa", "phr"],
       maxAge: 300,
     });

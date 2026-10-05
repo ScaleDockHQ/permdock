@@ -260,7 +260,7 @@ async function signCard(
 
 function missingScope(permission: Permission): A2aTaskOutcome {
   const problem: ProblemDetails = {
-    type: "https://permdock.dev/problems/unauthenticated",
+    type: "https://permdock.com/problems/unauthenticated",
     title: "Insufficient scope",
     status: 401,
     detail: `insufficient_scope: ${permission.scope}`,
@@ -343,7 +343,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
           status: 403,
           state: "failed",
           problem: {
-            type: "https://permdock.dev/problems/denied",
+            type: "https://permdock.com/problems/denied",
             title: "Permission denied",
             status: 403,
             detail: "unknown skill",

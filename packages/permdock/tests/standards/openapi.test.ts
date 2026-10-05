@@ -309,7 +309,7 @@ describe("OpenAPI", () => {
         profileMetadata: {
           name: "fapi-20-security-profile",
           supportedParametersSchema:
-            "https://permdock.dev/schemas/security-profiles/fapi2.json",
+            "https://permdock.com/schemas/security-profiles/fapi2.json",
           servers: [{ name: "default", url: METADATA }],
         },
         "x-permdock-securityProfile": "fapi2",

@@ -14,7 +14,7 @@ import {
   deniedMessage,
 } from "../core/errors.ts";
 
-export const PROBLEM_BASE = "https://permdock.dev/problems";
+export const PROBLEM_BASE = "https://permdock.com/problems";
 
 function quoted(value: string): string {
   return `"${value.replaceAll(/["\\]/gu, "")}"`;
