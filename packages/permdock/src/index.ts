@@ -76,6 +76,7 @@ export type {
 export {
   claimsFirst,
   composeMemberships,
+  countHolders,
   isExternallyManaged,
 } from "./core/memberships.ts";
 export { fromStripeEntitlements } from "./core/stripe-entitlements.ts";
