@@ -69,7 +69,9 @@ import {
 } from "./rls-sql.ts";
 import {
   driftOf,
+  isSeedsDirectory,
   parseSplit,
+  seedsMigration,
   partPath,
   pgDeltaPath,
   type SqlFile,
@@ -260,7 +262,11 @@ export async function runRlsGenerate(input: {
   readonly split?: string;
   /** The hook's `supabase_auth_admin` grants go here (`-` prints them); needs the `hook` part. */
   readonly grantsOut?: string;
-  /** The `seeds` part goes here instead of `{part}` in `out` (`-` prints it), so it can be a versioned migration. */
+  /**
+   * The `seeds` part goes here instead of `{part}` in `out` (`-` prints it), so
+   * it can be a versioned migration. A directory (ending in `/`, or existing)
+   * gets a new `<version>_permdock_seeds.sql` only when the rows changed.
+   */
   readonly seedsOut?: string;
   /** Only the helpers, their seeds and the scaffold: no table policies, for a project whose policies are hand-written. */
   readonly helpersOnly?: boolean;
@@ -799,13 +805,24 @@ function outputFiles(plan: {
         grants.push(moved.grants);
         break;
       }
-      case "seeds":
-        files.push({
-          part,
-          rel: input.seedsOut ?? at(part),
-          text: sql.seeds,
-        });
+      case "seeds": {
+        const out = input.seedsOut;
+        if (out !== undefined && isSeedsDirectory(input.cwd, out)) {
+          const planned = seedsMigration(
+            input.cwd,
+            out,
+            SEEDS_MARKER,
+            sql.seeds,
+            input.io.now?.() ?? new Date(),
+          );
+          if (!planned.current || input.check) {
+            files.push({ part, rel: planned.rel, text: sql.seeds });
+          }
+          break;
+        }
+        files.push({ part, rel: out ?? at(part), text: sql.seeds });
         break;
+      }
       case "indexes":
         files.push({ part, rel: at(part), text: sql.indexes });
         break;

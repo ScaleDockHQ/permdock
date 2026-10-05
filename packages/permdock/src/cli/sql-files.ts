@@ -1,4 +1,11 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname, resolve } from "node:path";
 
 import { shortDiff } from "./text-diff.ts";
@@ -104,4 +111,59 @@ export function pgDeltaPath(
       return exhaustive;
     }
   }
+}
+
+/** Whether `--seeds-out` names a migrations directory: it ends with \`/\` or is an existing directory. */
+export function isSeedsDirectory(cwd: string, out: string): boolean {
+  if (out === STDOUT) {
+    return false;
+  }
+  if (out.endsWith("/")) {
+    return true;
+  }
+  const path = resolve(cwd, out);
+  return existsSync(path) && statSync(path).isDirectory();
+}
+
+/** `YYYYMMDDHHMMSS` in UTC, the Supabase migration version. */
+export function migrationVersion(now: Date): string {
+  return now
+    .toISOString()
+    .replaceAll(/[^0-9]/gu, "")
+    .slice(0, 14);
+}
+
+/**
+ * The seeds part in a migrations directory: the newest migration there that
+ * starts with \`marker\` when its text is \`text\` already, otherwise a new
+ * \`<version>_permdock_seeds.sql\`. \`current\` is false when a new one is due.
+ */
+export function seedsMigration(
+  cwd: string,
+  dir: string,
+  marker: string,
+  text: string,
+  now: Date,
+): { readonly rel: string; readonly current: boolean } {
+  const base = dir.endsWith("/") ? dir.slice(0, -1) : dir;
+  const path = resolve(cwd, base);
+  const latest = existsSync(path)
+    ? readdirSync(path)
+        .filter((name) => name.endsWith(".sql"))
+        .toSorted()
+        .toReversed()
+        .find((name) =>
+          readFileSync(resolve(path, name), "utf8").startsWith(marker),
+        )
+    : undefined;
+  if (
+    latest !== undefined &&
+    readFileSync(resolve(path, latest), "utf8") === text
+  ) {
+    return { rel: `${base}/${latest}`, current: true };
+  }
+  return {
+    rel: `${base}/${migrationVersion(now)}_permdock_seeds.sql`,
+    current: false,
+  };
 }
