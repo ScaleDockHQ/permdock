@@ -99,6 +99,28 @@ describe("ownership triggers in generated RLS", () => {
     ).toBeNull();
   });
 
+  it("moves a transfer-only role between members by demoting first or in one statement", async () => {
+    expect(
+      await attempt(`
+        update org_members set role = 'approver' where org_id = 'o1' and user_id = 'u1';
+        update org_members set role = 'primary' where org_id = 'o1' and user_id = 'u2';
+      `),
+    ).toBeNull();
+    expect(
+      await attempt(`
+        update org_members
+        set role = case user_id when 'u1' then 'approver' else 'primary' end
+        where org_id = 'o1' and user_id in ('u1', 'u2');
+      `),
+    ).toBeNull();
+    expect(
+      await attempt(`
+        update org_members set role = 'primary' where org_id = 'o1' and user_id = 'u2';
+        update org_members set role = 'approver' where org_id = 'o1' and user_id = 'u1';
+      `),
+    ).toBe("transfer-only");
+  });
+
   it("refuses a second transfer-only holder and a missing one", async () => {
     expect(
       await attempt("insert into org_members values ('o1', 'u4', 'primary')"),

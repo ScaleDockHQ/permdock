@@ -161,6 +161,22 @@ Use it to pick a layout or a landing page (the staff app, the customer portal, t
 
 `decideRoleChange` gives the user a reason before the write; the triggers catch the write that skipped it (a script, an admin console, a second code path).
 
+### Moving a transfer-only role
+
+The transfer-only trigger looks at each statement, so write a transfer in one of two shapes, both inside one transaction:
+
+- **One statement** that swaps both rows, so the holder count of the role never moves:
+
+  ```sql
+  update organization_users
+  set role_id = case user_id when $1 then $3 else $4 end -- $3: the old owner's new role, $4: owner
+  where organization_id = $5 and user_id in ($1, $2);     -- $1: current owner, $2: new owner
+  ```
+
+- **Demote first, then promote.** Demoting the only holder takes the count to zero, which is not a transfer; promoting the new holder brings it back to one. The `min` check waits for the commit, so the organization is never seen without an owner. Promoting first refuses the statement with hint `transfer-only`, because the count goes from one to two.
+
+supabase-js and PostgREST run each request in its own transaction, so a two-statement transfer from the client commits after the demotion and fails `min` with hint `last-holder`. Put the transfer in a database function and call it with `rpc()`; the function body runs in one transaction. `tests/integration/src/rls-ownership.test.ts` runs all three orders.
+
 ## Catalog, Cloud and doctor
 
 The [catalog](/docs/concepts/wire-formats) lists each role's `min`, `max`, `transferOnly`, `assigns`, `for`, `exclusiveWith` and `audience`, so PermDock Cloud applies the same rules in its assignment checks. `permdock doctor` PD026 warns on a scope whose roles set no `min`; set `min: 0` on one of them to record that none has to stay, as the customer scope above does ([doctor](/docs/cli/doctor)).
@@ -172,6 +188,7 @@ Ownership rules are the part of role management every B2B product writes by hand
 - **The graph, not the ceiling, when you draw one.** "You cannot hand out what you do not hold" is a good default and stays the default. It cannot express "admins link portal contacts" (admins do not accept quotes) or "only owners appoint owners" (admins may hold every permission an owner has). `assigns` states the intent directly, and ranking falls out of it for free.
 - **Membership kind is a security boundary.** Shopify collaborators, Slack guests, Figma and Linear external members, and Microsoft GDAP partners all stop external people from reaching admin by the kind of membership, not by the role name. Dropping the role when the kind does not match, at resolution and in the RLS helpers, means a mis-provisioned membership fails closed everywhere at once.
 - **Counts are checked at commit.** A transfer is two changes (promote one, demote the other); checking after each statement would refuse every transfer or require a special API. A deferred constraint trigger sees the final state, and an instance with no memberships left is being torn down, so deleting an organization still works. `transferOnly` cannot be deferred (transition tables are statement-level), which is why it refuses per statement and treats "through zero" as a transfer.
+- **No switch to leave the triggers out.** The triggers enforce what the role declares, as a backstop for every write path. An option that kept `min` or `transferOnly` in the application only would let a script or an admin console write what `decideRoleChange` refuses, with nothing in the policy to say so. An application whose transfer promotes before it demotes rewrites that one function as above; one that is not ready leaves `transferOnly` off the role until it is, and keeps `min`.
 - **The application supplies the holder count.** PermDock never reads another user's memberships at decide time: the store is the application's, and a count read inside `decide` would be a hidden network call. Failing closed on a missing count keeps a forgotten argument from becoming a silent pass; the trigger is the backstop.
 - **Ancestors come from a held membership or the application's store.** The tenant decides which assign authority applies, and a nested change names its tenant through `within`. Read from the request, a `within` naming the caller's own organization would let a lead in one organization hand out roles on another organization's team. Reading it from the subject's live membership closes that, and `{ trusted: true }` covers the one case a membership cannot: an organization admin acting on a scope they do not belong to, where only the application's store knows the parent. It matches `trusted` on `decide`: the caller marks the data it loaded itself.
 - **Audiences are metadata, not permissions.** A layout switch keyed on role names drifts every time a role is added. `meta.audience` names the surface once per role, and `audiences()` stays a read of held roles, so it can never grant anything.
