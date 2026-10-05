@@ -240,6 +240,50 @@ describe("CentraKit adoption shapes", () => {
     ).toBe(true);
   });
 
+  it("answers a permission whose grants are split by condition through the shims", async () => {
+    expect(generated).toContain("reports.view#1");
+    const reports = `select public.has_org_permission($1::uuid, 'organization.reports.view') as ok`;
+    expect(await answer(MEMBER, reports, [ORG_A])).toBe(true);
+    expect(await answer(MEMBER, reports, [ORG_B])).toBe(false);
+    expect(await answer(VIEWER, reports, [ORG_A])).toBe(false);
+    const orgs = await as(MEMBER, async (client) =>
+      (
+        await client.query<{ id: string }>(
+          `select * from public.org_ids_with_permission('organization.reports.view') as t(id)`,
+        )
+      ).rows.map((row) => row.id),
+    );
+    expect(orgs).toEqual([ORG_A]);
+  });
+
+  it("lets a caller without usage on the helper schema call a shim", async () => {
+    if (db === undefined) {
+      throw new Error("PermDock: Postgres was not started");
+    }
+    await db.admin.query(
+      "create role shim_caller nologin; grant shim_caller to tester; grant execute on function public.has_org_permission(uuid, text) to shim_caller",
+    );
+    const ok = await db.as(
+      {
+        role: "shim_caller",
+        settings: {
+          "request.jwt.claims": JSON.stringify({
+            sub: ADMIN,
+            role: "authenticated",
+          }),
+        },
+      },
+      async () =>
+        (
+          await db!.tester.query<{ ok: boolean }>(
+            `select public.has_org_permission($1::uuid, 'organization.customers.archive') as ok`,
+            [ORG_A],
+          )
+        ).rows[0]?.ok,
+    );
+    expect(ok).toBe(true);
+  });
+
   it("keeps a platform and an organization billing resource apart", async () => {
     expect(permissions.platform.billing.view).toMatchObject({
       key: "platform.billing.view",

@@ -78,6 +78,8 @@ export type CompiledGrants = {
     readonly table: string;
     readonly column: string;
   }[];
+  /** Grant keys whose grants carry a row condition or a validity window, which a key-only check cannot apply. */
+  readonly conditionedKeys: ReadonlySet<string>;
 };
 
 /** The SQL command `action` compiles to: `rls.actions` first, then the six default verbs. */
@@ -482,6 +484,16 @@ export function compileGrants(
   entries.push(
     ...levelEntries(policy, ctx, keys, tables, warnings, skipClosures),
   );
+  const conditionedKeys = new Set<string>();
+  for (const [entry, grantKey] of keys) {
+    if (
+      entry.using !== undefined ||
+      entry.check !== undefined ||
+      entry.item.grant.validity !== undefined
+    ) {
+      conditionedKeys.add(grantKey);
+    }
+  }
   const rows = new Map<string, RolePermission>();
   for (const item of items) {
     const holder =
@@ -634,6 +646,7 @@ export function compileGrants(
   return {
     branches: ensureSelectCoverage(branches, warnings),
     rolePermissions: withAliasRows(policy, [...rows.values()]),
+    conditionedKeys,
     rowColumns: [...rowColumns.values()],
   };
 }

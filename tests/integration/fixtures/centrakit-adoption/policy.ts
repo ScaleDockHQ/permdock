@@ -5,6 +5,7 @@ import {
   definePermissions,
   definePolicy,
   defineRoles,
+  principal,
   relation,
   resource,
   role,
@@ -16,7 +17,8 @@ import { z } from "zod";
  * `archive` verbs, a platform and an organization resource that share the
  * segment `billing`, legacy `organization.*` and `system.*` keys, platform
  * support tiers as global custom roles, and expenses signed off by the
- * expense's manager, then the report's approver.
+ * expense's manager, then the report's approver. A viewer reads only the
+ * reports it approves, which splits `reports.view` into two grant keys.
  */
 const Customer = z.object({ id: z.uuid(), organization_id: z.uuid() });
 const Billing = z.object({ id: z.uuid(), organization_id: z.uuid() });
@@ -131,9 +133,16 @@ export const policy = definePolicy(
         ],
         { on: "organization" },
       ),
-      role(roles.viewer, [allow(permissions.customers.view)], {
-        on: "organization",
-      }),
+      role(
+        roles.viewer,
+        [
+          allow(permissions.customers.view),
+          allow(permissions.reports.view, {
+            where: { approver_id: principal.id },
+          }),
+        ],
+        { on: "organization" },
+      ),
       role(roles.support, [allow(permissions.customers.view)]),
       role(roles["billing-ops"], [allow(permissions.platform.billing.view)]),
       role(roles["platform-admin"], [allow(permissions.customers.archive)]),
