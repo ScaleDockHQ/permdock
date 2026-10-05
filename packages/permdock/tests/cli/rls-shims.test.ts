@@ -4,7 +4,7 @@ import type { RlsSqlContext } from "../../src/cli/rls-sql.ts";
 import type { RlsMigrateConfig } from "../../src/cli/types.ts";
 
 import { compileGrants } from "../../src/cli/rls-compile.ts";
-import { shimsSql } from "../../src/cli/rls-shims.ts";
+import { shimGrants, shimsSql } from "../../src/cli/rls-shims.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import {
   allow,
@@ -107,10 +107,85 @@ const migrate: RlsMigrateConfig = {
   scopes: { organization: "tenant" },
 };
 
-describe("shimsSql", () => {
-  const sql = shimsSql(base, migrate, {}, { "customer.view": "customer.read" });
+const grants = new Map([
+  [
+    "tenant",
+    { "invoice.read": { allow: ["invoice.read#1"], deny: ["invoice.read#3"] } },
+  ],
+  ["global", { "invoice.read": { allow: ["invoice.read"], deny: [] } }],
+]);
 
-  it("wraps each helper under its legacy name with invoker rights and an empty search_path", () => {
+describe("shimGrants", () => {
+  it("keeps unconditional allows and every deny, per scope, without former keys", () => {
+    expect(
+      Object.fromEntries(
+        shimGrants(
+          [
+            {
+              role: "staff",
+              permission: "quote.read",
+              grantKey: "quote.read#1",
+              scope: "tenant",
+              effect: "allow",
+            },
+            {
+              role: "contact",
+              permission: "quote.read",
+              grantKey: "quote.read#2",
+              scope: "customer",
+              effect: "allow",
+            },
+            {
+              role: "guest",
+              permission: "quote.read",
+              grantKey: "quote.read#3",
+              scope: "tenant",
+              effect: "deny",
+            },
+            {
+              role: "admin",
+              permission: "quote.read",
+              grantKey: "quote.read#1",
+              scope: "tenant",
+              effect: "allow",
+            },
+            {
+              role: "staff",
+              permission: "quotes.view",
+              grantKey: "quotes.view#1",
+              scope: "tenant",
+              effect: "allow",
+            },
+            {
+              role: "owner",
+              permission: "quote.read",
+              grantKey: "quote.read#4",
+              scope: "tenant",
+              effect: "allow",
+            },
+          ],
+          new Set(["quote.read#2", "quote.read#3", "quote.read#4"]),
+          { "quotes.view": "quote.read" },
+        ),
+      ),
+    ).toEqual({
+      tenant: {
+        "quote.read": { allow: ["quote.read#1"], deny: ["quote.read#3"] },
+      },
+    });
+  });
+});
+
+describe("shimsSql", () => {
+  const sql = shimsSql(
+    base,
+    migrate,
+    {},
+    { "customer.view": "customer.read" },
+    grants,
+  );
+
+  it("wraps each helper under its legacy name as security definer with an empty search_path", () => {
     for (const name of [
       "org_ids",
       "has_org",
@@ -120,9 +195,9 @@ describe("shimsSql", () => {
     ]) {
       expect(sql).toContain(`create or replace function "public".${name}(`);
     }
-    expect(sql.match(/security invoker/gu)).toHaveLength(5);
+    expect(sql.match(/security definer/gu)).toHaveLength(5);
     expect(sql.match(/set search_path = ''/gu)).toHaveLength(5);
-    expect(sql).not.toContain("security definer");
+    expect(sql).not.toContain("security invoker");
     expect(sql).not.toContain("service_role");
     expect(sql).toContain(
       `revoke execute on function "public".is_admin(text) from public, anon;`,
@@ -135,33 +210,51 @@ describe("shimsSql", () => {
     );
   });
 
-  it("routes each form to its helper", () => {
-    expect(sql).toContain(`select * from "permdock".permitted_tenant_ids(`);
+  it("answers from the grant keys of the helper's scope, minus the denies", () => {
+    const tenant = `'{"invoice.read":{"allow":["invoice.read#1"],"deny":["invoice.read#3"]}}'::jsonb`;
+    expect(sql).toContain(
+      `from pg_catalog.jsonb_array_elements_text(coalesce(${tenant} -> (`,
+    );
+    expect(sql).toContain(`) -> 'allow', '[]'::jsonb)) g(grant_key)
+  cross join lateral "permdock".permitted_tenant_ids(g.grant_key) a(id)
+  except
+  select d.id`);
     expect(sql).toContain(
       `select coalesce(p_id in (select "permdock".member_tenant_ids()), false)`,
     );
-    expect(sql).toContain(`select "permdock".permdock_has(`);
     expect(sql).toContain(
-      `when p_scope in ('system') then "permdock".permdock_has(`,
+      `where "permdock".permdock_has(g.grant_key))\n    and not exists (`,
     );
     expect(sql).toContain(
-      `when p_scope = 'organization' then coalesce(p_id in (select ids::text from "permdock".permitted_tenant_ids(`,
+      `'{"invoice.read":{"allow":["invoice.read"],"deny":[]}}'::jsonb`,
+    );
+    expect(sql).toContain(`when p_scope in ('system') then exists (`);
+    expect(sql).toContain(
+      `when p_scope = 'organization' then coalesce(p_id in (select s.id::text from (`,
     );
     expect(sql).toContain("else false");
   });
 
-  it("uses p_key as is with no key map", () => {
+  it("uses p_key as is with no key map, and an empty map for an ungranted scope", () => {
     expect(
       shimsSql(
         base,
         { helpers: { is_admin: { form: "global" } } },
         { schema: "app" },
         {},
+        new Map(),
       ),
     ).toContain(`create or replace function "app".is_admin(p_key text)`);
-    expect(
-      shimsSql(base, { helpers: { is_admin: { form: "global" } } }, {}, {}),
-    ).toContain(`select "permdock".permdock_has(p_key)`);
+    const plain = shimsSql(
+      base,
+      { helpers: { is_admin: { form: "global" } } },
+      {},
+      {},
+      new Map(),
+    );
+    expect(plain).toContain(
+      `coalesce('{}'::jsonb -> (p_key) -> 'allow', '[]'::jsonb)`,
+    );
   });
 
   it("answers a scoped helper from the declared scope names alone", () => {
@@ -170,10 +263,11 @@ describe("shimsSql", () => {
       { helpers: { b: { form: "scoped" }, a: { form: "global" } } },
       {},
       {},
+      grants,
     );
     expect(scoped).not.toContain("when p_scope in (");
     expect(scoped).toContain(
-      `when p_scope = 'tenant' then coalesce(p_id in (select ids::text from "permdock".permitted_tenant_ids(p_key) as ids), false)`,
+      `when p_scope = 'tenant' then coalesce(p_id in (select s.id::text from (`,
     );
     expect(scoped.indexOf('"public".a(')).toBeLessThan(
       scoped.indexOf('"public".b('),
@@ -182,10 +276,22 @@ describe("shimsSql", () => {
 
   it("rejects an undeclared scope and an unsafe helper name", () => {
     expect(() =>
-      shimsSql(base, { helpers: { x: { form: "ids", scope: "org" } } }, {}, {}),
+      shimsSql(
+        base,
+        { helpers: { x: { form: "ids", scope: "org" } } },
+        {},
+        {},
+        grants,
+      ),
     ).toThrow("rls.migrate helper scope 'org' is not a declared scope");
     expect(() =>
-      shimsSql(base, { helpers: { "x; drop": { form: "global" } } }, {}, {}),
+      shimsSql(
+        base,
+        { helpers: { "x; drop": { form: "global" } } },
+        {},
+        {},
+        grants,
+      ),
     ).toThrow("unsafe rls.migrate helper name");
   });
 });

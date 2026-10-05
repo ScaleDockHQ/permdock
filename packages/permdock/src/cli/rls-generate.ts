@@ -47,7 +47,7 @@ import {
   rbacScaffold,
   resolveAuthorize,
 } from "./rls-rbac.ts";
-import { shimsSql } from "./rls-shims.ts";
+import { shimGrants, shimsSql } from "./rls-shims.ts";
 import {
   checkSuspension,
   graphHelper,
@@ -448,6 +448,11 @@ export async function runRlsGenerate(input: {
           rls.migrate,
           shimsConfig,
           Object.fromEntries(renamedKeys(policy.vocabulary.permissions)),
+          shimGrants(
+            compiled.rolePermissions,
+            compiled.conditionedKeys,
+            Object.fromEntries(renamedKeys(policy.vocabulary.permissions)),
+          ),
         );
   const preamble = [
     rbac?.head,
