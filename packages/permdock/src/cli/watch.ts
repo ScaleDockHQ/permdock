@@ -19,6 +19,15 @@ export function describeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+// The folder above a glob's first wildcard segment: `packages/*/src` watches `packages`.
+function watchRoot(cwd: string, entry: string): string {
+  const wildcard = entry.search(/[*?[{]/u);
+  return resolve(
+    cwd,
+    wildcard === -1 ? entry : dirname(`${entry.slice(0, wildcard)}x`),
+  );
+}
+
 function within(dirs: readonly string[], file: string): boolean {
   return dirs.some((dir) => {
     const path = relative(dir, file);
@@ -33,13 +42,20 @@ type CollectRun = {
   readonly sources: readonly string[];
 };
 
+export type CollectSettings = {
+  /** A `--config` path; the default is the first `permdock.config.*` in `cwd`. */
+  readonly configFile?: string;
+  readonly report?: (message: string | undefined) => void;
+};
+
 export async function collectOnce(
   cwd: string,
   options: PermDockPluginOptions | undefined,
   check: boolean,
   fresh: boolean,
+  configFile?: string,
 ): Promise<CollectRun> {
-  const config = await loadConfig(cwd, undefined, { fresh });
+  const config = await loadConfig(cwd, configFile, { fresh });
   const collect = { ...config.collect, ...options?.collect };
   const result = await runCollect({
     cwd,
@@ -49,11 +65,11 @@ export async function collectOnce(
     now: new Date(),
     fresh,
   });
-  const inputs = [config.permissions, config.policy]
+  const inputs = [configFile, config.permissions, config.policy]
     .filter((path) => path !== undefined)
     .map((path) => resolve(cwd, path));
   const sources = (collect.srcPath ?? defaultSrcPath()).map((entry) =>
-    resolve(cwd, entry),
+    watchRoot(cwd, entry),
   );
   const run = { written: result.written ?? [], inputs, sources };
   if (result.code === 0) {
@@ -72,18 +88,21 @@ export type CollectScheduler = {
   readonly changed: (file: string | undefined) => void;
   /** Watches the source folders, the config file and the configured modules. */
   readonly watch: () => void;
+  readonly close: () => void;
 };
 
 export function createCollectScheduler(
   cwd: string,
   options: PermDockPluginOptions | undefined,
+  settings?: CollectSettings,
 ): CollectScheduler {
+  const log = settings?.report ?? report;
   let loaded = false;
   let ignored: ReadonlySet<string> = new Set();
   let inputs: readonly string[] = [];
   let sources: readonly string[] = (
     options?.collect?.srcPath ?? defaultSrcPath()
-  ).map((entry) => resolve(cwd, entry));
+  ).map((entry) => watchRoot(cwd, entry));
   let running = false;
   let pending = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -92,7 +111,13 @@ export function createCollectScheduler(
   async function run(check: boolean): Promise<string | undefined> {
     const fresh = loaded;
     loaded = true;
-    const result = await collectOnce(cwd, options, check, fresh);
+    const result = await collectOnce(
+      cwd,
+      options,
+      check,
+      fresh,
+      settings?.configFile,
+    );
     ignored = new Set(result.written);
     inputs = result.inputs;
     sources = result.sources;
@@ -104,9 +129,9 @@ export function createCollectScheduler(
     while (pending) {
       pending = false;
       try {
-        report(await run(false));
+        log(await run(false));
       } catch (error) {
-        report(describeError(error));
+        log(describeError(error));
       }
     }
     running = false;
@@ -168,5 +193,12 @@ export function createCollectScheduler(
     }
   }
 
-  return { run, changed, watch: startWatch };
+  function close(): void {
+    clearTimeout(timer);
+    for (const watcher of watchers.splice(0)) {
+      watcher.close();
+    }
+  }
+
+  return { run, changed, watch: startWatch, close };
 }

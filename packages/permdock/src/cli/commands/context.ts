@@ -18,6 +18,8 @@ export type CommandResult = {
 export type CliContext = {
   readonly cwd: string;
   readonly config: PermDockConfig;
+  /** The `--config` value as given; unset when the default file was found. */
+  readonly configFile?: string;
   readonly io: CliIo;
   readonly now: Date;
   readonly json: boolean;

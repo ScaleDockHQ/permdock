@@ -82,9 +82,11 @@ export async function run(
   const name = first === "help" ? globals._[1] : first;
 
   let result: CommandResult | undefined;
+  const configFile = stringArg(globals.config);
   const contextFor = (cwd: string, config: PermDockConfig): CliContext => ({
     cwd,
     config,
+    ...(configFile === undefined ? {} : { configFile }),
     io,
     now: io.now?.() ?? new Date(),
     json,
@@ -142,7 +144,7 @@ export async function run(
   const cwd = resolveCwd(stringArg(globals.cwd), options?.cwd ?? process.cwd());
   let config: PermDockConfig;
   try {
-    config = await loadConfig(cwd, stringArg(globals.config));
+    config = await loadConfig(cwd, configFile);
   } catch (error) {
     return fail(
       cliErrorKind(error),
