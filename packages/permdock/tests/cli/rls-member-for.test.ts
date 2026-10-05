@@ -179,6 +179,30 @@ describe("the hook grants for member_<scope>_ids_for", () => {
     expect(manifest.helpers.functions).toContain("member_organization_ids_for");
   });
 
+  it("describes a constant via of a mapped table as a value", () => {
+    const { manifest } = supabaseHookSql(
+      scopes,
+      config({
+        memberships: {
+          scopes: {
+            organization: {
+              table: "staff_members",
+              user: "user_id",
+              role: "role",
+              columns: { organization: "org_id" },
+              via: { value: "staff" },
+            },
+          },
+        },
+      }),
+    );
+    const staff = manifest.rls?.memberships?.find(
+      (entry) => entry.table === "public.staff_members",
+    );
+    expect(staff?.via).toEqual({ value: "staff" });
+    expect(staff?.columns).toEqual(["user_id", "org_id", "role"]);
+  });
+
   it("puts them in the hook file without --grants-out, with usage on the helper schema", () => {
     const { sql } = supabaseHookSql(scopes, config({ schema: "authz" }), {
       schema: "public",

@@ -34,8 +34,11 @@ export type RlsMembershipTable = {
   readonly team?: string;
   readonly id?: string;
   readonly expiresAt?: string;
-  /** Column holding the membership kind (`Membership.via`); roles with `for` need it. */
-  readonly via?: string;
+  /**
+   * The membership kind (`Membership.via`) roles with `for` match: a column
+   * holding it, or `{ value }` when every row has the same kind.
+   */
+  readonly via?: string | { readonly value: string };
 };
 
 export type RlsMemberships = {

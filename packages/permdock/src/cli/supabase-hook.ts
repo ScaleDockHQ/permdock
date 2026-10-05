@@ -316,7 +316,7 @@ function mappedMembership(
     id,
     ...role.columns,
     ...Object.values(within),
-    ...(mapped.via === undefined ? [] : [mapped.via]),
+    ...(typeof mapped.via === "string" ? [mapped.via] : []),
     ...(mapped.expiresAt === undefined ? [] : [mapped.expiresAt]),
   ];
   return {
@@ -328,7 +328,14 @@ function mappedMembership(
     ...(Object.keys(within).length === 0
       ? {}
       : { within: { columns: within } }),
-    ...(mapped.via === undefined ? {} : { via: { column: mapped.via } }),
+    ...(mapped.via === undefined
+      ? {}
+      : {
+          via:
+            typeof mapped.via === "string"
+              ? { column: mapped.via }
+              : { value: mapped.via.value },
+        }),
     ...(mapped.expiresAt === undefined
       ? {}
       : { expiresAt: { column: mapped.expiresAt } }),
