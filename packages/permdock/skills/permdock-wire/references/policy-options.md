@@ -42,4 +42,4 @@ Adopting PermDock in an app with its own keys, SQL helpers and tokens is a step-
 - When the app already has an OpenAPI document and no definitions yet, start from `permdock openapi import --doc <doc> --out src/permissions.generated.ts --schema zod` and review each action's `meta.inferredFrom`.
 - When the repo has Arazzo workflows, run `permdock arazzo check --doc <arazzo> --openapi <doc>`.
 - When the app uses PermDock Cloud, add `permdock cloud push` to the deploy step after the deploy, with `PERMDOCK_CLOUD_URL` and `PERMDOCK_CLOUD_KEY` from CI secrets. The Cloud is optional and never on the decision path.
-- `permdock skills install` copies these skills into the project's agent folders.
+- `permdock skills install` copies these skills into the project's agent folders, writing a symlinked folder once through its target; `permdock skills install --check` in CI fails when the installed skills differ from the package version.

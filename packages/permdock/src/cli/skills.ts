@@ -1,13 +1,18 @@
 import {
   cpSync,
   existsSync,
+  lstatSync,
   mkdirSync,
+  readdirSync,
   readFileSync,
+  readlinkSync,
+  realpathSync,
   writeFileSync,
 } from "node:fs";
 import { createRequire } from "node:module";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, relative, resolve } from "node:path";
 
+import { byCodePoint } from "../core/compare.ts";
 import { packageRoot } from "./package-root.ts";
 
 const SKILL_NAMES = [
@@ -46,12 +51,15 @@ export function runSkills(input: {
   readonly cwd: string;
   readonly action: string | undefined;
   readonly agents: readonly string[];
+  readonly check?: boolean;
 }): SkillsResult {
   switch (input.action) {
     case undefined:
     case "install":
     case "update":
-      return runSkillsInstall({ cwd: input.cwd, agents: input.agents });
+      return input.check === true
+        ? runSkillsCheck({ cwd: input.cwd, agents: input.agents })
+        : runSkillsInstall({ cwd: input.cwd, agents: input.agents });
     case "list":
       return listSkills(input.cwd);
     default:
@@ -80,28 +88,157 @@ export function runSkillsInstall(input: {
     };
   }
   const version = readPermdockVersion(source);
-  const targets = resolveTargets(input.agents);
   const copied: string[] = [];
-  for (const folder of targets) {
-    const destRoot = join(input.cwd, folder);
-    for (const name of SKILL_NAMES) {
-      const from = join(source, name);
-      if (!existsSync(from)) {
-        continue;
-      }
-      copyDir(from, join(destRoot, name));
-      copied.push(`${folder}/${name}`);
+  const linked: string[] = [];
+  for (const target of destinations(input.cwd, source, input.agents)) {
+    if (target.sameAs !== undefined) {
+      linked.push(`${target.shown} to ${target.sameAs}`);
+      continue;
     }
+    cpSync(target.from, target.real, { recursive: true });
+    copied.push(target.shown);
   }
   mkdirSync(join(input.cwd, ".permdock"), { recursive: true });
   writeFileSync(
     join(input.cwd, ".permdock/skills-lock.json"),
     `${JSON.stringify({ version, skills: [...SKILL_NAMES] }, null, 2)}\n`,
   );
+  const links = linked.length === 0 ? "" : `; linked ${linked.join(", ")}`;
   return {
     code: 0,
-    output: `installed ${copied.join(", ") || "no skills"} (permdock@${version})`,
+    output: `installed ${copied.join(", ") || "no skills"}${links} (permdock@${version})`,
   };
+}
+
+/**
+ * Compares the installed skills with the ones this version ships and writes
+ * nothing: exit 1 lists every file that is missing or differs. Without
+ * agents it checks the agent folders the project has, else every folder.
+ */
+export function runSkillsCheck(input: {
+  readonly cwd: string;
+  readonly agents: readonly string[];
+  readonly bundled?: string;
+}): SkillsResult {
+  const source = resolveSkillsRoot(
+    input.cwd,
+    input.bundled ?? join(packageRoot(), "skills"),
+  );
+  if (source === undefined) {
+    return {
+      code: 2,
+      output:
+        "PermDock CLI: permdock package with skills/ not found. Add permdock as a dependency.",
+    };
+  }
+  const version = readPermdockVersion(source);
+  const detected = detectedAgents(input.cwd);
+  const agents =
+    input.agents.length > 0
+      ? input.agents
+      : detected.length > 0
+        ? detected
+        : Object.keys(AGENT_FOLDERS);
+  const stale: string[] = [];
+  for (const target of destinations(input.cwd, source, agents)) {
+    if (target.sameAs !== undefined) {
+      continue;
+    }
+    for (const file of filesOf(target.from)) {
+      const installed = join(target.real, file);
+      if (
+        !existsSync(installed) ||
+        !readFileSync(installed).equals(readFileSync(join(target.from, file)))
+      ) {
+        stale.push(`${target.shown}/${file}`);
+      }
+    }
+  }
+  return stale.length === 0
+    ? { code: 0, output: `skills match permdock@${version}` }
+    : {
+        code: 1,
+        output: `skills differ from permdock@${version}: ${stale.join(", ")}. Run permdock skills install.`,
+      };
+}
+
+type Destination = {
+  readonly from: string;
+  /** The folder as the project names it, relative to cwd. */
+  readonly shown: string;
+  /** Where the files land once every symlink on the way is followed. */
+  readonly real: string;
+  /** The destination an earlier folder already wrote to the same place. */
+  readonly sameAs?: string;
+};
+
+function destinations(
+  cwd: string,
+  source: string,
+  agents: readonly string[],
+): readonly Destination[] {
+  const seen = new Map<string, string>();
+  const list: Destination[] = [];
+  for (const folder of resolveTargets(agents)) {
+    for (const name of SKILL_NAMES) {
+      const from = join(source, name);
+      if (!existsSync(from)) {
+        continue;
+      }
+      const shown = `${folder}/${name}`;
+      const real = followLinks(join(cwd, folder, name));
+      const sameAs = seen.get(real);
+      list.push(
+        sameAs === undefined
+          ? { from, shown, real }
+          : { from, shown, real, sameAs },
+      );
+      if (sameAs === undefined) {
+        seen.set(real, shown);
+      }
+    }
+  }
+  return list;
+}
+
+/**
+ * The path with every symlink on it followed, including a link whose target
+ * does not exist yet, so a skill folder linked to another agent's folder is
+ * written through the link instead of over it.
+ */
+function followLinks(path: string, depth = 0): string {
+  if (depth > 32) {
+    throw new Error(`PermDock CLI: too many symlinks at ${path}`);
+  }
+  let link: boolean;
+  try {
+    link = lstatSync(path).isSymbolicLink();
+  } catch {
+    const parent = dirname(path);
+    return parent === path
+      ? path
+      : join(followLinks(parent, depth + 1), basename(path));
+  }
+  if (!link) {
+    return realpathSync(path);
+  }
+  try {
+    return realpathSync(path);
+  } catch {
+    return followLinks(resolve(dirname(path), readlinkSync(path)), depth + 1);
+  }
+}
+
+function filesOf(root: string, folder = root): string[] {
+  return readdirSync(folder, { withFileTypes: true })
+    .toSorted((a, b) => byCodePoint(a.name, b.name))
+    .flatMap((entry) => {
+      const path = join(folder, entry.name);
+      if (entry.isDirectory()) {
+        return filesOf(root, path);
+      }
+      return entry.isFile() ? [relative(root, path).split("\\").join("/")] : [];
+    });
 }
 
 function listSkills(cwd: string): SkillsResult {
@@ -165,8 +302,4 @@ function readPermdockVersion(skillsRoot: string): string {
     readonly version: string;
   };
   return raw.version;
-}
-
-function copyDir(from: string, to: string): void {
-  cpSync(from, to, { recursive: true });
 }
