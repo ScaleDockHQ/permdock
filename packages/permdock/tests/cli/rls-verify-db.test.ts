@@ -256,6 +256,39 @@ describe("rls verify --db through an injected client", () => {
     );
   });
 
+  it("queries a schema-qualified rls.tables entry and its field view by schema and name", async () => {
+    const sql = fakeSql((call) => {
+      if (call.sql.startsWith('select * from "app"."posts_visible"')) {
+        return { rows: [own] };
+      }
+      return rowsFor(() => 1)(call);
+    });
+    const cwd = app([
+      { subject: author, row: own, action: "post.read" },
+      { subject: author, row: own, action: "post.update" },
+    ]);
+    const outcome = await runRlsVerify({
+      cwd,
+      config: config({ fields: "views", tables: { post: "app.posts" } }),
+      db: "postgres://fake",
+      format: "node",
+      io,
+      connect: sql.connect,
+    });
+    expect(outcome.code).toBe(0);
+    expect(sql.statements()).toContain(
+      'select "id" from "app"."posts" where "id" = $1',
+    );
+    expect(sql.statements()).toContain(
+      'select * from "app"."posts_visible" where "id" = $1',
+    );
+    expect(
+      sql
+        .statements()
+        .some((statement) => statement.startsWith('update "app"."posts" set')),
+    ).toBe(true);
+  });
+
   it("reports a field view that fails to read", async () => {
     const sql = fakeSql((call) =>
       call.sql.startsWith('select * from "post_visible"')
