@@ -172,6 +172,12 @@
         "execute": ["supabase_auth_admin"]
       },
       {
+        "name": "permdock_user_id",
+        "args": "",
+        "returns": "uuid",
+        "execute": ["authenticated"]
+      },
+      {
         "name": "permdock_has_for",
         "args": "p_user uuid, p_grant text",
         "returns": "boolean",
