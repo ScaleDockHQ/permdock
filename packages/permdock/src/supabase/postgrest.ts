@@ -1,4 +1,8 @@
-import type { MembershipSource, RoleSource } from "../core/interfaces.ts";
+import type {
+  MemberEntry,
+  MembershipSource,
+  RoleSource,
+} from "../core/interfaces.ts";
 import type {
   CustomRole,
   CustomRoleGrant,
@@ -31,10 +35,11 @@ export type SupabaseRpcClient = {
 };
 
 export type PostgrestSourcesOptions = {
-  /** Schema of the function. Default `permdock`, where the hook generates `subject_for`. */
+  /** Schema of the functions. Default `permdock`, where the hook generates `subject_for` and `members_of`. */
   readonly schema?: string;
   /** Function name, for a wrapper in an exposed schema. Default `subject_for`. */
   readonly fn?: string;
+  readonly membersFn?: string;
 };
 
 /** One user as `subject_for(p_user)` returns it. */
@@ -49,8 +54,18 @@ export type SubjectRecord = {
 };
 
 export type PostgrestSources = {
-  /** Memberships and the authorization version of any principal; wrap it in `claimsFirst` to read only when the token was truncated. */
-  readonly memberships: MembershipSource;
+  /**
+   * Memberships and the authorization version of any principal, and `list`,
+   * the live members of one scope instance through `members_of`, for
+   * `countHolders` and `whoCan`. Wrap it in `claimsFirst` to read only when
+   * the token was truncated.
+   */
+  readonly memberships: MembershipSource & {
+    list(query: {
+      readonly scope: string;
+      readonly id: string;
+    }): Promise<MemberEntry[]>;
+  };
   /** The custom roles `principal` holds, for `createPermDock`'s `customRoles`. */
   customRoles(principal: { readonly id: string }): RoleSource;
   /** The subject the hook would mint for `userId`: anonymous when the user is unknown or suspended. */
@@ -112,6 +127,22 @@ function customRoleOf(value: unknown): CustomRole | undefined {
   });
 }
 
+function readMemberEntries(value: unknown): MemberEntry[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.flatMap((item: unknown): MemberEntry[] => {
+    if (!isRecord(item) || !isRecord(item["principal"])) {
+      return [];
+    }
+    const id = item["principal"]["id"];
+    const [membership] = readMemberships([item["membership"]]).memberships;
+    return typeof id === "string" && id !== "" && membership !== undefined
+      ? [{ principal: { id }, membership }]
+      : [];
+  });
+}
+
 /** Reads `subject_for`'s JSON; anything it cannot read is left out, and a malformed record is no record. */
 export function readSubjectRecord(value: unknown): SubjectRecord | undefined {
   if (!isRecord(value) || typeof value["id"] !== "string") {
@@ -147,9 +178,10 @@ export function readSubjectRecord(value: unknown): SubjectRecord | undefined {
 
 /**
  * Membership, custom-role and subject sources over the `subject_for(p_user)`
- * function `permdock supabase hook generate` writes, for a backend that
- * reaches Postgres only through PostgREST. Each user is read once per
- * `postgrestSources` call, so create it per request or per job.
+ * and `members_of(p_scope, p_id)` functions `permdock supabase hook generate`
+ * writes, for a backend that reaches Postgres only through PostgREST. Each
+ * user and each instance is read once per `postgrestSources` call, so create
+ * it per request or per job.
  */
 export function postgrestSources(
   client: SupabaseRpcClient,
@@ -157,7 +189,33 @@ export function postgrestSources(
 ): PostgrestSources {
   const schema = options.schema ?? PERMDOCK_SCHEMA;
   const fn = options.fn ?? "subject_for";
+  const membersFn = options.membersFn ?? "members_of";
   const loaded = new Map<string, Promise<SubjectRecord | undefined>>();
+  const listed = new Map<string, Promise<MemberEntry[]>>();
+  const list = (query: {
+    readonly scope: string;
+    readonly id: string;
+  }): Promise<MemberEntry[]> => {
+    const key = JSON.stringify([query.scope, query.id]);
+    const cached = listed.get(key);
+    if (cached !== undefined) {
+      return cached.then((entries) => [...entries]);
+    }
+    const pending = Promise.resolve(
+      client
+        .schema(schema)
+        .rpc(membersFn, { p_scope: query.scope, p_id: query.id }),
+    ).then((result) => {
+      if (result.error !== null) {
+        throw new Error(
+          `PermDock: ${schema}.${membersFn} failed: ${result.error.message}`,
+        );
+      }
+      return readMemberEntries(result.data);
+    });
+    listed.set(key, pending);
+    return pending.then((entries) => [...entries]);
+  };
   const record = (userId: string): Promise<SubjectRecord | undefined> => {
     const cached = loaded.get(userId);
     if (cached !== undefined) {
@@ -188,6 +246,7 @@ export function postgrestSources(
       async version(principal) {
         return (await record(principal.id))?.authzVersion;
       },
+      list,
     },
     customRoles(principal) {
       return {

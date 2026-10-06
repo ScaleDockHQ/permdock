@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createPermDock } from "permdock";
+import { countHolders, createPermDock } from "permdock";
 import { run } from "permdock/cli";
 import { type SupabaseRpcClient, postgrestSources } from "permdock/supabase";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -108,10 +108,16 @@ select permdock.permdock_trusted_replace_custom_role_grants('B', 'organization',
             throw new Error("PermDock: Postgres was not started");
           }
           try {
-            const result = await db.admin.query<{ data: unknown }>(
-              `select "${name}"."${fn}"($1::uuid) as data`,
-              [args["p_user"]],
-            );
+            const result =
+              fn === "members_of"
+                ? await db.admin.query<{ data: unknown }>(
+                    `select "${name}"."${fn}"($1, $2) as data`,
+                    [args["p_scope"], args["p_id"]],
+                  )
+                : await db.admin.query<{ data: unknown }>(
+                    `select "${name}"."${fn}"($1::uuid) as data`,
+                    [args["p_user"]],
+                  );
             return { data: result.rows[0]?.data ?? null, error: null };
           } catch (error) {
             return { data: null, error: { message: String(error) } };
@@ -178,6 +184,44 @@ select permdock.permdock_trusted_replace_custom_role_grants('B', 'organization',
     expect((await sources.subject(SUSPENDED)).principal).toBeNull();
   });
 
+  it("lists the live members of an instance through members_of", async () => {
+    const sources = postgrestSources(client());
+    expect(
+      await sources.memberships.list({ scope: "organization", id: "T" }),
+    ).toEqual([
+      {
+        principal: { id: OWNER },
+        membership: {
+          scope: "organization",
+          id: "T",
+          roles: ["owner"],
+          via: "staff",
+        },
+      },
+    ]);
+    expect(
+      await sources.memberships.list({ scope: "customer", id: "A" }),
+    ).toEqual([
+      {
+        principal: { id: CONTACT },
+        membership: {
+          scope: "customer",
+          id: "A",
+          within: { organization: "T" },
+          roles: ["contact"],
+          via: "contact",
+        },
+      },
+    ]);
+    expect(
+      await countHolders(sources.memberships, {
+        scope: "organization",
+        id: "T",
+        role: "owner",
+      }),
+    ).toBe(1);
+  });
+
   it("is not executable by client roles", async () => {
     if (db === undefined) {
       throw new Error("PermDock: Postgres was not started");
@@ -186,6 +230,11 @@ select permdock.permdock_trusted_replace_custom_role_grants('B', 'organization',
     await expect(
       target.as({ role: "authenticated" }, async () =>
         target.tester.query(`select permdock.subject_for('${OWNER}')`),
+      ),
+    ).rejects.toThrow(/permission denied/u);
+    await expect(
+      target.as({ role: "authenticated" }, async () =>
+        target.tester.query(`select permdock.members_of('organization', 'T')`),
       ),
     ).rejects.toThrow(/permission denied/u);
   });

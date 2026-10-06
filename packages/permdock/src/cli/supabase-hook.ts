@@ -859,6 +859,37 @@ $$;
 revoke execute on function ${fn}(uuid) from public, anon, authenticated;`;
 }
 
+const MEMBERS_OF = "members_of";
+
+function membersOfSql(parts: Parts): string {
+  const fn = `${quoteIdent(parts.schema)}.${MEMBERS_OF}`;
+  const rows = parts.sources
+    .map((source) => source.sql.list().replaceAll(/^/gmu, "      "))
+    .join("\n      union all\n");
+  return `-- the live memberships of one scope instance, for a backend that lists members over PostgREST; no client role may execute it
+create or replace function ${fn}(p_scope text, p_id text)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select coalesce(jsonb_agg(jsonb_build_object(
+      'principal', jsonb_build_object('id', s.user_id),
+      'membership', jsonb_strip_nulls(jsonb_build_object(
+        'scope', s.scope, 'id', s.id, 'within', s.within, 'roles', s.roles, 'via', s.via,
+        'expiresAt', s.expires_at, 'grantedBy', s.granted_by, 'reason', s.reason,
+        'member', case when s.member_group is not null then jsonb_build_object('group', s.member_group) end,
+        'managedBy', s.managed_by, 'entitlements', s.seats
+      ))
+    ) order by s.user_id, s.roles::text), '[]'::jsonb)
+  from (
+${rows}
+  ) s
+$$;
+revoke execute on function ${fn}(text, text) from public, anon, authenticated;`;
+}
+
 /**
  * The custom roles `p_user` holds: tenant roles named on a membership of the
  * scope (and instance) they live at, and platform roles among the global
@@ -1564,6 +1595,7 @@ ${toml}${grantsOut === undefined ? "" : `\n-- what supabase db diff drops from t
     hookSql(parts),
     versionSql(parts),
     subjectForSql(parts, config),
+    membersOfSql(parts),
     grantsSql(parts),
     managedSql(parts),
   ]

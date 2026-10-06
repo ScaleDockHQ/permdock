@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { SupabaseRpcClient } from "../../src/supabase/index.ts";
 
-import { claimsFirst, createPermDock } from "../../src/index.ts";
+import { claimsFirst, countHolders, createPermDock } from "../../src/index.ts";
 import { postgrestSources } from "../../src/supabase/index.ts";
 import { permissions, policy } from "../fixtures/named-scopes.ts";
 
@@ -134,5 +134,93 @@ describe("postgrestSources", () => {
         customer_id: "c1",
       }),
     ).toBe(false);
+  });
+
+  it("lists the members of one instance through members_of, once per instance, for countHolders", async () => {
+    const calls: string[] = [];
+    const client: SupabaseRpcClient = {
+      schema(name) {
+        return {
+          async rpc(fn, args) {
+            calls.push(
+              `${name}.${fn}(${String(args["p_scope"])}, ${String(args["p_id"])})`,
+            );
+            if (args["p_id"] === "broken") {
+              return { data: null, error: { message: "boom" } };
+            }
+            return {
+              data: [
+                {
+                  principal: { id: "u1" },
+                  membership: {
+                    scope: "organization",
+                    id: "acme",
+                    roles: ["owner"],
+                    via: "staff",
+                  },
+                },
+                {
+                  principal: { id: "u2" },
+                  membership: {
+                    scope: "organization",
+                    id: "acme",
+                    roles: ["owner", "admin"],
+                  },
+                },
+                { principal: { id: "" }, membership: { roles: ["owner"] } },
+                { principal: { id: "u3" }, membership: { scope: "x" } },
+                "junk",
+              ],
+              error: null,
+            };
+          },
+        };
+      },
+    };
+    const sources = postgrestSources(client, { membersFn: "list_members" });
+    const query = { scope: "organization", id: "acme" };
+    expect(await sources.memberships.list(query)).toEqual([
+      {
+        principal: { id: "u1" },
+        membership: {
+          scope: "organization",
+          id: "acme",
+          roles: ["owner"],
+          via: "staff",
+        },
+      },
+      {
+        principal: { id: "u2" },
+        membership: {
+          scope: "organization",
+          id: "acme",
+          roles: ["owner", "admin"],
+        },
+      },
+    ]);
+    expect(
+      await countHolders(claimsFirst(sources.memberships), {
+        ...query,
+        role: "owner",
+      }),
+    ).toBe(2);
+    expect(calls).toEqual(["permdock.list_members(organization, acme)"]);
+    await expect(
+      sources.memberships.list({ scope: "organization", id: "broken" }),
+    ).rejects.toThrow("PermDock: permdock.list_members failed: boom");
+    expect(
+      await postgrestSources({
+        schema: () => ({
+          rpc: async () => ({ data: null, error: null }),
+        }),
+      }).memberships.list(query),
+    ).toEqual([]);
+    expect(
+      await countHolders(sources.memberships, {
+        scope: "organization",
+        id: "broken",
+        role: "owner",
+      }),
+    ).toBeUndefined();
   });
 });
