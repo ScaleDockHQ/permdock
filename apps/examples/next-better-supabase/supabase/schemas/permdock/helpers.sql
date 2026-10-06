@@ -8,6 +8,23 @@ create schema if not exists "permdock";
 revoke all on schema "permdock" from public;
 grant usage on schema "permdock" to authenticated;
 
+-- the caller's user id: auth.uid(), or null when the token's sub is empty
+create or replace function "permdock".permdock_user_id()
+returns uuid
+language sql
+stable
+set search_path = ''
+as $$
+  select case
+    when nullif(current_setting('request.jwt.claim.sub', true), '') is null
+      and (select auth.jwt()) ->> 'sub' = ''
+    then null
+    else (select auth.uid())
+  end
+$$;
+revoke execute on function "permdock".permdock_user_id() from public, anon;
+grant execute on function "permdock".permdock_user_id() to authenticated;
+
 create table if not exists "permdock".role_permissions (
   role text not null,
   permission text not null,
@@ -38,7 +55,7 @@ as $$
     select 1
     from "permdock".user_roles ur
     join "permdock".role_permissions rp on rp.role = ur.role::text
-    where ur.user_id = (select auth.uid())
+    where ur.user_id = (select "permdock".permdock_user_id())
       and rp.grant_key = p_grant
       and rp.scope = 'global'
   )
@@ -54,7 +71,7 @@ security definer
 set search_path = ''
 as $$
 declare
-  v_user_0 "public"."memberships"."user_id"%type := (select auth.uid());
+  v_user_0 "public"."memberships"."user_id"%type := (select "permdock".permdock_user_id());
 begin
   return query
   select (ms.id)::uuid
@@ -68,7 +85,7 @@ begin
     case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
   ) r(role)
   join "permdock".role_permissions rp on rp.role = r.role
-  where coalesce((select auth.uid())::text, '') <> ''
+  where coalesce((select "permdock".permdock_user_id())::text, '') <> ''
     and ms.scope = 'organization'
     and rp.grant_key = p_grant
     and rp.scope = 'organization'
@@ -86,7 +103,7 @@ security definer
 set search_path = ''
 as $$
 declare
-  v_user_0 "public"."memberships"."user_id"%type := (select auth.uid());
+  v_user_0 "public"."memberships"."user_id"%type := (select "permdock".permdock_user_id());
 begin
   return query
   select distinct (ms.id)::uuid
@@ -96,7 +113,7 @@ begin
     where m."user_id" = v_user_0
     group by m."scope"::text, m."scope_id"::text
   ) ms
-  where coalesce((select auth.uid())::text, '') <> ''
+  where coalesce((select "permdock".permdock_user_id())::text, '') <> ''
     and ms.scope = 'organization'
     and jsonb_typeof(ms.roles) = 'array'
     and jsonb_array_length(ms.roles) > 0;
@@ -139,8 +156,8 @@ security definer
 set search_path = ''
 as $$
 declare
-  v_user_0 "public"."memberships"."user_id"%type := (select auth.uid());
-  v_user_1 "public"."contacts"."user_id"%type := (select auth.uid());
+  v_user_0 "public"."memberships"."user_id"%type := (select "permdock".permdock_user_id());
+  v_user_1 "public"."contacts"."user_id"%type := (select "permdock".permdock_user_id());
 begin
   return query
   select (ms.id)::uuid
@@ -159,7 +176,7 @@ begin
     case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
   ) r(role)
   join "permdock".role_permissions rp on rp.role = r.role
-  where coalesce((select auth.uid())::text, '') <> ''
+  where coalesce((select "permdock".permdock_user_id())::text, '') <> ''
     and ms.scope = 'customer'
     and rp.grant_key = p_grant
     and rp.scope = 'customer'
@@ -177,8 +194,8 @@ security definer
 set search_path = ''
 as $$
 declare
-  v_user_0 "public"."memberships"."user_id"%type := (select auth.uid());
-  v_user_1 "public"."contacts"."user_id"%type := (select auth.uid());
+  v_user_0 "public"."memberships"."user_id"%type := (select "permdock".permdock_user_id());
+  v_user_1 "public"."contacts"."user_id"%type := (select "permdock".permdock_user_id());
 begin
   return query
   select distinct (ms.id)::uuid
@@ -193,7 +210,7 @@ begin
     where m."user_id" = v_user_1
     group by m."customer_id", m."organization_id"
   ) ms
-  where coalesce((select auth.uid())::text, '') <> ''
+  where coalesce((select "permdock".permdock_user_id())::text, '') <> ''
     and ms.scope = 'customer'
     and jsonb_typeof(ms.roles) = 'array'
     and jsonb_array_length(ms.roles) > 0;
