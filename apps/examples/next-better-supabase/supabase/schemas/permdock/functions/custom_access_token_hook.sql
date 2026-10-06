@@ -235,6 +235,37 @@ end;
 $$;
 revoke execute on function "permdock".subject_for(uuid) from public, anon, authenticated;
 
+-- the live memberships of one scope instance, for a backend that lists members over PostgREST; no client role may execute it
+create or replace function "permdock".members_of(p_scope text, p_id text)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select coalesce(jsonb_agg(jsonb_build_object(
+      'principal', jsonb_build_object('id', s.user_id),
+      'membership', jsonb_strip_nulls(jsonb_build_object(
+        'scope', s.scope, 'id', s.id, 'within', s.within, 'roles', s.roles, 'via', s.via,
+        'expiresAt', s.expires_at, 'grantedBy', s.granted_by, 'reason', s.reason,
+        'member', case when s.member_group is not null then jsonb_build_object('group', s.member_group) end,
+        'managedBy', s.managed_by, 'entitlements', s.seats
+      ))
+    ) order by s.user_id, s.roles::text), '[]'::jsonb)
+  from (
+      select m."user_id"::text as user_id, m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+      from "public"."memberships" m
+      where m."scope"::text = $1::text and m."scope_id"::text = $2::text
+      group by m."user_id", m."scope"::text, m."scope_id"::text
+      union all
+      select m."user_id"::text as user_id, 'customer'::text as scope, m."customer_id"::text as id, jsonb_build_object('organization', m."organization_id"::text) as within, jsonb_build_array('contact') as roles, 'contact'::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+      from "public"."contacts" m
+      where $1::text = 'customer' and m."customer_id"::text = $2::text
+      group by m."user_id", m."customer_id", m."organization_id"
+  ) s
+$$;
+revoke execute on function "permdock".members_of(text, text) from public, anon, authenticated;
+
 -- supabase_auth_admin: the grants and read policies the hook needs
 grant usage on schema "permdock" to supabase_auth_admin;
 grant execute on function "permdock".custom_access_token_hook(jsonb) to supabase_auth_admin;
