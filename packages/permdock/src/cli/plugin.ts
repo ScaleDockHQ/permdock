@@ -1,9 +1,9 @@
 import type { PermDockPluginOptions } from "./types.ts";
 
+import { describeError } from "./errors.ts";
 import {
   collectOnce,
   createCollectScheduler,
-  describeError,
   report,
   type CollectScheduler,
 } from "./watch.ts";

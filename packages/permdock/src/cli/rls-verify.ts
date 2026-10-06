@@ -15,7 +15,7 @@ import {
 import { supabaseTenantClaim } from "../supabase/budget.ts";
 import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
 import { policyRowConditionKeys } from "./catalog-doc.ts";
-import { usageResult } from "./errors.ts";
+import { usageResult, describeError } from "./errors.ts";
 import {
   type RlsFixture,
   fixtureRow,
@@ -664,7 +664,7 @@ async function verifyTreeAgainstDatabase(
           : `${verified}\n${result.notes.join("\n")}`,
     };
   } catch (cause) {
-    const message = cause instanceof Error ? cause.message : String(cause);
+    const message = describeError(cause);
     return {
       code: 2,
       output: `PermDock CLI: rls verify --tree could not seed the tree (${message}); connect as a role that owns the tables and is a member of authenticated`,

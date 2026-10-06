@@ -6,6 +6,7 @@ import type { DoctorInput, DoctorSource } from "./doctor-types.ts";
 import type { CliIo, PermDockConfig } from "./types.ts";
 
 import { type CollectOutcome, runCollect } from "./collect.ts";
+import { describeError } from "./errors.ts";
 import { doctorSrcPath, listSourceFiles, rel } from "./files.ts";
 import { asPolicy, loadModule, pickNamed } from "./load.ts";
 
@@ -97,7 +98,7 @@ async function readPolicy(
     return {
       status: "failed",
       path,
-      message: error instanceof Error ? error.message : String(error),
+      message: describeError(error),
     };
   }
 }

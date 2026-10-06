@@ -5,6 +5,7 @@ import type { PermDockPluginOptions } from "./types.ts";
 
 import { runCollect } from "./collect.ts";
 import { isConfigFile, loadConfig } from "./config.ts";
+import { describeError } from "./errors.ts";
 import { defaultSrcPath } from "./files.ts";
 
 const DEBOUNCE_MS = 50;
@@ -13,10 +14,6 @@ export function report(message: string | undefined): void {
   if (message !== undefined) {
     process.stderr.write(`permdock: ${message}\n`);
   }
-}
-
-export function describeError(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }
 
 // The folder above a glob's first wildcard segment: `packages/*/src` watches `packages`.

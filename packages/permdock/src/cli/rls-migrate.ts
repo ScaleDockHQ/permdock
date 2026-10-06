@@ -7,6 +7,7 @@ import type { RlsMigrateConfig, RlsMigrateHelper } from "./types.ts";
 
 import { escapeSqlIdent, quoteSqlLiteral } from "../core/sql.ts";
 import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
+import { describeError } from "./errors.ts";
 import { sqlFiles } from "./files.ts";
 import { HELPERS } from "./rls-helpers.ts";
 
@@ -456,7 +457,7 @@ async function migrateSql(
       line: 1,
       call: "",
       reason: "unparsed",
-      detail: `the file does not parse: ${cause instanceof Error ? cause.message : String(cause)}`,
+      detail: `the file does not parse: ${describeError(cause)}`,
     });
     return { rewrites, skipped, text };
   }

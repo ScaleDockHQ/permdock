@@ -23,6 +23,7 @@ import { listPermissions, listRoles } from "../index.ts";
 import { supabaseTenantClaim } from "../supabase/budget.ts";
 import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
 import { policyRowConditionKeys } from "./catalog-doc.ts";
+import { describeError } from "./errors.ts";
 import { asPolicy, loadModule, pickNamed } from "./load.ts";
 import { GRANTS_MARKER, INDEXES_MARKER, SEEDS_MARKER } from "./markers.ts";
 import { approvalStoreSql } from "./rls-approvals.ts";
@@ -643,7 +644,7 @@ export async function runRlsGenerate(input: {
     } catch (cause) {
       return {
         code: 2,
-        output: cause instanceof Error ? cause.message : String(cause),
+        output: describeError(cause),
         text: "",
       };
     }

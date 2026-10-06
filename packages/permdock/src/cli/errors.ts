@@ -37,6 +37,10 @@ const TITLES: Readonly<Record<CliErrorKind, string>> = {
   failed: "The check the command ran found a problem",
 };
 
+export function describeError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 /** An unclassified error is a usage error: a module that throws while loading is the project's to fix. */
 export function cliErrorKind(error: unknown): CliErrorKind {
   return error instanceof CliError ? error.kind : "usage";
@@ -73,6 +77,6 @@ export function usageResult(error: unknown): {
   }
   return {
     code: 2,
-    output: error instanceof Error ? error.message : String(error),
+    output: describeError(error),
   };
 }

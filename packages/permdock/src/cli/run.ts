@@ -29,6 +29,7 @@ import {
   cliErrorKind,
   cliProblem,
   exitCodeOf,
+  describeError,
 } from "./errors.ts";
 import { cliVersion } from "./version.ts";
 
@@ -153,10 +154,7 @@ export async function run(
   try {
     loaded = await readConfig(cwd, configFile);
   } catch (error) {
-    return fail(
-      cliErrorKind(error),
-      error instanceof Error ? error.message : String(error),
-    );
+    return fail(cliErrorKind(error), describeError(error));
   }
   if (name !== "config") {
     for (const warning of loaded.warnings) {

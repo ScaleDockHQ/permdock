@@ -16,6 +16,7 @@ import {
   formatCatalogJson,
 } from "./catalog-doc.ts";
 import { catalogPath } from "./catalog-path.ts";
+import { describeError } from "./errors.ts";
 import { defaultSrcPath, listSourceFiles, rel } from "./files.ts";
 import {
   asPermissionTree,
@@ -86,7 +87,7 @@ export async function runCollect(input: {
       document: undefined,
       scan: undefined,
       outPath,
-      message: error instanceof Error ? error.message : String(error),
+      message: describeError(error),
     };
   }
   const files = listSourceFiles(input.cwd, input.scanPath ?? srcPath);

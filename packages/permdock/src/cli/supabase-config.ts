@@ -4,6 +4,8 @@ import { parse } from "smol-toml";
 
 import type { DoctorFinding } from "./doctor-types.ts";
 
+import { describeError } from "./errors.ts";
+
 /** The settings of `supabase/config.toml` doctor reads. */
 export type SupabaseConfig = {
   /** `[auth] jwt_expiry`, in seconds. */
@@ -56,7 +58,7 @@ export function readSupabaseConfig(
   } catch (error) {
     return {
       ok: false,
-      error: error instanceof Error ? error.message : String(error),
+      error: describeError(error),
     };
   }
   const expiry = table(root["auth"])?.["jwt_expiry"];
