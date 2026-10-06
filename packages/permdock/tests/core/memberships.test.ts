@@ -275,6 +275,60 @@ describe("claimsFirst", () => {
     expect(liveOnly.can(permissions.doc.delete, row)).toBe(true);
   });
 
+  it("re-reads the memberships of a stale token with onStale 'reread'", async () => {
+    let calls = 0;
+    const live = source(() => {
+      calls += 1;
+      return [{ scope: "organization", id: "T", roles: ["owner"] }];
+    });
+    const at = (
+      version: number | undefined,
+      current: MembershipSource["version"],
+    ) =>
+      createPermDock(
+        policy,
+        version === undefined ? token : { ...token, authzVersion: version },
+        {
+          memberships: claimsFirst(live, {
+            version: current,
+            onStale: "reread",
+          }),
+        },
+      );
+    const fresh = await at(3, () => 3);
+    expect(calls).toBe(0);
+    expect(fresh.subject.stale).toBeUndefined();
+    expect(fresh.can(permissions.doc.delete, row)).toBe(false);
+    const behind = await at(2, () => Promise.resolve(3));
+    expect(calls).toBe(1);
+    expect(behind.subject.stale).toBeUndefined();
+    expect(behind.can(permissions.doc.delete, row)).toBe(true);
+    const unclaimed = await at(undefined, () => 3);
+    expect(calls).toBe(2);
+    expect(unclaimed.can(permissions.doc.delete, row)).toBe(true);
+    const failing = await at(2, () => {
+      throw new Error("down");
+    });
+    expect(calls).toBe(2);
+    expect(failing.subject.stale).toBe(true);
+    expect(failing.can(permissions.doc.read, row)).toBe(true);
+    expect(failing.decide(permissions.doc.delete, row)).toMatchObject({
+      outcome: "denied",
+    });
+    const rejecting = await at(2, () => Promise.reject(new Error("down")));
+    expect(calls).toBe(2);
+    expect(rejecting.subject.stale).toBe(true);
+    const denyMode = await createPermDock(
+      policy,
+      { ...token, authzVersion: 2 },
+      { memberships: claimsFirst(live, { version: () => 3 }) },
+    );
+    expect(calls).toBe(2);
+    expect(denyMode.subject.stale).toBe(true);
+    expect(claimsFirst(live, { onStale: "reread" }).onStale).toBe("reread");
+    expect(claimsFirst(live, { onStale: "deny" }).onStale).toBeUndefined();
+  });
+
   it("marks IdP-owned memberships", () => {
     expect(
       isExternallyManaged({

@@ -1,4 +1,4 @@
-import type { AuthEvent } from "./interfaces.ts";
+import type { AuthEvent, MembershipSource } from "./interfaces.ts";
 import type { PermDockOptions } from "./permdock.ts";
 import type { Policy } from "./policy.ts";
 
@@ -39,6 +39,7 @@ function assemblePrincipal(
   readonly memberships: readonly Membership[] | Promise<readonly Membership[]>;
   /** The memberships came from a live `MembershipSource` call, not from the token. */
   readonly live: boolean;
+  readonly stale?: boolean | Promise<boolean>;
 } {
   let principal: Principal | null;
   let context: Readonly<Record<string, unknown>> = {};
@@ -78,19 +79,41 @@ function assemblePrincipal(
     source?.claimsFirst === true &&
     principal?.memberships !== undefined &&
     principal.membershipsTruncated !== true;
-  if (principal !== null && source !== undefined && !fromClaims) {
-    live = true;
+  const read = (
+    from: MembershipSource,
+    of: Principal,
+  ): readonly Membership[] | Promise<readonly Membership[]> => {
     try {
-      memberships = source.membershipsFor(
-        compact({ id: principal.id, kind: principal.kind }),
+      return from.membershipsFor(
+        compact({ id: of.id, kind: of.kind }),
         compact({ tenant: options.tenant }),
       );
     } catch {
       auth.push({ reason: "source-threw", source: "memberships" });
-      memberships = [];
+      return [];
     }
+  };
+  let stale: boolean | Promise<boolean> | undefined;
+  if (principal !== null && source !== undefined && !fromClaims) {
+    live = true;
+    memberships = read(source, principal);
+  } else if (
+    principal?.memberships !== undefined &&
+    fromClaims &&
+    source.onStale === "reread" &&
+    source.version !== undefined
+  ) {
+    const reread = rereadStale(
+      source,
+      principal,
+      principal.memberships,
+      () => read(source, principal),
+      auth,
+    );
+    memberships = reread.memberships;
+    stale = reread.stale;
   }
-  return {
+  return compact({
     principal,
     context: contextResult,
     actor,
@@ -99,6 +122,51 @@ function assemblePrincipal(
     expiresAt,
     memberships,
     live,
+    stale,
+  });
+}
+
+type Freshness = "fresh" | "reread" | "unknown";
+
+function rereadStale(
+  source: MembershipSource,
+  principal: Principal,
+  claims: readonly Membership[],
+  read: () => readonly Membership[] | Promise<readonly Membership[]>,
+  auth: AuthEvent[],
+): {
+  readonly memberships: readonly Membership[] | Promise<readonly Membership[]>;
+  readonly stale: boolean | Promise<boolean>;
+} {
+  const claimed = principal.authzVersion;
+  const judge = (current: number | undefined): Freshness =>
+    typeof claimed === "number" && current !== undefined && claimed >= current
+      ? "fresh"
+      : "reread";
+  const unknown = (): Freshness => {
+    auth.push({ reason: "source-threw", source: "memberships" });
+    return "unknown";
+  };
+  let freshness: Freshness | Promise<Freshness>;
+  try {
+    const current = source.version?.({ id: principal.id });
+    freshness = isThenable(current)
+      ? Promise.resolve(current).then(judge, unknown)
+      : judge(current);
+  } catch {
+    freshness = unknown();
+  }
+  if (isThenable(freshness)) {
+    return {
+      memberships: freshness.then((found) =>
+        found === "reread" ? read() : claims,
+      ),
+      stale: freshness.then((found) => found === "unknown"),
+    };
+  }
+  return {
+    memberships: freshness === "reread" ? read() : claims,
+    stale: freshness === "unknown",
   };
 }
 
@@ -200,6 +268,9 @@ function staleness(
     assembled.live
   ) {
     return false;
+  }
+  if (assembled.stale !== undefined) {
+    return assembled.stale;
   }
   const source =
     options.memberships === undefined

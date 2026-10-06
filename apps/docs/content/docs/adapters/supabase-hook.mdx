@@ -143,7 +143,7 @@ const permdock = await createPermDock(
 );
 ```
 
-`claimsFirst(sources, { version? })` keeps the memberships the verified token carries and reads the sources only when the token says it dropped some (`memberships_truncated`). Without `claimsFirst`, a `memberships` source is always read and the token's copy is ignored. `getPermDock` in [`permdock/next`](/docs/adapters/next) takes the same `memberships` option.
+`claimsFirst(sources, { version?, onStale? })` keeps the memberships the verified token carries and reads the sources only when the token says it dropped some (`memberships_truncated`), or, with `onStale: 'reread'`, when the token's `authz_ver` is behind the version table (one version read, then one memberships read only when the token is behind). Without `claimsFirst`, a `memberships` source is always read and the token's copy is ignored. `getPermDock` in [`permdock/next`](/docs/adapters/next) takes the same `memberships` option.
 
 ### A stored user over PostgREST
 
