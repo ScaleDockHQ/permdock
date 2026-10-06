@@ -128,6 +128,18 @@ function assemblePrincipal(
 
 type Freshness = "fresh" | "reread" | "unknown";
 
+function versionQuery(principal: Principal): {
+  readonly id: string;
+  readonly roles?: readonly string[];
+  readonly memberships?: readonly Membership[];
+} {
+  return compact({
+    id: principal.id,
+    roles: principal.roles,
+    memberships: principal.memberships,
+  });
+}
+
 function rereadStale(
   source: MembershipSource,
   principal: Principal,
@@ -149,7 +161,7 @@ function rereadStale(
   };
   let freshness: Freshness | Promise<Freshness>;
   try {
-    const current = source.version?.({ id: principal.id });
+    const current = source.version?.(versionQuery(principal));
     freshness = isThenable(current)
       ? Promise.resolve(current).then(judge, unknown)
       : judge(current);
@@ -283,7 +295,7 @@ function staleness(
   const compare = (current: number | undefined): boolean =>
     current === undefined || claimed < current;
   try {
-    const current = source.version({ id: principal.id });
+    const current = source.version(versionQuery(principal));
     return isThenable(current)
       ? settle(Promise.resolve(current).then(compare), true, () => {
           auth.push({ reason: "source-threw", source: "memberships" });

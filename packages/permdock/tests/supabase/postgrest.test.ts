@@ -179,6 +179,75 @@ describe("postgrestSources", () => {
     });
   });
 
+  it("with the policy, reads the subject in one call for a token that claims a custom role", async () => {
+    const auditor = {
+      ...owner,
+      roles: [],
+      memberships: [
+        { scope: "organization", id: "acme", roles: ["auditor"], via: "staff" },
+      ],
+    };
+    const asset = { id: "a1", organization_id: "acme", customer_id: "c1" };
+    const run = async (
+      roles: readonly string[],
+      tokenVersion: number,
+    ): Promise<{ readonly allowed: boolean; readonly calls: string[] }> => {
+      const calls: string[] = [];
+      const client: SupabaseRpcClient = {
+        schema(name) {
+          return {
+            async rpc(fn, args) {
+              calls.push(`${name}.${fn}(${String(args["p_user"])})`);
+              return fn === "authz_version_for"
+                ? { data: 4, error: null }
+                : { data: auditor, error: null };
+            },
+          };
+        },
+      };
+      const sources = postgrestSources(client, { policy });
+      const principal = {
+        id: "u1",
+        memberships: [
+          {
+            scope: "organization",
+            id: "acme",
+            roles: [...roles],
+            via: "staff",
+          },
+        ],
+        authzVersion: tokenVersion,
+      };
+      const permdock = await createPermDock(
+        policy,
+        { principal, context: {} },
+        {
+          memberships: claimsFirst(sources.memberships, { onStale: "reread" }),
+          customRoles: sources.customRoles(principal),
+        },
+      );
+      return {
+        allowed: permdock.tenant("acme").can(permissions.asset.read, asset),
+        calls,
+      };
+    };
+    expect(await run(["auditor"], 4)).toEqual({
+      allowed: true,
+      calls: ["permdock.subject_for(u1)"],
+    });
+    expect(await run(["auditor"], 3)).toEqual({
+      allowed: true,
+      calls: ["permdock.subject_for(u1)"],
+    });
+    expect((await run(["viewer"], 4)).calls).toEqual([
+      "permdock.authz_version_for(u1)",
+    ]);
+    expect((await run(["viewer"], 3)).calls).toEqual([
+      "permdock.authz_version_for(u1)",
+      "permdock.subject_for(u1)",
+    ]);
+  });
+
   it("feeds createPermDock for an acting user", async () => {
     const sources = postgrestSources(fakeClient({ u1: owner }));
     const subject = await sources.subject("u1");

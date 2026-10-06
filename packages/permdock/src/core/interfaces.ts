@@ -90,10 +90,14 @@ export type MembershipSource = {
   /**
    * The principal's current authorization version, bumped on every membership
    * change. A token whose `authzVersion` is behind it is stale for the
-   * policy's `fresh` permissions.
+   * policy's `fresh` permissions. `roles` and `memberships` are what the
+   * token claims, so a source can read more than the version in the same
+   * call when the claims show it will be needed.
    */
   version?(principal: {
     readonly id: string;
+    readonly roles?: readonly string[];
+    readonly memberships?: readonly Membership[];
   }): number | undefined | Promise<number | undefined>;
   /**
    * Keep the memberships the verified token carries and read this source only

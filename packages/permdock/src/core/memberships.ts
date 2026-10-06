@@ -170,9 +170,9 @@ export function claimsFirst(
     options.version ??
     (inner.version === undefined
       ? undefined
-      : (principal: {
-          readonly id: string;
-        }): ReturnType<NonNullable<MembershipSource["version"]>> | undefined =>
+      : (
+          principal: Parameters<NonNullable<MembershipSource["version"]>>[0],
+        ): ReturnType<NonNullable<MembershipSource["version"]>> | undefined =>
           inner.version?.(principal));
   return {
     membershipsFor: (principal, query) =>
