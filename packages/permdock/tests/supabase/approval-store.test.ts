@@ -106,6 +106,40 @@ describe("supabaseApprovalStore", () => {
     });
   });
 
+  it("runs onOpen once per stored request, not for a repeated ask that finds it open", async () => {
+    let stored: ApprovalRequest | null = null;
+    const opened: string[] = [];
+    const store = supabaseApprovalStore(
+      client((call) => {
+        if (call.fn === "permdock_approval_open") {
+          stored ??= request;
+          return { data: null, error: null };
+        }
+        return { data: stored, error: null };
+      }),
+      {
+        schema: "auth_z",
+        onOpen: (opening) => {
+          opened.push(opening.createdAt);
+        },
+      },
+    );
+    await store.create(request);
+    await store.create({ ...request, createdAt: "2026-10-05T10:05:00.000Z" });
+    expect(opened).toEqual([request.createdAt]);
+    const lost = supabaseApprovalStore(
+      client(() => ({ data: null, error: null })),
+      {
+        schema: "auth_z",
+        onOpen: () => {
+          opened.push("lost");
+        },
+      },
+    );
+    await lost.create(request);
+    expect(opened).toEqual([request.createdAt]);
+  });
+
   it("refuses a verdict on a missing or no longer pending request", async () => {
     const store = supabaseApprovalStore(
       client((call) =>

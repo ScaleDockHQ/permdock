@@ -110,6 +110,29 @@ afterAll(async () => {
 describe("supabaseApprovalStore over the generated store", () => {
   testApprovalStore(store, { reopen: () => open() });
 
+  it("runs onOpen once for a request a repeated ask finds still open", async () => {
+    const request = {
+      v: 1 as const,
+      token: "repeat-token",
+      permission: "job.update",
+      scope: "job:update",
+      resource: { type: "job", id: "j1" },
+      subject: { principal: { id: "u1", roles: [] } },
+      detail: "approval",
+      createdAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      status: "pending" as const,
+    };
+    await current.create(request);
+    await current.create({
+      ...request,
+      createdAt: new Date(Date.now() + 1000).toISOString(),
+    });
+    expect(opened.filter((token) => token === "repeat-token")).toEqual([
+      "repeat-token",
+    ]);
+  });
+
   it("tells onOpen about each opened request and keeps client roles out", async () => {
     expect(opened.length).toBeGreaterThan(0);
     if (db === undefined) {
