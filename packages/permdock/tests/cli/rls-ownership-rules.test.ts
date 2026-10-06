@@ -179,6 +179,17 @@ describe("ownershipSql in database mode", () => {
       'p_scope_id is null and exists (\n      select 1 from "permdock".user_roles ur',
     );
     expect(canAssign).toContain("in (values ('operator', 'auditor'))");
+    const canAssignFor = sql.slice(
+      sql.indexOf("-- who may assign, for a user"),
+    );
+    expect(canAssignFor).toContain(
+      `create or replace function "permdock".permdock_can_assign_for(p_user uuid, p_role text, p_scope_id text)`,
+    );
+    expect(canAssignFor).toContain("p_user");
+    expect(canAssignFor).not.toContain("auth.uid()");
+    expect(canAssignFor).toContain(
+      `revoke execute on function "permdock".permdock_can_assign_for(uuid, text, text) from public, anon, authenticated;`,
+    );
     expect(canAssign).toContain("in (values ('owner', 'manager'))");
     expect(canAssign).not.toContain("('lead', 'manager')");
     expect(sql).not.toMatch(/service_role/iu);
@@ -243,6 +254,7 @@ describe("ownershipSql in jwt mode", () => {
     expect(canAssign).toContain("m ->> 'scope' = 'org'");
     expect(canAssign).toContain("m ->> 'scope' = 'team'");
     expect(sql).toContain("-- org: no memberships table configured");
+    expect(sql).not.toContain("permdock_can_assign_for");
   });
 
   it("answers false when no assigner can be checked", () => {
