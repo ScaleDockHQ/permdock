@@ -18,6 +18,7 @@ import {
   activeUserSql,
   globalKindFilterSql,
   hasMemberFor,
+  keyTenantSql,
   kindFilterSql,
   memberForHelper,
   memberForSources,
@@ -181,6 +182,15 @@ function activeTenant(ctx: RlsSqlContext): string {
 
 function rootName(ctx: RlsSqlContext): string {
   return ctx.scopes[0]?.name ?? "tenant";
+}
+
+function keyTenantLine(
+  ctx: RlsSqlContext,
+  scope: string,
+  tenant: string,
+): string {
+  const keyed = keyTenantSql(ctx, underRoot(ctx, scope) ? tenant : undefined);
+  return keyed === undefined ? "" : `\n    and ${keyed}`;
 }
 
 /** Whether the helper for `scope` narrows to the tenant claim: unless `rls.tenants` is `'all'`, when the first scope is on its chain. */
@@ -417,6 +427,13 @@ function tableBody(ctx: RlsSqlContext, scope: string, type: string): string {
       `    and (${activeTenant(ctx)} is null or ${memberColumn(tenantColumn)}::text = ${activeTenant(ctx)})`,
     );
   }
+  const keyed = keyTenantSql(
+    ctx,
+    tenantColumn === undefined ? undefined : memberColumn(tenantColumn),
+  );
+  if (keyed !== undefined) {
+    filters.push(`    and ${keyed}`);
+  }
   filters.push(
     ...userActive(ctx, "    "),
     ...instancesActive(
@@ -491,7 +508,7 @@ function claimBody(ctx: RlsSqlContext, scope: string, type: string): string {
     and (${activeTenant(ctx)} is null or ${claimTenant(ctx, scope)} = ${activeTenant(ctx)})`
     : "";
   const filters = `    and m ->> 'scope' = ${quoteLiteral(scope)}
-    and m ->> 'id' is not null${narrow}
+    and m ->> 'id' is not null${narrow}${keyTenantLine(ctx, scope, claimTenant(ctx, scope))}
     and case jsonb_typeof(m -> 'expiresAt')
       when 'number' then (m ->> 'expiresAt')::numeric > extract(epoch from now())
       else true
@@ -928,8 +945,8 @@ function sourcesBody(ctx: RlsSqlContext, scope: string, type: string): Body {
   const root = rootName(ctx);
   const tenant = sourceIdOf(scope)(root);
   const narrow = narrowsTo(ctx, scope)
-    ? `\n    and (${activeTenant(ctx)} is null or ${tenant} = ${activeTenant(ctx)})`
-    : "";
+    ? `\n    and (${activeTenant(ctx)} is null or ${tenant} = ${activeTenant(ctx)})${keyTenantLine(ctx, scope, tenant)}`
+    : keyTenantLine(ctx, scope, tenant);
   const sources = scopeSources(ctx, scope);
   const rows = `  from (
 ${sourceRows(sources)}
@@ -999,7 +1016,7 @@ function memberBody(ctx: RlsSqlContext, scope: string, type: string): Body {
   ) m
   where ${signedIn(ctx)}
     and m ->> 'scope' = ${quoteLiteral(scope)}
-    and m ->> 'id' is not null
+    and m ->> 'id' is not null${keyTenantLine(ctx, scope, claimTenant(ctx, scope))}
     and jsonb_typeof(m -> 'roles') = 'array'
     and jsonb_array_length(m -> 'roles') > 0
     and case jsonb_typeof(m -> 'expiresAt')
@@ -1026,6 +1043,7 @@ function memberBody(ctx: RlsSqlContext, scope: string, type: string): Body {
     type,
     subjectIdSql(ctx),
     scopeSources(ctx, scope),
+    true,
   );
 }
 
@@ -1039,8 +1057,12 @@ function memberRowsBody(
   type: string,
   user: string,
   sources: readonly SqlMembershipSource[],
+  keyed = false,
 ): Body {
   if (sources.length > 0) {
+    const narrow = keyed
+      ? keyTenantLine(ctx, scope, sourceIdOf(scope)(rootName(ctx)))
+      : "";
     return sourcesBodyOf(
       `  select distinct (ms.id)::${type}
   from (
@@ -1049,7 +1071,7 @@ ${sourceRows(sources)}
   where ${signedIn(ctx, user)}
     and ms.scope = ${quoteLiteral(scope)}
     and jsonb_typeof(ms.roles) = 'array'
-    and jsonb_array_length(ms.roles) > 0${sourceFilters(ctx, scope, user)}`,
+    and jsonb_array_length(ms.roles) > 0${narrow}${sourceFilters(ctx, scope, user)}`,
       sources,
       user,
     );
@@ -1060,7 +1082,7 @@ ${sourceRows(sources)}
       `  select null::${type} where false -- no ${scope} memberships table configured`,
     );
   }
-  const { table, column } = mapped;
+  const { table, column, tenantColumn } = mapped;
   const role = memberRoleOf(table, "m", "  ");
   const lines = [
     `  select distinct ${memberColumn(column)}::${type}`,
@@ -1068,6 +1090,15 @@ ${sourceRows(sources)}
     `  where ${memberColumn(table.user)} = ${user}`,
     `    and ${role.through === undefined && !role.lateral ? memberColumn(role.column) : role.sql} is not null`,
   ];
+  const narrow = keyed
+    ? keyTenantSql(
+        ctx,
+        tenantColumn === undefined ? undefined : memberColumn(tenantColumn),
+      )
+    : undefined;
+  if (narrow !== undefined) {
+    lines.push(`    and ${narrow}`);
+  }
   if (table.expiresAt !== undefined) {
     const expires = memberColumn(table.expiresAt);
     lines.push(`    and (${expires} is null or ${expires} > now())`);
@@ -1180,8 +1211,9 @@ function forUserSql(ctx: RlsSqlContext): string {
   if (ctx.authorize !== "database") {
     return "";
   }
+  const { apiKeys: _apiKeys, ...unkeyed } = ctx;
   const forUser: RlsSqlContext = {
-    ...ctx,
+    ...unkeyed,
     subjectId: "p_user",
     tenants: "all",
   };
@@ -1327,7 +1359,12 @@ revoke all on table ${ur} from anon, authenticated, public;`);
       HELPERS.has,
       "boolean",
       sqlBody(
-        keys === undefined ? hasBody(ctx) : ceilingHasSql(hasBody(ctx), allows),
+        keys === undefined
+          ? hasBody(ctx)
+          : ceilingHasSql(
+              hasBody(ctx),
+              `${allows} and ${keyTenantSql(ctx, undefined) ?? "true"}`,
+            ),
       ),
       anon,
     ),

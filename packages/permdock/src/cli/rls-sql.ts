@@ -560,6 +560,20 @@ export function scopeTable(
     : { table, column, tenantColumn };
 }
 
+export function keyTenantSql(
+  ctx: RlsSqlContext,
+  tenant: string | undefined,
+): string | undefined {
+  const keys = ctx.apiKeys;
+  if (keys === undefined) {
+    return undefined;
+  }
+  const named = `nullif(${subjectClaimJsonSql(ctx, keys.claim)} ->> ${quoteLiteral(keys.tenant)}, '')`;
+  return tenant === undefined
+    ? `${named} is null`
+    : `(${named} is null or (${tenant})::text = ${named})`;
+}
+
 /** The active-tenant claim cast to the tenant column's type, so the comparison uses the column's index. */
 function tenantClaimSql(ctx: RlsSqlContext): string {
   return `${subjectClaimSql(ctx, ctx.tenantClaim)}::${tenantTypeOf(ctx)}`;
@@ -1003,6 +1017,14 @@ function existsSql(
   }
   parts.push(...activeUserSql(ctx));
   if (scope !== undefined) {
+    const tenantOf = scope === rootScope(ctx.scopes) ? rowColumn : tenantColumn;
+    const keyed = keyTenantSql(
+      ctx,
+      tenantOf === undefined ? undefined : `m.${quoteIdent(tenantOf)}`,
+    );
+    if (keyed !== undefined) {
+      parts.push(keyed);
+    }
     parts.push(
       ...activeInstancesSql(ctx, scope, (name) => {
         const held = scopeColumn(table, ctx.scopes, name);
@@ -1097,6 +1119,11 @@ function compileMemberOf(
       ctx.tenants === "all"
         ? `${quoteIdent(condition.field)} in (select ${quoteIdent(ctx.schema ?? PERMDOCK_SCHEMA)}.${memberIdsHelper(scope)}())`
         : `${quoteIdent(condition.field)} = ${tenantClaimSql(ctx)}`,
+      ...(ctx.tenants === "all"
+        ? []
+        : [keyTenantSql(ctx, quoteIdent(condition.field))].filter(
+            (part) => part !== undefined,
+          )),
       ...activeUserSql(ctx),
       ...activeInstancesSql(ctx, scope, () => quoteIdent(condition.field)),
     ];
