@@ -53,6 +53,8 @@ export const CUSTOM_ROLES = {
   keys: "permdock_custom_keys",
   beyond: "permdock_custom_role_beyond",
   guard: "permdock_custom_role_guard",
+  beyondFor: "permdock_custom_role_beyond_for",
+  guardFor: "permdock_custom_role_guard_for",
   shape: "permdock_custom_role_shape",
   entries: "permdock_custom_role_entries",
   replace: "permdock_replace_custom_role_grants",
@@ -1372,57 +1374,60 @@ ${indent}  message = ${message},
 ${indent}  hint = ${quoteLiteral(hint)};`;
 }
 
-/**
- * The functions an application calls to save, rename and delete a custom
- * role in \`database\` mode, with the rules of \`validateCustomRole\` and
- * \`assignablePermissions\`: entries inside the ceiling of the role's scope,
- * includes naming declared roles, and only permissions and levels the caller
- * may hand out, for the new definition and the stored one alike. A platform
- * custom role (\`p_scope = 'global'\`, no tenant) is written by a caller who
- * holds a \`meta.manageRoles\` permission through a global role. The
- * \`permdock_trusted_*\` variants skip the caller checks and keep the
- * definition checks; no client role may execute them.
- */
-function customRoleWritesSql(
+export function hasCustomRoleChecksFor(ctx: RlsSqlContext): boolean {
+  return (
+    ctx.authorize === "database" &&
+    ctx.customRoles !== undefined &&
+    ctx.scopes.length > 0 &&
+    ctx.scopes.every((scope) => hasMemberFor(ctx, scope.name))
+  );
+}
+
+function callerFunctionsSql(
   ctx: RlsSqlContext,
+  custom: NonNullable<RlsSqlContext["customRoles"]>,
+  root: string,
   levelReach: readonly (readonly [string, string])[],
-): string {
-  const custom = ctx.customRoles;
-  const root = ctx.scopes[0]?.name;
-  if (
-    custom === undefined ||
-    ctx.authorize !== "database" ||
-    root === undefined
-  ) {
-    return "";
-  }
+  forUser: boolean,
+): { readonly beyond: string; readonly guard: string } {
   const leveled = custom.levels === true;
   const tenantType = tenantTypeOf(ctx);
   const rp = qualified(ctx, "role_permissions");
-  const ceiling = qualified(ctx, CUSTOM_ROLES.ceiling);
   const keys = qualified(ctx, CUSTOM_ROLES.keys);
   const perms = qualified(ctx, CUSTOM_ROLES.permissions);
   const includes = qualified(ctx, CUSTOM_ROLES.includes);
-  const beyond = qualified(ctx, CUSTOM_ROLES.beyond);
-  const guard = qualified(ctx, CUSTOM_ROLES.guard);
   const shape = qualified(ctx, CUSTOM_ROLES.shape);
-  const entries = qualified(ctx, CUSTOM_ROLES.entries);
-  const has = qualified(ctx, HELPERS.has);
-  const renames = Object.entries(custom.renamed ?? {}).toSorted(([a], [b]) =>
-    a < b ? -1 : a > b ? 1 : 0,
+  const beyond = qualified(
+    ctx,
+    forUser ? CUSTOM_ROLES.beyondFor : CUSTOM_ROLES.beyond,
   );
-  const current = (expr: string): string => currentKeyExpr(renames, expr);
-  const known = textArray([
-    ...(custom.permissions ?? []),
-    ...renames.map(([former]) => former),
-  ]);
+  const guard = qualified(
+    ctx,
+    forUser ? CUSTOM_ROLES.guardFor : CUSTOM_ROLES.guard,
+  );
+  const user = forUser ? "p_user" : subjectIdSql(ctx);
+  const userParam = forUser ? "p_user uuid, " : "";
+  const userArg = forUser ? "uuid, " : "";
+  const userCall = forUser ? "p_user, " : "";
+  const has = (key: string): string =>
+    forUser
+      ? `${qualified(ctx, HELPERS.hasFor)}(p_user, ${key})`
+      : `${qualified(ctx, HELPERS.has)}(${key})`;
   const ids = (helper: string, arg: string): string =>
     `(select x::text from ${qualified(ctx, helper)}(${arg}) x)`;
+  const permitted = (scope: string, key: string): string =>
+    forUser
+      ? ids(permittedForHelper(scope), `p_user, ${key}`)
+      : ids(permittedIdsHelper(scope), key);
+  const members = (scope: string): string =>
+    forUser
+      ? ids(memberForHelper(scope), "p_user")
+      : ids(memberIdsHelper(scope), "");
   const heldKey = (key: string): string =>
-    `(${has}(${key})
+    `(${has(key)}
         or (p_scope <> 'global'
-          and (p_tenant::text in ${ids(permittedIdsHelper(root), key)}
-            or ${perScope(ctx, (scope) => (scope === root ? "false" : `p_scope_id in ${ids(permittedIdsHelper(scope), key)}`))})))`;
+          and (p_tenant::text in ${permitted(root, key)}
+            or ${perScope(ctx, (scope) => (scope === root ? "false" : `p_scope_id in ${permitted(scope, key)}`))})))`;
   const holdsAny = (
     permissions: readonly string[],
     held: (key: string) => string,
@@ -1437,7 +1442,7 @@ function customRoleWritesSql(
   )`;
   const manageKeys = custom.manage ?? [];
   const manage = holdsAny(manageKeys, heldKey);
-  const platform = holdsAny(manageKeys, (key) => `${has}(${key})`);
+  const platform = holdsAny(manageKeys, has);
   const requires =
     custom.requires === undefined
       ? ""
@@ -1471,8 +1476,124 @@ ${raiseSql("    ", "42501", `'permdock: the caller may not manage roles in ' || 
     reach (grant_key, level) as (values ${reachRows})`
       : "";
   const match = `c.tenant_id is not distinct from p_tenant and c.scope = p_scope and c.scope_id is not distinct from p_scope_id`;
-  const memberOf = `p_tenant::text in ${ids(memberIdsHelper(root), "")}
-      or ${perScope(ctx, (scope) => (scope === root ? "false" : `p_scope_id in ${ids(memberIdsHelper(scope), "")}`))}`;
+  const memberOf = `p_tenant::text in ${members(root)}
+      or ${perScope(ctx, (scope) => (scope === root ? "false" : `p_scope_id in ${members(scope)}`))}`;
+  return {
+    beyond: `-- custom-role writes: the permission keys of a definition the caller may not hand out in the tenant, as assignablePermissions computes them
+create or replace function ${beyond}(${userParam}p_tenant ${tenantType}, p_scope text, p_scope_id text, p_allow text[], p_deny text[], p_include text[])
+returns setof text
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+begin
+  if ${manage} then
+    return;
+  end if;
+  return query
+  with resolved as (
+    select distinct rp.permission, k.key as grant_key
+    from ${keys}(p_allow, p_deny, p_include, p_scope) k(key)
+    join ${rp} rp on rp.grant_key = k.key and rp.effect = 'allow'
+  ),
+  held as (
+    select distinct rp.permission, rp.grant_key
+    from ${rp} rp
+    where rp.effect = 'allow'
+      and rp.permission in (select r.permission from resolved r)
+      and ${heldKey("rp.grant_key")}
+  )${reachCte}
+  select distinct r.permission
+  from resolved r
+  where not exists (select 1 from held h where h.permission = r.permission)${levelCheck};
+end;
+$$;
+revoke execute on function ${beyond}(${userArg}${tenantType}, text, text, text[], text[], text[]) from public, anon, authenticated;`,
+    guard: `-- a custom role the caller may change: membership of the tenant or the instance (a platform role, or a caller holding a manageRoles permission through a global role, needs none), and authority over the stored definition
+create or replace function ${guard}(${userParam}p_tenant ${tenantType}, p_scope text, p_scope_id text, p_role text)
+returns void
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_allow text[];
+  v_deny text[];
+  v_include text[];
+  v_beyond text;
+begin
+  perform ${shape}(p_tenant, p_scope, p_scope_id, p_role);
+  if not (${signedIn(ctx, user)} and (
+    ${platform}
+    or (p_scope <> 'global' and (${memberOf}))
+  )) then
+${raiseSql("    ", "42501", `'permdock: the caller is not a member of ' || coalesce(p_tenant::text, 'the platform')`, "not-member")}
+  end if;${requires}
+  select array_agg(${allowEntry(ctx)}) filter (where c.effect = 'allow'),
+    array_agg(c.permission) filter (where c.effect = 'deny')
+  into v_allow, v_deny
+  from ${perms} c
+  where ${match} and c.role = p_role;
+  select array_agg(c.include_role) into v_include
+  from ${includes} c
+  where ${match} and c.role = p_role;
+  select string_agg(b, ', ' order by b) into v_beyond
+  from ${beyond}(${userCall}p_tenant, p_scope, p_scope_id, v_allow, v_deny, v_include) b;
+  if v_beyond is not null then
+${raiseSql("    ", "42501", `'permdock: ' || p_role || ' allows ' || v_beyond || ', which the caller may not hand out'`, "not-assignable-by")}
+  end if;
+end;
+$$;
+revoke execute on function ${guard}(${userArg}${tenantType}, text, text, text) from public, anon, authenticated;`,
+  };
+}
+
+/**
+ * The functions an application calls to save, rename and delete a custom
+ * role in \`database\` mode, with the rules of \`validateCustomRole\` and
+ * \`assignablePermissions\`: entries inside the ceiling of the role's scope,
+ * includes naming declared roles, and only permissions and levels the caller
+ * may hand out, for the new definition and the stored one alike. A platform
+ * custom role (\`p_scope = 'global'\`, no tenant) is written by a caller who
+ * holds a \`meta.manageRoles\` permission through a global role. The
+ * \`permdock_trusted_*\` variants skip the caller checks and keep the
+ * definition checks; no client role may execute them.
+ */
+function customRoleWritesSql(
+  ctx: RlsSqlContext,
+  levelReach: readonly (readonly [string, string])[],
+): string {
+  const custom = ctx.customRoles;
+  const root = ctx.scopes[0]?.name;
+  if (
+    custom === undefined ||
+    ctx.authorize !== "database" ||
+    root === undefined
+  ) {
+    return "";
+  }
+  const leveled = custom.levels === true;
+  const tenantType = tenantTypeOf(ctx);
+  const rp = qualified(ctx, "role_permissions");
+  const ceiling = qualified(ctx, CUSTOM_ROLES.ceiling);
+  const perms = qualified(ctx, CUSTOM_ROLES.permissions);
+  const includes = qualified(ctx, CUSTOM_ROLES.includes);
+  const beyond = qualified(ctx, CUSTOM_ROLES.beyond);
+  const guard = qualified(ctx, CUSTOM_ROLES.guard);
+  const shape = qualified(ctx, CUSTOM_ROLES.shape);
+  const entries = qualified(ctx, CUSTOM_ROLES.entries);
+  const renames = Object.entries(custom.renamed ?? {}).toSorted(([a], [b]) =>
+    a < b ? -1 : a > b ? 1 : 0,
+  );
+  const current = (expr: string): string => currentKeyExpr(renames, expr);
+  const known = textArray([
+    ...(custom.permissions ?? []),
+    ...renames.map(([former]) => former),
+  ]);
+  const caller = callerFunctionsSql(ctx, custom, root, levelReach, false);
+  const match = `c.tenant_id is not distinct from p_tenant and c.scope = p_scope and c.scope_id is not distinct from p_scope_id`;
   const scopes = textArray(ctx.scopes.map((scope) => scope.name));
   const roleName = (param: string): string =>
     `coalesce(${param}, '') = '' or ${param} = any(${textArray(custom.declared)})`;
@@ -1529,37 +1650,7 @@ grant execute on function ${qualified(ctx, name)}(${args}) to authenticated;`
   const writeParams = `p_tenant ${tenantType}, p_scope text, p_scope_id text, p_role text, p_allow text[], p_deny text[], p_include text[]`;
   const renameParams = `p_tenant ${tenantType}, p_scope text, p_scope_id text, p_from text, p_to text`;
   const removeParams = `p_tenant ${tenantType}, p_scope text, p_scope_id text, p_role text`;
-  return `-- custom-role writes: the permission keys of a definition the caller may not hand out in the tenant, as assignablePermissions computes them
-create or replace function ${beyond}(p_tenant ${tenantType}, p_scope text, p_scope_id text, p_allow text[], p_deny text[], p_include text[])
-returns setof text
-language plpgsql
-stable
-security definer
-set search_path = ''
-as $$
-begin
-  if ${manage} then
-    return;
-  end if;
-  return query
-  with resolved as (
-    select distinct rp.permission, k.key as grant_key
-    from ${keys}(p_allow, p_deny, p_include, p_scope) k(key)
-    join ${rp} rp on rp.grant_key = k.key and rp.effect = 'allow'
-  ),
-  held as (
-    select distinct rp.permission, rp.grant_key
-    from ${rp} rp
-    where rp.effect = 'allow'
-      and rp.permission in (select r.permission from resolved r)
-      and ${heldKey("rp.grant_key")}
-  )${reachCte}
-  select distinct r.permission
-  from resolved r
-  where not exists (select 1 from held h where h.permission = r.permission)${levelCheck};
-end;
-$$;
-revoke execute on function ${beyond}(${tenantType}, text, text, text[], text[], text[]) from public, anon, authenticated;
+  return `${caller.beyond}
 
 -- where a custom role may live: a scope of a tenant, or the platform (scope global, no tenant or instance), under an undeclared name
 create or replace function ${shape}(p_tenant ${tenantType}, p_scope text, p_scope_id text, p_role text)
@@ -1583,44 +1674,17 @@ end;
 $$;
 revoke execute on function ${shape}(${tenantType}, text, text, text) from public, anon, authenticated;
 
--- a custom role the caller may change: membership of the tenant or the instance (a platform role, or a caller holding a manageRoles permission through a global role, needs none), and authority over the stored definition
-create or replace function ${guard}(p_tenant ${tenantType}, p_scope text, p_scope_id text, p_role text)
-returns void
-language plpgsql
-stable
-security definer
-set search_path = ''
-as $$
-declare
-  v_allow text[];
-  v_deny text[];
-  v_include text[];
-  v_beyond text;
-begin
-  perform ${shape}(p_tenant, p_scope, p_scope_id, p_role);
-  if not (${signedIn(ctx)} and (
-    ${platform}
-    or (p_scope <> 'global' and (${memberOf}))
-  )) then
-${raiseSql("    ", "42501", `'permdock: the caller is not a member of ' || coalesce(p_tenant::text, 'the platform')`, "not-member")}
-  end if;${requires}
-  select array_agg(${allowEntry(ctx)}) filter (where c.effect = 'allow'),
-    array_agg(c.permission) filter (where c.effect = 'deny')
-  into v_allow, v_deny
-  from ${perms} c
-  where ${match} and c.role = p_role;
-  select array_agg(c.include_role) into v_include
-  from ${includes} c
-  where ${match} and c.role = p_role;
-  select string_agg(b, ', ' order by b) into v_beyond
-  from ${beyond}(p_tenant, p_scope, p_scope_id, v_allow, v_deny, v_include) b;
-  if v_beyond is not null then
-${raiseSql("    ", "42501", `'permdock: ' || p_role || ' allows ' || v_beyond || ', which the caller may not hand out'`, "not-assignable-by")}
-  end if;
-end;
-$$;
-revoke execute on function ${guard}(${tenantType}, text, text, text) from public, anon, authenticated;
+${caller.guard}
+${
+  hasCustomRoleChecksFor(ctx)
+    ? `
+-- the same checks for a user the caller names: trusted SQL acting later for a stored user; no client role may execute them
+${callerFunctionsSql(ctx, custom, root, levelReach, true).beyond}
 
+${callerFunctionsSql(ctx, custom, root, levelReach, true).guard}
+`
+    : ""
+}
 -- the entries of a definition: declared keys and levels inside the ceiling of the scope, and declared includes
 create or replace function ${entries}(p_scope text, p_allow text[], p_deny text[], p_include text[])
 returns void

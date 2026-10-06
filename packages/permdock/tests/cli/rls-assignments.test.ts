@@ -90,6 +90,7 @@ describe("assignment triggers", () => {
       `when new."organization_id"::text is null then "permdock".permdock_can_assign_custom_role(null, 'global', null, v_role)`,
     );
     expect(sql).toContain("c.tenant_id is not distinct from p_tenant");
+    expect(sql).not.toContain("permdock_can_assign_custom_role_for");
   });
 
   it("refuses an extra table below the first scope without its tenant column", () => {

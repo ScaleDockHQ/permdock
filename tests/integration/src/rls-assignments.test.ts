@@ -180,6 +180,51 @@ describe("rls.assignments", () => {
     ).rejects.toThrow(/may not assign platform-support in acme/u);
   });
 
+  it("re-checks an assignment for a stored user with the _for forms", async () => {
+    if (db === undefined) {
+      throw new Error("PermDock: Postgres was not started");
+    }
+    const ask = async (sql: string): Promise<unknown> =>
+      (await db?.admin.query<{ ok: unknown }>(`select ${sql} as ok`))?.rows[0]
+        ?.ok;
+    expect(
+      await ask(
+        `permdock.permdock_can_assign_for('${ADMIN}', 'member', 'acme')`,
+      ),
+    ).toBe(true);
+    expect(
+      await ask(
+        `permdock.permdock_can_assign_for('${ADMIN}', 'admin', 'acme')`,
+      ),
+    ).toBe(false);
+    expect(
+      await ask(
+        `permdock.permdock_can_assign_for('${PLATFORM}', 'platform-support', null)`,
+      ),
+    ).toBe(true);
+    expect(
+      await ask(
+        `permdock.permdock_can_assign_custom_role_for('${ADMIN}', 'acme', 'tenant', 'acme', 'reader')`,
+      ),
+    ).toBe(true);
+    expect(
+      await ask(
+        `permdock.permdock_can_assign_custom_role_for('${ADMIN}', 'acme', 'tenant', 'acme', 'editor')`,
+      ),
+    ).toBe(false);
+    expect(
+      await ask(
+        `permdock.permdock_can_assign_custom_role_for('${PLATFORM}', null, 'global', null, 'platform-reader')`,
+      ),
+    ).toBe(true);
+    const grants = await db.admin.query<{ allowed: boolean }>(
+      `select has_function_privilege('authenticated', 'permdock.permdock_can_assign_for(uuid, text, text)', 'execute') as allowed
+       union all
+       select has_function_privilege('authenticated', 'permdock.permdock_can_assign_custom_role_for(uuid, text, text, text, text)', 'execute')`,
+    );
+    expect(grants.rows.map((row) => row.allowed)).toEqual([false, false]);
+  });
+
   it("assigns a platform custom role at no instance only by the custom-role checks", async () => {
     await expect(
       as(PLATFORM, invite(null, "platform-reader")),

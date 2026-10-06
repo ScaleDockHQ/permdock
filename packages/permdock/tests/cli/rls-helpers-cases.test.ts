@@ -200,6 +200,45 @@ describe("helpersSql custom-role writes", () => {
     );
   });
 
+  it("checks a user the caller names through the _for helpers when every scope can read its memberships", () => {
+    const sources = [fromTable({ table: "memberships" })];
+    const sql = helpers({
+      authorize: "database",
+      sources,
+      memberSources: sources,
+      customRoles: {
+        declared: ["admin"],
+        assignable: ["admin"],
+        manage: ["member.assign"],
+      },
+    });
+    const guard = fnBody(sql, "permdock_custom_role_guard_for");
+    expect(guard).toContain(
+      `"permdock".permdock_custom_role_guard_for(p_user uuid, p_tenant`,
+    );
+    expect(guard).toContain("coalesce(p_user::text, '') <> ''");
+    expect(guard).toContain(
+      `p_tenant::text in (select x::text from "permdock".member_org_ids_for(p_user) x)`,
+    );
+    expect(guard).toContain(
+      `"permdock".permdock_custom_role_beyond_for(p_user, p_tenant`,
+    );
+    expect(guard).not.toContain("auth.uid()");
+    expect(fnBody(sql, "permdock_custom_role_beyond_for")).toContain(
+      `"permdock".permdock_has_for(p_user, rp.grant_key)`,
+    );
+    expect(sql).toContain(
+      `revoke execute on function "permdock".permdock_custom_role_guard_for(uuid, uuid, text, text, text) from public, anon, authenticated;`,
+    );
+    expect(
+      helpers({
+        authorize: "database",
+        sources,
+        customRoles: { declared: ["admin"], assignable: ["admin"] },
+      }),
+    ).not.toContain("permdock_custom_role_guard_for");
+  });
+
   it("emits trusted variants that keep the definition checks and no caller check", () => {
     const sql = helpers({
       authorize: "database",

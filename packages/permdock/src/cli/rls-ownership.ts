@@ -16,6 +16,7 @@ import { roleColumn } from "../supabase/roles.ts";
 import {
   CUSTOM_ROLES,
   globalRoleRows,
+  hasCustomRoleChecksFor,
   memberColumn,
   membershipRows,
   membershipTable,
@@ -46,6 +47,7 @@ import {
 /** Objects the ownership rules add next to the helpers. Names are part of the SQL contract. */
 const OWNERSHIP = {
   canAssign: "permdock_can_assign",
+  canAssignFor: "permdock_can_assign_for",
   holders: "permdock_holders",
   transferOnly: "permdock_transfer_only",
 } as const;
@@ -580,9 +582,19 @@ function sourceRowsSql(
     .join("\n        union all\n");
 }
 
-/** Whether the signed-in user holds, in instance `p_scope_id`, a role whose `assigns` lists `p_role`. */
-function canAssignSql(ctx: RlsSqlContext, own: RlsOwnership): string {
-  const fn = qualified(ctx, OWNERSHIP.canAssign);
+/** Whether the signed-in user (or `p_user` in the `_for` form) holds, in instance `p_scope_id`, a role whose `assigns` lists `p_role`. */
+function canAssignSql(
+  base: RlsSqlContext,
+  own: RlsOwnership,
+  forUser = false,
+): string {
+  const ctx: RlsSqlContext = forUser
+    ? { ...base, subjectId: "p_user", tenants: "all" }
+    : base;
+  const fn = qualified(
+    ctx,
+    forUser ? OWNERSHIP.canAssignFor : OWNERSHIP.canAssign,
+  );
   const parts: string[] = [];
   const used: SqlMembershipSource[] = [];
   const userOf = (source: SqlMembershipSource): string => {
@@ -700,6 +712,14 @@ begin
   );
 end;
 $$;`;
+  if (forUser) {
+    const user = ctx.dialect === "supabase" ? "uuid" : "text";
+    return `-- who may assign, for a user the caller names: trusted SQL acting later for a stored user; no client role may execute it
+create or replace function ${fn}(p_user ${user}, p_role text, p_scope_id text)
+returns boolean
+${language}
+revoke execute on function ${fn}(${user}, text, text) from public, anon, authenticated;`;
+  }
   return `-- who may assign: a held role whose assigns lists p_role, in instance p_scope_id (its scope or an ancestor's); a null p_scope_id assigns a global role, which only global assigners may
 create or replace function ${fn}(p_role text, p_scope_id text)
 returns boolean
@@ -764,6 +784,9 @@ export function ownershipSql(ctx: RlsSqlContext): string {
   }
   if (own.assigns.length > 0) {
     chunks.push(canAssignSql(ctx, own));
+    if (ctx.authorize === "database") {
+      chunks.push(canAssignSql(ctx, own, true));
+    }
   }
   return chunks.length === 0 ? "" : `${chunks.join("\n\n")}\n`;
 }
@@ -771,6 +794,7 @@ export function ownershipSql(ctx: RlsSqlContext): string {
 /** Objects `rls.assignments` adds. Names are part of the SQL contract. */
 const ASSIGNMENTS = {
   custom: "permdock_can_assign_custom_role",
+  customFor: "permdock_can_assign_custom_role_for",
   trigger: "permdock_assignment",
 } as const;
 
@@ -850,15 +874,27 @@ function rowRoles(entry: AssignedTable, row: string): readonly string[] {
  * custom role of the tenant at the instance, by the checks the custom-role
  * write functions run on its stored definition.
  */
-function canAssignCustomSql(ctx: RlsSqlContext): string {
+function canAssignCustomSql(ctx: RlsSqlContext, forUser = false): string {
   const tenantType = tenantTypeOf(ctx);
-  const fn = qualified(ctx, ASSIGNMENTS.custom);
+  const fn = qualified(
+    ctx,
+    forUser ? ASSIGNMENTS.customFor : ASSIGNMENTS.custom,
+  );
   const perms = qualified(ctx, CUSTOM_ROLES.permissions);
   const includes = qualified(ctx, CUSTOM_ROLES.includes);
-  const guard = qualified(ctx, CUSTOM_ROLES.guard);
+  const guard = qualified(
+    ctx,
+    forUser ? CUSTOM_ROLES.guardFor : CUSTOM_ROLES.guard,
+  );
+  const userParam = forUser ? "p_user uuid, " : "";
+  const userArg = forUser ? "uuid, " : "";
   const stored = `c.tenant_id is not distinct from p_tenant and c.scope = p_scope and c.role = p_role and (c.scope_id is null or c.scope_id = p_scope_id)`;
-  return `-- whether the caller may assign custom role p_role at instance p_scope_id (a platform role: null tenant, scope global): the custom-role write checks on its stored definition
-create or replace function ${fn}(p_tenant ${tenantType}, p_scope text, p_scope_id text, p_role text)
+  const grants = forUser
+    ? `revoke execute on function ${fn}(${userArg}${tenantType}, text, text, text) from public, anon, authenticated;`
+    : `revoke execute on function ${fn}(${tenantType}, text, text, text) from public, anon;
+grant execute on function ${fn}(${tenantType}, text, text, text) to authenticated;`;
+  return `-- whether ${forUser ? "user p_user" : "the caller"} may assign custom role p_role at instance p_scope_id (a platform role: null tenant, scope global): the custom-role write checks on its stored definition${forUser ? "; no client role may execute it" : ""}
+create or replace function ${fn}(${userParam}p_tenant ${tenantType}, p_scope text, p_scope_id text, p_role text)
 returns boolean
 language plpgsql
 stable
@@ -880,15 +916,14 @@ begin
   if not coalesce(v_found, false) then
     return false;
   end if;
-  perform ${guard}(p_tenant, p_scope, v_scope_id, p_role);
+  perform ${guard}(${forUser ? "p_user, " : ""}p_tenant, p_scope, v_scope_id, p_role);
   return true;
 exception
   when insufficient_privilege or invalid_parameter_value then
     return false;
 end;
 $$;
-revoke execute on function ${fn}(${tenantType}, text, text, text) from public, anon;
-grant execute on function ${fn}(${tenantType}, text, text, text) to authenticated;`;
+${grants}`;
 }
 
 /**
@@ -913,6 +948,9 @@ export function assignmentSql(ctx: RlsSqlContext): string {
   const declared = ctx.customRoles?.declared;
   const tenantType = tenantTypeOf(ctx);
   const chunks: string[] = custom ? [canAssignCustomSql(ctx)] : [];
+  if (custom && hasCustomRoleChecksFor(ctx)) {
+    chunks.push(canAssignCustomSql(ctx, true));
+  }
   const clients = `current_user::text = any(array[${CLIENT_ROLES.map(quoteLiteral).join(", ")}])`;
   for (const entry of assignedTables(ctx)) {
     const table = quoteTable(qualifiedTable(entry.table));
