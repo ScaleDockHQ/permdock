@@ -153,6 +153,7 @@ export { localSnapshotManifest } from "./core/local-manifest.ts";
 export { createPermDock, parseSnapshot } from "./core/permdock.ts";
 export { mayAccess } from "./core/may-access.ts";
 export { mayUse, permittedIds } from "./core/may-use.ts";
+export type { PermittedIdsOptions } from "./core/may-use.ts";
 export {
   customRoleClaim,
   resolveCustomRole,

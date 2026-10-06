@@ -161,7 +161,7 @@ as $$
 $$;
 revoke execute on function "app".member_tenant_ids_for(uuid) from public, anon, authenticated;
 
--- the grant keys a permission key reaches on one scope: its unconditional allows, or with p_effect 'deny' every deny
+-- the grant keys a permission key reaches on one scope: its unconditional allows, with p_effect 'deny' every deny, and with 'conditioned-allow' or 'conditioned-deny' the allows or denies that carry a row condition
 create or replace function "app".grant_keys(p_permission text, p_scope text, p_effect text default 'allow')
 returns setof text
 language sql
@@ -170,7 +170,7 @@ set search_path = ''
 as $$
   select g.grant_key
   from pg_catalog.jsonb_array_elements_text(coalesce(
-    '{"global":{"post.archive":{"allow":["post.archive"],"deny":[]},"post.create":{"allow":["post.create"],"deny":[]},"post.delete":{"allow":["post.delete"],"deny":[]},"post.list":{"allow":["post.list"],"deny":[]},"post.publish":{"allow":["post.publish"],"deny":[]},"post.read":{"allow":["post.read"],"deny":[]},"post.update":{"allow":["post.update#1"],"deny":[]}},"tenant":{"post.create":{"allow":["post.create"],"deny":[]},"post.list":{"allow":["post.list"],"deny":[]},"post.read":{"allow":["post.read"],"deny":[]}}}'::jsonb -> p_scope -> p_permission -> p_effect,
+    '{"global":{"post.archive":{"allow":["post.archive"],"deny":[]},"post.create":{"allow":["post.create"],"deny":[]},"post.delete":{"allow":["post.delete"],"deny":[]},"post.list":{"allow":["post.list"],"deny":[]},"post.publish":{"allow":["post.publish"],"deny":[]},"post.read":{"allow":["post.read"],"deny":[]},"post.update":{"allow":["post.update#1"],"deny":[]}},"tenant":{"post.create":{"allow":["post.create"],"deny":[]},"post.list":{"allow":["post.list"],"deny":[]},"post.read":{"allow":["post.read"],"deny":[]},"post.update":{"allow":[],"deny":[],"conditioned-allow":["post.update#2"]}}}'::jsonb -> p_scope -> p_permission -> p_effect,
     '[]'::jsonb
   )) g(grant_key)
 $$;
@@ -208,6 +208,35 @@ as $$
 $$;
 revoke execute on function "app".permitted_tenant_ids_by_permission(text) from public, anon;
 grant execute on function "app".permitted_tenant_ids_by_permission(text) to authenticated;
+
+-- with p_conditioned true, also the instances a conditioned allow reaches, minus only unconditional denies: the caller applies the row condition
+create or replace function "app".permitted_tenant_ids_by_permission(p_permission text, p_conditioned boolean)
+returns setof uuid
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select a.id
+  from (
+    select g.grant_key from "app".grant_keys(p_permission, 'tenant') g(grant_key)
+    union all
+    select g.grant_key from "app".grant_keys(p_permission, 'tenant', 'conditioned-allow') g(grant_key)
+    where p_conditioned
+  ) g
+  cross join lateral "app".permitted_tenant_ids(g.grant_key) a(id)
+  except
+  select d.id
+  from (
+    select g.grant_key from "app".grant_keys(p_permission, 'tenant', 'deny') g(grant_key)
+    except
+    select g.grant_key from "app".grant_keys(p_permission, 'tenant', 'conditioned-deny') g(grant_key)
+    where p_conditioned
+  ) g
+  cross join lateral "app".permitted_tenant_ids(g.grant_key) d(id)
+$$;
+revoke execute on function "app".permitted_tenant_ids_by_permission(text, boolean) from public, anon;
+grant execute on function "app".permitted_tenant_ids_by_permission(text, boolean) to authenticated;
 
 create or replace function "app"."authorize"(
   requested_permission "app"."app_permission",

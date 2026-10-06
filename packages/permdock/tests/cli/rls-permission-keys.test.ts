@@ -77,11 +77,15 @@ function map(text: string): unknown {
 }
 
 describe("permission-key helpers", () => {
-  it("maps a permission key to its unconditional allows and every deny", () => {
+  it("maps a permission key to its unconditional allows and every deny, and its conditioned keys apart", () => {
     const text = sql(base);
     expect(map(text)).toEqual({
       tenant: {
-        "invoice.read": { allow: ["invoice.read#1"], deny: [] },
+        "invoice.read": {
+          allow: ["invoice.read#1"],
+          deny: [],
+          "conditioned-allow": ["invoice.read#2"],
+        },
         "invoice.void": { allow: ["invoice.void#1"], deny: ["invoice.void#2"] },
       },
     });
@@ -93,6 +97,12 @@ describe("permission-key helpers", () => {
     );
     expect(text).toContain(
       'grant execute on function "permdock".permdock_has_permission(text) to authenticated;',
+    );
+    expect(text).toContain(
+      '"permdock".permitted_tenant_ids_by_permission(p_permission text, p_conditioned boolean)\nreturns setof text',
+    );
+    expect(text).toContain(
+      `select g.grant_key from "permdock".grant_keys(p_permission, 'tenant', 'conditioned-allow') g(grant_key)\n    where p_conditioned`,
     );
     expect(text).not.toContain("_for(p_user");
   });
