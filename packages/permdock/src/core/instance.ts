@@ -16,6 +16,7 @@ import type {
   DeriveOptions,
   PermDock,
   SimulateOptions,
+  SnapshotOptions,
   WhereResult,
 } from "./permdock.ts";
 import type { Permission } from "./permissions.ts";
@@ -95,7 +96,8 @@ import {
   scopeList,
   tenantOf,
 } from "./scopes.ts";
-import { buildSnapshot, signSnapshot, snapshotGrant } from "./snapshot.ts";
+import { signSnapshot } from "./snapshot-sign.ts";
+import { buildSnapshot, snapshotGrant } from "./snapshot.ts";
 import {
   heldRoleNamesIn,
   isMembershipExpired,
@@ -1258,7 +1260,8 @@ export function buildInstance(
         team,
       );
     }) as PermDock["simulate"],
-    snapshot(options) {
+    // SAFETY: the body returns a Promise exactly when options.signer is set, which is what the overloads say.
+    snapshot: ((options?: SnapshotOptions): Snapshot | Promise<string> => {
       const snapshot = snapshotOf(
         policy,
         subject,
@@ -1275,7 +1278,7 @@ export function buildInstance(
         return signSnapshot(snapshot, options.signer, options.audience);
       }
       return snapshot;
-    },
+    }) as PermDock["snapshot"],
     on(event, handler) {
       // SAFETY: on() types handler by event name, so each set only receives matching handlers.
       const set = listeners[event] as Set<(payload: unknown) => void>;

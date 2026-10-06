@@ -181,6 +181,7 @@ export type {
   PermDock,
   RowPair,
   SimulateOptions,
+  SnapshotOptions,
   WhereResult,
 } from "./core/permdock.ts";
 export {

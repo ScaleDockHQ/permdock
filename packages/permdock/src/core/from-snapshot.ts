@@ -1,6 +1,11 @@
 import type { Decision, ExplainedDecision } from "./decision.ts";
 import type { Snapshot, SnapshotAssignable } from "./interfaces.ts";
-import type { DecideOptions, PermDock, SimulateOptions } from "./permdock.ts";
+import type {
+  DecideOptions,
+  PermDock,
+  SimulateOptions,
+  SnapshotOptions,
+} from "./permdock.ts";
 import type { Permission } from "./permissions.ts";
 import type { Membership } from "./subject.ts";
 import type { Role } from "./vocabulary.ts";
@@ -19,6 +24,7 @@ import { listPermissions } from "./permissions.ts";
 import { rowIdOf } from "./row-pair.ts";
 import { normalizeMemberships, scopeList } from "./scopes.ts";
 import { evaluateSnapshot, whereFromSnapshot } from "./snapshot-evaluate.ts";
+import { signSnapshot } from "./snapshot-sign.ts";
 import { heldRoleNames, subjectFromSnapshot } from "./snapshot-subject.ts";
 import { findRole, listRoles, synthesiseRole } from "./vocabulary.ts";
 
@@ -221,9 +227,15 @@ export function fromSnapshot(
       });
       return fromSnapshot(next, options);
     }) as PermDock["simulate"],
-    snapshot() {
-      return snapshot;
-    },
+    // SAFETY: the body returns a Promise exactly when signer is set, which is what the overloads say.
+    snapshot: ((signing?: SnapshotOptions): Snapshot | Promise<string> =>
+      signing?.signer === undefined
+        ? snapshot
+        : signSnapshot(
+            snapshot,
+            signing.signer,
+            signing.audience,
+          )) as PermDock["snapshot"],
     on() {
       return (): void => undefined;
     },

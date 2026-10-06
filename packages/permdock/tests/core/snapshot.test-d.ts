@@ -1,6 +1,7 @@
 import { describe, expectTypeOf, it } from "vitest";
 
-import type { Snapshot } from "../../src/core/interfaces.ts";
+import type { Snapshot, TokenSigner } from "../../src/core/interfaces.ts";
+import type { PermDock, SnapshotOptions } from "../../src/index.ts";
 
 import { snapshotFor } from "../../src/index.ts";
 import { alice, policy } from "../fixtures/saas.ts";
@@ -41,5 +42,24 @@ describe("Snapshot", () => {
 
   it("is what snapshotFor returns, synchronously", () => {
     expectTypeOf(snapshotFor(policy, alice)).toEqualTypeOf<Snapshot>();
+  });
+});
+
+declare const permdock: PermDock;
+declare const signer: TokenSigner;
+declare const options: SnapshotOptions;
+
+describe("permdock.snapshot", () => {
+  it("returns a Snapshot without a signer and a token promise with one", () => {
+    expectTypeOf(permdock.snapshot()).toEqualTypeOf<Snapshot>();
+    expectTypeOf(
+      permdock.snapshot({ tenants: "all" }),
+    ).toEqualTypeOf<Snapshot>();
+    expectTypeOf(permdock.snapshot({ signer })).toEqualTypeOf<
+      Promise<string>
+    >();
+    expectTypeOf(permdock.snapshot(options)).toEqualTypeOf<
+      Snapshot | Promise<string>
+    >();
   });
 });
