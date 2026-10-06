@@ -2,6 +2,7 @@ import { afterAll, describe, expect, it } from "vitest";
 
 import type { PermDockConfig } from "../../src/cli/types.ts";
 
+import { runCollect } from "../../src/cli/collect.ts";
 import { runDoctor } from "../../src/cli/doctor.ts";
 import {
   NOW,
@@ -25,22 +26,27 @@ import { policy } from '../src/permdock/policy.ts';
 import { permissions } from '../src/permdock/permissions.ts';
 export const menu = [policy, permissions.post.archive];
 `,
+    "components/post-actions.ts": `import { permissions } from '../src/permdock/permissions.ts';
+export const actions = [permissions.post.update];
+`,
   });
 }
+
+const BASE: PermDockConfig = {
+  permissions: "src/permdock/permissions.ts",
+  policy: "src/permdock/policy.ts",
+  collect: { srcPath: ["src/permdock"] },
+};
 
 async function doctor(
   cwd: string,
   config: PermDockConfig,
+  only: readonly string[] = ["PD001", "PD002"],
 ): Promise<{ readonly code: number; readonly output: string }> {
   return runDoctor({
     cwd,
-    config: {
-      permissions: "src/permdock/permissions.ts",
-      policy: "src/permdock/policy.ts",
-      collect: { srcPath: ["src/permdock"] },
-      ...config,
-    },
-    only: ["PD001", "PD002"],
+    config: { ...BASE, ...config },
+    only,
     json: true,
     fix: false,
     strict: false,
@@ -67,5 +73,24 @@ describe("doctor.srcPath", () => {
       "unknown permission reference:post.archive at components/post-menu.tsx:4",
     );
     expect(result.code).toBe(1);
+  });
+
+  it("compares the catalog with the one collect writes from collect.srcPath", async () => {
+    const cwd = app();
+    await runCollect({
+      cwd,
+      config: BASE,
+      collect: BASE.collect ?? {},
+      check: false,
+      now: NOW,
+      io: quietIo,
+    });
+    const result = await doctor(
+      cwd,
+      { doctor: { srcPath: ["src", "components"] } },
+      ["PD004"],
+    );
+    expect(result.output).not.toContain("catalog drift");
+    expect(result.code).toBe(0);
   });
 });

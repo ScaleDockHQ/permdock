@@ -30,7 +30,7 @@ export default defineConfig({
 });
 ```
 
-PD003 and PD004 compare against the catalog, so they keep reading `collect.srcPath`.
+PD004 compares the catalog on disk with the one `collect` would write from `collect.srcPath`, so a wider `doctor.srcPath` never reports catalog drift. PD002 and PD003 count the references under `doctor.srcPath`.
 
 ## Checks
 
