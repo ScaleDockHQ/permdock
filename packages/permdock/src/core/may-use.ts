@@ -86,19 +86,37 @@ export function mayUse(permdock: PermDock, permission: Permission): boolean {
   }
 }
 
+function isConditioned(grant: SnapshotGrant): boolean {
+  return (
+    grant.where !== undefined ||
+    grant.check !== undefined ||
+    grant.validity !== undefined ||
+    grant.portable === false
+  );
+}
+
+export type PermittedIdsOptions = {
+  readonly within?: string;
+  readonly conditioned?: boolean;
+};
+
 /**
- * The instances of `scope` in which the subject holds `permission` with no
- * row condition: an unconditional allow on a live membership of exactly that
- * scope, minus the instances a deny of the permission reaches there, within
- * its delegation. The in-process mirror of the SQL
- * `permitted_<scope>_ids_by_permission`; `within` keeps the instances of one
- * tenant. A listing, never a decision: a row's own check still runs `can`.
+ * The instances of `scope` in which the subject holds `permission`, from its
+ * live memberships of exactly that scope, within its delegation: by default
+ * those with an allow that carries no row condition (`where`, `check`, a
+ * validity window or a non-portable test; a `fields` limit is not a row
+ * condition), minus the instances any deny of the permission reaches. The
+ * in-process mirror of the SQL `permitted_<scope>_ids_by_permission`. With
+ * `conditioned: true` it also lists the instances where a conditioned allow
+ * applies, minus only unconditional denies, as
+ * `permitted_<scope>_ids_by_permission(p_permission, true)` does. A listing,
+ * never a decision: a row's own check still runs `can`.
  */
 export function permittedIds(
   permdock: PermDock,
   permission: Permission,
   scope: string,
-  options: { readonly within?: string } = {},
+  options: PermittedIdsOptions = {},
 ): readonly string[] {
   try {
     const snapshot = permdock.snapshot({ tenants: "all" });
@@ -119,6 +137,7 @@ export function permittedIds(
     ) {
       return [];
     }
+    const conditioned = options.conditioned === true;
     const now = nowSeconds();
     const allowed = new Set<string>();
     const denied = new Set<string>();
@@ -136,12 +155,11 @@ export function permittedIds(
         continue;
       }
       if (grant.effect === "deny") {
-        denied.add(membership.id);
+        if (!conditioned || !isConditioned(grant)) {
+          denied.add(membership.id);
+        }
       } else if (
-        grant.where === undefined &&
-        grant.check === undefined &&
-        grant.portable !== false &&
-        grant.fields === undefined &&
+        (conditioned || !isConditioned(grant)) &&
         isActive(grant.validity, now)
       ) {
         allowed.add(membership.id);

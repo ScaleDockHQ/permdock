@@ -45,7 +45,7 @@ function grantsFunction(
     Object.keys(renamed).length === 0
       ? "p_permission"
       : `coalesce(${quoteLiteral(JSON.stringify(renamed))}::jsonb ->> p_permission, p_permission)`;
-  return `-- the grant keys a permission key reaches on one scope: its unconditional allows, or with p_effect 'deny' every deny
+  return `-- the grant keys a permission key reaches on one scope: its unconditional allows, with p_effect 'deny' every deny, and with 'conditioned-allow' or 'conditioned-deny' the allows or denies that carry a row condition
 create or replace function ${fn}(p_permission text, p_scope text, p_effect text default 'allow')
 returns setof text
 language sql
@@ -89,12 +89,16 @@ $$;`;
 /**
  * The permission-key forms of the helpers: `grant_keys`, which maps a
  * permission key to the grant keys of its unconditional allows on a scope
- * (or every deny key), `permdock_has_permission(p_permission)` and one
+ * (or every deny key, or the conditioned allow or deny keys),
+ * `permdock_has_permission(p_permission)` and one
  * `permitted_<scope>_ids_by_permission(p_permission)` per scope, plus their
  * `_for(p_user, ...)` forms in `database` mode. They answer with the
  * unconditional allows minus any deny, so a permission whose allows all carry
- * a row condition answers nothing: SQL that applies the condition itself
- * still names the condition group's grant key.
+ * a row condition answers nothing. The
+ * `permitted_<scope>_ids_by_permission(p_permission, p_conditioned)` overload
+ * with `true` also lists the instances a conditioned allow reaches and
+ * subtracts only unconditional denies, leaving the row condition to the
+ * caller, as `permittedIds(..., { conditioned: true })` does in process.
  */
 export function permissionHelpersSql(
   ctx: RlsSqlContext,
@@ -117,6 +121,28 @@ export function permissionHelpersSql(
   except
   select d.id
   from ${denyKeys(scope)}
+  cross join lateral ${helper}(${user}g.grant_key) d(id)`;
+  const conditionedIds = (
+    helper: string,
+    scope: string,
+    user: string,
+  ): string =>
+    `  select a.id
+  from (
+    select g.grant_key from ${allowKeys(scope)}
+    union all
+    select g.grant_key from ${keys}(p_permission, ${quoteLiteral(scope)}, 'conditioned-allow') g(grant_key)
+    where p_conditioned
+  ) g
+  cross join lateral ${helper}(${user}g.grant_key) a(id)
+  except
+  select d.id
+  from (
+    select g.grant_key from ${denyKeys(scope)}
+    except
+    select g.grant_key from ${keys}(p_permission, ${quoteLiteral(scope)}, 'conditioned-deny') g(grant_key)
+    where p_conditioned
+  ) g
   cross join lateral ${helper}(${user}g.grant_key) d(id)`;
   const chunks = [
     grantsFunction(ctx, grants, renamed, anonExecute),
@@ -141,6 +167,18 @@ ${grantsSql(qualified(ctx, PERMISSION_HELPERS.has), "text", anonExecute)}`,
       ids(qualified(ctx, permittedIdsHelper(scope.name)), scope.name, ""),
     )}
 ${grantsSql(fn, "text", anonExecute)}`);
+    chunks.push(`-- with p_conditioned true, also the instances a conditioned allow reaches, minus only unconditional denies: the caller applies the row condition
+${definer(
+  fn,
+  "p_permission text, p_conditioned boolean",
+  `setof ${scopeTypeOf(ctx, scope.name)}`,
+  conditionedIds(
+    qualified(ctx, permittedIdsHelper(scope.name)),
+    scope.name,
+    "",
+  ),
+)}
+${grantsSql(fn, "text, boolean", anonExecute)}`);
   }
   if (ctx.authorize !== "database") {
     return `${chunks.join("\n\n")}\n`;
@@ -173,6 +211,17 @@ ${revoke(hasFor)}`);
       ),
     )}
 ${revoke(fn)}`);
+    chunks.push(`${definer(
+      fn,
+      `p_user ${user}, p_permission text, p_conditioned boolean`,
+      `setof ${scopeTypeOf(ctx, scope.name)}`,
+      conditionedIds(
+        qualified(ctx, permittedForHelper(scope.name)),
+        scope.name,
+        "p_user, ",
+      ),
+    )}
+revoke execute on function ${fn}(${user}, text, boolean) from public, anon, authenticated;`);
   }
   return `${chunks.join("\n\n")}\n`;
 }

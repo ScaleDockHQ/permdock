@@ -54,44 +54,56 @@ function scopeOf(ctx: RlsSqlContext, scope: string): string {
   return scope;
 }
 
-/** Per scope and permission key, the grant keys a shim may answer from. */
+/** Per scope and permission key, the grant keys a shim or a permission-key helper may answer from. */
 export type ShimGrants = ReadonlyMap<
   string,
   Readonly<
     Record<
       string,
-      { readonly allow: readonly string[]; readonly deny: readonly string[] }
+      {
+        readonly allow: readonly string[];
+        readonly deny: readonly string[];
+        readonly "conditioned-allow"?: readonly string[];
+        readonly "conditioned-deny"?: readonly string[];
+      }
     >
   >
 >;
+
+type GrantLists = {
+  allow: string[];
+  deny: string[];
+  "conditioned-allow"?: string[];
+  "conditioned-deny"?: string[];
+};
+
+function addKey(list: string[], key: string): void {
+  if (!list.includes(key)) {
+    list.push(key);
+  }
+}
 
 /**
  * The grant keys behind each permission, per scope: the keys of its
  * unconditional allows, and every deny key. A shim cannot apply a row
  * condition or a validity window, so a conditional allow answers nothing and
- * a conditional deny always subtracts. A break-glass key answers only the
- * break-glass read, so it is left out too. Rows seeded under a former key are
- * left out; the shim maps a former key to the current one first.
+ * a conditional deny always subtracts; the conditioned keys are listed apart.
+ * A break-glass key answers only the break-glass read, so it is left out too.
+ * Rows seeded under a former key are left out; the shim maps a former key to
+ * the current one first.
  */
 export function shimGrants(
   rows: readonly RolePermission[],
   conditioned: ReadonlySet<string>,
   renamed: Readonly<Record<string, string>>,
 ): ShimGrants {
-  const byScope = new Map<
-    string,
-    Record<string, { allow: string[]; deny: string[] }>
-  >();
+  const byScope = new Map<string, Record<string, GrantLists>>();
   for (const row of rows.toSorted((a, b) =>
     a.grantKey < b.grantKey ? -1 : a.grantKey > b.grantKey ? 1 : 0,
   )) {
-    if (Object.hasOwn(renamed, row.permission)) {
-      continue;
-    }
     if (
-      row.effect === "allow" &&
-      (conditioned.has(row.grantKey) ||
-        row.grantKey === breakGlassKey(row.permission))
+      Object.hasOwn(renamed, row.permission) ||
+      (row.effect === "allow" && row.grantKey === breakGlassKey(row.permission))
     ) {
       continue;
     }
@@ -100,14 +112,35 @@ export function shimGrants(
     const entry = Object.hasOwn(scope, row.permission)
       ? scope[row.permission]
       : undefined;
-    const keys = entry ?? { allow: [], deny: [] };
+    const keys: GrantLists = entry ?? { allow: [], deny: [] };
     scope[row.permission] = keys;
-    const list = row.effect === "allow" ? keys.allow : keys.deny;
-    if (!list.includes(row.grantKey)) {
-      list.push(row.grantKey);
+    const isConditioned = conditioned.has(row.grantKey);
+    if (row.effect === "allow") {
+      if (isConditioned) {
+        keys["conditioned-allow"] ??= [];
+        addKey(keys["conditioned-allow"], row.grantKey);
+      } else {
+        addKey(keys.allow, row.grantKey);
+      }
+      continue;
+    }
+    addKey(keys.deny, row.grantKey);
+    if (isConditioned) {
+      keys["conditioned-deny"] ??= [];
+      addKey(keys["conditioned-deny"], row.grantKey);
     }
   }
   return byScope;
+}
+
+export function shimMap(grants: ShimGrants, scope: string): string {
+  const entries = Object.entries(grants.get(scope) ?? {}).flatMap(
+    ([permission, keys]) =>
+      keys.allow.length === 0 && keys.deny.length === 0
+        ? []
+        : [[permission, { allow: keys.allow, deny: keys.deny }] as const],
+  );
+  return JSON.stringify(Object.fromEntries(entries));
 }
 
 function shimFunction(
@@ -267,8 +300,7 @@ export function shimsSql(
   const schema = shims.schema ?? "public";
   const keys: Keys = {
     key: mappedKey(config, renamed),
-    map: (scope) =>
-      `${quoteLiteral(JSON.stringify(grants.get(scope) ?? {}))}::jsonb`,
+    map: (scope) => `${quoteLiteral(shimMap(grants, scope))}::jsonb`,
   };
   const chunks = [
     `-- permdock shims: legacy helper names over the permdock helpers; drop each once doctor reports no caller (PD056)`,

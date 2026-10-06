@@ -4,7 +4,7 @@ import type { RlsSqlContext } from "../../src/cli/rls-sql.ts";
 import type { RlsMigrateConfig } from "../../src/cli/types.ts";
 
 import { compileGrants } from "../../src/cli/rls-compile.ts";
-import { shimGrants, shimsSql } from "../../src/cli/rls-shims.ts";
+import { shimGrants, shimMap, shimsSql } from "../../src/cli/rls-shims.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import {
   allow,
@@ -116,7 +116,7 @@ const grants = new Map([
 ]);
 
 describe("shimGrants", () => {
-  it("keeps unconditional allows and every deny, per scope, without former keys", () => {
+  it("keeps unconditional allows and every deny, per scope, without former keys, and lists the conditioned keys apart", () => {
     expect(
       Object.fromEntries(
         shimGrants(
@@ -169,10 +169,51 @@ describe("shimGrants", () => {
         ),
       ),
     ).toEqual({
+      customer: {
+        "quote.read": {
+          allow: [],
+          deny: [],
+          "conditioned-allow": ["quote.read#2"],
+        },
+      },
       tenant: {
-        "quote.read": { allow: ["quote.read#1"], deny: ["quote.read#3"] },
+        "quote.read": {
+          allow: ["quote.read#1"],
+          deny: ["quote.read#3"],
+          "conditioned-allow": ["quote.read#4"],
+          "conditioned-deny": ["quote.read#3"],
+        },
       },
     });
+  });
+});
+
+describe("shimMap", () => {
+  it("keeps only what a shim reads: the allow and deny lists of permissions that have one", () => {
+    const lists = shimGrants(
+      [
+        {
+          role: "contact",
+          permission: "quote.read",
+          grantKey: "quote.read#2",
+          scope: "tenant",
+          effect: "allow",
+        },
+        {
+          role: "staff",
+          permission: "asset.read",
+          grantKey: "asset.read",
+          scope: "tenant",
+          effect: "allow",
+        },
+      ],
+      new Set(["quote.read#2"]),
+      {},
+    );
+    expect(JSON.parse(shimMap(lists, "tenant"))).toEqual({
+      "asset.read": { allow: ["asset.read"], deny: [] },
+    });
+    expect(shimMap(lists, "customer")).toBe("{}");
   });
 });
 

@@ -96,6 +96,36 @@ describe("permission-key helpers", () => {
     expect(await ids(MANAGER, read)).toEqual(["acme"]);
   });
 
+  it("also lists the instances a conditioned allow reaches when asked", async () => {
+    const sql =
+      "select id from permdock.permitted_tenant_ids_by_permission('job.update', true) id";
+    expect(await ids(ADMIN, sql)).toEqual(["acme", "globex"]);
+    expect(await ids(MANAGER, sql)).toEqual(["acme"]);
+    expect(
+      await ids(
+        MANAGER,
+        "select id from permdock.permitted_tenant_ids_by_permission('job.update', false) id",
+      ),
+    ).toEqual([]);
+    if (db === undefined) {
+      throw new Error("PermDock: Postgres was not started");
+    }
+    const keys = await db.admin.query<{ key: string }>(
+      "select permdock.grant_keys('job.update', 'tenant', 'conditioned-allow') as key",
+    );
+    expect(keys.rows.map((row) => row.key)).toEqual([
+      "job.update#1@own",
+      "job.update#2",
+      "job.update#2@all",
+      "job.update#2@own",
+    ]);
+    const forUser = await db.admin.query<{ id: string }>(
+      "select id from permdock.permitted_tenant_ids_by_permission_for($1, 'job.update', true) id",
+      [MANAGER],
+    );
+    expect(forUser.rows.map((row) => row.id)).toEqual(["acme"]);
+  });
+
   it("maps a former key to the current one", async () => {
     expect(
       await ids(
