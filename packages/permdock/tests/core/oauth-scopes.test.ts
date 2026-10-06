@@ -382,4 +382,61 @@ describe("oauthScopes", () => {
       get("GET", "/x", { oauthScopes: "mcp:read" as never }),
     ).rejects.toThrow(/oauthScopes/u);
   });
+
+  it("the server kernel gates a route without a permission on its OAuth scopes", async () => {
+    let token: unknown = {
+      principal: { id: "u1", roles: ["member"] },
+      context: {},
+      actor: agent,
+      delegation: { scopes: ["mcp:read"] },
+    };
+    const operations = operationPermissions({
+      "POST /chat": { oauthScopes: ["chat"] },
+    });
+    const { protect } = createServerPermDock(exportPolicy, {
+      subject: () => token,
+      operations,
+    });
+    const send = (path: string, oauthScopes?: readonly string[]) =>
+      protect(
+        null,
+        undefined,
+        oauthScopes === undefined ? {} : { oauthScopes },
+      )(
+        new Request(`https://api.example${path}`, {
+          method: "POST",
+          headers: { authorization: "Bearer t" },
+        }),
+      );
+    const refused = await send("/chat");
+    expect(refused.ok).toBe(false);
+    if (!refused.ok) {
+      expect(refused.response.status).toBe(403);
+      expect(refused.response.headers.get("www-authenticate")).toBe(
+        'Bearer error="insufficient_scope", scope="chat"',
+      );
+    }
+    const allowed = await send("/chat", ["mcp:read"]);
+    expect(allowed.ok).toBe(true);
+    if (allowed.ok) {
+      expect(allowed.decision).toBeUndefined();
+      expect(allowed.permdock.subject.principal?.id).toBe("u1");
+    }
+    token = { principal: { id: "u1", roles: ["member"] }, context: {} };
+    expect((await send("/chat")).ok).toBe(true);
+    token = null;
+    const anonymous = await send("/chat");
+    expect(anonymous.ok).toBe(false);
+    if (!anonymous.ok) {
+      expect(anonymous.response.status).toBe(401);
+    }
+    await expect(send("/elsewhere")).rejects.toThrow(
+      "no operation declares them for POST /elsewhere",
+    );
+    const bare = createServerPermDock(exportPolicy, { subject: () => null });
+    expect(() => bare.protect(null)).toThrow("protect(null) needs oauthScopes");
+    expect(() => bare.protect(null, undefined, { oauthScopes: [] })).toThrow(
+      /oauthScopes/u,
+    );
+  });
 });

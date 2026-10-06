@@ -72,6 +72,12 @@ export type SupabaseMiddlewarePermDockOptions<TUser = unknown> =
 export type WithPermDockConfig = {
   /** Run `protect` before the handler; a denial short-circuits with Problem Details. */
   readonly protect?: Permission;
+  /**
+   * The OAuth scopes that reach the handler: a delegated token holding none
+   * of them is refused with `insufficient_scope`. Without `protect`, the
+   * handler needs a signed-in principal and checks no permission.
+   */
+  readonly oauthScopes?: readonly string[];
   /** Load the row `protect` decides on; `null` or `undefined` yields 404. */
   readonly data?: (ctx: SupabaseMiddlewareContext, request: Request) => unknown;
   /** `true` when `data` returns a row the server loaded; anything else is validated before the check. */
@@ -156,7 +162,10 @@ export function createPermDock<
         ctx,
       ): Promise<Response | { readonly permdock: PermDock<V> }> => {
         bind(request, ctx);
-        if (config?.protect === undefined) {
+        if (
+          config?.protect === undefined &&
+          config?.oauthScopes === undefined
+        ) {
           try {
             return { permdock: await kernel.permdock(request) };
           } catch (error) {
@@ -169,11 +178,11 @@ export function createPermDock<
         }
         const loadData = config.data;
         const guard = await kernel.protect(
-          config.protect,
+          config.protect ?? null,
           loadData === undefined
             ? undefined
             : (): unknown => loadData(ctx, request),
-          compact({ trusted: config.trusted }),
+          compact({ trusted: config.trusted, oauthScopes: config.oauthScopes }),
         )(request);
         if (!guard.ok) {
           return guard.response;

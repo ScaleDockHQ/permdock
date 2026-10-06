@@ -13,6 +13,7 @@ import type {
   Guard,
   OpenApiHooks,
   ProtectOptions,
+  ScopeGuard,
   TenantOption,
   TenantScope,
 } from "../server/create.ts";
@@ -44,13 +45,22 @@ export type NodePermDockOptions<TUser = unknown> = InstanceOptions & {
   readonly webBotAuth?: WebBotAuthVerifier;
 };
 
-export type NodePermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
-  readonly permdock: (req: IncomingMessage) => Promise<PermDock<V>>;
-  readonly protect: (
+type NodeProtect = {
+  (
     permission: Permission,
     loadData?: (req: NodeRequest) => unknown,
     protectOptions?: ProtectOptions,
-  ) => (req: IncomingMessage) => Promise<Guard>;
+  ): (req: IncomingMessage) => Promise<Guard>;
+  (
+    permission: null,
+    loadData?: (req: NodeRequest) => unknown,
+    protectOptions?: ProtectOptions,
+  ): (req: IncomingMessage) => Promise<ScopeGuard>;
+};
+
+export type NodePermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
+  readonly permdock: (req: IncomingMessage) => Promise<PermDock<V>>;
+  readonly protect: NodeProtect;
   readonly send: typeof sendResponse;
   readonly permdockHandler: () => (
     req: IncomingMessage,
@@ -114,21 +124,20 @@ export function createPermDock<
   const permdock = async (req: IncomingMessage): Promise<PermDock<V>> =>
     kernel.permdock(bind(req), await scopeOf(req));
 
-  // SAFETY: NodeRequest only adds optional fields that Express-style servers set on the request.
-  const protect =
-    (
-      permission: Permission,
-      loadData?: (req: NodeRequest) => unknown,
-      protectOptions?: ProtectOptions,
-    ): ((req: IncomingMessage) => Promise<Guard>) =>
-    async (req: IncomingMessage): Promise<Guard> =>
+  // SAFETY: NodeRequest only adds optional fields that Express-style servers set on the request, and NodeProtect's overloads only narrow the guard by whether permission is null, as the kernel's do.
+  const protect = ((
+    permission: Permission | null,
+    loadData?: (req: NodeRequest) => unknown,
+    protectOptions?: ProtectOptions,
+  ): ((req: IncomingMessage) => Promise<Guard | ScopeGuard>) =>
+    async (req: IncomingMessage): Promise<Guard | ScopeGuard> =>
       kernel.protect(
         permission,
         loadData === undefined
           ? undefined
           : (): unknown => loadData(req as NodeRequest),
         protectOptions,
-      )(bind(req), await scopeOf(req));
+      )(bind(req), await scopeOf(req))) as NodeProtect;
 
   const permdockHandler = (): ((
     req: IncomingMessage,
