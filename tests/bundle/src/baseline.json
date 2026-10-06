@@ -42,11 +42,11 @@
   "./pdp": 101918,
   "./compile": 19606,
   "./catalog": 5002,
-  "./testing": 177476,
+  "./testing": 177499,
   "./testing/saas": 109554,
   "./testing/saas/permissions": 100739,
-  "./cli": 456385,
-  "./unplugin": 119452,
-  "./next/plugin": 118829,
+  "./cli": 458981,
+  "./unplugin": 119457,
+  "./next/plugin": 118834,
   "./next/client": 1048
 }
