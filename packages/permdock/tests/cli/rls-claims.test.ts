@@ -312,7 +312,7 @@ describe("contains on an array column", () => {
         { op: "contains", field: "reviewers", value: { ref: "principal.id" } },
         arrays,
       ),
-    ).toBe(`(select auth.uid()) = any("reviewers")`);
+    ).toBe(`(select "permdock".permdock_user_id()) = any("reviewers")`);
     expect(
       compileConditionSql(
         {

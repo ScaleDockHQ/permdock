@@ -57,7 +57,10 @@ describe("helpers for a named user", () => {
     );
     expect(has).not.toMatch(/grant execute/u);
     expect(body(has)).toBe(
-      body(fn(sql, "permdock_has")).replaceAll("(select auth.uid())", "p_user"),
+      body(fn(sql, "permdock_has")).replaceAll(
+        '(select "permdock".permdock_user_id())',
+        "p_user",
+      ),
     );
     const ids = fn(sql, "permitted_organization_ids_for");
     expect(ids).toContain(

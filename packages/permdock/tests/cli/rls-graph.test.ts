@@ -124,7 +124,9 @@ describe("graph grants in RLS", () => {
     expect(sql).toContain(
       'create table if not exists "permdock".permdock_closure',
     );
-    expect(sql).toContain('e1."member" = (select auth.uid())');
+    expect(sql).toContain(
+      'e1."member" = (select "permdock".permdock_user_id())',
+    );
     expect(sql).toContain('(e1."until" is null or e1."until" > now())');
     expect(sql).toContain('from "app"."folder_editors" e1');
     expect(sql).toContain('from "public"."folder_viewers" e1');
@@ -292,7 +294,7 @@ describe("graph helpers and suspension", () => {
     expect(where.length).toBeGreaterThan(0);
     for (const line of where) {
       expect(line).toContain(
-        `exists (select 1 from "public"."profiles" s where s."id" = (select auth.uid()) and s."disabled_at" is null)`,
+        `exists (select 1 from "public"."profiles" s where s."id" = (select "permdock".permdock_user_id()) and s."disabled_at" is null)`,
       );
     }
     expect(graphSql(context(), plan, undefined)).not.toContain("profiles");

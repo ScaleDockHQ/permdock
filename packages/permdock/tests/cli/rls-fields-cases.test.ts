@@ -75,7 +75,7 @@ function masks(
 
 describe("fieldViews masks", () => {
   it("reads an audience for single-role branches without a helper call", () => {
-    const signedIn = `coalesce((select auth.uid())::text, '') <> ''`;
+    const signedIn = `coalesce((select "permdock".permdock_user_id())::text, '') <> ''`;
     expect(
       masks([
         read({ fields: ["id", "title"], using: "a" }),

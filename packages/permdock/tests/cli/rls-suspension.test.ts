@@ -97,7 +97,7 @@ describe("rls.suspension", () => {
     });
     expect(code).toBe(0);
     const user =
-      'exists (select 1 from "public"."profiles" s where s."id" = (select auth.uid()) and s."disabled_at" is null)';
+      'exists (select 1 from "public"."profiles" s where s."id" = (select "permdock".permdock_user_id()) and s."disabled_at" is null)';
     expect(helper(sql, "permdock_has")).toContain(user);
     const customer = helper(sql, "permitted_customer_ids");
     expect(customer).toContain(user);

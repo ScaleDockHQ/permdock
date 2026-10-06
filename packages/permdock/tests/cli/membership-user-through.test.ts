@@ -261,7 +261,7 @@ describe("membership sources with a user through a profile table", () => {
       },
     });
     expect(fn(sql, "permdock_can_assign")).toContain(
-      'v_user_0 "public"."contact_profiles"."user_id"%type := (select auth.uid());',
+      'v_user_0 "public"."contact_profiles"."user_id"%type := (select "permdock".permdock_user_id());',
     );
   });
 

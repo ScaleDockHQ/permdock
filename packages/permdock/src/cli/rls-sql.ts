@@ -602,13 +602,19 @@ export function quoteLiteral(value: string): string {
   return quoteSqlLiteral(value);
 }
 
+export const USER_ID_HELPER = "permdock_user_id";
+
+export function userIdHelperSql(ctx: Pick<RlsSqlContext, "schema">): string {
+  return `${quoteIdent(ctx.schema ?? PERMDOCK_SCHEMA)}.${USER_ID_HELPER}`;
+}
+
 export function subjectIdSql(ctx: RlsSqlContext): string {
   if (ctx.subjectId !== undefined) {
     return ctx.subjectId;
   }
   switch (ctx.dialect) {
     case "supabase":
-      return "(select auth.uid())";
+      return `(select ${userIdHelperSql(ctx)}())`;
     case "neon":
       return "(select auth.user_id())";
     case "guc":

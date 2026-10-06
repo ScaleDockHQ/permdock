@@ -60,6 +60,7 @@ import {
   quoteTable,
   scopeTypeOf,
   tenantTypeOf,
+  USER_ID_HELPER,
 } from "./rls-sql.ts";
 import {
   driftOf,
@@ -1611,13 +1612,13 @@ function trustedHelpers(
         ),
       ]
     : [];
-  const keyed =
-    config.rls?.apiKeys === undefined
-      ? forUser
-      : [
-          helperEntry(API_KEY_ALLOWS, "p_grant text", "boolean", client),
-          ...forUser,
-        ];
+  const keyed = [
+    helperEntry(USER_ID_HELPER, "", "uuid", client),
+    ...(config.rls?.apiKeys === undefined
+      ? []
+      : [helperEntry(API_KEY_ALLOWS, "p_grant text", "boolean", client)]),
+    ...forUser,
+  ];
   const assigns =
     policy !== undefined &&
     (ownershipRules(policy, parts.scopes)?.assigns.length ?? 0) > 0;

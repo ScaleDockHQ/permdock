@@ -114,9 +114,9 @@ describe("rls generate with rls.apiKeys", () => {
       `(select "permdock".permdock_api_key_allows('note.read'))`,
     );
     expect(sql).not.toContain(`permdock_api_key_allows('post.update')`);
-    expect(sql).not.toContain("auth.uid()");
+    expect(sql).not.toContain("nullif((select auth.jwt()) ->> 'sub'");
     expect(sql).toContain(
-      "(select nullif((select auth.jwt()) ->> 'sub', '')::uuid)",
+      `coalesce((select "permdock".permdock_user_id())::text, '') = ''`,
     );
   });
 
@@ -205,7 +205,7 @@ describe("rls generate with rls.apiKeys", () => {
     const { code, sql } = await generate({ dialect: "supabase" });
     expect(code).toBe(0);
     expect(sql).not.toContain("permdock_api_key_allows");
-    expect(sql).toContain("(select auth.uid())");
+    expect(sql).toContain('(select "permdock".permdock_user_id())');
   });
 
   it("refuses an undeclared service role", async () => {

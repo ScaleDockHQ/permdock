@@ -265,7 +265,7 @@ describe("memberOf and suspension", () => {
       },
     }).scopes,
   );
-  const user = `exists (select 1 from "public"."profiles" s where s."id" = (select auth.uid()) and s."disabled_at" is null)`;
+  const user = `exists (select 1 from "public"."profiles" s where s."id" = (select "permdock".permdock_user_id()) and s."disabled_at" is null)`;
   const suspended = {
     dialect: "supabase",
     tenantClaim: "tenant_id",

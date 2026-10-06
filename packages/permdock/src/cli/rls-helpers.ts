@@ -36,6 +36,7 @@ import {
   subjectClaimJsonSql,
   subjectClaimSql,
   subjectIdSql,
+  userIdHelperSql,
   tenantTypeOf,
 } from "./rls-sql.ts";
 
@@ -164,11 +165,35 @@ revoke execute on function ${fn}(text, text, text) from public;
 grant execute on function ${fn}(text, text, text) to anon, authenticated;`;
 }
 
+function userIdSql(ctx: RlsSqlContext, anonExecute: boolean): string {
+  const fn = userIdHelperSql(ctx);
+  const grants = anonExecute
+    ? `revoke execute on function ${fn}() from public;
+grant execute on function ${fn}() to anon, authenticated;`
+    : `revoke execute on function ${fn}() from public, anon;
+grant execute on function ${fn}() to authenticated;`;
+  return `-- the caller's user id: auth.uid(), or null when the token's sub is empty
+create or replace function ${fn}()
+returns uuid
+language sql
+stable
+set search_path = ''
+as $$
+  select case
+    when nullif(current_setting('request.jwt.claim.sub', true), '') is null
+      and (select auth.jwt()) ->> 'sub' = ''
+    then null
+    else (select auth.uid())
+  end
+$$;
+${grants}`;
+}
+
 export function membershipTable(name: string): string {
   return quoteTable(name.includes(".") ? name : `public.${name}`);
 }
 
-/** `user` is the SQL for the user id: `auth.uid()` (the default) or the `p_user` parameter of a `_for` helper. */
+/** `user` is the SQL for the user id: the dialect's (the default) or the `p_user` parameter of a `_for` helper. */
 export function signedIn(
   ctx: RlsSqlContext,
   user: string = subjectIdSql(ctx),
@@ -1315,6 +1340,9 @@ export function helpersSql(
     chunks.push(
       `create schema if not exists ${s};\nrevoke all on schema ${s} from public;\ngrant usage on schema ${s} to ${options.anonExecute === true ? "anon, authenticated" : "authenticated"};`,
     );
+  }
+  if (ctx.dialect === "supabase") {
+    chunks.push(userIdSql(ctx, options.anonExecute === true));
   }
   chunks.push(`create table if not exists ${rp} (
   role text not null,

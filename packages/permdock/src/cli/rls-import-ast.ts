@@ -7,6 +7,7 @@ import type { RlsFunctionMapping, RlsMemberships } from "./types.ts";
 
 import { quoteSqlLiteral } from "../core/sql.ts";
 import { HELPERS } from "./rls-helpers.ts";
+import { USER_ID_HELPER } from "./rls-sql.ts";
 
 type PgNode = Record<string, unknown>;
 
@@ -94,7 +95,8 @@ function isAuthUid(value: unknown): boolean {
     name === "auth.uid" ||
     name === "auth.user_id" ||
     name === "uid" ||
-    name === "user_id"
+    name === "user_id" ||
+    name?.split(".").at(-1) === USER_ID_HELPER
   );
 }
 

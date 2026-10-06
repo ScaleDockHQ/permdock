@@ -82,7 +82,7 @@ describe("member_<scope>_ids_for", () => {
     const body = (text: string): string =>
       text.slice(text.indexOf("as $$"), text.indexOf("$$;"));
     expect(body(forUser)).toBe(
-      body(own).replaceAll("(select auth.uid())", "p_user"),
+      body(own).replaceAll('(select "permdock".permdock_user_id())', "p_user"),
     );
   });
 

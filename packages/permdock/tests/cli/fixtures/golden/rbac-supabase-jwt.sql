@@ -30,6 +30,23 @@ create schema if not exists "app";
 revoke all on schema "app" from public;
 grant usage on schema "app" to authenticated;
 
+-- the caller's user id: auth.uid(), or null when the token's sub is empty
+create or replace function "app".permdock_user_id()
+returns uuid
+language sql
+stable
+set search_path = ''
+as $$
+  select case
+    when nullif(current_setting('request.jwt.claim.sub', true), '') is null
+      and (select auth.jwt()) ->> 'sub' = ''
+    then null
+    else (select auth.uid())
+  end
+$$;
+revoke execute on function "app".permdock_user_id() from public, anon;
+grant execute on function "app".permdock_user_id() to authenticated;
+
 create table if not exists "app".role_permissions (
   role text not null,
   permission text not null,
@@ -77,7 +94,7 @@ stable
 security definer
 set search_path = ''
 as $$
-  select coalesce((select auth.uid())::text, '') <> '' and exists (
+  select coalesce((select "app".permdock_user_id())::text, '') <> '' and exists (
     select 1
     from jsonb_array_elements_text(
       case jsonb_typeof(coalesce(nullif(((select auth.jwt()) -> 'user_role'), 'null'::jsonb), (select auth.jwt()) -> 'app_metadata' -> 'user_role'))
@@ -109,7 +126,7 @@ as $$
       case jsonb_typeof(m -> 'roles') when 'array' then m -> 'roles' else '[]'::jsonb end
     ) r(role)
   join "app".role_permissions rp on rp.role = r.role
-  where coalesce((select auth.uid())::text, '') <> ''
+  where coalesce((select "app".permdock_user_id())::text, '') <> ''
     and rp.grant_key = p_grant
     and rp.scope = 'tenant'
     and m ->> 'scope' = 'tenant'
@@ -134,7 +151,7 @@ as $$
   from jsonb_array_elements(
     case jsonb_typeof(coalesce(((select auth.jwt()) -> 'memberships'), (select auth.jwt()) -> 'app_metadata' -> 'memberships')) when 'array' then coalesce(((select auth.jwt()) -> 'memberships'), (select auth.jwt()) -> 'app_metadata' -> 'memberships') else '[]'::jsonb end
   ) m
-  where coalesce((select auth.uid())::text, '') <> ''
+  where coalesce((select "app".permdock_user_id())::text, '') <> ''
     and m ->> 'scope' = 'tenant'
     and m ->> 'id' is not null
     and jsonb_typeof(m -> 'roles') = 'array'
@@ -370,8 +387,8 @@ create policy "post_update"
   as permissive
   for update
   to authenticated
-  using ((select "app".permdock_has('post.update#1')) or (("orgId" in (select "app".permitted_tenant_ids('post.update#2'))) and ("authorId" = (select auth.uid()))))
-  with check ((select "app".permdock_has('post.update#1')) or (("orgId" in (select "app".permitted_tenant_ids('post.update#2'))) and ("authorId" = (select auth.uid()))));
+  using ((select "app".permdock_has('post.update#1')) or (("orgId" in (select "app".permitted_tenant_ids('post.update#2'))) and ("authorId" = (select "app".permdock_user_id()))))
+  with check ((select "app".permdock_has('post.update#1')) or (("orgId" in (select "app".permitted_tenant_ids('post.update#2'))) and ("authorId" = (select "app".permdock_user_id()))));
 
 drop policy if exists "post_delete" on "public"."post";
 create policy "post_delete"

@@ -116,7 +116,7 @@ describe("member_<scope>_ids", () => {
     // The junction source holds only customer memberships, so it is not read for organizations.
     expect(member).not.toContain('"public"."contacts"');
     expect(member).toContain(
-      `"public"."profiles" s where s."user_id" = (select auth.uid())`,
+      `"public"."profiles" s where s."user_id" = (select "permdock".permdock_user_id())`,
     );
   });
 
