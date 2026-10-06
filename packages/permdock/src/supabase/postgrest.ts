@@ -34,6 +34,22 @@ export type SupabaseRpcClient = {
   };
 };
 
+export type SupabaseRpcCaller = {
+  schema(name: never): {
+    rpc(fn: never, args: never): PromiseLike<SupabaseRpcResult>;
+  };
+};
+
+export function callRpc(
+  client: SupabaseRpcCaller,
+  schema: string,
+  fn: string,
+  args: Readonly<Record<string, unknown>>,
+): PromiseLike<SupabaseRpcResult> {
+  // SAFETY: SupabaseRpcCaller only loosens the parameters for typed clients; every client takes a schema name, a function name and an argument object.
+  return (client as unknown as SupabaseRpcClient).schema(schema).rpc(fn, args);
+}
+
 export type PostgrestSourcesOptions = {
   /** Schema of the functions. Default `permdock`, where the hook generates `subject_for` and `members_of`. */
   readonly schema?: string;
@@ -184,7 +200,7 @@ export function readSubjectRecord(value: unknown): SubjectRecord | undefined {
  * it per request or per job.
  */
 export function postgrestSources(
-  client: SupabaseRpcClient,
+  client: SupabaseRpcCaller,
   options: PostgrestSourcesOptions = {},
 ): PostgrestSources {
   const schema = options.schema ?? PERMDOCK_SCHEMA;
@@ -202,9 +218,10 @@ export function postgrestSources(
       return cached.then((entries) => [...entries]);
     }
     const pending = Promise.resolve(
-      client
-        .schema(schema)
-        .rpc(membersFn, { p_scope: query.scope, p_id: query.id }),
+      callRpc(client, schema, membersFn, {
+        p_scope: query.scope,
+        p_id: query.id,
+      }),
     ).then((result) => {
       if (result.error !== null) {
         throw new Error(
@@ -222,7 +239,7 @@ export function postgrestSources(
       return cached;
     }
     const pending = Promise.resolve(
-      client.schema(schema).rpc(fn, { p_user: userId }),
+      callRpc(client, schema, fn, { p_user: userId }),
     ).then((result) => {
       if (result.error !== null) {
         throw new Error(

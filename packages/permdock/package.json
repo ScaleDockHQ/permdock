@@ -280,6 +280,7 @@
     "@permdock/ox-config": "workspace:*",
     "@permdock/typescript-config": "workspace:*",
     "@supabase/middleware": "catalog:",
+    "@supabase/supabase-js": "catalog:",
     "@sveltejs/vite-plugin-svelte": "catalog:",
     "@trpc/server": "catalog:",
     "@types/express": "catalog:",

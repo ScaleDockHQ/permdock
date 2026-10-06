@@ -17,6 +17,7 @@ export type {
   PostgrestSources,
   PostgrestSourcesOptions,
   SubjectRecord,
+  SupabaseRpcCaller,
   SupabaseRpcClient,
   SupabaseRpcResult,
 } from "./postgrest.ts";
