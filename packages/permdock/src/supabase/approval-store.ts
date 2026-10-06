@@ -12,6 +12,7 @@ import type { SupabaseRpcCaller } from "./postgrest.ts";
 import { ApprovalError } from "../approvals/errors.ts";
 import { decodeCursor, encodeCursor, pageSizeOf } from "../approvals/page.ts";
 import { applyApprovalVerdict } from "../approvals/store.ts";
+import { canonicalJson } from "../core/canonical-json.ts";
 import { compact } from "../core/compact.ts";
 import { callRpc } from "./postgrest.ts";
 import { PERMDOCK_SCHEMA } from "./sources.ts";
@@ -22,9 +23,10 @@ export type SupabaseApprovalStoreOptions = {
   /** How long a request stays open when the caller sets no `ttl`, in milliseconds. */
   readonly ttl?: number;
   /**
-   * Runs after a request is opened, with the stored request: notify the
-   * approvers, or cancel the requests this one replaces. A throw fails the
-   * open, so the caller does not run the action.
+   * Runs once per stored request, after the call that stored it, with the
+   * stored request: notify the approvers, or cancel the requests this one
+   * replaces. A repeated ask that finds the request still open does not run
+   * it again. A throw fails the open, so the caller does not run the action.
    */
   readonly onOpen?: (request: ApprovalRequest) => void | Promise<void>;
 };
@@ -89,7 +91,12 @@ export function supabaseApprovalStore(
       await call("permdock_approval_open", { p_request: request });
       if (options.onOpen !== undefined) {
         const stored = await get(request.token);
-        await options.onOpen(stored ?? request);
+        if (
+          stored !== null &&
+          canonicalJson(stored) === canonicalJson(request)
+        ) {
+          await options.onOpen(stored);
+        }
       }
     },
     get,

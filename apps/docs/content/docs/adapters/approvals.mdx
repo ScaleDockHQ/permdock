@@ -385,7 +385,7 @@ const store = supabaseApprovalStore(admin, {
 });
 ```
 
-`onOpen` runs after a request is stored, with the stored request; a throw fails the open, so the action does not run. Routing to a manager chain or a delegate is the app's: `approverRelations` and `approverPermissions` feed the facts `applyApprovalVerdict` checks, and `cancelApprovals` rejects the requests a newer one supersedes. The same conformance runner as the Drizzle recipe runs it against Postgres. Schedule `store.expire()` (a cron or `pg_cron`) to mark overdue requests expired.
+`onOpen` runs once per stored request, after the call that stored it, with the stored request; a repeated ask that finds the request still open does not run it again, so a notification or a record the app opens there is not duplicated. A throw fails the open, so the action does not run. Routing to a manager chain or a delegate is the app's: `approverRelations` and `approverPermissions` feed the facts `applyApprovalVerdict` checks, and `cancelApprovals` rejects the requests a newer one supersedes. The same conformance runner as the Drizzle recipe runs it against Postgres. Schedule `store.expire()` (a cron or `pg_cron`) to mark overdue requests expired.
 
 ## Recipes for other stores
 
