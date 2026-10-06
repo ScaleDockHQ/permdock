@@ -192,24 +192,11 @@ function matchesFilter(
   return true;
 }
 
-/**
- * Refuses `by` as an approver of `request`, or returns the index of the
- * stage the approval counts for (`undefined` without `stages`). Eligibility
- * is `approvers.by` or, under `stages`, the first incomplete stage
- * (`sequential`) or any incomplete stage (`all`); `approvers.escalation.to`
- * is eligible too once the request has waited `escalation.after`. A
- * principal who already approved is refused, so one person never completes
- * two stages. `relations` are the relation approvers `by` holds on the
- * request's resource (see `ApprovalVerdict.relations`).
- */
-export function assertApprover(
+function assertSeparateApprover(
   request: ApprovalRequest,
   by: Subject,
   requireDistinctApprover: boolean,
-  now: Date = new Date(),
-  relations: readonly string[] = [],
-  permissions: readonly string[] = [],
-): number | undefined {
+): { readonly id: string } {
   const principal = by.principal;
   if (principal === null) {
     throw new ApprovalError(
@@ -238,6 +225,47 @@ export function assertApprover(
       "approver is the principal of this request",
     );
   }
+  return principal;
+}
+
+function assertNotRepeated(request: ApprovalRequest, id: string): void {
+  if ((request.approvals ?? []).some((item) => item.by === id)) {
+    throw new ApprovalError(
+      "approver-repeated",
+      "approver has already approved this request",
+    );
+  }
+}
+
+function vouchedRule(verdict: ApprovalVerdict): string | undefined {
+  return typeof verdict.vouched === "string" && verdict.vouched !== ""
+    ? verdict.vouched
+    : undefined;
+}
+
+/**
+ * Refuses `by` as an approver of `request`, or returns the index of the
+ * stage the approval counts for (`undefined` without `stages`). Eligibility
+ * is `approvers.by` or, under `stages`, the first incomplete stage
+ * (`sequential`) or any incomplete stage (`all`); `approvers.escalation.to`
+ * is eligible too once the request has waited `escalation.after`. A
+ * principal who already approved is refused, so one person never completes
+ * two stages. `relations` are the relation approvers `by` holds on the
+ * request's resource (see `ApprovalVerdict.relations`).
+ */
+export function assertApprover(
+  request: ApprovalRequest,
+  by: Subject,
+  requireDistinctApprover: boolean,
+  now: Date = new Date(),
+  relations: readonly string[] = [],
+  permissions: readonly string[] = [],
+): number | undefined {
+  const principal = assertSeparateApprover(
+    request,
+    by,
+    requireDistinctApprover,
+  );
   const tenant = request.subject.principal?.tenant;
   if (tenant !== undefined && !belongsToTenant(by, tenant)) {
     throw new ApprovalError(
@@ -245,12 +273,7 @@ export function assertApprover(
       "approver does not belong to the request tenant",
     );
   }
-  if ((request.approvals ?? []).some((item) => item.by === principal.id)) {
-    throw new ApprovalError(
-      "approver-repeated",
-      "approver has already approved this request",
-    );
-  }
+  assertNotRepeated(request, principal.id);
   const approvers = request.approvers;
   if (approvers === undefined) {
     return undefined;
@@ -339,8 +362,10 @@ export function applyApprovalVerdict(
   if (Date.parse(request.expiresAt) <= now.getTime()) {
     throw new ApprovalError("approval-expired", "approval has expired");
   }
+  const vouched = vouchedRule(verdict);
   const stage =
-    verdict.status === "rejected" && isSystemSubject(verdict.by)
+    (verdict.status === "rejected" && isSystemSubject(verdict.by)) ||
+    vouched !== undefined
       ? undefined
       : assertApprover(
           request,
@@ -350,6 +375,12 @@ export function applyApprovalVerdict(
           verdict.relations,
           verdict.permissions,
         );
+  if (vouched !== undefined) {
+    assertNotRepeated(
+      request,
+      assertSeparateApprover(request, verdict.by, false).id,
+    );
+  }
   if (verdict.status === "rejected") {
     return freezeDeep(
       compact<ApprovalRequest>({
@@ -357,6 +388,7 @@ export function applyApprovalVerdict(
         status: "rejected",
         resolvedAt: now.toISOString(),
         resolvedBy: principal.id,
+        vouched,
         note: verdict.note ?? request.note,
       }),
     );
@@ -368,9 +400,10 @@ export function applyApprovalVerdict(
       by: principal.id,
       at: now.toISOString(),
       stage,
+      vouched,
     }),
   ];
-  if (!isComplete(request, approvals)) {
+  if (vouched === undefined && !isComplete(request, approvals)) {
     return freezeDeep(
       compact<ApprovalRequest>({
         ...request,
@@ -386,6 +419,7 @@ export function applyApprovalVerdict(
       approvals,
       resolvedAt: now.toISOString(),
       resolvedBy: principal.id,
+      vouched,
       note: verdict.note ?? request.note,
     }),
   );

@@ -114,6 +114,24 @@ const decision = await resumeDecision({
 | `POST /:token/reject`  | Marks rejected with an optional `note`                                                                                                                                                                                                                                                  | Same                                                                                                                                                                                                                                                                                                                         |
 | `GET /:token`          | One request, for a confirmation screen                                                                                                                                                                                                                                                  | `404` for unknown or foreign tokens                                                                                                                                                                                                                                                                                          |
 
+## Verdicts the application decides
+
+An application whose own rules decide who approves (a manager chain, delegates, a quorum it counts, an order of steps) records that verdict with `vouchApproval(store, token, { status, by, rule, note? })`. `rule` names the rule that decided it, for the audit trail. The store resolves the request in one step: `approved` or `rejected`, `resolvedBy` the approver, and `vouched: rule` on the request and on the approval it records. The eligibility checks of `approvers` (roles, relations, holders, stages, escalation, the tenant membership and the quorum) are skipped, because the application already applied its rules; the separation checks still run, so the actor, the principal (unless the grant sets `distinct: false`), a repeated approver, an unauthenticated subject and a request that is not pending or has expired are refused. The resumed call then goes through `resumeDecision` as any other approval.
+
+```ts
+import { vouchApproval } from "permdock/approvals";
+
+if (await managerChainApproves(request, approver)) {
+  await vouchApproval(store, request.token, {
+    status: "approved",
+    by: approverSubject,
+    rule: "manager-chain",
+  });
+}
+```
+
+`vouched` is server-side input like `verdict.relations`: `approvalsHandler` builds its verdict from the authenticated approver and never takes `vouched` from a request body. A store built on `applyApprovalVerdict` (the memory store, the generated Postgres and Supabase store, a custom store following the recipe) handles it; `testApprovalStore` checks it.
+
 ## Relation approvers
 
 A `relation()` approver ([approval security](/docs/security/approvals#relation-approvers)) is a fact about the requested row, so the handler reads it at the verdict. With `relations` set, `approvalsHandler` calls `approverRelations(request, approver, { relations, permissions })` before `resolve`: it follows the approver's `through` links from the request's resource id, asks the `RelationSource` who holds the relation, and passes the matching approvers to `resolve` as `verdict.relations`. Each entry is `approverRelationKey(approver)`. The `GET /pending` inbox uses the same check, so a manager sees only their reports' requests.

@@ -972,6 +972,32 @@ export function testApprovalStore(
     expect(await store.consume("quorum-token")).not.toBeNull();
   });
 
+  it("resolves a vouched verdict at once, records its rule, and still refuses the requester", async () => {
+    await store.create({
+      ...sampleApproval("vouched-token"),
+      approvers: { by: admin, quorum: 2 },
+    });
+    await expect(
+      Promise.resolve().then(() =>
+        store.resolve("vouched-token", {
+          status: "approved",
+          by: { principal: { id: "u_1", roles: [] }, context: {} },
+          vouched: "app-rule",
+        }),
+      ),
+    ).rejects.toThrow(/principal/u);
+    const resolved = await store.resolve("vouched-token", {
+      status: "approved",
+      by: { principal: { id: "u_outsider", roles: [] }, context: {} },
+      vouched: "app-rule",
+    });
+    expect(resolved.status).toBe("approved");
+    expect(resolved.vouched).toBe("app-rule");
+    expect(resolved.approvals).toEqual([
+      { by: "u_outsider", at: expect.any(String), vouched: "app-rule" },
+    ]);
+  });
+
   it("lets one rejection end a quorum request", async () => {
     await store.create({
       ...sampleApproval("veto-token"),

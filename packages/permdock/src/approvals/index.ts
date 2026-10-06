@@ -13,6 +13,7 @@ export {
   resumeFromHeader,
   storedApprovalToken,
   summariseSubject,
+  vouchApproval,
 } from "./helpers.ts";
 export { approverPermissions } from "./permissions.ts";
 export { approverRelations } from "./relations.ts";

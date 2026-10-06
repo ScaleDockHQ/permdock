@@ -192,6 +192,33 @@ export async function resolveApproval(
   return store.resolve(token, { ...verdict, relations, permissions });
 }
 
+export async function vouchApproval(
+  store: ApprovalStore,
+  token: string,
+  verdict: {
+    readonly status: "approved" | "rejected";
+    readonly by: Subject;
+    readonly rule: string;
+    readonly note?: string;
+  },
+): Promise<ApprovalRequest> {
+  if (typeof verdict.rule !== "string" || verdict.rule === "") {
+    throw new TypeError(
+      "PermDock: vouchApproval needs the name of the rule that decided the verdict",
+    );
+  }
+  const resolved = await store.resolve(
+    token,
+    compact<ApprovalVerdict>({
+      status: verdict.status,
+      by: verdict.by,
+      note: verdict.note,
+      vouched: verdict.rule,
+    }),
+  );
+  return resolved;
+}
+
 export async function inspectApproval(
   store: ApprovalStore,
   token: string,
