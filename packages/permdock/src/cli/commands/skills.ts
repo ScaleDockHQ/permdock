@@ -28,13 +28,19 @@ export function skills(ctx: CliContext): Command {
         description: "Agent skill folders to write, repeatable",
         valueHint: "name",
       },
+      check: {
+        type: "boolean",
+        description:
+          "Fail when the installed skills differ from this version; write nothing",
+      },
     },
     async run({ args: parsed, rawArgs }) {
       const action = parsed._[0];
       let agents = listArg(rawArgs, "agent");
       const installs =
         action === undefined || action === "install" || action === "update";
-      if (ctx.interactive && installs && agents.length === 0) {
+      const check = parsed.check === true;
+      if (ctx.interactive && installs && !check && agents.length === 0) {
         const detected = detectedAgents(ctx.cwd);
         const picked = await pick(
           "Which agents should get the PermDock skills?",
@@ -50,7 +56,7 @@ export function skills(ctx: CliContext): Command {
         }
         agents = picked;
       }
-      ctx.report(runSkills({ cwd: ctx.cwd, action, agents }));
+      ctx.report(runSkills({ cwd: ctx.cwd, action, agents, check }));
     },
   });
   return command;

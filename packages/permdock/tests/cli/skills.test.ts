@@ -4,6 +4,7 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -11,7 +12,11 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { run } from "../../src/cli/run.ts";
-import { runSkills, runSkillsInstall } from "../../src/cli/skills.ts";
+import {
+  runSkills,
+  runSkillsCheck,
+  runSkillsInstall,
+} from "../../src/cli/skills.ts";
 
 const temps: string[] = [];
 
@@ -165,5 +170,91 @@ describe("runSkills", () => {
         "",
       ].join("\n"),
     });
+  });
+});
+
+describe("symlinked skill folders", () => {
+  it("writes through a skill folder linked to another agent's folder", () => {
+    const cwd = workspace();
+    mkdirSync(join(cwd, ".agents/skills/permdock-wire"), { recursive: true });
+    mkdirSync(join(cwd, ".claude/skills"), { recursive: true });
+    symlinkSync(
+      "../../.agents/skills/permdock-wire",
+      join(cwd, ".claude/skills/permdock-wire"),
+    );
+    expect(runSkillsInstall({ cwd, agents: ["agents", "claude"] })).toEqual({
+      code: 0,
+      output:
+        "installed .agents/skills/permdock-wire, .agents/skills/permdock-audit, .claude/skills/permdock-audit; linked .claude/skills/permdock-wire to .agents/skills/permdock-wire (permdock@0.0.0)",
+    });
+    expect(
+      readFileSync(join(cwd, ".claude/skills/permdock-wire/SKILL.md"), "utf8"),
+    ).toBe("# permdock-wire\n");
+  });
+
+  it("writes a linked folder's target when the link comes first or dangles", () => {
+    const cwd = workspace();
+    mkdirSync(join(cwd, ".claude"), { recursive: true });
+    symlinkSync("../.agents/skills", join(cwd, ".claude/skills"));
+    expect(runSkillsInstall({ cwd, agents: ["claude", "agents"] }).output).toBe(
+      "installed .claude/skills/permdock-wire, .claude/skills/permdock-audit; linked .agents/skills/permdock-wire to .claude/skills/permdock-wire, .agents/skills/permdock-audit to .claude/skills/permdock-audit (permdock@0.0.0)",
+    );
+    expect(
+      readFileSync(join(cwd, ".agents/skills/permdock-audit/SKILL.md"), "utf8"),
+    ).toBe("# permdock-audit\n");
+  });
+});
+
+describe("skills --check", () => {
+  it("passes when the installed skills match and writes nothing", async () => {
+    const cwd = workspace();
+    mkdirSync(join(cwd, ".cursor"));
+    const missing = await run(["skills", "install", "--check"], { cwd });
+    expect(missing.code).toBe(1);
+    expect(missing.stdout + missing.stderr).toContain(
+      ".cursor/skills/permdock-wire/SKILL.md",
+    );
+    expect(existsSync(join(cwd, ".cursor/skills"))).toBe(false);
+    expect(existsSync(join(cwd, ".permdock"))).toBe(false);
+    await run(["skills", "install", "--agent", "cursor"], { cwd });
+    expect(runSkillsCheck({ cwd, agents: [] })).toEqual({
+      code: 0,
+      output: "skills match permdock@0.0.0",
+    });
+  });
+
+  it("fails on a changed file and skips a linked folder", () => {
+    const cwd = workspace();
+    runSkillsInstall({ cwd, agents: ["agents"] });
+    mkdirSync(join(cwd, ".claude"));
+    symlinkSync("../.agents/skills", join(cwd, ".claude/skills"));
+    expect(runSkillsCheck({ cwd, agents: ["agents", "claude"] }).code).toBe(0);
+    writeFileSync(join(cwd, ".agents/skills/permdock-audit/SKILL.md"), "old\n");
+    expect(runSkillsCheck({ cwd, agents: ["claude"] })).toEqual({
+      code: 1,
+      output:
+        "skills differ from permdock@0.0.0: .claude/skills/permdock-audit/SKILL.md. Run permdock skills install.",
+    });
+    expect(
+      runSkills({ cwd, action: "update", agents: ["agents"], check: true })
+        .code,
+    ).toBe(1);
+    expect(
+      readFileSync(join(cwd, ".agents/skills/permdock-audit/SKILL.md"), "utf8"),
+    ).toBe("old\n");
+  });
+
+  it("checks every folder when the project has none, and exits 2 without skills", () => {
+    const cwd = workspace();
+    expect(runSkillsCheck({ cwd, agents: [] }).output).toContain(
+      ".agents/skills/permdock-wire/SKILL.md, .agents/skills/permdock-audit/SKILL.md, .claude/skills",
+    );
+    expect(
+      runSkillsCheck({
+        cwd: bare(),
+        agents: [],
+        bundled: join(bare(), "absent"),
+      }).code,
+    ).toBe(2);
   });
 });

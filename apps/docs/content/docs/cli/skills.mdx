@@ -19,11 +19,18 @@ pnpm exec permdock skills install
 pnpm exec permdock skills install --agent cursor --agent claude
 pnpm exec permdock skills list
 pnpm exec permdock skills update
+pnpm exec permdock skills install --check
 ```
 
 `install` copies every skill from `node_modules/permdock/skills/` into the folders the detected agents read (`.agents/skills/`, `.claude/skills/`, `.cursor/skills/`) and records the installed version in a lock entry so `permdock doctor` can report drift (`PD005`). `skills.sh` installs land in the same folders, and `--skill <name>` picks one.
 
 Without `--agent`, `install` and `update` on a terminal ask which agents to install for, with the agents whose folder (`.agents`, `.claude`, `.cursor`) the project already has preselected; cancelling exits `2` and writes nothing. In CI, in a pipe or with `--json` there is no prompt and every folder is written, as before.
+
+An agent folder may be a symlink to another one (`.claude/skills` to `.agents/skills`), and so may a single skill folder (`.claude/skills/permdock` to `.agents/skills/permdock`). `install` follows the link and writes the files once, at the target, and reports the linked folder as `linked .claude/skills/permdock to .agents/skills/permdock`. A link whose target does not exist yet gets the target created.
+
+## Check
+
+`install --check` (or `update --check`) compares every installed skill file with the one this version ships and writes nothing. It exits `0` when they match and `1` with the list of missing or changed files otherwise, so CI can fail when someone upgrades `permdock` without reinstalling the skills. Without `--agent` it checks the agent folders the project has (`.agents`, `.claude`, `.cursor`), or every folder when it has none, and it never prompts. A linked folder is checked once, through its target.
 
 ## The skills
 
