@@ -44,6 +44,27 @@ describe("operationPermissions", () => {
     ).toBeUndefined();
   });
 
+  it("matches a HEAD request to the GET entry of its path when no HEAD entry matches", () => {
+    expect(operations.forRequest("HEAD", "/api/v1/posts/p1")?.key).toBe(
+      "post.read",
+    );
+    expect(operations.forRequest("head", "/api/v1/posts")?.key).toBe(
+      "post.list",
+    );
+    expect(operations.forRequest("HEAD", "/api/v1/nope")).toBeUndefined();
+    const withHead = operationPermissions({
+      "GET /posts/{id}": permissions.post.read,
+      "HEAD /posts/{id}": permissions.post.list,
+      "GET /drafts": { oauthScopes: ["api:read"] },
+    });
+    expect(withHead.forRequest("HEAD", "/posts/p1")?.key).toBe("post.list");
+    expect(withHead.forRequest("HEAD", "/drafts")).toBeUndefined();
+    expect(withHead.oauthScopesForRequest("HEAD", "/drafts")).toEqual([
+      "api:read",
+    ]);
+    expect(operations.forRequest("POST", "/api/v1/posts/p1")).toBeUndefined();
+  });
+
   it("answers an operation id, as a tool name", () => {
     expect(operations.forOperation("get_post")?.key).toBe("post.read");
     expect(operations.forOperation("create_post")?.key).toBe("post.create");

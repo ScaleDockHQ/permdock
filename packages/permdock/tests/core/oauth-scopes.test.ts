@@ -439,4 +439,32 @@ describe("oauthScopes", () => {
       /oauthScopes/u,
     );
   });
+
+  it("the server kernel reads a HEAD request's scopes from the GET entry", async () => {
+    const { protect } = createServerPermDock(exportPolicy, {
+      subject: () => ({
+        principal: { id: "u1", roles: ["member"] },
+        context: {},
+        actor: agent,
+        delegation: { scopes: ["mcp:read"] },
+      }),
+      operations: operationPermissions({
+        "GET /chats/{id}": { oauthScopes: ["chat"] },
+        "GET /status": { oauthScopes: ["mcp:read"] },
+      }),
+    });
+    const head = (path: string) =>
+      protect(null)(
+        new Request(`https://api.example${path}`, {
+          method: "HEAD",
+          headers: { authorization: "Bearer t" },
+        }),
+      );
+    expect((await head("/status")).ok).toBe(true);
+    const refused = await head("/chats/c1");
+    expect(refused.ok).toBe(false);
+    if (!refused.ok) {
+      expect(refused.response.status).toBe(403);
+    }
+  });
 });

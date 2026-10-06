@@ -42,7 +42,8 @@ export type OperationPermissions = {
    * The permission of a request: the declared operation whose method and
    * path template match, a literal segment winning over a `{param}`.
    * `undefined` for an undeclared operation, which a gate denies, and for an
-   * operation that declares only OAuth scopes.
+   * operation that declares only OAuth scopes. A `HEAD` request matches the
+   * `GET` entry of its path when no `HEAD` entry matches.
    */
   forRequest(method: string, path: string): Permission | undefined;
   /** The permission of an operation id; pass it as `permissionFor` when tool names are operation ids. */
@@ -155,8 +156,7 @@ export function operationPermissions(
     }
   }
   const base = segmentsOf(options.base ?? "");
-  const match = (method: string, path: string): Route | undefined => {
-    const upper = method.toUpperCase();
+  const matchMethod = (upper: string, path: string): Route | undefined => {
     const full = segmentsOf(path.split("?")[0] ?? "");
     if (base.some((segment, index) => full[index] !== segment)) {
       return undefined;
@@ -175,6 +175,13 @@ export function operationPermissions(
       }
     }
     return best;
+  };
+  const match = (method: string, path: string): Route | undefined => {
+    const upper = method.toUpperCase();
+    const route = matchMethod(upper, path);
+    return route === undefined && upper === "HEAD"
+      ? matchMethod("GET", path)
+      : route;
   };
   return {
     forRequest(method, path) {
