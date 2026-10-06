@@ -61,6 +61,15 @@ function roleScope(
   return typeof on === "string" ? resolveScope(scopes, on) : undefined;
 }
 
+function isGlobalRole(policy: Policy, name: string): boolean {
+  const binding = policy.rolesByName.get(name);
+  if (binding !== undefined) {
+    return binding.on === undefined;
+  }
+  const leaf = findRole(policy.vocabulary.roles, name);
+  return leaf !== undefined && leaf.on === undefined;
+}
+
 /** The rules `rls generate` enforces; `undefined` when no role declares one. */
 export function ownershipRules(
   policy: Policy,
@@ -83,7 +92,19 @@ export function ownershipRules(
         at !== undefined &&
         (assigner === "global" || scopeChain(scopes, at).includes(assigner))
       ) {
-        assigns.push({ assigner: binding.name, scope: assigner, role: target });
+        assigns.push({
+          assigner: binding.name,
+          scope: assigner,
+          role: target,
+          at,
+        });
+      } else if (assigner === "global" && isGlobalRole(policy, target)) {
+        assigns.push({
+          assigner: binding.name,
+          scope: "global",
+          role: target,
+          at: "global",
+        });
       }
     }
     const min = binding.min ?? 0;
@@ -571,20 +592,26 @@ function canAssignSql(ctx: RlsSqlContext, own: RlsOwnership): string {
     return `v_user_${String(index)}`;
   };
   const global = own.assigns.filter((pair) => pair.scope === "global");
-  if (global.length > 0) {
+  for (const [instance, pairs] of [
+    ["p_scope_id is not null", global.filter((pair) => pair.at !== "global")],
+    ["p_scope_id is null", global.filter((pair) => pair.at === "global")],
+  ] as const) {
+    if (pairs.length === 0) {
+      continue;
+    }
     if (ctx.authorize === "database") {
       const ur = globalRoleRows(ctx);
       const kind = globalKindFilterSql(ctx, ur.roleSql);
-      parts.push(`exists (
+      parts.push(`${instance} and exists (
       select 1 from ${ur.from}
       where ${ur.userSql} = ${subjectIdSql(ctx)}
-        and (${ur.roleSql}, p_role) in (${pairsSql(global)})${kind === undefined ? "" : `\n        and ${kind}`}
+        and (${ur.roleSql}, p_role) in (${pairsSql(pairs)})${kind === undefined ? "" : `\n        and ${kind}`}
     )`);
     } else {
       const kind = globalKindFilterSql(ctx, "r.role");
-      parts.push(`exists (
+      parts.push(`${instance} and exists (
       select 1 from ${roleRows(ctx)}
-      where (r.role, p_role) in (${pairsSql(global)})${kind === undefined ? "" : `\n        and ${kind}`}
+      where (r.role, p_role) in (${pairsSql(pairs)})${kind === undefined ? "" : `\n        and ${kind}`}
     )`);
     }
   }
@@ -673,7 +700,7 @@ begin
   );
 end;
 $$;`;
-  return `-- who may assign: a held role whose assigns lists p_role, in instance p_scope_id (its scope or an ancestor's)
+  return `-- who may assign: a held role whose assigns lists p_role, in instance p_scope_id (its scope or an ancestor's); a null p_scope_id assigns a global role, which only global assigners may
 create or replace function ${fn}(p_role text, p_scope_id text)
 returns boolean
 ${language}
@@ -829,8 +856,8 @@ function canAssignCustomSql(ctx: RlsSqlContext): string {
   const perms = qualified(ctx, CUSTOM_ROLES.permissions);
   const includes = qualified(ctx, CUSTOM_ROLES.includes);
   const guard = qualified(ctx, CUSTOM_ROLES.guard);
-  const stored = `c.tenant_id = p_tenant and c.scope = p_scope and c.role = p_role and (c.scope_id is null or c.scope_id = p_scope_id)`;
-  return `-- whether the caller may assign custom role p_role at instance p_scope_id: the custom-role write checks on its stored definition
+  const stored = `c.tenant_id is not distinct from p_tenant and c.scope = p_scope and c.role = p_role and (c.scope_id is null or c.scope_id = p_scope_id)`;
+  return `-- whether the caller may assign custom role p_role at instance p_scope_id (a platform role: null tenant, scope global): the custom-role write checks on its stored definition
 create or replace function ${fn}(p_tenant ${tenantType}, p_scope text, p_scope_id text, p_role text)
 returns boolean
 language plpgsql
@@ -894,9 +921,10 @@ export function assignmentSql(ctx: RlsSqlContext): string {
     const check = (row: string): string => {
       const id = `${row}.${quoteIdent(entry.id)}::text`;
       const tenant = `${row}.${quoteIdent(entry.tenant)}::${tenantType}`;
+      const customFn = qualified(ctx, ASSIGNMENTS.custom);
       const allowed =
         custom && declared !== undefined
-          ? `case when v_role = any(${declaredArray(declared)}) then ${canAssign}(v_role, ${id}) else ${qualified(ctx, ASSIGNMENTS.custom)}(${tenant}, ${quoteLiteral(entry.scope)}, ${id}, v_role) end`
+          ? `case when v_role = any(${declaredArray(declared)}) then ${canAssign}(v_role, ${id}) when ${id} is null then ${customFn}(null, 'global', null, v_role) else ${customFn}(${tenant}, ${quoteLiteral(entry.scope)}, ${id}, v_role) end`
           : `${canAssign}(v_role, ${id})`;
       return `    foreach v_role in array array[${rowRoles(entry, row).join(", ")}]::text[] loop
       if v_role is not null and not coalesce(${allowed}, false) then

@@ -88,6 +88,7 @@ describe("ownership in generated RLS", () => {
       assigner: "admin",
       scope: "organization",
       role: "contact",
+      at: "customer",
     });
     expect(ownership?.counted).toEqual([
       { role: "owner", scope: "organization", min: 1, transferOnly: false },

@@ -15,6 +15,7 @@ const OWNER = "00000000-0000-4000-8000-0000000000f1";
 const ADMIN = "00000000-0000-4000-8000-0000000000f2";
 const MEMBER = "00000000-0000-4000-8000-0000000000f3";
 const NEWCOMER = "00000000-0000-4000-8000-0000000000f4";
+const PLATFORM = "00000000-0000-4000-8000-0000000000f5";
 
 const SETUP = `
 create role authenticated nologin;
@@ -31,7 +32,7 @@ $$;
 grant usage on schema auth to authenticated, anon;
 grant execute on all functions in schema auth to authenticated, anon;
 grant usage on schema public to authenticated, anon;
-insert into auth.users (id) values ('${OWNER}'), ('${ADMIN}'), ('${MEMBER}'), ('${NEWCOMER}');
+insert into auth.users (id) values ('${OWNER}'), ('${ADMIN}'), ('${MEMBER}'), ('${NEWCOMER}'), ('${PLATFORM}');
 create table public.organization_members (
   organization_id text not null,
   user_id uuid not null references auth.users on delete cascade,
@@ -41,7 +42,7 @@ insert into public.organization_members values
   ('acme', '${OWNER}', 'owner'),
   ('acme', '${ADMIN}', 'admin'),
   ('acme', '${MEMBER}', 'member');
-create table public.invitations (organization_id text not null, email text not null, role text not null);
+create table public.invitations (organization_id text, email text not null, role text not null);
 create table public.job (id text primary key, "orgId" text not null);
 grant select, insert, update, delete on public.organization_members, public.invitations to authenticated;
 `;
@@ -49,6 +50,8 @@ grant select, insert, update, delete on public.organization_members, public.invi
 const SEED = `
 select permdock.permdock_trusted_replace_custom_role_grants('acme', 'tenant', null, 'reader', array['job.read'], array[]::text[], array[]::text[]);
 select permdock.permdock_trusted_replace_custom_role_grants('acme', 'tenant', null, 'editor', array['job.update'], array[]::text[], array[]::text[]);
+select permdock.permdock_trusted_replace_custom_role_grants(null, 'global', null, 'platform-reader', array['job.read'], array[]::text[], array[]::text[]);
+insert into permdock.user_roles (user_id, role) values ('${PLATFORM}', 'platform-admin');
 `;
 
 describe("rls.assignments", () => {
@@ -154,5 +157,38 @@ describe("rls.assignments", () => {
       `select role from public.organization_members where user_id = '${NEWCOMER}'`,
     );
     expect(rows.rows.map((row) => row.role)).toEqual(["owner"]);
+  });
+
+  const invite = (organization: string | null, role: string): string =>
+    `insert into public.invitations values (${organization === null ? "null" : `'${organization}'`}, 'p@example.com', '${role}')`;
+
+  it("treats a row with no instance as a global assignment, which only global assigners make", async () => {
+    await expect(
+      as(PLATFORM, invite(null, "platform-support")),
+    ).resolves.toBeUndefined();
+    await expect(as(OWNER, invite(null, "platform-support"))).rejects.toThrow(
+      /may not assign platform-support in null/u,
+    );
+    await expect(as(PLATFORM, invite(null, "owner"))).rejects.toThrow(
+      /may not assign owner in null/u,
+    );
+    await expect(
+      as(PLATFORM, invite("acme", "owner")),
+    ).resolves.toBeUndefined();
+    await expect(
+      as(PLATFORM, invite("acme", "platform-support")),
+    ).rejects.toThrow(/may not assign platform-support in acme/u);
+  });
+
+  it("assigns a platform custom role at no instance only by the custom-role checks", async () => {
+    await expect(
+      as(PLATFORM, invite(null, "platform-reader")),
+    ).resolves.toBeUndefined();
+    await expect(as(OWNER, invite(null, "platform-reader"))).rejects.toThrow(
+      /may not assign platform-reader in null/u,
+    );
+    await expect(as(OWNER, invite("acme", "platform-reader"))).rejects.toThrow(
+      /may not assign platform-reader in acme/u,
+    );
   });
 });

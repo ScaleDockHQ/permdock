@@ -157,7 +157,7 @@ Use it to pick a layout or a landing page (the staff app, the customer portal, t
 - The `permitted_<scope>_ids` helpers, and the `exists` check on a resource role's membership table, count a role with `for` only on rows whose `via` column (or claim entry) is listed; a table without a `via` column holds it for nothing.
 - A deferred constraint trigger per scope membership table, or on each table of the scope's `fromTable` / `fromJunction` membership sources, checks `min` and `max` at commit. A transfer done as two statements in one transaction passes; a commit that leaves an organization without an owner fails with SQLSTATE `23514` and hint `last-holder`.
 - Statement triggers over transition tables refuse a statement that changes a `transferOnly` role's holder count.
-- `permdock_can_assign(p_role, p_scope_id)` answers the `assigns` graph for the application's own policies on its membership tables.
+- `permdock_can_assign(p_role, p_scope_id)` answers the `assigns` graph for the application's own policies on its membership tables. A global role that lists a global role in `assigns` assigns it with a null `p_scope_id`; no scoped role can.
 - With `rls.assignments`, a trigger on each membership table (and on an invitations table you list) refuses a client write that assigns, changes or removes a role the caller may not assign there, by the `assigns` graph or, for a custom role, by what the caller may hand out. Writes by the table owner, a `security definer` function or a backend role are trusted ([CLI](/docs/cli/rls#assignment-triggers)).
 
 `decideRoleChange` gives the user a reason before the write; the triggers catch the write that skipped it (a script, an admin console, a second code path).

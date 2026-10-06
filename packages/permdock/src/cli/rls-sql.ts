@@ -138,11 +138,16 @@ export type RlsSqlContext = {
 export type RlsOwnership = {
   /** Role name to the membership kinds (`via`) that may hold it. */
   readonly kinds: Readonly<Record<string, readonly string[]>>;
-  /** Who assigns what: the assigner's scope (or `global`) is the target role's scope or an ancestor of it. */
+  /**
+   * Who assigns what: the assigner's scope (or `global`) is the target role's
+   * scope or an ancestor of it. `at` is the target role's own scope, or
+   * `global` for a global role, which only a global assigner may assign.
+   */
   readonly assigns: readonly {
     readonly assigner: string;
     readonly scope: string;
     readonly role: string;
+    readonly at: string;
   }[];
   /** Roles whose holder count per scope instance is constrained. */
   readonly counted: readonly {
