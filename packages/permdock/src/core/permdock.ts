@@ -112,6 +112,16 @@ export type WhereResult = {
   readonly resources?: ReadonlyMap<string, ResourceNode>;
 };
 
+export type SnapshotOptions = {
+  readonly include?: readonly (
+    | Permission
+    | { readonly [key: string]: unknown }
+  )[];
+  readonly tenants?: "all";
+  readonly signer?: TokenSigner;
+  readonly audience?: string | readonly string[];
+};
+
 export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
   readonly can: {
     (
@@ -222,15 +232,13 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
     }): PermDock<V>;
     (plan: ArazzoSimulateInput): ArazzoPlan;
   };
-  readonly snapshot: (options?: {
-    readonly include?: readonly (
-      | Permission
-      | { readonly [key: string]: unknown }
-    )[];
-    readonly tenants?: "all";
-    readonly signer?: TokenSigner;
-    readonly audience?: string | readonly string[];
-  }) => Snapshot | Promise<string>;
+  readonly snapshot: {
+    (options?: SnapshotOptions & { readonly signer?: undefined }): Snapshot;
+    (
+      options: SnapshotOptions & { readonly signer: TokenSigner },
+    ): Promise<string>;
+    (options?: SnapshotOptions): Snapshot | Promise<string>;
+  };
   readonly on: (
     event: "decision" | "denied" | "approval" | "auth" | "error",
     handler: (payload: unknown) => void,

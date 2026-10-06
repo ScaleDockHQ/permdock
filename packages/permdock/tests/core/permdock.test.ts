@@ -182,6 +182,16 @@ describe("createPermDock", () => {
       },
     });
     expect(await signed).toBe("signed.jws");
+    const plain = permdock.snapshot();
+    expect(plain.v).toBe(1);
+    const client = fromSnapshot(plain);
+    expect(client.snapshot()).toBe(plain);
+    expect(
+      await client.snapshot({
+        signer: { sign: async () => "client.jws" },
+        audience: "app",
+      }),
+    ).toBe("client.jws");
   });
 
   it("intersects GNAP access with principal grants", async () => {

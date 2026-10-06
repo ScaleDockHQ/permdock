@@ -100,7 +100,11 @@ describe("mayUse", () => {
     const base = permdock([read]);
     const pending: PermDock = {
       ...base,
-      snapshot: () => Promise.resolve("signed.snapshot.token"),
+      // SAFETY: a foreign instance that breaks the overloads, to show mayUse stays closed.
+      snapshot: (() =>
+        Promise.resolve(
+          "signed.snapshot.token",
+        )) as unknown as PermDock["snapshot"],
     };
     expect(mayUse(pending, permissions.doc.read)).toBe(false);
     const broken: PermDock = {
