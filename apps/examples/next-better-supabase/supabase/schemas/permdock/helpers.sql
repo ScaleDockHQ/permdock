@@ -319,7 +319,7 @@ end;
 $$;
 revoke execute on function "permdock".permitted_customer_ids_for(uuid, text) from public, anon, authenticated;
 
--- the grant keys a permission key reaches on one scope: its unconditional allows, or with p_effect 'deny' every deny
+-- the grant keys a permission key reaches on one scope: its unconditional allows, with p_effect 'deny' every deny, and with 'conditioned-allow' or 'conditioned-deny' the allows or denies that carry a row condition
 create or replace function "permdock".grant_keys(p_permission text, p_scope text, p_effect text default 'allow')
 returns setof text
 language sql
@@ -367,6 +367,35 @@ $$;
 revoke execute on function "permdock".permitted_organization_ids_by_permission(text) from public, anon;
 grant execute on function "permdock".permitted_organization_ids_by_permission(text) to authenticated;
 
+-- with p_conditioned true, also the instances a conditioned allow reaches, minus only unconditional denies: the caller applies the row condition
+create or replace function "permdock".permitted_organization_ids_by_permission(p_permission text, p_conditioned boolean)
+returns setof uuid
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select a.id
+  from (
+    select g.grant_key from "permdock".grant_keys(p_permission, 'organization') g(grant_key)
+    union all
+    select g.grant_key from "permdock".grant_keys(p_permission, 'organization', 'conditioned-allow') g(grant_key)
+    where p_conditioned
+  ) g
+  cross join lateral "permdock".permitted_organization_ids(g.grant_key) a(id)
+  except
+  select d.id
+  from (
+    select g.grant_key from "permdock".grant_keys(p_permission, 'organization', 'deny') g(grant_key)
+    except
+    select g.grant_key from "permdock".grant_keys(p_permission, 'organization', 'conditioned-deny') g(grant_key)
+    where p_conditioned
+  ) g
+  cross join lateral "permdock".permitted_organization_ids(g.grant_key) d(id)
+$$;
+revoke execute on function "permdock".permitted_organization_ids_by_permission(text, boolean) from public, anon;
+grant execute on function "permdock".permitted_organization_ids_by_permission(text, boolean) to authenticated;
+
 create or replace function "permdock".permitted_customer_ids_by_permission(p_permission text)
 returns setof uuid
 language sql
@@ -384,6 +413,35 @@ as $$
 $$;
 revoke execute on function "permdock".permitted_customer_ids_by_permission(text) from public, anon;
 grant execute on function "permdock".permitted_customer_ids_by_permission(text) to authenticated;
+
+-- with p_conditioned true, also the instances a conditioned allow reaches, minus only unconditional denies: the caller applies the row condition
+create or replace function "permdock".permitted_customer_ids_by_permission(p_permission text, p_conditioned boolean)
+returns setof uuid
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select a.id
+  from (
+    select g.grant_key from "permdock".grant_keys(p_permission, 'customer') g(grant_key)
+    union all
+    select g.grant_key from "permdock".grant_keys(p_permission, 'customer', 'conditioned-allow') g(grant_key)
+    where p_conditioned
+  ) g
+  cross join lateral "permdock".permitted_customer_ids(g.grant_key) a(id)
+  except
+  select d.id
+  from (
+    select g.grant_key from "permdock".grant_keys(p_permission, 'customer', 'deny') g(grant_key)
+    except
+    select g.grant_key from "permdock".grant_keys(p_permission, 'customer', 'conditioned-deny') g(grant_key)
+    where p_conditioned
+  ) g
+  cross join lateral "permdock".permitted_customer_ids(g.grant_key) d(id)
+$$;
+revoke execute on function "permdock".permitted_customer_ids_by_permission(text, boolean) from public, anon;
+grant execute on function "permdock".permitted_customer_ids_by_permission(text, boolean) to authenticated;
 
 -- the same for a user the caller names; no client role may execute them
 create or replace function "permdock".permdock_has_permission_for(p_user uuid, p_permission text)
@@ -415,6 +473,33 @@ as $$
 $$;
 revoke execute on function "permdock".permitted_organization_ids_by_permission_for(uuid, text) from public, anon, authenticated;
 
+create or replace function "permdock".permitted_organization_ids_by_permission_for(p_user uuid, p_permission text, p_conditioned boolean)
+returns setof uuid
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select a.id
+  from (
+    select g.grant_key from "permdock".grant_keys(p_permission, 'organization') g(grant_key)
+    union all
+    select g.grant_key from "permdock".grant_keys(p_permission, 'organization', 'conditioned-allow') g(grant_key)
+    where p_conditioned
+  ) g
+  cross join lateral "permdock".permitted_organization_ids_for(p_user, g.grant_key) a(id)
+  except
+  select d.id
+  from (
+    select g.grant_key from "permdock".grant_keys(p_permission, 'organization', 'deny') g(grant_key)
+    except
+    select g.grant_key from "permdock".grant_keys(p_permission, 'organization', 'conditioned-deny') g(grant_key)
+    where p_conditioned
+  ) g
+  cross join lateral "permdock".permitted_organization_ids_for(p_user, g.grant_key) d(id)
+$$;
+revoke execute on function "permdock".permitted_organization_ids_by_permission_for(uuid, text, boolean) from public, anon, authenticated;
+
 create or replace function "permdock".permitted_customer_ids_by_permission_for(p_user uuid, p_permission text)
 returns setof uuid
 language sql
@@ -431,6 +516,33 @@ as $$
   cross join lateral "permdock".permitted_customer_ids_for(p_user, g.grant_key) d(id)
 $$;
 revoke execute on function "permdock".permitted_customer_ids_by_permission_for(uuid, text) from public, anon, authenticated;
+
+create or replace function "permdock".permitted_customer_ids_by_permission_for(p_user uuid, p_permission text, p_conditioned boolean)
+returns setof uuid
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select a.id
+  from (
+    select g.grant_key from "permdock".grant_keys(p_permission, 'customer') g(grant_key)
+    union all
+    select g.grant_key from "permdock".grant_keys(p_permission, 'customer', 'conditioned-allow') g(grant_key)
+    where p_conditioned
+  ) g
+  cross join lateral "permdock".permitted_customer_ids_for(p_user, g.grant_key) a(id)
+  except
+  select d.id
+  from (
+    select g.grant_key from "permdock".grant_keys(p_permission, 'customer', 'deny') g(grant_key)
+    except
+    select g.grant_key from "permdock".grant_keys(p_permission, 'customer', 'conditioned-deny') g(grant_key)
+    where p_conditioned
+  ) g
+  cross join lateral "permdock".permitted_customer_ids_for(p_user, g.grant_key) d(id)
+$$;
+revoke execute on function "permdock".permitted_customer_ids_by_permission_for(uuid, text, boolean) from public, anon, authenticated;
 
 -- organization: holder counts (min / max) over the membership sources, checked at commit
 create or replace function "permdock".permdock_holders_organization()
