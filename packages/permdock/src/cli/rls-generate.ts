@@ -54,7 +54,11 @@ import {
   ownershipSql,
 } from "./rls-ownership.ts";
 import { permissionHelpersSql } from "./rls-permission-keys.ts";
-import { assemblePolicies } from "./rls-policies.ts";
+import {
+  assemblePolicies,
+  readOnlyActorKinds,
+  readOnlyActorPolicies,
+} from "./rls-policies.ts";
 import {
   type RbacAuthorizeMode,
   rbacScaffold,
@@ -68,6 +72,7 @@ import {
   qualifiedTable,
   scopeSources,
   scopeTable,
+  subjectClaimJsonSql,
 } from "./rls-sql.ts";
 import {
   driftOf,
@@ -465,7 +470,7 @@ export async function runRlsGenerate(input: {
     );
   }
   const policyName = input.policyName ?? rls?.policyName;
-  const policies = helpersOnly
+  const assembled = helpersOnly
     ? []
     : assemblePolicies(
         fieldsMode === undefined
@@ -476,6 +481,23 @@ export async function runRlsGenerate(input: {
           ...(policyName === undefined ? {} : { name: policyName }),
         },
       );
+  const actorKinds = readOnlyActorKinds(rls?.readOnlyActors);
+  if (actorKinds !== undefined && helpersOnly) {
+    warnings.push(
+      "rls.readOnlyActors adds policies, and --helpers-only writes none: add the restrictive read-only policies to the hand-written ones",
+    );
+  }
+  const policies =
+    actorKinds === undefined
+      ? assembled
+      : [
+          ...assembled,
+          ...readOnlyActorPolicies(
+            assembled,
+            subjectClaimJsonSql(ctx, "act"),
+            actorKinds,
+          ),
+        ];
   const rootMapped =
     ctx.scopes[0] === undefined
       ? undefined

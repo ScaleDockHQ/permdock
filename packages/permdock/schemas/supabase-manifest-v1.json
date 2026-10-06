@@ -128,6 +128,45 @@
         "memberships": {
           "type": "array",
           "items": { "$ref": "#/$defs/membership" }
+        },
+        "customRoles": { "type": "boolean" },
+        "roles": {
+          "type": "object",
+          "required": ["table", "user", "role"],
+          "additionalProperties": false,
+          "properties": {
+            "table": { "type": "string" },
+            "user": { "$ref": "#/$defs/column" },
+            "role": {
+              "oneOf": [
+                { "$ref": "#/$defs/role" },
+                {
+                  "type": "array",
+                  "minItems": 2,
+                  "items": { "$ref": "#/$defs/role" }
+                }
+              ]
+            }
+          }
+        },
+        "suspension": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "users": { "$ref": "#/$defs/activeRow" },
+            "scopes": {
+              "type": "object",
+              "additionalProperties": { "$ref": "#/$defs/activeRow" }
+            }
+          }
+        },
+        "assignments": {
+          "type": "object",
+          "required": ["tables"],
+          "additionalProperties": false,
+          "properties": {
+            "tables": { "type": "array", "items": { "type": "string" } }
+          }
         }
       }
     },
@@ -194,9 +233,21 @@
       }
     },
     "identifier": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
+    "activeRow": {
+      "type": "object",
+      "required": ["table", "id"],
+      "additionalProperties": false,
+      "properties": {
+        "table": { "type": "string" },
+        "id": { "$ref": "#/$defs/identifier" },
+        "disabledAt": { "$ref": "#/$defs/identifier" },
+        "status": { "$ref": "#/$defs/identifier" },
+        "active": { "type": "array", "items": { "type": "string" } }
+      }
+    },
     "helperName": {
       "type": "string",
-      "pattern": "^(permdock_has|permitted_[a-z][a-z0-9_]*_ids|member_[a-z][a-z0-9_]*_ids(_for)?)$"
+      "pattern": "^(permdock_has(_for)?|permitted_[a-z][a-z0-9_]*_ids(_for)?|member_[a-z][a-z0-9_]*_ids(_for)?|permdock_can_assign(_any|_custom_role)?(_for)?)$"
     },
     "column": {
       "type": "object",

@@ -201,6 +201,15 @@ export type RlsConfig = {
    */
   readonly ownershipTriggers?: false | Readonly<Record<string, false>>;
   /**
+   * Make a session acting for a user read-only in the database: one
+   * restrictive policy per table and write command the generated policies
+   * allow, refusing the write when the token's `act` claim names one of these
+   * actor kinds, unless `act.read_only` is `false`. `true` is
+   * `['support', 'impersonation']`; with `support`, an `act` with a
+   * `session_id` and no `kind` counts too. Off by default.
+   */
+  readonly readOnlyActors?: boolean | readonly string[];
+  /**
    * `'views'`: one `security_invoker` view `<table>_visible` per table with field-limited
    * read grants, whose restricted columns are `case when <permitted> then col end`. Off by default.
    */

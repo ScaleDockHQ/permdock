@@ -61,7 +61,7 @@ The actor is the instance's own subject; nothing in the change stands in for it.
 
 For a role on a nested scope that the subject holds nothing at, pass `within` and `{ trusted: true }` only after loading the ancestors from the app's own store.
 
-Generated RLS applies the same rules at commit, with triggers on the scope's `rls.memberships` table or on the tables of its `fromTable` / `fromJunction` sources (base tables, not views). Map `rls.memberships.scopes.<scope>.via` so the helpers apply `for`, and use `permdock_can_assign(role, organization_id::text)` in the membership table's own insert policy. The SQL is owned by the `permdock-data` skill.
+Generated RLS applies the same rules at commit, with triggers on the scope's `rls.memberships` table or on the tables of its `fromTable` / `fromJunction` sources (base tables, not views). Map `rls.memberships.scopes.<scope>.via` so the helpers apply `for`, and use `permdock_can_assign(role, organization_id::text)` in the membership table's own insert policy, or `permdock_can_assign_any(role, organization_id, 'organization', organization_id::text)` when the role may be a custom one. The SQL is owned by the `permdock-data` skill.
 
 ## Custom roles
 

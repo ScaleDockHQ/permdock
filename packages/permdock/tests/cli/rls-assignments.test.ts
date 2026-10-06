@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import type { RlsSqlContext } from "../../src/cli/rls-sql.ts";
 
-import { assignmentSql, ownershipRules } from "../../src/cli/rls-ownership.ts";
+import {
+  assignmentSql,
+  ownershipRules,
+  ownershipSql,
+} from "../../src/cli/rls-ownership.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import { policy } from "../fixtures/named-scopes.ts";
 
@@ -71,7 +75,7 @@ describe("assignment triggers", () => {
   });
 
   it("checks a custom role on a row with no instance as a platform custom role", () => {
-    const sql = assignmentSql({
+    const ctx: RlsSqlContext = {
       ...base,
       ...(ownership === undefined ? {} : { ownership }),
       customRoles: { declared: ["owner", "admin"], assignable: [] },
@@ -85,7 +89,8 @@ describe("assignment triggers", () => {
           },
         ],
       },
-    });
+    };
+    const sql = `${ownershipSql(ctx)}${assignmentSql(ctx)}`;
     expect(sql).toContain(
       `when new."organization_id"::text is null then "permdock".permdock_can_assign_custom_role(null, 'global', null, v_role)`,
     );
@@ -110,5 +115,62 @@ describe("assignment triggers", () => {
         },
       }),
     ).toThrow(/name its tenant column/u);
+  });
+});
+
+describe("permdock_can_assign_any", () => {
+  const withOwnership: RlsSqlContext = {
+    ...base,
+    ...(ownership === undefined ? {} : { ownership }),
+  };
+
+  it("answers a declared role through permdock_can_assign, in both forms", () => {
+    const sql = ownershipSql(withOwnership);
+    expect(sql).toContain(
+      `create or replace function "permdock".permdock_can_assign_any(p_role text, p_tenant uuid, p_scope text, p_scope_id text)`,
+    );
+    expect(sql).toContain(
+      `select coalesce("permdock".permdock_can_assign(p_role, case when p_scope = 'global' then null else p_scope_id end), false)`,
+    );
+    expect(sql).toContain(
+      `grant execute on function "permdock".permdock_can_assign_any(text, uuid, text, text) to authenticated;`,
+    );
+    expect(sql).toContain(
+      `create or replace function "permdock".permdock_can_assign_any_for(p_user uuid, p_role text, p_tenant uuid, p_scope text, p_scope_id text)`,
+    );
+    expect(sql).toContain(
+      `"permdock".permdock_can_assign_for(p_user, p_role, case when p_scope = 'global' then null else p_scope_id end)`,
+    );
+    expect(sql).toContain(
+      `revoke execute on function "permdock".permdock_can_assign_any_for(uuid, text, uuid, text, text) from public, anon, authenticated;`,
+    );
+    expect(sql).not.toContain("permdock_can_assign_custom_role");
+  });
+
+  it("branches between declared and custom roles, without rls.assignments", () => {
+    const sql = ownershipSql({
+      ...withOwnership,
+      customRoles: { declared: ["owner", "admin"], assignable: [] },
+    });
+    expect(sql).toContain(
+      'create or replace function "permdock".permdock_can_assign_custom_role(p_tenant uuid',
+    );
+    expect(sql).toContain(
+      `when p_role = any(array['owner', 'admin']::text[]) then "permdock".permdock_can_assign(p_role, case when p_scope = 'global' then null else p_scope_id end)`,
+    );
+    expect(sql).toContain(
+      `when p_scope = 'global' then "permdock".permdock_can_assign_custom_role(null, 'global', null, p_role)`,
+    );
+    expect(sql).toContain(
+      `else "permdock".permdock_can_assign_custom_role(p_tenant, p_scope, p_scope_id, p_role)`,
+    );
+    expect(sql).not.toContain("permdock_can_assign_any_for");
+  });
+
+  it("writes only the caller form in jwt mode, and nothing without assigns", () => {
+    const jwt = ownershipSql({ ...withOwnership, authorize: "jwt" });
+    expect(jwt).toContain("permdock_can_assign_any(");
+    expect(jwt).not.toContain("permdock_can_assign_any_for");
+    expect(ownershipSql(base)).toBe("");
   });
 });

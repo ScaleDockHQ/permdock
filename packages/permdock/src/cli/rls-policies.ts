@@ -222,3 +222,65 @@ export function assemblePolicies(
     ? perRolePolicies(branches, template)
     : collapsedPolicies(branches, template);
 }
+
+const DEFAULT_READ_ONLY_ACTORS = ["support", "impersonation"] as const;
+
+const ACTOR_KIND = /^[a-z][a-z0-9_-]*$/u;
+
+/** The actor kinds `rls.readOnlyActors` names, or `undefined` when it is off. */
+export function readOnlyActorKinds(
+  setting: boolean | readonly string[] | undefined,
+): readonly string[] | undefined {
+  if (setting === undefined || setting === false) {
+    return undefined;
+  }
+  const kinds = setting === true ? DEFAULT_READ_ONLY_ACTORS : setting;
+  if (kinds.length === 0 || kinds.some((kind) => !ACTOR_KIND.test(kind))) {
+    throw new Error(
+      "PermDock CLI: rls.readOnlyActors must be true or a non-empty list of actor kinds such as 'support'",
+    );
+  }
+  return [...new Set(kinds)];
+}
+
+/**
+ * One restrictive policy per table and write command the allow policies
+ * grant to `authenticated`: the write passes unless the token's `act` claim
+ * (`act`, as SQL `jsonb`) is a session of one of `kinds` that is not
+ * `read_only: false`. Reads are never touched.
+ */
+export function readOnlyActorPolicies(
+  policies: readonly CompiledPolicy[],
+  act: string,
+  kinds: readonly string[],
+): CompiledPolicy[] {
+  const list = `array[${kinds.map((kind) => `'${kind}'`).join(", ")}]::text[]`;
+  const session = kinds.includes("support")
+    ? `(${act} ->> 'kind') = any(${list}) or ((${act} ->> 'kind') is null and ${act} ? 'session_id')`
+    : `(${act} ->> 'kind') = any(${list})`;
+  const passes = `not coalesce(${session}, false) or coalesce((${act} ->> 'read_only') = 'false', false)`;
+  const seen = new Set<string>();
+  const out: CompiledPolicy[] = [];
+  for (const policy of policies) {
+    const key = `${policy.table}\u0000${policy.command}`;
+    if (
+      policy.effect !== "allow" ||
+      policy.command === "select" ||
+      !policy.roles.includes("authenticated") ||
+      seen.has(key)
+    ) {
+      continue;
+    }
+    seen.add(key);
+    out.push({
+      name: sanitize(`${policy.table}_${policy.command}_read_only_actors`),
+      table: policy.table,
+      command: policy.command,
+      effect: "deny",
+      roles: ["authenticated"],
+      ...(policy.command === "insert" ? {} : { using: passes }),
+      ...(policy.command === "delete" ? {} : { check: passes }),
+    });
+  }
+  return out;
+}

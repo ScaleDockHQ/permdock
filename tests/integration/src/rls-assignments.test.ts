@@ -225,6 +225,75 @@ describe("rls.assignments", () => {
     expect(grants.rows.map((row) => row.allowed)).toEqual([false, false]);
   });
 
+  it("answers declared and custom roles through permdock_can_assign_any", async () => {
+    if (db === undefined) {
+      throw new Error("PermDock: Postgres was not started");
+    }
+    const target = db;
+    const askAs = async (user: string, sql: string): Promise<unknown> => {
+      let ok: unknown;
+      await target.as(
+        {
+          role: "authenticated",
+          settings: {
+            "request.jwt.claims": JSON.stringify({
+              sub: user,
+              role: "authenticated",
+            }),
+          },
+        },
+        async () => {
+          ok = (
+            await target.tester.query<{ ok: unknown }>(`select ${sql} as ok`)
+          ).rows[0]?.ok;
+        },
+      );
+      return ok;
+    };
+    const any = (role: string, tenant: string, scope: string, id: string) =>
+      `permdock.permdock_can_assign_any('${role}', ${tenant}, '${scope}', ${id})`;
+    expect(
+      await askAs(ADMIN, any("member", "'acme'", "tenant", "'acme'")),
+    ).toBe(true);
+    expect(await askAs(ADMIN, any("admin", "'acme'", "tenant", "'acme'"))).toBe(
+      false,
+    );
+    expect(
+      await askAs(ADMIN, any("reader", "'acme'", "tenant", "'acme'")),
+    ).toBe(true);
+    expect(
+      await askAs(ADMIN, any("editor", "'acme'", "tenant", "'acme'")),
+    ).toBe(false);
+    expect(
+      await askAs(MEMBER, any("member", "'acme'", "tenant", "'acme'")),
+    ).toBe(false);
+    expect(
+      await askAs(PLATFORM, any("platform-support", "null", "global", "null")),
+    ).toBe(true);
+    expect(
+      await askAs(PLATFORM, any("platform-reader", "null", "global", "null")),
+    ).toBe(true);
+    const ask = async (sql: string): Promise<unknown> =>
+      (await target.admin.query<{ ok: unknown }>(`select ${sql} as ok`)).rows[0]
+        ?.ok;
+    expect(
+      await ask(
+        `permdock.permdock_can_assign_any_for('${ADMIN}', 'reader', 'acme', 'tenant', 'acme')`,
+      ),
+    ).toBe(true);
+    expect(
+      await ask(
+        `permdock.permdock_can_assign_any_for('${ADMIN}', 'admin', 'acme', 'tenant', 'acme')`,
+      ),
+    ).toBe(false);
+    const grants = await target.admin.query<{ allowed: boolean }>(
+      `select has_function_privilege('authenticated', 'permdock.permdock_can_assign_any(text, text, text, text)', 'execute') as allowed
+       union all
+       select has_function_privilege('authenticated', 'permdock.permdock_can_assign_any_for(uuid, text, text, text, text)', 'execute')`,
+    );
+    expect(grants.rows.map((row) => row.allowed)).toEqual([true, false]);
+  });
+
   it("assigns a platform custom role at no instance only by the custom-role checks", async () => {
     await expect(
       as(PLATFORM, invite(null, "platform-reader")),

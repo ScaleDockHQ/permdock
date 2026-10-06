@@ -401,9 +401,12 @@ async function supabaseSetup(
   }
   let manifest;
   try {
-    manifest = supabaseHookManifest(scopeList(policy.scopes), input.config, {
-      out: hookOut(input.cwd, input.config),
-    });
+    manifest = supabaseHookManifest(
+      scopeList(policy.scopes),
+      input.config,
+      { out: hookOut(input.cwd, input.config) },
+      policy,
+    );
   } catch {
     return [];
   }
