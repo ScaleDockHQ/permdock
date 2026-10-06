@@ -138,7 +138,8 @@
     "resumeDecision",
     "resumeFromHeader",
     "storedApprovalToken",
-    "summariseSubject"
+    "summariseSubject",
+    "vouchApproval"
   ],
   "./jwt": [
     "createJwtSubjectResolver",
