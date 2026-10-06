@@ -3,6 +3,7 @@ import type {
   MembershipSource,
   RoleSource,
 } from "../core/interfaces.ts";
+import type { Policy } from "../core/policy.ts";
 import type {
   CustomRole,
   CustomRoleGrant,
@@ -58,6 +59,13 @@ export type PostgrestSourcesOptions = {
   readonly membersFn?: string;
   /** The version-only function `memberships.version` calls. Default `authz_version_for`. */
   readonly versionFn?: string;
+  /**
+   * The policy whose declared roles tell custom roles apart. With it,
+   * `customRoles` reads nothing while every role the subject holds is
+   * declared, and `memberships.version` reads the whole subject in one call
+   * when the token claims a custom role, which the custom roles need anyway.
+   */
+  readonly policy?: Policy;
 };
 
 /** One user as `subject_for(p_user)` returns it. */
@@ -208,7 +216,9 @@ export function readSubjectRecord(value: unknown): SubjectRecord | undefined {
  * Postgres only through PostgREST. `memberships.version` reads only the
  * version, so `claimsFirst` with `onStale: 'reread'` reads the full subject
  * only for a stale token; when the version function is missing it falls back
- * to `subject_for`. Each user and each instance is read once per
+ * to `subject_for`. With `policy`, a token that claims a custom role has its
+ * subject read in one `subject_for` call instead, and custom roles are read
+ * only for a subject that holds one. Each user and each instance is read once per
  * `postgrestSources` call, so create it per request or per job.
  */
 export function postgrestSources(
@@ -219,6 +229,13 @@ export function postgrestSources(
   const fn = options.fn ?? "subject_for";
   const membersFn = options.membersFn ?? "members_of";
   const versionFn = options.versionFn ?? "authz_version_for";
+  const declared =
+    options.policy === undefined
+      ? undefined
+      : options.policy.index.declaredRoles;
+  const onlyDeclared = (held: readonly string[] | undefined): boolean =>
+    declared !== undefined &&
+    held?.every((name) => declared.has(name)) === true;
   const loaded = new Map<string, Promise<SubjectRecord | undefined>>();
   const versions = new Map<string, Promise<number | undefined>>();
   const listed = new Map<string, Promise<MemberEntry[]>>();
@@ -294,18 +311,32 @@ export function postgrestSources(
         return [...((await live(principal.id))?.memberships ?? [])];
       },
       version(principal) {
-        return version(principal.id);
+        return declared !== undefined &&
+          !onlyDeclared([
+            ...(principal.roles ?? []),
+            ...(principal.memberships ?? []).flatMap(
+              (membership) => membership.roles,
+            ),
+          ])
+          ? record(principal.id).then((found) => found?.authzVersion)
+          : version(principal.id);
       },
       list,
     },
     customRoles(principal) {
       return {
-        async rolesFor(tenant) {
+        async rolesFor(tenant, context) {
+          if (onlyDeclared(context?.held)) {
+            return [];
+          }
           return ((await live(principal.id))?.customRoles ?? []).filter(
             (role) => role.tenant === tenant,
           );
         },
-        async globalRoles() {
+        async globalRoles(context) {
+          if (onlyDeclared(context?.held)) {
+            return [];
+          }
           return ((await live(principal.id))?.customRoles ?? []).filter(
             (role) => role.scope === "global",
           );

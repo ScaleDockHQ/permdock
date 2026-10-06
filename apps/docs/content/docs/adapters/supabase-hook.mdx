@@ -159,7 +159,7 @@ grant execute on function public.permdock_subject_for(uuid) to service_role;
 
 The hook file also defines `members_of(p_scope text, p_id text) returns jsonb`: every live membership of one scope instance as `[{ principal: { id }, membership }]`, from the same sources with the same expiry and suspension filters, under the same grants. It also defines `authz_version_for(p_user uuid) returns bigint`: the authorization version `subject_for` reports, `null` for an unknown or suspended user, read without the roles and memberships. Wrap both the same way when `permdock` is not exposed.
 
-`postgrestSources(client, { schema?, fn?, membersFn?, versionFn? })` in `permdock/supabase` calls `subject_for` once per user and `members_of` once per instance, and returns the three inputs `createPermDock` takes. `sources.memberships.version` calls `authz_version_for` (or the record already read), so `claimsFirst(sources.memberships, { onStale: "reread" })` checks the token's freshness with one cheap call per request and reads `subject_for` only when the token is behind. When the version function does not exist yet, `version` falls back to `subject_for`; regenerate the hook file to get it. `sources.memberships.list(query)` is the member list `countHolders` and `whoCan` read, so a role change can pass the holders `decideRoleChange` needs:
+`postgrestSources(client, { schema?, fn?, membersFn?, versionFn?, policy? })` in `permdock/supabase` calls `subject_for` once per user and `members_of` once per instance, and returns the three inputs `createPermDock` takes. `sources.memberships.version` calls `authz_version_for` (or the record already read), so `claimsFirst(sources.memberships, { onStale: "reread" })` checks the token's freshness with one cheap call per request and reads `subject_for` only when the token is behind. When the version function does not exist yet, `version` falls back to `subject_for`; regenerate the hook file to get it. Pass `policy` when the app has custom roles: `customRoles` then reads nothing while every role the subject holds is declared, and `version` calls `subject_for` instead of `authz_version_for` when the token claims a role the policy does not declare, because the custom roles need that record anyway. A current token with only declared roles costs one version call; a custom-role token costs one `subject_for` call, fresh or stale. `sources.memberships.list(query)` is the member list `countHolders` and `whoCan` read, so a role change can pass the holders `decideRoleChange` needs:
 
 ```ts
 import { claimsFirst, countHolders, createPermDock } from "permdock";
@@ -170,6 +170,7 @@ const sources = postgrestSources(admin, {
   fn: "permdock_subject_for",
   membersFn: "permdock_members_of",
   versionFn: "permdock_authz_version_for",
+  policy,
 });
 
 // a request: the token's memberships, the database's when it was truncated
