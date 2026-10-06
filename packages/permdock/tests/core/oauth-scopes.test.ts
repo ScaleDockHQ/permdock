@@ -13,6 +13,7 @@ import {
   role,
 } from "../../src/index.ts";
 import { createPermDock as createMcpPermDock } from "../../src/mcp/index.ts";
+import { operationPermissions } from "../../src/openapi/index.ts";
 import { createPermDock as createServerPermDock } from "../../src/server/index.ts";
 
 const permissions = definePermissions({
@@ -312,5 +313,73 @@ describe("oauthScopes", () => {
         'scope="mcp:write"',
       );
     }
+  });
+
+  it("the server kernel gates a route on the OAuth scopes it declares", async () => {
+    const tokenFor = (scopes: readonly string[] | undefined) => ({
+      principal: { id: "u1", roles: ["member"] },
+      context: {},
+      ...(scopes === undefined
+        ? {}
+        : { actor: agent, delegation: { scopes: [...scopes] } }),
+    });
+    let scopes: readonly string[] | undefined = ["mcp:write"];
+    const operations = operationPermissions({
+      "GET /exports/{id}": {
+        permission: permissions.task.update,
+        oauthScopes: ["mcp:read"],
+      },
+      "POST /exports": {
+        permission: permissions.task.update,
+        oauthScopes: ["mcp:write"],
+      },
+    });
+    const { protect } = createServerPermDock(exportPolicy, {
+      subject: () => tokenFor(scopes),
+      operations,
+    });
+    let loads = 0;
+    const load = () => {
+      loads += 1;
+      return {};
+    };
+    const get = (method: string, path: string, options = {}) =>
+      protect(permissions.task.update, load, { trusted: true, ...options })(
+        new Request(`https://api.example${path}`, {
+          method,
+          headers: { authorization: "Bearer t" },
+        }),
+      );
+    const refused = await get("GET", "/exports/e1");
+    expect(refused.ok).toBe(false);
+    if (!refused.ok) {
+      expect(refused.response.status).toBe(403);
+      expect(refused.response.headers.get("www-authenticate")).toBe(
+        'Bearer error="insufficient_scope", scope="mcp:read"',
+      );
+    }
+    expect(loads).toBe(0);
+    expect((await get("POST", "/exports")).ok).toBe(true);
+    expect(
+      (await get("GET", "/exports/e1", { oauthScopes: ["mcp:write"] })).ok,
+    ).toBe(true);
+    scopes = ["mcp:read"];
+    expect((await get("GET", "/exports/e1")).ok).toBe(true);
+    const created = await get("POST", "/exports");
+    expect(created.ok).toBe(false);
+    if (!created.ok) {
+      expect(created.response.headers.get("www-authenticate")).toContain(
+        'scope="mcp:write"',
+      );
+    }
+    scopes = undefined;
+    expect((await get("POST", "/exports")).ok).toBe(true);
+    await expect(get("GET", "/x", { oauthScopes: [] })).rejects.toThrow(
+      /oauthScopes/u,
+    );
+    await expect(
+      // SAFETY: an untyped caller passing a string where a list belongs.
+      get("GET", "/x", { oauthScopes: "mcp:read" as never }),
+    ).rejects.toThrow(/oauthScopes/u);
   });
 });

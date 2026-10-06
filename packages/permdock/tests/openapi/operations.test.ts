@@ -50,6 +50,42 @@ describe("operationPermissions", () => {
     expect(operations.forOperation("nope")).toBeUndefined();
   });
 
+  it("answers the OAuth scopes an operation declares, by request or operation id", () => {
+    const scoped = operationPermissions(
+      {
+        "GET /exports/{id}": {
+          permission: permissions.post.read,
+          operationId: "get_export",
+          oauthScopes: ["api:read"],
+        },
+        "POST /exports": {
+          permission: permissions.post.read,
+          operationId: "create_export",
+          oauthScopes: ["api:write"],
+        },
+        "GET /posts": permissions.post.list,
+      },
+      { base: "/api" },
+    );
+    expect(scoped.oauthScopesForRequest("GET", "/api/exports/e1")).toEqual([
+      "api:read",
+    ]);
+    expect(scoped.oauthScopesForRequest("POST", "/api/exports")).toEqual([
+      "api:write",
+    ]);
+    expect(scoped.oauthScopesForRequest("GET", "/api/posts")).toBeUndefined();
+    expect(scoped.oauthScopesForRequest("GET", "/nope")).toBeUndefined();
+    expect(scoped.oauthScopesForOperation("create_export")).toEqual([
+      "api:write",
+    ]);
+    expect(scoped.oauthScopesForOperation("nope")).toBeUndefined();
+    expect(() =>
+      operationPermissions({
+        "GET /posts": { permission: permissions.post.list, oauthScopes: [] },
+      }),
+    ).toThrow(/oauthScopes/u);
+  });
+
   it("refuses a key that is not a method and a path", () => {
     expect(() =>
       operationPermissions({ "/posts": permissions.post.list }),
