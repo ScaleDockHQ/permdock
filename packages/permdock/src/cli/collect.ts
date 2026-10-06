@@ -45,7 +45,7 @@ export async function runCollect(input: {
   readonly check: boolean;
   readonly now: Date;
   readonly io?: CliIo;
-  /** Files to scan for references instead of `srcPath`, for doctor's own scan path. */
+  /** Files to scan for references instead of `srcPath`, for doctor's own scan path; `check` still compares the catalog built from `srcPath`. */
   readonly scanPath?: readonly string[];
   readonly fresh?: boolean;
   /** The policy for the catalog's grants; default the configured policy module. */
@@ -93,14 +93,12 @@ export async function runCollect(input: {
   const files = listSourceFiles(input.cwd, input.scanPath ?? srcPath);
   const knownKeys = new Set(leavesOf(tree).map((leaf) => leaf.key));
   const scan = scanSources(input.cwd, files, knownKeys);
-  const document = buildCatalog(
-    tree,
-    scan,
-    input.now.toISOString(),
+  const policy =
     input.loadPolicy === undefined
       ? await loadConfiguredPolicy(input.cwd, input.config.policy, load)
-      : await input.loadPolicy(),
-  );
+      : await input.loadPolicy();
+  const generatedAt = input.now.toISOString();
+  const document = buildCatalog(tree, scan, generatedAt, policy);
   const next = formatCatalogJson(document);
   if (input.check) {
     if (!existsSync(outPath)) {
@@ -116,7 +114,20 @@ export async function runCollect(input: {
     // SAFETY: only serialised again by catalogForCompare; any other shape just compares unequal.
     const currentDoc = JSON.parse(current) as CatalogDocument;
     const onDisk = catalogForCompare(currentDoc);
-    const generated = catalogForCompare(document);
+    const generated = catalogForCompare(
+      input.scanPath === undefined || samePaths(input.scanPath, srcPath)
+        ? document
+        : buildCatalog(
+            tree,
+            scanSources(
+              input.cwd,
+              listSourceFiles(input.cwd, srcPath),
+              knownKeys,
+            ),
+            generatedAt,
+            policy,
+          ),
+    );
     if (onDisk !== generated) {
       const file = rel(input.cwd, outPath);
       return {
@@ -152,6 +163,10 @@ export async function runCollect(input: {
     message: `wrote ${rel(input.cwd, outPath)}`,
     written,
   };
+}
+
+function samePaths(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((entry, index) => entry === b[index]);
 }
 
 /** The permissions module `collect` reads when the config names none. */
