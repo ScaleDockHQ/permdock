@@ -235,6 +235,28 @@ end;
 $$;
 revoke execute on function "permdock".subject_for(uuid) from public, anon, authenticated;
 
+-- the authorization version subject_for reports for p_user, for a cheap freshness check; no client role may execute it
+create or replace function "permdock".authz_version_for(p_user uuid)
+returns bigint
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  uid uuid := p_user;
+  ver bigint;
+begin
+  if uid is null or not exists (select 1 from auth.users u where u.id = uid) then
+    return null;
+  end if;
+  select v.version into ver from "permdock"."permdock_authz_version" v where v.user_id = uid;
+  ver := coalesce(ver, 0);
+  return ver;
+end;
+$$;
+revoke execute on function "permdock".authz_version_for(uuid) from public, anon, authenticated;
+
 -- the live memberships of one scope instance, for a backend that lists members over PostgREST; no client role may execute it
 create or replace function "permdock".members_of(p_scope text, p_id text)
 returns jsonb
