@@ -20,7 +20,7 @@ export type CustomRoleSourceOptions =
       readonly read?: "all";
     }
   | {
-      /** `'held'`: skip the read when every role the subject holds in the tenant is declared in `policy`. For requests that never manage roles. */
+      /** `'held'`: skip a tenant's read, and the platform read, when every role the subject holds there is declared in `policy`. For requests that never manage roles. */
       readonly read: "held";
       readonly policy: Policy;
     };
@@ -39,7 +39,8 @@ function ofTenant(tenant: string, roles: unknown): CustomRole[] {
 /**
  * A `RoleSource` over a reader that returns every custom role of a tenant.
  * It keeps only the roles of the requested tenant. With `read: 'held'` it
- * skips the read when the subject holds only declared roles there.
+ * skips a tenant's read, and `globalRoles`, when the subject holds only
+ * declared roles there.
  */
 export function customRoleSource(
   reader: CustomRoleReader,
@@ -68,6 +69,12 @@ export function customRoleSource(
       : { assignable: (tenant: string) => reader.assignable?.(tenant) ?? [] }),
     ...(reader.globalRoles === undefined
       ? {}
-      : { globalRoles: () => reader.globalRoles?.() ?? [] }),
+      : {
+          globalRoles: (context?: { readonly held: readonly string[] }) =>
+            declared !== undefined &&
+            context?.held.every((name) => declared.has(name)) === true
+              ? []
+              : (reader.globalRoles?.() ?? []),
+        }),
   });
 }

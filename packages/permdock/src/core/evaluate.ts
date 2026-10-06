@@ -123,7 +123,7 @@ export function customRolesFor(
   source: RoleSource | undefined,
   tenants: readonly string[],
   auth: AuthEvent[],
-  signedIn: boolean,
+  globalHeld: readonly string[] | undefined,
   heldIn: (tenant: string) => readonly string[],
 ): CustomRole[] | Promise<CustomRole[]> {
   if (source === undefined) {
@@ -138,9 +138,9 @@ export function customRolesFor(
       loaded.push([]);
     }
   }
-  if (signedIn && source.globalRoles !== undefined) {
+  if (globalHeld !== undefined && source.globalRoles !== undefined) {
     try {
-      const roles = source.globalRoles();
+      const roles = source.globalRoles({ held: globalHeld });
       loaded.push(
         isThenable(roles) ? roles.then(onlyGlobal) : onlyGlobal(roles),
       );

@@ -53,8 +53,14 @@ export type RoleSource = {
     context?: { readonly held: readonly string[] },
   ): CustomRole[] | Promise<CustomRole[]>;
   assignable?(tenant: string): string[] | Promise<string[]>;
-  /** Platform custom roles (`scope: 'global'`), read once per signed-in subject. A role here with a tenant is ignored. */
-  globalRoles?(): CustomRole[] | Promise<CustomRole[]>;
+  /**
+   * Platform custom roles (`scope: 'global'`), read once per signed-in
+   * subject, with `held`, the global role names the subject holds. A role
+   * here with a tenant is ignored.
+   */
+  globalRoles?(context?: {
+    readonly held: readonly string[];
+  }): CustomRole[] | Promise<CustomRole[]>;
 };
 
 /**
