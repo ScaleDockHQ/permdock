@@ -155,12 +155,14 @@ export function asMembershipSource(
 /**
  * Trust the memberships the verified token carries, and read `source` only
  * when the token marks them truncated. With `version`, a token minted before
- * the latest membership change is stale for the policy's `fresh` permissions.
+ * the latest membership change is stale for the policy's `fresh` permissions,
+ * or with `onStale: 'reread'` has its memberships read from `source` instead.
  */
 export function claimsFirst(
   source: MembershipSource | readonly MembershipSource[],
   options: {
     readonly version?: MembershipSource["version"];
+    readonly onStale?: "deny" | "reread";
   } = {},
 ): MembershipSource {
   const inner = asMembershipSource(source);
@@ -179,6 +181,7 @@ export function claimsFirst(
       ? {}
       : { list: (query) => inner.list?.(query) ?? [] }),
     ...(version === undefined ? {} : { version }),
+    ...(options.onStale === "reread" ? { onStale: "reread" as const } : {}),
     claimsFirst: true,
   };
 }

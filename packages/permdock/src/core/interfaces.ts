@@ -100,6 +100,7 @@ export type MembershipSource = {
    * when the token says they were truncated (`claimsFirst`).
    */
   readonly claimsFirst?: boolean;
+  readonly onStale?: "deny" | "reread";
 };
 
 /** An object's parent chain, as `RelationSource.ancestors` returns it. */
