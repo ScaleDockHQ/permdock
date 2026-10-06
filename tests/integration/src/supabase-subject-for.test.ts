@@ -169,6 +169,22 @@ select permdock.permdock_trusted_replace_custom_role_grants('B', 'organization',
     });
   });
 
+  it("reads only the version through authz_version_for", async () => {
+    const sources = postgrestSources(client());
+    expect(await sources.memberships.version?.({ id: OWNER })).toBe(1);
+    expect(await sources.memberships.version?.({ id: CONTACT })).toBe(
+      (await postgrestSources(client()).record(CONTACT))?.authzVersion,
+    );
+    expect(
+      await sources.memberships.version?.({ id: SUSPENDED }),
+    ).toBeUndefined();
+    expect(
+      await sources.memberships.version?.({
+        id: "00000000-0000-4000-8000-0000000000ff",
+      }),
+    ).toBeUndefined();
+  });
+
   it("builds a PermDock for a stored user from the record", async () => {
     const sources = postgrestSources(client());
     const permdock = await createPermDock(
@@ -235,6 +251,11 @@ select permdock.permdock_trusted_replace_custom_role_grants('B', 'organization',
     await expect(
       target.as({ role: "authenticated" }, async () =>
         target.tester.query(`select permdock.members_of('organization', 'T')`),
+      ),
+    ).rejects.toThrow(/permission denied/u);
+    await expect(
+      target.as({ role: "authenticated" }, async () =>
+        target.tester.query(`select permdock.authz_version_for('${OWNER}')`),
       ),
     ).rejects.toThrow(/permission denied/u);
   });

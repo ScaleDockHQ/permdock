@@ -56,6 +56,8 @@ export type PostgrestSourcesOptions = {
   /** Function name, for a wrapper in an exposed schema. Default `subject_for`. */
   readonly fn?: string;
   readonly membersFn?: string;
+  /** The version-only function `memberships.version` calls. Default `authz_version_for`. */
+  readonly versionFn?: string;
 };
 
 /** One user as `subject_for(p_user)` returns it. */
@@ -159,6 +161,13 @@ function readMemberEntries(value: unknown): MemberEntry[] {
   });
 }
 
+function versionOf(value: unknown): number | undefined {
+  const version = typeof value === "string" ? Number(value) : value;
+  return typeof version === "number" && Number.isFinite(version)
+    ? version
+    : undefined;
+}
+
 /** Reads `subject_for`'s JSON; anything it cannot read is left out, and a malformed record is no record. */
 export function readSubjectRecord(value: unknown): SubjectRecord | undefined {
   if (!isRecord(value) || typeof value["id"] !== "string") {
@@ -193,11 +202,14 @@ export function readSubjectRecord(value: unknown): SubjectRecord | undefined {
 }
 
 /**
- * Membership, custom-role and subject sources over the `subject_for(p_user)`
- * and `members_of(p_scope, p_id)` functions `permdock supabase hook generate`
- * writes, for a backend that reaches Postgres only through PostgREST. Each
- * user and each instance is read once per `postgrestSources` call, so create
- * it per request or per job.
+ * Membership, custom-role and subject sources over the `subject_for(p_user)`,
+ * `authz_version_for(p_user)` and `members_of(p_scope, p_id)` functions
+ * `permdock supabase hook generate` writes, for a backend that reaches
+ * Postgres only through PostgREST. `memberships.version` reads only the
+ * version, so `claimsFirst` with `onStale: 'reread'` reads the full subject
+ * only for a stale token; when the version function is missing it falls back
+ * to `subject_for`. Each user and each instance is read once per
+ * `postgrestSources` call, so create it per request or per job.
  */
 export function postgrestSources(
   client: SupabaseRpcCaller,
@@ -206,7 +218,9 @@ export function postgrestSources(
   const schema = options.schema ?? PERMDOCK_SCHEMA;
   const fn = options.fn ?? "subject_for";
   const membersFn = options.membersFn ?? "members_of";
+  const versionFn = options.versionFn ?? "authz_version_for";
   const loaded = new Map<string, Promise<SubjectRecord | undefined>>();
+  const versions = new Map<string, Promise<number | undefined>>();
   const listed = new Map<string, Promise<MemberEntry[]>>();
   const list = (query: {
     readonly scope: string;
@@ -251,6 +265,25 @@ export function postgrestSources(
     loaded.set(userId, pending);
     return pending;
   };
+  const version = (userId: string): Promise<number | undefined> => {
+    const read = loaded.get(userId);
+    if (read !== undefined) {
+      return read.then((found) => found?.authzVersion);
+    }
+    const cached = versions.get(userId);
+    if (cached !== undefined) {
+      return cached;
+    }
+    const pending = Promise.resolve(
+      callRpc(client, schema, versionFn, { p_user: userId }),
+    ).then((result) =>
+      result.error === null
+        ? versionOf(result.data)
+        : record(userId).then((found) => found?.authzVersion),
+    );
+    versions.set(userId, pending);
+    return pending;
+  };
   const live = async (userId: string): Promise<SubjectRecord | undefined> => {
     const found = await record(userId);
     return found?.active === true ? found : undefined;
@@ -260,8 +293,8 @@ export function postgrestSources(
       async membershipsFor(principal) {
         return [...((await live(principal.id))?.memberships ?? [])];
       },
-      async version(principal) {
-        return (await record(principal.id))?.authzVersion;
+      version(principal) {
+        return version(principal.id);
       },
       list,
     },

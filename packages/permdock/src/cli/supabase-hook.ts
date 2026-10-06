@@ -859,6 +859,51 @@ $$;
 revoke execute on function ${fn}(uuid) from public, anon, authenticated;`;
 }
 
+const AUTHZ_VERSION_FOR = "authz_version_for";
+
+/**
+ * `authz_version_for(p_user uuid) returns bigint`: the authorization version
+ * `subject_for` reports, without reading roles or memberships, so a
+ * `claimsFirst` reread can check a token's freshness on every request and read
+ * the full subject only when it is behind. `null` for an unknown or suspended
+ * user, and when the version is off.
+ */
+function authzVersionForSql(parts: Parts): string {
+  const schema = quoteIdent(parts.schema);
+  const fn = `${schema}.${AUTHZ_VERSION_FOR}`;
+  const suspended =
+    parts.users === undefined
+      ? ""
+      : `
+  if not ${activeRowSql(parts.users, "uid")} then
+    return null;
+  end if;`;
+  const version = parts.version
+    ? `
+  select v.version into ver from ${schema}.${quoteIdent(AUTHZ_VERSION_TABLE)} v where v.user_id = uid;
+  ver := coalesce(ver, 0);`
+    : "";
+  return `-- the authorization version subject_for reports for p_user, for a cheap freshness check; no client role may execute it
+create or replace function ${fn}(p_user uuid)
+returns bigint
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  uid uuid := p_user;
+  ver bigint;
+begin
+  if uid is null or not exists (select 1 from auth.users u where u.id = uid) then
+    return null;
+  end if;${suspended}${version}
+  return ver;
+end;
+$$;
+revoke execute on function ${fn}(uuid) from public, anon, authenticated;`;
+}
+
 const MEMBERS_OF = "members_of";
 
 function membersOfSql(parts: Parts): string {
@@ -1595,6 +1640,7 @@ ${toml}${grantsOut === undefined ? "" : `\n-- what supabase db diff drops from t
     hookSql(parts),
     versionSql(parts),
     subjectForSql(parts, config),
+    authzVersionForSql(parts),
     membersOfSql(parts),
     grantsSql(parts),
     managedSql(parts),
