@@ -334,6 +334,11 @@ function tenantOf(
 /** What the kernel sees of one MCP request; built per call so no two share an instance. */
 type McpCall = { readonly authInfo?: McpAuthInfo };
 
+type Reach = {
+  readonly scopes: readonly string[];
+  readonly challenge: string;
+};
+
 function failedRefusal(permission: Permission, failure: CheckFailure): Refusal {
   switch (failure) {
     case "load-failed":
@@ -398,6 +403,26 @@ function throwRefusal(refusal: Refusal): unknown {
     return refusal.inputRequired;
   }
   throw new Error(refusal.text);
+}
+
+function declaredScopes(
+  name: string,
+  value: unknown,
+): readonly [string, ...string[]] | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  const scopes: unknown[] = Array.isArray(value) ? value : [];
+  const names = scopes.filter(
+    (scope): scope is string => typeof scope === "string" && scope !== "",
+  );
+  const [first, ...rest] = names;
+  if (first === undefined || names.length !== scopes.length) {
+    throw new TypeError(
+      `permdock/mcp: tool ${name} sets oauthScopes, which must be a non-empty list of scope names.`,
+    );
+  }
+  return Object.freeze([first, ...rest]);
 }
 
 function challengeFor(
@@ -479,14 +504,24 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     options.resource === undefined ||
     sameResource(options.resource, authInfo.resource);
 
+  const reachOf = (
+    permission: Permission,
+    declared: readonly [string, ...string[]] | undefined,
+  ): Reach =>
+    declared === undefined
+      ? {
+          scopes: scopesReaching(policy, permission),
+          challenge: challengeScope(policy, permission),
+        }
+      : { scopes: declared, challenge: declared[0] };
+
   const reachable = (
     authInfo: McpAuthInfo | undefined,
-    permission: Permission,
+    reach: Reach,
   ): boolean =>
     authInfo === undefined
       ? options.requireAuthInfo !== true
-      : forThisServer(authInfo) &&
-        hasScope(authInfo, scopesReaching(policy, permission));
+      : forThisServer(authInfo) && hasScope(authInfo, reach.scopes);
 
   const approvalInput = async (
     decision: Extract<Decision, { readonly outcome: "approval-required" }>,
@@ -564,6 +599,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
 
   const check = async (
     permission: Permission,
+    reach: Reach,
     load: (() => unknown) | undefined,
     context: Context,
     handlerContext: unknown,
@@ -589,12 +625,9 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         ),
       };
     }
-    if (
-      authInfo !== undefined &&
-      !hasScope(authInfo, scopesReaching(policy, permission))
-    ) {
+    if (authInfo !== undefined && !hasScope(authInfo, reach.scopes)) {
       const resourceMetadata = resourceMetadataOf(authInfo);
-      const challenged = challengeScope(policy, permission);
+      const challenged = reach.challenge;
       return {
         ok: false,
         refusal: plainRefusal(
@@ -697,6 +730,9 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     context: Context,
     permissionOf: (key: string) => Permission | undefined,
     keys: readonly string[],
+    declaredOf: (
+      key: string,
+    ) => readonly [string, ...string[]] | undefined = () => undefined,
   ): Promise<ReadonlySet<string>> => {
     const authInfo = context.http?.authInfo;
     const shown = new Set<string>();
@@ -708,7 +744,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       const permission = permissionOf(key);
       if (permission === undefined) {
         shown.add(key);
-      } else if (reachable(authInfo, permission)) {
+      } else if (reachable(authInfo, reachOf(permission, declaredOf(key)))) {
         guarded.push({ key, permission });
       }
     }
@@ -741,6 +777,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         readonly after?: (context: Context) => Promise<void>;
         readonly longRunning?: boolean;
         readonly capabilities?: () => unknown;
+        readonly reach?: Reach;
       } = {},
     ): Handler =>
     async (...params: unknown[]): Promise<unknown> => {
@@ -750,8 +787,10 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         load === undefined
           ? undefined
           : (): unknown => load(...dataArgs(params));
+      const reach = extra.reach ?? reachOf(permission, undefined);
       const checked = await check(
         permission,
+        reach,
         loader,
         context,
         raw,
@@ -763,6 +802,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         if (extra.longRunning === true) {
           const again = await check(
             permission,
+            reach,
             loader,
             context,
             raw,
@@ -785,6 +825,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     enforcement?: McpProcedureEnforcement,
   ): GuardedMcpServer | ProcedureMcpServer => {
     const tools = new Map<string, Permission>();
+    const toolScopes = new Map<string, readonly [string, ...string[]]>();
     const prompts = new Map<string, Permission>();
     const resources = new Map<string, Permission>();
     const templates: {
@@ -795,6 +836,9 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
 
     const toolPermission = (name: string): Permission | undefined =>
       tools.get(name);
+    const toolDeclared = (
+      name: string,
+    ): readonly [string, ...string[]] | undefined => toolScopes.get(name);
     const promptPermission = (name: string): Permission | undefined =>
       prompts.get(name);
     const resourcePermission = (uri: string): Permission | undefined => {
@@ -825,7 +869,12 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         const context = contextOf(rawContext);
         // SAFETY: checked to be an array above; the SDK's list result schema gives each entry TEntry's key.
         const entries = result[field] as TEntry[];
-        const shown = await visible(context, permissionOf, entries.map(keyOf));
+        const shown = await visible(
+          context,
+          permissionOf,
+          entries.map(keyOf),
+          remember ? toolDeclared : undefined,
+        );
         const kept = entries.filter((entry) => shown.has(keyOf(entry)));
         if (remember) {
           lastListed.set(sessionKey(context), [...shown].toSorted().join(","));
@@ -903,7 +952,12 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       if (before === undefined) {
         return;
       }
-      const shown = await visible(context, toolPermission, [...tools.keys()]);
+      const shown = await visible(
+        context,
+        toolPermission,
+        [...tools.keys()],
+        toolDeclared,
+      );
       const after = [...shown].toSorted().join(",");
       if (after === before) {
         return;
@@ -920,6 +974,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
 
     const guardTool = (
       permission: Permission,
+      reach: Reach,
       load: ((args: unknown) => unknown) | undefined,
       handler: Handler,
       longRunning: boolean,
@@ -930,7 +985,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         handler,
         (params) => (params.length >= 2 ? [params[0]] : [undefined]),
         toolRefusal,
-        { after: announce, longRunning, capabilities },
+        { after: announce, longRunning, capabilities, reach },
       );
 
     // SAFETY: the SDK overloads are generic over schemas; the wrapper forwards the same arguments.
@@ -961,12 +1016,13 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     /** With `enforce: 'procedure'` the handler runs undecided: the procedure it calls decides. */
     const wrapTool = (
       permission: Permission,
+      reach: Reach,
       load: ((args: unknown) => unknown) | undefined,
       handler: Handler,
       longRunning: boolean,
     ): Handler =>
       enforcement === undefined
-        ? guardTool(permission, load, handler, longRunning)
+        ? guardTool(permission, reach, load, handler, longRunning)
         : async (...params: unknown[]): Promise<unknown> => {
             const result: unknown = await handler(...params);
             await announce(contextOf(params.at(-1)));
@@ -983,11 +1039,19 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         data,
         scopeChallenge,
         longRunning: rawLongRunning,
+        oauthScopes: rawScopes,
         ...passthrough
       } = config;
       // SAFETY: GuardedMcpServer types a tool config's data as a loader over the tool args.
       const load = data as ((args: unknown) => unknown) | undefined;
       const longRunning = rawLongRunning === true;
+      const declared = declaredScopes(
+        name,
+        rawScopes === undefined
+          ? enforcement?.oauthScopesFor?.(name)
+          : rawScopes,
+      );
+      const reach = reachOf(permission, declared);
       // SAFETY: GuardedMcpServer types annotations as ToolHints and scopeChallenge as its handler.
       const registered = originalTool(
         name,
@@ -999,21 +1063,28 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
           },
           scopeChallenge: challengeFor(
             scopeChallenge as ScopeChallengeHandler | undefined,
-            scopesReaching(policy, permission),
-            challengeScope(policy, permission),
+            reach.scopes,
+            reach.challenge,
           ),
         },
-        wrapTool(permission, load, handler, longRunning),
+        wrapTool(permission, reach, load, handler, longRunning),
       );
       tools.set(name, permission);
+      if (declared !== undefined) {
+        toolScopes.set(name, declared);
+      }
       let current = name;
       guardUpdates(
         registered,
-        (callback) => wrapTool(permission, load, callback, longRunning),
+        (callback) => wrapTool(permission, reach, load, callback, longRunning),
         (from, to) => {
           tools.delete(from);
+          toolScopes.delete(from);
           if (to !== null) {
             tools.set(to, permission);
+            if (declared !== undefined) {
+              toolScopes.set(to, declared);
+            }
             current = to;
           }
         },

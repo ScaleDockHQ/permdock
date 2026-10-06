@@ -66,6 +66,7 @@ export type McpToolConfig<
   readonly annotations?: ToolAnnotations;
   readonly icons?: Icon[];
   readonly scopeChallenge?: ScopeChallengeHandler;
+  readonly oauthScopes?: readonly string[];
   readonly _meta?: Record<string, unknown>;
   /**
    * Decide again when the handler resolves, without consuming quota, and
@@ -157,6 +158,7 @@ export type McpProcedureEnforcement = {
   readonly enforce: "procedure";
   /** The permission of the tool `name`; `permissionOf(procedure)` from `permdock/orpc` reads it. `undefined` throws at registration. */
   readonly permissionFor: (name: string) => Permission | undefined;
+  readonly oauthScopesFor?: (name: string) => readonly string[] | undefined;
 };
 
 export type McpPermDockOptions<TUser = unknown> = InstanceOptions & {
