@@ -30,6 +30,7 @@ export type ApprovalSignature = {
   readonly by: string;
   readonly at: string;
   readonly stage?: number;
+  readonly vouched?: string;
 };
 
 export type ApprovalSubjectSummary = {
@@ -65,6 +66,7 @@ export type ApprovalRequest = {
   readonly resolvedAt?: string;
   /** The approver whose verdict resolved the request (the last of `approvals` on a quorum), or `system:<by>` for a cancellation. */
   readonly resolvedBy?: string;
+  readonly vouched?: string;
   readonly note?: string;
   readonly consumedAt?: string;
 };
@@ -87,6 +89,7 @@ export type ApprovalVerdict = {
    * Absent means none, so permission approvers match nobody.
    */
   readonly permissions?: readonly string[];
+  readonly vouched?: string;
 };
 
 export type ApprovalListFilter = {
