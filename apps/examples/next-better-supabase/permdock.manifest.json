@@ -170,6 +170,24 @@
         "args": "p_user uuid",
         "returns": "setof uuid",
         "execute": ["supabase_auth_admin"]
+      },
+      {
+        "name": "permdock_has_for",
+        "args": "p_user uuid, p_grant text",
+        "returns": "boolean",
+        "execute": []
+      },
+      {
+        "name": "permitted_organization_ids_for",
+        "args": "p_user uuid, p_grant text",
+        "returns": "setof uuid",
+        "execute": []
+      },
+      {
+        "name": "permitted_customer_ids_for",
+        "args": "p_user uuid, p_grant text",
+        "returns": "setof uuid",
+        "execute": []
       }
     ],
     "memberships": [
@@ -213,7 +231,17 @@
         },
         "columns": ["user_id", "customer_id", "organization_id"]
       }
-    ]
+    ],
+    "customRoles": false,
+    "roles": {
+      "table": "permdock.user_roles",
+      "user": {
+        "column": "user_id"
+      },
+      "role": {
+        "column": "role"
+      }
+    }
   },
   "decidingColumns": [
     "public.contacts.customer_id",
