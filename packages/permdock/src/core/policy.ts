@@ -340,6 +340,7 @@ export type GrantOptions<T = Record<string, unknown>> = {
   readonly fields?: readonly (keyof T & string)[];
   /** A name a `breakGlass` override may lift; only meaningful on a deny. */
   readonly name?: string;
+  readonly group?: string;
   /** Purposes of use (`context.purpose`) that make the grant apply; non-portable. */
   readonly purpose?: readonly string[];
   /** The grant applies from this instant on (RFC 3339 string or Unix seconds); before it an allow denies with `inactive-grant` and a deny does not apply. */
@@ -446,6 +447,7 @@ export type Grant = {
   readonly scope: GrantScope;
   /** A name a `breakGlass` override may lift; only meaningful on a deny. */
   readonly name?: string;
+  readonly group?: string;
   /** Purposes of use that make the grant apply (`context.purpose`); non-portable. */
   readonly purpose?: readonly string[];
   /** Set on a break-glass allow: it overrides named denies and carries obligations. */
@@ -899,6 +901,24 @@ function resolveRoleScope(on: RoleScope | undefined): Grant["scope"] {
   return { resource };
 }
 
+const GROUP = /^[a-z][a-z0-9_-]*$/u;
+
+function grantGroup(group: unknown, key: string): string | undefined {
+  if (group === undefined) {
+    return undefined;
+  }
+  if (
+    typeof group !== "string" ||
+    !GROUP.test(group) ||
+    group === "break-glass"
+  ) {
+    throw new Error(
+      `PermDock: group '${String(group)}' on ${key} must be lower case letters, digits, _ or -, start with a letter, and not be break-glass`,
+    );
+  }
+  return group;
+}
+
 function makeGrant(
   permission: Permission,
   effect: "allow" | "deny",
@@ -950,6 +970,7 @@ function makeGrant(
     limit: normalizeLimit(condition?.limit),
     fields: sanitizeFields(condition?.fields),
     name: condition?.name,
+    group: grantGroup(condition?.group, permission.key),
     purpose,
     validity: normalizeValidity(condition ?? {}, permission.key),
   });

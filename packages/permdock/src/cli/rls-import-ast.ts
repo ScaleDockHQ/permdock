@@ -558,7 +558,7 @@ export async function helperGrants(
     for (const call of calls) {
       const permission =
         seeds.find((seed) => seed.grantKey === call.key)?.permission ??
-        call.key.replace(/#\d+$/u, "");
+        call.key.replace(/#[a-z0-9][a-z0-9_-]*$/u, "");
       grants.push({
         key: call.key,
         permission,

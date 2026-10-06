@@ -402,7 +402,8 @@ function signature(entry: Prepared, byFields: boolean): string {
 /**
  * Grant keys per permission: the key is the permission, split into
  * `permission#n` when role grants carry different portable conditions (or
- * effects), one key per condition group. With field views, grants that differ
+ * effects), one key per condition group; a group whose grants set `group`
+ * is `permission#<group>` instead. With field views, grants that differ
  * only in `fields` get their own keys too, so a view can tell them apart.
  */
 function assignKeys(
@@ -423,15 +424,48 @@ function assignKeys(
   const keys = new Map<Prepared, string>();
   for (const [permission, byCondition] of groups) {
     const lists = [...byCondition.values()];
+    const named = new Set<string>();
     for (const [index, list] of lists.entries()) {
+      const group = groupOf(permission, list);
+      if (group !== undefined && named.has(group)) {
+        throw new Error(
+          `PermDock CLI: grants of ${permission} with different conditions share group '${group}'; a group names one condition`,
+        );
+      }
+      if (group !== undefined) {
+        named.add(group);
+      }
       const grantKey =
-        lists.length === 1 ? permission : `${permission}#${index + 1}`;
+        group !== undefined
+          ? `${permission}#${group}`
+          : lists.length === 1
+            ? permission
+            : `${permission}#${index + 1}`;
       for (const entry of list) {
         keys.set(entry, grantKey);
       }
     }
   }
   return keys;
+}
+
+function groupOf(
+  permission: string,
+  list: readonly Prepared[],
+): string | undefined {
+  const names = [
+    ...new Set(
+      list.flatMap((entry) =>
+        entry.item.grant.group === undefined ? [] : [entry.item.grant.group],
+      ),
+    ),
+  ].toSorted();
+  if (names.length > 1) {
+    throw new Error(
+      `PermDock CLI: grants of ${permission} with one condition name the groups ${names.join(", ")}; give them one group`,
+    );
+  }
+  return names[0];
 }
 
 /**
@@ -744,7 +778,8 @@ function withAliasRows(
     const suffix = row.grantKey.slice(row.permission.length);
     if (
       !row.grantKey.startsWith(row.permission) ||
-      (suffix !== "" && !/^#\d+$/u.test(suffix))
+      (suffix !== "" &&
+        (!/^#[a-z0-9][a-z0-9_-]*$/u.test(suffix) || suffix === "#break-glass"))
     ) {
       continue;
     }
