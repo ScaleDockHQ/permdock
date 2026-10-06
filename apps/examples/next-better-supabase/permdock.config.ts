@@ -9,6 +9,7 @@ export default {
     authorize: "database",
     tenantType: "uuid",
     tables: ["staff", "quotes"],
+    readOnlyActors: true,
   },
   supabase: {
     hook: {

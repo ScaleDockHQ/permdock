@@ -33,3 +33,12 @@ create policy "quotes_update"
   to authenticated
   using ("organization_id" in (select "permdock".permitted_organization_ids('quotes.update')))
   with check ("organization_id" in (select "permdock".permitted_organization_ids('quotes.update')));
+
+drop policy if exists "quotes_update_read_only_actors" on "public"."quotes";
+create policy "quotes_update_read_only_actors"
+  on "public"."quotes"
+  as restrictive
+  for update
+  to authenticated
+  using (not coalesce((((select auth.jwt()) -> 'act') ->> 'kind') = any(array['support', 'impersonation']::text[]) or ((((select auth.jwt()) -> 'act') ->> 'kind') is null and ((select auth.jwt()) -> 'act') ? 'session_id'), false) or coalesce((((select auth.jwt()) -> 'act') ->> 'read_only') = 'false', false))
+  with check (not coalesce((((select auth.jwt()) -> 'act') ->> 'kind') = any(array['support', 'impersonation']::text[]) or ((((select auth.jwt()) -> 'act') ->> 'kind') is null and ((select auth.jwt()) -> 'act') ? 'session_id'), false) or coalesce((((select auth.jwt()) -> 'act') ->> 'read_only') = 'false', false));
