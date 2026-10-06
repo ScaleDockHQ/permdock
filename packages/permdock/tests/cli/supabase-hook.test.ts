@@ -544,6 +544,55 @@ describe("permdock supabase hook generate", () => {
     expect(plain.rls.assignments).toBeUndefined();
   });
 
+  it("calls each supabase.hook.before function first and returns its error", async () => {
+    const { code, sql, cwd } = await generate(
+      `{ memberships: [${SOURCES}], before: ['auth_checks.require_sso', 'auth_checks.require_mfa'], claims: { features: 'auth_checks.feature_claims' } }`,
+    );
+    expect(code).toBe(0);
+    expect(sql).toContain(
+      '  checked jsonb;\nbegin\n  checked := "auth_checks"."require_sso"(event);',
+    );
+    expect(sql.indexOf('"require_sso"(event)')).toBeLessThan(
+      sql.indexOf('"require_mfa"(event)'),
+    );
+    expect(sql).toContain(`  if checked ? 'error' then
+    return checked;
+  end if;
+  event := checked;`);
+    expect(sql).toContain(
+      "'message', 'auth_checks.require_mfa returned no event'",
+    );
+    expect(sql).toContain("  claims := event -> 'claims';");
+    expect(
+      sql.match(
+        /grant usage on schema "auth_checks" to supabase_auth_admin;/gu,
+      ),
+    ).toHaveLength(1);
+    expect(sql).toContain(
+      'grant execute on function "auth_checks"."require_sso"(jsonb) to supabase_auth_admin;',
+    );
+    const manifest: SupabaseHookManifest = JSON.parse(
+      (await run(["supabase", "inspect", "--json"], { cwd })).stdout,
+    );
+    expect(manifest.hook.before).toEqual([
+      "auth_checks.require_sso",
+      "auth_checks.require_mfa",
+    ]);
+
+    const plain = await generate(`{ memberships: [${SOURCES}] }`);
+    expect(plain.sql).not.toContain("checked");
+  });
+
+  it("refuses a supabase.hook.before function without a schema", async () => {
+    const { code, output } = await generate(
+      `{ memberships: [${SOURCES}], before: 'require_sso' }`,
+    );
+    expect(code).not.toBe(0);
+    expect(output).toContain(
+      "supabase.hook.before must name schema-qualified functions",
+    );
+  });
+
   it("advertises rls.apiKeys and its ceiling helper", async () => {
     const keyed = await generate(
       `{ memberships: [${SOURCES}] }`,

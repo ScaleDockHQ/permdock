@@ -29,7 +29,14 @@
       "properties": {
         "schema": { "$ref": "#/$defs/identifier" },
         "function": { "const": "custom_access_token_hook" },
-        "out": { "type": "string" }
+        "out": { "type": "string" },
+        "before": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$"
+          }
+        }
       }
     },
     "helpers": {

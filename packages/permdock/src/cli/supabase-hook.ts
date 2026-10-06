@@ -249,6 +249,37 @@ function extraClaimsPlan(
   return { claims: planned, errors };
 }
 
+function beforePlan(before: SupabaseHookConfig["before"]): readonly string[] {
+  const list =
+    before === undefined ? [] : typeof before === "string" ? [before] : before;
+  const bad = list.filter(
+    (fn) => typeof fn !== "string" || !CLAIM_FUNCTION.test(fn),
+  );
+  if (bad.length > 0) {
+    throw new Error(
+      `PermDock CLI: supabase.hook.before must name schema-qualified functions such as auth_checks.before_token (got ${bad.map(String).join(", ")})`,
+    );
+  }
+  return [...new Set(list)];
+}
+
+function beforeSql(before: readonly string[]): string {
+  return before
+    .map(
+      (fn) => `
+  checked := ${quoteTable(fn)}(event);
+  if checked is null or jsonb_typeof(checked) is distinct from 'object' then
+    return jsonb_build_object('error', jsonb_build_object('http_code', 500, 'message', ${quoteLiteral(`${fn} returned no event`)}));
+  end if;
+  if checked ? 'error' then
+    return checked;
+  end if;
+  event := checked;`,
+    )
+    .join("")
+    .concat(before.length === 0 ? "" : "\n  claims := event -> 'claims';");
+}
+
 const VERSION_TRIGGER = "permdock_authz_version";
 
 const AUTHZ_VERSION_BUMP = "permdock_bump_authz_version_for";
@@ -269,6 +300,7 @@ type Parts = {
   readonly active: ReturnType<typeof activeFromSql>;
   readonly attrs: AttrsPlan | undefined;
   readonly extra: readonly ExtraClaim[];
+  readonly before: readonly string[];
   /** The `rls.schema` helpers, and the scopes `rls generate` emits `member_<scope>_ids_for` for. */
   readonly helpers: {
     readonly schema: string;
@@ -577,8 +609,8 @@ declare
   in_active boolean := false;
   budget integer := ${String(parts.budget)};
   used integer := 0;
-  item record;${typedUsers(parts)}${plan === undefined ? "" : "\n  attrs jsonb;"}${parts.extra.length === 0 ? "" : "\n  extra jsonb;"}${parts.version ? "\n  ver bigint;" : ""}
-begin${suspended}
+  item record;${typedUsers(parts)}${plan === undefined ? "" : "\n  attrs jsonb;"}${parts.extra.length === 0 ? "" : "\n  extra jsonb;"}${parts.version ? "\n  ver bigint;" : ""}${parts.before.length === 0 ? "" : "\n  checked jsonb;"}
+begin${beforeSql(parts.before)}${suspended}
   claims := claims - 'attrs'${dropExtra};
 ${roles}
   claims := jsonb_set(claims, '{roles}', held);
@@ -624,7 +656,7 @@ function grantsSql(parts: Parts): string {
     `-- supabase_auth_admin: the grants and read policies the hook needs
 grant usage on schema ${schema} to supabase_auth_admin;
 grant execute on function ${fn}(jsonb) to supabase_auth_admin;
-revoke execute on function ${fn}(jsonb) from authenticated, anon, public;${extraGrantsSql(parts.extra)}${memberForGrantsSql(parts)}`,
+revoke execute on function ${fn}(jsonb) from authenticated, anon, public;${extraGrantsSql(parts.extra)}${beforeGrantsSql(parts.before, parts.extra)}${memberForGrantsSql(parts)}`,
     readsSql(parts),
     parts.version
       ? authAdminRead(`${parts.schema}.${AUTHZ_VERSION_TABLE}`, "version")
@@ -644,6 +676,26 @@ function extraGrantsSql(extra: readonly ExtraClaim[]): string {
     ...extra.map(
       (entry) =>
         `\ngrant execute on function ${quoteTable(entry.fn)}(uuid) to supabase_auth_admin;`,
+    ),
+  ].join("");
+}
+
+function beforeGrantsSql(
+  before: readonly string[],
+  extra: readonly ExtraClaim[],
+): string {
+  const granted = new Set(extra.map((entry) => entry.fn.split(".")[0]));
+  const schemas = [
+    ...new Set(before.map((fn) => fn.split(".")[0] ?? "")),
+  ].filter((name) => !granted.has(name));
+  return [
+    ...schemas.map(
+      (name) =>
+        `\ngrant usage on schema ${quoteIdent(name)} to supabase_auth_admin;`,
+    ),
+    ...before.map(
+      (fn) =>
+        `\ngrant execute on function ${quoteTable(fn)}(jsonb) to supabase_auth_admin;`,
     ),
   ].join("");
 }
@@ -1429,6 +1481,7 @@ function hookParts(
     active: activeFromSql(overrides.activeFrom ?? hook.activeFrom, root),
     attrs: hook.attrs === undefined ? undefined : attrsPlan(hook.attrs),
     extra: extraPlan.claims,
+    before: beforePlan(hook.before),
     helpers: {
       schema: config.rls?.schema ?? PERMDOCK_SCHEMA,
       ...memberForPlan({
@@ -1720,7 +1773,12 @@ function manifestOf(
   return {
     $schema: SUPABASE_MANIFEST_SCHEMA,
     version: 1,
-    hook: { schema: parts.schema, function: "custom_access_token_hook", out },
+    hook: {
+      schema: parts.schema,
+      function: "custom_access_token_hook",
+      out,
+      ...(parts.before.length === 0 ? {} : { before: parts.before }),
+    },
     helpers: {
       schema: parts.helpers.schema,
       functions: helpers.map((entry) => entry.name),
