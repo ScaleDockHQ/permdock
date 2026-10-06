@@ -1,12 +1,15 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
+import type { Policy } from "../core/policy.ts";
 import type { Scope } from "../core/scopes.ts";
 import type {
   SupabaseHookClaim,
   SupabaseHookManifest,
+  SupabaseManifestActiveRow,
   SupabaseManifestHelper,
   SupabaseManifestMembership,
+  SupabaseManifestRls,
 } from "../supabase/manifest.ts";
 import type { RoleKeys } from "../supabase/roles.ts";
 import type { SqlMembershipSource } from "../supabase/sources.ts";
@@ -38,6 +41,8 @@ import { decidingColumns, tableKey } from "./deciding-columns.ts";
 import { globalRoleSource, type RoleRows } from "./global-roles.ts";
 import { asPolicy, loadModule, pickNamed } from "./load.ts";
 import { GRANTS_MARKER, HOOK_MARKER, hookMarkerFields } from "./markers.ts";
+import { HELPERS } from "./rls-helpers.ts";
+import { ASSIGNMENTS, OWNERSHIP, ownershipRules } from "./rls-ownership.ts";
 import { authAdminRead, hookUri, resolveAuthorize } from "./rls-rbac.ts";
 import {
   activeRowSql,
@@ -48,10 +53,12 @@ import {
   memberForTable,
   memberIdsHelper,
   memberRoleOf,
+  permittedForHelper,
   quoteIdent,
   quoteLiteral,
   quoteTable,
   scopeTypeOf,
+  tenantTypeOf,
 } from "./rls-sql.ts";
 import {
   driftOf,
@@ -1506,10 +1513,184 @@ function helperList(
   ];
 }
 
+function helperEntry(
+  name: string,
+  args: string,
+  returns: string,
+  execute: readonly string[],
+): SupabaseManifestHelper {
+  return { name, args, returns, execute };
+}
+
+function inSchema(name: string): string {
+  return name.includes(".") ? name : `public.${name}`;
+}
+
+/**
+ * The helpers `rls generate` writes beyond the ones the hook's claims feed:
+ * the `_for` forms in `database` mode, and the assignment checks when a role
+ * declares `assigns` (known only with the policy).
+ */
+function trustedHelpers(
+  parts: Parts,
+  config: PermDockConfig,
+  types: ReadonlyMap<string, string>,
+  tenantType: string,
+  policy: Policy | undefined,
+): readonly SupabaseManifestHelper[] {
+  const database = resolveAuthorize(config) === "database";
+  const custom = database && config.rls?.customRoles === true;
+  const everyFor = parts.scopes.every((scope) =>
+    parts.helpers.memberFor.includes(scope.name),
+  );
+  const client = ["authenticated"];
+  const forUser = database
+    ? [
+        helperEntry(HELPERS.hasFor, "p_user uuid, p_grant text", "boolean", []),
+        ...parts.scopes.map((scope) =>
+          helperEntry(
+            permittedForHelper(scope.name),
+            "p_user uuid, p_grant text",
+            `setof ${types.get(scope.name) ?? "uuid"}`,
+            [],
+          ),
+        ),
+      ]
+    : [];
+  const assigns =
+    policy !== undefined &&
+    (ownershipRules(policy, parts.scopes)?.assigns.length ?? 0) > 0;
+  if (!assigns) {
+    return forUser;
+  }
+  const customArgs = `p_tenant ${tenantType}, p_scope text, p_scope_id text, p_role text`;
+  const anyArgs = `p_role text, p_tenant ${tenantType}, p_scope text, p_scope_id text`;
+  return [
+    ...forUser,
+    helperEntry(
+      OWNERSHIP.canAssign,
+      "p_role text, p_scope_id text",
+      "boolean",
+      client,
+    ),
+    ...(database
+      ? [
+          helperEntry(
+            OWNERSHIP.canAssignFor,
+            "p_user uuid, p_role text, p_scope_id text",
+            "boolean",
+            [],
+          ),
+        ]
+      : []),
+    ...(custom
+      ? [helperEntry(ASSIGNMENTS.custom, customArgs, "boolean", client)]
+      : []),
+    ...(custom && everyFor
+      ? [
+          helperEntry(
+            ASSIGNMENTS.customFor,
+            `p_user uuid, ${customArgs}`,
+            "boolean",
+            [],
+          ),
+        ]
+      : []),
+    helperEntry(OWNERSHIP.canAssignAny, anyArgs, "boolean", client),
+    ...(database && (!custom || everyFor)
+      ? [
+          helperEntry(
+            OWNERSHIP.canAssignAnyFor,
+            `p_user uuid, ${anyArgs}`,
+            "boolean",
+            [],
+          ),
+        ]
+      : []),
+  ];
+}
+
+function activeRowManifest(row: RlsActiveRow): SupabaseManifestActiveRow {
+  return {
+    table: inSchema(row.table),
+    id: row.id,
+    ...(row.disabledAt === undefined ? {} : { disabledAt: row.disabledAt }),
+    ...(row.status === undefined ? {} : { status: row.status }),
+    ...(row.active === undefined ? {} : { active: row.active }),
+  };
+}
+
+/** The `rls` settings a package writing SQL next to the helpers reads: custom roles, global roles, suspension and assignment triggers. */
+function rlsSettings(
+  parts: Parts,
+  config: PermDockConfig,
+): Pick<
+  SupabaseManifestRls,
+  "customRoles" | "roles" | "suspension" | "assignments"
+> {
+  const rls = config.rls;
+  const suspension = checkSuspension(rls?.suspension, parts.scopes);
+  const scopes = Object.entries(suspension?.scopes ?? {});
+  const assigned =
+    rls?.assignments === undefined
+      ? undefined
+      : [
+          ...parts.scopes.flatMap((scope) => {
+            const mapped = memberForTable(
+              {
+                scopes: parts.scopes,
+                ...(rls.memberships === undefined
+                  ? {}
+                  : { memberships: rls.memberships }),
+              },
+              scope.name,
+            );
+            return mapped === undefined ? [] : [mapped.table];
+          }),
+          ...(rls.assignments === true
+            ? []
+            : (rls.assignments.tables ?? [])
+          ).map((entry) => entry.table),
+        ].map(inSchema);
+  return {
+    customRoles:
+      resolveAuthorize(config) === "database" && rls?.customRoles === true,
+    ...(parts.roles === undefined
+      ? {}
+      : {
+          roles: {
+            table: inSchema(parts.roles.table),
+            user: { column: parts.roles.user },
+            role: parts.roles.role,
+          },
+        }),
+    ...(suspension === undefined
+      ? {}
+      : {
+          suspension: {
+            ...(suspension.users === undefined
+              ? {}
+              : { users: activeRowManifest(suspension.users) }),
+            ...(scopes.length === 0
+              ? {}
+              : {
+                  scopes: Object.fromEntries(
+                    scopes.map(([name, row]) => [name, activeRowManifest(row)]),
+                  ),
+                }),
+          },
+        }),
+    ...(assigned === undefined
+      ? {}
+      : { assignments: { tables: [...new Set(assigned)] } }),
+  };
+}
+
 function manifestOf(
   parts: Parts,
   out: string,
   config: PermDockConfig,
+  policy?: Policy,
 ): SupabaseHookManifest {
   const rls = config.rls;
   const ctx: RlsSqlContext = {
@@ -1531,7 +1712,7 @@ function manifestOf(
     hook: { schema: parts.schema, function: "custom_access_token_hook", out },
     helpers: {
       schema: parts.helpers.schema,
-      functions: helpers.map((helper) => helper.name),
+      functions: helpers.map((entry) => entry.name),
     },
     tenantClaim: parts.tenantClaim,
     budget: { bytes: parts.budget, measure: BUDGET_MEASURE },
@@ -1556,8 +1737,12 @@ function manifestOf(
         type: types.get(scope.name) ?? "uuid",
         ...(scope.within === undefined ? {} : { within: scope.within }),
       })),
-      helpers,
+      helpers: [
+        ...helpers,
+        ...trustedHelpers(parts, config, types, tenantTypeOf(ctx), policy),
+      ],
       memberships: parts.helpers.memberships,
+      ...rlsSettings(parts, config),
     },
     decidingColumns: decidingColumns(
       config,
@@ -1602,13 +1787,19 @@ export function hookOut(
       );
 }
 
+/**
+ * The manifest `supabase inspect` prints. With `policy`, `rls.helpers` also
+ * lists the assignment checks `rls generate` writes for roles that declare
+ * `assigns`.
+ */
 export function supabaseHookManifest(
   scopes: readonly Scope[],
   config: PermDockConfig,
   overrides: HookOverrides & { readonly out?: string } = {},
+  policy?: Policy,
 ): SupabaseHookManifest {
   const parts = hookParts(scopes, config, overrides);
-  return manifestOf(parts, overrides.out ?? defaultOut(config), config);
+  return manifestOf(parts, overrides.out ?? defaultOut(config), config, policy);
 }
 
 /**
@@ -1739,15 +1930,21 @@ export async function loadScopes(
   cwd: string,
   config: PermDockConfig,
 ): Promise<readonly Scope[]> {
+  return scopeList((await loadHookPolicy(cwd, config)).scopes);
+}
+
+async function loadHookPolicy(
+  cwd: string,
+  config: PermDockConfig,
+): Promise<Policy> {
   if (config.policy === undefined) {
     throw new Error(
       "PermDock CLI: supabase hook generate needs policy in permdock.config.ts",
     );
   }
-  const policy = asPolicy(
+  return asPolicy(
     pickNamed(await loadModule(resolve(cwd, config.policy)), ["policy"]),
   );
-  return scopeList(policy.scopes);
 }
 
 export async function runSupabase(input: {
@@ -1774,11 +1971,16 @@ export async function runSupabase(input: {
     }).filter(([, value]) => value !== undefined),
   );
   if (area === "inspect" && action === undefined) {
-    const scopes = await loadScopes(input.cwd, input.config);
-    const manifest = supabaseHookManifest(scopes, input.config, {
-      ...overrides,
-      out: hookOut(input.cwd, input.config, input.schema),
-    });
+    const policy = await loadHookPolicy(input.cwd, input.config);
+    const manifest = supabaseHookManifest(
+      scopeList(policy.scopes),
+      input.config,
+      {
+        ...overrides,
+        out: hookOut(input.cwd, input.config, input.schema),
+      },
+      policy,
+    );
     if (input.out !== undefined || input.check) {
       return manifestFile(
         input.cwd,

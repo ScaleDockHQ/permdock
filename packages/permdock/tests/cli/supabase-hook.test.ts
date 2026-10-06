@@ -1,3 +1,4 @@
+import { Ajv2020 } from "ajv/dist/2020.js";
 import {
   mkdirSync,
   mkdtempSync,
@@ -444,6 +445,103 @@ describe("permdock supabase hook generate", () => {
     expect(JSON.parse(inspect.stdout)).toMatchObject({
       rls: { mode: "database" },
     });
+  });
+
+  it("lists the trusted and assignment helpers and the rls settings a package reads", async () => {
+    const database = await generate(
+      `{ memberships: [${SOURCES}] }`,
+      [],
+      `{
+        authorize: 'database',
+        customRoles: true,
+        assignments: { tables: [{ table: 'invitations', scope: 'organization', id: 'organization_id', role: 'role' }] },
+        memberships: { scopes: { organization: { table: 'organization_users', user: 'user_id', role: 'role', tenant: 'organization_id' } } },
+        roles: { table: 'app.user_roles', user: 'member_id', role: { through: 'app.roles', on: { role_id: 'id' }, column: 'key' } },
+        suspension: { users: { table: 'profiles', id: 'user_id', disabledAt: 'disabled_at' }, scopes: { organization: { table: 'organizations', id: 'id', status: 'status', active: ['active'] } } },
+      }`,
+    );
+    const inspect = await run(["supabase", "inspect", "--json"], {
+      cwd: database.cwd,
+    });
+    expect(inspect.code).toBe(0);
+    const manifest: SupabaseHookManifest = JSON.parse(inspect.stdout);
+    const names = manifest.rls.helpers.map((helper) => helper.name);
+    expect(names).toEqual(
+      expect.arrayContaining([
+        "permdock_has_for",
+        "permitted_organization_ids_for",
+        "permitted_customer_ids_for",
+        "permdock_can_assign",
+        "permdock_can_assign_for",
+        "permdock_can_assign_custom_role",
+        "permdock_can_assign_custom_role_for",
+        "permdock_can_assign_any",
+        "permdock_can_assign_any_for",
+      ]),
+    );
+    expect(manifest.helpers.functions).not.toContain("permdock_has_for");
+    expect(manifest.rls.helpers).toContainEqual({
+      name: "permdock_can_assign_any",
+      args: "p_role text, p_tenant uuid, p_scope text, p_scope_id text",
+      returns: "boolean",
+      execute: ["authenticated"],
+    });
+    expect(manifest.rls.helpers).toContainEqual({
+      name: "permdock_can_assign_any_for",
+      args: "p_user uuid, p_role text, p_tenant uuid, p_scope text, p_scope_id text",
+      returns: "boolean",
+      execute: [],
+    });
+    expect(manifest.rls).toMatchObject({
+      customRoles: true,
+      roles: {
+        table: "app.user_roles",
+        user: { column: "member_id" },
+        role: {
+          column: "role_id",
+          through: { table: "app.roles", id: "id", column: "key" },
+        },
+      },
+      suspension: {
+        users: {
+          table: "public.profiles",
+          id: "user_id",
+          disabledAt: "disabled_at",
+        },
+        scopes: {
+          organization: {
+            table: "public.organizations",
+            id: "id",
+            status: "status",
+            active: ["active"],
+          },
+        },
+      },
+      assignments: {
+        tables: ["public.organization_users", "public.invitations"],
+      },
+    });
+    const validate = new Ajv2020({ strict: false }).compile(
+      JSON.parse(
+        readFileSync(
+          new URL("../../schemas/supabase-manifest-v1.json", import.meta.url),
+          "utf8",
+        ),
+      ),
+    );
+    validate(manifest);
+    expect(validate.errors ?? []).toEqual([]);
+
+    const jwt = await generate(`{ memberships: [${SOURCES}] }`);
+    const plain: SupabaseHookManifest = JSON.parse(
+      (await run(["supabase", "inspect", "--json"], { cwd: jwt.cwd })).stdout,
+    );
+    const plainNames = plain.rls.helpers.map((helper) => helper.name);
+    expect(plainNames).toContain("permdock_can_assign_any");
+    expect(plainNames).not.toContain("permdock_can_assign_any_for");
+    expect(plainNames).not.toContain("permdock_has_for");
+    expect(plain.rls.customRoles).toBe(false);
+    expect(plain.rls.assignments).toBeUndefined();
   });
 
   it("lists the membership sources behind member_<scope>_ids_for in rls.memberships", async () => {

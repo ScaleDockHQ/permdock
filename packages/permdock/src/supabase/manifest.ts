@@ -110,6 +110,19 @@ export type SupabaseManifestHelper = {
   readonly execute: readonly string[];
 };
 
+/** A table whose row says whether a user or a scope instance is active (`rls.suspension`); a missing row counts as suspended. */
+export type SupabaseManifestActiveRow = {
+  /** `schema.table`. */
+  readonly table: string;
+  /** The column holding the user id or the scope instance id. */
+  readonly id: string;
+  /** A nullable timestamp column; a row with a value is suspended. */
+  readonly disabledAt?: string;
+  /** A status column; only a row whose value is in `active` is active. */
+  readonly status?: string;
+  readonly active?: readonly string[];
+};
+
 export type SupabaseManifestRls = {
   readonly schema: string;
   /** Where the helpers read roles and memberships: the claims (`jwt`) or the tables (`database`). */
@@ -121,6 +134,15 @@ export type SupabaseManifestRls = {
     readonly type: string;
     readonly within?: string;
   }[];
+  /**
+   * Every function `rls generate` writes for policies and trusted SQL to
+   * call: `permdock_has`, `permitted_<scope>_ids` and `member_<scope>_ids`;
+   * in `database` mode `permdock_has_for`, `permitted_<scope>_ids_for` and
+   * `member_<scope>_ids_for`; and when a role declares `assigns`,
+   * `permdock_can_assign`, `permdock_can_assign_any` and, with custom roles,
+   * `permdock_can_assign_custom_role`, each with its `_for` form where one
+   * is written. A helper whose `execute` is empty is for trusted SQL only.
+   */
   readonly helpers: readonly SupabaseManifestHelper[];
   /**
    * The tables `member_<scope>_ids_for` reads: an `rls.memberships` table
@@ -128,4 +150,23 @@ export type SupabaseManifestRls = {
    * `memberships`.
    */
   readonly memberships: readonly SupabaseManifestMembership[];
+  /** Whether custom roles live in the helpers' tables (`rls.customRoles` in `database` mode). */
+  readonly customRoles?: boolean;
+  /** The global-roles table the hook and the `database` mode helpers read. */
+  readonly roles?: {
+    readonly table: string;
+    readonly user: SupabaseManifestColumn;
+    readonly role: SupabaseManifestRole | readonly SupabaseManifestRole[];
+  };
+  /** `rls.suspension`: a suspended user, or a suspended scope instance, holds nothing. */
+  readonly suspension?: {
+    readonly users?: SupabaseManifestActiveRow;
+    readonly scopes?: Readonly<Record<string, SupabaseManifestActiveRow>>;
+  };
+  /**
+   * `rls.assignments`: the tables whose client writes the assignment
+   * triggers check against `permdock_can_assign_any`, so SQL writing rows
+   * there needs no role-ceiling check of its own.
+   */
+  readonly assignments?: { readonly tables: readonly string[] };
 };

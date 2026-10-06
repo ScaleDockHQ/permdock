@@ -49,26 +49,16 @@ A support level without `read_only` is read-only, as better-supabase reads it. A
 
 ## Enforce it in Postgres
 
-PermDock's generated RLS helpers read memberships, not `act`. A support token sent straight to the Data API is the user to Postgres and writes whatever the user may write. Add one restrictive policy per writable table so the database applies the same read-only default:
+PermDock's generated RLS helpers read memberships, not `act`. A support token sent straight to the Data API is the user to Postgres and writes whatever the user may write. Set `rls.readOnlyActors` so `permdock rls generate` adds one restrictive policy per table and write command it grants, and the database applies the same read-only default:
 
-```sql
--- supabase/schemas/public/policies/support.sql
-create policy "quotes_support_read_only"
-  on "public"."quotes"
-  as restrictive
-  for update
-  to authenticated
-  using (
-    not coalesce(
-      ((select auth.jwt()) -> 'act' ->> 'kind') = 'support'
-        or ((select auth.jwt()) -> 'act') ? 'session_id',
-      false
-    )
-    or ((select auth.jwt()) -> 'act' ->> 'read_only') = 'false'
-  );
+```ts title="permdock.config.ts"
+rls: {
+  dialect: "supabase",
+  readOnlyActors: true, // support and impersonation sessions
+},
 ```
 
-A restrictive policy is combined with `and`, so it only ever removes rows the permissive `quotes_update` policy allows. Scope it to the write commands the table grants (`update` here; add `insert` with `with check` and `delete` where granted), never `for all`, which would also block reads. The `act ? 'session_id'` test covers better-supabase 0.5.0 tokens, which carry a `session_id` without `kind`. The policy does not narrow a session to the delegation's permissions; Postgres sees only the user's grants, so keep writable tables behind the server where the delegation applies, or add the delegation's limits to the policy.
+Each policy (`quotes_update_read_only_actors`, `quotes_insert_read_only_actors`, ...) refuses the write when `act.kind` is `support` or `impersonation`, or when `act` carries a `session_id` and no `kind` (better-supabase 0.5.0 tokens), unless `act.read_only` is `false`. A restrictive policy is combined with `and`, so it only ever removes rows the permissive policies allow, and reads are untouched. The policies do not narrow a session to the delegation's permissions; Postgres sees only the user's grants, so keep writable tables behind the server where the delegation applies, or add the delegation's limits to the policy. [Read-only actors](/docs/cli/rls#read-only-actors) has the generated SQL and the options. A table whose policies are hand-written (`--helpers-only`) needs the same restrictive policy written by hand.
 
 ## Audit
 

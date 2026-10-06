@@ -495,6 +495,12 @@ export const supabaseHookManifestFixture: SupabaseHookManifest = {
         columns: ["user_id", "scope", "scope_id", "role"],
       },
     ],
+    customRoles: false,
+    roles: {
+      table: "permdock.user_roles",
+      user: { column: "user_id" },
+      role: { column: "role" },
+    },
   },
   decidingColumns: [
     "public.memberships.role",

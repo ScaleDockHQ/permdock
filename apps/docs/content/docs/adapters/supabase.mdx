@@ -408,7 +408,8 @@ export default defineConfig({
     access: {
       model: "permdock",
       functions: {
-        canAssign: "permdock.permdock_can_assign({role}, {tenant}::text)",
+        canAssign:
+          "permdock.permdock_can_assign_any({role}, {tenant}, 'organization', {tenant}::text)",
       },
     },
   },
@@ -416,7 +417,7 @@ export default defineConfig({
 ```
 
 - Every permission key the kit modules check must be `rowConditions: false` in `permissions.catalog.json`, because the helpers check role and scope only. `kitPermissionKeys` from `better-supabase/sql` lists the keys; better-supabase's doctor reports BS411 for a key that has row conditions or is missing.
-- `permdock_can_assign` exists only when a role declares `assigns`; without it, only the service role assigns roles.
+- `permdock_can_assign_any(p_role, p_tenant, p_scope, p_scope_id)` answers for a declared role and, with custom roles in `database` mode, for a custom one, so one `canAssign` template covers both. It exists only when a role declares `assigns`; without it, only the service role assigns roles. The manifest's `rls.helpers` lists it, and the `_for` forms (`permdock_has_for`, `permitted_<scope>_ids_for`, `permdock_can_assign_any_for`) that SQL acting for a stored user calls, such as an inviter check when an invitation is accepted.
 - The helpers read `auth.uid()`, so the kit's `can_user()` and `member_can()` answer for the caller only and raise SQLSTATE `0A000` for anyone else. The invitations module does not check the inviter's permission again when an invitation is accepted, and the notifications module does not filter recipients by their read permission.
 
 ## Request lifecycle

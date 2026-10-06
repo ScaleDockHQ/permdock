@@ -257,6 +257,30 @@ With `--rbac-scaffold` and `--dialect supabase`, the output also contains Supaba
 
 With `--rbac`, the command prints a reminder to run `permdock supabase hook generate` for the token hook.
 
+### Read-only actors
+
+A token that acts for a user names the actor in its `act` claim: a support session (`act.kind: 'support'`) or an impersonation (`act.kind: 'impersonation'`). The helpers read memberships, not `act`, so to Postgres such a token is its user and writes what the user may write. `rls.readOnlyActors` adds one `RESTRICTIVE` policy per table and write command that the generated policies grant to `authenticated`, named `{table}_{op}_read_only_actors`. It refuses the write when `act.kind` is one of the listed kinds, unless `act.read_only` is `false`. Reads are never touched.
+
+```ts title="permdock.config.ts"
+rls: {
+  readOnlyActors: true, // ['support', 'impersonation']
+},
+```
+
+```sql
+create policy "quotes_update_read_only_actors"
+  on "public"."quotes"
+  as restrictive
+  for update
+  to authenticated
+  using (not coalesce(((select auth.jwt()) -> 'act' ->> 'kind') = any(array['support', 'impersonation']::text[])
+      or (((select auth.jwt()) -> 'act' ->> 'kind') is null and ((select auth.jwt()) -> 'act') ? 'session_id'), false)
+    or coalesce(((select auth.jwt()) -> 'act' ->> 'read_only') = 'false', false))
+  with check (/* the same condition */);
+```
+
+`true` lists `support` and `impersonation`; a list such as `['support']` names the kinds. With `support` listed, an `act` with a `session_id` and no `kind` (better-supabase 0.5.0 support tokens) counts as a support session. Another actor kind, such as an agent acting with delegated scopes, keeps the user's writes. An `insert` policy has only `with check`, a `delete` policy only `using`. `rls verify` checks the policies with the rest, and `--helpers-only` writes none and says so. [Support access](/docs/guides/support-access) covers the in-process side.
+
 ### Ownership rules
 
 When a role declares [`min`, `max`, `transferOnly`, `assigns` or `for`](/docs/concepts/ownership), the output adds, next to the helpers:
@@ -267,6 +291,8 @@ When a role declares [`min`, `max`, `transferOnly`, `assigns` or `for`](/docs/co
 | `permdock_transfer_only_<scope>_insert` / `_update` / `_delete` (statement triggers over transition tables) | A `transferOnly` role's holder count in an instance that had holders before a statement and has some after it must not change: move it in one `UPDATE`, or demote the only holder before promoting the next one in the same transaction ([moving a transfer-only role](/docs/concepts/ownership#moving-a-transfer-only-role)). Hint `transfer-only`                                                                              |
 | `permdock_can_assign(p_role text, p_scope_id text) returns boolean`                                         | Whether the signed-in user holds, on a live membership of instance `p_scope_id` (the role's own scope or an ancestor's), a role whose `assigns` lists `p_role`; global assigners count at every instance. A null `p_scope_id` assigns a global role: only a global role whose `assigns` lists it answers `true`, and a scoped role never does. `stable security definer`, `search_path = ''`, `execute` for `authenticated` only |
 | `permdock_can_assign_for(p_user, p_role text, p_scope_id text) returns boolean`                             | `database` mode: what `permdock_can_assign` answers for `p_user` (a `uuid` on Supabase, `text` otherwise), with no active-tenant narrowing, for trusted SQL that acts later for a stored user, such as accepting an invitation the inviter sent earlier. No client role may execute it                                                                                                                                           |
+| `permdock_can_assign_any(p_role text, p_tenant, p_scope text, p_scope_id text) returns boolean`             | One check for any role: `permdock_can_assign(p_role, p_scope_id)` for a declared role and, with `rls.customRoles` in `database` mode, `permdock_can_assign_custom_role(p_tenant, p_scope, p_scope_id, p_role)` for a custom one. `p_scope` `'global'` (null tenant and instance) assigns a platform role. `p_tenant` has the tenant type. `execute` for `authenticated` only                                                     |
+| `permdock_can_assign_any_for(p_user, p_role text, p_tenant, p_scope text, p_scope_id text) returns boolean` | `database` mode: the same over the `_for` forms, for trusted SQL acting for a stored user. Written when every function it calls has a `_for` form. No client role may execute it                                                                                                                                                                                                                                                 |
 
 The triggers sit on the scope's table in `rls.memberships`. A scope with no mapped table gets them from its membership sources (`rls.membershipSources`, default `supabase.hook.memberships`, in either mode): one function per scope counts holders over every `fromTable` and `fromJunction` source that can hold the scope, and the same trigger names go on each source table. A `fromTable` row counts for the scope its `scope` column names, a `fromJunction` row for its own scope with its fixed or column roles, expired rows count for no one, and suspension does not change the count. The source tables must be base tables, because Postgres puts no constraint or transition-table triggers on a view. A source whose `sql` carries no `holders` (a `SqlMembershipSource` you build yourself rather than with `fromTable` or `fromJunction`) has no table PermDock knows how to read row by row, so its scope gets no triggers. Without a table or a source, the output says so and only `decideRoleChange` checks the counts. `rls.ownershipTriggers: false` leaves the holder-count and transfer-only triggers out everywhere, and `rls.ownershipTriggers: { organization: false }` for the scopes it names, for an application that enforces the counts its own way; `decideRoleChange` still checks them and `permdock_can_assign` is still written. PermDock generates no policies on your membership tables. Use the helper in your own (for a role column `through` a roles table, pass the key: `(select key from public.roles where id = role_id)`):
 
@@ -279,7 +305,7 @@ create policy customer_contacts_insert on public.customer_contacts for insert to
 
 #### Assignment triggers
 
-`rls.assignments` writes those checks for you as triggers. Each scope's table in `rls.memberships`, and each table listed in `tables` (an invitations table that names a role), gets `permdock_assignment_<table>()` and a `before insert or update or delete` trigger. On a write by a client role (`authenticated`, `anon`), every role the old row and the new row hold must be one the caller may assign at that instance: a declared role through `permdock_can_assign`, a custom role through `permdock_can_assign_custom_role(p_tenant, p_scope, p_scope_id, p_role)`, which runs the custom-role write checks (membership, `rls.customRoleWrites.requires`, and authority over every permission the role allows) on its stored definition. A role that is neither is refused. A refusal raises SQLSTATE `42501` with hint `not-assignable-by`, so removing or demoting a holder of a role the caller may not assign fails too.
+`rls.assignments` writes those checks for you as triggers. Each scope's table in `rls.memberships`, and each table listed in `tables` (an invitations table that names a role), gets `permdock_assignment_<table>()` and a `before insert or update or delete` trigger. On a write by a client role (`authenticated`, `anon`), every role the old row and the new row hold must be one the caller may assign at that instance: a declared role through `permdock_can_assign`, a custom role through `permdock_can_assign_custom_role(p_tenant, p_scope, p_scope_id, p_role)`, which runs the custom-role write checks (membership, `rls.customRoleWrites.requires`, and authority over every permission the role allows) on its stored definition. A role that is neither is refused. `permdock_can_assign_custom_role` (and its `_for` form) is written whenever a role declares `assigns` and custom roles live in the tables, with or without `rls.assignments`. A refusal raises SQLSTATE `42501` with hint `not-assignable-by`, so removing or demoting a holder of a role the caller may not assign fails too.
 
 The trigger functions run as the invoker, so a write that does not run as a client role is trusted: the table owner, a migration, a `security definer` function such as an onboarding or invitation-accept function, and a backend role. That is the bootstrap path for the first owner of a new tenant; it needs no setting the client could also set. The triggers need a role that declares `assigns`; without one, `generate` writes none and warns.
 
@@ -297,7 +323,7 @@ An entry in `tables` assigns at `scope`, with the instance id in `id` and the te
 
 A row whose `id` is null assigns a global role, such as an invitation to a platform role. A declared role is checked by `permdock_can_assign(role, null)`, which only a global assigner passes, and a custom role as a platform custom role: `permdock_can_assign_custom_role(null, 'global', null, role)`, which needs a `meta.manageRoles` permission held through a global role. A scoped role on such a row is refused, so one invitations table can hold both tenant and platform invitations.
 
-Trusted SQL that runs later for a stored user re-checks the assignment with the `_for` forms: `permdock_can_assign_for(p_user, p_role, p_scope_id)` for a declared role and `permdock_can_assign_custom_role_for(p_user, p_tenant, p_scope, p_scope_id, p_role)` for a custom one. An invitation-accept function calls them with the inviter, so an invitation stops working once the inviter may no longer assign its role. The custom-role form needs `member_<scope>_ids_for` for every scope (Supabase, with each scope mapped to a table or a membership source); without it the output leaves the custom-role form out. No client role may execute either.
+Trusted SQL that runs later for a stored user re-checks the assignment with the `_for` forms: `permdock_can_assign_for(p_user, p_role, p_scope_id)` for a declared role and `permdock_can_assign_custom_role_for(p_user, p_tenant, p_scope, p_scope_id, p_role)` for a custom one, or `permdock_can_assign_any_for(p_user, p_role, p_tenant, p_scope, p_scope_id)` for either, so the caller needs no branch on whether the role is declared. An invitation-accept function calls them with the inviter, so an invitation stops working once the inviter may no longer assign its role. The custom-role form needs `member_<scope>_ids_for` for every scope (Supabase, with each scope mapped to a table or a membership source); without it the output leaves the custom-role form out. No client role may execute either.
 
 ### Custom roles
 

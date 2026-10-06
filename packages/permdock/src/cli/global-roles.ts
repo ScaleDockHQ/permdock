@@ -1,6 +1,7 @@
+import type { SupabaseManifestRole } from "../supabase/manifest.ts";
 import type { GlobalRoles } from "./types.ts";
 
-import { type RoleKeys, roleColumn } from "../supabase/roles.ts";
+import { type RoleKeys, roleColumn, roleManifest } from "../supabase/roles.ts";
 import { quoteIdent, quoteTable } from "./rls-sql.ts";
 
 /** A global-roles source as SQL: the `from` clause and the user and role key expressions. */
@@ -12,6 +13,8 @@ export type RoleRows = {
   readonly roleSql: string;
   /** Set when the key is read through a roles table. */
   readonly through?: RoleKeys;
+  /** The role column in the manifest's shape. */
+  readonly role: SupabaseManifestRole | readonly SupabaseManifestRole[];
 };
 
 function qualify(name: string, schema: string): string {
@@ -37,6 +40,7 @@ export function globalRoleSource(
     from: `${quoteTable(table)} ${alias}${role.join}`,
     userSql: `${alias}.${quoteIdent(user)}`,
     roleSql: role.sql,
+    role: roleManifest(role),
     ...(role.through === undefined ? {} : { through: role.through }),
   };
 }
