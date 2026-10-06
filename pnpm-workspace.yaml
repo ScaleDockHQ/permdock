@@ -280,7 +280,7 @@ overrides:
   "openai>undici": 8.11.2
   mysql2: 3.24.5
   "@prisma/config>deepmerge-ts": 8.0.2
-  # Patched releases for advisories in transitive dependencies of Nuxt, Solid, Vue, Expo, React Native and Express; drop each once its parent resolves a fixed version.
+  # Patched releases for advisories in transitive dependencies of Nuxt, Solid, Vue, Expo, React Native, Express, shadcn and the Claude Agent SDK; drop each once its parent resolves a fixed version.
   simple-git: 4.0.1
   "@simple-git/argv-parser": 2.0.1
   seroval: 1.6.3
@@ -288,6 +288,7 @@ overrides:
   source-map-js: 1.2.2
   compression: 1.8.2
   shell-quote: 1.11.0
+  "@modelcontextprotocol/sdk": 1.31.0
 
 allowBuilds:
   # Engine downloads are for `prisma migrate`; tests/integration creates tables with SQL.
