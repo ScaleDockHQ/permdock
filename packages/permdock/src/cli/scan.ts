@@ -15,6 +15,7 @@ import type {
   UnparsedSource,
 } from "./types.ts";
 
+import { describeError } from "./errors.ts";
 import { rel } from "./files.ts";
 
 /** oxc reports recoverable problems as `Warning` or `Advice`; only `Error` leaves the program incomplete. */
@@ -117,7 +118,7 @@ export function scanSources(
       unparsed.push({
         file: fileRel,
         line: 1,
-        message: error instanceof Error ? error.message : String(error),
+        message: describeError(error),
       });
     }
   }

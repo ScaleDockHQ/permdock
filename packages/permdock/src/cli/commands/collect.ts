@@ -1,5 +1,6 @@
 import { defineCommand } from "citty";
 
+import { describeError } from "../errors.ts";
 import {
   type CliContext,
   type Command,
@@ -53,8 +54,7 @@ export function collect(ctx: CliContext): Command {
           return;
         }
         // Lazy: the watcher loads only when this command runs, not for --help.
-        const { createCollectScheduler, describeError } =
-          await import("../watch.ts");
+        const { createCollectScheduler } = await import("../watch.ts");
         const scheduler = createCollectScheduler(
           ctx.cwd,
           { collect: overrides },

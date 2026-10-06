@@ -5,6 +5,7 @@ import { parseCatalog } from "../catalog/parse.ts";
 import { snapshotScopes } from "../core/instance.ts";
 import { catalogFingerprint } from "../index.ts";
 import { runCatalog } from "./catalog.ts";
+import { describeError } from "./errors.ts";
 import { loadConfiguredPolicy } from "./load.ts";
 
 export type PushedPolicy = {
@@ -159,7 +160,7 @@ export async function runCloud(input: {
   } catch (error) {
     return {
       code: 1,
-      output: `PermDock Cloud unreachable: ${error instanceof Error ? error.message : String(error)}`,
+      output: `PermDock Cloud unreachable: ${describeError(error)}`,
     };
   }
   if (!response.ok) {
