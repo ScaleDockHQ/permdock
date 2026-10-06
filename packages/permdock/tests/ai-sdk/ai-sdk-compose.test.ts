@@ -79,7 +79,7 @@ describe("permdock/ai-sdk composition", () => {
     expect(params.toolChoice).toEqual({ type: "tool", toolName: "weather" });
     expect(await toolApproval(call("weather"))).toBe("approved");
     const approve = composeToolApproval(registry(asked));
-    expect(await approve(call("weather"))).toBe("approved");
+    expect(await approve(call("weather"))).toBeUndefined();
     expect(await approve(call("send_email"))).toBe("user-approval");
     expect(asked).toEqual(["weather", "send_email"]);
   });
@@ -87,10 +87,39 @@ describe("permdock/ai-sdk composition", () => {
   it("asks the application only after PermDock grants, and never past a denial", async () => {
     const asked: string[] = [];
     const approve = permdock("allow").composeToolApproval(registry(asked));
-    expect(await approve(call("read_post"))).toBe("approved");
+    expect(await approve(call("read_post"))).toBeUndefined();
     expect(await approve(call("publish_post"))).toMatchObject({
       type: "denied",
     });
     expect(asked).toEqual(["read_post"]);
+  });
+
+  it("passes the application's answers through and denies one it cannot read", async () => {
+    const answers: readonly unknown[] = [
+      "approved",
+      "not-applicable",
+      { type: "not-applicable" },
+      { type: "approved", reason: "allow-listed" },
+      { type: "denied" },
+    ];
+    for (const answer of answers) {
+      // SAFETY: the test feeds every documented answer shape through the app callback.
+      const approve = permdock().composeToolApproval(() => answer as never);
+      expect(await approve(call("read_post"))).toEqual(answer);
+    }
+    for (const answer of [
+      "yes",
+      1,
+      null,
+      { type: "maybe" },
+      { type: "denied", reason: 7 },
+    ]) {
+      // SAFETY: an app callback that breaks its own type, as untyped code can.
+      const approve = permdock().composeToolApproval(() => answer as never);
+      expect(await approve(call("read_post"))).toEqual({
+        type: "denied",
+        reason: "The tool approval answer was not valid.",
+      });
+    }
   });
 });

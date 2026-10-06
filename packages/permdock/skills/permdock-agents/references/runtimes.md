@@ -27,7 +27,7 @@ export const { toolApproval, capabilityMiddleware, needsApproval } =
   });
 ```
 
-Pass `toolApproval` into `generateText` / `ToolLoopAgent`. Wrap the model with `wrapLanguageModel({ model, middleware: capabilityMiddleware({ user }) })` per caller. Use `needsApproval(permissions.post.delete)` only on `WorkflowAgent`. `denied` maps to `'denied'`, `approval-required` to `'user-approval'`, and `'not-applicable'` is never returned ([AI SDK adapter](https://permdock.com/docs/adapters/ai-sdk)). Tools without a permission are hidden and denied unless `unmapped: 'allow'`; to combine PermDock with the app's own confirmation, pass `composeToolApproval(appApproval)` as `toolApproval` instead of wrapping the adapter: the app's function is asked only for calls PermDock grants.
+Pass `toolApproval` into `generateText` / `ToolLoopAgent`. Wrap the model with `wrapLanguageModel({ model, middleware: capabilityMiddleware({ user }) })` per caller. Use `needsApproval(permissions.post.delete)` only on `WorkflowAgent`. `denied` maps to `'denied'`, `approval-required` to `'user-approval'`, and `'not-applicable'` is never returned ([AI SDK adapter](https://permdock.com/docs/adapters/ai-sdk)). Tools without a permission are hidden and denied unless `unmapped: 'allow'`; to combine PermDock with the app's own confirmation, pass `composeToolApproval(appApproval)` as `toolApproval` instead of wrapping the adapter: the app's function is asked only for calls PermDock grants, and its answer passes through (`undefined` stays not applicable; an unreadable answer denies).
 
 ## Claude Agent SDK — `permdock/claude-agent`
 

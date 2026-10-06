@@ -109,8 +109,10 @@ export type AiSdkPermDock = {
   /**
    * PermDock's `toolApproval` followed by the application's own: `app` is
    * asked only for a call PermDock grants (or an unmapped tool under
-   * `unmapped: 'allow'`), its answer is returned as is, and `undefined`
-   * means approved. PermDock's denials and approval requests come first.
+   * `unmapped: 'allow'`), and its answer is returned as is, `undefined`
+   * included (not applicable, as the AI SDK reads it). An answer that is not
+   * a tool approval result denies. PermDock's denials and approval requests
+   * come first.
    */
   readonly composeToolApproval: (
     app: AppToolApproval,
@@ -123,6 +125,28 @@ export type AiSdkPermDock = {
     permission: Permission,
   ) => (input: unknown, options?: NeedsApprovalOptions) => Promise<boolean>;
 };
+
+const APPROVAL_STATUSES: ReadonlySet<unknown> = new Set([
+  "approved",
+  "not-applicable",
+  "denied",
+  "user-approval",
+]);
+
+function isToolApprovalResult(value: unknown): value is ToolApprovalResult {
+  if (value === undefined || APPROVAL_STATUSES.has(value)) {
+    return true;
+  }
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "type" in value &&
+    APPROVAL_STATUSES.has(value.type) &&
+    (!("reason" in value) ||
+      value.reason === undefined ||
+      typeof value.reason === "string")
+  );
+}
 
 function contextOf(call: ToolApprovalCall): AiSdkContext {
   // SAFETY: an object; AiSdkContext's fields are unknown but permdockApproval, which is typeof-checked.
@@ -351,9 +375,13 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     (app: AppToolApproval) =>
     async (call: ToolApprovalCall): Promise<ToolApprovalResult> => {
       const verdict = await toolApproval(call);
-      return verdict === "approved"
-        ? ((await app(call)) ?? "approved")
-        : verdict;
+      if (verdict !== "approved") {
+        return verdict;
+      }
+      const answer: unknown = await app(call);
+      return isToolApprovalResult(answer)
+        ? answer
+        : { type: "denied", reason: "The tool approval answer was not valid." };
     };
 
   return {
