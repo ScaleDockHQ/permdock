@@ -73,7 +73,7 @@ const subject = await resolveKey(bearer, { tenant });
 
 Never pass a `memberships` source to `createPermDock` for a service-key subject: its one membership comes from the credential. `memoryCredentials()` is an in-process store for tests.
 
-When the backend then queries Postgres for the key, put the key's permission keys (and, for a service key, its tenant and roles) in an `api_key` claim and set `rls.apiKeys` in `permdock.config.ts`: the generated helpers cap every allow at the key's permissions, so RLS agrees with `can()`. The key itself never goes to the database.
+When the backend then queries Postgres for the key, put the key's permission keys (and, for a service key, its tenant and roles) in an `api_key` claim and set `rls.apiKeys` in `permdock.config.ts`: the generated helpers cap every allow at the key's permissions and hold a key that names a tenant to that tenant, so RLS agrees with `can()`. The key itself never goes to the database.
 
 ## Share links
 

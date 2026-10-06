@@ -102,7 +102,7 @@ describe("rls generate with rls.apiKeys", () => {
       'create or replace function "permdock".permdock_api_key_allows(p_grant text)',
     );
     expect(sql).toContain(
-      `select "permdock".permdock_api_key_allows(p_grant) and coalesce((`,
+      `select "permdock".permdock_api_key_allows(p_grant) and nullif(((select auth.jwt()) -> 'api_key') ->> 'tenant', '') is null and coalesce((`,
     );
     expect(sql).toContain(
       `  ) ids(id)\n  where "permdock".permdock_api_key_allows(p_grant)`,
@@ -134,6 +134,71 @@ describe("rls generate with rls.apiKeys", () => {
     expect(sql).toContain(
       `  ) ids(id)\n  where "permdock".permdock_api_key_allows(p_grant)`,
     );
+  });
+
+  it("narrows user keys to the key's tenant with rls.tenants all", async () => {
+    const { code, sql } = await generate({
+      dialect: "supabase",
+      tenants: "all",
+      apiKeys: true,
+      memberships: {
+        scopes: {
+          tenant: {
+            table: "tenant_members",
+            user: "user_id",
+            role: "role",
+            columns: { tenant: "tenant_id" },
+          },
+        },
+      },
+    });
+    expect(code).toBe(0);
+    const named = `nullif(((select auth.jwt()) -> 'api_key') ->> 'tenant', '')`;
+    expect(sql).toContain(
+      `    and (${named} is null or (m."tenant_id")::text = ${named})`,
+    );
+    expect(sql).toContain(
+      `select "permdock".permdock_api_key_allows(p_grant) and ${named} is null and coalesce((`,
+    );
+  });
+
+  it("narrows the claim-reading helpers to the key's tenant in jwt mode", async () => {
+    const { code, sql } = await generate({
+      dialect: "guc",
+      authorize: "jwt",
+      tenants: "all",
+      apiKeys: { tenant: "org" },
+    });
+    expect(code).toBe(0);
+    const named = `nullif(nullif((select current_setting('app.api_key', true)), '')::jsonb ->> 'org', '')`;
+    expect(sql).toContain(
+      `    and m ->> 'id' is not null\n    and (${named} is null or (m ->> 'id')::text = ${named})`,
+    );
+  });
+
+  it("does not narrow the _for helpers, which name their user", async () => {
+    const { code, sql } = await generate({
+      dialect: "supabase",
+      authorize: "database",
+      tenants: "all",
+      apiKeys: true,
+      memberships: {
+        scopes: {
+          tenant: {
+            table: "tenant_members",
+            user: "user_id",
+            role: "role",
+            columns: { tenant: "tenant_id" },
+          },
+        },
+      },
+    });
+    expect(code).toBe(0);
+    const forHelper = sql.slice(
+      sql.indexOf("permitted_tenant_ids_for("),
+      sql.indexOf("$$;", sql.indexOf("permitted_tenant_ids_for(")),
+    );
+    expect(forHelper).not.toContain("api_key");
   });
 
   it("leaves the helpers as they were without rls.apiKeys", async () => {
