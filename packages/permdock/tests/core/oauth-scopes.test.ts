@@ -153,6 +153,147 @@ describe("oauthScopes", () => {
     });
   });
 
+  const exportPolicy = definePolicy(permissions, {
+    roles: policy.roles,
+    oauthScopes: {
+      "mcp:read": [permissions.task.read, permissions.task.update],
+      "mcp:write": [permissions.task.update],
+    },
+    subject,
+  });
+
+  const connectAs = async (server: McpServer, scopes: readonly string[]) => {
+    const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
+    const send = clientSide.send.bind(clientSide);
+    const authInfo = {
+      token: "t",
+      clientId: "client-1",
+      scopes: [...scopes],
+      extra: {},
+    };
+    clientSide.send = (message, options) =>
+      send(message, { ...options, authInfo });
+    await server.connect(serverSide);
+    const client = new Client({ name: "agent", version: "1.0.0" });
+    await client.connect(clientSide);
+    return client;
+  };
+
+  it("MCP lets a tool narrow the scopes that reach its permission", async () => {
+    const server = new McpServer({ name: "tasks", version: "1.0.0" });
+    const guarded = createMcpPermDock(exportPolicy, {
+      subject: () => user,
+      actorKind: "oauth-client",
+    }).protectServer(server);
+    guarded.registerTool(
+      "read_export",
+      {
+        permission: permissions.task.update,
+        data: () => ({}),
+        oauthScopes: ["mcp:read", "tasks:export"],
+      },
+      () => ({ content: [{ type: "text", text: "export" }] }),
+    );
+    guarded.registerTool(
+      "create_export",
+      {
+        permission: permissions.task.update,
+        data: () => ({}),
+        oauthScopes: ["mcp:write"],
+      },
+      () => ({ content: [{ type: "text", text: "created" }] }),
+    );
+    expect(() =>
+      guarded.registerTool(
+        "broken",
+        { permission: permissions.task.read, oauthScopes: [] },
+        () => ({ content: [] }),
+      ),
+    ).toThrow(/oauthScopes/u);
+    expect(() =>
+      guarded.registerTool(
+        "broken_string",
+        // SAFETY: an untyped caller passing a string where a list belongs.
+        { permission: permissions.task.read, oauthScopes: "mcp:read" as never },
+        () => ({ content: [] }),
+      ),
+    ).toThrow(/oauthScopes/u);
+    const renamed = guarded.registerTool(
+      "draft_export",
+      {
+        permission: permissions.task.update,
+        data: () => ({}),
+        oauthScopes: ["mcp:read"],
+      },
+      () => ({ content: [{ type: "text", text: "draft" }] }),
+    );
+    renamed.update({ name: "preview_export" });
+    const reader = await connectAs(server, ["mcp:read"]);
+    const listed = await reader.listTools(undefined, { cacheMode: "bypass" });
+    expect(listed.tools.map((tool) => tool.name).toSorted()).toEqual([
+      "preview_export",
+      "read_export",
+    ]);
+    expect((await reader.callTool({ name: "read_export" })).isError).not.toBe(
+      true,
+    );
+    expect(await reader.callTool({ name: "create_export" })).toMatchObject({
+      isError: true,
+      structuredContent: { error: "insufficient_scope", scope: "mcp:write" },
+    });
+    await reader.close();
+    const writer = await connectAs(server, ["mcp:write"]);
+    const written = await writer.listTools(undefined, { cacheMode: "bypass" });
+    expect(written.tools.map((tool) => tool.name)).toEqual(["create_export"]);
+    expect(await writer.callTool({ name: "read_export" })).toMatchObject({
+      isError: true,
+      structuredContent: { error: "insufficient_scope", scope: "mcp:read" },
+    });
+  });
+
+  it("MCP never widens a token's delegation through a tool's scopes", async () => {
+    const server = new McpServer({ name: "tasks", version: "1.0.0" });
+    const guarded = createMcpPermDock(policy, {
+      subject: () => user,
+      actorKind: "oauth-client",
+    }).protectServer(server);
+    guarded.registerTool(
+      "sneaky_update",
+      {
+        permission: permissions.task.update,
+        data: () => ({}),
+        oauthScopes: ["mcp:read"],
+      },
+      () => ({ content: [{ type: "text", text: "updated" }] }),
+    );
+    const client = await connectAs(server, ["mcp:read"]);
+    const listed = await client.listTools(undefined, { cacheMode: "bypass" });
+    expect(listed.tools).toEqual([]);
+    expect(await client.callTool({ name: "sneaky_update" })).toMatchObject({
+      isError: true,
+      structuredContent: { outcome: "denied" },
+    });
+  });
+
+  it("MCP reads per-tool scopes from oauthScopesFor when its procedures decide", async () => {
+    const server = new McpServer({ name: "tasks", version: "1.0.0" });
+    const guarded = createMcpPermDock(exportPolicy, {
+      subject: () => user,
+      actorKind: "oauth-client",
+    }).protectServer(server, {
+      enforce: "procedure",
+      permissionFor: () => permissions.task.update,
+      oauthScopesFor: (name) =>
+        name === "read_export" ? ["mcp:read"] : ["mcp:write"],
+    });
+    for (const name of ["read_export", "create_export"]) {
+      guarded.registerTool(name, {}, () => ({ content: [] }));
+    }
+    const client = await connectAs(server, ["mcp:read"]);
+    const listed = await client.listTools(undefined, { cacheMode: "bypass" });
+    expect(listed.tools.map((tool) => tool.name)).toEqual(["read_export"]);
+  });
+
   it("the server kernel names the coarse scope in its challenge", async () => {
     const { protect } = createServerPermDock(policy, {
       subject: () => user,
