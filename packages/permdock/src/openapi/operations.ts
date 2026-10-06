@@ -14,10 +14,14 @@ const METHODS = new Set([
   "QUERY",
 ]);
 
-/** One declared operation: a permission, or a permission with the operation id a tool name uses. */
+/** One declared operation: a permission, or a permission with the operation id a tool name uses and the OAuth scopes that reach it. */
 export type OperationEntry =
   | Permission
-  | { readonly permission: Permission; readonly operationId?: string };
+  | {
+      readonly permission: Permission;
+      readonly operationId?: string;
+      readonly oauthScopes?: readonly string[];
+    };
 
 /**
  * The permission of each operation of an API, declared once and read by the
@@ -33,12 +37,18 @@ export type OperationPermissions = {
   forRequest(method: string, path: string): Permission | undefined;
   /** The permission of an operation id; pass it as `permissionFor` when tool names are operation ids. */
   forOperation(id: string): Permission | undefined;
+  oauthScopesForRequest(
+    method: string,
+    path: string,
+  ): readonly string[] | undefined;
+  oauthScopesForOperation(id: string): readonly string[] | undefined;
 };
 
 type Route = {
   readonly method: string;
   readonly segments: readonly string[];
   readonly permission: Permission;
+  readonly oauthScopes?: readonly string[];
 };
 
 function segmentsOf(path: string): readonly string[] {
@@ -67,10 +77,29 @@ function score(route: Route, segments: readonly string[]): number {
   return literal;
 }
 
-function isEntryObject(
-  entry: OperationEntry,
-): entry is { readonly permission: Permission; readonly operationId?: string } {
+type EntryObject = Exclude<OperationEntry, Permission>;
+
+function isEntryObject(entry: OperationEntry): entry is EntryObject {
   return "permission" in entry && typeof entry.permission === "object";
+}
+
+function scopesOf(
+  key: string,
+  entry: OperationEntry,
+): readonly string[] | undefined {
+  if (!isEntryObject(entry) || entry.oauthScopes === undefined) {
+    return undefined;
+  }
+  const scopes: readonly unknown[] = entry.oauthScopes;
+  if (
+    scopes.length === 0 ||
+    !scopes.every((scope) => typeof scope === "string" && scope !== "")
+  ) {
+    throw new TypeError(
+      `PermDock: operation '${key}' sets oauthScopes, which must be a non-empty list of scope names`,
+    );
+  }
+  return Object.freeze([...entry.oauthScopes]);
 }
 
 /**
@@ -83,7 +112,7 @@ export function operationPermissions(
   options: { readonly base?: string } = {},
 ): OperationPermissions {
   const routes: Route[] = [];
-  const byId = new Map<string, Permission>();
+  const byId = new Map<string, Route>();
   for (const [key, entry] of Object.entries(operations)) {
     const space = key.indexOf(" ");
     const method = key.slice(0, space).toUpperCase();
@@ -93,37 +122,52 @@ export function operationPermissions(
         `PermDock: operation '${key}' must be a method and a path, such as 'GET /customers/{id}'`,
       );
     }
-    const permission = isEntryObject(entry) ? entry.permission : entry;
-    routes.push({ method, segments: segmentsOf(path), permission });
+    const oauthScopes = scopesOf(key, entry);
+    const route: Route = {
+      method,
+      segments: segmentsOf(path),
+      permission: isEntryObject(entry) ? entry.permission : entry,
+      ...(oauthScopes === undefined ? {} : { oauthScopes }),
+    };
+    routes.push(route);
     if (isEntryObject(entry) && entry.operationId !== undefined) {
-      byId.set(entry.operationId, permission);
+      byId.set(entry.operationId, route);
     }
   }
   const base = segmentsOf(options.base ?? "");
+  const match = (method: string, path: string): Route | undefined => {
+    const upper = method.toUpperCase();
+    const full = segmentsOf(path.split("?")[0] ?? "");
+    if (base.some((segment, index) => full[index] !== segment)) {
+      return undefined;
+    }
+    const segments = full.slice(base.length);
+    let best: Route | undefined;
+    let bestScore = -1;
+    for (const route of routes) {
+      if (route.method !== upper) {
+        continue;
+      }
+      const value = score(route, segments);
+      if (value > bestScore) {
+        best = route;
+        bestScore = value;
+      }
+    }
+    return best;
+  };
   return {
     forRequest(method, path) {
-      const upper = method.toUpperCase();
-      const full = segmentsOf(path.split("?")[0] ?? "");
-      if (base.some((segment, index) => full[index] !== segment)) {
-        return undefined;
-      }
-      const segments = full.slice(base.length);
-      let best: Route | undefined;
-      let bestScore = -1;
-      for (const route of routes) {
-        if (route.method !== upper) {
-          continue;
-        }
-        const value = score(route, segments);
-        if (value > bestScore) {
-          best = route;
-          bestScore = value;
-        }
-      }
-      return best?.permission;
+      return match(method, path)?.permission;
     },
     forOperation(id) {
-      return byId.get(id);
+      return byId.get(id)?.permission;
+    },
+    oauthScopesForRequest(method, path) {
+      return match(method, path)?.oauthScopes;
+    },
+    oauthScopesForOperation(id) {
+      return byId.get(id)?.oauthScopes;
     },
   };
 }

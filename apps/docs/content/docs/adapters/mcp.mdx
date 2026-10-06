@@ -88,7 +88,7 @@ guarded.registerTool(
 ```
 
 - `permissionFor(name)` names each tool's permission; `operationPermissions(...).forOperation` from `permdock/openapi` reads it from the declaration the REST routes use ([one declaration for REST and MCP](/docs/adapters/openapi#one-declaration-for-rest-and-mcp)). A `permission` in the tool config overrides it; neither throws a `TypeError` at registration.
-- `oauthScopesFor(name)` (optional) names a tool's own OAuth scopes the same way, for the listing; an `oauthScopes` in the tool config overrides it.
+- `oauthScopesFor(name)` (optional) names a tool's own OAuth scopes the same way, for the listing; `operationPermissions(...).oauthScopesForOperation` reads them from the same declaration, and an `oauthScopes` in the tool config overrides it.
 - `permissionOf(procedure)` from `permdock/orpc` returns the permission of the procedure's first `protect`, or `undefined`. It reads the procedure definition and never decides.
 - `data` and `longRunning` throw at registration in this mode: the procedure loads its own row and decides on its own terms.
 - Resources and prompts are still guarded at the call.

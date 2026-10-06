@@ -54,6 +54,14 @@ export type ServerPermDockOptions<TUser = unknown> = InstanceOptions & {
   readonly snapshots?: SnapshotSource;
   /** Added as `approval` to every `approval-required` problem. */
   readonly approval?: ApprovalHint;
+  readonly operations?: OperationScopes;
+};
+
+export type OperationScopes = {
+  oauthScopesForRequest(
+    method: string,
+    path: string,
+  ): readonly string[] | undefined;
 };
 
 export type Guard<T = unknown, V extends PolicyVocabulary = PolicyVocabulary> =
@@ -80,6 +88,7 @@ export type ProtectOptions = {
    * schema before the check.
    */
   readonly trusted?: boolean;
+  readonly oauthScopes?: readonly string[];
 };
 
 /**
@@ -201,6 +210,22 @@ type Resolved<TUser> = {
 };
 
 const NO_TENANT = "\u0000";
+
+function routeScopes(value: unknown): readonly string[] | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  const scopes: unknown[] = Array.isArray(value) ? value : [];
+  const names = scopes.filter(
+    (scope): scope is string => typeof scope === "string" && scope !== "",
+  );
+  if (names.length === 0 || names.length !== scopes.length) {
+    throw new TypeError(
+      "PermDock: oauthScopes must be a non-empty list of scope names",
+    );
+  }
+  return names;
+}
 
 export function createPermDock<
   TUser,
@@ -369,6 +394,36 @@ export function createServerKernel<
         }
         throw error;
       }
+      const declared = routeScopes(
+        protectOptions.oauthScopes ??
+          options.operations?.oauthScopesForRequest(
+            request.method,
+            new URL(request.url).pathname,
+          ),
+      );
+      const held = instance.subject.delegation?.scopes;
+      if (
+        declared !== undefined &&
+        held !== undefined &&
+        !declared.some((granted) => held.includes(granted))
+      ) {
+        return {
+          ok: false,
+          response: problemFromDecision(
+            {
+              outcome: "denied",
+              denials: [{ role: null, reason: "not-delegated" }],
+              alternatives: [],
+            },
+            permission,
+            instance.subject,
+            compact({
+              credentials: request.headers.has("authorization"),
+              scope: declared[0],
+            }),
+          ),
+        };
+      }
       let data: T | undefined;
       if (loadData !== undefined) {
         const loaded = await loadData(request);
@@ -437,7 +492,7 @@ export function createServerKernel<
           compact({
             approval: options.approval,
             credentials: request.headers.has("authorization"),
-            scope: challengeScope(policy, permission),
+            scope: declared?.[0] ?? challengeScope(policy, permission),
             disclosure:
               data === undefined
                 ? undefined
