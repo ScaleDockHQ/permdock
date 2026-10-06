@@ -3,6 +3,7 @@ import { type Scope, scopeList } from "../core/scopes.ts";
 import {
   SQL_IDENT as IDENT,
   quoteSqlIdent as quoteIdent,
+  quoteSqlTable as quoteTable,
 } from "../core/sql.ts";
 import {
   createPermDock,
@@ -179,7 +180,7 @@ function subjectSettings(
  * a base table whose restricted columns are revoked does not reject it.
  */
 function statementSql(action: string, table: string, keyOnly: boolean): string {
-  const quoted = quoteIdent(table);
+  const quoted = quoteTable(table);
   const id = quoteIdent("id");
   const back = keyOnly ? id : "*";
   switch (action) {
@@ -221,7 +222,7 @@ async function viewColumns(
   const id = quoteIdent("id");
   await query("savepoint permdock_fields");
   const view = await query(
-    `select * from ${quoteIdent(`${table}_visible`)} where ${id} = $1`,
+    `select * from ${quoteTable(`${table}_visible`)} where ${id} = $1`,
     [key],
   );
   if (view.code === undefined) {
@@ -232,7 +233,7 @@ async function viewColumns(
     return view.code;
   }
   const base = await query(
-    `select * from ${quoteIdent(table)} where ${id} = $1`,
+    `select * from ${quoteTable(table)} where ${id} = $1`,
     [key],
   );
   return base.code ?? valued(base.rows[0]);

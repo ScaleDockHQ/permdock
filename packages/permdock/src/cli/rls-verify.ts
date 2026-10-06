@@ -31,7 +31,7 @@ import { asPolicy, loadModule, pickNamed } from "./load.ts";
 import { connectPg, type SqlConnect } from "./pg.ts";
 import { commandFor } from "./rls-compile.ts";
 import { FIELD_VIEWS, viewName } from "./rls-fields.ts";
-import { quoteIdent, quoteLiteral } from "./rls-sql.ts";
+import { quoteIdent, quoteLiteral, quoteTable } from "./rls-sql.ts";
 import { verifyTree } from "./rls-verify-tree.ts";
 
 export type VerifyOutcome = {
@@ -119,7 +119,7 @@ function statementFor(
   action: string,
   table: string,
 ): Statement {
-  const quoted = quoteIdent(table);
+  const quoted = quoteTable(table);
   const id = quoteIdent("id");
   const key = rowId(fixture.row);
   switch (action) {
@@ -452,7 +452,7 @@ async function viewFields(
   table: string,
   key: unknown,
 ): Promise<readonly string[] | string> {
-  const view = quoteIdent(viewName(table, FIELD_VIEWS.view));
+  const view = quoteTable(viewName(table, FIELD_VIEWS.view));
   const id = quoteIdent("id");
   await query("savepoint permdock_fields");
   const result = await query(`select * from ${view} where ${id} = $1`, [key]);
@@ -464,7 +464,7 @@ async function viewFields(
     return result.code;
   }
   const base = await query(
-    `select * from ${quoteIdent(table)} where ${id} = $1`,
+    `select * from ${quoteTable(table)} where ${id} = $1`,
     [key],
   );
   return base.code ?? valuedColumns(base.rows[0]);

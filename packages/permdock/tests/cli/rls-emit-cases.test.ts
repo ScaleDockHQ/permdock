@@ -128,6 +128,15 @@ describe("emitDrizzle", () => {
     expect(text).toContain("withCheck: sql`${authUid} = owner`");
   });
 
+  it("names a schema-qualified table's export after the table alone", () => {
+    const text = emitDrizzle(
+      [policy({ name: "app_web_hooks_select", table: "app.web_hooks" })],
+      { dialect: "guc" },
+    );
+    expect(text).toContain("export const appWebHooksSelect = pgPolicy(");
+    expect(text).toContain("}).link(schema.webHooks)");
+  });
+
   it("refuses a table export that is not an identifier", () => {
     expect(() =>
       emitDrizzle([policy()], { dialect: "guc", exports: { doc: "my-docs" } }),
@@ -152,6 +161,11 @@ describe("emitPrisma", () => {
     expect(text).toContain("// add @@rls to models Document, TeamNote;");
     expect(text).toContain("// run m.sql in a migration before these policies");
     expect(text).toContain('  withCheck = "ok()"');
+  });
+
+  it("names a schema-qualified table's model after the table alone", () => {
+    const text = emitPrisma([policy({ table: "app.team_note" })]);
+    expect(text).toContain("// add @@rls to model TeamNote;");
   });
 
   it("needs --target sql for a deny", () => {
