@@ -41,6 +41,7 @@ import { decidingColumns, tableKey } from "./deciding-columns.ts";
 import { globalRoleSource, type RoleRows } from "./global-roles.ts";
 import { asPolicy, loadModule, pickNamed } from "./load.ts";
 import { GRANTS_MARKER, HOOK_MARKER, hookMarkerFields } from "./markers.ts";
+import { API_KEY_ALLOWS, apiKeyFields } from "./rls-api-keys.ts";
 import { HELPERS } from "./rls-helpers.ts";
 import { ASSIGNMENTS, OWNERSHIP, ownershipRules } from "./rls-ownership.ts";
 import { authAdminRead, hookUri, resolveAuthorize } from "./rls-rbac.ts";
@@ -1557,16 +1558,23 @@ function trustedHelpers(
         ),
       ]
     : [];
+  const keyed =
+    config.rls?.apiKeys === undefined
+      ? forUser
+      : [
+          helperEntry(API_KEY_ALLOWS, "p_grant text", "boolean", client),
+          ...forUser,
+        ];
   const assigns =
     policy !== undefined &&
     (ownershipRules(policy, parts.scopes)?.assigns.length ?? 0) > 0;
   if (!assigns) {
-    return forUser;
+    return keyed;
   }
   const customArgs = `p_tenant ${tenantType}, p_scope text, p_scope_id text, p_role text`;
   const anyArgs = `p_role text, p_tenant ${tenantType}, p_scope text, p_scope_id text`;
   return [
-    ...forUser,
+    ...keyed,
     helperEntry(
       OWNERSHIP.canAssign,
       "p_role text, p_scope_id text",
@@ -1626,7 +1634,7 @@ function rlsSettings(
   config: PermDockConfig,
 ): Pick<
   SupabaseManifestRls,
-  "customRoles" | "roles" | "suspension" | "assignments"
+  "customRoles" | "roles" | "suspension" | "assignments" | "apiKeys"
 > {
   const rls = config.rls;
   const suspension = checkSuspension(rls?.suspension, parts.scopes);
@@ -1683,6 +1691,9 @@ function rlsSettings(
     ...(assigned === undefined
       ? {}
       : { assignments: { tables: [...new Set(assigned)] } }),
+    ...(rls?.apiKeys === undefined
+      ? {}
+      : { apiKeys: apiKeyFields(rls.apiKeys) }),
   };
 }
 

@@ -6,6 +6,14 @@ import { scopeColumn } from "../conditions/compile.ts";
 import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
 import { globalRoleSource } from "./global-roles.ts";
 import {
+  apiKeyAllowsCall,
+  apiKeyAllowsSql,
+  ceilingHasSql,
+  ceilingIdsSql,
+  serviceKeyIdsSql,
+  serviceKeyMemberSql,
+} from "./rls-api-keys.ts";
+import {
   activeInstancesSql,
   activeUserSql,
   globalKindFilterSql,
@@ -1093,6 +1101,15 @@ function memberFunction(
   anonExecute: boolean,
 ): string {
   const fn = qualified(ctx, memberIdsHelper(scope));
+  const body = memberBody(ctx, scope, type);
+  const keys = ctx.apiKeys;
+  const keyed =
+    keys === undefined || scope !== rootName(ctx)
+      ? body
+      : {
+          sql: `${body.sql}\n  union\n${serviceKeyMemberSql(ctx, keys, scope, type)}`,
+          vars: body.vars,
+        };
   const grants = anonExecute
     ? `revoke execute on function ${fn}() from public;
 grant execute on function ${fn}() to anon, authenticated;`
@@ -1100,7 +1117,7 @@ grant execute on function ${fn}() to anon, authenticated;`
 grant execute on function ${fn}() to authenticated;`;
   return `create or replace function ${fn}()
 returns setof ${type}
-${functionBody(memberBody(ctx, scope, type))}
+${functionBody(keyed)}
 ${grants}`;
 }
 
@@ -1299,8 +1316,21 @@ revoke all on table ${ur} from anon, authenticated, public;`);
     chunks.push(custom);
   }
   const anon = options.anonExecute === true;
+  const keys = ctx.apiKeys;
+  const allows = apiKeyAllowsCall(ctx, "p_grant");
+  if (keys !== undefined) {
+    chunks.push(apiKeyAllowsSql(ctx, keys, anon));
+  }
   chunks.push(
-    helperFunction(ctx, HELPERS.has, "boolean", sqlBody(hasBody(ctx)), anon),
+    helperFunction(
+      ctx,
+      HELPERS.has,
+      "boolean",
+      sqlBody(
+        keys === undefined ? hasBody(ctx) : ceilingHasSql(hasBody(ctx), allows),
+      ),
+      anon,
+    ),
   );
   const capabilities = capabilitiesSql(ctx);
   if (capabilities !== "") {
@@ -1308,12 +1338,25 @@ revoke all on table ${ur} from anon, authenticated, public;`);
   }
   for (const scope of ctx.scopes) {
     const type = scopeTypeOf(ctx, scope.name);
+    const body = scopedBody(ctx, scope.name, type);
+    const keyed =
+      keys === undefined
+        ? body
+        : {
+            sql: ceilingIdsSql(
+              scope.name === rootName(ctx)
+                ? `${body.sql}\n  union\n${serviceKeyIdsSql(ctx, keys, scope.name, type)}`
+                : body.sql,
+              allows,
+            ),
+            vars: body.vars,
+          };
     chunks.push(
       helperFunction(
         ctx,
         permittedIdsHelper(scope.name),
         `setof ${type}`,
-        scopedBody(ctx, scope.name, type),
+        keyed,
         anon,
       ),
     );

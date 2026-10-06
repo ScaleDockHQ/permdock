@@ -544,6 +544,40 @@ describe("permdock supabase hook generate", () => {
     expect(plain.rls.assignments).toBeUndefined();
   });
 
+  it("advertises rls.apiKeys and its ceiling helper", async () => {
+    const keyed = await generate(
+      `{ memberships: [${SOURCES}] }`,
+      [],
+      `{ apiKeys: { tenant: 'organization_id', serviceRoles: ['member'] } }`,
+    );
+    const manifest: SupabaseHookManifest = JSON.parse(
+      (await run(["supabase", "inspect", "--json"], { cwd: keyed.cwd })).stdout,
+    );
+    expect(manifest.rls.apiKeys).toEqual({
+      claim: "api_key",
+      scopes: "scopes",
+      tenant: "organization_id",
+      roles: "roles",
+      serviceRoles: ["member"],
+    });
+    expect(manifest.rls.helpers).toContainEqual({
+      name: "permdock_api_key_allows",
+      args: "p_grant text",
+      returns: "boolean",
+      execute: ["authenticated"],
+    });
+    const validate = new Ajv2020({ strict: false }).compile(
+      JSON.parse(
+        readFileSync(
+          new URL("../../schemas/supabase-manifest-v1.json", import.meta.url),
+          "utf8",
+        ),
+      ),
+    );
+    validate(manifest);
+    expect(validate.errors ?? []).toEqual([]);
+  });
+
   it("lists the membership sources behind member_<scope>_ids_for in rls.memberships", async () => {
     const hookOnly = await generate(`{ memberships: [${SOURCES}] }`);
     const fromHook: SupabaseHookManifest = JSON.parse(

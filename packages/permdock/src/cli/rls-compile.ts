@@ -17,6 +17,7 @@ import {
   requiresApproval,
 } from "../index.ts";
 import { jsonSchemaOf } from "./catalog-doc.ts";
+import { apiKeyAllowsCall } from "./rls-api-keys.ts";
 import {
   breakGlassHolder,
   breakGlassKey,
@@ -29,6 +30,7 @@ import {
   columnTypesOf,
   compileConditionSql,
   contextRefs,
+  quoteLiteral,
   sqlFunctionNames,
   subjectClaimJsonSql,
   subjectClaimSql,
@@ -704,6 +706,17 @@ export function compileGrants(
     accessExpr = andSql(accessExpr, validity);
     if (ctx.anonymousSignIns === "deny" && access.kind !== "anyone") {
       accessExpr = andSql(accessExpr, PERMANENT_USER);
+    }
+    if (
+      ctx.apiKeys !== undefined &&
+      grant.effect === "allow" &&
+      access.kind !== "anyone" &&
+      access.kind !== "role"
+    ) {
+      accessExpr = andSql(
+        accessExpr,
+        `(select ${apiKeyAllowsCall(ctx, quoteLiteral(grant.permission.key))})`,
+      );
     }
     const using = compileOptional(entry.using, rowCtx);
     const check = compileOptional(entry.check, rowCtx);

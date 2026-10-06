@@ -1,0 +1,5 @@
+---
+"permdock": minor
+---
+
+`rls.apiKeys` lets the database narrow an API key request the way `subjectFromApiKey` does in process. A backend that verified a key passes it in a claim (`api_key` by default, with `scopes`, `tenant` and `roles`), and `permdock rls generate` writes `permdock_api_key_allows(p_grant)`: `permdock_has` and every `permitted_<scope>_ids` return nothing for a permission the key's `scopes` do not list, and allows that call no helper get the same check in their policy. Denies always apply, and a request without the claim is unchanged. A key with a `tenant` and an empty or missing `sub` is a service principal of that tenant: `permitted_<first scope>_ids` and `member_<first scope>_ids` answer for it with the claim's `roles`, or `rls.apiKeys.serviceRoles` when the claim lists none. `claim`, `scopes`, `tenant` and `roles` rename the claim and its fields. With the setting on Supabase, the generated SQL reads the subject as `nullif(auth.jwt() ->> 'sub', '')::uuid` so an empty `sub` no longer fails. The Supabase manifest lists the settings as `rls.apiKeys` and the helper in `rls.helpers`. Off by default; nothing changes without it.

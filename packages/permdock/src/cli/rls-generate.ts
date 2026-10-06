@@ -26,6 +26,7 @@ import { policyRowConditionKeys } from "./catalog-doc.ts";
 import { describeError } from "./errors.ts";
 import { asPolicy, loadModule, pickNamed } from "./load.ts";
 import { GRANTS_MARKER, INDEXES_MARKER, SEEDS_MARKER } from "./markers.ts";
+import { apiKeySubjectId, apiKeysPlan } from "./rls-api-keys.ts";
 import { approvalStoreSql } from "./rls-approvals.ts";
 import { breakGlassEntries, breakGlassSql } from "./rls-break-glass.ts";
 import { compileGrants } from "./rls-compile.ts";
@@ -342,6 +343,15 @@ export async function runRlsGenerate(input: {
   }
   const ownership = ownershipRules(policy, scopes);
   const graph = graphPlan(policy);
+  const apiKeys = apiKeysPlan(
+    rls?.apiKeys,
+    new Set(roleNames(policy)),
+    Object.fromEntries(renamedKeys(policy.vocabulary.permissions)),
+  );
+  const subjectId =
+    apiKeys === undefined
+      ? undefined
+      : apiKeySubjectId({ dialect: input.dialect });
   const ctx: RlsSqlContext = {
     dialect: input.dialect,
     scopes,
@@ -376,6 +386,8 @@ export async function runRlsGenerate(input: {
     ...(input.capabilities === true || rls?.capabilities === true
       ? { capabilities: true as const }
       : {}),
+    ...(apiKeys === undefined ? {} : { apiKeys }),
+    ...(subjectId === undefined ? {} : { subjectId }),
     ...(rls?.anonymousSignIns === "deny"
       ? { anonymousSignIns: "deny" as const }
       : {}),

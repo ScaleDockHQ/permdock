@@ -209,6 +209,7 @@ export type RlsConfig = {
    * `session_id` and no `kind` counts too. Off by default.
    */
   readonly readOnlyActors?: boolean | readonly string[];
+  readonly apiKeys?: true | RlsApiKeys;
   /**
    * `'views'`: one `security_invoker` view `<table>_visible` per table with field-limited
    * read grants, whose restricted columns are `case when <permitted> then col end`. Off by default.
@@ -245,6 +246,14 @@ export type RlsConfig = {
    * them in `public`. Off by default; `--shims` turns it on.
    */
   readonly shims?: boolean | RlsShimsConfig;
+};
+
+export type RlsApiKeys = {
+  readonly claim?: string;
+  readonly scopes?: string;
+  readonly tenant?: string;
+  readonly roles?: string;
+  readonly serviceRoles?: readonly string[];
 };
 
 /** One more table whose rows assign a role, such as invitations (`rls.assignments.tables`). */

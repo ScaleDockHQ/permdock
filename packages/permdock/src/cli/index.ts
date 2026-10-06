@@ -18,6 +18,7 @@ export type {
   CollectConfig,
   PermDockConfig,
   RlsActiveRow,
+  RlsApiKeys,
   RlsConfig,
   RlsDialect,
   RlsFunctionMapping,
