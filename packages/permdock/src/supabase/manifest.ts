@@ -12,6 +12,7 @@ export type SupabaseHookManifest = {
     readonly schema: string;
     readonly function: "custom_access_token_hook";
     readonly out: string;
+    readonly before?: readonly string[];
   };
   readonly helpers: {
     readonly schema: string;

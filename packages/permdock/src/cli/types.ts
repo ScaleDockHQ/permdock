@@ -360,6 +360,7 @@ export type SupabaseHookConfig = {
    * suspended user gets none.
    */
   readonly claims?: Readonly<Record<string, string>>;
+  readonly before?: string | readonly string[];
   /** Bytes of JSON the `memberships` claim may use. Default `supabaseMembershipsBudget` (1024). */
   readonly budget?: number;
   /** Keep `permdock_authz_version` and write the `authz_ver` claim. Default `true`. */
