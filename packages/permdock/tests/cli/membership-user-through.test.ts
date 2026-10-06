@@ -249,7 +249,14 @@ describe("membership sources with a user through a profile table", () => {
       sources: [customerContacts],
       ownership: {
         kinds: {},
-        assigns: [{ assigner: "contact", scope: "customer", role: "contact" }],
+        assigns: [
+          {
+            assigner: "contact",
+            scope: "customer",
+            role: "contact",
+            at: "customer",
+          },
+        ],
         counted: [],
       },
     });

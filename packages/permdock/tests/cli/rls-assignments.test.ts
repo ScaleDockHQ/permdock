@@ -70,6 +70,28 @@ describe("assignment triggers", () => {
     expect(sql).not.toContain("permdock_can_assign_custom_role");
   });
 
+  it("checks a custom role on a row with no instance as a platform custom role", () => {
+    const sql = assignmentSql({
+      ...base,
+      ...(ownership === undefined ? {} : { ownership }),
+      customRoles: { declared: ["owner", "admin"], assignable: [] },
+      assignments: {
+        tables: [
+          {
+            table: "invitations",
+            scope: "organization",
+            id: "organization_id",
+            role: "role",
+          },
+        ],
+      },
+    });
+    expect(sql).toContain(
+      `when new."organization_id"::text is null then "permdock".permdock_can_assign_custom_role(null, 'global', null, v_role)`,
+    );
+    expect(sql).toContain("c.tenant_id is not distinct from p_tenant");
+  });
+
   it("refuses an extra table below the first scope without its tenant column", () => {
     expect(() =>
       assignmentSql({

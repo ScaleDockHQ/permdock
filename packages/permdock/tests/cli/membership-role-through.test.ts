@@ -203,7 +203,14 @@ describe("membership sources through a roles table", () => {
       suspension,
       ownership: {
         kinds: {},
-        assigns: [{ assigner: "owner", scope: "organization", role: "admin" }],
+        assigns: [
+          {
+            assigner: "owner",
+            scope: "organization",
+            role: "admin",
+            at: "organization",
+          },
+        ],
         counted: [],
       },
     });

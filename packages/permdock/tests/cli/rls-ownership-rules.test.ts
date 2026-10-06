@@ -39,6 +39,7 @@ const roles = defineRoles({
   manager: { on: "team" },
   lead: { on: "team" },
   editor: {},
+  auditor: {},
 });
 
 const policy = definePolicy(
@@ -49,7 +50,7 @@ const policy = definePolicy(
     subject: (user: unknown) => user as never,
     roles: [
       role(roles.operator, [allow(permissions.doc.read)], {
-        assigns: ["owner", "editor"],
+        assigns: ["owner", "editor", "auditor"],
         for: ["staff"],
       }),
       role(roles.owner, [allow(permissions.doc.read)], {
@@ -71,6 +72,7 @@ const policy = definePolicy(
         on: permissions.doc,
         assigns: ["owner"],
       }),
+      role(roles.auditor, [allow(permissions.doc.read)]),
     ],
   },
 );
@@ -104,9 +106,15 @@ describe("ownershipRules", () => {
     expect(ownership).toEqual({
       kinds: { operator: ["staff"] },
       assigns: [
-        { assigner: "operator", scope: "global", role: "owner" },
-        { assigner: "owner", scope: "org", role: "manager" },
-        { assigner: "lead", scope: "team", role: "manager" },
+        { assigner: "operator", scope: "global", role: "owner", at: "org" },
+        {
+          assigner: "operator",
+          scope: "global",
+          role: "auditor",
+          at: "global",
+        },
+        { assigner: "owner", scope: "org", role: "manager", at: "team" },
+        { assigner: "lead", scope: "team", role: "manager", at: "team" },
       ],
       counted: [
         { role: "owner", scope: "org", min: 1, max: 2, transferOnly: true },
@@ -163,7 +171,14 @@ describe("ownershipSql in database mode", () => {
 
   it("checks global and mapped-scope assigners in permdock_can_assign", () => {
     const canAssign = sql.slice(sql.indexOf("-- who may assign"));
+    expect(canAssign).toContain(
+      'p_scope_id is not null and exists (\n      select 1 from "permdock".user_roles ur',
+    );
     expect(canAssign).toContain("in (values ('operator', 'owner'))");
+    expect(canAssign).toContain(
+      'p_scope_id is null and exists (\n      select 1 from "permdock".user_roles ur',
+    );
+    expect(canAssign).toContain("in (values ('operator', 'auditor'))");
     expect(canAssign).toContain("in (values ('owner', 'manager'))");
     expect(canAssign).not.toContain("('lead', 'manager')");
     expect(sql).not.toMatch(/service_role/iu);
@@ -236,11 +251,59 @@ describe("ownershipSql in jwt mode", () => {
         authorize: "database",
         ownership: {
           kinds: {},
-          assigns: [{ assigner: "lead", scope: "team", role: "manager" }],
+          assigns: [
+            { assigner: "lead", scope: "team", role: "manager", at: "team" },
+          ],
           counted: [],
         },
       }),
     );
     expect(sql).toMatch(/and \(\n {4}false\n {2}\)/u);
+  });
+});
+
+describe("permdock_can_assign for global roles without kinds", () => {
+  const vocabulary = defineRoles({
+    root: {},
+    helpdesk: {},
+    member: { on: "org" },
+  });
+  const plain = definePolicy(
+    { permissions, roles: vocabulary },
+    {
+      scopes: { org: { key: "org_id" } },
+      // SAFETY: SQL generation never calls the subject mapper.
+      subject: (user: unknown) => user as never,
+      roles: [
+        role(vocabulary.root, [allow(permissions.doc.read)], {
+          assigns: ["helpdesk", "member"],
+        }),
+        role(vocabulary.member, [allow(permissions.doc.read)], { on: "org" }),
+      ],
+    },
+  );
+  const plainScopes = scopeList(plain.scopes);
+  const own = ownershipRules(plain, plainScopes);
+
+  it("assigns a vocabulary-only global role at no instance in both modes", () => {
+    expect(own?.assigns).toEqual([
+      { assigner: "root", scope: "global", role: "helpdesk", at: "global" },
+      { assigner: "root", scope: "global", role: "member", at: "org" },
+    ]);
+    for (const authorize of ["database", "jwt"] as const) {
+      const sql = ownershipSql({
+        dialect: "supabase",
+        scopes: plainScopes,
+        tenantClaim: "tenant_id",
+        gucPrefix: "app",
+        tenantType: "text",
+        authorize,
+        ...(own === undefined ? {} : { ownership: own }),
+      });
+      expect(sql).toContain(
+        "(values ('root', 'member'))\n    )\n    or p_scope_id is null and exists",
+      );
+      expect(sql).toContain("(values ('root', 'helpdesk'))\n    )");
+    }
   });
 });
