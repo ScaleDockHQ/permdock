@@ -147,23 +147,95 @@ describe("PD013 algorithms", () => {
 });
 
 describe("PD014 discovery and jwks", () => {
+  const verifier = (options: string): string =>
+    `import { joseTokenVerifier } from "permdock/jwt";\nexport const v = joseTokenVerifier(${options});`;
+
   it.each([
-    [`export const o = { discovery: 'https://issuer.example' }`, []],
+    [verifier(`{ discovery: 'https://issuer.example' }`), []],
     [
-      `export const o = { discovery: 'https://i.example', jwks: { keys: [] } }`,
+      verifier(`{ discovery: 'https://i.example', jwks: { keys: [] } }`),
       ["a.ts sets discovery together with jwks or issuer"],
     ],
     [
-      `export const o = { jwks: { keys: [] } }`,
-      ["a.ts sets jwks without issuer"],
+      verifier(
+        `{ discovery: 'https://i.example', issuer: 'https://i.example' }`,
+      ),
+      ["a.ts sets discovery together with jwks or issuer"],
     ],
-    [`export const o = { jwks: { keys: [] }, issuer: 'https://i' }`, []],
+    [verifier(`{ jwks: { keys: [] } }`), ["a.ts sets jwks without issuer"]],
+    [verifier(`{ jwks: { keys: [] }, issuer: 'https://i' }`), []],
+    [verifier(`{ jwks: url, issuer }`), []],
+    [verifier(`{ discovery: 1 }`), []],
     [
-      `export const o = { discovery: "http://i.example" }`,
+      verifier(`{ discovery: "http://i.example" }`),
+      ["a.ts uses a plain-HTTP discovery URL"],
+    ],
+    [
+      verifier("{ discovery: `http://i.example` }"),
       ["a.ts uses a plain-HTTP discovery URL"],
     ],
   ])("%s", (text, expected) => {
     expect(messages(pd014([src("a.ts", text)]))).toEqual(expected);
+  });
+
+  it("reads nested options, a named const, a namespace import and a cast", () => {
+    expect(
+      messages(
+        pd014([
+          src(
+            "a.ts",
+            `import * as jwt from "permdock/jwt";\nconst options = { jwks: { keys: [] } } as const;\nexport const r = jwt.subjectFromJwt(options);`,
+          ),
+          src(
+            "b.ts",
+            `import { createPermDock } from "permdock/server";\nexport const p = createPermDock(policy, { verifier: { jwks: url } });`,
+          ),
+        ]),
+      ),
+    ).toEqual([
+      "a.ts sets jwks without issuer",
+      "b.ts sets jwks without issuer",
+    ]);
+  });
+
+  it("reads quoted keys and skips spread, computed and non-string keys", () => {
+    expect(
+      messages(
+        pd014([
+          src(
+            "a.ts",
+            `import verify, { type Options, subjectFromJwt } from "permdock/jwt";\nexport const a = subjectFromJwt(({ ...base, [key]: 1, 2: 3, "jwks": url }) satisfies Options);\nexport const b = verify({ discovery: issuerUrl });`,
+          ),
+          src(
+            "b.ts",
+            `import type { joseTokenVerifier } from "permdock/jwt";\nexport const c = joseTokenVerifier({ jwks: url });`,
+          ),
+          src(
+            "c.ts",
+            `import { type joseTokenVerifier } from "permdock/jwt";\nexport const c = joseTokenVerifier({ jwks: url });`,
+          ),
+        ]),
+      ),
+    ).toEqual(["a.ts sets jwks without issuer"]);
+  });
+
+  it("ignores objects that never reach a PermDock call", () => {
+    expect(
+      messages(
+        pd014([
+          src("a.ts", `export const o = { jwks: { keys: [] } }`),
+          src(
+            "b.ts",
+            `import { createClient } from "@supabase/server";\nimport { can } from "permdock";\nexport const env = { url, jwks: process.env.JWKS };\ncreateClient({ jwks: url });\nvoid can;`,
+          ),
+          src(
+            "c.ts",
+            `import type { JoseTokenVerifierOptions } from "permdock/jwt";\nconst options: JoseTokenVerifierOptions = { jwks: url };\nfetchKeys(options);`,
+          ),
+          src("d.ts", `import { x } from "permdock"; x({ discovery: `),
+        ]),
+      ),
+    ).toEqual([]);
   });
 });
 

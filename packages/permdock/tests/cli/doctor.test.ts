@@ -141,7 +141,7 @@ describe("doctor checks", () => {
     const cwd = appCopy();
     writeFileSync(
       join(cwd, "src/disco.ts"),
-      `export const opts = { discovery: 'http://issuer.example' }\n`,
+      `import { joseTokenVerifier } from 'permdock/jwt'\nexport const verifier = joseTokenVerifier({ discovery: 'http://issuer.example' })\n`,
     );
     const result = await run(["doctor", "--json", "--only", "discovery"], {
       cwd,
@@ -154,7 +154,7 @@ describe("doctor checks", () => {
     const cwd = appCopy();
     writeFileSync(
       join(cwd, "src/verify.ts"),
-      `const issuer = 'https://issuer.example'\nexport const opts = { jwks: { keys: [] }, issuer }\n`,
+      `import { joseTokenVerifier } from 'permdock/jwt'\nconst issuer = 'https://issuer.example'\nexport const verifier = joseTokenVerifier({ jwks: { keys: [] }, issuer })\n`,
     );
     const result = await run(["doctor", "--json", "--only", "discovery"], {
       cwd,

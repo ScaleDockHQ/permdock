@@ -3,7 +3,15 @@ import { existsSync, realpathSync } from "node:fs";
 import { isBuiltin } from "node:module";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { parseSync } from "oxc-parser";
+import {
+  type Argument,
+  type CallExpression,
+  type Expression,
+  type ObjectExpression,
+  type ObjectProperty,
+  Visitor,
+  parseSync,
+} from "oxc-parser";
 
 import type { DoctorFinding, DoctorSource } from "./doctor-types.ts";
 
@@ -76,9 +84,6 @@ const UNTRUSTED_CLAIMS = [
   "clientMetadata",
   "preferred_username",
 ] as const;
-
-// A `jwks:` key, not a `const jwks: JSONWebKeySet` declaration.
-const JWKS_OPTION = /(?<!\b(?:const|let|var)\s+)\bjwks\s*:/u;
 
 function withoutComments(source: DoctorSource): string {
   const { comments } = parseSync(source.file, source.text);
@@ -344,40 +349,163 @@ export function pd013(
   return findings;
 }
 
+type OptionExpression = Argument | Expression;
+
+function unwrapped(
+  node: OptionExpression | null | undefined,
+): OptionExpression | undefined {
+  let current = node ?? undefined;
+  while (
+    current?.type === "TSAsExpression" ||
+    current?.type === "TSSatisfiesExpression" ||
+    current?.type === "ParenthesizedExpression"
+  ) {
+    current = current.expression;
+  }
+  return current;
+}
+
+function propertyName(property: ObjectProperty): string | undefined {
+  if (property.computed) {
+    return undefined;
+  }
+  const key = property.key;
+  if (key.type === "Identifier") {
+    return key.name;
+  }
+  return key.type === "Literal" && typeof key.value === "string"
+    ? key.value
+    : undefined;
+}
+
+function stringValue(node: OptionExpression | undefined): string | undefined {
+  const value = unwrapped(node);
+  if (value?.type === "Literal") {
+    return typeof value.value === "string" ? value.value : undefined;
+  }
+  return value?.type === "TemplateLiteral"
+    ? (value.quasis[0]?.value.cooked ?? undefined)
+    : undefined;
+}
+
+function isPermDockSpecifier(value: string): boolean {
+  return value === "permdock" || value.startsWith("permdock/");
+}
+
+function permdockOptionObjects(
+  source: DoctorSource,
+): readonly ObjectExpression[] {
+  const { program } = parseSync(source.file, source.text);
+  const functions = new Set<string>();
+  const namespaces = new Set<string>();
+  const constants = new Map<string, ObjectExpression>();
+  const calls: CallExpression[] = [];
+  new Visitor({
+    ImportDeclaration(node) {
+      if (
+        node.importKind === "type" ||
+        !isPermDockSpecifier(node.source.value)
+      ) {
+        return;
+      }
+      for (const specifier of node.specifiers) {
+        if (specifier.type === "ImportNamespaceSpecifier") {
+          namespaces.add(specifier.local.name);
+        } else if (
+          specifier.type === "ImportDefaultSpecifier" ||
+          specifier.importKind !== "type"
+        ) {
+          functions.add(specifier.local.name);
+        }
+      }
+    },
+    VariableDeclarator(node) {
+      const init = unwrapped(node.init);
+      if (node.id.type === "Identifier" && init?.type === "ObjectExpression") {
+        constants.set(node.id.name, init);
+      }
+    },
+    CallExpression(node) {
+      calls.push(node);
+    },
+  }).visit(program);
+  const objects: ObjectExpression[] = [];
+  const collect = (node: OptionExpression): void => {
+    const value = unwrapped(node);
+    const target =
+      value?.type === "Identifier" ? constants.get(value.name) : value;
+    if (target?.type !== "ObjectExpression" || objects.includes(target)) {
+      return;
+    }
+    objects.push(target);
+    for (const property of target.properties) {
+      if (property.type === "Property") {
+        collect(property.value);
+      }
+    }
+  };
+  for (const call of calls) {
+    const callee = call.callee;
+    if (
+      (callee.type === "Identifier" && functions.has(callee.name)) ||
+      (callee.type === "MemberExpression" &&
+        callee.object.type === "Identifier" &&
+        namespaces.has(callee.object.name))
+    ) {
+      for (const argument of call.arguments) {
+        collect(argument);
+      }
+    }
+  }
+  return objects;
+}
+
 export function pd014(
   sources: readonly DoctorSource[],
 ): readonly DoctorFinding[] {
   const findings: DoctorFinding[] = [];
   for (const source of sources) {
-    const text = withoutComments(source);
-    if (/discovery:\s*['"]http:/u.test(text)) {
-      findings.push({
-        code: "PD014",
-        severity: "error",
-        message: `${source.file} uses a plain-HTTP discovery URL`,
-        fix: "use an https: issuer",
-      });
+    if (!source.text.includes("permdock")) {
+      continue;
     }
-    const setsJwks = JWKS_OPTION.test(text);
-    if (/discovery\s*:/u.test(text) && setsJwks) {
-      findings.push({
-        code: "PD014",
-        severity: "error",
-        message: `${source.file} sets discovery together with jwks or issuer`,
-        fix: "use discovery alone, or jwks plus issuer",
-      });
-    }
-    if (
-      setsJwks &&
-      !/\bissuer\s*[:,}]/u.test(text) &&
-      !/discovery\s*:/u.test(text)
-    ) {
-      findings.push({
-        code: "PD014",
-        severity: "error",
-        message: `${source.file} sets jwks without issuer`,
-        fix: "set issuer with jwks, or switch to discovery",
-      });
+    for (const object of permdockOptionObjects(source)) {
+      const keys = new Map<string, OptionExpression | undefined>();
+      for (const property of object.properties) {
+        if (property.type !== "Property") {
+          continue;
+        }
+        const name = propertyName(property);
+        if (name !== undefined) {
+          keys.set(name, property.value);
+        }
+      }
+      const discovery = keys.get("discovery");
+      const setsDiscovery = keys.has("discovery");
+      const setsJwks = keys.has("jwks");
+      if (stringValue(discovery)?.startsWith("http:") === true) {
+        findings.push({
+          code: "PD014",
+          severity: "error",
+          message: `${source.file} uses a plain-HTTP discovery URL`,
+          fix: "use an https: issuer",
+        });
+      }
+      if (setsDiscovery && (setsJwks || keys.has("issuer"))) {
+        findings.push({
+          code: "PD014",
+          severity: "error",
+          message: `${source.file} sets discovery together with jwks or issuer`,
+          fix: "use discovery alone, or jwks plus issuer",
+        });
+      }
+      if (setsJwks && !setsDiscovery && !keys.has("issuer")) {
+        findings.push({
+          code: "PD014",
+          severity: "error",
+          message: `${source.file} sets jwks without issuer`,
+          fix: "set issuer with jwks, or switch to discovery",
+        });
+      }
     }
   }
   return findings;
