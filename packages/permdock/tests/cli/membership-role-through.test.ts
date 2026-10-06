@@ -186,7 +186,7 @@ describe("membership sources through a roles table", () => {
     const canAssign = fn(sql, "permdock_can_assign");
     expect(canAssign).toContain("language plpgsql");
     expect(canAssign).toContain(
-      'v_user_0 "public"."organization_users"."user_id"%type := (select auth.uid());',
+      'v_user_0 "public"."organization_users"."user_id"%type := (select "permdock".permdock_user_id());',
     );
     expect(canAssign).toContain('join "public"."roles" mk');
     expect(canAssign).toContain("and ms.id = p_scope_id");

@@ -370,9 +370,11 @@ describe("compileConditionSql values and refs", () => {
       args: [{ field: "id" }, { ref: "principal.id" }, "x"],
       twin: { op: "eq", field: "owner", value: { ref: "principal.id" } },
     };
-    expect(sql(call)).toBe(`"app"."job_ok"("id", (select auth.uid()), 'x')`);
+    expect(sql(call)).toBe(
+      `"app"."job_ok"("id", (select "permdock".permdock_user_id()), 'x')`,
+    );
     expect(sql(call, { inlineFunctions: true })).toBe(
-      `"owner" = (select auth.uid())`,
+      `"owner" = (select "permdock".permdock_user_id())`,
     );
   });
 });
@@ -494,7 +496,7 @@ describe("compileConditionSql memberOf", () => {
       { memberships },
     );
     expect(out).toBe(
-      `(exists (select 1 from "doc_members" m where m."doc_id" = "id" and m."user_id" = (select auth.uid())) or exists (select 1 from "doc_members" m where m."doc_id" = "parent_id" and m."user_id" = (select auth.uid())) or exists (select 1 from "folder_members" m where m."folder_id" = "folder_id" and m."user_id" = (select auth.uid())))`,
+      `(exists (select 1 from "doc_members" m where m."doc_id" = "id" and m."user_id" = (select "permdock".permdock_user_id())) or exists (select 1 from "doc_members" m where m."doc_id" = "parent_id" and m."user_id" = (select "permdock".permdock_user_id())) or exists (select 1 from "folder_members" m where m."folder_id" = "folder_id" and m."user_id" = (select "permdock".permdock_user_id())))`,
     );
   });
 
@@ -555,7 +557,7 @@ describe("compileConditionSql memberOf", () => {
         },
       ),
     ).toBe(
-      `("org_id" = ((select auth.jwt()) ->> 'tenant_id')::uuid and exists (select 1 from "public"."users" s where s."id" = (select auth.uid()) and s."d" is null) and exists (select 1 from "public"."orgs" s where s."id" = ("org_id")::uuid and s."d" is null))`,
+      `("org_id" = ((select auth.jwt()) ->> 'tenant_id')::uuid and exists (select 1 from "public"."users" s where s."id" = (select "permdock".permdock_user_id()) and s."d" is null) and exists (select 1 from "public"."orgs" s where s."id" = ("org_id")::uuid and s."d" is null))`,
     );
   });
 

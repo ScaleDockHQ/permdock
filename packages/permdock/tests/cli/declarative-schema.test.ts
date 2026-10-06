@@ -191,9 +191,9 @@ describe("rls generate --split and --grants-out", () => {
       'revoke all on table "permdock".permdock_ceiling from anon, authenticated, public;',
     );
     expect(grants.split("\n").slice(2)).toEqual([
-      ...moved.slice(0, 2),
+      ...moved.slice(0, 4),
       'alter view "permdock".permdock_ceiling set (security_invoker = true);',
-      ...moved.slice(2),
+      ...moved.slice(4),
       "",
     ]);
     expect(grants).not.toContain("custom_role_permissions");

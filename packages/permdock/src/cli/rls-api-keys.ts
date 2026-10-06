@@ -21,9 +21,6 @@ const DEFAULTS = {
   roles: "roles",
 } as const;
 
-const SUPABASE_SUBJECT =
-  "(select nullif((select auth.jwt()) ->> 'sub', '')::uuid)";
-
 function field(settings: RlsApiKeys, name: keyof typeof DEFAULTS): string {
   const value = settings[name] ?? DEFAULTS[name];
   if (typeof value !== "string" || !SQL_IDENT.test(value)) {
@@ -66,12 +63,6 @@ export function apiKeysPlan(
     ...fields,
     ...(Object.keys(renamed).length === 0 ? {} : { renamed }),
   };
-}
-
-export function apiKeySubjectId(
-  ctx: Pick<RlsSqlContext, "dialect">,
-): string | undefined {
-  return ctx.dialect === "supabase" ? SUPABASE_SUBJECT : undefined;
 }
 
 function qualified(ctx: RlsSqlContext, name: string): string {

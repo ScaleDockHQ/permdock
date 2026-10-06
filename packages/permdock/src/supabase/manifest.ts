@@ -137,8 +137,8 @@ export type SupabaseManifestRls = {
   }[];
   /**
    * Every function `rls generate` writes for policies and trusted SQL to
-   * call: `permdock_has`, `permitted_<scope>_ids` and `member_<scope>_ids`;
-   * in `database` mode `permdock_has_for`, `permitted_<scope>_ids_for` and
+   * call: `permdock_has`, `permitted_<scope>_ids`, `member_<scope>_ids` and
+   * `permdock_user_id`, the caller's user id; in `database` mode `permdock_has_for`, `permitted_<scope>_ids_for` and
    * `member_<scope>_ids_for`; and when a role declares `assigns`,
    * `permdock_can_assign`, `permdock_can_assign_any` and, with custom roles,
    * `permdock_can_assign_custom_role`, each with its `_for` form where one

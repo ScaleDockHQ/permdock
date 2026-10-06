@@ -86,8 +86,8 @@ describe("permdock rls", () => {
     expect(neon.sql).toContain("(select auth.user_id())");
     expect(neon.sql).not.toContain("auth.uid()");
     const override = await generate("guc", ["--dialect", "supabase"]);
-    expect(override.sql).toContain("(select auth.uid())");
-    expect(override.sql).not.toContain("current_setting");
+    expect(override.sql).toContain('(select "permdock".permdock_user_id())');
+    expect(override.sql).not.toContain("current_setting('app.");
     const invalid = await generate("mysql", []);
     expect(invalid.code).toBe(2);
     expect(invalid.out).toContain("--dialect (or rls.dialect) must be");
@@ -145,7 +145,7 @@ describe("permdock rls", () => {
     expect(sql).not.toMatch(/service_role/i);
     expect(sql).toContain("enable row level security");
     expect(sql).toContain("revoke all");
-    expect(sql).toContain("(select auth.uid())");
+    expect(sql).toContain('(select "permdock".permdock_user_id())');
     expect(sql).toContain("for update");
     expect(sql).toContain("with check");
     expect(sql).toContain("for select");
@@ -991,7 +991,7 @@ export const policy = definePolicy(permissions, {
     );
     expect(inlined.code).toBe(0);
     expect(readFileSync(join(cwd, "inline.sql"), "utf8")).toContain(
-      '"authorId" = (select auth.uid())',
+      '"authorId" = (select "permdock".permdock_user_id())',
     );
   });
 

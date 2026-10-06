@@ -87,6 +87,14 @@ describe("conditionFromAst comparisons", () => {
     ['auth.uid() = "owner"', { op: "eq", field: "owner", value: PRINCIPAL }],
     ['"owner" = auth.uid()', { op: "eq", field: "owner", value: PRINCIPAL }],
     [
+      '"owner" = (select "permdock".permdock_user_id())',
+      { op: "eq", field: "owner", value: PRINCIPAL },
+    ],
+    [
+      '"owner" = (select authz.permdock_user_id())',
+      { op: "eq", field: "owner", value: PRINCIPAL },
+    ],
+    [
       "\"owner\" = (select current_setting('app.user_id'))",
       { op: "eq", field: "owner", value: PRINCIPAL },
     ],

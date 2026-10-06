@@ -91,7 +91,9 @@ describe("permdock rls generate --fields views", () => {
       .find((line) => line.includes('"amount" end'));
     expect(amount).toContain("permitted_tenant_ids('invoice.read#2')");
     expect(amount).not.toContain("permitted_tenant_ids('invoice.read#3')");
-    expect(amount).toContain('("authorId" = (select auth.uid()))');
+    expect(amount).toContain(
+      '("authorId" = (select "permdock".permdock_user_id()))',
+    );
     const note = view.split("\n").find((line) => line.includes('"note" end'));
     expect(note).toContain(
       "and not (select \"permdock\".permdock_has('invoice.read#5'))",

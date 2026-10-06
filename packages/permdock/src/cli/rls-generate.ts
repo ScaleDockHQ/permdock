@@ -26,7 +26,7 @@ import { policyRowConditionKeys } from "./catalog-doc.ts";
 import { describeError } from "./errors.ts";
 import { asPolicy, loadModule, pickNamed } from "./load.ts";
 import { GRANTS_MARKER, INDEXES_MARKER, SEEDS_MARKER } from "./markers.ts";
-import { apiKeySubjectId, apiKeysPlan } from "./rls-api-keys.ts";
+import { apiKeysPlan } from "./rls-api-keys.ts";
 import { approvalStoreSql } from "./rls-approvals.ts";
 import { breakGlassEntries, breakGlassSql } from "./rls-break-glass.ts";
 import { compileGrants } from "./rls-compile.ts";
@@ -74,6 +74,7 @@ import {
   scopeSources,
   scopeTable,
   subjectClaimJsonSql,
+  USER_ID_HELPER,
 } from "./rls-sql.ts";
 import {
   driftOf,
@@ -348,10 +349,6 @@ export async function runRlsGenerate(input: {
     new Set(roleNames(policy)),
     Object.fromEntries(renamedKeys(policy.vocabulary.permissions)),
   );
-  const subjectId =
-    apiKeys === undefined
-      ? undefined
-      : apiKeySubjectId({ dialect: input.dialect });
   const ctx: RlsSqlContext = {
     dialect: input.dialect,
     scopes,
@@ -387,7 +384,6 @@ export async function runRlsGenerate(input: {
       ? { capabilities: true as const }
       : {}),
     ...(apiKeys === undefined ? {} : { apiKeys }),
-    ...(subjectId === undefined ? {} : { subjectId }),
     ...(rls?.anonymousSignIns === "deny"
       ? { anonymousSignIns: "deny" as const }
       : {}),
@@ -583,7 +579,14 @@ export async function runRlsGenerate(input: {
   );
   const anonExecute =
     rls?.anonExecute === true ||
-    views.some((view) => view.roles.includes("anon"));
+    views.some((view) => view.roles.includes("anon")) ||
+    compiled.branches.some(
+      (branch) =>
+        branch.roles.includes("anon") &&
+        [branch.access, branch.using, branch.check].some(
+          (sql) => sql?.includes(USER_ID_HELPER) === true,
+        ),
+    );
   const shims =
     shimsConfig === undefined || rls?.migrate === undefined
       ? undefined
