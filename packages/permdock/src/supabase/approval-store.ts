@@ -7,12 +7,13 @@ import type {
   ApprovalStore,
   ApprovalVerdict,
 } from "../approvals/types.ts";
-import type { SupabaseRpcClient } from "./postgrest.ts";
+import type { SupabaseRpcCaller } from "./postgrest.ts";
 
 import { ApprovalError } from "../approvals/errors.ts";
 import { decodeCursor, encodeCursor, pageSizeOf } from "../approvals/page.ts";
 import { applyApprovalVerdict } from "../approvals/store.ts";
 import { compact } from "../core/compact.ts";
+import { callRpc } from "./postgrest.ts";
 import { PERMDOCK_SCHEMA } from "./sources.ts";
 
 export type SupabaseApprovalStoreOptions = {
@@ -64,7 +65,7 @@ function filterOf(filter: ApprovalListFilter): Record<string, string> {
  * resumes never both consume an approval.
  */
 export function supabaseApprovalStore(
-  client: SupabaseRpcClient,
+  client: SupabaseRpcCaller,
   options: SupabaseApprovalStoreOptions = {},
 ): ApprovalStore {
   const schema = options.schema ?? PERMDOCK_SCHEMA;
@@ -72,7 +73,7 @@ export function supabaseApprovalStore(
     fn: string,
     args: Readonly<Record<string, unknown>>,
   ): Promise<unknown> => {
-    const result = await client.schema(schema).rpc(fn, args);
+    const result = await callRpc(client, schema, fn, args);
     if (result.error !== null) {
       throw new Error(
         `PermDock: ${schema}.${fn} failed: ${result.error.message}`,
