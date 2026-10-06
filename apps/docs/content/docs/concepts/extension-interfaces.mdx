@@ -204,7 +204,7 @@ const customRoles = customRoleSource({
 
 - It keeps only the roles whose `tenant` is the requested one, so a store query that returns another tenant's rows grants nothing there.
 - `assignable` and `globalRoles` on the reader are passed through.
-- `{ read: "held", policy }` returns `[]` without reading when every `held` name is a declared role of `policy`. Use it on requests that never manage roles, where only the roles the subject holds matter; keep the default `read: "all"` on a role-management page, a members table and the server action behind `decideRoleChange`.
+- `{ read: "held", policy }` returns `[]` without reading when every `held` name is a declared role of `policy`, for a tenant's roles and for `globalRoles`, which `createPermDock` calls with the global role names the subject holds (`globalRoles({ held })`). Use it on requests that never manage roles, where only the roles the subject holds matter; keep the default `read: "all"` on a role-management page, a members table and the server action behind `decideRoleChange`.
 
 `customRoles` also takes a `RoleSourceFactory`, `(subject) => RoleSource | undefined`, called once per instance with the resolved subject (principal, actor and delegation). An adapter option is shared by every request, and a `RoleSource` is not told whose roles it reads, so a source that reads per user (the custom roles a principal holds, `postgrestSources(client).customRoles`) is passed as `customRoles: (subject) => subject.principal && sources.customRoles(subject.principal)` instead of keeping the last principal in a closure. A factory that throws reads no custom roles and reports `source-threw`; `permdock.derive({ customRoles })` takes one too.
 

@@ -77,6 +77,36 @@ describe("customRoleSource", () => {
     await createPermDock(policy, personas.mechanic, { customRoles: source });
     expect(reads).toEqual(["T"]);
   });
+
+  it("skips the platform read with read 'held' while every held global role is declared", async () => {
+    const platform: CustomRole = { scope: "global", name: "auditor" };
+    const reads: string[] = [];
+    const source = customRoleSource(
+      {
+        rolesOf: () => [],
+        globalRoles: () => {
+          reads.push("global");
+          return [platform];
+        },
+      },
+      { read: "held", policy },
+    );
+    await createPermDock(
+      policy,
+      { principal: { id: "p1", roles: ["platform-admin"] }, context: {} },
+      { customRoles: source },
+    );
+    expect(reads).toEqual([]);
+    await createPermDock(
+      policy,
+      { principal: { id: "p2", roles: ["auditor"] }, context: {} },
+      { customRoles: source },
+    );
+    expect(reads).toEqual(["global"]);
+    await createPermDock(policy, null, { customRoles: source });
+    expect(reads).toEqual(["global"]);
+    expect(await source.globalRoles?.()).toEqual([platform]);
+  });
 });
 
 describe("testRoleSource every", () => {

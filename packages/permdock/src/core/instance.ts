@@ -1449,7 +1449,9 @@ export function buildInstance(
               named,
               tenants,
               auth,
-              subject.principal !== null,
+              subject.principal === null
+                ? undefined
+                : (subject.principal.roles ?? []),
               (tenant) => heldRoleNamesIn(subject.principal, scopes, tenant),
             );
       const names =

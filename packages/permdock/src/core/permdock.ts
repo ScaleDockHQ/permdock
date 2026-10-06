@@ -395,7 +395,7 @@ function instantiate(
     roleSource,
     tenants,
     auth,
-    subject.principal !== null,
+    subject.principal === null ? undefined : (subject.principal.roles ?? []),
     (tenant) => heldRoleNamesIn(subject.principal, scopes, tenant),
   );
   const assignable = assignableNamesFor(roleSource, tenants, auth);
