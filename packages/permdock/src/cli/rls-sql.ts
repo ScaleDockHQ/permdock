@@ -104,6 +104,7 @@ export type RlsSqlContext = {
   };
   /** Set when link capabilities compile: resource-scoped grants also get `anon` branches. */
   readonly capabilities?: true;
+  readonly apiKeys?: ApiKeysPlan;
   /** Role ownership rules (`for`, `assigns`, `min`, `max`, `transferOnly`), when any role declares one. */
   readonly ownership?: RlsOwnership;
   /** Scopes whose holder-count and transfer-only triggers `rls.ownershipTriggers` leaves out; `'all'` for every scope. */
@@ -132,6 +133,15 @@ export type RlsSqlContext = {
     /** The table of each resource, as `rls.tables` maps it. */
     readonly tables?: Readonly<Record<string, string>>;
   };
+};
+
+export type ApiKeysPlan = {
+  readonly claim: string;
+  readonly scopes: string;
+  readonly tenant: string;
+  readonly roles: string;
+  readonly serviceRoles: readonly string[];
+  readonly renamed?: Readonly<Record<string, string>>;
 };
 
 /** The policy's role ownership rules as the SQL generator needs them. */

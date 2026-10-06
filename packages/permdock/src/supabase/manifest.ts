@@ -169,4 +169,11 @@ export type SupabaseManifestRls = {
    * there needs no role-ceiling check of its own.
    */
   readonly assignments?: { readonly tables: readonly string[] };
+  readonly apiKeys?: {
+    readonly claim: string;
+    readonly scopes: string;
+    readonly tenant: string;
+    readonly roles: string;
+    readonly serviceRoles: readonly string[];
+  };
 };

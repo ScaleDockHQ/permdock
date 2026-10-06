@@ -281,6 +281,27 @@ create policy "quotes_update_read_only_actors"
 
 `true` lists `support` and `impersonation`; a list such as `['support']` names the kinds. With `support` listed, an `act` with a `session_id` and no `kind` (better-supabase 0.5.0 support tokens) counts as a support session. Another actor kind, such as an agent acting with delegated scopes, keeps the user's writes. An `insert` policy has only `with check`, a `delete` policy only `using`. `rls verify` checks the policies with the rest, and `--helpers-only` writes none and says so. [Support access](/docs/guides/support-access) covers the in-process side.
 
+### API keys
+
+A backend that verifies an API key and then queries Postgres as the key's user (or, for a key that belongs to a tenant, as no user) can pass the key in a claim, so the database narrows the request the same way `subjectFromApiKey` does in process ([API keys](/docs/concepts/credentials)). `rls.apiKeys` reads that claim, by default `api_key`:
+
+```json
+{ "sub": "<user id>", "api_key": { "id": "key_1", "scopes": ["task.read"] } }
+{ "sub": "", "api_key": { "id": "key_2", "tenant": "<tenant id>", "roles": ["developer"], "scopes": ["task.read", "task.update"] } }
+```
+
+```ts title="permdock.config.ts"
+rls: {
+  apiKeys: true, // { claim: 'api_key', scopes: 'scopes', tenant: 'tenant', roles: 'roles', serviceRoles: [] }
+},
+```
+
+- **The scopes are a ceiling.** `rls generate` writes `permdock_api_key_allows(p_grant)`, and `permdock_has` and every `permitted_<scope>_ids` return nothing for a grant key whose permission the claim's `scopes` list does not name. Allows that call no helper (`authenticated()`, resource memberships, relations, OAuth actors) get the same check with the permission key in their policy. The entries are permission keys (a former key from `renamed` counts as its current key); there is no wildcard, and a claim whose `scopes` is not a list allows nothing. Denies always apply, and a request without the claim is not limited. Hand-written policies that call the helpers get the ceiling with them.
+- **A key with a tenant and no subject is a service principal.** When `sub` is empty or missing and the claim names a `tenant`, `permitted_<first scope>_ids` returns that tenant for the grant keys its `roles` hold at the first scope, and `member_<first scope>_ids` lists it, the way a `service` credential holds one `{ tenant, roles, via: 'credential' }` membership. `serviceRoles` gives the roles of a key whose claim lists none; without either, the key holds nothing. Such a key holds no global role, no membership of another scope and no custom role, and a role with `for` must allow the `credential` kind. A suspended tenant (`rls.suspension.scopes`) suspends its keys.
+- **A user key** keeps its owner's live roles and memberships under the ceiling. To limit it to one tenant, also set the [tenant claim](#role-checks-per-statement-helpers), which the helpers narrow to unless `rls.tenants` is `'all'`.
+
+`claim`, `scopes`, `tenant` and `roles` rename the claim and its fields for a key format that uses other names, such as `{ tenant: 'organization_id' }`. On Supabase the helpers and policies read the subject as `nullif(auth.jwt() ->> 'sub', '')::uuid` instead of `auth.uid()`, which fails on an empty `sub`. The claim is trusted as the token is: only a backend that verified the key may set it, never a client. The Supabase manifest lists the settings as `rls.apiKeys` and the helper in `rls.helpers`.
+
 ### Ownership rules
 
 When a role declares [`min`, `max`, `transferOnly`, `assigns` or `for`](/docs/concepts/ownership), the output adds, next to the helpers:

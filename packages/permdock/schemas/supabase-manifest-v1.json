@@ -167,6 +167,18 @@
           "properties": {
             "tables": { "type": "array", "items": { "type": "string" } }
           }
+        },
+        "apiKeys": {
+          "type": "object",
+          "required": ["claim", "scopes", "tenant", "roles", "serviceRoles"],
+          "additionalProperties": false,
+          "properties": {
+            "claim": { "type": "string" },
+            "scopes": { "type": "string" },
+            "tenant": { "type": "string" },
+            "roles": { "type": "string" },
+            "serviceRoles": { "type": "array", "items": { "type": "string" } }
+          }
         }
       }
     },
@@ -247,7 +259,7 @@
     },
     "helperName": {
       "type": "string",
-      "pattern": "^(permdock_has(_for)?|permitted_[a-z][a-z0-9_]*_ids(_for)?|member_[a-z][a-z0-9_]*_ids(_for)?|permdock_can_assign(_any|_custom_role)?(_for)?)$"
+      "pattern": "^(permdock_has(_for)?|permitted_[a-z][a-z0-9_]*_ids(_for)?|member_[a-z][a-z0-9_]*_ids(_for)?|permdock_can_assign(_any|_custom_role)?(_for)?|permdock_api_key_allows)$"
     },
     "column": {
       "type": "object",
