@@ -27,6 +27,7 @@ import {
   decisionResponse,
   notFoundProblem,
   problemFromDecision,
+  unauthenticatedProblem,
 } from "./problem.ts";
 import { InvalidSignatureError } from "./web-bot-auth.ts";
 
@@ -73,6 +74,55 @@ export type Guard<T = unknown, V extends PolicyVocabulary = PolicyVocabulary> =
     }
   | { readonly ok: false; readonly response: Response };
 
+/**
+ * What `protect(null, …)` resolves to: the route declares OAuth scopes and no
+ * permission, so there is no decision to return.
+ */
+export type ScopeGuard<
+  T = unknown,
+  V extends PolicyVocabulary = PolicyVocabulary,
+> =
+  | {
+      readonly ok: true;
+      readonly permdock: PermDock<V>;
+      readonly decision?: undefined;
+      readonly data: T;
+    }
+  | { readonly ok: false; readonly response: Response };
+
+type Loader<T> = (
+  request: Request,
+) => T | null | undefined | Promise<T | null | undefined>;
+
+/**
+ * `protect(permission, loadData?, options?)`, or `protect(null, loadData?,
+ * { oauthScopes })` for a route that needs a signed-in principal and, from a
+ * delegated token, one of the OAuth scopes it declares, but no permission.
+ */
+export type Protect<
+  V extends PolicyVocabulary = PolicyVocabulary,
+  TArgs extends unknown[] = [],
+> = {
+  <T = unknown>(
+    permission: Permission,
+    loadData?: Loader<T>,
+    protectOptions?: ProtectOptions,
+  ): (request: Request, ...args: TArgs) => Promise<Guard<T, V>>;
+  <T = unknown>(
+    permission: null,
+    loadData?: Loader<T>,
+    protectOptions?: ProtectOptions,
+  ): (request: Request, ...args: TArgs) => Promise<ScopeGuard<T, V>>;
+  <T = unknown>(
+    permission: Permission | null,
+    loadData?: Loader<T>,
+    protectOptions?: ProtectOptions,
+  ): (
+    request: Request,
+    ...args: TArgs
+  ) => Promise<Guard<T, V> | ScopeGuard<T, V>>;
+};
+
 export type OpenApiHooks = {
   readonly security: (permission: Permission) => {
     readonly security: readonly Record<string, readonly string[]>[];
@@ -88,6 +138,11 @@ export type ProtectOptions = {
    * schema before the check.
    */
   readonly trusted?: boolean;
+  /**
+   * The OAuth scopes that reach the route: a delegated token holding none of
+   * them is refused with `insufficient_scope`. Default the `operations` entry
+   * for the request. Required, here or there, for `protect(null)`.
+   */
   readonly oauthScopes?: readonly string[];
 };
 
@@ -136,13 +191,7 @@ export type ServerKernel<V extends PolicyVocabulary = PolicyVocabulary> = {
     request: Request,
     scope?: TenantScope,
   ) => Promise<PermDock<V>>;
-  readonly protect: <T = unknown>(
-    permission: Permission,
-    loadData?: (
-      request: Request,
-    ) => T | null | undefined | Promise<T | null | undefined>,
-    protectOptions?: ProtectOptions,
-  ) => (request: Request, scope?: TenantScope) => Promise<Guard<T, V>>;
+  readonly protect: Protect<V, [scope?: TenantScope]>;
   readonly connection: <T = unknown>(
     request: Request,
     options?: ConnectionOptions<T>,
@@ -157,13 +206,7 @@ export type ServerKernel<V extends PolicyVocabulary = PolicyVocabulary> = {
 
 export type ServerPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
   readonly permdock: (request: Request) => Promise<PermDock<V>>;
-  readonly protect: <T = unknown>(
-    permission: Permission,
-    loadData?: (
-      request: Request,
-    ) => T | null | undefined | Promise<T | null | undefined>,
-    protectOptions?: ProtectOptions,
-  ) => (request: Request) => Promise<Guard<T, V>>;
+  readonly protect: Protect<V>;
   /** A long-lived connection for a stream or socket opened by `request`. */
   readonly connection: <T = unknown>(
     request: Request,
@@ -225,6 +268,39 @@ function routeScopes(value: unknown): readonly string[] | undefined {
     );
   }
   return names;
+}
+
+const NOT_DELEGATED: Extract<Decision, { readonly outcome: "denied" }> = {
+  outcome: "denied",
+  denials: [{ role: null, reason: "not-delegated" }],
+  alternatives: [],
+};
+
+/** The `403` `insufficient_scope` for a token that holds none of a route's OAuth scopes. */
+function scopeProblem(
+  permission: Permission | null,
+  subject: Subject,
+  credentials: boolean,
+  scope: string | undefined,
+): Response {
+  return permission === null
+    ? decisionResponse(
+        problemDetails(
+          compact({
+            decision: NOT_DELEGATED,
+            detail: `the token holds none of the OAuth scopes this route needs, such as ${String(scope)}`,
+            scope,
+          }),
+        ),
+        NOT_DELEGATED,
+        compact({ credentials, scope }),
+      )
+    : problemFromDecision(
+        NOT_DELEGATED,
+        permission,
+        subject,
+        compact({ credentials, scope }),
+      );
 }
 
 export function createPermDock<
@@ -375,15 +451,24 @@ export function createServerKernel<
     scope?: TenantScope,
   ): Promise<PermDock<V>> => (await build(request, scope)).permdock;
 
-  const protect =
-    <T = unknown>(
-      permission: Permission,
-      loadData?: (
-        request: Request,
-      ) => T | null | undefined | Promise<T | null | undefined>,
-      protectOptions: ProtectOptions = {},
-    ) =>
-    async (request: Request, scope?: TenantScope): Promise<Guard<T, V>> => {
+  const protectRoute = <T = unknown>(
+    permission: Permission | null,
+    loadData?: Loader<T>,
+    protectOptions: ProtectOptions = {},
+  ): ((
+    request: Request,
+    scope?: TenantScope,
+  ) => Promise<Guard<T, V> | ScopeGuard<T, V>>) => {
+    if (
+      permission === null &&
+      routeScopes(protectOptions.oauthScopes) === undefined &&
+      options.operations === undefined
+    ) {
+      throw new TypeError(
+        "PermDock: protect(null) needs oauthScopes, in its options or an operations entry",
+      );
+    }
+    return async (request, scope) => {
       let instance: PermDock<V>;
       let remote: PdpPermDock | undefined;
       try {
@@ -401,6 +486,17 @@ export function createServerKernel<
             new URL(request.url).pathname,
           ),
       );
+      const credentials = request.headers.has("authorization");
+      if (permission === null) {
+        if (declared === undefined) {
+          throw new TypeError(
+            `PermDock: protect(null) needs oauthScopes, and no operation declares them for ${request.method} ${new URL(request.url).pathname}`,
+          );
+        }
+        if (instance.subject.principal === null) {
+          return { ok: false, response: unauthenticatedProblem(credentials) };
+        }
+      }
       const held = instance.subject.delegation?.scopes;
       if (
         declared !== undefined &&
@@ -409,18 +505,11 @@ export function createServerKernel<
       ) {
         return {
           ok: false,
-          response: problemFromDecision(
-            {
-              outcome: "denied",
-              denials: [{ role: null, reason: "not-delegated" }],
-              alternatives: [],
-            },
+          response: scopeProblem(
             permission,
             instance.subject,
-            compact({
-              credentials: request.headers.has("authorization"),
-              scope: declared[0],
-            }),
+            credentials,
+            declared[0],
           ),
         };
       }
@@ -431,6 +520,10 @@ export function createServerKernel<
           return { ok: false, response: notFoundProblem() };
         }
         data = loaded;
+      }
+      if (permission === null) {
+        // SAFETY: T is loadData's result type; data is undefined only when no loadData was passed.
+        return { ok: true, permdock: instance, data: data as T };
       }
       const decideOptions = compact<DecideOptions>({
         source: "adapter",
@@ -491,7 +584,7 @@ export function createServerKernel<
           instance.subject,
           compact({
             approval: options.approval,
-            credentials: request.headers.has("authorization"),
+            credentials,
             scope: declared?.[0] ?? challengeScope(policy, permission),
             disclosure:
               data === undefined
@@ -501,6 +594,10 @@ export function createServerKernel<
         ),
       };
     };
+  };
+
+  // SAFETY: Protect's overloads only narrow the guard by whether permission is null, which protectRoute branches on.
+  const protect = protectRoute as Protect<V, [scope?: TenantScope]>;
 
   const openapi: OpenApiHooks = {
     security: (permission: Permission) => ({

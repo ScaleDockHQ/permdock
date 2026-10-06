@@ -86,6 +86,26 @@ describe("operationPermissions", () => {
     ).toThrow(/oauthScopes/u);
   });
 
+  it("declares OAuth scopes for an operation without a permission", () => {
+    const scoped = operationPermissions({
+      "POST /chat": { oauthScopes: ["api:chat"], operationId: "chat" },
+    });
+    expect(scoped.forRequest("POST", "/chat")).toBeUndefined();
+    expect(scoped.forOperation("chat")).toBeUndefined();
+    expect(scoped.oauthScopesForRequest("POST", "/chat")).toEqual(["api:chat"]);
+    expect(scoped.oauthScopesForOperation("chat")).toEqual(["api:chat"]);
+    expect(() =>
+      // SAFETY: an untyped caller declaring an operation with neither a permission nor scopes.
+      operationPermissions({ "POST /chat": { operationId: "chat" } as never }),
+    ).toThrow("needs a permission, oauthScopes or both");
+    expect(() =>
+      operationPermissions({
+        // SAFETY: an untyped caller passing a key where a permission belongs.
+        "POST /chat": { permission: "chat" as never, oauthScopes: ["x"] },
+      }),
+    ).toThrow("needs a permission, oauthScopes or both");
+  });
+
   it("refuses a key that is not a method and a path", () => {
     expect(() =>
       operationPermissions({ "/posts": permissions.post.list }),

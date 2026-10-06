@@ -44,6 +44,44 @@ describe("permdock/supabase/middleware edges", () => {
     expect(await response.text()).toBe("u1");
   });
 
+  it("gates a handler on OAuth scopes without a permission", async () => {
+    const run = async (scopes: readonly string[] | undefined) => {
+      const { withPermDock } = createPermDock(policy, {
+        subject: () => ({
+          principal: { id: "u1", roles: ["member"] },
+          context: {},
+          ...(scopes === undefined
+            ? {}
+            : {
+                actor: { id: "client-1", kind: "oauth-client" },
+                delegation: { scopes: [...scopes] },
+              }),
+        }),
+      });
+      const fetch = pipeline(
+        [withClaims(), withPermDock({ oauthScopes: ["chat"] })],
+        async (_request, ctx) =>
+          new Response(ctx.permdock.subject.principal?.id ?? "none"),
+      );
+      const response = await fetch(
+        new Request("http://localhost/chat", {
+          method: "POST",
+          headers: { authorization: "Bearer t" },
+        }),
+      );
+      return {
+        status: response.status,
+        challenge: response.headers.get("www-authenticate"),
+      };
+    };
+    expect(await run(["chat"])).toEqual({ status: 200, challenge: null });
+    expect(await run(undefined)).toEqual({ status: 200, challenge: null });
+    expect(await run(["other"])).toEqual({
+      status: 403,
+      challenge: 'Bearer error="insufficient_scope", scope="chat"',
+    });
+  });
+
   it("serves the snapshot on GET and answers 405 for other methods", async () => {
     const { permdockHandler } = createPermDock(policy, {
       subject: (ctx) => subjectFromSupabase(ctx.jwtClaims, subjectOptions),

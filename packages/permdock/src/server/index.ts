@@ -4,6 +4,7 @@ export type {
   OpenApiHooks,
   OperationScopes,
   ProtectOptions,
+  ScopeGuard,
   ServerKernel,
   ServerKernelOptions,
   ServerPermDock,

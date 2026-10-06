@@ -81,7 +81,7 @@ export type FastifyProtect = <
   Schema extends FastifySchema = FastifySchema,
   Provider extends FastifyTypeProvider = FastifyTypeProviderDefault,
 >(
-  permission: Permission,
+  permission: Permission | null,
   loadData?: (request: ProtectRequest<Route, Schema, Provider>) => unknown,
   protectOptions?: ProtectOptions,
 ) => (

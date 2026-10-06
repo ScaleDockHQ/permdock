@@ -63,7 +63,7 @@ export type ElysiaContext<V extends PolicyVocabulary = PolicyVocabulary> =
   };
 
 export type ElysiaProtect = (
-  permission: Permission,
+  permission: Permission | null,
   loadData?: (ctx: ElysiaCtx) => unknown,
   protectOptions?: ProtectOptions,
 ) => (ctx: ElysiaCtx) => Promise<Response | undefined>;

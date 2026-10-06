@@ -58,7 +58,7 @@ export type PermDockRequest<
 export type ExpressPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
   readonly permdock: () => RequestHandler;
   readonly protect: (
-    permission: Permission,
+    permission: Permission | null,
     loadData?: (req: Request) => unknown,
     protectOptions?: ProtectOptions,
   ) => RequestHandler;
@@ -175,7 +175,7 @@ export function createPermDock<
 
   const protect =
     (
-      permission: Permission,
+      permission: Permission | null,
       loadData?: (req: Request) => unknown,
       protectOptions?: ProtectOptions,
     ): RequestHandler =>

@@ -66,7 +66,7 @@ export type PermDockEnv<
 export type HonoPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
   readonly permdock: () => MiddlewareHandler<PermDockEnv<unknown, V>>;
   readonly protect: <TData = unknown>(
-    permission: Permission,
+    permission: Permission | null,
     loadData?: (c: Context) => TData | Promise<TData>,
     protectOptions?: ProtectOptions,
   ) => MiddlewareHandler<PermDockEnv<NonNullable<TData>, V>>;
@@ -251,7 +251,7 @@ export function createPermDock<
 
   const protect =
     <TData = unknown>(
-      permission: Permission,
+      permission: Permission | null,
       loadData?: (c: Context) => TData | Promise<TData>,
       protectOptions?: ProtectOptions,
     ): MiddlewareHandler<PermDockEnv<NonNullable<TData>, V>> =>

@@ -325,7 +325,7 @@ describe("PD036 BOLA", () => {
       pd036([
         src(
           "b.ts",
-          `import 'permdock/hono';\napp.get('/posts', protect(p.list), h);\napp.get('/posts/:id', protect(p.read, load), h);\n`,
+          `import 'permdock/hono';\napp.get('/posts', protect(p.list), h);\napp.get('/posts/:id', protect(p.read, load), h);\napp.post('/chats/:id', protect(null), h);\n`,
         ),
       ]),
     ).toEqual([]);

@@ -713,7 +713,7 @@ export function pd036(
     for (const match of source.text.matchAll(PROTECT_CALL)) {
       const open = match.index + match[0].length - 1;
       const args = callArguments(source.text, open);
-      if (args?.length !== 1) {
+      if (args?.length !== 1 || args[0]?.trim() === "null") {
         continue;
       }
       const route = idRouteOf(source, match.index);

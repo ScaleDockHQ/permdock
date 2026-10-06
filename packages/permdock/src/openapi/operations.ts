@@ -1,6 +1,6 @@
 import type { Permission, PermissionTree } from "../core/permissions.ts";
 
-import { findPermission } from "../core/permissions.ts";
+import { findPermission, isPermission } from "../core/permissions.ts";
 
 const METHODS = new Set([
   "GET",
@@ -14,13 +14,22 @@ const METHODS = new Set([
   "QUERY",
 ]);
 
-/** One declared operation: a permission, or a permission with the operation id a tool name uses and the OAuth scopes that reach it. */
+/**
+ * One declared operation: a permission, or a permission with the operation id
+ * a tool name uses and the OAuth scopes that reach it, or only OAuth scopes
+ * for a route that checks no permission (`protect(null)`).
+ */
 export type OperationEntry =
   | Permission
   | {
       readonly permission: Permission;
       readonly operationId?: string;
       readonly oauthScopes?: readonly string[];
+    }
+  | {
+      readonly permission?: undefined;
+      readonly operationId?: string;
+      readonly oauthScopes: readonly string[];
     };
 
 /**
@@ -32,7 +41,8 @@ export type OperationPermissions = {
   /**
    * The permission of a request: the declared operation whose method and
    * path template match, a literal segment winning over a `{param}`.
-   * `undefined` for an undeclared operation, which a gate denies.
+   * `undefined` for an undeclared operation, which a gate denies, and for an
+   * operation that declares only OAuth scopes.
    */
   forRequest(method: string, path: string): Permission | undefined;
   /** The permission of an operation id; pass it as `permissionFor` when tool names are operation ids. */
@@ -47,7 +57,7 @@ export type OperationPermissions = {
 type Route = {
   readonly method: string;
   readonly segments: readonly string[];
-  readonly permission: Permission;
+  readonly permission: Permission | undefined;
   readonly oauthScopes?: readonly string[];
 };
 
@@ -80,7 +90,7 @@ function score(route: Route, segments: readonly string[]): number {
 type EntryObject = Exclude<OperationEntry, Permission>;
 
 function isEntryObject(entry: OperationEntry): entry is EntryObject {
-  return "permission" in entry && typeof entry.permission === "object";
+  return !isPermission(entry);
 }
 
 function scopesOf(
@@ -123,6 +133,16 @@ export function operationPermissions(
       );
     }
     const oauthScopes = scopesOf(key, entry);
+    if (
+      isEntryObject(entry) &&
+      (entry.permission === undefined
+        ? oauthScopes === undefined
+        : !isPermission(entry.permission))
+    ) {
+      throw new TypeError(
+        `PermDock: operation '${key}' needs a permission, oauthScopes or both`,
+      );
+    }
     const route: Route = {
       method,
       segments: segmentsOf(path),
