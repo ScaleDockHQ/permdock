@@ -102,6 +102,26 @@ describe("runRls dispatch", () => {
     });
   });
 
+  it("refuses an unknown rls.jsonSchema and warns when it has nothing to check", async () => {
+    const generate = (jsonSchema: unknown) =>
+      runRls(
+        input({
+          rest: ["generate"],
+          target: "sql",
+          dialect: "supabase",
+          // SAFETY: the config arrives untyped from permdock.config.ts at run time.
+          config: { ...config, rls: { jsonSchema } } as PermDockConfig,
+        }),
+      );
+    expect(await generate("yes")).toMatchObject({
+      code: 2,
+      output: `rls.jsonSchema must be 'auto', true or false (got "yes")`,
+    });
+    expect((await generate("auto")).output).toContain(
+      "rls.jsonSchema constrains the approval store's body, which needs rls.approvals: true",
+    );
+  });
+
   it("runs the Supabase advisors on verify --advisors", async () => {
     const seen: string[][] = [];
     const result = await runRls(

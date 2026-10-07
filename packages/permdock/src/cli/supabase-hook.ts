@@ -39,6 +39,7 @@ import {
   supabaseMembershipsBudget,
   supabaseTenantClaim,
 } from "../supabase/sources.ts";
+import { PERMDOCK_CLAIMS_SCHEMA } from "./claims-schema.ts";
 import { decidingColumns, tableKey } from "./deciding-columns.ts";
 import { globalRoleSource, type RoleRows } from "./global-roles.ts";
 import { asPolicy, loadModule, pickNamed } from "./load.ts";
@@ -281,6 +282,39 @@ function beforeSql(before: readonly string[]): string {
     )
     .join("")
     .concat(before.length === 0 ? "" : "\n  claims := event -> 'claims';");
+}
+
+/**
+ * `hook.validate`: the claims the hook writes, dropped together when they do
+ * not match `supabase-claims-v1.json`, so a bad claim denies instead of
+ * failing sign-in. `hook.claims` entries belong to other packages and stay.
+ */
+function validateSql(parts: Parts): string {
+  if (parts.hook.validate !== true) {
+    return "";
+  }
+  const keys = new Set([
+    "user_role",
+    "roles",
+    "memberships",
+    "memberships_truncated",
+    "attrs",
+    "authz_ver",
+    parts.tenantClaim,
+  ]);
+  return `
+  if not extensions.jsonb_matches_schema(${quoteLiteral(JSON.stringify(PERMDOCK_CLAIMS_SCHEMA))}::json, claims) then
+    claims := claims${[...keys].map((key) => ` - ${quoteLiteral(key)}`).join("")};
+  end if;`;
+}
+
+function validateGrantsSql(parts: Parts): string {
+  return parts.hook.validate === true
+    ? `
+create extension if not exists pg_jsonschema with schema extensions;
+grant usage on schema extensions to supabase_auth_admin;
+grant execute on function extensions.jsonb_matches_schema(json, jsonb) to supabase_auth_admin;`
+    : "";
 }
 
 const VERSION_TRIGGER = "permdock_authz_version";
@@ -645,7 +679,7 @@ ${entriesSql(parts).replaceAll(/^/gmu, "      ")}
   end if;
   if in_active then
     claims := jsonb_set(claims, ${quoteLiteral(`{${parts.tenantClaim}}`)}, to_jsonb(active));
-  end if;${extra}${version}
+  end if;${extra}${version}${validateSql(parts)}
   return jsonb_set(event, '{claims}', claims);
 end;
 $$;`;
@@ -659,7 +693,7 @@ function grantsSql(parts: Parts): string {
     `-- supabase_auth_admin: the grants and read policies the hook needs
 grant usage on schema ${schema} to supabase_auth_admin;
 grant execute on function ${fn}(jsonb) to supabase_auth_admin;
-revoke execute on function ${fn}(jsonb) from authenticated, anon, public;${extraGrantsSql(parts.extra)}${beforeGrantsSql(parts.before, parts.extra)}${memberForGrantsSql(parts)}`,
+revoke execute on function ${fn}(jsonb) from authenticated, anon, public;${extraGrantsSql(parts.extra)}${beforeGrantsSql(parts.before, parts.extra)}${memberForGrantsSql(parts)}${validateGrantsSql(parts)}`,
     readsSql(parts),
     parts.version
       ? authAdminRead(`${parts.schema}.${AUTHZ_VERSION_TABLE}`, "version")

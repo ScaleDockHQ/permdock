@@ -204,6 +204,13 @@ export type RlsConfig = {
    */
   readonly approvals?: boolean;
   /**
+   * A pg_jsonschema check constraint on generated `jsonb` columns: the
+   * approval store's `body` must match `approval-request-v1.json`. `true`
+   * installs the extension into `extensions`; `'auto'` adds the constraint
+   * only where `pg_available_extensions` lists it. Off by default.
+   */
+  readonly jsonSchema?: "auto" | boolean;
+  /**
    * `false` leaves out the holder-count and transfer-only triggers `min`,
    * `max` and `transferOnly` put on the membership tables; a map with
    * `<scope>: false` leaves them out for those scopes only. Those rules are
@@ -371,6 +378,12 @@ export type SupabaseHookConfig = {
    */
   readonly claims?: Readonly<Record<string, string>>;
   readonly before?: string | readonly string[];
+  /**
+   * Check the claims the hook wrote against `supabase-claims-v1.json` with
+   * pg_jsonschema, and drop them all on a mismatch so the user signs in with
+   * no PermDock access instead of an error. Needs the extension. Default `false`.
+   */
+  readonly validate?: boolean;
   /** Bytes of JSON the `memberships` claim may use. Default `supabaseMembershipsBudget` (1024). */
   readonly budget?: number;
   /** Keep `permdock_authz_version` and write the `authz_ver` claim. Default `true`. */
