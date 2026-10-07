@@ -348,6 +348,8 @@ export function evaluateCondition(
     case "opaque":
       onOpaque?.();
       return false;
+    case "liveSession":
+      return subject.liveSession === true;
     default: {
       const exhaustive: never = condition;
       /* v8 ignore next */

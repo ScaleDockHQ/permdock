@@ -47,9 +47,22 @@ export type WhereShorthand<T = Record<string, unknown>> = {
   readonly and?: readonly WhereShorthand<T>[];
   readonly or?: readonly WhereShorthand<T>[];
   readonly not?: WhereShorthand<T>;
-} & {
-  readonly [K in keyof T]?: T[K] | FieldOperator | { readonly ref: string };
-};
+} & ("subject" extends keyof T
+  ? {
+      readonly [K in keyof T as Exclude<K, "subject">]?: FieldWhere<T[K]>;
+    } & {
+      readonly subject?: SubjectWhere | FieldWhere<T["subject"]>;
+    }
+  : {
+      readonly [K in keyof T]?: FieldWhere<T[K]>;
+    } & {
+      /** Holds only when the resolver checked the session live (`liveSession: true`). */
+      readonly subject?: SubjectWhere;
+    });
+
+type SubjectWhere = { readonly session: { readonly live: true } };
+
+type FieldWhere<V> = V | FieldOperator | { readonly ref: string };
 
 function toValue(raw: unknown): ConditionValue {
   if (isSubjectRef(raw) || isConditionRef(raw)) {
@@ -192,6 +205,34 @@ function normalizeSqlFunction(input: {
   });
 }
 
+/** `{ session: … }` under `subject`; any other value is a comparison on a `subject` field. */
+function isSubjectCondition(
+  value: unknown,
+): value is Readonly<Record<string, unknown>> {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    Object.hasOwn(value, "session")
+  );
+}
+
+function subjectCondition(value: Readonly<Record<string, unknown>>): Condition {
+  const session = value["session"];
+  if (
+    ownKeys(value).length !== 1 ||
+    session === null ||
+    typeof session !== "object" ||
+    ownKeys(session).length !== 1 ||
+    Reflect.get(session, "live") !== true
+  ) {
+    throw new TypeError(
+      "PermDock: a subject condition is { subject: { session: { live: true } } }",
+    );
+  }
+  return freezeDeep({ op: "liveSession" as const });
+}
+
 export function normalizeWhere(input: unknown): Condition {
   if (isCondition(input)) {
     if (input.op === "sqlFunction") {
@@ -238,6 +279,10 @@ export function normalizeWhere(input: unknown): Condition {
     }
     if (key === "not") {
       parts.push(collapse({ op: "not", condition: normalizeWhere(value) }));
+      continue;
+    }
+    if (key === "subject" && isSubjectCondition(value)) {
+      parts.push(subjectCondition(value));
       continue;
     }
     parts.push(fieldCondition(key, value));

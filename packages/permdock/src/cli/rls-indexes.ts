@@ -54,6 +54,7 @@ export function indexedFields(condition: Condition | undefined): string[] {
     case "contains":
     case "notIn":
     case "isNull":
+    case "liveSession":
       return [];
     default: {
       const exhaustive: never = condition;

@@ -251,6 +251,7 @@ function conditionSql(
     case "related":
     case "opaque":
     case "sqlFunction":
+    case "liveSession":
       return undefined;
     default: {
       const exhaustive: never = condition;

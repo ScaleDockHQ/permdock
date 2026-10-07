@@ -527,6 +527,10 @@ function mapClaims(
       context: {},
       session,
       expiresAt,
+      liveSession:
+        options.liveSession === true && session !== undefined
+          ? true
+          : undefined,
     }),
   );
 }

@@ -18,6 +18,9 @@ function isPrimitive(value: unknown): value is string | number | boolean {
 
 type RefFilter = (ref: string) => boolean;
 
+const ALWAYS: Condition = { op: "eq", field: "_", value: true };
+const NEVER: Condition = { op: "or", conditions: [] };
+
 function bindValue(
   value: ConditionValue,
   subject: Subject,
@@ -54,8 +57,9 @@ function bindArg(
 }
 
 /**
- * Replaces every `principal.*` / `context.*` ref with the subject's value, so
- * a `where()` result compiles the same without the subject. A ref the subject
+ * Replaces every `principal.*` / `context.*` ref with the subject's value, and
+ * a `liveSession` node with a constant, so a `where()` result compiles the
+ * same without the subject. A ref the subject
  * does not hold binds to `null` (or `[]` in a list), which never matches, as
  * in `evaluateCondition`. With `only`, refs it rejects stay refs.
  */
@@ -107,6 +111,8 @@ export function bindConditionRefs(
         args: condition.args.map((arg) => bindArg(arg, subject, only)),
         twin: bindConditionRefs(condition.twin, subject, only),
       };
+    case "liveSession":
+      return subject.liveSession === true ? ALWAYS : NEVER;
     case "isNull":
     case "memberOf":
     case "related":

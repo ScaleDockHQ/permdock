@@ -187,6 +187,12 @@ export type SupabaseSubjectOptions = {
   readonly clients?: ClientNames;
   /** `'deny'` maps a token with `is_anonymous: true` (`signInAnonymously()`) to the anonymous subject, as `rls.anonymousSignIns: 'deny'` does in RLS. */
   readonly anonymousSignIns?: "deny";
+  /**
+   * `true` once the caller checked the session against the Auth server for this request
+   * (`auth.getUser()`, better-supabase's `checkSession`): a token with a `session_id` gets
+   * `subject.liveSession`, which `{ subject: { session: { live: true } } }` requires. Never read from claims.
+   */
+  readonly liveSession?: boolean;
   /** Audit hook: `membership-dropped` for a `memberships` entry that could not be read, `invalid-chain` for a malformed `act`. */
   readonly onAuth?: (event: AuthEvent) => void;
 };

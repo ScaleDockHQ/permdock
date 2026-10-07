@@ -73,6 +73,26 @@ References are what make a condition portable. In memory they read from the froz
 
 Token claims are `principal.claims.<path>`, and a path may be nested: `principal.claims.attrs.region`. `permdock rls generate` compiles a nested path to `(select auth.jwt()) -> 'attrs' ->> 'region'`, casts it to the column's type, and compiles `in` / `notIn` against an array claim ([subject attributes in RLS](/docs/adapters/rls#subject-attributes-abac)). A snapshot does not carry the claims; it carries each claim a grant reads as a literal in that grant's condition, bound when the snapshot is built. `context.*` refs are portable to snapshots and ORM `where` clauses but not to RLS, because the request context is not in the token (doctor PD027).
 
+### Live sessions
+
+`{ subject: { session: { live: true } } }` holds only when the Auth server still holds the session behind the token. Use it on a grant that must stop at sign-out or revocation, not at token expiry:
+
+```ts
+allow(permissions.invoice.pay, {
+  where: { subject: { session: { live: true } } },
+});
+```
+
+A signed JWT stays valid until `exp` after its session is revoked, so the claims cannot answer this. Each side checks the session itself:
+
+| Where               | Holds when                                                                                                                                                                                                                                                                                    |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| In memory           | The subject has `liveSession: true`. `subjectFromSupabase(claims, { liveSession: true })` sets it for a token with a `session_id`; pass the option only after `auth.getUser()` or better-supabase's `checkSession` checked the session for this request ([Supabase](/docs/adapters/supabase)) |
+| Snapshot, `where()` | The condition is bound to a constant when the snapshot or the filter is built                                                                                                                                                                                                                 |
+| Supabase RLS        | `"permdock".permdock_session_live()` finds the token's `session_id` in `auth.sessions` for the caller, with `not_after` unset or in the future                                                                                                                                                |
+
+A failed check denies with reason `condition`. Only the `supabase` dialect compiles it: `rls generate` exits 2 on `neon` or `guc`, which have no `auth.sessions`. The key `subject` with any other value is a comparison on a row field named `subject`; a malformed `{ session: … }` throws when the policy is defined.
+
 ### Common patterns
 
 | Intent                          | Condition                                                                  | Supabase RLS output                                                                                                      |
@@ -127,6 +147,7 @@ Conditions are plain JSON. No superjson, no class instances, no functions. The l
 - A reference is `{ "ref": "principal.<path>" }` or `{ "ref": "context.<path>" }`; no other prefix resolves.
 - A scope test is `{ "op": "memberOf", "scope": "tenant" | "team" | "resource", "field": "<row field>", "roles": [...] }`, with `resource` and `parents` when the scope is a resource ([tenancy](/docs/concepts/tenancy)).
 - A graph test is `{ "op": "related", "resource": "<resource>", "relation": "<name>", "field": "<row field>", "depth": <0-32> }`, with `"parent": true` when the field holds the row's parent id, `hops` (`[{ "link", "resource" }]`) when the grant follows links, `ids` in place of `relation` for a resource role held on a self-parented resource, and `restricted` naming the row's restricted column. It never appears in a snapshot: grants that need it are server-only there.
+- A live-session test is `{ "op": "liveSession" }` ([live sessions](#live-sessions)). It never appears in a snapshot, which carries the bound constant.
 - A date is a tagged ISO string `{ "date": "..." }`, so it survives JSON without superjson and compares correctly in memory and in SQL.
 - Nested `and` / `or` are flattened and single-child compounds collapsed at definition time, the same normalisation CASL's ucast applies.
 

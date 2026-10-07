@@ -64,6 +64,7 @@ export function assertPortableTwin(condition: Condition, depth = 0): void {
     case "notIn":
     case "isNull":
     case "memberOf":
+    case "liveSession":
       break;
     default: {
       const exhaustive: never = condition;

@@ -75,6 +75,8 @@ import {
   qualifiedTable,
   scopeSources,
   scopeTable,
+  SESSION_LIVE_HELPER,
+  sessionLiveHelperSql,
   subjectClaimJsonSql,
   USER_ID_HELPER,
 } from "./rls-sql.ts";
@@ -649,6 +651,11 @@ export async function runRlsGenerate(input: {
           (sql) => sql?.includes(USER_ID_HELPER) === true,
         ),
     );
+  const usesLiveSession = compiled.branches.some((branch) =>
+    [branch.access, branch.using, branch.check].some(
+      (sql) => sql?.includes(SESSION_LIVE_HELPER) === true,
+    ),
+  );
   const shims =
     shimsConfig === undefined || rls?.migrate === undefined
       ? undefined
@@ -662,6 +669,7 @@ export async function runRlsGenerate(input: {
       withoutSeeds: splitsPart(input.split, "seeds"),
     }),
     permissionHelpersSql(ctx, grants, renamed, anonExecute),
+    usesLiveSession ? sessionLiveHelperSql(ctx) : undefined,
     rls?.approvals === true
       ? approvalStoreSql(ctx, jsonSchema ?? false)
       : undefined,

@@ -7,7 +7,7 @@ import type { RlsFunctionMapping, RlsMemberships } from "./types.ts";
 
 import { quoteSqlLiteral } from "../core/sql.ts";
 import { HELPERS } from "./rls-helpers.ts";
-import { USER_ID_HELPER } from "./rls-sql.ts";
+import { SESSION_LIVE_HELPER, USER_ID_HELPER } from "./rls-sql.ts";
 
 type PgNode = Record<string, unknown>;
 
@@ -688,6 +688,13 @@ function mapNode(value: unknown, ctx: MapContext): Condition | undefined {
   const helper = helperCall(node);
   if (helper !== undefined) {
     return helperCondition(helper, ctx.seeds);
+  }
+  if (
+    funcName(scalarSubselect(node) ?? node)
+      ?.split(".")
+      .at(-1) === SESSION_LIVE_HELPER
+  ) {
+    return { op: "liveSession" };
   }
   const nullTest = asNode(node["NullTest"]);
   if (nullTest !== undefined) {
