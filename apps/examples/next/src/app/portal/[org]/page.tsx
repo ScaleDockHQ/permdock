@@ -9,7 +9,7 @@ export default function PortalQuotes(props: {
 }) {
   return (
     <section>
-      <h1>Your quotes</h1>
+      <h1 data-testid="page-title">Your quotes</h1>
       <Suspense fallback={<ListSkeleton />}>
         <QuoteList params={props.params} prefix="/portal" />
       </Suspense>
