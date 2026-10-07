@@ -46,7 +46,7 @@ import {
   roleAllowKeys,
   tenantCustomRoles,
 } from "./custom-roles.ts";
-import { delegatedPermissions } from "./delegation.ts";
+import { coversRequirements, delegatedPermissions } from "./delegation.ts";
 import { type ActivateInput, activate } from "./elevated.ts";
 import {
   PermDockApprovalRequiredError,
@@ -308,6 +308,16 @@ export function collectSnapshotGrants(
         );
   const out: { readonly grant: Grant; readonly membership?: Membership }[] = [];
   for (const grant of grantList(policy)) {
+    if (
+      mode === "held" &&
+      !coversRequirements(
+        policy.permissions,
+        grant.requires,
+        subject.delegation,
+      )
+    ) {
+      continue;
+    }
     const resource = getResource(policy.permissions, grant.permission.resource);
     const match = matchGrantee(
       grant.to,

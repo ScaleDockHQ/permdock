@@ -3,7 +3,12 @@ import type { PolicyDelegation } from "./policy.ts";
 import type { Delegation, GnapAccess, Subject } from "./subject.ts";
 
 import { flattenGrantee, matchGrantee } from "./grantee.ts";
-import { type Permission, formerScopes } from "./permissions.ts";
+import {
+  type Permission,
+  type PermissionTree,
+  findPermission,
+  formerScopes,
+} from "./permissions.ts";
 import { isActive } from "./validity.ts";
 
 type DelegatedPermission = Pick<Permission, "scope" | "resource" | "action">;
@@ -71,6 +76,22 @@ export function coveredByDelegation(
     return undefined;
   }
   return "not-delegated";
+}
+
+export function coversRequirements(
+  tree: PermissionTree,
+  requires: readonly string[] | undefined,
+  delegation: Delegation | undefined,
+  resourceId?: string,
+  hasActor = false,
+): boolean {
+  return (requires ?? []).every((key) => {
+    const leaf = findPermission(tree, key);
+    return (
+      leaf !== undefined &&
+      coveredByDelegation(leaf, delegation, resourceId, hasActor) === undefined
+    );
+  });
 }
 
 function accessCovers(

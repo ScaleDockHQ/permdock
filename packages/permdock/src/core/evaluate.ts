@@ -34,6 +34,7 @@ import {
 } from "./custom-roles.ts";
 import {
   coveredByDelegation,
+  coversRequirements,
   delegatedPermissions,
   resourceIdOf,
 } from "./delegation.ts";
@@ -1261,33 +1262,32 @@ export function evaluate(
     });
   }
   const unscoped = subject.actor !== undefined && ceiling === undefined;
-  let usable = allows;
   let delegationMiss = coveredByDelegation(
     permission,
     subject.delegation,
     resourceIdOf(current),
     unscoped,
   );
-  if (delegationMiss === "not-delegated") {
-    const covered = (key: string): boolean => {
-      const leaf = findPermission(policy.permissions, key);
-      return (
-        leaf !== undefined &&
-        coveredByDelegation(
-          leaf,
-          subject.delegation,
-          resourceIdOf(current),
-          unscoped,
-        ) === undefined
-      );
-    };
-    const viaRequires = allows.filter((candidate) =>
-      (candidate.grant.requires ?? []).some(covered),
-    );
-    if (viaRequires.length > 0) {
-      usable = viaRequires;
-      delegationMiss = undefined;
-    }
+  const requirementsCovered = allows.filter((candidate) =>
+    coversRequirements(
+      policy.permissions,
+      candidate.grant.requires,
+      subject.delegation,
+      resourceIdOf(current),
+      unscoped,
+    ),
+  );
+  let usable =
+    delegationMiss === undefined
+      ? requirementsCovered
+      : requirementsCovered.filter(
+          (candidate) => (candidate.grant.requires ?? []).length > 0,
+        );
+  if (delegationMiss === "not-delegated" && usable.length > 0) {
+    delegationMiss = undefined;
+  }
+  if (delegationMiss === undefined && usable.length === 0) {
+    delegationMiss = "not-delegated";
   }
   if (delegationMiss !== undefined) {
     return complete({
