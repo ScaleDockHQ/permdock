@@ -308,14 +308,117 @@ language sql
 stable
 security definer
 set search_path = ''
+set jit = off
 as $$
-  select k.key
-  from pg_catalog.unnest(array['post.archive', 'post.create', 'post.delete', 'post.list', 'post.publish', 'post.read', 'post.update']::text[]) k(key)
-  where "permdock".permdock_has_permission(k.key)
-    or p_id in (select "permdock".permitted_tenant_ids_by_permission(k.key))
+  with pdk_m(key, scope, effect, grant_key) as (
+    values
+      ('post.archive', 'global', 'allow', 'post.archive'),
+      ('post.create', 'global', 'allow', 'post.create'),
+      ('post.delete', 'global', 'allow', 'post.delete'),
+      ('post.list', 'global', 'allow', 'post.list'),
+      ('post.publish', 'global', 'allow', 'post.publish'),
+      ('post.read', 'global', 'allow', 'post.read'),
+      ('post.update', 'global', 'allow', 'post.update#1'),
+      ('post.create', 'tenant', 'allow', 'post.create'),
+      ('post.list', 'tenant', 'allow', 'post.list'),
+      ('post.read', 'tenant', 'allow', 'post.read')
+  ),
+  pdk_w as (
+    select pdk_m.key, pdk_m.scope, pdk_m.effect, pdk_m.grant_key
+    from pdk_m
+  ),
+  pdk_g as (
+  select rp.grant_key
+  from "permdock".user_roles ur
+  join "permdock".role_permissions rp on rp.role = ur.role::text
+  where ur.user_id = (select "permdock".permdock_user_id())
+    and rp.scope = 'global'
+  ),
+  pdk_s as (
+    select pdk_i.grant_key
+    from (
+  select m."organization_id"::uuid, rp.grant_key
+  from "public"."organization_members" m
+  join "permdock".role_permissions rp on rp.role = m."role"::text
+  where m."user_id" = (select "permdock".permdock_user_id())
+    and rp.scope = 'tenant'
+    and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or m."organization_id"::text = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
+    ) pdk_i(id, grant_key)
+    where pdk_i.id = p_id
+  ),
+  pdk_h as (
+    select pdk_w.key, pdk_w.scope, pdk_w.effect
+    from pdk_w
+    where (pdk_w.scope = 'global' and pdk_w.grant_key in (select pdk_g.grant_key from pdk_g))
+      or (pdk_w.scope = 'tenant' and pdk_w.grant_key in (select pdk_s.grant_key from pdk_s))
+  )
+  select pdk_k.key
+  from (select distinct pdk_w.key from pdk_w where pdk_w.effect = 'allow') pdk_k
+  where (exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'global' and pdk_h.effect = 'allow') and not exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'global' and pdk_h.effect = 'deny'))
+    or (exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'tenant' and pdk_h.effect = 'allow') and not exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'tenant' and pdk_h.effect = 'deny'))
+  order by 1
 $$;
 revoke execute on function "permdock".permitted_tenant_permission_keys(uuid) from public, anon;
 grant execute on function "permdock".permitted_tenant_permission_keys(uuid) to authenticated;
+create or replace function "permdock".permitted_tenant_permission_keys(p_id uuid, p_keys text[])
+returns setof text
+language sql
+stable
+security definer
+set search_path = ''
+set jit = off
+as $$
+  with pdk_m(key, scope, effect, grant_key) as (
+    values
+      ('post.archive', 'global', 'allow', 'post.archive'),
+      ('post.create', 'global', 'allow', 'post.create'),
+      ('post.delete', 'global', 'allow', 'post.delete'),
+      ('post.list', 'global', 'allow', 'post.list'),
+      ('post.publish', 'global', 'allow', 'post.publish'),
+      ('post.read', 'global', 'allow', 'post.read'),
+      ('post.update', 'global', 'allow', 'post.update#1'),
+      ('post.create', 'tenant', 'allow', 'post.create'),
+      ('post.list', 'tenant', 'allow', 'post.list'),
+      ('post.read', 'tenant', 'allow', 'post.read')
+  ),
+  pdk_w as (
+    select pdk_m.key, pdk_m.scope, pdk_m.effect, pdk_m.grant_key
+    from pdk_m
+    where pdk_m.key in (select k.key from pg_catalog.unnest(p_keys) k(key))
+  ),
+  pdk_g as (
+  select rp.grant_key
+  from "permdock".user_roles ur
+  join "permdock".role_permissions rp on rp.role = ur.role::text
+  where ur.user_id = (select "permdock".permdock_user_id())
+    and rp.scope = 'global'
+  ),
+  pdk_s as (
+    select pdk_i.grant_key
+    from (
+  select m."organization_id"::uuid, rp.grant_key
+  from "public"."organization_members" m
+  join "permdock".role_permissions rp on rp.role = m."role"::text
+  where m."user_id" = (select "permdock".permdock_user_id())
+    and rp.scope = 'tenant'
+    and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or m."organization_id"::text = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
+    ) pdk_i(id, grant_key)
+    where pdk_i.id = p_id
+  ),
+  pdk_h as (
+    select pdk_w.key, pdk_w.scope, pdk_w.effect
+    from pdk_w
+    where (pdk_w.scope = 'global' and pdk_w.grant_key in (select pdk_g.grant_key from pdk_g))
+      or (pdk_w.scope = 'tenant' and pdk_w.grant_key in (select pdk_s.grant_key from pdk_s))
+  )
+  select pdk_k.key
+  from (select distinct pdk_w.key from pdk_w where pdk_w.effect = 'allow') pdk_k
+  where (exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'global' and pdk_h.effect = 'allow') and not exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'global' and pdk_h.effect = 'deny'))
+    or (exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'tenant' and pdk_h.effect = 'allow') and not exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'tenant' and pdk_h.effect = 'deny'))
+  order by 1
+$$;
+revoke execute on function "permdock".permitted_tenant_permission_keys(uuid, text[]) from public, anon;
+grant execute on function "permdock".permitted_tenant_permission_keys(uuid, text[]) to authenticated;
 
 -- with p_conditioned true, also the instances a conditioned allow reaches, minus only unconditional denies: the caller applies the row condition
 create or replace function "permdock".permitted_tenant_ids_by_permission(p_permission text, p_conditioned boolean)
@@ -409,13 +512,113 @@ language sql
 stable
 security definer
 set search_path = ''
+set jit = off
 as $$
-  select k.key
-  from pg_catalog.unnest(array['post.archive', 'post.create', 'post.delete', 'post.list', 'post.publish', 'post.read', 'post.update']::text[]) k(key)
-  where "permdock".permdock_has_permission_for(p_user, k.key)
-    or p_id in (select "permdock".permitted_tenant_ids_by_permission_for(p_user, k.key))
+  with pdk_m(key, scope, effect, grant_key) as (
+    values
+      ('post.archive', 'global', 'allow', 'post.archive'),
+      ('post.create', 'global', 'allow', 'post.create'),
+      ('post.delete', 'global', 'allow', 'post.delete'),
+      ('post.list', 'global', 'allow', 'post.list'),
+      ('post.publish', 'global', 'allow', 'post.publish'),
+      ('post.read', 'global', 'allow', 'post.read'),
+      ('post.update', 'global', 'allow', 'post.update#1'),
+      ('post.create', 'tenant', 'allow', 'post.create'),
+      ('post.list', 'tenant', 'allow', 'post.list'),
+      ('post.read', 'tenant', 'allow', 'post.read')
+  ),
+  pdk_w as (
+    select pdk_m.key, pdk_m.scope, pdk_m.effect, pdk_m.grant_key
+    from pdk_m
+  ),
+  pdk_g as (
+  select rp.grant_key
+  from "permdock".user_roles ur
+  join "permdock".role_permissions rp on rp.role = ur.role::text
+  where ur.user_id = p_user
+    and rp.scope = 'global'
+  ),
+  pdk_s as (
+    select pdk_i.grant_key
+    from (
+  select m."organization_id"::uuid, rp.grant_key
+  from "public"."organization_members" m
+  join "permdock".role_permissions rp on rp.role = m."role"::text
+  where m."user_id" = p_user
+    and rp.scope = 'tenant'
+    ) pdk_i(id, grant_key)
+    where pdk_i.id = p_id
+  ),
+  pdk_h as (
+    select pdk_w.key, pdk_w.scope, pdk_w.effect
+    from pdk_w
+    where (pdk_w.scope = 'global' and pdk_w.grant_key in (select pdk_g.grant_key from pdk_g))
+      or (pdk_w.scope = 'tenant' and pdk_w.grant_key in (select pdk_s.grant_key from pdk_s))
+  )
+  select pdk_k.key
+  from (select distinct pdk_w.key from pdk_w where pdk_w.effect = 'allow') pdk_k
+  where (exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'global' and pdk_h.effect = 'allow') and not exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'global' and pdk_h.effect = 'deny'))
+    or (exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'tenant' and pdk_h.effect = 'allow') and not exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'tenant' and pdk_h.effect = 'deny'))
+  order by 1
 $$;
 revoke execute on function "permdock".permitted_tenant_permission_keys_for(uuid, uuid) from public, anon, authenticated;
+create or replace function "permdock".permitted_tenant_permission_keys_for(p_user uuid, p_id uuid, p_keys text[])
+returns setof text
+language sql
+stable
+security definer
+set search_path = ''
+set jit = off
+as $$
+  with pdk_m(key, scope, effect, grant_key) as (
+    values
+      ('post.archive', 'global', 'allow', 'post.archive'),
+      ('post.create', 'global', 'allow', 'post.create'),
+      ('post.delete', 'global', 'allow', 'post.delete'),
+      ('post.list', 'global', 'allow', 'post.list'),
+      ('post.publish', 'global', 'allow', 'post.publish'),
+      ('post.read', 'global', 'allow', 'post.read'),
+      ('post.update', 'global', 'allow', 'post.update#1'),
+      ('post.create', 'tenant', 'allow', 'post.create'),
+      ('post.list', 'tenant', 'allow', 'post.list'),
+      ('post.read', 'tenant', 'allow', 'post.read')
+  ),
+  pdk_w as (
+    select pdk_m.key, pdk_m.scope, pdk_m.effect, pdk_m.grant_key
+    from pdk_m
+    where pdk_m.key in (select k.key from pg_catalog.unnest(p_keys) k(key))
+  ),
+  pdk_g as (
+  select rp.grant_key
+  from "permdock".user_roles ur
+  join "permdock".role_permissions rp on rp.role = ur.role::text
+  where ur.user_id = p_user
+    and rp.scope = 'global'
+  ),
+  pdk_s as (
+    select pdk_i.grant_key
+    from (
+  select m."organization_id"::uuid, rp.grant_key
+  from "public"."organization_members" m
+  join "permdock".role_permissions rp on rp.role = m."role"::text
+  where m."user_id" = p_user
+    and rp.scope = 'tenant'
+    ) pdk_i(id, grant_key)
+    where pdk_i.id = p_id
+  ),
+  pdk_h as (
+    select pdk_w.key, pdk_w.scope, pdk_w.effect
+    from pdk_w
+    where (pdk_w.scope = 'global' and pdk_w.grant_key in (select pdk_g.grant_key from pdk_g))
+      or (pdk_w.scope = 'tenant' and pdk_w.grant_key in (select pdk_s.grant_key from pdk_s))
+  )
+  select pdk_k.key
+  from (select distinct pdk_w.key from pdk_w where pdk_w.effect = 'allow') pdk_k
+  where (exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'global' and pdk_h.effect = 'allow') and not exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'global' and pdk_h.effect = 'deny'))
+    or (exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'tenant' and pdk_h.effect = 'allow') and not exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'tenant' and pdk_h.effect = 'deny'))
+  order by 1
+$$;
+revoke execute on function "permdock".permitted_tenant_permission_keys_for(uuid, uuid, text[]) from public, anon, authenticated;
 
 create or replace function "permdock"."authorize"(
   requested_permission "permdock"."app_permission",

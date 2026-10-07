@@ -165,13 +165,19 @@ export function serviceKeyIdsSql(
   type: string,
 ): string {
   const kind = kindFilterSql(ctx, "r.role", { value: "credential" });
+  const set = ctx.grantSet === true;
   const filters = [
-    ...serviceKeyFilters(ctx, plan, root, grantPermissionSql("p_grant")),
-    "rp.grant_key = p_grant",
+    ...serviceKeyFilters(
+      ctx,
+      plan,
+      root,
+      grantPermissionSql(set ? "rp.grant_key" : "p_grant"),
+    ),
+    ...(set ? [] : ["rp.grant_key = p_grant"]),
     `rp.scope = ${quoteLiteral(root)}`,
     ...(kind === undefined ? [] : [kind]),
   ];
-  return `  select (k ->> ${quoteLiteral(plan.tenant)})::${type}
+  return `  select (k ->> ${quoteLiteral(plan.tenant)})::${type}${set ? ", rp.grant_key" : ""}
 ${serviceKeyRows(ctx, plan)}
   join ${qualified(ctx, "role_permissions")} rp on rp.role = r.role
   where ${filters.join("\n    and ")}`;

@@ -64,6 +64,7 @@ export type RlsSqlContext = {
    * Unset, they narrow to the tenant claim when the token carries one.
    */
   readonly tenants?: "all";
+  readonly grantSet?: true;
   readonly gucPrefix: string;
   /** `rls.actions`: verb to SQL command overrides. */
   readonly actions?: RlsActions;

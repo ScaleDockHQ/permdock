@@ -298,14 +298,151 @@ language sql
 stable
 security definer
 set search_path = ''
+set jit = off
 as $$
-  select k.key
-  from pg_catalog.unnest(array['post.archive', 'post.create', 'post.delete', 'post.list', 'post.publish', 'post.read', 'post.update']::text[]) k(key)
-  where "app".permdock_has_permission(k.key)
-    or p_id in (select "app".permitted_tenant_ids_by_permission(k.key))
+  with pdk_m(key, scope, effect, grant_key) as (
+    values
+      ('post.archive', 'global', 'allow', 'post.archive'),
+      ('post.create', 'global', 'allow', 'post.create'),
+      ('post.delete', 'global', 'allow', 'post.delete'),
+      ('post.list', 'global', 'allow', 'post.list'),
+      ('post.publish', 'global', 'allow', 'post.publish'),
+      ('post.read', 'global', 'allow', 'post.read'),
+      ('post.update', 'global', 'allow', 'post.update#1'),
+      ('post.create', 'tenant', 'allow', 'post.create'),
+      ('post.list', 'tenant', 'allow', 'post.list'),
+      ('post.read', 'tenant', 'allow', 'post.read')
+  ),
+  pdk_w as (
+    select pdk_m.key, pdk_m.scope, pdk_m.effect, pdk_m.grant_key
+    from pdk_m
+  ),
+  pdk_g as (
+  select rp.grant_key
+  from jsonb_array_elements_text(
+      case jsonb_typeof(coalesce(nullif(((select auth.jwt()) -> 'user_role'), 'null'::jsonb), (select auth.jwt()) -> 'app_metadata' -> 'user_role'))
+        when 'array' then coalesce(nullif(((select auth.jwt()) -> 'user_role'), 'null'::jsonb), (select auth.jwt()) -> 'app_metadata' -> 'user_role')
+        when 'string' then jsonb_build_array(coalesce(nullif(((select auth.jwt()) -> 'user_role'), 'null'::jsonb), (select auth.jwt()) -> 'app_metadata' -> 'user_role'))
+        else '[]'::jsonb
+      end
+    ) r(role)
+  join "app".role_permissions rp on rp.role = r.role
+  where coalesce((select "app".permdock_user_id())::text, '') <> ''
+    and rp.scope = 'global'
+  ),
+  pdk_s as (
+    select pdk_i.grant_key
+    from (
+  select (m ->> 'id')::uuid, rp.grant_key
+  from jsonb_array_elements(
+      case jsonb_typeof(coalesce(((select auth.jwt()) -> 'memberships'), (select auth.jwt()) -> 'app_metadata' -> 'memberships')) when 'array' then coalesce(((select auth.jwt()) -> 'memberships'), (select auth.jwt()) -> 'app_metadata' -> 'memberships') else '[]'::jsonb end
+    ) m
+    cross join lateral jsonb_array_elements_text(
+      case jsonb_typeof(m -> 'roles') when 'array' then m -> 'roles' else '[]'::jsonb end
+    ) r(role)
+  join "app".role_permissions rp on rp.role = r.role
+  where coalesce((select "app".permdock_user_id())::text, '') <> ''
+    and rp.scope = 'tenant'
+    and m ->> 'scope' = 'tenant'
+    and m ->> 'id' is not null
+    and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or m ->> 'id' = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
+    and case jsonb_typeof(m -> 'expiresAt')
+      when 'number' then (m ->> 'expiresAt')::numeric > extract(epoch from now())
+      else true
+    end
+    ) pdk_i(id, grant_key)
+    where pdk_i.id = p_id
+  ),
+  pdk_h as (
+    select pdk_w.key, pdk_w.scope, pdk_w.effect
+    from pdk_w
+    where (pdk_w.scope = 'global' and pdk_w.grant_key in (select pdk_g.grant_key from pdk_g))
+      or (pdk_w.scope = 'tenant' and pdk_w.grant_key in (select pdk_s.grant_key from pdk_s))
+  )
+  select pdk_k.key
+  from (select distinct pdk_w.key from pdk_w where pdk_w.effect = 'allow') pdk_k
+  where (exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'global' and pdk_h.effect = 'allow') and not exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'global' and pdk_h.effect = 'deny'))
+    or (exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'tenant' and pdk_h.effect = 'allow') and not exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'tenant' and pdk_h.effect = 'deny'))
+  order by 1
 $$;
 revoke execute on function "app".permitted_tenant_permission_keys(uuid) from public, anon;
 grant execute on function "app".permitted_tenant_permission_keys(uuid) to authenticated;
+create or replace function "app".permitted_tenant_permission_keys(p_id uuid, p_keys text[])
+returns setof text
+language sql
+stable
+security definer
+set search_path = ''
+set jit = off
+as $$
+  with pdk_m(key, scope, effect, grant_key) as (
+    values
+      ('post.archive', 'global', 'allow', 'post.archive'),
+      ('post.create', 'global', 'allow', 'post.create'),
+      ('post.delete', 'global', 'allow', 'post.delete'),
+      ('post.list', 'global', 'allow', 'post.list'),
+      ('post.publish', 'global', 'allow', 'post.publish'),
+      ('post.read', 'global', 'allow', 'post.read'),
+      ('post.update', 'global', 'allow', 'post.update#1'),
+      ('post.create', 'tenant', 'allow', 'post.create'),
+      ('post.list', 'tenant', 'allow', 'post.list'),
+      ('post.read', 'tenant', 'allow', 'post.read')
+  ),
+  pdk_w as (
+    select pdk_m.key, pdk_m.scope, pdk_m.effect, pdk_m.grant_key
+    from pdk_m
+    where pdk_m.key in (select k.key from pg_catalog.unnest(p_keys) k(key))
+  ),
+  pdk_g as (
+  select rp.grant_key
+  from jsonb_array_elements_text(
+      case jsonb_typeof(coalesce(nullif(((select auth.jwt()) -> 'user_role'), 'null'::jsonb), (select auth.jwt()) -> 'app_metadata' -> 'user_role'))
+        when 'array' then coalesce(nullif(((select auth.jwt()) -> 'user_role'), 'null'::jsonb), (select auth.jwt()) -> 'app_metadata' -> 'user_role')
+        when 'string' then jsonb_build_array(coalesce(nullif(((select auth.jwt()) -> 'user_role'), 'null'::jsonb), (select auth.jwt()) -> 'app_metadata' -> 'user_role'))
+        else '[]'::jsonb
+      end
+    ) r(role)
+  join "app".role_permissions rp on rp.role = r.role
+  where coalesce((select "app".permdock_user_id())::text, '') <> ''
+    and rp.scope = 'global'
+  ),
+  pdk_s as (
+    select pdk_i.grant_key
+    from (
+  select (m ->> 'id')::uuid, rp.grant_key
+  from jsonb_array_elements(
+      case jsonb_typeof(coalesce(((select auth.jwt()) -> 'memberships'), (select auth.jwt()) -> 'app_metadata' -> 'memberships')) when 'array' then coalesce(((select auth.jwt()) -> 'memberships'), (select auth.jwt()) -> 'app_metadata' -> 'memberships') else '[]'::jsonb end
+    ) m
+    cross join lateral jsonb_array_elements_text(
+      case jsonb_typeof(m -> 'roles') when 'array' then m -> 'roles' else '[]'::jsonb end
+    ) r(role)
+  join "app".role_permissions rp on rp.role = r.role
+  where coalesce((select "app".permdock_user_id())::text, '') <> ''
+    and rp.scope = 'tenant'
+    and m ->> 'scope' = 'tenant'
+    and m ->> 'id' is not null
+    and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or m ->> 'id' = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
+    and case jsonb_typeof(m -> 'expiresAt')
+      when 'number' then (m ->> 'expiresAt')::numeric > extract(epoch from now())
+      else true
+    end
+    ) pdk_i(id, grant_key)
+    where pdk_i.id = p_id
+  ),
+  pdk_h as (
+    select pdk_w.key, pdk_w.scope, pdk_w.effect
+    from pdk_w
+    where (pdk_w.scope = 'global' and pdk_w.grant_key in (select pdk_g.grant_key from pdk_g))
+      or (pdk_w.scope = 'tenant' and pdk_w.grant_key in (select pdk_s.grant_key from pdk_s))
+  )
+  select pdk_k.key
+  from (select distinct pdk_w.key from pdk_w where pdk_w.effect = 'allow') pdk_k
+  where (exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'global' and pdk_h.effect = 'allow') and not exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'global' and pdk_h.effect = 'deny'))
+    or (exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'tenant' and pdk_h.effect = 'allow') and not exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'tenant' and pdk_h.effect = 'deny'))
+  order by 1
+$$;
+revoke execute on function "app".permitted_tenant_permission_keys(uuid, text[]) from public, anon;
+grant execute on function "app".permitted_tenant_permission_keys(uuid, text[]) to authenticated;
 
 -- with p_conditioned true, also the instances a conditioned allow reaches, minus only unconditional denies: the caller applies the row condition
 create or replace function "app".permitted_tenant_ids_by_permission(p_permission text, p_conditioned boolean)

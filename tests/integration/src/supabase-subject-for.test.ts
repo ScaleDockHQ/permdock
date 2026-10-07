@@ -259,4 +259,59 @@ select permdock.permdock_trusted_replace_custom_role_grants('B', 'organization',
       ),
     ).rejects.toThrow(/permission denied/u);
   });
+
+  it("lists the keys held on an instance through the sources as the per-key helpers do", async () => {
+    if (db === undefined) {
+      throw new Error("PermDock: Postgres was not started");
+    }
+    const target = db;
+    const declared = (
+      await target.admin.query<{ key: string }>(
+        "select k as key from permdock.permdock_permission_keys() k",
+      )
+    ).rows.map((row) => row.key);
+    const pairs: string[][] = [];
+    for (const id of ["T", "B", "X"]) {
+      pairs.push(
+        await target.as(
+          {
+            role: "authenticated",
+            settings: {
+              "request.jwt.claims": JSON.stringify({
+                sub: OWNER,
+                role: "authenticated",
+              }),
+            },
+          },
+          async () => {
+            const one = await target.tester.query<{ key: string }>(
+              "select k as key from permdock.permitted_organization_permission_keys($1) k order by 1",
+              [id],
+            );
+            const each = await target.tester.query<{ key: string }>(
+              "select k.key from unnest($1::text[]) k(key) where (select permdock.permdock_has_permission(k.key)) or $2 in (select permdock.permitted_organization_ids_by_permission(k.key)) order by 1",
+              [declared, id],
+            );
+            return [
+              id,
+              JSON.stringify(one.rows.map((row) => row.key)),
+              JSON.stringify(each.rows.map((row) => row.key)),
+            ];
+          },
+        ),
+      );
+      const named = await target.admin.query<{ key: string }>(
+        "select k as key from permdock.permitted_organization_permission_keys_for($1, $2) k order by 1",
+        [OWNER, id],
+      );
+      pairs.push([
+        `${id} for`,
+        JSON.stringify(named.rows.map((row) => row.key)),
+        pairs.at(-1)?.[1] ?? "",
+      ]);
+    }
+    expect(pairs.filter(([, one, each]) => one !== each)).toEqual([]);
+    expect(JSON.parse(pairs[0]?.[1] ?? "[]")).not.toEqual([]);
+    expect(JSON.parse(pairs[2]?.[1] ?? "[]")).toContain("asset.read");
+  });
 });
