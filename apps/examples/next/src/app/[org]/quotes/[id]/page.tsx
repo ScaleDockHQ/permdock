@@ -12,7 +12,7 @@ export default function QuotePage(props: {
 }) {
   return (
     <section>
-      <h1>Quote</h1>
+      <h1 data-testid="page-title">Quote</h1>
       <Suspense fallback={<QuoteSkeleton />}>
         <QuoteView params={props.params} />
       </Suspense>

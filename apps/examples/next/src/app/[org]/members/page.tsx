@@ -47,7 +47,7 @@ export default function Members(props: {
 }) {
   return (
     <section>
-      <h1>Members</h1>
+      <h1 data-testid="page-title">Members</h1>
       <Protected
         permission={permissions.member.list}
         pending={<p aria-busy="true" />}

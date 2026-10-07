@@ -9,7 +9,7 @@ export default function Quotes(props: {
 }) {
   return (
     <section>
-      <h1>Quotes</h1>
+      <h1 data-testid="page-title">Quotes</h1>
       <Suspense fallback={<ListSkeleton />}>
         <QuoteList params={props.params} prefix="" />
       </Suspense>
