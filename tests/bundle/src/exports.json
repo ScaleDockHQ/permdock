@@ -51,6 +51,7 @@
     "getResource",
     "hasConditionOp",
     "holder",
+    "inherit",
     "isCondition",
     "isConditionDate",
     "isConditionRef",
