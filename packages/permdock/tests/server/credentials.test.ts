@@ -8,7 +8,11 @@ import type { ApiKeySubjectOptions } from "../../src/server/credentials.ts";
 
 import { memorySettings } from "../../src/core/interfaces.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
-import { definePermissions, resource } from "../../src/core/permissions.ts";
+import {
+  definePermissions,
+  listPermissions,
+  resource,
+} from "../../src/core/permissions.ts";
 import { allow, definePolicy, role } from "../../src/core/policy.ts";
 import { memorySink } from "../../src/core/sink.ts";
 import {
@@ -510,5 +514,69 @@ describe("subjectFromApiKey", () => {
     expect(counted.events().length).toBeGreaterThan(40);
     expect(counted.events().length).toBeLessThan(160);
     expect(counted.events()[0]).toMatchObject({ sample: 0.5 });
+  });
+});
+
+describe("subjectFromApiKey: a key over many permissions", () => {
+  const wide = definePermissions(
+    Object.fromEntries(
+      Array.from({ length: 51 }, (_, index) => [
+        `area${index}`,
+        resource({
+          actions: ["read", "create", "update", "delete"],
+          relations: org,
+        }),
+      ]),
+    ),
+  );
+  const leaves = listPermissions(wide);
+  const delegated = leaves.slice(0, 200);
+  const held = leaves.at(-1);
+  const widePolicy = definePolicy(
+    { permissions: wide },
+    {
+      subject: (user: Subject) => user.principal,
+      scopes: { organization: { key: "orgId" } },
+      roles: [
+        role(
+          "admin",
+          leaves.map((leaf) => allow(leaf)),
+          { on: "organization" },
+        ),
+      ],
+    },
+  );
+
+  it("resolves a verified key that delegates 200 permissions", async () => {
+    const store = memoryCredentials();
+    const key = await store.issue(
+      credential({
+        permissions: delegated.map((leaf) => ({ permission: leaf.key })),
+      }),
+    );
+    const causes: AuthEvent[] = [];
+    const subject = await resolve(key, {
+      verifier: store,
+      permissions: wide,
+      owner: () => ({
+        id: "u_1",
+        kind: "user",
+        tenant: "o_1",
+        memberships: [{ tenant: "o_1", roles: ["admin"] }],
+      }),
+      onAuth: (event) => {
+        causes.push(event);
+      },
+    });
+    expect(causes).toEqual([]);
+    expect(subject.principal?.credential.permissions).toHaveLength(200);
+    expect(subject.delegation?.scopes).toHaveLength(200);
+    const permdock = createPermDock(widePolicy, subject);
+    if (permdock instanceof Promise || held === undefined) {
+      throw new TypeError("expected a synchronous instance and 204 leaves");
+    }
+    const row = { id: "r_1", orgId: "o_1" };
+    expect(delegated.every((leaf) => permdock.can(leaf, row))).toBe(true);
+    expect(permdock.can(held, row)).toBe(false);
   });
 });

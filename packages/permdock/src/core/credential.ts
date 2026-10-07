@@ -112,7 +112,6 @@ export type DecideCredentialOptions = {
   readonly now?: number;
 };
 
-const MAX_ENTRIES = 64;
 const MAX_NAME = 256;
 
 function policies(
@@ -160,11 +159,7 @@ export function credentialPolicyViolation(
 function parsePermissions(
   value: unknown,
 ): readonly CredentialPermission[] | undefined {
-  if (
-    !Array.isArray(value) ||
-    value.length === 0 ||
-    value.length > MAX_ENTRIES
-  ) {
+  if (!Array.isArray(value) || value.length === 0) {
     return undefined;
   }
   const out: CredentialPermission[] = [];
@@ -380,8 +375,7 @@ function permissionEntries(
   | undefined {
   if (
     !isReadonlyArray(request.permissions) ||
-    request.permissions.length === 0 ||
-    request.permissions.length > MAX_ENTRIES
+    request.permissions.length === 0
   ) {
     return undefined;
   }
