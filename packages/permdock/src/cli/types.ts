@@ -277,6 +277,7 @@ export type RlsConfig = {
    * row ids the caller may act on, as the generated policies decide them.
    */
   readonly rowHelpers?: true | readonly string[];
+  readonly trustedReaders?: readonly string[];
   readonly treeValues?: Readonly<
     Record<string, Readonly<Record<string, unknown>>>
   >;

@@ -218,6 +218,24 @@ $$;
 revoke execute on function "permdock".permdock_role_permissions(text, text, uuid, text) from public, anon;
 grant execute on function "permdock".permdock_role_permissions(text, text, uuid, text) to authenticated;
 
+create or replace function "permdock".permdock_trusted_role_permissions(p_role text, p_scope text, p_tenant uuid default null, p_scope_id text default null)
+returns table (permission text, effect text)
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+begin
+  perform p_tenant, p_scope_id; -- only a custom role reads them
+  return query
+  select distinct rp.permission, rp.effect
+  from "permdock".role_permissions rp
+  where rp.role = p_role and rp.scope = p_scope
+  order by 1, 2;
+end;
+$$;
+revoke execute on function "permdock".permdock_trusted_role_permissions(text, text, uuid, text) from public, anon, authenticated;
+
 -- the grant keys a permission key reaches on one scope: its unconditional allows, with p_effect 'deny' every deny, and with 'conditioned-allow' or 'conditioned-deny' the allows or denies that carry a row condition
 create or replace function "permdock".grant_keys(p_permission text, p_scope text, p_effect text default 'allow')
 returns setof text

@@ -292,4 +292,42 @@ describe("permdock_role_permissions and permdock_permission_keys", () => {
       ),
     ).rejects.toMatchObject({ code: "42501" });
   });
+
+  it("answers any tenant's custom role through the trusted reader, which no client role may execute", async () => {
+    if (db === undefined) {
+      throw new Error("PermDock: Postgres was not started");
+    }
+    for (const role of CUSTOM_ROLES) {
+      const result = await db.admin.query<Row>(
+        "select permission, effect from permdock.permdock_trusted_role_permissions($1, $2, $3, $4)",
+        [
+          role.name,
+          role.team === undefined ? "tenant" : "team",
+          role.tenant,
+          role.team ?? null,
+        ],
+      );
+      expect(sorted(result.rows), `${role.tenant} ${role.name}`).toEqual(
+        custom(role),
+      );
+    }
+    const admin = await db.admin.query<Row>(
+      "select permission, effect from permdock.permdock_trusted_role_permissions('admin', 'tenant')",
+    );
+    expect(sorted(admin.rows)).toEqual(declared("admin", "tenant"));
+    await expect(
+      db.admin.query(
+        "select * from permdock.permdock_trusted_role_permissions('writer', 'nowhere', 'acme')",
+      ),
+    ).rejects.toMatchObject({ code: "22023" });
+    for (const role of ["authenticated", "anon"] as const) {
+      await expect(
+        as(role, role === "anon" ? undefined : GLOBEX, (query) =>
+          query(
+            "select * from permdock.permdock_trusted_role_permissions('writer', 'tenant', 'acme')",
+          ),
+        ),
+      ).rejects.toMatchObject({ code: "42501" });
+    }
+  });
 });

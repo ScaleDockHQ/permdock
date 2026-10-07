@@ -153,6 +153,14 @@ describe("runRls dispatch", () => {
       code: 2,
       output: expect.stringContaining("rls.rowHelpers names 'ghost'"),
     });
+    expect(await generate({ trustedReaders: ["", 3] })).toMatchObject({
+      code: 2,
+      output: expect.stringContaining(
+        "rls.trustedReaders must list Postgres role names",
+      ),
+    });
+    const trusted = await generate({ trustedReaders: ["support"] });
+    expect(trusted.code).toBe(0);
   });
 
   it("runs the Supabase advisors on verify --advisors", async () => {

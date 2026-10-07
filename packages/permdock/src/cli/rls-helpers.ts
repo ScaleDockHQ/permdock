@@ -81,6 +81,7 @@ export const CUSTOM_ROLES = {
 const READERS = {
   keys: "permdock_permission_keys",
   roles: "permdock_role_permissions",
+  trusted: "permdock_trusted_role_permissions",
 } as const;
 
 /** `'global'` or a scope name. */
@@ -1330,6 +1331,7 @@ export type HelpersOptions = {
   readonly levelReach?: readonly (readonly [string, string])[];
   /** Every declared permission key, for `permdock_permission_keys`; the function is left out without it. */
   readonly permissions?: readonly string[];
+  readonly trustedReaders?: readonly string[];
 };
 
 /**
@@ -1454,7 +1456,11 @@ revoke all on table ${ur} from anon, authenticated, public;`);
       chunks.push(cascade);
     }
   }
-  const readers = roleReadersSql(ctx, options.permissions);
+  const readers = roleReadersSql(
+    ctx,
+    options.permissions,
+    options.trustedReaders,
+  );
   if (readers !== "") {
     chunks.push(readers);
   }
@@ -1474,6 +1480,7 @@ revoke all on table ${ur} from anon, authenticated, public;`);
 function roleReadersSql(
   ctx: RlsSqlContext,
   permissions: readonly string[] | undefined,
+  trustedReaders: readonly string[] | undefined,
 ): string {
   const rp = qualified(ctx, "role_permissions");
   const reader = qualified(ctx, READERS.roles);
@@ -1505,6 +1512,7 @@ grant execute on function ${catalog}() to authenticated;`);
   return query
 ${declared};
 end;`;
+  let trustedBody = body;
   if (custom !== undefined && database && root !== undefined) {
     const tenant = qualified(ctx, CUSTOM_ROLES.permissions);
     const includes = qualified(ctx, CUSTOM_ROLES.includes);
@@ -1529,19 +1537,13 @@ end;`;
       custom.levels === true
         ? "c.permission || coalesce('@' || c.level, '')"
         : "c.permission";
-    body = `begin
+    const checked = (gate: string): string => `begin
   if p_role = any(${textArray(custom.declared)}) then
     return query
 ${declared};
     return;
   end if;
-  perform ${shape}(p_tenant, p_scope, p_scope_id, p_role);
-  if not (${signedIn(ctx)} and (
-    ${platform}
-    or (p_scope <> 'global' and (${memberOf}))
-  )) then
-${raiseSql("    ", "42501", `'permdock: the caller is not a member of ' || coalesce(p_tenant::text, 'the platform')`, "not-member")}
-  end if;
+  perform ${shape}(p_tenant, p_scope, p_scope_id, p_role);${gate}
   return query
   select distinct rp.permission, rp.effect
   from ${keys}(
@@ -1553,6 +1555,14 @@ ${raiseSql("    ", "42501", `'permdock: the caller is not a member of ' || coale
   join ${rp} rp on rp.grant_key = k.grant_key and rp.scope = p_scope
   order by 1, 2;
 end;`;
+    body = checked(`
+  if not (${signedIn(ctx)} and (
+    ${platform}
+    or (p_scope <> 'global' and (${memberOf}))
+  )) then
+${raiseSql("    ", "42501", `'permdock: the caller is not a member of ' || coalesce(p_tenant::text, 'the platform')`, "not-member")}
+  end if;`);
+    trustedBody = checked("");
   }
   chunks.push(`-- the permission keys a role holds on a scope, with effect allow or deny; a custom role is read for its tenant and, below the first scope, its instance
 create or replace function ${reader}(p_role text, p_scope text, p_tenant ${tenantType} default null, p_scope_id text default null)
@@ -1566,6 +1576,22 @@ ${body}
 $$;
 revoke execute on function ${reader}(text, text, ${tenantType}, text) from public, anon;
 grant execute on function ${reader}(text, text, ${tenantType}, text) to authenticated;`);
+  const trusted = qualified(ctx, READERS.trusted);
+  const signature = `text, text, ${tenantType}, text`;
+  const grants =
+    trustedReaders === undefined || trustedReaders.length === 0
+      ? ""
+      : `\ngrant execute on function ${trusted}(${signature}) to ${trustedReaders.map(quoteIdent).join(", ")};`;
+  chunks.push(`create or replace function ${trusted}(p_role text, p_scope text, p_tenant ${tenantType} default null, p_scope_id text default null)
+returns table (permission text, effect text)
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+${trustedBody}
+$$;
+revoke execute on function ${trusted}(${signature}) from public, anon, authenticated;${grants}`);
   return chunks.join("\n\n");
 }
 

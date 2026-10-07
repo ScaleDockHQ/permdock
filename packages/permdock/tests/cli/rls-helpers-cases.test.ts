@@ -432,6 +432,28 @@ describe("helpersSql role readers", () => {
     }
   });
 
+  it("writes a trusted reader without the member check, executable only by the configured roles", () => {
+    const extra = {
+      authorize: "database" as const,
+      memberships: members,
+      customRoles: { declared: ["admin"], assignable: ["admin"] },
+    };
+    const trusted = fnBody(readers(extra), "permdock_trusted_role_permissions");
+    expect(trusted).toContain('"permdock".permdock_custom_role_shape(');
+    expect(trusted).toContain("array(select c.permission from");
+    expect(trusted).not.toContain("not-member");
+    const sql = helpersSql(ctx(extra), [], {
+      userRoles: false,
+      trustedReaders: ["service_role", "support"],
+    });
+    expect(sql).toContain(
+      'revoke execute on function "permdock".permdock_trusted_role_permissions(text, text, uuid, text) from public, anon, authenticated;\ngrant execute on function "permdock".permdock_trusted_role_permissions(text, text, uuid, text) to "service_role", "support";',
+    );
+    expect(readers({})).not.toContain(
+      "permdock_trusted_role_permissions(text, text, uuid, text) to",
+    );
+  });
+
   it("reads a custom role for a member of its tenant", () => {
     const body = fnBody(
       readers({

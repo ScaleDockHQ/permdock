@@ -348,6 +348,19 @@ export async function runRlsGenerate(input: {
   if (requires.error !== undefined) {
     return { code: 2, output: requires.error, text: "" };
   }
+  const readers: unknown = rls?.trustedReaders;
+  if (
+    readers !== undefined &&
+    (!Array.isArray(readers) ||
+      !readers.every((name) => typeof name === "string" && name !== ""))
+  ) {
+    return {
+      code: 2,
+      output:
+        "rls.trustedReaders must list Postgres role names, such as ['service_role']",
+      text: "",
+    };
+  }
   const ownership = ownershipRules(policy, scopes);
   const graph = graphPlan(policy);
   const apiKeys = apiKeysPlan(
@@ -718,6 +731,9 @@ export async function runRlsGenerate(input: {
       userRoles: !input.rbac,
       anonExecute,
       withoutSeeds: splitsPart(input.split, "seeds"),
+      ...(rls?.trustedReaders === undefined
+        ? {}
+        : { trustedReaders: rls.trustedReaders }),
     }),
     permissionHelpersSql(ctx, grants, renamed, anonExecute),
     usesLiveSession ? sessionLiveHelperSql(ctx) : undefined,
