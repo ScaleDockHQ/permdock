@@ -249,6 +249,7 @@
     "provenance": true
   },
   "scripts": {
+    "bench": "vitest bench --run --project \"node (bench)\" --reporter=verbose",
     "build": "tsdown",
     "check:publish": "publint && pnpm pack --out pack.tgz && attw --profile esm-only pack.tgz && rm -f pack.tgz",
     "lint": "oxlint --disable-nested-config --type-aware",
