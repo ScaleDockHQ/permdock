@@ -13,10 +13,16 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@base-ui/react": "catalog:",
+    "class-variance-authority": "catalog:",
+    "cn": "catalog:",
+    "lucide-react": "catalog:",
     "next": "catalog:",
     "permdock": "workspace:*",
     "react": "catalog:",
     "react-dom": "catalog:",
+    "shadcn": "catalog:",
+    "tw-animate-css": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
@@ -24,11 +30,14 @@
     "@permdock/ox-config": "workspace:*",
     "@permdock/typescript-config": "workspace:*",
     "@playwright/test": "catalog:",
+    "@tailwindcss/postcss": "catalog:",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "oxlint": "catalog:",
     "oxlint-tsgolint": "catalog:",
+    "postcss": "catalog:",
+    "tailwindcss": "catalog:",
     "typescript": "catalog:"
   }
 }

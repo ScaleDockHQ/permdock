@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { Snapshot, SnapshotGrant } from "../../src/core/interfaces.ts";
 
@@ -419,5 +419,18 @@ describe("fromSnapshot instance surface", () => {
     expect(client.tenants()).toEqual([]);
     expect(client.roles).toEqual({});
     expect(client.plans).toEqual({});
+  });
+
+  // A Cache Components prerender rejects Date.now() in a Client Component, and
+  // a provider awaiting its snapshotPromise decides against the empty snapshot.
+  it("decides on the empty snapshot without reading the clock", () => {
+    const clock = vi.spyOn(Date, "now");
+    try {
+      const client = fromSnapshot(emptySnapshot());
+      expect(client.can(docs.doc.read, { id: "d1" })).toBe(false);
+      expect(clock).not.toHaveBeenCalled();
+    } finally {
+      clock.mockRestore();
+    }
   });
 });

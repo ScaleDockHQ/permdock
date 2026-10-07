@@ -224,7 +224,8 @@ export function evaluateSnapshot(
   team: string | undefined,
   options: DecideOptions,
 ): Decision {
-  const now = options.now ?? nowSeconds();
+  let clock = options.now;
+  const now = (): number => (clock ??= nowSeconds());
   const tracer: SnapshotTracer | undefined =
     options.explain === true
       ? { evaluated: 0, allows: [], denies: [], skipped: [] }
@@ -272,7 +273,7 @@ export function evaluateSnapshot(
     const match = matchGrantee(
       grant.to,
       subject,
-      now,
+      now(),
       undefined,
       scopes,
       undefined,
@@ -295,7 +296,7 @@ export function evaluateSnapshot(
       subject,
       permission.kind === "instance" ? current : next,
       team,
-      now,
+      now(),
       options.scope,
     );
     if (scoped.ok && permission.kind === "instance" && next !== current) {
@@ -306,7 +307,7 @@ export function evaluateSnapshot(
         subject,
         next,
         team,
-        now,
+        now(),
         options.scope,
       );
     }
@@ -316,7 +317,7 @@ export function evaluateSnapshot(
       );
       continue;
     }
-    if (!isActive(grant.validity, now)) {
+    if (!isActive(grant.validity, now())) {
       if (grant.effect === "allow") {
         denials.push({
           role: grant.role,
@@ -346,7 +347,7 @@ export function evaluateSnapshot(
       current,
       next,
       subject,
-      now,
+      now(),
       scopes,
     );
     if (
