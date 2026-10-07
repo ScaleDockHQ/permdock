@@ -186,6 +186,38 @@ as $$
 $$;
 revoke execute on function "permdock".permitted_tenant_ids_for(uuid, text) from public, anon, authenticated;
 
+-- every declared permission key
+create or replace function "permdock".permdock_permission_keys()
+returns setof text
+language sql
+stable
+set search_path = ''
+as $$
+  select k.permission from unnest(array['post.archive', 'post.create', 'post.delete', 'post.list', 'post.publish', 'post.read', 'post.update']::text[]) k(permission) order by 1
+$$;
+revoke execute on function "permdock".permdock_permission_keys() from public, anon;
+grant execute on function "permdock".permdock_permission_keys() to authenticated;
+
+-- the permission keys a role holds on a scope, with effect allow or deny; a custom role is read for its tenant and, below the first scope, its instance
+create or replace function "permdock".permdock_role_permissions(p_role text, p_scope text, p_tenant uuid default null, p_scope_id text default null)
+returns table (permission text, effect text)
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+begin
+  perform p_tenant, p_scope_id; -- only a custom role reads them
+  return query
+  select distinct rp.permission, rp.effect
+  from "permdock".role_permissions rp
+  where rp.role = p_role and rp.scope = p_scope
+  order by 1, 2;
+end;
+$$;
+revoke execute on function "permdock".permdock_role_permissions(text, text, uuid, text) from public, anon;
+grant execute on function "permdock".permdock_role_permissions(text, text, uuid, text) to authenticated;
+
 -- the grant keys a permission key reaches on one scope: its unconditional allows, with p_effect 'deny' every deny, and with 'conditioned-allow' or 'conditioned-deny' the allows or denies that carry a row condition
 create or replace function "permdock".grant_keys(p_permission text, p_scope text, p_effect text default 'allow')
 returns setof text

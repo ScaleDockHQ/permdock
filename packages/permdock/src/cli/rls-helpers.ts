@@ -77,6 +77,12 @@ export const CUSTOM_ROLES = {
   cascade: "permdock_cascade_custom_role",
 } as const;
 
+/** The readers every helpers file ends with. Names are part of the SQL contract. */
+const READERS = {
+  keys: "permdock_permission_keys",
+  roles: "permdock_role_permissions",
+} as const;
+
 /** `'global'` or a scope name. */
 export type HelperScope = string;
 
@@ -1322,6 +1328,8 @@ export type HelpersOptions = {
   readonly withoutSeeds?: boolean;
   /** `[grant key, level]` pairs from `compileGrants`, for the custom-role writes. */
   readonly levelReach?: readonly (readonly [string, string])[];
+  /** Every declared permission key, for `permdock_permission_keys`; the function is left out without it. */
+  readonly permissions?: readonly string[];
 };
 
 /**
@@ -1446,7 +1454,119 @@ revoke all on table ${ur} from anon, authenticated, public;`);
       chunks.push(cascade);
     }
   }
+  const readers = roleReadersSql(ctx, options.permissions);
+  if (readers !== "") {
+    chunks.push(readers);
+  }
   return `${chunks.join("\n\n")}\n`;
+}
+
+/**
+ * The catalog reader `permdock_permission_keys()` and the role reader
+ * `permdock_role_permissions(p_role, p_scope, p_tenant, p_scope_id)`, both
+ * for `authenticated`. A declared role answers from `role_permissions`, which
+ * is the catalog. A custom role (`database` mode) answers from the tenant's
+ * own rows through `permdock_custom_keys`, only to a member of the tenant or
+ * a holder of a `meta.manageRoles` permission for a platform role. The
+ * effect is `deny` for a deny the role carries after the ceiling, as
+ * `resolveCustomRole` returns it, never for a deny that merely removes an allow.
+ */
+function roleReadersSql(
+  ctx: RlsSqlContext,
+  permissions: readonly string[] | undefined,
+): string {
+  const rp = qualified(ctx, "role_permissions");
+  const reader = qualified(ctx, READERS.roles);
+  const tenantType = tenantTypeOf(ctx);
+  const custom = ctx.customRoles;
+  const root = ctx.scopes[0]?.name;
+  const database = ctx.authorize === "database";
+  const chunks: string[] = [];
+  if (permissions !== undefined) {
+    const catalog = qualified(ctx, READERS.keys);
+    chunks.push(`-- every declared permission key
+create or replace function ${catalog}()
+returns setof text
+language sql
+stable
+set search_path = ''
+as $$
+  select k.permission from unnest(${textArray(permissions.toSorted())}) k(permission) order by 1
+$$;
+revoke execute on function ${catalog}() from public, anon;
+grant execute on function ${catalog}() to authenticated;`);
+  }
+  const declared = `  select distinct rp.permission, rp.effect
+  from ${rp} rp
+  where rp.role = p_role and rp.scope = p_scope
+  order by 1, 2`;
+  let body = `begin
+  perform p_tenant, p_scope_id; -- only a custom role reads them
+  return query
+${declared};
+end;`;
+  if (custom !== undefined && database && root !== undefined) {
+    const tenant = qualified(ctx, CUSTOM_ROLES.permissions);
+    const includes = qualified(ctx, CUSTOM_ROLES.includes);
+    const keys = qualified(ctx, CUSTOM_ROLES.keys);
+    const shape = qualified(ctx, CUSTOM_ROLES.shape);
+    const ids = (helper: string): string =>
+      `(select x::text from ${qualified(ctx, helper)}() x)`;
+    const memberOf = `p_tenant::text in ${ids(memberIdsHelper(root))}
+      or ${perScope(ctx, (scope) => (scope === root ? "false" : `p_scope_id in ${ids(memberIdsHelper(scope))}`))}`;
+    const manage = custom.manage ?? [];
+    const platform =
+      manage.length === 0
+        ? "false"
+        : `exists (
+        select 1 from ${rp} m
+        where m.effect = 'allow'
+          and m.permission = any(${textArray(manage)})
+          and ${qualified(ctx, HELPERS.has)}(m.grant_key)
+      )`;
+    const match = `c.tenant_id is not distinct from p_tenant and c.scope = p_scope and c.scope_id is not distinct from p_scope_id and c.role = p_role`;
+    const allowEntryOf =
+      custom.levels === true
+        ? "c.permission || coalesce('@' || c.level, '')"
+        : "c.permission";
+    body = `begin
+  if p_role = any(${textArray(custom.declared)}) then
+    return query
+${declared};
+    return;
+  end if;
+  perform ${shape}(p_tenant, p_scope, p_scope_id, p_role);
+  if not (${signedIn(ctx)} and (
+    ${platform}
+    or (p_scope <> 'global' and (${memberOf}))
+  )) then
+${raiseSql("    ", "42501", `'permdock: the caller is not a member of ' || coalesce(p_tenant::text, 'the platform')`, "not-member")}
+  end if;
+  return query
+  select distinct rp.permission, rp.effect
+  from ${keys}(
+    array(select ${allowEntryOf} from ${tenant} c where ${match} and c.effect = 'allow'),
+    array(select c.permission from ${tenant} c where ${match} and c.effect = 'deny'),
+    array(select c.include_role from ${includes} c where ${match}),
+    p_scope
+  ) k(grant_key)
+  join ${rp} rp on rp.grant_key = k.grant_key and rp.scope = p_scope
+  order by 1, 2;
+end;`;
+  }
+  chunks.push(`-- the permission keys a role holds on a scope, with effect allow or deny; a custom role is read for its tenant and, below the first scope, its instance
+create or replace function ${reader}(p_role text, p_scope text, p_tenant ${tenantType} default null, p_scope_id text default null)
+returns table (permission text, effect text)
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+${body}
+$$;
+revoke execute on function ${reader}(text, text, ${tenantType}, text) from public, anon;
+grant execute on function ${reader}(text, text, ${tenantType}, text) to authenticated;`);
+  return chunks.join("\n\n");
 }
 
 /** `expr` read as its current key: a former key maps to the key it was renamed to. */
