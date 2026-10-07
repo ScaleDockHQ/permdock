@@ -51,8 +51,8 @@ async function generate(
   return { code: result.code, stdout: result.stdout, sql };
 }
 
-function viewOf(sql: string, name: string): string {
-  const start = sql.indexOf(`create or replace view "public"."${name}"`);
+function viewOf(sql: string, name: string, schema = "public"): string {
+  const start = sql.indexOf(`create or replace view "${schema}"."${name}"`);
   return start === -1 ? "" : sql.slice(start, sql.indexOf(";", start) + 1);
 }
 
@@ -160,19 +160,19 @@ describe("permdock rls generate --fields views", () => {
     expect(sql).not.toMatch(
       /grant select(, [a-z]+)* on table "public"."invoice" to/u,
     );
-    const companion = viewOf(sql, "invoice_visible_fields");
+    const companion = viewOf(sql, "invoice_visible_fields", "permdock");
     expect(companion).toContain("with (security_barrier = true)");
     expect(companion).toContain('"id" as "permdock_key"');
     expect(companion).toMatch(/\nwhere /u);
     expect(sql).toContain(
-      `comment on view "public"."invoice_visible_fields" is 'permdock:field-companion invoice_visible';`,
+      `comment on view "permdock"."invoice_visible_fields" is 'permdock:field-companion invoice_visible';`,
     );
     const view = viewOf(sql, "invoice_visible");
     expect(view).toContain("with (security_invoker = true)");
     expect(view).toContain('t."title"');
     expect(view).toContain('f."amount"');
     expect(view).toContain(
-      'left join "public"."invoice_visible_fields" f on f."permdock_key" = t."id";',
+      'left join "permdock"."invoice_visible_fields" f on f."permdock_key" = t."id";',
     );
   });
 
@@ -240,7 +240,7 @@ describe("permdock rls generate --fields views", () => {
     );
     const { sql } = await generate(cwd, []);
     expect(sql).toContain(
-      'create or replace view "public"."invoice_visible_fields"',
+      'create or replace view "permdock"."invoice_visible_fields"',
     );
   });
 
