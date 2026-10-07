@@ -73,6 +73,7 @@ import {
   graphHelper,
   parseMembershipsFlag,
   qualifiedTable,
+  quoteLiteral,
   scopeSources,
   scopeTable,
   SESSION_LIVE_HELPER,
@@ -559,21 +560,29 @@ export async function runRlsGenerate(input: {
       "rls.realtime and rls.storage add policies, and --helpers-only writes none: no realtime.messages or storage.objects policy is written",
     );
   }
-  const helperTables =
+  const servicePolicies =
     tablePolicies.length === 0 || helpersOnly
+      ? []
+      : [
+          ...tablePolicies,
+          ...(actorKinds === undefined
+            ? []
+            : readOnlyActorPolicies(
+                tablePolicies,
+                subjectClaimJsonSql(ctx, "act"),
+                actorKinds,
+              )),
+        ];
+  const helperTables =
+    servicePolicies.length === 0
+      ? undefined
+      : [SERVICE_TABLES_HEADER, ...servicePolicies.map(policySql)].join("\n");
+  const guardedTables =
+    servicePolicies.length === 0
       ? undefined
       : [
-          "-- Supabase Realtime and Storage: rls.realtime and rls.storage. RLS on both tables is Supabase's.",
-          ...[
-            ...tablePolicies,
-            ...(actorKinds === undefined
-              ? []
-              : readOnlyActorPolicies(
-                  tablePolicies,
-                  subjectClaimJsonSql(ctx, "act"),
-                  actorKinds,
-                )),
-          ].map(policySql),
+          `${SERVICE_TABLES_HEADER} A stack without the service has no table, so each policy is skipped there.`,
+          ...servicePolicies.map(guardedPolicySql),
         ].join("\n");
   const rootMapped =
     ctx.scopes[0] === undefined
@@ -809,6 +818,13 @@ export async function runRlsGenerate(input: {
         withHelperTables(emitSql(policies, "", force, views), helperTables),
         ctx.dialect,
       ),
+      declarativePolicies: dialectRoles(
+        emitSql(policies, "", force, views),
+        ctx.dialect,
+      ),
+      ...(guardedTables === undefined
+        ? {}
+        : { servicePolicies: dialectRoles(guardedTables, ctx.dialect) }),
       helpers: dialectRoles(
         emitSql([], preamble, false, helpersOnly ? views : []),
         ctx.dialect,
@@ -848,6 +864,31 @@ export async function runRlsGenerate(input: {
 }
 
 /** Whether `--split` names `part`, which then leaves the helpers or the warnings. */
+const SERVICE_TABLES_HEADER =
+  "-- Supabase Realtime and Storage: rls.realtime and rls.storage. RLS on both tables is Supabase's.";
+
+/**
+ * A `realtime.messages` or `storage.objects` policy that applies only where
+ * the table exists. The Realtime and Storage services create those tables, so
+ * a local stack with the service off, and pg-delta's shadow database, have
+ * none.
+ */
+function guardedPolicySql(item: CompiledPolicy): string {
+  const body = policySql(item)
+    .trimEnd()
+    .split("\n")
+    .map((line) => `    ${line}`)
+    .join("\n");
+  return `do $permdock$
+begin
+  if to_regclass(${quoteLiteral(qualifiedTable(item.table))}) is not null then
+${body}
+  end if;
+end
+$permdock$;
+`;
+}
+
 /** Appends the `realtime.messages` and `storage.objects` policies, which never get `tableSql`. */
 function withHelperTables(
   sql: string,
@@ -873,6 +914,10 @@ function outputFiles(plan: {
   readonly helpersOnly: boolean;
   readonly sql: () => {
     readonly policies: string;
+    /** The policies part without the Realtime and Storage policies, for pg-delta. */
+    readonly declarativePolicies: string;
+    /** The Realtime and Storage policies, each guarded by its table, for the seeds migration under pg-delta. */
+    readonly servicePolicies?: string;
     readonly helpers: string;
     readonly seeds: string;
     readonly indexes: string;
@@ -939,6 +984,18 @@ function outputFiles(plan: {
     return "rls generate --split hook needs supabase.hook in permdock.config.ts";
   }
   const sql = plan.sql();
+  const relocated = pgDelta === undefined ? undefined : sql.servicePolicies;
+  if (
+    relocated !== undefined &&
+    split.includes("policies") &&
+    !split.includes("seeds")
+  ) {
+    return "rls generate --split policies under pg-delta with rls.realtime or rls.storage needs the seeds part with --seeds-out: the shadow database has no realtime.messages or storage.objects, so their policies go in that migration";
+  }
+  const seeds =
+    relocated === undefined || !split.includes("policies")
+      ? sql.seeds
+      : `${sql.seeds}\n${relocated}`;
   const files: SqlFile[] = [];
   const label = grantsLabel(input.grantsOut);
   let grantsMarker = `${GRANTS_MARKER} schema=${plan.schema}`;
@@ -962,22 +1019,26 @@ function outputFiles(plan: {
             input.cwd,
             out,
             SEEDS_MARKER,
-            sql.seeds,
+            seeds,
             input.io.now?.() ?? new Date(),
           );
           if (!planned.current || input.check) {
-            files.push({ part, rel: planned.rel, text: sql.seeds });
+            files.push({ part, rel: planned.rel, text: seeds });
           }
           break;
         }
-        files.push({ part, rel: out ?? at(part), text: sql.seeds });
+        files.push({ part, rel: out ?? at(part), text: seeds });
         break;
       }
       case "indexes":
         files.push({ part, rel: at(part), text: sql.indexes });
         break;
       case "policies":
-        files.push({ part, rel: at(part), text: sql.policies });
+        files.push({
+          part,
+          rel: at(part),
+          text: pgDelta === undefined ? sql.policies : sql.declarativePolicies,
+        });
         break;
       case "hook": {
         const hook = supabaseHookSql(plan.scopes, input.config, {}, label);

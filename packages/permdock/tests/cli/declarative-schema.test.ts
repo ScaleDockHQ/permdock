@@ -492,6 +492,78 @@ describe("rls generate --split under pg-delta", () => {
     );
   });
 
+  it("moves the Realtime and Storage policies into the seeds migration, each guarded by its table", async () => {
+    const cwd = project(
+      true,
+      `, realtime: { topics: { 'org:{organization}:assets': { read: { key: 'asset.read' } } } }, storage: { buckets: { files: { scope: 'organization', read: { key: 'asset.read' } } } }`,
+    );
+    pgDelta(cwd);
+    const result = await run(
+      [
+        "rls",
+        "generate",
+        "--split",
+        "helpers,seeds,policies",
+        "--seeds-out",
+        SEEDS,
+      ],
+      { cwd },
+    );
+    expect(result.code).toBe(0);
+    const policies = read(cwd, "supabase/schemas/public/policies/permdock.sql");
+    expect(policies).toContain("create policy");
+    expect(policies).not.toContain("realtime");
+    expect(policies).not.toContain("storage.objects");
+    const seeds = read(cwd, SEEDS);
+    expect(seeds.split("\n", 1)[0]).toBe(
+      "-- permdock:seeds v1 schema=permdock",
+    );
+    expect(seeds).toContain(
+      `do $permdock$
+begin
+  if to_regclass('realtime.messages') is not null then
+    drop policy if exists "permdock_realtime_org_organization_assets_select" on "realtime"."messages";
+    create policy "permdock_realtime_org_organization_assets_select"`,
+    );
+    expect(seeds).toContain(
+      "  if to_regclass('storage.objects') is not null then",
+    );
+    expect(seeds).toContain("  end if;\nend\n$permdock$;\n");
+    const checked = await run(
+      [
+        "rls",
+        "generate",
+        "--split",
+        "helpers,seeds,policies",
+        "--seeds-out",
+        SEEDS,
+        "--check",
+      ],
+      { cwd },
+    );
+    expect(checked.code).toBe(0);
+    const withoutSeeds = await run(
+      ["rls", "generate", "--split", "indexes,policies"],
+      { cwd },
+    );
+    expect(withoutSeeds.code).toBe(2);
+    expect(withoutSeeds.stdout).toContain(
+      "rls generate --split policies under pg-delta with rls.realtime or rls.storage needs the seeds part with --seeds-out",
+    );
+    const plain = project(
+      true,
+      `, realtime: { topics: { 'org:{organization}:assets': { read: { key: 'asset.read' } } } }`,
+    );
+    const unsplit = await run(
+      ["rls", "generate", "--split", "policies", "--out", OUT],
+      { cwd: plain },
+    );
+    expect(unsplit.code).toBe(0);
+    expect(read(plain, part("policies"))).toContain(
+      'create policy "permdock_realtime_org_organization_assets_select"\n  on "realtime"."messages"',
+    );
+  });
+
   it("needs the seeds part with --seeds-out, since pg-delta rejects rows in a declarative file", async () => {
     const cwd = project();
     pgDelta(cwd);
