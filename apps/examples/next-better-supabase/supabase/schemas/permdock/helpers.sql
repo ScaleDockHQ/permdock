@@ -346,6 +346,23 @@ $$;
 revoke execute on function "permdock".permdock_permission_keys() from public, anon;
 grant execute on function "permdock".permdock_permission_keys() to authenticated;
 
+create or replace function "permdock".permdock_permission_keys(p_scope text)
+returns setof text
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select distinct rp.permission
+  from "permdock".role_permissions rp
+  where rp.scope = p_scope
+    and rp.effect = 'allow'
+    and rp.permission = any(array['quotes.list', 'quotes.read', 'quotes.update', 'staff.list', 'staff.read']::text[])
+  order by 1
+$$;
+revoke execute on function "permdock".permdock_permission_keys(text) from public, anon;
+grant execute on function "permdock".permdock_permission_keys(text) to authenticated;
+
 -- the permission keys a role holds on a scope, with effect allow or deny; a custom role is read for its tenant and, below the first scope, its instance
 create or replace function "permdock".permdock_role_permissions(p_role text, p_scope text, p_tenant uuid default null, p_scope_id text default null)
 returns table (permission text, effect text)
@@ -365,6 +382,24 @@ end;
 $$;
 revoke execute on function "permdock".permdock_role_permissions(text, text, uuid, text) from public, anon;
 grant execute on function "permdock".permdock_role_permissions(text, text, uuid, text) to authenticated;
+
+create or replace function "permdock".permdock_trusted_role_permissions(p_role text, p_scope text, p_tenant uuid default null, p_scope_id text default null)
+returns table (permission text, effect text)
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+begin
+  perform p_tenant, p_scope_id; -- only a custom role reads them
+  return query
+  select distinct rp.permission, rp.effect
+  from "permdock".role_permissions rp
+  where rp.role = p_role and rp.scope = p_scope
+  order by 1, 2;
+end;
+$$;
+revoke execute on function "permdock".permdock_trusted_role_permissions(text, text, uuid, text) from public, anon, authenticated;
 
 -- the grant keys a permission key reaches on one scope: its unconditional allows, with p_effect 'deny' every deny, and with 'conditioned-allow' or 'conditioned-deny' the allows or denies that carry a row condition
 create or replace function "permdock".grant_keys(p_permission text, p_scope text, p_effect text default 'allow')
@@ -417,18 +452,139 @@ grant execute on function "permdock".permitted_organization_ids_by_permission(te
 -- the permission keys the caller holds on one organization: what permdock_has_permission or permitted_organization_ids_by_permission answers for each key, in one call
 create or replace function "permdock".permitted_organization_permission_keys(p_id uuid)
 returns setof text
-language sql
+language plpgsql
 stable
 security definer
 set search_path = ''
+set jit = off
 as $$
-  select k.key
-  from pg_catalog.unnest(array['quotes.list', 'quotes.read', 'quotes.update', 'staff.list', 'staff.read']::text[]) k(key)
-  where "permdock".permdock_has_permission(k.key)
-    or p_id in (select "permdock".permitted_organization_ids_by_permission(k.key))
+declare
+  v_user_0 "public"."memberships"."user_id"%type := (select "permdock".permdock_user_id());
+begin
+  return query
+  with pdk_m(key, scope, effect, grant_key) as (
+    values
+      ('quotes.list', 'organization', 'allow', 'quotes.list'),
+      ('quotes.read', 'organization', 'allow', 'quotes.read'),
+      ('quotes.update', 'organization', 'allow', 'quotes.update'),
+      ('staff.list', 'organization', 'allow', 'staff.list'),
+      ('staff.read', 'organization', 'allow', 'staff.read')
+  ),
+  pdk_w as (
+    select pdk_m.key, pdk_m.scope, pdk_m.effect, pdk_m.grant_key
+    from pdk_m
+  ),
+  pdk_g as (
+  select rp.grant_key
+  from "permdock".user_roles ur
+  join "permdock".role_permissions rp on rp.role = ur.role::text
+  where ur.user_id = (select "permdock".permdock_user_id())
+    and rp.scope = 'global'
+  ),
+  pdk_s as (
+    select pdk_i.grant_key
+    from (
+  select (ms.id)::uuid, rp.grant_key
+  from (
+    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."memberships" m
+    where m."user_id" = v_user_0
+    group by m."scope"::text, m."scope_id"::text
+  ) ms
+  cross join lateral jsonb_array_elements_text(
+    case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
+  ) r(role)
+  join "permdock".role_permissions rp on rp.role = r.role
+  where coalesce((select "permdock".permdock_user_id())::text, '') <> ''
+    and ms.scope = 'organization'
+    and rp.scope = 'organization'
+    and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or ms.id = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
+    ) pdk_i(id, grant_key)
+    where pdk_i.id = p_id
+  ),
+  pdk_h as (
+    select pdk_w.key, pdk_w.scope, pdk_w.effect
+    from pdk_w
+    where (pdk_w.scope = 'global' and pdk_w.grant_key in (select pdk_g.grant_key from pdk_g))
+      or (pdk_w.scope = 'organization' and pdk_w.grant_key in (select pdk_s.grant_key from pdk_s))
+  )
+  select pdk_k.key
+  from (select distinct pdk_w.key from pdk_w where pdk_w.effect = 'allow') pdk_k
+  where (exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'global' and pdk_h.effect = 'allow') and not exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'global' and pdk_h.effect = 'deny'))
+    or (exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'organization' and pdk_h.effect = 'allow') and not exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'organization' and pdk_h.effect = 'deny'))
+  order by 1;
+end;
 $$;
 revoke execute on function "permdock".permitted_organization_permission_keys(uuid) from public, anon;
 grant execute on function "permdock".permitted_organization_permission_keys(uuid) to authenticated;
+create or replace function "permdock".permitted_organization_permission_keys(p_id uuid, p_keys text[])
+returns setof text
+language plpgsql
+stable
+security definer
+set search_path = ''
+set jit = off
+as $$
+declare
+  v_user_0 "public"."memberships"."user_id"%type := (select "permdock".permdock_user_id());
+begin
+  return query
+  with pdk_m(key, scope, effect, grant_key) as (
+    values
+      ('quotes.list', 'organization', 'allow', 'quotes.list'),
+      ('quotes.read', 'organization', 'allow', 'quotes.read'),
+      ('quotes.update', 'organization', 'allow', 'quotes.update'),
+      ('staff.list', 'organization', 'allow', 'staff.list'),
+      ('staff.read', 'organization', 'allow', 'staff.read')
+  ),
+  pdk_w as (
+    select pdk_m.key, pdk_m.scope, pdk_m.effect, pdk_m.grant_key
+    from pdk_m
+    where pdk_m.key in (select k.key from pg_catalog.unnest(p_keys) k(key))
+  ),
+  pdk_g as (
+  select rp.grant_key
+  from "permdock".user_roles ur
+  join "permdock".role_permissions rp on rp.role = ur.role::text
+  where ur.user_id = (select "permdock".permdock_user_id())
+    and rp.scope = 'global'
+  ),
+  pdk_s as (
+    select pdk_i.grant_key
+    from (
+  select (ms.id)::uuid, rp.grant_key
+  from (
+    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."memberships" m
+    where m."user_id" = v_user_0
+    group by m."scope"::text, m."scope_id"::text
+  ) ms
+  cross join lateral jsonb_array_elements_text(
+    case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
+  ) r(role)
+  join "permdock".role_permissions rp on rp.role = r.role
+  where coalesce((select "permdock".permdock_user_id())::text, '') <> ''
+    and ms.scope = 'organization'
+    and rp.scope = 'organization'
+    and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or ms.id = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
+    ) pdk_i(id, grant_key)
+    where pdk_i.id = p_id
+  ),
+  pdk_h as (
+    select pdk_w.key, pdk_w.scope, pdk_w.effect
+    from pdk_w
+    where (pdk_w.scope = 'global' and pdk_w.grant_key in (select pdk_g.grant_key from pdk_g))
+      or (pdk_w.scope = 'organization' and pdk_w.grant_key in (select pdk_s.grant_key from pdk_s))
+  )
+  select pdk_k.key
+  from (select distinct pdk_w.key from pdk_w where pdk_w.effect = 'allow') pdk_k
+  where (exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'global' and pdk_h.effect = 'allow') and not exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'global' and pdk_h.effect = 'deny'))
+    or (exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'organization' and pdk_h.effect = 'allow') and not exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'organization' and pdk_h.effect = 'deny'))
+  order by 1;
+end;
+$$;
+revoke execute on function "permdock".permitted_organization_permission_keys(uuid, text[]) from public, anon;
+grant execute on function "permdock".permitted_organization_permission_keys(uuid, text[]) to authenticated;
 
 -- with p_conditioned true, also the instances a conditioned allow reaches, minus only unconditional denies: the caller applies the row condition
 create or replace function "permdock".permitted_organization_ids_by_permission(p_permission text, p_conditioned boolean)
@@ -480,18 +636,145 @@ grant execute on function "permdock".permitted_customer_ids_by_permission(text) 
 -- the permission keys the caller holds on one customer: what permdock_has_permission or permitted_customer_ids_by_permission answers for each key, in one call
 create or replace function "permdock".permitted_customer_permission_keys(p_id uuid)
 returns setof text
-language sql
+language plpgsql
 stable
 security definer
 set search_path = ''
+set jit = off
 as $$
-  select k.key
-  from pg_catalog.unnest(array['quotes.list', 'quotes.read']::text[]) k(key)
-  where "permdock".permdock_has_permission(k.key)
-    or p_id in (select "permdock".permitted_customer_ids_by_permission(k.key))
+declare
+  v_user_0 "public"."memberships"."user_id"%type := (select "permdock".permdock_user_id());
+  v_user_1 "public"."contacts"."user_id"%type := (select "permdock".permdock_user_id());
+begin
+  return query
+  with pdk_m(key, scope, effect, grant_key) as (
+    values
+      ('quotes.list', 'customer', 'allow', 'quotes.list'),
+      ('quotes.read', 'customer', 'allow', 'quotes.read')
+  ),
+  pdk_w as (
+    select pdk_m.key, pdk_m.scope, pdk_m.effect, pdk_m.grant_key
+    from pdk_m
+  ),
+  pdk_g as (
+  select rp.grant_key
+  from "permdock".user_roles ur
+  join "permdock".role_permissions rp on rp.role = ur.role::text
+  where ur.user_id = (select "permdock".permdock_user_id())
+    and rp.scope = 'global'
+  ),
+  pdk_s as (
+    select pdk_i.grant_key
+    from (
+  select (ms.id)::uuid, rp.grant_key
+  from (
+    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."memberships" m
+    where m."user_id" = v_user_0
+    group by m."scope"::text, m."scope_id"::text
+    union all
+    select 'customer'::text as scope, m."customer_id"::text as id, jsonb_build_object('organization', m."organization_id"::text) as within, jsonb_build_array('contact') as roles, 'contact'::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."contacts" m
+    where m."user_id" = v_user_1
+    group by m."customer_id", m."organization_id"
+  ) ms
+  cross join lateral jsonb_array_elements_text(
+    case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
+  ) r(role)
+  join "permdock".role_permissions rp on rp.role = r.role
+  where coalesce((select "permdock".permdock_user_id())::text, '') <> ''
+    and ms.scope = 'customer'
+    and rp.scope = 'customer'
+    and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or ms.within ->> 'organization' = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
+    ) pdk_i(id, grant_key)
+    where pdk_i.id = p_id
+  ),
+  pdk_h as (
+    select pdk_w.key, pdk_w.scope, pdk_w.effect
+    from pdk_w
+    where (pdk_w.scope = 'global' and pdk_w.grant_key in (select pdk_g.grant_key from pdk_g))
+      or (pdk_w.scope = 'customer' and pdk_w.grant_key in (select pdk_s.grant_key from pdk_s))
+  )
+  select pdk_k.key
+  from (select distinct pdk_w.key from pdk_w where pdk_w.effect = 'allow') pdk_k
+  where (exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'global' and pdk_h.effect = 'allow') and not exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'global' and pdk_h.effect = 'deny'))
+    or (exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'customer' and pdk_h.effect = 'allow') and not exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'customer' and pdk_h.effect = 'deny'))
+  order by 1;
+end;
 $$;
 revoke execute on function "permdock".permitted_customer_permission_keys(uuid) from public, anon;
 grant execute on function "permdock".permitted_customer_permission_keys(uuid) to authenticated;
+create or replace function "permdock".permitted_customer_permission_keys(p_id uuid, p_keys text[])
+returns setof text
+language plpgsql
+stable
+security definer
+set search_path = ''
+set jit = off
+as $$
+declare
+  v_user_0 "public"."memberships"."user_id"%type := (select "permdock".permdock_user_id());
+  v_user_1 "public"."contacts"."user_id"%type := (select "permdock".permdock_user_id());
+begin
+  return query
+  with pdk_m(key, scope, effect, grant_key) as (
+    values
+      ('quotes.list', 'customer', 'allow', 'quotes.list'),
+      ('quotes.read', 'customer', 'allow', 'quotes.read')
+  ),
+  pdk_w as (
+    select pdk_m.key, pdk_m.scope, pdk_m.effect, pdk_m.grant_key
+    from pdk_m
+    where pdk_m.key in (select k.key from pg_catalog.unnest(p_keys) k(key))
+  ),
+  pdk_g as (
+  select rp.grant_key
+  from "permdock".user_roles ur
+  join "permdock".role_permissions rp on rp.role = ur.role::text
+  where ur.user_id = (select "permdock".permdock_user_id())
+    and rp.scope = 'global'
+  ),
+  pdk_s as (
+    select pdk_i.grant_key
+    from (
+  select (ms.id)::uuid, rp.grant_key
+  from (
+    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."memberships" m
+    where m."user_id" = v_user_0
+    group by m."scope"::text, m."scope_id"::text
+    union all
+    select 'customer'::text as scope, m."customer_id"::text as id, jsonb_build_object('organization', m."organization_id"::text) as within, jsonb_build_array('contact') as roles, 'contact'::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."contacts" m
+    where m."user_id" = v_user_1
+    group by m."customer_id", m."organization_id"
+  ) ms
+  cross join lateral jsonb_array_elements_text(
+    case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
+  ) r(role)
+  join "permdock".role_permissions rp on rp.role = r.role
+  where coalesce((select "permdock".permdock_user_id())::text, '') <> ''
+    and ms.scope = 'customer'
+    and rp.scope = 'customer'
+    and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or ms.within ->> 'organization' = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
+    ) pdk_i(id, grant_key)
+    where pdk_i.id = p_id
+  ),
+  pdk_h as (
+    select pdk_w.key, pdk_w.scope, pdk_w.effect
+    from pdk_w
+    where (pdk_w.scope = 'global' and pdk_w.grant_key in (select pdk_g.grant_key from pdk_g))
+      or (pdk_w.scope = 'customer' and pdk_w.grant_key in (select pdk_s.grant_key from pdk_s))
+  )
+  select pdk_k.key
+  from (select distinct pdk_w.key from pdk_w where pdk_w.effect = 'allow') pdk_k
+  where (exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'global' and pdk_h.effect = 'allow') and not exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'global' and pdk_h.effect = 'deny'))
+    or (exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'customer' and pdk_h.effect = 'allow') and not exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'customer' and pdk_h.effect = 'deny'))
+  order by 1;
+end;
+$$;
+revoke execute on function "permdock".permitted_customer_permission_keys(uuid, text[]) from public, anon;
+grant execute on function "permdock".permitted_customer_permission_keys(uuid, text[]) to authenticated;
 
 -- with p_conditioned true, also the instances a conditioned allow reaches, minus only unconditional denies: the caller applies the row condition
 create or replace function "permdock".permitted_customer_ids_by_permission(p_permission text, p_conditioned boolean)
@@ -581,17 +864,135 @@ revoke execute on function "permdock".permitted_organization_ids_by_permission_f
 
 create or replace function "permdock".permitted_organization_permission_keys_for(p_user uuid, p_id uuid)
 returns setof text
-language sql
+language plpgsql
 stable
 security definer
 set search_path = ''
+set jit = off
 as $$
-  select k.key
-  from pg_catalog.unnest(array['quotes.list', 'quotes.read', 'quotes.update', 'staff.list', 'staff.read']::text[]) k(key)
-  where "permdock".permdock_has_permission_for(p_user, k.key)
-    or p_id in (select "permdock".permitted_organization_ids_by_permission_for(p_user, k.key))
+declare
+  v_user_0 "public"."memberships"."user_id"%type := p_user;
+begin
+  return query
+  with pdk_m(key, scope, effect, grant_key) as (
+    values
+      ('quotes.list', 'organization', 'allow', 'quotes.list'),
+      ('quotes.read', 'organization', 'allow', 'quotes.read'),
+      ('quotes.update', 'organization', 'allow', 'quotes.update'),
+      ('staff.list', 'organization', 'allow', 'staff.list'),
+      ('staff.read', 'organization', 'allow', 'staff.read')
+  ),
+  pdk_w as (
+    select pdk_m.key, pdk_m.scope, pdk_m.effect, pdk_m.grant_key
+    from pdk_m
+  ),
+  pdk_g as (
+  select rp.grant_key
+  from "permdock".user_roles ur
+  join "permdock".role_permissions rp on rp.role = ur.role::text
+  where ur.user_id = p_user
+    and rp.scope = 'global'
+  ),
+  pdk_s as (
+    select pdk_i.grant_key
+    from (
+  select (ms.id)::uuid, rp.grant_key
+  from (
+    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."memberships" m
+    where m."user_id" = v_user_0
+    group by m."scope"::text, m."scope_id"::text
+  ) ms
+  cross join lateral jsonb_array_elements_text(
+    case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
+  ) r(role)
+  join "permdock".role_permissions rp on rp.role = r.role
+  where coalesce(p_user::text, '') <> ''
+    and ms.scope = 'organization'
+    and rp.scope = 'organization'
+    ) pdk_i(id, grant_key)
+    where pdk_i.id = p_id
+  ),
+  pdk_h as (
+    select pdk_w.key, pdk_w.scope, pdk_w.effect
+    from pdk_w
+    where (pdk_w.scope = 'global' and pdk_w.grant_key in (select pdk_g.grant_key from pdk_g))
+      or (pdk_w.scope = 'organization' and pdk_w.grant_key in (select pdk_s.grant_key from pdk_s))
+  )
+  select pdk_k.key
+  from (select distinct pdk_w.key from pdk_w where pdk_w.effect = 'allow') pdk_k
+  where (exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'global' and pdk_h.effect = 'allow') and not exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'global' and pdk_h.effect = 'deny'))
+    or (exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'organization' and pdk_h.effect = 'allow') and not exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'organization' and pdk_h.effect = 'deny'))
+  order by 1;
+end;
 $$;
 revoke execute on function "permdock".permitted_organization_permission_keys_for(uuid, uuid) from public, anon, authenticated;
+create or replace function "permdock".permitted_organization_permission_keys_for(p_user uuid, p_id uuid, p_keys text[])
+returns setof text
+language plpgsql
+stable
+security definer
+set search_path = ''
+set jit = off
+as $$
+declare
+  v_user_0 "public"."memberships"."user_id"%type := p_user;
+begin
+  return query
+  with pdk_m(key, scope, effect, grant_key) as (
+    values
+      ('quotes.list', 'organization', 'allow', 'quotes.list'),
+      ('quotes.read', 'organization', 'allow', 'quotes.read'),
+      ('quotes.update', 'organization', 'allow', 'quotes.update'),
+      ('staff.list', 'organization', 'allow', 'staff.list'),
+      ('staff.read', 'organization', 'allow', 'staff.read')
+  ),
+  pdk_w as (
+    select pdk_m.key, pdk_m.scope, pdk_m.effect, pdk_m.grant_key
+    from pdk_m
+    where pdk_m.key in (select k.key from pg_catalog.unnest(p_keys) k(key))
+  ),
+  pdk_g as (
+  select rp.grant_key
+  from "permdock".user_roles ur
+  join "permdock".role_permissions rp on rp.role = ur.role::text
+  where ur.user_id = p_user
+    and rp.scope = 'global'
+  ),
+  pdk_s as (
+    select pdk_i.grant_key
+    from (
+  select (ms.id)::uuid, rp.grant_key
+  from (
+    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."memberships" m
+    where m."user_id" = v_user_0
+    group by m."scope"::text, m."scope_id"::text
+  ) ms
+  cross join lateral jsonb_array_elements_text(
+    case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
+  ) r(role)
+  join "permdock".role_permissions rp on rp.role = r.role
+  where coalesce(p_user::text, '') <> ''
+    and ms.scope = 'organization'
+    and rp.scope = 'organization'
+    ) pdk_i(id, grant_key)
+    where pdk_i.id = p_id
+  ),
+  pdk_h as (
+    select pdk_w.key, pdk_w.scope, pdk_w.effect
+    from pdk_w
+    where (pdk_w.scope = 'global' and pdk_w.grant_key in (select pdk_g.grant_key from pdk_g))
+      or (pdk_w.scope = 'organization' and pdk_w.grant_key in (select pdk_s.grant_key from pdk_s))
+  )
+  select pdk_k.key
+  from (select distinct pdk_w.key from pdk_w where pdk_w.effect = 'allow') pdk_k
+  where (exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'global' and pdk_h.effect = 'allow') and not exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'global' and pdk_h.effect = 'deny'))
+    or (exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'organization' and pdk_h.effect = 'allow') and not exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'organization' and pdk_h.effect = 'deny'))
+  order by 1;
+end;
+$$;
+revoke execute on function "permdock".permitted_organization_permission_keys_for(uuid, uuid, text[]) from public, anon, authenticated;
 
 create or replace function "permdock".permitted_customer_ids_by_permission_for(p_user uuid, p_permission text)
 returns setof uuid
@@ -639,17 +1040,141 @@ revoke execute on function "permdock".permitted_customer_ids_by_permission_for(u
 
 create or replace function "permdock".permitted_customer_permission_keys_for(p_user uuid, p_id uuid)
 returns setof text
-language sql
+language plpgsql
 stable
 security definer
 set search_path = ''
+set jit = off
 as $$
-  select k.key
-  from pg_catalog.unnest(array['quotes.list', 'quotes.read']::text[]) k(key)
-  where "permdock".permdock_has_permission_for(p_user, k.key)
-    or p_id in (select "permdock".permitted_customer_ids_by_permission_for(p_user, k.key))
+declare
+  v_user_0 "public"."memberships"."user_id"%type := p_user;
+  v_user_1 "public"."contacts"."user_id"%type := p_user;
+begin
+  return query
+  with pdk_m(key, scope, effect, grant_key) as (
+    values
+      ('quotes.list', 'customer', 'allow', 'quotes.list'),
+      ('quotes.read', 'customer', 'allow', 'quotes.read')
+  ),
+  pdk_w as (
+    select pdk_m.key, pdk_m.scope, pdk_m.effect, pdk_m.grant_key
+    from pdk_m
+  ),
+  pdk_g as (
+  select rp.grant_key
+  from "permdock".user_roles ur
+  join "permdock".role_permissions rp on rp.role = ur.role::text
+  where ur.user_id = p_user
+    and rp.scope = 'global'
+  ),
+  pdk_s as (
+    select pdk_i.grant_key
+    from (
+  select (ms.id)::uuid, rp.grant_key
+  from (
+    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."memberships" m
+    where m."user_id" = v_user_0
+    group by m."scope"::text, m."scope_id"::text
+    union all
+    select 'customer'::text as scope, m."customer_id"::text as id, jsonb_build_object('organization', m."organization_id"::text) as within, jsonb_build_array('contact') as roles, 'contact'::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."contacts" m
+    where m."user_id" = v_user_1
+    group by m."customer_id", m."organization_id"
+  ) ms
+  cross join lateral jsonb_array_elements_text(
+    case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
+  ) r(role)
+  join "permdock".role_permissions rp on rp.role = r.role
+  where coalesce(p_user::text, '') <> ''
+    and ms.scope = 'customer'
+    and rp.scope = 'customer'
+    ) pdk_i(id, grant_key)
+    where pdk_i.id = p_id
+  ),
+  pdk_h as (
+    select pdk_w.key, pdk_w.scope, pdk_w.effect
+    from pdk_w
+    where (pdk_w.scope = 'global' and pdk_w.grant_key in (select pdk_g.grant_key from pdk_g))
+      or (pdk_w.scope = 'customer' and pdk_w.grant_key in (select pdk_s.grant_key from pdk_s))
+  )
+  select pdk_k.key
+  from (select distinct pdk_w.key from pdk_w where pdk_w.effect = 'allow') pdk_k
+  where (exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'global' and pdk_h.effect = 'allow') and not exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'global' and pdk_h.effect = 'deny'))
+    or (exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'customer' and pdk_h.effect = 'allow') and not exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'customer' and pdk_h.effect = 'deny'))
+  order by 1;
+end;
 $$;
 revoke execute on function "permdock".permitted_customer_permission_keys_for(uuid, uuid) from public, anon, authenticated;
+create or replace function "permdock".permitted_customer_permission_keys_for(p_user uuid, p_id uuid, p_keys text[])
+returns setof text
+language plpgsql
+stable
+security definer
+set search_path = ''
+set jit = off
+as $$
+declare
+  v_user_0 "public"."memberships"."user_id"%type := p_user;
+  v_user_1 "public"."contacts"."user_id"%type := p_user;
+begin
+  return query
+  with pdk_m(key, scope, effect, grant_key) as (
+    values
+      ('quotes.list', 'customer', 'allow', 'quotes.list'),
+      ('quotes.read', 'customer', 'allow', 'quotes.read')
+  ),
+  pdk_w as (
+    select pdk_m.key, pdk_m.scope, pdk_m.effect, pdk_m.grant_key
+    from pdk_m
+    where pdk_m.key in (select k.key from pg_catalog.unnest(p_keys) k(key))
+  ),
+  pdk_g as (
+  select rp.grant_key
+  from "permdock".user_roles ur
+  join "permdock".role_permissions rp on rp.role = ur.role::text
+  where ur.user_id = p_user
+    and rp.scope = 'global'
+  ),
+  pdk_s as (
+    select pdk_i.grant_key
+    from (
+  select (ms.id)::uuid, rp.grant_key
+  from (
+    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."memberships" m
+    where m."user_id" = v_user_0
+    group by m."scope"::text, m."scope_id"::text
+    union all
+    select 'customer'::text as scope, m."customer_id"::text as id, jsonb_build_object('organization', m."organization_id"::text) as within, jsonb_build_array('contact') as roles, 'contact'::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."contacts" m
+    where m."user_id" = v_user_1
+    group by m."customer_id", m."organization_id"
+  ) ms
+  cross join lateral jsonb_array_elements_text(
+    case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
+  ) r(role)
+  join "permdock".role_permissions rp on rp.role = r.role
+  where coalesce(p_user::text, '') <> ''
+    and ms.scope = 'customer'
+    and rp.scope = 'customer'
+    ) pdk_i(id, grant_key)
+    where pdk_i.id = p_id
+  ),
+  pdk_h as (
+    select pdk_w.key, pdk_w.scope, pdk_w.effect
+    from pdk_w
+    where (pdk_w.scope = 'global' and pdk_w.grant_key in (select pdk_g.grant_key from pdk_g))
+      or (pdk_w.scope = 'customer' and pdk_w.grant_key in (select pdk_s.grant_key from pdk_s))
+  )
+  select pdk_k.key
+  from (select distinct pdk_w.key from pdk_w where pdk_w.effect = 'allow') pdk_k
+  where (exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'global' and pdk_h.effect = 'allow') and not exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'global' and pdk_h.effect = 'deny'))
+    or (exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'customer' and pdk_h.effect = 'allow') and not exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'customer' and pdk_h.effect = 'deny'))
+  order by 1;
+end;
+$$;
+revoke execute on function "permdock".permitted_customer_permission_keys_for(uuid, uuid, text[]) from public, anon, authenticated;
 
 -- organization: holder counts (min / max) over the membership sources, checked at commit
 create or replace function "permdock".permdock_holders_organization()
