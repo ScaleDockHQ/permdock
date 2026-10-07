@@ -62,11 +62,14 @@ const policy = definePolicy(permissions, {
   subject: () => null,
 });
 
-function database(required: readonly Row[] = []) {
+function database(required: readonly Row[] = [], unique: readonly Row[] = []) {
   const inserts: { table: string; rows: Row[] }[] = [];
   const statements: string[] = [];
   const query = async (sql: string, values: readonly unknown[] = []) => {
     statements.push(sql);
+    if (sql.includes("from pg_index")) {
+      return { rows: unique };
+    }
     if (sql.includes("from pg_attribute")) {
       return { rows: required };
     }
@@ -219,5 +222,54 @@ describe("verifyTree over other tree shapes", () => {
       label: "Root",
       region: "eu",
     });
+  });
+
+  it("seeds a distinct value per row in the columns of a unique index", async () => {
+    const column = (name: string, type: string, checks: string[] = []) => ({
+      name,
+      type,
+      refTable: null,
+      refColumn: null,
+      enumLabel: null,
+      checks,
+    });
+    const db = database(
+      [
+        column("name", "text"),
+        column("key", "uuid"),
+        column("position", "integer", ["CHECK ((position >= 1))"]),
+        column("opened", "timestamp with time zone"),
+        column("kind", "text", ["CHECK ((kind = 'file'::text))"]),
+        column("region", "text"),
+      ],
+      [
+        { name: "name" },
+        { name: "key" },
+        { name: "position" },
+        { name: "opened" },
+        { name: "kind" },
+        { name: "parentId" },
+      ],
+    );
+    await verifyTree({
+      policy,
+      config: { rls: { tables: { node: "app.nodes" } } },
+      query: db.query,
+      bind: () => Promise.resolve(),
+    });
+    const nodes =
+      db.inserts.find((insert) => insert.table === '"app"."nodes"')?.rows ?? [];
+    expect(nodes.length).toBeGreaterThan(2);
+    for (const name of ["name", "key", "position", "opened"]) {
+      expect(new Set(nodes.map((row) => row[name])).size).toBe(nodes.length);
+    }
+    expect(nodes[0]).toMatchObject({
+      name: "permdock-tree-1",
+      position: 1,
+      kind: "file",
+      region: "permdock-tree",
+    });
+    expect(nodes[1]).toMatchObject({ name: "permdock-tree-2", position: 2 });
+    expect(new Set(nodes.map((row) => row["kind"]))).toEqual(new Set(["file"]));
   });
 });
