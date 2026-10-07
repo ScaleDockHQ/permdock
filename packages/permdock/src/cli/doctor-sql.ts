@@ -491,6 +491,54 @@ export function pd053(
     }));
 }
 
+const LEGACY_CLAIM = /\brequest\.jwt\.claim\.(\w+)/giu;
+
+function at(statement: SqlStatement): string {
+  return `${statement.file}:${String(statement.line)}`;
+}
+
+/**
+ * PD062: SQL that reads or sets a per-claim `request.jwt.claim.<name>`
+ * setting. Current PostgREST, `withPostgresClient`, PermDock's `withSubject`
+ * and `rls verify` set only `request.jwt.claims`. A function replaced by a
+ * later migration is judged by its last definition.
+ */
+export function pd062(
+  cwd: string,
+  config: PermDockConfig,
+): readonly DoctorFinding[] {
+  if (!isSupabase(cwd, config)) {
+    return [];
+  }
+  const statements = migrationStatements(cwd, config);
+  const latest = new Map<string, string>();
+  for (const fn of createdFunctions(statements)) {
+    latest.set(fn.key, at(fn));
+  }
+  return statements.flatMap((statement) => {
+    const fn = CREATE_FUNCTION.exec(statement.text);
+    if (fn !== null && latest.get(tableKey(group(fn, 1))) !== at(statement)) {
+      return [];
+    }
+    const names = [
+      ...new Set(
+        [...statement.text.matchAll(LEGACY_CLAIM)].map((match) =>
+          group(match, 1).toLowerCase(),
+        ),
+      ),
+    ];
+    return names.map((name) => ({
+      code: "PD062",
+      severity: "warning" as const,
+      message: `${statement.file}:${String(statement.line)} uses the legacy request.jwt.claim.${name} setting, which PostgREST 12 and PermDock's withSubject no longer set, so it reads null`,
+      fix:
+        name === "sub"
+          ? "read the subject with (select permdock.permdock_user_id()) or (select auth.uid()), and set request.jwt.claims in tests and jobs"
+          : `read (select auth.jwt()) ->> '${name}', and set request.jwt.claims in tests and jobs`,
+    }));
+  });
+}
+
 /**
  * PD056: SQL still calls an `rls.migrate` helper by its legacy name, so the
  * shim (or the legacy function) cannot be dropped yet.

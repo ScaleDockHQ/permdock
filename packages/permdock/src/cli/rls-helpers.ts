@@ -173,19 +173,17 @@ function userIdSql(ctx: RlsSqlContext, anonExecute: boolean): string {
 grant execute on function ${fn}() to anon, authenticated;`
     : `revoke execute on function ${fn}() from public, anon;
 grant execute on function ${fn}() to authenticated;`;
-  return `-- the caller's user id: auth.uid(), or null when the token's sub is empty
+  return `-- the caller's user id: the sub of request.jwt.claims, or null when it is empty or absent
 create or replace function ${fn}()
 returns uuid
 language sql
 stable
 set search_path = ''
 as $$
-  select case
-    when nullif(current_setting('request.jwt.claim.sub', true), '') is null
-      and (select auth.jwt()) ->> 'sub' = ''
-    then null
-    else (select auth.uid())
-  end
+  select nullif(
+    nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub',
+    ''
+  )::uuid
 $$;
 ${grants}`;
 }

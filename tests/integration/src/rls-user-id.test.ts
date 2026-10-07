@@ -130,34 +130,25 @@ describe("permdock_user_id with Supabase's auth.uid()", () => {
     );
   });
 
-  it("reads the subject from the legacy request.jwt.claim.sub setting, as auth.uid() does", async () => {
+  it("ignores the legacy request.jwt.claim.sub setting", async () => {
     expect(await as({ "request.jwt.claim.sub": MEMBER })).toEqual({
-      user: MEMBER,
-      read: 3,
-      updated: 1,
-      tenants: ["acme"],
+      user: null,
+      read: 0,
+      updated: 0,
+      tenants: [],
     });
     expect(
       await as({
         "request.jwt.claim.sub": MEMBER,
         "request.jwt.claims": claims({ sub: ADMIN }),
       }),
-    ).toMatchObject({ user: MEMBER, updated: 1 });
-    expect(
-      await as({
-        "request.jwt.claim.sub": MEMBER,
-        "request.jwt.claims": claims({
-          api_key: { id: "k1", scopes: ["task.read"] },
-        }),
-      }),
-    ).toEqual({ user: MEMBER, read: 3, updated: 0, tenants: ["acme"] });
+    ).toMatchObject({ user: ADMIN });
   });
 
-  it("agrees with auth.uid() whenever auth.uid() answers", async () => {
+  it("agrees with auth.uid() when only request.jwt.claims is set", async () => {
     const target = started();
     for (const settings of [
       { "request.jwt.claims": claims({ sub: MEMBER }) },
-      { "request.jwt.claim.sub": ADMIN },
       { "request.jwt.claims": claims({}) },
       {},
     ]) {

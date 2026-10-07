@@ -265,10 +265,7 @@ function subjectSettings(
     [subject.tenantClaim]: fixture.subject.tenant,
     memberships,
   };
-  return [
-    ["request.jwt.claims", JSON.stringify(claims)],
-    ["request.jwt.claim.sub", fixture.subject.id],
-  ];
+  return [["request.jwt.claims", JSON.stringify(claims)]];
 }
 
 type CustomRoleRow = {

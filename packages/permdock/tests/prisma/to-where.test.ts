@@ -454,7 +454,8 @@ describe("permdock/prisma withSubject", () => {
     expect(result).toBe("done");
     expect(calls.length > 1).toBe(true);
     expect(String(calls[0]?.[0])).toMatch(/role/);
-    expect(calls.some((call) => call.includes("u1"))).toBe(true);
+    expect(String(calls[1]?.[0])).toMatch(/request\.jwt\.claims/);
+    expect(JSON.parse(String(calls[1]?.[1]))).toMatchObject({ sub: "u1" });
   });
 });
 

@@ -355,10 +355,13 @@ describe("permdock/kysely withSubject and checkRow", () => {
     const result = await withSubject(inner, { subject }, async () => "ok");
     expect(result).toBe("ok");
     expect(executed[0]?.sql).toBe("set local role authenticated");
-    expect(executed.map((query) => query.sql)).toContain(
-      "select set_config('request.jwt.claim.sub', $1, true)",
-    );
-    expect(executed.at(-1)?.parameters).toEqual(["u1"]);
+    expect(executed.map((query) => query.sql)).toEqual([
+      "set local role authenticated",
+      "select set_config('request.jwt.claims', $1, true)",
+    ]);
+    expect(JSON.parse(String(executed.at(-1)?.parameters[0]))).toMatchObject({
+      sub: "u1",
+    });
   });
 
   const condition: Condition = { op: "eq", field: "org_id", value: "o1" };

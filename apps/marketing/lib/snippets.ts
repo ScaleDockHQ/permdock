@@ -144,7 +144,7 @@ db.select().from(posts).where(permdock.where(permissions.post.read))
     language: "sql",
     code: `CREATE POLICY post_update_author ON posts
   FOR UPDATE
-  USING (author_id = current_setting('request.jwt.claim.sub', true));
+  USING (author_id = (select permdock.permdock_user_id()));
 `,
   },
 ];
