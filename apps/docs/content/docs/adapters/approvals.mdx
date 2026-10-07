@@ -420,7 +420,30 @@ rls: {
 },
 ```
 
-`generate` adds the `token` and `body` columns when the table lacks them, a unique index on the token and indexes for paging and status, and writes the same `permdock_approval_*` functions over the table, so `supabaseApprovalStore` works unchanged. The functions read every field from the body, which stays the record of truth: no column type of the app's has to match PermDock's, and rows the app wrote without a body are never listed, expired or cancelled. `mirror` copies request fields (`status`, `permission`, `tenant`, `principalId`, `actorId`, `session`, `approvals` as a count, `createdAt`, `expiresAt`, `resolvedAt`, `resolvedBy`, `consumedAt`) into the app's columns on every write, converted to each column's type through `jsonb_populate_record`, so the app's own screens and queries keep reading them. Other columns need a default or must accept null. The table's grants and policies stay the app's: `generate` does not enable RLS or revoke anything on it, so keep client roles from reading bodies there, which carry a summary of the requesting subject. `rls.jsonSchema` checks the adopted body column.
+`generate` adds the `token` and `body` columns when the table lacks them, a unique index on the token and indexes for paging and status, and writes the same `permdock_approval_*` functions over the table, so `supabaseApprovalStore` works unchanged. The functions read every field from the body, which stays the record of truth: no column type of the app's has to match PermDock's, and rows the app wrote without a body are never listed, expired or cancelled. `mirror` copies request fields (`status`, `permission`, `tenant`, `principalId`, `actorId`, `session`, `approvals` as a count, `createdAt`, `expiresAt`, `resolvedAt`, `resolvedBy`, `consumedAt`) into the app's columns on every write, converted to each column's type through `jsonb_populate_record`, so the app's own screens and queries keep reading them. Other columns need a default or must accept null, unless the app inserts the row itself with `open: 'attach'`. The table's grants and policies stay the app's: `generate` does not enable RLS or revoke anything on it, so keep client roles from reading bodies there, which carry a summary of the requesting subject. `rls.jsonSchema` checks the adopted body column.
+
+When the table has required columns only the app can fill (an organization, a title, a link to the record awaiting approval), set `open: 'attach'`. The app inserts its row with the request's token in the token column before the store opens the request, and `permdock_approval_open` attaches the request to that row instead of inserting one: it writes the body and the mirrored columns where the token matches and the row has no body yet, or an expired one, and keeps a pending one. With no row holding the token it raises `P0002` (`no row of <table> holds approval token <token>`), so the open fails and the action does not run. Wrapping `create` inserts the row on every path that opens a request, adapters included:
+
+```ts
+const generated = supabaseApprovalStore(admin, { schema: "public" });
+
+export const store: ApprovalStore = {
+  ...generated,
+  async create(request) {
+    await admin.from("approvals").upsert(
+      {
+        organization_id: request.subject.principal?.tenant,
+        title: request.detail,
+        permdock_token: request.token,
+      },
+      { onConflict: "permdock_token", ignoreDuplicates: true },
+    );
+    await generated.create(request);
+  },
+};
+```
+
+`schema` writes the store functions into another schema than the helper schema, such as `public` when the helper schema is not exposed through the API: `approvals: { table: 'public.approvals', schema: 'public' }` with `supabaseApprovalStore(client, { schema: 'public' })` needs no wrapper functions. They stay closed to `anon` and `authenticated` wherever they live.
 
 `rls.jsonSchema` adds a check constraint on `body`, so the database refuses a row that is not a v1 [approval request](/docs/concepts/wire-formats#approval-request) whatever writes it:
 
