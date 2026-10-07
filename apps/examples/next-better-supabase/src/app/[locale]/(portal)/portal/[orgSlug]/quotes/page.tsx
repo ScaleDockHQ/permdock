@@ -11,7 +11,7 @@ export default function PortalQuotes(props: {
 }) {
   return (
     <section>
-      <h1>Your quotes</h1>
+      <h1 data-testid="page-title">Your quotes</h1>
       <Protected
         permission={permissions.quotes.list}
         pending={<p aria-busy="true" />}

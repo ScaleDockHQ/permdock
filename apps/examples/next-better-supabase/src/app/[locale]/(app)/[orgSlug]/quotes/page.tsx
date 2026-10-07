@@ -11,7 +11,7 @@ export default function QuotesPage(props: {
 }) {
   return (
     <section>
-      <h1>Quotes</h1>
+      <h1 data-testid="page-title">Quotes</h1>
       <Protected
         permission={permissions.quotes.list}
         pending={<p aria-busy="true" />}

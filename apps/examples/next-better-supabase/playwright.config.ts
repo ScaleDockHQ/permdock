@@ -1,8 +1,6 @@
 import { defineConfig } from "@playwright/test";
 
-// Not the dev or `serve` port, so neither answers for the measured build.
-const port = 3589;
-const baseURL = `http://127.0.0.1:${port}`;
+import { origin as baseURL, port } from "./tests/instant/origin.ts";
 
 /**
  * `instant()` needs a production build compiled with the testing API. `serve`
