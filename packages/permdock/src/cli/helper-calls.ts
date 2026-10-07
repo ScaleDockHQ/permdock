@@ -7,7 +7,7 @@ import { HELPERS } from "./rls-helpers.ts";
 export const HELPER_TABLES = ["storage.objects", "realtime.messages"] as const;
 
 const HELPER_CALL = new RegExp(
-  String.raw`\b(?:${HELPERS.has}(?:_permission)?|permitted_[a-z][a-z0-9_]*_ids(?:_by_permission)?)\s*\(\s*'((?:[^']|'')+)'`,
+  String.raw`\b(${HELPERS.has}(?:_permission)?|permitted_[a-z][a-z0-9_]*_ids(?:_by_permission)?)\s*\(\s*'((?:[^']|'')+)'(\s*,\s*(false\b)?)?`,
   "giu",
 );
 
@@ -21,10 +21,24 @@ export function callsHelper(sql: string): boolean {
   return ANY_HELPER.test(sql);
 }
 
-/** The permission keys a policy expression passes to `permdock_has`, `permitted_<scope>_ids` or their permission-key forms, `#n` stripped. */
-export function helperCallKeys(sql: string): readonly string[] {
+/**
+ * The permission keys a policy expression passes to `permdock_has`,
+ * `permitted_<scope>_ids` or their permission-key forms, `#n` stripped. With
+ * `blind`, only the calls that ignore row conditions: the grant-key forms,
+ * and a permission-key form asked for conditioned allows. A plain
+ * `permdock_has_permission(key)` or `permitted_<scope>_ids_by_permission(key)`
+ * counts only allows without a row condition, so it never grants more than
+ * the application does.
+ */
+export function helperCallKeys(sql: string, blind = false): readonly string[] {
   const keys = new Set<string>();
-  for (const [, literal = ""] of sql.matchAll(HELPER_CALL)) {
+  for (const [, name = "", literal = "", extra, falsy] of sql.matchAll(
+    HELPER_CALL,
+  )) {
+    const byPermission = /_permission$/iu.test(name);
+    if (blind && byPermission && (extra === undefined || falsy !== undefined)) {
+      continue;
+    }
     const key = literal.replaceAll("''", "'").split("#")[0] ?? "";
     if (key !== "") {
       keys.add(key);
@@ -36,6 +50,7 @@ export function helperCallKeys(sql: string): readonly string[] {
 export type HelperTablePolicy = {
   readonly table: (typeof HELPER_TABLES)[number];
   readonly name: string;
+  /** The keys passed to helper calls that ignore row conditions. */
   readonly keys: readonly string[];
 };
 
@@ -51,7 +66,7 @@ function helperTable(name: string): HelperTablePolicy["table"] | undefined {
   return HELPER_TABLES.find((candidate) => candidate === table);
 }
 
-/** `create policy` statements on {@link HELPER_TABLES} in migration SQL, with the keys their helper calls pass. */
+/** `create policy` statements on {@link HELPER_TABLES} in migration SQL, with the keys their condition-blind helper calls pass. */
 export function helperTablePolicies(sql: string): readonly HelperTablePolicy[] {
   const text = sql
     .replaceAll(/--[^\n]*/gu, "")
@@ -61,7 +76,7 @@ export function helperTablePolicies(sql: string): readonly HelperTablePolicy[] {
     CREATE_POLICY,
   )) {
     const table = helperTable(target);
-    const keys = helperCallKeys(body);
+    const keys = helperCallKeys(body, true);
     if (table !== undefined && keys.length > 0) {
       found.push({ table, name: name.replaceAll('"', ""), keys });
     }
@@ -81,7 +96,7 @@ export function helperTablePoliciesFromRows(
   const found: HelperTablePolicy[] = [];
   for (const row of rows) {
     const table = helperTable(String(row["target"] ?? ""));
-    const keys = helperCallKeys(String(row["body"] ?? ""));
+    const keys = helperCallKeys(String(row["body"] ?? ""), true);
     if (table !== undefined && keys.length > 0) {
       found.push({ table, name: String(row["policyname"] ?? ""), keys });
     }
@@ -98,4 +113,4 @@ export function rowConditionMessage(
 }
 
 export const ROW_CONDITION_FIX =
-  "use permissions whose catalog entry has rowConditions: false for storage and realtime policies, or write the condition into the policy yourself";
+  "call permitted_<scope>_ids_by_permission('<key>') or permdock_has_permission('<key>'), which count only the allows without a row condition (a relationship grant never reaches a topic or a folder), or use a permission whose catalog entry has rowConditions: false";

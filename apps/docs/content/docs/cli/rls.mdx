@@ -346,7 +346,7 @@ create policy "permdock_realtime_org_organization_chat_select"
   to authenticated
   using (extension in ('broadcast', 'presence')
     and (select realtime.topic()) ~ '^org:[^:]+:chat$'
-    and split_part((select realtime.topic()), ':', 2) in (select x::text from "permdock".permitted_organization_ids('chat.read') x));
+    and split_part((select realtime.topic()), ':', 2) in (select x::text from "permdock".permitted_organization_ids_by_permission('chat.read') x));
 ```
 
 | Entry           | Commands                                 | Policy names                                  |
@@ -360,7 +360,7 @@ create policy "permdock_realtime_org_organization_chat_select"
 - A topic pattern is `:`-separated segments with exactly one `{<scope>}` segment naming a declared scope. Other segments match literally. Realtime authorises the channel being joined, `realtime.topic()`, and the policies cover only the `broadcast` and `presence` extensions.
 - A bucket's `folder` is the 1-based `storage.foldername(name)` entry that holds the id, default 1. An `update` checks the new name too, so an object cannot move into another instance's folder.
 - A topic needs `read`; a bucket needs at least one of `read`, `write` and `delete`.
-- Each permission is a reference from your definitions, and one whose grants carry row conditions is refused: these rows have no resource columns to check.
+- Each permission is a reference from your definitions. The policies call `permitted_<scope>_ids_by_permission`, which counts only the allows without a row condition, minus any deny: a topic or a folder has no resource columns to check a condition against. A permission that also has a relationship grant or a `where` (a chat thread shared with one person) is accepted with a warning, and its topic admits only the holders whose role reaches the instance; the share keeps applying in the table policies.
 - An undeclared scope, a dialect other than `supabase`, a duplicate policy name or one over 63 bytes exits 2.
 - The output does not enable RLS, revoke or grant on either table. Supabase owns both, and supautils `policy_grants` lets `postgres` create the policies.
 - With `--split`, the policies go in the `policies` part, after your tables' policies. Under pg-delta they go in the `--seeds-out` migration instead, each in a `do` block that creates it only when `to_regclass` finds its table: the Realtime and Storage services create `realtime.messages` and `storage.objects`, so pg-delta's shadow database and a local stack with `[realtime]` or `[storage]` off have neither, and a declarative file that names them cannot apply ([pg-delta](#pg-delta)). Regenerate after enabling a service locally and reset the database to get its policies. The bucket is a row in `storage.buckets`: create it in a seed or a versioned migration.

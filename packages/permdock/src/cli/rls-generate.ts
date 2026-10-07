@@ -553,6 +553,7 @@ export async function runRlsGenerate(input: {
         rowConditions: new Set(policyRowConditionKeys(policy)),
       },
       compact({ realtime: rls?.realtime, storage: rls?.storage }),
+      warnings,
     );
   } catch (cause) {
     return { code: 2, output: describeError(cause), text: "" };

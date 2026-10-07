@@ -17,6 +17,20 @@ describe("helperCallKeys", () => {
     ).toEqual(["doc.read", "it's.read"]);
   });
 
+  it("with blind, skips the permission-key forms unless they are asked for conditioned allows", () => {
+    const sql =
+      "permdock_has_permission('a.read') or org_id in (select permitted_org_ids_by_permission('b.read')) or org_id in (select permitted_org_ids_by_permission('c.read', false)) or org_id in (select permitted_org_ids_by_permission('d.read', true)) or org_id in (select permitted_org_ids_by_permission('e.read', p_flag)) or permdock_has('f.read')";
+    expect(helperCallKeys(sql)).toEqual([
+      "a.read",
+      "b.read",
+      "c.read",
+      "d.read",
+      "e.read",
+      "f.read",
+    ]);
+    expect(helperCallKeys(sql, true)).toEqual(["d.read", "e.read", "f.read"]);
+  });
+
   it("drops a key that is only a #n suffix", () => {
     expect(helperCallKeys("permdock_has('#1')")).toEqual([]);
   });

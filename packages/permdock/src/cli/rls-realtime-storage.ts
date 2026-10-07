@@ -8,7 +8,8 @@ import type {
 } from "./types.ts";
 
 import { qualified } from "./rls-helpers.ts";
-import { permittedIdsHelper, quoteLiteral } from "./rls-sql.ts";
+import { permittedByPermissionHelper } from "./rls-permission-keys.ts";
+import { quoteLiteral } from "./rls-sql.ts";
 
 /** What the policies may name: the declared scopes and the permission keys with and without row conditions. */
 export type HelperTableFacts = {
@@ -38,6 +39,7 @@ function grantKey(
   facts: HelperTableFacts,
   ref: RlsPermissionRef | undefined,
   where: string,
+  warnings: string[],
 ): string | undefined {
   if (ref === undefined) {
     return undefined;
@@ -50,8 +52,8 @@ function grantKey(
     );
   }
   if (facts.rowConditions.has(key)) {
-    throw new Error(
-      `PermDock CLI: ${where} is ${key}, whose grants carry row conditions the policy cannot check; use a permission with rowConditions: false`,
+    warnings.push(
+      `${where} is ${key}, whose grants carry row conditions (a relation, a where or another condition): the policy admits only the instances its role allows without a condition reach, through permitted_<scope>_ids_by_permission`,
     );
   }
   return key;
@@ -70,14 +72,18 @@ function declaredScope(
   return scope;
 }
 
-/** The ids of `scope` where the subject holds `key`, as text: `<value> in (…)`. */
+/**
+ * The ids of `scope` where the subject holds `key` through an allow without
+ * a row condition, minus a deny of it, as text: `<value> in (…)`. A
+ * relationship or a `where` on the same permission never widens it.
+ */
 function permitted(
   ctx: RlsSqlContext,
   value: string,
   scope: string,
   key: string,
 ): string {
-  return `${value} in (select x::text from ${qualified(ctx, permittedIdsHelper(scope))}(${quoteLiteral(key)}) x)`;
+  return `${value} in (select x::text from ${qualified(ctx, permittedByPermissionHelper(scope))}(${quoteLiteral(key)}) x)`;
 }
 
 function escapeRegex(text: string): string {
@@ -88,6 +94,7 @@ function realtimePolicies(
   ctx: RlsSqlContext,
   facts: HelperTableFacts,
   realtime: RlsRealtime,
+  warnings: string[],
 ): CompiledPolicy[] {
   return Object.entries(realtime.topics).flatMap(([pattern, topic]) => {
     const where = `rls.realtime.topics['${pattern}']`;
@@ -116,8 +123,8 @@ function realtimePolicies(
       `extension in ('broadcast', 'presence')
     and ${TOPIC} ~ ${quoteLiteral(regex)}
     and ${permitted(ctx, id, scope, key)}`;
-    const read = grantKey(facts, topic.read, `${where}.read`);
-    const write = grantKey(facts, topic.write, `${where}.write`);
+    const read = grantKey(facts, topic.read, `${where}.read`, warnings);
+    const write = grantKey(facts, topic.write, `${where}.write`, warnings);
     if (read === undefined) {
       throw new Error(`PermDock CLI: ${where}.read is required`);
     }
@@ -159,6 +166,7 @@ function storagePolicies(
   ctx: RlsSqlContext,
   facts: HelperTableFacts,
   storage: RlsStorage,
+  warnings: string[],
 ): CompiledPolicy[] {
   return Object.entries(storage.buckets).flatMap(([id, bucket]) => {
     const where = `rls.storage.buckets['${id}']`;
@@ -178,7 +186,7 @@ function storagePolicies(
       ["delete", bucket.delete, "delete"],
     ];
     const policies = commands.flatMap(([command, ref, field]) => {
-      const key = grantKey(facts, ref, `${where}.${field}`);
+      const key = grantKey(facts, ref, `${where}.${field}`, warnings);
       if (key === undefined) {
         return [];
       }
@@ -207,13 +215,16 @@ function storagePolicies(
 /**
  * The `realtime.messages` and `storage.objects` policies `rls.realtime` and
  * `rls.storage` describe. Each one admits a row only where the subject holds
- * the permission in the scope instance its topic segment or folder names, so
- * the helpers' API-key ceiling and suspension rules apply.
+ * the permission in the scope instance its topic segment or folder names,
+ * through an allow without a row condition, so the helpers' API-key ceiling
+ * and suspension rules apply and a relationship grant on the same permission
+ * never reaches a topic or a folder.
  */
 export function realtimeStoragePolicies(
   ctx: RlsSqlContext,
   facts: HelperTableFacts,
   config: { readonly realtime?: RlsRealtime; readonly storage?: RlsStorage },
+  warnings: string[] = [],
 ): readonly CompiledPolicy[] {
   if (config.realtime === undefined && config.storage === undefined) {
     return [];
@@ -226,10 +237,10 @@ export function realtimeStoragePolicies(
   const policies = [
     ...(config.realtime === undefined
       ? []
-      : realtimePolicies(ctx, facts, config.realtime)),
+      : realtimePolicies(ctx, facts, config.realtime, warnings)),
     ...(config.storage === undefined
       ? []
-      : storagePolicies(ctx, facts, config.storage)),
+      : storagePolicies(ctx, facts, config.storage, warnings)),
   ];
   const seen = new Set<string>();
   for (const { name } of policies) {

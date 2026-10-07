@@ -1334,6 +1334,8 @@ export const policy = definePolicy(permissions, {
 create policy "posts update" on "storage"."objects" for update to authenticated
   using ((storage.foldername(name))[1] in (select t.id::text from public.permitted_tenant_ids('post.update#1') as t(id)));
 create policy "own table" on public.post for update using ((select public.permdock_has('post.update')));
+create policy "posts update by permission" on storage.objects for update to authenticated
+  using ((storage.foldername(name))[1] in (select t.id::text from public.permitted_tenant_ids_by_permission('post.update') as t(id)));
 `,
     );
     const result = await run(["doctor", "--json", "--only", "PD037"], { cwd });
@@ -1349,5 +1351,6 @@ create policy "own table" on public.post for update using ((select public.permdo
     expect(report.findings[0]?.code).toBe("PD037");
     expect(report.findings[0]?.message).toContain("'posts update'");
     expect(report.findings[0]?.message).toContain("post.update");
+    expect(report.findings[0]?.message).not.toContain("by permission");
   });
 });

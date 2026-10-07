@@ -439,12 +439,13 @@ export function diffMixed(
     if (callsHelper(policy.expression)) {
       covered.add(policy.table);
     }
+    const blind = new Set(helperCallKeys(policy.expression, true));
     for (const key of helperCallKeys(policy.expression)) {
       if (!permissions.has(key)) {
         drift.push(
           `${policy.table}: policy ${policy.name} passes ${key}, which the policy does not declare, so it always denies`,
         );
-      } else if (conditioned.has(key)) {
+      } else if (conditioned.has(key) && blind.has(key)) {
         drift.push(
           `${policy.table}: policy ${policy.name} passes ${key}, whose grants carry row conditions the helpers do not check: the policy grants more than the application does`,
         );
