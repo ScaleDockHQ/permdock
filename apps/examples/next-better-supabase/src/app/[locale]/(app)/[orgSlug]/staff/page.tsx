@@ -7,6 +7,15 @@ import { permissions } from "../../../../../policy.ts";
 
 export const instant = true;
 
+function StaffSkeleton() {
+  return (
+    <ul aria-busy="true" data-testid="staff-skeleton">
+      <li>&nbsp;</li>
+      <li>&nbsp;</li>
+    </ul>
+  );
+}
+
 async function StaffList(props: {
   readonly params: Promise<{ readonly orgSlug: string }>;
 }) {
@@ -35,10 +44,10 @@ export default function StaffPage(props: {
       <h1 data-testid="page-title">Staff</h1>
       <Protected
         permission={permissions.staff.list}
-        pending={<p aria-busy="true" />}
+        pending={<StaffSkeleton />}
         fallback={<p>Only staff can see the staff list.</p>}
       >
-        <Suspense fallback={<p aria-busy="true" />}>
+        <Suspense fallback={<StaffSkeleton />}>
           <StaffList params={props.params} />
         </Suspense>
       </Protected>
