@@ -28,6 +28,7 @@ const config: KnipConfig = {
       // Expo resolves these native peers and config plugins at build time.
       ignoreDependencies: [
         "@react-native/metro-config",
+        "babel-plugin-react-compiler",
         "expo-modules-core",
         "expo-updates",
         "react-native-worklets",
