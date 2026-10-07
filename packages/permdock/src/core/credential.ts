@@ -29,8 +29,9 @@ export type CredentialPermission = {
 /**
  * Credential v1: what a verified API key stands for, never the secret. A
  * `user` credential acts as its owner (`principal`) narrowed to
- * `permissions`; a `service` credential is its own `service` principal
- * holding `roles` in `tenant`, narrowed the same way.
+ * `permissions`, and to the memberships inside `tenant` when it names one;
+ * a `service` credential is its own `service` principal holding `roles` in
+ * `tenant`, narrowed the same way.
  */
 export type Credential = {
   readonly v: 1;
@@ -38,7 +39,11 @@ export type Credential = {
   readonly kind: CredentialKind;
   /** The owner of a `user` credential, or the id of the service principal. */
   readonly principal: string;
-  /** Service only: the instance of the first scope its roles are held in. */
+  /**
+   * The instance of the first scope the key is held to. Required on a
+   * service credential, where its roles are held; optional on a user
+   * credential, where it keeps only the owner's memberships inside it.
+   */
   readonly tenant?: string;
   /** Service only: the roles it holds in `tenant`. */
   readonly roles?: readonly string[];
@@ -84,7 +89,11 @@ type CredentialRequestBase = {
 };
 
 export type CredentialRequest =
-  | (CredentialRequestBase & { readonly kind: "user" })
+  | (CredentialRequestBase & {
+      readonly kind: "user";
+      /** Holds the key to the creator's memberships inside this tenant. */
+      readonly tenant?: string;
+    })
   | (CredentialRequestBase & {
       readonly kind: "service";
       /** The service principal's id; defaults to the credential id. */
@@ -187,7 +196,7 @@ function isTime(value: unknown): value is number {
  * Validates an untrusted credential record and returns a frozen copy with
  * only the v1 fields, or `undefined`. Unknown fields are dropped; a wrong
  * type in a known field, a service credential without `tenant` and `roles`,
- * or a user credential with either, rejects the whole record.
+ * or a user credential with `roles`, rejects the whole record.
  */
 export function parseCredential(input: unknown): Credential | undefined {
   const value = ownRecord(input);
@@ -221,8 +230,13 @@ export function parseCredential(input: unknown): Credential | undefined {
       return undefined;
     }
     tenant = value["tenant"];
-  } else if (value["tenant"] !== undefined || value["roles"] !== undefined) {
+  } else if (
+    value["roles"] !== undefined ||
+    (value["tenant"] !== undefined && !isId(value["tenant"]))
+  ) {
     return undefined;
+  } else {
+    tenant = value["tenant"];
   }
   return freezeDeep(
     compact<Credential>({
@@ -292,7 +306,9 @@ export function credentialDelegation(
  * The subject a verified credential acts as. A `user` credential is its
  * owner, passed live as `owner` (roles and memberships as of this request),
  * with the credential's delegation: every check is the owner's rights
- * intersected with the key's. A `service` credential is a `service`
+ * intersected with the key's. One that names a `tenant` makes it the active
+ * tenant, and `createPermDock` then keeps only the owner's memberships
+ * inside it and no global role. A `service` credential is a `service`
  * principal whose only membership is `roles` in `tenant`. An owner whose id
  * is not the credential's `principal`, or who is not a user, is anonymous.
  */
@@ -313,7 +329,12 @@ export function credentialSubject(
     ) {
       return anonymousSubject();
     }
-    principal = { ...owner, kind: "user", credential };
+    principal = compact<CredentialPrincipal>({
+      ...owner,
+      kind: "user",
+      tenant: credential.tenant ?? owner.tenant,
+      credential,
+    });
   } else {
     const membership = compact<Membership>({
       tenant: credential.tenant,
@@ -462,7 +483,7 @@ function checkRequest(
         request.kind === "service"
           ? (request.principal ?? request.id)
           : creator.id,
-      tenant: request.kind === "service" ? request.tenant : undefined,
+      tenant: request.tenant,
       roles: request.kind === "service" ? request.roles : undefined,
       permissions: entries.map((entry) =>
         compact({ permission: entry.leaf.key, ids: entry.ids }),
@@ -484,6 +505,9 @@ function checkRequest(
     if (!permdock.tenants().includes(tenant)) {
       return refuse("exceeds-creator", { tenant });
     }
+  }
+  if (credential.kind === "service" && credential.tenant !== undefined) {
+    const tenant = credential.tenant;
     const roles = new Set(
       permdock.assignableRoles({ tenant }).map((role) => role.key),
     );
@@ -505,8 +529,8 @@ function checkRequest(
 }
 
 /**
- * The tenant whose `credentials` policy governs a credential: a service
- * key's own tenant, otherwise `active` (the creator's or the request's).
+ * The tenant whose `credentials` policy governs a credential: the key's own
+ * tenant, otherwise `active` (the creator's or the request's).
  */
 export function credentialTenant(
   credential: Credential,
@@ -519,11 +543,11 @@ export function credentialTenant(
  * Decides whether the subject of `permdock` may create the credential in
  * `request`. The creator must be a signed-in user or service that is not
  * itself a link or a credential; a delegated creator hands out only what its
- * delegation covers. A service key's tenant must be one the creator is a
- * member of, its roles among the creator's `assignableRoles` there and its
+ * delegation covers. A key's tenant must be one the creator is a member of;
+ * a service key's roles among the creator's `assignableRoles` there and its
  * permissions within `assignablePermissions` there (`exceeds-creator`). The
- * `credentials` policy of the key's tenant (a service key's own, a user
- * key's the creator's active tenant) then applies (`credential-policy`; a
+ * `credentials` policy of the key's tenant (its own, or for a user key
+ * without one the creator's active tenant) then applies (`credential-policy`; a
  * settings source that throws denies with `rule: 'unavailable'`), and
  * `approval` makes the result `approval-required` until `approved` carries
  * its token. PermDock never stores the credential; the application does,

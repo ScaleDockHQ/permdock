@@ -8,7 +8,7 @@ import { freezeCopy } from "./freeze.ts";
 import { asMembershipSource } from "./memberships.ts";
 import { expandOAuthScopes } from "./oauth-scopes.ts";
 import { applyRoleKinds } from "./ownership.ts";
-import { normalizeMemberships, scopeList } from "./scopes.ts";
+import { normalizeMemberships, scopeList, tenantOf } from "./scopes.ts";
 import {
   type Actor,
   type Delegation,
@@ -21,6 +21,32 @@ import {
 } from "./subject.ts";
 import { resolveActiveTenant } from "./tenancy.ts";
 import { isThenable } from "./thenable.ts";
+
+/**
+ * The tenant a user API key holds its owner to (`Credential.tenant`): only
+ * the memberships inside it count, and no global role.
+ */
+function heldTenantOf(principal: Principal): string | undefined {
+  const credential: unknown = principal["credential"];
+  if (
+    credential === null ||
+    typeof credential !== "object" ||
+    !Object.hasOwn(credential, "tenant") ||
+    !Object.hasOwn(credential, "kind")
+  ) {
+    return undefined;
+  }
+  // SAFETY: credential is a non-null object whose own kind and tenant are checked below.
+  const record = credential as {
+    readonly kind: unknown;
+    readonly tenant: unknown;
+  };
+  return record.kind === "user" &&
+    typeof record.tenant === "string" &&
+    record.tenant !== ""
+    ? record.tenant
+    : undefined;
+}
 
 function assemblePrincipal(
   policy: Policy,
@@ -202,11 +228,19 @@ function finishSubject(
     );
   }
   const scopes = scopeList(policy.scopes);
-  const { roles, memberships } = applyRoleKinds(
+  const held = heldTenantOf(assembled.principal);
+  const kinds = applyRoleKinds(
     policy,
     assembled.principal.roles,
     normalizeMemberships(input, scopes),
   );
+  const roles = held === undefined ? kinds.roles : [];
+  const memberships =
+    held === undefined
+      ? kinds.memberships
+      : kinds.memberships.filter(
+          (membership) => tenantOf(membership, scopes) === held,
+        );
   const plans = [
     ...new Set([...(assembled.principal.plans ?? []), ...extra.plans]),
   ];
@@ -240,6 +274,10 @@ function activeTenantOf(
 ): string | undefined {
   if (assembled.principal === null) {
     return undefined;
+  }
+  const held = heldTenantOf(assembled.principal);
+  if (held !== undefined) {
+    return held;
   }
   return resolveActiveTenant(
     { ...assembled.principal, memberships },
