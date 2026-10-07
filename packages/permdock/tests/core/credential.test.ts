@@ -133,7 +133,7 @@ describe("parseCredential", () => {
       { ...userKey, createdAt: Number.NaN },
       { ...userKey, expiresAt: "2027" },
       { ...userKey, name: "x".repeat(257) },
-      { ...userKey, tenant: "o_1" },
+      { ...userKey, tenant: "" },
       { ...userKey, roles: ["owner"] },
       { ...serviceKey, tenant: undefined },
       { ...serviceKey, roles: [] },
@@ -695,5 +695,90 @@ describe("decideCredential: expired creator memberships", () => {
     if (decision.outcome === "denied") {
       expect(decision.denials[0]?.reason).toBe("exceeds-creator");
     }
+  });
+});
+
+describe("a user key held to one tenant", () => {
+  const twoTenants: Principal = {
+    id: "u_1",
+    kind: "user",
+    tenant: "o_1",
+    memberships: [
+      { tenant: "o_1", roles: ["developer"] },
+      { tenant: "o_2", roles: ["developer"] },
+    ],
+  };
+  const heldKey: Credential = { ...userKey, tenant: "o_2" };
+
+  it("keeps a tenant on a user credential", () => {
+    expect(parseCredential(heldKey)).toEqual(heldKey);
+  });
+
+  it("is allowed in its tenant and denied in the owner's other tenant", () => {
+    const permdock = permdockFor(
+      credentialSubject(heldKey, { permissions, owner: twoTenants }),
+    );
+    expect(permdock.subject.principal?.tenant).toBe("o_2");
+    expect(permdock.tenants()).toEqual(["o_2"]);
+    expect(permdock.can(repo.read, other)).toBe(true);
+    expect(permdock.can(repo.read, r1)).toBe(false);
+    expect(permdock.tenant("o_1").can(repo.read, r1)).toBe(false);
+    const unheld = permdockFor(
+      credentialSubject(userKey, { permissions, owner: twoTenants }),
+    );
+    expect(unheld.tenant("o_1").can(repo.read, r1)).toBe(true);
+    expect(unheld.tenant("o_2").can(repo.read, other)).toBe(true);
+  });
+
+  it("narrows memberships read from a source and drops global roles", async () => {
+    const subject = credentialSubject(heldKey, { permissions });
+    const permdock = await createPermDock(policy, subject, {
+      tenant: "o_1",
+      memberships: {
+        membershipsFor: () => [...(twoTenants.memberships ?? [])],
+      },
+    });
+    expect(permdock.subject.principal?.tenant).toBe("o_2");
+    expect(permdock.subject.principal?.memberships).toEqual([
+      { scope: "organization", id: "o_2", roles: ["developer"] },
+    ]);
+    expect(permdock.can(repo.read, other)).toBe(true);
+    expect(permdock.can(repo.read, r1)).toBe(false);
+    const withGlobal = permdockFor(
+      credentialSubject(heldKey, {
+        permissions,
+        owner: { ...twoTenants, roles: ["developer"] },
+      }),
+    );
+    expect(withGlobal.subject.principal?.roles).toEqual([]);
+  });
+
+  it("is created only in a tenant the creator is a member of", async () => {
+    const creator = permdockFor({ principal: twoTenants, context: {} });
+    const request = {
+      kind: "user" as const,
+      id: "key_2",
+      tenant: "o_2",
+      permissions: [repo.read],
+      expiresAt: NOW + DAY,
+    };
+    expect(
+      await decideCredential(creator, request, { now: NOW }),
+    ).toMatchObject({
+      outcome: "granted",
+      credential: { kind: "user", principal: "u_1", tenant: "o_2" },
+    });
+    expect(
+      await decideCredential(
+        creator,
+        { ...request, tenant: "o_3" },
+        { now: NOW },
+      ),
+    ).toEqual({
+      outcome: "denied",
+      denials: [
+        { role: null, reason: "exceeds-creator", detail: { tenant: "o_3" } },
+      ],
+    });
   });
 });

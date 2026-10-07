@@ -50,7 +50,7 @@ if (decision.outcome === "granted") {
 ```
 
 - Guard the endpoint that creates keys with its own permission (`apiKey.create`).
-- Every key lists at least one permission, with no upper bound. A `user` key is its owner's live rights narrowed to the key; a `service` key is a `kind: 'service'` principal whose tenant, roles and permissions must be within the creator's `assignableRoles` / `assignablePermissions` (otherwise `exceeds-creator`). A key cannot mint keys.
+- Every key lists at least one permission, with no upper bound. A `user` key is its owner's live rights narrowed to the key, and with `tenant` to the owner's memberships inside that tenant and no global role (never put a tenant id in `ids`, which holds resource ids); a `service` key is a `kind: 'service'` principal whose tenant, roles and permissions must be within the creator's `assignableRoles` / `assignablePermissions` (otherwise `exceeds-creator`). A key cannot mint keys.
 - Tenant rules come from a `SettingsSource` (`memorySettings({ o_1: { credentials: { maxTtl, kinds, approval, allowNoExpiry } } })`). A key without `expiresAt` needs `allowNoExpiry`. `approval: true` makes creation `approval-required`; after approval, call `decideCredential` again with `approved: token`.
 - Store only `hashApiKey(key)`. The key is `pdk_<id>_<secret><checksum>`; `parseApiKey` rejects a bad checksum before any lookup.
 
