@@ -102,6 +102,19 @@ describe("rls generate options", () => {
     expect(none.text).not.toContain("permdock_can_assign_custom_role");
   });
 
+  it("guards the global-roles table and the caller's own rows", async () => {
+    const outcome = await generate({
+      roles: { table: "app.user_roles" },
+      assignments: { ownRole: "refuse" },
+    });
+    expect(outcome.text).toContain(
+      `-- app.user_roles: a client role may write only the global roles it may assign, and none on its own rows`,
+    );
+    expect(outcome.text).toContain(
+      `-- organization_members: a client role may write only the tenant roles it may assign, and none on its own rows`,
+    );
+  });
+
   it("writes no assignment trigger for a policy without assigns", () => {
     const scopes = scopeList(namedScopes.scopes);
     const ownership = ownershipRules(namedScopes, scopes);

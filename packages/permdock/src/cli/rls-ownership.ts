@@ -5,6 +5,7 @@ import type {
   SqlMembershipSource,
 } from "../supabase/sources.ts";
 import type {
+  PermDockConfig,
   RlsAssignmentTable,
   RlsMembershipTable,
   RoleThrough,
@@ -31,6 +32,7 @@ import {
   globalKindFilterSql,
   kindFilterSql,
   memberForSources,
+  memberForTable,
   memberRoleOf,
   memberVia,
   quoteIdent,
@@ -882,16 +884,17 @@ export const ASSIGNMENTS = {
 /** The client roles whose writes the assignment triggers check; any other role is a trusted path. */
 const CLIENT_ROLES = ["anon", "anonymous", "authenticated"] as const;
 
-/** One table whose rows assign a role at a scope instance. */
+/** One table whose rows assign a role at a scope instance, or a global role (`id` unset). */
 type AssignedTable = {
   readonly table: string;
   readonly scope: string;
-  readonly id: string;
-  readonly tenant: string;
+  readonly id?: string;
+  readonly tenant?: string;
   readonly role: RlsAssignmentTable["role"];
+  readonly user?: string;
 };
 
-/** The mapped membership tables and `rls.assignments.tables`, deduplicated by table. */
+/** The mapped membership tables, `rls.assignments.tables` and the global-roles table `rls.roles`. */
 function assignedTables(ctx: RlsSqlContext): readonly AssignedTable[] {
   const out: AssignedTable[] = [];
   for (const { name } of ctx.scopes) {
@@ -905,6 +908,15 @@ function assignedTables(ctx: RlsSqlContext): readonly AssignedTable[] {
       id: mapped.column,
       tenant: mapped.tenantColumn ?? mapped.column,
       role: mapped.table.role,
+      user: mapped.table.user,
+    });
+  }
+  if (ctx.roles !== undefined) {
+    out.push({
+      table: ctx.roles.table,
+      scope: "global",
+      role: ctx.roles.role ?? "role",
+      user: ctx.roles.user ?? "user_id",
     });
   }
   for (const extra of ctx.assignments?.tables ?? []) {
@@ -925,9 +937,88 @@ function assignedTables(ctx: RlsSqlContext): readonly AssignedTable[] {
       id: extra.id,
       tenant: extra.tenant ?? extra.id,
       role: extra.role,
+      ...(extra.user === undefined ? {} : { user: extra.user }),
     });
   }
   return out;
+}
+
+/** The tables `rls.assignments.ownRole` refuses a caller's own rows on, by table key. */
+function ownRoleTables(
+  ctx: RlsSqlContext,
+  tables: readonly AssignedTable[],
+): ReadonlySet<string> {
+  const own = ctx.assignments?.ownRole;
+  if (own === undefined) {
+    return new Set();
+  }
+  if (own === "refuse") {
+    return new Set(
+      tables
+        .filter((entry) => entry.user !== undefined)
+        .map((entry) => qualifiedTable(entry.table)),
+    );
+  }
+  const out = new Set<string>();
+  for (const [name, value] of Object.entries(own)) {
+    const entry = tables.find(
+      (table) => qualifiedTable(table.table) === qualifiedTable(name),
+    );
+    if (entry === undefined) {
+      throw new Error(
+        `PermDock CLI: rls.assignments.ownRole names ${name}, which no assignment trigger guards`,
+      );
+    }
+    if (value !== "refuse") {
+      throw new Error(
+        `PermDock CLI: rls.assignments.ownRole.${name} must be 'refuse'`,
+      );
+    }
+    if (entry.user === undefined) {
+      throw new Error(
+        `PermDock CLI: rls.assignments.ownRole names ${name}, which has no user column: set its user in rls.assignments.tables`,
+      );
+    }
+    out.add(qualifiedTable(entry.table));
+  }
+  return out;
+}
+
+/**
+ * The tables `rls.assignments` guards, schema-qualified: each scope's mapped
+ * membership table, the global-roles table (`rls.roles`, else
+ * `supabase.hook.roles`) and `rls.assignments.tables`. Empty without
+ * `rls.assignments`.
+ */
+export function guardedTables(
+  config: PermDockConfig,
+  scopes: readonly Scope[],
+): readonly string[] {
+  const rls = config.rls;
+  if (rls?.assignments === undefined) {
+    return [];
+  }
+  const hook = config.supabase?.hook?.roles;
+  const roles = rls.roles ?? (hook === false ? undefined : hook);
+  const tables = [
+    ...scopes.flatMap((scope) => {
+      const mapped = memberForTable(
+        {
+          scopes,
+          ...(rls.memberships === undefined
+            ? {}
+            : { memberships: rls.memberships }),
+        },
+        scope.name,
+      );
+      return mapped === undefined ? [] : [mapped.table];
+    }),
+    ...(roles === undefined ? [] : [roles.table]),
+    ...(rls.assignments === true ? [] : (rls.assignments.tables ?? [])).map(
+      (entry) => entry.table,
+    ),
+  ];
+  return [...new Set(tables.map(qualifiedTable))];
 }
 
 function isRoleList(
@@ -1030,18 +1121,40 @@ export function assignmentSql(ctx: RlsSqlContext): string {
   const tenantType = tenantTypeOf(ctx);
   const chunks: string[] = [];
   const clients = `current_user::text = any(array[${CLIENT_ROLES.map(quoteLiteral).join(", ")}])`;
-  for (const entry of assignedTables(ctx)) {
+  const tables = assignedTables(ctx);
+  const ownRole = ownRoleTables(ctx, tables);
+  for (const entry of tables) {
     const table = quoteTable(qualifiedTable(entry.table));
     const suffix = entry.table.replaceAll(/[^a-z0-9_]/gu, "_");
     const fn = qualified(ctx, quoteIdent(`${ASSIGNMENTS.trigger}_${suffix}`));
+    const ownUser =
+      entry.user !== undefined && ownRole.has(qualifiedTable(entry.table))
+        ? entry.user
+        : undefined;
+    const ownCheck = (row: string, reason: string): string =>
+      ownUser === undefined
+        ? ""
+        : `    if ${row}.${quoteIdent(ownUser)}::text = (${subjectIdSql(ctx)})::text then
+      raise exception using
+        errcode = '42501',
+        message = 'permdock: the caller may not change their own roles',
+        hint = '${reason}';
+    end if;
+`;
     const check = (row: string): string => {
-      const id = `${row}.${quoteIdent(entry.id)}::text`;
-      const tenant = `${row}.${quoteIdent(entry.tenant)}::${tenantType}`;
+      const id =
+        entry.id === undefined
+          ? "null::text"
+          : `${row}.${quoteIdent(entry.id)}::text`;
       const customFn = qualified(ctx, ASSIGNMENTS.custom);
-      const allowed =
-        custom && declared !== undefined
-          ? `case when v_role = any(${declaredArray(declared)}) then ${canAssign}(v_role, ${id}) when ${id} is null then ${customFn}(null, 'global', null, v_role) else ${customFn}(${tenant}, ${quoteLiteral(entry.scope)}, ${id}, v_role) end`
-          : `${canAssign}(v_role, ${id})`;
+      let allowed = `${canAssign}(v_role, ${id})`;
+      if (custom && declared !== undefined) {
+        const platform = `${customFn}(null, 'global', null, v_role)`;
+        allowed =
+          entry.id === undefined || entry.tenant === undefined
+            ? `case when v_role = any(${declaredArray(declared)}) then ${canAssign}(v_role, ${id}) else ${platform} end`
+            : `case when v_role = any(${declaredArray(declared)}) then ${canAssign}(v_role, ${id}) when ${id} is null then ${platform} else ${customFn}(${row}.${quoteIdent(entry.tenant)}::${tenantType}, ${quoteLiteral(entry.scope)}, ${id}, v_role) end`;
+      }
       return `    foreach v_role in array array[${rowRoles(entry, row).join(", ")}]::text[] loop
       if v_role is not null and not coalesce(${allowed}, false) then
         raise exception using
@@ -1051,7 +1164,9 @@ export function assignmentSql(ctx: RlsSqlContext): string {
       end if;
     end loop;`;
     };
-    chunks.push(`-- ${entry.table}: a client role may write only the ${entry.scope} roles it may assign
+    const what =
+      entry.id === undefined ? "global roles" : `${entry.scope} roles`;
+    chunks.push(`-- ${entry.table}: a client role may write only the ${what} it may assign${ownUser === undefined ? "" : ", and none on its own rows"}
 create or replace function ${fn}()
 returns trigger
 language plpgsql
@@ -1065,10 +1180,10 @@ begin
     return coalesce(new, old);
   end if;
   if tg_op in ('UPDATE', 'DELETE') then
-${check("old")}
+${ownCheck("old", "self-demotion")}${check("old")}
   end if;
   if tg_op in ('INSERT', 'UPDATE') then
-${check("new")}
+${ownCheck("new", "not-assignable-by")}${check("new")}
   end if;
   return coalesce(new, old);
 end;

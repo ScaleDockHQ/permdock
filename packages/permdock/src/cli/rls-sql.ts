@@ -111,8 +111,11 @@ export type RlsSqlContext = {
   readonly ownership?: RlsOwnership;
   /** Scopes whose holder-count and transfer-only triggers `rls.ownershipTriggers` leaves out; `'all'` for every scope. */
   readonly skipOwnershipTriggers?: "all" | readonly string[];
-  /** `rls.assignments`: assignment triggers on the membership tables and these extra tables. */
-  readonly assignments?: { readonly tables: readonly RlsAssignmentTable[] };
+  /** `rls.assignments`: assignment triggers on the membership tables, the global-roles table and these extra tables. */
+  readonly assignments?: {
+    readonly tables: readonly RlsAssignmentTable[];
+    readonly ownRole?: "refuse" | Readonly<Record<string, "refuse">>;
+  };
   /**
    * Postgres types of the current table's columns, read from the resource
    * schema (`columnTypesOf`). A claim compared with a typed column is cast to

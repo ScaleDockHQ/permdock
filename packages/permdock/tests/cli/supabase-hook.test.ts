@@ -518,7 +518,11 @@ describe("permdock supabase hook generate", () => {
         },
       },
       assignments: {
-        tables: ["public.organization_users", "public.invitations"],
+        tables: [
+          "public.organization_users",
+          "app.user_roles",
+          "public.invitations",
+        ],
       },
     });
     const validate = new Ajv2020({ strict: false }).compile(

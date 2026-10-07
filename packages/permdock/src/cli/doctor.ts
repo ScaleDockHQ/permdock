@@ -4,6 +4,7 @@ import type { CliIo, PermDockConfig } from "./types.ts";
 import { scopeList } from "../core/scopes.ts";
 import { supabaseTenantClaim } from "../supabase/budget.ts";
 import { runCollect } from "./collect.ts";
+import { pd064 } from "./doctor-assignments.ts";
 import {
   pd002,
   pd003,
@@ -290,6 +291,12 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
     groups: ["rls", "suspension"],
     when: (config) => config.rls?.suspension?.scopes !== undefined,
     run: pd061,
+  },
+  {
+    code: "PD064",
+    groups: ["rls", "assignments"],
+    when: (config) => config.rls?.assignments !== undefined,
+    run: pd064,
   },
   { code: "PD044", groups: ["next", "endpoint"], run: pd044 },
 ];

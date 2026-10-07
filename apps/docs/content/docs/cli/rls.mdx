@@ -411,7 +411,7 @@ create policy customer_contacts_insert on public.customer_contacts for insert to
 
 #### Assignment triggers
 
-`rls.assignments` writes those checks for you as triggers. Each scope's table in `rls.memberships`, and each table listed in `tables` (an invitations table that names a role), gets `permdock_assignment_<table>()` and a `before insert or update or delete` trigger. On a write by a client role (`authenticated`, `anon`), every role the old row and the new row hold must be one the caller may assign at that instance: a declared role through `permdock_can_assign`, a custom role through `permdock_can_assign_custom_role(p_tenant, p_scope, p_scope_id, p_role)`, which runs the custom-role write checks (membership, `rls.customRoleWrites.requires`, and authority over every permission the role allows) on its stored definition. A role that is neither is refused. `permdock_can_assign_custom_role` (and its `_for` form) is written whenever a role declares `assigns` and custom roles live in the tables, with or without `rls.assignments`. A refusal raises SQLSTATE `42501` with hint `not-assignable-by`, so removing or demoting a holder of a role the caller may not assign fails too.
+`rls.assignments` writes those checks for you as triggers. Each scope's table in `rls.memberships`, the global-roles table `rls.roles` (else `supabase.hook.roles`), and each table listed in `tables` (an invitations table that names a role), gets `permdock_assignment_<table>()` and a `before insert or update or delete` trigger. On a write by a client role (`authenticated`, `anon`), every role the old row and the new row hold must be one the caller may assign at that instance: a declared role through `permdock_can_assign`, a custom role through `permdock_can_assign_custom_role(p_tenant, p_scope, p_scope_id, p_role)`, which runs the custom-role write checks (membership, `rls.customRoleWrites.requires`, and authority over every permission the role allows) on its stored definition. A role that is neither is refused. `permdock_can_assign_custom_role` (and its `_for` form) is written whenever a role declares `assigns` and custom roles live in the tables, with or without `rls.assignments`. A refusal raises SQLSTATE `42501` with hint `not-assignable-by`, so removing or demoting a holder of a role the caller may not assign fails too.
 
 The trigger functions run as the invoker, so a write that does not run as a client role is trusted: the table owner, a migration, a `security definer` function such as an onboarding or invitation-accept function, and a backend role. That is the bootstrap path for the first owner of a new tenant; it needs no setting the client could also set. The triggers need a role that declares `assigns`; without one, `generate` writes none and warns.
 
@@ -425,7 +425,19 @@ rls: {
 },
 ```
 
-An entry in `tables` assigns at `scope`, with the instance id in `id` and the tenant column in `tenant` for a scope below the first; `role` takes the same forms as a membership table's (a column, a `through` reference, or a list). A membership source that is not a mapped table gets no assignment trigger.
+An entry in `tables` assigns at `scope`, with the instance id in `id` and the tenant column in `tenant` for a scope below the first; `role` takes the same forms as a membership table's (a column, a `through` reference, or a list), and `user` names the column `ownRole` compares with the caller. A membership source that is not a mapped table gets no assignment trigger.
+
+A row of the global-roles table assigns a global role, checked like a tenant assignment at no instance: `permdock_can_assign(role, null)` for a declared role, which only a global role whose `assigns` lists it passes, and `permdock_can_assign_custom_role(null, 'global', null, role)` for a platform custom role. A client that holds no such role cannot give itself or anyone else a global role. The generated `user_roles` table is not guarded: no client role may write it.
+
+`ownRole: 'refuse'` also refuses a client write to a row whose user is the caller, whatever the role, so nobody adds, changes or removes their own roles through the Data API, even a platform admin whose `assigns` lists the role. It applies to every guarded table with a user column: the membership tables, the global-roles table, and a listed table that names its `user`. A map refuses it only on the tables it names, by `schema.table` as configured; a named table that no trigger guards, or that has no user column, is an error. The refusal raises SQLSTATE `42501` with hint `self-demotion` for the old row and `not-assignable-by` for the new one, as `decideRoleChange` reports a change that targets the actor.
+
+```ts title="permdock.config.ts"
+rls: {
+  roles: { table: "user_roles", user: "user_id", role: "role" },
+  assignments: { ownRole: "refuse" },
+  // or only some tables: assignments: { ownRole: { "public.user_roles": "refuse" } },
+},
+```
 
 A row whose `id` is null assigns a global role, such as an invitation to a platform role. A declared role is checked by `permdock_can_assign(role, null)`, which only a global assigner passes, and a custom role as a platform custom role: `permdock_can_assign_custom_role(null, 'global', null, role)`, which needs a `meta.manageRoles` permission held through a global role. A scoped role on such a row is refused, so one invitations table can hold both tenant and platform invitations.
 

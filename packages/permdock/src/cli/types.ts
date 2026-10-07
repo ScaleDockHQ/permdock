@@ -187,16 +187,27 @@ export type RlsConfig = {
   readonly anonExecute?: boolean;
   /**
    * Check role assignments in the database: a trigger on each scope's
-   * `rls.memberships` table (and each table in `tables`, such as
-   * invitations) refuses a client write that assigns, changes or removes a
-   * role the caller may not assign there, by the policy's `assigns` graph or,
-   * for a custom role, by what the caller may hand out. Writes that do not run
-   * as a client role (the table owner, a `security definer` function, a
-   * backend role) are trusted. Needs a role that declares `assigns`.
+   * `rls.memberships` table, the global-roles table `rls.roles` and each
+   * table in `tables` (such as invitations) refuses a client write that
+   * assigns, changes or removes a role the caller may not assign there, by
+   * the policy's `assigns` graph or, for a custom role, by what the caller may
+   * hand out. Writes that do not run as a client role (the table owner, a
+   * `security definer` function, a backend role) are trusted. Needs a role
+   * that declares `assigns`.
    */
   readonly assignments?:
     | true
-    | { readonly tables?: readonly RlsAssignmentTable[] };
+    | {
+        readonly tables?: readonly RlsAssignmentTable[];
+        /**
+         * `'refuse'`: a client write to a row whose user is the caller is
+         * refused on every guarded table with a user column, whatever the
+         * role. A map refuses it on the tables it names (`schema.table` as
+         * configured). Unset, a caller may change their own row within what
+         * they may assign.
+         */
+        readonly ownRole?: "refuse" | Readonly<Record<string, "refuse">>;
+      };
   /**
    * Add the approval store `supabaseApprovalStore` reads and writes: the
    * `approval_requests` table and one function per `ApprovalStore` method, in
@@ -288,6 +299,8 @@ export type RlsAssignmentTable = {
   readonly tenant?: string;
   /** The role key column, a reference to a roles table that holds the key, or several of them. */
   readonly role: string | RoleThrough | readonly (string | RoleThrough)[];
+  /** The column holding the user the row assigns to, which `ownRole` compares with the caller. */
+  readonly user?: string;
 };
 
 /** `rls.customRoleWrites.roles`: the application's table of custom roles. */
