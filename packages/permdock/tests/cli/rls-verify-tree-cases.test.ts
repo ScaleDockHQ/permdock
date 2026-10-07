@@ -141,4 +141,83 @@ describe("verifyTree over other tree shapes", () => {
       result.mismatches.every((line) => line.includes("database filtered")),
     ).toBe(true);
   });
+
+  it("seeds a value the column's check constraint or enum type admits, and the configured tree values", async () => {
+    const db = database([
+      {
+        name: "kind",
+        type: "text",
+        refTable: null,
+        refColumn: null,
+        enumLabel: null,
+        checks: ["CHECK ((kind = ANY (ARRAY['file'::text, 'folder'::text])))"],
+      },
+      {
+        name: "note",
+        type: "text",
+        refTable: null,
+        refColumn: null,
+        checks: ["CHECK ((note = 'it''s'::text))"],
+      },
+      {
+        name: "size",
+        type: "integer",
+        refTable: null,
+        refColumn: null,
+        checks: ["CHECK ((size > 0))"],
+      },
+      {
+        name: "weight",
+        type: "numeric",
+        refTable: null,
+        refColumn: null,
+        checks: ["CHECK ((weight >= 2.5))", 7],
+      },
+      {
+        name: "state",
+        type: "node_state",
+        refTable: null,
+        refColumn: null,
+        enumLabel: "draft",
+        checks: "not a list",
+      },
+      {
+        name: "label",
+        type: "text",
+        refTable: null,
+        refColumn: null,
+        checks: ["CHECK ((length(label) < 40))"],
+      },
+      {
+        name: "region",
+        type: "text",
+        refTable: null,
+        refColumn: null,
+        checks: [],
+      },
+    ]);
+    await verifyTree({
+      policy,
+      config: {
+        rls: {
+          tables: { node: "app.nodes" },
+          treeValues: { "app.nodes": { region: "eu", label: "Root" } },
+        },
+      },
+      query: db.query,
+      bind: () => Promise.resolve(),
+    });
+    const nodes =
+      db.inserts.find((insert) => insert.table === '"app"."nodes"')?.rows ?? [];
+    expect(nodes.length).toBeGreaterThan(0);
+    expect(nodes[0]).toMatchObject({
+      kind: "file",
+      note: "it's",
+      size: 1,
+      weight: 2.5,
+      state: "draft",
+      label: "Root",
+      region: "eu",
+    });
+  });
 });

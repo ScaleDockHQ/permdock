@@ -24,6 +24,16 @@ const GRANTS = `
 grant select, insert on all tables in schema public to authenticated;
 `;
 
+const CONSTRAINED = `
+create type folder_state as enum ('active', 'archived');
+alter table folder add column kind text not null default 'folder' check (kind in ('folder', 'drive'));
+alter table folder alter column kind drop default;
+alter table folder add column state folder_state not null default 'active';
+alter table folder alter column state drop default;
+alter table folder add column region text not null default 'eu' check (region = 'eu');
+alter table folder alter column region drop default;
+`;
+
 describe("rls verify --tree over the shared SaaS folder tree", () => {
   let db: Postgres | undefined;
   const dir = mkdtempSync(join(tmpdir(), "permdock-saas-tree-"));
@@ -43,6 +53,7 @@ describe("rls verify --tree over the shared SaaS folder tree", () => {
       saasSeedSql(),
       readFileSync(out, "utf8"),
       GRANTS,
+      CONSTRAINED,
     ]);
   }, 180_000);
 

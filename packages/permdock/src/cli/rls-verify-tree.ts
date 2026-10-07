@@ -105,12 +105,20 @@ type RequiredColumn = {
   readonly type: string;
   readonly refTable: string | null;
   readonly refColumn: string | null;
+  readonly enumLabel: string | null;
+  readonly checks: readonly string[];
 };
 
 const REQUIRED_COLUMNS_SQL = `select a.attname as name,
   format_type(a.atttypid, a.atttypmod) as type,
   k.confrelid::regclass::text as "refTable",
-  r.attname as "refColumn"
+  r.attname as "refColumn",
+  (select e.enumlabel from pg_enum e where e.enumtypid = a.atttypid order by e.enumsortorder limit 1) as "enumLabel",
+  array(
+    select pg_get_constraintdef(c.oid) from pg_constraint c
+    where c.conrelid = a.attrelid and c.contype = 'c' and c.conkey = array[a.attnum]
+    order by c.conname
+  ) as checks
 from pg_attribute a
 left join pg_constraint k
   on k.conrelid = a.attrelid and k.contype = 'f' and k.conkey = array[a.attnum]
@@ -120,7 +128,30 @@ where a.attrelid = $1::regclass and a.attnum > 0 and not a.attisdropped
   and a.attnotnull and not a.atthasdef
   and a.attidentity = '' and a.attgenerated = ''`;
 
-function placeholder(type: string): unknown {
+function checkedValue(checks: readonly string[]): unknown {
+  for (const check of checks) {
+    const literal = /'((?:[^']|'')*)'/u.exec(check);
+    if (literal?.[1] !== undefined && /[=]|\bin\b/iu.test(check)) {
+      return literal[1].replaceAll("''", "'");
+    }
+    const bound = /(>=?)\s*\(?(-?\d+(?:\.\d+)?)/u.exec(check);
+    if (bound?.[1] !== undefined && bound[2] !== undefined) {
+      const value = Number(bound[2]);
+      return bound[1] === ">" ? Math.floor(value) + 1 : value;
+    }
+  }
+  return undefined;
+}
+
+function placeholder(column: RequiredColumn): unknown {
+  if (column.enumLabel !== null) {
+    return column.enumLabel;
+  }
+  const checked = checkedValue(column.checks);
+  if (checked !== undefined) {
+    return checked;
+  }
+  const type = column.type;
   if (type === "uuid") {
     return randomUUID();
   }
@@ -140,7 +171,7 @@ function placeholder(type: string): unknown {
 }
 
 function asRequiredColumn(row: Row): RequiredColumn | undefined {
-  const { name, type, refTable, refColumn } = row;
+  const { name, type, refTable, refColumn, enumLabel, checks } = row;
   if (typeof name !== "string" || typeof type !== "string") {
     return undefined;
   }
@@ -149,6 +180,10 @@ function asRequiredColumn(row: Row): RequiredColumn | undefined {
     type,
     refTable: typeof refTable === "string" ? refTable : null,
     refColumn: typeof refColumn === "string" ? refColumn : null,
+    enumLabel: typeof enumLabel === "string" ? enumLabel : null,
+    checks: Array.isArray(checks)
+      ? checks.filter((check): check is string => typeof check === "string")
+      : [],
   };
 }
 
@@ -176,7 +211,7 @@ async function requiredValues(
       );
       values[column.name] = existing.rows[0]?.["value"] ?? null;
     } else {
-      values[column.name] = placeholder(column.type);
+      values[column.name] = placeholder(column);
     }
   }
   return values;
@@ -187,15 +222,16 @@ async function seedRows(
   query: Query,
   table: string,
   rows: readonly Row[],
+  given: Row = {},
 ): Promise<readonly Row[]> {
   const fill = await requiredValues(
     query,
     tableSql(table),
-    new Set(Object.keys(rows[0] ?? {})),
+    new Set([...Object.keys(rows[0] ?? {}), ...Object.keys(given)]),
   );
   const inserted = insertSql(
     table,
-    rows.map((row) => ({ ...fill, ...row })),
+    rows.map((row) => ({ ...fill, ...given, ...row })),
   );
   return (await query(inserted.sql, inserted.values)).rows;
 }
@@ -223,6 +259,9 @@ export async function verifyTree(input: {
 }): Promise<TreeVerification> {
   const { policy, query } = input;
   const tables = input.config.rls?.tables;
+  const treeValues = input.config.rls?.treeValues ?? {};
+  const seed = (table: string, list: readonly Row[]): Promise<readonly Row[]> =>
+    seedRows(query, table, list, treeValues[table] ?? {});
   const plan = graphPlan(policy);
   const walked = [...plan.values()].filter(
     (entry) => entry.closure !== undefined,
@@ -289,7 +328,7 @@ export async function verifyTree(input: {
       );
     }
     rows[node.name] = [
-      ...(await seedRows(query, tables?.[node.name] ?? node.name, seeded)),
+      ...(await seed(tables?.[node.name] ?? node.name, seeded)),
     ];
     for (const name of entry.relations) {
       const spec = node.relations[name];
@@ -323,7 +362,7 @@ export async function verifyTree(input: {
         });
       }
       if (edgeRows.length > 0) {
-        await seedRows(query, spec.edge, edgeRows);
+        await seed(spec.edge, edgeRows);
       }
       edges[node.name] = { ...edges[node.name], [name]: list };
     }
@@ -343,11 +382,7 @@ export async function verifyTree(input: {
         return row;
       });
       rows[child.name] = [
-        ...(await seedRows(
-          query,
-          tables?.[child.name] ?? child.name,
-          childRows,
-        )),
+        ...(await seed(tables?.[child.name] ?? child.name, childRows)),
       ];
     }
   }
