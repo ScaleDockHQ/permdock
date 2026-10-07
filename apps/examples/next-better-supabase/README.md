@@ -29,3 +29,11 @@ Where things live:
 - `src/lib/access.ts`: the shared slug lookup (`'use cache'`), the snapshot loader and the RLS reads (`'use cache: private'` over `bs.cached({ tags })`), tagged `snapshotTag(sub)`. After a role or plan change, `bs.invalidateSession(userId, { tags: [snapshotTag(userId)] })` drops them.
 - `src/app/api/test/sign-in/route.ts`: `serve` only (`DEMO_SIGN_IN=1`). Runs the hook as `supabase_auth_admin`, signs the claims and sets the `@supabase/ssr` cookie, as Supabase Auth would.
 - `src/lib/supabase/generated.ts`, `generated.meta.js` and `generated.meta.d.ts`: `pnpm gen` regenerates them from the migrations; `pnpm gen:check` fails on drift.
+
+## Verify instant navigation
+
+```bash
+pnpm --filter @permdock/example-next-better-supabase test:instant
+```
+
+Needs Docker. Runs `serve` with `EXPOSE_TESTING_API=1` on `http://127.0.0.1:3589`, then runs `tests/instant/*.instant.ts` with `instant()` from `@next/playwright` at 1280 px and 390 px. The specs cover the initial load of `/en/acme/staff` and `/en/portal/acme/quotes` and the soft navigation from Staff to Quotes. Under the lock each spec expects the shell and the skeleton, and expects the RLS-read list to be absent. Install Chromium once with `pnpm --filter @permdock/example-next-better-supabase exec playwright install chromium`.

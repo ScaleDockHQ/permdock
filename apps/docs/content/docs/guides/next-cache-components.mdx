@@ -343,7 +343,9 @@ test("entering an org is instant with gates resolved", async ({ page }) => {
 });
 ```
 
-Run it against `next build && next start` with `experimental.exposeTestingApiInProductionBuild` gated by an env flag; never set the flag on a real deploy. Keep a negative control: serve the same build without `'use cache: private'` on the snapshot loader. The test above must fail there, which shows it measures the prefetch and not the network. Scope locators to `:visible`, because Next keeps the previous org's layout mounted but hidden after a switch. Fail the build if `next build` prints a `blocking-prerender-*` or `instant-*` message. PermDock's own repository has no browser tests; this is a recipe for your app.
+Run it against `next build && next start` with `experimental.exposeTestingApiInProductionBuild` gated by an env flag; never set the flag on a real deploy. Keep a negative control: serve the same build without `'use cache: private'` on the snapshot loader. The test above must fail there, which shows it measures the prefetch and not the network. Scope locators to `:visible`, because Next keeps the previous org's layout mounted but hidden after a switch. Fail the build if `next build` prints a `blocking-prerender-*` or `instant-*` message.
+
+`apps/examples/next` and `apps/examples/next-better-supabase` carry this rig: `pnpm test:instant` builds each example with the flag, starts it, and runs its `tests/instant/*.instant.ts` specs at 1280 px and 390 px. Each spec asserts the deferred content is absent under the lock, so it fails when the content blocks instead of passing by accident. The specs run locally only; CI does not run them yet.
 
 ## Pitfalls
 
