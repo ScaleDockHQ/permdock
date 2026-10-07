@@ -1,7 +1,7 @@
 {
   "$schema": "https://permdock.com/schemas/catalog-v1.json",
   "version": 1,
-  "generatedAt": "2026-10-07T11:56:06.531Z",
+  "generatedAt": "2026-10-07T17:50:31.800Z",
   "generator": "permdock@0.1.0",
   "fingerprint": "T-Z96MJb0HNjeKTqFsv0j4XFo9LhEHoUKzYy4n-yZzQ",
   "resources": {
@@ -95,13 +95,18 @@
       "meta": {},
       "usages": [
         {
+          "file": "src/app/[org]/access-summary.tsx",
+          "line": 18,
+          "call": "tools"
+        },
+        {
           "file": "src/app/[org]/members/page.tsx",
-          "line": 61,
+          "line": 43,
           "call": "reference"
         },
         {
           "file": "src/app/[org]/nav.tsx",
-          "line": 32,
+          "line": 47,
           "call": "tools"
         },
         {
@@ -121,18 +126,23 @@
       "meta": {},
       "usages": [
         {
-          "file": "src/app/[org]/members/page.tsx",
-          "line": 34,
+          "file": "src/app/[org]/access-summary.tsx",
+          "line": 19,
+          "call": "tools"
+        },
+        {
+          "file": "src/app/[org]/members/role-button.tsx",
+          "line": 15,
           "call": "reference"
         },
         {
           "file": "src/app/[org]/nav.tsx",
-          "line": 38,
+          "line": 54,
           "call": "tools"
         },
         {
           "file": "src/app/[org]/settings/page.tsx",
-          "line": 13,
+          "line": 23,
           "call": "tools"
         },
         {
@@ -189,7 +199,7 @@
       "usages": [
         {
           "file": "src/app/[org]/quotes/[id]/delete-zone.tsx",
-          "line": 19,
+          "line": 30,
           "call": "assert"
         },
         {
@@ -219,8 +229,13 @@
       "meta": {},
       "usages": [
         {
+          "file": "src/app/[org]/access-summary.tsx",
+          "line": 17,
+          "call": "tools"
+        },
+        {
           "file": "src/app/[org]/nav.tsx",
-          "line": 26,
+          "line": 40,
           "call": "tools"
         },
         {

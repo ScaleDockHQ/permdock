@@ -8,7 +8,11 @@ export type Customer = {
   readonly organizationId: string;
   readonly name: string;
 };
-export type Person = { readonly id: string; readonly name: string };
+export type Person = {
+  readonly id: string;
+  readonly name: string;
+  readonly title: string;
+};
 
 type StaffRow = { user: string; organization: string; role: RoleName };
 type ContactRow = { user: string; organization: string; customer: string };
@@ -31,9 +35,13 @@ export const customers: readonly Customer[] = [
 ];
 
 export const people: readonly Person[] = [
-  { id: "olivia", name: "Olivia (Acme admin)" },
-  { id: "max", name: "Max (Acme member)" },
-  { id: "carol", name: "Carol (Northwind contact)" },
+  {
+    id: "olivia",
+    name: "Olivia",
+    title: "Admin at Acme, member at Globex",
+  },
+  { id: "max", name: "Max", title: "Member at Acme" },
+  { id: "carol", name: "Carol", title: "Northwind Offices contact at Acme" },
 ];
 
 const seedQuotes = (): Quote[] => [

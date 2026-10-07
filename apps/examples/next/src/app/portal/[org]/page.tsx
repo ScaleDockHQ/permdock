@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 
-import { ListSkeleton, QuoteList } from "../../quotes.tsx";
+import { PageHeader } from "@/components/page-header.tsx";
+import { ListSkeleton, QuoteList } from "@/components/quotes/quote-list.tsx";
 
 export const instant = true;
 
@@ -8,11 +9,14 @@ export default function PortalQuotes(props: {
   readonly params: Promise<{ readonly org: string }>;
 }) {
   return (
-    <section>
-      <h1 data-testid="page-title">Your quotes</h1>
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        title="Your quotes"
+        description="Quotes sent to your company. Drafts stay hidden until they are sent."
+      />
       <Suspense fallback={<ListSkeleton />}>
         <QuoteList params={props.params} prefix="/portal" />
       </Suspense>
-    </section>
+    </div>
   );
 }

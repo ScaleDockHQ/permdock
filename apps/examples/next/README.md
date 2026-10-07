@@ -22,6 +22,8 @@ Where things live:
 - `src/app/actions.ts`: Server Actions guarded by `requireAccess`, then `updateTag`.
 - `src/app/[org]/settings/page.tsx`: `prefetch = 'force-disabled'`, `instant = false` and `requireAccess` at the top.
 - `src/app/offline-badge.tsx`: `useOffline`; the snapshot keeps answering offline.
+- `src/app/[org]/access-summary.tsx`: `usePermission` in the static shell, without a Suspense boundary; it shows `pending` until the snapshot lands.
+- `src/components/ui`: shadcn/ui (`base-vega`, Tailwind CSS 4), vendored with `pnpm dlx shadcn@latest add <name>` from this folder.
 
 Set `SESSION_SECRET` in any deployment; the demo falls back to a fixed secret.
 

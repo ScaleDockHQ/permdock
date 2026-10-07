@@ -1,53 +1,32 @@
+import { Lock } from "lucide-react";
 import { Protected } from "permdock/react";
 import { Suspense } from "react";
 
-import { getStaff } from "../../../lib/access.ts";
-import { people } from "../../../lib/store.ts";
+import { PageHeader } from "@/components/page-header.tsx";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty.tsx";
+
 import { permissions } from "../../../permissions.ts";
-import { changeRole } from "../../actions.ts";
+import { MembersSkeleton, Staff } from "./staff.tsx";
 
 export const instant = true;
 
-function MembersSkeleton() {
+function Hidden() {
   return (
-    <ul aria-busy="true" data-testid="members-skeleton">
-      <li>&nbsp;</li>
-      <li>&nbsp;</li>
-    </ul>
-  );
-}
-
-function nameOf(user: string): string {
-  return people.find((person) => person.id === user)?.name ?? user;
-}
-
-async function Staff(props: {
-  readonly params: Promise<{ readonly org: string }>;
-}) {
-  const { org } = await props.params;
-  const staff = await getStaff(org);
-  return (
-    <ul data-testid="members">
-      {staff.map((row) => (
-        <li key={row.user}>
-          {nameOf(row.user)}: <span data-role={row.user}>{row.role}</span>
-          <Protected permission={permissions.member.manage}>
-            <form action={changeRole}>
-              <input type="hidden" name="organization" value={org} />
-              <input type="hidden" name="user" value={row.user} />
-              <input
-                type="hidden"
-                name="role"
-                value={row.role === "admin" ? "member" : "admin"}
-              />
-              <button type="submit" data-change-role={row.user}>
-                {row.role === "admin" ? "Make member" : "Make admin"}
-              </button>
-            </form>
-          </Protected>
-        </li>
-      ))}
-    </ul>
+    <Empty className="border">
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <Lock />
+        </EmptyMedia>
+        <EmptyTitle>Members are hidden</EmptyTitle>
+        <EmptyDescription>Only staff can see the member list.</EmptyDescription>
+      </EmptyHeader>
+    </Empty>
   );
 }
 
@@ -55,17 +34,20 @@ export default function Members(props: {
   readonly params: Promise<{ readonly org: string }>;
 }) {
   return (
-    <section>
-      <h1 data-testid="page-title">Members</h1>
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        title="Members"
+        description="Staff in this organization. Admins can change a member's role; the change reaches their snapshot on the next render."
+      />
       <Protected
         permission={permissions.member.list}
         pending={<MembersSkeleton />}
-        fallback={<p>Only staff can see the member list.</p>}
+        fallback={<Hidden />}
       >
         <Suspense fallback={<MembersSkeleton />}>
           <Staff params={props.params} />
         </Suspense>
       </Protected>
-    </section>
+    </div>
   );
 }

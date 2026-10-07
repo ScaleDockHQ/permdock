@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import "./globals.css";
 import { OfflineBadge } from "./offline-badge.tsx";
 
 export const metadata = {
@@ -11,9 +12,9 @@ export const metadata = {
 export default function RootLayout(props: { readonly children: ReactNode }) {
   return (
     <html lang="en">
-      <body>
-        <OfflineBadge />
+      <body className="min-h-svh font-sans">
         {props.children}
+        <OfflineBadge />
       </body>
     </html>
   );

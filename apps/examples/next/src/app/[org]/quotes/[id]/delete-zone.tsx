@@ -1,3 +1,14 @@
+import { Trash2 } from "lucide-react";
+
+import { Button } from "@/components/ui/button.tsx";
+import {
+  Card,
+  CardAction,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card.tsx";
+
 import { findQuote } from "../../../../lib/store.ts";
 import { getPermDock } from "../../../../permdock/server.ts";
 import { permissions } from "../../../../permissions.ts";
@@ -18,10 +29,21 @@ export async function DeleteZone(props: {
   const permdock = await getPermDock({ tenant: org });
   permdock.assert(permissions.quote.delete, quote);
   return (
-    <form action={deleteQuote.bind(null, org, quote.id)}>
-      <button type="submit" data-action="delete">
-        Delete quote
-      </button>
-    </form>
+    <Card className="ring-destructive/30">
+      <CardHeader>
+        <CardTitle>Delete this quote</CardTitle>
+        <CardDescription>
+          The quote is removed for everyone in the organization.
+        </CardDescription>
+        <CardAction>
+          <form action={deleteQuote.bind(null, org, quote.id)}>
+            <Button type="submit" variant="destructive" data-action="delete">
+              <Trash2 data-icon="inline-start" />
+              Delete quote
+            </Button>
+          </form>
+        </CardAction>
+      </CardHeader>
+    </Card>
   );
 }
