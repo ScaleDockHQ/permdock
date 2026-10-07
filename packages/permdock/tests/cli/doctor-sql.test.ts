@@ -14,6 +14,7 @@ import {
   pd051,
   pd052,
   pd053,
+  pd062,
 } from "../../src/cli/doctor-sql.ts";
 import { sqlStatements } from "../../src/cli/sql-statements.ts";
 import { project, removeProjects } from "./doctor-kit.ts";
@@ -175,6 +176,36 @@ alter table only public.notes add constraint notes_author_key unique (author_id,
   });
 });
 
+describe("PD062 legacy request.jwt.claim settings", () => {
+  it("reports each legacy claim a statement uses, with a fix per claim", () => {
+    const cwd = migration(
+      [
+        "create policy own on public.notes for select to authenticated using (owner = current_setting('request.jwt.claim.sub', true)::uuid);",
+        "select set_config('request.jwt.claim.role', 'authenticated', true), set_config('request.jwt.claims', '{}', true);",
+        "select current_setting('request.jwt.claims', true);",
+      ].join("\n"),
+    );
+    const findings = pd062(cwd, config);
+    expect(messages(findings)).toEqual([
+      `${MIGRATION}:1 uses the legacy request.jwt.claim.sub setting, which PostgREST 12 and PermDock's withSubject no longer set, so it reads null`,
+      `${MIGRATION}:2 uses the legacy request.jwt.claim.role setting, which PostgREST 12 and PermDock's withSubject no longer set, so it reads null`,
+    ]);
+    expect(findings[0]?.fix).toMatch(/permdock_user_id\(\)/u);
+    expect(findings[1]?.fix).toMatch(/auth\.jwt\(\)\) ->> 'role'/u);
+  });
+
+  it("judges a function by its last definition", () => {
+    const old =
+      "create or replace function permdock.uid() returns uuid language sql as $$ select current_setting('request.jwt.claim.sub', true)::uuid $$;";
+    const replaced =
+      "create or replace function permdock.uid() returns uuid language sql as $$ select (select auth.uid()) $$;";
+    expect(pd062(migration(`${old}\n${replaced}`), config)).toEqual([]);
+    expect(messages(pd062(migration(`${replaced}\n${old}`), config))).toEqual([
+      `${MIGRATION}:2 uses the legacy request.jwt.claim.sub setting, which PostgREST 12 and PermDock's withSubject no longer set, so it reads null`,
+    ]);
+  });
+});
+
 describe("the generated RLS", () => {
   it("passes every SQL check", () => {
     const golden = readFileSync(
@@ -185,9 +216,16 @@ describe("the generated RLS", () => {
       "utf8",
     );
     const cwd = migration(golden);
-    const findings = [pd047, pd048, pd049, pd050, pd051, pd052, pd053].flatMap(
-      (check) => check(cwd, config),
-    );
+    const findings = [
+      pd047,
+      pd048,
+      pd049,
+      pd050,
+      pd051,
+      pd052,
+      pd053,
+      pd062,
+    ].flatMap((check) => check(cwd, config));
     expect(findings).toEqual([]);
   });
 });

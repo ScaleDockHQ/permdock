@@ -29,7 +29,6 @@ describe("subjectStatements", () => {
       expect(statements.map(statementText)).toEqual([
         "set local role authenticated",
         "select set_config('request.jwt.claims', $1, true)",
-        "select set_config('request.jwt.claim.sub', $1, true)",
       ]);
       expect(JSON.parse(statements[1]?.values[0] ?? "")).toEqual({
         user_role: "admin",

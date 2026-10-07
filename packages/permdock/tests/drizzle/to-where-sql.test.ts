@@ -392,7 +392,11 @@ describe("permdock/drizzle withSubject", () => {
     const result = await withSubject(db, { subject }, async () => 42);
     expect(result).toBe(42);
     expect(executed[0]?.sql).toMatch(/role/);
-    expect(executed.some(({ params }) => params.includes("u1"))).toBe(true);
+    expect(executed).toHaveLength(2);
+    expect(executed[1]?.sql).toMatch(/request\.jwt\.claims/);
+    expect(JSON.parse(String(executed[1]?.params[0]))).toMatchObject({
+      sub: "u1",
+    });
   });
 });
 

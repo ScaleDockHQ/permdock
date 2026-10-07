@@ -42,7 +42,7 @@ await withSubject(db, permdock, async (trx) => {
 The preamble, in order:
 
 1. `set local role authenticated`, or `anon` when the subject has no principal. `options.role` accepts only `authenticated`, `anon` or `false`. `false` keeps the connection's role, for a login role RLS already applies to.
-2. The claims. `supabase` and `neon` set `request.jwt.claims` (`sub`, `role`, the tenant claim) and `request.jwt.claim.sub`. `guc` sets `<prefix>.user_id` and one `<prefix>.<claim>` setting per claim.
+2. The claims. `supabase` and `neon` set `request.jwt.claims` (`sub`, `role`, the tenant claim). `guc` sets `<prefix>.user_id` and one `<prefix>.<claim>` setting per claim.
 
 `options.dialect` (default `supabase`), `options.gucPrefix` (default `app`) and `options.tenantClaim` (default `tenant_id`) must match the `rls` block in `permdock.config.ts`; `withSubject` does not read the config. `options.claims` adds claims from the verified token, such as `user_role` or `memberships` for `jwt`-mode helpers. `sub`, `role` and the tenant claim always come from the subject. `options.sql` passes Kysely's `sql` tag on runtimes without `require`.
 

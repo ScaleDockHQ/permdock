@@ -169,10 +169,7 @@ export function subjectStatements(
   switch (dialect) {
     case "supabase":
     case "neon":
-      statements.push(
-        setConfig("request.jwt.claims", JSON.stringify(claims)),
-        setConfig("request.jwt.claim.sub", subjectId),
-      );
+      statements.push(setConfig("request.jwt.claims", JSON.stringify(claims)));
       return statements;
     case "guc": {
       const prefix = settingName(options.gucPrefix ?? "app", "setting prefix");

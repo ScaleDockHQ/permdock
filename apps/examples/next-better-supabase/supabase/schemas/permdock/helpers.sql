@@ -8,19 +8,17 @@ create schema if not exists "permdock";
 revoke all on schema "permdock" from public;
 grant usage on schema "permdock" to authenticated;
 
--- the caller's user id: auth.uid(), or null when the token's sub is empty
+-- the caller's user id: the sub of request.jwt.claims, or null when it is empty or absent
 create or replace function "permdock".permdock_user_id()
 returns uuid
 language sql
 stable
 set search_path = ''
 as $$
-  select case
-    when nullif(current_setting('request.jwt.claim.sub', true), '') is null
-      and (select auth.jwt()) ->> 'sub' = ''
-    then null
-    else (select auth.uid())
-  end
+  select nullif(
+    nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub',
+    ''
+  )::uuid
 $$;
 revoke execute on function "permdock".permdock_user_id() from public, anon;
 grant execute on function "permdock".permdock_user_id() to authenticated;
