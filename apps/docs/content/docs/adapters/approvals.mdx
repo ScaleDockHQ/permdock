@@ -405,6 +405,16 @@ const store = supabaseApprovalStore(admin, {
 
 `onOpen` runs once per stored request, after the call that stored it, with the stored request; a repeated ask that finds the request still open does not run it again, so a notification or a record the app opens there is not duplicated. A throw fails the open, so the action does not run. Routing to a manager chain or a delegate is the app's: `approverRelations` and `approverPermissions` feed the facts `applyApprovalVerdict` checks, and `cancelApprovals` rejects the requests a newer one supersedes. The same conformance runner as the Drizzle recipe runs it against Postgres. Schedule `store.expire()` (a cron or `pg_cron`) to mark overdue requests expired.
 
+`rls.jsonSchema` adds a check constraint on `body`, so the database refuses a row that is not a v1 [approval request](/docs/concepts/wire-formats#approval-request) whatever writes it:
+
+| `rls.jsonSchema`  | Generated SQL                                                                                                                         |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `false` (default) | No constraint                                                                                                                         |
+| `true`            | `create extension if not exists pg_jsonschema with schema extensions`, then the constraint; the migration fails without the extension |
+| `'auto'`          | The same statements inside a `do` block that runs only when `pg_available_extensions` lists `pg_jsonschema`                           |
+
+The constraint is `approval_requests_body_schema`: `check (extensions.jsonb_matches_schema('<approval-request-v1.json>'::json, body))`. It is added `not valid` and then validated, and each run replaces it, so a regenerated schema applies to existing rows. A violation fails the write with SQLSTATE `23514`, and `supabaseApprovalStore` rejects with it. pg_jsonschema compiles the schema on every write; Supabase ships version 0.3.3.
+
 ## Recipes for other stores
 
 The Drizzle store above is the template; every other backing store is the same methods over a different driver, and none is a package:

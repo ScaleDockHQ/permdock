@@ -350,6 +350,24 @@ $$;
 
 **Why.** Supabase Auth calls one access token hook. A package that has to refuse a sign-in, such as single sign-on enforcement, would otherwise need its own hook and lose PermDock's claims, or ask the application to hand-edit the generated function on every regeneration. A check that runs first and can only refuse or pass the event keeps one hook and leaves the claims PermDock owns to PermDock.
 
+## Claim validation
+
+`supabase.hook.validate: true` makes the hook check its own claims against `supabase-claims-v1.json` with pg_jsonschema, as the last step before it returns:
+
+```sql
+if not extensions.jsonb_matches_schema('<permdockClaims>'::json, claims) then
+  claims := claims - 'user_role' - 'roles' - 'memberships' - 'memberships_truncated' - 'attrs' - 'authz_ver' - 'tenant_id';
+end if;
+```
+
+- The schema is the `permdockClaims` definition with its `membership` entries, `keep` included.
+- On a mismatch the hook drops every claim it owns and returns the event. The user signs in with no roles or memberships, so every PermDock check denies; sign-in itself does not fail.
+- A mismatch comes from data the hook did not produce, such as an incoming tenant claim of the wrong type that no active tenant replaced. `hook.claims` entries belong to other packages and stay.
+- The migration runs `create extension if not exists pg_jsonschema with schema extensions` and grants `supabase_auth_admin` `usage` on `extensions` and `execute` on `extensions.jsonb_matches_schema(json, jsonb)`.
+- Off by default: the check costs one schema compile per token.
+
+**Why.** A token whose PermDock claims break the schema would fail later, in every reader at once. Dropping them at the source turns that into a sign-in with no access, which is the fail-closed outcome, and keeps a bad row from locking a user out with an Auth error.
+
 ## Size budget
 
 Claims travel in the session cookie and on every request. The budget, `supabaseMembershipsBudget` bytes of JSON (1024 by default, measured with `octet_length`; set with `--budget` or `supabase.hook.budget`), covers `attrs` and `memberships` together. `attrs` is sized first: when it alone exceeds the budget it is left out whole and `memberships_truncated: true` is set, so attribute conditions deny rather than read half an object. The hook then adds memberships in order, the active tenant's first, then source order, and stops before the two together would exceed the budget, again setting `memberships_truncated: true`.

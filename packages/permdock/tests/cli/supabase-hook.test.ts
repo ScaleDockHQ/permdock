@@ -609,6 +609,25 @@ describe("permdock supabase hook generate", () => {
     expect(plain.sql).not.toContain("checked");
   });
 
+  it("drops every PermDock claim that fails supabase.hook.validate", async () => {
+    const { code, sql } = await generate(
+      `{ memberships: [${SOURCES}], validate: true, claims: { features: 'auth_checks.feature_claims' } }`,
+    );
+    expect(code).toBe(0);
+    expect(sql).toContain(
+      '  if not extensions.jsonb_matches_schema(\'{"$schema":"https://json-schema.org/draft/2020-12/schema","$ref":"#/$defs/permdockClaims"',
+    );
+    expect(sql).toContain(
+      "::json, claims) then\n    claims := claims - 'user_role' - 'roles' - 'memberships' - 'memberships_truncated' - 'attrs' - 'authz_ver' - 'tenant_id';\n  end if;\n  return jsonb_set(event, '{claims}', claims);",
+    );
+    expect(sql).toContain(
+      "grant execute on function extensions.jsonb_matches_schema(json, jsonb) to supabase_auth_admin;",
+    );
+
+    const plain = await generate(`{ memberships: [${SOURCES}] }`);
+    expect(plain.sql).not.toContain("jsonb_matches_schema");
+  });
+
   it("refuses a supabase.hook.before function without a schema", async () => {
     const { code, output } = await generate(
       `{ memberships: [${SOURCES}], before: 'require_sso' }`,

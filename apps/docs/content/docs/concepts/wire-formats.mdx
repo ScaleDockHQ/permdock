@@ -384,7 +384,7 @@ The record an API key stands for. The key itself (`pdk_<id>_<secret><checksum>`)
 
 ## Approval request
 
-Stored by an `ApprovalStore` and exchanged with PermDock Cloud. See the [approvals adapter](/docs/adapters/approvals) and [approval security](/docs/security/approvals). Records set `v: 1`; `approvers` is optional. An approver in `by`, a stage or `escalation.to` is a grantee, `{ kind: 'user', id }`, `{ kind: 'permission', permission }` (a `holder()`) or `{ kind: 'any-of', of: [...] }`, whose items are approvers or all-of lists; a stage may carry its own `escalation: { after, to }`. These additions are optional fields of `v: 1`; a reader that does not know a kind treats the approver as matching nobody.
+Stored by an `ApprovalStore` and exchanged with PermDock Cloud. See the [approvals adapter](/docs/adapters/approvals) and [approval security](/docs/security/approvals). Its JSON Schema is `schemas/approval-request-v1.json` in the `permdock` package; it allows unknown properties and checks timestamps with `pattern`, so pg_jsonschema can enforce it in a check constraint (`rls.jsonSchema`). Records set `v: 1`; `approvers` is optional. An approver in `by`, a stage or `escalation.to` is a grantee, `{ kind: 'user', id }`, `{ kind: 'permission', permission }` (a `holder()`) or `{ kind: 'any-of', of: [...] }`, whose items are approvers or all-of lists; a stage may carry its own `escalation: { after, to }`. These additions are optional fields of `v: 1`; a reader that does not know a kind treats the approver as matching nobody.
 
 ```json
 {

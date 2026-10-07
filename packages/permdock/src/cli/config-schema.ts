@@ -67,6 +67,7 @@ const RLS = {
   anonExecute: true,
   assignments: true,
   approvals: true,
+  jsonSchema: true,
   ownershipTriggers: true,
   readOnlyActors: true,
   apiKeys: true,

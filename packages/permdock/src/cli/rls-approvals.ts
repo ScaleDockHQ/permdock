@@ -1,6 +1,8 @@
 import type { RlsSqlContext } from "./rls-sql.ts";
 
+import { APPROVAL_REQUEST_SCHEMA } from "./approval-schema.ts";
 import { qualified } from "./rls-helpers.ts";
+import { quoteLiteral } from "./rls-sql.ts";
 
 /** The objects `rls.approvals` adds. Names are part of the SQL contract `supabaseApprovalStore` calls. */
 const APPROVAL_STORE = {
@@ -38,6 +40,36 @@ function serverOnly(fn: string, args: string): string {
   return `revoke execute on function ${fn}(${args}) from public, anon, authenticated;`;
 }
 
+const BODY_CHECK = `${APPROVAL_STORE.table}_body_schema`;
+
+/**
+ * `rls.jsonSchema`: a pg_jsonschema check that `body` matches
+ * `approval-request-v1.json`, added `not valid` and then validated. `auto`
+ * adds it only where the extension is available.
+ */
+function bodySchemaSql(table: string, mode: "auto" | true): string {
+  const statements = [
+    "create schema if not exists extensions;",
+    "create extension if not exists pg_jsonschema with schema extensions;",
+    `alter table ${table} drop constraint if exists "${BODY_CHECK}";`,
+    `alter table ${table} add constraint "${BODY_CHECK}" check (extensions.jsonb_matches_schema(${quoteLiteral(JSON.stringify(APPROVAL_REQUEST_SCHEMA))}::json, body)) not valid;`,
+    `alter table ${table} validate constraint "${BODY_CHECK}";`,
+  ];
+  const comment =
+    "-- approval store: body matches schemas/approval-request-v1.json through pg_jsonschema";
+  if (mode === true) {
+    return `\n${comment}\n${statements.join("\n")}\n`;
+  }
+  return `\n${comment}, where the extension is available
+do $permdock$
+begin
+  if exists (select 1 from pg_available_extensions where name = 'pg_jsonschema') then
+${statements.map((statement) => `    ${statement}`).join("\n")}
+  end if;
+end
+$permdock$;\n`;
+}
+
 /**
  * The approval store (`rls.approvals`): one table of `ApprovalRequest`
  * bodies with the columns a list filters on, and one `security definer`
@@ -45,7 +77,10 @@ function serverOnly(fn: string, args: string): string {
  * role may read the table or execute the functions: approvals are opened and
  * resolved by the server, which grants its own role.
  */
-export function approvalStoreSql(ctx: RlsSqlContext): string {
+export function approvalStoreSql(
+  ctx: RlsSqlContext,
+  jsonSchema: "auto" | boolean = false,
+): string {
   const table = qualified(ctx, APPROVAL_STORE.table);
   const fn = (name: string): string => qualified(ctx, name);
   const index = (name: string): string => `"${APPROVAL_STORE.table}_${name}"`;
@@ -67,7 +102,7 @@ create index if not exists ${index("page")} on ${table} (created_at collate "C",
 create index if not exists ${index("pending")} on ${table} (status, expires_at);
 alter table ${table} enable row level security;
 revoke all on table ${table} from anon, authenticated, public;
-
+${jsonSchema === false ? "" : bodySchemaSql(table, jsonSchema)}
 -- open a request; a repeated ask keeps the open record and replaces only an expired one
 create or replace function ${fn(APPROVAL_STORE.open)}(p_request jsonb)
 returns void

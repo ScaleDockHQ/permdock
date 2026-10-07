@@ -430,7 +430,28 @@ export async function runRlsGenerate(input: {
       text: "",
     };
   }
+  const jsonSchema = rls?.jsonSchema;
+  if (
+    jsonSchema !== undefined &&
+    jsonSchema !== "auto" &&
+    typeof jsonSchema !== "boolean"
+  ) {
+    return {
+      code: 2,
+      output: `rls.jsonSchema must be 'auto', true or false (got ${JSON.stringify(jsonSchema)})`,
+      text: "",
+    };
+  }
   const warnings: string[] = [];
+  if (
+    jsonSchema !== undefined &&
+    jsonSchema !== false &&
+    rls?.approvals !== true
+  ) {
+    warnings.push(
+      "rls.jsonSchema constrains the approval store's body, which needs rls.approvals: true; nothing else is jsonb",
+    );
+  }
   if (authorize === "database") {
     for (const { name } of ctx.scopes) {
       const needs = policy.grants.some((grant) => grant.scope === name);
@@ -600,7 +621,9 @@ export async function runRlsGenerate(input: {
       withoutSeeds: splitsPart(input.split, "seeds"),
     }),
     permissionHelpersSql(ctx, grants, renamed, anonExecute),
-    rls?.approvals === true ? approvalStoreSql(ctx) : undefined,
+    rls?.approvals === true
+      ? approvalStoreSql(ctx, jsonSchema ?? false)
+      : undefined,
     owned === "" ? undefined : owned,
     graphed === "" ? undefined : graphed,
     breakGlass === "" ? undefined : breakGlass,

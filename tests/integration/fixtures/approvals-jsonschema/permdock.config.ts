@@ -1,4 +1,4 @@
-/** The generated approval store next to the helpers; plain Postgres has no pg_jsonschema, so `auto` adds no check. */
+/** The approval store with its body checked by pg_jsonschema, for the supabase/postgres image. */
 export default {
   permissions: "../custom-role-writes/permissions.ts",
   policy: "../custom-role-writes/policy.ts",
@@ -6,6 +6,6 @@ export default {
     dialect: "supabase",
     tenantType: "text",
     approvals: true,
-    jsonSchema: "auto",
+    jsonSchema: true,
   },
 };
