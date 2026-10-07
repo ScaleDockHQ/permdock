@@ -48,6 +48,17 @@ function heldTenantOf(principal: Principal): string | undefined {
     : undefined;
 }
 
+function outsideHeld(
+  held: string | undefined,
+  options: PermDockOptions,
+): boolean {
+  return (
+    held !== undefined &&
+    options.tenant !== undefined &&
+    options.tenant !== held
+  );
+}
+
 function assemblePrincipal(
   policy: Policy,
   user: unknown,
@@ -238,9 +249,11 @@ function finishSubject(
   const memberships =
     held === undefined
       ? kinds.memberships
-      : kinds.memberships.filter(
-          (membership) => tenantOf(membership, scopes) === held,
-        );
+      : outsideHeld(held, options)
+        ? []
+        : kinds.memberships.filter(
+            (membership) => tenantOf(membership, scopes) === held,
+          );
   const plans = [
     ...new Set([...(assembled.principal.plans ?? []), ...extra.plans]),
   ];
@@ -277,7 +290,7 @@ function activeTenantOf(
   }
   const held = heldTenantOf(assembled.principal);
   if (held !== undefined) {
-    return held;
+    return outsideHeld(held, options) ? undefined : held;
   }
   return resolveActiveTenant(
     { ...assembled.principal, memberships },
@@ -360,7 +373,11 @@ function entitlementsOf(
   auth: AuthEvent[],
 ): readonly string[] | Promise<readonly string[]> {
   const source = options.entitlements;
-  if (source === undefined || assembled.principal === null) {
+  if (
+    source === undefined ||
+    assembled.principal === null ||
+    outsideHeld(heldTenantOf(assembled.principal), options)
+  ) {
     return [];
   }
   try {

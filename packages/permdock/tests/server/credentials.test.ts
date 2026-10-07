@@ -1,3 +1,4 @@
+import { Hono } from "hono";
 import { crc32 } from "node:zlib";
 import { describe, expect, it } from "vitest";
 
@@ -6,6 +7,7 @@ import type { AuthEvent } from "../../src/core/interfaces.ts";
 import type { Subject } from "../../src/core/subject.ts";
 import type { ApiKeySubjectOptions } from "../../src/server/credentials.ts";
 
+import { compact } from "../../src/core/compact.ts";
 import { memorySettings } from "../../src/core/interfaces.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
 import {
@@ -15,6 +17,7 @@ import {
 } from "../../src/core/permissions.ts";
 import { allow, definePolicy, role } from "../../src/core/policy.ts";
 import { memorySink } from "../../src/core/sink.ts";
+import { createPermDock as createHonoPermDock } from "../../src/hono/index.ts";
 import {
   apiKeyVerifier,
   generateApiKey,
@@ -23,6 +26,7 @@ import {
   parseApiKey,
   subjectFromApiKey,
 } from "../../src/server/credentials.ts";
+import { createPermDock as createServerPermDock } from "../../src/server/index.ts";
 import {
   testCredentialVerifier,
   testSubjectResolver,
@@ -578,5 +582,84 @@ describe("subjectFromApiKey: a key over many permissions", () => {
     const row = { id: "r_1", orgId: "o_1" };
     expect(delegated.every((leaf) => permdock.can(leaf, row))).toBe(true);
     expect(permdock.can(held, row)).toBe(false);
+  });
+});
+
+describe("a user key held to one tenant on a route of another", () => {
+  const twoTenants = {
+    id: "u_1",
+    kind: "user" as const,
+    tenant: "o_1",
+    memberships: [
+      { tenant: "o_1", roles: ["developer"] },
+      { tenant: "o_2", roles: ["developer"] },
+    ],
+  };
+  const r2 = { id: "r_2", orgId: "o_2" };
+
+  async function heldKey() {
+    const { store, key } = await issue({ tenant: "o_2" });
+    const resolver = subjectFromApiKey({
+      verifier: store,
+      permissions,
+      owner: () => twoTenants,
+    });
+    return { key, resolver };
+  }
+
+  it("denies protect in another tenant and allows it in the held one", async () => {
+    const { key, resolver } = await heldKey();
+    const route = (tenant: string) =>
+      createServerPermDock(policy, {
+        subject: () => resolver(key, { tenant }),
+        tenant,
+      }).protect(repo.read)(new Request("https://api.example/repos"));
+    const other = await route("o_1");
+    const own = await route("o_2");
+    expect({
+      other: other.ok ? 200 : other.response.status,
+      own: own.ok ? 200 : own.response.status,
+    }).toEqual({ other: 403, own: 200 });
+  });
+
+  it("answers for no tenant and no membership outside the held tenant", async () => {
+    const { key, resolver } = await heldKey();
+    const permdock = await createServerPermDock(policy, {
+      subject: () => resolver(key, { tenant: "o_1" }),
+      tenant: "o_1",
+    }).permdock(new Request("https://api.example/r"));
+    expect({
+      tenant: permdock.subject.principal?.tenant,
+      memberships: permdock.memberships(),
+      tenants: permdock.tenants(),
+      inOther: permdock.can(repo.read, r1),
+      inHeld: permdock.can(repo.read, r2),
+      switched: permdock.tenant("o_2").can(repo.read, r2),
+      where: permdock.where(repo.read),
+    }).toEqual({
+      tenant: undefined,
+      memberships: [],
+      tenants: [],
+      inOther: false,
+      inHeld: false,
+      switched: false,
+      where: { condition: { op: "or", conditions: [] }, partial: false },
+    });
+  });
+
+  it("denies a Hono route of another tenant and allows the held one", async () => {
+    const { key, resolver } = await heldKey();
+    const { protect } = createHonoPermDock(policy, {
+      subject: (c) => resolver(key, compact({ tenant: c.req.param("org") })),
+      tenant: (c) => c.req.param("org"),
+    });
+    const app = new Hono();
+    app.get("/orgs/:org/repos", protect(repo.read), (c) => c.text("ok"));
+    const other = await app.request("/orgs/o_1/repos");
+    const own = await app.request("/orgs/o_2/repos");
+    expect({ other: other.status, own: own.status }).toEqual({
+      other: 403,
+      own: 200,
+    });
   });
 });
