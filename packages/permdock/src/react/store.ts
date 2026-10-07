@@ -85,6 +85,7 @@ function isJws(value: string): boolean {
 }
 
 const CURRENT = Symbol.for("permdock.current");
+const STORE = Symbol("permdock.store");
 
 const SERVER_ONLY: Decision = {
   outcome: "denied",
@@ -125,6 +126,12 @@ export type ClientStore = {
   adopt(value: Snapshot | string, source: object): void;
   snapshot(): Snapshot;
 };
+
+/** The store that emitted `permdock`; a fresh `permdock` follows every change. */
+export function storeOf(permdock: ClientPermDock): ClientStore {
+  // SAFETY: hooks only pass instances from `ClientStore.get()`, which defines STORE.
+  return (permdock as unknown as { readonly [STORE]: ClientStore })[STORE];
+}
 
 function needsEndpoint(decision: Decision): boolean {
   return (
@@ -630,6 +637,7 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
     };
     // Long-lived consumers (WebMCP) hold one object; this reaches the latest.
     Object.defineProperty(client, CURRENT, { value: () => cached });
+    Object.defineProperty(client, STORE, { value: store });
     return client;
   };
 
@@ -670,9 +678,7 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
     }
   };
 
-  boot(options.snapshot);
-
-  return {
+  const store: ClientStore = {
     get(): ClientPermDock {
       return cached;
     },
@@ -761,4 +767,6 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
       }
     },
   };
+  boot(options.snapshot);
+  return store;
 }

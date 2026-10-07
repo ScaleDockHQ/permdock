@@ -170,6 +170,8 @@ catalog:
   "@supabase-labs/middleware-openfeature": 0.2.0
   "@next/playwright": 16.3.8
   "@playwright/test": 1.63.0
+  babel-plugin-react-compiler: 1.0.0
+  "@babel/core": 8.0.6
 
 catalogs:
   ts59:
