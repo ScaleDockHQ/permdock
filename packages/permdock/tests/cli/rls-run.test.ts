@@ -102,6 +102,27 @@ describe("runRls dispatch", () => {
     });
   });
 
+  it("runs the Supabase advisors on verify --advisors", async () => {
+    const seen: string[][] = [];
+    const result = await runRls(
+      input({
+        rest: ["verify"],
+        advisors: true,
+        db: "postgresql://localhost/postgres",
+        io: { ...io, env: { PATH: "/usr/bin" } },
+        exec: (command, args) => {
+          seen.push([command, ...args]);
+          return { status: 0, stdout: '{"results":[]}', stderr: "" };
+        },
+      }),
+    );
+    expect(seen[0]).toContain("postgresql://localhost/postgres");
+    expect(result).toEqual({
+      code: 0,
+      output: "supabase db advisors: no security findings",
+    });
+  });
+
   it("passes --db and the injected client through to import", async () => {
     const sql = fakeSql();
     const result = await runRls(

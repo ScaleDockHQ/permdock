@@ -95,6 +95,41 @@ describe("rls verify --advisors", () => {
     });
   });
 
+  it("spawns the Supabase CLI from PATH and reports it missing", () => {
+    const result = runRlsAdvisors({
+      cwd: import.meta.dirname,
+      json: false,
+      env: {},
+    });
+    expect(result.code).toBe(2);
+    expect(result.output).toContain("npm install --save-dev supabase");
+  });
+
+  it.each([
+    ["stderr", "boom\n", "supabase db advisors failed: boom"],
+    ["the exit status", "", "supabase db advisors failed: exit 3"],
+  ])("falls back to %s when stdout is not JSON", (_, stderr, output) => {
+    const result = runRlsAdvisors({
+      cwd: "/app",
+      json: false,
+      env: {},
+      exec: () => ({ status: 3, stdout: "not json", stderr }),
+    });
+    expect(result).toEqual({ code: 2, output });
+  });
+
+  it("reads missing fields of a malformed row as empty", () => {
+    const result = runRlsAdvisors({
+      cwd: "/app",
+      json: true,
+      env: {},
+      exec: fake(JSON.stringify({ results: [null] })),
+    });
+    expect(JSON.parse(result.output)).toMatchObject({
+      findings: [{ name: "", level: "" }],
+    });
+  });
+
   it("reports the CLI's own error", () => {
     const result = runRlsAdvisors({
       cwd: "/app",
