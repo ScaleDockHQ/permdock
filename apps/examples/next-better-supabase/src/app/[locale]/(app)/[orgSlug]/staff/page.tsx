@@ -32,7 +32,7 @@ export default function StaffPage(props: {
 }) {
   return (
     <section>
-      <h1>Staff</h1>
+      <h1 data-testid="page-title">Staff</h1>
       <Protected
         permission={permissions.staff.list}
         pending={<p aria-busy="true" />}
