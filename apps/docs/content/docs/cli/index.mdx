@@ -86,7 +86,7 @@ Reports are styled on a colour terminal and plain in a pipe, unless `FORCE_COLOR
 - run: pnpm exec permdock arazzo check --doc workflows/publish-post.arazzo.json --openapi openapi.json
 ```
 
-`permdock rls verify --db $DATABASE_URL` runs in the integration job that has a Postgres service; see [rls](/docs/cli/rls). Every `--db` connection gives up after 10 seconds and every statement after 60 seconds, and then exits `1`.
+`permdock rls verify --db $DATABASE_URL` runs in the integration job that has a Postgres service; see [rls](/docs/cli/rls). On Supabase, `permdock rls verify --advisors` runs the Supabase CLI's security advisors on the same database and exits `1` on a `WARN` or `ERROR` lint. Every `--db` connection gives up after 10 seconds and every statement after 60 seconds, and then exits `1`.
 
 ## How the CLI reads definitions
 

@@ -4,6 +4,7 @@ import type { CliIo, PermDockConfig, RlsDialect, RlsTarget } from "./types.ts";
 import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
 import { usageResult } from "./errors.ts";
 import { requirePeer } from "./peer.ts";
+import { type CliExec, runRlsAdvisors } from "./rls-advisors.ts";
 import { type GenerateOutcome, runRlsGenerate } from "./rls-generate.ts";
 import {
   diffMixed,
@@ -32,6 +33,7 @@ export const RLS_HELP = `permdock rls generate | import | verify | migrate
            [--schema zod|valibot|arktype] [--memberships <table>:tenant,user,role]
   verify   [--db $DATABASE_URL] [--fixtures rls.fixtures.ts] [--format pgtap|node] [--tree]
            [--introspect --db $DATABASE_URL, with the generate flags]
+           [--advisors [--db $DATABASE_URL] [--json]]: supabase db advisors, security lints
   migrate  --sql <dir> [--write] [--json], with the generate flags
            rewrites the rls.migrate helpers' calls in policies onto the generated helpers
 
@@ -79,6 +81,10 @@ export type RlsRunInput = {
   readonly io: CliIo;
   /** Opens every `--db` connection; defaults to the `pg` peer. */
   readonly connect?: SqlConnect;
+  /** `verify --advisors`: run `supabase db advisors` instead of the fixtures. */
+  readonly advisors?: boolean;
+  /** Starts the Supabase CLI for `--advisors`; defaults to `spawnSync`. */
+  readonly exec?: CliExec;
 };
 
 function asTarget(value: string | undefined): RlsTarget | undefined {
@@ -339,6 +345,15 @@ export async function runRls(
       });
     }
     case "verify": {
+      if (input.advisors === true) {
+        return runRlsAdvisors({
+          cwd: input.cwd,
+          json: input.json,
+          env: input.io.env ?? process.env,
+          ...(input.db === undefined ? {} : { db: input.db }),
+          ...(input.exec === undefined ? {} : { exec: input.exec }),
+        });
+      }
       if (input.introspect) {
         return introspect(input);
       }

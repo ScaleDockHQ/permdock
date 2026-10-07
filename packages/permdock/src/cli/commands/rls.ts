@@ -148,6 +148,10 @@ export function rls(ctx: CliContext): Command {
         type: "boolean",
         description: "verify: compare against the live database",
       },
+      advisors: {
+        type: "boolean",
+        description: "verify: run the Supabase security advisors",
+      },
       split: {
         type: "string",
         description:
@@ -212,6 +216,7 @@ export function rls(ctx: CliContext): Command {
         revokeColumns: parsed["revoke-columns"] === true,
         tree: parsed.tree === true,
         introspect: parsed.introspect === true,
+        advisors: parsed.advisors === true,
         split: stringArg(parsed.split),
         grantsOut: stringArg(parsed["grants-out"]),
         seedsOut: stringArg(parsed["seeds-out"]),
