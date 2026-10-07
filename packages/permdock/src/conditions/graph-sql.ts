@@ -5,6 +5,7 @@ import {
   type EdgeRelation,
   type ResourceNode,
   expandRelation,
+  groupEntries,
   isEdgeRelation,
   isFieldRelation,
   isPrincipalRelation,
@@ -136,37 +137,60 @@ function edgeHolderFilter(
   alias: string,
 ): GraphSql {
   const holder = col(alias, spec.subject ?? "user_id");
-  const subject = `${holder}::text`;
   const groups = spec.groups;
   if (groups === undefined) {
     return [text(`${holder} = `), { subject: true }];
   }
-  const kind = col(alias, groups.column);
+  const kind =
+    groups.column === undefined ? undefined : col(alias, groups.column);
   const direct: GraphSqlPart[] =
-    groups.direct === undefined
-      ? [text(`(${kind} is null`)]
-      : [text(`(${kind} is null or ${kind} = `), { value: groups.direct }];
-  const parts: GraphSqlPart[] = [
-    text("(("),
-    ...direct,
-    text(`) and ${holder} = `),
-    { subject: true },
-    text(")"),
-  ];
-  for (const [resource, relation] of Object.entries(groups.resources)) {
-    if (resource === node.name) {
+    kind === undefined
+      ? [text(`(${holder} = `), { subject: true }, text(")")]
+      : [
+          text("(("),
+          ...(groups.direct === undefined
+            ? [text(`${kind} is null`)]
+            : [
+                text(`${kind} is null or ${kind} = `),
+                { value: groups.direct },
+              ]),
+          text(`) and ${holder} = `),
+          { subject: true },
+          text(")"),
+        ];
+  const parts: GraphSqlPart[] = [text("("), ...direct];
+  for (const group of groupEntries(spec)) {
+    if (group.resource === node.name) {
       continue;
     }
+    const id = `${col(alias, group.subject)}::text in (`;
     parts.push(
-      text(` or (${kind} = `),
-      { value: resource },
-      text(` and ${subject} in (`),
-      ...groupHolders(build, resource, relation),
+      ...(kind === undefined
+        ? [text(` or (${id}`)]
+        : [
+            text(` or (${kind} = `),
+            { value: group.resource },
+            text(` and ${id}`),
+          ]),
+      ...groupHolders(build, group.resource, group.relation),
       text("))"),
     );
   }
   parts.push(text(")"));
   return parts;
+}
+
+/** The nested-group step of an edge whose groups include its own resource: the row names a group of `node`. */
+function selfGroupWhere(
+  spec: EdgeRelation,
+  node: ResourceNode,
+  subject: string,
+  alias: string,
+): GraphSql {
+  const column = spec.groups?.column;
+  return column === undefined
+    ? [text(`${subject} is not null`)]
+    : [text(`${col(alias, column)} = `), { value: node.name }];
 }
 
 /**
@@ -188,21 +212,24 @@ function relationArm(
       ...edgeHolderFilter(build, node, spec, e),
       ...edgeRowFilter(spec, e),
     ];
-    const self = spec.groups?.resources[node.name];
-    if (self === undefined || spec.groups === undefined) {
+    const self = groupEntries(spec).find(
+      (group) => group.resource === node.name,
+    );
+    if (self === undefined) {
       return base;
     }
     const g = nextAlias(build, "g");
     const n = nextAlias(build, "e");
+    const subject = col(n, self.subject);
     return [
       text(
         `select ${g}.id from (with recursive ${g}(id, level) as (select b.id, 0 from (`,
       ),
       ...base,
       text(
-        `) b union select ${col(n, object)}::text, ${g}.level + 1 from ${edge} ${n} join ${g} on ${col(n, spec.subject ?? "user_id")}::text = ${g}.id where ${col(n, spec.groups.column)} = `,
+        `) b union select ${col(n, object)}::text, ${g}.level + 1 from ${edge} ${n} join ${g} on ${subject}::text = ${g}.id where `,
       ),
-      { value: node.name },
+      ...selfGroupWhere(spec, node, subject, n),
       text(` and ${g}.level < ${String(DEFAULT_GROUP_DEPTH)}`),
       ...edgeRowFilter(spec, n),
       text(`) select ${g}.id from ${g}) ${g}`),

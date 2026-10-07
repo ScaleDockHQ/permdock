@@ -95,17 +95,63 @@ export type FieldRelation = RelationIncludes & {
 export type EdgeMatch = Readonly<Record<string, string | number | boolean>>;
 
 /**
+ * One group resource of an edge: the relation whoever the row names must
+ * hold on the group, and, when the group's id has its own typed column, that
+ * column in place of the edge's `subject`.
+ */
+export type EdgeGroup =
+  | string
+  | { readonly relation: string; readonly subject?: string };
+
+/**
  * Edge rows that name a group instead of a principal: `column` holds the
  * resource name, `subject` the group's id, and the row holds for whoever
  * holds `resources[<name>]` on that group. A null `column` (or `direct`)
- * names a principal; any other value matches nothing.
+ * names a principal; any other value matches nothing. A group with its own
+ * `subject` column reads the group's id from it; without `column`, a row
+ * names that group when the column is not null, and a principal when the
+ * edge's `subject` is not null.
  */
 export type EdgeGroups = {
-  readonly column: string;
-  readonly resources: Readonly<Record<string, string>>;
+  /** Required unless every group names its own `subject` column. */
+  readonly column?: string;
+  readonly resources: Readonly<Record<string, EdgeGroup>>;
   /** The `column` value of a row naming a principal, besides `null`. */
   readonly direct?: string;
 };
+
+/** One group resource of an edge, normalised. */
+export type EdgeGroupEntry = {
+  readonly resource: string;
+  readonly relation: string;
+  /** The column holding the group's id: the group's own, else the edge's `subject`. */
+  readonly subject: string;
+  /** Whether the group reads its own typed column rather than the edge's `subject`. */
+  readonly typed: boolean;
+};
+
+/** The edge's group resources with their relation and id column. */
+export function groupEntries(spec: EdgeRelation): readonly EdgeGroupEntry[] {
+  const groups = spec.groups;
+  if (groups === undefined) {
+    return [];
+  }
+  return Object.entries(groups.resources).map(([resource, group]) =>
+    typeof group === "string"
+      ? {
+          resource,
+          relation: group,
+          subject: spec.subject ?? "user_id",
+          typed: false,
+        }
+      : {
+          resource,
+          relation: group.relation,
+          subject: group.subject ?? spec.subject ?? "user_id",
+          typed: group.subject !== undefined,
+        },
+  );
+}
 
 /** One row per holder in an edge table: `object` holds the resource id, `subject` the principal id. */
 export type EdgeRelation = RelationIncludes & {
@@ -682,31 +728,72 @@ function normaliseMatch(label: string, match: EdgeMatch): EdgeMatch {
 }
 
 function normaliseGroups(label: string, groups: EdgeGroups): EdgeGroups {
-  assertSafeKey(groups.column, "edge groups column");
-  const resources: Record<string, string> = {};
+  if (groups.column !== undefined) {
+    assertSafeKey(groups.column, "edge groups column");
+  }
+  const resources: Record<string, EdgeGroup> = {};
   const names = Object.keys(groups.resources);
   if (names.length === 0) {
     throw new Error(`PermDock: ${label} groups needs at least one resource`);
   }
   for (const name of names) {
     assertSafeKey(name, "group resource");
-    const relationName = groups.resources[name];
+    const group: unknown = groups.resources[name];
+    if (typeof group === "string") {
+      assertSafeKey(group, "group relation");
+      if (groups.column === undefined) {
+        throw new Error(
+          `PermDock: ${label} groups '${name}' needs its own subject column, or groups needs a column naming the resource`,
+        );
+      }
+      resources[name] = group;
+      continue;
+    }
+    if (group === null || typeof group !== "object") {
+      throw new TypeError(
+        `PermDock: ${label} groups '${name}' must name a relation`,
+      );
+    }
+    const relationName = "relation" in group ? group.relation : undefined;
     if (typeof relationName !== "string") {
       throw new TypeError(
         `PermDock: ${label} groups '${name}' must name a relation`,
       );
     }
     assertSafeKey(relationName, "group relation");
-    resources[name] = relationName;
+    const subject = "subject" in group ? group.subject : undefined;
+    if (subject !== undefined && typeof subject !== "string") {
+      throw new TypeError(
+        `PermDock: ${label} groups '${name}' subject must be a column name`,
+      );
+    }
+    if (subject !== undefined) {
+      assertSafeKey(subject, "group subject column");
+    } else if (groups.column === undefined) {
+      throw new Error(
+        `PermDock: ${label} groups '${name}' needs its own subject column, or groups needs a column naming the resource`,
+      );
+    }
+    resources[name] =
+      subject === undefined
+        ? { relation: relationName }
+        : { relation: relationName, subject };
+  }
+  if (groups.direct !== undefined && groups.column === undefined) {
+    throw new Error(
+      `PermDock: ${label} groups direct needs a column to compare it with`,
+    );
   }
   if (groups.direct !== undefined && groups.direct in resources) {
     throw new Error(
       `PermDock: ${label} groups direct '${groups.direct}' is also a group resource`,
     );
   }
-  return groups.direct === undefined
-    ? { column: groups.column, resources }
-    : { column: groups.column, resources, direct: groups.direct };
+  return {
+    ...(groups.column === undefined ? {} : { column: groups.column }),
+    resources,
+    ...(groups.direct === undefined ? {} : { direct: groups.direct }),
+  };
 }
 
 /** An included relation must exist on the same resource, be tenancy-free and never include itself back. */
@@ -793,8 +880,8 @@ function assertGraphTargets(registry: ReadonlyMap<string, ResourceNode>): void {
       if (!isEdgeRelation(spec) || spec.groups === undefined) {
         continue;
       }
-      for (const [target, targetRelation] of Object.entries(
-        spec.groups.resources,
+      for (const { resource: target, relation: targetRelation } of groupEntries(
+        spec,
       )) {
         assertGroupTarget(
           registry,
