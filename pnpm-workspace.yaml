@@ -55,7 +55,7 @@ catalog:
   "@base-ui/react": 1.8.0
   "@standard-schema/spec": 1.1.0
   "@supabase/middleware": 1.0.0
-  "@supabase/server": 1.9.0
+  "@supabase/server": 1.9.1
   "@supabase/supabase-js": 2.117.2
   "@testcontainers/postgresql": 12.2.0
   "@trpc/server": 11.19.0
