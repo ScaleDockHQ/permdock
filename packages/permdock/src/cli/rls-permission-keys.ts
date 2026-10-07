@@ -1,10 +1,13 @@
+import type { ResourceNode } from "../core/permissions.ts";
 import type { ShimGrants } from "./rls-shims.ts";
 import type { RlsSqlContext } from "./rls-sql.ts";
 
+import { partitionsOf, scopeField } from "../core/tenancy.ts";
 import { HELPERS, qualified } from "./rls-helpers.ts";
 import {
   permittedForHelper,
   permittedIdsHelper,
+  quoteIdent,
   quoteLiteral,
   scopeTypeOf,
 } from "./rls-sql.ts";
@@ -19,6 +22,29 @@ const PERMISSION_HELPERS = {
 /** `permitted_<scope>_ids_by_permission(p_permission)`. */
 function permittedByPermissionHelper(scope: string): string {
   return `${permittedIdsHelper(scope)}_by_permission`;
+}
+
+/**
+ * A grant's `requires` as SQL: the subject holds `key` globally, or on the
+ * row's instance of a scope that partitions it, through the helpers by
+ * permission key, as `requirementCondition` does in process.
+ */
+export function requiresSql(
+  ctx: RlsSqlContext,
+  key: string,
+  resource: ResourceNode | undefined,
+): string {
+  const literal = quoteLiteral(key);
+  const parts = [
+    `(select ${qualified(ctx, PERMISSION_HELPERS.has)}(${literal}))`,
+    ...(resource === undefined ? [] : partitionsOf(resource, ctx.scopes)).map(
+      (scope) => {
+        const field = scopeField(resource, scope, ctx.scopes) ?? scope;
+        return `${quoteIdent(field)} in (select ${qualified(ctx, checkName(permittedByPermissionHelper(scope)))}(${literal}))`;
+      },
+    ),
+  ];
+  return `(${parts.join(" or ")})`;
 }
 
 /** Postgres truncates an identifier past 63 bytes, which would merge two helpers. */

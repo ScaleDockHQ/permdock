@@ -1,3 +1,4 @@
+import type { Condition } from "../conditions/ast.ts";
 import type { LoadedApprovalPolicies } from "./approval-policies.ts";
 import type { Decision, ExplainedDecision } from "./decision.ts";
 import type { GranteeMatch } from "./grantee.ts";
@@ -19,7 +20,7 @@ import type {
   SnapshotOptions,
   WhereResult,
 } from "./permdock.ts";
-import type { Permission } from "./permissions.ts";
+import type { Permission, ResourceNode } from "./permissions.ts";
 import type { Grant, Policy } from "./policy.ts";
 import type { CustomRole, Membership, Principal, Subject } from "./subject.ts";
 import type { Role } from "./vocabulary.ts";
@@ -60,6 +61,7 @@ import {
   declaredRoleNames,
   evaluate,
   expandRoleNames,
+  requirementCondition,
   roleSourceFor,
 } from "./evaluate.ts";
 import { type EvalEnv, emitSafe, emptyListeners, finish } from "./events.ts";
@@ -286,6 +288,21 @@ export function collectSnapshotGrants(
     (typeof item.scope === "string"
       ? entry.membership.scope === item.scope
       : entry.membership.on !== undefined);
+  const requirementOf = (
+    grant: Grant,
+    resource: ResourceNode | undefined,
+  ): Condition | undefined =>
+    grant.requires === undefined || grant.effect !== "allow"
+      ? undefined
+      : requirementCondition(
+          policy,
+          subject,
+          grant.requires,
+          resource,
+          now,
+          customRoles,
+          customGrants,
+        );
   const out: { readonly grant: Grant; readonly membership?: Membership }[] = [];
   for (const grant of grantList(policy)) {
     const resource = getResource(policy.permissions, grant.permission.resource);
@@ -312,7 +329,10 @@ export function collectSnapshotGrants(
     if (!globalOk) {
       continue;
     }
-    const merged: Grant = graphAware(grant, match.where);
+    const merged: Grant = graphAware(
+      grant,
+      combineWhere(match.where, requirementOf(grant, resource)),
+    );
     const scoped = roleItems.filter((item) => item.scope !== "global");
     if (scoped.length === 0) {
       out.push({ grant: merged });
@@ -349,7 +369,10 @@ export function collectSnapshotGrants(
     if (skip(grant, match)) {
       continue;
     }
-    const merged: Grant = graphAware(grant, match.where);
+    const merged: Grant = graphAware(
+      grant,
+      combineWhere(match.where, requirementOf(grant, resource)),
+    );
     if (globalHeld) {
       out.push({ grant: merged });
     }

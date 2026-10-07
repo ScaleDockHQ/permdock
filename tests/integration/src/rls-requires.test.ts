@@ -1,0 +1,107 @@
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { createPermDock } from "permdock";
+import { run } from "permdock/cli";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+
+import type { RequiresUser } from "../fixtures/requires/policy.ts";
+import type { Postgres } from "./support/postgres.ts";
+
+import {
+  customRoleSql,
+  customRoles,
+  drives,
+  permissions,
+  policy,
+  relations,
+  setupSql,
+  users,
+} from "../fixtures/requires/policy.ts";
+import { startPostgres } from "./support/postgres.ts";
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+const FIXTURE = join(HERE, "../fixtures/requires");
+
+async function visible(db: Postgres, user: string): Promise<readonly string[]> {
+  return db.as(
+    {
+      role: "authenticated",
+      settings: {
+        "request.jwt.claims": JSON.stringify({
+          sub: user,
+          role: "authenticated",
+        }),
+      },
+    },
+    async () =>
+      (
+        await db.tester.query<{ id: string }>(
+          "select id from public.drive order by id",
+        )
+      ).rows.map((row) => row.id),
+  );
+}
+
+async function inProcess(user: RequiresUser): Promise<readonly string[]> {
+  const permdock = await createPermDock(policy, user, {
+    relations,
+    customRoles,
+  });
+  await permdock.loadRelations(permissions.drive.read, drives);
+  return drives
+    .filter((row) => permdock.can(permissions.drive.read, row))
+    .map((row) => row.id)
+    .toSorted();
+}
+
+describe("requires in RLS: a share counts only where the role permission is held", () => {
+  let db: Postgres | undefined;
+  const dir = mkdtempSync(join(tmpdir(), "permdock-requires-"));
+  const out = join(dir, "requires.sql");
+
+  beforeAll(async () => {
+    const generated = await run(
+      ["rls", "generate", "--target", "sql", "--out", out],
+      { cwd: FIXTURE },
+    );
+    if (generated.code !== 0) {
+      throw new Error(`rls generate: ${generated.stdout}${generated.stderr}`);
+    }
+    db = await startPostgres([
+      setupSql,
+      readFileSync(out, "utf8"),
+      customRoleSql,
+    ]);
+  }, 180_000);
+
+  afterAll(async () => {
+    rmSync(dir, { recursive: true, force: true });
+    await db?.stop();
+  });
+
+  it("shows each user exactly the drives can() allows, custom roles included", async () => {
+    if (db === undefined) {
+      throw new Error("PermDock: Postgres was not started");
+    }
+    const mismatches: string[] = [];
+    for (const user of users) {
+      const got = await visible(db, user.id);
+      const want = await inProcess(user);
+      if (JSON.stringify(got) !== JSON.stringify(want)) {
+        mismatches.push(
+          `${user.id}: rls [${got.join(",")}] can [${want.join(",")}]`,
+        );
+      }
+    }
+    expect(mismatches).toEqual([]);
+    const [member, guest, blocked, reader, globex, none] = users;
+    expect(await visible(db, member?.id ?? "")).toEqual(["d-acme"]);
+    expect(await visible(db, guest?.id ?? "")).toEqual([]);
+    expect(await visible(db, blocked?.id ?? "")).toEqual(["d-globex"]);
+    expect(await visible(db, reader?.id ?? "")).toEqual(["d-acme"]);
+    expect(await visible(db, globex?.id ?? "")).toEqual(["d-globex"]);
+    expect(await visible(db, none?.id ?? "")).toEqual([]);
+  });
+});

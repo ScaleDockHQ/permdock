@@ -122,6 +122,7 @@ Merging is a concatenation of grant arrays; the evaluation rules below make orde
 | `{ ..., limit: { count, per, mode?, alertAt? } }`                     | Quota grant: non-portable, needs a `LimitStore`. `mode: 'hard'` (default) denies past `count`; `mode: 'soft'` grants with an `over-limit` obligation; `alertAt` adds a `near-limit` obligation                                                                                                                                                                                                                                                                                                                                                             |
 | `{ ..., fields: ['title', 'body'] }`                                  | Schema-aware field list: keys of the resource type; omitted means every field; empty never matches                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `{ ..., validFrom, validUntil }`                                      | When the grant applies, as RFC 3339 strings or Unix seconds; `validFrom` inclusive, `validUntil` exclusive. Either bound alone is allowed ([validity](#validity))                                                                                                                                                                                                                                                                                                                                                                                          |
+| `{ ..., requires: permissions.file.read }`                            | An allow on an instance action counts only on rows whose scope instance (or the whole app) is one where the subject also holds that permission through a role grant without a row condition, minus a deny of it there ([requires](#requires))                                                                                                                                                                                                                                                                                                              |
 | `{ ..., group: 'sent' }`                                              | A stable name for the grant's condition group in generated SQL: its grant key is `<permission>#sent` instead of a positional `#n`, so hand-written SQL that repeats the condition keeps the key when other grants change ([grant keys](/docs/adapters/rls#sql-helper-contract)). Lower case letters, digits, `_` and `-`, starting with a letter; ignored in process                                                                                                                                                                                       |
 
 Conditions are covered on their own page: [conditions](/docs/concepts/conditions). Collection actions accept no `where` (there is no current row). They may carry `check` on the proposed body; without a body a `check` grant does not match. Closures over `ctx` only remain valid on collection grants.
@@ -145,6 +146,23 @@ Outside its window a grant contributes nothing. An inactive allow adds an `inact
 ### Why
 
 Validity is a field of the grant, not a `where` operator on a clock ref, because the two mean different things in a policy diff and in the catalog: a condition tells you which rows a grant reaches, a window tells you when it exists at all. Keeping it separate lets `explain` report an inactive allow as `inactive-grant` rather than as a failed `condition`, lets `where()` drop the grant entirely instead of compiling a tautology, and lets a reviewer see "expires 1 April" next to the grant without reading its condition. Only a fixed range is supported: a recurring window (office hours, weekdays) is a business rule the application knows better than the policy, and encoding time zones and calendars in a portable condition would have cost every compiler a dependency for one case. A membership's `expiresAt` remains the tool for "this person's access ends"; validity is for "this rule's life".
+
+## Requires
+
+```ts
+allow(permissions.drive.read, {
+  to: relation(permissions.drive, "viewer"),
+  requires: permissions.file.read,
+});
+```
+
+`requires` puts a ceiling on a grant: a drive share counts only while the user also holds `file.read` in the drive's organization. The requirement is met when a role grant of the named permission without a row condition (no `where`, `check`, closure or `requires`, and inside its validity window) reaches the subject globally, or reaches it on the row's instance of a scope the row's resource is partitioned by, with no deny of that permission at the same instance. Declared roles and custom roles count alike. It is allowed on an `allow` of an instance action only; `definePolicy` rejects it on a `deny`, on a collection action and for an undeclared permission.
+
+The check folds into the grant's row condition as `{ op: 'in', field: '<scope key>', value: [<instance ids>] }`, so `where()`, `filter` and the [snapshot](/docs/concepts/snapshots) carry it, and a client decides it like any portable condition. `permdock rls generate` ANDs `(select permdock_has_permission('<key>')) or "<scope key>" in (select permitted_<scope>_ids_by_permission('<key>'))` into the grant's access check, and the grant's key counts as conditioned in `grant_keys`.
+
+### Why
+
+An organization ceiling is a statement about the subject's roles, not about the row's columns, so it cannot be a `where` the author writes. Reading it from the same helpers by permission key that SQL callers use (`permdock_has_permission`, `permitted_<scope>_ids_by_permission`) keeps the in-process and database answers on one definition: unconditional role grants minus denies at that instance. Grants that carry their own row condition or `requires` never satisfy a requirement, so requirements cannot chain or loop.
 
 ## Evaluation semantics
 

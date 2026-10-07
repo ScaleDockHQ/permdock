@@ -25,6 +25,7 @@ import {
 } from "./rls-grants.ts";
 import { accessSql, capabilityAccessSql } from "./rls-helpers.ts";
 import { indexedFields } from "./rls-indexes.ts";
+import { requiresSql } from "./rls-permission-keys.ts";
 import {
   arrayColumnsOf,
   columnTypesOf,
@@ -591,7 +592,8 @@ export function compileGrants(
     if (
       entry.using !== undefined ||
       entry.check !== undefined ||
-      entry.item.grant.validity !== undefined
+      entry.item.grant.validity !== undefined ||
+      entry.item.grant.requires !== undefined
     ) {
       conditionedKeys.add(grantKey);
     }
@@ -707,6 +709,16 @@ export function compileGrants(
     }
     const validity = validitySql(grant.validity);
     accessExpr = andSql(accessExpr, validity);
+    if (grant.requires !== undefined && grant.effect === "allow") {
+      accessExpr = andSql(
+        accessExpr,
+        requiresSql(
+          ctx,
+          grant.requires,
+          policy.resources.get(grant.permission.resource),
+        ),
+      );
+    }
     if (ctx.anonymousSignIns === "deny" && access.kind !== "anyone") {
       accessExpr = andSql(accessExpr, PERMANENT_USER);
     }
