@@ -177,7 +177,67 @@ describe("requires in RLS: a share counts only where the role permission is held
       );
     expect(await withKey(["file.read"])).toEqual(["d-acme"]);
     expect(await withKey(["drive.read", "file.read"])).toEqual(["d-acme"]);
+    expect(await withKey(["drive.read"])).toEqual([]);
     expect(await withKey(["file.write"])).toEqual([]);
     expect(await withKey([])).toEqual([]);
+  });
+
+  it("agrees with can() for every user under each key's scopes", async () => {
+    if (db === undefined) {
+      throw new Error("PermDock: Postgres was not started");
+    }
+    const target = db;
+    const scopeOf: Readonly<Record<string, string>> = {
+      "drive.read": permissions.drive.read.scope,
+      "file.read": permissions.file.read.scope,
+    };
+    const mismatches: string[] = [];
+    for (const keys of [
+      ["drive.read"],
+      ["file.read"],
+      ["drive.read", "file.read"],
+      [],
+    ]) {
+      for (const user of users) {
+        const got = await target.as(
+          {
+            role: "authenticated",
+            settings: {
+              "request.jwt.claims": JSON.stringify({
+                sub: user.id,
+                role: "authenticated",
+                api_key: { scopes: keys },
+              }),
+            },
+          },
+          async () =>
+            (
+              await target.tester.query<{ id: string }>(
+                "select id from public.drive order by id",
+              )
+            ).rows.map((row) => row.id),
+        );
+        const permdock = await createPermDock(
+          policy,
+          {
+            principal: { id: user.id, memberships: user.memberships },
+            context: {},
+            delegation: { scopes: keys.map((key) => scopeOf[key] ?? key) },
+          },
+          { relations, customRoles },
+        );
+        await permdock.loadRelations(permissions.drive.read, drives);
+        const want = drives
+          .filter((row) => permdock.can(permissions.drive.read, row))
+          .map((row) => row.id)
+          .toSorted();
+        if (JSON.stringify(got) !== JSON.stringify(want)) {
+          mismatches.push(
+            `${user.id} [${keys.join(",")}]: rls [${got.join(",")}] can [${want.join(",")}]`,
+          );
+        }
+      }
+    }
+    expect(mismatches).toEqual([]);
   });
 });

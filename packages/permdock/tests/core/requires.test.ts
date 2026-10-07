@@ -366,8 +366,52 @@ describe("requires and a delegated key's scopes", () => {
 
   it("lets a key scoped to the required permission use the grants that require it", async () => {
     expect(await keyed("ana", ["member"], ["file:read"])).toEqual(["d-acme"]);
-    expect(await keyed("ana", ["member"], ["drive:read"])).toEqual(["d-acme"]);
+    expect(await keyed("ana", ["member"], ["drive:read", "file:read"])).toEqual(
+      ["d-acme"],
+    );
     expect(await keyed("ana", ["member"], ["file:write"])).toEqual([]);
+  });
+
+  it("counts a grant with requires only when the key also covers the required permission, as RLS does", async () => {
+    expect(await keyed("ana", ["member"], ["drive:read"])).toEqual([]);
+    const permdock = await createPermDock(
+      scoped,
+      {
+        principal: {
+          id: "ana",
+          tenant: "acme",
+          memberships: [{ tenant: "acme", roles: ["member"] }],
+        },
+        context: {},
+        delegation: { scopes: ["drive:read"] },
+      },
+      { relations },
+    );
+    const decision = permdock.decide(drive.read, drives[0]);
+    expect(
+      decision.outcome === "denied"
+        ? decision.denials.map((denial) => denial.reason)
+        : [],
+    ).toEqual(["not-delegated"]);
+    expect(JSON.stringify(permdock.where(drive.read).condition)).not.toContain(
+      "related",
+    );
+    const covered = await createPermDock(
+      scoped,
+      {
+        principal: {
+          id: "ana",
+          tenant: "acme",
+          memberships: [{ tenant: "acme", roles: ["member"] }],
+        },
+        context: {},
+        delegation: { scopes: ["drive:read", "file:read"] },
+      },
+      { relations },
+    );
+    expect(JSON.stringify(covered.where(drive.read).condition)).toContain(
+      "related",
+    );
   });
 
   it("keeps every other grant of the permission out of reach of that scope", async () => {
@@ -375,6 +419,47 @@ describe("requires and a delegated key's scopes", () => {
     expect(await keyed("nobody", ["driveAdmin"], ["drive:read"])).toEqual([
       "d-acme",
     ]);
+    expect(
+      await keyed("ana", ["driveAdmin", "member"], ["drive:read"]),
+    ).toEqual(["d-acme"]);
+  });
+
+  it("requires every listed permission to be covered", async () => {
+    const both = definePolicy(permissions, {
+      scopes: { tenant: { key: "orgId" } },
+      roles: [
+        role("member", [allow([file.read, drive.create])], { on: "tenant" }),
+      ],
+      grants: [
+        allow(drive.read, {
+          to: relation(drive, "viewer"),
+          requires: [file.read, drive.create],
+        }),
+      ],
+      subject: () => null,
+    });
+    const read = async (scopes: readonly string[]) => {
+      const permdock = await createPermDock(
+        both,
+        {
+          principal: {
+            id: "ana",
+            tenant: "acme",
+            memberships: [{ tenant: "acme", roles: ["member"] }],
+          },
+          context: {},
+          delegation: { scopes: [...scopes] },
+        },
+        { relations },
+      );
+      await permdock.loadRelations(drive.read, drives);
+      return drives
+        .filter((row) => permdock.can(drive.read, row))
+        .map((row) => row.id);
+    };
+    expect(await read(["file:read", "drive:create"])).toEqual(["d-acme"]);
+    expect(await read(["drive:read", "file:read"])).toEqual([]);
+    expect(await read(["drive:read", "drive:create"])).toEqual([]);
   });
 
   it("accepts the required key's scope next to the permission's own in the RLS key ceiling", () => {
