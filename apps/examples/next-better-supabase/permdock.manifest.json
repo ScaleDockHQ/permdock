@@ -261,5 +261,18 @@
   "markers": {
     "hook": "v1",
     "grants": "v1"
+  },
+  "requires": {
+    "matrix": "capability-matrix-v1.12.0",
+    "capabilities": [
+      "auth.session.get_claims",
+      "realtime.subscriptions.private_channel",
+      "storage.file_buckets.download",
+      "storage.file_buckets.list_files",
+      "storage.file_buckets.move",
+      "storage.file_buckets.remove",
+      "storage.file_buckets.update_file",
+      "storage.file_buckets.upload"
+    ]
   }
 }

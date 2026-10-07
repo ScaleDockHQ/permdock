@@ -105,10 +105,12 @@ export {
 } from "./jwt-fixtures.ts";
 export {
   supabaseClaimFixtures,
+  supabaseClaimVectors,
   supabaseHookManifestFixture,
   supabaseMembershipsBudget,
 } from "./supabase-fixtures.ts";
 export type {
   SupabaseClaimFixture,
   SupabaseClaimFixtureName,
+  SupabaseClaimVectors,
 } from "./supabase-fixtures.ts";

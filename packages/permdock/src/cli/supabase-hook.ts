@@ -9,6 +9,7 @@ import type {
   SupabaseManifestActiveRow,
   SupabaseManifestHelper,
   SupabaseManifestMembership,
+  SupabaseManifestRequires,
   SupabaseManifestRls,
 } from "../supabase/manifest.ts";
 import type { RoleKeys } from "../supabase/roles.ts";
@@ -24,6 +25,7 @@ import type {
   SupabaseHookConfig,
 } from "./types.ts";
 
+import { hasConditionOp } from "../conditions/ast.ts";
 import { scopeColumn } from "../conditions/compile.ts";
 import {
   resolveScope,
@@ -1792,6 +1794,48 @@ function rlsSettings(
   };
 }
 
+/** The `supabase/sdk` release `requires.capabilities` names features of. */
+const CAPABILITY_MATRIX = "capability-matrix-v1.12.0";
+
+function usesLiveSession(policy: Policy | undefined): boolean {
+  return [
+    ...(policy?.grants ?? []),
+    ...(policy?.roles.flatMap((binding) => binding.grants) ?? []),
+  ].some(
+    (grant) =>
+      hasConditionOp(grant.where, "liveSession") ||
+      hasConditionOp(grant.check, "liveSession"),
+  );
+}
+
+function requiredCapabilities(
+  config: PermDockConfig,
+  policy: Policy | undefined,
+): SupabaseManifestRequires {
+  const ids = new Set(["auth.session.get_claims"]);
+  if (usesLiveSession(policy)) {
+    ids.add("auth.session.get_user");
+  }
+  if (config.rls?.realtime !== undefined) {
+    ids.add("realtime.subscriptions.private_channel");
+  }
+  for (const bucket of Object.values(config.rls?.storage?.buckets ?? {})) {
+    if (bucket.read !== undefined) {
+      ids.add("storage.file_buckets.download");
+      ids.add("storage.file_buckets.list_files");
+    }
+    if (bucket.write !== undefined) {
+      ids.add("storage.file_buckets.upload");
+      ids.add("storage.file_buckets.update_file");
+      ids.add("storage.file_buckets.move");
+    }
+    if (bucket.delete !== undefined) {
+      ids.add("storage.file_buckets.remove");
+    }
+  }
+  return { matrix: CAPABILITY_MATRIX, capabilities: [...ids].toSorted() };
+}
+
 function manifestOf(
   parts: Parts,
   out: string,
@@ -1867,6 +1911,7 @@ function manifestOf(
           },
     ),
     markers: { hook: "v1", grants: "v1" },
+    requires: requiredCapabilities(config, policy),
   };
 }
 

@@ -51,6 +51,7 @@ export type {
   SupabaseManifestColumn,
   SupabaseManifestHelper,
   SupabaseManifestMembership,
+  SupabaseManifestRequires,
   SupabaseManifestRls,
   SupabaseManifestRole,
   SupabaseManifestThrough,

@@ -21,9 +21,11 @@ import {
 } from "../../src/supabase/index.ts";
 import {
   supabaseClaimFixtures,
+  supabaseClaimVectors,
   supabaseHookManifestFixture,
   supabaseMembershipsBudget,
 } from "../../src/testing/supabase-fixtures.ts";
+import { policy as liveSessionPolicy } from "../fixtures/live-session.ts";
 
 const permissions = definePermissions({
   post: resource({ collection: ["list", "moderate"] }),
@@ -268,5 +270,89 @@ describe("supabase-manifest-v1.json", () => {
     ).toBe(false);
     const { markers: _markers, ...unmarked } = supabaseHookManifestFixture;
     expect(validate(unmarked)).toBe(false);
+    const requires = { matrix: "v1", capabilities: ["auth.get_claims"] };
+    expect(validate({ ...supabaseHookManifestFixture, requires })).toBe(false);
+  });
+});
+
+describe("manifest requires", () => {
+  const scopes = defineScopes({ organization: { key: "organization_id" } });
+  const hook = { memberships: [fromTable({ table: "memberships" })] };
+  const read = { key: "asset.read" };
+
+  it("adds the Realtime and Storage features the configured policies use", () => {
+    const manifest = supabaseHookManifest(scopes, {
+      permissions: "./policy.ts",
+      rls: {
+        realtime: { topics: { "org:{organization}": { read } } },
+        storage: {
+          buckets: {
+            files: { scope: "organization", read, delete: read },
+            uploads: { scope: "organization", write: read },
+          },
+        },
+      },
+      supabase: { hook },
+    });
+    expect(manifest.requires).toEqual({
+      matrix: "capability-matrix-v1.12.0",
+      capabilities: [
+        "auth.session.get_claims",
+        "realtime.subscriptions.private_channel",
+        "storage.file_buckets.download",
+        "storage.file_buckets.list_files",
+        "storage.file_buckets.move",
+        "storage.file_buckets.remove",
+        "storage.file_buckets.update_file",
+        "storage.file_buckets.upload",
+      ],
+    });
+  });
+
+  it("adds auth.session.get_user for a live-session grant", () => {
+    const manifest = supabaseHookManifest(
+      defineScopes({ organization: { key: "organization_id" } }),
+      { permissions: "./policy.ts", supabase: { hook } },
+      {},
+      liveSessionPolicy,
+    );
+    expect(manifest.requires?.capabilities).toEqual([
+      "auth.session.get_claims",
+      "auth.session.get_user",
+    ]);
+  });
+});
+
+describe("supabaseClaimVectors", () => {
+  // SAFETY: the fixture is supabase/sdk's conformance.schema.json, a top-level object.
+  const validate = new Ajv2020({ strict: false }).compile(
+    JSON.parse(
+      readFileSync(
+        new URL("../fixtures/sdk-conformance.schema.json", import.meta.url),
+        "utf8",
+      ),
+    ) as object,
+  );
+
+  it("is a supabase/sdk conformance vector file", () => {
+    validate(JSON.parse(JSON.stringify(supabaseClaimVectors)));
+    expect(validate.errors ?? []).toEqual([]);
+  });
+
+  it("carries every claim fixture, and each maps to its expected subject", () => {
+    expect(supabaseClaimVectors.cases.map((entry) => entry.name)).toEqual(
+      Object.keys(supabaseClaimFixtures),
+    );
+    for (const { name, input, expected } of supabaseClaimVectors.cases) {
+      const subject = subjectFromSupabase(input.claims, input.options);
+      expect([name, subject.principal?.id ?? null]).toEqual([
+        name,
+        expected.id,
+      ]);
+      expect([name, subject.principal?.roles ?? []]).toEqual([
+        name,
+        expected.roles,
+      ]);
+    }
   });
 });
