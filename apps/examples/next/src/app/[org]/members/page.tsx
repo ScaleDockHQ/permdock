@@ -8,6 +8,15 @@ import { changeRole } from "../../actions.ts";
 
 export const instant = true;
 
+function MembersSkeleton() {
+  return (
+    <ul aria-busy="true" data-testid="members-skeleton">
+      <li>&nbsp;</li>
+      <li>&nbsp;</li>
+    </ul>
+  );
+}
+
 function nameOf(user: string): string {
   return people.find((person) => person.id === user)?.name ?? user;
 }
@@ -50,10 +59,10 @@ export default function Members(props: {
       <h1 data-testid="page-title">Members</h1>
       <Protected
         permission={permissions.member.list}
-        pending={<p aria-busy="true" />}
+        pending={<MembersSkeleton />}
         fallback={<p>Only staff can see the member list.</p>}
       >
-        <Suspense fallback={<p aria-busy="true" />}>
+        <Suspense fallback={<MembersSkeleton />}>
           <Staff params={props.params} />
         </Suspense>
       </Protected>

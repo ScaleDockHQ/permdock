@@ -2,6 +2,15 @@ import { notFound } from "next/navigation";
 
 import { organizationBySlug, visibleQuotes } from "../../lib/access.ts";
 
+export function QuotesSkeleton() {
+  return (
+    <ul aria-busy="true" data-testid="quotes-skeleton">
+      <li>&nbsp;</li>
+      <li>&nbsp;</li>
+    </ul>
+  );
+}
+
 /** The rows RLS lets the caller read: every quote for an owner, one customer's for a contact. */
 export async function Quotes(props: {
   readonly params: Promise<{ readonly orgSlug: string }>;
