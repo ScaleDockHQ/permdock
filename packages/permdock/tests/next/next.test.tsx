@@ -420,7 +420,11 @@ describe("permdock/next", () => {
     );
     expect(shell).toContain("nav");
     expect(shell).toContain("loading");
-    const { prelude } = await prerender(PermDockProvider({ children: guard }));
+    const pendingRun = await prerender(PermDockProvider({ children: guard }));
+    expect(await new Response(pendingRun.prelude).text()).toContain("loading");
+    const { prelude } = await prerender(
+      PermDockProvider({ suspend: true, children: guard }),
+    );
     expect(await new Response(prelude).text()).toContain("edit");
   });
 
@@ -432,6 +436,7 @@ describe("permdock/next", () => {
     });
     const { prelude } = await prerender(
       PermDockProvider({
+        suspend: true,
         children: (
           <Protected
             permission={permissions.post.update}
@@ -523,14 +528,14 @@ describe("permdock/next", () => {
       </Protected>
     );
     const tenantRun = await prerender(
-      scoped.PermDockProvider({ tenant: "o1", children: guard }),
+      scoped.PermDockProvider({ tenant: "o1", suspend: true, children: guard }),
     );
     expect(await new Response(tenantRun.prelude).text()).toContain("edit");
     const interrupted = createPermDock(policy, {
       subject: () => redirect("/login"),
     });
     const { prelude } = await prerender(
-      interrupted.PermDockProvider({ children: guard }),
+      interrupted.PermDockProvider({ suspend: true, children: guard }),
     );
     expect(await new Response(prelude).text()).toContain("locked");
   });

@@ -1,4 +1,4 @@
-import { type ReactElement, useMemo } from "react";
+import { type ReactElement, useLayoutEffect, useMemo } from "react";
 
 import type { Permission } from "../core/permissions.ts";
 import type { PermDockProviderProps } from "./types.ts";
@@ -28,6 +28,8 @@ function hintOnce(): (permission: Permission) => void {
 
 export function PermDockProvider(props: PermDockProviderProps): ReactElement {
   const promise = props.snapshotPromise ?? null;
+  const suspend = props.suspend === true;
+  const awaiting = promise !== null && !suspend;
   const store = useMemo(
     () =>
       adapterStore(
@@ -41,6 +43,7 @@ export function PermDockProvider(props: PermDockProviderProps): ReactElement {
           headers: props.headers,
           maxAge: props.maxAge,
           verifier: props.verifier,
+          awaiting,
         }),
         props.snapshot ?? emptySnapshot(),
       ),
@@ -54,11 +57,17 @@ export function PermDockProvider(props: PermDockProviderProps): ReactElement {
       props.headers,
       props.maxAge,
       props.verifier,
+      awaiting,
     ],
   );
+  useLayoutEffect(() => {
+    if (promise !== null && !suspend) {
+      store.track(promise);
+    }
+  }, [store, promise, suspend]);
   return (
     <PermDockStoreContext value={store}>
-      <PermDockSnapshotPromiseContext value={promise}>
+      <PermDockSnapshotPromiseContext value={suspend ? promise : null}>
         {props.children}
       </PermDockSnapshotPromiseContext>
     </PermDockStoreContext>

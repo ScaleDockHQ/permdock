@@ -43,6 +43,8 @@ export type ClientStoreOptions = {
   readonly server?: boolean;
   /** Milliseconds between approval status polls. Defaults to 2000. */
   readonly approvalInterval?: number;
+  /** Start `pending`: the snapshot arrives later through `track()`. */
+  readonly awaiting?: boolean;
 };
 
 type CacheEntry = {
@@ -107,6 +109,11 @@ export type ClientStore = {
   /** Stay `pending` until `value` settles, then hydrate; a rejection fails closed. */
   follow(value: PromiseLike<Snapshot | string>): void;
   /**
+   * `follow()` once per `value`, without suspending. A thenable React already
+   * settled (`status: 'fulfilled'`) hydrates at once.
+   */
+  track(value: PromiseLike<Snapshot | string>): void;
+  /**
    * The approval state for a decision. While something subscribes, an
    * `approval-required` decision is polled at `<approvals>/<token>`.
    */
@@ -149,7 +156,9 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
   let cached: ClientPermDock;
   let verifying = false;
   let refreshing = 0;
-  let following = 0;
+  let awaiting = options.awaiting === true;
+  let following = awaiting ? 1 : 0;
+  let tracked: object | undefined;
   let refreshSeq = 0;
   let silent = false;
   let adopted: object | undefined;
@@ -624,6 +633,33 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
     return client;
   };
 
+  const land = (next: unknown): void => {
+    if (next === undefined) {
+      serverOnly();
+    } else if (typeof next === "string" && isJws(next)) {
+      void bootJws(next);
+    } else {
+      applyParsed(next);
+    }
+  };
+
+  const follow = (value: PromiseLike<Snapshot | string>): void => {
+    const started = generation;
+    following += 1;
+    emit();
+    const settle = (next: Snapshot | string | undefined): void => {
+      following -= 1;
+      if (started !== generation) {
+        emit();
+        return;
+      }
+      land(next);
+    };
+    Promise.resolve(value).then(settle, () => {
+      settle(undefined);
+    });
+  };
+
   const boot = (value: Snapshot | string): void => {
     if (typeof value === "string" && isJws(value)) {
       cached = wrap(instance);
@@ -650,27 +686,28 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
       }
       applyParsed(value);
     },
-    follow(value: PromiseLike<Snapshot | string>): void {
-      const started = generation;
-      following += 1;
-      emit();
-      const settle = (next: Snapshot | string | undefined): void => {
+    follow,
+    track(value: PromiseLike<Snapshot | string>): void {
+      if (tracked === value) {
+        return;
+      }
+      tracked = value;
+      if (awaiting) {
+        awaiting = false;
         following -= 1;
-        if (started !== generation) {
-          emit();
-          return;
-        }
-        if (next === undefined) {
-          serverOnly();
-        } else if (typeof next === "string" && isJws(next)) {
-          void bootJws(next);
-        } else {
-          applyParsed(next);
-        }
+      }
+      // SAFETY: React marks a thenable it has read with `status` and `value`; anything else is pending.
+      const thenable = value as {
+        readonly status?: unknown;
+        readonly value?: unknown;
       };
-      Promise.resolve(value).then(settle, () => {
-        settle(undefined);
-      });
+      if (thenable.status === "fulfilled") {
+        land(thenable.value);
+      } else if (thenable.status === "rejected") {
+        serverOnly();
+      } else {
+        follow(value);
+      }
     },
     adopt(value: Snapshot | string, source: object): void {
       if (adopted === source) {

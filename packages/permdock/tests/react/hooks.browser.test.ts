@@ -3,6 +3,7 @@ import {
   type ReactNode,
   act,
   createElement,
+  Fragment,
   Suspense,
 } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -324,6 +325,146 @@ describe("permdock/react <Protected> on the client", () => {
       await Promise.resolve();
     });
     expect(view.textContent).toBe("editedit-no-pending");
+  });
+});
+
+describe("permdock/react provider with snapshotPromise", () => {
+  function Status(): string {
+    const { allowed, status } = usePermission(permissions.post.update, ownPost);
+    return `${allowed}:${status}`;
+  }
+
+  function provide(
+    props: {
+      readonly snapshotPromise: PromiseLike<Snapshot>;
+      readonly suspend?: boolean;
+    },
+    ...nodes: ReactNode[]
+  ): ReactElement {
+    return createElement(PermDockProvider, {
+      ...props,
+      children: createElement(Fragment, null, ...nodes),
+    });
+  }
+
+  function deferred(): {
+    readonly promise: Promise<Snapshot>;
+    readonly resolve: (value: Snapshot) => void;
+    readonly reject: (reason: unknown) => void;
+  } {
+    let resolve: (value: Snapshot) => void = () => undefined;
+    let reject: (reason: unknown) => void = () => undefined;
+    const promise = new Promise<Snapshot>((done, fail) => {
+      resolve = done;
+      reject = fail;
+    });
+    return { promise, resolve, reject };
+  }
+
+  it("renders pending without suspending, then updates when it resolves", async () => {
+    const snapshot = await memberSnapshot();
+    const pending = deferred();
+    const view = mount(
+      createElement(
+        Suspense,
+        { fallback: "suspended" },
+        provide(
+          { snapshotPromise: pending.promise },
+          createElement(Status),
+          createElement(Protected, {
+            permission: permissions.post.update,
+            data: ownPost,
+            pending: "|checking",
+            fallback: "|locked",
+            children: "|edit",
+          }),
+        ),
+      ),
+    );
+    expect(view.textContent).toBe("false:pending|checking");
+    await act(async () => {
+      pending.resolve(snapshot);
+      await Promise.resolve();
+    });
+    expect(view.textContent).toBe("true:ready|edit");
+  });
+
+  it("hydrates at once from a thenable React already settled", async () => {
+    const snapshot = await memberSnapshot();
+    const settled = Object.assign(Promise.resolve(snapshot), {
+      status: "fulfilled",
+      value: snapshot,
+    });
+    const view = mount(
+      provide({ snapshotPromise: settled }, createElement(Status)),
+    );
+    expect(view.textContent).toBe("true:ready");
+  });
+
+  it("fails closed when the snapshotPromise rejects", async () => {
+    const pending = deferred();
+    const view = mount(
+      provide({ snapshotPromise: pending.promise }, createElement(Status)),
+    );
+    expect(view.textContent).toBe("false:pending");
+    await act(async () => {
+      pending.reject(new Error("offline"));
+      await Promise.resolve();
+    });
+    expect(view.textContent).toBe("false:ready");
+  });
+
+  it("keeps answering from the current snapshot while a new promise settles", async () => {
+    const snapshot = await memberSnapshot();
+    const first = deferred();
+    const next = deferred();
+    const tree = (promise: Promise<Snapshot>): ReactElement =>
+      provide({ snapshotPromise: promise }, createElement(Status));
+    const view = mount(tree(first.promise));
+    await act(async () => {
+      first.resolve(snapshot);
+      await Promise.resolve();
+    });
+    expect(view.textContent).toBe("true:ready");
+    act(() => {
+      root?.render(tree(next.promise));
+    });
+    expect(view.textContent).toBe("true:pending");
+    await act(async () => {
+      next.resolve(emptySnapshot());
+      await Promise.resolve();
+    });
+    expect(view.textContent).toBe("false:ready");
+  });
+
+  it("suspends readers with suspend until it resolves", async () => {
+    const snapshot = await memberSnapshot();
+    const pending = deferred();
+    host = document.createElement("div");
+    document.body.append(host);
+    const view = host;
+    const created = createRoot(host);
+    root = created;
+    await act(async () => {
+      created.render(
+        provide(
+          { snapshotPromise: pending.promise, suspend: true },
+          createElement(
+            Suspense,
+            { fallback: "suspended" },
+            createElement(Status),
+          ),
+        ),
+      );
+    });
+    expect(view.textContent).toBe("suspended");
+    await act(async () => {
+      pending.resolve(snapshot);
+      await new Promise((done) => {
+        setTimeout(done, 0);
+      });
+    });
+    expect(view.textContent).toBe("true:ready");
   });
 });
 

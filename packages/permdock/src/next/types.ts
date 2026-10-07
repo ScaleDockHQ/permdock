@@ -59,6 +59,8 @@ export type ServerPermDockProviderProps = {
   readonly tenants?: "all";
   /** Overrides the factory's `endpoint`; `false` is snapshot-only. */
   readonly endpoint?: string | false;
+  /** Suspends permission readers until the snapshot streams in, instead of answering `pending`. */
+  readonly suspend?: boolean;
 };
 
 export type PermDockHandler = {
