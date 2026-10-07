@@ -128,6 +128,11 @@ where a.attrelid = $1::regclass and a.attnum > 0 and not a.attisdropped
   and a.attnotnull and not a.atthasdef
   and a.attidentity = '' and a.attgenerated = ''`;
 
+const UNIQUE_COLUMNS_SQL = `select distinct a.attname as name
+from pg_index i
+join pg_attribute a on a.attrelid = i.indrelid and a.attnum = any(i.indkey)
+where i.indrelid = $1::regclass and i.indisunique`;
+
 function checkedValue(checks: readonly string[]): unknown {
   for (const check of checks) {
     const literal = /'((?:[^']|'')*)'/u.exec(check);
@@ -170,6 +175,26 @@ function placeholder(column: RequiredColumn): unknown {
   return "permdock-tree";
 }
 
+function distinctPlaceholder(column: RequiredColumn, index: number): unknown {
+  const value = placeholder(column);
+  if (column.enumLabel !== null) {
+    return value;
+  }
+  if (typeof value === "number") {
+    return value + index;
+  }
+  if (typeof value !== "string" || checkedValue(column.checks) !== undefined) {
+    return value;
+  }
+  if (column.type === "uuid") {
+    return value;
+  }
+  if (column.type.startsWith("timestamp") || column.type === "date") {
+    return new Date(Date.parse(value) + index * 86_400_000).toISOString();
+  }
+  return `${value}-${String(index + 1)}`;
+}
+
 function asRequiredColumn(row: Row): RequiredColumn | undefined {
   const { name, type, refTable, refColumn, enumLabel, checks } = row;
   if (typeof name !== "string" || typeof type !== "string") {
@@ -196,25 +221,41 @@ async function requiredValues(
   query: Query,
   table: string,
   set: ReadonlySet<string>,
-): Promise<Readonly<Record<string, unknown>>> {
+): Promise<(index: number) => Readonly<Record<string, unknown>>> {
   const columns = (await query(REQUIRED_COLUMNS_SQL, [table])).rows
     .map(asRequiredColumn)
     .filter(
       (column): column is RequiredColumn =>
         column !== undefined && !set.has(column.name),
     );
+  const unique = new Set(
+    columns.length === 0
+      ? []
+      : (await query(UNIQUE_COLUMNS_SQL, [table])).rows.map((row) =>
+          String(row["name"]),
+        ),
+  );
   const values: Record<string, unknown> = {};
+  const distinct: RequiredColumn[] = [];
   for (const column of columns) {
     if (column.refTable !== null && column.refColumn !== null) {
       const existing = await query(
         `select ${quoteIdent(column.refColumn)} as value from ${column.refTable} limit 1`,
       );
       values[column.name] = existing.rows[0]?.["value"] ?? null;
+    } else if (unique.has(column.name)) {
+      distinct.push(column);
     } else {
       values[column.name] = placeholder(column);
     }
   }
-  return values;
+  return (index) => {
+    const row: Record<string, unknown> = { ...values };
+    for (const column of distinct) {
+      row[column.name] = distinctPlaceholder(column, index);
+    }
+    return row;
+  };
 }
 
 /** Inserts `rows` after filling the required columns they leave out. */
@@ -231,7 +272,7 @@ async function seedRows(
   );
   const inserted = insertSql(
     table,
-    rows.map((row) => ({ ...fill, ...given, ...row })),
+    rows.map((row, index) => ({ ...fill(index), ...given, ...row })),
   );
   return (await query(inserted.sql, inserted.values)).rows;
 }

@@ -32,6 +32,10 @@ alter table folder add column state folder_state not null default 'active';
 alter table folder alter column state drop default;
 alter table folder add column region text not null default 'eu' check (region = 'eu');
 alter table folder alter column region drop default;
+alter table folder add column key uuid not null default gen_random_uuid();
+alter table folder alter column key drop default;
+create unique index folder_sibling_name on folder ("orgId", "parentId", name);
+create unique index folder_key on folder (key);
 `;
 
 describe("rls verify --tree over the shared SaaS folder tree", () => {
