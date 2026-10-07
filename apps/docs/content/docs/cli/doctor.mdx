@@ -98,6 +98,7 @@ PD004 compares the catalog on disk with the one `collect` would write from `coll
 | `PD060` | A source file under `collect.srcPath` has a syntax error, so the catalog and the usage report miss what it references                                                                                                                                                                                      | warning         |
 | `PD061` | `rls.suspension.scopes.<scope>.keep` lets members of a suspended instance keep permissions: the kept keys, and any key the definitions do not declare                                                                                                                                                      | warning         |
 | `PD062` | A migration reads or sets a legacy `request.jwt.claim.<name>` setting                                                                                                                                                                                                                                      | warning         |
+| `PD063` | A migration changes or drops a reserved Supabase role, or grants a reserved membership, which supautils rejects                                                                                                                                                                                            | error           |
 
 ### PD001: server-only imports in client entries
 
@@ -311,7 +312,7 @@ PD019 reads `[auth] jwt_expiry` and PD043 reads `[db.migrations] schema_paths` f
 
 ### PD046: helper schema exposed through the Data API
 
-`permdock rls` writes its helpers, `role_permissions`, `user_roles`, `authorize` and the token hook into `rls.schema`, `permdock` by default, so the Data API never serves them. The `security definer` helpers answer for any user id they are given, so listing that schema in `[api] schemas` in `supabase/config.toml` turns each into an RPC that reports another user's memberships. The check runs when `supabase/config.toml` exists and warns when `[api] schemas` (default `public`, `graphql_public`) names the helper schema. Remove it from the list. `--only sql` (or `--only supabase`) runs PD046 to PD053 and PD062.
+`permdock rls` writes its helpers, `role_permissions`, `user_roles`, `authorize` and the token hook into `rls.schema`, `permdock` by default, so the Data API never serves them. The `security definer` helpers answer for any user id they are given, so listing that schema in `[api] schemas` in `supabase/config.toml` turns each into an RPC that reports another user's memberships. The check runs when `supabase/config.toml` exists and warns when `[api] schemas` (default `public`, `graphql_public`) names the helper schema. Remove it from the list. `--only sql` (or `--only supabase`) runs PD046 to PD053, PD062 and PD063.
 
 ### PD047: user metadata in SQL
 
@@ -376,6 +377,16 @@ Doctor loads the `policy` module once and every policy check reads that load. Wh
 ### PD062: legacy JWT claim settings
 
 PostgREST 12 sets the verified claims as one JSON setting, `request.jwt.claims`; the per-claim `request.jwt.claim.<name>` settings are gone. `withPostgresClient` from `@supabase/server`, PermDock's `withSubject` and `permdock rls verify` set only `request.jwt.claims` too, so a policy or function that reads `request.jwt.claim.sub` gets null and denies. A test or job that sets it impersonates nobody. The check names each statement in the migration folders that uses a legacy setting; a function replaced by a later migration counts only by its last definition. Read the subject with `(select permdock.permdock_user_id())` or `(select auth.uid())`, read another claim with `(select auth.jwt()) ->> '<name>'`, and set `request.jwt.claims` in tests. `--only sql` (or `--only supabase`) runs PD062.
+
+### PD063: statements supautils rejects
+
+Supabase runs the supautils extension, which refuses some role statements to `postgres`, the role that runs migrations, so `supabase db push` stops on them. The check reports each such statement in the migration folders as an error:
+
+- `alter role` or `alter user` on a reserved role: `anon`, `authenticated`, `service_role`, `authenticator`, `dashboard_user`, `pgbouncer` and the `supabase_*` roles. `alter role … set` and `alter role … reset` on `anon`, `authenticated`, `service_role` and `authenticator` are allowed.
+- `drop role` on a reserved role.
+- A grant of a reserved membership, through `grant … to` or `create role … in role`: `authenticator`, `dashboard_user`, `pgbouncer`, the `supabase_*` admin roles and `pg_read_server_files`, `pg_write_server_files` and `pg_execute_server_program`.
+
+The lists are those of supautils 3.4.4 on `supabase/postgres` 17.11. Grant your own role to `authenticator` instead: `grant app_reader to authenticator` is allowed. `permdock rls generate` refuses to write a rejected statement. `--only sql` (or `--only supabase`) runs PD063.
 
 ## Why
 
