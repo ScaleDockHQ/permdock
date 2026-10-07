@@ -15,6 +15,7 @@ import {
   pd052,
   pd053,
   pd062,
+  pd063,
 } from "../../src/cli/doctor-sql.ts";
 import { sqlStatements } from "../../src/cli/sql-statements.ts";
 import { project, removeProjects } from "./doctor-kit.ts";
@@ -206,6 +207,31 @@ describe("PD062 legacy request.jwt.claim settings", () => {
   });
 });
 
+describe("PD063 statements supautils rejects", () => {
+  it("reports each rejected statement as an error with its line", () => {
+    const cwd = migration(
+      [
+        "alter role authenticated set statement_timeout = '8s';",
+        "create role app_reader nologin;",
+        "grant app_reader to authenticator;",
+        "alter role anon nologin;",
+        "grant authenticator to app_reader;",
+      ].join("\n"),
+    );
+    const findings = pd063(cwd, config);
+    expect(messages(findings)).toEqual([
+      `${MIGRATION}:4 changes the reserved role anon, which supautils rejects for the postgres role on Supabase`,
+      `${MIGRATION}:5 grants membership in the reserved role authenticator, which supautils rejects for the postgres role on Supabase`,
+    ]);
+    expect(findings.map((item) => item.severity)).toEqual(["error", "error"]);
+  });
+
+  it("skips a project that is not on Supabase", () => {
+    const cwd = project({ "migrations/0001.sql": "drop role anon;" });
+    expect(pd063(cwd, { doctor: { migrations: ["migrations"] } })).toEqual([]);
+  });
+});
+
 describe("the generated RLS", () => {
   it("passes every SQL check", () => {
     const golden = readFileSync(
@@ -225,6 +251,7 @@ describe("the generated RLS", () => {
       pd052,
       pd053,
       pd062,
+      pd063,
     ].flatMap((check) => check(cwd, config));
     expect(findings).toEqual([]);
   });

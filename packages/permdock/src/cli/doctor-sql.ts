@@ -10,6 +10,7 @@ import { MIGRATION_DIRS } from "./doctor-project.ts";
 import { rel, sqlFiles } from "./files.ts";
 import { group, sqlStatements } from "./sql-statements.ts";
 import { supabaseConfig } from "./supabase-config.ts";
+import { supautilsRejections } from "./supautils.ts";
 
 /** One statement of a migration: comments blanked, its file and first line. */
 type SqlStatement = {
@@ -537,6 +538,28 @@ export function pd062(
           : `read (select auth.jwt()) ->> '${name}', and set request.jwt.claims in tests and jobs`,
     }));
   });
+}
+
+/**
+ * PD063: a migration statement supautils rejects for `postgres`, so
+ * `supabase db push` fails on it.
+ */
+export function pd063(
+  cwd: string,
+  config: PermDockConfig,
+): readonly DoctorFinding[] {
+  if (!isSupabase(cwd, config)) {
+    return [];
+  }
+  return sqlFiles(cwd, config.doctor?.migrations ?? MIGRATION_DIRS).flatMap(
+    (file) =>
+      supautilsRejections(readFileSync(file, "utf8")).map((found) => ({
+        code: "PD063",
+        severity: "error" as const,
+        message: `${rel(cwd, file)}:${String(found.line)} ${found.reason}, which supautils rejects for the postgres role on Supabase`,
+        fix: "remove the statement: reserved roles belong to Supabase. Grant your own role to authenticator instead, and change anon, authenticated, authenticator or service_role only with alter role … set",
+      })),
+  );
 }
 
 /**
