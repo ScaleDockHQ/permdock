@@ -24,3 +24,11 @@ Where things live:
 - `src/app/offline-badge.tsx`: `useOffline`; the snapshot keeps answering offline.
 
 Set `SESSION_SECRET` in any deployment; the demo falls back to a fixed secret.
+
+## Verify instant navigation
+
+```bash
+pnpm --filter @permdock/example-next test:instant
+```
+
+Builds the app with `EXPOSE_TESTING_API=1`, serves it on `http://127.0.0.1:3585`, and runs `tests/instant/*.instant.ts` with `instant()` from `@next/playwright` at 1280 px and 390 px. The specs cover the initial load of `/acme` and `/portal/acme`, the soft navigation from Overview to Quotes, the organization switch, and the per-link prefetch of a quote and the Members page. Under the lock each spec expects the shell and the skeleton, and expects the deferred list to be absent. Install Chromium once with `pnpm --filter @permdock/example-next exec playwright install chromium`.
