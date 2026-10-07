@@ -8,6 +8,7 @@ import type { RlsActions } from "./types.ts";
 import { canonicalJson } from "../core/canonical-json.ts";
 import { sole } from "../core/compact.ts";
 import { andWhere, leveled } from "../core/custom-roles.ts";
+import { requiresStandIn } from "../core/delegation.ts";
 import { policyLevels } from "../core/policy.ts";
 import { scopeField } from "../core/tenancy.ts";
 import {
@@ -752,12 +753,15 @@ export function compileGrants(
       access.kind !== "anyone" &&
       access.kind !== "role"
     ) {
-      const calls = [grant.permission.key, ...(grant.requires ?? [])].map(
+      const covered = requiresStandIn(grant)
+        ? (grant.requires ?? [])
+        : [grant.permission.key, ...(grant.requires ?? [])];
+      const calls = covered.map(
         (key) => `(select ${apiKeyAllowsCall(ctx, quoteLiteral(key))})`,
       );
       accessExpr = andSql(
         accessExpr,
-        calls.length === 1 ? (calls[0] ?? "") : `(${calls.join(" or ")})`,
+        calls.length === 1 ? (calls[0] ?? "") : `(${calls.join(" and ")})`,
       );
     }
     const using = compileOptional(entry.using, rowCtx);

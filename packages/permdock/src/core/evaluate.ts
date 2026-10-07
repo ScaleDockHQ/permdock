@@ -36,6 +36,7 @@ import {
   coveredByDelegation,
   coversRequirements,
   delegatedPermissions,
+  requiresStandIn,
   resourceIdOf,
 } from "./delegation.ts";
 import {
@@ -1280,8 +1281,8 @@ export function evaluate(
   let usable =
     delegationMiss === undefined
       ? requirementsCovered
-      : requirementsCovered.filter(
-          (candidate) => (candidate.grant.requires ?? []).length > 0,
+      : requirementsCovered.filter((candidate) =>
+          requiresStandIn(candidate.grant),
         );
   if (delegationMiss === "not-delegated" && usable.length > 0) {
     delegationMiss = undefined;
