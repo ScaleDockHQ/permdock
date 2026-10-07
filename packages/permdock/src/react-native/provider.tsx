@@ -4,11 +4,13 @@ import type { NativePermDockProviderProps } from "./types.ts";
 
 import { compact } from "../core/compact.ts";
 import { PermDockStoreContext } from "../react/context.ts";
+import { useLiveOptions } from "../react/live-options.ts";
 import { connectSource, createNativeStore } from "./store.ts";
 
 export function PermDockProvider(
   props: NativePermDockProviderProps,
 ): ReactElement {
+  const live = useLiveOptions(props);
   const store = useMemo(
     () =>
       createNativeStore(
@@ -22,10 +24,10 @@ export function PermDockProvider(
           subjectId: props.subjectId,
           revalidate: props.revalidate,
           subscribeForeground: props.subscribeForeground,
-          fetch: props.fetch,
-          headers: props.headers,
+          fetch: live.fetch,
+          headers: live.headers,
           maxAge: props.maxAge,
-          verifier: props.verifier,
+          verifier: live.verifier,
         }),
       ),
     [
@@ -38,10 +40,10 @@ export function PermDockProvider(
       props.subjectId,
       props.revalidate,
       props.subscribeForeground,
-      props.fetch,
-      props.headers,
+      live.fetch,
+      live.headers,
       props.maxAge,
-      props.verifier,
+      live.verifier,
     ],
   );
 

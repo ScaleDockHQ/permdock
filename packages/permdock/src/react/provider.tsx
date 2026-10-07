@@ -10,6 +10,7 @@ import {
   PermDockSnapshotPromiseContext,
   PermDockStoreContext,
 } from "./context.ts";
+import { useLiveOptions } from "./live-options.ts";
 
 /** One hint per provider: the first check `endpoint: false` turns into a `server-only` denial. */
 function hintOnce(): (permission: Permission) => void {
@@ -30,6 +31,7 @@ export function PermDockProvider(props: PermDockProviderProps): ReactElement {
   const promise = props.snapshotPromise ?? null;
   const suspend = props.suspend === true;
   const awaiting = promise !== null && !suspend;
+  const live = useLiveOptions(props);
   const store = useMemo(
     () =>
       adapterStore(
@@ -39,10 +41,10 @@ export function PermDockProvider(props: PermDockProviderProps): ReactElement {
           snapshotUrl: props.snapshotUrl,
           approvals: props.approvals,
           tenant: props.tenant,
-          fetch: props.fetch,
-          headers: props.headers,
+          fetch: live.fetch,
+          headers: live.headers,
           maxAge: props.maxAge,
-          verifier: props.verifier,
+          verifier: live.verifier,
           awaiting,
         }),
         props.snapshot ?? emptySnapshot(),
@@ -53,10 +55,10 @@ export function PermDockProvider(props: PermDockProviderProps): ReactElement {
       props.snapshotUrl,
       props.approvals,
       props.tenant,
-      props.fetch,
-      props.headers,
+      live.fetch,
+      live.headers,
       props.maxAge,
-      props.verifier,
+      live.verifier,
       awaiting,
     ],
   );
