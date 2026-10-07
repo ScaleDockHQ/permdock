@@ -27,7 +27,7 @@ import { describeError } from "./errors.ts";
 import { asPolicy, loadModule, pickNamed } from "./load.ts";
 import { GRANTS_MARKER, INDEXES_MARKER, SEEDS_MARKER } from "./markers.ts";
 import { apiKeysPlan } from "./rls-api-keys.ts";
-import { approvalStoreSql } from "./rls-approvals.ts";
+import { adoptedApprovalStoreSql, approvalStoreSql } from "./rls-approvals.ts";
 import { breakGlassEntries, breakGlassSql } from "./rls-break-glass.ts";
 import { compileGrants } from "./rls-compile.ts";
 import {
@@ -457,7 +457,7 @@ export async function runRlsGenerate(input: {
   if (
     jsonSchema !== undefined &&
     jsonSchema !== false &&
-    rls?.approvals !== true
+    (rls?.approvals === undefined || rls.approvals === false)
   ) {
     warnings.push(
       "rls.jsonSchema constrains the approval store's body, which needs rls.approvals: true; nothing else is jsonb",
@@ -633,6 +633,17 @@ export async function runRlsGenerate(input: {
       "rls.assignments needs a role that declares assigns: no assignment trigger is written",
     );
   }
+  let approvals: string | undefined;
+  try {
+    approvals =
+      rls?.approvals === true
+        ? approvalStoreSql(ctx, jsonSchema ?? false)
+        : typeof rls?.approvals === "object"
+          ? adoptedApprovalStoreSql(ctx, rls.approvals, jsonSchema ?? false)
+          : undefined;
+  } catch (cause) {
+    return { code: 2, output: describeError(cause), text: "" };
+  }
   const graphed = graphSql(ctx, graph, rls?.tables);
   let rowHelpers = "";
   if (rls?.rowHelpers !== undefined) {
@@ -710,9 +721,7 @@ export async function runRlsGenerate(input: {
     }),
     permissionHelpersSql(ctx, grants, renamed, anonExecute),
     usesLiveSession ? sessionLiveHelperSql(ctx) : undefined,
-    rls?.approvals === true
-      ? approvalStoreSql(ctx, jsonSchema ?? false)
-      : undefined,
+    approvals,
     owned === "" ? undefined : owned,
     graphed === "" ? undefined : graphed,
     breakGlass === "" ? undefined : breakGlass,

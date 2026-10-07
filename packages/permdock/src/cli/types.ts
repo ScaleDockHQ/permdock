@@ -211,9 +211,10 @@ export type RlsConfig = {
   /**
    * Add the approval store `supabaseApprovalStore` reads and writes: the
    * `approval_requests` table and one function per `ApprovalStore` method, in
-   * the helper schema, executable by no client role. Off by default.
+   * the helper schema, executable by no client role. Off by default. An
+   * object adopts a table the app already has instead.
    */
-  readonly approvals?: boolean;
+  readonly approvals?: boolean | RlsApprovalsAdopt;
   /**
    * A pg_jsonschema check constraint on generated `jsonb` columns: the
    * approval store's `body` must match `approval-request-v1.json`. `true`
@@ -284,6 +285,36 @@ export type RlsConfig = {
    * them in `public`. Off by default; `--shims` turns it on.
    */
   readonly shims?: boolean | RlsShimsConfig;
+};
+
+/**
+ * `rls.approvals` on a table the app already has: the store functions keep
+ * each request's body in `body` and its token in `token` (both added when
+ * missing) and read every field from the body; `mirror` copies request
+ * fields into the app's own columns on each write, converted to their types.
+ */
+export type RlsApprovalsAdopt = {
+  /** `table` or `schema.table`. */
+  readonly table: string;
+  /** A text column unique per request. Default `token`. */
+  readonly token?: string;
+  /** A jsonb column holding the `ApprovalRequest`. Default `body`. */
+  readonly body?: string;
+  /** Request fields copied into the app's columns, field to column. */
+  readonly mirror?: {
+    readonly status?: string;
+    readonly permission?: string;
+    readonly tenant?: string;
+    readonly principalId?: string;
+    readonly actorId?: string;
+    readonly session?: string;
+    readonly approvals?: string;
+    readonly createdAt?: string;
+    readonly expiresAt?: string;
+    readonly resolvedAt?: string;
+    readonly resolvedBy?: string;
+    readonly consumedAt?: string;
+  };
 };
 
 export type RlsApiKeys = {

@@ -122,6 +122,39 @@ describe("runRls dispatch", () => {
     );
   });
 
+  it("adopts an approvals table and writes row helpers, and exits 2 on a config they cannot use", async () => {
+    const generate = (rls: Record<string, unknown>) =>
+      runRls(
+        input({
+          rest: ["generate"],
+          target: "sql",
+          dialect: "supabase",
+          // SAFETY: the config arrives untyped from permdock.config.ts at run time.
+          config: { ...config, rls } as PermDockConfig,
+        }),
+      );
+    const adopted = await generate({
+      approvals: { table: "approvals", mirror: { status: "state" } },
+      jsonSchema: "auto",
+    });
+    expect(adopted.code).toBe(0);
+    expect(adopted.output).not.toContain("rls.jsonSchema constrains");
+    expect(
+      await generate({
+        approvals: { table: "approvals", mirror: { nope: "x" } },
+      }),
+    ).toMatchObject({
+      code: 2,
+      output: expect.stringContaining(
+        "rls.approvals.mirror.nope is not a request field",
+      ),
+    });
+    expect(await generate({ rowHelpers: ["ghost"] })).toMatchObject({
+      code: 2,
+      output: expect.stringContaining("rls.rowHelpers names 'ghost'"),
+    });
+  });
+
   it("runs the Supabase advisors on verify --advisors", async () => {
     const seen: string[][] = [];
     const result = await runRls(
