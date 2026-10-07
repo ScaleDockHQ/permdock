@@ -421,20 +421,39 @@ export const CLOSURE = {
   table: "permdock_closure",
 } as const;
 
-/** The helper returning the ids of `resource` the subject holds a relation on. */
+/**
+ * The snake_case SQL name of a resource or link (`chatThread` becomes
+ * `chat_thread`), or `undefined` when it is not made of ASCII letters,
+ * digits and underscores starting with a letter.
+ */
+export function graphSqlName(name: string): string | undefined {
+  if (!/^[A-Za-z][A-Za-z0-9_]*$/u.test(name)) {
+    return undefined;
+  }
+  return name
+    .replaceAll(/([a-z0-9])([A-Z])/gu, "$1_$2")
+    .replaceAll(/([A-Z]+)([A-Z][a-z])/gu, "$1_$2")
+    .toLowerCase();
+}
+
+function sqlNameOf(name: string, label: string): string {
+  const sql = graphSqlName(name);
+  if (sql === undefined) {
+    throw new Error(
+      `PermDock CLI: ${label} is not a SQL name (letters, digits and underscores, starting with a letter), so rls generate cannot name its helper`,
+    );
+  }
+  return sql;
+}
+
+/** The helper returning the ids of `resource` the subject holds a relation on: `permitted_<snake_case resource>_ids`. */
 export function graphHelper(resource: string): string {
-  return permittedIdsHelper(resource);
+  return permittedIdsHelper(sqlNameOf(resource, `resource '${resource}'`));
 }
 
 /** The helper returning the ids of `resource` whose `link` points into the ids it is given. */
 export function linkHelper(resource: string, link: string): string {
-  if (!/^[a-z][a-z0-9_]*$/u.test(link)) {
-    throw new Error(
-      `PermDock CLI: link '${link}' on ${resource} is not a lowercase SQL name, so rls generate cannot name its helper`,
-    );
-  }
-  permittedIdsHelper(resource);
-  return `permdock_link_${resource}_${link}`;
+  return `permdock_link_${sqlNameOf(resource, `resource '${resource}'`)}_${sqlNameOf(link, `link '${link}' on ${resource}`)}`;
 }
 
 /** Graph SQL parts as RLS text: values inline as literals, the subject from the dialect's claim. */

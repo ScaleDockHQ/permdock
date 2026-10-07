@@ -148,7 +148,7 @@ describe("graphSql", () => {
         undefined,
       ),
     ).toThrow(
-      "resource 'node' has graph relations and shares its name with the node scope",
+      "resource 'node' has graph relations and shares its SQL name with the node scope",
     );
   });
 });

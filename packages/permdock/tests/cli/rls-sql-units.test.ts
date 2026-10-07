@@ -13,6 +13,8 @@ import {
   columnTypesOf,
   compileConditionSql,
   contextRefs,
+  graphHelper,
+  graphSqlName,
   graphSqlText,
   linkHelper,
   memberIdsHelper,
@@ -201,10 +203,19 @@ describe("types and names", () => {
   it("refuses unsafe helper, link and claim names", () => {
     expect(() => permittedIdsHelper("Org")).toThrow("unsafe scope name 'Org'");
     expect(() => memberIdsHelper("org-x")).toThrow("unsafe scope name 'org-x'");
-    expect(() => linkHelper("doc", "Folder")).toThrow(
-      "link 'Folder' on doc is not a lowercase SQL name",
+    expect(() => linkHelper("doc", "folder-x")).toThrow(
+      "link 'folder-x' on doc is not a SQL name",
+    );
+    expect(() => graphHelper("chat-thread")).toThrow(
+      "resource 'chat-thread' is not a SQL name",
     );
     expect(linkHelper("doc", "folder")).toBe("permdock_link_doc_folder");
+    expect(linkHelper("chatMessage", "parentThread")).toBe(
+      "permdock_link_chat_message_parent_thread",
+    );
+    expect(graphHelper("chatThread")).toBe("permitted_chat_thread_ids");
+    expect(graphSqlName("HTMLPage")).toBe("html_page");
+    expect(graphSqlName("knowledge_collection")).toBe("knowledge_collection");
     expect(() => subjectClaimSql(ctx(), "a-b")).toThrow(
       "unsafe claim name 'a-b'",
     );

@@ -17,6 +17,7 @@ import {
   CLOSURE,
   activeUserSql,
   graphHelper,
+  graphSqlName,
   graphSqlText,
   linkHelper,
   qualifiedTable,
@@ -282,6 +283,7 @@ function closureObjectsSql(
     return "";
   }
   const name = node.name;
+  const sqlName = graphSqlName(name) ?? name;
   const closure = qualified(ctx, CLOSURE.table);
   const table = tableSql(tableFor(name, tables));
   const id = quoteIdent(node.id);
@@ -294,18 +296,18 @@ function closureObjectsSql(
     node.restricted === undefined
       ? "false"
       : `coalesce(p.${quoteIdent(node.restricted)}, false)`;
-  const refresh = qualified(ctx, `${CLOSURE.table}_${name}`);
-  const changed = qualified(ctx, `${CLOSURE.table}_${name}_changed`);
+  const refresh = qualified(ctx, `${CLOSURE.table}_${sqlName}`);
+  const changed = qualified(ctx, `${CLOSURE.table}_${sqlName}_changed`);
   const literal = quoteLiteral(name);
   const restrictedChanged =
     node.restricted === undefined
       ? ""
       : ` or n.${quoteIdent(node.restricted)} is distinct from o.${quoteIdent(node.restricted)}`;
   const trigger = (suffix: string): string =>
-    quoteIdent(`${CLOSURE.table}_${name}_${suffix}`);
+    quoteIdent(`${CLOSURE.table}_${sqlName}_${suffix}`);
   return `-- ${name}: rows reach their ancestors up to depth ${String(depth)}, stopping at a restricted row
-drop policy if exists ${quoteIdent(`${CLOSURE.table}_${name}`)} on ${closure};
-create policy ${quoteIdent(`${CLOSURE.table}_${name}`)} on ${closure}
+drop policy if exists ${quoteIdent(`${CLOSURE.table}_${sqlName}`)} on ${closure};
+create policy ${quoteIdent(`${CLOSURE.table}_${sqlName}`)} on ${closure}
   for select to authenticated
   using (resource = ${literal} and ancestor in (select ${qualified(ctx, graphHelper(name))}(null)));
 create or replace function ${refresh}(p_ids text[])
@@ -462,12 +464,22 @@ export function graphSql(
   if (plan.size === 0) {
     return "";
   }
+  const sqlNames = new Map<string, string>();
   for (const name of plan.keys()) {
-    if (ctx.scopes.some((scope) => scope.name === name)) {
+    const helper = graphHelper(name);
+    const sql = graphSqlName(name) ?? name;
+    if (ctx.scopes.some((scope) => scope.name === sql)) {
       throw new Error(
-        `PermDock CLI: resource '${name}' has graph relations and shares its name with the ${name} scope, so ${graphHelper(name)} would replace the scope helper; rename the resource (permdock doctor PD032)`,
+        `PermDock CLI: resource '${name}' has graph relations and shares its SQL name with the ${sql} scope, so ${helper} would replace the scope helper; rename the resource (permdock doctor PD032)`,
       );
     }
+    const other = sqlNames.get(sql);
+    if (other !== undefined) {
+      throw new Error(
+        `PermDock CLI: resources '${other}' and '${name}' both name the SQL helper ${helper}; rename one (permdock doctor PD032)`,
+      );
+    }
+    sqlNames.set(sql, name);
   }
   const entries = dependencyOrder(plan);
   const chunks = entries.flatMap((entry) => [
