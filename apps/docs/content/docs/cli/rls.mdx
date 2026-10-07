@@ -309,6 +309,62 @@ create policy "quotes_update_read_only_actors"
 
 `true` lists `support` and `impersonation`; a list such as `['support']` names the kinds. With `support` listed, an `act` with a `session_id` and no `kind` (better-supabase 0.5.0 support tokens) counts as a support session. Another actor kind, such as an agent acting with delegated scopes, keeps the user's writes. An `insert` policy has only `with check`, a `delete` policy only `using`. `rls verify` checks the policies with the rest, and `--helpers-only` writes none and says so. [Support access](/docs/guides/support-access) covers the in-process side.
 
+### Realtime channels and Storage buckets
+
+On the `supabase` dialect, `rls.realtime` and `rls.storage` write policies on `realtime.messages` (private channels) and `storage.objects`. Each policy admits a row only where the subject holds the permission in the scope instance that a topic segment or a folder names. It checks that through `permitted_<scope>_ids`, so API-key ceilings, suspension and custom roles apply as they do on your tables. `supabaseRls()` passes both through.
+
+```ts title="permdock.config.ts"
+import { permissions } from "./src/permissions";
+
+rls: supabaseRls({
+  realtime: {
+    topics: {
+      // join with supabase.channel('org:<organization id>:chat', { config: { private: true } })
+      "org:{organization}:chat": { read: permissions.chat.read, write: permissions.chat.send },
+    },
+  },
+  storage: {
+    buckets: {
+      // object names start with '<organization id>/'
+      "org-files": {
+        scope: "organization",
+        read: permissions.file.read,
+        write: permissions.file.upload,
+        delete: permissions.file.delete,
+      },
+    },
+  },
+}),
+```
+
+```sql
+create policy "permdock_realtime_org_organization_chat_select"
+  on "realtime"."messages"
+  as permissive
+  for select
+  to authenticated
+  using (extension in ('broadcast', 'presence')
+    and (select realtime.topic()) ~ '^org:[^:]+:chat$'
+    and split_part((select realtime.topic()), ':', 2) in (select x::text from "permdock".permitted_organization_ids('chat.read') x));
+```
+
+| Entry           | Commands                                 | Policy names                                  |
+| --------------- | ---------------------------------------- | --------------------------------------------- |
+| Topic `read`    | `select`: receive broadcast and presence | `permdock_realtime_<pattern>_select`          |
+| Topic `write`   | `insert`: send broadcast, track presence | `permdock_realtime_<pattern>_insert`          |
+| Bucket `read`   | `select`: download, list                 | `permdock_storage_<bucket>_select`            |
+| Bucket `write`  | `insert` and `update`: upload, overwrite | `permdock_storage_<bucket>_insert`, `_update` |
+| Bucket `delete` | `delete`                                 | `permdock_storage_<bucket>_delete`            |
+
+- A topic pattern is `:`-separated segments with exactly one `{<scope>}` segment naming a declared scope. Other segments match literally. Realtime authorises the channel being joined, `realtime.topic()`, and the policies cover only the `broadcast` and `presence` extensions.
+- A bucket's `folder` is the 1-based `storage.foldername(name)` entry that holds the id, default 1. An `update` checks the new name too, so an object cannot move into another instance's folder.
+- A topic needs `read`; a bucket needs at least one of `read`, `write` and `delete`.
+- Each permission is a reference from your definitions, and one whose grants carry row conditions is refused: these rows have no resource columns to check.
+- An undeclared scope, a dialect other than `supabase`, a duplicate policy name or one over 63 bytes exits 2.
+- The output does not enable RLS, revoke or grant on either table. Supabase owns both, and supautils `policy_grants` lets `postgres` create the policies.
+- With `--split`, the policies go in the `policies` part, after your tables' policies. `supabase db diff` on the `pg-delta` engine captures policies on both tables from a declarative file ([declarative schemas](https://supabase.com/docs/guides/local-development/declarative-database-schemas)). The bucket is a row in `storage.buckets`: create it in a seed or a versioned migration.
+- With `rls.readOnlyActors`, the write commands get the restrictive read-only policies too, named `realtime_messages_insert_read_only_actors` and `storage_objects_<op>_read_only_actors`. `--helpers-only` writes none of these policies and says so.
+
 ### API keys
 
 A backend that verifies an API key and then queries Postgres as the key's user (or, for a key that belongs to a tenant, as no user) can pass the key in a claim, so the database narrows the request the same way `subjectFromApiKey` does in process ([API keys](/docs/concepts/credentials)). `rls.apiKeys` reads that claim, by default `api_key`:

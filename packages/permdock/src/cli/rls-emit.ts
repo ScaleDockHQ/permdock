@@ -97,6 +97,26 @@ function tableSql(
   return lines.join("\n");
 }
 
+/** `drop policy if exists` and `create policy` for one policy, without the table's grants. */
+export function policySql(item: CompiledPolicy): string {
+  const target = quoteTable(qualifiedTable(item.table));
+  const lines = [
+    `drop policy if exists ${quoteIdent(item.name)} on ${target};`,
+    `create policy ${quoteIdent(item.name)}`,
+    `  on ${target}`,
+    `  as ${item.effect === "deny" ? "restrictive" : "permissive"}`,
+    `  for ${item.command}`,
+    `  to ${item.roles.join(", ")}`,
+  ];
+  if (item.using !== undefined) {
+    lines.push(`  using (${item.using})`);
+  }
+  if (item.check !== undefined) {
+    lines.push(`  with check (${item.check})`);
+  }
+  return `${lines.join("\n")};\n`;
+}
+
 export function emitSql(
   policies: readonly CompiledPolicy[],
   preamble: string,
@@ -111,23 +131,7 @@ export function emitSql(
     chunks.push(tableSql(table, policies, force, views), "");
   }
   for (const item of policies) {
-    const as = item.effect === "deny" ? "restrictive" : "permissive";
-    const to = item.roles.join(", ");
-    const lines = [
-      `drop policy if exists ${quoteIdent(item.name)} on ${quoteTable(qualifiedTable(item.table))};`,
-      `create policy ${quoteIdent(item.name)}`,
-      `  on ${quoteTable(qualifiedTable(item.table))}`,
-      `  as ${as}`,
-      `  for ${item.command}`,
-      `  to ${to}`,
-    ];
-    if (item.using !== undefined) {
-      lines.push(`  using (${item.using})`);
-    }
-    if (item.check !== undefined) {
-      lines.push(`  with check (${item.check})`);
-    }
-    chunks.push(`${lines.join("\n")};\n`);
+    chunks.push(policySql(item));
   }
   if (views.length > 0) {
     chunks.push(fieldViewsSql(views));

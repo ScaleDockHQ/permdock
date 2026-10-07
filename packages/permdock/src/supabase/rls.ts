@@ -38,6 +38,8 @@ export function supabaseRls(
     tenantType: options.tenantType,
     memberships,
     suspension: options.suspension,
+    realtime: options.realtime,
+    storage: options.storage,
   });
 }
 

@@ -1,4 +1,7 @@
+import { permissions } from "./src/permissions.ts";
 import { sources } from "./src/sources.ts";
+
+const { quotes } = permissions;
 
 export default {
   permissions: "./src/permissions.ts",
@@ -10,6 +13,26 @@ export default {
     tenantType: "uuid",
     tables: ["staff", "quotes"],
     readOnlyActors: true,
+    // supabase.channel(`org:${organizationId}:quotes`, { config: { private: true } })
+    realtime: {
+      topics: {
+        "org:{organization}:quotes": {
+          read: quotes.read,
+          write: quotes.update,
+        },
+      },
+    },
+    // objects named `<organization id>/<quote id>.pdf`
+    storage: {
+      buckets: {
+        "quote-files": {
+          scope: "organization",
+          read: quotes.read,
+          write: quotes.update,
+          delete: quotes.update,
+        },
+      },
+    },
   },
   supabase: {
     hook: {

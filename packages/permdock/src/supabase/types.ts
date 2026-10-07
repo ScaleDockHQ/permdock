@@ -106,6 +106,43 @@ export type AuthorizeSqlOptions = {
   readonly suspension?: SupabaseSuspension;
 };
 
+/** A permission reference; `rls generate` reads only its `key`. */
+export type SupabasePermissionRef = { readonly key: string };
+
+/**
+ * Private Realtime channels: topic patterns such as `org:{organization}:chat`,
+ * with one `{<scope>}` segment that holds a scope instance id.
+ */
+export type SupabaseRealtime = {
+  readonly topics: Readonly<
+    Record<
+      string,
+      {
+        /** Receive broadcast and presence: `select` on `realtime.messages`. */
+        readonly read: SupabasePermissionRef;
+        /** Send broadcast and track presence: `insert`. */
+        readonly write?: SupabasePermissionRef;
+      }
+    >
+  >;
+};
+
+/** Storage buckets whose object paths hold a scope instance id in folder `folder` (default 1). */
+export type SupabaseStorage = {
+  readonly buckets: Readonly<
+    Record<
+      string,
+      {
+        readonly scope: string;
+        readonly folder?: number;
+        readonly read?: SupabasePermissionRef;
+        readonly write?: SupabasePermissionRef;
+        readonly delete?: SupabasePermissionRef;
+      }
+    >
+  >;
+};
+
 export type SupabaseRlsOptions = {
   readonly roleClaim?: string;
   readonly tenantClaim?: string;
@@ -113,6 +150,8 @@ export type SupabaseRlsOptions = {
   readonly tenantType?: string;
   readonly memberships?: SupabaseMembershipTable | SupabaseMemberships;
   readonly suspension?: SupabaseSuspension;
+  readonly realtime?: SupabaseRealtime;
+  readonly storage?: SupabaseStorage;
 };
 
 export type SupabaseRlsConfig = {
@@ -122,6 +161,8 @@ export type SupabaseRlsConfig = {
   readonly tenantType?: string;
   readonly memberships?: SupabaseMemberships;
   readonly suspension?: SupabaseSuspension;
+  readonly realtime?: SupabaseRealtime;
+  readonly storage?: SupabaseStorage;
 };
 
 /**
