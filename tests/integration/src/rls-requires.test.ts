@@ -104,4 +104,49 @@ describe("requires in RLS: a share counts only where the role permission is held
     expect(await visible(db, globex?.id ?? "")).toEqual(["d-globex"]);
     expect(await visible(db, none?.id ?? "")).toEqual([]);
   });
+
+  it("answers permitted_drive_rows with the same drives, as the caller and for a named user", async () => {
+    if (db === undefined) {
+      throw new Error("PermDock: Postgres was not started");
+    }
+    const target = db;
+    const mismatches: string[] = [];
+    for (const user of users) {
+      const got = await target.as(
+        {
+          role: "authenticated",
+          settings: {
+            "request.jwt.claims": JSON.stringify({
+              sub: user.id,
+              role: "authenticated",
+            }),
+          },
+        },
+        async () =>
+          (
+            await target.tester.query<{ id: string }>(
+              "select id from permdock.permitted_drive_rows('drive.read') id order by id",
+            )
+          ).rows.map((row) => row.id),
+      );
+      const named = (
+        await target.admin.query<{ id: string }>(
+          "select id from permdock.permitted_drive_rows_for($1, 'drive.read') id order by id",
+          [user.id],
+        )
+      ).rows.map((row) => row.id);
+      const want = await inProcess(user);
+      for (const [label, list] of [
+        ["rows", got],
+        ["rows_for", named],
+      ] as const) {
+        if (JSON.stringify(list) !== JSON.stringify(want)) {
+          mismatches.push(
+            `${user.id} ${label} [${list.join(",")}] can [${want.join(",")}]`,
+          );
+        }
+      }
+    }
+    expect(mismatches).toEqual([]);
+  });
 });

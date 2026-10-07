@@ -67,6 +67,7 @@ import {
   resolveAuthorize,
 } from "./rls-rbac.ts";
 import { realtimeStoragePolicies } from "./rls-realtime-storage.ts";
+import { rowHelpersSql } from "./rls-rows.ts";
 import { shimGrants, shimsSql } from "./rls-shims.ts";
 import {
   checkSuspension,
@@ -482,6 +483,7 @@ export async function runRlsGenerate(input: {
     rls?.tables,
     warnings,
     input.skipClosures,
+    rls?.rowHelpers !== undefined,
   );
   const helpersOnly = input.helpersOnly === true || rls?.helpersOnly === true;
   if (helpersOnly && (input.target !== "sql" || revokeColumns)) {
@@ -631,6 +633,26 @@ export async function runRlsGenerate(input: {
     );
   }
   const graphed = graphSql(ctx, graph, rls?.tables);
+  let rowHelpers = "";
+  if (rls?.rowHelpers !== undefined) {
+    try {
+      rowHelpers = rowHelpersSql(
+        ctx,
+        policy,
+        [
+          ...(fieldsMode === undefined
+            ? compiled.branches
+            : rowBranches(compiled.branches)),
+          ...compiled.actionBranches,
+        ],
+        rls.rowHelpers,
+        rls.tables,
+        warnings,
+      );
+    } catch (cause) {
+      return { code: 2, output: describeError(cause), text: "" };
+    }
+  }
   const breakGlass = breakGlassSql(ctx, breakGlassEntries(policy, rls?.tables));
   const configured = rls?.shims;
   const shimsConfig: RlsShimsConfig | undefined =
@@ -693,6 +715,7 @@ export async function runRlsGenerate(input: {
     owned === "" ? undefined : owned,
     graphed === "" ? undefined : graphed,
     breakGlass === "" ? undefined : breakGlass,
+    rowHelpers === "" ? undefined : rowHelpers,
     shims,
     rbac?.tail,
   ]

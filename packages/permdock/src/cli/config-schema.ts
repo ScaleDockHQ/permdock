@@ -60,6 +60,7 @@ const RLS = {
   roles: true,
   actions: true,
   helpersOnly: true,
+  rowHelpers: true,
   migrate: true,
   shims: true,
   tenants: true,

@@ -6,6 +6,7 @@ export default {
     tenantType: "text",
     authorize: "database",
     customRoles: true,
+    rowHelpers: ["drive"],
     memberships: {
       tenant: {
         table: "organization_members",
