@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
+import { helperTablePolicies } from "../../src/cli/helper-calls.ts";
 import { run } from "../../src/cli/run.ts";
 import { supabaseRls } from "../../src/supabase/index.ts";
 import { project, removeProjects } from "./doctor-kit.ts";
@@ -105,6 +106,20 @@ describe("rls.realtime and rls.storage", () => {
     );
     expect(sql).toContain(`${id}('asset.delete') x));`);
     expect(sql).not.toMatch(/alter table "storage"|grant .* on "storage"/u);
+  });
+
+  it("names the keys it checks, so doctor PD037 reads them back", async () => {
+    const { sql } = await generate({ realtime, storage });
+    expect(helperTablePolicies(sql)).toContainEqual({
+      table: "realtime.messages",
+      name: "permdock_realtime_org_organization_assets_insert",
+      keys: ["asset.update"],
+    });
+    expect(helperTablePolicies(sql)).toContainEqual({
+      table: "storage.objects",
+      name: "permdock_storage_asset_files_delete",
+      keys: ["asset.delete"],
+    });
   });
 
   it("adds read-only actor policies on the write commands", async () => {

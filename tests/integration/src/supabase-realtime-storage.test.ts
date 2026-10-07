@@ -7,6 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { SupabasePostgres } from "./support/supabase-postgres.ts";
 
+import { generatedFindings, runSplinter } from "./support/splinter.ts";
 import { startSupabasePostgres } from "./support/supabase-postgres.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -31,7 +32,7 @@ $$;
 alter table realtime.messages enable row level security;
 grant usage on schema realtime to authenticated;
 grant select, insert on realtime.messages to authenticated;
-create table storage.buckets (id text primary key);
+create table storage.buckets (id text primary key, name text not null, public boolean not null default false);
 create table storage.objects (
   id uuid primary key default gen_random_uuid(),
   bucket_id text references storage.buckets (id),
@@ -46,7 +47,7 @@ $$;
 alter table storage.objects enable row level security;
 grant usage on schema storage to authenticated;
 grant select, insert, update, delete on storage.objects to authenticated;
-insert into storage.buckets values ('files'), ('other');
+insert into storage.buckets (id, name, public) values ('files', 'files', true), ('other', 'other', false);
 insert into realtime.messages (topic, extension) values
   ('org:acme:chat', 'broadcast'), ('org:acme:chat', 'postgres_changes');
 insert into storage.objects (bucket_id, name) values
@@ -62,6 +63,7 @@ insert into public.organization_members values ('acme', '${ADMIN}', 'admin'), ('
 `;
 
 let db: SupabasePostgres | undefined;
+let generated = "";
 
 function started(): SupabasePostgres {
   if (db === undefined) {
@@ -117,11 +119,11 @@ const upload = (name: string, bucket = "files"): string =>
   `insert into storage.objects (bucket_id, name) values ('${bucket}', '${name}')`;
 
 beforeAll(async () => {
-  const sql = await generate();
+  generated = await generate();
   db = await startSupabasePostgres();
   await db.superuser.query(SERVICES);
   await db.owner.query(APP);
-  await db.owner.query(sql);
+  await db.owner.query(generated);
 }, 240_000);
 
 afterAll(async () => {
@@ -201,4 +203,22 @@ describe("rls.storage on supabase/postgres", () => {
     expect(await as(support, remove)).toEqual([]);
     expect(await as(viewer, remove)).toEqual([]);
   });
+});
+
+describe("Splinter on the realtime and storage policies", () => {
+  it("raises no WARN or ERROR lint, public_bucket_allows_listing included", async () => {
+    const findings = await runSplinter(started().owner);
+    expect(
+      findings.filter(
+        (finding) => finding.name === "public_bucket_allows_listing",
+      ),
+    ).toEqual([]);
+    expect(generatedFindings(findings, generated)).toEqual([]);
+    const broad = await runSplinter(started().owner, {
+      sql: `create policy "anyone lists files" on storage.objects for select to anon using (bucket_id = 'files');`,
+    });
+    expect(broad.map((finding) => finding.name)).toContain(
+      "public_bucket_allows_listing",
+    );
+  }, 120_000);
 });
