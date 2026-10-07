@@ -222,6 +222,7 @@ export { authed as GET, authed as POST };
 - **Serving the metadata with Supabase.** Whichever server answers MCP, the Protected Resource Metadata document and the `WWW-Authenticate` challenges come from the host, and PermDock only needs the same resource URL. With `@supabase/server` in front of an SDK server:
 
   ```ts
+  import { pipeline } from "@supabase/middleware";
   import {
     fromSupabaseUrl,
     withOAuthProtectedResource,
@@ -241,11 +242,20 @@ export { authed as GET, authed as POST };
     { required: true },
   );
 
-  export const POST = withOAuthProtectedResource(mcp, {
-    resourceServer: resource,
-    authorizationServer: fromSupabaseUrl(process.env.SUPABASE_URL!),
-  });
+  const handler = pipeline(
+    [
+      withOAuthProtectedResource({
+        resourceServer: resource,
+        authorizationServer: fromSupabaseUrl(process.env.SUPABASE_URL!),
+      }),
+    ],
+    (req) => mcp(req),
+  );
+
+  export { handler as GET, handler as POST };
   ```
+
+  `withOAuthProtectedResource` is a pipeline entry and runs before any auth gate: it answers `GET {resource}/oauth-protected-resource` with the metadata document and adds `WWW-Authenticate: Bearer resource_metadata="…"` to a `401` from below that has no challenge yet. Serve it on `GET` too, or clients cannot fetch the document. Off Edge Functions `resourceServer` is required; without it the entry answers `500 MISSING_RESOURCE_SERVER`. With `withSupabase({ auth: 'user' })` as the gate instead of `withMcpAuth`, list it second in the same array.
 
   With better-supabase, `createMcp` serves the document and the challenges itself, with `advertisedScopes` as `scopes_supported`; pass the same URL as `resource` wherever a PermDock adapter checks the token. `withOAuthProtectedResource` omits `scopes_supported`, so publish the catalog's scope list through your own metadata response if clients need it up front.
 

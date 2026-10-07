@@ -152,16 +152,40 @@ const evaluations = pipeline([withClaims()], permdockHandler());
 
 ### With `@supabase/server`
 
-[`@supabase/server`](https://github.com/supabase/server) is Supabase's stateless server toolkit: header-based authentication for Edge Functions, Workers, Hono, Elysia, NestJS and H3, no cookies. Its core `withSupabase(config, handler)` verifies the bearer token against the project JWKS (asymmetric keys only; HS256 legacy tokens are rejected) and hands the handler a context with `jwtClaims` (the verified payload or `null`), `supabase` (an RLS-scoped client carrying the caller's token), `supabaseAdmin` (the bypass client, built lazily) and `authMode` (`user`, `publishable`, `secret`, `none`). The framework adapters (`@supabase/server/adapters/hono` and friends) store the same context on the framework's request. Every one of those shapes is an input to `subjectFromSupabase`:
+[`@supabase/server`](https://github.com/supabase/server) is Supabase's stateless server toolkit: header-based authentication for Edge Functions, Workers, Hono, Elysia, NestJS and H3, no cookies. Its core `withSupabase(config, handler)` verifies the bearer token against the project JWKS (asymmetric keys only; HS256 legacy tokens are rejected) and hands the handler a context with `jwtClaims` (the verified payload or `null`), `supabase` (an RLS-scoped client carrying the caller's token), `supabaseAdmin` (the bypass client, built lazily) and `authMode` (`user`, `publishable`, `secret`, `none`). Every one of those shapes is an input to `subjectFromSupabase`:
 
-| Where the claims are                                           | Pass to `subjectFromSupabase` | Notes                                                                                                                                 |
-| -------------------------------------------------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `withSupabase({ auth: 'user' }, (req, ctx) => …)`              | `ctx.jwtClaims`               | `auth: 'user'` rejects token-less requests with `401` before the handler runs                                                         |
-| Hono `c.var.supabaseContext`, Elysia / NestJS / H3 equivalents | `supabaseContext.jwtClaims`   | Combine with [`permdock/hono`](/docs/adapters/hono) and the other server adapters; the `subject` callback reads the framework context |
-| A standalone `pipeline([withClaims()], …)`                     | `ctx.jwtClaims`               | `withClaims` contributes `null` for anonymous callers; `withRequiredClaims` short-circuits them with `401`                            |
-| `authMode: 'secret'` or `'publishable'`                        | `null`                        | An API key is not a principal. The subject is anonymous; grant machine access through `actor`, never by trusting the key as a user    |
+| Where the claims are                              | Pass to `subjectFromSupabase` | Notes                                                                                                                              |
+| ------------------------------------------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `withSupabase({ auth: 'user' }, (req, ctx) => …)` | `ctx.jwtClaims`               | `auth: 'user'` rejects token-less requests with `401` before the handler runs                                                      |
+| A standalone `pipeline([withClaims()], …)`        | `ctx.jwtClaims`               | `withClaims` contributes `null` for anonymous callers; `withRequiredClaims` short-circuits them with `401`                         |
+| Hono, H3, Elysia or NestJS through a bridge       | `ctx.jwtClaims`               | The same entries run inside the framework's middleware slot; see "Hono, H3, Elysia and NestJS" below                               |
+| `authMode: 'secret'` or `'publishable'`           | `null`                        | An API key is not a principal. The subject is anonymous; grant machine access through `actor`, never by trusting the key as a user |
 
 `ctx.supabase` and `ctx.postgres` (from `withPostgresClient`) are already RLS-scoped, so a PermDock decision in the handler and a generated policy in Postgres are two evaluations of one catalog. `ctx.supabaseAdmin` and `withPostgresAdminClient` bypass RLS: every use belongs behind an explicit `permdock.assert(...)` in the same handler, and the [`permdock-audit`](/docs/cli/skills) skill flags any that is not. `withPostgresClient` sets `request.jwt.claims` and `set local role` to `authenticated` or `anon` per transaction and refuses any other role in the token, including `service_role`; that is the same preamble `permdock rls verify` runs, so a policy that passes the harness behaves the same under the client ([RLS adapter](/docs/adapters/rls)). For MCP servers behind Supabase Auth as the OAuth 2.1 authorization server, see [`withOAuthProtectedResource` on the MCP page](/docs/adapters/mcp).
+
+### Hono, H3, Elysia and NestJS
+
+`@supabase/server`'s framework adapters (`@supabase/server/adapters/hono`, `h3`, `elysia` and `nestjs`, with the context on `c.var.supabaseContext`) are deprecated since 1.9.0 and removed on 1 December 2026. Their replacement is a bridge: a few lines in the app that run a `pipeline` of entries inside the framework's middleware slot and publish every contribution on the framework's context. `withPermDock` is one of those entries, so the route reads `c.var.permdock` and `c.var.jwtClaims`:
+
+```ts
+import { withClaims } from "@supabase/server/middleware/claims";
+import { Hono } from "hono";
+
+import { toHono } from "./to-hono.ts"; // the bridge from Supabase's examples/frameworks/hono
+
+const app = new Hono()
+  .use("*", toHono([withClaims(), withPermDock()]))
+  .patch("/posts/:id", async (c) => {
+    const post = await loadPost(c.req.param("id"));
+    return c.var.permdock.can(permissions.post.update, post)
+      ? c.json({ ok: true })
+      : c.json({ ok: false }, 403);
+  });
+```
+
+- Copy the bridge from [`examples/frameworks`](https://github.com/supabase/server/tree/main/examples/frameworks) in `@supabase/server` (`hono`, `h3`, `elysia`, `nestjs`, `tanstack-start`). It seeds the context with `seedContext(c.env)`, buffers the body with `bufferRequest`, and returns the framework's response through the entries, so response-phase entries such as CORS still stamp headers. `apps/examples/supabase-middleware/src/to-hono.ts` is the Hono bridge with this repository's lint rules applied.
+- Chain `.use()` into the routes: Hono types `c.var` only through the chained calls. Routes that need another entry list go in a sub-app mounted with `app.route()`.
+- `permdock/hono` stays the choice for a Hono app that verifies tokens with [`permdock/jwt`](/docs/adapters/jwt) instead of `@supabase/server`. Both read the same claims; do not stack them on one route.
 
 ### With `@supabase/ssr`
 

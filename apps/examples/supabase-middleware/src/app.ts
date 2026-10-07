@@ -1,11 +1,13 @@
 import { pipeline } from "@supabase/middleware";
 import { withClaims } from "@supabase/server/middleware/claims";
+import { Hono } from "hono";
 import { subjectFromSupabase } from "permdock/supabase";
 import { createPermDock } from "permdock/supabase/middleware";
 
 import { isDevUser, jwks, mintToken } from "./keys.ts";
 import { ownPost, permissions } from "./permissions.ts";
 import { policy } from "./policy.ts";
+import { toHono } from "./to-hono.ts";
 
 const posts = new Map([
   [ownPost.id, ownPost],
@@ -70,6 +72,23 @@ const publishPost = pipeline(
 // AuthZEN evaluations for the caller's own claims.
 const evaluations = pipeline([withClaims({ jwks })], permdockHandler());
 
+// The same entries inside Hono: the bridge publishes `jwtClaims` and
+// `permdock` on `c.var`. It replaces `@supabase/server/adapters/hono`, which
+// is removed on 1 December 2026.
+const hono = new Hono()
+  .basePath("/hono")
+  .use("*", toHono([withClaims({ jwks }), withPermDock()]))
+  .patch("/posts/:id", (c) => {
+    const post = posts.get(c.req.param("id")) ?? null;
+    if (post === null) {
+      return c.json({ ok: false }, 404);
+    }
+    if (!c.var.permdock.can(permissions.post.update, post)) {
+      return c.json({ ok: false }, 403);
+    }
+    return c.json({ ok: true, by: c.var.permdock.subject.principal?.id });
+  });
+
 async function devToken(request: Request): Promise<Response> {
   const user = new URL(request.url).pathname.slice("/dev/token/".length);
   if (!isDevUser(user)) {
@@ -87,6 +106,12 @@ function routeFor(request: Request): Route | null {
   }
   if (request.method === "POST" && pathname === "/api/permdock") {
     return evaluations;
+  }
+  if (pathname.startsWith("/hono/")) {
+    return async (honoRequest) => {
+      const response = await hono.fetch(honoRequest);
+      return response;
+    };
   }
   if (
     request.method === "POST" &&
