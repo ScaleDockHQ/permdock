@@ -405,6 +405,23 @@ const store = supabaseApprovalStore(admin, {
 
 `onOpen` runs once per stored request, after the call that stored it, with the stored request; a repeated ask that finds the request still open does not run it again, so a notification or a record the app opens there is not duplicated. A throw fails the open, so the action does not run. Routing to a manager chain or a delegate is the app's: `approverRelations` and `approverPermissions` feed the facts `applyApprovalVerdict` checks, and `cancelApprovals` rejects the requests a newer one supersedes. The same conformance runner as the Drizzle recipe runs it against Postgres. Schedule `store.expire()` (a cron or `pg_cron`) to mark overdue requests expired.
 
+### Adopting an existing approvals table
+
+An app that already keeps approvals in its own table points `rls.approvals` at it instead of getting `approval_requests`:
+
+```ts
+rls: {
+  approvals: {
+    table: "public.approvals",
+    token: "permdock_token", // a text column, unique per request; default token
+    body: "request", // a jsonb column holding the ApprovalRequest; default body
+    mirror: { status: "state", tenant: "organization_id", expiresAt: "expires_at" },
+  },
+},
+```
+
+`generate` adds the `token` and `body` columns when the table lacks them, a unique index on the token and indexes for paging and status, and writes the same `permdock_approval_*` functions over the table, so `supabaseApprovalStore` works unchanged. The functions read every field from the body, which stays the record of truth: no column type of the app's has to match PermDock's, and rows the app wrote without a body are never listed, expired or cancelled. `mirror` copies request fields (`status`, `permission`, `tenant`, `principalId`, `actorId`, `session`, `approvals` as a count, `createdAt`, `expiresAt`, `resolvedAt`, `resolvedBy`, `consumedAt`) into the app's columns on every write, converted to each column's type through `jsonb_populate_record`, so the app's own screens and queries keep reading them. Other columns need a default or must accept null. The table's grants and policies stay the app's: `generate` does not enable RLS or revoke anything on it, so keep client roles from reading bodies there, which carry a summary of the requesting subject. `rls.jsonSchema` checks the adopted body column.
+
 `rls.jsonSchema` adds a check constraint on `body`, so the database refuses a row that is not a v1 [approval request](/docs/concepts/wire-formats#approval-request) whatever writes it:
 
 | `rls.jsonSchema`  | Generated SQL                                                                                                                         |

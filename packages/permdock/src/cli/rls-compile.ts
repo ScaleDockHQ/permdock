@@ -737,7 +737,7 @@ export function compileGrants(
     }
     const validity = validitySql(grant.validity);
     accessExpr = andSql(accessExpr, validity);
-    if (grant.requires !== undefined && grant.effect === "allow") {
+    if (grant.requires !== undefined) {
       accessExpr = andSql(
         accessExpr,
         requiresSql(

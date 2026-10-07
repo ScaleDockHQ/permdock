@@ -36,6 +36,7 @@ const policy = definePolicy(permissions, {
     role("blocked", [deny(doc.read, { where: { locked: true } })], {
       on: "tenant",
     }),
+    role("noter", [deny(permissions.note.read)]),
   ],
   grants: [allow([doc.update, doc.archive], { to: relation(doc, "owner") })],
   subject: () => null,
@@ -71,7 +72,7 @@ function generate(
 describe("permitted_<resource>_rows", () => {
   it("cases each permission over its allows and denies, actions without a SQL command included", () => {
     const { sql, warnings } = generate("supabase", ["doc", "note"]);
-    expect(generate("supabase").sql).not.toContain("permitted_note_rows");
+    expect(generate("supabase").sql).toContain("permitted_note_rows");
     expect(sql).toContain('"permdock".permitted_doc_rows(p_permission text)');
     expect(sql).toContain('select "id"::text from "app"."documents"');
     expect(sql).toContain(
@@ -90,6 +91,7 @@ describe("permitted_<resource>_rows", () => {
       'revoke execute on function "permdock".permitted_doc_rows_for(uuid, text, jsonb) from public, anon, authenticated;',
     );
     expect(sql).toContain('"permdock".permitted_note_rows');
+    expect(sql).not.toContain(`when 'note.read'`);
     expect(sql).toMatch(
       /permitted_note_rows\(p_permission text\)[^$]*\$\$\n {2}select "id"::text from "public"."note"\n {2}where false\n\$\$/u,
     );
