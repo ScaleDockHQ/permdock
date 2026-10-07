@@ -229,6 +229,56 @@ const app = new Hono()
 - Chain `.use()` into the routes: Hono types `c.var` only through the chained calls. Routes that need another entry list go in a sub-app mounted with `app.route()`.
 - `permdock/hono` stays the choice for a Hono app that verifies tokens with [`permdock/jwt`](/docs/adapters/jwt) instead of `@supabase/server`. Both read the same claims; do not stack them on one route.
 
+### Feature flags
+
+PermDock ships no flag adapter. Two `@supabase/middleware` entries read `ctx.permdock` instead. `withFeatureFlag` from `@supabase/middleware/feature-flag` gates a route on a permission and answers a denial with its 404, which does not reveal that the route exists:
+
+```ts
+import { withFeatureFlag } from "@supabase/middleware/feature-flag";
+
+const reviewQueue = pipeline(
+  [
+    withClaims(),
+    withPermDock(),
+    withFeatureFlag({
+      name: "review-queue",
+      evaluate: (_req, ctx) =>
+        permdockOf(ctx)?.can(permissions.post.review) === true,
+    }),
+  ],
+  handler,
+);
+```
+
+`evaluate` receives the upstream context as `BaseContext`, so read `ctx.permdock` through a type guard (`permdockOf` in `apps/examples/supabase-middleware/src/flags.ts`) rather than a cast. Use `withPermDock({ protect })` instead when the caller should get Problem Details with the denial reason.
+
+`withOpenFeature` from `@supabase-labs/middleware-openfeature` resolves flags into `ctx.flags` and never gates. Build its evaluation context from the subject PermDock resolved from the verified claims, not from a header the client sets:
+
+```ts
+import { withOpenFeature } from "@supabase-labs/middleware-openfeature";
+
+const flags = pipeline(
+  [
+    withClaims(),
+    withPermDock(),
+    withOpenFeature({
+      client: OpenFeature.getClient(),
+      flags: { "beta-editor": false },
+      context: (_req, ctx: { readonly permdock: PermDock }) => {
+        const user = ctx.permdock.subject.principal;
+        return {
+          targetingKey: user?.id ?? "anonymous",
+          ...(typeof user?.tenant === "string" ? { tenant: user.tenant } : {}),
+        };
+      },
+    }),
+  ],
+  async (_req, ctx) => Response.json(ctx.flags),
+);
+```
+
+A flag decides what a caller sees; a permission decides what the caller may do. Check the permission in the handler even when a flag admitted the request.
+
 ### With `@supabase/ssr`
 
 [`@supabase/ssr`](https://github.com/supabase/ssr) handles cookie sessions for Next.js, SvelteKit, Remix, React Router and Astro; it replaces the `auth-helpers-*` packages. The server client it creates is the one to call `getClaims()` on, exactly as the API section above shows, and the result feeds `subjectFromSupabase` inside the framework adapter's `subject` callback:
@@ -551,7 +601,7 @@ List and revoke sessions through the Supabase Auth API (`auth.admin.listUserSess
 
 `apps/examples/supabase-rls`: a Hono server on `127.0.0.1:3469`. `GET /health`, `GET /rls/authorize` checks that generated SQL never contains `service_role`, and `PATCH /posts/:id` uses `subjectFromSupabase` with fixed JWT-shaped claims. No live Supabase project.
 
-`apps/examples/supabase-middleware`: a `@supabase/middleware` pipeline on `127.0.0.1:3477`. `withClaims` from `@supabase/server` verifies a real ES256 bearer token against an in-process JWKS, `withPermDock()` contributes `ctx.permdock` for `PATCH /posts/:id`, `withPermDock({ protect })` guards `POST /posts/:id/publish` with Problem Details, and `POST /api/permdock` mounts `permdockHandler()`. `GET /dev/token/member` and `GET /dev/token/admin` mint development tokens; a deployment points `withClaims` at the project JWKS instead. No live Supabase project.
+`apps/examples/supabase-middleware`: a `@supabase/middleware` pipeline on `127.0.0.1:3477`. `withClaims` from `@supabase/server` verifies a real ES256 bearer token against an in-process JWKS, `withPermDock()` contributes `ctx.permdock` for `PATCH /posts/:id`, `withPermDock({ protect })` guards `POST /posts/:id/publish` with Problem Details, and `POST /api/permdock` mounts `permdockHandler()`. `GET /posts/review-queue` gates on `post.review` with `withFeatureFlag`, and `GET /flags` resolves OpenFeature flags targeted at the resolved subject ([feature flags](#feature-flags)). `GET /dev/token/member` and `GET /dev/token/admin` mint development tokens; a deployment points `withClaims` at the project JWKS instead. No live Supabase project.
 
 `apps/examples/next-better-supabase`: better-supabase on Next.js 16.3 with Cache Components, over the contracts above instead of copies of them:
 

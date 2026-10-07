@@ -166,6 +166,8 @@ catalog:
   botid: 1.5.11
   "@pgkit/client": 0.6.1
   "@pgkit/migra": 0.6.1
+  "@openfeature/server-sdk": 1.23.0
+  "@supabase-labs/middleware-openfeature": 0.2.0
 
 catalogs:
   ts59:

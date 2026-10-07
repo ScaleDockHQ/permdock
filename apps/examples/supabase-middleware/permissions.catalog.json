@@ -1,9 +1,9 @@
 {
   "$schema": "https://permdock.com/schemas/catalog-v1.json",
   "version": 1,
-  "generatedAt": "2026-10-04T22:04:44.082Z",
+  "generatedAt": "2026-10-07T09:34:23.845Z",
   "generator": "permdock@0.1.0",
-  "fingerprint": "E7G4R7NhectdtojbU3Zsh6WN8PJnXy5K7ZLDvAjp7gk",
+  "fingerprint": "QcKwoWr8den8UOY8PJsGmqZPbHzKIrr_1tmaRxbqDdc",
   "resources": {
     "post": {
       "id": "id",
@@ -99,7 +99,7 @@
       "usages": [
         {
           "file": "src/app.ts",
-          "line": 55,
+          "line": 44,
           "call": "tools"
         },
         {
@@ -109,7 +109,7 @@
         },
         {
           "file": "src/policy.ts",
-          "line": 27,
+          "line": 28,
           "call": "deny"
         }
       ],
@@ -132,6 +132,27 @@
       "rowConditions": true
     },
     {
+      "key": "post.review",
+      "scope": "post:review",
+      "resource": "post",
+      "action": "review",
+      "arity": "collection",
+      "meta": {},
+      "usages": [
+        {
+          "file": "src/flags.ts",
+          "line": 57,
+          "call": "can"
+        },
+        {
+          "file": "src/policy.ts",
+          "line": 27,
+          "call": "allow"
+        }
+      ],
+      "rowConditions": true
+    },
+    {
       "key": "post.update",
       "scope": "post:update",
       "resource": "post",
@@ -141,7 +162,12 @@
       "usages": [
         {
           "file": "src/app.ts",
-          "line": 42,
+          "line": 31,
+          "call": "can"
+        },
+        {
+          "file": "src/app.ts",
+          "line": 73,
           "call": "can"
         },
         {

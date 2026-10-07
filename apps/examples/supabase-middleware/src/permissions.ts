@@ -12,7 +12,7 @@ export const permissions = definePermissions({
   post: resource(Post, {
     id: "id",
     actions: ["read", "update", "delete", "publish"],
-    collection: ["create", "list"],
+    collection: ["create", "list", "review"],
   }),
 });
 
