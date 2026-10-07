@@ -54,6 +54,12 @@ export type Membership = {
   readonly managedBy?: "idp";
   /** Seats this membership holds (`dev-mode`, `editor`); `plan()` grantees match them inside the active tenant. */
   readonly entitlements?: readonly string[];
+  /**
+   * Set when the instance or an ancestor instance is suspended: the
+   * permission keys the membership still grants (`suspension.scopes.<scope>.keep`).
+   * Every other grant, allow or deny, ignores it, and so do role listings.
+   */
+  readonly keep?: readonly string[];
   /** Input only: an instance of the first scope. */
   readonly tenant?: string;
   /** Input only: an instance of the second scope, inside `tenant`. */

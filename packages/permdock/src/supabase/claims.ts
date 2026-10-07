@@ -22,6 +22,8 @@ export type SupabaseMembershipClaim = {
   readonly member?: { readonly group: string };
   readonly managedBy?: "idp";
   readonly entitlements?: readonly string[];
+  /** The instance or an ancestor is suspended: the permission keys the membership still grants. */
+  readonly keep?: readonly string[];
   /** Custom roles in compact form, read by the RLS helpers in `jwt` mode. */
   readonly grants?: Readonly<Record<string, unknown>>;
 };
@@ -212,6 +214,7 @@ function checkMembership(item: unknown, path: Path, issues: Issues): void {
     isStrings,
     "an array of strings",
   );
+  optional(item, "keep", path, issues, isStrings, "an array of strings");
   optional(item, "grants", path, issues, isRecord, "an object");
   const located =
     (own(item, "scope") !== undefined && own(item, "id") !== undefined) ||

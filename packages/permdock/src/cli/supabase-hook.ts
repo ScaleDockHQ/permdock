@@ -20,6 +20,7 @@ import type {
   RlsActiveRow,
   RlsMembershipTable,
   RlsMemberships,
+  RlsSuspendedScope,
   SupabaseHookConfig,
 } from "./types.ts";
 
@@ -30,6 +31,7 @@ import {
   scopeChain,
   scopeList,
 } from "../core/scopes.ts";
+import { keptKeys } from "../supabase/keep.ts";
 import { roleManifest } from "../supabase/roles.ts";
 import {
   AUTHZ_VERSION_TABLE,
@@ -507,7 +509,7 @@ function entriesSql(parts: Parts): string {
     'scope', s.scope, 'id', s.id, 'within', s.within, 'roles', s.roles, 'via', s.via,
     'expiresAt', s.expires_at, 'grantedBy', s.granted_by, 'reason', s.reason,
     'member', case when s.member_group is not null then jsonb_build_object('group', s.member_group) end,
-    'managedBy', s.managed_by, 'entitlements', s.seats
+    'managedBy', s.managed_by, 'entitlements', s.seats${source.sql.keeps ? ", 'keep', s.keep" : ""}
   )) as entry
 from (
 ${source.sql.select(`v_user_${String(index)}`).replaceAll(/^/gmu, "  ")}
@@ -969,8 +971,9 @@ const MEMBERS_OF = "members_of";
 
 function membersOfSql(parts: Parts): string {
   const fn = `${quoteIdent(parts.schema)}.${MEMBERS_OF}`;
+  const keep = parts.sources.some((source) => source.sql.keeps);
   const rows = parts.sources
-    .map((source) => source.sql.list().replaceAll(/^/gmu, "      "))
+    .map((source) => source.sql.list(keep).replaceAll(/^/gmu, "      "))
     .join("\n      union all\n");
   return `-- the live memberships of one scope instance, for a backend that lists members over PostgREST; no client role may execute it
 create or replace function ${fn}(p_scope text, p_id text)
@@ -986,7 +989,7 @@ as $$
         'scope', s.scope, 'id', s.id, 'within', s.within, 'roles', s.roles, 'via', s.via,
         'expiresAt', s.expires_at, 'grantedBy', s.granted_by, 'reason', s.reason,
         'member', case when s.member_group is not null then jsonb_build_object('group', s.member_group) end,
-        'managedBy', s.managed_by, 'entitlements', s.seats
+        'managedBy', s.managed_by, 'entitlements', s.seats${keep ? ", 'keep', s.keep" : ""}
       ))
     ) order by s.user_id, s.roles::text), '[]'::jsonb)
   from (
@@ -1672,13 +1675,17 @@ function trustedHelpers(
   ];
 }
 
-function activeRowManifest(row: RlsActiveRow): SupabaseManifestActiveRow {
+function activeRowManifest(
+  row: RlsActiveRow | RlsSuspendedScope,
+): SupabaseManifestActiveRow {
+  const keep = "keep" in row ? keptKeys(row) : [];
   return {
     table: inSchema(row.table),
     id: row.id,
     ...(row.disabledAt === undefined ? {} : { disabledAt: row.disabledAt }),
     ...(row.status === undefined ? {} : { status: row.status }),
     ...(row.active === undefined ? {} : { active: row.active }),
+    ...(keep.length === 0 ? {} : { keep }),
   };
 }
 

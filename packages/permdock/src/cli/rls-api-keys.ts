@@ -1,10 +1,15 @@
-import type { ApiKeysPlan, RlsSqlContext } from "./rls-sql.ts";
+import type {
+  ApiKeysPlan,
+  CheckedPermission,
+  RlsSqlContext,
+} from "./rls-sql.ts";
 import type { RlsApiKeys } from "./types.ts";
 
 import { SQL_IDENT } from "../core/sql.ts";
 import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
 import {
   activeInstancesSql,
+  grantPermissionSql,
   kindFilterSql,
   quoteIdent,
   quoteLiteral,
@@ -137,14 +142,18 @@ function serviceKeyFilters(
   ctx: RlsSqlContext,
   plan: ApiKeysPlan,
   root: string,
+  permission?: CheckedPermission,
 ): string[] {
   const tenant = `k ->> ${quoteLiteral(plan.tenant)}`;
   return [
     `jsonb_typeof(k) = 'object'`,
     `coalesce(${subjectIdSql(ctx)}::text, '') = ''`,
     `coalesce(${tenant}, '') <> ''`,
-    ...activeInstancesSql(ctx, root, (name) =>
-      name === root ? tenant : undefined,
+    ...activeInstancesSql(
+      ctx,
+      root,
+      (name) => (name === root ? tenant : undefined),
+      permission,
     ),
   ];
 }
@@ -157,7 +166,7 @@ export function serviceKeyIdsSql(
 ): string {
   const kind = kindFilterSql(ctx, "r.role", { value: "credential" });
   const filters = [
-    ...serviceKeyFilters(ctx, plan, root),
+    ...serviceKeyFilters(ctx, plan, root, grantPermissionSql("p_grant")),
     "rp.grant_key = p_grant",
     `rp.scope = ${quoteLiteral(root)}`,
     ...(kind === undefined ? [] : [kind]),

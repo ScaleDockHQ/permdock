@@ -122,6 +122,8 @@ export type SupabaseManifestActiveRow = {
   /** A status column; only a row whose value is in `active` is active. */
   readonly status?: string;
   readonly active?: readonly string[];
+  /** A scope only: the permission keys members of a suspended instance still hold. */
+  readonly keep?: readonly string[];
 };
 
 export type SupabaseManifestRls = {
@@ -159,7 +161,7 @@ export type SupabaseManifestRls = {
     readonly user: SupabaseManifestColumn;
     readonly role: SupabaseManifestRole | readonly SupabaseManifestRole[];
   };
-  /** `rls.suspension`: a suspended user, or a suspended scope instance, holds nothing. */
+  /** `rls.suspension`: a suspended user, or a suspended scope instance, holds nothing but its scope's `keep`. */
   readonly suspension?: {
     readonly users?: SupabaseManifestActiveRow;
     readonly scopes?: Readonly<Record<string, SupabaseManifestActiveRow>>;

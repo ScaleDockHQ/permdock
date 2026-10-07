@@ -1,4 +1,4 @@
-import type { Membership } from "./subject.ts";
+import type { Membership, Subject } from "./subject.ts";
 
 import { idText } from "./ids.ts";
 import { isForbiddenKey } from "./paths.ts";
@@ -239,6 +239,7 @@ export function normalizeMembership(
     member?: { readonly group: string };
     managedBy?: "idp";
     entitlements?: readonly string[];
+    keep?: readonly string[];
   } = {};
   if (typeof raw["via"] === "string") {
     extra.via = raw["via"];
@@ -276,6 +277,16 @@ export function normalizeMembership(
     if (seats.length > 0) {
       extra.entitlements = Object.freeze(seats);
     }
+  }
+  if (raw["keep"] !== undefined) {
+    if (
+      !Array.isArray(raw["keep"]) ||
+      !raw["keep"].every((key) => typeof key === "string" && key !== "")
+    ) {
+      return undefined;
+    }
+    // SAFETY: every item was checked to be a non-empty string above.
+    extra.keep = Object.freeze([...(raw["keep"] as readonly string[])]);
   }
   const named = raw["scope"] !== undefined || raw["id"] !== undefined;
   const legacy = raw["tenant"] !== undefined || raw["team"] !== undefined;
@@ -409,4 +420,34 @@ export function activeFor(
     return true;
   }
   return active !== undefined && scopeIdOf(membership, root) === active;
+}
+
+/** Whether `membership` counts for `key`: always, unless a suspension limits it to `keep`. */
+export function keepsPermission(membership: Membership, key: string): boolean {
+  return membership.keep === undefined || membership.keep.includes(key);
+}
+
+/**
+ * The subject as it stands for one permission: memberships a suspension
+ * limits to other permissions are left out. The same object when none is.
+ */
+export function subjectForPermission(subject: Subject, key: string): Subject {
+  const principal = subject.principal;
+  const memberships = principal?.memberships;
+  if (
+    principal === null ||
+    memberships === undefined ||
+    memberships.every((membership) => keepsPermission(membership, key))
+  ) {
+    return subject;
+  }
+  return {
+    ...subject,
+    principal: {
+      ...principal,
+      memberships: memberships.filter((membership) =>
+        keepsPermission(membership, key),
+      ),
+    },
+  };
 }

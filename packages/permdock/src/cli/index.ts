@@ -24,6 +24,7 @@ export type {
   RlsFunctionMapping,
   RlsMemberships,
   RlsMembershipTable,
+  RlsSuspendedScope,
   RlsSuspension,
   RlsTarget,
   RunResult,

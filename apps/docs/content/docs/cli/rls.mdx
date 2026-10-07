@@ -230,6 +230,32 @@ rls: {
 
 With `users`, `permdock_has` and every `permitted_<scope>_ids` return nothing for a suspended user. With `scopes.<scope>`, a helper drops each membership whose own instance or any ancestor instance is suspended: a disabled organization voids its staff memberships and every customer contact inside it. The check is `exists (select 1 from <table> s where s.<id> = <membership id> and <active>)`, so a missing row counts as suspended. It runs inside the helpers in both modes, and in every check a policy carries inline: the `exists` over a membership table for a role-bound `memberOf`, the root-scope comparison with the tenant claim, and each `permitted_<resource>_ids` graph helper (user suspension only, since a relation names no scope instance). In `jwt` mode that is one indexed lookup per helper call, and a suspension applies on the next statement even though the token still carries the membership. In `database` mode the membership table of a nested scope must carry the id column of every suspendable ancestor (`columns.organization` on the customer table); otherwise `generate` fails. Scope keys accept the `tenant` / `team` aliases. The in-process side reads suspension through the `MembershipSource` ([scopes](/docs/concepts/scopes)).
 
+#### Permissions a suspended scope keeps
+
+Some actions must work on a suspended tenant: cancelling a scheduled deletion, restoring it, exporting its data before a purge. `keep` on a scope lists them, as permission references or keys:
+
+```ts
+rls: {
+  suspension: {
+    scopes: {
+      organization: {
+        table: 'organizations', id: 'id', disabledAt: 'disabled_at',
+        keep: [permissions.organization.restore, permissions.invoice.export],
+      },
+    },
+  },
+}
+```
+
+Members of a suspended instance, and of every instance nested in it, then hold the kept permissions through their roles and nothing else. A membership under several suspended instances holds the keys every one of them keeps. The rule applies wherever the scope's suspension applies:
+
+- `permitted_<scope>_ids(p_grant)` and its `_for` form compare the grant key's permission with the kept keys, in `database` and `jwt` mode, and so do the service-key rows of [API keys](#api-keys).
+- A check a policy carries inline (a role-bound `memberOf`, the root-scope comparison with the tenant claim) knows its permission when it is generated, so a kept permission's policy drops the suspension check and every other one keeps it.
+- `authorize(requested_permission, requested_tenant)` answers a kept permission for a suspended tenant from the member's roles, and `false` for every other.
+- The membership sources (`fromTable`, `fromJunction`) and so the token hook, `subject_for` and `members_of` keep the rows of a suspended instance with a `keep` list of the keys they still grant ([wire format](/docs/concepts/wire-formats#membership-and-custom-role)), so `can()` agrees with RLS.
+
+`member_<scope>_ids()`, a `memberOf` condition without roles that reads it, `permdock_can_assign` and the role listings never count a suspended instance: they name no permission. `permdock doctor` lists each scope's kept keys and warns on a key the definitions do not declare ([PD061](/docs/cli/doctor)).
+
 ### Policy layout
 
 The default is one `PERMISSIVE` policy per table, command and database role, named `{table}_{op}` (`post_select`, `post_update`), so Splinter's `multiple_permissive_policies` lint stays quiet: no role sees two permissive policies for one command. `anyone()` grants are ORed into the `authenticated` policy and also get a `{table}_{op}_anon` policy `TO anon` that holds only them, and denies are one `RESTRICTIVE` `deny_{table}_{op}` policy per role.

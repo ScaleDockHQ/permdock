@@ -63,11 +63,21 @@ export type RlsActiveRow = {
   readonly active?: readonly string[];
 };
 
+/** A scope's active-row table, with the permissions its suspended instances keep. */
+export type RlsSuspendedScope = RlsActiveRow & {
+  /**
+   * Permissions (references or keys) members of a suspended instance, and of
+   * every instance nested in it, still hold: restoring it, cancelling a
+   * scheduled deletion, exporting before a purge.
+   */
+  readonly keep?: readonly (string | { readonly key: string })[];
+};
+
 export type RlsSuspension = {
   /** A suspended user holds no role and no membership. */
   readonly users?: RlsActiveRow;
-  /** Per scope name: a suspended instance voids its memberships and every membership nested under it. */
-  readonly scopes?: Readonly<Record<string, RlsActiveRow>>;
+  /** Per scope name: a suspended instance voids its memberships and every membership nested under it, except for `keep`. */
+  readonly scopes?: Readonly<Record<string, RlsSuspendedScope>>;
 };
 
 export type RlsFunctionMapping = {

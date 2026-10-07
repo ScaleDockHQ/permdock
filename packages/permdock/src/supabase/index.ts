@@ -68,5 +68,6 @@ export type {
   SupabaseSessionLike,
   SupabaseRlsOptions,
   SupabaseSubjectOptions,
+  SupabaseSuspendedScope,
   SupabaseSuspension,
 } from "./types.ts";

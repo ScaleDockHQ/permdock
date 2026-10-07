@@ -24,6 +24,7 @@ function identity(membership: Membership): string {
     [...(membership.eligible ?? [])].toSorted(),
     membership.managedBy ?? null,
     [...(membership.entitlements ?? [])].toSorted(),
+    membership.keep === undefined ? null : [...membership.keep].toSorted(),
   ]);
 }
 

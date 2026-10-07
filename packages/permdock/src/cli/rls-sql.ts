@@ -11,6 +11,7 @@ import type {
   RlsDialect,
   RlsMembershipTable,
   RlsMemberships,
+  RlsSuspendedScope,
   RlsSuspension,
 } from "./types.ts";
 
@@ -27,6 +28,7 @@ import {
   quoteSqlTable,
 } from "../core/sql.ts";
 import { isSqlFunctionField } from "../index.ts";
+import { keptKeys } from "../supabase/keep.ts";
 import { type RoleColumn, roleColumn } from "../supabase/roles.ts";
 import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
 
@@ -121,6 +123,8 @@ export type RlsSqlContext = {
   readonly arrayColumns?: Readonly<Record<string, string>>;
   /** Active-row tables; scope keys are declared names (`checkSuspension` resolves aliases). */
   readonly suspension?: RlsSuspension;
+  /** The permission key of the grant being compiled, for the suspension `keep` of its inline checks. */
+  readonly permission?: string;
   /** `rls.roles`: the app's global-roles table, in place of the generated `user_roles`. */
   readonly roles?: GlobalRoles;
   /** Set when field views compile: grant keys also split by field set. */
@@ -201,7 +205,7 @@ export function checkSuspension(
   if (suspension.users !== undefined) {
     checkActiveRow("rls.suspension.users", suspension.users);
   }
-  const byName: Record<string, RlsActiveRow> = {};
+  const byName: Record<string, RlsSuspendedScope> = {};
   for (const [key, row] of Object.entries(suspension.scopes ?? {})) {
     const name = resolveScope(scopes, key);
     if (name === undefined) {
@@ -210,7 +214,14 @@ export function checkSuspension(
       );
     }
     checkActiveRow(`rls.suspension.scopes.${key}`, row);
-    byName[name] = row;
+    if (row.keep !== undefined && !Array.isArray(row.keep)) {
+      throw new Error(
+        `PermDock CLI: rls.suspension.scopes.${key}.keep is a list of permissions or permission keys`,
+      );
+    }
+    const keep = keptKeys(row);
+    const { keep: _given, ...active } = row;
+    byName[name] = keep.length === 0 ? active : { ...active, keep };
   }
   return {
     ...(suspension.users === undefined ? {} : { users: suspension.users }),
@@ -249,14 +260,33 @@ export function activeUserSql(
 }
 
 /**
+ * The permission an active-instance check is for: a key known when the SQL
+ * is generated, or the SQL of one read at run time. Without one, a
+ * suspended instance keeps nothing.
+ */
+export type CheckedPermission =
+  | { readonly key: string }
+  | { readonly sql: string };
+
+/** The permission of a grant key held in `grant`: `key#group` and `key@level` name `key`. */
+export function grantPermissionSql(grant: string): CheckedPermission {
+  return { sql: `split_part(split_part(${grant}, '#', 1), '@', 1)` };
+}
+
+/**
  * The active-instance check for every suspendable scope on `scope`'s chain:
  * its own and each ancestor's. `idOf` gives the SQL for the id the membership
- * holds for a scope on that chain.
+ * holds for a scope on that chain. A scope's `keep` lets `permission` through
+ * a suspended instance: a kept key known now drops its check, and one read
+ * at run time is compared with the kept keys.
  */
 export function activeInstancesSql(
   ctx: RlsSqlContext,
   scope: string,
   idOf: (name: string) => string | undefined,
+  permission: CheckedPermission | undefined = ctx.permission === undefined
+    ? undefined
+    : { key: ctx.permission },
 ): string[] {
   const parts: string[] = [];
   for (const name of scopeChain(ctx.scopes, scope)) {
@@ -270,7 +300,20 @@ export function activeInstancesSql(
         `PermDock CLI: rls.suspension.scopes.${name} needs the ${name} id on ${scope} memberships: add columns.${name} to the ${scope} memberships table`,
       );
     }
-    parts.push(activeRowSql(row, `(${id})::${scopeTypeOf(ctx, name)}`));
+    const keep = keptKeys(row);
+    if (
+      permission !== undefined &&
+      "key" in permission &&
+      keep.includes(permission.key)
+    ) {
+      continue;
+    }
+    const active = activeRowSql(row, `(${id})::${scopeTypeOf(ctx, name)}`);
+    parts.push(
+      permission !== undefined && "sql" in permission && keep.length > 0
+        ? `(${active} or ${permission.sql} = any(array[${keep.map(quoteLiteral).join(", ")}]::text[]))`
+        : active,
+    );
   }
   return parts;
 }

@@ -58,11 +58,21 @@ export type SupabaseActiveRow = {
   readonly active?: readonly string[];
 };
 
+/** A scope's active-row table, with the permissions its suspended instances keep. */
+export type SupabaseSuspendedScope = SupabaseActiveRow & {
+  /**
+   * Permissions (references or keys) members of a suspended instance, and of
+   * every instance nested in it, still hold; such a membership carries them
+   * as `keep`.
+   */
+  readonly keep?: readonly (string | { readonly key: string })[];
+};
+
 export type SupabaseSuspension = {
   /** A suspended user holds no role and no membership. */
   readonly users?: SupabaseActiveRow;
-  /** Per scope name: a suspended instance voids its memberships and every membership nested under it. */
-  readonly scopes?: Readonly<Record<string, SupabaseActiveRow>>;
+  /** Per scope name: a suspended instance voids its memberships and every membership nested under it, except for `keep`. */
+  readonly scopes?: Readonly<Record<string, SupabaseSuspendedScope>>;
 };
 
 type SupabaseMemberships = {

@@ -56,7 +56,7 @@ import { getResource, listPermissions } from "./permissions.ts";
 import { requiresApproval, type Grant, type Policy } from "./policy.ts";
 import { resolveRelated } from "./relations.ts";
 import { isRowPair, rowIdOf, rowValues } from "./row-pair.ts";
-import { scopeList, tenantOf } from "./scopes.ts";
+import { scopeList, subjectForPermission, tenantOf } from "./scopes.ts";
 import {
   inTeam,
   isMembershipExpired,
@@ -472,12 +472,13 @@ function traceOf(tracer: Tracer): Trace {
 
 export function evaluate(
   policy: Policy,
-  subject: Subject,
+  given: Subject,
   permission: Permission,
   data: unknown,
   options: DecideOptions,
   env: EvalEnv,
 ): Decision {
+  const subject = subjectForPermission(given, permission.key);
   const now = options.now ?? nowSeconds();
   const trusted = options.trusted === true;
   const resource = getResource(policy.permissions, permission.resource);
@@ -492,7 +493,7 @@ export function evaluate(
     );
     finish(
       policy,
-      subject,
+      given,
       permission,
       current,
       final,

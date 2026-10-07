@@ -577,9 +577,10 @@ function sourceRowsSql(
   sources: readonly SqlMembershipSource[],
   user: (source: SqlMembershipSource) => string,
 ): string {
+  const keep = sources.some((source) => source.sql.keeps);
   return sources
     .map((source) =>
-      source.sql.select(user(source)).replaceAll(/^/gmu, "        "),
+      source.sql.select(user(source), keep).replaceAll(/^/gmu, "        "),
     )
     .join("\n        union all\n");
 }

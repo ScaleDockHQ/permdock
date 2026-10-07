@@ -10,6 +10,7 @@ import type {
 import { compact } from "../core/compact.ts";
 import { quoteSqlIdent, quoteSqlLiteral, quoteSqlTable } from "../core/sql.ts";
 import { supabaseTenantClaim } from "./budget.ts";
+import { keptKeys } from "./keep.ts";
 import { type RoleColumn, roleColumn } from "./roles.ts";
 import { PERMDOCK_SCHEMA } from "./sources.ts";
 
@@ -88,7 +89,10 @@ function activeRow(row: SupabaseActiveRow, id: string, text = false): string {
   return `exists (select 1 from ${qualifiedTable(row.table)} s where ${parts.join(" and ")})`;
 }
 
-/** Early `return false` for a suspended user, or a tenant request for a suspended instance. */
+/**
+ * Early `return false` for a suspended user, or a tenant request for a
+ * suspended instance unless its scope keeps the requested permission.
+ */
 function suspendedGuards(
   suspension: SupabaseSuspension | undefined,
   scope: string,
@@ -103,7 +107,12 @@ function suspendedGuards(
   }
   const tenant = suspension?.scopes?.[scope];
   if (tenant !== undefined) {
-    lines.push(`  if requested_tenant is not null and not ${activeRow(tenant, "requested_tenant", true)} then
+    const keep = keptKeys(tenant);
+    const kept =
+      keep.length === 0
+        ? ""
+        : ` and not (requested_permission::text = any(${textArray(keep)}))`;
+    lines.push(`  if requested_tenant is not null and not ${activeRow(tenant, "requested_tenant", true)}${kept} then
     return false; -- suspended ${scope}
   end if;`);
   }

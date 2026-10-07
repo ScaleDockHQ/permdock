@@ -1,6 +1,6 @@
 import type { SqlMembershipSource } from "../supabase/sources.ts";
 import type { RoleRows } from "./global-roles.ts";
-import type { RlsSqlContext } from "./rls-sql.ts";
+import type { CheckedPermission, RlsSqlContext } from "./rls-sql.ts";
 
 import { scopeColumn } from "../conditions/compile.ts";
 import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
@@ -17,6 +17,7 @@ import {
   activeInstancesSql,
   activeUserSql,
   globalKindFilterSql,
+  grantPermissionSql,
   hasMemberFor,
   keyTenantSql,
   kindFilterSql,
@@ -257,8 +258,9 @@ function instancesActive(
   scope: string,
   idOf: (name: string) => string | undefined,
   indent: string,
+  permission?: CheckedPermission,
 ): string[] {
-  return activeInstancesSql(ctx, scope, idOf).map(
+  return activeInstancesSql(ctx, scope, idOf, permission).map(
     (part) => `${indent}and ${part}`,
   );
 }
@@ -469,6 +471,7 @@ function tableBody(ctx: RlsSqlContext, scope: string, type: string): string {
         return held === undefined ? undefined : memberColumn(held);
       },
       "    ",
+      grantPermissionSql("p_grant"),
     ),
   );
   const [owner, ...rest] = filters;
@@ -547,6 +550,7 @@ function claimBody(ctx: RlsSqlContext, scope: string, type: string): string {
             ? `m ->> 'id'`
             : `m -> 'within' ->> ${quoteLiteral(name)}`,
         "    ",
+        grantPermissionSql("p_grant"),
       ),
     ]
       .map((line) => `\n${line}`)
@@ -880,9 +884,10 @@ function renamesSql(renames: readonly (readonly [string, string])[]): {
  * and suspension filters: the statements the token hook runs.
  */
 function sourceRows(sources: readonly SqlMembershipSource[]): string {
+  const keep = sources.some((source) => source.sql.keeps);
   return sources
     .map((source, index) =>
-      source.sql.select(sourceUser(index)).replaceAll(/^/gmu, "    "),
+      source.sql.select(sourceUser(index), keep).replaceAll(/^/gmu, "    "),
     )
     .join("\n    union all\n");
 }
@@ -957,10 +962,11 @@ export function sourceFilters(
   ctx: RlsSqlContext,
   scope: string,
   user: string = subjectIdSql(ctx),
+  permission?: CheckedPermission,
 ): string {
   return [
     ...userActive(ctx, "    ", user),
-    ...instancesActive(ctx, scope, sourceIdOf(scope), "    "),
+    ...instancesActive(ctx, scope, sourceIdOf(scope), "    ", permission),
   ]
     .map((line) => `\n${line}`)
     .join("");
@@ -985,7 +991,7 @@ ${rows}
   where ${signedIn(ctx)}
     and ms.scope = ${quoteLiteral(scope)}
     and rp.grant_key = p_grant
-    and rp.scope = ${quoteLiteral(scope)}${andLine("    ", kindFilterSql(ctx, "r.role", "ms.via"))}${narrow}${sourceFilters(ctx, scope)}`;
+    and rp.scope = ${quoteLiteral(scope)}${andLine("    ", kindFilterSql(ctx, "r.role", "ms.via"))}${narrow}${sourceFilters(ctx, scope, subjectIdSql(ctx), grantPermissionSql("p_grant"))}`;
   const custom = ctx.customRoles;
   if (custom === undefined) {
     return sourcesBodyOf(declared, sources, subjectIdSql(ctx));
@@ -1006,7 +1012,7 @@ ${rows}
 ${rows}
   where ${signedIn(ctx)}
     and ms.scope = ${quoteLiteral(scope)}
-    and not (r.role = any(${textArray(custom.declared)}))${narrow}${sourceFilters(ctx, scope)}
+    and not (r.role = any(${textArray(custom.declared)}))${narrow}${sourceFilters(ctx, scope, subjectIdSql(ctx), grantPermissionSql("p_grant"))}
 ${customKeysSql(
   ctx,
   scope,

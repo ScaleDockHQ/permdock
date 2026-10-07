@@ -246,6 +246,67 @@ describe("named scopes: the scenario", () => {
   });
 });
 
+describe("named scopes: permissions a suspended organization keeps", () => {
+  const keep = (list: readonly Membership[] = []): Membership[] =>
+    list.map((item) =>
+      (item.scope === "organization"
+        ? item.id
+        : item.within?.["organization"]) === "T"
+        ? { ...item, keep: ["invoice.read"] }
+        : item,
+    );
+
+  it("holds only the kept permissions through a suspended instance", async () => {
+    for (const principal of [personas.owner, personas.privateContact]) {
+      const permdock = await createPermDock(policy, principal, {
+        memberships: { membershipsFor: () => keep(principal.memberships) },
+      });
+      expect(readable(permdock, permissions.quote.read)).toEqual([]);
+      expect(readable(permdock, permissions.asset.read)).toEqual([]);
+      expect(readable(permdock, permissions.invoice.read)).not.toEqual([]);
+      expect(permdock.where(permissions.quote.read).condition).toEqual({
+        op: "or",
+        conditions: [],
+      });
+      const snapshot = permdock.snapshot();
+      if (snapshot instanceof Promise) {
+        throw new TypeError("expected an unsigned snapshot");
+      }
+      const client = fromSnapshot(parseSnapshot(JSON.stringify(snapshot)));
+      expect(readable(client, permissions.quote.read)).toEqual([]);
+      expect(readable(client, permissions.invoice.read)).toEqual(
+        readable(permdock, permissions.invoice.read),
+      );
+    }
+    const owner = await createPermDock(policy, personas.owner, {
+      memberships: { membershipsFor: () => keep(personas.owner.memberships) },
+    });
+    expect(owner.heldRoles()).toEqual([]);
+    expect(
+      owner
+        .tenant("B")
+        .heldRoles()
+        .map((item) => item.key),
+    ).toEqual(["owner"]);
+  });
+
+  it("drops a membership whose keep is not a list of keys", async () => {
+    const permdock = await createPermDock(policy, personas.privateContact, {
+      memberships: {
+        membershipsFor: () => {
+          const out: Membership[] = [];
+          for (const item of personas.privateContact.memberships ?? []) {
+            // SAFETY: a malformed keep from an untrusted source, which normalisation must refuse.
+            out.push({ ...item, keep: "invoice.read" as unknown as string[] });
+          }
+          return out;
+        },
+      },
+    });
+    expect(readable(permdock, permissions.invoice.read)).toEqual([]);
+  });
+});
+
 describe("named scopes: snapshot scope list", () => {
   it("denies a scoped grant whose scope the snapshot does not list", async () => {
     const permdock = await permdockFor(personas.privateContact);
