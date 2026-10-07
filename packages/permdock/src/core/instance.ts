@@ -1005,7 +1005,7 @@ export function buildInstance(
       let granted = 0;
       let denied = 0;
       let approvalRequired = 0;
-      const quiet = envFor(false);
+      const quiet: EvalEnv = { ...envFor(false, true), outcomeOnly: true };
       const trusted = options?.trusted ?? true;
       const decideOptions: DecideOptions = {
         ...options,

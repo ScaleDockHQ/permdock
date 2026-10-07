@@ -61,6 +61,11 @@ export type EvalEnv = {
   readonly emit: boolean;
   readonly simulated: boolean;
   readonly skipAlternatives: boolean;
+  /**
+   * The caller reads only `outcome` and drops the decision: no token, no
+   * freeze, no alternatives. Never set where a decision leaves the instance.
+   */
+  readonly outcomeOnly?: boolean;
   readonly customRoles: readonly CustomRole[];
   readonly customGrants: readonly CustomGrant[];
   readonly listeners: ListenerMap;

@@ -251,7 +251,7 @@ function alternativesFor(
       leaf,
       undefined,
       { trusted: true, source: "simulate", now },
-      { ...env, emit: false, skipAlternatives: true },
+      { ...env, emit: false, skipAlternatives: true, outcomeOnly: true },
     );
     return decision.outcome === "granted";
   });
@@ -488,9 +488,14 @@ export function evaluate(
       ? { evaluated: 0, allows: [], denies: [], skipped: [] }
       : undefined;
   const complete = (decision: Decision, membership?: Membership): Decision => {
-    const final: Decision = freezeDeep(
-      tracer === undefined ? decision : { ...decision, trace: traceOf(tracer) },
-    );
+    const final: Decision =
+      env.outcomeOnly === true
+        ? decision
+        : freezeDeep(
+            tracer === undefined
+              ? decision
+              : { ...decision, trace: traceOf(tracer) },
+          );
     finish(
       policy,
       given,
@@ -1091,18 +1096,20 @@ export function evaluate(
       : undefined;
   const token = env.simulated
     ? "pd1.simulated"
-    : decisionToken({
-        key: permission.key,
-        resourceId,
-        principal: subject.principal,
-        actor: subject.actor,
-        fingerprint: policy.fingerprint,
-        version,
-        payload:
-          resourceId === "*" && (next ?? current) !== undefined
-            ? payloadDigest(next ?? current)
-            : undefined,
-      });
+    : env.outcomeOnly === true
+      ? "pd1.outcome"
+      : decisionToken({
+          key: permission.key,
+          resourceId,
+          principal: subject.principal,
+          actor: subject.actor,
+          fingerprint: policy.fingerprint,
+          version,
+          payload:
+            resourceId === "*" && (next ?? current) !== undefined
+              ? payloadDigest(next ?? current)
+              : undefined,
+        });
   const matched = compact<MatchedGrant>({
     ...matchedOf(matchedAllow.grant, permission.key, matchedAllow.breakGlass),
     approval,
