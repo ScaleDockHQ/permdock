@@ -161,6 +161,27 @@ describe("runRls dispatch", () => {
     });
     const trusted = await generate({ trustedReaders: ["support"] });
     expect(trusted.code).toBe(0);
+    const server = await runRlsGenerate({
+      cwd,
+      config: {
+        ...config,
+        rls: { trustedReaders: ["service_role", "support"] },
+      },
+      target: "sql",
+      dialect: "supabase",
+      rbac: false,
+      check: false,
+      skipClosures: false,
+      inlineFunctions: false,
+      write: false,
+      io,
+    });
+    expect(server.code).toBe(0);
+    expect(
+      server.text.split("\n").filter((line) => line.includes("service_role")),
+    ).toEqual([
+      'grant execute on function "permdock".permdock_trusted_role_permissions(text, text, uuid, text) to "service_role", "support";',
+    ]);
   });
 
   it("runs the Supabase advisors on verify --advisors", async () => {
