@@ -5,6 +5,7 @@ import { relationArmSql } from "../conditions/graph-sql.ts";
 import { flattenGrantee, relationCondition } from "../core/grantee.ts";
 import {
   expandRelation,
+  groupEntries,
   isEdgeRelation,
   isFieldRelation,
   isPrincipalRelation,
@@ -79,9 +80,7 @@ export function graphPlan(policy: Policy): GraphPlan {
       if (!isEdgeRelation(spec) || spec.groups === undefined) {
         continue;
       }
-      for (const [resource, groupRelation] of Object.entries(
-        spec.groups.resources,
-      )) {
+      for (const { resource, relation: groupRelation } of groupEntries(spec)) {
         const target = policy.resources.get(resource);
         if (target !== undefined && target.name !== node.name) {
           addRelation(target, groupRelation);
@@ -417,7 +416,7 @@ function groupTargets(entry: GraphResource): readonly string[] {
     for (const name of expandRelation(entry.node, asked)) {
       const spec = entry.node.relations[name];
       const resources = isEdgeRelation(spec)
-        ? Object.keys(spec.groups?.resources ?? {})
+        ? groupEntries(spec).map((group) => group.resource)
         : [];
       for (const resource of resources) {
         if (resource !== entry.node.name) {

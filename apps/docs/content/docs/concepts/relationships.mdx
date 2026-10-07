@@ -80,6 +80,23 @@ folder: resource(Folder, {
 }),
 ```
 
+Some share tables keep each subject kind in its own typed column, such as `user_id uuid` for a person and `team_id bigint` for a team, with no column naming the kind. Give such a group its own `subject` column with `{ relation, subject }`. Without `column`, a row names the principal in the edge's `subject` when that column is not null, and names a group when the group's own column is not null; a row with both set names both. With `column`, the group's id is read from its own column instead of the edge's `subject`.
+
+```ts
+drive: resource(Drive, {
+  relations: {
+    viewer: {
+      edge: 'drive_shares',
+      object: 'drive_id',
+      subject: 'user_id',
+      groups: { resources: { team: { relation: 'member', subject: 'team_id' } } },
+    },
+  },
+}),
+```
+
+`definePermissions` rejects a group without its own `subject` when `groups` has no `column`, and a `direct` value without a `column`. RLS compares each group column as text, so the column types of the share table and the group's table need not match.
+
 A team may be a member of another team. Nesting groups of the same resource stops after 16 levels; a group on another resource starts a fresh count. A cycle of groups of the same resource denies with `relation-depth`. A cycle across resources is rejected by `definePermissions`. Group resources must be declared in the same `definePermissions` call.
 
 ### Links

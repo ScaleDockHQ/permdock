@@ -207,6 +207,7 @@ export type {
   ResourceNode,
   ResourceOptions,
   ComputedRelation,
+  EdgeGroup,
   EdgeGroups,
   EdgeMatch,
   EdgeRelation,

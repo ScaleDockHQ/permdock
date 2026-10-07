@@ -17,6 +17,7 @@ import { ownGet } from "./paths.ts";
 import {
   expandRelation,
   getRegistry,
+  groupEntries,
   isComputedRelation,
   isEdgeRelation,
   isPrincipalRelation,
@@ -561,24 +562,20 @@ export type MemoryRelationsData = {
   >;
 };
 
-/** The holder one edge-table row names for `spec`, or `undefined` when the row does not belong to it. */
-function tableHolder(
+/** The holders one edge-table row names for `spec`: none when the row does not belong to it. */
+function tableHolders(
   resourceName: string,
   spec: EdgeRelation,
   row: Readonly<Record<string, unknown>>,
   id: string,
-): RelationHolder | undefined {
+): readonly RelationHolder[] {
   if (relationId(ownGet(row, spec.object ?? `${resourceName}_id`)) !== id) {
-    return undefined;
+    return [];
   }
   for (const [column, value] of Object.entries(spec.match ?? {})) {
     if (ownGet(row, column) !== value) {
-      return undefined;
+      return [];
     }
-  }
-  const subject = relationId(ownGet(row, spec.subject ?? "user_id"));
-  if (subject === undefined) {
-    return undefined;
   }
   const expiresAt =
     spec.expiresAt === undefined
@@ -586,23 +583,51 @@ function tableHolder(
       : seconds(ownGet(row, spec.expiresAt));
   const period = expiresAt === undefined ? {} : { expiresAt };
   const groups = spec.groups;
-  const kind = groups === undefined ? null : ownGet(row, groups.column);
-  if (
-    groups === undefined ||
-    kind === null ||
-    kind === undefined ||
-    kind === groups.direct
-  ) {
-    return { principal: { id: subject }, ...period };
+  const direct = relationId(ownGet(row, spec.subject ?? "user_id"));
+  if (groups === undefined) {
+    return direct === undefined
+      ? []
+      : [{ principal: { id: direct }, ...period }];
   }
-  const relation =
-    typeof kind === "string" && Object.hasOwn(groups.resources, kind)
-      ? groups.resources[kind]
-      : undefined;
-  // SAFETY: relation is defined only when kind passed the typeof string check above.
-  return relation === undefined
-    ? undefined
-    : { group: { resource: kind as string, id: subject, relation }, ...period };
+  if (groups.column === undefined) {
+    const out: RelationHolder[] =
+      direct === undefined ? [] : [{ principal: { id: direct }, ...period }];
+    for (const group of groupEntries(spec)) {
+      const groupId = relationId(ownGet(row, group.subject));
+      if (groupId !== undefined) {
+        out.push({
+          group: {
+            resource: group.resource,
+            id: groupId,
+            relation: group.relation,
+          },
+          ...period,
+        });
+      }
+    }
+    return out;
+  }
+  const kind = ownGet(row, groups.column);
+  if (kind === null || kind === undefined || kind === groups.direct) {
+    return direct === undefined
+      ? []
+      : [{ principal: { id: direct }, ...period }];
+  }
+  const group = groupEntries(spec).find((entry) => entry.resource === kind);
+  const groupId =
+    group === undefined ? undefined : relationId(ownGet(row, group.subject));
+  return group === undefined || groupId === undefined
+    ? []
+    : [
+        {
+          group: {
+            resource: group.resource,
+            id: groupId,
+            relation: group.relation,
+          },
+          ...period,
+        },
+      ];
 }
 
 function seconds(value: unknown): number | undefined {
@@ -741,10 +766,7 @@ export function memoryRelations(
       if (isEdgeRelation(spec)) {
         const table = data.tables?.[spec.edge];
         if (table !== undefined) {
-          return table.flatMap((row) => {
-            const holder = tableHolder(resource, spec, row, id);
-            return holder === undefined ? [] : [holder];
-          });
+          return table.flatMap((row) => tableHolders(resource, spec, row, id));
         }
         return (data.edges?.[resource]?.[relation] ?? [])
           .filter((edge) => edge.id === id)

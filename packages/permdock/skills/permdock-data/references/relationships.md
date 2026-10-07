@@ -30,6 +30,8 @@ export const permissions = definePermissions({
 | Principal  | `{ principal, period? }`                                   | the row's column is the principal's id, inside `period` (a manager, an account delegate) |
 | Implied    | `{ includes: ['editor'] }`                                 | the principal holds a listed relation                                                    |
 
+`groups` lets an edge row name a team or another group: `{ column: 'kind', resources: { team: 'member' } }` when one column names the kind, or `{ resources: { team: { relation: 'member', subject: 'team_id' } } }` when the share table keeps each subject kind in its own typed column.
+
 A resource that parents itself makes a chain. `restricted` names a boolean column: a restricted row is reached only by grants on itself, never through its ancestors. `links` names to-one references a grant can cross with `through: ['folder', 'team']`.
 
 ## Grant
