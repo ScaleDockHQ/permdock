@@ -20,6 +20,9 @@ export default {
       realtime: {
         topics: {
           "org:{tenant}:chat": { read: project.read, write: project.delete },
+          // project.update also has a member grant with a row condition: only
+          // the unconditional admin grant reaches the topic
+          "org:{tenant}:edits": { read: project.update },
         },
       },
       storage: {

@@ -20,7 +20,7 @@ const PERMISSION_HELPERS = {
 } as const;
 
 /** `permitted_<scope>_ids_by_permission(p_permission)`. */
-function permittedByPermissionHelper(scope: string): string {
+export function permittedByPermissionHelper(scope: string): string {
   return `${permittedIdsHelper(scope)}_by_permission`;
 }
 

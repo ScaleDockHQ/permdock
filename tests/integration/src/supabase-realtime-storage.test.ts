@@ -13,6 +13,7 @@ import { startSupabasePostgres } from "./support/supabase-postgres.ts";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ADMIN = "00000000-0000-4000-8000-0000000000a1";
 const VIEWER = "00000000-0000-4000-8000-0000000000b2";
+const MEMBER = "00000000-0000-4000-8000-0000000000c3";
 
 /**
  * What the Realtime and Storage services' migrations add on a real project,
@@ -59,7 +60,7 @@ create table public.organization_members (organization_id text not null, user_id
 create table public.project (id text primary key, "orgId" text not null, "ownerId" uuid not null);
 create table public.task (id text primary key, "orgId" text not null, "authorId" uuid not null, locked boolean not null default false);
 grant select, insert, update, delete on public.project, public.task to authenticated;
-insert into public.organization_members values ('acme', '${ADMIN}', 'admin'), ('acme', '${VIEWER}', 'viewer');
+insert into public.organization_members values ('acme', '${ADMIN}', 'admin'), ('acme', '${VIEWER}', 'viewer'), ('acme', '${MEMBER}', 'member');
 `;
 
 let db: SupabasePostgres | undefined;
@@ -111,6 +112,7 @@ async function as<T extends Record<string, unknown>>(
 
 const admin = { sub: ADMIN, role: "authenticated" };
 const viewer = { sub: VIEWER, role: "authenticated" };
+const member = { sub: MEMBER, role: "authenticated" };
 const support = { ...admin, act: { kind: "support", sub: "agent-1" } };
 
 const send = (topic: string): string =>
@@ -145,6 +147,14 @@ describe("rls.realtime on supabase/postgres", () => {
     expect(
       await as(viewer, "select 1 from realtime.messages", "team:acme:chat"),
     ).toEqual([]);
+  });
+
+  it("admits only the allows without a row condition for a conditioned permission", async () => {
+    const joinEdits = (claims: Readonly<Record<string, unknown>>) =>
+      as(claims, "select extension from realtime.messages", "org:acme:edits");
+    expect(await joinEdits(admin)).toEqual([{ extension: "broadcast" }]);
+    expect(await joinEdits(member)).toEqual([]);
+    expect(await joinEdits(viewer)).toEqual([]);
   });
 
   it("lets only a holder of the write permission send", async () => {

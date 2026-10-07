@@ -2,7 +2,10 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
-import { helperTablePolicies } from "../../src/cli/helper-calls.ts";
+import {
+  helperCallKeys,
+  helperTablePolicies,
+} from "../../src/cli/helper-calls.ts";
 import { run } from "../../src/cli/run.ts";
 import { supabaseRls } from "../../src/supabase/index.ts";
 import { project, removeProjects } from "./doctor-kit.ts";
@@ -59,7 +62,7 @@ async function generate(
   return { code: result.code, sql, output: result.stdout + result.stderr };
 }
 
-const IDS = `in (select x::text from "permdock".permitted_organization_ids`;
+const IDS = `in (select x::text from "permdock".permitted_organization_ids_by_permission`;
 
 describe("rls.realtime and rls.storage", () => {
   it("writes realtime.messages policies per topic pattern", async () => {
@@ -108,18 +111,25 @@ describe("rls.realtime and rls.storage", () => {
     expect(sql).not.toMatch(/alter table "storage"|grant .* on "storage"/u);
   });
 
-  it("names the keys it checks, so doctor PD037 reads them back", async () => {
+  it("calls only the permission-key forms, so doctor PD037 never flags them", async () => {
     const { sql } = await generate({ realtime, storage });
-    expect(helperTablePolicies(sql)).toContainEqual({
-      table: "realtime.messages",
-      name: "permdock_realtime_org_organization_assets_insert",
-      keys: ["asset.update"],
+    expect(helperTablePolicies(sql)).toEqual([]);
+    expect(helperCallKeys(sql)).toEqual(
+      expect.arrayContaining(["asset.read", "asset.update", "asset.delete"]),
+    );
+  });
+
+  it("admits a permission with row conditions through its allows without one, and says so", async () => {
+    const { code, sql, output } = await generate({
+      storage: {
+        buckets: { b: { scope: "organization", read: { key: "quote.read" } } },
+      },
     });
-    expect(helperTablePolicies(sql)).toContainEqual({
-      table: "storage.objects",
-      name: "permdock_storage_asset_files_delete",
-      keys: ["asset.delete"],
-    });
+    expect(code).toBe(0);
+    expect(sql).toContain(`${IDS}('quote.read') x));`);
+    expect(output).toContain(
+      "rls.storage.buckets['b'].read is quote.read, whose grants carry row conditions",
+    );
   });
 
   it("adds read-only actor policies on the write commands", async () => {
@@ -244,18 +254,6 @@ describe("rls.realtime and rls.storage", () => {
       },
       "supabase",
       "must be a permission reference",
-    ],
-    [
-      "a permission with row conditions",
-      {
-        storage: {
-          buckets: {
-            b: { scope: "organization", read: { key: "quote.read" } },
-          },
-        },
-      },
-      "supabase",
-      "whose grants carry row conditions",
     ],
     [
       "a bucket with no command",
