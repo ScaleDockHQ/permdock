@@ -36,6 +36,9 @@ alter table folder add column key uuid not null default gen_random_uuid();
 alter table folder alter column key drop default;
 create unique index folder_sibling_name on folder ("orgId", "parentId", name);
 create unique index folder_key on folder (key);
+alter table folder add column slug text not null default gen_random_uuid()::text;
+alter table folder alter column slug drop default;
+create unique index folder_sibling_slug on folder ("orgId", coalesce("parentId", ''), lower(slug));
 `;
 
 describe("rls verify --tree over the shared SaaS folder tree", () => {

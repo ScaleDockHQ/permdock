@@ -130,8 +130,18 @@ where a.attrelid = $1::regclass and a.attnum > 0 and not a.attisdropped
 
 const UNIQUE_COLUMNS_SQL = `select distinct a.attname as name
 from pg_index i
-join pg_attribute a on a.attrelid = i.indrelid and a.attnum = any(i.indkey)
-where i.indrelid = $1::regclass and i.indisunique`;
+join pg_attribute a on a.attrelid = i.indrelid
+where i.indrelid = $1::regclass and i.indisunique
+  and a.attnum > 0 and not a.attisdropped
+  and (
+    a.attnum = any(i.indkey)
+    or exists (
+      select 1 from pg_depend d
+      where d.classid = 'pg_class'::regclass and d.objid = i.indexrelid
+        and d.refclassid = 'pg_class'::regclass and d.refobjid = i.indrelid
+        and d.refobjsubid = a.attnum
+    )
+  )`;
 
 function checkedValue(checks: readonly string[]): unknown {
   for (const check of checks) {
