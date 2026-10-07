@@ -15,6 +15,14 @@ export {
   summariseSubject,
   vouchApproval,
 } from "./helpers.ts";
+export {
+  approvalPageSize,
+  decodeApprovalCursor,
+  encodeApprovalCursor,
+  listAllApprovals,
+  pageApprovals,
+} from "./page.ts";
+export type { ApprovalCursorPosition } from "./page.ts";
 export { approverPermissions } from "./permissions.ts";
 export { approverRelations } from "./relations.ts";
 export type { ApproverRelationsOptions } from "./relations.ts";

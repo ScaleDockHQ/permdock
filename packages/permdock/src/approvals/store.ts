@@ -8,7 +8,7 @@ import { freezeDeep } from "../core/freeze.ts";
 import { matchGrantee } from "../core/grantee.ts";
 import { rootMembershipId } from "../core/scopes.ts";
 import { ApprovalError } from "./errors.ts";
-import { pageOf } from "./page.ts";
+import { pageApprovals } from "./page.ts";
 import {
   type ApprovalCancelMeta,
   type ApprovalListFilter,
@@ -500,7 +500,7 @@ export function memoryApprovalStore(
           matching.push(request);
         }
       }
-      return pageOf(matching, query);
+      return pageApprovals(matching, query);
     },
     expire(now: Date = new Date()): number {
       let count = 0;

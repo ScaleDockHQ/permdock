@@ -11,20 +11,24 @@ const MAX_PAGE_SIZE = 200;
 const MAX_PAGES = 1000;
 
 /** The page size of a query: `limit` within 1 to 200, 50 when absent. */
-export function pageSizeOf(limit: number | undefined): number {
+export function approvalPageSize(limit: number | undefined): number {
   if (limit === undefined || !Number.isFinite(limit)) {
     return DEFAULT_PAGE_SIZE;
   }
   return Math.min(Math.max(Math.trunc(limit), 1), MAX_PAGE_SIZE);
 }
 
-type Position = readonly [createdAt: string, token: string];
+/** Where a page starts: the `(createdAt, token)` of the last request before it. */
+export type ApprovalCursorPosition = readonly [
+  createdAt: string,
+  token: string,
+];
 
-function positionOf(request: ApprovalRequest): Position {
+function positionOf(request: ApprovalRequest): ApprovalCursorPosition {
   return [request.createdAt, request.token];
 }
 
-function compare(a: Position, b: Position): number {
+function compare(a: ApprovalCursorPosition, b: ApprovalCursorPosition): number {
   if (a[0] !== b[0]) {
     return a[0] < b[0] ? -1 : 1;
   }
@@ -34,13 +38,15 @@ function compare(a: Position, b: Position): number {
   return a[1] < b[1] ? -1 : 1;
 }
 
-/** The `next` cursor after `request`. */
-export function encodeCursor(request: ApprovalRequest): string {
+/** The `next` cursor after `request`, for a store that pages in its own query. */
+export function encodeApprovalCursor(request: ApprovalRequest): string {
   return JSON.stringify(positionOf(request));
 }
 
 /** The `(createdAt, token)` position a `next` cursor names, or `null` for one that does not parse. */
-export function decodeCursor(cursor: string): Position | null {
+export function decodeApprovalCursor(
+  cursor: string,
+): ApprovalCursorPosition | null {
   try {
     const parsed: unknown = JSON.parse(cursor);
     return Array.isArray(parsed) &&
@@ -54,13 +60,18 @@ export function decodeCursor(cursor: string): Position | null {
   }
 }
 
-/** Pages already-filtered requests in `(createdAt, token)` order. */
-export function pageOf(
+/**
+ * Pages already-filtered requests in `(createdAt, token)` order, as the
+ * built-in stores do: `limit` within 1 to 200 (50 when absent), `cursor` from
+ * the previous page's `next`, and no items for a cursor that does not parse.
+ * A custom `ApprovalStore` that filters in memory returns it from `list`.
+ */
+export function pageApprovals(
   matching: readonly ApprovalRequest[],
   query: ApprovalListQuery,
 ): ApprovalPage {
   const after =
-    query.cursor === undefined ? undefined : decodeCursor(query.cursor);
+    query.cursor === undefined ? undefined : decodeApprovalCursor(query.cursor);
   if (after === null) {
     return { items: [] };
   }
@@ -70,16 +81,16 @@ export function pageOf(
         after === undefined || compare(positionOf(request), after) > 0,
     )
     .toSorted((a, b) => compare(positionOf(a), positionOf(b)));
-  const size = pageSizeOf(query.limit);
+  const size = approvalPageSize(query.limit);
   const items = sorted.slice(0, size);
   const last = items.at(-1);
   return sorted.length > size && last !== undefined
-    ? { items, next: encodeCursor(last) }
+    ? { items, next: encodeApprovalCursor(last) }
     : { items };
 }
 
-/** Every matching request, following `next` until the last page. */
-export function listAll(
+/** Every matching request of `store`, following `next` until the last page (at most 1000 pages of 200). */
+export function listAllApprovals(
   store: ApprovalStore,
   filter: ApprovalListFilter,
 ): Promise<ApprovalRequest[]> {
