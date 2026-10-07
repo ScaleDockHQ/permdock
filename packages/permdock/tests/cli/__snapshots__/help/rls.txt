@@ -43,6 +43,7 @@ OPTIONS
                --revoke-columns    Revoke restricted columns on the table                   
                          --tree    verify: check the relationship closure                   
                    --introspect    verify: compare against the live database                
+                     --advisors    verify: run the Supabase security advisors               
                 --split=<parts>    Write helpers, seeds, policies and hook as separate parts
             --grants-out=<file>    File for the helper and hook privileges db diff drops    
              --seeds-out=<file>    File for the role_permissions seeds                      
