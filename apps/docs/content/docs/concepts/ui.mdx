@@ -163,7 +163,7 @@ The snapshot is state, not server data: it lives in the provider's external stor
 
 - **Loader**: fetch the snapshot in the route loader (TanStack Router, React Router) and pass it to `PermDockProvider`; call `refresh()` after mutations that change roles.
 - **TanStack Query**: `queryClient.invalidateQueries` and `permdock.invalidate(permissions.post)` in the same `onSuccess`, so cached rows and cached endpoint answers expire together.
-- **Server Components**: no hook; `getPermission` and `permdock.filter` on the server, snapshot only for the client tree. Pass the snapshot unawaited as `snapshotPromise` so the layout never blocks: hooks suspend through `use()` and `<Protected pending>` becomes the Suspense fallback, so only the components that read permissions wait ([Next.js adapter](/docs/adapters/next)).
+- **Server Components**: no hook; `getPermission` and `permdock.filter` on the server, snapshot only for the client tree. Pass the snapshot unawaited as `snapshotPromise` so the layout never blocks: hooks answer `status: 'pending'` until it resolves and `<Protected pending>` renders its `pending` slot, so permission UI stays in the static shell; the `suspend` prop suspends readers through `use()` instead ([Next.js adapter](/docs/adapters/next)).
 
 ## Status handling
 

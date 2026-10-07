@@ -247,6 +247,7 @@ export function createPermDock<
         snapshotPromise,
         endpoint: props.endpoint ?? options.endpoint ?? "/api/permdock",
         tenant: props.tenant,
+        suspend: props.suspend,
         children: props.children,
       }),
     );

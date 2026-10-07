@@ -11,6 +11,7 @@ export function renderClientProvider(options: {
   readonly snapshotPromise: PromiseLike<Snapshot | string>;
   readonly endpoint: string | false;
   readonly tenant?: string;
+  readonly suspend?: boolean;
   readonly children: ReactNode;
 }): ReactElement {
   return (
@@ -19,6 +20,7 @@ export function renderClientProvider(options: {
         snapshotPromise: options.snapshotPromise,
         endpoint: options.endpoint,
         tenant: options.tenant,
+        suspend: options.suspend,
       })}
     >
       {options.children}

@@ -64,13 +64,19 @@ export type PermDockProviderProps = (
   | { readonly snapshot: Snapshot | string; readonly snapshotPromise?: never }
   | {
       /**
-       * An unawaited snapshot from a Server Component. Hooks suspend until it resolves, so only
-       * the components that read permissions wait. A rejection reaches the nearest error boundary.
+       * An unawaited snapshot from a Server Component. Hooks never suspend on it: until it
+       * resolves they deny with `status: 'pending'`, then re-render. A rejection fails closed
+       * (`server-only`). Set `suspend` to suspend readers through `use()` instead.
        */
       readonly snapshotPromise: PromiseLike<Snapshot | string>;
       readonly snapshot?: never;
     }
 ) & {
+  /**
+   * With `snapshotPromise`: `true` suspends every hook to the nearest Suspense boundary until it
+   * resolves, and a rejection reaches the nearest error boundary. Defaults to `false`.
+   */
+  readonly suspend?: boolean;
   /**
    * The AuthZEN evaluations endpoint for checks the snapshot cannot answer. `false` never
    * fetches: those checks answer `denied` with reason `server-only`.

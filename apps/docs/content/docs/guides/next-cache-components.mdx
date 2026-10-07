@@ -88,7 +88,20 @@ export default function OrgLayout({ children, params }) {
 }
 ```
 
-The layout never awaits. `PermDockProvider` renders its children at once; only components that read a permission suspend, and they sit inside a boundary. `<Protected pending>` is that boundary for a single gate. Nav links use `prefetch` so the per-link prefetch resolves `params` and the private snapshot before the click.
+The layout never awaits. `PermDockProvider` renders its children at once, and no hook suspends: until the snapshot resolves, `usePermission` denies with `status: 'pending'` and `<Protected pending>` renders its `pending` slot, so permission UI stays in the static shell. When the promise settles, the store re-renders the readers. On a client navigation the prefetched snapshot is already settled and hydrates before paint. Pass `suspend` to the provider only when you want the readers to wait inside a Suspense boundary instead.
+
+````tsx
+"use client";
+import Link from "next/link";
+import { usePermission } from "permdock/react";
+import { permissions } from "@/permissions";
+
+export function BillingLink({ org }) {
+  const { allowed, status } = usePermission(permissions.billing.read);
+  if (status === "pending") return <LinkSkeleton />;
+  return allowed ? <Link href={`/${org}/billing`} prefetch>Billing</Link> : null;
+}
+``` Nav links use `prefetch` so the per-link prefetch resolves `params` and the private snapshot before the click.
 
 ### Rows: portable conditions answer on the client
 
@@ -129,7 +142,7 @@ export async function snapshotForSlug(slug: string) {
   const org = await orgBySlug(slug);
   return org === null ? emptySnapshot() : loadSnapshot(org.id);
 }
-```
+````
 
 ```tsx
 // src/app/[locale]/(app)/[orgSlug]/layout.tsx: synchronous, the nav waits for the snapshot

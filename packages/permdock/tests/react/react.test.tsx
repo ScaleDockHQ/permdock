@@ -296,13 +296,53 @@ describe("permdock/react", () => {
     }
   });
 
-  it("suspends only the readers of a snapshotPromise", async () => {
+  it("answers pending without suspending while a snapshotPromise is pending", async () => {
+    const snapshot = await memberSnapshot();
+    const never = new Promise<typeof snapshot>(() => {
+      // never settles
+    });
+    function Status(): string {
+      const { allowed, status } = usePermission(
+        permissions.post.update,
+        ownPost,
+      );
+      return `${allowed}:${status}:${usePermDock().status()}`;
+    }
+    const shell = renderToString(
+      <PermDockProvider snapshotPromise={never}>
+        <nav>static nav</nav>
+        <Status />
+        <Protected
+          permission={permissions.post.update}
+          data={ownPost}
+          pending={<span>loading</span>}
+          fallback={<span>locked</span>}
+        >
+          <span>edit</span>
+        </Protected>
+      </PermDockProvider>,
+    );
+    expect(shell).toContain("static nav");
+    expect(shell).toContain("false:pending:pending");
+    expect(shell).toContain("loading");
+    expect(shell).not.toContain("locked");
+
+    const { prelude } = await prerender(
+      <PermDockProvider snapshotPromise={Promise.resolve(snapshot)}>
+        <Status />
+      </PermDockProvider>,
+    );
+    const html = await new Response(prelude).text();
+    expect(html).toContain("false:pending:pending");
+  });
+
+  it("suspends only the readers of a snapshotPromise with suspend", async () => {
     const snapshot = await memberSnapshot();
     const never = new Promise<typeof snapshot>(() => {
       // never settles
     });
     const shell = renderToString(
-      <PermDockProvider snapshotPromise={never}>
+      <PermDockProvider snapshotPromise={never} suspend>
         <nav>static nav</nav>
         <Protected
           permission={permissions.post.update}
@@ -318,7 +358,7 @@ describe("permdock/react", () => {
     expect(shell).not.toContain("edit");
 
     const { prelude } = await prerender(
-      <PermDockProvider snapshotPromise={Promise.resolve(snapshot)}>
+      <PermDockProvider snapshotPromise={Promise.resolve(snapshot)} suspend>
         <Protected
           permission={permissions.post.update}
           data={ownPost}
@@ -345,7 +385,7 @@ describe("permdock/react", () => {
 
   it("fails closed for an unverifiable JWS from a snapshotPromise", async () => {
     const { prelude } = await prerender(
-      <PermDockProvider snapshotPromise={Promise.resolve("a.b.c")}>
+      <PermDockProvider snapshotPromise={Promise.resolve("a.b.c")} suspend>
         <Suspense fallback="loading">
           <Protected
             permission={permissions.post.read}

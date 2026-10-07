@@ -16,6 +16,7 @@ export type AdapterStoreOptions = Pick<
   | "maxAge"
   | "verifier"
   | "onServerOnly"
+  | "awaiting"
 >;
 
 export function adapterStore(
@@ -34,6 +35,7 @@ export function adapterStore(
       maxAge: options.maxAge,
       verifier: options.verifier,
       onServerOnly: options.onServerOnly,
+      awaiting: options.awaiting,
     }),
   );
 }
