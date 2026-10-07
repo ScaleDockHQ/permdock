@@ -362,7 +362,7 @@ create policy "permdock_realtime_org_organization_chat_select"
 - Each permission is a reference from your definitions, and one whose grants carry row conditions is refused: these rows have no resource columns to check.
 - An undeclared scope, a dialect other than `supabase`, a duplicate policy name or one over 63 bytes exits 2.
 - The output does not enable RLS, revoke or grant on either table. Supabase owns both, and supautils `policy_grants` lets `postgres` create the policies.
-- With `--split`, the policies go in the `policies` part, after your tables' policies. `supabase db diff` on the `pg-delta` engine captures policies on both tables from a declarative file ([declarative schemas](https://supabase.com/docs/guides/local-development/declarative-database-schemas)). The bucket is a row in `storage.buckets`: create it in a seed or a versioned migration.
+- With `--split`, the policies go in the `policies` part, after your tables' policies. Under pg-delta they go in the `--seeds-out` migration instead, each in a `do` block that creates it only when `to_regclass` finds its table: the Realtime and Storage services create `realtime.messages` and `storage.objects`, so pg-delta's shadow database and a local stack with `[realtime]` or `[storage]` off have neither, and a declarative file that names them cannot apply ([pg-delta](#pg-delta)). Regenerate after enabling a service locally and reset the database to get its policies. The bucket is a row in `storage.buckets`: create it in a seed or a versioned migration.
 - With `rls.readOnlyActors`, the write commands get the restrictive read-only policies too, named `realtime_messages_insert_read_only_actors` and `storage_objects_<op>_read_only_actors`. `--helpers-only` writes none of these policies and says so.
 
 ### API keys
@@ -596,7 +596,7 @@ With `[experimental.pgdelta] enabled = true` in `supabase/config.toml`, and no `
 | `policies` | `public/policies/permdock.sql`                    |
 | `hook`     | `<schema>/functions/custom_access_token_hook.sql` |
 
-`<schema>` is the helper schema (`permdock` unless `rls.schema` says otherwise). pg-delta refuses a declarative file that inserts rows, so the `helpers` part needs the `seeds` part with `--seeds-out`. pg-delta keeps grants and policies, so the hook keeps its `supabase_auth_admin` grants and `--grants-out` is not needed. `permdock supabase hook generate` without `--out` writes the same hook path. An explicit `--out` with `{part}` overrides the layout.
+`<schema>` is the helper schema (`permdock` unless `rls.schema` says otherwise). pg-delta refuses a declarative file that inserts rows, so the `helpers` part needs the `seeds` part with `--seeds-out`. The shadow database pg-delta loads the declarative files into has no `realtime.messages` or `storage.objects`, so with `rls.realtime` or `rls.storage` the `policies` part leaves their policies out and the `seeds` migration carries them, guarded by their tables; the `policies` part then needs the `seeds` part with `--seeds-out` too. pg-delta keeps grants and policies, so the hook keeps its `supabase_auth_admin` grants and `--grants-out` is not needed. `permdock supabase hook generate` without `--out` writes the same hook path. An explicit `--out` with `{part}` overrides the layout.
 
 ```bash
 permdock rls generate --target sql --split helpers,seeds,indexes,policies,hook \
