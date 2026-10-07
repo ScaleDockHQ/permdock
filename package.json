@@ -36,6 +36,7 @@
     "standards:fixtures": "node scripts/fetch-standards-fixtures.ts && oxfmt packages/permdock/tests/fixtures/standards",
     "test": "turbo run test",
     "test:integration": "pnpm --filter @permdock/integration test:integration",
+    "test:nest-11": "scripts/test-nest-11.sh",
     "test:runtimes": "pnpm --filter @permdock/runtimes test:runtimes",
     "typecheck": "turbo run typecheck",
     "typecheck:perf": "node scripts/typecheck-perf.ts",
