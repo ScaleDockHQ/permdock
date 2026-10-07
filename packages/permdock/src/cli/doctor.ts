@@ -67,6 +67,7 @@ import {
   pd053,
   pd056,
 } from "./doctor-sql.ts";
+import { pd061 } from "./doctor-suspension.ts";
 import { listSourceFiles, rel } from "./files.ts";
 import { type Project, loadProject } from "./project.ts";
 import { runSkillsInstall } from "./skills.ts";
@@ -280,6 +281,12 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
     run: (project) => pd056(project.cwd, project.config),
   },
   { code: "PD058", groups: ["powersync"], run: pd058 },
+  {
+    code: "PD061",
+    groups: ["rls", "suspension"],
+    when: (config) => config.rls?.suspension?.scopes !== undefined,
+    run: pd061,
+  },
   { code: "PD044", groups: ["next", "endpoint"], run: pd044 },
 ];
 

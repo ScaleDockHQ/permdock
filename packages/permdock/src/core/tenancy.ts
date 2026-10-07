@@ -61,6 +61,7 @@ export function heldRoleNamesIn(
   for (const membership of principal?.memberships ?? []) {
     if (
       !isMembershipExpired(membership, now) &&
+      membership.keep === undefined &&
       tenantOf(membership, scopes) === tenant
     ) {
       for (const name of membership.roles) {

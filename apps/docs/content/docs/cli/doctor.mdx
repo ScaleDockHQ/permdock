@@ -96,6 +96,7 @@ PD004 compares the catalog on disk with the one `collect` would write from `coll
 | `PD058` | `sync-config.yaml` is missing or differs from the Sync Streams the policy compiles to                                                                                                                                                                                                                      | warning         |
 | `PD059` | The configured `policy` module throws or exports no policy, so every check that reads the policy is skipped                                                                                                                                                                                                | error           |
 | `PD060` | A source file under `collect.srcPath` has a syntax error, so the catalog and the usage report miss what it references                                                                                                                                                                                      | warning         |
+| `PD061` | `rls.suspension.scopes.<scope>.keep` lets members of a suspended instance keep permissions: the kept keys, and any key the definitions do not declare                                                                                                                                                      | warning         |
 
 ### PD001: server-only imports in client entries
 
@@ -366,6 +367,10 @@ Doctor loads the `policy` module once and every policy check reads that load. Wh
 ### PD060: unparsable source file
 
 `collect`, `usage` and doctor scan every file under `collect.srcPath` with `oxc-parser`. A file with a syntax error is scanned only as far as it parses, so a permission it references can be missing from the catalog. The finding names the file, the line and the parser's message.
+
+### PD061: permissions a suspended scope keeps
+
+`rls.suspension.scopes.<scope>.keep` names permissions that members of a suspended instance, and of every instance nested in it, still hold, so a suspended organization can still restore itself or cancel its scheduled deletion ([suspension](/docs/cli/rls#suspension)). The check warns once per scope with the kept keys, so each one is a visible decision in review, and once more for a key the definitions do not declare (a former key from `renamed` is named with its current key): such a key never matches a check, so the suspended scope keeps nothing for it. Keep permission references rather than keys to have the type checker catch a rename. `--only suspension` (or `--only rls`) runs PD061.
 
 ## Why
 

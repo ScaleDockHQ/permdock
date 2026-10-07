@@ -123,6 +123,11 @@
         },
         "managedBy": { "const": "idp" },
         "entitlements": { "type": "array", "items": { "type": "string" } },
+        "keep": {
+          "description": "Set when the instance or an ancestor is suspended: the permission keys the membership still grants.",
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
         "grants": {
           "description": "Custom roles in compact form, read by the helpers in jwt mode.",
           "type": "object"

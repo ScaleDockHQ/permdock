@@ -9,6 +9,7 @@ import type {
 
 import { compact } from "../core/compact.ts";
 import { quoteSqlIdent, quoteSqlLiteral, quoteSqlTable } from "../core/sql.ts";
+import { keptKeys } from "./keep.ts";
 import {
   type RoleColumn,
   type RoleKeys,
@@ -114,10 +115,14 @@ export type MembershipSql = {
    * The `select` of claim rows for one user, with every filter applied.
    * `user` must have the column's type (a `userType` variable, or an untyped
    * `$1` Postgres infers): the column is compared uncast so its index applies.
+   * `keep` adds the `keep` column; it defaults to `keeps`, and a `union`
+   * with a source that keeps passes `true`.
    */
-  select(user: string): string;
+  select(user: string, keep?: boolean): string;
   /** The `select` of member rows for one scope instance (`$1` scope, `$2` id). */
-  list(): string;
+  list(keep?: boolean): string;
+  /** A suspended scope on the source keeps permissions: rows of its suspended instances stay, with a `keep` column. */
+  readonly keeps: boolean;
   /** A text column holding `idp` for rows the identity provider owns; `''` when every row is owned. */
   readonly managed?: string;
   /** Other tables the `select` reads (suspension tables). */
@@ -237,6 +242,51 @@ type Shape = {
   readonly manifest: Omit<SupabaseManifestMembership, "table" | "columns">;
 };
 
+function textArray(values: readonly string[]): string {
+  return `array[${values.map(literal).join(", ")}]::text[]`;
+}
+
+/**
+ * The suspendable instances on the row's chain whose scope keeps
+ * permissions: each one's active check and its kept keys.
+ */
+function keeping(
+  shape: Shape,
+): readonly { readonly active: string; readonly keep: readonly string[] }[] {
+  return Object.entries(shape.suspension?.scopes ?? {}).flatMap(
+    ([name, row]) => {
+      const id = shape.idOf(name);
+      const keep = keptKeys(row);
+      return id === undefined || keep.length === 0
+        ? []
+        : [{ active: `(${id} is null or ${activeRow(row, id)})`, keep }];
+    },
+  );
+}
+
+/**
+ * The keys a row on a suspended chain still grants, as a sorted `jsonb`
+ * array: the keys every suspended instance on it keeps. `null` when nothing
+ * is kept.
+ */
+function keptSql(shape: Shape): string | undefined {
+  const list = keeping(shape);
+  if (list.length === 0) {
+    return undefined;
+  }
+  const keys = [...new Set(list.flatMap((item) => item.keep))].toSorted();
+  const each = list
+    .map((item) => `(${item.active} or k = any(${textArray(item.keep)}))`)
+    .join(" and ");
+  return `(select jsonb_agg(k order by k) from unnest(${textArray(keys)}) k where ${each})`;
+}
+
+function allActive(shape: Shape): string {
+  return keeping(shape)
+    .map((item) => item.active)
+    .join(" and ");
+}
+
 function filters(shape: Shape, owner: string): string[] {
   const lines = [owner];
   if (shape.expiresAt !== undefined) {
@@ -249,17 +299,29 @@ function filters(shape: Shape, owner: string): string[] {
   }
   for (const [name, row] of Object.entries(shape.suspension?.scopes ?? {})) {
     const id = shape.idOf(name);
-    if (id !== undefined) {
+    if (id !== undefined && keptKeys(row).length === 0) {
       lines.push(`(${id} is null or ${activeRow(row, id)})`);
     }
   }
+  const kept = keptSql(shape);
+  if (kept !== undefined) {
+    lines.push(`(${allActive(shape)} or ${kept} is not null)`);
+  }
   return lines;
+}
+
+function keepColumn(shape: Shape): string {
+  const kept = keptSql(shape);
+  return kept === undefined
+    ? "null::jsonb"
+    : `(array_agg(case when ${allActive(shape)} then null else ${kept} end))[1]`;
 }
 
 function selectOf(
   shape: Shape,
   where: readonly string[],
   user: boolean,
+  keep: boolean,
 ): string {
   const fields = [
     ...(user ? [`${shape.userSql}::text as user_id`] : []),
@@ -274,6 +336,7 @@ function selectOf(
     `${shape.memberGroup} as member_group`,
     `${shape.managed} as managed_by`,
     `${shape.seats} as seats`,
+    ...(keep ? [`${keepColumn(shape)} as keep`] : []),
   ];
   const group = [...(user ? [shape.userSql] : []), ...shape.groupBy];
   return `select ${fields.join(", ")}
@@ -337,13 +400,20 @@ function sqlOf(shape: Shape): MembershipSql {
       ...shape.manifest,
       columns: [...new Set(shape.columns)],
     },
-    select: (user: string) =>
-      selectOf(shape, filters(shape, `${shape.userSql} = ${user}`), false),
-    list: () =>
+    keeps: keptSql(shape) !== undefined,
+    select: (user: string, keep = keptSql(shape) !== undefined) =>
+      selectOf(
+        shape,
+        filters(shape, `${shape.userSql} = ${user}`),
+        false,
+        keep,
+      ),
+    list: (keep = keptSql(shape) !== undefined) =>
       selectOf(
         shape,
         filters(shape, `${shape.scope} = $1::text and ${shape.id} = $2::text`),
         true,
+        keep,
       ),
   });
 }
@@ -427,6 +497,15 @@ function membershipOf(row: Record<string, unknown>): Membership | undefined {
         ? Number(row["expires_at"])
         : undefined;
   const seats = strings(row["seats"]);
+  const keep = row["keep"];
+  if (
+    keep !== null &&
+    keep !== undefined &&
+    (!Array.isArray(keep) ||
+      !keep.every((key) => typeof key === "string" && key !== ""))
+  ) {
+    return undefined;
+  }
   return compact<Membership>({
     scope: row["scope"],
     id: row["id"],
@@ -451,6 +530,7 @@ function membershipOf(row: Record<string, unknown>): Membership | undefined {
         : undefined,
     managedBy: row["managed_by"] === "idp" ? "idp" : undefined,
     entitlements: seats.length === 0 ? undefined : seats,
+    keep: keep === null || keep === undefined ? undefined : strings(keep),
   });
 }
 
@@ -731,7 +811,7 @@ export function fromJunction(
       ...sql,
       scope: options.scope,
       holds: [options.scope, ...withinEntries.map(([name]) => name)],
-      list: () =>
+      list: (keep = sql.keeps) =>
         selectOf(
           shape,
           filters(
@@ -739,6 +819,7 @@ export function fromJunction(
             `$1::text = ${literal(options.scope)} and ${col(idColumn)}::text = $2::text`,
           ),
           true,
+          keep,
         ),
     },
     options.query,

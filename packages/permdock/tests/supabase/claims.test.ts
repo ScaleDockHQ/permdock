@@ -146,6 +146,12 @@ describe("supabaseClaims()", () => {
   }
 
   it("accepts the member group a membership source fills, as the JSON Schema does", () => {
+    const kept = {
+      sub,
+      memberships: [{ tenant: "t", roles: ["a"], keep: ["org.restore"] }],
+    };
+    expect(validate(schema, kept)).toEqual({ value: kept });
+    expect(ajv(kept)).toBe(true);
     const claims = {
       sub,
       memberships: [{ tenant: "t", roles: ["a"], member: { group: "night" } }],

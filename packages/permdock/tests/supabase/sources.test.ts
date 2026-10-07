@@ -630,3 +630,77 @@ where mu."user_id" = $1`);
     ).toThrow("fromTable columns.user.on must map exactly one column");
   });
 });
+
+describe("suspension keep", () => {
+  const suspension = {
+    scopes: {
+      tenant: {
+        table: "orgs",
+        id: "id",
+        disabledAt: "closed_at",
+        keep: ["tenant.restore", { key: "tenant.export" }],
+      },
+      project: { table: "projects", id: "id", disabledAt: "archived_at" },
+    },
+  };
+
+  it("keeps rows of a suspended instance with the keys they still grant", () => {
+    const source = fromJunction({
+      table: "project_members",
+      scope: "project",
+      roles: "role",
+      within: { tenant: "org_id" },
+      suspension,
+    });
+    expect(source.sql.keeps).toBe(true);
+    const select = source.sql.select("$1");
+    const tenant = `(m."org_id"::text is null or exists (select 1 from "public"."orgs" s where s."id"::text = (m."org_id"::text)::text and s."closed_at" is null))`;
+    const kept = `(select jsonb_agg(k order by k) from unnest(array['tenant.export', 'tenant.restore']::text[]) k where (${tenant} or k = any(array['tenant.export', 'tenant.restore']::text[])))`;
+    expect(select).toContain(
+      `(array_agg(case when ${tenant} then null else ${kept} end))[1] as keep`,
+    );
+    expect(select).toContain(`(${tenant} or ${kept} is not null)`);
+    expect(select).toContain('"public"."projects" s');
+    expect(source.sql.list()).toContain(" as keep");
+  });
+
+  it("adds the keep column only where a source keeps or a union needs it", () => {
+    const plain = fromTable({ table: "memberships" });
+    expect(plain.sql.keeps).toBe(false);
+    expect(plain.sql.select("$1")).not.toContain("keep");
+    expect(plain.sql.select("$1", true)).toContain("null::jsonb as keep");
+    expect(plain.sql.list(true)).toContain("null::jsonb as keep");
+  });
+
+  it("reads keep into the membership and drops a malformed one", async () => {
+    const { query } = recording([
+      { scope: "tenant", id: "o1", roles: ["owner"], keep: ["tenant.restore"] },
+      { scope: "tenant", id: "o2", roles: ["owner"], keep: null },
+      { scope: "tenant", id: "o3", roles: ["owner"], keep: "tenant.restore" },
+    ]);
+    const source = fromTable({ table: "memberships", suspension, query });
+    expect(await source.membershipsFor(principal, {})).toEqual([
+      { scope: "tenant", id: "o1", roles: ["owner"], keep: ["tenant.restore"] },
+      { scope: "tenant", id: "o2", roles: ["owner"] },
+    ]);
+  });
+
+  it("refuses a keep that is not a list of keys", () => {
+    expect(() =>
+      fromTable({
+        table: "memberships",
+        suspension: {
+          scopes: {
+            tenant: {
+              table: "orgs",
+              id: "id",
+              disabledAt: "closed_at",
+              // SAFETY: a malformed keep from an untyped config, which the source must refuse.
+              keep: "tenant.restore" as unknown as readonly string[],
+            },
+          },
+        },
+      }),
+    ).toThrow("a suspension keep is a list of permissions or permission keys");
+  });
+});

@@ -544,6 +544,32 @@ describe("permdock supabase hook generate", () => {
     expect(plain.rls.assignments).toBeUndefined();
   });
 
+  it("writes keep for a source whose suspended scope keeps permissions", async () => {
+    const keep = `{ scopes: { organization: { table: 'organizations', id: 'id', disabledAt: 'disabled_at', keep: ['invoice.read'] } } }`;
+    const { code, sql, cwd } = await generate(
+      `{ memberships: [
+        fromJunction({ table: 'organization_users', scope: 'organization', roles: 'role', suspension: ${keep} }),
+        fromJunction({ table: 'customer_contacts', scope: 'customer', within: { organization: 'organization_id' }, roles: ['contact'] }),
+      ] }`,
+      [],
+      `{ suspension: ${keep} }`,
+    );
+    expect(code).toBe(0);
+    expect(
+      sql.match(/'entitlements', s\.seats, 'keep', s\.keep/gu),
+    ).toHaveLength(3);
+    expect(sql).toContain("null::jsonb as keep");
+    const manifest: SupabaseHookManifest = JSON.parse(
+      (await run(["supabase", "inspect", "--json"], { cwd })).stdout,
+    );
+    expect(manifest.rls.suspension?.scopes?.["organization"]).toEqual({
+      table: "public.organizations",
+      id: "id",
+      disabledAt: "disabled_at",
+      keep: ["invoice.read"],
+    });
+  });
+
   it("calls each supabase.hook.before function first and returns its error", async () => {
     const { code, sql, cwd } = await generate(
       `{ memberships: [${SOURCES}], before: ['auth_checks.require_sso', 'auth_checks.require_mfa'], claims: { features: 'auth_checks.feature_claims' } }`,

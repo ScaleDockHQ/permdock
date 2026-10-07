@@ -92,6 +92,7 @@ import {
 import {
   normalizeMemberships,
   resolveScope,
+  keepsPermission,
   rootScope,
   scopeList,
   tenantOf,
@@ -177,7 +178,7 @@ function heldRoleNames(
     scope === undefined ? (subject.principal.roles ?? []) : [],
   );
   for (const membership of subject.principal.memberships ?? []) {
-    if (isMembershipExpired(membership, now)) {
+    if (isMembershipExpired(membership, now) || membership.keep !== undefined) {
       continue;
     }
     const matches =
@@ -318,15 +319,20 @@ export function collectSnapshotGrants(
       continue;
     }
     for (const entry of held) {
-      if (scoped.every((item) => item.kind === "role" && holds(entry, item))) {
+      if (
+        keepsPermission(entry.membership, grant.permission.key) &&
+        scoped.every((item) => item.kind === "role" && holds(entry, item))
+      ) {
         out.push({ grant: merged, membership: entry.membership });
       }
     }
   }
   for (const { grant, role } of customGrants) {
     const globalHeld = holdsGlobalCustomRole(subject.principal?.roles, role);
-    const holders = held.filter((entry) =>
-      holdsCustomRole(entry.membership, role, scopes),
+    const holders = held.filter(
+      (entry) =>
+        keepsPermission(entry.membership, grant.permission.key) &&
+        holdsCustomRole(entry.membership, role, scopes),
     );
     if (holders.length === 0 && !globalHeld) {
       continue;

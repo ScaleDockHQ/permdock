@@ -230,14 +230,29 @@ function stringRecord(
   return out;
 }
 
+function keptKeys(value: unknown): readonly string[] | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const keys = value.filter(
+    (key): key is string => typeof key === "string" && key !== "",
+  );
+  return keys.length === value.length ? keys : [];
+}
+
 function claimExtras(record: Record<string, unknown>): {
   readonly via?: string;
   readonly expiresAt?: number;
+  readonly keep?: readonly string[];
 } {
   return compact({
     via: typeof record["via"] === "string" ? record["via"] : undefined,
     expiresAt:
       typeof record["expiresAt"] === "number" ? record["expiresAt"] : undefined,
+    keep: keptKeys(record["keep"]),
   });
 }
 

@@ -143,6 +143,14 @@ function asMembership(item: unknown): Membership | undefined {
   ) {
     return undefined;
   }
+  const keep = item["keep"];
+  if (
+    keep !== undefined &&
+    (!Array.isArray(keep) ||
+      !keep.every((key) => typeof key === "string" && key !== ""))
+  ) {
+    return undefined;
+  }
   return compact<Membership>({
     roles,
     scope,
@@ -164,6 +172,7 @@ function asMembership(item: unknown): Membership | undefined {
           (seat): seat is string => typeof seat === "string",
         )
       : undefined,
+    keep: keep === undefined ? undefined : asStrings(keep),
   });
 }
 

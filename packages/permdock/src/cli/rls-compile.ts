@@ -652,7 +652,10 @@ export function compileGrants(
       }
       continue;
     }
-    const rowCtx = contextFor(item.grant.permission.resource);
+    const rowCtx = {
+      ...contextFor(item.grant.permission.resource),
+      permission: grant.permission.key,
+    };
     noteConditions(entry, warnings);
     for (const field of [
       ...indexedFields(entry.using),
@@ -692,10 +695,10 @@ export function compileGrants(
       accessExpr = `${subjectClaimSql(ctx, "client_id")} is not null or ${subjectClaimJsonSql(ctx, "act")} is not null`;
     }
     if (access.kind === "resource" && !linkOnly) {
-      accessExpr = compileConditionSql(
-        resourceCondition(item, policy, ctx),
-        ctx,
-      );
+      accessExpr = compileConditionSql(resourceCondition(item, policy, ctx), {
+        ...ctx,
+        permission: grant.permission.key,
+      });
     }
     if (linkOnly) {
       warnings.push(

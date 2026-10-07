@@ -160,6 +160,18 @@ describe("mapClaimsToSubject memberships", () => {
     )?.memberships;
   }
 
+  it("keeps the keys a suspended instance keeps, and none from a malformed keep", () => {
+    expect(
+      memberships([
+        { scope: "tenant", id: "o1", roles: ["owner"], keep: ["org.restore"] },
+        { scope: "tenant", id: "o2", roles: ["owner"], keep: "org.restore" },
+      ]),
+    ).toEqual([
+      { scope: "tenant", id: "o1", roles: ["owner"], keep: ["org.restore"] },
+      { scope: "tenant", id: "o2", roles: ["owner"], keep: [] },
+    ]);
+  });
+
   it("reads named-scope entries with within, via and expiry", () => {
     expect(
       memberships([

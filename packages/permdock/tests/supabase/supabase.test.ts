@@ -67,6 +67,19 @@ describe("subjectFromSupabase", () => {
     ]);
   });
 
+  it("reads the keys a suspended instance keeps and drops a malformed keep", () => {
+    expect(
+      subjectFromSupabase({
+        sub: "user-6",
+        role: "authenticated",
+        memberships: [
+          { tenant: "org-1", roles: ["owner"], keep: ["org.restore"] },
+          { tenant: "org-2", roles: ["owner"], keep: [7] },
+        ],
+      }).principal?.memberships,
+    ).toEqual([{ tenant: "org-1", roles: ["owner"], keep: ["org.restore"] }]);
+  });
+
   it("maps resource-scoped memberships from the hook claim", () => {
     const subject = subjectFromSupabase({
       sub: "user-5",

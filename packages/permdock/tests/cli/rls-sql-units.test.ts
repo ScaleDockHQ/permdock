@@ -116,6 +116,70 @@ describe("suspension rows", () => {
   });
 });
 
+describe("suspension keep", () => {
+  const keeping = ctx({
+    suspension: {
+      scopes: {
+        org: {
+          table: "orgs",
+          id: "id",
+          disabledAt: "d",
+          keep: ["org.restore", { key: "org.export" }],
+        },
+        team: { table: "teams", id: "id", disabledAt: "d" },
+      },
+    },
+  });
+  const idOf = (name: string) => (name === "org" ? "m.org_id" : "m.team_id");
+  const org =
+    'exists (select 1 from "public"."orgs" s where s."id" = (m.org_id)::uuid and s."d" is null)';
+  const team =
+    'exists (select 1 from "public"."teams" s where s."id" = (m.team_id)::uuid and s."d" is null)';
+
+  it("normalises references to sorted keys", () => {
+    expect(
+      checkSuspension(keeping.suspension, scopes)?.scopes?.["org"],
+    ).toEqual({
+      table: "orgs",
+      id: "id",
+      disabledAt: "d",
+      keep: ["org.export", "org.restore"],
+    });
+    expect(() =>
+      checkSuspension(
+        {
+          scopes: {
+            org: { table: "orgs", id: "id", disabledAt: "d", keep: [""] },
+          },
+        },
+        scopes,
+      ),
+    ).toThrow("a list of permissions or permission keys");
+  });
+
+  it("drops the check of a scope that keeps a key known now", () => {
+    expect(
+      activeInstancesSql(keeping, "team", idOf, { key: "org.restore" }),
+    ).toEqual([team]);
+    expect(
+      activeInstancesSql(keeping, "team", idOf, { key: "team.read" }),
+    ).toEqual([team, org]);
+    expect(
+      activeInstancesSql({ ...keeping, permission: "org.export" }, "org", idOf),
+    ).toEqual([]);
+    expect(activeInstancesSql(keeping, "org", idOf)).toEqual([org]);
+  });
+
+  it("compares a permission read at run time with the kept keys", () => {
+    expect(activeInstancesSql(keeping, "team", idOf, { sql: "p.key" })).toEqual(
+      [
+        team,
+        `(${org} or p.key = any(array['org.export', 'org.restore']::text[]))`,
+      ],
+    );
+  });
+});
+
 describe("types and names", () => {
   it("reads scope types by declaration, then position", () => {
     const typed = ctx({

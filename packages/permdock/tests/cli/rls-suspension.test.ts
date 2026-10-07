@@ -216,6 +216,72 @@ describe("rls.suspension", () => {
   });
 });
 
+describe("rls.suspension keep", () => {
+  const KEEP = {
+    ...SUSPENSION,
+    scopes: {
+      ...SUSPENSION.scopes,
+      organization: {
+        ...SUSPENSION.scopes.organization,
+        keep: ["invoice.read"],
+      },
+    },
+  };
+  const kept = `split_part(split_part(p_grant, '#', 1), '@', 1) = any(array['invoice.read']::text[])`;
+
+  it.each(["database", "jwt"])(
+    "lets a kept permission through a suspended organization in %s mode",
+    async (authorize) => {
+      const { code, sql } = await generate({
+        dialect: "supabase",
+        tenantType: "text",
+        authorize,
+        ...(authorize === "database" ? { memberships: MEMBERSHIPS } : {}),
+        suspension: KEEP,
+      });
+      expect(code).toBe(0);
+      expect(helper(sql, "permitted_organization_ids")).toContain(kept);
+      expect(helper(sql, "permitted_customer_ids")).toContain(kept);
+      expect(helper(sql, "member_organization_ids")).not.toContain(
+        "invoice.read",
+      );
+    },
+  );
+
+  it("keeps the kept permission in authorize()", async () => {
+    const { sql } = await generate(
+      {
+        tenantType: "text",
+        authorize: "jwt",
+        memberships: MEMBERSHIPS,
+        suspension: KEEP,
+      },
+      ["--rbac", "supabase", "--dialect", "supabase"],
+    );
+    const authorize = sql.slice(
+      sql.indexOf('function "permdock"."authorize"('),
+    );
+    expect(authorize).toContain(
+      `s."disabled_at" is null) and not (requested_permission::text = any(array['invoice.read']::text[])) then`,
+    );
+  });
+
+  it("refuses a keep that is not a list", async () => {
+    const result = await generate({
+      dialect: "supabase",
+      tenantType: "text",
+      authorize: "jwt",
+      suspension: {
+        scopes: {
+          organization: { ...SUSPENSION.scopes.organization, keep: "x" },
+        },
+      },
+    });
+    expect(result.code).toBe(2);
+    expect(result.output).toContain("rls.suspension.scopes.organization.keep");
+  });
+});
+
 describe("the Supabase token hook", () => {
   const rbac = ["--rbac", "supabase", "--dialect", "supabase"];
 
