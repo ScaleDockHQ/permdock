@@ -9,6 +9,9 @@
     "web": {
       "bundler": "metro",
       "output": "single"
+    },
+    "experiments": {
+      "reactCompiler": true
     }
   }
 }

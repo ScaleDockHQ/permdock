@@ -1,9 +1,9 @@
-import { Text, View } from "react-native";
+import { ScrollView, Text } from "react-native";
 
 export default function Publish() {
   return (
-    <View>
+    <ScrollView contentInsetAdjustmentBehavior="automatic">
       <Text>publish queue</Text>
-    </View>
+    </ScrollView>
   );
 }

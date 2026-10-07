@@ -1,12 +1,12 @@
 import { Protected } from "permdock/react-native";
-import { Button, Text, View } from "react-native";
+import { Button, ScrollView, Text } from "react-native";
 
 import { setRoles } from "../local.ts";
 import { ownPost, permissions } from "../permissions.ts";
 
 export default function Home() {
   return (
-    <View>
+    <ScrollView contentInsetAdjustmentBehavior="automatic">
       <Protected
         permission={permissions.post.update}
         data={ownPost}
@@ -33,6 +33,6 @@ export default function Home() {
           setRoles(["member"]);
         }}
       />
-    </View>
+    </ScrollView>
   );
 }

@@ -5,6 +5,8 @@ import { source } from "../local.ts";
 import { ownPost, permissions } from "../permissions.ts";
 import { storage } from "../storage.ts";
 
+// JS tabs, not `expo-router/unstable-native-tabs`: SDK 57 native tabs have no web view, and toggling
+// `hidden` when a role syncs remounts the navigator and resets its state.
 function AppTabs() {
   const publish = usePermission(permissions.post.publish, ownPost);
   return (
