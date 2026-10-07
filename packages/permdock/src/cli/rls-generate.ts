@@ -38,6 +38,7 @@ import {
   emitSql,
   migrationOut,
   migrationSql,
+  policySql,
 } from "./rls-emit.ts";
 import { fieldViews, rowBranches } from "./rls-fields.ts";
 import { roleNames } from "./rls-grants.ts";
@@ -65,6 +66,7 @@ import {
   rbacScaffold,
   resolveAuthorize,
 } from "./rls-rbac.ts";
+import { realtimeStoragePolicies } from "./rls-realtime-storage.ts";
 import { shimGrants, shimsSql } from "./rls-shims.ts";
 import {
   checkSuspension,
@@ -527,6 +529,45 @@ export async function runRlsGenerate(input: {
             actorKinds,
           ),
         ];
+  let tablePolicies: readonly CompiledPolicy[];
+  try {
+    tablePolicies = realtimeStoragePolicies(
+      ctx,
+      {
+        scopes: new Set(ctx.scopes.map((scope) => scope.name)),
+        keys: new Set(
+          listPermissions(policy.vocabulary.permissions).map(
+            (leaf) => leaf.key,
+          ),
+        ),
+        rowConditions: new Set(policyRowConditionKeys(policy)),
+      },
+      compact({ realtime: rls?.realtime, storage: rls?.storage }),
+    );
+  } catch (cause) {
+    return { code: 2, output: describeError(cause), text: "" };
+  }
+  if (tablePolicies.length > 0 && helpersOnly) {
+    warnings.push(
+      "rls.realtime and rls.storage add policies, and --helpers-only writes none: no realtime.messages or storage.objects policy is written",
+    );
+  }
+  const helperTables =
+    tablePolicies.length === 0 || helpersOnly
+      ? undefined
+      : [
+          "-- Supabase Realtime and Storage: rls.realtime and rls.storage. RLS on both tables is Supabase's.",
+          ...[
+            ...tablePolicies,
+            ...(actorKinds === undefined
+              ? []
+              : readOnlyActorPolicies(
+                  tablePolicies,
+                  subjectClaimJsonSql(ctx, "act"),
+                  actorKinds,
+                )),
+          ].map(policySql),
+        ].join("\n");
   const rootMapped =
     ctx.scopes[0] === undefined
       ? undefined
@@ -649,7 +690,12 @@ export async function runRlsGenerate(input: {
     input.target === "sql"
       ? ""
       : dialectRoles(
-          migrationSql(policies, preamble, force, views),
+          migrationSql(
+            policies,
+            withHelperTables(preamble, helperTables),
+            force,
+            views,
+          ),
           ctx.dialect,
         );
   const migrationRel = migration === "" ? undefined : migrationOut(outRel);
@@ -659,7 +705,10 @@ export async function runRlsGenerate(input: {
   switch (input.target) {
     case "sql":
       text = dialectRoles(
-        emitSql(policies, preamble, force, views),
+        withHelperTables(
+          emitSql(policies, preamble, force, views),
+          helperTables,
+        ),
         ctx.dialect,
       );
       break;
@@ -743,7 +792,10 @@ export async function runRlsGenerate(input: {
     text,
     helpersOnly,
     sql: () => ({
-      policies: dialectRoles(emitSql(policies, "", force, views), ctx.dialect),
+      policies: dialectRoles(
+        withHelperTables(emitSql(policies, "", force, views), helperTables),
+        ctx.dialect,
+      ),
       helpers: dialectRoles(
         emitSql([], preamble, false, helpersOnly ? views : []),
         ctx.dialect,
@@ -783,6 +835,18 @@ export async function runRlsGenerate(input: {
 }
 
 /** Whether `--split` names `part`, which then leaves the helpers or the warnings. */
+/** Appends the `realtime.messages` and `storage.objects` policies, which never get `tableSql`. */
+function withHelperTables(
+  sql: string,
+  helperTables: string | undefined,
+): string {
+  if (helperTables === undefined) {
+    return sql;
+  }
+  const tables = `${helperTables.trimEnd()}\n`;
+  return sql.trim() === "" ? tables : `${sql.trimEnd()}\n\n${tables}`;
+}
+
 function splitsPart(raw: string | undefined, part: SplitPart): boolean {
   const split = parseSplit(raw);
   return typeof split !== "string" && split?.includes(part) === true;

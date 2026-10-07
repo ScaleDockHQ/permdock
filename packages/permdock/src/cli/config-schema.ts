@@ -71,6 +71,8 @@ const RLS = {
   ownershipTriggers: true,
   readOnlyActors: true,
   apiKeys: true,
+  realtime: true,
+  storage: true,
 } as const satisfies Record<keyof RlsConfig, true>;
 
 const SUPABASE = { hook: true } as const satisfies Record<
