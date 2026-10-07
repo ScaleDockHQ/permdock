@@ -89,6 +89,7 @@
       ],
       "env": [
         "DOCS_ORIGIN",
+        "EXPOSE_TESTING_API",
         "NEXT_PUBLIC_*",
         "PERMDOCK_COLLECT",
         "SENTRY_ORG",
@@ -112,6 +113,11 @@
     "test": {
       "dependsOn": ["build", "^build"],
       "inputs": ["$TURBO_DEFAULT$"]
+    },
+    "test:instant": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "passThroughEnv": ["DOCKER_HOST", "TESTCONTAINERS_*"]
     },
     "size": {
       "dependsOn": ["^build"],

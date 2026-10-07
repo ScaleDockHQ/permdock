@@ -3,5 +3,11 @@
   "compilerOptions": {
     "allowImportingTsExtensions": true
   },
-  "include": ["next-env.d.ts", "src", "next.config.ts", ".next/types/**/*.ts"]
+  "include": [
+    "next-env.d.ts",
+    "src",
+    "tests",
+    "*.config.ts",
+    ".next/types/**/*.ts"
+  ]
 }
