@@ -99,6 +99,7 @@ PD004 compares the catalog on disk with the one `collect` would write from `coll
 | `PD061` | `rls.suspension.scopes.<scope>.keep` lets members of a suspended instance keep permissions: the kept keys, and any key the definitions do not declare                                                                                                                                                      | warning         |
 | `PD062` | A migration reads or sets a legacy `request.jwt.claim.<name>` setting                                                                                                                                                                                                                                      | warning         |
 | `PD063` | A migration changes or drops a reserved Supabase role, or grants a reserved membership, which supautils rejects                                                                                                                                                                                            | error           |
+| `PD064` | `rls.assignments` guards a table (a membership table, the global-roles table or a listed table) that no `permdock_assignment` trigger is created on in the migrations or the `rls generate` output                                                                                                         | warning         |
 
 ### PD001: server-only imports in client entries
 
@@ -387,6 +388,10 @@ Supabase runs the supautils extension, which refuses some role statements to `po
 - A grant of a reserved membership, through `grant … to` or `create role … in role`: `authenticator`, `dashboard_user`, `pgbouncer`, the `supabase_*` admin roles and `pg_read_server_files`, `pg_write_server_files` and `pg_execute_server_program`.
 
 The lists are those of supautils 3.4.4 on `supabase/postgres` 17.11. Grant your own role to `authenticator` instead: `grant app_reader to authenticator` is allowed. `permdock rls generate` refuses to write a rejected statement. `--only sql` (or `--only supabase`) runs PD063.
+
+### PD064: assignment trigger missing
+
+With `rls.assignments` and a role that declares `assigns`, every membership table `rls.memberships` maps, the global-roles table (`rls.roles`, else `supabase.hook.roles`) and every table in `rls.assignments.tables` should carry the `permdock_assignment` trigger `permdock rls generate` writes ([assignment triggers](/docs/cli/rls#assignment-triggers)). The check reads the `.sql` files under `doctor.migrations` and the `rls.out` file (its `helpers` and `policies` parts with `{part}`) and warns once per guarded table no `create trigger "permdock_assignment" ... on <table>` names: until a migration applies it, a client that may write the table may write any role there, its own included. Run `permdock rls generate` and apply its output, or point `rls.out` or `doctor.migrations` at where the output lives. `--only assignments` (or `--only rls`) runs PD064.
 
 ## Why
 

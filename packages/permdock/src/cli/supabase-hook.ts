@@ -48,7 +48,12 @@ import { asPolicy, loadModule, pickNamed } from "./load.ts";
 import { GRANTS_MARKER, HOOK_MARKER, hookMarkerFields } from "./markers.ts";
 import { API_KEY_ALLOWS, apiKeyFields } from "./rls-api-keys.ts";
 import { HELPERS } from "./rls-helpers.ts";
-import { ASSIGNMENTS, OWNERSHIP, ownershipRules } from "./rls-ownership.ts";
+import {
+  ASSIGNMENTS,
+  OWNERSHIP,
+  guardedTables,
+  ownershipRules,
+} from "./rls-ownership.ts";
 import { authAdminRead, hookUri, resolveAuthorize } from "./rls-rbac.ts";
 import {
   activeRowSql,
@@ -1739,24 +1744,7 @@ function rlsSettings(
   const assigned =
     rls?.assignments === undefined
       ? undefined
-      : [
-          ...parts.scopes.flatMap((scope) => {
-            const mapped = memberForTable(
-              {
-                scopes: parts.scopes,
-                ...(rls.memberships === undefined
-                  ? {}
-                  : { memberships: rls.memberships }),
-              },
-              scope.name,
-            );
-            return mapped === undefined ? [] : [mapped.table];
-          }),
-          ...(rls.assignments === true
-            ? []
-            : (rls.assignments.tables ?? [])
-          ).map((entry) => entry.table),
-        ].map(inSchema);
+      : guardedTables(config, parts.scopes);
   return {
     customRoles:
       resolveAuthorize(config) === "database" && rls?.customRoles === true,
@@ -1785,9 +1773,7 @@ function rlsSettings(
                 }),
           },
         }),
-    ...(assigned === undefined
-      ? {}
-      : { assignments: { tables: [...new Set(assigned)] } }),
+    ...(assigned === undefined ? {} : { assignments: { tables: assigned } }),
     ...(rls?.apiKeys === undefined
       ? {}
       : { apiKeys: apiKeyFields(rls.apiKeys) }),

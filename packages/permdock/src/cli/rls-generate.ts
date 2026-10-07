@@ -411,10 +411,15 @@ export async function runRlsGenerate(input: {
     ...(rls?.assignments === undefined
       ? {}
       : {
-          assignments: {
-            tables:
-              rls.assignments === true ? [] : (rls.assignments.tables ?? []),
-          },
+          assignments:
+            rls.assignments === true
+              ? { tables: [] }
+              : {
+                  tables: rls.assignments.tables ?? [],
+                  ...(rls.assignments.ownRole === undefined
+                    ? {}
+                    : { ownRole: rls.assignments.ownRole }),
+                },
         }),
     ...(fieldsMode === undefined ? {} : { fields: fieldsMode }),
     ...(graph.size === 0
