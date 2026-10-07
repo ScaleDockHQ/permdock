@@ -25,6 +25,7 @@ export {
   AUTHZ_VERSION_TABLE,
   authzVersion,
   fromJunction,
+  fromSupabasePostgres,
   fromTable,
   supabaseMembershipsBudget,
   supabaseTenantClaim,
@@ -36,6 +37,7 @@ export type {
   MembershipTableOptions,
   SqlMembershipSource,
   SqlQuery,
+  SupabasePostgres,
 } from "./sources.ts";
 export {
   actorOf,

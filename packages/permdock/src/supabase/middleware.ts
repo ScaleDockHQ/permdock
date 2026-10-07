@@ -1,10 +1,11 @@
 import { type Middleware, defineMiddleware } from "@supabase/middleware";
 
 import type { ApprovalStore } from "../approvals/types.ts";
+import type { Credential } from "../core/credential.ts";
 import type { InstanceOptions } from "../core/instance-options.ts";
 import type { SnapshotSource } from "../core/interfaces.ts";
 import type { PermDock } from "../core/permdock.ts";
-import type { Permission } from "../core/permissions.ts";
+import type { Permission, PermissionTree } from "../core/permissions.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy.ts";
 import type { Principal, Subject } from "../core/subject.ts";
 import type { OtelWrap } from "../otel/types.ts";
@@ -13,6 +14,7 @@ import type { OpenApiHooks } from "../server/create.ts";
 import type { WebBotAuthVerifier } from "../server/web-bot-auth.ts";
 
 import { compact } from "../core/compact.ts";
+import { credentialSubject } from "../core/credential.ts";
 import { instanceOptions } from "../core/instance-options.ts";
 import { createServerKernel } from "../server/create.ts";
 import { methodNotAllowed } from "../server/problem.ts";
@@ -39,15 +41,34 @@ export type SupabaseJwtClaims = {
 /**
  * What `withPermDock` requires upstream: a `jwtClaims` contribution. Supabase's
  * `withClaims`, `withRequiredClaims` and `withSupabase` all provide it; `null`
- * is the anonymous caller (no bearer token, an `sb_*` API key, or the `secret`
- * auth mode).
+ * is the anonymous caller (no bearer token or an `sb_*` API key), unless
+ * `secretKeys` names the secret key `withSupabase` matched.
  */
 export type SupabaseMiddlewareContext = {
   readonly jwtClaims: SupabaseJwtClaims | null;
 };
 
+/**
+ * A Supabase secret key that acts as a tenant service principal. `id` is the
+ * principal id, `roles` are held in `tenant` only, and `permissions` caps
+ * what the key may do, as a `service` credential does.
+ */
+export type SupabaseSecretKey = {
+  readonly id: string;
+  readonly tenant: string;
+  readonly roles: readonly string[];
+  readonly permissions: readonly Permission[];
+};
+
 export type SupabaseMiddlewarePermDockOptions<TUser = unknown> =
   InstanceOptions & {
+    /**
+     * Named secret keys (`SUPABASE_SECRET_KEYS`) that act as service
+     * principals when `withSupabase` matched one (`authMode: 'secret'` with
+     * that `authKeyName`). Any other key, an unnamed `secret` and every
+     * `publishable` key stay anonymous.
+     */
+    readonly secretKeys?: Readonly<Record<string, SupabaseSecretKey>>;
     readonly subject: (
       ctx: SupabaseMiddlewareContext,
       request: Request,
@@ -107,6 +128,69 @@ export type SupabaseMiddlewarePermDock<
   readonly openapi: OpenApiHooks;
 };
 
+const SECRET_KEY_NAME = /^[A-Za-z0-9_-]+$/u;
+
+function secretKeySubjects(
+  keys: Readonly<Record<string, SupabaseSecretKey>> | undefined,
+  permissions: PermissionTree,
+): ReadonlyMap<string, Subject> {
+  const subjects = new Map<string, Subject>();
+  for (const [name, key] of Object.entries(keys ?? {})) {
+    if (!SECRET_KEY_NAME.test(name)) {
+      throw new Error(
+        `PermDock: secretKeys name '${name}' must be a key name from SUPABASE_SECRET_KEYS, not a pattern`,
+      );
+    }
+    if (key.id === "" || key.tenant === "") {
+      throw new Error(
+        `PermDock: secretKeys.${name} needs a non-empty id and tenant`,
+      );
+    }
+    const credential: Credential = {
+      v: 1,
+      id: `supabase-secret:${name}`,
+      kind: "service",
+      principal: key.id,
+      tenant: key.tenant,
+      roles: [...key.roles],
+      permissions: key.permissions.map((permission) => ({
+        permission: permission.key,
+      })),
+      createdBy: key.id,
+      // Declared in code: the key has no creation record.
+      createdAt: 0,
+      name,
+    };
+    subjects.set(name, credentialSubject(credential, { permissions }));
+  }
+  return subjects;
+}
+
+function readString(ctx: object, key: string): string | undefined {
+  const value: unknown = Reflect.get(ctx, key);
+  return typeof value === "string" ? value : undefined;
+}
+
+/**
+ * `authMode` and `authKeyName` are optional upstream contributions (only
+ * `withSupabase` makes them), so they are read here instead of being part of
+ * the entry's declared prerequisites.
+ */
+function secretKeySubject(
+  subjects: ReadonlyMap<string, Subject>,
+  ctx: SupabaseMiddlewareContext,
+): Subject | undefined {
+  if (
+    subjects.size === 0 ||
+    ctx.jwtClaims !== null ||
+    readString(ctx, "authMode") !== "secret"
+  ) {
+    return undefined;
+  }
+  const name = readString(ctx, "authKeyName");
+  return name === undefined ? undefined : subjects.get(name);
+}
+
 export function createPermDock<
   TUser,
   TPrincipal extends Principal = Principal,
@@ -120,13 +204,19 @@ export function createPermDock<
 
   const contextFor = (request: Request): SupabaseMiddlewareContext =>
     contexts.get(request) ?? { jwtClaims: null };
+  const secretKeys = secretKeySubjects(options.secretKeys, policy.permissions);
 
   const kernel = createServerKernel(
     policy,
     compact({
-      subject: (request: Request) =>
+      subject: (request: Request) => {
+        const ctx = contextFor(request);
+        const service = secretKeySubject(secretKeys, ctx);
         // SAFETY: the kernel passes it to core createPermDock, which accepts TUser, a Subject or null.
-        options.subject(contextFor(request), request) as TUser | Promise<TUser>,
+        return (service ?? options.subject(ctx, request)) as
+          | TUser
+          | Promise<TUser>;
+      },
       tenant:
         typeof tenantOption === "function"
           ? (

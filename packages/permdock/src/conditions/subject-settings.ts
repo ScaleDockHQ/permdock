@@ -17,6 +17,16 @@ export type WithSubjectOptions = {
    * helpers. `sub`, `role` and the tenant claim always come from the subject.
    */
   readonly claims?: Readonly<Record<string, unknown>>;
+  /**
+   * Field names of the API-key claim written for a principal that acts through a credential
+   * (`rls.apiKeys`). Default `{ claim: 'api_key', scopes: 'scopes', tenant: 'tenant', roles: 'roles' }`.
+   */
+  readonly apiKeys?: {
+    readonly claim?: string;
+    readonly scopes?: string;
+    readonly tenant?: string;
+    readonly roles?: string;
+  };
 };
 
 /** One statement of the preamble: `strings` and `values` interleave like a tagged template. */
@@ -34,6 +44,76 @@ function settingName(name: string, what: string): string {
     throw new Error(`PermDock: unsafe ${what} '${name}'`);
   }
   return name;
+}
+
+type HeldCredential = {
+  readonly id: string;
+  readonly kind: "user" | "service";
+  readonly tenant: string | undefined;
+  readonly roles: readonly string[];
+  readonly scopes: readonly string[];
+};
+
+function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function strings(value: unknown): readonly string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
+}
+
+/**
+ * The credential a principal acts through. Entries limited to `ids` are left
+ * out of `scopes`: the claim has no per-row form, so the database allows less.
+ */
+function heldCredential(principal: object): HeldCredential | undefined {
+  const credential: unknown = Reflect.get(principal, "credential");
+  if (
+    !isRecord(credential) ||
+    typeof credential["id"] !== "string" ||
+    (credential["kind"] !== "user" && credential["kind"] !== "service") ||
+    !Array.isArray(credential["permissions"])
+  ) {
+    return undefined;
+  }
+  const scopes = credential["permissions"].flatMap((entry: unknown) =>
+    isRecord(entry) &&
+    typeof entry["permission"] === "string" &&
+    entry["ids"] === undefined
+      ? [entry["permission"]]
+      : [],
+  );
+  const tenant = credential["tenant"];
+  return {
+    id: credential["id"],
+    kind: credential["kind"],
+    tenant: typeof tenant === "string" && tenant !== "" ? tenant : undefined,
+    roles: strings(credential["roles"]),
+    scopes,
+  };
+}
+
+function field(name: string | undefined, fallback: string): string {
+  return settingName(name ?? fallback, "API-key claim field");
+}
+
+function apiKeyClaim(
+  held: HeldCredential,
+  options: WithSubjectOptions["apiKeys"] = {},
+): readonly [string, Record<string, unknown>] {
+  const claim: Record<string, unknown> = {
+    id: held.id,
+    [field(options.scopes, "scopes")]: held.scopes,
+  };
+  if (held.tenant !== undefined) {
+    claim[field(options.tenant, "tenant")] = held.tenant;
+  }
+  if (held.kind === "service") {
+    claim[field(options.roles, "roles")] = held.roles;
+  }
+  return [field(options.claim, "api_key"), claim];
 }
 
 function setConfig(name: string, value: string): SubjectStatement {
@@ -69,14 +149,20 @@ export function subjectStatements(
     ),
   );
   if (principal !== null) {
-    claims["sub"] = principal.id;
+    const held = heldCredential(principal);
+    claims["sub"] = held?.kind === "service" ? "" : principal.id;
     if (principal.tenant !== undefined) {
       claims[tenantClaim] = principal.tenant;
+    }
+    if (held !== undefined) {
+      const [name, value] = apiKeyClaim(held, options.apiKeys);
+      claims[name] = value;
     }
   }
   if (role !== false) {
     claims["role"] = role;
   }
+  const subjectId = typeof claims["sub"] === "string" ? claims["sub"] : "";
   const statements: SubjectStatement[] =
     role === false ? [] : [{ strings: [`set local role ${role}`], values: [] }];
   const dialect = options.dialect ?? "supabase";
@@ -85,12 +171,12 @@ export function subjectStatements(
     case "neon":
       statements.push(
         setConfig("request.jwt.claims", JSON.stringify(claims)),
-        setConfig("request.jwt.claim.sub", principal?.id ?? ""),
+        setConfig("request.jwt.claim.sub", subjectId),
       );
       return statements;
     case "guc": {
       const prefix = settingName(options.gucPrefix ?? "app", "setting prefix");
-      statements.push(setConfig(`${prefix}.user_id`, principal?.id ?? ""));
+      statements.push(setConfig(`${prefix}.user_id`, subjectId));
       for (const [name, value] of Object.entries(claims)) {
         if (name === "sub") {
           continue;

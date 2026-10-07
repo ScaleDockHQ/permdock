@@ -413,6 +413,7 @@
     "delegationOf",
     "exchangeCapability",
     "fromJunction",
+    "fromSupabasePostgres",
     "fromTable",
     "postgrestSources",
     "readSubjectRecord",

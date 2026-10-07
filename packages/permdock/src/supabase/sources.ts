@@ -570,6 +570,24 @@ function sourceOf(
   };
 }
 
+/** The part of `@supabase/server`'s `PostgresApi` a `SqlQuery` needs. */
+export type SupabasePostgres = {
+  readonly queryRaw: (
+    text: string,
+    params?: unknown[],
+  ) => Promise<readonly Record<string, unknown>[]>;
+};
+
+/**
+ * `ctx.postgres` (from `withPostgresClient`) or `ctx.postgresAdmin` as a
+ * `SqlQuery` for `fromTable`, `fromJunction` and `supabaseApprovalStore`.
+ * `ctx.postgres` runs as the caller under RLS, so the membership tables must
+ * be readable by `authenticated`; `ctx.postgresAdmin` bypasses RLS.
+ */
+export function fromSupabasePostgres(postgres: SupabasePostgres): SqlQuery {
+  return (text, values) => postgres.queryRaw(text, [...values]);
+}
+
 /**
  * Memberships from one table holding every scope: a row per user, scope,
  * instance and role (`user_id, scope, scope_id, role`), with optional

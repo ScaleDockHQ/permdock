@@ -154,14 +154,55 @@ const evaluations = pipeline([withClaims()], permdockHandler());
 
 [`@supabase/server`](https://github.com/supabase/server) is Supabase's stateless server toolkit: header-based authentication for Edge Functions, Workers, Hono, Elysia, NestJS and H3, no cookies. Its core `withSupabase(config, handler)` verifies the bearer token against the project JWKS (asymmetric keys only; HS256 legacy tokens are rejected) and hands the handler a context with `jwtClaims` (the verified payload or `null`), `supabase` (an RLS-scoped client carrying the caller's token), `supabaseAdmin` (the bypass client, built lazily) and `authMode` (`user`, `publishable`, `secret`, `none`). Every one of those shapes is an input to `subjectFromSupabase`:
 
-| Where the claims are                              | Pass to `subjectFromSupabase` | Notes                                                                                                                              |
-| ------------------------------------------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `withSupabase({ auth: 'user' }, (req, ctx) => …)` | `ctx.jwtClaims`               | `auth: 'user'` rejects token-less requests with `401` before the handler runs                                                      |
-| A standalone `pipeline([withClaims()], …)`        | `ctx.jwtClaims`               | `withClaims` contributes `null` for anonymous callers; `withRequiredClaims` short-circuits them with `401`                         |
-| Hono, H3, Elysia or NestJS through a bridge       | `ctx.jwtClaims`               | The same entries run inside the framework's middleware slot; see "Hono, H3, Elysia and NestJS" below                               |
-| `authMode: 'secret'` or `'publishable'`           | `null`                        | An API key is not a principal. The subject is anonymous; grant machine access through `actor`, never by trusting the key as a user |
+| Where the claims are                                                           | Pass to `subjectFromSupabase` | Notes                                                                                                      |
+| ------------------------------------------------------------------------------ | ----------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `withSupabase({ auth: 'user' }, (req, ctx) => …)`                              | `ctx.jwtClaims`               | `auth: 'user'` rejects token-less requests with `401` before the handler runs                              |
+| A standalone `pipeline([withClaims()], …)`                                     | `ctx.jwtClaims`               | `withClaims` contributes `null` for anonymous callers; `withRequiredClaims` short-circuits them with `401` |
+| Hono, H3, Elysia or NestJS through a bridge                                    | `ctx.jwtClaims`               | The same entries run inside the framework's middleware slot; see "Hono, H3, Elysia and NestJS" below       |
+| `authMode: 'publishable'`, or `'secret'` with a key `secretKeys` does not name | `null`                        | An API key is not a user. The subject is anonymous                                                         |
+| `authMode: 'secret'` with a key named in `secretKeys`                          | `null` (not read)             | `withPermDock` builds the declared `service` principal; see "Secret keys as service principals" below      |
 
-`ctx.supabase` and `ctx.postgres` (from `withPostgresClient`) are already RLS-scoped, so a PermDock decision in the handler and a generated policy in Postgres are two evaluations of one catalog. `ctx.supabaseAdmin` and `withPostgresAdminClient` bypass RLS: every use belongs behind an explicit `permdock.assert(...)` in the same handler, and the [`permdock-audit`](/docs/cli/skills) skill flags any that is not. `withPostgresClient` sets `request.jwt.claims` and `set local role` to `authenticated` or `anon` per transaction and refuses any other role in the token, including `service_role`; that is the same preamble `permdock rls verify` runs, so a policy that passes the harness behaves the same under the client ([RLS adapter](/docs/adapters/rls)). For MCP servers behind Supabase Auth as the OAuth 2.1 authorization server, see [`withOAuthProtectedResource` on the MCP page](/docs/adapters/mcp).
+`ctx.supabase` and `ctx.postgres` (from `withPostgresClient`) are already RLS-scoped, so a PermDock decision in the handler and a generated policy in Postgres are two evaluations of one catalog. `fromSupabasePostgres(ctx.postgres)` turns either Postgres client into the `SqlQuery` that `fromTable`, `fromJunction` and `supabaseApprovalStore` take, so a membership lookup runs on the request's own transaction without another pool. `ctx.supabaseAdmin` and `withPostgresAdminClient` bypass RLS: every use belongs behind an explicit `permdock.assert(...)` in the same handler, and the [`permdock-audit`](/docs/cli/skills) skill flags any that is not. `withPostgresClient` sets `request.jwt.claims` and `set local role` to `authenticated` or `anon` per transaction and refuses any other role in the token, including `service_role`; that is the same preamble `permdock rls verify` runs, so a policy that passes the harness behaves the same under the client ([RLS adapter](/docs/adapters/rls)). For MCP servers behind Supabase Auth as the OAuth 2.1 authorization server, see [`withOAuthProtectedResource` on the MCP page](/docs/adapters/mcp).
+
+### Secret keys as service principals
+
+`withSupabase({ auth: 'secret:<name>' })` verifies a Supabase secret key, but the key says nothing about which tenant it belongs to or what it may do. `secretKeys` declares that in code, per key name in `SUPABASE_SECRET_KEYS` (a single `SUPABASE_SECRET_KEY` is named `default`):
+
+```ts
+import { withSupabase } from "@supabase/server";
+import { pipeline } from "@supabase/middleware";
+import { createPermDock } from "permdock/supabase/middleware";
+
+const { withPermDock } = createPermDock(policy, {
+  subject: (ctx) => subjectFromSupabase(ctx.jwtClaims),
+  secretKeys: {
+    billing: {
+      id: "svc_billing",
+      tenant: "org_acme",
+      roles: ["billing"],
+      permissions: [permissions.invoice.read, permissions.invoice.create],
+    },
+  },
+});
+
+export default {
+  fetch: pipeline(
+    [withSupabase({ auth: ["user", "secret:billing"] }), withPermDock()],
+    async (req, ctx) => {
+      ctx.permdock.assert(permissions.invoice.create, await req.json());
+      return withSubject(db, ctx.permdock, (tx) => createInvoice(tx));
+    },
+  ),
+};
+```
+
+- The key becomes the subject a `service` [credential](/docs/concepts/credentials) resolves to: `{ id, kind: 'service', tenant }` with one `{ tenant, roles, via: 'credential' }` membership, and `delegation` scopes for `permissions`, so it can do at most what both its roles and its permissions allow. `principal.credential.name` is the key name.
+- Only `authMode: 'secret'` with an `authKeyName` the map names, and no `jwtClaims`, takes this path. Every other key, every publishable key and a request that also carries a user token go through `subject` as before. A name that is not a key name (`*`) or an entry without `id` or `tenant` throws when `createPermDock` runs.
+- In Postgres, `withPostgresClient` runs a key-only request as `anon`, so query through `withSubject` from `permdock/drizzle`, `permdock/kysely` or `permdock/prisma` on the app's own pool instead. For a credential principal `withSubject` writes the [`rls.apiKeys`](/docs/cli/rls#api-keys) claim, `{ "sub": "", "api_key": { "id", "tenant", "roles", "scopes" } }` with role `authenticated`, so the generated helpers hold the key to its tenant, roles and permissions. A permission entry limited to `ids` has no claim form and is left out of `scopes`. Never use `ctx.supabaseAdmin` or `withPostgresAdminClient` for these requests: they bypass RLS.
+
+### Two error formats
+
+`@supabase/server` and `@supabase/middleware` entries answer their own failures (a missing token, an invalid JWT, a JWKS that cannot be fetched) with Supabase's error body, `{ "source", "code", "message", "hint", "docs", "details" }` and an `x-supabase-server-error` header naming the code. PermDock's denials (`withPermDock({ protect })`, `permdockHandler`, a caught `assert`) are [RFC 9457 Problem Details](/docs/standards/problem-details) with `application/problem+json`. One API can return both: branch on `content-type`, or on `x-supabase-server-error` for a `401` that never reached PermDock. A `withCors` entry ahead of both stamps its headers on either.
 
 ### Hono, H3, Elysia and NestJS
 

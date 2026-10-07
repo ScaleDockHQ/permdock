@@ -5,6 +5,7 @@ import type { SqlQuery } from "../../src/supabase/sources.ts";
 import {
   authzVersion,
   fromJunction,
+  fromSupabasePostgres,
   fromTable,
 } from "../../src/supabase/sources.ts";
 import { testMembershipSource } from "../../src/testing/conformance.ts";
@@ -328,6 +329,30 @@ describe("fromJunction", () => {
     expect(() => fromJunction({ table: "contacts", ...options })).toThrow(
       message,
     );
+  });
+});
+
+describe("fromSupabasePostgres", () => {
+  it("runs fromTable lookups through ctx.postgres.queryRaw", async () => {
+    const calls: { text: string; params: unknown[] | undefined }[] = [];
+    const postgres = {
+      queryRaw: async <T = Record<string, unknown>>(
+        text: string,
+        params?: unknown[],
+      ): Promise<T[]> => {
+        calls.push({ text, params });
+        // SAFETY: the fixture rows are the shape fromTable selects.
+        return tableRows as unknown as T[];
+      },
+    };
+    const source = fromTable({
+      table: "public.memberships",
+      query: fromSupabasePostgres(postgres),
+    });
+    const memberships = await source.membershipsFor(principal, {});
+    expect(memberships.length).toBeGreaterThan(0);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.params).toEqual(["u1"]);
   });
 });
 
