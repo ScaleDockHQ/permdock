@@ -651,6 +651,58 @@ export function userIdHelperSql(ctx: Pick<RlsSqlContext, "schema">): string {
   return `${quoteIdent(ctx.schema ?? PERMDOCK_SCHEMA)}.${USER_ID_HELPER}`;
 }
 
+export const SESSION_LIVE_HELPER = "permdock_session_live";
+
+/** `{ subject: { session: { live: true } } }` in a policy; only Supabase has `auth.sessions`. */
+function liveSessionSql(ctx: RlsSqlContext): string {
+  if (ctx.dialect !== "supabase") {
+    throw new Error(
+      `PermDock CLI: { subject: { session: { live: true } } } reads auth.sessions, which only the supabase dialect has (got ${ctx.dialect})`,
+    );
+  }
+  return `(select ${quoteIdent(ctx.schema ?? PERMDOCK_SCHEMA)}.${SESSION_LIVE_HELPER}())`;
+}
+
+/**
+ * `permdock_session_live()`: the token's `session_id` names a session of its
+ * user that is still in `auth.sessions`, so a signed-out or revoked session
+ * stops passing before the token's `exp`. A token without one, such as a
+ * service key's, is never live.
+ */
+export function sessionLiveHelperSql(ctx: RlsSqlContext): string {
+  const name = `${quoteIdent(ctx.schema ?? PERMDOCK_SCHEMA)}.${SESSION_LIVE_HELPER}`;
+  return `create or replace function ${name}()
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_session uuid;
+begin
+  begin
+    v_session := nullif((select auth.jwt()) ->> 'session_id', '')::uuid;
+  exception when invalid_text_representation then
+    return false;
+  end;
+  if v_session is null then
+    return false;
+  end if;
+  return exists (
+    select 1
+    from auth.sessions s
+    where s.id = v_session
+      and s.user_id::text = ${subjectIdSql(ctx)}::text
+      and (s.not_after is null or s.not_after > now())
+  );
+end;
+$$;
+revoke execute on function ${name}() from public, anon;
+grant execute on function ${name}() to authenticated;
+`;
+}
+
 export function subjectIdSql(ctx: RlsSqlContext): string {
   if (ctx.subjectId !== undefined) {
     return ctx.subjectId;
@@ -1275,6 +1327,8 @@ export function compileConditionSql(
         .join(", ")})`;
     case "opaque":
       return condition.sql;
+    case "liveSession":
+      return liveSessionSql(ctx);
     default: {
       const exhaustive: never = condition;
       return exhaustive;
@@ -1366,6 +1420,7 @@ export function contextRefs(
     case "memberOf":
     case "related":
     case "opaque":
+    case "liveSession":
       return [];
     default: {
       const exhaustive: never = condition;
@@ -1401,6 +1456,7 @@ export function sqlFunctionNames(
     case "memberOf":
     case "related":
     case "opaque":
+    case "liveSession":
       return [];
     default: {
       const exhaustive: never = condition;

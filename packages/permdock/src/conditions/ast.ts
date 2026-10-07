@@ -141,6 +141,16 @@ export type SqlFunctionCondition = {
   readonly twin: Condition;
 };
 
+/**
+ * The request's session was checked against the Auth server while the
+ * subject was resolved (`liveSession: true`), not only verified from the
+ * token: a revoked session still verifies until `exp`. Written
+ * `{ subject: { session: { live: true } } }`.
+ */
+export type LiveSessionCondition = {
+  readonly op: "liveSession";
+};
+
 export type Condition =
   | ComparisonCondition
   | InCondition
@@ -151,7 +161,8 @@ export type Condition =
   | MemberOfCondition
   | RelatedCondition
   | OpaqueCondition
-  | SqlFunctionCondition;
+  | SqlFunctionCondition
+  | LiveSessionCondition;
 
 export function isConditionRef(value: unknown): value is ConditionRef {
   return (
@@ -224,6 +235,7 @@ export function hasConditionOp(
     case "memberOf":
     case "related":
     case "opaque":
+    case "liveSession":
       return false;
     default: {
       const exhaustive: never = condition;

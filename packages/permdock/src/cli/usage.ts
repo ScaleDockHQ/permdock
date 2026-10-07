@@ -318,7 +318,8 @@ function conditionFields(
       }
       break;
     }
-    case "opaque": {
+    case "opaque":
+    case "liveSession": {
       break;
     }
     default: {

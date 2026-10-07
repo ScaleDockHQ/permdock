@@ -378,6 +378,19 @@ const subject = subjectFromSupabaseSession(session, {
 });
 ```
 
+### Live sessions
+
+A Supabase access token stays valid until `exp` after sign-out or revocation. A grant with `{ subject: { session: { live: true } } }` holds only while the session is still in `auth.sessions` ([live sessions](/docs/concepts/conditions#live-sessions)). In process, pass `liveSession: true` once this request checked the session against the Auth server:
+
+```ts
+const { data, error } = await supabase.auth.getUser();
+const subject = subjectFromSupabase(claims, {
+  liveSession: error === null && data.user !== null,
+});
+```
+
+The option marks only a token with a `session_id`, and a `liveSession` claim is ignored. In RLS, `rls generate` emits `permdock.permdock_session_live()` when a grant reads the session, and the policy calls it on every query.
+
 ### Claim size and membership mode
 
 `permdock supabase hook generate` builds the whole hook from the app's membership sources, with a byte budget, `memberships_truncated`, `authz_ver` for `fresh` permissions and IdP-row protection ([Supabase token hook](/docs/adapters/supabase-hook)). It writes these claims, and `permdock supabase inspect` lists them for a given config:

@@ -162,6 +162,12 @@ export type Subject<TPrincipal extends Principal = Principal> = {
   readonly expiresAt?: number;
   /** The token's memberships are behind the source's authorization version: `fresh` permissions deny. */
   readonly stale?: true;
+  /**
+   * The resolver checked the session against the Auth server for this request
+   * (`liveSession: true`), so `{ subject: { session: { live: true } } }` holds.
+   * Never read from claims.
+   */
+  readonly liveSession?: true;
 };
 
 export function isPrincipal(value: unknown): value is Principal {

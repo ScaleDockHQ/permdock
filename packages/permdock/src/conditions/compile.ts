@@ -632,6 +632,8 @@ function compileNode(
       return compileMemberOf(condition, options);
     case "related":
       return compileRelated(condition, options);
+    case "liveSession":
+      return options.subject?.liveSession === true ? ALWAYS : NEVER;
     case "eq":
     case "ne":
     case "gt":

@@ -131,6 +131,7 @@ export async function resolveRelated(
       case "isNull":
       case "memberOf":
       case "opaque":
+      case "liveSession":
         return node;
       default: {
         const exhaustive: never = node;

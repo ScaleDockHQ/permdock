@@ -131,6 +131,11 @@ const samples: Record<
     orm: "compiles",
     rls: "compiles",
   },
+  liveSession: {
+    condition: { op: "liveSession" },
+    orm: "compiles",
+    rls: "compiles",
+  },
 };
 
 const rlsContext = {
@@ -227,5 +232,14 @@ describe("invariant 6: every operator is portable or refuses explicitly", () => 
     expect(matches(compileWhere(eq, { subject }))).toBe(
       evaluateCondition(eq, row, subject, 0),
     );
+    const live = samples.liveSession.condition;
+    for (const resolved of [
+      subject,
+      { ...subject, liveSession: true as const },
+    ]) {
+      expect(matches(compileWhere(live, { subject: resolved }))).toBe(
+        evaluateCondition(live, row, resolved, 0),
+      );
+    }
   });
 });

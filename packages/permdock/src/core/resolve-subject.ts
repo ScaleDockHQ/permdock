@@ -77,6 +77,8 @@ function assemblePrincipal(
   /** The memberships came from a live `MembershipSource` call, not from the token. */
   readonly live: boolean;
   readonly stale?: boolean | Promise<boolean>;
+  /** The resolver checked the session live; only a `Subject` input carries it. */
+  readonly liveSession?: true;
 } {
   let principal: Principal | null;
   let context: Readonly<Record<string, unknown>> = {};
@@ -84,6 +86,7 @@ function assemblePrincipal(
   let delegation = options.delegation;
   let session = options.session;
   let expiresAt = options.expiresAt;
+  let liveSession: true | undefined;
   try {
     if (user === null || user === undefined) {
       // SAFETY: TUser is erased at the policy boundary; createPermDock types user as TUser.
@@ -95,6 +98,7 @@ function assemblePrincipal(
       delegation = user.delegation ?? delegation;
       session = user.session ?? session;
       expiresAt = user.expiresAt ?? expiresAt;
+      liveSession = user.liveSession === true ? true : undefined;
     } else if (isPrincipal(user)) {
       principal = user;
     } else {
@@ -160,6 +164,7 @@ function assemblePrincipal(
     memberships,
     live,
     stale,
+    liveSession: principal === null ? undefined : liveSession,
   });
 }
 
@@ -275,6 +280,7 @@ function finishSubject(
       session: assembled.session,
       expiresAt: assembled.expiresAt,
       stale: extra.stale ? (true as const) : undefined,
+      liveSession: assembled.liveSession,
     }),
   );
 }
