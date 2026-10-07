@@ -198,6 +198,23 @@ $$;
 revoke execute on function "permdock".permdock_permission_keys() from public, anon;
 grant execute on function "permdock".permdock_permission_keys() to authenticated;
 
+create or replace function "permdock".permdock_permission_keys(p_scope text)
+returns setof text
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select distinct rp.permission
+  from "permdock".role_permissions rp
+  where rp.scope = p_scope
+    and rp.effect = 'allow'
+    and rp.permission = any(array['post.archive', 'post.create', 'post.delete', 'post.list', 'post.publish', 'post.read', 'post.update']::text[])
+  order by 1
+$$;
+revoke execute on function "permdock".permdock_permission_keys(text) from public, anon;
+grant execute on function "permdock".permdock_permission_keys(text) to authenticated;
+
 -- the permission keys a role holds on a scope, with effect allow or deny; a custom role is read for its tenant and, below the first scope, its instance
 create or replace function "permdock".permdock_role_permissions(p_role text, p_scope text, p_tenant uuid default null, p_scope_id text default null)
 returns table (permission text, effect text)

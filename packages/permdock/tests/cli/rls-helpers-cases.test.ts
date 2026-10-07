@@ -409,6 +409,12 @@ describe("helpersSql role readers", () => {
     expect(sql).toContain(
       'revoke execute on function "permdock".permdock_permission_keys() from public, anon;\ngrant execute on function "permdock".permdock_permission_keys() to authenticated;',
     );
+    expect(sql).toContain(
+      `where rp.scope = p_scope\n    and rp.effect = 'allow'\n    and rp.permission = any(array['doc.edit', 'doc.read']::text[])`,
+    );
+    expect(sql).toContain(
+      'grant execute on function "permdock".permdock_permission_keys(text) to authenticated;',
+    );
     expect(readers({}, [])).toContain(`unnest('{}'::text[])`);
     expect(readers({}, null)).not.toContain("permdock_permission_keys");
   });

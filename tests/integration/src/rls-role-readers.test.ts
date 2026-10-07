@@ -220,6 +220,40 @@ describe("permdock_role_permissions and permdock_permission_keys", () => {
     expect(keys).toContain("board.update");
   });
 
+  it("lists the keys some declared role holds on one scope", async () => {
+    const keysOn = (scope: string): Promise<string[]> =>
+      as("authenticated", PLUS, async (query) => {
+        const result = await query<{ key: string }>(
+          "select permdock.permdock_permission_keys($1) as key",
+          [scope],
+        );
+        return result.rows.map((row) => row.key);
+      });
+    const allowedOn = (scope: string): string[] =>
+      [
+        ...new Set(
+          policy.roles.flatMap((binding) =>
+            binding.grants
+              .filter(
+                (grant) =>
+                  grant.effect === "allow" &&
+                  (grant.scope === "global" ? "global" : grant.scope) === scope,
+              )
+              .map((grant) => grant.permission.key),
+          ),
+        ),
+      ].toSorted();
+    const scopes = ["global", "tenant", "team"];
+    const got = [
+      await keysOn("global"),
+      await keysOn("tenant"),
+      await keysOn("team"),
+    ];
+    expect(got).toEqual(scopes.map(allowedOn));
+    expect(got.flat().every((key) => catalogKeys.includes(key))).toBe(true);
+    expect(await keysOn("nowhere")).toEqual([]);
+  });
+
   it("matches the declared roles of the policy on every scope", async () => {
     for (const name of ["auditor", "owner", "admin", "member", "viewer"]) {
       for (const scope of ["global", "tenant", "team"]) {

@@ -1501,7 +1501,24 @@ as $$
   select k.permission from unnest(${textArray(permissions.toSorted())}) k(permission) order by 1
 $$;
 revoke execute on function ${catalog}() from public, anon;
-grant execute on function ${catalog}() to authenticated;`);
+grant execute on function ${catalog}() to authenticated;
+
+create or replace function ${catalog}(p_scope text)
+returns setof text
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select distinct rp.permission
+  from ${rp} rp
+  where rp.scope = p_scope
+    and rp.effect = 'allow'
+    and rp.permission = any(${textArray(permissions.toSorted())})
+  order by 1
+$$;
+revoke execute on function ${catalog}(text) from public, anon;
+grant execute on function ${catalog}(text) to authenticated;`);
   }
   const declared = `  select distinct rp.permission, rp.effect
   from ${rp} rp
