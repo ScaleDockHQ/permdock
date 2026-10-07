@@ -352,7 +352,7 @@ export type GrantOptions<T = Record<string, unknown>> = {
    * (or the whole app, globally) is one where the subject also holds this
    * permission through a role grant without a row condition.
    */
-  readonly requires?: Permission;
+  readonly requires?: Permission | readonly Permission[];
 };
 
 /**
@@ -467,7 +467,7 @@ export type Grant = {
   /** Set on a custom-role grant narrowed by a resource level (`CustomRoleGrant.level`). */
   readonly level?: string;
   /** The permission key the subject must also hold, through a role, on the row's scope instance or globally. */
-  readonly requires?: string;
+  readonly requires?: readonly string[];
 };
 
 /** Which hosted policy document and grant a merged grant came from. */
@@ -990,7 +990,7 @@ function requiredKey(
   input: unknown,
   permission: Permission,
   effect: "allow" | "deny",
-): string | undefined {
+): readonly string[] | undefined {
   if (input === undefined) {
     return undefined;
   }
@@ -1004,12 +1004,13 @@ function requiredKey(
       `PermDock: requires on '${permission.key}' needs an instance action; a collection action has no row whose scope it can check`,
     );
   }
-  if (!isPermission(input)) {
+  const list: readonly unknown[] = Array.isArray(input) ? input : [input];
+  if (list.length === 0 || !list.every(isPermission)) {
     throw new TypeError(
-      `PermDock: requires on '${permission.key}' must be a permission leaf`,
+      `PermDock: requires on '${permission.key}' must be a permission leaf or a non-empty list of them`,
     );
   }
-  return input.key;
+  return Object.freeze([...new Set(list.map((leaf) => leaf.key))]);
 }
 
 export type GrantCondition<T, K extends PermissionKind> = K extends "collection"
@@ -1559,10 +1560,12 @@ function assertScopeKeys(
 function assertRequires(grants: readonly Grant[], tree: PermissionTree): void {
   const keys = new Set(listPermissions(tree).map((leaf) => leaf.key));
   for (const grant of grants) {
-    if (grant.requires !== undefined && !keys.has(grant.requires)) {
-      throw new Error(
-        `PermDock: '${grant.permission.key}' requires '${grant.requires}', which the policy does not declare`,
-      );
+    for (const key of grant.requires ?? []) {
+      if (!keys.has(key)) {
+        throw new Error(
+          `PermDock: '${grant.permission.key}' requires '${key}', which the policy does not declare`,
+        );
+      }
     }
   }
 }

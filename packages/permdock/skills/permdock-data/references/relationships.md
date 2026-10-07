@@ -45,7 +45,7 @@ grants: [
 ],
 ```
 
-Add `requires: permissions.file.read` to a graph grant to count a share only where the user also holds that permission through a role in the row's organization. `depth` defaults to 16 and is at most 32. An array in `to:` is an intersection, so "owner or viewer" is two `allow` grants. Prefer `relation()` over `where: { authorId: principal.id }` when the resource declares the relation.
+Add `requires: permissions.file.read` to a graph grant to count a share only where the user also holds that permission through a role in the row's organization; a list (`requires: [permissions.file.read, permissions.file.download]`) requires each. `depth` defaults to 16 and is at most 32. An array in `to:` is an intersection, so "owner or viewer" is two `allow` grants. Prefer `relation()` over `where: { authorId: principal.id }` when the resource declares the relation.
 
 ## Load
 

@@ -212,7 +212,8 @@ function catalogGrant(grant: Grant): CatalogGrant {
       validity: grant.validity,
       name: grant.name,
       purpose: grant.purpose,
-      requires: grant.requires,
+      requires:
+        grant.requires?.length === 1 ? grant.requires[0] : grant.requires,
       limit,
       portable: grant.portable ? undefined : (false as const),
     }),

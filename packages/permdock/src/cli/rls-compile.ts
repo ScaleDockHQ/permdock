@@ -737,14 +737,10 @@ export function compileGrants(
     }
     const validity = validitySql(grant.validity);
     accessExpr = andSql(accessExpr, validity);
-    if (grant.requires !== undefined) {
+    for (const key of grant.requires ?? []) {
       accessExpr = andSql(
         accessExpr,
-        requiresSql(
-          ctx,
-          grant.requires,
-          policy.resources.get(grant.permission.resource),
-        ),
+        requiresSql(ctx, key, policy.resources.get(grant.permission.resource)),
       );
     }
     if (ctx.anonymousSignIns === "deny" && access.kind !== "anyone") {

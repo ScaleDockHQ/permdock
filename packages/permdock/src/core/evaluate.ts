@@ -267,6 +267,33 @@ function isUnconditionedAllow(grant: Grant, now: number): boolean {
 export function requirementCondition(
   policy: Policy,
   subject: Subject,
+  keys: readonly string[],
+  resource: ResourceNode | undefined,
+  now: number,
+  customRoles: readonly CustomRole[],
+  customGrants: readonly CustomGrant[],
+): Condition | undefined {
+  let where: Condition | undefined;
+  for (const key of keys) {
+    where = combineWhere(
+      where,
+      keyRequirement(
+        policy,
+        subject,
+        key,
+        resource,
+        now,
+        customRoles,
+        customGrants,
+      ),
+    );
+  }
+  return where;
+}
+
+function keyRequirement(
+  policy: Policy,
+  subject: Subject,
   key: string,
   resource: ResourceNode | undefined,
   now: number,
