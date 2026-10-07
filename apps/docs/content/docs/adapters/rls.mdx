@@ -202,18 +202,18 @@ from "invoice";
 - **Field-only grants** (a read deny with `fields`, an allow with an empty list) leave the row policy, because in the application they never decide the row; they live in the masks.
 - **Cost.** Each mask term is the row policy's own uncorrelated helper call, so the helpers still run once per statement, never once per row.
 
-A view alone protects nothing while the table returns the columns to anyone who selects it, so the command warns and doctor PD030 flags it. `--revoke-columns` (`rls.revokeColumns: true`) closes the table: `anon` and `authenticated` keep `select` on only the unrestricted columns and the key. A `security_invoker` view cannot read a column its caller has lost, so the restricted columns come from a companion, `<table>_visible_fields`, which runs with its owner's rights:
+A view alone protects nothing while the table returns the columns to anyone who selects it, so the command warns and doctor PD030 flags it. `--revoke-columns` (`rls.revokeColumns: true`) closes the table: `anon` and `authenticated` keep `select` on only the unrestricted columns and the key. A `security_invoker` view cannot read a column its caller has lost, so the restricted columns come from a companion, `<table>_visible_fields`, which runs with its owner's rights. The companion lives in the helper schema (`rls.schema`, `permdock` by default), which the Data API does not serve, so Supabase's `security_definer_view` lint (0010) does not flag it; the view's roles get `usage` on that schema:
 
 ```sql
-create or replace view "invoice_visible_fields" with (security_barrier = true) as
+create or replace view "permdock"."invoice_visible_fields" with (security_barrier = true) as
 select "id" as "permdock_key", case when (...) then "amount" end as "amount", ...
-from "invoice"
+from "public"."invoice"
 where (...amount mask...) or (...note mask...);
 
-create or replace view "invoice_visible" with (security_invoker = true) as
+create or replace view "public"."invoice_visible" with (security_invoker = true) as
 select t."id", f."amount", f."note", t."title"
-from "invoice" t
-left join "invoice_visible_fields" f on f."permdock_key" = t."id";
+from "public"."invoice" t
+left join "permdock"."invoice_visible_fields" f on f."permdock_key" = t."id";
 ```
 
 The companion masks every column with the full field decision, denies included, and keeps only rows where some restricted column is readable. Reading it directly therefore shows nothing `pick` would hide: a readable column implies a readable row. `security_barrier` stops a caller's predicate from running before the masks. The companion's owner must see the rows: the table owner without `FORCE ROW LEVEL SECURITY`, or a `BYPASSRLS` role; otherwise every restricted column reads as `null`, which fails closed. Writes are unchanged: `insert`, `update` and `delete` keep their table-level grants and policies, but `returning *` and `select *` on the table now fail with `42501`.

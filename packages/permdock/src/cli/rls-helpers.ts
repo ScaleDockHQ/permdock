@@ -89,7 +89,7 @@ export type RolePermission = {
   readonly effect: "allow" | "deny";
 };
 
-function helperSchema(ctx: RlsSqlContext): string {
+export function helperSchema(ctx: RlsSqlContext): string {
   return ctx.schema ?? PERMDOCK_SCHEMA;
 }
 

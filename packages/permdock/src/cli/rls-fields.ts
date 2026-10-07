@@ -4,7 +4,7 @@ import type { RlsSqlContext } from "./rls-sql.ts";
 
 import { jsonSchemaOf } from "./catalog-doc.ts";
 import { andSql, branchClauses, wrapSql } from "./rls-compile.ts";
-import { signedIn } from "./rls-helpers.ts";
+import { helperSchema, signedIn } from "./rls-helpers.ts";
 import { orSql } from "./rls-policies.ts";
 import {
   qualifiedTable,
@@ -140,6 +140,17 @@ export function viewName(table: string, suffix: string): string {
 }
 
 /**
+ * `<helper schema>.<table>_visible_fields`: outside the Data API's schemas,
+ * so its owner rights reach clients only through the `_visible` join.
+ */
+function companionName(ctx: RlsSqlContext, table: string): string {
+  const base = table.startsWith("public.")
+    ? table.slice("public.".length)
+    : table.replaceAll(".", "_");
+  return `${helperSchema(ctx)}.${viewName(base, FIELD_VIEWS.companion)}`;
+}
+
+/**
  * One view per table whose read grants limit fields. A column is restricted
  * when some read allow lists fields without it or some read deny lists it;
  * every other column, and the row key, passes through unchanged.
@@ -226,7 +237,7 @@ export function fieldViews(
         ? ["anon", "authenticated"]
         : ["authenticated"],
       ...(options.revokeColumns
-        ? { companion: viewName(table, FIELD_VIEWS.companion) }
+        ? { companion: companionName(ctx, table) }
         : {}),
     });
   }
@@ -283,7 +294,16 @@ function companionSql(view: FieldView, companion: string): string {
     ),
   ];
   const any = orSql(restricted.map((column) => column.mask ?? "false"));
-  return `create or replace view ${quoteTable(qualifiedTable(companion))} with (security_barrier = true) as
+  const name = companion.slice(0, companion.indexOf("."));
+  const schema = quoteIdent(name);
+  const usage =
+    name === "public"
+      ? ""
+      : `create schema if not exists ${schema};
+revoke all on schema ${schema} from public;
+grant usage on schema ${schema} to ${view.roles.join(", ")};
+`;
+  return `${usage}create or replace view ${quoteTable(qualifiedTable(companion))} with (security_barrier = true) as
 select
 ${selectList(targets)}
 from ${quoteTable(qualifiedTable(view.table))}

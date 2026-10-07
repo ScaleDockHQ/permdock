@@ -165,7 +165,7 @@ describe("fieldViews skips and warnings", () => {
     );
     const [view] = result.views;
     expect(view?.roles).toEqual(["anon", "authenticated"]);
-    expect(view?.companion).toBe("doc_visible_fields");
+    expect(view?.companion).toBe("permdock.doc_visible_fields");
     expect(result.warnings).toEqual([]);
     expect(fieldViewsSql(result.views)).toContain(
       'grant select on table "public"."doc_visible" to anon, authenticated;',
