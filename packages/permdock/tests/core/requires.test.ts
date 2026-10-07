@@ -462,7 +462,7 @@ describe("requires and a delegated key's scopes", () => {
     expect(await read(["drive:read", "drive:create"])).toEqual([]);
   });
 
-  it("accepts the required key's scope next to the permission's own in the RLS key ceiling", () => {
+  it("checks only the required key in the RLS key ceiling of a read share", () => {
     const compiled = compileGrants(
       scoped,
       {
@@ -487,7 +487,144 @@ describe("requires and a delegated key's scopes", () => {
         item.permissionKey === "drive.read" && item.label !== "driveAdmin",
     );
     expect(branch?.access).toContain(
-      `((select "permdock".permdock_api_key_allows('drive.read')) or (select "permdock".permdock_api_key_allows('file.read')))`,
+      `(select "permdock".permdock_api_key_allows('file.read'))`,
+    );
+    expect(branch?.access).not.toContain(
+      `permdock_api_key_allows('drive.read')`,
+    );
+  });
+});
+
+describe("requires and a key's scopes on a write", () => {
+  const shared = definePermissions({
+    node: resource({
+      actions: ["read", "update"],
+      relations: {
+        org: { field: "orgId", memberOf: "tenant" },
+        editor: {
+          edge: "node_shares",
+          object: "node_id",
+          match: { role: "editor" },
+        },
+        viewer: {
+          edge: "node_shares",
+          object: "node_id",
+          match: { role: "viewer" },
+          includes: ["editor"],
+        },
+      },
+    }),
+    file: resource({
+      actions: ["read", "update"],
+      relations: { org: { field: "orgId", memberOf: "tenant" } },
+    }),
+  });
+  const { node, file: sharedFile } = shared;
+  const nodePolicy = definePolicy(shared, {
+    scopes: { tenant: { key: "orgId" } },
+    roles: [
+      role("member", [allow([sharedFile.read, sharedFile.update])], {
+        on: "tenant",
+      }),
+      role("reviewer", [allow(node.read, { requires: sharedFile.read })], {
+        on: "tenant",
+      }),
+    ],
+    grants: [
+      allow(node.read, {
+        to: relation(node, "viewer"),
+        requires: sharedFile.read,
+      }),
+      allow(node.update, {
+        to: relation(node, "editor"),
+        requires: sharedFile.read,
+      }),
+    ],
+    subject: () => null,
+  });
+  const rows = [
+    { id: "n-edit", orgId: "acme" },
+    { id: "n-other", orgId: "acme" },
+  ];
+  const nodeRelations = memoryRelations(shared, {
+    tables: {
+      node_shares: [{ node_id: "n-edit", user_id: "ana", role: "editor" }],
+    },
+  });
+  const keyed = async (roles: readonly string[], scopes: readonly string[]) => {
+    const permdock = await createPermDock(
+      nodePolicy,
+      {
+        principal: {
+          id: "ana",
+          tenant: "acme",
+          memberships: [{ tenant: "acme", roles: [...roles] }],
+        },
+        context: {},
+        delegation: { scopes: [...scopes] },
+      },
+      { relations: nodeRelations },
+    );
+    await permdock.loadRelations(node.read, rows);
+    await permdock.loadRelations(node.update, rows);
+    return permdock;
+  };
+  const ids = (
+    permdock: Awaited<ReturnType<typeof keyed>>,
+    permission: typeof node.read | typeof node.update,
+  ) => rows.filter((row) => permdock.can(permission, row)).map((row) => row.id);
+
+  it("keeps a key that covers only the required permission off a write share", async () => {
+    const readOnly = await keyed(["member"], ["file:read"]);
+    expect(ids(readOnly, node.read)).toEqual(["n-edit"]);
+    expect(ids(readOnly, node.update)).toEqual([]);
+    const decision = readOnly.decide(node.update, rows[0]);
+    expect(
+      decision.outcome === "denied"
+        ? decision.denials.map((denial) => denial.reason)
+        : [],
+    ).toEqual(["not-delegated"]);
+    const writer = await keyed(["member"], ["node:update", "file:read"]);
+    expect(ids(writer, node.update)).toEqual(["n-edit"]);
+  });
+
+  it("does not let the required permission stand in for a role grant's own", async () => {
+    const reviewer = await keyed(["member", "reviewer"], ["file:read"]);
+    expect(ids(reviewer, node.read)).toEqual(["n-edit"]);
+    const roleOnly = await keyed(["member", "reviewer"], ["node:read"]);
+    expect(ids(roleOnly, node.read)).toEqual([]);
+    const both = await keyed(
+      ["member", "reviewer"],
+      ["node:read", "file:read"],
+    );
+    expect(ids(both, node.read)).toEqual(["n-edit", "n-other"]);
+  });
+
+  it("checks the granted and every required key in the RLS key ceiling of a write share", () => {
+    const compiled = compileGrants(
+      nodePolicy,
+      {
+        dialect: "supabase" as const,
+        scopes: scopeList(nodePolicy.scopes),
+        tenantClaim: "tenant_id",
+        gucPrefix: "app",
+        apiKeys: {
+          claim: "api_key",
+          scopes: "scopes",
+          tenant: "tenant",
+          roles: "roles",
+          serviceRoles: [],
+        },
+      },
+      undefined,
+      [],
+      false,
+    );
+    const update = compiled.branches.find(
+      (item) => item.permissionKey === "node.update",
+    );
+    expect(update?.access).toContain(
+      `((select "permdock".permdock_api_key_allows('node.update')) and (select "permdock".permdock_api_key_allows('file.read')))`,
     );
   });
 });

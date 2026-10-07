@@ -1,11 +1,12 @@
 import type { DenialReason } from "./decision.ts";
-import type { PolicyDelegation } from "./policy.ts";
+import type { Grant, PolicyDelegation } from "./policy.ts";
 import type { Delegation, GnapAccess, Subject } from "./subject.ts";
 
 import { flattenGrantee, matchGrantee } from "./grantee.ts";
 import {
   type Permission,
   type PermissionTree,
+  annotationsFor,
   findPermission,
   formerScopes,
 } from "./permissions.ts";
@@ -92,6 +93,14 @@ export function coversRequirements(
       coveredByDelegation(leaf, delegation, resourceId, hasActor) === undefined
     );
   });
+}
+
+export function requiresStandIn(grant: Grant): boolean {
+  return (
+    (grant.requires ?? []).length > 0 &&
+    annotationsFor(grant.permission).readOnlyHint &&
+    !flattenGrantee(grant.to).some((item) => item.kind === "role")
+  );
 }
 
 function accessCovers(
