@@ -152,4 +152,70 @@ describe("inherit() in RLS: a node is readable where its drive is", () => {
       ),
     ).toEqual(["n-acme"]);
   });
+
+  it("answers permitted_node_row for a row value, including one not yet inserted", async () => {
+    if (db === undefined) {
+      throw new Error("PermDock: Postgres was not started");
+    }
+    const rowValues = nodes
+      .map(
+        (row) =>
+          `('${row.id}', row('${row.id}', '${row.orgId}', '${row.driveId}', '${row.folderId}', ${String(row.locked)}, ${String(row.restricted)})::public.node)`,
+      )
+      .join(", ");
+    const mismatches: string[] = [];
+    for (const user of users) {
+      for (const key of ["node.read", "node.share"] as const) {
+        const got = await asUser(
+          db,
+          user.id,
+          `select v.id from (values ${rowValues}) v(id, r) where permdock.permitted_node_row(v.r, '${key}') order by v.id`,
+        );
+        const want = await inProcess(
+          user,
+          key === "node.read" ? permissions.node.read : permissions.node.share,
+        );
+        if (JSON.stringify(got) !== JSON.stringify(want)) {
+          mismatches.push(
+            `${user.id} ${key}: rls [${got.join(",")}] can [${want.join(",")}]`,
+          );
+        }
+      }
+    }
+    expect(mismatches).toEqual([]);
+    const member = users[0]?.id ?? "";
+    const unsaved =
+      "row('n-new', 'acme', 'd-acme', 'f-acme', false, false)::public.node";
+    expect(
+      await asUser(
+        db,
+        member,
+        `select 'n-new' as id where permdock.permitted_node_row(${unsaved}, 'node.read')`,
+      ),
+    ).toEqual(["n-new"]);
+    expect(
+      await asUser(
+        db,
+        member,
+        "select 'n-new' as id where 'n-new' in (select permdock.permitted_node_rows('node.read'))",
+      ),
+    ).toEqual([]);
+    await db.admin.query(
+      "grant insert on public.node to authenticated; create policy node_insert on public.node for insert to authenticated with check (permdock.permitted_node_row(node, 'node.read'))",
+    );
+    expect(
+      await asUser(
+        db,
+        member,
+        "insert into public.node values ('n-new', 'acme', 'd-acme', 'f-acme', false, false) returning id",
+      ),
+    ).toEqual(["n-new"]);
+    await expect(
+      asUser(
+        db,
+        users[3]?.id ?? "",
+        "insert into public.node values ('n-other', 'acme', 'd-acme', 'f-acme', false, false) returning id",
+      ),
+    ).rejects.toThrow(/row-level security/u);
+  });
 });

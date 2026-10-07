@@ -147,6 +147,26 @@ as $$
 $$;`;
 }
 
+function rowSql(
+  ctx: RlsSqlContext,
+  rows: string,
+  table: string,
+  where: string,
+): string {
+  const fn = qualified(ctx, rows.replace(/_rows$/u, "_row"));
+  return `create or replace function ${fn}(p_row ${table}, p_permission text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (select 1 from (select (p_row).*) r where ${where})
+$$;
+revoke execute on function ${fn}(${table}, text) from public, anon;
+grant execute on function ${fn}(${table}, text) to authenticated;`;
+}
+
 function resourceSql(
   ctx: RlsSqlContext,
   node: ResourceNode,
@@ -176,7 +196,8 @@ as $$
   where ${where}
 $$;
 revoke execute on function ${fn}(text) from public, anon;
-grant execute on function ${fn}(text) to authenticated;`;
+grant execute on function ${fn}(text) to authenticated;
+${rowSql(ctx, name, table, where)}`;
   if (ctx.dialect === "neon") {
     return rows;
   }

@@ -100,6 +100,19 @@ describe("permitted_<resource>_rows", () => {
     );
   });
 
+  it("writes a row-valued form that reads the row's columns instead of looking up its id", () => {
+    const { sql } = generate("neon", ["doc"]);
+    expect(sql).toContain(
+      'create or replace function "permdock".permitted_doc_row(p_row "app"."documents", p_permission text)\nreturns boolean',
+    );
+    expect(sql).toContain(
+      `select exists (select 1 from (select (p_row).*) r where case p_permission\n    when 'doc.archive' then`,
+    );
+    expect(sql).toContain(
+      'grant execute on function "permdock".permitted_doc_row("app"."documents", text) to authenticated;',
+    );
+  });
+
   it("sets the guc user and claims for a named user and restores them", () => {
     const { sql } = generate("guc", ["doc"]);
     expect(sql).toContain("p_user text, p_permission text, p_claims jsonb");
