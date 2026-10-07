@@ -270,6 +270,12 @@ export type RlsConfig = {
   readonly actions?: RlsActions;
   /** Emit only the helpers, their seeds and the scaffold; the table policies stay hand-written. */
   readonly helpersOnly?: boolean;
+  /**
+   * Emit `permitted_<resource>_rows(p_permission)` and its `_for` form for
+   * these resources, or for every resource a grant reaches with `true`: the
+   * row ids the caller may act on, as the generated policies decide them.
+   */
+  readonly rowHelpers?: true | readonly string[];
   /** `rls migrate`: how existing helper calls map onto the generated helpers. */
   readonly migrate?: RlsMigrateConfig;
   /**

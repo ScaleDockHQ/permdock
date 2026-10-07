@@ -76,6 +76,8 @@ export type CompiledPolicy = {
 
 export type CompiledGrants = {
   readonly branches: readonly CompiledBranch[];
+  /** With `rowActions`: branches of actions with no SQL command, compiled as reads for `permitted_<resource>_rows` only. */
+  readonly actionBranches: readonly CompiledBranch[];
   readonly rolePermissions: readonly RolePermission[];
   /** The row columns policies filter on: scope keys and condition fields. */
   readonly rowColumns: readonly {
@@ -310,6 +312,7 @@ function prepare(
   warnings: string[],
   skipClosures: boolean,
   actions: RlsActions | undefined,
+  rowActions = false,
 ): Prepared | undefined {
   const { grant, label } = item;
   if (grant.breakGlass !== undefined) {
@@ -352,6 +355,17 @@ function prepare(
   const command = commandFor(grant.permission.action, actions);
   const table = tableFor(grant.permission.resource, tables);
   if (command === undefined) {
+    if (item.access.kind !== "role" && rowActions) {
+      warnings.push(
+        `no policy for ${label}/${grant.permission.key}: action '${grant.permission.action}' has no SQL command (rls.actions); only permitted_<resource>_rows answers it`,
+      );
+      return {
+        item,
+        command: "none",
+        table,
+        ...(item.where === undefined ? {} : { using: item.where }),
+      };
+    }
     if (item.access.kind !== "role") {
       warnings.push(
         `skipped ${label}/${grant.permission.key}: action '${grant.permission.action}' has no SQL command (rls.actions) and only role grants are seeded`,
@@ -577,10 +591,18 @@ export function compileGrants(
   tables: Readonly<Record<string, string>> | undefined,
   warnings: string[],
   skipClosures: boolean,
+  rowActions = false,
 ): CompiledGrants {
   const items = collectGrants(policy);
   const entries = items.flatMap((item) => {
-    const entry = prepare(item, tables, warnings, skipClosures, ctx.actions);
+    const entry = prepare(
+      item,
+      tables,
+      warnings,
+      skipClosures,
+      ctx.actions,
+      rowActions,
+    );
     return entry === undefined ? [] : [entry];
   });
   const keys = assignKeys(entries, ctx.fields === "views");
@@ -614,6 +636,7 @@ export function compileGrants(
     }
   }
   const branches: CompiledBranch[] = [];
+  const actionBranches: CompiledBranch[] = [];
   const rowColumns = new Map<
     string,
     { resource: string; table: string; column: string }
@@ -638,9 +661,9 @@ export function compileGrants(
     return next;
   };
   for (const entry of entries) {
-    const { item, command, table } = entry;
+    const { item, table } = entry;
     const { grant, access, label } = item;
-    if (command === "none") {
+    if (entry.command === "none") {
       const grantKey = keys.get(entry);
       if (access.kind === "role" && grantKey !== undefined) {
         const row: RolePermission = {
@@ -652,8 +675,13 @@ export function compileGrants(
         };
         rows.set(`${row.role}\u0000${row.grantKey}\u0000${row.scope}`, row);
       }
-      continue;
+      if (!rowActions) {
+        continue;
+      }
     }
+    const actionOnly = entry.command === "none";
+    const command = actionOnly ? "select" : entry.command;
+    const target = actionOnly ? actionBranches : branches;
     const rowCtx = {
       ...contextFor(item.grant.permission.resource),
       permission: grant.permission.key,
@@ -737,7 +765,7 @@ export function compileGrants(
     const check = compileOptional(entry.check, rowCtx);
     const fields = grant.fields === undefined ? {} : { fields: grant.fields };
     if (!linkOnly) {
-      branches.push({
+      target.push({
         table,
         command,
         effect: grant.effect,
@@ -760,7 +788,7 @@ export function compileGrants(
         ? capabilityAccess(item, policy, ctx)
         : undefined;
     if (linked !== undefined) {
-      branches.push({
+      target.push({
         table,
         command,
         effect: grant.effect,
@@ -777,6 +805,7 @@ export function compileGrants(
   }
   return {
     branches: ensureSelectCoverage(branches, warnings),
+    actionBranches,
     rolePermissions: withAliasRows(policy, [...rows.values()]),
     conditionedKeys,
     rowColumns: [...rowColumns.values()],
