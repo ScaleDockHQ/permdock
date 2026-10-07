@@ -733,7 +733,6 @@ describe("a user key held to one tenant", () => {
   it("narrows memberships read from a source and drops global roles", async () => {
     const subject = credentialSubject(heldKey, { permissions });
     const permdock = await createPermDock(policy, subject, {
-      tenant: "o_1",
       memberships: {
         membershipsFor: () => [...(twoTenants.memberships ?? [])],
       },
@@ -751,6 +750,40 @@ describe("a user key held to one tenant", () => {
       }),
     );
     expect(withGlobal.subject.principal?.roles).toEqual([]);
+  });
+
+  it("holds no membership and answers for no tenant when asked for another", async () => {
+    const subject = credentialSubject(heldKey, { permissions });
+    const entitlementsFor = (): string[] => ["pro"];
+    const permdock = await createPermDock(policy, subject, {
+      tenant: "o_1",
+      memberships: {
+        membershipsFor: () => [...(twoTenants.memberships ?? [])],
+      },
+      entitlements: { entitlementsFor },
+    });
+    expect({
+      tenant: permdock.subject.principal?.tenant,
+      memberships: permdock.memberships(),
+      plans: permdock.subject.principal?.plans,
+      inOther: permdock.can(repo.read, r1),
+      inHeld: permdock.can(repo.read, other),
+      where: permdock.where(repo.read),
+    }).toEqual({
+      tenant: undefined,
+      memberships: [],
+      plans: undefined,
+      inOther: false,
+      inHeld: false,
+      where: { condition: { op: "or", conditions: [] }, partial: false },
+    });
+    const same = await createPermDock(policy, subject, {
+      tenant: "o_2",
+      memberships: {
+        membershipsFor: () => [...(twoTenants.memberships ?? [])],
+      },
+    });
+    expect(same.can(repo.read, other)).toBe(true);
   });
 
   it("is created only in a tenant the creator is a member of", async () => {
