@@ -29,8 +29,11 @@ const { createFromNodeStream } = createRequire(import.meta.url)(
   ) => PromiseLike<unknown>;
 };
 
+// Rolldown names a merged chunk after its first module, so match the call, not the file name.
 function contextChunks(files: readonly string[]): readonly string[] {
-  return files.filter((file) => /[/\\]context-[^/\\]+\.js$/u.test(file));
+  return files.filter((file) =>
+    readFileSync(file, "utf8").includes("createContext("),
+  );
 }
 
 type RenderResult =
