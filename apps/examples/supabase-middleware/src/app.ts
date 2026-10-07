@@ -1,12 +1,11 @@
 import { pipeline } from "@supabase/middleware";
 import { withClaims } from "@supabase/server/middleware/claims";
 import { Hono } from "hono";
-import { subjectFromSupabase } from "permdock/supabase";
-import { createPermDock } from "permdock/supabase/middleware";
 
+import { flags, reviewQueue } from "./flags.ts";
 import { isDevUser, jwks, mintToken } from "./keys.ts";
+import { permdockHandler, withPermDock } from "./permdock.ts";
 import { ownPost, permissions } from "./permissions.ts";
-import { policy } from "./policy.ts";
 import { toHono } from "./to-hono.ts";
 
 const posts = new Map([
@@ -20,18 +19,6 @@ async function postFrom(request: Request): Promise<typeof ownPost | null> {
   await Promise.resolve();
   return posts.get(id) ?? null;
 }
-
-// `ctx.jwtClaims` is the JWKS-verified payload from `withClaims`; `null` is the
-// anonymous caller. `subjectFromSupabase` never reads `user_metadata`.
-const { withPermDock, permdockHandler } = createPermDock(policy, {
-  subject: (ctx) =>
-    subjectFromSupabase(ctx.jwtClaims, {
-      roles: "user_role",
-      tenant: "tenant_id",
-      memberships: "memberships",
-      declared: ["member", "admin"],
-    }),
-});
 
 // Contribute `ctx.permdock` and decide inside the handler.
 const patchPost = pipeline(
@@ -106,6 +93,12 @@ function routeFor(request: Request): Route | null {
   }
   if (request.method === "POST" && pathname === "/api/permdock") {
     return evaluations;
+  }
+  if (request.method === "GET" && pathname === "/posts/review-queue") {
+    return reviewQueue;
+  }
+  if (request.method === "GET" && pathname === "/flags") {
+    return flags;
   }
   if (pathname.startsWith("/hono/")) {
     return async (honoRequest) => {

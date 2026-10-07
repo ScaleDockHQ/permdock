@@ -12,6 +12,8 @@
   },
   "dependencies": {
     "@hono/node-server": "catalog:",
+    "@openfeature/server-sdk": "catalog:",
+    "@supabase-labs/middleware-openfeature": "catalog:",
     "@supabase/middleware": "catalog:",
     "@supabase/server": "catalog:",
     "@supabase/supabase-js": "catalog:",

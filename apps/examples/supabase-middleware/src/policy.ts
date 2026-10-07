@@ -24,6 +24,7 @@ const admin = role("admin", [
   allow(permissions.post.update),
   allow(permissions.post.delete),
   allow(permissions.post.publish),
+  allow(permissions.post.review),
   deny(permissions.post.publish, { where: { published: true } }),
 ]);
 
