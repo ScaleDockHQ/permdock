@@ -19,6 +19,12 @@ const PERMISSION_HELPERS = {
   hasFor: "permdock_has_permission_for",
 } as const;
 
+/** `permitted_<scope>_permission_keys(p_id)`: every permission key the subject holds on one instance. */
+function permissionKeysHelper(scope: string): string {
+  permittedIdsHelper(scope);
+  return `permitted_${scope}_permission_keys`;
+}
+
 /** `permitted_<scope>_ids_by_permission(p_permission)`. */
 export function permittedByPermissionHelper(scope: string): string {
   return `${permittedIdsHelper(scope)}_by_permission`;
@@ -170,6 +176,27 @@ export function permissionHelpersSql(
     where p_conditioned
   ) g
   cross join lateral ${helper}(${user}g.grant_key) d(id)`;
+  const heldKeys = (scope: string): string => {
+    const held = [
+      ...new Set([
+        ...Object.keys(grants.get("global") ?? {}),
+        ...Object.keys(grants.get(scope) ?? {}),
+      ]),
+    ].toSorted();
+    return held.length === 0
+      ? "array[]::text[]"
+      : `array[${held.map(quoteLiteral).join(", ")}]::text[]`;
+  };
+  const keysOn = (
+    scope: string,
+    hasHelper: string,
+    idsHelper: string,
+    user: string,
+  ): string =>
+    `  select k.key
+  from pg_catalog.unnest(${heldKeys(scope)}) k(key)
+  where ${hasHelper}(${user}k.key)
+    or p_id in (select ${idsHelper}(${user}k.key))`;
   const chunks = [
     grantsFunction(ctx, grants, renamed, anonExecute),
     `-- the helpers by permission key: unconditional allows minus any deny
@@ -193,6 +220,15 @@ ${grantsSql(qualified(ctx, PERMISSION_HELPERS.has), "text", anonExecute)}`,
       ids(qualified(ctx, permittedIdsHelper(scope.name)), scope.name, ""),
     )}
 ${grantsSql(fn, "text", anonExecute)}`);
+    const keysFn = qualified(ctx, checkName(permissionKeysHelper(scope.name)));
+    chunks.push(`-- the permission keys the caller holds on one ${scope.name}: what permdock_has_permission or permitted_${scope.name}_ids_by_permission answers for each key, in one call
+${definer(
+  keysFn,
+  `p_id ${scopeTypeOf(ctx, scope.name)}`,
+  "setof text",
+  keysOn(scope.name, qualified(ctx, PERMISSION_HELPERS.has), fn, ""),
+)}
+${grantsSql(keysFn, scopeTypeOf(ctx, scope.name), anonExecute)}`);
     chunks.push(`-- with p_conditioned true, also the instances a conditioned allow reaches, minus only unconditional denies: the caller applies the row condition
 ${definer(
   fn,
@@ -248,6 +284,17 @@ ${revoke(fn)}`);
       ),
     )}
 revoke execute on function ${fn}(${user}, text, boolean) from public, anon, authenticated;`);
+    const keysFor = qualified(
+      ctx,
+      checkName(`${permissionKeysHelper(scope.name)}_for`),
+    );
+    chunks.push(`${definer(
+      keysFor,
+      `p_user ${user}, p_id ${scopeTypeOf(ctx, scope.name)}`,
+      "setof text",
+      keysOn(scope.name, hasFor, fn, "p_user, "),
+    )}
+revoke execute on function ${keysFor}(${user}, ${scopeTypeOf(ctx, scope.name)}) from public, anon, authenticated;`);
   }
   return `${chunks.join("\n\n")}\n`;
 }

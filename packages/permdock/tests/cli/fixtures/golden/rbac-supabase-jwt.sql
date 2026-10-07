@@ -256,6 +256,22 @@ $$;
 revoke execute on function "app".permitted_tenant_ids_by_permission(text) from public, anon;
 grant execute on function "app".permitted_tenant_ids_by_permission(text) to authenticated;
 
+-- the permission keys the caller holds on one tenant: what permdock_has_permission or permitted_tenant_ids_by_permission answers for each key, in one call
+create or replace function "app".permitted_tenant_permission_keys(p_id uuid)
+returns setof text
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select k.key
+  from pg_catalog.unnest(array['post.archive', 'post.create', 'post.delete', 'post.list', 'post.publish', 'post.read', 'post.update']::text[]) k(key)
+  where "app".permdock_has_permission(k.key)
+    or p_id in (select "app".permitted_tenant_ids_by_permission(k.key))
+$$;
+revoke execute on function "app".permitted_tenant_permission_keys(uuid) from public, anon;
+grant execute on function "app".permitted_tenant_permission_keys(uuid) to authenticated;
+
 -- with p_conditioned true, also the instances a conditioned allow reaches, minus only unconditional denies: the caller applies the row condition
 create or replace function "app".permitted_tenant_ids_by_permission(p_permission text, p_conditioned boolean)
 returns setof uuid

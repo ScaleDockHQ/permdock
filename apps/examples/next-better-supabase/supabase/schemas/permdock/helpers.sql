@@ -414,6 +414,22 @@ $$;
 revoke execute on function "permdock".permitted_organization_ids_by_permission(text) from public, anon;
 grant execute on function "permdock".permitted_organization_ids_by_permission(text) to authenticated;
 
+-- the permission keys the caller holds on one organization: what permdock_has_permission or permitted_organization_ids_by_permission answers for each key, in one call
+create or replace function "permdock".permitted_organization_permission_keys(p_id uuid)
+returns setof text
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select k.key
+  from pg_catalog.unnest(array['quotes.list', 'quotes.read', 'quotes.update', 'staff.list', 'staff.read']::text[]) k(key)
+  where "permdock".permdock_has_permission(k.key)
+    or p_id in (select "permdock".permitted_organization_ids_by_permission(k.key))
+$$;
+revoke execute on function "permdock".permitted_organization_permission_keys(uuid) from public, anon;
+grant execute on function "permdock".permitted_organization_permission_keys(uuid) to authenticated;
+
 -- with p_conditioned true, also the instances a conditioned allow reaches, minus only unconditional denies: the caller applies the row condition
 create or replace function "permdock".permitted_organization_ids_by_permission(p_permission text, p_conditioned boolean)
 returns setof uuid
@@ -460,6 +476,22 @@ as $$
 $$;
 revoke execute on function "permdock".permitted_customer_ids_by_permission(text) from public, anon;
 grant execute on function "permdock".permitted_customer_ids_by_permission(text) to authenticated;
+
+-- the permission keys the caller holds on one customer: what permdock_has_permission or permitted_customer_ids_by_permission answers for each key, in one call
+create or replace function "permdock".permitted_customer_permission_keys(p_id uuid)
+returns setof text
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select k.key
+  from pg_catalog.unnest(array['quotes.list', 'quotes.read']::text[]) k(key)
+  where "permdock".permdock_has_permission(k.key)
+    or p_id in (select "permdock".permitted_customer_ids_by_permission(k.key))
+$$;
+revoke execute on function "permdock".permitted_customer_permission_keys(uuid) from public, anon;
+grant execute on function "permdock".permitted_customer_permission_keys(uuid) to authenticated;
 
 -- with p_conditioned true, also the instances a conditioned allow reaches, minus only unconditional denies: the caller applies the row condition
 create or replace function "permdock".permitted_customer_ids_by_permission(p_permission text, p_conditioned boolean)
@@ -547,6 +579,20 @@ as $$
 $$;
 revoke execute on function "permdock".permitted_organization_ids_by_permission_for(uuid, text, boolean) from public, anon, authenticated;
 
+create or replace function "permdock".permitted_organization_permission_keys_for(p_user uuid, p_id uuid)
+returns setof text
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select k.key
+  from pg_catalog.unnest(array['quotes.list', 'quotes.read', 'quotes.update', 'staff.list', 'staff.read']::text[]) k(key)
+  where "permdock".permdock_has_permission_for(p_user, k.key)
+    or p_id in (select "permdock".permitted_organization_ids_by_permission_for(p_user, k.key))
+$$;
+revoke execute on function "permdock".permitted_organization_permission_keys_for(uuid, uuid) from public, anon, authenticated;
+
 create or replace function "permdock".permitted_customer_ids_by_permission_for(p_user uuid, p_permission text)
 returns setof uuid
 language sql
@@ -590,6 +636,20 @@ as $$
   cross join lateral "permdock".permitted_customer_ids_for(p_user, g.grant_key) d(id)
 $$;
 revoke execute on function "permdock".permitted_customer_ids_by_permission_for(uuid, text, boolean) from public, anon, authenticated;
+
+create or replace function "permdock".permitted_customer_permission_keys_for(p_user uuid, p_id uuid)
+returns setof text
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select k.key
+  from pg_catalog.unnest(array['quotes.list', 'quotes.read']::text[]) k(key)
+  where "permdock".permdock_has_permission_for(p_user, k.key)
+    or p_id in (select "permdock".permitted_customer_ids_by_permission_for(p_user, k.key))
+$$;
+revoke execute on function "permdock".permitted_customer_permission_keys_for(uuid, uuid) from public, anon, authenticated;
 
 -- organization: holder counts (min / max) over the membership sources, checked at commit
 create or replace function "permdock".permdock_holders_organization()

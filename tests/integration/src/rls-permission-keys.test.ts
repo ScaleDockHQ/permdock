@@ -152,4 +152,90 @@ describe("permission-key helpers", () => {
     );
     expect(forUser.rows.map((row) => row.id)).toEqual(["acme"]);
   });
+
+  it("lists every key held on one instance in one call, as the per-key helpers answer, and faster than a call per key", async () => {
+    if (db === undefined) {
+      throw new Error("PermDock: Postgres was not started");
+    }
+    const target = db;
+    const declared = (
+      await target.admin.query<{ key: string }>(
+        "select k as key from permdock.permdock_permission_keys() k",
+      )
+    ).rows.map((row) => row.key);
+    expect(declared.length).toBeGreaterThanOrEqual(3);
+    const timed = async <T>(work: () => Promise<T>) => {
+      const start = performance.now();
+      const value = await work();
+      return { value, ms: performance.now() - start };
+    };
+    const median = (values: readonly number[]): number =>
+      values.toSorted((a, b) => a - b)[Math.floor(values.length / 2)] ?? 0;
+    for (const [user, tenant] of [
+      [ADMIN, "acme"],
+      [ADMIN, "globex"],
+      [MANAGER, "acme"],
+      [MANAGER, "globex"],
+    ] as const) {
+      const claims = {
+        "request.jwt.claims": JSON.stringify({
+          sub: user,
+          role: "authenticated",
+        }),
+      };
+      const runs = await target.as(
+        { role: "authenticated", settings: claims },
+        async () => {
+          const one: number[] = [];
+          const many: number[] = [];
+          let oneKeys: string[] = [];
+          let manyKeys: string[] = [];
+          for (let round = 0; round < 7; round += 1) {
+            const single = await timed(async () =>
+              (
+                await target.tester.query<{ key: string }>(
+                  "select k as key from permdock.permitted_tenant_permission_keys($1) k",
+                  [tenant],
+                )
+              ).rows
+                .map((row) => row.key)
+                .toSorted(),
+            );
+            const each = await timed(async () => {
+              const held: string[] = [];
+              for (const key of declared) {
+                const answer = await target.tester.query<{ held: boolean }>(
+                  "select (select permdock.permdock_has_permission($1)) or $2 in (select permdock.permitted_tenant_ids_by_permission($1)) as held",
+                  [key, tenant],
+                );
+                if (answer.rows[0]?.held === true) {
+                  held.push(key);
+                }
+              }
+              return held.toSorted();
+            });
+            one.push(single.ms);
+            many.push(each.ms);
+            oneKeys = single.value;
+            manyKeys = each.value;
+          }
+          return { one, many, oneKeys, manyKeys };
+        },
+      );
+      expect(runs.oneKeys).toEqual(runs.manyKeys);
+      expect(median(runs.one)).toBeLessThan(median(runs.many));
+      const named = await target.admin.query<{ key: string }>(
+        "select k as key from permdock.permitted_tenant_permission_keys_for($1, $2) k order by 1",
+        [user, tenant],
+      );
+      expect(named.rows.map((row) => row.key)).toEqual(runs.oneKeys);
+    }
+    const adminAcme = await target.admin.query<{ key: string }>(
+      "select k as key from permdock.permitted_tenant_permission_keys_for($1, 'acme') k order by 1",
+      [ADMIN],
+    );
+    expect(adminAcme.rows.map((row) => row.key)).toEqual(
+      expect.arrayContaining(["job.read", "job.update"]),
+    );
+  });
 });
