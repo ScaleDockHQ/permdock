@@ -1,7 +1,7 @@
 {
   "$schema": "https://permdock.com/schemas/catalog-v1.json",
   "version": 1,
-  "generatedAt": "2026-10-05T17:02:37.954Z",
+  "generatedAt": "2026-10-07T11:56:06.928Z",
   "generator": "permdock@0.1.0",
   "fingerprint": "rq6xVNcSm8Wu0GTMxFGxfW0dk8a3yWJn97SVoemr7iY",
   "resources": {
@@ -197,7 +197,7 @@
         },
         {
           "file": "src/app/[locale]/(app)/[orgSlug]/staff/page.tsx",
-          "line": 37,
+          "line": 46,
           "call": "reference"
         },
         {
