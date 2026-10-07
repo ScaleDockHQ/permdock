@@ -50,6 +50,19 @@ export type SupabaseHookManifest = {
   readonly decidingColumns: readonly string[];
   /** The majors of the `-- permdock:hook` and `-- permdock:grants` marker lines. */
   readonly markers: { readonly hook: "v1"; readonly grants: "v1" };
+  /**
+   * The `supabase/sdk` capability-matrix feature ids the hook, the helpers and
+   * `subjectFromSupabase` depend on, as of the `matrix` release tag. A client
+   * SDK that lacks one cannot serve this policy.
+   */
+  readonly requires?: SupabaseManifestRequires;
+};
+
+export type SupabaseManifestRequires = {
+  /** The capability-matrix release tag, `capability-matrix-v1.<minor>.<patch>`. */
+  readonly matrix: string;
+  /** Sorted three-segment feature ids, such as `auth.session.get_claims`. */
+  readonly capabilities: readonly string[];
 };
 
 export type SupabaseHookClaim = {

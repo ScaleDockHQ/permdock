@@ -456,6 +456,7 @@
     "rlsParity",
     "snapshotFixture",
     "supabaseClaimFixtures",
+    "supabaseClaimVectors",
     "supabaseHookManifestFixture",
     "supabaseMembershipsBudget",
     "testAgentAdapter",

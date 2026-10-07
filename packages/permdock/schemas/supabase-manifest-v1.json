@@ -203,6 +203,26 @@
         "hook": { "const": "v1" },
         "grants": { "const": "v1" }
       }
+    },
+    "requires": {
+      "description": "The supabase/sdk capability-matrix feature ids the hook, the helpers and subjectFromSupabase depend on, as of the matrix release tag.",
+      "type": "object",
+      "required": ["matrix", "capabilities"],
+      "additionalProperties": false,
+      "properties": {
+        "matrix": {
+          "type": "string",
+          "pattern": "^capability-matrix-v1\\.[0-9]+\\.[0-9]+$"
+        },
+        "capabilities": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*\\.[a-z0-9_]+\\.[a-z0-9_]+$"
+          }
+        }
+      }
     }
   },
   "$defs": {

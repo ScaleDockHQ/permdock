@@ -923,7 +923,11 @@ Output of `permdock supabase inspect --json`, and the file `inspect --out permdo
     "public.memberships.scope_id",
     "public.memberships.user_id"
   ],
-  "markers": { "hook": "v1", "grants": "v1" }
+  "markers": { "hook": "v1", "grants": "v1" },
+  "requires": {
+    "matrix": "capability-matrix-v1.12.0",
+    "capabilities": ["auth.session.get_claims"]
+  }
 }
 ```
 
@@ -938,6 +942,7 @@ Output of `permdock supabase inspect --json`, and the file `inspect --out permdo
 - `rls.customRoles` says whether custom roles live in the helpers' tables. `rls.roles` is the global-roles table the hook and the `database` mode helpers read, in the `memberships` column shape. `rls.suspension` gives the `users` and per-scope tables of `rls.suspension` (`table`, `id`, and `disabledAt` or `status` with `active`), and for a scope that keeps permissions its `keep` keys. `rls.assignments.tables` lists the tables whose client writes the [assignment triggers](/docs/cli/rls#assignment-triggers) check, so a package writing rows there leaves the role ceiling to them. `rls.apiKeys` gives the claim and field names of [`rls.apiKeys`](/docs/cli/rls#api-keys) (`claim`, `scopes`, `tenant`, `roles`) and its `serviceRoles`, so a package that issues keys writes the claim the helpers read; `rls.helpers` then lists `permdock_api_key_allows(p_grant text)`. Each is present only when it applies.
 - `rls.mode` is where the helpers read roles and memberships: `jwt` (the claims) or `database` (the tables). It is `rls.authorize`, else what `rls generate` picks with no flags, so set `rls.authorize` when you pass `--authorize` or `--rbac` to `rls generate`. `rls.scopes` gives each declared scope's id type. `rls.memberships` lists the tables `member_<scope>_ids_for` reads, in the `memberships` shape: for each scope, the `rls.memberships` table mapped for it, else the `rls.membershipSources` that can hold it, else the hook's sources. A reader that resolves a user's memberships outside the hook, such as better-supabase's entitlements, reads this list and not the hook's `memberships`.
 - `decidingColumns` is every `schema.table.column` a membership or an `attrs` claim is computed from: the columns `permdock doctor` PD028 requires clients cannot write.
+- `requires` names the [Supabase capability matrix](https://github.com/supabase/sdk/tree/main/packages/capability-matrix) features the setup depends on, as of the `matrix` release tag. `auth.session.get_claims` is always there. A grant with a [live-session condition](/docs/concepts/conditions#live-sessions) adds `auth.session.get_user`, `rls.realtime` adds `realtime.subscriptions.private_channel`, and `rls.storage` adds the `storage.file_buckets.*` operations its buckets' policies cover. A client SDK that lacks one of them cannot serve the policy. Manifests written before the field existed omit it.
 - `markers` are the majors of the `-- permdock:hook` and `-- permdock:grants` lines. The generated migration starts with `-- permdock:hook v1 schema=<schema> tenant=<claim> budget=<bytes> claims=<names>`, which `supabase hook generate --check` compares first, and `parseHookMarker` / `parseGrantsMarker` in `permdock/cli` read.
 
 **Why.** A package that writes Storage or Realtime policies, or a claim function, next to the generated SQL needs to know what that SQL reads: which helpers exist with which signature, which tables and columns decide a membership, and whether the helpers read the token or the tables. Reading the manifest instead of PermDock's config or its generated SQL keeps that package on a versioned contract. A committed file lets it read the facts without running the CLI, and `inspect --check` in CI fails when the file falls behind the config. The check compares JSON, not text, so a formatter that reflows the file is not drift. Fields are only added within v1; a removed or changed field is a new major.

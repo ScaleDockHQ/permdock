@@ -392,6 +392,36 @@ export const supabaseClaimFixtures: Readonly<
 };
 
 /**
+ * `supabaseClaimFixtures` as a `supabase/sdk` conformance vector file
+ * (`schema/conformance.schema.json`): each case's `input` is a verified
+ * `getClaims()` payload and the `subjectFromSupabase` options, `expected` the
+ * subject fields it maps to. `JSON.stringify` it for a port in another language.
+ */
+export type SupabaseClaimVectors = {
+  readonly feature: "auth.session.get_claims";
+  readonly cases: readonly {
+    readonly name: string;
+    readonly input: {
+      readonly claims: SupabaseClaimFixture["claims"];
+      readonly options?: SupabaseClaimFixture["options"];
+    };
+    readonly expected: SupabaseClaimFixture["expect"];
+  }[];
+};
+
+export const supabaseClaimVectors: SupabaseClaimVectors = {
+  feature: "auth.session.get_claims",
+  cases: Object.entries(supabaseClaimFixtures).map(([name, fixture]) => ({
+    name,
+    input: {
+      claims: fixture.claims,
+      ...(fixture.options === undefined ? {} : { options: fixture.options }),
+    },
+    expected: fixture.expect,
+  })),
+};
+
+/**
  * Suggested ceiling for the `memberships` claim in bytes of JSON: about 15 UUID-keyed
  * single-role memberships. `permdock supabase hook generate` truncates at it by default.
  */
@@ -515,4 +545,8 @@ export const supabaseHookManifestFixture: SupabaseHookManifest = {
     "public.memberships.user_id",
   ],
   markers: { hook: "v1", grants: "v1" },
+  requires: {
+    matrix: "capability-matrix-v1.12.0",
+    capabilities: ["auth.session.get_claims"],
+  },
 };
