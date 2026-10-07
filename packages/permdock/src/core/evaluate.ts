@@ -1260,12 +1260,35 @@ export function evaluate(
         : alternativesFor(policy, permission, subject, now, env),
     });
   }
-  const delegationMiss = coveredByDelegation(
+  const unscoped = subject.actor !== undefined && ceiling === undefined;
+  let usable = allows;
+  let delegationMiss = coveredByDelegation(
     permission,
     subject.delegation,
     resourceIdOf(current),
-    subject.actor !== undefined && ceiling === undefined,
+    unscoped,
   );
+  if (delegationMiss === "not-delegated") {
+    const covered = (key: string): boolean => {
+      const leaf = findPermission(policy.permissions, key);
+      return (
+        leaf !== undefined &&
+        coveredByDelegation(
+          leaf,
+          subject.delegation,
+          resourceIdOf(current),
+          unscoped,
+        ) === undefined
+      );
+    };
+    const viaRequires = allows.filter((candidate) =>
+      (candidate.grant.requires ?? []).some(covered),
+    );
+    if (viaRequires.length > 0) {
+      usable = viaRequires;
+      delegationMiss = undefined;
+    }
+  }
   if (delegationMiss !== undefined) {
     return complete({
       outcome: "denied",
@@ -1277,7 +1300,7 @@ export function evaluate(
   }
 
   const approvalPolicies = env.approvalPolicies;
-  if (approvalPolicies === "failed" && allows.length > 0) {
+  if (approvalPolicies === "failed" && usable.length > 0) {
     return complete({
       outcome: "denied",
       denials: [
@@ -1306,7 +1329,7 @@ export function evaluate(
   let matchedAllow: (typeof allows)[number] | undefined;
   let approval: Grant["approval"];
   let quotaState: Pick<GrantedDecision, "quota" | "obligations"> = {};
-  for (const candidate of allows) {
+  for (const candidate of usable) {
     approval = approvalOf(candidate);
     const consume =
       !requiresApproval(approval) &&

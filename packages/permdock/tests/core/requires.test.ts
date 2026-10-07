@@ -325,6 +325,88 @@ describe("requires with a list of permissions", () => {
   });
 });
 
+describe("requires and a delegated key's scopes", () => {
+  const scoped = definePolicy(permissions, {
+    scopes: { tenant: { key: "orgId" } },
+    roles: [
+      role("member", [allow(file.read)], { on: "tenant" }),
+      role("driveAdmin", [allow(drive.read)], { on: "tenant" }),
+    ],
+    grants: [
+      allow(drive.read, {
+        to: relation(drive, "viewer"),
+        requires: file.read,
+      }),
+    ],
+    subject: () => null,
+  });
+  const keyed = async (
+    id: string,
+    roles: readonly string[],
+    scopes: readonly string[],
+  ): Promise<readonly string[]> => {
+    const permdock = await createPermDock(
+      scoped,
+      {
+        principal: {
+          id,
+          tenant: "acme",
+          memberships: [{ tenant: "acme", roles: [...roles] }],
+        },
+        context: {},
+        delegation: { scopes: [...scopes] },
+      },
+      { relations },
+    );
+    await permdock.loadRelations(drive.read, drives);
+    return drives
+      .filter((row) => permdock.can(drive.read, row))
+      .map((row) => row.id);
+  };
+
+  it("lets a key scoped to the required permission use the grants that require it", async () => {
+    expect(await keyed("ana", ["member"], ["file:read"])).toEqual(["d-acme"]);
+    expect(await keyed("ana", ["member"], ["drive:read"])).toEqual(["d-acme"]);
+    expect(await keyed("ana", ["member"], ["file:write"])).toEqual([]);
+  });
+
+  it("keeps every other grant of the permission out of reach of that scope", async () => {
+    expect(await keyed("nobody", ["driveAdmin"], ["file:read"])).toEqual([]);
+    expect(await keyed("nobody", ["driveAdmin"], ["drive:read"])).toEqual([
+      "d-acme",
+    ]);
+  });
+
+  it("accepts the required key's scope next to the permission's own in the RLS key ceiling", () => {
+    const compiled = compileGrants(
+      scoped,
+      {
+        dialect: "supabase" as const,
+        scopes: scopeList(scoped.scopes),
+        tenantClaim: "tenant_id",
+        gucPrefix: "app",
+        apiKeys: {
+          claim: "api_key",
+          scopes: "scopes",
+          tenant: "tenant",
+          roles: "roles",
+          serviceRoles: [],
+        },
+      },
+      undefined,
+      [],
+      false,
+    );
+    const branch = compiled.branches.find(
+      (item) =>
+        item.permissionKey === "drive.read" && item.label !== "driveAdmin",
+    );
+    expect(branch?.access).toContain(
+      `((select "permdock".permdock_api_key_allows('drive.read')) or (select "permdock".permdock_api_key_allows('file.read')))`,
+    );
+  });
+});
+
 describe("requires in generated RLS", () => {
   it("adds the permission-key helpers to the grant's access and marks its key conditioned", () => {
     const ctx = {

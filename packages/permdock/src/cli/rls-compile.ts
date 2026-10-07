@@ -752,9 +752,12 @@ export function compileGrants(
       access.kind !== "anyone" &&
       access.kind !== "role"
     ) {
+      const calls = [grant.permission.key, ...(grant.requires ?? [])].map(
+        (key) => `(select ${apiKeyAllowsCall(ctx, quoteLiteral(key))})`,
+      );
       accessExpr = andSql(
         accessExpr,
-        `(select ${apiKeyAllowsCall(ctx, quoteLiteral(grant.permission.key))})`,
+        calls.length === 1 ? (calls[0] ?? "") : `(${calls.join(" or ")})`,
       );
     }
     const using = compileOptional(entry.using, rowCtx);

@@ -162,6 +162,8 @@ A list requires every permission in it: `requires: [permissions.file.read, permi
 
 The check folds into the grant's row condition as `{ op: 'in', field: '<scope key>', value: [<instance ids>] }`, so `where()`, `filter` and the [snapshot](/docs/concepts/snapshots) carry it, and a client decides it like any portable condition. `permdock rls generate` ANDs `(select permdock_has_permission('<key>')) or "<scope key>" in (select permitted_<scope>_ids_by_permission('<key>'))` into the grant's access check, one such check per listed permission, and the grant's key counts as conditioned in `grant_keys`.
 
+A delegated caller (an OAuth client, an API key) whose scopes name a required permission but not the granted one may use the grants that require it, and no other grant of that permission. A key stored with the feature scope `file:read` keeps reading the drives its shares reach after `drive.read` moves to relation grants with `requires: file.read`, without reissuing keys; `rls.apiKeys` accepts the required key in the `api_key` claim the same way.
+
 ### Why
 
 An organization ceiling is a statement about the subject's roles, not about the row's columns, so it cannot be a `where` the author writes. Reading it from the same helpers by permission key that SQL callers use (`permdock_has_permission`, `permitted_<scope>_ids_by_permission`) keeps the in-process and database answers on one definition: unconditional role grants minus denies at that instance. Grants that carry their own row condition or `requires` never satisfy a requirement, so requirements cannot chain or loop.
