@@ -452,7 +452,7 @@ export function graphHelper(resource: string): string {
   return permittedIdsHelper(sqlNameOf(resource, `resource '${resource}'`));
 }
 
-export function inheritedRowsHelper(resource: string): string {
+function inheritedRowsHelper(resource: string): string {
   return `permitted_${sqlNameOf(resource, `resource '${resource}'`)}_rows`;
 }
 
