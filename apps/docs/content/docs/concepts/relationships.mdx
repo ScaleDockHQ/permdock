@@ -176,6 +176,19 @@ allow(people.account.act, { to: relation(people.account, "delegate") });
 
 The manager of an employee holds `manager` on it; walking the chain, the manager's manager holds `manager` on the manager, so skip-level managers reach the employee too. The delegate holds `delegate` only inside the period.
 
+### A ceiling on a relationship
+
+A share often counts only while the person also holds a baseline permission in the organization: an external collaborator removed from the organization should lose every share inside it. Add `requires` to the graph grant:
+
+```ts
+allow(permissions.drive.read, {
+  to: relation(permissions.drive, "viewer"),
+  requires: permissions.file.read,
+});
+```
+
+The share then counts only on drives whose organization is one where the subject holds `file.read` through a role, declared or custom, with no deny of it there ([requires](/docs/concepts/policies#requires)).
+
 ### Resource roles down a tree
 
 A [resource role](/docs/concepts/tenancy) held on an instance of a self-parented resource reaches everything below it: a `folderAdmin` membership on `eng` applies to `eng`, to its subfolders, and to documents whose `parent` is one of them. In process this needs a `relations` source; without one the role applies only to the instance it names. RLS applies resource roles to that instance only (see [Row-level security](#row-level-security)).

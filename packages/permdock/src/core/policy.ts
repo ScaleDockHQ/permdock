@@ -347,6 +347,12 @@ export type GrantOptions<T = Record<string, unknown>> = {
   readonly validFrom?: string | number;
   /** The grant stops applying at this instant (exclusive; RFC 3339 string or Unix seconds). */
   readonly validUntil?: string | number;
+  /**
+   * An allow on an instance action counts only on rows whose scope instance
+   * (or the whole app, globally) is one where the subject also holds this
+   * permission through a role grant without a row condition.
+   */
+  readonly requires?: Permission;
 };
 
 /**
@@ -460,6 +466,8 @@ export type Grant = {
   readonly validity?: GrantValidity;
   /** Set on a custom-role grant narrowed by a resource level (`CustomRoleGrant.level`). */
   readonly level?: string;
+  /** The permission key the subject must also hold, through a role, on the row's scope instance or globally. */
+  readonly requires?: string;
 };
 
 /** Which hosted policy document and grant a merged grant came from. */
@@ -959,6 +967,7 @@ function makeGrant(
       ? undefined
       : Object.freeze([...new Set(condition.purpose)]);
   const portable = condition?.limit === undefined && purpose === undefined;
+  const requires = requiredKey(condition?.requires, permission, effect);
   return compact<Omit<Grant, "role" | "scope">>({
     permission,
     effect,
@@ -973,7 +982,34 @@ function makeGrant(
     group: grantGroup(condition?.group, permission.key),
     purpose,
     validity: normalizeValidity(condition ?? {}, permission.key),
+    requires,
   });
+}
+
+function requiredKey(
+  input: unknown,
+  permission: Permission,
+  effect: "allow" | "deny",
+): string | undefined {
+  if (input === undefined) {
+    return undefined;
+  }
+  if (effect !== "allow") {
+    throw new Error(
+      `PermDock: requires is allowed on an allow only; '${permission.key}' is a deny`,
+    );
+  }
+  if (permission.kind !== "instance") {
+    throw new Error(
+      `PermDock: requires on '${permission.key}' needs an instance action; a collection action has no row whose scope it can check`,
+    );
+  }
+  if (!isPermission(input)) {
+    throw new TypeError(
+      `PermDock: requires on '${permission.key}' must be a permission leaf`,
+    );
+  }
+  return input.key;
 }
 
 export type GrantCondition<T, K extends PermissionKind> = K extends "collection"
@@ -1344,6 +1380,7 @@ function canonicalGrants(grants: readonly Grant[]): string {
     breakGlass: grant.breakGlass,
     viaOnly: grant.viaOnly,
     validity: grant.validity,
+    requires: grant.requires,
   }));
   return JSON.stringify(payload);
 }
@@ -1515,6 +1552,18 @@ function assertScopeKeys(
     throw new Error(
       `PermDock: resource '${node.name}' needs relations: { <name>: { field: '${key}', memberOf: '${grant.scope}' } } for ${grant.permission.key} on '${grant.scope}' roles`,
     );
+  }
+}
+
+/** A `requires` names a permission the policy declares. */
+function assertRequires(grants: readonly Grant[], tree: PermissionTree): void {
+  const keys = new Set(listPermissions(tree).map((leaf) => leaf.key));
+  for (const grant of grants) {
+    if (grant.requires !== undefined && !keys.has(grant.requires)) {
+      throw new Error(
+        `PermDock: '${grant.permission.key}' requires '${grant.requires}', which the policy does not declare`,
+      );
+    }
   }
 }
 
@@ -1781,6 +1830,7 @@ export function definePolicy<
   assertApprovalVersions(grants, resources);
   assertApprovalRelations(grants, resources);
   assertRelationGrants(grants, resources);
+  assertRequires(grants, tree);
   const delegations = (options.delegations ?? []).map((item, index) =>
     normalizeDelegation(item, index, tree),
   );

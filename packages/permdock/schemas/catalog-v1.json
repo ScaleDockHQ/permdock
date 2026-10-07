@@ -448,6 +448,9 @@
               "type": "string"
             }
           },
+          "requires": {
+            "type": "string"
+          },
           "limit": {
             "type": "object",
             "required": ["count", "per"],
