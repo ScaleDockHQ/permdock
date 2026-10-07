@@ -451,6 +451,10 @@ export function graphHelper(resource: string): string {
   return permittedIdsHelper(sqlNameOf(resource, `resource '${resource}'`));
 }
 
+export function inheritedRowsHelper(resource: string): string {
+  return `permitted_${sqlNameOf(resource, `resource '${resource}'`)}_rows`;
+}
+
 /** The helper returning the ids of `resource` whose `link` points into the ids it is given. */
 export function linkHelper(resource: string, link: string): string {
   return `permdock_link_${sqlNameOf(resource, `resource '${resource}'`)}_${sqlNameOf(link, `link '${link}' on ${resource}`)}`;
@@ -1507,7 +1511,10 @@ function compileRelatedSql(
     type === undefined
       ? `${quoteIdent(condition.field)}::text`
       : quoteIdent(condition.field);
-  const helper = `${`${quoteIdent(ctx.schema ?? PERMDOCK_SCHEMA)}.${graphHelper(condition.resource)}`}(${quoteLiteral(condition.relation)})`;
+  const helper =
+    condition.permission === undefined
+      ? `${`${quoteIdent(ctx.schema ?? PERMDOCK_SCHEMA)}.${graphHelper(condition.resource)}`}(${quoteLiteral(condition.relation)})`
+      : `${quoteIdent(ctx.schema ?? PERMDOCK_SCHEMA)}.${inheritedRowsHelper(condition.resource)}(${quoteLiteral(condition.permission)})`;
   const cap = ctx.graph?.closures[condition.resource];
   let inner: string;
   if (condition.depth > 0 && cap !== undefined) {
@@ -1553,6 +1560,11 @@ function compileHoppedSql(
       holders: (resource, relation) => [
         {
           text: `select ${schema}.${graphHelper(resource)}(${quoteLiteral(relation)})`,
+        },
+      ],
+      permitted: (resource, permission) => [
+        {
+          text: `select ${schema}.${inheritedRowsHelper(resource)}(${quoteLiteral(permission)})`,
         },
       ],
       linked: (resource, link, targets) => [

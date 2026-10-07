@@ -31,6 +31,7 @@ import {
   asGrantee,
   authenticated,
   flattenGrantee,
+  inheritCondition,
   isGraphRelation,
   relationHops,
   relationStart,
@@ -799,9 +800,11 @@ function normalizeDelegation(
   if (items.length === 0) {
     throw new Error(`PermDock: ${label}.from names nobody`);
   }
-  if (items.some((item) => item.kind === "relation")) {
+  if (
+    items.some((item) => item.kind === "relation" || item.kind === "inherit")
+  ) {
     throw new Error(
-      `PermDock: ${label}.from names a relation; a delegation is matched without a row, so name a role or another subject-only grantee`,
+      `PermDock: ${label}.from names a relation or inherit(); a delegation is matched without a row, so name a role or another subject-only grantee`,
     );
   }
   if (items.some((item) => item.kind === "actor")) {
@@ -1455,6 +1458,70 @@ function assertRelationGrants(
   }
 }
 
+function assertInheritGrants(
+  grants: readonly Grant[],
+  resources: ReadonlyMap<string, ResourceNode>,
+  tree: PermissionTree,
+): void {
+  const keys = new Set(listPermissions(tree).map((leaf) => leaf.key));
+  const edges = new Map<string, Set<string>>();
+  for (const grant of grants) {
+    for (const item of flattenGrantee(grant.to)) {
+      if (item.kind !== "inherit") {
+        continue;
+      }
+      const label = `grant ${grant.permission.key} inherit '${item.permission}'`;
+      if (grant.effect !== "allow") {
+        throw new Error(
+          `PermDock: ${label}: inherit() is allowed on an allow only`,
+        );
+      }
+      if (grant.permission.kind !== "instance") {
+        throw new Error(
+          `PermDock: ${label}: inherit() needs an instance action; a collection action has no row to follow`,
+        );
+      }
+      if (!keys.has(item.permission)) {
+        throw new Error(`PermDock: ${label}: the policy does not declare it`);
+      }
+      if (
+        inheritCondition(
+          item,
+          resources.get(grant.permission.resource),
+          resources,
+        ) === undefined
+      ) {
+        throw new Error(
+          item.through === "parent"
+            ? `PermDock: ${label}: ${grant.permission.resource} has no parent on ${item.resource}`
+            : `PermDock: ${label}: the links [${item.through.join(", ")}] from ${grant.permission.resource} do not end on ${item.resource}`,
+        );
+      }
+      const next = edges.get(grant.permission.key) ?? new Set<string>();
+      next.add(item.permission);
+      edges.set(grant.permission.key, next);
+    }
+  }
+  const done = new Set<string>();
+  const visit = (key: string, path: readonly string[]): void => {
+    if (path.includes(key)) {
+      throw new Error(
+        `PermDock: inherit() grants form a cycle: ${[...path.slice(path.indexOf(key)), key].join(" -> ")}`,
+      );
+    }
+    if (done.has(key)) {
+      return;
+    }
+    for (const target of edges.get(key) ?? []) {
+      visit(target, [...path, key]);
+    }
+    done.add(key);
+  };
+  for (const key of edges.keys()) {
+    visit(key, []);
+  }
+}
+
 function scopeOfGrant(
   scope: Grant["scope"],
   declared: readonly Scope[],
@@ -1834,6 +1901,7 @@ export function definePolicy<
   assertApprovalRelations(grants, resources);
   assertRelationGrants(grants, resources);
   assertRequires(grants, tree);
+  assertInheritGrants(grants, resources, tree);
   const delegations = (options.delegations ?? []).map((item, index) =>
     normalizeDelegation(item, index, tree),
   );

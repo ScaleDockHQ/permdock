@@ -67,7 +67,7 @@ import {
   resolveAuthorize,
 } from "./rls-rbac.ts";
 import { realtimeStoragePolicies } from "./rls-realtime-storage.ts";
-import { rowHelpersSql } from "./rls-rows.ts";
+import { inheritTargets, rowHelpersSql } from "./rls-rows.ts";
 import { shimGrants, shimsSql } from "./rls-shims.ts";
 import {
   checkSuspension,
@@ -483,7 +483,7 @@ export async function runRlsGenerate(input: {
     rls?.tables,
     warnings,
     input.skipClosures,
-    rls?.rowHelpers !== undefined,
+    rls?.rowHelpers !== undefined || inheritTargets(policy).length > 0,
   );
   const helpersOnly = input.helpersOnly === true || rls?.helpersOnly === true;
   if (helpersOnly && (input.target !== "sql" || revokeColumns)) {
@@ -646,7 +646,7 @@ export async function runRlsGenerate(input: {
   }
   const graphed = graphSql(ctx, graph, rls?.tables);
   let rowHelpers = "";
-  if (rls?.rowHelpers !== undefined) {
+  if (rls?.rowHelpers !== undefined || inheritTargets(policy).length > 0) {
     try {
       rowHelpers = rowHelpersSql(
         ctx,
@@ -657,8 +657,8 @@ export async function runRlsGenerate(input: {
             : rowBranches(compiled.branches)),
           ...compiled.actionBranches,
         ],
-        rls.rowHelpers,
-        rls.tables,
+        rls?.rowHelpers ?? [],
+        rls?.tables,
         warnings,
       );
     } catch (cause) {

@@ -45,6 +45,7 @@ export type GraphSqlOptions = RelationsMapping & {
   readonly closureDepths?: Readonly<Record<string, number>>;
   /** Ids of `resource` the subject holds `relation` on, in place of the inline query (RLS calls its helper). */
   readonly holders?: (resource: string, relation: string) => GraphSql;
+  readonly permitted?: (resource: string, permission: string) => GraphSql;
   /** Ids of `resource` whose `link` points into `targets`, in place of reading its table (RLS calls a helper). */
   readonly linked?: (
     resource: string,
@@ -307,6 +308,15 @@ export function holderIdsSql(
 }
 
 function heldIds(build: Build, condition: RelatedCondition): GraphSql {
+  if (condition.permission !== undefined) {
+    const permitted = build.options.permitted;
+    if (permitted === undefined) {
+      throw new Error(
+        `PermDock: inherit(${condition.permission}) has no query form outside generated RLS`,
+      );
+    }
+    return permitted(condition.resource, condition.permission);
+  }
   if (condition.ids === undefined) {
     return groupHolders(build, condition.resource, condition.relation);
   }

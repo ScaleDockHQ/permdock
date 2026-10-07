@@ -110,6 +110,7 @@ export type RelatedCondition = {
    * the `relation` lookup (`relation` is then empty).
    */
   readonly ids?: readonly string[];
+  readonly permission?: string;
   /**
    * The row's boolean column that keeps ancestor grants out: with `parent` or
    * `hops`, a restricted row matches nothing; without, the walk stops at the row.

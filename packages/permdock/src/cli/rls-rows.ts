@@ -2,6 +2,7 @@ import type { Policy, ResourceNode } from "../index.ts";
 import type { CompiledBranch } from "./rls-compile.ts";
 import type { RlsSqlContext } from "./rls-sql.ts";
 
+import { flattenGrantee } from "../core/grantee.ts";
 import { tableFor } from "./rls-compile.ts";
 import { branchClauses } from "./rls-compile.ts";
 import { qualified } from "./rls-helpers.ts";
@@ -121,6 +122,31 @@ $$;
 ${tail}`;
 }
 
+export function inheritTargets(policy: Policy): readonly string[] {
+  const out = new Set<string>();
+  for (const grant of policy.grants) {
+    for (const item of flattenGrantee(grant.to)) {
+      if (item.kind === "inherit") {
+        out.add(item.resource);
+      }
+    }
+  }
+  return [...out].toSorted();
+}
+
+function stubSql(ctx: RlsSqlContext, resource: string): string {
+  const fn = qualified(ctx, rowsHelper(resource));
+  return `create or replace function ${fn}(p_permission text)
+returns setof text
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select null::text where false
+$$;`;
+}
+
 function resourceSql(
   ctx: RlsSqlContext,
   node: ResourceNode,
@@ -188,7 +214,13 @@ export function rowHelpersSql(
           ),
         ].toSorted()
       : [...new Set(select)];
-  const chunks: string[] = [];
+  const called = inheritTargets(policy);
+  for (const name of called) {
+    if (!names.includes(name)) {
+      names.push(name);
+    }
+  }
+  const chunks: string[] = called.map((name) => stubSql(ctx, name));
   for (const name of names) {
     const node = policy.resources.get(name);
     if (node === undefined) {

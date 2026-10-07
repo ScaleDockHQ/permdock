@@ -293,6 +293,30 @@ export function testRelationSource(
     }
   });
 
+  it("reads each object's row as an object, or null when there is none", async () => {
+    if (source.row === undefined) {
+      return;
+    }
+    const read = (query: { readonly resource: string; readonly id: string }) =>
+      source.row?.(query);
+    for (const object of options.objects) {
+      const row = await read({
+        resource: object.resource,
+        id: object.id,
+      });
+      expect(
+        row === null ||
+          row === undefined ||
+          (typeof row === "object" && !Array.isArray(row)),
+      ).toBe(true);
+    }
+    const missing = await read({
+      resource: options.objects[0]?.resource ?? "",
+      id: "permdock-missing-object",
+    });
+    expect(missing ?? null).toBeNull();
+  });
+
   it("answers an unknown object with nothing instead of throwing", async () => {
     const first = options.objects[0];
     if (first === undefined) {

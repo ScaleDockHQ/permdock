@@ -166,6 +166,14 @@ export type RelationSource = {
     readonly id: string;
     readonly relation: string;
   }): RelationHolder[] | Promise<RelationHolder[]>;
+  row?(query: {
+    readonly resource: string;
+    readonly id: string;
+  }):
+    | Readonly<Record<string, unknown>>
+    | null
+    | undefined
+    | Promise<Readonly<Record<string, unknown>> | null | undefined>;
 };
 
 /** Plan and seat names a principal holds in a tenant, from billing (Stripe Entitlements, a table). */

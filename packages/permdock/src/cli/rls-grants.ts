@@ -1,6 +1,6 @@
 import type { Condition, Grant, Grantee, Policy } from "../index.ts";
 
-import { relationCondition } from "../core/grantee.ts";
+import { inheritCondition, relationCondition } from "../core/grantee.ts";
 import { scopeList } from "../core/scopes.ts";
 import { listRoles } from "../index.ts";
 import { andConditions } from "./rls-sql.ts";
@@ -80,6 +80,24 @@ function relationWhere(
   return where;
 }
 
+function inheritWhere(
+  policy: Policy,
+  grant: Grant,
+  grantee: Extract<Grantee, { readonly kind: "inherit" }>,
+): Condition {
+  const where = inheritCondition(
+    grantee,
+    policy.resources.get(grant.permission.resource),
+    policy.resources,
+  );
+  if (where === undefined) {
+    throw new Error(
+      `PermDock CLI: grant ${grant.permission.key} inherits ${grantee.permission}, which ${grant.permission.resource} cannot reach`,
+    );
+  }
+  return where;
+}
+
 /** Only a deny for `oauth-client` actors compiles: Postgres sees `client_id` and `act`, not other actor kinds. */
 function actorAccess(
   grant: Grant,
@@ -147,6 +165,10 @@ export function collectGrants(policy: Policy): readonly RlsGrant[] {
         case "relation":
           anyone = false;
           where = andConditions(where, relationWhere(policy, grant, item));
+          break;
+        case "inherit":
+          anyone = false;
+          where = andConditions(where, inheritWhere(policy, grant, item));
           break;
         case "actor":
           delegated = actorAccess(grant, item, items.length - 1);

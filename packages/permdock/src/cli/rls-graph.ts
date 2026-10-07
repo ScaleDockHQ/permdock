@@ -1,8 +1,13 @@
+import type { RelatedHop } from "../conditions/ast.ts";
 import type { Policy, ResourceNode } from "../index.ts";
 import type { RlsSqlContext } from "./rls-sql.ts";
 
 import { relationArmSql } from "../conditions/graph-sql.ts";
-import { flattenGrantee, relationCondition } from "../core/grantee.ts";
+import {
+  flattenGrantee,
+  inheritCondition,
+  relationCondition,
+} from "../core/grantee.ts";
 import {
   expandRelation,
   groupEntries,
@@ -89,9 +94,22 @@ export function graphPlan(policy: Policy): GraphPlan {
       }
     }
   };
+  const addLinks = (hops: readonly RelatedHop[]): void => {
+    for (let index = 1; index < hops.length; index += 1) {
+      const from = policy.resources.get(hops[index - 1]?.resource ?? "");
+      const hop = hops[index];
+      if (from !== undefined && hop !== undefined) {
+        entryFor(from).links.add(hop.link);
+      }
+    }
+  };
   for (const grant of policy.grants) {
     const row = policy.resources.get(grant.permission.resource);
     for (const item of flattenGrantee(grant.to)) {
+      if (item.kind === "inherit") {
+        addLinks(inheritCondition(item, row, policy.resources)?.hops ?? []);
+        continue;
+      }
       if (item.kind !== "relation") {
         continue;
       }
@@ -110,14 +128,7 @@ export function graphPlan(policy: Policy): GraphPlan {
       if (condition.depth > 0 && isSelfParented(node)) {
         entry.closure = Math.max(entry.closure ?? 0, condition.depth);
       }
-      const hops = condition.hops ?? [];
-      for (let index = 1; index < hops.length; index += 1) {
-        const from = policy.resources.get(hops[index - 1]?.resource ?? "");
-        const hop = hops[index];
-        if (from !== undefined && hop !== undefined) {
-          entryFor(from).links.add(hop.link);
-        }
-      }
+      addLinks(condition.hops ?? []);
     }
   }
   return plan;

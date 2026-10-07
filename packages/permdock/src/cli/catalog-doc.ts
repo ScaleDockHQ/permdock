@@ -27,7 +27,13 @@ import {
 } from "../index.ts";
 import { CATALOG_SCHEMA, generatorBanner } from "./version.ts";
 
-const ROW_GRANTEES = new Set(["relation", "plan", "actor", "assurance"]);
+const ROW_GRANTEES = new Set([
+  "relation",
+  "plan",
+  "actor",
+  "assurance",
+  "inherit",
+]);
 
 /**
  * Whether a grant depends on more than the role and the scope: a row or body

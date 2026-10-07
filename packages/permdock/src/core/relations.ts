@@ -51,6 +51,10 @@ export type RelationReader = {
     /** `'parent'` (the default) or a link name. */
     readonly through?: string;
   }): RelationChain | Unread;
+  row(query: {
+    readonly resource: string;
+    readonly id: string;
+  }): { readonly row: Readonly<Record<string, unknown>> | null } | Unread;
   /** Holders of `relation` and of every relation it includes. */
   holders(query: {
     readonly resource: string;
@@ -100,6 +104,15 @@ function asChain(value: unknown): RelationChain | undefined {
     ...(value["restricted"] === true ? { restricted: true } : {}),
     ...(value["truncated"] === true ? { truncated: true } : {}),
   };
+}
+
+function asRow(
+  value: unknown,
+): { readonly row: Readonly<Record<string, unknown>> | null } | undefined {
+  if (value === null || value === undefined) {
+    return { row: null };
+  }
+  return isRecord(value) ? { row: value } : undefined;
 }
 
 function asGroup(value: unknown): RelationGroup | undefined {
@@ -218,6 +231,17 @@ export function relationReader(
     );
   return {
     available: source !== undefined,
+    row(query) {
+      const load = source?.row?.bind(source);
+      return read(
+        cache,
+        JSON.stringify(["row", query.resource, query.id]),
+        load === undefined
+          ? undefined
+          : () => load({ resource: query.resource, id: query.id }),
+        asRow,
+      );
+    },
     chain(query) {
       const through = query.through ?? "parent";
       return read(
@@ -412,7 +436,21 @@ export function resolveRelated(
   subject: Subject,
   now: number,
   reader: RelationReader,
+  permitted?: (
+    resource: string,
+    id: string,
+    permission: string,
+  ) => RelatedVerdict,
 ): RelatedVerdict {
+  if (condition.permission !== undefined) {
+    return resolveInherited(
+      condition,
+      condition.permission,
+      row,
+      reader,
+      permitted,
+    );
+  }
   const principal = subject.principal;
   if (principal === null) {
     return false;
@@ -461,6 +499,38 @@ export function resolveRelated(
     return "relation-unavailable";
   }
   return walk.truncated || deep ? "relation-depth" : false;
+}
+
+function resolveInherited(
+  condition: RelatedCondition,
+  permission: string,
+  row: unknown,
+  reader: RelationReader,
+  permitted:
+    | ((resource: string, id: string, permission: string) => RelatedVerdict)
+    | undefined,
+): RelatedVerdict {
+  const walk = relationWalk(condition, row, reader);
+  if (walk === undefined) {
+    return false;
+  }
+  if (walk === "relation-depth" || walk === "relation-unavailable") {
+    return walk;
+  }
+  if (permitted === undefined) {
+    return "relation-unavailable";
+  }
+  let unknown: RelatedVerdict = false;
+  for (const id of walk.ids) {
+    const verdict = permitted(condition.resource, id, permission);
+    if (verdict === true) {
+      return true;
+    }
+    if (verdict !== false && unknown === false) {
+      unknown = verdict;
+    }
+  }
+  return unknown;
 }
 
 function groupKey(group: RelationGroup): string {
@@ -703,6 +773,9 @@ export function memoryRelations(
   ): Readonly<Record<string, unknown>> | undefined =>
     byId.get(resource)?.get(id);
   return {
+    row({ resource, id }) {
+      return rowOf(resource, id) ?? null;
+    },
     ancestors({ resource, id, depth, through }) {
       const node = registry.get(resource);
       const start = rowOf(resource, id);
