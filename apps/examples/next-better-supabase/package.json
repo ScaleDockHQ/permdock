@@ -18,6 +18,7 @@
     "supabase:stop": "supabase stop",
     "supabase:test": "supabase test db",
     "test": "vitest run",
+    "test:instant": "playwright test",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -32,8 +33,10 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@next/playwright": "catalog:",
     "@permdock/ox-config": "workspace:*",
     "@permdock/typescript-config": "workspace:*",
+    "@playwright/test": "catalog:",
     "@testcontainers/postgresql": "catalog:",
     "@types/node": "catalog:",
     "@types/pg": "catalog:",

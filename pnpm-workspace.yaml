@@ -168,6 +168,8 @@ catalog:
   "@pgkit/migra": 0.6.1
   "@openfeature/server-sdk": 1.23.0
   "@supabase-labs/middleware-openfeature": 0.2.0
+  "@next/playwright": 16.3.8
+  "@playwright/test": 1.63.0
 
 catalogs:
   ts59:

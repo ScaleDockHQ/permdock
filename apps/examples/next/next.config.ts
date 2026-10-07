@@ -8,6 +8,9 @@ const config: NextConfig = {
   experimental: {
     authInterrupts: true,
     useOffline: true,
+    // Read at `next build`; only the `test:instant` build sets it.
+    exposeTestingApiInProductionBuild:
+      process.env["EXPOSE_TESTING_API"] === "1",
   },
 };
 

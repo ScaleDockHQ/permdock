@@ -9,6 +9,7 @@
     "doctor": "permdock doctor",
     "lint": "oxlint --disable-nested-config --type-aware",
     "start": "next start -p 3485 -H 127.0.0.1",
+    "test:instant": "playwright test",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -19,8 +20,10 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@next/playwright": "catalog:",
     "@permdock/ox-config": "workspace:*",
     "@permdock/typescript-config": "workspace:*",
+    "@playwright/test": "catalog:",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",

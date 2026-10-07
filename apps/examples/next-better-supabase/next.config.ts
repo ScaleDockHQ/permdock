@@ -8,6 +8,9 @@ const config: NextConfig = {
   serverExternalPackages: ["pg"],
   experimental: {
     authInterrupts: true,
+    // Read at `next build`; only the `test:instant` build sets it.
+    exposeTestingApiInProductionBuild:
+      process.env["EXPOSE_TESTING_API"] === "1",
   },
 };
 
