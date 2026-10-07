@@ -52,6 +52,8 @@ function labelGrantee(grantee: Grantee): string {
       return "anyone";
     case "relation":
       return grantee.relation;
+    case "inherit":
+      return grantee.permission;
     case "assurance": {
       const parts: string[] = [];
       if (grantee.acr !== undefined && grantee.acr.length > 0) {

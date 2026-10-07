@@ -19,7 +19,7 @@ import type {
 } from "./interfaces.ts";
 import type { DecideOptions } from "./permdock.ts";
 import type { Permission, ResourceNode } from "./permissions.ts";
-import type { RelationReader } from "./relations.ts";
+import type { RelatedVerdict, RelationReader } from "./relations.ts";
 import type { CustomRole, Membership, Subject } from "./subject.ts";
 
 import { evaluateCondition } from "../conditions/evaluate.ts";
@@ -53,7 +53,7 @@ import {
   resourceRoleCondition,
 } from "./grantee.ts";
 import { applyQuota } from "./limits.ts";
-import { getResource, listPermissions } from "./permissions.ts";
+import { findPermission, getResource, listPermissions } from "./permissions.ts";
 import { requiresApproval, type Grant, type Policy } from "./policy.ts";
 import { resolveRelated } from "./relations.ts";
 import { isRowPair, rowIdOf, rowValues } from "./row-pair.ts";
@@ -267,6 +267,33 @@ function isUnconditionedAllow(grant: Grant, now: number): boolean {
 export function requirementCondition(
   policy: Policy,
   subject: Subject,
+  keys: readonly string[],
+  resource: ResourceNode | undefined,
+  now: number,
+  customRoles: readonly CustomRole[],
+  customGrants: readonly CustomGrant[],
+): Condition | undefined {
+  let where: Condition | undefined;
+  for (const key of keys) {
+    where = combineWhere(
+      where,
+      keyRequirement(
+        policy,
+        subject,
+        key,
+        resource,
+        now,
+        customRoles,
+        customGrants,
+      ),
+    );
+  }
+  return where;
+}
+
+function keyRequirement(
+  policy: Policy,
+  subject: Subject,
   key: string,
   resource: ResourceNode | undefined,
   now: number,
@@ -419,6 +446,48 @@ function alternativesFor(
   });
 }
 
+function inheritedVerdict(
+  policy: Policy,
+  subject: Subject,
+  resource: string,
+  id: string,
+  key: string,
+  now: number,
+  env: EvalEnv,
+): RelatedVerdict {
+  const leaf = findPermission(policy.permissions, key);
+  const loaded = env.relations?.row({ resource, id });
+  if (leaf === undefined || loaded === undefined) {
+    return "relation-unavailable";
+  }
+  if (loaded === "pending" || loaded === "failed") {
+    return "relation-unavailable";
+  }
+  if (loaded.row === null) {
+    return false;
+  }
+  const decision = evaluate(
+    policy,
+    subject,
+    leaf,
+    loaded.row,
+    { trusted: true, source: "simulate", now },
+    { ...env, emit: false, skipAlternatives: true, outcomeOnly: true },
+  );
+  if (decision.outcome === "granted") {
+    return true;
+  }
+  const reasons =
+    decision.outcome === "denied"
+      ? decision.denials.map((denial) => denial.reason)
+      : [];
+  return reasons.includes("relation-unavailable")
+    ? "relation-unavailable"
+    : reasons.includes("relation-depth")
+      ? "relation-depth"
+      : false;
+}
+
 function evaluateGrantCondition(
   grant: Grant,
   permission: Permission,
@@ -428,6 +497,11 @@ function evaluateGrantCondition(
   now: number,
   scopes: Policy["scopes"],
   relations: RelationReader | undefined,
+  permitted?: (
+    resource: string,
+    id: string,
+    permission: string,
+  ) => RelatedVerdict,
 ): {
   readonly matched: boolean;
   readonly reason?: DenialReason;
@@ -449,7 +523,14 @@ function evaluateGrantCondition(
       unknown ??= "relation-unavailable";
       return false;
     }
-    const verdict = resolveRelated(condition, row, subject, now, relations);
+    const verdict = resolveRelated(
+      condition,
+      row,
+      subject,
+      now,
+      relations,
+      permitted,
+    );
     if (verdict === "relation-depth" || verdict === "relation-unavailable") {
       unknown ??= verdict;
       return false;
@@ -1039,6 +1120,8 @@ export function evaluate(
       now,
       scopes,
       env.relations,
+      (target, id, key) =>
+        inheritedVerdict(policy, given, target, id, key, now, env),
     );
     if (
       !condition.matched &&
@@ -1177,12 +1260,35 @@ export function evaluate(
         : alternativesFor(policy, permission, subject, now, env),
     });
   }
-  const delegationMiss = coveredByDelegation(
+  const unscoped = subject.actor !== undefined && ceiling === undefined;
+  let usable = allows;
+  let delegationMiss = coveredByDelegation(
     permission,
     subject.delegation,
     resourceIdOf(current),
-    subject.actor !== undefined && ceiling === undefined,
+    unscoped,
   );
+  if (delegationMiss === "not-delegated") {
+    const covered = (key: string): boolean => {
+      const leaf = findPermission(policy.permissions, key);
+      return (
+        leaf !== undefined &&
+        coveredByDelegation(
+          leaf,
+          subject.delegation,
+          resourceIdOf(current),
+          unscoped,
+        ) === undefined
+      );
+    };
+    const viaRequires = allows.filter((candidate) =>
+      (candidate.grant.requires ?? []).some(covered),
+    );
+    if (viaRequires.length > 0) {
+      usable = viaRequires;
+      delegationMiss = undefined;
+    }
+  }
   if (delegationMiss !== undefined) {
     return complete({
       outcome: "denied",
@@ -1194,7 +1300,7 @@ export function evaluate(
   }
 
   const approvalPolicies = env.approvalPolicies;
-  if (approvalPolicies === "failed" && allows.length > 0) {
+  if (approvalPolicies === "failed" && usable.length > 0) {
     return complete({
       outcome: "denied",
       denials: [
@@ -1223,7 +1329,7 @@ export function evaluate(
   let matchedAllow: (typeof allows)[number] | undefined;
   let approval: Grant["approval"];
   let quotaState: Pick<GrantedDecision, "quota" | "obligations"> = {};
-  for (const candidate of allows) {
+  for (const candidate of usable) {
     approval = approvalOf(candidate);
     const consume =
       !requiresApproval(approval) &&

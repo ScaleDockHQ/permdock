@@ -81,6 +81,7 @@ export const CUSTOM_ROLES = {
 const READERS = {
   keys: "permdock_permission_keys",
   roles: "permdock_role_permissions",
+  trusted: "permdock_trusted_role_permissions",
 } as const;
 
 /** `'global'` or a scope name. */
@@ -328,7 +329,84 @@ export function globalRoleRows(
     : globalRoleSource(ctx.roles, "public", "ur");
 }
 
+function customKeysJoin(
+  ctx: RlsSqlContext,
+  scope: string,
+  allows: string,
+  denies: string,
+  includes: string,
+): string {
+  return `  cross join lateral ${qualified(ctx, CUSTOM_ROLES.keys)}(
+    ${allows},
+    ${denies},
+    ${includes},
+    ${quoteLiteral(scope)}
+  ) ck(grant_key)`;
+}
+
+function hasSetBody(ctx: RlsSqlContext): string {
+  const rp = qualified(ctx, "role_permissions");
+  const active = userActive(ctx, "    ")
+    .map((line) => `\n${line}`)
+    .join("");
+  const custom = ctx.customRoles;
+  if (ctx.authorize === "database") {
+    const ur = globalRoleRows(ctx);
+    const declared = `  select rp.grant_key
+  from ${ur.from}
+  join ${rp} rp on rp.role = ${ur.roleSql}
+  where ${ur.userSql} = ${subjectIdSql(ctx)}
+    and rp.scope = 'global'${andLine("    ", globalKindFilterSql(ctx, ur.roleSql))}${active}`;
+    if (custom === undefined) {
+      return declared;
+    }
+    const match = `c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ${ur.roleSql}`;
+    const rows = (source: string, value: string, extra: string): string =>
+      `array(select c.${value} from ${qualified(ctx, source)} c where ${match}${extra})`;
+    return `${declared}
+  union
+  select ck.grant_key
+  from ${ur.from}
+${customKeysJoin(
+  ctx,
+  "global",
+  rows(CUSTOM_ROLES.permissions, allowEntry(ctx), " and c.effect = 'allow'"),
+  rows(CUSTOM_ROLES.permissions, "permission", " and c.effect = 'deny'"),
+  rows(CUSTOM_ROLES.includes, "include_role", ""),
+)}
+  where ${ur.userSql} = ${subjectIdSql(ctx)}
+    and not (${ur.roleSql} = any(${textArray(custom.declared)}))${active}`;
+  }
+  const declared = `  select rp.grant_key
+  from ${roleRows(ctx)}
+  join ${rp} rp on rp.role = r.role
+  where ${signedIn(ctx)}
+    and rp.scope = 'global'${andLine("    ", globalKindFilterSql(ctx, "r.role"))}${active}`;
+  if (custom === undefined) {
+    return declared;
+  }
+  const claim = subjectClaimJsonSql(ctx, GLOBAL_GRANTS_CLAIM);
+  return `${declared}
+  union
+  select ck.grant_key
+  from ${roleRows(ctx)}
+  cross join lateral (select ${claim} -> r.role as g) cg
+${customKeysJoin(
+  ctx,
+  "global",
+  claimEntries("left(e, 1) not in ('-', '@')", "e"),
+  claimEntries("left(e, 1) = '-'", "substr(e, 2)"),
+  claimEntries("left(e, 1) = '@'", "substr(e, 2)"),
+)}
+  where ${signedIn(ctx)}
+    and jsonb_typeof(cg.g) = 'array'
+    and not (r.role = any(${textArray(custom.declared)}))${active}`;
+}
+
 function hasBody(ctx: RlsSqlContext): string {
+  if (ctx.grantSet === true) {
+    return hasSetBody(ctx);
+  }
   const rp = qualified(ctx, "role_permissions");
   const active = userActive(ctx, "      ")
     .map((line) => `\n${line}`)
@@ -446,47 +524,52 @@ function tableBody(ctx: RlsSqlContext, scope: string, type: string): string {
     return `  select null::${type} where false -- no ${scope} memberships table configured`;
   }
   const { table, column, tenantColumn } = mapped;
-  const filters = [
-    `  where ${memberColumn(table.user)} = ${subjectIdSql(ctx)}`,
-  ];
-  if (table.expiresAt !== undefined) {
-    const expires = memberColumn(table.expiresAt);
-    filters.push(`    and (${expires} is null or ${expires} > now())`);
-  }
-  if (tenantColumn !== undefined && ctx.tenants !== "all") {
-    filters.push(
-      `    and (${activeTenant(ctx)} is null or ${memberColumn(tenantColumn)}::text = ${activeTenant(ctx)})`,
-    );
-  }
-  const keyed = keyTenantSql(
-    ctx,
-    tenantColumn === undefined ? undefined : memberColumn(tenantColumn),
-  );
-  if (keyed !== undefined) {
-    filters.push(`    and ${keyed}`);
-  }
-  filters.push(
-    ...userActive(ctx, "    "),
-    ...instancesActive(
+  const set = ctx.grantSet === true;
+  const filtersFor = (grant: string): string[] => {
+    const filters = [
+      `  where ${memberColumn(table.user)} = ${subjectIdSql(ctx)}`,
+    ];
+    if (table.expiresAt !== undefined) {
+      const expires = memberColumn(table.expiresAt);
+      filters.push(`    and (${expires} is null or ${expires} > now())`);
+    }
+    if (tenantColumn !== undefined && ctx.tenants !== "all") {
+      filters.push(
+        `    and (${activeTenant(ctx)} is null or ${memberColumn(tenantColumn)}::text = ${activeTenant(ctx)})`,
+      );
+    }
+    const keyed = keyTenantSql(
       ctx,
-      scope,
-      (name) => {
-        const held = scopeColumn(table, ctx.scopes, name);
-        return held === undefined ? undefined : memberColumn(held);
-      },
-      "    ",
-      grantPermissionSql("p_grant"),
-    ),
-  );
+      tenantColumn === undefined ? undefined : memberColumn(tenantColumn),
+    );
+    if (keyed !== undefined) {
+      filters.push(`    and ${keyed}`);
+    }
+    filters.push(
+      ...userActive(ctx, "    "),
+      ...instancesActive(
+        ctx,
+        scope,
+        (name) => {
+          const held = scopeColumn(table, ctx.scopes, name);
+          return held === undefined ? undefined : memberColumn(held);
+        },
+        "    ",
+        grantPermissionSql(grant),
+      ),
+    );
+    return filters;
+  };
+  const filters = filtersFor(set ? "rp.grant_key" : "p_grant");
   const [owner, ...rest] = filters;
   const role = memberRoleOf(table, "m", "  ");
   const kind = kindFilterSql(ctx, role.sql, memberVia(table));
   const lines = [
-    `  select${role.lateral ? " distinct" : ""} ${memberColumn(column)}::${type}`,
+    `  select${role.lateral ? " distinct" : ""} ${memberColumn(column)}::${type}${set ? ", rp.grant_key" : ""}`,
     `  from ${membershipTable(table.table)} m${role.join}`,
     `  join ${qualified(ctx, "role_permissions")} rp on rp.role = ${role.sql}`,
     owner ?? "",
-    "    and rp.grant_key = p_grant",
+    ...(set ? [] : ["    and rp.grant_key = p_grant"]),
     `    and rp.scope = ${quoteLiteral(scope)}`,
     ...(kind === undefined ? [] : [`    and ${kind}`]),
     ...rest,
@@ -505,6 +588,22 @@ function tableBody(ctx: RlsSqlContext, scope: string, type: string): string {
   ].join(" and ");
   const rows = (source: string, value: string, extra: string): string =>
     `array(select c.${value} from ${qualified(ctx, source)} c where ${match}${extra})`;
+  const entries = [
+    rows(CUSTOM_ROLES.permissions, allowEntry(ctx), " and c.effect = 'allow'"),
+    rows(CUSTOM_ROLES.permissions, "permission", " and c.effect = 'deny'"),
+    rows(CUSTOM_ROLES.includes, "include_role", ""),
+  ] as const;
+  if (set) {
+    return [
+      ...lines,
+      "  union",
+      `  select ${memberColumn(column)}::${type}, ck.grant_key`,
+      `  from ${membershipTable(table.table)} m${role.join}`,
+      customKeysJoin(ctx, scope, ...entries),
+      ...filtersFor("ck.grant_key"),
+      `    and not (${role.sql} = any(${textArray(custom.declared)}))`,
+    ].join("\n");
+  }
   return [
     ...lines,
     "  union",
@@ -512,17 +611,7 @@ function tableBody(ctx: RlsSqlContext, scope: string, type: string): string {
     `  from ${membershipTable(table.table)} m${role.join}`,
     ...filters,
     `    and not (${role.sql} = any(${textArray(custom.declared)}))`,
-    customKeysSql(
-      ctx,
-      scope,
-      rows(
-        CUSTOM_ROLES.permissions,
-        allowEntry(ctx),
-        " and c.effect = 'allow'",
-      ),
-      rows(CUSTOM_ROLES.permissions, "permission", " and c.effect = 'deny'"),
-      rows(CUSTOM_ROLES.includes, "include_role", ""),
-    ),
+    customKeysSql(ctx, scope, ...entries),
   ].join("\n");
 }
 
@@ -535,11 +624,14 @@ function claimTenant(ctx: RlsSqlContext, scope: string): string {
 }
 
 function claimBody(ctx: RlsSqlContext, scope: string, type: string): string {
+  const set = ctx.grantSet === true;
   const narrow = narrowsTo(ctx, scope)
     ? `
     and (${activeTenant(ctx)} is null or ${claimTenant(ctx, scope)} = ${activeTenant(ctx)})`
     : "";
-  const filters = `    and m ->> 'scope' = ${quoteLiteral(scope)}
+  const filtersFor = (
+    grant: string,
+  ): string => `    and m ->> 'scope' = ${quoteLiteral(scope)}
     and m ->> 'id' is not null${narrow}${keyTenantLine(ctx, scope, claimTenant(ctx, scope))}
     and case jsonb_typeof(m -> 'expiresAt')
       when 'number' then (m ->> 'expiresAt')::numeric > extract(epoch from now())
@@ -554,21 +646,39 @@ function claimBody(ctx: RlsSqlContext, scope: string, type: string): string {
             ? `m ->> 'id'`
             : `m -> 'within' ->> ${quoteLiteral(name)}`,
         "    ",
-        grantPermissionSql("p_grant"),
+        grantPermissionSql(grant),
       ),
     ]
       .map((line) => `\n${line}`)
       .join("")}`;
-  const declared = `  select (m ->> 'id')::${type}
+  const filters = filtersFor(set ? "rp.grant_key" : "p_grant");
+  const declared = `  select (m ->> 'id')::${type}${set ? ", rp.grant_key" : ""}
   from ${membershipRows(ctx)}
   join ${qualified(ctx, "role_permissions")} rp on rp.role = r.role
-  where ${signedIn(ctx)}
-    and rp.grant_key = p_grant
+  where ${signedIn(ctx)}${set ? "" : "\n    and rp.grant_key = p_grant"}
     and rp.scope = ${quoteLiteral(scope)}${andLine("    ", kindFilterSql(ctx, "r.role", "m ->> 'via'"))}
 ${filters}`;
   const custom = ctx.customRoles;
   if (custom === undefined) {
     return declared;
+  }
+  if (set) {
+    return `${declared}
+  union
+  select (m ->> 'id')::${type}, ck.grant_key
+  from ${membershipRows(ctx)}
+  cross join lateral (select m -> 'grants' -> r.role as g) cg
+${customKeysJoin(
+  ctx,
+  scope,
+  claimEntries("left(e, 1) not in ('-', '@')", "e"),
+  claimEntries("left(e, 1) = '-'", "substr(e, 2)"),
+  claimEntries("left(e, 1) = '@'", "substr(e, 2)"),
+)}
+  where ${signedIn(ctx)}
+    and jsonb_typeof(cg.g) = 'array'
+    and not (r.role = any(${textArray(custom.declared)}))
+${filtersFor("ck.grant_key")}`;
   }
   // A custom role rides the membership of the scope it is held at.
   return `${declared}
@@ -905,7 +1015,7 @@ function sourceUser(index: number): string {
  * source, holding `user` as that source's user column type so each `select`
  * compares the column uncast and its index applies.
  */
-type Body = {
+export type Body = {
   readonly sql: string;
   readonly vars: readonly string[];
 };
@@ -929,7 +1039,7 @@ function sourcesBodyOf(
 }
 
 /** `language sql`, or `plpgsql` returning the query when the body declares variables. */
-function functionBody(body: Body): string {
+export function functionBody(body: Body): string {
   if (body.vars.length === 0) {
     return `language sql
 stable
@@ -983,19 +1093,19 @@ function sourcesBody(ctx: RlsSqlContext, scope: string, type: string): Body {
     ? `\n    and (${activeTenant(ctx)} is null or ${tenant} = ${activeTenant(ctx)})${keyTenantLine(ctx, scope, tenant)}`
     : keyTenantLine(ctx, scope, tenant);
   const sources = scopeSources(ctx, scope);
+  const set = ctx.grantSet === true;
   const rows = `  from (
 ${sourceRows(sources)}
   ) ms
   cross join lateral jsonb_array_elements_text(
     case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
   ) r(role)`;
-  const declared = `  select (ms.id)::${type}
+  const declared = `  select (ms.id)::${type}${set ? ", rp.grant_key" : ""}
 ${rows}
   join ${qualified(ctx, "role_permissions")} rp on rp.role = r.role
   where ${signedIn(ctx)}
-    and ms.scope = ${quoteLiteral(scope)}
-    and rp.grant_key = p_grant
-    and rp.scope = ${quoteLiteral(scope)}${andLine("    ", kindFilterSql(ctx, "r.role", "ms.via"))}${narrow}${sourceFilters(ctx, scope, subjectIdSql(ctx), grantPermissionSql("p_grant"))}`;
+    and ms.scope = ${quoteLiteral(scope)}${set ? "" : "\n    and rp.grant_key = p_grant"}
+    and rp.scope = ${quoteLiteral(scope)}${andLine("    ", kindFilterSql(ctx, "r.role", "ms.via"))}${narrow}${sourceFilters(ctx, scope, subjectIdSql(ctx), grantPermissionSql(set ? "rp.grant_key" : "p_grant"))}`;
   const custom = ctx.customRoles;
   if (custom === undefined) {
     return sourcesBodyOf(declared, sources, subjectIdSql(ctx));
@@ -1009,6 +1119,26 @@ ${rows}
   ].join(" and ");
   const entries = (source: string, value: string, extra: string): string =>
     `array(select c.${value} from ${qualified(ctx, source)} c where ${match}${extra})`;
+  if (set) {
+    return sourcesBodyOf(
+      `${declared}
+  union
+  select (ms.id)::${type}, ck.grant_key
+${rows}
+${customKeysJoin(
+  ctx,
+  scope,
+  entries(CUSTOM_ROLES.permissions, "permission", " and c.effect = 'allow'"),
+  entries(CUSTOM_ROLES.permissions, "permission", " and c.effect = 'deny'"),
+  entries(CUSTOM_ROLES.includes, "include_role", ""),
+)}
+  where ${signedIn(ctx)}
+    and ms.scope = ${quoteLiteral(scope)}
+    and not (r.role = any(${textArray(custom.declared)}))${narrow}${sourceFilters(ctx, scope, subjectIdSql(ctx), grantPermissionSql("ck.grant_key"))}`,
+      sources,
+      subjectIdSql(ctx),
+    );
+  }
   return sourcesBodyOf(
     `${declared}
   union
@@ -1246,12 +1376,7 @@ function forUserSql(ctx: RlsSqlContext): string {
   if (ctx.authorize !== "database") {
     return "";
   }
-  const { apiKeys: _apiKeys, ...unkeyed } = ctx;
-  const forUser: RlsSqlContext = {
-    ...unkeyed,
-    subjectId: "p_user",
-    tenants: "all",
-  };
+  const forUser = forUserContext(ctx);
   const type = ctx.dialect === "supabase" ? "uuid" : "text";
   const fn = (name: string, returns: string, body: Body): string => {
     const qualifiedName = qualified(ctx, name);
@@ -1330,6 +1455,7 @@ export type HelpersOptions = {
   readonly levelReach?: readonly (readonly [string, string])[];
   /** Every declared permission key, for `permdock_permission_keys`; the function is left out without it. */
   readonly permissions?: readonly string[];
+  readonly trustedReaders?: readonly string[];
 };
 
 /**
@@ -1389,51 +1515,23 @@ revoke all on table ${ur} from anon, authenticated, public;`);
   }
   const anon = options.anonExecute === true;
   const keys = ctx.apiKeys;
-  const allows = apiKeyAllowsCall(ctx, "p_grant");
   if (keys !== undefined) {
     chunks.push(apiKeyAllowsSql(ctx, keys, anon));
   }
-  chunks.push(
-    helperFunction(
-      ctx,
-      HELPERS.has,
-      "boolean",
-      sqlBody(
-        keys === undefined
-          ? hasBody(ctx)
-          : ceilingHasSql(
-              hasBody(ctx),
-              `${allows} and ${keyTenantSql(ctx, undefined) ?? "true"}`,
-            ),
-      ),
-      anon,
-    ),
-  );
+  const bodies = grantBodies(ctx);
+  chunks.push(helperFunction(ctx, HELPERS.has, "boolean", bodies.has, anon));
   const capabilities = capabilitiesSql(ctx);
   if (capabilities !== "") {
     chunks.push(capabilities);
   }
   for (const scope of ctx.scopes) {
     const type = scopeTypeOf(ctx, scope.name);
-    const body = scopedBody(ctx, scope.name, type);
-    const keyed =
-      keys === undefined
-        ? body
-        : {
-            sql: ceilingIdsSql(
-              scope.name === rootName(ctx)
-                ? `${body.sql}\n  union\n${serviceKeyIdsSql(ctx, keys, scope.name, type)}`
-                : body.sql,
-              allows,
-            ),
-            vars: body.vars,
-          };
     chunks.push(
       helperFunction(
         ctx,
         permittedIdsHelper(scope.name),
         `setof ${type}`,
-        keyed,
+        bodies.ids(scope.name),
         anon,
       ),
     );
@@ -1454,11 +1552,64 @@ revoke all on table ${ur} from anon, authenticated, public;`);
       chunks.push(cascade);
     }
   }
-  const readers = roleReadersSql(ctx, options.permissions);
+  const readers = roleReadersSql(
+    ctx,
+    options.permissions,
+    options.trustedReaders,
+  );
   if (readers !== "") {
     chunks.push(readers);
   }
   return `${chunks.join("\n\n")}\n`;
+}
+
+export function grantBodies(ctx: RlsSqlContext): {
+  readonly has: Body;
+  readonly ids: (scope: string) => Body;
+} {
+  const keys = ctx.apiKeys;
+  const set = ctx.grantSet === true;
+  const allows = apiKeyAllowsCall(ctx, set ? "ids.grant_key" : "p_grant");
+  const keyTenant = keyTenantSql(ctx, undefined) ?? "true";
+  return {
+    has: sqlBody(
+      keys === undefined
+        ? hasBody(ctx)
+        : set
+          ? `  select g.grant_key
+  from (
+${hasBody(ctx)}
+  ) g(grant_key)
+  where ${apiKeyAllowsCall(ctx, "g.grant_key")} and ${keyTenant}`
+          : ceilingHasSql(hasBody(ctx), `${allows} and ${keyTenant}`),
+    ),
+    ids: (scope) => {
+      const type = scopeTypeOf(ctx, scope);
+      const body = scopedBody(ctx, scope, type);
+      if (keys === undefined) {
+        return body;
+      }
+      const sql =
+        scope === rootName(ctx)
+          ? `${body.sql}\n  union\n${serviceKeyIdsSql(ctx, keys, scope, type)}`
+          : body.sql;
+      return {
+        sql: set
+          ? `  select ids.id, ids.grant_key
+  from (
+${sql}
+  ) ids(id, grant_key)
+  where ${allows}`
+          : ceilingIdsSql(sql, allows),
+        vars: body.vars,
+      };
+    },
+  };
+}
+
+export function forUserContext(ctx: RlsSqlContext): RlsSqlContext {
+  const { apiKeys: _apiKeys, ...unkeyed } = ctx;
+  return { ...unkeyed, subjectId: "p_user", tenants: "all" };
 }
 
 /**
@@ -1474,6 +1625,7 @@ revoke all on table ${ur} from anon, authenticated, public;`);
 function roleReadersSql(
   ctx: RlsSqlContext,
   permissions: readonly string[] | undefined,
+  trustedReaders: readonly string[] | undefined,
 ): string {
   const rp = qualified(ctx, "role_permissions");
   const reader = qualified(ctx, READERS.roles);
@@ -1494,7 +1646,24 @@ as $$
   select k.permission from unnest(${textArray(permissions.toSorted())}) k(permission) order by 1
 $$;
 revoke execute on function ${catalog}() from public, anon;
-grant execute on function ${catalog}() to authenticated;`);
+grant execute on function ${catalog}() to authenticated;
+
+create or replace function ${catalog}(p_scope text)
+returns setof text
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select distinct rp.permission
+  from ${rp} rp
+  where rp.scope = p_scope
+    and rp.effect = 'allow'
+    and rp.permission = any(${textArray(permissions.toSorted())})
+  order by 1
+$$;
+revoke execute on function ${catalog}(text) from public, anon;
+grant execute on function ${catalog}(text) to authenticated;`);
   }
   const declared = `  select distinct rp.permission, rp.effect
   from ${rp} rp
@@ -1505,6 +1674,7 @@ grant execute on function ${catalog}() to authenticated;`);
   return query
 ${declared};
 end;`;
+  let trustedBody = body;
   if (custom !== undefined && database && root !== undefined) {
     const tenant = qualified(ctx, CUSTOM_ROLES.permissions);
     const includes = qualified(ctx, CUSTOM_ROLES.includes);
@@ -1529,19 +1699,13 @@ end;`;
       custom.levels === true
         ? "c.permission || coalesce('@' || c.level, '')"
         : "c.permission";
-    body = `begin
+    const checked = (gate: string): string => `begin
   if p_role = any(${textArray(custom.declared)}) then
     return query
 ${declared};
     return;
   end if;
-  perform ${shape}(p_tenant, p_scope, p_scope_id, p_role);
-  if not (${signedIn(ctx)} and (
-    ${platform}
-    or (p_scope <> 'global' and (${memberOf}))
-  )) then
-${raiseSql("    ", "42501", `'permdock: the caller is not a member of ' || coalesce(p_tenant::text, 'the platform')`, "not-member")}
-  end if;
+  perform ${shape}(p_tenant, p_scope, p_scope_id, p_role);${gate}
   return query
   select distinct rp.permission, rp.effect
   from ${keys}(
@@ -1553,6 +1717,14 @@ ${raiseSql("    ", "42501", `'permdock: the caller is not a member of ' || coale
   join ${rp} rp on rp.grant_key = k.grant_key and rp.scope = p_scope
   order by 1, 2;
 end;`;
+    body = checked(`
+  if not (${signedIn(ctx)} and (
+    ${platform}
+    or (p_scope <> 'global' and (${memberOf}))
+  )) then
+${raiseSql("    ", "42501", `'permdock: the caller is not a member of ' || coalesce(p_tenant::text, 'the platform')`, "not-member")}
+  end if;`);
+    trustedBody = checked("");
   }
   chunks.push(`-- the permission keys a role holds on a scope, with effect allow or deny; a custom role is read for its tenant and, below the first scope, its instance
 create or replace function ${reader}(p_role text, p_scope text, p_tenant ${tenantType} default null, p_scope_id text default null)
@@ -1566,6 +1738,22 @@ ${body}
 $$;
 revoke execute on function ${reader}(text, text, ${tenantType}, text) from public, anon;
 grant execute on function ${reader}(text, text, ${tenantType}, text) to authenticated;`);
+  const trusted = qualified(ctx, READERS.trusted);
+  const signature = `text, text, ${tenantType}, text`;
+  const grants =
+    trustedReaders === undefined || trustedReaders.length === 0
+      ? ""
+      : `\ngrant execute on function ${trusted}(${signature}) to ${trustedReaders.map(quoteIdent).join(", ")};`;
+  chunks.push(`create or replace function ${trusted}(p_role text, p_scope text, p_tenant ${tenantType} default null, p_scope_id text default null)
+returns table (permission text, effect text)
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+${trustedBody}
+$$;
+revoke execute on function ${trusted}(${signature}) from public, anon, authenticated;${grants}`);
   return chunks.join("\n\n");
 }
 

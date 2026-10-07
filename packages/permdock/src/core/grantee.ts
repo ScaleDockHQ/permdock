@@ -18,6 +18,7 @@ import type { Plan, Role } from "./vocabulary.ts";
 import { compact, sole } from "./compact.ts";
 import { freezeDeep } from "./freeze.ts";
 import {
+  isPermission as isPermissionLeaf,
   expandRelation,
   isComputedRelation,
   isEdgeRelation,
@@ -69,8 +70,16 @@ export type AssuranceGrantee = {
   readonly maxAge?: number;
 };
 
+export type InheritGrantee = {
+  readonly kind: "inherit";
+  readonly permission: string;
+  readonly resource: string;
+  readonly through: "parent" | readonly string[];
+};
+
 export type Grantee =
   | RoleGrantee
+  | InheritGrantee
   | AnyoneGrantee
   | AuthenticatedGrantee
   | RelationGrantee
@@ -172,6 +181,37 @@ export function relation(
       depth,
     }),
   );
+}
+
+export function inherit(
+  permission: Permission,
+  options: { readonly through: "parent" | readonly string[] },
+): InheritGrantee {
+  if (!isPermissionLeaf(permission) || permission.kind === "collection") {
+    throw new Error("PermDock: inherit() takes an instance permission leaf");
+  }
+  const through: unknown = options.through;
+  const links: readonly unknown[] | undefined = Array.isArray(through)
+    ? through
+    : undefined;
+  if (
+    through !== "parent" &&
+    (links === undefined ||
+      links.length === 0 ||
+      !links.every(
+        (link) => typeof link === "string" && link !== "" && link !== "parent",
+      ))
+  ) {
+    throw new Error(
+      "PermDock: inherit() through must be 'parent' or a non-empty list of link names",
+    );
+  }
+  return freezeDeep({
+    kind: "inherit" as const,
+    permission: permission.key,
+    resource: permission.resource,
+    through: links === undefined ? ("parent" as const) : links.map(String),
+  });
 }
 
 export function plan(name: Plan | string): PlanGrantee {
@@ -582,6 +622,55 @@ export function relationCondition(
   };
 }
 
+export function inheritCondition(
+  grantee: InheritGrantee,
+  resource: ResourceNode | undefined,
+  resources: ReadonlyMap<string, ResourceNode> | undefined,
+): RelatedCondition | undefined {
+  if (resource === undefined) {
+    return undefined;
+  }
+  if (grantee.through === "parent") {
+    const parent = resource.parent;
+    if (parent === undefined || parent.resource !== grantee.resource) {
+      return undefined;
+    }
+    return compact<RelatedCondition>({
+      op: "related",
+      resource: grantee.resource,
+      relation: "",
+      permission: grantee.permission,
+      field: parent.field,
+      depth: 0,
+      parent: true,
+      restricted: resource.restricted,
+    });
+  }
+  const path = relationHops(
+    {
+      kind: "relation",
+      resource: grantee.resource,
+      relation: "",
+      through: grantee.through,
+    },
+    resource,
+    resources,
+  );
+  if (path === undefined) {
+    return undefined;
+  }
+  return compact<RelatedCondition>({
+    op: "related",
+    resource: grantee.resource,
+    relation: "",
+    permission: grantee.permission,
+    field: path.field,
+    depth: 0,
+    hops: path.hops,
+    restricted: resource.restricted,
+  });
+}
+
 function targetMap(
   target: ResourceNode | undefined,
 ): ReadonlyMap<string, ResourceNode> | undefined {
@@ -698,6 +787,12 @@ function matchOne(
         return { matched: false, reason: "condition" };
       }
       return compact<GranteeMatch>({ matched: true, where });
+    }
+    case "inherit": {
+      const where = inheritCondition(grantee, resource, resources);
+      return where === undefined
+        ? { matched: false, reason: "condition" }
+        : { matched: true, where };
     }
     case "role": {
       if (subject.principal === null) {

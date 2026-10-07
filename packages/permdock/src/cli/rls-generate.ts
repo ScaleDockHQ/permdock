@@ -67,7 +67,7 @@ import {
   resolveAuthorize,
 } from "./rls-rbac.ts";
 import { realtimeStoragePolicies } from "./rls-realtime-storage.ts";
-import { rowHelpersSql } from "./rls-rows.ts";
+import { inheritTargets, rowHelpersSql } from "./rls-rows.ts";
 import { shimGrants, shimsSql } from "./rls-shims.ts";
 import {
   checkSuspension,
@@ -348,6 +348,19 @@ export async function runRlsGenerate(input: {
   if (requires.error !== undefined) {
     return { code: 2, output: requires.error, text: "" };
   }
+  const readers: unknown = rls?.trustedReaders;
+  if (
+    readers !== undefined &&
+    (!Array.isArray(readers) ||
+      !readers.every((name) => typeof name === "string" && name !== ""))
+  ) {
+    return {
+      code: 2,
+      output:
+        "rls.trustedReaders must list Postgres role names, such as ['service_role']",
+      text: "",
+    };
+  }
   const ownership = ownershipRules(policy, scopes);
   const graph = graphPlan(policy);
   const apiKeys = apiKeysPlan(
@@ -483,7 +496,7 @@ export async function runRlsGenerate(input: {
     rls?.tables,
     warnings,
     input.skipClosures,
-    rls?.rowHelpers !== undefined,
+    rls?.rowHelpers !== undefined || inheritTargets(policy).length > 0,
   );
   const helpersOnly = input.helpersOnly === true || rls?.helpersOnly === true;
   if (helpersOnly && (input.target !== "sql" || revokeColumns)) {
@@ -646,7 +659,7 @@ export async function runRlsGenerate(input: {
   }
   const graphed = graphSql(ctx, graph, rls?.tables);
   let rowHelpers = "";
-  if (rls?.rowHelpers !== undefined) {
+  if (rls?.rowHelpers !== undefined || inheritTargets(policy).length > 0) {
     try {
       rowHelpers = rowHelpersSql(
         ctx,
@@ -657,8 +670,8 @@ export async function runRlsGenerate(input: {
             : rowBranches(compiled.branches)),
           ...compiled.actionBranches,
         ],
-        rls.rowHelpers,
-        rls.tables,
+        rls?.rowHelpers ?? [],
+        rls?.tables,
         warnings,
       );
     } catch (cause) {
@@ -718,6 +731,9 @@ export async function runRlsGenerate(input: {
       userRoles: !input.rbac,
       anonExecute,
       withoutSeeds: splitsPart(input.split, "seeds"),
+      ...(rls?.trustedReaders === undefined
+        ? {}
+        : { trustedReaders: rls.trustedReaders }),
     }),
     permissionHelpersSql(ctx, grants, renamed, anonExecute),
     usesLiveSession ? sessionLiveHelperSql(ctx) : undefined,

@@ -411,6 +411,7 @@ function discover(grant: Grant, item: Grantee, ctx: Discovery): Promise<void> {
     case "plan":
     case "actor":
     case "assurance":
+    case "inherit":
       ctx.incomplete();
       return Promise.resolve();
     default: {

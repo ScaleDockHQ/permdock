@@ -3,7 +3,14 @@ import type { ShimGrants } from "./rls-shims.ts";
 import type { RlsSqlContext } from "./rls-sql.ts";
 
 import { partitionsOf, scopeField } from "../core/tenancy.ts";
-import { HELPERS, qualified } from "./rls-helpers.ts";
+import {
+  type Body,
+  HELPERS,
+  forUserContext,
+  functionBody,
+  grantBodies,
+  qualified,
+} from "./rls-helpers.ts";
 import {
   permittedForHelper,
   permittedIdsHelper,
@@ -118,6 +125,22 @@ ${sql}
 $$;`;
 }
 
+function heldSql(at: string, effect: "allow" | "deny"): string {
+  return `select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = ${quoteLiteral(at)} and pdk_h.effect = '${effect}'`;
+}
+
+function keysFunction(
+  fn: string,
+  params: string,
+  body: Body,
+  access: string,
+): string {
+  return `create or replace function ${fn}(${params})
+returns setof text
+${functionBody(body).replace("set search_path = ''", "set search_path = ''\nset jit = off")}
+${access}`;
+}
+
 /**
  * The permission-key forms of the helpers: `grant_keys`, which maps a
  * permission key to the grant keys of its unconditional allows on a scope
@@ -176,27 +199,68 @@ export function permissionHelpersSql(
     where p_conditioned
   ) g
   cross join lateral ${helper}(${user}g.grant_key) d(id)`;
-  const heldKeys = (scope: string): string => {
-    const held = [
-      ...new Set([
-        ...Object.keys(grants.get("global") ?? {}),
-        ...Object.keys(grants.get(scope) ?? {}),
-      ]),
-    ].toSorted();
-    return held.length === 0
-      ? "array[]::text[]"
-      : `array[${held.map(quoteLiteral).join(", ")}]::text[]`;
-  };
-  const keysOn = (
+  const keysBody = (
     scope: string,
-    hasHelper: string,
-    idsHelper: string,
-    user: string,
-  ): string =>
-    `  select k.key
-  from pg_catalog.unnest(${heldKeys(scope)}) k(key)
-  where ${hasHelper}(${user}k.key)
-    or p_id in (select ${idsHelper}(${user}k.key))`;
+    bodies: { readonly has: Body; readonly ids: (scope: string) => Body },
+    filtered: boolean,
+  ): Body => {
+    const rows = (["global", scope] as const).flatMap((at) =>
+      Object.entries(grants.get(at) ?? {})
+        .toSorted(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+        .flatMap(([key, effects]) =>
+          (["allow", "deny"] as const).flatMap((effect) =>
+            effects[effect].map(
+              (grant) =>
+                `(${[key, at, effect, grant].map(quoteLiteral).join(", ")})`,
+            ),
+          ),
+        ),
+    );
+    const allows = new Set(
+      (["global", scope] as const).flatMap((at) =>
+        Object.entries(grants.get(at) ?? {}).flatMap(([key, effects]) =>
+          effects.allow.length > 0 ? [key] : [],
+        ),
+      ),
+    );
+    if (allows.size === 0) {
+      return { sql: "  select null::text where false", vars: [] };
+    }
+    const hasBody = bodies.has;
+    const idsBody = bodies.ids(scope);
+    return {
+      sql: `  with pdk_m(key, scope, effect, grant_key) as (
+    values
+      ${rows.join(",\n      ")}
+  ),
+  pdk_w as (
+    select pdk_m.key, pdk_m.scope, pdk_m.effect, pdk_m.grant_key
+    from pdk_m${filtered ? `\n    where pdk_m.key in (select ${Object.keys(renamed).length === 0 ? "k.key" : `coalesce(${quoteLiteral(JSON.stringify(renamed))}::jsonb ->> k.key, k.key)`} from pg_catalog.unnest(p_keys) k(key))` : ""}
+  ),
+  pdk_g as (
+${hasBody.sql}
+  ),
+  pdk_s as (
+    select pdk_i.grant_key
+    from (
+${idsBody.sql}
+    ) pdk_i(id, grant_key)
+    where pdk_i.id = p_id
+  ),
+  pdk_h as (
+    select pdk_w.key, pdk_w.scope, pdk_w.effect
+    from pdk_w
+    where (pdk_w.scope = 'global' and pdk_w.grant_key in (select pdk_g.grant_key from pdk_g))
+      or (pdk_w.scope = ${quoteLiteral(scope)} and pdk_w.grant_key in (select pdk_s.grant_key from pdk_s))
+  )
+  select pdk_k.key
+  from (select distinct pdk_w.key from pdk_w where pdk_w.effect = 'allow') pdk_k
+  where (exists (${heldSql("global", "allow")}) and not exists (${heldSql("global", "deny")}))
+    or (exists (${heldSql(scope, "allow")}) and not exists (${heldSql(scope, "deny")}))
+  order by 1`,
+      vars: [...new Set([...hasBody.vars, ...idsBody.vars])],
+    };
+  };
   const chunks = [
     grantsFunction(ctx, grants, renamed, anonExecute),
     `-- the helpers by permission key: unconditional allows minus any deny
@@ -221,14 +285,21 @@ ${grantsSql(qualified(ctx, PERMISSION_HELPERS.has), "text", anonExecute)}`,
     )}
 ${grantsSql(fn, "text", anonExecute)}`);
     const keysFn = qualified(ctx, checkName(permissionKeysHelper(scope.name)));
+    const type = scopeTypeOf(ctx, scope.name);
+    const caller = grantBodies({ ...ctx, grantSet: true });
     chunks.push(`-- the permission keys the caller holds on one ${scope.name}: what permdock_has_permission or permitted_${scope.name}_ids_by_permission answers for each key, in one call
-${definer(
+${keysFunction(
   keysFn,
-  `p_id ${scopeTypeOf(ctx, scope.name)}`,
-  "setof text",
-  keysOn(scope.name, qualified(ctx, PERMISSION_HELPERS.has), fn, ""),
+  `p_id ${type}`,
+  keysBody(scope.name, caller, false),
+  grantsSql(keysFn, type, anonExecute),
 )}
-${grantsSql(keysFn, scopeTypeOf(ctx, scope.name), anonExecute)}`);
+${keysFunction(
+  keysFn,
+  `p_id ${type}, p_keys text[]`,
+  keysBody(scope.name, caller, true),
+  grantsSql(keysFn, `${type}, text[]`, anonExecute),
+)}`);
     chunks.push(`-- with p_conditioned true, also the instances a conditioned allow reaches, minus only unconditional denies: the caller applies the row condition
 ${definer(
   fn,
@@ -288,13 +359,20 @@ revoke execute on function ${fn}(${user}, text, boolean) from public, anon, auth
       ctx,
       checkName(`${permissionKeysHelper(scope.name)}_for`),
     );
-    chunks.push(`${definer(
+    const type = scopeTypeOf(ctx, scope.name);
+    const named = grantBodies({ ...forUserContext(ctx), grantSet: true });
+    chunks.push(`${keysFunction(
       keysFor,
-      `p_user ${user}, p_id ${scopeTypeOf(ctx, scope.name)}`,
-      "setof text",
-      keysOn(scope.name, hasFor, fn, "p_user, "),
+      `p_user ${user}, p_id ${type}`,
+      keysBody(scope.name, named, false),
+      `revoke execute on function ${keysFor}(${user}, ${type}) from public, anon, authenticated;`,
     )}
-revoke execute on function ${keysFor}(${user}, ${scopeTypeOf(ctx, scope.name)}) from public, anon, authenticated;`);
+${keysFunction(
+  keysFor,
+  `p_user ${user}, p_id ${type}, p_keys text[]`,
+  keysBody(scope.name, named, true),
+  `revoke execute on function ${keysFor}(${user}, ${type}, text[]) from public, anon, authenticated;`,
+)}`);
   }
   return `${chunks.join("\n\n")}\n`;
 }

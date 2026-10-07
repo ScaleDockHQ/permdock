@@ -7,6 +7,7 @@ export default {
     authorize: "database",
     customRoles: true,
     rowHelpers: ["drive"],
+    apiKeys: true,
     memberships: {
       tenant: {
         table: "organization_members",

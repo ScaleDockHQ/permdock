@@ -144,7 +144,7 @@ export type CatalogGrant = {
   readonly name?: string;
   readonly purpose?: readonly string[];
   /** The permission key the subject must also hold through a role on the row's scope instance (`requires`). */
-  readonly requires?: string;
+  readonly requires?: string | readonly string[];
   readonly limit?: {
     readonly count: number;
     readonly per: string;

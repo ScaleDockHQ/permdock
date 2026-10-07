@@ -277,6 +277,10 @@ export type RlsConfig = {
    * row ids the caller may act on, as the generated policies decide them.
    */
   readonly rowHelpers?: true | readonly string[];
+  readonly trustedReaders?: readonly string[];
+  readonly treeValues?: Readonly<
+    Record<string, Readonly<Record<string, unknown>>>
+  >;
   /** `rls migrate`: how existing helper calls map onto the generated helpers. */
   readonly migrate?: RlsMigrateConfig;
   /**
@@ -300,6 +304,8 @@ export type RlsApprovalsAdopt = {
   readonly token?: string;
   /** A jsonb column holding the `ApprovalRequest`. Default `body`. */
   readonly body?: string;
+  readonly open?: "insert" | "attach";
+  readonly schema?: string;
   /** Request fields copied into the app's columns, field to column. */
   readonly mirror?: {
     readonly status?: string;

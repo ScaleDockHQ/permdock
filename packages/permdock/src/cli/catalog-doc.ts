@@ -27,7 +27,13 @@ import {
 } from "../index.ts";
 import { CATALOG_SCHEMA, generatorBanner } from "./version.ts";
 
-const ROW_GRANTEES = new Set(["relation", "plan", "actor", "assurance"]);
+const ROW_GRANTEES = new Set([
+  "relation",
+  "plan",
+  "actor",
+  "assurance",
+  "inherit",
+]);
 
 /**
  * Whether a grant depends on more than the role and the scope: a row or body
@@ -212,7 +218,8 @@ function catalogGrant(grant: Grant): CatalogGrant {
       validity: grant.validity,
       name: grant.name,
       purpose: grant.purpose,
-      requires: grant.requires,
+      requires:
+        grant.requires?.length === 1 ? grant.requires[0] : grant.requires,
       limit,
       portable: grant.portable ? undefined : (false as const),
     }),

@@ -64,6 +64,7 @@ export type RlsSqlContext = {
    * Unset, they narrow to the tenant claim when the token carries one.
    */
   readonly tenants?: "all";
+  readonly grantSet?: true;
   readonly gucPrefix: string;
   /** `rls.actions`: verb to SQL command overrides. */
   readonly actions?: RlsActions;
@@ -449,6 +450,10 @@ function sqlNameOf(name: string, label: string): string {
 /** The helper returning the ids of `resource` the subject holds a relation on: `permitted_<snake_case resource>_ids`. */
 export function graphHelper(resource: string): string {
   return permittedIdsHelper(sqlNameOf(resource, `resource '${resource}'`));
+}
+
+function inheritedRowsHelper(resource: string): string {
+  return `permitted_${sqlNameOf(resource, `resource '${resource}'`)}_rows`;
 }
 
 /** The helper returning the ids of `resource` whose `link` points into the ids it is given. */
@@ -1507,7 +1512,10 @@ function compileRelatedSql(
     type === undefined
       ? `${quoteIdent(condition.field)}::text`
       : quoteIdent(condition.field);
-  const helper = `${`${quoteIdent(ctx.schema ?? PERMDOCK_SCHEMA)}.${graphHelper(condition.resource)}`}(${quoteLiteral(condition.relation)})`;
+  const helper =
+    condition.permission === undefined
+      ? `${`${quoteIdent(ctx.schema ?? PERMDOCK_SCHEMA)}.${graphHelper(condition.resource)}`}(${quoteLiteral(condition.relation)})`
+      : `${quoteIdent(ctx.schema ?? PERMDOCK_SCHEMA)}.${inheritedRowsHelper(condition.resource)}(${quoteLiteral(condition.permission)})`;
   const cap = ctx.graph?.closures[condition.resource];
   let inner: string;
   if (condition.depth > 0 && cap !== undefined) {
@@ -1553,6 +1561,11 @@ function compileHoppedSql(
       holders: (resource, relation) => [
         {
           text: `select ${schema}.${graphHelper(resource)}(${quoteLiteral(relation)})`,
+        },
+      ],
+      permitted: (resource, permission) => [
+        {
+          text: `select ${schema}.${inheritedRowsHelper(resource)}(${quoteLiteral(permission)})`,
         },
       ],
       linked: (resource, link, targets) => [

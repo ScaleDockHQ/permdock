@@ -189,6 +189,33 @@ allow(permissions.drive.read, {
 
 The share then counts only on drives whose organization is one where the subject holds `file.read` through a role, declared or custom, with no deny of it there ([requires](/docs/concepts/policies#requires)).
 
+### Inheriting a permission through a link
+
+A file node is often readable wherever its drive is, whoever made the drive readable: a role in the organization, a share, a group. `inherit(permission, { through })` grants on the row when the subject holds `permission` on the row a link (or the parent) points to, decided by every grant of that permission:
+
+```ts
+node: (resource(Node, {
+  actions: ["read", "share"],
+  links: {
+    drive: { field: "driveId", resource: "drive" },
+    folder: { field: "folderId", resource: "folder" },
+  },
+}),
+  allow(permissions.node.read, {
+    to: inherit(permissions.drive.read, { through: ["drive"] }),
+  }));
+allow(permissions.node.share, {
+  to: inherit(permissions.drive.read, { through: ["folder", "drive"] }),
+  where: { locked: false },
+});
+```
+
+`through` is `'parent'` (the row's `parent` must be on the permission's resource) or a list of link names ending on it, as for `relation()`. The target row's own denies, conditions and `requires` apply, since the target is decided as `can(permission, targetRow)` would decide it. A restricted row inherits nothing. `definePolicy` rejects `inherit()` on a deny, on a collection action, for an undeclared permission, for a path that does not reach the permission's resource, and a chain of `inherit()` grants that comes back to a permission it started from.
+
+In process the instance reads the target row through `RelationSource.row` and caches it like any other graph fact; `memoryRelations` answers it from `rows`. A source without `row`, or a read that fails, denies with `relation-unavailable`. The grant is server-only in snapshots, stays out of `where()` (`partial: true`) and `whoCan` (`complete: false`), and never matches as an approver or a delegation `from`, because each needs a row.
+
+`permdock rls generate` compiles the grant to `"driveId"::text in (select permitted_drive_rows('drive.read'))`, carried over each further link by its link helper, and writes [`permitted_<resource>_rows`](/docs/adapters/rls#row-helpers) for every resource an `inherit()` targets whether or not `rls.rowHelpers` lists it. Each targeted helper is first written as an empty stub, so helpers that call each other are created in any order. The generated policy applies to `authenticated`, so an `anyone()` grant on the target does not reach `anon` through it.
+
 ### Resource roles down a tree
 
 A [resource role](/docs/concepts/tenancy) held on an instance of a self-parented resource reaches everything below it: a `folderAdmin` membership on `eng` applies to `eng`, to its subfolders, and to documents whose `parent` is one of them. In process this needs a `relations` source; without one the role applies only to the instance it names. RLS applies resource roles to that instance only (see [Row-level security](#row-level-security)).
@@ -210,12 +237,16 @@ type RelationSource = {
     id: string;
     relation: string;
   }): RelationHolder[] | Promise<RelationHolder[]>;
+  row?(query: {
+    resource: string;
+    id: string;
+  }): Row | null | undefined | Promise<Row | null | undefined>;
 };
 
 createPermDock(policy, user, { relations: source });
 ```
 
-`ancestors` returns the chain nearest first, at most `depth` entries, each with its own `restricted` flag, plus `truncated` when the chain goes on. With a link name as `through` it returns the one instance the link points to. `related` returns the holders of one concrete relation on one object: `{ principal: { id } }` or `{ group: { resource, id, relation } }`, with optional `startsAt` / `expiresAt` in seconds. The instance expands `includes` and groups itself, so a source never answers for an implied relation. `memoryRelations(permissions, { rows, edges })` is the in-process source; `testRelationSource` in `permdock/testing` checks any other ([extension interfaces](/docs/concepts/extension-interfaces)).
+`ancestors` returns the chain nearest first, at most `depth` entries, each with its own `restricted` flag, plus `truncated` when the chain goes on. With a link name as `through` it returns the one instance the link points to. `related` returns the holders of one concrete relation on one object: `{ principal: { id } }` or `{ group: { resource, id, relation } }`, with optional `startsAt` / `expiresAt` in seconds. `row` returns one row by id, or `null` when there is none, for [`inherit()`](#inheriting-a-permission-through-a-link) grants. The instance expands `includes` and groups itself, so a source never answers for an implied relation. `memoryRelations(permissions, { rows, edges })` is the in-process source; `testRelationSource` in `permdock/testing` checks any other ([extension interfaces](/docs/concepts/extension-interfaces)).
 
 Answers are cached per instance, never at module level: a request's `can`, `filter`, `whoCan` and the instances `tenant()`, `team()` and `simulate()` derive share one cache, and the next request starts empty. Evaluation stays synchronous. A source that answers synchronously is used directly; a Promise the instance has not loaded yet denies, and `await permdock.loadRelations(permission, rows)` loads what those rows need first:
 
@@ -284,5 +315,6 @@ OpenFGA and SpiceDB are recipes, not package entries ([ecosystem index](/docs/re
 - **Roles, implication, groups and links, but no tuple store.** These are the four patterns the parent chain could not express (Google Drive's viewer-implies-commenter, teams as members of folders, a role column on a membership table, a document reviewed by its folder's owning team). Each compiles to a column predicate, an `or`, a bounded recursive CTE or a to-one join, so `can`, the ORM filters and RLS still agree. Arbitrary userset rewrites and intersections over relations stay with OpenFGA and SpiceDB.
 - **Group nesting counts per resource.** A team inside a team inside a team is a chain of the same resource and gets the same 16-level bound as a parent chain. Crossing to another resource (a folder shared with a team) starts a new count, since that crossing is fixed by the declaration and cannot loop; `definePermissions` rejects the declarations that could.
 - **A shared group is walked once.** Teams that each contain the same sub-teams form a lattice whose paths grow exponentially with its depth, while its groups grow linearly. `can` remembers every group it has walked and the depth budget it had, and skips one already walked with as much budget, since that walk's verdict is already counted; `whoCan` keeps each group's member list per budget. The cycle check stays per path, so a cycle still denies with `relation-depth`.
+- **Inheritance names a permission, not a relation.** "A node is readable where its drive is" is a statement about every way the drive becomes readable. Restating each of them as relation grants on the node, or ORing helper calls in hand-written policies, drifts as soon as the drive gains a grant. `inherit()` asks the target permission itself, through the same row helper in SQL and the same decision in process, so the two stay one definition. Requiring the inheritance graph to be acyclic keeps both the recursion in process and the helper calls in SQL finite.
 - **ORM filters use SQL, Prisma uses ids.** Drizzle and Kysely accept raw SQL fragments inside a typed query, so the graph subquery runs inside the list query. Prisma's `where` input has no raw fragment, so `resolveRelated` reads the ids first. The same SQL builder feeds all three and the RLS helpers, and `tests/integration` checks each against `can()`.
 - **whoCan says when it is incomplete.** An access review that silently drops holders is worse than none. Global roles and plans are not enumerable from a row, so the list says `complete: false` instead of guessing.

@@ -16,6 +16,7 @@ import {
   resource,
   role,
 } from "../../src/index.ts";
+import { fromTable } from "../../src/supabase/index.ts";
 
 const permissions = definePermissions(
   {
@@ -118,6 +119,76 @@ describe("permission-key helpers", () => {
     expect(text).toContain(
       'revoke execute on function "permdock".permdock_has_permission_for(uuid, text) from public, anon, authenticated;',
     );
+  });
+
+  it("lists the keys held on one instance with one set-based query per variant", () => {
+    const keysFn = (text: string, params: string): string => {
+      const head = `"permdock".permitted_tenant_permission_keys${params}`;
+      const start = text.indexOf(`create or replace function ${head}`);
+      return start === -1 ? "" : text.slice(start, text.indexOf("$$;", start));
+    };
+    const table = {
+      table: "org_members",
+      user: "user_id",
+      role: "role",
+      tenant: "org_id",
+    };
+    const custom = {
+      declared: ["admin", "auditor", "clerk", "operator"],
+      assignable: ["admin"],
+    };
+    const apiKeys = {
+      claim: "api_key",
+      scopes: "scopes",
+      tenant: "tenant",
+      roles: "roles",
+      serviceRoles: [],
+    };
+    const database = sql({
+      ...base,
+      authorize: "database",
+      memberships: { scopes: { tenant: table } },
+      customRoles: custom,
+      apiKeys,
+    });
+    const filtered = keysFn(database, "(p_id text, p_keys text[])");
+    expect(filtered).toContain("set jit = off");
+    expect(filtered).toContain(
+      `('invoice.void', 'tenant', 'deny', 'invoice.void#2')`,
+    );
+    expect(filtered).toContain(
+      `where pdk_m.key in (select coalesce('{"bill.read":"invoice.read"}'::jsonb ->> k.key, k.key) from pg_catalog.unnest(p_keys) k(key))`,
+    );
+    expect(filtered).toContain(") ck(grant_key)");
+    expect(filtered).toContain("permdock_api_key_allows(g.grant_key)");
+    expect(filtered).toContain("permdock_api_key_allows(ids.grant_key)");
+    expect(filtered).not.toMatch(/\bp_grant\b/u);
+    expect(
+      keysFn(database, "_for(p_user uuid, p_id text, p_keys text[])"),
+    ).toContain(") ck(grant_key)");
+    const jwt = keysFn(
+      sql({ ...base, authorize: "jwt", customRoles: custom }),
+      "(p_id text)",
+    );
+    expect(jwt).toContain(
+      "cross join lateral (select m -> 'grants' -> r.role as g) cg",
+    );
+    expect(jwt).toContain("-> 'role_grants'");
+    expect(jwt).not.toMatch(/\bp_grant\b/u);
+    const sources = keysFn(
+      sql({
+        ...base,
+        authorize: "database",
+        sources: [fromTable({ table: "memberships" })],
+        customRoles: custom,
+      }),
+      "(p_id text)",
+    );
+    expect(sources).toContain("select (ms.id)::text, ck.grant_key");
+    expect(
+      keysFn(permissionHelpersSql(base, new Map(), {}, false), "(p_id text)"),
+    ).toContain("  select null::text where false");
+    expect(sources).not.toMatch(/\bp_grant\b/u);
   });
 
   it("refuses a helper name Postgres would truncate", () => {

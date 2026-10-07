@@ -737,14 +737,10 @@ export function compileGrants(
     }
     const validity = validitySql(grant.validity);
     accessExpr = andSql(accessExpr, validity);
-    if (grant.requires !== undefined) {
+    for (const key of grant.requires ?? []) {
       accessExpr = andSql(
         accessExpr,
-        requiresSql(
-          ctx,
-          grant.requires,
-          policy.resources.get(grant.permission.resource),
-        ),
+        requiresSql(ctx, key, policy.resources.get(grant.permission.resource)),
       );
     }
     if (ctx.anonymousSignIns === "deny" && access.kind !== "anyone") {
@@ -756,9 +752,12 @@ export function compileGrants(
       access.kind !== "anyone" &&
       access.kind !== "role"
     ) {
+      const calls = [grant.permission.key, ...(grant.requires ?? [])].map(
+        (key) => `(select ${apiKeyAllowsCall(ctx, quoteLiteral(key))})`,
+      );
       accessExpr = andSql(
         accessExpr,
-        `(select ${apiKeyAllowsCall(ctx, quoteLiteral(grant.permission.key))})`,
+        calls.length === 1 ? (calls[0] ?? "") : `(${calls.join(" or ")})`,
       );
     }
     const using = compileOptional(entry.using, rowCtx);

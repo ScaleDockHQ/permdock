@@ -221,12 +221,15 @@ function roleLeaf(policy: Policy, name: string): Role {
 function graphAware(grant: Grant, where: Grant["where"]): Grant {
   const combined = combineWhere(grant.where, where);
   const graph = hasConditionOp(combined, "related");
+  const inherits = flattenGrantee(grant.to).some(
+    (item) => item.kind === "inherit",
+  );
   return freezeDeep(
     compact({
       ...grant,
       where: combined,
       portable: graph ? false : grant.portable,
-      graph: graph && grant.portable ? (true as const) : undefined,
+      graph: graph && grant.portable && !inherits ? (true as const) : undefined,
     }),
   );
 }

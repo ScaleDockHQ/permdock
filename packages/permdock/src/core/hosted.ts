@@ -321,6 +321,7 @@ function declaredGrantee(
     case "authenticated":
     case "actor":
     case "assurance":
+    case "inherit":
       return false;
     default: {
       const exhaustive: never = grantee;

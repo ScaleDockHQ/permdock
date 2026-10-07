@@ -282,10 +282,16 @@ export {
   anyone,
   assurance,
   authenticated,
+  inherit,
   plan,
   relation,
 } from "./core/grantee.ts";
-export type { Grantee, GranteeInput, RelationGrantee } from "./core/grantee.ts";
+export type {
+  Grantee,
+  GranteeInput,
+  InheritGrantee,
+  RelationGrantee,
+} from "./core/grantee.ts";
 export type {
   PolicyScopesInput,
   Scope,

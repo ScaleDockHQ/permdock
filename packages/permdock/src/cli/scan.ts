@@ -41,6 +41,7 @@ const CHECK_CALLS = new Set([
   "plan",
   "actor",
   "assurance",
+  "inherit",
 ]);
 
 type Estree = {

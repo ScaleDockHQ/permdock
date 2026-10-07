@@ -2,6 +2,7 @@ import type { Policy, ResourceNode } from "../index.ts";
 import type { CompiledBranch } from "./rls-compile.ts";
 import type { RlsSqlContext } from "./rls-sql.ts";
 
+import { flattenGrantee } from "../core/grantee.ts";
 import { tableFor } from "./rls-compile.ts";
 import { branchClauses } from "./rls-compile.ts";
 import { qualified } from "./rls-helpers.ts";
@@ -121,6 +122,51 @@ $$;
 ${tail}`;
 }
 
+export function inheritTargets(policy: Policy): readonly string[] {
+  const out = new Set<string>();
+  for (const grant of policy.grants) {
+    for (const item of flattenGrantee(grant.to)) {
+      if (item.kind === "inherit") {
+        out.add(item.resource);
+      }
+    }
+  }
+  return [...out].toSorted();
+}
+
+function stubSql(ctx: RlsSqlContext, resource: string): string {
+  const fn = qualified(ctx, rowsHelper(resource));
+  return `create or replace function ${fn}(p_permission text)
+returns setof text
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select null::text where false
+$$;`;
+}
+
+function rowSql(
+  ctx: RlsSqlContext,
+  rows: string,
+  table: string,
+  where: string,
+): string {
+  const fn = qualified(ctx, rows.replace(/_rows$/u, "_row"));
+  return `create or replace function ${fn}(p_row ${table}, p_permission text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (select 1 from (select (p_row).*) r where ${where})
+$$;
+revoke execute on function ${fn}(${table}, text) from public, anon;
+grant execute on function ${fn}(${table}, text) to authenticated;`;
+}
+
 function resourceSql(
   ctx: RlsSqlContext,
   node: ResourceNode,
@@ -150,7 +196,8 @@ as $$
   where ${where}
 $$;
 revoke execute on function ${fn}(text) from public, anon;
-grant execute on function ${fn}(text) to authenticated;`;
+grant execute on function ${fn}(text) to authenticated;
+${rowSql(ctx, name, table, where)}`;
   if (ctx.dialect === "neon") {
     return rows;
   }
@@ -188,7 +235,13 @@ export function rowHelpersSql(
           ),
         ].toSorted()
       : [...new Set(select)];
-  const chunks: string[] = [];
+  const called = inheritTargets(policy);
+  for (const name of called) {
+    if (!names.includes(name)) {
+      names.push(name);
+    }
+  }
+  const chunks: string[] = called.map((name) => stubSql(ctx, name));
   for (const name of names) {
     const node = policy.resources.get(name);
     if (node === undefined) {

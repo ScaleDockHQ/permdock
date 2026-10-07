@@ -99,4 +99,56 @@ describe("rls.approvals on an adopted table", () => {
       }),
     ).toThrow(error);
   });
+
+  it("attaches a request to the application's own row with open: 'attach'", () => {
+    const sql = adoptedApprovalStoreSql(ctx, {
+      table: "app.requests",
+      open: "attach",
+      mirror: { status: "state" },
+    });
+    expect(sql).toContain(
+      `update "app"."requests" a\n  set "body" = p_request,\n    "state" = (select r."state"`,
+    );
+    expect(sql).toContain(
+      `where a."token" = p_request ->> 'token'\n    and (a."body" is null or a."body" ->> 'status' = 'expired' or (a."body" ->> 'expiresAt')::timestamptz <= now());`,
+    );
+    expect(sql).toContain("errcode = 'P0002'");
+    expect(sql).toContain(
+      "message = 'permdock: no row of app.requests holds approval token ' || (p_request ->> 'token')",
+    );
+    expect(sql).not.toContain("on conflict");
+  });
+
+  it("writes the store functions into rls.approvals.schema", () => {
+    const sql = adoptedApprovalStoreSql(ctx, {
+      table: "approvals",
+      schema: "public",
+    });
+    for (const name of [
+      "open",
+      "get",
+      "resolve",
+      "consume",
+      "list",
+      "expire",
+      "cancel",
+    ]) {
+      expect(sql).toContain(
+        `create or replace function "public".permdock_approval_${name}(`,
+      );
+    }
+    expect(sql).not.toContain('"permdock".permdock_approval_');
+  });
+
+  it("refuses an unknown open mode and an empty schema", () => {
+    expect(() =>
+      adoptedApprovalStoreSql(
+        ctx,
+        JSON.parse('{"table":"approvals","open":"merge"}'),
+      ),
+    ).toThrow(/must be 'insert' or 'attach'/u);
+    expect(() =>
+      adoptedApprovalStoreSql(ctx, { table: "approvals", schema: "" }),
+    ).toThrow(/must be a schema name/u);
+  });
 });

@@ -347,7 +347,20 @@ export function adoptedApprovalStoreSql(
       );
     }
   }
-  const fn = (name: string): string => qualified(ctx, name);
+  const open = adopt.open ?? "insert";
+  if (open !== "insert" && open !== "attach") {
+    throw new Error(
+      `PermDock CLI: rls.approvals.open must be 'insert' or 'attach', got '${String(open)}'`,
+    );
+  }
+  const schema = adopt.schema;
+  if (schema !== undefined && (typeof schema !== "string" || schema === "")) {
+    throw new Error("PermDock CLI: rls.approvals.schema must be a schema name");
+  }
+  const fn = (name: string): string =>
+    schema === undefined
+      ? qualified(ctx, name)
+      : `${quoteIdent(schema)}.${name}`;
   const index = (name: string): string =>
     quoteIdent(`${base}_permdock_${name}`);
   const status = `a.${body} ->> 'status'`;
@@ -370,14 +383,7 @@ export function adoptedApprovalStoreSql(
       ([column, field]) => [column, MIRRORS[field]("p_request")] as const,
     ),
   ]);
-  return `-- approval store adopted onto ${adopt.table}: ApprovalRequest bodies in ${adopt.body ?? "body"}, keyed by ${adopt.token ?? "token"}; supabaseApprovalStore calls the functions below
-alter table ${table} add column if not exists ${token} text;
-alter table ${table} add column if not exists ${body} jsonb;
-create unique index if not exists ${index("token")} on ${table} (${token});
-create index if not exists ${index("page")} on ${table} ((${body} ->> 'createdAt') collate "C", ${token} collate "C");
-create index if not exists ${index("status")} on ${table} ((${body} ->> 'status'));
-${jsonSchema === false ? "" : bodySchemaSql(table, jsonSchema, body, `${base}_permdock_body_schema`)}
--- open a request; a repeated ask keeps the open record and replaces only an expired one
+  const insertSql = `-- open a request; a repeated ask keeps the open record and replaces only an expired one
 create or replace function ${fn(APPROVAL_STORE.open)}(p_request jsonb)
 returns void
 language sql
@@ -394,7 +400,35 @@ as $$
       .map((column) => `${column} = excluded.${column}`)
       .join(", ")}
     where ${status} = 'expired' or ${expires} <= now()
-$$;
+$$;`;
+  const attachSql = `create or replace function ${fn(APPROVAL_STORE.open)}(p_request jsonb)
+returns void
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+begin
+  update ${table} a
+  set ${body} = p_request${mirrorSet(table, mirror, "p_request")}
+  where a.${token} = p_request ->> 'token'
+    and (a.${body} is null or ${status} = 'expired' or ${expires} <= now());
+  if not found and not exists (select 1 from ${table} a where a.${token} = p_request ->> 'token') then
+    raise exception using
+      errcode = 'P0002',
+      message = 'permdock: no row of ${adopt.table.replaceAll("'", "''")} holds approval token ' || (p_request ->> 'token'),
+      hint = 'insert the application row with this token before opening the request';
+  end if;
+end;
+$$;`;
+  return `-- approval store adopted onto ${adopt.table}: ApprovalRequest bodies in ${adopt.body ?? "body"}, keyed by ${adopt.token ?? "token"}; supabaseApprovalStore calls the functions below
+alter table ${table} add column if not exists ${token} text;
+alter table ${table} add column if not exists ${body} jsonb;
+create unique index if not exists ${index("token")} on ${table} (${token});
+create index if not exists ${index("page")} on ${table} ((${body} ->> 'createdAt') collate "C", ${token} collate "C");
+create index if not exists ${index("status")} on ${table} ((${body} ->> 'status'));
+${jsonSchema === false ? "" : bodySchemaSql(table, jsonSchema, body, `${base}_permdock_body_schema`)}
+${open === "attach" ? attachSql : insertSql}
 ${serverOnly(fn(APPROVAL_STORE.open), "jsonb")}
 
 create or replace function ${fn(APPROVAL_STORE.get)}(p_token text)

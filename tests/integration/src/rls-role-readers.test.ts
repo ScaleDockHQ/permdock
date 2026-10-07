@@ -220,6 +220,40 @@ describe("permdock_role_permissions and permdock_permission_keys", () => {
     expect(keys).toContain("board.update");
   });
 
+  it("lists the keys some declared role holds on one scope", async () => {
+    const keysOn = (scope: string): Promise<string[]> =>
+      as("authenticated", PLUS, async (query) => {
+        const result = await query<{ key: string }>(
+          "select permdock.permdock_permission_keys($1) as key",
+          [scope],
+        );
+        return result.rows.map((row) => row.key);
+      });
+    const allowedOn = (scope: string): string[] =>
+      [
+        ...new Set(
+          policy.roles.flatMap((binding) =>
+            binding.grants
+              .filter(
+                (grant) =>
+                  grant.effect === "allow" &&
+                  (grant.scope === "global" ? "global" : grant.scope) === scope,
+              )
+              .map((grant) => grant.permission.key),
+          ),
+        ),
+      ].toSorted();
+    const scopes = ["global", "tenant", "team"];
+    const got = [
+      await keysOn("global"),
+      await keysOn("tenant"),
+      await keysOn("team"),
+    ];
+    expect(got).toEqual(scopes.map(allowedOn));
+    expect(got.flat().every((key) => catalogKeys.includes(key))).toBe(true);
+    expect(await keysOn("nowhere")).toEqual([]);
+  });
+
   it("matches the declared roles of the policy on every scope", async () => {
     for (const name of ["auditor", "owner", "admin", "member", "viewer"]) {
       for (const scope of ["global", "tenant", "team"]) {
@@ -291,5 +325,43 @@ describe("permdock_role_permissions and permdock_permission_keys", () => {
         ),
       ),
     ).rejects.toMatchObject({ code: "42501" });
+  });
+
+  it("answers any tenant's custom role through the trusted reader, which no client role may execute", async () => {
+    if (db === undefined) {
+      throw new Error("PermDock: Postgres was not started");
+    }
+    for (const role of CUSTOM_ROLES) {
+      const result = await db.admin.query<Row>(
+        "select permission, effect from permdock.permdock_trusted_role_permissions($1, $2, $3, $4)",
+        [
+          role.name,
+          role.team === undefined ? "tenant" : "team",
+          role.tenant,
+          role.team ?? null,
+        ],
+      );
+      expect(sorted(result.rows), `${role.tenant} ${role.name}`).toEqual(
+        custom(role),
+      );
+    }
+    const admin = await db.admin.query<Row>(
+      "select permission, effect from permdock.permdock_trusted_role_permissions('admin', 'tenant')",
+    );
+    expect(sorted(admin.rows)).toEqual(declared("admin", "tenant"));
+    await expect(
+      db.admin.query(
+        "select * from permdock.permdock_trusted_role_permissions('writer', 'nowhere', 'acme')",
+      ),
+    ).rejects.toMatchObject({ code: "22023" });
+    for (const role of ["authenticated", "anon"] as const) {
+      await expect(
+        as(role, role === "anon" ? undefined : GLOBEX, (query) =>
+          query(
+            "select * from permdock.permdock_trusted_role_permissions('writer', 'tenant', 'acme')",
+          ),
+        ),
+      ).rejects.toMatchObject({ code: "42501" });
+    }
   });
 });

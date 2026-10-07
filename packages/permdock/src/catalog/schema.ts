@@ -226,7 +226,7 @@ export const catalogSchema: CatalogSchemaNode = freezeDeep({
           validity,
           name: { type: "string" },
           purpose: strings,
-          requires: { type: "string" },
+          requires: { oneOf: [{ type: "string" }, strings] },
           limit: {
             type: "object",
             required: ["count", "per"],
