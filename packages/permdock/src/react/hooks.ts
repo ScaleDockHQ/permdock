@@ -29,6 +29,7 @@ import {
   PermDockSnapshotPromiseContext,
   PermDockStoreContext,
 } from "./context.ts";
+import { storeOf } from "./store.ts";
 
 function useStore(): ClientStore {
   const store = use(PermDockStoreContext);
@@ -54,19 +55,17 @@ export function usePermDock<
   ) as ClientPermDock<V>;
 }
 
+// The hooks reach the store through `permdock`: the React Compiler keeps only
+// the dependencies a memoised callback reads, and `permdock` is the one that
+// changes when the store does.
 export function usePermission(
   permission: Permission,
   data?: unknown,
 ): PermissionState {
-  const store = useStore();
-  const permdock = useSyncExternalStore(
-    (listener) => store.subscribe(listener),
-    () => store.get(),
-    () => store.get(),
-  );
+  const permdock = usePermDock();
   return useMemo(
-    () => store.permissionState(permission, data),
-    [store, permdock, permission, data],
+    () => storeOf(permdock).permissionState(permission, data),
+    [permdock, permission, data],
   );
 }
 
@@ -74,15 +73,10 @@ export function usePermissions(
   permissions: readonly Permission[],
   data?: unknown,
 ): PermissionSet {
-  const store = useStore();
-  const permdock = useSyncExternalStore(
-    (listener) => store.subscribe(listener),
-    () => store.get(),
-    () => store.get(),
-  );
+  const permdock = usePermDock();
   return useMemo(
-    () => permissionSet(store, permissions, data),
-    [store, permdock, permissions, data],
+    () => permissionSet(storeOf(permdock), permissions, data),
+    [permdock, permissions, data],
   );
 }
 
@@ -126,11 +120,5 @@ export function useSubject(): SubjectView {
 }
 
 export function useApproval(decision: Decision): ApprovalHandle {
-  const store = useStore();
-  useSyncExternalStore(
-    (listener) => store.subscribe(listener),
-    () => store.get(),
-    () => store.get(),
-  );
-  return approvalHandle(store, decision);
+  return approvalHandle(storeOf(usePermDock()), decision);
 }

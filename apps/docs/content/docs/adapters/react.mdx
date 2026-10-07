@@ -78,6 +78,8 @@ const { principal, actor, simulated } = useSubject()
 
 During SSR the provider renders from the snapshot alone, so server and first client render agree. Endpoint answers are requested only after mount.
 
+The hooks behave the same when the [React Compiler](https://react.dev/learn/react-compiler) compiles them. Expo compiles workspace packages with the app, and the package test suite runs the React and React Native hook tests a second time through `babel-plugin-react-compiler`.
+
 ## What it validates
 
 The [shared adapter contract](/docs/adapters) applies, with these client-side specifics:

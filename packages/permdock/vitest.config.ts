@@ -1,6 +1,8 @@
+import { transformAsync } from "@babel/core";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
+import reactCompiler from "babel-plugin-react-compiler";
 import { existsSync } from "node:fs";
-import { defineConfig } from "vitest/config";
+import { defineConfig, type Plugin } from "vitest/config";
 
 declare module "vitest" {
   interface ProvidedContext {
@@ -18,6 +20,29 @@ const raiseThresholds =
       import.meta.url,
     ),
   );
+
+// Apps that enable the React Compiler compile the hooks too (Expo compiles
+// workspace packages): the hooks must behave the same once memoised by it.
+function compileReact(): Plugin {
+  return {
+    name: "react-compiler",
+    enforce: "pre",
+    async transform(code, id) {
+      if (!/\/src\/(?:react|react-native|client)\/[^?]+\.tsx?$/u.test(id)) {
+        return null;
+      }
+      const result = await transformAsync(code, {
+        filename: id,
+        babelrc: false,
+        configFile: false,
+        parserOpts: { plugins: ["typescript", "jsx"] },
+        plugins: [[reactCompiler, { panicThreshold: "all_errors" }]],
+        sourceMaps: "inline",
+      });
+      return result?.code ?? null;
+    },
+  };
+}
 
 export default defineConfig({
   test: {
@@ -45,6 +70,19 @@ export default defineConfig({
           // (server) build through an external import.
           server: { deps: { inline: [/solid-js/u] } },
           include: ["tests/**/*.browser.test.ts"],
+        },
+      },
+      {
+        extends: true,
+        plugins: [compileReact()],
+        resolve: { conditions: ["browser"] },
+        test: {
+          name: "react-compiler",
+          environment: "happy-dom",
+          include: [
+            "tests/react/*.browser.test.ts",
+            "tests/react-native/*.browser.test.ts",
+          ],
         },
       },
     ],
