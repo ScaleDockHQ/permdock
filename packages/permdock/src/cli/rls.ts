@@ -37,7 +37,7 @@ export const RLS_HELP = `permdock rls generate | import | verify | migrate
   migrate  --sql <dir> [--write] [--json], with the generate flags
            rewrites the rls.migrate helpers' calls in policies onto the generated helpers
 
-Never emits service_role. memberOf compiles through the dialect memberships mapping.
+Never emits service_role, except in the execute grant rls.trustedReaders asks for. memberOf compiles through the dialect memberships mapping.
 `;
 
 export type RlsRunInput = {
