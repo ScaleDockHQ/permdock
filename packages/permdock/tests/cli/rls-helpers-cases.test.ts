@@ -380,3 +380,95 @@ describe("helpersSql database mode", () => {
     );
   });
 });
+
+describe("helpersSql role readers", () => {
+  const members = {
+    scopes: {
+      org: {
+        table: "org_members",
+        user: "user_id",
+        role: "role",
+        columns: { org: "org_id" },
+      },
+    },
+  };
+  const readers = (
+    extra: Partial<RlsSqlContext>,
+    permissions: readonly string[] | null = ["doc.read", "doc.edit"],
+  ) =>
+    helpersSql(ctx(extra), [], {
+      userRoles: false,
+      ...(permissions === null ? {} : { permissions }),
+    });
+
+  it("lists the catalog keys for authenticated only", () => {
+    const sql = readers({});
+    expect(fnBody(sql, "permdock_permission_keys")).toContain(
+      `unnest(array['doc.edit', 'doc.read']::text[])`,
+    );
+    expect(sql).toContain(
+      'revoke execute on function "permdock".permdock_permission_keys() from public, anon;\ngrant execute on function "permdock".permdock_permission_keys() to authenticated;',
+    );
+    expect(readers({}, [])).toContain(`unnest('{}'::text[])`);
+    expect(readers({}, null)).not.toContain("permdock_permission_keys");
+  });
+
+  it("reads declared roles from role_permissions without a custom branch", () => {
+    for (const extra of [
+      {},
+      { authorize: "database" as const, memberships: members },
+      {
+        authorize: "jwt" as const,
+        customRoles: { declared: ["admin"], assignable: [] },
+      },
+    ]) {
+      const sql = readers(extra);
+      const body = fnBody(sql, "permdock_role_permissions");
+      expect(body).toContain("rp.role = p_role and rp.scope = p_scope");
+      expect(body).not.toContain("permdock_custom_keys");
+      expect(sql).toContain(
+        'revoke execute on function "permdock".permdock_role_permissions(text, text, uuid, text) from public, anon;\ngrant execute on function "permdock".permdock_role_permissions(text, text, uuid, text) to authenticated;',
+      );
+    }
+  });
+
+  it("reads a custom role for a member of its tenant", () => {
+    const body = fnBody(
+      readers({
+        authorize: "database",
+        memberships: members,
+        customRoles: { declared: ["admin"], assignable: ["admin"] },
+      }),
+      "permdock_role_permissions",
+    );
+    expect(body).toContain("if p_role = any(array['admin']::text[]) then");
+    expect(body).toContain('"permdock".permdock_custom_role_shape(');
+    expect(body).toContain(
+      'p_tenant::text in (select x::text from "permdock".member_org_ids() x)',
+    );
+    expect(body).toContain("when 'team' then p_scope_id in");
+    expect(body).toContain("hint = 'not-member'");
+    expect(body).toContain("array(select c.permission from");
+    expect(body).not.toContain("c.level");
+    expect(body.split("\n    false\n").length).toBe(2);
+  });
+
+  it("lets a manageRoles holder read a platform role, and carries levels", () => {
+    const body = fnBody(
+      readers({
+        authorize: "database",
+        memberships: members,
+        customRoles: {
+          declared: ["admin"],
+          assignable: ["admin"],
+          manage: ["doc.edit"],
+          levels: true,
+        },
+      }),
+      "permdock_role_permissions",
+    );
+    expect(body).toContain("m.permission = any(array['doc.edit']::text[])");
+    expect(body).toContain('"permdock".permdock_has(m.grant_key)');
+    expect(body).toContain("c.permission || coalesce('@' || c.level, '')");
+  });
+});

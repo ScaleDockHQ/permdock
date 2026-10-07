@@ -678,6 +678,9 @@ export async function runRlsGenerate(input: {
     rbac?.head,
     helpersSql(ctx, compiled.rolePermissions, {
       levelReach: compiled.levelReach,
+      permissions: listPermissions(policy.permissions)
+        .map((leaf) => leaf.key)
+        .toSorted(),
       userRoles: !input.rbac,
       anonExecute,
       withoutSeeds: splitsPart(input.split, "seeds"),
