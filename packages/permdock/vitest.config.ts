@@ -37,9 +37,13 @@ function compileReact(): Plugin {
         configFile: false,
         parserOpts: { plugins: ["typescript", "jsx"] },
         plugins: [[reactCompiler, { panicThreshold: "all_errors" }]],
-        sourceMaps: "inline",
+        sourceMaps: true,
       });
-      return result?.code ?? null;
+      const compiled = result?.code;
+      if (typeof compiled !== "string") {
+        return null;
+      }
+      return { code: compiled, map: JSON.stringify(result?.map) };
     },
   };
 }
