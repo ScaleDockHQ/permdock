@@ -9,7 +9,7 @@ import { describe } from "../core/describe.ts";
 import { parseDuration } from "../core/duration.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import { ApprovalError } from "./errors.ts";
-import { listAll } from "./page.ts";
+import { listAllApprovals } from "./page.ts";
 import { heldPermissions } from "./permissions.ts";
 import {
   type ApproverRelationsOptions,
@@ -433,7 +433,10 @@ export async function cancelApprovals(
   if (store.cancel !== undefined) {
     return store.cancel(filter, meta);
   }
-  const pending = await listAll(store, { ...filter, status: "pending" });
+  const pending = await listAllApprovals(store, {
+    ...filter,
+    status: "pending",
+  });
   const by: Subject = {
     principal: { id: `system:${meta.by}`, kind: "service", roles: [] },
     actor: { id: `system:${meta.by}`, kind: SYSTEM_KIND },

@@ -10,7 +10,11 @@ import type {
 import type { SupabaseRpcCaller } from "./postgrest.ts";
 
 import { ApprovalError } from "../approvals/errors.ts";
-import { decodeCursor, encodeCursor, pageSizeOf } from "../approvals/page.ts";
+import {
+  decodeApprovalCursor,
+  encodeApprovalCursor,
+  approvalPageSize,
+} from "../approvals/page.ts";
 import { applyApprovalVerdict } from "../approvals/store.ts";
 import { canonicalJson } from "../core/canonical-json.ts";
 import { compact } from "../core/compact.ts";
@@ -131,11 +135,13 @@ export function supabaseApprovalStore(
     },
     async list(query: ApprovalListQuery): Promise<ApprovalPage> {
       const after =
-        query.cursor === undefined ? undefined : decodeCursor(query.cursor);
+        query.cursor === undefined
+          ? undefined
+          : decodeApprovalCursor(query.cursor);
       if (after === null) {
         return { items: [] };
       }
-      const size = pageSizeOf(query.limit);
+      const size = approvalPageSize(query.limit);
       const data = await call("permdock_approval_list", {
         p_filter: filterOf(query),
         p_after_created: after?.[0] ?? null,
@@ -151,7 +157,7 @@ export function supabaseApprovalStore(
       const items = rows.slice(0, size);
       const last = items.at(-1);
       return rows.length > size && last !== undefined
-        ? { items, next: encodeCursor(last) }
+        ? { items, next: encodeApprovalCursor(last) }
         : { items };
     },
     async expire(now = new Date()) {
