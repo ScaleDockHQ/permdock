@@ -48,6 +48,9 @@ jobs:
           - name: test
             next: true
             run: pnpm run authzen:vectors && pnpm exec turbo run test $AFFECTED
+          # The Nest adapter against Nest 11, the lowest peer version.
+          - name: nest-11
+            run: scripts/test-nest-11.sh
           - name: boundaries
             run: pnpm run boundaries
           - name: audit

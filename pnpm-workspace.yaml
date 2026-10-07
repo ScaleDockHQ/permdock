@@ -177,9 +177,9 @@ catalogs:
   peers:
     "@anthropic-ai/claude-agent-sdk": ">=0.2"
     "@modelcontextprotocol/server": ">=2"
-    "@nestjs/common": ">=12"
-    "@nestjs/core": ">=12"
-    "@nestjs/platform-express": ">=12"
+    "@nestjs/common": ">=11"
+    "@nestjs/core": ">=11"
+    "@nestjs/platform-express": ">=11"
     "@openai/agents": ">=0.1"
     "@opentelemetry/api": ">=1"
     "@orpc/server": ">=2.0.0-0"
