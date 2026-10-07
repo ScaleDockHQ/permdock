@@ -177,6 +177,101 @@ describe("graph grants in RLS", () => {
     expect(closureDepths(plan)).toEqual({ team: 16 });
   });
 
+  it("names the helpers, links and closure objects of a camelCase resource in snake_case", () => {
+    const camel = definePermissions({
+      chatThread: resource({
+        actions: ["read"],
+        parent: { field: "parentId", resource: "chatThread" },
+        links: { ownerTeam: { field: "teamId", resource: "chatTeam" } },
+        relations: { member: { edge: "chat_thread_members" } },
+      }),
+      chatTeam: resource({
+        actions: ["read"],
+        relations: { lead: { principal: "leadId" } },
+      }),
+      chatMessage: resource({
+        actions: ["read"],
+        links: { thread: { field: "threadId", resource: "chatThread" } },
+      }),
+    });
+    const camelPolicy = definePolicy(camel, {
+      grants: [
+        allow(camel.chatThread.read, {
+          to: relation(camel.chatThread, "member", { through: "parent" }),
+        }),
+        allow(camel.chatMessage.read, {
+          to: relation(camel.chatTeam, "lead", {
+            through: ["thread", "ownerTeam"],
+          }),
+        }),
+      ],
+      subject: () => null,
+    });
+    const plan = graphPlan(camelPolicy);
+    const sql = graphSql(
+      {
+        dialect: "supabase",
+        scopes: scopeList(camelPolicy.scopes),
+        tenantClaim: "tenant_id",
+        gucPrefix: "app",
+      },
+      plan,
+      undefined,
+    );
+    expect(sql).toContain(
+      '"permdock".permitted_chat_thread_ids(p_relation text)',
+    );
+    expect(sql).toContain(
+      '"permdock".permitted_chat_team_ids(p_relation text)',
+    );
+    expect(sql).toContain(
+      '"permdock".permdock_link_chat_thread_owner_team(p_ids text[])',
+    );
+    expect(sql).toContain(
+      '"permdock".permdock_closure_chat_thread(p_ids text[])',
+    );
+    expect(sql).toContain("using (resource = 'chatThread'");
+    expect(sql).not.toMatch(
+      /permitted_chatThread|permdock_closure_chatThread/u,
+    );
+  });
+
+  it("refuses two resources that share a snake_case SQL name", () => {
+    const twins = definePermissions({
+      chatThread: resource({
+        actions: ["read"],
+        relations: { member: { edge: "a_members" } },
+      }),
+      chat_thread: resource({
+        actions: ["read"],
+        relations: { member: { edge: "b_members" } },
+      }),
+    });
+    const twinPolicy = definePolicy(twins, {
+      grants: [
+        allow(twins.chatThread.read, {
+          to: relation(twins.chatThread, "member"),
+        }),
+        allow(twins.chat_thread.read, {
+          to: relation(twins.chat_thread, "member"),
+        }),
+      ],
+      subject: () => null,
+    });
+    expect(() =>
+      graphSql(
+        {
+          dialect: "supabase",
+          scopes: scopeList(twinPolicy.scopes),
+          tenantClaim: "tenant_id",
+          gucPrefix: "app",
+        },
+        graphPlan(twinPolicy),
+        undefined,
+      ),
+    ).toThrow(/both name the SQL helper permitted_chat_thread_ids/u);
+  });
+
   it("is refused by toWhere compilers without a relations mapping", () => {
     expect(() => compileWhere(related())).toThrow(/related/);
   });

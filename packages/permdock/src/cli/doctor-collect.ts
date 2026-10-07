@@ -36,7 +36,7 @@ import {
 import { asPolicy, loadModule, pickNamed } from "./load.ts";
 import { commandFor, tableFor } from "./rls-compile.ts";
 import { graphPlan } from "./rls-graph.ts";
-import { contextRefs } from "./rls-sql.ts";
+import { contextRefs, graphSqlName } from "./rls-sql.ts";
 import { supabaseConfig } from "./supabase-config.ts";
 import { runUsage } from "./usage.ts";
 
@@ -912,22 +912,36 @@ export async function pd032(
   }
   const scopes = scopeList(policy.scopes);
   const findings: DoctorFinding[] = [];
+  const sqlNames = new Map<string, string>();
   for (const name of graphPlan(policy).keys()) {
-    if (scopes.some((scope) => scope.name === name)) {
+    const sql = graphSqlName(name);
+    if (sql === undefined) {
       findings.push({
         code: "PD032",
         severity: "error",
-        message: `graph resource ${name} shares its name with the ${name} scope: permitted_${name}_ids would replace the scope helper, so rls generate refuses it`,
-        fix: `rename the resource (for example ${name}s or ${name}_node) or the scope`,
+        message: `graph resource ${name} is not a SQL name, so rls generate cannot name its permitted_<name>_ids helper`,
+        fix: "rename the resource to letters, digits and underscores, starting with a letter",
       });
-    } else if (!/^[a-z][a-z0-9_]*$/u.test(name)) {
+      continue;
+    }
+    if (scopes.some((scope) => scope.name === sql)) {
       findings.push({
         code: "PD032",
         severity: "error",
-        message: `graph resource ${name} is not a lowercase SQL name, so rls generate cannot name permitted_${name}_ids`,
-        fix: "rename the resource to lowercase letters, digits and underscores",
+        message: `graph resource ${name} shares its SQL name with the ${sql} scope: permitted_${sql}_ids would replace the scope helper, so rls generate refuses it`,
+        fix: `rename the resource (for example ${sql}s or ${sql}_node) or the scope`,
       });
     }
+    const other = sqlNames.get(sql);
+    if (other !== undefined) {
+      findings.push({
+        code: "PD032",
+        severity: "error",
+        message: `graph resources ${other} and ${name} both become permitted_${sql}_ids in SQL, so rls generate refuses them`,
+        fix: "rename one of the resources",
+      });
+    }
+    sqlNames.set(sql, name);
   }
   return findings;
 }

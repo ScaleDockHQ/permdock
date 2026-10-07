@@ -254,7 +254,7 @@ Limits of the SQL side:
 
 - Resource roles apply to the instance the membership names, not to its descendants.
 - An edge `expiresAt` compares against `now()` and must be a `timestamptz` column.
-- A graph resource named `team` clashes with the implicit `team` scope (doctor PD032); declare `scopes` or rename the resource.
+- Helper names use the resource's snake_case name: `chatThread` gets `permitted_chat_thread_ids`. A graph resource named `team` clashes with the implicit `team` scope (doctor PD032); declare `scopes` or rename the resource.
 - Hosted grants (`permdock/cloud`) reject a link list in `through`.
 
 ## External graphs

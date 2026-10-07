@@ -616,17 +616,49 @@ describe("PD031 and PD032 graph declarations", () => {
     );
   });
 
-  it("PD032 errors on a graph resource that is not a lowercase SQL name", async () => {
+  it("PD032 names a camelCase graph resource in snake_case and errors on a clash or a name SQL cannot hold", async () => {
     const cwd = project({ "src/graph.ts": GRAPH });
     expect(
       await pd032({ cwd, config: { policy: "./src/graph.ts", rls: {} } }),
+    ).toEqual([]);
+    const clash = project({
+      "src/graph.ts": `import { allow, definePermissions, definePolicy, relation, resource } from 'permdock';
+
+export const permissions = definePermissions({
+  chatThread: resource({ actions: ['read'], relations: { member: { edge: 'thread_members' } } }),
+  chat_thread: resource({ actions: ['read'], relations: { member: { edge: 'old_members' } } }),
+  odd: resource({ name: 'odd-name', actions: ['read'], relations: { member: { edge: 'odd_members' } } }),
+});
+
+export const policy = definePolicy(permissions, {
+  grants: [
+    allow(permissions.chatThread.read, { to: relation(permissions.chatThread, 'member') }),
+    allow(permissions.chat_thread.read, { to: relation(permissions.chat_thread, 'member') }),
+    allow(permissions.odd.read, { to: relation(permissions.odd, 'member') }),
+  ],
+  subject: () => null,
+});
+`,
+    });
+    expect(
+      await pd032({
+        cwd: clash,
+        config: { policy: "./src/graph.ts", rls: {} },
+      }),
     ).toEqual([
       {
         code: "PD032",
         severity: "error",
         message:
-          "graph resource Upper is not a lowercase SQL name, so rls generate cannot name permitted_Upper_ids",
-        fix: "rename the resource to lowercase letters, digits and underscores",
+          "graph resources chatThread and chat_thread both become permitted_chat_thread_ids in SQL, so rls generate refuses them",
+        fix: "rename one of the resources",
+      },
+      {
+        code: "PD032",
+        severity: "error",
+        message:
+          "graph resource odd-name is not a SQL name, so rls generate cannot name its permitted_<name>_ids helper",
+        fix: "rename the resource to letters, digits and underscores, starting with a letter",
       },
     ]);
   });
