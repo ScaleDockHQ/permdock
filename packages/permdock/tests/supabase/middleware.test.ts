@@ -14,6 +14,11 @@ import { verifyWebBotAuth } from "../../src/server/web-bot-auth.ts";
 import { createPermDock } from "../../src/supabase/middleware.ts";
 import { subjectFromSupabase } from "../../src/supabase/subject.ts";
 import {
+  saasPermissions,
+  saasPolicy,
+  saasProject,
+} from "../../src/testing/saas/index.ts";
+import {
   otherPost,
   ownPost,
   permissions,
@@ -353,6 +358,122 @@ describe("permdock/supabase/middleware", () => {
     // @ts-expect-error: the evaluations handler needs jwtClaims upstream too.
     pipeline([], permdockHandler());
     expect(true).toBe(true);
+  });
+
+  describe("secretKeys", () => {
+    type AuthConfig = {
+      readonly authMode: string;
+      readonly authKeyName?: string;
+      readonly claims?: SupabaseJwtClaims;
+    };
+    const withFixtureMode = defineMiddleware<
+      "authMode",
+      { readonly mode: string },
+      Record<never, never>,
+      string
+    >({
+      key: "authMode",
+      run: (config) => async () => ({ authMode: config.mode }),
+    });
+    const withFixtureKeyName = defineMiddleware<
+      "authKeyName",
+      { readonly name: string | undefined },
+      Record<never, never>,
+      string | undefined
+    >({
+      key: "authKeyName",
+      run: (config) => async () => ({ authKeyName: config.name }),
+    });
+    const p = saasPermissions;
+    const { withPermDock } = createPermDock(saasPolicy, {
+      subject: (ctx) =>
+        ctx.jwtClaims === null ? null : { id: ctx.jwtClaims.sub },
+      secretKeys: {
+        billing: {
+          id: "svc_billing",
+          tenant: "acme",
+          roles: ["admin"],
+          permissions: [p.project.update],
+        },
+      },
+    });
+    const run = (auth: AuthConfig) =>
+      pipeline(
+        [
+          withFixtureClaims({ claims: auth.claims ?? null }),
+          withFixtureMode({ mode: auth.authMode }),
+          withFixtureKeyName({ name: auth.authKeyName }),
+          withPermDock(),
+        ],
+        async (_req, ctx) =>
+          Response.json({
+            principal: ctx.permdock.subject.principal,
+            update: ctx.permdock.can(p.project.update, saasProject("p1")),
+            delete: ctx.permdock.can(p.project.delete, saasProject("p1")),
+            otherTenant: ctx.permdock.can(p.project.update, saasProject("g1")),
+          }),
+      )(request("/projects"));
+
+    it("makes a named secret key a tenant service principal capped at its permissions", async () => {
+      const body = await (
+        await run({ authMode: "secret", authKeyName: "billing" })
+      ).json();
+      expect(body).toMatchObject({
+        principal: {
+          id: "svc_billing",
+          kind: "service",
+          tenant: "acme",
+          credential: { kind: "service", name: "billing" },
+        },
+        update: true,
+        delete: false,
+        otherTenant: false,
+      });
+    });
+
+    it("keeps other keys, unnamed secrets, publishable keys and user tokens on the claims path", async () => {
+      for (const auth of [
+        { authMode: "secret", authKeyName: "other" },
+        { authMode: "secret" },
+        { authMode: "publishable", authKeyName: "billing" },
+      ]) {
+        expect(await (await run(auth)).json()).toEqual({
+          principal: null,
+          update: false,
+          delete: false,
+          otherTenant: false,
+        });
+      }
+      const user = await (
+        await run({
+          authMode: "secret",
+          authKeyName: "billing",
+          claims: memberClaims,
+        })
+      ).json();
+      expect(user).toMatchObject({ principal: { id: "u1" }, update: false });
+    });
+
+    it("refuses a pattern or an empty id at construction", () => {
+      const key = {
+        id: "svc",
+        tenant: "acme",
+        roles: [],
+        permissions: [saasPermissions.project.read],
+      };
+      expect(() =>
+        createPermDock(saasPolicy, {
+          subject: () => null,
+          secretKeys: { "*": key },
+        }),
+      ).toThrow(/not a pattern/);
+      expect(() =>
+        createPermDock(saasPolicy, {
+          subject: () => null,
+          secretKeys: { ops: { ...key, id: "" } },
+        }),
+      ).toThrow(/non-empty id and tenant/);
+    });
   });
 
   it("accepts the @supabase/server JWTClaims shape structurally", () => {

@@ -70,6 +70,68 @@ describe("subjectStatements", () => {
     );
   });
 
+  it("writes the API-key claim with an empty sub for a service credential", () => {
+    const service: { readonly subject: Subject } = {
+      subject: {
+        principal: {
+          id: "svc_billing",
+          kind: "service",
+          tenant: "o1",
+          credential: {
+            id: "key_2",
+            kind: "service",
+            tenant: "o1",
+            roles: ["developer"],
+            permissions: [
+              { permission: "task.read" },
+              { permission: "task.update", ids: ["t1"] },
+            ],
+          },
+        },
+        context: {},
+      },
+    };
+    const statements = subjectStatements(service);
+    expect(JSON.parse(statements[1]?.values[0] ?? "")).toEqual({
+      sub: "",
+      tenant_id: "o1",
+      role: "authenticated",
+      api_key: {
+        id: "key_2",
+        tenant: "o1",
+        roles: ["developer"],
+        scopes: ["task.read"],
+      },
+    });
+    expect(subjectStatements(service, { dialect: "guc" })[1]?.values[0]).toBe(
+      "",
+    );
+  });
+
+  it("keeps the owner as sub for a user credential and renames the claim fields", () => {
+    const key: { readonly subject: Subject } = {
+      subject: {
+        principal: {
+          id: "u1",
+          credential: {
+            id: "key_1",
+            kind: "user",
+            permissions: [{ permission: "task.read" }],
+          },
+        },
+        context: {},
+      },
+    };
+    const statements = subjectStatements(key, {
+      apiKeys: { claim: "key", scopes: "allowed" },
+    });
+    expect(JSON.parse(statements[1]?.values[0] ?? "")).toEqual({
+      sub: "u1",
+      role: "authenticated",
+      key: { id: "key_1", allowed: ["task.read"] },
+    });
+  });
+
   it("refuses any other role and unsafe setting names", () => {
     // SAFETY: a deliberately forbidden role to exercise subjectStatements' refusal.
     expect(() =>
