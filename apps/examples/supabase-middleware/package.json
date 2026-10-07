@@ -15,6 +15,7 @@
     "@supabase/middleware": "catalog:",
     "@supabase/server": "catalog:",
     "@supabase/supabase-js": "catalog:",
+    "hono": "catalog:",
     "jose": "catalog:",
     "permdock": "workspace:*",
     "zod": "catalog:"
