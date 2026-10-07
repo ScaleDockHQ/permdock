@@ -95,7 +95,7 @@ export default function Layout() {
 }
 ```
 
-Define `onForeground` outside the component: the provider rebuilds its store when the function identity changes. When the guard turns `false`, the tab stops existing and Expo Router moves the user to the first allowed route.
+Define `storage` and `onForeground` outside the component: the provider rebuilds its store when either identity changes. Inline `headers`, `fetch` and `verifier` do not: `headers` compare by value, and a new token in them rebuilds the store. When the guard turns `false`, the tab stops existing and Expo Router moves the user to the first allowed route.
 
 ### 3. Refresh on foreground
 

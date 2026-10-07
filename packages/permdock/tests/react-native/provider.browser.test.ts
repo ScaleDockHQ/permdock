@@ -152,6 +152,41 @@ describe("permdock/react-native PermDockProvider revalidation", () => {
     expect(net.calls()).toBe(1);
   });
 
+  it("keeps its store when a re-render passes equal inline headers and a new fetch", async () => {
+    const first = counter();
+    const second = counter();
+    const storage = memoryStorage();
+    const snapshot = emptySnapshot();
+    const tree = (net: typeof first, token: string): ReactNode =>
+      createElement(PermDockProvider, {
+        storage,
+        snapshot,
+        snapshotUrl: "/snap",
+        revalidate: 5,
+        headers: { authorization: token },
+        fetch: (input, init) => net.fetch(input, init),
+        children: createElement(Probe),
+      });
+    mount(tree(first, "a"));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    act(() => {
+      root?.render(tree(second, "a"));
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_000);
+    });
+    expect([first.calls(), second.calls()]).toEqual([1, 1]);
+    act(() => {
+      root?.render(tree(second, "b"));
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(second.calls()).toBe(2);
+  });
+
   it("marks the snapshot stale when the launch refresh fails", async () => {
     const host = mount(
       provider("launch", {
