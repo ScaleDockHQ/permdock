@@ -282,8 +282,10 @@ export function permdockExtension(): {
       $allModels: {
         findMany: wrap,
         findFirst: wrap,
+        findFirstOrThrow: wrap,
         count: wrap,
         aggregate: wrap,
+        groupBy: wrap,
         updateMany: wrap,
         deleteMany: wrap,
       },

@@ -406,7 +406,9 @@ describe("permdock/prisma permdockExtension", () => {
       "count",
       "deleteMany",
       "findFirst",
+      "findFirstOrThrow",
       "findMany",
+      "groupBy",
       "updateMany",
     ]);
   });

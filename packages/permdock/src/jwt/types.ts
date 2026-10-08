@@ -9,6 +9,7 @@ import type {
   TokenVerifier,
 } from "../core/interfaces.ts";
 import type { Actor, Principal, Subject } from "../core/subject.ts";
+import type { ReplayStore } from "../ssf/types.ts";
 
 export type JwtAlgorithm =
   | "ES256"
@@ -112,6 +113,8 @@ export type JwtSubjectOptions = JoseTokenVerifierOptions & {
       }
     | ((claims: JwtClaims) => Actor | undefined);
   readonly sender?: "none" | "dpop" | "mtls";
+  /** With `sender: "dpop"`, rejects a proof `jti` already used by the same key within 60 seconds. */
+  readonly replay?: ReplayStore;
   readonly memberships?: MembershipSource;
   readonly verifier?: TokenVerifier;
   readonly certificateThumbprint?: string;
