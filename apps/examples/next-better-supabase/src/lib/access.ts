@@ -2,8 +2,8 @@ import type { Snapshot } from "permdock";
 
 import { cacheLife, cacheTag } from "next/cache";
 import { emptySnapshot, snapshotFor } from "permdock";
+import { subjectFromBetterSupabase } from "permdock/better-supabase";
 import { cacheLifeFor, snapshotTag } from "permdock/next";
-import { subjectFromSupabaseSession } from "permdock/supabase";
 
 import { policy } from "../policy.ts";
 import { latency } from "./latency.ts";
@@ -64,10 +64,7 @@ export async function loadSnapshot(organization: string): Promise<Snapshot> {
     tags: [orgTag(organization)],
   });
   cacheTag(snapshotTag(session.kind === "user" ? session.user.id : null));
-  const subject = subjectFromSupabaseSession(session, {
-    memberships: "memberships",
-    plans: "features",
-  });
+  const subject = subjectFromBetterSupabase(session);
   const snapshot = snapshotFor(policy, subject, { tenant: organization });
   cacheLife({ stale: cacheLifeFor(snapshot).stale });
   return snapshot;
