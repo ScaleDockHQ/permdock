@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join } from "node:path";
@@ -43,11 +43,15 @@ type RenderResult =
       readonly id?: string | null;
       readonly flight: string;
       readonly snapshot?: unknown;
+      readonly stderr: string;
     }
   | { readonly ok: false; readonly error: string };
 
-export function renderFlight(mode: "provider" | "snapshot"): RenderResult {
-  const out = execFileSync(
+export function renderFlight(
+  mode: "provider" | "snapshot" | "tenant-snapshot",
+  environment: "production" | "development" = "production",
+): RenderResult {
+  const { stdout, stderr } = spawnSync(
     process.execPath,
     [
       "--conditions",
@@ -60,11 +64,25 @@ export function renderFlight(mode: "provider" | "snapshot"): RenderResult {
     {
       cwd: RSC,
       encoding: "utf8",
-      env: { ...process.env, NODE_ENV: "production" },
+      env: { ...process.env, NODE_ENV: environment },
     },
   );
   // SAFETY: the last stdout line of the render fixture is its JSON RenderResult
-  return JSON.parse(out.trim().split("\n").at(-1) ?? "{}") as RenderResult;
+  const result = JSON.parse(stdout.trim().split("\n").at(-1) ?? "{}") as
+    | Omit<Extract<RenderResult, { ok: true }>, "stderr">
+    | Extract<RenderResult, { ok: false }>;
+  return result.ok ? { ...result, stderr } : result;
+}
+
+async function decodeSnapshot(
+  flight: string,
+): Promise<{ readonly snapshot: unknown }> {
+  // SAFETY: the snapshot fixture renders an object with a `snapshot` field
+  return (await createFromNodeStream(Readable.from([flight]), {
+    moduleMap: {},
+    serverModuleMap: null,
+    moduleLoading: null,
+  })) as { readonly snapshot: unknown };
 }
 
 describe("react-server build", () => {
@@ -112,17 +130,23 @@ describe("react-server build", () => {
     if (!result.ok) {
       throw new Error(result.error);
     }
-    // SAFETY: the snapshot fixture renders an object with a `snapshot` field
-    const decoded = (await createFromNodeStream(
-      Readable.from([result.flight]),
-      {
-        moduleMap: {},
-        serverModuleMap: null,
-        moduleLoading: null,
-      },
-    )) as { readonly snapshot: unknown };
+    const decoded = await decodeSnapshot(result.flight);
     expect(decoded.snapshot).toEqual(result.snapshot);
     expect(parseSnapshot(decoded.snapshot)).toEqual(result.snapshot);
+  });
+
+  it("passes a tenant snapshot with vocabulary and assignable entries through development Flight", async () => {
+    const result = renderFlight("tenant-snapshot", "development");
+    if (!result.ok) {
+      throw new Error(result.error);
+    }
+    expect(result.stderr).toBe("");
+    const decoded = await decodeSnapshot(result.flight);
+    expect(decoded.snapshot).toEqual(result.snapshot);
+    expect(result.snapshot).toMatchObject({
+      vocabulary: { roles: { owner: { kind: "role" } } },
+      assignable: [{ tenant: "acme" }, { tenant: "globex" }],
+    });
   });
 
   it('marks every React client entry with "use client"', () => {

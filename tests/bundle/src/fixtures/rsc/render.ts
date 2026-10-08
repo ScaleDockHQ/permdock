@@ -7,7 +7,9 @@ import { Writable } from "node:stream";
 import {
   allow,
   definePermissions,
+  definePlans,
   definePolicy,
+  defineRoles,
   resource,
   role,
 } from "permdock";
@@ -49,6 +51,44 @@ export const policy = definePolicy(permissions, {
   ],
   subject: (user: User | null) => user,
 });
+
+const tenantPermissions = definePermissions({
+  doc: resource({
+    actions: ["read", "update"],
+    collection: ["list"],
+    relations: { org: { field: "orgId", memberOf: "tenant" } },
+  }),
+});
+
+const roles = defineRoles({
+  owner: { on: "tenant", meta: { title: "Owner" } },
+  member: { on: "tenant" },
+});
+
+const plans = definePlans({ pro: { meta: { title: "Pro" } } });
+
+type TenantUser = {
+  readonly id: string;
+  readonly memberships: readonly {
+    readonly tenant: string;
+    readonly roles: readonly string[];
+  }[];
+};
+
+const tenantPolicy = definePolicy(
+  { permissions: tenantPermissions, roles, plans },
+  {
+    scopes: { tenant: { key: "orgId" } },
+    roles: [
+      role(roles.owner, [
+        allow(tenantPermissions.doc.update),
+        allow(tenantPermissions.doc.list),
+      ]),
+      role(roles.member, [allow(tenantPermissions.doc.read)]),
+    ],
+    subject: (user: TenantUser) => user,
+  },
+);
 
 const manifest = new Proxy(
   {},
@@ -103,6 +143,21 @@ async function main(mode: string | undefined): Promise<object> {
   if (mode === "snapshot") {
     const { snapshotFor } = await import("permdock");
     const snapshot = snapshotFor(policy, user);
+    return { snapshot, flight: await flight({ snapshot }) };
+  }
+  if (mode === "tenant-snapshot") {
+    const { snapshotFor } = await import("permdock");
+    const snapshot = snapshotFor(
+      tenantPolicy,
+      {
+        id: "u1",
+        memberships: [
+          { tenant: "acme", roles: ["owner"] },
+          { tenant: "globex", roles: ["member"] },
+        ],
+      },
+      { tenants: "all" },
+    );
     return { snapshot, flight: await flight({ snapshot }) };
   }
   throw new Error(`unknown mode ${String(mode)}`);
