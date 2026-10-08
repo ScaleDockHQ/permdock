@@ -87,3 +87,27 @@ describe("PD061", () => {
     ).toMatchObject([{ message: expect.stringContaining("workspace.purge") }]);
   });
 });
+
+describe("PD061 for suspended memberships", () => {
+  it("lists the keys a suspended membership keeps and names an undeclared one", async () => {
+    const config: PermDockConfig = {
+      policy: "./policy.ts",
+      rls: {
+        suspension: {
+          memberships: {
+            keep: [permissions.workspace.export, "workspace.purge"],
+          },
+        },
+      },
+    };
+    const findings = await pd061({
+      cwd: ".",
+      config,
+      policy: () => Promise.resolve(policy),
+    });
+    expect(findings.map((item) => item.message)).toEqual([
+      "suspended memberships still hold workspace.export, workspace.purge",
+      "rls.suspension.memberships.keep names workspace.purge, which the definitions do not declare, so a suspended membership keeps nothing for them",
+    ]);
+  });
+});

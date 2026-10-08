@@ -227,10 +227,60 @@ export function checkSuspension(
     const { keep: _given, ...active } = row;
     byName[name] = keep.length === 0 ? active : { ...active, keep };
   }
+  const memberships = suspension.memberships;
+  if (memberships?.keep !== undefined && !Array.isArray(memberships.keep)) {
+    throw new Error(
+      "PermDock CLI: rls.suspension.memberships.keep is a list of permissions or permission keys",
+    );
+  }
+  const keep = keptKeys(memberships);
   return {
     ...(suspension.users === undefined ? {} : { users: suspension.users }),
     ...(Object.keys(byName).length === 0 ? {} : { scopes: byName }),
+    ...(keep.length === 0 ? {} : { memberships: { keep } }),
   };
+}
+
+export function disabledKeep(ctx: RlsSqlContext): readonly string[] {
+  return keptKeys(ctx.suspension?.memberships);
+}
+
+export function activeMembershipSql(
+  ctx: RlsSqlContext,
+  disabledAt: string | undefined,
+  permission: CheckedPermission | undefined = ctx.permission === undefined
+    ? undefined
+    : { key: ctx.permission },
+): string[] {
+  if (disabledAt === undefined) {
+    return [];
+  }
+  const keep = disabledKeep(ctx);
+  if (
+    permission !== undefined &&
+    "key" in permission &&
+    keep.includes(permission.key)
+  ) {
+    return [];
+  }
+  return permission !== undefined && "sql" in permission && keep.length > 0
+    ? [
+        `(${disabledAt} is null or ${permission.sql} = any(array[${keep.map(quoteLiteral).join(", ")}]::text[]))`,
+      ]
+    : [`${disabledAt} is null`];
+}
+
+export function keptRowSql(
+  keep: string,
+  permission: CheckedPermission | undefined,
+): string {
+  const kind = `coalesce(jsonb_typeof(${keep}), 'null')`;
+  if (permission === undefined) {
+    return `${kind} = 'null'`;
+  }
+  const value =
+    "key" in permission ? quoteLiteral(permission.key) : permission.sql;
+  return `case ${kind} when 'null' then true when 'array' then ${keep} @> jsonb_build_array(${value}) else false end`;
 }
 
 /**
@@ -1144,6 +1194,14 @@ function existsSql(
       `(m.${quoteIdent(table.expiresAt)} is null or m.${quoteIdent(table.expiresAt)} > now())`,
     );
   }
+  parts.push(
+    ...activeMembershipSql(
+      ctx,
+      table.disabledAt === undefined
+        ? undefined
+        : `m.${quoteIdent(table.disabledAt)}`,
+    ),
+  );
   if (tenantColumn !== undefined && ctx.tenants !== "all") {
     parts.push(`m.${quoteIdent(tenantColumn)} = ${tenantClaimSql(ctx)}`);
   }

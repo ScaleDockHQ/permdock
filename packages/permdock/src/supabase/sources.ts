@@ -55,6 +55,7 @@ export type MembershipTableOptions = Common & {
     readonly role?: string | RoleThrough | readonly (string | RoleThrough)[];
     readonly via?: string;
     readonly expiresAt?: string;
+    readonly disabledAt?: string;
     /** The principal id that wrote the membership (`grantedBy`). */
     readonly grantedBy?: string;
     /** Free-text justification recorded on the membership (`reason`). */
@@ -90,6 +91,7 @@ export type MembershipJunctionOptions = Common & {
   /** The membership kind every row has (`contact`, `staff`, `partner`). */
   readonly via?: string;
   readonly expiresAt?: string;
+  readonly disabledAt?: string;
   /** The principal id that wrote the membership (`grantedBy`). */
   readonly grantedBy?: string;
   /** Free-text justification recorded on the membership (`reason`). */
@@ -222,6 +224,7 @@ type Shape = {
   readonly roles: string;
   readonly via: string;
   readonly expiresAt: string | undefined;
+  readonly disabledAt: string | undefined;
   readonly grantedBy: string;
   readonly reason: string;
   readonly memberGroup: string;
@@ -253,7 +256,7 @@ function textArray(values: readonly string[]): string {
 function keeping(
   shape: Shape,
 ): readonly { readonly active: string; readonly keep: readonly string[] }[] {
-  return Object.entries(shape.suspension?.scopes ?? {}).flatMap(
+  const scopes = Object.entries(shape.suspension?.scopes ?? {}).flatMap(
     ([name, row]) => {
       const id = shape.idOf(name);
       const keep = keptKeys(row);
@@ -261,6 +264,21 @@ function keeping(
         ? []
         : [{ active: `(${id} is null or ${activeRow(row, id)})`, keep }];
     },
+  );
+  const keep = keptKeys(shape.suspension?.memberships);
+  return shape.disabledAt === undefined || keep.length === 0
+    ? scopes
+    : [...scopes, { active: enabled(shape.disabledAt), keep }];
+}
+
+function enabled(disabledAt: string): string {
+  return `${col(disabledAt)} is null`;
+}
+
+function keepsDisabled(shape: Shape): boolean {
+  return (
+    shape.disabledAt !== undefined &&
+    keptKeys(shape.suspension?.memberships).length > 0
   );
 }
 
@@ -292,6 +310,9 @@ function filters(shape: Shape, owner: string): string[] {
   if (shape.expiresAt !== undefined) {
     const expires = col(shape.expiresAt);
     lines.push(`(${expires} is null or ${expires} > now())`);
+  }
+  if (shape.disabledAt !== undefined && !keepsDisabled(shape)) {
+    lines.push(enabled(shape.disabledAt));
   }
   const users = shape.suspension?.users;
   if (users !== undefined) {
@@ -338,7 +359,13 @@ function selectOf(
     `${shape.seats} as seats`,
     ...(keep ? [`${keepColumn(shape)} as keep`] : []),
   ];
-  const group = [...(user ? [shape.userSql] : []), ...shape.groupBy];
+  const group = [
+    ...(user ? [shape.userSql] : []),
+    ...shape.groupBy,
+    ...(keepsDisabled(shape) && shape.disabledAt !== undefined
+      ? [`(${enabled(shape.disabledAt)})`]
+      : []),
+  ];
   return `select ${fields.join(", ")}
 from ${qualified(shape.table)} m${shape.join}
 where ${where.join("\n  and ")}
@@ -362,10 +389,20 @@ function holdersOf(shape: Shape): MembershipHolders {
       if (options.id !== undefined) {
         where.push(`m.${id} = ${options.id}`);
       }
+      const conditions = [
+        ...(shape.expiresAt === undefined
+          ? []
+          : [
+              `(${col(shape.expiresAt)} is null or ${col(shape.expiresAt)} > now())`,
+            ]),
+        ...(shape.disabledAt === undefined ? [] : [enabled(shape.disabledAt)]),
+      ];
       const live =
-        shape.expiresAt === undefined
+        conditions.length === 0
           ? "true"
-          : `(${col(shape.expiresAt)} is null or ${col(shape.expiresAt)} > now())`;
+          : conditions.length === 1
+            ? conditions.join("")
+            : `(${conditions.join(" and ")})`;
       const kept = where.filter((part) => part !== "true");
       return `select m.${id}::text as id, ${shape.userSql}::text as user_id, ${shape.roleKey} as role, ${shape.via} as via, ${live} as live
 from ${options.from ?? qualified(shape.table)} m${shape.join}${shape.roleJoin}${kept.length === 0 ? "" : `\nwhere ${kept.join(" and ")}`}`;
@@ -627,6 +664,7 @@ export function fromTable(
     roles: roleAgg(role),
     via: optional(c.via, "text"),
     expiresAt: c.expiresAt,
+    disabledAt: c.disabledAt,
     grantedBy: optional(c.grantedBy, "text"),
     reason: optional(c.reason, "text"),
     memberGroup: optional(c.group, "text"),
@@ -662,7 +700,7 @@ export function fromTable(
       c.scope ?? "scope",
       c.id ?? "scope_id",
       ...role.columns,
-      ...[c.within, c.via, c.expiresAt].filter(
+      ...[c.within, c.via, c.expiresAt, c.disabledAt].filter(
         (name): name is string => name !== undefined,
       ),
     ],
@@ -675,6 +713,8 @@ export function fromTable(
       via: c.via === undefined ? undefined : { column: c.via },
       expiresAt:
         c.expiresAt === undefined ? undefined : { column: c.expiresAt },
+      disabledAt:
+        c.disabledAt === undefined ? undefined : { column: c.disabledAt },
     }),
   };
   return sourceOf(sqlOf(shape), options.query);
@@ -743,6 +783,7 @@ export function fromJunction(
         ? "null::text"
         : `${literal(options.via)}::text`,
     expiresAt: options.expiresAt,
+    disabledAt: options.disabledAt,
     grantedBy:
       options.grantedBy === undefined
         ? "null::text"
@@ -802,7 +843,7 @@ export function fromJunction(
       idColumn,
       ...withinEntries.map(([, column]) => column),
       ...(role?.columns ?? []),
-      ...[options.expiresAt].filter(
+      ...[options.expiresAt, options.disabledAt].filter(
         (name): name is string => name !== undefined,
       ),
     ],
@@ -821,6 +862,10 @@ export function fromJunction(
         options.expiresAt === undefined
           ? undefined
           : { column: options.expiresAt },
+      disabledAt:
+        options.disabledAt === undefined
+          ? undefined
+          : { column: options.disabledAt },
     }),
   };
   const sql = sqlOf(shape);

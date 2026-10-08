@@ -1002,3 +1002,35 @@ describe("subjectFromSupabase and the hook claims", () => {
     expect(plain.principal?.authzVersion).toBeUndefined();
   });
 });
+
+describe("membership suspension in the manifest", () => {
+  it("writes the disabledAt columns and the kept keys", async () => {
+    const { code, cwd } = await generate(
+      `{ memberships: [fromJunction({ table: 'organization_users', scope: 'organization', roles: 'role', disabledAt: 'disabled_at', suspension: { memberships: { keep: ['invoice.read'] } } })] }`,
+      [],
+      `{ tenantType: 'text', authorize: 'database', suspension: { memberships: { keep: ['invoice.read'] } }, memberships: { scopes: { organization: { table: 'organization_users', user: 'user_id', role: 'role', columns: { organization: 'organization_id' }, disabledAt: 'disabled_at' } } } }`,
+    );
+    expect(code).toBe(0);
+    const inspect = await run(["supabase", "inspect", "--json"], { cwd });
+    expect(inspect.code).toBe(0);
+    const manifest: SupabaseHookManifest = JSON.parse(inspect.stdout);
+    expect(manifest.memberships[0]?.disabledAt).toEqual({
+      column: "disabled_at",
+    });
+    expect(manifest.rls.memberships[0]?.disabledAt).toEqual({
+      column: "disabled_at",
+    });
+    expect(manifest.rls.memberships[0]?.columns).toContain("disabled_at");
+    expect(manifest.rls.suspension).toEqual({
+      memberships: { keep: ["invoice.read"] },
+    });
+    const schema = JSON.parse(
+      readFileSync(
+        join(HERE, "../../schemas/supabase-manifest-v1.json"),
+        "utf8",
+      ),
+    );
+    const validate = new Ajv2020({ strict: false }).compile(schema);
+    expect(validate(manifest)).toBe(true);
+  });
+});

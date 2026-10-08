@@ -164,6 +164,18 @@
             "scopes": {
               "type": "object",
               "additionalProperties": { "$ref": "#/$defs/activeRow" }
+            },
+            "memberships": {
+              "type": "object",
+              "required": ["keep"],
+              "additionalProperties": false,
+              "properties": {
+                "keep": {
+                  "description": "The permission keys a membership whose disabledAt column is set still holds.",
+                  "type": "array",
+                  "items": { "type": "string" }
+                }
+              }
             }
           }
         },
@@ -265,6 +277,7 @@
         },
         "via": { "$ref": "#/$defs/value" },
         "expiresAt": { "$ref": "#/$defs/column" },
+        "disabledAt": { "$ref": "#/$defs/column" },
         "columns": {
           "type": "array",
           "items": { "$ref": "#/$defs/identifier" }

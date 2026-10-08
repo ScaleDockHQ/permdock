@@ -147,12 +147,33 @@ function customHolds(
         )`;
 }
 
+function disabledLine(
+  memberships: SupabaseMembershipTable,
+  suspension: SupabaseSuspension | undefined,
+): string {
+  if (memberships.disabledAt === undefined) {
+    return "";
+  }
+  const column = `m.${ident(memberships.disabledAt)}`;
+  const keep = keptKeys(suspension?.memberships);
+  return keep.length === 0
+    ? `\n        and ${column} is null`
+    : `\n        and (${column} is null or requested_permission::text = any(${textArray(keep)}))`;
+}
+
+function claimKept(suspension: SupabaseSuspension | undefined): string {
+  return keptKeys(suspension?.memberships).length === 0
+    ? ""
+    : `\n        and case coalesce(jsonb_typeof(m -> 'keep'), 'null') when 'null' then true when 'array' then m -> 'keep' @> jsonb_build_array(requested_permission::text) else false end`;
+}
+
 function customDatabaseBranch(
   q: (name: string) => string,
   scope: string,
   memberships: SupabaseMembershipTable & { readonly tenant: string },
   declared: readonly string[],
   levels: boolean,
+  suspension: SupabaseSuspension | undefined,
 ): string {
   const role = tenantRole(memberships);
   const match = `c.tenant_id::text = requested_tenant and c.scope = ${literal(scope)} and c.scope_id is null and c.role = ${role.sql}`;
@@ -167,7 +188,7 @@ function customDatabaseBranch(
           memberships.expiresAt === undefined
             ? ""
             : `\n        and (m.${ident(memberships.expiresAt)} is null or m.${ident(memberships.expiresAt)} > now())`
-        }
+        }${disabledLine(memberships, suspension)}
         and ${customHolds(
           q,
           scope,
@@ -229,7 +250,7 @@ function databaseBody(
           memberships.expiresAt === undefined
             ? ""
             : `\n        and (m.${ident(memberships.expiresAt)} is null or m.${ident(memberships.expiresAt)} > now())`
-        }
+        }${disabledLine(memberships, suspension)}
     )`;
     tenantBranch = `  if requested_tenant is not null then
     begin
@@ -238,7 +259,7 @@ function databaseBody(
     exception when invalid_text_representation or numeric_value_out_of_range then
       return false; -- not an id of the memberships table
     end;
-    return (${held("allow")}${custom === undefined ? "" : customDatabaseBranch(q, scope, { ...memberships, tenant: tenantColumn }, custom.declared, custom.levels === true)})
+    return (${held("allow")}${custom === undefined ? "" : customDatabaseBranch(q, scope, { ...memberships, tenant: tenantColumn }, custom.declared, custom.levels === true, suspension)})
     and not ${held("deny")}
     and not ${global("deny")};
   end if;`;
@@ -291,7 +312,7 @@ function jwtBody(
       cross join lateral (select m -> 'grants' -> r.role as g) cg
       where m ->> 'scope' = ${literal(scope)}
         and m ->> 'id' = requested_tenant
-        and ${CLAIM_UNEXPIRED}
+        and ${CLAIM_UNEXPIRED}${claimKept(suspension)}
         and jsonb_typeof(cg.g) = 'array'
         and not (r.role = any(${textArray(custom.declared)}))
         and ${customHolds(
@@ -308,7 +329,7 @@ function jwtBody(
       join ${q("role_permissions")} rp on rp.role = r.role
       where m ->> 'scope' = ${literal(scope)}
         and m ->> 'id' = requested_tenant
-        and ${CLAIM_UNEXPIRED}
+        and ${CLAIM_UNEXPIRED}${claimKept(suspension)}
         and ${effectMatch(literal(scope), effect)}
     )`;
   const global = (effect: "allow" | "deny"): string => `exists (
