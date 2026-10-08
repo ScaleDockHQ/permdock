@@ -9,6 +9,7 @@ export type {
   MemberOfParent,
   RelatedCondition,
   RelatedHop,
+  RestrictedAncestors,
   SqlFunctionArg,
   SqlFunctionCondition,
 } from "./conditions/ast.ts";
@@ -217,6 +218,7 @@ export type {
   ResourceParent,
   ResourceRelation,
   ResourceRelationInput,
+  ResourceRestricted,
 } from "./core/permissions.ts";
 export {
   allOf,

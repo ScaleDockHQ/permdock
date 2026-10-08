@@ -1,4 +1,4 @@
-import type { RelatedCondition } from "./ast.ts";
+import type { RelatedCondition, RestrictedAncestors } from "./ast.ts";
 
 import { assertSafeKey } from "../core/paths.ts";
 import {
@@ -10,6 +10,7 @@ import {
   isFieldRelation,
   isPrincipalRelation,
   isSelfParented,
+  restrictedFor,
 } from "../core/permissions.ts";
 import { DEFAULT_GROUP_DEPTH } from "../core/relations.ts";
 
@@ -52,6 +53,7 @@ export type GraphSqlOptions = RelationsMapping & {
     link: string,
     targets: GraphSql,
   ) => GraphSql;
+  readonly restrictedRows?: (resource: string) => GraphSql;
   /** Qualifies a table or edge name before it is quoted, e.g. with a schema for `search_path = ''`. */
   readonly qualify?: (table: string) => string;
 };
@@ -367,10 +369,9 @@ function reached(build: Build, condition: RelatedCondition): GraphSql {
   }
   const d = nextAlias(build, "d");
   const t = nextAlias(build, "t");
+  const stop = restrictedFor(node, "parent");
   const restricted =
-    node.restricted === undefined
-      ? ""
-      : ` and ${col(t, node.restricted)} is not true`;
+    stop === undefined ? "" : ` and ${col(t, stop)} is not true`;
   return [
     text(
       `select ${d}.id from (with recursive ${d}(id, level) as (select h.id, 0 from (`,
@@ -425,6 +426,54 @@ export function relatedTargetsSql(
   return targets({ options, alias: 0 }, condition);
 }
 
+function closedRows(build: Build, above: RestrictedAncestors): GraphSql {
+  const custom = build.options.restrictedRows?.(above.resource);
+  if (custom !== undefined) {
+    return custom;
+  }
+  const node = nodeOf(build, above.resource);
+  const table = tableOf(build, node.name);
+  const span = above.depth - 1;
+  const { closure, closureDepths } = build.options;
+  const cap = closureDepths?.[above.resource];
+  if (
+    closure !== undefined &&
+    (closureDepths === undefined || (cap !== undefined && cap >= span))
+  ) {
+    const c = nextAlias(build, "c");
+    const a = nextAlias(build, "a");
+    const q = nextAlias(build, "q");
+    return [
+      text(
+        `select ${c}.descendant as id from ${quoteSqlName(closure)} ${c} join ${table} ${a} on ${col(a, above.id)}::text = ${c}.ancestor where ${c}.resource = `,
+      ),
+      { value: above.resource },
+      text(
+        ` and ${c}.depth <= ${String(span)} and (${col(a, above.field)} is true or (${c}.depth = ${String(span)} and exists (select 1 from ${table} ${q} where ${col(q, above.id)} = ${col(a, above.parent)})))`,
+      ),
+    ];
+  }
+  const d = nextAlias(build, "d");
+  const r = nextAlias(build, "r");
+  const t = nextAlias(build, "t");
+  const u = nextAlias(build, "t");
+  const v = nextAlias(build, "t");
+  const w = nextAlias(build, "t");
+  const q = nextAlias(build, "q");
+  return [
+    text(
+      `select ${d}.id from (with recursive ${d}(id, level) as (select ${col(t, above.id)}::text, 0 from ${table} ${t} where ${col(t, above.field)} is true union select ${col(u, above.id)}::text, ${d}.level + 1 from ${table} ${u} join ${d} on ${col(u, above.parent)}::text = ${d}.id where ${d}.level < ${String(span)}) select ${d}.id from ${d}) ${d} union select ${col(w, above.id)}::text from ${table} ${w} where ${col(w, above.id)}::text not in (select ${r}.id from (with recursive ${r}(id, level) as (select ${col(v, above.id)}::text, 0 from ${table} ${v} where ${col(v, above.parent)} is null or not exists (select 1 from ${table} ${q} where ${col(q, above.id)} = ${col(v, above.parent)}) union select ${col(t, above.id)}::text, ${r}.level + 1 from ${table} ${t} join ${r} on ${col(t, above.parent)}::text = ${r}.id where ${r}.level < ${String(span)}) select ${r}.id from ${r}) ${r})`,
+    ),
+  ];
+}
+
+export function restrictedRowsSql(
+  above: RestrictedAncestors,
+  options: GraphSqlOptions,
+): GraphSql {
+  return closedRows({ options, alias: 0 }, above);
+}
+
 /** Whether the row's restricted column keeps it out of `condition` whatever the graph says. */
 export function relatedRowGuard(
   condition: RelatedCondition,
@@ -445,24 +494,36 @@ export function relatedSql(
   condition: RelatedCondition,
   options: GraphSqlOptions,
 ): GraphSql {
+  const build: Build = { options, alias: 0 };
   const parts: GraphSqlPart[] = [
     text("coalesce("),
     { column: condition.field },
     text("::text in ("),
-    ...relatedTargetsSql(condition, options),
+    ...targets(build, condition),
     text("), false)"),
   ];
   const guard = relatedRowGuard(condition);
-  if (guard === undefined) {
+  const above = condition.restrictedAncestors;
+  if (guard === undefined && above === undefined) {
     return parts;
   }
-  return [
-    text("("),
-    ...parts,
-    text(" and "),
-    { column: guard },
-    text(" is not true)"),
-  ];
+  const out: GraphSqlPart[] = [text("("), ...parts];
+  if (guard !== undefined) {
+    out.push(text(" and "), { column: guard }, text(" is not true"));
+  }
+  if (above !== undefined) {
+    out.push(
+      text(" and ("),
+      { column: above.parent },
+      text(" is null or "),
+      { column: above.parent },
+      text("::text not in ("),
+      ...closedRows(build, above),
+      text("))"),
+    );
+  }
+  out.push(text(")"));
+  return out;
 }
 
 /**

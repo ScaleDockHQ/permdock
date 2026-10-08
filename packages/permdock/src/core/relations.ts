@@ -21,6 +21,7 @@ import {
   isComputedRelation,
   isEdgeRelation,
   isPrincipalRelation,
+  restrictedStops,
 } from "./permissions.ts";
 import { isThenable } from "./thenable.ts";
 
@@ -359,6 +360,49 @@ function followHops(
   return { id };
 }
 
+function restrictedAbove(
+  condition: RelatedCondition,
+  row: Readonly<Record<string, unknown>>,
+  reader: RelationReader,
+): undefined | "relation-depth" | "relation-unavailable" | false {
+  const above = condition.restrictedAncestors;
+  if (above === undefined) {
+    return false;
+  }
+  const parent = relationId(ownGet(row, above.parent));
+  if (parent === undefined) {
+    return false;
+  }
+  const chain = reader.chain({
+    resource: above.resource,
+    id: parent,
+    depth: above.depth - 1,
+  });
+  if (chain === "pending" || chain === "failed") {
+    return "relation-unavailable";
+  }
+  if (
+    chain.restricted === true ||
+    chain.ancestors.some((ancestor) => ancestor.restricted === true)
+  ) {
+    return undefined;
+  }
+  const own = relationId(ownGet(row, above.id));
+  const ids = [
+    ...(own === undefined ? [] : [own]),
+    parent,
+    ...chain.ancestors.map((ancestor) => ancestor.id),
+  ];
+  if (
+    new Set(ids).size !== ids.length ||
+    chain.truncated === true ||
+    chain.ancestors.length > above.depth - 1
+  ) {
+    return "relation-depth";
+  }
+  return false;
+}
+
 /** The instances a graph relation reads: the start, then ancestors until a restricted one or `depth`. */
 export function relationWalk(
   condition: RelatedCondition,
@@ -386,6 +430,10 @@ export function relationWalk(
   if ((condition.parent === true || hopped) && rowRestricted) {
     return undefined;
   }
+  const above = restrictedAbove(condition, row, reader);
+  if (above !== false) {
+    return above;
+  }
   const start = hopped ? followHops(condition, first, reader) : { id: first };
   if (start === undefined || start === "relation-unavailable") {
     return start;
@@ -403,11 +451,12 @@ export function relationWalk(
     return "relation-unavailable";
   }
   const ids = [id];
-  let stopped = chain.restricted === true;
+  const stops = condition.passRestricted !== true;
+  let stopped = stops && chain.restricted === true;
   if (!stopped) {
     for (const ancestor of chain.ancestors.slice(0, condition.depth)) {
       ids.push(ancestor.id);
-      if (ancestor.restricted === true) {
+      if (stops && ancestor.restricted === true) {
         stopped = true;
         break;
       }
@@ -796,8 +845,9 @@ export function memoryRelations(
         return { ancestors: [{ id: next }] };
       }
       const restricted = restrictedOf(node, start);
+      const stops = restrictedStops(node, "parent");
       if (
-        restricted ||
+        (restricted && stops) ||
         node.parent === undefined ||
         node.parent.resource !== resource
       ) {
@@ -820,16 +870,19 @@ export function memoryRelations(
         }
         const hidden = restrictedOf(node, row);
         ancestors.push(hidden ? { id: next, restricted: true } : { id: next });
-        if (seen.has(next) || hidden) {
+        if (seen.has(next) || (hidden && stops)) {
           next = undefined;
           break;
         }
         seen.add(next);
         next = relationId(ownGet(row, field));
       }
-      return next === undefined
-        ? { ancestors }
-        : { ancestors, truncated: true };
+      const chain = restricted
+        ? { restricted: true, ancestors }
+        : { ancestors };
+      return next === undefined || rowOf(resource, next) === undefined
+        ? chain
+        : { ...chain, truncated: true };
     },
     related({ resource, id, relation }) {
       const spec = registry.get(resource)?.relations[relation];

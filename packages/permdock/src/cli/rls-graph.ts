@@ -1,8 +1,8 @@
-import type { RelatedHop } from "../conditions/ast.ts";
+import type { RelatedHop, RestrictedAncestors } from "../conditions/ast.ts";
 import type { Policy, ResourceNode } from "../index.ts";
 import type { RlsSqlContext } from "./rls-sql.ts";
 
-import { relationArmSql } from "../conditions/graph-sql.ts";
+import { relationArmSql, restrictedRowsSql } from "../conditions/graph-sql.ts";
 import {
   flattenGrantee,
   inheritCondition,
@@ -15,6 +15,7 @@ import {
   isFieldRelation,
   isPrincipalRelation,
   isSelfParented,
+  restrictedFor,
 } from "../core/permissions.ts";
 import { scopeList } from "../core/scopes.ts";
 import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
@@ -29,6 +30,7 @@ import {
   quoteIdent,
   quoteLiteral,
   quoteTable,
+  restrictedHelper,
 } from "./rls-sql.ts";
 
 function qualified(ctx: RlsSqlContext, name: string): string {
@@ -51,6 +53,7 @@ export type GraphResource = {
   readonly links: ReadonlySet<string>;
   /** Deepest `depth` any grant walks; absent when no grant walks the resource. */
   readonly closure?: number;
+  readonly restrictedAncestors?: RestrictedAncestors;
 };
 
 export type GraphPlan = ReadonlyMap<string, GraphResource>;
@@ -60,6 +63,7 @@ type PlanEntry = {
   relations: Set<string>;
   links: Set<string>;
   closure?: number;
+  restrictedAncestors?: RestrictedAncestors;
 };
 
 /** Every `related` condition the policy's grants compile to, with the resource graph they need, groups included. */
@@ -103,11 +107,23 @@ export function graphPlan(policy: Policy): GraphPlan {
       }
     }
   };
+  const addAbove = (above: RestrictedAncestors | undefined): void => {
+    const node =
+      above === undefined ? undefined : policy.resources.get(above.resource);
+    if (above === undefined || node === undefined) {
+      return;
+    }
+    const entry = entryFor(node);
+    entry.closure = Math.max(entry.closure ?? 0, above.depth);
+    entry.restrictedAncestors = above;
+  };
   for (const grant of policy.grants) {
     const row = policy.resources.get(grant.permission.resource);
     for (const item of flattenGrantee(grant.to)) {
       if (item.kind === "inherit") {
-        addLinks(inheritCondition(item, row, policy.resources)?.hops ?? []);
+        const inherited = inheritCondition(item, row, policy.resources);
+        addLinks(inherited?.hops ?? []);
+        addAbove(inherited?.restrictedAncestors);
         continue;
       }
       if (item.kind !== "relation") {
@@ -129,6 +145,7 @@ export function graphPlan(policy: Policy): GraphPlan {
         entry.closure = Math.max(entry.closure ?? 0, condition.depth);
       }
       addLinks(condition.hops ?? []);
+      addAbove(condition.restrictedAncestors);
     }
   }
   return plan;
@@ -299,24 +316,29 @@ function closureObjectsSql(
   const table = tableSql(tableFor(name, tables));
   const id = quoteIdent(node.id);
   const up = quoteIdent(parent.field);
+  const restricted = restrictedFor(node, "parent");
   const stop =
-    node.restricted === undefined
+    restricted === undefined
       ? "false"
-      : `coalesce(t.${quoteIdent(node.restricted)}, false)`;
+      : `coalesce(t.${quoteIdent(restricted)}, false)`;
   const stopParent =
-    node.restricted === undefined
+    restricted === undefined
       ? "false"
-      : `coalesce(p.${quoteIdent(node.restricted)}, false)`;
+      : `coalesce(p.${quoteIdent(restricted)}, false)`;
   const refresh = qualified(ctx, `${CLOSURE.table}_${sqlName}`);
   const changed = qualified(ctx, `${CLOSURE.table}_${sqlName}_changed`);
   const literal = quoteLiteral(name);
   const restrictedChanged =
-    node.restricted === undefined
+    restricted === undefined
       ? ""
-      : ` or n.${quoteIdent(node.restricted)} is distinct from o.${quoteIdent(node.restricted)}`;
+      : ` or n.${quoteIdent(restricted)} is distinct from o.${quoteIdent(restricted)}`;
   const trigger = (suffix: string): string =>
     quoteIdent(`${CLOSURE.table}_${sqlName}_${suffix}`);
-  return `-- ${name}: rows reach their ancestors up to depth ${String(depth)}, stopping at a restricted row
+  const reach =
+    restricted === undefined
+      ? `rows reach their ancestors up to depth ${String(depth)}`
+      : `rows reach their ancestors up to depth ${String(depth)}, stopping at a restricted row`;
+  return `-- ${name}: ${reach}
 drop policy if exists ${quoteIdent(`${CLOSURE.table}_${sqlName}`)} on ${closure};
 create policy ${quoteIdent(`${CLOSURE.table}_${sqlName}`)} on ${closure}
   for select to authenticated
@@ -422,6 +444,41 @@ create trigger ${trigger("truncate")} after truncate on ${table}
 select ${refresh}(array(select t.${id}::text from ${table} t));`;
 }
 
+function restrictedRowsHelperSql(
+  ctx: RlsSqlContext,
+  plan: GraphPlan,
+  entry: GraphResource,
+  tables: Readonly<Record<string, string>> | undefined,
+): string {
+  const above = entry.restrictedAncestors;
+  if (above === undefined) {
+    return "";
+  }
+  const fn = qualified(ctx, restrictedHelper(entry.node.name));
+  const body = graphSqlText(
+    restrictedRowsSql(above, {
+      resources: new Map([...plan].map(([name, item]) => [name, item.node])),
+      ...(tables === undefined ? {} : { tables }),
+      qualify: qualifiedTable,
+      closure: `${ctx.schema ?? PERMDOCK_SCHEMA}.${CLOSURE.table}`,
+      closureDepths: closureDepths(plan),
+    }),
+    ctx,
+  );
+  return `-- ${entry.node.name}: rows a stopped link does not reach below: restricted, under a restricted row within ${String(above.depth - 1)} levels, or deeper
+create or replace function ${fn}()
+returns setof text
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  ${body}
+$$;
+revoke execute on function ${fn}() from public, anon;
+grant execute on function ${fn}() to authenticated;`;
+}
+
 /** Group resources a resource's asked relations name, other than itself. */
 function groupTargets(entry: GraphResource): readonly string[] {
   const out = new Set<string>();
@@ -494,7 +551,7 @@ export function graphSql(
   }
   const entries = dependencyOrder(plan);
   const chunks = entries.flatMap((entry) => [
-    ...(entry.relations.size === 0
+    ...(entry.relations.size === 0 && entry.closure === undefined
       ? []
       : [permittedSql(ctx, plan, entry, tables)]),
     ...[...entry.links]
@@ -506,6 +563,12 @@ export function graphSql(
     chunks.push(closureTableSql(ctx));
     for (const entry of walked) {
       chunks.push(closureObjectsSql(ctx, entry, entry.closure ?? 0, tables));
+    }
+    for (const entry of walked) {
+      const helper = restrictedRowsHelperSql(ctx, plan, entry, tables);
+      if (helper !== "") {
+        chunks.push(helper);
+      }
     }
   }
   return `${chunks.join("\n\n")}\n`;

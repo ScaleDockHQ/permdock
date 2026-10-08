@@ -110,6 +110,7 @@ export function buildCatalog(
             relations: node?.relations,
             version: node?.version,
             restricted: node?.restricted,
+            restrictedStops: node?.restrictedStops,
           }
         : {
             id: node?.id ?? "id",
@@ -118,6 +119,7 @@ export function buildCatalog(
             relations: node?.relations,
             version: node?.version,
             restricted: node?.restricted,
+            restrictedStops: node?.restrictedStops,
           },
     );
   }
@@ -430,6 +432,7 @@ function compactResource(resource: {
   readonly relations?: CatalogDocument["resources"][string]["relations"];
   readonly version?: string | undefined;
   readonly restricted?: string | undefined;
+  readonly restrictedStops?: readonly string[] | undefined;
 }): CatalogDocument["resources"][string] {
   const relations =
     resource.relations !== undefined &&
@@ -444,6 +447,7 @@ function compactResource(resource: {
       relations,
       version: resource.version,
       restricted: resource.restricted,
+      restrictedStops: resource.restrictedStops,
     }),
   };
 }

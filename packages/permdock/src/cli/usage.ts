@@ -316,6 +316,10 @@ function conditionFields(
       if (condition.restricted !== undefined) {
         add(condition.restricted);
       }
+      if (condition.restrictedAncestors !== undefined) {
+        add(condition.restrictedAncestors.id);
+        add(condition.restrictedAncestors.parent);
+      }
       break;
     }
     case "opaque":

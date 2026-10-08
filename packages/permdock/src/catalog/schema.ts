@@ -86,6 +86,7 @@ export const catalogSchema: CatalogSchemaNode = freezeDeep({
           relations: { type: "object" },
           version: { type: "string" },
           restricted: { type: "string" },
+          restrictedStops: strings,
         },
       },
     },

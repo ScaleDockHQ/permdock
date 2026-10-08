@@ -195,6 +195,28 @@ export type ResourceLink = {
   readonly resource: string;
 };
 
+export type ResourceRestricted = {
+  readonly field: string;
+  readonly stops?: readonly string[];
+};
+
+export function restrictedStops(
+  node: ResourceNode | undefined,
+  path: string,
+): boolean {
+  return (
+    node?.restricted !== undefined &&
+    (node.restrictedStops === undefined || node.restrictedStops.includes(path))
+  );
+}
+
+export function restrictedFor(
+  node: ResourceNode | undefined,
+  path: string,
+): string | undefined {
+  return restrictedStops(node, path) ? node?.restricted : undefined;
+}
+
 export function isFieldRelation(
   relation: ResourceRelation | undefined,
 ): relation is FieldRelation {
@@ -286,7 +308,7 @@ export type ResourceOptions<
    * A boolean column: a row where it is `true` is reached only by grants on
    * itself, never by relations held on its ancestors.
    */
-  readonly restricted?: string;
+  readonly restricted?: string | ResourceRestricted;
   /**
    * `'hide'`: a denied check on a loaded row answers as if the row did not
    * exist (HTTP `404`), so an id never confirms a row the caller cannot read.
@@ -324,6 +346,7 @@ export type ResourceNode<T = unknown> = {
   readonly relations: Readonly<Record<string, ResourceRelation>>;
   readonly version: string | undefined;
   readonly restricted: string | undefined;
+  readonly restrictedStops?: readonly string[];
   readonly disclosure: "hide" | "reveal";
   readonly instanceActions: ReadonlySet<string>;
   readonly collectionActions: ReadonlySet<string>;
@@ -606,6 +629,39 @@ const RESOURCE_NAME = /^[A-Za-z][A-Za-z0-9_-]*$/u;
 const LEVEL_NAME = /^[a-z][a-z0-9_]*$/u;
 
 const EDGE_TABLE = /^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)?$/u;
+
+function restrictedStopsOf(
+  name: string,
+  option: ResourceRestricted,
+  parent: ResourceParent | undefined,
+  links: Readonly<Record<string, ResourceLink>>,
+): readonly string[] | undefined {
+  if (option.stops === undefined) {
+    return undefined;
+  }
+  if (!Array.isArray(option.stops) || option.stops.length === 0) {
+    throw new Error(
+      `PermDock: resource "${name}" restricted.stops must list 'parent' or link names`,
+    );
+  }
+  const stops = new Set<string>();
+  for (const path of option.stops) {
+    if (typeof path !== "string") {
+      throw new TypeError(
+        `PermDock: resource "${name}" restricted.stops must list 'parent' or link names`,
+      );
+    }
+    if (
+      path === "parent" ? parent === undefined : !Object.hasOwn(links, path)
+    ) {
+      throw new Error(
+        `PermDock: resource "${name}" restricted.stops names '${path}', which it does not declare`,
+      );
+    }
+    stops.add(path);
+  }
+  return Object.freeze([...stops].toSorted());
+}
 
 function normaliseRelation(
   resourceName: string,
@@ -999,8 +1055,17 @@ function materialiseResource(
   if (version !== undefined) {
     assertSafeKey(version, "version field");
   }
-  const restricted = init.options.restricted;
-  if (restricted !== undefined) {
+  const restrictedOption = init.options.restricted;
+  const restricted =
+    typeof restrictedOption === "string"
+      ? restrictedOption
+      : restrictedOption?.field;
+  if (restrictedOption !== undefined) {
+    if (typeof restricted !== "string") {
+      throw new TypeError(
+        `PermDock: resource "${name}" restricted must name a field`,
+      );
+    }
     assertSafeKey(restricted, "restricted field");
   }
   const disclosure = init.options.disclosure ?? "reveal";
@@ -1033,6 +1098,10 @@ function materialiseResource(
       resource: link.resource,
     });
   }
+  const restrictedStopList =
+    typeof restrictedOption === "object"
+      ? restrictedStopsOf(name, restrictedOption, parent, links)
+      : undefined;
   const levels: Record<string, ResourceLevel> = {};
   for (const [levelName, condition] of Object.entries(
     init.options.levels ?? {},
@@ -1068,6 +1137,9 @@ function materialiseResource(
     relations: freezeDeep(relations),
     version,
     restricted,
+    ...(restrictedStopList === undefined
+      ? {}
+      : { restrictedStops: restrictedStopList }),
     disclosure,
     instanceActions: instanceSet,
     collectionActions: collectionSet,

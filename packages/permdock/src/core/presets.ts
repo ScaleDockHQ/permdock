@@ -3,6 +3,7 @@ import type {
   ActionMeta,
   ResourceParent,
   ResourceRelationInput,
+  ResourceRestricted,
 } from "./permissions.ts";
 
 import { compact } from "./compact.ts";
@@ -96,7 +97,7 @@ type PresetOptions<
   readonly id?: string;
   readonly parent?: ResourceParent;
   readonly relations?: Readonly<Record<string, ResourceRelationInput>>;
-  readonly restricted?: string;
+  readonly restricted?: string | ResourceRestricted;
   readonly disclosure?: "hide" | "reveal";
   readonly actions?: A;
   readonly collection?: C;
@@ -111,7 +112,7 @@ type PresetResult<
   readonly id?: string;
   readonly parent?: ResourceParent;
   readonly relations?: Readonly<Record<string, ResourceRelationInput>>;
-  readonly restricted?: string;
+  readonly restricted?: string | ResourceRestricted;
   readonly disclosure?: "hide" | "reveal";
   readonly actions: MergeActionRecords<BaseA, ToActionRecord<A>>;
   readonly collection?: MergeActionRecords<BaseC, ToActionRecord<C>>;
