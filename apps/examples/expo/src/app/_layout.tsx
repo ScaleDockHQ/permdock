@@ -1,7 +1,7 @@
 import { Tabs } from "expo-router";
 import { PermDockProvider, usePermission } from "permdock/react-native";
 
-import { source } from "../local.ts";
+import { source, user } from "../local.ts";
 import { ownPost, permissions } from "../permissions.ts";
 import { storage } from "../storage.ts";
 
@@ -21,7 +21,7 @@ function AppTabs() {
 
 export default function Layout() {
   return (
-    <PermDockProvider storage={storage} source={source}>
+    <PermDockProvider storage={storage} source={source} subjectId={user.id}>
       <AppTabs />
     </PermDockProvider>
   );

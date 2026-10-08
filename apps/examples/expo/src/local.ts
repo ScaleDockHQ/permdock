@@ -9,7 +9,7 @@ import manifest from "./permdock-manifest.json";
 /** Stands in for the rows a sync engine (PowerSync, Electric, SQLite) keeps on the device. */
 type UserRow = { readonly id: string; roles: readonly string[] };
 
-const user: UserRow = { id: "u1", roles: ["member"] };
+export const user: UserRow = { id: "u1", roles: ["member"] };
 const listeners = new Set<() => void>();
 
 export function setRoles(roles: readonly string[]): void {

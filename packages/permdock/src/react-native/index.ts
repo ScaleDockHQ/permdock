@@ -41,4 +41,6 @@ export type {
   NativePermDockProviderProps,
   NativeRevalidate,
   PermDockStorage,
+  SubscribeForeground,
+  SubscribeOnline,
 } from "./types.ts";

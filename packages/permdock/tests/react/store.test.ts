@@ -512,29 +512,15 @@ describe("createClientStore endpoint evaluations", () => {
     expect(state.decision.outcome).toBe("denied");
   });
 
-  it("skips a replace with unchanged content and settles a stale start", async () => {
+  it("reports a persisted start stale until a replace lands", async () => {
     const snapshot = await memberSnapshot();
-    const store = createClientStore({
-      snapshot,
-      server: false,
-      stale: true,
-      skipUnchanged: true,
-    });
+    const store = createClientStore({ snapshot, server: false, stale: true });
     expect(store.get().status()).toBe("stale");
     expect(store.permissionState(permissions.post.read, ownPost).status).toBe(
       "stale",
     );
-    let notified = 0;
-    store.subscribe(() => {
-      notified += 1;
-    });
-    store.replace({ ...snapshot, issuedAt: snapshot.issuedAt + 60 });
+    store.replace(snapshot);
     expect(store.get().status()).toBe("ready");
-    expect(notified).toBe(1);
-    store.replace({ ...snapshot, issuedAt: snapshot.issuedAt + 120 });
-    expect(notified).toBe(1);
-    store.replace({ ...snapshot, tenants: ["other"] });
-    expect(notified).toBe(2);
   });
 
   it("reads a headers getter on every request", async () => {

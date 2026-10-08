@@ -37,9 +37,11 @@ export type ClientStoreOptions = {
   readonly headers?: StoreHeaders | (() => StoreHeaders | undefined);
   readonly maxAge?: number;
   readonly verifier?: TokenVerifier;
+  /** `raw` is the compact JWS the snapshot was verified from, so a signed snapshot can be persisted signed. */
   readonly onSnapshot?: (
     snapshot: Snapshot,
     tenant: string | undefined,
+    raw: string | undefined,
   ) => void;
   readonly onClear?: () => void;
   /** Called once per key the snapshot cannot answer when there is no `endpoint` to ask. */
@@ -53,7 +55,10 @@ export type ClientStoreOptions = {
   readonly approvalInterval?: number;
   /** Start `pending`: the snapshot arrives later through `track()`. */
   readonly awaiting?: boolean;
-  /** Start `stale`: the snapshot is a persisted copy that a refresh or source read replaces. */
+  /**
+   * The first snapshot that hydrates with a principal is a persisted copy:
+   * `stale` until a refresh or a `replace()` lands.
+   */
   readonly stale?: boolean;
   /**
    * Reuse decisions for the same row object until the next microtask. Only for
@@ -61,8 +66,6 @@ export type ClientStoreOptions = {
    * and Solid would stop re-running when a reactive row changes in place.
    */
   readonly passCache?: boolean;
-  /** `replace()` with the same content (ignoring `issuedAt`) keeps the current answers and notifies nobody. */
-  readonly skipUnchanged?: boolean;
 };
 
 type CacheEntry = {
@@ -173,11 +176,6 @@ const VALIDATION: Decision = {
   alternatives: [],
 };
 
-/** The snapshot's content without `issuedAt`, which every rebuild changes. */
-function contentKey(snapshot: Snapshot): string {
-  return JSON.stringify({ ...snapshot, issuedAt: 0 });
-}
-
 function report(error: unknown): void {
   // SAFETY: reportError is only called when the runtime defines it as a function.
   const reporter = (globalThis as { readonly reportError?: unknown })
@@ -236,7 +234,9 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
   // result that started under an older generation is dropped.
   let generation = 0;
   let disposed = false;
-  let appliedKey: string | undefined;
+  let staleNext = options.stale === true;
+  // The compact JWS the snapshot being hydrated was verified from.
+  let rawJws: string | undefined;
 
   const headers = (): StoreHeaders | undefined =>
     typeof options.headers === "function" ? options.headers() : options.headers;
@@ -283,11 +283,16 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
       forgetApprovals();
     }
     snapshot = next;
-    appliedKey = options.skipUnchanged === true ? contentKey(next) : undefined;
     instance = fromSnapshot(snapshot, compact({ tenant }));
     base = "ready";
+    if (staleNext && next.subject.principal !== null) {
+      staleNext = false;
+      base = "stale";
+    }
+    const raw = rawJws;
+    rawJws = undefined;
     if (!disposed) {
-      options.onSnapshot?.(next, tenant);
+      options.onSnapshot?.(next, tenant, raw);
     }
     emit();
   };
@@ -371,6 +376,7 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
       serverOnly();
       return;
     }
+    rawJws = raw;
     applyParsed(claim);
   };
 
@@ -748,8 +754,13 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
           requested !== undefined &&
           (snapshot.tenants.includes(requested) || source === undefined)
         ) {
+          const wasStale = base === "stale";
           tenant = requested;
           hydrate(snapshot);
+          if (wasStale) {
+            base = "stale";
+            emit();
+          }
           return;
         }
         if (source === undefined || disposed) {
@@ -779,7 +790,9 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
         } catch {
           ok = false;
         }
+        let signed: string | undefined;
         if (ok && typeof body === "string" && isJws(body)) {
+          signed = body;
           body = await verifyJws(body);
           ok = body !== undefined;
         }
@@ -802,6 +815,8 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
         if (requested !== undefined) {
           tenant = requested;
         }
+        staleNext = false;
+        rawJws = signed;
         hydrate(next);
       },
       clear(): void {
@@ -810,7 +825,6 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
         snapshot = emptySnapshot();
         instance = fromSnapshot(snapshot, compact({ tenant }));
         base = "server-only";
-        appliedKey = undefined;
         forgetApprovals();
         if (!disposed) {
           options.onClear?.();
@@ -870,26 +884,9 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
     permissionState,
     approvalState,
     replace(value: unknown): void {
+      staleNext = false;
       if (typeof value === "string" && isJws(value)) {
         void bootJws(value);
-        return;
-      }
-      if (appliedKey !== undefined && base !== "server-only") {
-        let parsed: Snapshot;
-        try {
-          parsed = parseSnapshot(value);
-        } catch {
-          serverOnly();
-          return;
-        }
-        if (contentKey(parsed) === appliedKey) {
-          if (base === "stale") {
-            base = "ready";
-            emit();
-          }
-          return;
-        }
-        hydrate(parsed);
         return;
       }
       applyParsed(value);
@@ -979,15 +976,6 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
       }
     },
   };
-  const startStale = (): void => {
-    if (base === "ready") {
-      base = "stale";
-      cached = wrap(instance);
-    }
-  };
   boot(options.snapshot);
-  if (options.stale === true) {
-    startStale();
-  }
   return store;
 }

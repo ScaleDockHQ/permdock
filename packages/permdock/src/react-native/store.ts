@@ -4,37 +4,68 @@ import type { NativePermDockProviderProps } from "./types.ts";
 
 import { compact } from "../core/compact.ts";
 import { emptySnapshot } from "../core/from-snapshot.ts";
+import { parseSnapshot } from "../core/snapshot.ts";
 import { createClientStore } from "../react/store.ts";
 import {
-  acceptSnapshot,
   clearStorage,
+  guardStorage,
+  isJws,
   persistSnapshot,
   readStored,
   readStoredSync,
+  type Stored,
 } from "./storage.ts";
 
-export type NativeStoreOptions = Omit<NativePermDockProviderProps, "children">;
+export type NativeStoreOptions = Omit<
+  NativePermDockProviderProps,
+  "children" | "headers"
+> & {
+  readonly headers?:
+    | Readonly<Record<string, string>>
+    | (() => Readonly<Record<string, string>> | undefined);
+  /** A store this one replaces: its snapshot and tenant seed this store, so guards do not flip while it boots. */
+  readonly previous?: ClientStore;
+};
 
-function isJws(value: string): boolean {
-  const parts = value.split(".");
-  return parts.length === 3 && parts.every((part) => part.length > 0);
+/** The snapshot's content without `issuedAt`, which every local rebuild changes. */
+function contentKey(snapshot: Snapshot): string {
+  return JSON.stringify({ ...snapshot, issuedAt: 0 });
 }
 
 /**
- * Hydrates `store` from `source` now and on every change it reports. A
- * failed read keeps the current snapshot. Returns the unsubscribe.
+ * Whether a source read changes nothing: same content as the snapshot the
+ * store holds, and the store already settled on it.
+ */
+function unchanged(store: ClientStore, next: Snapshot | string): boolean {
+  if (typeof next === "string" || store.get().status() === "stale") {
+    return false;
+  }
+  try {
+    return contentKey(parseSnapshot(next)) === contentKey(store.snapshot());
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Hydrates `store` from `source` now and on every change it reports. Only
+ * the latest read applies; a read with unchanged content re-renders nothing,
+ * and a failed read keeps the current snapshot. Returns the unsubscribe.
  */
 export function connectSource(
   store: ClientStore,
   source: SnapshotSource,
 ): () => void {
   let active = true;
+  let seq = 0;
   const pull = (): void => {
+    seq += 1;
+    const mine = seq;
     void Promise.resolve()
       .then(() => source.get())
       .then(
         (next) => {
-          if (active) {
+          if (active && mine === seq && !unchanged(store, next)) {
             store.replace(next);
           }
         },
@@ -49,27 +80,58 @@ export function connectSource(
   };
 }
 
+function seedOf(stored: Stored | undefined): Snapshot | string | undefined {
+  if (stored === undefined) {
+    return undefined;
+  }
+  return stored.kind === "signed" ? stored.jws : stored.snapshot;
+}
+
+function belongsTo(snapshot: Snapshot, subjectId: string | null): boolean {
+  return subjectId !== null && snapshot.subject.principal?.id === subjectId;
+}
+
+/** A JWS stays a string for the verifier; anything else parses or is dropped. */
+function parseSeed(
+  given: NativeStoreOptions["snapshot"],
+): Snapshot | string | undefined {
+  if (given === undefined) {
+    return undefined;
+  }
+  if (typeof given === "string" && isJws(given)) {
+    return given;
+  }
+  try {
+    return parseSnapshot(typeof given === "string" ? JSON.parse(given) : given);
+  } catch {
+    return undefined;
+  }
+}
+
 export function createNativeStore(options: NativeStoreOptions): ClientStore {
-  const signed =
-    typeof options.snapshot === "string" && isJws(options.snapshot)
-      ? options.snapshot
+  const storage = guardStorage(options.storage);
+  const signed = options.verifier !== undefined;
+  const revalidates =
+    options.snapshotUrl !== undefined || options.source !== undefined;
+  const seeded = parseSeed(options.snapshot);
+  const carried =
+    options.previous !== undefined &&
+    belongsTo(options.previous.snapshot(), options.subjectId)
+      ? options.previous
       : undefined;
-  const seeded =
-    options.snapshot === undefined || signed !== undefined
-      ? undefined
-      : typeof options.snapshot === "string"
-        ? acceptSnapshot(options.snapshot, options.subjectId)
-        : acceptSnapshot(JSON.stringify(options.snapshot), options.subjectId);
   const sync =
-    signed === undefined
-      ? readStoredSync(options.storage, options.subjectId)
+    seeded === undefined && carried === undefined
+      ? readStoredSync(storage, options.subjectId, signed)
       : undefined;
-  const snapshot = signed ?? seeded ?? sync?.snapshot ?? emptySnapshot();
-  const tenant = options.tenant ?? sync?.tenant;
-  // The boot hydrate must not overwrite storage an async read has not reached
-  // yet; any later hydrate or clear makes that read obsolete.
+  const waiting =
+    seeded === undefined && carried === undefined && sync === undefined;
+  const fromStorage = seedOf(sync?.stored);
+  const snapshot =
+    seeded ?? carried?.snapshot() ?? fromStorage ?? emptySnapshot();
+  const tenant =
+    options.tenant ?? carried?.tenant() ?? sync?.tenant ?? undefined;
+  // A boot or carried snapshot is already in storage; only later answers are written.
   let booted = false;
-  let touched = false;
   const store = createClientStore(
     compact({
       snapshot,
@@ -82,29 +144,65 @@ export function createNativeStore(options: NativeStoreOptions): ClientStore {
       maxAge: options.maxAge,
       verifier: options.verifier,
       server: false,
-      onSnapshot: (next: Snapshot, nextTenant: string | undefined) => {
-        if (!booted) {
+      awaiting: waiting,
+      stale: revalidates && (fromStorage !== undefined || waiting),
+      passCache: true,
+      onSnapshot: (
+        next: Snapshot,
+        nextTenant: string | undefined,
+        raw: string | undefined,
+      ) => {
+        if (!booted || !belongsTo(next, options.subjectId)) {
           return;
         }
-        touched = true;
-        persistSnapshot(options.storage, next, nextTenant);
+        if (signed && raw === undefined) {
+          return;
+        }
+        persistSnapshot(storage, raw ?? JSON.stringify(next), nextTenant);
       },
       onClear: () => {
-        touched = true;
-        clearStorage(options.storage);
+        clearStorage(storage);
       },
     }),
   );
   booted = true;
-  if (seeded !== undefined) {
-    persistSnapshot(options.storage, seeded, tenant);
+  if (seeded !== undefined && typeof seeded !== "string") {
+    if (belongsTo(seeded, options.subjectId)) {
+      persistSnapshot(storage, JSON.stringify(seeded), tenant);
+    }
+  } else if (seeded !== undefined && signed) {
+    persistSnapshot(storage, seeded, tenant);
   }
-  if (sync === undefined && seeded === undefined && signed === undefined) {
-    void readStored(options.storage, options.subjectId).then((stored) => {
-      if (!touched && stored.snapshot !== undefined) {
-        store.replace(stored.snapshot);
-      }
-    });
+  if (options.subjectId === null) {
+    clearStorage(storage);
+  }
+  if (waiting) {
+    let storedTenant: string | undefined;
+    const read = readStored(storage, options.subjectId, signed).then(
+      ({ stored, tenant: persisted }) => {
+        const value = seedOf(stored);
+        if (value === undefined) {
+          throw new Error("nothing stored");
+        }
+        storedTenant = persisted;
+        return value;
+      },
+    );
+    store.track(read);
+    // Runs after the store hydrated from `read`: callbacks run in registration order.
+    read.then(
+      () => {
+        if (
+          options.tenant === undefined &&
+          storedTenant !== undefined &&
+          store.tenant() !== storedTenant &&
+          store.snapshot().tenants.includes(storedTenant)
+        ) {
+          void store.get().refresh({ tenant: storedTenant });
+        }
+      },
+      () => undefined,
+    );
   }
   return store;
 }

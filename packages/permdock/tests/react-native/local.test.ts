@@ -359,7 +359,10 @@ describe("localSnapshot", () => {
         };
       },
     });
-    const store = createNativeStore({ storage: memoryStorage() });
+    const store = createNativeStore({
+      storage: memoryStorage(),
+      subjectId: null,
+    });
     const disconnect = connectSource(store, source);
     await vi.waitFor(() => {
       expect(store.get().can(job.read, rows[0])).toBe(true);
@@ -377,7 +380,10 @@ describe("localSnapshot", () => {
   });
 
   it("drops a read that settles after disconnect", async () => {
-    const store = createNativeStore({ storage: memoryStorage() });
+    const store = createNativeStore({
+      storage: memoryStorage(),
+      subjectId: null,
+    });
     const before = store.snapshot();
     const disconnect = connectSource(
       store,
@@ -418,7 +424,10 @@ describe("localSnapshot", () => {
   });
 
   it("keeps the current snapshot when a read fails", async () => {
-    const store = createNativeStore({ storage: memoryStorage() });
+    const store = createNativeStore({
+      storage: memoryStorage(),
+      subjectId: null,
+    });
     const before = store.snapshot();
     const disconnect = connectSource(store, {
       get: () => Promise.reject(new Error("offline")),

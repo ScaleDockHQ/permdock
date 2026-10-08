@@ -4,7 +4,7 @@ import type { PermDockStorage } from "./types.ts";
 import { parseSnapshot } from "../core/snapshot.ts";
 
 export const SNAPSHOT_KEY = "permdock.snapshot";
-const TENANT_KEY = "permdock.tenant";
+export const TENANT_KEY = "permdock.tenant";
 
 export function memoryStorage(
   initial: Readonly<Record<string, string>> = {},
@@ -23,7 +23,7 @@ export function memoryStorage(
   };
 }
 
-function isThenable(value: unknown): value is Promise<unknown> {
+export function isThenable(value: unknown): value is PromiseLike<unknown> {
   return (
     typeof value === "object" &&
     value !== null &&
@@ -32,88 +32,169 @@ function isThenable(value: unknown): value is Promise<unknown> {
   );
 }
 
-export function acceptSnapshot(
+export function isJws(value: string): boolean {
+  const parts = value.split(".");
+  return parts.length === 3 && parts.every((part) => part.length > 0);
+}
+
+/** What a persisted value may become: a plain snapshot, or a compact JWS the verifier still has to check. */
+export type Stored =
+  | { readonly kind: "snapshot"; readonly snapshot: Snapshot }
+  | { readonly kind: "signed"; readonly jws: string };
+
+export type StoredRead = {
+  readonly stored: Stored | undefined;
+  readonly tenant: string | undefined;
+};
+
+const NOTHING: StoredRead = { stored: undefined, tenant: undefined };
+
+/**
+ * A persisted snapshot the device may use: `subjectId`'s own, and signed
+ * whenever a verifier is configured, so a copy edited on the device never
+ * stands in for a signed one. `null` reads nothing.
+ */
+export function acceptStored(
   raw: string | null,
-  subjectId: string | undefined,
-): Snapshot | undefined {
-  if (raw === null || raw.length === 0) {
+  subjectId: string | null,
+  signed: boolean,
+): Stored | undefined {
+  if (raw === null || raw.length === 0 || subjectId === null) {
+    return undefined;
+  }
+  if (isJws(raw)) {
+    return signed ? { kind: "signed", jws: raw } : undefined;
+  }
+  if (signed) {
     return undefined;
   }
   try {
-    const parsed: unknown = JSON.parse(raw);
-    const snapshot = parseSnapshot(parsed);
-    const id = snapshot.subject.principal?.id;
-    if (subjectId !== undefined && id !== subjectId) {
-      return undefined;
-    }
-    return snapshot;
+    const snapshot = parseSnapshot(JSON.parse(raw));
+    return snapshot.subject.principal?.id === subjectId
+      ? { kind: "snapshot", snapshot }
+      : undefined;
   } catch {
     return undefined;
   }
 }
 
-export async function readStored(
-  storage: PermDockStorage,
-  subjectId: string | undefined,
-): Promise<{
-  readonly snapshot: Snapshot | undefined;
-  readonly tenant: string | undefined;
-}> {
-  const raw = await Promise.resolve(storage.getItem(SNAPSHOT_KEY));
-  const tenantRaw = await Promise.resolve(storage.getItem(TENANT_KEY));
+function tenantOf(raw: string | null): string | undefined {
+  return raw === null || raw.length === 0 ? undefined : raw;
+}
+
+/**
+ * The app's storage with every failure absorbed: a throwing or rejecting read
+ * is an empty storage, a failing write keeps the in-memory answers, and
+ * development builds warn once per store.
+ */
+export type GuardedStorage = {
+  read(key: string): string | null | PromiseLike<string | null>;
+  write(key: string, value: string): void;
+  remove(key: string): void;
+  fail(error: unknown): void;
+};
+
+export function guardStorage(storage: PermDockStorage): GuardedStorage {
+  let warned = false;
+  const fail = (error: unknown): void => {
+    const dev = Reflect.get(globalThis, "__DEV__") === true;
+    if (!dev || warned) {
+      return;
+    }
+    warned = true;
+    // oxlint-disable-next-line no-console -- one development hint per store whose storage fails
+    console.warn(
+      "PermDock: the snapshot storage failed; guards answer from memory until it works again.",
+      error,
+    );
+  };
+  const settle = (run: () => unknown): void => {
+    try {
+      const result = run();
+      if (isThenable(result)) {
+        Promise.resolve(result).catch(fail);
+      }
+    } catch (error) {
+      fail(error);
+    }
+  };
   return {
-    snapshot: acceptSnapshot(raw, subjectId),
-    tenant:
-      tenantRaw === null || tenantRaw.length === 0 ? undefined : tenantRaw,
+    read(key) {
+      try {
+        return storage.getItem(key);
+      } catch (error) {
+        fail(error);
+        return null;
+      }
+    },
+    write(key, value) {
+      settle(() => storage.setItem(key, value));
+    },
+    remove(key) {
+      settle(() => storage.removeItem(key));
+    },
+    fail,
   };
 }
 
+/** `undefined` when the storage answers asynchronously; any failure reads as empty. */
 export function readStoredSync(
-  storage: PermDockStorage,
-  subjectId: string | undefined,
-):
-  | {
-      readonly snapshot: Snapshot | undefined;
-      readonly tenant: string | undefined;
-    }
-  | undefined {
-  const raw = storage.getItem(SNAPSHOT_KEY);
-  const tenantRaw = storage.getItem(TENANT_KEY);
+  storage: GuardedStorage,
+  subjectId: string | null,
+  signed: boolean,
+): StoredRead | undefined {
+  if (subjectId === null) {
+    return NOTHING;
+  }
+  const raw = storage.read(SNAPSHOT_KEY);
+  const tenantRaw = storage.read(TENANT_KEY);
   if (isThenable(raw) || isThenable(tenantRaw)) {
     return undefined;
   }
+  const stored = acceptStored(raw, subjectId, signed);
   return {
-    snapshot: acceptSnapshot(raw, subjectId),
-    tenant:
-      tenantRaw === null || tenantRaw.length === 0 ? undefined : tenantRaw,
+    stored,
+    tenant: stored === undefined ? undefined : tenantOf(tenantRaw),
   };
 }
 
-export function persistSnapshot(
-  storage: PermDockStorage,
-  snapshot: Snapshot,
-  tenant: string | undefined,
-): void {
-  const write = storage.setItem(SNAPSHOT_KEY, JSON.stringify(snapshot));
-  if (isThenable(write)) {
-    write.catch(() => undefined);
+export async function readStored(
+  storage: GuardedStorage,
+  subjectId: string | null,
+  signed: boolean,
+): Promise<StoredRead> {
+  if (subjectId === null) {
+    return NOTHING;
   }
-  if (tenant === undefined) {
-    return;
-  }
-  const next = storage.setItem(TENANT_KEY, tenant);
-  if (isThenable(next)) {
-    next.catch(() => undefined);
+  try {
+    const [raw, tenantRaw] = await Promise.all([
+      Promise.resolve(storage.read(SNAPSHOT_KEY)),
+      Promise.resolve(storage.read(TENANT_KEY)),
+    ]);
+    const stored = acceptStored(raw, subjectId, signed);
+    return {
+      stored,
+      tenant: stored === undefined ? undefined : tenantOf(tenantRaw),
+    };
+  } catch (error) {
+    storage.fail(error);
+    return NOTHING;
   }
 }
 
-export function clearStorage(storage: PermDockStorage): void {
-  const snap = storage.removeItem(SNAPSHOT_KEY);
-  if (isThenable(snap)) {
-    snap.catch(() => undefined);
+/** Writes `raw` (the snapshot JSON or its JWS) and the tenant. */
+export function persistSnapshot(
+  storage: GuardedStorage,
+  raw: string,
+  tenant: string | undefined,
+): void {
+  storage.write(SNAPSHOT_KEY, raw);
+  if (tenant !== undefined) {
+    storage.write(TENANT_KEY, tenant);
   }
-  const tenant = storage.removeItem(TENANT_KEY);
-  if (isThenable(tenant)) {
-    tenant.catch(() => undefined);
-  }
+}
+
+export function clearStorage(storage: GuardedStorage): void {
+  storage.remove(SNAPSHOT_KEY);
+  storage.remove(TENANT_KEY);
 }
