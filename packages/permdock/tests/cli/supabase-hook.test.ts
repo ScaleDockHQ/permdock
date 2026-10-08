@@ -227,22 +227,22 @@ describe("permdock supabase hook generate", () => {
 
   it("writes extra claims outside the budget and strips them for suspended users", async () => {
     const { code, sql } = await generate(
-      `{ memberships: [${SOURCES}], claims: { features: 'better_supabase.feature_claims' } }`,
+      `{ memberships: [${SOURCES}], claims: { features: 'billing.feature_claims' } }`,
       [],
       `{ suspension: { users: { table: 'profiles', id: 'id', disabledAt: 'disabled_at' } } }`,
     );
     expect(code).toBe(0);
-    expect(sql).toContain(`extra := "better_supabase"."feature_claims"(uid);`);
+    expect(sql).toContain(`extra := "billing"."feature_claims"(uid);`);
     expect(sql).toContain(`claims := jsonb_set(claims, '{features}', extra);`);
     expect(sql).toContain(
       `claims := claims - 'memberships_truncated' - 'attrs' - 'tenant_id' - 'features';`,
     );
     expect(sql).toContain(`claims := claims - 'attrs' - 'features';`);
     expect(sql).toContain(
-      'grant execute on function "better_supabase"."feature_claims"(uuid) to supabase_auth_admin;',
+      'grant execute on function "billing"."feature_claims"(uuid) to supabase_auth_admin;',
     );
     expect(sql).toContain(
-      'grant usage on schema "better_supabase" to supabase_auth_admin;',
+      'grant usage on schema "billing" to supabase_auth_admin;',
     );
     const suspendedBranch = sql.slice(
       sql.indexOf("if not "),
@@ -258,7 +258,7 @@ describe("permdock supabase hook generate", () => {
 
   it("checks the marker line and prints the inspect manifest", async () => {
     const { code, cwd } = await generate(
-      `{ memberships: [${SOURCES}], claims: { features: 'better_supabase.feature_claims' } }`,
+      `{ memberships: [${SOURCES}], claims: { features: 'billing.feature_claims' } }`,
       ["--budget", "2048"],
     );
     expect(code).toBe(0);
@@ -345,7 +345,7 @@ describe("permdock supabase hook generate", () => {
         { name: "authz_ver", source: "permdock", budget: false },
         {
           name: "features",
-          source: "better_supabase.feature_claims",
+          source: "billing.feature_claims",
           budget: false,
         },
       ],
@@ -363,7 +363,7 @@ describe("permdock supabase hook generate", () => {
 
   it("lists the membership sources, the rls helpers and the deciding columns", async () => {
     const { cwd } = await generate(
-      `{ memberships: [${SOURCES}], attrs: { table: 'profiles', columns: ['locale', 'app_metadata.region'] }, claims: { features: 'better_supabase.feature_claims' } }`,
+      `{ memberships: [${SOURCES}], attrs: { table: 'profiles', columns: ['locale', 'app_metadata.region'] }, claims: { features: 'billing.feature_claims' } }`,
       [],
       `{ tenantType: 'text', scopeTypes: { customer: 'bigint' } }`,
     );
@@ -893,7 +893,7 @@ create or replace function "permdock".member_organization_ids_for(p_user uuid) r
 
   it("doctor PD039 reports missing helpers, oversized extra claims and dropped memberships", async () => {
     const { cwd } = await generate(
-      `{ memberships: [${SOURCES}], claims: { features: 'better_supabase.feature_claims' } }`,
+      `{ memberships: [${SOURCES}], claims: { features: 'billing.feature_claims' } }`,
       [],
       "{}, doctor: { claims: './claims.json' }",
     );
@@ -927,16 +927,16 @@ create or replace function "permdock".member_organization_ids_for(p_user uuid) r
 
   it("quotes a schema-qualified fromJunction table and grants usage on its schema", async () => {
     const { code, sql } = await generate(
-      `{ memberships: [fromJunction({ table: 'better_supabase.memberships', scope: 'organization', id: 'org_id', roles: 'role' })], roles: false }`,
+      `{ memberships: [fromJunction({ table: 'billing.memberships', scope: 'organization', id: 'org_id', roles: 'role' })], roles: false }`,
     );
     expect(code).toBe(0);
-    expect(sql).toContain('from "better_supabase"."memberships"');
-    expect(sql).not.toContain('"better_supabase.memberships"');
+    expect(sql).toContain('from "billing"."memberships"');
+    expect(sql).not.toContain('"billing.memberships"');
     expect(sql).toContain(
-      'grant usage on schema "better_supabase" to supabase_auth_admin;',
+      'grant usage on schema "billing" to supabase_auth_admin;',
     );
     expect(sql).toContain(
-      'grant select on table "better_supabase"."memberships" to supabase_auth_admin;',
+      'grant select on table "billing"."memberships" to supabase_auth_admin;',
     );
   });
 

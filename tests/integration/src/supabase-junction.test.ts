@@ -29,9 +29,9 @@ create table auth.users (id uuid primary key, raw_app_meta_data jsonb not null d
 grant usage on schema auth to supabase_auth_admin;
 grant select on auth.users to supabase_auth_admin;
 insert into auth.users (id) values ('${MEMBER}'), ('${OUTSIDER}');
-create schema better_supabase;
-create table better_supabase.memberships (organization_id text not null, user_id uuid not null, role text not null);
-insert into better_supabase.memberships values ('T', '${MEMBER}', 'admin'), ('B', '${MEMBER}', 'viewer');
+create schema app;
+create table app.memberships (organization_id text not null, user_id uuid not null, role text not null);
+insert into app.memberships values ('T', '${MEMBER}', 'admin'), ('B', '${MEMBER}', 'viewer');
 `;
 
 describe("fromJunction over a schema-qualified table", () => {
@@ -79,11 +79,9 @@ describe("fromJunction over a schema-qualified table", () => {
   }
 
   it("quotes the schema and table separately in the hook and the source", () => {
-    expect(generated).toContain('"better_supabase"."memberships"');
-    expect(generated).not.toContain('"better_supabase.memberships"');
-    expect(membership().sql.select("$1")).toContain(
-      '"better_supabase"."memberships"',
-    );
+    expect(generated).toContain('"app"."memberships"');
+    expect(generated).not.toContain('"app.memberships"');
+    expect(membership().sql.select("$1")).toContain('"app"."memberships"');
   });
 
   it("writes the same memberships the in-process source loads", async () => {

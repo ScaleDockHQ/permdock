@@ -5,7 +5,7 @@ import { fromJunction } from "permdock/supabase";
 /** better-supabase's organization membership table, in its own schema. */
 export function membership(query?: SqlQuery) {
   return fromJunction({
-    table: "better_supabase.memberships",
+    table: "app.memberships",
     scope: "organization",
     id: "organization_id",
     roles: "role",

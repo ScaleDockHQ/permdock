@@ -8,8 +8,8 @@ import { supabaseManifestSchema } from "./manifest-schema.ts";
 /**
  * What `permdock supabase inspect --json` prints and `--out` writes to
  * `permdock.manifest.json`: the contract between the generated hook and SQL
- * helpers and a package that writes policies or claims next to them
- * (better-supabase). `version` is the major of this shape; a field is only
+ * helpers and a package that writes policies or claims next to them.
+ * `version` is the major of this shape; a field is only
  * ever added within it. `schemas/supabase-manifest-v1.json` is its JSON Schema.
  */
 export type SupabaseHookManifest = {

@@ -95,7 +95,7 @@ describe("authorizationProvider", () => {
         "authz_ver",
       ],
       registeredClaims: [
-        { name: "features", function: "better_supabase.feature_claims" },
+        { name: "features", function: "public.feature_claims" },
       ],
       budget: {
         claims: ["memberships"],

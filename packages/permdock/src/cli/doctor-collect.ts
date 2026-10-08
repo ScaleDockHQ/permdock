@@ -1079,8 +1079,7 @@ export async function pd035(
 }
 
 /**
- * Storage and Realtime policies written outside PermDock (better-supabase
- * `permdock` mode) that call the SQL helpers for a permission whose grants
+ * Storage and Realtime policies written outside PermDock that call the SQL helpers for a permission whose grants
  * carry row conditions: the helpers check only role and scope.
  */
 export async function pd037(

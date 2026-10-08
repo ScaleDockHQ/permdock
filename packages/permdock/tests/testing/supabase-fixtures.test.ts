@@ -153,7 +153,7 @@ describe("supabaseHookManifestFixture", () => {
         supabase: {
           hook: {
             memberships: [fromTable({ table: "memberships" })],
-            claims: { features: "better_supabase.feature_claims" },
+            claims: { features: "public.feature_claims" },
           },
         },
       },

@@ -87,8 +87,8 @@ create table organization (id text primary key, disabled_at timestamptz);
 insert into organization select o, null from unnest(array['T', 'B', ${MANY.map((id) => `'${id}'`).join(", ")}]) o;
 insert into organization values ('X', now());
 grant select, insert, update, delete on memberships to authenticated;
-create schema better_supabase;
-create function better_supabase.feature_claims(uid uuid) returns jsonb language sql stable as $$
+create schema billing;
+create function billing.feature_claims(uid uuid) returns jsonb language sql stable as $$
   select case when uid in ('${OWNER}', '${ADMIN}', '${SUSPENDED}') then '{"T": ["export"]}'::jsonb end
 $$;
 `;

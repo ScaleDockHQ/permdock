@@ -57,10 +57,10 @@ create schema pd_db;
 grant usage on schema pd_db to authenticated;
 `;
 
-/** The extra claim better-supabase owns: one entry per organization the user is a member of. */
+/** An extra claim another package owns: one entry per organization the user is a member of. */
 const FEATURE_CLAIMS = `
-create schema better_supabase;
-create function better_supabase.feature_claims(uid uuid) returns jsonb language sql stable as $$
+create schema billing;
+create function billing.feature_claims(uid uuid) returns jsonb language sql stable as $$
   select jsonb_object_agg(id, jsonb_build_array('export') order by id)
   from permdock.member_organization_ids_for(uid) id
 $$;

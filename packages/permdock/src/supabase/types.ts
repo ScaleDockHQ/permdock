@@ -173,7 +173,7 @@ export type SupabaseRlsConfig = {
 
 /**
  * The structural shape `subjectFromSupabaseSession` reads: a discriminant and the verified JWT claims.
- * Matches better-supabase's `AuthSession` and similar session objects without importing them.
+ * Matches any session object of that shape without importing its library.
  */
 export type SupabaseSessionLike = {
   readonly kind: string;
@@ -195,7 +195,7 @@ export type SupabaseSubjectOptions = {
   readonly anonymousSignIns?: "deny";
   /**
    * `true` once the caller checked the session against the Auth server for this request
-   * (`auth.getUser()`, better-supabase's `checkSession`): a token with a `session_id` gets
+   * (`auth.getUser()` or an equivalent session check): a token with a `session_id` gets
    * `subject.liveSession`, which `{ subject: { session: { live: true } } }` requires. Never read from claims.
    */
   readonly liveSession?: boolean;
