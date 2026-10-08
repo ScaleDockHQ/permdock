@@ -19,6 +19,12 @@ import { payloadDigest } from "../core/token.ts";
 
 /** Milliseconds a decision, refresh or approval request may take; a slower one is an error like a failed request. */
 const STORE_TIMEOUT_MS = 10_000;
+/** Ceiling for the approval poll backoff after a failed status request. */
+const APPROVAL_BACKOFF_CAP_MS = 60_000;
+/** Consecutive failed status requests after which a token is no longer polled. */
+const APPROVAL_MAX_FAILURES = 5;
+
+type StoreHeaders = Readonly<Record<string, string>>;
 
 export type ClientStoreOptions = {
   readonly snapshot: Snapshot | string;
@@ -27,7 +33,8 @@ export type ClientStoreOptions = {
   readonly approvals?: string;
   readonly tenant?: string;
   readonly fetch?: typeof fetch;
-  readonly headers?: Readonly<Record<string, string>>;
+  /** Request headers, or a getter read on every request so a rotated token needs no new store. */
+  readonly headers?: StoreHeaders | (() => StoreHeaders | undefined);
   readonly maxAge?: number;
   readonly verifier?: TokenVerifier;
   readonly onSnapshot?: (
@@ -46,6 +53,16 @@ export type ClientStoreOptions = {
   readonly approvalInterval?: number;
   /** Start `pending`: the snapshot arrives later through `track()`. */
   readonly awaiting?: boolean;
+  /** Start `stale`: the snapshot is a persisted copy that a refresh or source read replaces. */
+  readonly stale?: boolean;
+  /**
+   * Reuse decisions for the same row object until the next microtask. Only for
+   * renderers that do not track the fields a check reads (React): Vue, Svelte
+   * and Solid would stop re-running when a reactive row changes in place.
+   */
+  readonly passCache?: boolean;
+  /** `replace()` with the same content (ignoring `issuedAt`) keeps the current answers and notifies nobody. */
+  readonly skipUnchanged?: boolean;
 };
 
 type CacheEntry = {
@@ -144,7 +161,34 @@ export type ClientStore = {
    */
   adopt(value: Snapshot | string, source: object): void;
   snapshot(): Snapshot;
+  /** The tenant the store currently answers for. */
+  tenant(): string | undefined;
+  /** Stops polls, drops in-flight results and persistence; the store keeps answering from its last snapshot. */
+  dispose(): void;
 };
+
+const VALIDATION: Decision = {
+  outcome: "denied",
+  denials: [{ role: null, reason: "validation" }],
+  alternatives: [],
+};
+
+/** The snapshot's content without `issuedAt`, which every rebuild changes. */
+function contentKey(snapshot: Snapshot): string {
+  return JSON.stringify({ ...snapshot, issuedAt: 0 });
+}
+
+function report(error: unknown): void {
+  // SAFETY: reportError is only called when the runtime defines it as a function.
+  const reporter = (globalThis as { readonly reportError?: unknown })
+    .reportError as ((error: unknown) => void) | undefined;
+  if (typeof reporter === "function") {
+    reporter(error);
+    return;
+  }
+  // oxlint-disable-next-line no-console -- a subscriber threw and the runtime has no reportError
+  console.error(error);
+}
 
 /** The store that emitted `permdock`; a fresh `permdock` follows every change. */
 export function storeOf(permdock: ClientPermDock): ClientStore {
@@ -191,14 +235,24 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
   // Bumped whenever the snapshot, the subject or the tenant changes; an async
   // result that started under an older generation is dropped.
   let generation = 0;
+  let disposed = false;
+  let appliedKey: string | undefined;
 
+  const headers = (): StoreHeaders | undefined =>
+    typeof options.headers === "function" ? options.headers() : options.headers;
+
+  // A throwing subscriber must not keep the others on a revoked answer.
   const emit = (): void => {
     cached = wrap(instance);
     if (silent) {
       return;
     }
     for (const listener of listeners) {
-      listener();
+      try {
+        listener();
+      } catch (error) {
+        report(error);
+      }
     }
   };
 
@@ -222,10 +276,19 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
 
   const hydrate = (next: Snapshot): void => {
     reset();
+    if (
+      (snapshot.subject.principal?.id ?? null) !==
+      (next.subject.principal?.id ?? null)
+    ) {
+      forgetApprovals();
+    }
     snapshot = next;
+    appliedKey = options.skipUnchanged === true ? contentKey(next) : undefined;
     instance = fromSnapshot(snapshot, compact({ tenant }));
     base = "ready";
-    options.onSnapshot?.(next, tenant);
+    if (!disposed) {
+      options.onSnapshot?.(next, tenant);
+    }
     emit();
   };
 
@@ -344,7 +407,7 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
         headers: {
           accept: "application/json",
           "content-type": "application/json",
-          ...options.headers,
+          ...headers(),
         },
         body: JSON.stringify({
           evaluations: batch.map((item) => ({
@@ -411,22 +474,35 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
     scheduleFlush();
   };
 
-  // One render pass checks the same row from many components; the decisions
-  // live until the next microtask, so a grant's validity window or a mutated
-  // row is never answered from an older evaluation.
+  // With `passCache`, one render pass that checks the same row object from many
+  // components evaluates it once. The decisions live until the next microtask:
+  // a row mutated in place and checked again in the same task reads the earlier
+  // answer, which is why fine-grained renderers leave the cache off.
   const decided = new Map<unknown, Map<string, Decision>>();
   let decidedClear = false;
 
+  const evaluate = (permission: Permission, data: unknown): Decision => {
+    try {
+      // SAFETY: decide's instance and collection overloads share one implementation that takes either kind.
+      return (instance.decide as (next: Permission, row?: unknown) => Decision)(
+        permission,
+        data,
+      );
+    } catch {
+      return VALIDATION;
+    }
+  };
+
   const decideLocal = (permission: Permission, data: unknown): Decision => {
+    if (options.passCache !== true) {
+      return evaluate(permission, data);
+    }
     let byKey = decided.get(data);
     const hit = byKey?.get(permission.key);
     if (hit !== undefined) {
       return hit;
     }
-    // SAFETY: decide's instance and collection overloads share one implementation that takes either kind.
-    const decision = (
-      instance.decide as (next: Permission, row?: unknown) => Decision
-    )(permission, data);
+    const decision = evaluate(permission, data);
     if (byKey === undefined) {
       byKey = new Map();
       decided.set(data, byKey);
@@ -447,8 +523,17 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
     data?: unknown,
   ): PermissionState => {
     const decision = decideLocal(permission, data);
+    if (decision === VALIDATION) {
+      return { allowed: false, status: "ready", decision };
+    }
     if (needsEndpoint(decision)) {
-      const key = `${tenant ?? ""}|${cacheKey(snapshot, permission, data)}`;
+      let rowKey: string;
+      try {
+        rowKey = cacheKey(snapshot, permission, data);
+      } catch {
+        return { allowed: false, status: "ready", decision: VALIDATION };
+      }
+      const key = `${tenant ?? ""}|${rowKey}`;
       const hit = answers.get(key);
       if (hit !== undefined) {
         return {
@@ -474,7 +559,11 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
     return {
       allowed: decision.outcome === "granted",
       status:
-        verifying || following > 0 ? "pending" : isStale() ? "stale" : "ready",
+        verifying || following > 0
+          ? "pending"
+          : base === "stale" || isStale()
+            ? "stale"
+            : "ready",
       decision,
     };
   };
@@ -500,8 +589,20 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
     polls.clear();
   };
 
+  // Consecutive failed status requests per token; a success resets it.
+  const failures = new Map<string, number>();
+
+  const forgetApprovals = (): void => {
+    approvalEpoch += 1;
+    stopPolls();
+    approvals.clear();
+    watched.clear();
+    failures.clear();
+  };
+
   const schedulePoll = (token: string): void => {
     if (
+      disposed ||
       server ||
       options.approvals === undefined ||
       polls.has(token) ||
@@ -511,20 +612,30 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
     }
     const epoch = approvalEpoch;
     const href = `${options.approvals.replace(/\/+$/u, "")}/${encodeURIComponent(token)}`;
+    const failed = failures.get(token) ?? 0;
+    const delay = Math.min(
+      approvalInterval * 2 ** failed,
+      Math.max(approvalInterval, APPROVAL_BACKOFF_CAP_MS),
+    );
     polls.set(
       token,
       setTimeout(() => {
         void (async (): Promise<void> => {
           let next: ApprovalState | undefined;
+          // `true` for an answer that will not change by asking again (a 4xx other than 404).
+          let refused = false;
+          let errored = false;
           try {
             const response = await fetchImpl(href, {
               method: "GET",
               credentials: "include",
               signal: timeoutSignal(STORE_TIMEOUT_MS),
-              headers: { accept: "application/json", ...options.headers },
+              headers: { accept: "application/json", ...headers() },
             });
             if (response.status === 404) {
               next = "expired";
+            } else if (response.status >= 400 && response.status < 500) {
+              refused = true;
             } else if (response.ok) {
               // SAFETY: status is only compared with the four literals; a null body throws into the catch.
               const body = (await response.json()) as {
@@ -537,11 +648,15 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
                 body.status === "expired"
                   ? body.status
                   : undefined;
+              errored = next === undefined;
+            } else {
+              errored = true;
             }
           } catch {
             next = undefined;
+            errored = true;
           }
-          if (epoch !== approvalEpoch) {
+          if (epoch !== approvalEpoch || disposed) {
             return;
           }
           polls.delete(token);
@@ -549,13 +664,24 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
             approvals.set(token, next);
             emit();
           }
-          if (TERMINAL.has(approvals.get(token) ?? "required")) {
+          const count = errored ? (failures.get(token) ?? 0) + 1 : 0;
+          if (count === 0) {
+            failures.delete(token);
+          } else {
+            failures.set(token, count);
+          }
+          if (
+            refused ||
+            count >= APPROVAL_MAX_FAILURES ||
+            TERMINAL.has(approvals.get(token) ?? "required")
+          ) {
             watched.delete(token);
+            failures.delete(token);
           } else {
             schedulePoll(token);
           }
         })();
-      }, approvalInterval),
+      }, delay),
     );
   };
 
@@ -626,7 +752,7 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
           hydrate(snapshot);
           return;
         }
-        if (source === undefined) {
+        if (source === undefined || disposed) {
           return;
         }
         const started = generation;
@@ -643,7 +769,7 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
             signal: timeoutSignal(STORE_TIMEOUT_MS),
             headers: {
               accept: "application/json",
-              ...options.headers,
+              ...headers(),
             },
           });
           if (response.ok) {
@@ -684,11 +810,11 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
         snapshot = emptySnapshot();
         instance = fromSnapshot(snapshot, compact({ tenant }));
         base = "server-only";
-        approvalEpoch += 1;
-        stopPolls();
-        approvals.clear();
-        watched.clear();
-        options.onClear?.();
+        appliedKey = undefined;
+        forgetApprovals();
+        if (!disposed) {
+          options.onClear?.();
+        }
         emit();
       },
       subscribe,
@@ -748,6 +874,24 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
         void bootJws(value);
         return;
       }
+      if (appliedKey !== undefined && base !== "server-only") {
+        let parsed: Snapshot;
+        try {
+          parsed = parseSnapshot(value);
+        } catch {
+          serverOnly();
+          return;
+        }
+        if (contentKey(parsed) === appliedKey) {
+          if (base === "stale") {
+            base = "ready";
+            emit();
+          }
+          return;
+        }
+        hydrate(parsed);
+        return;
+      }
       applyParsed(value);
     },
     follow,
@@ -790,6 +934,16 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
     snapshot(): Snapshot {
       return snapshot;
     },
+    tenant(): string | undefined {
+      return tenant;
+    },
+    dispose(): void {
+      disposed = true;
+      generation += 1;
+      queued = [];
+      forgetApprovals();
+      listeners.clear();
+    },
     async requestApproval(decision: Decision, note?: string): Promise<void> {
       if (
         decision.outcome !== "approval-required" ||
@@ -808,7 +962,7 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
         headers: {
           accept: "application/json",
           "content-type": "application/json",
-          ...options.headers,
+          ...headers(),
         },
         body: JSON.stringify({
           permission: decision.grant.permission,
@@ -825,6 +979,15 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
       }
     },
   };
+  const startStale = (): void => {
+    if (base === "ready") {
+      base = "stale";
+      cached = wrap(instance);
+    }
+  };
   boot(options.snapshot);
+  if (options.stale === true) {
+    startStale();
+  }
   return store;
 }

@@ -4,6 +4,7 @@ import {
   defineComponent,
   h,
   nextTick,
+  reactive,
   shallowRef,
   type Component,
   type VNode,
@@ -18,6 +19,7 @@ import {
   useApproval,
   useAssignablePermissions,
   useAssignableRoles,
+  usePermission,
   usePermissions,
   useRoles,
   useSubject,
@@ -89,6 +91,29 @@ describe("permdock/vue composables", () => {
       }),
     );
     expect(String(failure)).toMatch(/composables require permdockPlugin/);
+    view.unmount();
+  });
+
+  it("re-run for every component reading one reactive row edited in place", async () => {
+    const post = reactive({ ...ownPost });
+    const Check = defineComponent({
+      setup() {
+        const state = usePermission(permissions.post.update, () => post);
+        return () => (state.allowed.value ? "y" : "n");
+      },
+    });
+    const view = mount(
+      defineComponent({
+        setup() {
+          return (): VNode[] => [h(Check), h(Check)];
+        },
+      }),
+      { snapshot: await memberSnapshot() },
+    );
+    expect(view.root.textContent).toBe("yy");
+    post.authorId = otherPost.authorId;
+    await nextTick();
+    expect(view.root.textContent).toBe("nn");
     view.unmount();
   });
 

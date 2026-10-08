@@ -17,6 +17,7 @@ export type AdapterStoreOptions = Pick<
   | "verifier"
   | "onServerOnly"
   | "awaiting"
+  | "passCache"
 >;
 
 export function adapterStore(
@@ -36,6 +37,7 @@ export function adapterStore(
       verifier: options.verifier,
       onServerOnly: options.onServerOnly,
       awaiting: options.awaiting,
+      passCache: options.passCache,
     }),
   );
 }

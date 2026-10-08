@@ -1,4 +1,5 @@
 import { createComponent, createRoot, createSignal, type JSX } from "solid-js";
+import { createStore } from "solid-js/store";
 import { render } from "solid-js/web";
 import { describe, expect, it } from "vitest";
 
@@ -11,6 +12,7 @@ import {
   useAssignablePermissions,
   useAssignableRoles,
   usePermDock,
+  usePermission,
   usePermissions,
   useRoles,
   useSubject,
@@ -72,6 +74,20 @@ const required: Decision = {
 } as unknown as Decision;
 
 describe("permdock/solid hooks", () => {
+  it("re-run for every reader of one store row edited in place", async () => {
+    const [post, setPost] = createStore({ ...ownPost });
+    const view = mount({ snapshot: await memberSnapshot() }, () => {
+      const first = usePermission(permissions.post.update, () => post);
+      const second = usePermission(permissions.post.update, () => post);
+      return () =>
+        `${first().allowed ? "y" : "n"}${second().allowed ? "y" : "n"}`;
+    });
+    expect(view.root.textContent).toBe("yy");
+    setPost("authorId", otherPost.authorId);
+    expect(view.root.textContent).toBe("nn");
+    view.dispose();
+  });
+
   it("throw outside a provider", () => {
     expect(() =>
       createRoot((dispose) => {

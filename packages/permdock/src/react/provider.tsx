@@ -47,6 +47,7 @@ export function PermDockProvider(props: PermDockProviderProps): ReactElement {
           maxAge: props.maxAge,
           verifier: live.verifier,
           awaiting,
+          passCache: true,
         }),
         props.snapshot ?? emptySnapshot(),
       ),
