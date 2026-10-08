@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { organizationBySlug, visibleQuotes } from "../../lib/access.ts";
+import { DataSource } from "./data-source.tsx";
 
 export function QuotesSkeleton() {
   return (
@@ -22,13 +23,16 @@ export async function Quotes(props: {
   }
   const quotes = await visibleQuotes(organization.id);
   return (
-    <ul data-testid="quotes">
-      {quotes.map((quote) => (
-        <li key={quote.id} data-quote={quote.id}>
-          {quote.title}: {quote.currency}{" "}
-          {(quote.amount_minor / 100).toFixed(2)}
-        </li>
-      ))}
-    </ul>
+    <>
+      <ul data-testid="quotes">
+        {quotes.value.map((quote) => (
+          <li key={quote.id} data-quote={quote.id}>
+            {quote.title}: {quote.currency}{" "}
+            {(quote.amount_minor / 100).toFixed(2)}
+          </li>
+        ))}
+      </ul>
+      <DataSource name="Quotes" loaded={quotes} />
+    </>
   );
 }

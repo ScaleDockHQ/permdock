@@ -10,6 +10,8 @@ pnpm --filter @permdock/example-next-better-supabase serve
 
 `serve` needs Docker. It starts a throwaway Postgres 17 (testcontainers), applies the auth stub (the Supabase roles and `auth` readers), the migrations and the seed, generates an ES256 key, then runs `next build` and `next start` on `http://127.0.0.1:3489/en`.
 
+Every cached read in `src/lib/access.ts` waits 3 s first, so a prefetched or cached render stands out from a cold one. The staff and quotes lists end with how long their read took and when it ran. Set `DEMO_LATENCY_MS` to change the delay, or to `0` to turn it off.
+
 Sign in as:
 
 - **Olivia**, owner of Acme and member of Globex: Staff and Quotes in Acme, only Staff in Globex.
@@ -36,4 +38,4 @@ Where things live:
 pnpm --filter @permdock/example-next-better-supabase test:instant
 ```
 
-Needs Docker. Runs `serve` with `EXPOSE_TESTING_API=1` on `http://127.0.0.1:3589`, then runs `tests/instant/*.instant.ts` with `instant()` from `@next/playwright` at 1280 px and 390 px. The specs cover the initial load of `/en/acme/staff` and `/en/portal/acme/quotes` and the soft navigation from Staff to Quotes. Under the lock each spec expects the shell and the skeleton, and expects the RLS-read list to be absent. Install Chromium once with `pnpm --filter @permdock/example-next-better-supabase exec playwright install chromium`.
+Needs Docker. Runs `serve` with `EXPOSE_TESTING_API=1` on `http://127.0.0.1:3589`, then runs `tests/instant/*.instant.ts` with `instant()` from `@next/playwright` at 1280 px and 390 px. The specs cover the initial load of `/en/acme/staff` and `/en/portal/acme/quotes` and the soft navigation from Staff to Quotes. `cold-then-warm.instant.ts` goes back from Quotes to Staff under the lock and expects the staff read time from the first visit. Under the lock each spec expects the shell and the skeleton, and expects the RLS-read list to be absent. Install Chromium once with `pnpm --filter @permdock/example-next-better-supabase exec playwright install chromium`.

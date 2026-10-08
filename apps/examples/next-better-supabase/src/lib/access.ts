@@ -6,6 +6,7 @@ import { cacheLifeFor, snapshotTag } from "permdock/next";
 import { subjectFromSupabaseSession } from "permdock/supabase";
 
 import { policy } from "../policy.ts";
+import { latency } from "./latency.ts";
 import { bs, postgres } from "./supabase/server.ts";
 
 export type Organization = {
@@ -16,6 +17,25 @@ export type Organization = {
 
 export const orgTag = (organization: string): string => `org:${organization}`;
 
+/** An RLS read with when it ran and how long it took; a cache hit keeps both from the run that filled it. */
+export type Loaded<T> = {
+  readonly value: T;
+  /** Milliseconds since the epoch. */
+  readonly loadedAt: number;
+  readonly tookMs: number;
+};
+
+async function timed<T>(read: () => Promise<T>): Promise<Loaded<T>> {
+  const started = performance.now();
+  await latency();
+  const value = await read();
+  return {
+    value,
+    loadedAt: Date.now(),
+    tookMs: Math.round(performance.now() - started),
+  };
+}
+
 /** Shared layer: slugs are public, so the lookup reads no session and every visitor shares it. */
 export async function organizationBySlug(
   slug: string,
@@ -23,6 +43,7 @@ export async function organizationBySlug(
   "use cache";
   cacheTag(`org-slug:${slug}`);
   cacheLife("hours");
+  await latency();
   const rows = await postgres.anon.queryRaw<Organization>(
     "select id, slug, name from public.organizations where slug = $1",
     [slug],
@@ -38,6 +59,7 @@ export async function organizationBySlug(
  */
 export async function loadSnapshot(organization: string): Promise<Snapshot> {
   "use cache: private";
+  await latency();
   const { session } = await bs.cached({
     tags: [orgTag(organization)],
   });
@@ -68,20 +90,24 @@ export type StaffRow = {
 /** Read through RLS as the caller: `permitted_organization_ids('staff.list')` filters the rows. */
 export async function visibleStaff(
   organization: string,
-): Promise<readonly StaffRow[]> {
+): Promise<Loaded<readonly StaffRow[]>> {
   "use cache: private";
   const { sql, session } = await bs.cached({ tags: [orgTag(organization)] });
   cacheTag(snapshotTag(session.kind === "user" ? session.user.id : null));
-  if (session.kind !== "user" || !sql) {
-    return [];
-  }
-  return sql.staff
-    .findMany({
-      where: { organization_id: organization },
-      select: ["id", "name", "title"],
-      orderBy: { name: "asc" },
-    })
-    .orThrow();
+  const loaded = await timed(async () => {
+    if (session.kind !== "user" || !sql) {
+      return [];
+    }
+    const rows = await sql.staff
+      .findMany({
+        where: { organization_id: organization },
+        select: ["id", "name", "title"],
+        orderBy: { name: "asc" },
+      })
+      .orThrow();
+    return rows;
+  });
+  return loaded;
 }
 
 export type QuoteRow = {
@@ -94,18 +120,22 @@ export type QuoteRow = {
 /** A contact reads only their customer's quotes; the policy on `quotes` decides, not this filter. */
 export async function visibleQuotes(
   organization: string,
-): Promise<readonly QuoteRow[]> {
+): Promise<Loaded<readonly QuoteRow[]>> {
   "use cache: private";
   const { sql, session } = await bs.cached({ tags: [orgTag(organization)] });
   cacheTag(snapshotTag(session.kind === "user" ? session.user.id : null));
-  if (session.kind !== "user" || !sql) {
-    return [];
-  }
-  return sql.quotes
-    .findMany({
-      where: { organization_id: organization },
-      select: ["id", "title", "amount_minor", "currency"],
-      orderBy: { title: "asc" },
-    })
-    .orThrow();
+  const loaded = await timed(async () => {
+    if (session.kind !== "user" || !sql) {
+      return [];
+    }
+    const rows = await sql.quotes
+      .findMany({
+        where: { organization_id: organization },
+        select: ["id", "title", "amount_minor", "currency"],
+        orderBy: { title: "asc" },
+      })
+      .orThrow();
+    return rows;
+  });
+  return loaded;
 }
