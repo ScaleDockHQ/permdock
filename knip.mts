@@ -25,6 +25,8 @@ const config: KnipConfig = {
     },
     "apps/examples/react-router": {
       entry: ["app/**/*.{ts,tsx}"],
+      // `react-router typegen` writes `./+types/*` into the gitignored `.react-router/`.
+      ignoreUnresolved: [/\+types\//u],
     },
     "apps/examples/expo": {
       entry: ["src/**/*.{ts,tsx}"],
