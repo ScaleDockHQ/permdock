@@ -32,7 +32,7 @@ export const permissions = definePermissions({
 
 `groups` lets an edge row name a team or another group: `{ column: 'kind', resources: { team: 'member' } }` when one column names the kind, or `{ resources: { team: { relation: 'member', subject: 'team_id' } } }` when the share table keeps each subject kind in its own typed column.
 
-A resource that parents itself makes a chain. `restricted` names a boolean column: a restricted row is reached only by grants on itself, never through its ancestors. `links` names to-one references a grant can cross with `through: ['folder', 'team']`.
+A resource that parents itself makes a chain. `restricted` names a boolean column: a restricted row is reached only by grants on itself, never through its ancestors or its links. `restricted: { field, stops: ['parent'] }` closes only the paths it lists (`'parent'` and link names), for example a folder hidden from shares above it but still readable by everyone with drive access; a closed link also stays closed for the rows below a restricted row, within 32 levels. `links` names to-one references a grant can cross with `through: ['folder', 'team']`.
 
 ## Grant
 
