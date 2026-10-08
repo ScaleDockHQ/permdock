@@ -213,10 +213,42 @@ The local snapshot decides like the server snapshot for the same rows, with thes
 
 With `snapshotUrl` set as well, the latest answer wins: the server snapshot after a revalidation, the local one after the next row change.
 
+### PowerSync source
+
+With PowerSync, `permdock powersync generate` writes the manifest to `powersync.manifest` and adds `permdock_*` streams for the rows `read` needs ([PowerSync](/docs/cli/powersync#local-snapshot-rows)). `powersyncSource(db, { manifest, queries, read })` replaces the hand-written `read` and `subscribe`: `get` runs every query with `db.getAll`, and one `db.watch` per query reports changes. `permdock/react-native` never imports `@powersync/*`; the app passes its `PowerSyncDatabase`.
+
+```tsx
+import {
+  powersyncSource,
+  type LocalSnapshotManifest,
+} from "permdock/react-native";
+import manifest from "./permdock-manifest.json";
+
+const source = powersyncSource(db, {
+  manifest: manifest as LocalSnapshotManifest,
+  queries: {
+    memberships: {
+      sql: "SELECT organization_id, tier FROM organization_users WHERE user_id = ?",
+      parameters: [userId],
+    },
+  },
+  read: ({ memberships }) => ({
+    principal: {
+      id: userId,
+      tenant: organizationId,
+      memberships: memberships.map((row) => ({
+        tenant: row.organization_id,
+        roles: [row.tier],
+      })),
+    },
+  }),
+});
+```
+
 ## What it validates
 
 - The persisted snapshot against the snapshot v1 schema before use. A snapshot written by an older app version that fails validation is discarded and refetched rather than trusted.
-- The snapshot's `subject.id` against the currently signed-in user id when the app provides one through `subjectId`; a mismatch is treated as empty storage.
+- The snapshot's principal id against `subjectId`, which the provider requires (`null` when signed out). A mismatch clears the stored snapshot and tenant, and is treated as empty storage.
 - Nothing else client-side. As on the web, on-device answers are UI hints; every mutation is re-checked by the API.
 
 The snapshot is stored as the `storage` implementation stores it. The entry ships only `memoryStorage` and the three-method interface; an app that wants the snapshot encrypted at rest (it reveals role names, condition shapes and, with `tenants: 'all'`, every organisation the user belongs to, but no rows) passes `expo-secure-store` or an encrypted MMKV instance. Memberships whose `expiresAt` has passed are ignored by the evaluator at read time. A persisted snapshot keeps serving grants that the server has since removed until the next revalidation; the [threat model](/docs/security/threat-model) accepts this for UI hints because every mutation is re-checked server-side.

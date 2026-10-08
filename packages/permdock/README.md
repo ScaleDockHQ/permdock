@@ -293,7 +293,7 @@ Any Standard Schema validator: Zod, Valibot, ArkType, Effect Schema. One import 
 | RPC                | `permdock/trpc` · `permdock/orpc`                                                                                                                       |
 | Agents             | `permdock/mcp` · `permdock/ai-sdk` · `permdock/claude-agent` · `permdock/eve` · `permdock/openai` · `permdock/webmcp` · `permdock/a2a`                  |
 | Decision plane     | `permdock/authzen` · `permdock/approvals` · `permdock/cloud` · `permdock/scim` · `permdock/ssf` · `permdock/openapi` · `permdock/otel` · `permdock/pdp` |
-| Data               | `permdock/drizzle` · `permdock/prisma` · `permdock/kysely` · `permdock rls`                                                                             |
+| Data               | `permdock/drizzle` · `permdock/prisma` · `permdock/kysely` · `permdock rls` · `permdock powersync`                                                      |
 | Auth and providers | `permdock/jwt` · `permdock/supabase` · `permdock/supabase/middleware` · `permdock/better-auth` · `permdock/clerk` · `permdock/convex`                   |
 | Build              | `permdock/next/plugin` · `permdock/unplugin`                                                                                                            |
 | Testing            | `permdock/testing`                                                                                                                                      |

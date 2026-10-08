@@ -56,7 +56,18 @@ streams:
 | `--fixtures` | a path         | `rls.fixtures`, else `rls.fixtures.json` | `verify`: the [`rls verify`](/docs/cli/rls) fixtures               |
 | `--from`     | a module       | `policy` in the config                   | The module exporting `policy`                                      |
 
-`powersync` also takes `resources` (the resources that get a stream; default every resource with a grant of the action) and `action` (default `read`).
+`powersync` also takes `resources` (the resources that get a stream; default every resource with a grant of the action), `action` (default `read`) and `manifest` (a path; none by default).
+
+## Local snapshot rows
+
+`generate` also writes the streams a device needs to build the user's snapshot with [`localSnapshot`](/docs/adapters/react-native#local-snapshot), each named `permdock_<table>` and starting from the user's own rows:
+
+- `permdock_<memberships table>`: the user's membership rows (`<user> = auth.user_id()`) for each table in `rls.memberships`.
+- `permdock_<global roles table>`: the user's global-role rows from `rls.roles`, else `permdock.user_roles` in `database` mode.
+- `permdock_<roles table>`: the rows of each `through` roles table that one of the user's membership or global-role rows references.
+- With `rls.customRoles` in `database` mode, the custom role tables, limited to rows with no tenant and rows of the user's tenants.
+
+With `powersync.manifest` set, `generate` writes `localSnapshotManifest(policy)` as JSON to that path, so the app bundles the manifest without importing the policy. `powersyncSource` in `permdock/react-native` reads it ([PowerSync source](/docs/adapters/react-native#powersync-source)).
 
 ## What compiles
 
@@ -80,7 +91,9 @@ Everything else leaves the grant out of the stream, and `generate` prints why: a
 
 `verify` compiles the policy again and fails when `sync-config.yaml` differs. With `--db`, it runs each fixture of a synced permission: the stream queries with the subject's id against the database, and `can()` in process with the row's organization active, since a stream holds rows of every organization the user belongs to. A row a stream syncs and the policy denies is a mismatch and exits `1`. A row the policy grants and no stream syncs is a note: the app reads it from the server. The database must hold the fixture rows and memberships, as for `rls verify --db`.
 
-[`permdock doctor`](/docs/cli/doctor) reports PD058 when the file is stale.
+`verify` passes a fixture's `subject.claims` to `auth.parameter()` and fails when a `permdock_*` stream syncs another user's rows. It compares the `powersync.manifest` file as JSON.
+
+[`permdock doctor`](/docs/cli/doctor) reports PD058 when `sync-config.yaml` or the manifest is stale or missing, and when the config does not compile to Sync Streams.
 
 ## Why
 

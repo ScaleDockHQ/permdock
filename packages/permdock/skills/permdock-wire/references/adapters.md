@@ -84,6 +84,8 @@ app.get(
 
 Publish `revocations.revoke({ principal, tenant, kind: 'changed' })` from your role-edit code so open connections revalidate.
 
+For a framework loader (React Router, TanStack Start, SvelteKit, Nuxt), `createPermDock` from `permdock/server` returns `getSnapshot(request, { tenant })`: the snapshot a client provider takes, built from the request's own subject. Send it with `snapshotHeaders(snapshot)` from `permdock/server`, which sets a private `Cache-Control` from the snapshot's expiry. Docs: [loader snapshots](https://permdock.com/docs/adapters/server-kernel).
+
 ## React (Vite) — `permdock/react`
 
 No factory. The server builds a snapshot (`permdock.snapshot()` or `fromSnapshot` on snapshot JSON) and the client wraps the tree:
@@ -132,11 +134,11 @@ No factory. Same hooks and `<Protected>` as `permdock/react`, plus `storage` so 
 import { PermDockProvider, usePermission } from "permdock/react-native";
 ```
 
-`storage` is `{ getItem, setItem, removeItem }` (MMKV, SecureStore, AsyncStorage). `snapshotUrl` revalidates in the background. `permdock.clear()` drops the persisted snapshot on sign-out. Do not import `policy.ts` on the client.
+`subjectId` is required: the signed-in user's id, or `null` when signed out. A stored snapshot of another principal is cleared. `storage` is `{ getItem, setItem, removeItem }`; `secureStoreStorage(SecureStore)` and `mmkvStorage(mmkv)` wrap Expo SecureStore and MMKV. `snapshotUrl` revalidates in the background; `subscribeForeground={appStateForeground(AppState)}` revalidates on return to the foreground. For Expo Router guards use `usePermissionGuard(permission, data?)`, which is `false` while `pending`, and `useSnapshotReady()` for a splash screen. `permdock.clear()` drops the persisted snapshot on sign-out. Do not import `policy.ts` on the client.
 
 To answer guards from synced rows, write `localSnapshotManifest(policy)` (from `permdock`) to a JSON file at build time and pass `source={localSnapshot({ manifest, read, subscribe })}`. `read()` returns `{ principal: { id, tenant, roles, memberships, attributes }, customRoles }` from the local database; `subscribe` re-reads on row changes. It decides like the server snapshot except relation grantees (server-only) and the assignable lists (empty). Never import `policy.ts` into the app for this. Docs: [local snapshot](https://permdock.com/docs/adapters/react-native#local-snapshot).
 
-For an offline app on PowerSync, set `powersync: { out: 'sync-config.yaml' }` in `permdock.config.ts` and run `permdock powersync generate`: one edition 3 Sync Stream per resource, from the `rls.tables` and `rls.memberships` the RLS generator reads. It under-syncs, never over-syncs: a resource with a deny grant gets no stream, and a grant with a global role, approval, break-glass, validity, request context or a condition without a Sync Streams form syncs nothing, each with a warning. The app reads what does not sync from the server. `permdock powersync verify --db $DATABASE_URL` fails when a stream holds a fixture row the policy denies; doctor PD058 flags a stale file. Docs: [`permdock powersync`](https://permdock.com/docs/cli/powersync).
+For an offline app on PowerSync, set `powersync: { out: 'sync-config.yaml' }` in `permdock.config.ts` and run `permdock powersync generate`: one edition 3 Sync Stream per resource, from the `rls.tables` and `rls.memberships` the RLS generator reads. It under-syncs, never over-syncs: a resource with a deny grant gets no stream, and a grant with a global role, approval, break-glass, validity, request context or a condition without a Sync Streams form syncs nothing, each with a warning. The app reads what does not sync from the server. It also writes `permdock_*` streams for the user's own membership, global-role and custom-role rows; with `powersync.manifest` set it writes the manifest too, and `powersyncSource(db, { manifest, queries, read })` from `permdock/react-native` builds the local snapshot from `db.watch` queries. `permdock powersync verify --db $DATABASE_URL` fails when a stream holds a fixture row the policy denies; doctor PD058 flags a stale file or manifest. Doctor PD065 lists server-only grants read from React Native code, which the device denies offline. Docs: [`permdock powersync`](https://permdock.com/docs/cli/powersync).
 
 ## Express — `permdock/express`
 
@@ -156,7 +158,7 @@ app.delete(
 app.use(errorHandler());
 ```
 
-Converts `IncomingMessage` to Fetch, then delegates to `permdock/server`. Denials are `403 application/problem+json`; anonymous callers get `401` plus `WWW-Authenticate`.
+Converts `IncomingMessage` to Fetch, then delegates to `permdock/server`. Denials are `403 application/problem+json`; anonymous callers get `401` plus `WWW-Authenticate`. A PermDock error thrown by `permdock()`, `protect` or the decision routes becomes Problem Details; any other error goes to `next(err)`.
 
 ## Fastify — `permdock/fastify`
 
@@ -179,7 +181,7 @@ app.delete(
 );
 ```
 
-Registers a `fastify-plugin`-style root plugin (`skip-override`) that decorates `request.permdock`. Denials are `403 application/problem+json`; anonymous callers get `401` plus `WWW-Authenticate`.
+Registers a `fastify-plugin`-style root plugin (`skip-override`) that decorates `request.permdock`. A route with `config: { permdock: false }` (a health check) builds no instance. Denials are `403 application/problem+json`; anonymous callers get `401` plus `WWW-Authenticate`.
 
 ## Elysia — `permdock/elysia`
 
@@ -204,13 +206,16 @@ Fetch-native plugin via `derive`. Denials are `403 application/problem+json`; an
 ```ts
 import { createPermDock } from "permdock/nest";
 
-export const { PermDockModule, PermDockGuard, Protect, InjectPermDock } =
-  createPermDock(policy, {
-    subject: (request) => request.user ?? null,
-  });
+export const { PermDockModule, Protect, InjectPermDock } = createPermDock(
+  policy,
+  { subject: (request) => request.user ?? null },
+);
+
+@Module({ imports: [PermDockModule.forRoot({ guard: "global" })] })
+export class AppModule {}
 ```
 
-Register `PermDockGuard` as `APP_GUARD` with `useExisting`. `Protect` attaches a permission (and optional loader) to a handler or class. Denials are `403 application/problem+json`; anonymous callers get `401` plus `WWW-Authenticate`. Works on `@nestjs/platform-express` and `@nestjs/platform-fastify`. `permdockHandler({ path: ':org/permdock' })` mounts the decision controller where you choose. In a gateway, call `connection(client, client.request, { permission })` in `handleConnection` and `.close()` in `handleDisconnect`; `PermDockGuard` then checks each `@SubscribeMessage` through it.
+`forRoot({ guard: 'global' })` registers `PermDockGuard` as `APP_GUARD`. `Protect` attaches a permission (and optional loader) to a handler or class; `Protect(null)` only requires a principal. Rules sharing one loader function run it once per request. Without decorator syntax (erasable TypeScript only), apply decorators with `decorateMethod(Controller, 'update', Patch(':id'), Protect(permissions.post.update))`. Denials are `403 application/problem+json`; anonymous callers get `401` plus `WWW-Authenticate`. Works on `@nestjs/platform-express` and `@nestjs/platform-fastify`. `permdockHandler({ path: ':org/permdock' })` mounts the decision controller where you choose. In a gateway, call `connection(client, client.request, { permission })` in `handleConnection` and `.close()` in `handleDisconnect`; `PermDockGuard` then checks each `@SubscribeMessage` through it.
 
 ## Node — `permdock/node`
 
@@ -271,7 +276,7 @@ import { permdockPlugin, Protected, usePermission } from "permdock/vue";
 createApp(App).use(permdockPlugin, { snapshot, endpoint: "/api/permdock" });
 ```
 
-Composables return refs (`allowed`, `status`, `decision`). Do not import `policy.ts` on the client.
+Composables return refs (`allowed`, `status`, `decision`). `PermissionBoundary` catches `PermDockDeniedError` and `PermDockApprovalRequiredError` thrown below it and renders its `denied` or `approval` slot. Do not import `policy.ts` on the client.
 
 ## Svelte — `permdock/svelte`
 
@@ -282,7 +287,7 @@ setPermDock({ snapshot, endpoint: "/api/permdock" });
 const canEdit = permission(permissions.post.update, () => post);
 ```
 
-Stores are readable (`$canEdit.allowed`). Do not import `policy.ts` on the client.
+Stores are readable (`$canEdit.allowed`). `<PermissionBoundary>` (Svelte 5.3 or later) renders its `denied` or `approval` snippet for a denial thrown below it. Do not import `policy.ts` on the client.
 
 ## Solid — `permdock/solid`
 
@@ -294,7 +299,7 @@ import { PermDockProvider, Protected, usePermission } from 'permdock/solid';
 </PermDockProvider>
 ```
 
-`usePermission` takes an accessor for instance data (`() => post`). Do not import `policy.ts` on the client.
+`usePermission` takes an accessor for instance data (`() => post`). `PermissionBoundary` renders its `denied` or `approval` prop for a denial thrown below it. Do not import `policy.ts` on the client.
 
 ## OpenTelemetry — `permdock/otel`
 
@@ -369,7 +374,7 @@ const permdock = await createPermDock(policy, subject, {
 });
 ```
 
-Pass the server `getSession` result only. A null session is anonymous. Never call `hasPermission` on the request path.
+Pass the server `getSession` result only. A null session is anonymous. Additional user fields reach `principal.claims` only through `schema`, because a user may edit their own. Memberships come from one `member` query through `auth.$context`. Never call `hasPermission` on the request path.
 
 ## Clerk — `permdock/clerk`
 
@@ -381,7 +386,7 @@ export const { getPermDock } = createPermDock(policy, {
 });
 ```
 
-Pass `auth()` or a verified session payload only. A plain `{ userId }` object is anonymous. `memberships: 'all'` loads organizations through the Clerk Backend API. `o:` plans and features from `pla` and `fea` hold only in the session organization.
+Pass `auth()` or a verified session payload only. A plain `{ userId }` object is anonymous. `memberships: 'all'` loads organizations through the Clerk Backend API; create `createClerkSubjectResolver({ memberships: 'all', backend, cache: { ttl: '10s' } })` once per process to cache each user's list (at most 30 seconds, so a removed membership grants until then). `o:` plans and features from `pla` and `fea` hold only in the session organization.
 
 ## Supabase — `permdock/supabase`
 
