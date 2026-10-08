@@ -134,6 +134,7 @@ export default defineConfig({
     "src/supabase/middleware.ts",
     "src/ssf/index.ts",
     "src/better-auth/index.ts",
+    "src/better-supabase/index.ts",
     "src/clerk/index.ts",
     "src/convex/index.ts",
     "src/pdp/index.ts",

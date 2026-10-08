@@ -36,6 +36,7 @@ catalog:
   "@vercel/analytics": 2.0.1
   "@vercel/speed-insights": 2.0.0
   valibot: 1.5.0
+  temporal-polyfill: 1.0.5
   "@changesets/assemble-release-plan": 7.0.0
   "@changesets/changelog-github": 1.0.1
   "@changesets/config": 4.0.1
@@ -180,6 +181,7 @@ catalogs:
     typescript: 6.0.3
   peers:
     "@anthropic-ai/claude-agent-sdk": ">=0.2"
+    better-supabase: ">=0.6.0 <0.7.0"
     "@modelcontextprotocol/server": ">=2"
     "@nestjs/common": ">=11"
     "@nestjs/core": ">=11"
