@@ -6,6 +6,13 @@ const Jwks = z.object({
 
 const read = (name: string): string | undefined => process.env[name];
 
+const LatencyMs = z.coerce.number().int().nonnegative();
+
+function latencyMs(raw = ""): number {
+  const parsed = LatencyMs.safeParse(raw);
+  return raw.trim() !== "" && parsed.success ? parsed.data : 3000;
+}
+
 /**
  * Server settings. The defaults let `next build` run without a database; the
  * serve script sets every value for `next start`. Nothing here is public.
@@ -23,4 +30,6 @@ export const env = {
   /** Only the `serve` build mints demo sessions, with the private half of the JWKS key. */
   demoSignIn: read("DEMO_SIGN_IN") === "1",
   signingKey: read("DEMO_SIGNING_JWK"),
+  /** Milliseconds every cached read waits; `0` turns the delay off. */
+  latencyMs: latencyMs(read("DEMO_LATENCY_MS")),
 };
