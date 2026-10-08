@@ -6,7 +6,7 @@ Minimal Svelte wiring for `permdock/svelte`: a Snapshot v3 built in the app, `se
 pnpm --filter @permdock/example-svelte dev
 ```
 
-Opens `http://127.0.0.1:3482/`. `Protected` shows `edit` for a member updating their own post and `locked` for publish.
+Opens `http://127.0.0.1:3482/`. `Protected` shows `edit` for a member updating their own post. The `permission` store shows `ask to delete`, because deleting needs approval. `PermissionBoundary` catches the publish panel's `assert` and shows `no post.publish`.
 
 ```ts
 import { Protected, permission, setPermDock } from "permdock/svelte";

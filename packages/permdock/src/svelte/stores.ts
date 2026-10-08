@@ -143,17 +143,27 @@ export function assignableFor(store: ClientStore): Readable<readonly Role[]> {
   return fromStore(store, () => store.get().assignableRoles());
 }
 
+type AssignableOptions =
+  | { readonly tenant?: string }
+  | (() => { readonly tenant?: string });
+
 export function assignablePermissions(
-  options: { readonly tenant?: string } = {},
+  options: AssignableOptions = {},
 ): Readable<readonly Permission[]> {
   return assignablePermissionsFor(getStore(), options);
 }
 
 export function assignablePermissionsFor(
   store: ClientStore,
-  options: { readonly tenant?: string } = {},
+  options: AssignableOptions = {},
 ): Readable<readonly Permission[]> {
-  return fromStore(store, () => store.get().assignablePermissions(options));
+  return fromStore(store, () =>
+    store
+      .get()
+      .assignablePermissions(
+        typeof options === "function" ? options() : options,
+      ),
+  );
 }
 
 export function subject(): Readable<SubjectView> {

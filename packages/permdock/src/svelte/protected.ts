@@ -2,6 +2,7 @@ import type { Snippet } from "svelte";
 
 import type { ProtectedView } from "../client/views.ts";
 import type { Decision } from "../core/decision.ts";
+import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permissions.ts";
 import type { ClientStore } from "../react/store.ts";
 
@@ -18,19 +19,27 @@ export type ProtectedProps = {
   readonly fallback?: Snippet<[Decision]>;
 };
 
+/** The instance for `tenant`, built once per store change rather than once per check. */
+export function scopedFor(
+  store: ClientStore,
+  tenant: string | undefined,
+  _generation?: number,
+): PermDock | undefined {
+  return tenant === undefined ? undefined : store.get().tenant(tenant);
+}
+
 export function protectedView(
   store: ClientStore,
   reference: Permission,
-  data?: unknown,
-  tenant?: string,
+  data: unknown,
+  scoped: PermDock | undefined,
   _generation?: number,
 ): ProtectedView {
-  const root = store.get();
   return viewOf(
     store.permissionState(reference, data),
-    root,
+    store.get(),
     reference,
     data,
-    tenant === undefined ? undefined : root.tenant(tenant),
+    scoped,
   );
 }

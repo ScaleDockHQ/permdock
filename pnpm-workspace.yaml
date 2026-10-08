@@ -207,7 +207,7 @@ catalogs:
     reflect-metadata: ">=0.1"
     rxjs: ">=7"
     "solid-js": ">=1.9"
-    svelte: ">=5"
+    svelte: ">=5.3"
     unplugin: ">=2"
     vitest: ">=3"
     vue: ">=3"

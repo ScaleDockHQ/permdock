@@ -1,9 +1,16 @@
-import { createComponent, createComputed, on, type JSX } from "solid-js";
+import {
+  createComponent,
+  createComputed,
+  on,
+  onCleanup,
+  type JSX,
+} from "solid-js";
 
 import type { Snapshot } from "../core/interfaces.ts";
 import type { PermDockProviderProps } from "./types.ts";
 
-import { adapterStore } from "../client/store-options.ts";
+import { adapterStore, liveOptions } from "../client/store-options.ts";
+import { compact } from "../core/compact.ts";
 import { emptySnapshot } from "../core/from-snapshot.ts";
 import { isPromiseLike } from "../react/source.ts";
 import { PermDockContext } from "./context.ts";
@@ -24,7 +31,38 @@ export function PermDockProvider(props: PermDockProviderProps): JSX.Element {
     : read === undefined
       ? (source as Snapshot | string)
       : read();
-  const store = adapterStore(props, initial ?? emptySnapshot());
+  const store = adapterStore(
+    compact({
+      endpoint: props.endpoint,
+      snapshotUrl: props.snapshotUrl,
+      approvals: props.approvals,
+      tenant: props.tenant,
+      maxAge: props.maxAge,
+      ...liveOptions(() => ({
+        headers: props.headers,
+        fetch: props.fetch,
+        verifier: props.verifier,
+      })),
+    }),
+    initial ?? emptySnapshot(),
+  );
+  createComputed(
+    on(
+      () => props.tenant,
+      (next) => {
+        if (next !== undefined) {
+          store
+            .get()
+            .refresh({ tenant: next })
+            .catch(() => undefined);
+        }
+      },
+      { defer: true },
+    ),
+  );
+  onCleanup(() => {
+    store.dispose();
+  });
   if (promised) {
     store.follow(source);
   } else if (read !== undefined) {

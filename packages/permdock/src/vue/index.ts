@@ -13,8 +13,11 @@ export {
   useSubject,
   useTenant,
 } from "./composables.ts";
+export type { PermissionBoundaryState } from "../client/boundary.ts";
+export { PermissionBoundary, usePermissionBoundary } from "./boundary.ts";
 export { permdockPlugin } from "./plugin.ts";
 export { Protected } from "./protected.ts";
+export type { ProtectedProps } from "./protected.ts";
 export type {
   ApprovalHandle,
   ApprovalState,

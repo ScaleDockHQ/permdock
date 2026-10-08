@@ -80,6 +80,7 @@ describe("server rendering from dist", () => {
       props: { snapshot, granted: read, denied: update },
     });
     granted(body);
+    expect(body).toContain("<s>function</s>");
   });
 
   it("permdock/solid renders through solid-js/web", async () => {

@@ -1,8 +1,20 @@
 import type { Snapshot } from "permdock";
 
-import { PermDockProvider, Protected } from "permdock/react";
+import { PermDockProvider, Protected, usePermission } from "permdock/react";
 
 import { ownPost, permissions } from "./permissions.ts";
+
+function DeleteButton() {
+  const { allowed, decision } = usePermission(permissions.post.delete, ownPost);
+  if (allowed) {
+    return <button type="button">delete</button>;
+  }
+  return (
+    <span>
+      {decision.outcome === "approval-required" ? "ask to delete" : "locked"}
+    </span>
+  );
+}
 
 export function App(props: { readonly snapshot: Snapshot }) {
   return (
@@ -21,6 +33,7 @@ export function App(props: { readonly snapshot: Snapshot }) {
       >
         <span>publish</span>
       </Protected>
+      <DeleteButton />
     </PermDockProvider>
   );
 }

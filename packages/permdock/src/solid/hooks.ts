@@ -1,4 +1,10 @@
-import { createMemo, createSignal, onCleanup, type Accessor } from "solid-js";
+import {
+  createMemo,
+  createSignal,
+  getOwner,
+  onCleanup,
+  type Accessor,
+} from "solid-js";
 
 import type { Decision } from "../core/decision.ts";
 import type { Permission } from "../core/permissions.ts";
@@ -27,6 +33,11 @@ import {
 import { useStore } from "./context.ts";
 
 function useVersion(store: ClientStore): Accessor<number> {
+  if (getOwner() === null) {
+    throw new Error(
+      "PermDock: call hooks inside a component or createRoot, which removes their store subscription.",
+    );
+  }
   const [tick, setTick] = createSignal(0);
   onCleanup(
     store.subscribe(() => {
@@ -105,10 +116,16 @@ export function useAssignableRoles(): Accessor<readonly Role[]> {
 }
 
 export function useAssignablePermissions(
-  options: { readonly tenant?: string } = {},
+  options:
+    | { readonly tenant?: string }
+    | Accessor<{ readonly tenant?: string }> = {},
 ): Accessor<readonly Permission[]> {
   const permdock = usePermDock();
-  return createMemo(() => permdock.assignablePermissions(options));
+  return createMemo(() =>
+    permdock.assignablePermissions(
+      typeof options === "function" ? options() : options,
+    ),
+  );
 }
 
 export function useSubject(): Accessor<SubjectView> {

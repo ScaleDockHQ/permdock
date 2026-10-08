@@ -36,7 +36,7 @@ permdock powersync verify [--db <url>] [--fixtures rls.fixtures.json]`;
 
 const DEFAULT_OUT = "sync-config.yaml";
 
-export function powersyncOut(config: PermDockConfig, out?: string): string {
+function powersyncOut(config: PermDockConfig, out?: string): string {
   return out ?? config.powersync?.out ?? DEFAULT_OUT;
 }
 

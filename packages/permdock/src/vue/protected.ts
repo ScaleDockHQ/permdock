@@ -1,4 +1,5 @@
 import {
+  computed,
   defineComponent,
   type DefineComponent,
   type PropType,
@@ -10,7 +11,7 @@ import type { Permission } from "../core/permissions.ts";
 import { protectedView } from "../client/views.ts";
 import { usePermission, usePermDock } from "./composables.ts";
 
-type ProtectedProps = {
+export type ProtectedProps = {
   readonly permission: Permission;
   readonly data?: unknown;
   readonly tenant?: string;
@@ -25,8 +26,8 @@ export const Protected: DefineComponent<ProtectedProps> = defineComponent({
       required: true,
     },
     data: {
-      // SAFETY: Vue's PropType idiom; unknown is the widest static type for any row.
-      type: Object as PropType<unknown>,
+      // SAFETY: Vue's PropType idiom; `null` skips the runtime type check, so a row of any type passes.
+      type: null as unknown as PropType<unknown>,
       required: false,
     },
     tenant: {
@@ -40,6 +41,9 @@ export const Protected: DefineComponent<ProtectedProps> = defineComponent({
       () => props.data,
     );
     const root = usePermDock();
+    const scoped = computed(() =>
+      props.tenant === undefined ? undefined : root.tenant(props.tenant),
+    );
     return (): VNode | VNode[] | string | null => {
       const view = protectedView(
         {
@@ -50,7 +54,7 @@ export const Protected: DefineComponent<ProtectedProps> = defineComponent({
         root,
         props.permission,
         props.data,
-        props.tenant === undefined ? undefined : root.tenant(props.tenant),
+        scoped.value,
       );
       switch (view.slot) {
         case "pending":

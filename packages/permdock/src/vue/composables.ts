@@ -1,5 +1,6 @@
 import {
   computed,
+  getCurrentScope,
   inject,
   onScopeDispose,
   shallowRef,
@@ -43,6 +44,11 @@ function useStore(): ClientStore {
 }
 
 function useTick(store: ClientStore): ComputedRef<ClientPermDock> {
+  if (getCurrentScope() === undefined) {
+    throw new Error(
+      "PermDock: call composables in setup() or an effectScope, which removes their store subscription.",
+    );
+  }
   const tick = shallowRef(0);
   onScopeDispose(
     store.subscribe(() => {
@@ -132,10 +138,10 @@ export function useAssignableRoles(): ComputedRef<readonly Role[]> {
 }
 
 export function useAssignablePermissions(
-  options: { readonly tenant?: string } = {},
+  options: MaybeRefOrGetter<{ readonly tenant?: string }> = {},
 ): ComputedRef<readonly Permission[]> {
   const permdock = useTick(useStore());
-  return computed(() => permdock.value.assignablePermissions(options));
+  return computed(() => permdock.value.assignablePermissions(toValue(options)));
 }
 
 export function useSubject(): ComputedRef<SubjectView> {

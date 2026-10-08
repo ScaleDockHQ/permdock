@@ -5,7 +5,8 @@ import type { Snapshot } from "../core/interfaces.ts";
 import type { ClientStore } from "../react/store.ts";
 import type { PermDockSvelteOptions } from "./types.ts";
 
-import { adapterStore } from "../client/store-options.ts";
+import { adapterStore, liveOptions } from "../client/store-options.ts";
+import { compact } from "../core/compact.ts";
 import { emptySnapshot } from "../core/from-snapshot.ts";
 import { isPromiseLike } from "../react/source.ts";
 
@@ -49,22 +50,59 @@ function connectSvelteStore(options: PermDockSvelteOptions): {
     // SAFETY: not a promise, function or store, so it is the plain Snapshot or string the option allows.
     initial = source as Snapshot | string;
   }
-  const store = adapterStore(options, initial);
+  const tenant = options.tenant;
+  const headers = options.headers;
+  const store = adapterStore(
+    compact({
+      endpoint: options.endpoint,
+      snapshotUrl: options.snapshotUrl,
+      approvals: options.approvals,
+      tenant: typeof tenant === "function" ? tenant() : tenant,
+      maxAge: options.maxAge,
+      ...liveOptions(() => ({
+        headers: typeof headers === "function" ? headers() : headers,
+        fetch: options.fetch,
+        verifier: options.verifier,
+      })),
+    }),
+    initial,
+  );
+  const stops: (() => void)[] = [];
   if (promised) {
     store.follow(source);
-    return { store, stop: () => undefined };
+  } else if (reactive !== undefined) {
+    let current = initial;
+    stops.push(
+      reactive.subscribe((value) => {
+        if (value !== current) {
+          current = value;
+          store.replace(value);
+        }
+      }),
+    );
   }
-  if (reactive === undefined) {
-    return { store, stop: () => undefined };
+  if (typeof tenant === "function") {
+    let active = tenant();
+    stops.push(
+      toStore(tenant).subscribe((next) => {
+        if (next !== undefined && next !== active) {
+          active = next;
+          store
+            .get()
+            .refresh({ tenant: next })
+            .catch(() => undefined);
+        }
+      }),
+    );
   }
-  let current = initial;
-  const stop = reactive.subscribe((value) => {
-    if (value !== current) {
-      current = value;
-      store.replace(value);
-    }
-  });
-  return { store, stop };
+  return {
+    store,
+    stop: () => {
+      for (const stop of stops) {
+        stop();
+      }
+    },
+  };
 }
 
 export function createSvelteStore(options: PermDockSvelteOptions): ClientStore {
@@ -73,7 +111,10 @@ export function createSvelteStore(options: PermDockSvelteOptions): ClientStore {
 
 export function providePermDock(options: PermDockSvelteOptions): ClientStore {
   const { store, stop } = connectSvelteStore(options);
-  onDestroy(stop);
+  onDestroy(() => {
+    stop();
+    store.dispose();
+  });
   setContext(permDockKey, store);
   return store;
 }

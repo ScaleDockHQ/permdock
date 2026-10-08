@@ -1,7 +1,9 @@
 import type { Component } from "svelte";
 
+import type { PermissionBoundaryProps } from "./boundary.ts";
 import type { ProtectedProps } from "./protected.ts";
 
+import PermissionBoundaryComponent from "./PermissionBoundary.svelte";
 import ProtectedComponent from "./Protected.svelte";
 
 export { describe, requiredPlans } from "../core/describe.ts";
@@ -34,6 +36,13 @@ export type {
   UseRolesOptions,
 } from "./types.ts";
 
+export type {
+  PermissionBoundaryProps,
+  PermissionBoundaryState,
+} from "./boundary.ts";
 export type { ProtectedProps } from "./protected.ts";
 
 export const Protected: Component<ProtectedProps> = ProtectedComponent;
+
+export const PermissionBoundary: Component<PermissionBoundaryProps> =
+  PermissionBoundaryComponent;
