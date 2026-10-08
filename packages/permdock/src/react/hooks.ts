@@ -92,31 +92,50 @@ export function useFilter<T>(
 }
 
 export function useTenant(): TenantView {
-  return tenantView(usePermDock());
+  const permdock = usePermDock();
+  return useMemo(() => tenantView(permdock), [permdock]);
 }
 
 export function useMemberships(): readonly Membership[] {
-  return usePermDock().memberships();
+  const permdock = usePermDock();
+  return useMemo(() => permdock.memberships(), [permdock]);
 }
 
 export function useRoles(options: UseRolesOptions = {}): {
   readonly roles: readonly Role[];
 } {
-  return rolesView(usePermDock(), options);
+  const permdock = usePermDock();
+  const { tenant, team } = options;
+  return useMemo(
+    () =>
+      rolesView(permdock, {
+        ...(tenant === undefined ? {} : { tenant }),
+        ...(team === undefined ? {} : { team }),
+      }),
+    [permdock, tenant, team],
+  );
 }
 
 export function useAssignableRoles(): readonly Role[] {
-  return usePermDock().assignableRoles();
+  const permdock = usePermDock();
+  return useMemo(() => permdock.assignableRoles(), [permdock]);
 }
 
 export function useAssignablePermissions(
   options: { readonly tenant?: string } = {},
 ): readonly Permission[] {
-  return usePermDock().assignablePermissions(options);
+  const permdock = usePermDock();
+  const { tenant } = options;
+  return useMemo(
+    () =>
+      permdock.assignablePermissions(tenant === undefined ? {} : { tenant }),
+    [permdock, tenant],
+  );
 }
 
 export function useSubject(): SubjectView {
-  return subjectView(usePermDock());
+  const permdock = usePermDock();
+  return useMemo(() => subjectView(permdock), [permdock]);
 }
 
 export function useApproval(decision: Decision): ApprovalHandle {

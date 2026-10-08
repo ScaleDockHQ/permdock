@@ -223,6 +223,8 @@ export function evaluateSnapshot(
   data: unknown,
   team: string | undefined,
   options: DecideOptions,
+  // `can()` reads only the outcome: the decision is neither frozen nor given a token.
+  outcomeOnly = false,
 ): Decision {
   let clock = options.now;
   const now = (): number => (clock ??= nowSeconds());
@@ -231,19 +233,21 @@ export function evaluateSnapshot(
       ? { evaluated: 0, allows: [], denies: [], skipped: [] }
       : undefined;
   const done = (decision: Decision): Decision =>
-    freezeDeep(
-      tracer === undefined
-        ? decision
-        : {
-            ...decision,
-            trace: {
-              evaluated: tracer.evaluated,
-              allows: tracer.allows,
-              denies: tracer.denies,
-              skipped: tracer.skipped,
-            },
-          },
-    );
+    outcomeOnly
+      ? decision
+      : freezeDeep(
+          tracer === undefined
+            ? decision
+            : {
+                ...decision,
+                trace: {
+                  evaluated: tracer.evaluated,
+                  allows: tracer.allows,
+                  denies: tracer.denies,
+                  skipped: tracer.skipped,
+                },
+              },
+        );
   const skip = (grant: SnapshotGrant, why: TraceSkipReason): void => {
     tracer?.skipped.push({
       role: grant.role,
@@ -437,17 +441,19 @@ export function evaluateSnapshot(
     permission.kind === "collection"
       ? "*"
       : rowIdOf(current, snapshot.ids?.[permission.resource]);
-  const token = decisionToken({
-    key: permission.key,
-    resourceId,
-    principal: subject.principal,
-    actor: subject.actor,
-    fingerprint: `snapshot:${String(snapshot.issuedAt)}`,
-    payload:
-      resourceId === "*" && (next ?? current) !== undefined
-        ? payloadDigest(next ?? current)
-        : undefined,
-  });
+  const token = outcomeOnly
+    ? ""
+    : decisionToken({
+        key: permission.key,
+        resourceId,
+        principal: subject.principal,
+        actor: subject.actor,
+        fingerprint: `snapshot:${String(snapshot.issuedAt)}`,
+        payload:
+          resourceId === "*" && (next ?? current) !== undefined
+            ? payloadDigest(next ?? current)
+            : undefined,
+      });
   const grant = matchedOf(matched);
   if (requiresApproval(matched.approval)) {
     return done({

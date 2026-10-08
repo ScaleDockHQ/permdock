@@ -216,6 +216,7 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
   const reset = (): void => {
     generation += 1;
     answers.clear();
+    decided.clear();
     queued = [];
   };
 
@@ -410,24 +411,52 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
     scheduleFlush();
   };
 
-  const permissionState = (
-    permission: Permission,
-    data?: unknown,
-  ): PermissionState => {
-    const key = `${tenant ?? ""}|${cacheKey(snapshot, permission, data)}`;
-    const hit = answers.get(key);
+  // One render pass checks the same row from many components; the decisions
+  // live until the next microtask, so a grant's validity window or a mutated
+  // row is never answered from an older evaluation.
+  const decided = new Map<unknown, Map<string, Decision>>();
+  let decidedClear = false;
+
+  const decideLocal = (permission: Permission, data: unknown): Decision => {
+    let byKey = decided.get(data);
+    const hit = byKey?.get(permission.key);
     if (hit !== undefined) {
-      return {
-        allowed: hit.decision.outcome === "granted",
-        status: hit.status,
-        decision: hit.decision,
-      };
+      return hit;
     }
     // SAFETY: decide's instance and collection overloads share one implementation that takes either kind.
     const decision = (
       instance.decide as (next: Permission, row?: unknown) => Decision
     )(permission, data);
+    if (byKey === undefined) {
+      byKey = new Map();
+      decided.set(data, byKey);
+    }
+    byKey.set(permission.key, decision);
+    if (!decidedClear) {
+      decidedClear = true;
+      queueMicrotask(() => {
+        decidedClear = false;
+        decided.clear();
+      });
+    }
+    return decision;
+  };
+
+  const permissionState = (
+    permission: Permission,
+    data?: unknown,
+  ): PermissionState => {
+    const decision = decideLocal(permission, data);
     if (needsEndpoint(decision)) {
+      const key = `${tenant ?? ""}|${cacheKey(snapshot, permission, data)}`;
+      const hit = answers.get(key);
+      if (hit !== undefined) {
+        return {
+          allowed: hit.decision.outcome === "granted",
+          status: hit.status,
+          decision: hit.decision,
+        };
+      }
       if (server && options.endpoint !== undefined) {
         return { allowed: false, status: "pending", decision: SERVER_ONLY };
       }

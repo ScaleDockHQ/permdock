@@ -461,6 +461,21 @@ describe("createClientStore endpoint evaluations", () => {
     );
   });
 
+  it("reuses a local decision only within one render pass", async () => {
+    const store = createClientStore({
+      snapshot: await memberSnapshot(),
+      server: false,
+    });
+    const first = store.permissionState(permissions.post.read, ownPost);
+    expect(store.permissionState(permissions.post.read, ownPost).decision).toBe(
+      first.decision,
+    );
+    await settle();
+    expect(
+      store.permissionState(permissions.post.read, ownPost).decision,
+    ).not.toBe(first.decision);
+  });
+
   it("keys rows without an id by their content", async () => {
     const bodies: { evaluations: unknown[] }[] = [];
     const store = createClientStore({

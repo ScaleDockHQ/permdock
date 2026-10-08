@@ -80,7 +80,17 @@ export function fromSnapshot(
     decideOptions?: DecideOptions,
   ): boolean => {
     try {
-      return run(permission, data, decideOptions).outcome === "granted";
+      return (
+        evaluateSnapshot(
+          snapshot,
+          subject,
+          permission,
+          data,
+          team,
+          decideOptions ?? {},
+          true,
+        ).outcome === "granted"
+      );
     } catch {
       return false;
     }
