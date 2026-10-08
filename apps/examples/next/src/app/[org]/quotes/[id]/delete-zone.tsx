@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/card.tsx";
 import { Skeleton } from "@/components/ui/skeleton.tsx";
 
-import { findQuote } from "../../../../lib/store.ts";
+import { getQuote } from "../../../../lib/access.ts";
 import { getPermDock } from "../../../../permdock/server.ts";
 import { permissions } from "../../../../permissions.ts";
 import { deleteQuote } from "../../../actions.ts";
@@ -35,8 +35,8 @@ export async function DeleteZone(props: {
   readonly params: Promise<{ readonly org: string; readonly id: string }>;
 }) {
   const { org, id } = await props.params;
-  const [quote, permdock] = await Promise.all([
-    findQuote(org, id),
+  const [{ value: quote }, permdock] = await Promise.all([
+    getQuote(org, id),
     getPermDock({ tenant: org }),
   ]);
   if (quote === null) {

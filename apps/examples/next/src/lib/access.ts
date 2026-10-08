@@ -50,6 +50,17 @@ export async function getStaff(
   return loaded;
 }
 
+export async function getQuote(
+  organization: string,
+  id: string,
+): Promise<Loaded<Quote | null>> {
+  "use cache";
+  cacheTag(orgTag(organization));
+  cacheLife("hours");
+  const loaded = await timed(findQuote(organization, id));
+  return loaded;
+}
+
 /**
  * Private layer: the session's snapshot for one organization. `getSnapshot`
  * sets `stale` from the snapshot (at least 30 s, so per-link prefetches carry
@@ -69,10 +80,12 @@ export async function visibleQuotes(
   organization: string,
 ): Promise<Loaded<Quote[]>> {
   "use cache: private";
-  const permdock = await getPermDock({ tenant: organization });
+  const [permdock, quotes] = await Promise.all([
+    getPermDock({ tenant: organization }),
+    getQuotes(organization),
+  ]);
   cacheLife({ stale: 300 });
   cacheTag(snapshotTag(permdock.subject.principal?.id), orgTag(organization));
-  const quotes = await getQuotes(organization);
   return {
     ...quotes,
     value: permdock.filter(permissions.quote.read, quotes.value),
@@ -87,16 +100,20 @@ export type QuoteAccess = {
 /**
  * Keyed on the quote id, so a `<Link prefetch={true}>` to the quote resolves
  * its gated actions before the click. A quote the session may not read is null.
+ * The server never stores a private result, so every prefetch re-runs this
+ * function; the row read stays in `getQuote` to keep it off the store.
  */
 export async function quoteAccess(
   organization: string,
   id: string,
 ): Promise<Loaded<QuoteAccess>> {
   "use cache: private";
-  const permdock = await getPermDock({ tenant: organization });
+  const [permdock, loaded] = await Promise.all([
+    getPermDock({ tenant: organization }),
+    getQuote(organization, id),
+  ]);
   cacheLife({ stale: 300 });
   cacheTag(snapshotTag(permdock.subject.principal?.id), orgTag(organization));
-  const loaded = await timed(findQuote(organization, id));
   const quote = loaded.value;
   if (quote === null || !permdock.can(permissions.quote.read, quote)) {
     return { ...loaded, value: { quote: null, approve: false } };

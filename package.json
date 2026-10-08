@@ -36,7 +36,7 @@
     "size": "turbo run size",
     "standards:fixtures": "node scripts/fetch-standards-fixtures.ts && oxfmt packages/permdock/tests/fixtures/standards",
     "test": "turbo run test",
-    "test:instant": "turbo run test:instant",
+    "test:instant": "turbo run test:instant --concurrency=1",
     "test:integration": "pnpm --filter @permdock/integration test:integration",
     "test:nest-11": "scripts/test-nest-11.sh",
     "test:runtimes": "pnpm --filter @permdock/runtimes test:runtimes",

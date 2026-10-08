@@ -2,6 +2,7 @@ import { instant } from "@next/playwright";
 import { expect, test } from "@playwright/test";
 
 import { signIn } from "./session.ts";
+import { settlePrefetches } from "./warm.ts";
 
 test.beforeEach(async ({ page }) => {
   await signIn(page, "olivia");
@@ -17,6 +18,7 @@ test("a quote link arrives with the quote and its actions", async ({
     .locator('[data-quote="q-101"]')
     .filter({ visible: true });
   await expect(trigger).toBeVisible();
+  await settlePrefetches(page);
   await instant(page, async () => {
     await trigger.click();
     await expect(
@@ -35,6 +37,7 @@ test("the Members link arrives with the member list", async ({ page }) => {
     .locator('[data-nav="members"]')
     .filter({ visible: true });
   await expect(trigger).toBeVisible();
+  await settlePrefetches(page);
   await instant(page, async () => {
     await trigger.click();
     await expect(
