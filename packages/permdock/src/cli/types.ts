@@ -34,6 +34,7 @@ export type RlsMembershipTable = {
   readonly team?: string;
   readonly id?: string;
   readonly expiresAt?: string;
+  readonly disabledAt?: string;
   /**
    * The membership kind (`Membership.via`) roles with `for` match: a column
    * holding it, or `{ value }` when every row has the same kind.
@@ -73,11 +74,16 @@ export type RlsSuspendedScope = RlsActiveRow & {
   readonly keep?: readonly (string | { readonly key: string })[];
 };
 
+export type RlsSuspendedMembership = {
+  readonly keep?: readonly (string | { readonly key: string })[];
+};
+
 export type RlsSuspension = {
   /** A suspended user holds no role and no membership. */
   readonly users?: RlsActiveRow;
   /** Per scope name: a suspended instance voids its memberships and every membership nested under it, except for `keep`. */
   readonly scopes?: Readonly<Record<string, RlsSuspendedScope>>;
+  readonly memberships?: RlsSuspendedMembership;
 };
 
 export type RlsFunctionMapping = {

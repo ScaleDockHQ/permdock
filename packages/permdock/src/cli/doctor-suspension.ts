@@ -12,18 +12,43 @@ import { policyOf } from "./doctor-collect.ts";
 export async function pd061(
   input: DoctorInput,
 ): Promise<readonly DoctorFinding[]> {
-  const scopes = Object.entries(input.config.rls?.suspension?.scopes ?? {});
-  const kept = scopes.flatMap(
-    ([scope, row]): {
-      readonly scope: string;
+  const suspension = input.config.rls?.suspension;
+  const entries: readonly {
+    readonly path: string;
+    readonly who: string;
+    readonly row: Parameters<typeof keptKeys>[0];
+  }[] = [
+    ...Object.entries(suspension?.scopes ?? {}).map(([scope, row]) => ({
+      path: `scopes.${scope}`,
+      who: `members of a suspended ${scope}`,
+      row,
+    })),
+    ...(suspension?.memberships === undefined
+      ? []
+      : [
+          {
+            path: "memberships",
+            who: "suspended memberships",
+            row: suspension.memberships,
+          },
+        ]),
+  ];
+  const kept = entries.flatMap(
+    (
+      entry,
+    ): {
+      readonly path: string;
+      readonly who: string;
       readonly keys: readonly string[];
       readonly invalid?: true;
     }[] => {
       try {
-        const keys = keptKeys(row);
-        return keys.length === 0 ? [] : [{ scope, keys }];
+        const keys = keptKeys(entry.row);
+        return keys.length === 0
+          ? []
+          : [{ path: entry.path, who: entry.who, keys }];
       } catch {
-        return [{ scope, keys: [], invalid: true }];
+        return [{ path: entry.path, who: entry.who, keys: [], invalid: true }];
       }
     },
   );
@@ -47,7 +72,7 @@ export async function pd061(
         {
           code: "PD061",
           severity: "warning",
-          message: `rls.suspension.scopes.${item.scope}.keep has an entry that is neither a permission nor a permission key, so generate refuses it`,
+          message: `rls.suspension.${item.path}.keep has an entry that is neither a permission nor a permission key, so generate refuses it`,
           fix: "list permission references or their keys in keep",
         },
       ];
@@ -56,8 +81,11 @@ export async function pd061(
       {
         code: "PD061",
         severity: "warning",
-        message: `members of a suspended ${item.scope} still hold ${item.keys.join(", ")}`,
-        fix: `keep only what a suspended ${item.scope} must still do, such as restoring it or cancelling its deletion, in rls.suspension.scopes.${item.scope}.keep`,
+        message: `${item.who} still hold ${item.keys.join(", ")}`,
+        fix:
+          item.path === "memberships"
+            ? "keep only what a suspended member must still do, such as leaving or exporting their own data, in rls.suspension.memberships.keep"
+            : `keep only what a suspended ${item.path.slice("scopes.".length)} must still do, such as restoring it or cancelling its deletion, in rls.suspension.${item.path}.keep`,
       },
     ];
     if (policy === undefined) {
@@ -68,7 +96,7 @@ export async function pd061(
       findings.push({
         code: "PD061",
         severity: "warning",
-        message: `rls.suspension.scopes.${item.scope}.keep names ${unknown
+        message: `rls.suspension.${item.path}.keep names ${unknown
           .map((key) =>
             former.has(key)
               ? `${key} (renamed to ${String(former.get(key))})`
@@ -76,7 +104,7 @@ export async function pd061(
           )
           .join(
             ", ",
-          )}, which the definitions do not declare, so a suspended ${item.scope} keeps nothing for them`,
+          )}, which the definitions do not declare, so a suspended ${item.path === "memberships" ? "membership" : item.path.slice("scopes.".length)} keeps nothing for them`,
         fix: "keep permission references instead of keys, or replace each key with its current name",
       });
     }

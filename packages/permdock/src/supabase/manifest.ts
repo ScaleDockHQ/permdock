@@ -111,6 +111,7 @@ export type SupabaseManifestMembership = {
     | { readonly columns: Readonly<Record<string, string>> };
   readonly via?: SupabaseManifestValue;
   readonly expiresAt?: SupabaseManifestColumn;
+  readonly disabledAt?: SupabaseManifestColumn;
   /** The columns of `table` that decide the membership. */
   readonly columns: readonly string[];
 };
@@ -178,6 +179,7 @@ export type SupabaseManifestRls = {
   readonly suspension?: {
     readonly users?: SupabaseManifestActiveRow;
     readonly scopes?: Readonly<Record<string, SupabaseManifestActiveRow>>;
+    readonly memberships?: { readonly keep: readonly string[] };
   };
   /**
    * `rls.assignments`: the tables whose client writes the assignment

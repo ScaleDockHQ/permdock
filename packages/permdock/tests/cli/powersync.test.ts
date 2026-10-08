@@ -270,7 +270,7 @@ describe("powersync streams", () => {
       { resource: "ghost", reason: "no grant of ghost.read" },
     ]);
     expect(plan.warnings).toContain(
-      "admin/job.read does not sync: no rls.memberships table without an expiry and with the kinds of admin for scope organization",
+      "admin/job.read does not sync: no rls.memberships table without an expiry or disabledAt and with the kinds of admin for scope organization",
     );
     expect(plan.warnings).toContain(
       "editor/file.read does not sync: no rls.memberships.resource table for folder on the row",
@@ -335,10 +335,33 @@ describe("powersync streams", () => {
       },
     });
     expect(expiring.warnings).toContain(
-      "contractor/job.read does not sync: no rls.memberships table without an expiry and with the kinds of contractor for scope organization",
+      "contractor/job.read does not sync: no rls.memberships table without an expiry or disabledAt and with the kinds of contractor for scope organization",
     );
     expect(expiring.warnings).toContain(
-      "editor/folder.read does not sync: the folder memberships table has an expiry or lacks via",
+      "editor/folder.read does not sync: the folder memberships table has an expiry or disabledAt, or lacks via",
+    );
+  });
+
+  it("leaves out memberships that can be suspended", () => {
+    const suspendable = powersyncPlan(policy, {
+      ...config,
+      rls: {
+        ...config.rls,
+        memberships: {
+          resource: {
+            folder: {
+              table: "folder_members",
+              user: "user_id",
+              role: "role",
+              id: "folder_id",
+              disabledAt: "disabled_at",
+            },
+          },
+        },
+      },
+    });
+    expect(suspendable.warnings).toContain(
+      "editor/folder.read does not sync: the folder memberships table has an expiry or disabledAt, or lacks via",
     );
   });
 

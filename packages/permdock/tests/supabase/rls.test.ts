@@ -180,3 +180,28 @@ describe("authorizeSql", () => {
     ).toBe(3);
   });
 });
+
+describe("authorizeSql membership suspension", () => {
+  const tenant = {
+    table: "memberships",
+    user: "user_id",
+    role: "role",
+    tenant: "tenant_id",
+    disabledAt: "disabled_at",
+  };
+
+  it("drops a disabled tenant membership in database mode", () => {
+    const sql = authorizeSql({ tenant });
+    expect(sql).toContain('and m."disabled_at" is null');
+  });
+
+  it("answers a kept permission from a disabled membership", () => {
+    const suspension = { memberships: { keep: ["tenant.export"] } };
+    expect(authorizeSql({ tenant, suspension })).toContain(
+      `and (m."disabled_at" is null or requested_permission::text = any(array['tenant.export']::text[]))`,
+    );
+    expect(authorizeSql({ authorize: "jwt", suspension })).toContain(
+      "when 'array' then m -> 'keep' @> jsonb_build_array(requested_permission::text)",
+    );
+  });
+});

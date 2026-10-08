@@ -44,6 +44,7 @@ export type SupabaseMembershipTable = {
   readonly team?: string;
   readonly id?: string;
   readonly expiresAt?: string;
+  readonly disabledAt?: string;
 };
 
 /** A table whose row says whether a user or a scope instance is active. A missing row counts as suspended. */
@@ -68,11 +69,16 @@ export type SupabaseSuspendedScope = SupabaseActiveRow & {
   readonly keep?: readonly (string | { readonly key: string })[];
 };
 
+export type SupabaseSuspendedMembership = {
+  readonly keep?: readonly (string | { readonly key: string })[];
+};
+
 export type SupabaseSuspension = {
   /** A suspended user holds no role and no membership. */
   readonly users?: SupabaseActiveRow;
   /** Per scope name: a suspended instance voids its memberships and every membership nested under it, except for `keep`. */
   readonly scopes?: Readonly<Record<string, SupabaseSuspendedScope>>;
+  readonly memberships?: SupabaseSuspendedMembership;
 };
 
 type SupabaseMemberships = {

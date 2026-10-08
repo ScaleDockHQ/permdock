@@ -268,7 +268,7 @@ function membershipIn(
   roles: readonly string[],
   ctx: Ctx,
 ): readonly (readonly string[])[] | undefined {
-  if (table.expiresAt !== undefined) {
+  if (table.expiresAt !== undefined || table.disabledAt !== undefined) {
     return undefined;
   }
   const name = bare(table.table);
@@ -354,7 +354,7 @@ function accessSql(
           [access.role],
           ctx,
         ) ??
-        `no rls.memberships table without an expiry and with the kinds of ${access.role} for scope ${access.scope}`
+        `no rls.memberships table without an expiry or disabledAt and with the kinds of ${access.role} for scope ${access.scope}`
       );
     }
     case "resource": {
@@ -377,7 +377,7 @@ function accessSql(
           [access.role],
           ctx,
         ) ??
-        `the ${access.resource} memberships table has an expiry or lacks via`
+        `the ${access.resource} memberships table has an expiry or disabledAt, or lacks via`
       );
     }
     case "actor":

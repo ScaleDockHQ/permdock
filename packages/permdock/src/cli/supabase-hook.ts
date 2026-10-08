@@ -403,6 +403,7 @@ function mappedMembership(
     ...Object.values(within),
     ...(typeof mapped.via === "string" ? [mapped.via] : []),
     ...(mapped.expiresAt === undefined ? [] : [mapped.expiresAt]),
+    ...(mapped.disabledAt === undefined ? [] : [mapped.disabledAt]),
   ];
   return {
     table: mapped.table.includes(".") ? mapped.table : `public.${mapped.table}`,
@@ -424,6 +425,9 @@ function mappedMembership(
     ...(mapped.expiresAt === undefined
       ? {}
       : { expiresAt: { column: mapped.expiresAt } }),
+    ...(mapped.disabledAt === undefined
+      ? {}
+      : { disabledAt: { column: mapped.disabledAt } }),
     columns: [...new Set(columns)],
   };
 }
@@ -1770,6 +1774,11 @@ function rlsSettings(
                   scopes: Object.fromEntries(
                     scopes.map(([name, row]) => [name, activeRowManifest(row)]),
                   ),
+                }),
+            ...(suspension.memberships === undefined
+              ? {}
+              : {
+                  memberships: { keep: keptKeys(suspension.memberships) },
                 }),
           },
         }),

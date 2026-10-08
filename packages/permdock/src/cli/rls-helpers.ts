@@ -15,10 +15,13 @@ import {
 } from "./rls-api-keys.ts";
 import {
   activeInstancesSql,
+  activeMembershipSql,
   activeUserSql,
+  disabledKeep,
   globalKindFilterSql,
   grantPermissionSql,
   hasMemberFor,
+  keptRowSql,
   keyTenantSql,
   kindFilterSql,
   memberForHelper,
@@ -484,6 +487,24 @@ export function memberColumn(name: string): string {
   return `m.${quoteIdent(name)}`;
 }
 
+export function disabledColumn(table: {
+  readonly disabledAt?: string;
+}): string | undefined {
+  return table.disabledAt === undefined
+    ? undefined
+    : memberColumn(table.disabledAt);
+}
+
+export function claimKeptLines(
+  ctx: RlsSqlContext,
+  indent: string,
+  permission?: CheckedPermission,
+): string[] {
+  return disabledKeep(ctx).length === 0
+    ? []
+    : [`${indent}and ${keptRowSql("m -> 'keep'", permission)}`];
+}
+
 /** Entries of a compact custom-role claim (`cg.g`) that match `where`. */
 function claimEntries(where: string, value: string): string {
   return `array(select ${value} from jsonb_array_elements_text(cg.g) e where ${where})`;
@@ -533,6 +554,13 @@ function tableBody(ctx: RlsSqlContext, scope: string, type: string): string {
       const expires = memberColumn(table.expiresAt);
       filters.push(`    and (${expires} is null or ${expires} > now())`);
     }
+    filters.push(
+      ...activeMembershipSql(
+        ctx,
+        disabledColumn(table),
+        grantPermissionSql(grant),
+      ).map((part) => `    and ${part}`),
+    );
     if (tenantColumn !== undefined && ctx.tenants !== "all") {
       filters.push(
         `    and (${activeTenant(ctx)} is null or ${memberColumn(tenantColumn)}::text = ${activeTenant(ctx)})`,
@@ -637,6 +665,7 @@ function claimBody(ctx: RlsSqlContext, scope: string, type: string): string {
       when 'number' then (m ->> 'expiresAt')::numeric > extract(epoch from now())
       else true
     end${[
+      ...claimKeptLines(ctx, "    ", grantPermissionSql(grant)),
       ...userActive(ctx, "    "),
       ...instancesActive(
         ctx,
@@ -997,8 +1026,12 @@ function renamesSql(renames: readonly (readonly [string, string])[]): {
  * (`scope`, `id`, `within`, `roles`, `via`), with each source's own expiry
  * and suspension filters: the statements the token hook runs.
  */
+export function sourcesKeep(sources: readonly SqlMembershipSource[]): boolean {
+  return sources.some((source) => source.sql.keeps);
+}
+
 function sourceRows(sources: readonly SqlMembershipSource[]): string {
-  const keep = sources.some((source) => source.sql.keeps);
+  const keep = sourcesKeep(sources);
   return sources
     .map((source, index) =>
       source.sql.select(sourceUser(index), keep).replaceAll(/^/gmu, "    "),
@@ -1077,8 +1110,10 @@ export function sourceFilters(
   scope: string,
   user: string = subjectIdSql(ctx),
   permission?: CheckedPermission,
+  keeps = false,
 ): string {
   return [
+    ...(keeps ? [`    and ${keptRowSql("ms.keep", permission)}`] : []),
     ...userActive(ctx, "    ", user),
     ...instancesActive(ctx, scope, sourceIdOf(scope), "    ", permission),
   ]
@@ -1105,7 +1140,7 @@ ${rows}
   join ${qualified(ctx, "role_permissions")} rp on rp.role = r.role
   where ${signedIn(ctx)}
     and ms.scope = ${quoteLiteral(scope)}${set ? "" : "\n    and rp.grant_key = p_grant"}
-    and rp.scope = ${quoteLiteral(scope)}${andLine("    ", kindFilterSql(ctx, "r.role", "ms.via"))}${narrow}${sourceFilters(ctx, scope, subjectIdSql(ctx), grantPermissionSql(set ? "rp.grant_key" : "p_grant"))}`;
+    and rp.scope = ${quoteLiteral(scope)}${andLine("    ", kindFilterSql(ctx, "r.role", "ms.via"))}${narrow}${sourceFilters(ctx, scope, subjectIdSql(ctx), grantPermissionSql(set ? "rp.grant_key" : "p_grant"), sourcesKeep(sources))}`;
   const custom = ctx.customRoles;
   if (custom === undefined) {
     return sourcesBodyOf(declared, sources, subjectIdSql(ctx));
@@ -1134,7 +1169,7 @@ ${customKeysJoin(
 )}
   where ${signedIn(ctx)}
     and ms.scope = ${quoteLiteral(scope)}
-    and not (r.role = any(${textArray(custom.declared)}))${narrow}${sourceFilters(ctx, scope, subjectIdSql(ctx), grantPermissionSql("ck.grant_key"))}`,
+    and not (r.role = any(${textArray(custom.declared)}))${narrow}${sourceFilters(ctx, scope, subjectIdSql(ctx), grantPermissionSql("ck.grant_key"), sourcesKeep(sources))}`,
       sources,
       subjectIdSql(ctx),
     );
@@ -1146,7 +1181,7 @@ ${customKeysJoin(
 ${rows}
   where ${signedIn(ctx)}
     and ms.scope = ${quoteLiteral(scope)}
-    and not (r.role = any(${textArray(custom.declared)}))${narrow}${sourceFilters(ctx, scope, subjectIdSql(ctx), grantPermissionSql("p_grant"))}
+    and not (r.role = any(${textArray(custom.declared)}))${narrow}${sourceFilters(ctx, scope, subjectIdSql(ctx), grantPermissionSql("p_grant"), sourcesKeep(sources))}
 ${customKeysSql(
   ctx,
   scope,
@@ -1188,6 +1223,7 @@ function memberBody(ctx: RlsSqlContext, scope: string, type: string): Body {
       when 'number' then (m ->> 'expiresAt')::numeric > extract(epoch from now())
       else true
     end${[
+      ...claimKeptLines(ctx, "    "),
       ...userActive(ctx, "    "),
       ...instancesActive(
         ctx,
@@ -1236,7 +1272,7 @@ ${sourceRows(sources)}
   where ${signedIn(ctx, user)}
     and ms.scope = ${quoteLiteral(scope)}
     and jsonb_typeof(ms.roles) = 'array'
-    and jsonb_array_length(ms.roles) > 0${narrow}${sourceFilters(ctx, scope, user)}`,
+    and jsonb_array_length(ms.roles) > 0${narrow}${sourceFilters(ctx, scope, user, undefined, sourcesKeep(sources))}`,
       sources,
       user,
     );
@@ -1269,6 +1305,9 @@ ${sourceRows(sources)}
     lines.push(`    and (${expires} is null or ${expires} > now())`);
   }
   lines.push(
+    ...activeMembershipSql(ctx, disabledColumn(table), undefined).map(
+      (part) => `    and ${part}`,
+    ),
     ...userActive(ctx, "    ", user),
     ...instancesActive(
       ctx,

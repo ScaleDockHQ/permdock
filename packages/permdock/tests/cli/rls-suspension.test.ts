@@ -282,6 +282,106 @@ describe("rls.suspension keep", () => {
   });
 });
 
+describe("rls.suspension.memberships", () => {
+  const DISABLED = {
+    scopes: {
+      organization: {
+        ...MEMBERSHIPS.scopes.organization,
+        disabledAt: "disabled_at",
+      },
+      customer: { ...MEMBERSHIPS.scopes.customer, disabledAt: "disabled_at" },
+    },
+  };
+
+  it("drops a disabled membership in database mode", async () => {
+    const { code, sql } = await generate({
+      dialect: "supabase",
+      tenantType: "text",
+      authorize: "database",
+      memberships: DISABLED,
+    });
+    expect(code).toBe(0);
+    expect(helper(sql, "permitted_organization_ids")).toContain(
+      'and m."disabled_at" is null',
+    );
+    expect(helper(sql, "member_customer_ids")).toContain(
+      'and m."disabled_at" is null',
+    );
+  });
+
+  it("counts and lets assign no disabled membership", async () => {
+    const { code, sql } = await generate({
+      dialect: "supabase",
+      tenantType: "text",
+      authorize: "database",
+      memberships: DISABLED,
+    });
+    expect(code).toBe(0);
+    const holders = sql.slice(sql.indexOf("permdock_holders_organization()"));
+    expect(holders).toContain('and m."disabled_at" is null');
+    expect(helper(sql, "permdock_can_assign")).toContain(
+      'and m."disabled_at" is null',
+    );
+  });
+
+  it("lets no kept claim membership assign in jwt mode", async () => {
+    const { code, sql } = await generate({
+      dialect: "supabase",
+      tenantType: "text",
+      authorize: "jwt",
+      suspension: { memberships: { keep: ["invoice.read"] } },
+    });
+    expect(code).toBe(0);
+    expect(helper(sql, "permdock_can_assign")).toContain(
+      "coalesce(jsonb_typeof(m -> 'keep'), 'null') = 'null'",
+    );
+  });
+
+  it("lets a kept permission through a disabled membership", async () => {
+    const { code, sql } = await generate({
+      dialect: "supabase",
+      tenantType: "text",
+      authorize: "database",
+      memberships: DISABLED,
+      suspension: { memberships: { keep: ["invoice.read"] } },
+    });
+    expect(code).toBe(0);
+    expect(helper(sql, "permitted_organization_ids")).toContain(
+      `(m."disabled_at" is null or split_part(split_part(p_grant, '#', 1), '@', 1) = any(array['invoice.read']::text[]))`,
+    );
+    expect(helper(sql, "member_organization_ids")).toContain(
+      'and m."disabled_at" is null',
+    );
+  });
+
+  it("reads the keep of a claim membership in jwt mode", async () => {
+    const { code, sql } = await generate({
+      dialect: "supabase",
+      tenantType: "text",
+      authorize: "jwt",
+      suspension: { memberships: { keep: ["invoice.read"] } },
+    });
+    expect(code).toBe(0);
+    expect(helper(sql, "permitted_organization_ids")).toContain(
+      "when 'array' then m -> 'keep' @> jsonb_build_array(split_part(split_part(p_grant, '#', 1), '@', 1))",
+    );
+    expect(helper(sql, "member_organization_ids")).toContain(
+      "coalesce(jsonb_typeof(m -> 'keep'), 'null') = 'null'",
+    );
+  });
+
+  it("refuses a keep that is not a list", async () => {
+    const result = await generate({
+      dialect: "supabase",
+      tenantType: "text",
+      authorize: "jwt",
+      suspension: { memberships: { keep: "x" } },
+    });
+    expect(result.code).toBe(2);
+    expect(result.output).toContain("rls.suspension.memberships.keep");
+  });
+});
+
 describe("the Supabase token hook", () => {
   const rbac = ["--rbac", "supabase", "--dialect", "supabase"];
 

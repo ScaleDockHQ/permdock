@@ -74,6 +74,7 @@ export type {
   SupabaseRlsOptions,
   SupabaseStorage,
   SupabaseSubjectOptions,
+  SupabaseSuspendedMembership,
   SupabaseSuspendedScope,
   SupabaseSuspension,
 } from "./types.ts";

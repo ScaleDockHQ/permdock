@@ -729,3 +729,50 @@ describe("suspension keep", () => {
     ).toThrow("a suspension keep is a list of permissions or permission keys");
   });
 });
+
+describe("membership suspension", () => {
+  it("leaves out a disabled row without keep", () => {
+    const source = fromJunction({
+      table: "organization_users",
+      scope: "organization",
+      roles: "role",
+      disabledAt: "disabled_at",
+    });
+    expect(source.sql.keeps).toBe(false);
+    expect(source.sql.select("$1")).toContain('m."disabled_at" is null');
+    expect(source.sql.list()).toContain('m."disabled_at" is null');
+    expect(source.sql.columns).toContain("disabled_at");
+    expect(source.sql.manifest.disabledAt).toEqual({ column: "disabled_at" });
+  });
+
+  it("keeps a disabled row with the keys it still grants", () => {
+    const source = fromTable({
+      table: "memberships",
+      columns: { disabledAt: "disabled_at" },
+      suspension: { memberships: { keep: ["tenant.export"] } },
+    });
+    expect(source.sql.keeps).toBe(true);
+    const select = source.sql.select("$1");
+    expect(select).toContain(
+      `(select jsonb_agg(k order by k) from unnest(array['tenant.export']::text[]) k where (m."disabled_at" is null or k = any(array['tenant.export']::text[])))`,
+    );
+    expect(select).toContain(
+      'group by m."scope"::text, m."scope_id"::text, (m."disabled_at" is null)',
+    );
+    expect(select).not.toContain('and m."disabled_at" is null');
+  });
+
+  it("counts no disabled holder", () => {
+    const source = fromJunction({
+      table: "organization_users",
+      scope: "organization",
+      roles: "role",
+      expiresAt: "expires_at",
+      disabledAt: "disabled_at",
+      suspension: { memberships: { keep: ["tenant.export"] } },
+    });
+    expect(source.sql.holders?.rows("organization")).toContain(
+      `((m."expires_at" is null or m."expires_at" > now()) and m."disabled_at" is null) as live`,
+    );
+  });
+});

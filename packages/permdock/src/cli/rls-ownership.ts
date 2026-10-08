@@ -16,6 +16,8 @@ import { findRole } from "../core/vocabulary.ts";
 import { roleColumn } from "../supabase/roles.ts";
 import {
   CUSTOM_ROLES,
+  claimKeptLines,
+  disabledColumn,
   globalRoleRows,
   hasCustomRoleChecksFor,
   memberColumn,
@@ -25,6 +27,7 @@ import {
   roleRows,
   signedIn,
   sourceFilters,
+  sourcesKeep,
 } from "./rls-helpers.ts";
 import {
   type RlsOwnership,
@@ -158,6 +161,10 @@ function holdersSql(
   if (table.expiresAt !== undefined) {
     const expires = memberColumn(table.expiresAt);
     filters.push(`(${expires} is null or ${expires} > now())`);
+  }
+  const disabled = disabledColumn(table);
+  if (disabled !== undefined) {
+    filters.push(`${disabled} is null`);
   }
   const via = memberVia(table);
   const kind =
@@ -650,7 +657,7 @@ ${sourceRowsSql(sources, userOf)}
       ) r(role)
       where ms.scope = ${quoteLiteral(name)}
         and ms.id = p_scope_id
-        and (r.role, p_role) in (${pairsSql(pairs)})${kind === undefined ? "" : `\n        and ${kind}`}${sourceFilters(ctx, name).replaceAll("\n    and ", "\n        and ")}
+        and (r.role, p_role) in (${pairsSql(pairs)})${kind === undefined ? "" : `\n        and ${kind}`}${sourceFilters(ctx, name, undefined, undefined, sourcesKeep(sources)).replaceAll("\n    and ", "\n        and ")}
     )`);
       continue;
     }
@@ -670,6 +677,10 @@ ${sourceRowsSql(sources, userOf)}
         const expires = memberColumn(table.expiresAt);
         filters.push(`(${expires} is null or ${expires} > now())`);
       }
+      const disabled = disabledColumn(table);
+      if (disabled !== undefined) {
+        filters.push(`${disabled} is null`);
+      }
       const kind = kindFilterSql(ctx, role.sql, memberVia(table));
       if (kind !== undefined) {
         filters.push(kind);
@@ -688,7 +699,12 @@ ${sourceRowsSql(sources, userOf)}
         and case jsonb_typeof(m -> 'expiresAt')
           when 'number' then (m ->> 'expiresAt')::numeric > extract(epoch from now())
           else true
-        end${kind === undefined ? "" : `\n        and ${kind}`}
+        end${kind === undefined ? "" : `\n        and ${kind}`}${claimKeptLines(
+          ctx,
+          "        ",
+        )
+          .map((line) => `\n${line}`)
+          .join("")}
     )`);
     }
   }
