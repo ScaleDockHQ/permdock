@@ -108,7 +108,7 @@ For RLS, the same tree is compiled by the CLI at build time instead of per reque
 
 ## Example app
 
-`apps/examples/drizzle`: a Hono API over an in-process PGlite database. `GET /posts` selects through the list filter; `PATCH /posts/:id` updates through the update filter and answers `403` when no row matched. `tests/integration/src/orm-parity.test.ts` compares `filter` in memory with `toWhere` results on node-postgres and PGlite for every operator, NULL and negation case, reference, `memberOf` scope, parent hop and expired membership (`ormParity` in `permdock/testing`), and `checkRow` with `can()` for each row. `orm-graph.test.ts` does the same for graph grants, `with-subject.test.ts` runs `withSubject` against generated RLS as a non-owner role, and `rls-orm-targets.test.ts` applies the generated `pgPolicy` file to Postgres.
+`apps/examples/drizzle`: a Hono API over an in-process PGlite database. `GET /posts` selects through the list filter, behind the Hono `permdock()` middleware. `PATCH /posts/:id` runs `protect` with a loader, then updates through the update filter; a denial is a `403` and a missing row a `404`, both Problem Details. `tests/integration/src/orm-parity.test.ts` compares `filter` in memory with `toWhere` results on node-postgres and PGlite for every operator, NULL and negation case, reference, `memberOf` scope, parent hop and expired membership (`ormParity` in `permdock/testing`), and `checkRow` with `can()` for each row. `orm-graph.test.ts` does the same for graph grants, `with-subject.test.ts` runs `withSubject` against generated RLS as a non-owner role, and `rls-orm-targets.test.ts` applies the generated `pgPolicy` file to Postgres.
 
 ## Why
 

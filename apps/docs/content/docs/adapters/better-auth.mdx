@@ -111,7 +111,7 @@ List and revoke sessions through Better Auth's session API (`listSessions`, `rev
 
 ## Example app
 
-`apps/examples/better-auth`: a Next.js app with the Better Auth `organization` plugin, `createAccessControl` statements for `post`, seeded PermDock roles plus an ownership fragment, `usePermission` in the UI, and tests showing that a Better Auth role change is reflected in the next snapshot.
+`apps/examples/better-auth`: a Hono server on `127.0.0.1:3463`. `createPermDock` from `permdock/hono` resolves the subject with `subjectFromBetterAuth` over a fixed session with one `member` row, and reads dynamic roles through `betterAuthRoleSource`. `protect` guards `PATCH /posts/:id` (granted) and `POST /posts/:id/delete` (a Problem Details `403`). No Better Auth server and no database.
 
 ## Related standards
 

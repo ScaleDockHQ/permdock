@@ -1,7 +1,7 @@
 {
   "$schema": "https://permdock.com/schemas/catalog-v1.json",
   "version": 1,
-  "generatedAt": "2026-10-07T11:56:06.713Z",
+  "generatedAt": "2026-10-08T19:53:32.436Z",
   "generator": "permdock@0.1.0",
   "fingerprint": "E7G4R7NhectdtojbU3Zsh6WN8PJnXy5K7ZLDvAjp7gk",
   "resources": {
@@ -99,8 +99,8 @@
       "usages": [
         {
           "file": "src/app/_layout.tsx",
-          "line": 11,
-          "call": "usePermission"
+          "line": 28,
+          "call": "reference"
         },
         {
           "file": "src/app/index.tsx",

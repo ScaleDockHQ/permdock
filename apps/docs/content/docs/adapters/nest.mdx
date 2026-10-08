@@ -90,7 +90,7 @@ export class ProjectsGateway
 
 ## Example app
 
-`apps/examples/nest`: a posts module on the Express platform with the guard as `APP_GUARD`, `Protect` on `PATCH /posts/:id` and `POST /posts/:id/publish`, and the decision endpoint controller.
+`apps/examples/nest`: a posts module on the Express platform with the guard registered by `PermDockModule.forRoot({ guard: 'global' })`, `Protect` applied with `decorateMethod` on `PATCH /posts/:id` and `POST /posts/:id/publish`, and the decision endpoint controller.
 
 `tests/integration/src/http/nest.test.ts` runs the [`testHttpAdapter`](/docs/adapters/testing) scenarios on both platforms: `FileInterceptor` uploads on Express, `@fastify/multipart` on Fastify, an admin module under `RouterModule` and the decision controller at a tenant path.
 

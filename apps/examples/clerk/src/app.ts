@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import { createPermDock } from "permdock";
-import { subjectFromClerk } from "permdock/clerk";
+import { createClerkSubjectResolver } from "permdock/clerk";
+import { createPermDock } from "permdock/hono";
 
 import { ownPost, permissions } from "./permissions.ts";
 import { policy } from "./policy.ts";
@@ -14,48 +14,51 @@ const authObject = {
   has: () => false,
 };
 
-async function permdockForSession() {
-  const resolved = await subjectFromClerk(authObject, {
-    permissions: { "org:invoices:create": permissions.post.list },
-    memberships: "all",
-    backend: {
-      users: {
-        getOrganizationMembershipList: async () => {
-          await Promise.resolve();
-          return {
-            data: [
-              { organization: { id: "org_1" }, role: "org:member" },
-              { organization: { id: "org_2" }, role: "org:admin" },
-            ],
-          };
-        },
+const clerkSubject = createClerkSubjectResolver({
+  permissions: { "org:invoices:create": permissions.post.list },
+  memberships: "all",
+  cache: { ttl: "10s" },
+  backend: {
+    users: {
+      getOrganizationMembershipList: async () => {
+        await Promise.resolve();
+        return {
+          data: [
+            { organization: { id: "org_1" }, role: "org:member" },
+            { organization: { id: "org_2" }, role: "org:admin" },
+          ],
+        };
       },
     },
-  });
-  const permdock = await createPermDock(policy, resolved);
-  return { permdock, resolved };
-}
+  },
+});
+
+const { protect } = createPermDock(policy, {
+  subject: async () => {
+    const subject = await clerkSubject(authObject);
+    return subject;
+  },
+});
 
 export const app = new Hono();
 
 app.get("/health", (c) => c.json({ ok: true }));
 
-app.patch("/posts/:id", async (c) => {
-  const { permdock, resolved } = await permdockForSession();
-  if (!permdock.can(permissions.post.update, ownPost)) {
-    return c.json({ ok: false }, 403);
-  }
-  return c.json({
-    ok: true,
-    tenants: permdock.tenants(),
-    tenant: resolved.principal?.tenant,
-  });
-});
+app.patch(
+  "/posts/:id",
+  protect(permissions.post.update, () => ownPost),
+  (c) => {
+    const permdock = c.get("permdock");
+    return c.json({
+      ok: true,
+      tenants: permdock.tenants(),
+      tenant: permdock.subject.principal?.tenant,
+    });
+  },
+);
 
-app.post("/posts/:id/delete", async (c) => {
-  const { permdock } = await permdockForSession();
-  if (!permdock.can(permissions.post.delete, ownPost)) {
-    return c.json({ ok: false }, 403);
-  }
-  return c.json({ ok: true });
-});
+app.post(
+  "/posts/:id/delete",
+  protect(permissions.post.delete, () => ownPost),
+  (c) => c.json({ ok: true }),
+);

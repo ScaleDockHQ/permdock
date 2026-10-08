@@ -140,7 +140,7 @@ List and revoke sessions through Clerk's Backend API (`Session` list / revoke). 
 
 ## Example app
 
-`apps/examples/clerk`: a Hono server that boots with `pnpm start` on `127.0.0.1:3464`. `GET /health` is the liveness probe. `PATCH /posts/:id` calls `subjectFromClerk` with a fixed Clerk auth object (`org:member` plus `org:invoices:create`), then `createPermDock` and `can(permissions.post.update)`. No Clerk secret and no Next.js app.
+`apps/examples/clerk`: a Hono server that boots with `pnpm start` on `127.0.0.1:3464`. `GET /health` is the liveness probe. `createPermDock` from `permdock/hono` resolves the subject with `createClerkSubjectResolver` over a fixed Clerk auth object (`org:member` plus `org:invoices:create`), `memberships: 'all'` and `cache: { ttl: '10s' }`. `protect` guards `PATCH /posts/:id` and `POST /posts/:id/delete`, so a denial is a Problem Details `403`. No Clerk secret and no Next.js app.
 
 ## Related standards
 
