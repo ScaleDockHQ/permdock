@@ -492,3 +492,35 @@ describe("permdock/react-native connectSource", () => {
     stop();
   });
 });
+
+describe("permdock/react-native connectSource foreground", () => {
+  it("re-reads the source on a return to the foreground only", async () => {
+    const store = createNativeStore({
+      storage: memoryStorage(),
+      subjectId: null,
+    });
+    let reads = 0;
+    let foreground: (active?: boolean) => void = () => undefined;
+    const stop = connectSource(
+      store,
+      {
+        get: async () => {
+          reads += 1;
+          return memberSnapshot();
+        },
+      },
+      (listener) => {
+        foreground = listener;
+        return () => undefined;
+      },
+    );
+    await settle();
+    foreground(false);
+    await settle();
+    expect(reads).toBe(1);
+    foreground(true);
+    await settle();
+    expect(reads).toBe(2);
+    stop();
+  });
+});

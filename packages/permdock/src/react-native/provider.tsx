@@ -76,8 +76,8 @@ export function PermDockProvider(
     () =>
       props.source === undefined
         ? undefined
-        : connectSource(store, props.source),
-    [store, props.source],
+        : connectSource(store, props.source, props.subscribeForeground),
+    [store, props.source, props.subscribeForeground],
   );
 
   useEffect(() => {

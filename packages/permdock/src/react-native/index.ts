@@ -28,10 +28,16 @@ export type {
   SubjectView,
   TenantView,
 } from "../react/types.ts";
+export { parseLocalSnapshotManifest } from "../core/parse-local-manifest.ts";
+export { useSnapshotReady, usePermissionGuard } from "./guards.ts";
 export { buildLocalSnapshot, localSnapshot } from "./local.ts";
 export type { LocalSnapshotData, LocalSnapshotOptions } from "./local.ts";
 export { PermDockProvider } from "./provider.tsx";
 export { memoryStorage } from "./storage.ts";
+export { mmkvStorage, secureStoreStorage } from "./storage-adapters.ts";
+export type { MmkvInstance, SecureStoreModule } from "./storage-adapters.ts";
+export { appStateForeground, netInfoOnline } from "./subscriptions.ts";
+export type { AppStateModule, NetInfoModule } from "./subscriptions.ts";
 export { connectSource, createNativeStore } from "./store.ts";
 export type {
   LocalSnapshotManifest,

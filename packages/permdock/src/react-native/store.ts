@@ -1,6 +1,9 @@
 import type { Snapshot, SnapshotSource } from "../core/interfaces.ts";
 import type { ClientStore } from "../react/store.ts";
-import type { NativePermDockProviderProps } from "./types.ts";
+import type {
+  NativePermDockProviderProps,
+  SubscribeForeground,
+} from "./types.ts";
 
 import { compact } from "../core/compact.ts";
 import { emptySnapshot } from "../core/from-snapshot.ts";
@@ -48,13 +51,15 @@ function unchanged(store: ClientStore, next: Snapshot | string): boolean {
 }
 
 /**
- * Hydrates `store` from `source` now and on every change it reports. Only
- * the latest read applies; a read with unchanged content re-renders nothing,
- * and a failed read keeps the current snapshot. Returns the unsubscribe.
+ * Hydrates `store` from `source` now, on every change it reports and on each
+ * return to the foreground. Only the latest read applies; a read with
+ * unchanged content re-renders nothing, and a failed read keeps the current
+ * snapshot. Returns the unsubscribe.
  */
 export function connectSource(
   store: ClientStore,
   source: SnapshotSource,
+  subscribeForeground?: SubscribeForeground,
 ): () => void {
   let active = true;
   let seq = 0;
@@ -74,9 +79,15 @@ export function connectSource(
   };
   pull();
   const unsubscribe = source.subscribe?.(pull);
+  const offForeground = subscribeForeground?.((next) => {
+    if (next !== false) {
+      pull();
+    }
+  });
   return (): void => {
     active = false;
     unsubscribe?.();
+    offForeground?.();
   };
 }
 
