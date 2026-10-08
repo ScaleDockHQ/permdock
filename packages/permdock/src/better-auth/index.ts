@@ -10,6 +10,7 @@ export type {
   BetterAuthAccessRole,
   BetterAuthAssignableRole,
   BetterAuthLike,
+  BetterAuthMemberQuery,
   BetterAuthPrincipal,
   BetterAuthRoleChangeEvent,
   BetterAuthRoleSourceOptions,

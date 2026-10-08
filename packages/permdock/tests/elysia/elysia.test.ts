@@ -121,3 +121,23 @@ describe("permdock/elysia", () => {
     expect(body.evaluations[0]?.decision).toBe(true);
   });
 });
+
+describe("permdock/elysia routes before the plugin", () => {
+  it("builds no instance for a route registered before use(permdock())", async () => {
+    let resolved = 0;
+    const { permdock } = createPermDock(policy, {
+      subject: () => {
+        resolved += 1;
+        return memberUser;
+      },
+    });
+    const app = new Elysia()
+      .get("/health", () => "ok")
+      .use(permdock())
+      .get("/posts", () => "ok");
+    await app.handle(new Request("http://localhost/health"));
+    expect(resolved).toBe(0);
+    await app.handle(new Request("http://localhost/posts"));
+    expect(resolved).toBe(1);
+  });
+});

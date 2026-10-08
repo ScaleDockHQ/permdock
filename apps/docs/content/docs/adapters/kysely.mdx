@@ -39,9 +39,9 @@ await withSubject(db, permdock, async (trx) => {
 - `checkRow(db, table, condition, key, options?)` takes `key` as an expression-builder callback (`(eb) => eb('id', '=', id)`), selects the filter as a boolean for the matching row and returns `{ found: false }` or `{ found: true, granted }`. More than one matching row throws.
 - `withSubject(db, permdock, fn, options?)` opens a transaction, runs the preamble below and then `fn(trx)`, so the generated policies see `permdock.subject`. The same function ships in `permdock/drizzle` and `permdock/prisma` ([RLS adapter](/docs/adapters/rls)).
 
-The preamble, in order:
+The preamble is one `select set_config(…, true), …` statement, so it costs one round trip. Its settings, in order:
 
-1. `set local role authenticated`, or `anon` when the subject has no principal. `options.role` accepts only `authenticated`, `anon` or `false`. `false` keeps the connection's role, for a login role RLS already applies to.
+1. `role`: `authenticated`, or `anon` when the subject has no principal, the same as `set local role`. `options.role` accepts only `authenticated`, `anon` or `false`. `false` keeps the connection's role, for a login role RLS already applies to.
 2. The claims. `supabase` and `neon` set `request.jwt.claims` (`sub`, `role`, the tenant claim). `guc` sets `<prefix>.user_id` and one `<prefix>.<claim>` setting per claim.
 
 `options.dialect` (default `supabase`), `options.gucPrefix` (default `app`) and `options.tenantClaim` (default `tenant_id`) must match the `rls` block in `permdock.config.ts`; `withSubject` does not read the config. `options.claims` adds claims from the verified token, such as `user_role` or `memberships` for `jwt`-mode helpers. `sub`, `role` and the tenant claim always come from the subject. `options.sql` passes Kysely's `sql` tag on runtimes without `require`.
@@ -68,7 +68,7 @@ Operator mapping:
 
 - Column existence is checked by Kysely's types when the database interface is typed; `toWhere` is generic over the `DB` type so an unknown column is a type error.
 - Closure grants: `permdock.where` reports `{ portable: false }`; `toWhere` throws `PermDockValidationError` naming the grant.
-- `withSubject` refuses any role other than `authenticated` or `anon`, and any setting prefix or claim name outside `[a-z_][a-z0-9_]*`. It throws before opening the transaction. A connection user that is not a member of the role fails at `set local role`, so `fn` never runs.
+- `withSubject` refuses any role other than `authenticated` or `anon`, and any setting prefix or claim name outside `[a-z_][a-z0-9_]*`. It throws before opening the transaction. A connection user that is not a member of the role fails at the `role` setting, so `fn` never runs.
 - Rows returned from the database are trusted and not schema-validated.
 
 ## How denials surface

@@ -102,7 +102,7 @@ if (isDefinedError(error) && error.code === "FORBIDDEN") {
 
 ### Event iterators
 
-A procedure behind `protect(permission, load?, { items })` whose handler returns an event iterator is wrapped the same way as a [tRPC subscription](/docs/adapters/trpc#subscriptions): items the subscriber cannot read are dropped, and an abort ends the iterator with an `ORPCError` (`UNAUTHORIZED` or `FORBIDDEN`) whose `data` is the Problem Details body. Pass `revocations` to `createPermDock`; `connection(opts, options?)` opens a [`Connection`](/docs/adapters/server-kernel#connections) by hand.
+A procedure behind `protect(permission, load?, { items })` whose handler returns an event iterator is wrapped the same way as a [tRPC subscription](/docs/adapters/trpc#subscriptions): items the subscriber cannot read are dropped, `load` runs again only on revalidation, and an abort ends the iterator with an `ORPCError` (`UNAUTHORIZED` or `FORBIDDEN`) whose `data` is the Problem Details body. Pass `revocations` to `createPermDock`; `connection(opts, options?)` opens a [`Connection`](/docs/adapters/server-kernel#connections) by hand.
 
 ### With better-supabase
 

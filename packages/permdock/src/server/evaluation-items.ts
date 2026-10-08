@@ -1,6 +1,10 @@
 import type { Permission, PermissionTree } from "../core/permissions.ts";
 
-import { findPermission, listPermissions } from "../core/permissions.ts";
+import {
+  formerKeys,
+  formerScopes,
+  listPermissions,
+} from "../core/permissions.ts";
 
 /** The `resource` of an AuthZEN evaluation item, unvalidated. */
 export type EvaluationResource = {
@@ -9,33 +13,56 @@ export type EvaluationResource = {
   readonly properties?: unknown;
 };
 
-/**
- * The permission an evaluation item names: `action` as a permission key,
- * then `<resource.type>.<action>`, then the leaf with that resource and
- * action. Anything else is `undefined`, which the caller denies.
- */
-export function itemPermission(
-  tree: PermissionTree,
+/** Resolves the permission an evaluation item names. */
+export type PermissionLookup = (
   action: string | undefined,
   resource: EvaluationResource | undefined,
-): Permission | undefined {
-  if (action === undefined) {
-    return undefined;
+) => Permission | undefined;
+
+function firstWins(
+  map: Map<string, Permission>,
+  name: string,
+  leaf: Permission,
+): void {
+  if (!map.has(name)) {
+    map.set(name, leaf);
   }
-  const byKey = findPermission(tree, action);
-  if (byKey !== undefined) {
-    return byKey;
+}
+
+/**
+ * Indexes `tree` once. The lookup tries `action` as a permission key or
+ * scope, then `<resource.type>.<action>`, then the leaf with that resource
+ * and action; current names win over former ones and earlier leaves over
+ * later ones. Anything else is `undefined`, which the caller denies.
+ */
+export function permissionLookup(tree: PermissionTree): PermissionLookup {
+  const current = new Map<string, Permission>();
+  const former = new Map<string, Permission>();
+  const byPair = new Map<string, Permission>();
+  for (const leaf of listPermissions(tree)) {
+    firstWins(current, leaf.key, leaf);
+    firstWins(current, leaf.scope, leaf);
+    for (const name of [...formerKeys(leaf), ...formerScopes(leaf)]) {
+      firstWins(former, name, leaf);
+    }
+    firstWins(byPair, `${leaf.resource}\u0000${leaf.action}`, leaf);
   }
-  const type = typeof resource?.type === "string" ? resource.type : undefined;
-  if (type === undefined) {
-    return undefined;
-  }
-  return (
-    findPermission(tree, `${type}.${action}`) ??
-    listPermissions(tree).find(
-      (leaf) => leaf.resource === type && leaf.action === action,
-    )
-  );
+  const named = (name: string): Permission | undefined =>
+    current.get(name) ?? former.get(name);
+  return (action, resource) => {
+    if (action === undefined) {
+      return undefined;
+    }
+    const byKey = named(action);
+    if (byKey !== undefined) {
+      return byKey;
+    }
+    const type = typeof resource?.type === "string" ? resource.type : undefined;
+    if (type === undefined) {
+      return undefined;
+    }
+    return named(`${type}.${action}`) ?? byPair.get(`${type}\u0000${action}`);
+  };
 }
 
 /** The row an item's resource describes: its `properties`, else `{ id }`. */

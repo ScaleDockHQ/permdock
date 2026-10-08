@@ -186,6 +186,31 @@ function hasEmit(
   );
 }
 
+type Loads = (
+  loader: ((req: NestRequest) => unknown) | undefined,
+) => (() => unknown) | undefined;
+
+/** One call per loader for a request, so class and method rules naming the same loader share its row. */
+function loadsFor(req: NestRequest | undefined): Loads {
+  const loaded = new Map<(req: NestRequest) => unknown, Promise<unknown>>();
+  return (loader) => {
+    if (loader === undefined) {
+      return undefined;
+    }
+    return (): Promise<unknown> => {
+      if (req === undefined) {
+        return Promise.resolve(undefined);
+      }
+      let hit = loaded.get(loader);
+      if (hit === undefined) {
+        hit = Promise.resolve(loader(req));
+        loaded.set(loader, hit);
+      }
+      return hit;
+    };
+  };
+}
+
 function rulesOf(target: object): readonly ProtectRule[] {
   const found = reflectMeta().getMetadata(PROTECT_KEY, target);
   if (!Array.isArray(found)) {
@@ -257,15 +282,15 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     req: NestRequest,
     request: globalThis.Request,
     scope: TenantScope,
+    load: Loads,
   ): Promise<void> => {
     const [rule, ...rest] = remaining;
     if (rule === undefined) {
       return;
     }
-    const loader = rule.loadData;
     const guard = await kernel.protect(
       rule.permission,
-      loader === undefined ? undefined : (): unknown => loader(req),
+      load(rule.loadData),
       rule.options,
     )(request, scope);
     if (!guard.ok) {
@@ -273,7 +298,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     }
     req.permdock = guard.permdock;
     req.permdockData = guard.data;
-    await applyProtect(rest, req, request, scope);
+    await applyProtect(rest, req, request, scope, load);
   };
 
   const bind = (req: NestRequest): globalThis.Request => {
@@ -325,20 +350,18 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     req: NestRequest | undefined,
   ): Promise<void> => {
     const request = req === undefined ? undefined : bind(req);
+    const load = loadsFor(req);
     for (const rule of rules) {
       if (conn.signal.aborted) {
         throw conn.signal.reason instanceof PermDockRevokedError
           ? conn.signal.reason
           : new PermDockRevokedError({ code: "denied" });
       }
-      const loader = rule.loadData;
       // oxlint-disable-next-line no-await-in-loop -- rules apply in order
       const guard = await kernel.protectOn(
         conn.permdock,
         rule.permission,
-        loader === undefined
-          ? undefined
-          : (): unknown => (req === undefined ? undefined : loader(req)),
+        load(rule.loadData),
         rule.options,
         request,
       );
@@ -376,7 +399,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       const request = bind(req);
       const scope = await scopeOf(req);
       req.permdock = await kernel.permdock(request, scope);
-      await applyProtect(rules, req, request, scope);
+      await applyProtect(rules, req, request, scope, loadsFor(req));
       return true;
     }
 
@@ -504,6 +527,10 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       public async post(req: NestRequest, res: unknown): Promise<void> {
         const request = toRequest(req);
         contexts.set(request, req);
+        const previous = bound.get(req);
+        if (previous !== undefined) {
+          kernel.shareSubject(previous, request);
+        }
         await this.send(res, await POST(request));
       }
 

@@ -27,10 +27,10 @@ describe("subjectStatements", () => {
         claims: { user_role: "admin", sub: "forged", role: "service_role" },
       });
       expect(statements.map(statementText)).toEqual([
-        "set local role authenticated",
-        "select set_config('request.jwt.claims', $1, true)",
+        "select set_config('role', $1, true), set_config('request.jwt.claims', $2, true)",
       ]);
-      expect(JSON.parse(statements[1]?.values[0] ?? "")).toEqual({
+      expect(statements[0]?.values[0]).toBe("authenticated");
+      expect(JSON.parse(statements[0]?.values[1] ?? "")).toEqual({
         user_role: "admin",
         sub: "u1",
         tenant_id: "o1",
@@ -47,14 +47,12 @@ describe("subjectStatements", () => {
       claims: { memberships: [{ tenant: "o1" }] },
     });
     expect(statements.map(statementText)).toEqual([
-      "set local role authenticated",
-      "select set_config('acme.user_id', $1, true)",
-      "select set_config('acme.memberships', $1, true)",
-      "select set_config('acme.org_id', $1, true)",
-      "select set_config('acme.role', $1, true)",
+      "select set_config('role', $1, true), set_config('acme.user_id', $2, true), " +
+        "set_config('acme.memberships', $3, true), set_config('acme.org_id', $4, true), " +
+        "set_config('acme.role', $5, true)",
     ]);
-    expect(statements.map((statement) => statement.values[0])).toEqual([
-      undefined,
+    expect(statements[0]?.values).toEqual([
+      "authenticated",
       "u1",
       '[{"tenant":"o1"}]',
       "o1",
@@ -63,7 +61,7 @@ describe("subjectStatements", () => {
   });
 
   it("uses anon without a principal and can keep the connection role", () => {
-    expect(texts(anonymous)[0]).toBe("set local role anon");
+    expect(subjectStatements(anonymous)[0]?.values[0]).toBe("anon");
     expect(texts(user, { role: false })[0]).toBe(
       "select set_config('request.jwt.claims', $1, true)",
     );
@@ -91,7 +89,7 @@ describe("subjectStatements", () => {
       },
     };
     const statements = subjectStatements(service);
-    expect(JSON.parse(statements[1]?.values[0] ?? "")).toEqual({
+    expect(JSON.parse(statements[0]?.values[1] ?? "")).toEqual({
       sub: "",
       tenant_id: "o1",
       role: "authenticated",
@@ -102,7 +100,7 @@ describe("subjectStatements", () => {
         scopes: ["task.read"],
       },
     });
-    expect(subjectStatements(service, { dialect: "guc" })[1]?.values[0]).toBe(
+    expect(subjectStatements(service, { dialect: "guc" })[0]?.values[1]).toBe(
       "",
     );
   });
@@ -124,7 +122,7 @@ describe("subjectStatements", () => {
     const statements = subjectStatements(key, {
       apiKeys: { claim: "key", scopes: "allowed" },
     });
-    expect(JSON.parse(statements[1]?.values[0] ?? "")).toEqual({
+    expect(JSON.parse(statements[0]?.values[1] ?? "")).toEqual({
       sub: "u1",
       role: "authenticated",
       key: { id: "key_1", allowed: ["task.read"] },

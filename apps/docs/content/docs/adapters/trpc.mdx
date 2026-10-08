@@ -48,7 +48,7 @@ export const postsRouter = router({
 
 ### Subscriptions
 
-A subscription procedure behind `protect(permission, load?, { items })` opens a kernel [`Connection`](/docs/adapters/server-kernel#connections) when its resolver returns an async iterable. Items the subscriber cannot read under `items` are dropped (for `tracked()` envelopes the row inside is checked), and when the connection aborts (a revoked session, an expired token, a re-denied opening permission) the iterator ends with a `TRPCError`: `UNAUTHORIZED` or `FORBIDDEN`, with the Problem Details on `cause`. Pass `revocations` to `createPermDock` to feed it. `connection(opts, options?)` opens a connection by hand for anything else.
+A subscription procedure behind `protect(permission, load?, { items })` opens a kernel [`Connection`](/docs/adapters/server-kernel#connections) when its resolver returns an async iterable. Items the subscriber cannot read under `items` are dropped (for `tracked()` envelopes the row inside is checked), and when the connection aborts (a revoked session, an expired token, a re-denied opening permission) the iterator ends with a `TRPCError`: `UNAUTHORIZED` or `FORBIDDEN`, with the Problem Details on `cause`. The connection's first data read is the row `protect` already loaded; `load` runs again only when a revocation event revalidates the connection. Pass `revocations` to `createPermDock` to feed it. `connection(opts, options?)` opens a connection by hand for anything else.
 
 ```ts
 onProjectEvent: t.procedure

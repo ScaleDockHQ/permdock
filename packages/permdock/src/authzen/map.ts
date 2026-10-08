@@ -1,12 +1,10 @@
 import type { Decision, DenialReason } from "../core/decision.ts";
-import type { Permission, PermissionTree } from "../core/permissions.ts";
+import type { Permission } from "../core/permissions.ts";
 import type { Actor, Delegation } from "../core/subject.ts";
+import type { PermissionLookup } from "../server/evaluation-items.ts";
 
 import { compact } from "../core/compact.ts";
-import {
-  itemPermission,
-  itemResourceData,
-} from "../server/evaluation-items.ts";
+import { itemResourceData } from "../server/evaluation-items.ts";
 
 export type AuthzenEntity = {
   readonly type?: unknown;
@@ -50,10 +48,10 @@ function actionNameOf(item: AuthzenItem): string | undefined {
 }
 
 export function permissionOf(
-  tree: PermissionTree,
+  lookup: PermissionLookup,
   item: AuthzenItem,
 ): Permission | undefined {
-  return itemPermission(tree, actionNameOf(item), item.resource);
+  return lookup(actionNameOf(item), item.resource);
 }
 
 export function resourceData(item: AuthzenItem): unknown {

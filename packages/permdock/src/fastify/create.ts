@@ -107,6 +107,16 @@ function breakEncapsulation(plugin: FastifyPluginAsync): FastifyPluginAsync {
   return plugin;
 }
 
+/** A route registered with `config: { permdock: false }`, such as a health check, gets no instance. */
+function skipped(request: FastifyRequest): boolean {
+  const config: unknown = request.routeOptions.config;
+  return (
+    typeof config === "object" &&
+    config !== null &&
+    Reflect.get(config, "permdock") === false
+  );
+}
+
 function decorate<V extends PolicyVocabulary>(
   request: FastifyRequest,
   instance: PermDock<V>,
@@ -171,6 +181,9 @@ export function createPermDock<
     app.decorateRequest("permdock", null);
     app.decorateRequest("permdockData", null);
     app.addHook("onRequest", async (request) => {
+      if (skipped(request)) {
+        return;
+      }
       decorate(
         request,
         await kernel.permdock(bind(request), await scopeOf(request)),

@@ -99,6 +99,32 @@ async function organizationIds(
   return [...new Set(ids)];
 }
 
+const MEMBER_LIMIT = 5000;
+
+/** Every member row of the user in one adapter query, or `undefined` without an adapter. */
+async function memberRows(
+  auth: BetterAuthLike,
+  userId: string,
+): Promise<readonly Membership[] | undefined> {
+  try {
+    const context = await auth.$context;
+    const findMany = context?.adapter?.findMany;
+    if (findMany === undefined) {
+      return undefined;
+    }
+    return parseMemberRows(
+      await findMany({
+        model: "member",
+        where: [{ field: "userId", value: userId }],
+        limit: MEMBER_LIMIT,
+      }),
+      userId,
+    );
+  } catch {
+    return undefined;
+  }
+}
+
 function memberIn(
   auth: BetterAuthLike,
   userId: string,
@@ -154,11 +180,19 @@ async function loadMemberships(
   );
   const headers = options.headers;
   if (members.length === 0) {
-    const ids = await organizationIds(auth, tenant, options);
-    const found = await Promise.all(
-      ids.map((id) => memberIn(auth, userId, id, tenant, headers)),
-    );
-    members = found.flat();
+    const rows =
+      options.memberships === "active"
+        ? undefined
+        : await memberRows(auth, userId);
+    if (rows === undefined) {
+      const ids = await organizationIds(auth, tenant, options);
+      const found = await Promise.all(
+        ids.map((id) => memberIn(auth, userId, id, tenant, headers)),
+      );
+      members = found.flat();
+    } else {
+      members = rows;
+    }
   }
   const listUserTeams = auth.api?.listUserTeams;
   if (teams.length === 0 && listUserTeams !== undefined) {

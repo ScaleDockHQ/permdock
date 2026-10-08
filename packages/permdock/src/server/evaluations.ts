@@ -1,14 +1,15 @@
 import type { ApprovalStore } from "../approvals/types.ts";
 import type { Decision } from "../core/decision.ts";
 import type { DecideOptions, PermDock } from "../core/permdock.ts";
-import type { Permission, PermissionTree } from "../core/permissions.ts";
+import type { Permission } from "../core/permissions.ts";
 import type { Policy } from "../core/policy.ts";
 import type { WireDecision } from "../core/wire-denial.ts";
+import type { PermissionLookup } from "./evaluation-items.ts";
 
 import { readApprovalHeader, resumeDecision } from "../approvals/helpers.ts";
 import { compact } from "../core/compact.ts";
 import { wireDenials } from "../core/wire-denial.ts";
-import { itemPermission, itemResourceData } from "./evaluation-items.ts";
+import { itemResourceData, permissionLookup } from "./evaluation-items.ts";
 import {
   DEFAULT_MAX_EVALUATIONS,
   batchTooLarge,
@@ -32,11 +33,10 @@ type EvaluationItem = {
 };
 
 function permissionOf(
-  tree: PermissionTree,
+  lookup: PermissionLookup,
   item: EvaluationItem,
 ): Permission | undefined {
-  return itemPermission(
-    tree,
+  return lookup(
     typeof item.action?.name === "string" ? item.action.name : undefined,
     item.resource,
   );
@@ -116,14 +116,14 @@ export function applyApprovalResume(
 }
 
 function evaluateOne(
-  policy: Policy,
+  lookup: PermissionLookup,
   permdock: PermDock,
   item: EvaluationItem,
   store: ApprovalStore | undefined,
   header: string | undefined,
   adapter: string,
 ): Promise<Decision> {
-  const permission = permissionOf(policy.permissions, item);
+  const permission = permissionOf(lookup, item);
   if (permission === undefined) {
     return Promise.resolve(DENIED);
   }
@@ -191,6 +191,7 @@ export function createEvaluationsHandler(options: {
   readonly GET: (request: Request) => Promise<Response>;
 } {
   const adapter = options.adapter ?? "server";
+  const lookup = permissionLookup(options.policy.permissions);
   const maxEvaluations = options.maxEvaluations ?? DEFAULT_MAX_EVALUATIONS;
   const POST = async (request: Request): Promise<Response> => {
     let body: unknown;
@@ -234,7 +235,7 @@ export function createEvaluationsHandler(options: {
             : {};
         return evaluationRow(
           await evaluateOne(
-            options.policy,
+            lookup,
             permdock,
             entry,
             options.store,

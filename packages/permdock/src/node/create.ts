@@ -156,6 +156,10 @@ export function createPermDock<
       const nodeReq = req as NodeRequest;
       const request = toRequest(nodeReq);
       contexts.set(request, nodeReq);
+      const previous = bound.get(req);
+      if (previous !== undefined) {
+        kernel.shareSubject(previous, request);
+      }
       await sendResponse(res, await POST(request));
     };
   };

@@ -9,6 +9,7 @@ import { instanceOptions } from "../core/instance-options.ts";
 import { ownGet } from "../core/paths.ts";
 import { createPermDock as createCorePermDock } from "../core/permdock.ts";
 import { getResource, listPermissions } from "../core/permissions.ts";
+import { permissionLookup } from "../server/evaluation-items.ts";
 import { applyApprovalResume } from "../server/evaluations.ts";
 import {
   DEFAULT_MAX_EVALUATIONS,
@@ -103,6 +104,7 @@ function resourceRef(
 
 export const createPermDock: AuthzenFactory = (policy, options) => {
   const maxEvaluations = options.maxEvaluations ?? DEFAULT_MAX_EVALUATIONS;
+  const lookup = permissionLookup(policy.permissions);
   const trusts = (pep: unknown): boolean => {
     const allow = options.trustedPep;
     if (typeof allow !== "function" || pep === null) {
@@ -184,7 +186,7 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
     pep: unknown,
     item: AuthzenItem,
   ): Promise<Decision> {
-    const permission = permissionOf(policy.permissions, item);
+    const permission = permissionOf(lookup, item);
     if (permission === undefined) {
       return UNKNOWN;
     }
@@ -364,7 +366,7 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
     const item: AuthzenItem = body;
     const type =
       typeof item.resource?.type === "string" ? item.resource.type : undefined;
-    const permission = permissionOf(policy.permissions, item);
+    const permission = permissionOf(lookup, item);
     if (type === undefined || permission === undefined) {
       return Response.json(paged([], 0, 1));
     }

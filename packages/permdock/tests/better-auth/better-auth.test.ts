@@ -198,6 +198,66 @@ describe("subjectFromBetterAuth", () => {
     );
   });
 
+  it("reads every membership with one adapter query instead of one call per organization", async () => {
+    const queries: unknown[] = [];
+    let listed = 0;
+    const subject = await subjectFromBetterAuth(
+      {
+        $context: Promise.resolve({
+          adapter: {
+            findMany: async (query) => {
+              queries.push(query);
+              return [
+                { userId: "u_bob", organizationId: "o_acme", role: "member" },
+                { userId: "u_bob", organizationId: "o_globex", role: "admin" },
+                { userId: "u_eve", organizationId: "o_acme", role: "owner" },
+              ];
+            },
+          },
+        }),
+        api: {
+          listOrganizations: async () => {
+            listed += 1;
+            return ORGANIZATIONS;
+          },
+        },
+      },
+      { user: { id: "u_bob" }, session: { activeOrganizationId: "o_acme" } },
+    );
+    expect(subject.principal?.memberships).toEqual([
+      { tenant: "o_acme", roles: ["member"] },
+      { tenant: "o_globex", roles: ["admin"] },
+    ]);
+    expect(queries).toEqual([
+      {
+        model: "member",
+        where: [{ field: "userId", value: "u_bob" }],
+        limit: 5000,
+      },
+    ]);
+    expect(listed).toBe(0);
+  });
+
+  it("falls back to the organization API when the adapter query fails", async () => {
+    const subject = await subjectFromBetterAuth(
+      {
+        $context: Promise.reject(new Error("no adapter")),
+        api: {
+          listOrganizations: async () => ORGANIZATIONS,
+          listMembers: async (args) =>
+            args?.query?.organizationId === "o_acme"
+              ? ACME_MEMBERS
+              : GLOBEX_MEMBERS,
+        },
+      },
+      { user: { id: "u_bob" }, session: { activeOrganizationId: "o_acme" } },
+    );
+    expect(subject.principal?.memberships).toEqual([
+      { tenant: "o_acme", roles: ["member"] },
+      { tenant: "o_globex", roles: ["admin"] },
+    ]);
+  });
+
   it("uses getActiveMember for the active organization", async () => {
     const subject = await subjectFromBetterAuth(
       {

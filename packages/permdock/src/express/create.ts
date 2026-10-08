@@ -182,6 +182,10 @@ export function createPermDock<
   const rebind = (req: Request): globalThis.Request => {
     const request = toRequest(req);
     contexts.set(request, req);
+    const previous = bound.get(req);
+    if (previous !== undefined) {
+      kernel.shareSubject(previous, request);
+    }
     return request;
   };
 

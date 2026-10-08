@@ -123,6 +123,44 @@ describe("permdock/nest Protect", () => {
     ).toThrow(TypeError);
   });
 
+  it("runs a loader shared by two rules once per request", async () => {
+    const { PermDockGuard, Protect } = createPermDock(policy, {
+      subject: () => memberUser,
+    });
+    let loads = 0;
+    const loadPost = (): typeof ownPost => {
+      loads += 1;
+      return ownPost;
+    };
+    class Posts {
+      public update(): string {
+        return "ok";
+      }
+    }
+    const descriptor = methodOf(Posts, "update");
+    Protect(permissions.post.read, loadPost)(
+      Posts.prototype,
+      "update",
+      descriptor,
+    );
+    Protect(permissions.post.update, loadPost)(
+      Posts.prototype,
+      "update",
+      descriptor,
+    );
+    const guard = new PermDockGuard(new Reflector());
+    expect(
+      await guard.canActivate(
+        httpContext(Posts, descriptor.value, fakeRequest("p1")),
+      ),
+    ).toBe(true);
+    expect(loads).toBe(1);
+    await guard.canActivate(
+      httpContext(Posts, descriptor.value, fakeRequest("p1")),
+    );
+    expect(loads).toBe(2);
+  });
+
   it("registers the guard as APP_GUARD with forRoot({ guard: 'global' })", () => {
     const { PermDockModule, PermDockGuard } = createPermDock(policy, {
       subject: () => memberUser,

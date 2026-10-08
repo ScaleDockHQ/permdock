@@ -24,7 +24,18 @@ export type BetterAuthAssignableRole = {
   readonly statements: BetterAuthStatements;
 };
 
+export type BetterAuthMemberQuery = {
+  readonly model: string;
+  where: { readonly field: string; readonly value: string }[];
+  readonly limit?: number;
+};
+
 export type BetterAuthLike = {
+  readonly $context?: Promise<{
+    readonly adapter?: {
+      readonly findMany?: (query: BetterAuthMemberQuery) => Promise<unknown>;
+    };
+  }>;
   readonly api?: {
     readonly listOrganizations?: (args?: {
       readonly headers?: unknown;

@@ -72,6 +72,34 @@ describe("permdock/express edge cases", () => {
   });
 });
 
+describe("permdock/express subject reuse", () => {
+  it("resolves the subject once when permdock() runs before the decision endpoint", async () => {
+    let resolved = 0;
+    const { permdock, permdockHandler } = createPermDock(policy, {
+      subject: () => {
+        resolved += 1;
+        return memberUser;
+      },
+    });
+    const app = express();
+    app.use(permdock());
+    app.use(express.json());
+    app.use("/api/permdock", permdockHandler());
+    const request = await listen(app);
+    const response = await request("/api/permdock", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        evaluations: [{ action: { name: "post.list" } }],
+      }),
+    });
+    expect(await response.json()).toEqual({
+      evaluations: [expect.objectContaining({ decision: true })],
+    });
+    expect(resolved).toBe(1);
+  });
+});
+
 describe("withBound", () => {
   it("falls back for a request the adapter never bound", () => {
     const contexts = new WeakMap<globalThis.Request, express.Request>();

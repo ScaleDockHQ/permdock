@@ -4,7 +4,7 @@ export type WithSubjectOptions = {
   /** Which settings the generated policies read; match `rls.dialect`. Default `supabase`. */
   readonly dialect?: "supabase" | "guc" | "neon";
   /**
-   * `set local role` before the settings: `authenticated` with a principal, `anon` without.
+   * The local `role` setting before the claims: `authenticated` with a principal, `anon` without.
    * `false` keeps the connection's role, for a login role that RLS already applies to.
    */
   readonly role?: "authenticated" | "anon" | false;
@@ -116,17 +116,26 @@ function apiKeyClaim(
   return [field(options.claim, "api_key"), claim];
 }
 
-function setConfig(name: string, value: string): SubjectStatement {
-  return {
-    strings: [`select set_config('${name}', `, ", true)"],
-    values: [value],
-  };
+function setConfigs(
+  settings: readonly (readonly [string, string])[],
+): readonly SubjectStatement[] {
+  if (settings.length === 0) {
+    return [];
+  }
+  const parts: string[] = [];
+  let open = "select ";
+  for (const [name] of settings) {
+    parts.push(`${open}set_config('${name}', `);
+    open = ", true), ";
+  }
+  parts.push(", true)");
+  return [{ strings: parts, values: settings.map(([, value]) => value) }];
 }
 
 /**
- * The transaction preamble that makes Postgres see `permdock.subject`: the role, then the
- * claims the generated policies read. Runs inside the caller's transaction, so every setting
- * is local to it.
+ * The transaction preamble that makes Postgres see `permdock.subject`: one `select set_config(…)`
+ * that sets the role, then the claims the generated policies read. Runs inside the caller's
+ * transaction, so every setting is local to it.
  */
 export function subjectStatements(
   permdock: SubjectHolder,
@@ -163,29 +172,27 @@ export function subjectStatements(
     claims["role"] = role;
   }
   const subjectId = typeof claims["sub"] === "string" ? claims["sub"] : "";
-  const statements: SubjectStatement[] =
-    role === false ? [] : [{ strings: [`set local role ${role}`], values: [] }];
+  const settings: (readonly [string, string])[] =
+    role === false ? [] : [["role", role]];
   const dialect = options.dialect ?? "supabase";
   switch (dialect) {
     case "supabase":
     case "neon":
-      statements.push(setConfig("request.jwt.claims", JSON.stringify(claims)));
-      return statements;
+      settings.push(["request.jwt.claims", JSON.stringify(claims)]);
+      return setConfigs(settings);
     case "guc": {
       const prefix = settingName(options.gucPrefix ?? "app", "setting prefix");
-      statements.push(setConfig(`${prefix}.user_id`, subjectId));
+      settings.push([`${prefix}.user_id`, subjectId]);
       for (const [name, value] of Object.entries(claims)) {
         if (name === "sub") {
           continue;
         }
-        statements.push(
-          setConfig(
-            `${prefix}.${settingName(name, "claim name")}`,
-            typeof value === "string" ? value : JSON.stringify(value),
-          ),
-        );
+        settings.push([
+          `${prefix}.${settingName(name, "claim name")}`,
+          typeof value === "string" ? value : JSON.stringify(value),
+        ]);
       }
-      return statements;
+      return setConfigs(settings);
     }
     default: {
       const exhaustive: never = dialect;

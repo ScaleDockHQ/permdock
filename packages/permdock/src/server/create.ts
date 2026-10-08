@@ -227,6 +227,12 @@ export type ServerKernel<V extends PolicyVocabulary = PolicyVocabulary> = {
     options?: ConnectionOptions<T>,
     scope?: TenantScope,
   ) => Promise<Connection>;
+  /**
+   * Lets `to`, a second `Request` an adapter built for the same incoming
+   * request (to re-read a body a parser consumed), reuse the subject and
+   * actor already resolved for `from`.
+   */
+  readonly shareSubject: (from: Request, to: Request) => void;
   readonly problem: ServerPermDock<V>["problem"];
   readonly openapi: OpenApiHooks;
   readonly permdockHandler: (
@@ -710,6 +716,12 @@ export function createServerKernel<
     protectOn: (instance, permission, load, protectOptions = {}, request) =>
       guardOn(instance, undefined, request, permission, load, protectOptions),
     connection,
+    shareSubject: (from, to) => {
+      const resolved = subjects.get(from);
+      if (resolved !== undefined && !subjects.has(to)) {
+        subjects.set(to, resolved);
+      }
+    },
     problem: (decision, init) => problemFor(decision, init, options.approval),
     openapi,
     permdockHandler,
