@@ -1,14 +1,13 @@
-import { existsSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
-
 import type { DoctorFinding, DoctorInput } from "./doctor-types.ts";
 
 import { policyOf } from "./doctor-collect.ts";
-import { powersyncFile, powersyncOut } from "./powersync.ts";
+import { powersyncFiles, staleFiles } from "./powersync.ts";
 
 /**
- * PD058: `sync-config.yaml` is not what the policy compiles to, so the
- * PowerSync service syncs rows by an older policy.
+ * PD058: `sync-config.yaml` or the `powersync.manifest` file is not what the
+ * policy compiles to, so PowerSync syncs rows, or the device builds
+ * snapshots, by an older policy. A policy that does not compile is a finding
+ * too.
  */
 export async function pd058(
   input: DoctorInput,
@@ -21,27 +20,25 @@ export async function pd058(
   if (policy === undefined) {
     return [];
   }
-  const out = powersyncOut(config);
-  const path = resolve(cwd, out);
-  const current = existsSync(path) ? readFileSync(path, "utf8") : undefined;
-  let expected: string;
+  let compiled: ReturnType<typeof powersyncFiles>;
   try {
-    expected = powersyncFile(policy, config).yaml;
-  } catch {
-    return [];
+    compiled = powersyncFiles(policy, config);
+  } catch (cause) {
+    return [
+      {
+        code: "PD058",
+        severity: "warning",
+        message: `the policy does not compile to Sync Streams: ${cause instanceof Error ? cause.message : String(cause)}`,
+        fix: "fix the powersync and rls config, then run permdock powersync generate",
+      },
+    ];
   }
-  if (current === expected) {
-    return [];
-  }
-  return [
-    {
-      code: "PD058",
-      severity: "warning",
-      message:
-        current === undefined
-          ? `${out} is missing, so PowerSync syncs no stream the policy compiles to`
-          : `${out} is not what the policy compiles to, so PowerSync syncs rows by an older policy`,
-      fix: "run permdock powersync generate and deploy the file to the PowerSync service",
-    },
-  ];
+  return staleFiles(cwd, compiled.files).map((file) => ({
+    code: "PD058",
+    severity: "warning",
+    message: file.missing
+      ? `${file.path} is missing, so ${file.path === config.powersync?.manifest ? "the device builds no local snapshot" : "PowerSync syncs no stream the policy compiles to"}`
+      : `${file.path} is not what the policy compiles to, so ${file.path === config.powersync?.manifest ? "the device builds snapshots" : "PowerSync syncs rows"} by an older policy`,
+    fix: "run permdock powersync generate and deploy the files",
+  }));
 }

@@ -32,6 +32,12 @@ export { parseLocalSnapshotManifest } from "../core/parse-local-manifest.ts";
 export { useSnapshotReady, usePermissionGuard } from "./guards.ts";
 export { buildLocalSnapshot, localSnapshot } from "./local.ts";
 export type { LocalSnapshotData, LocalSnapshotOptions } from "./local.ts";
+export { powersyncSource } from "./powersync.ts";
+export type {
+  PowerSyncQuery,
+  PowerSyncSourceOptions,
+  PowerSyncWatchable,
+} from "./powersync.ts";
 export { PermDockProvider } from "./provider.tsx";
 export { memoryStorage } from "./storage.ts";
 export { mmkvStorage, secureStoreStorage } from "./storage-adapters.ts";

@@ -12,6 +12,8 @@ export type RlsFixture = {
     readonly roles?: readonly string[];
     readonly tenant?: string;
     readonly memberships?: readonly Membership[];
+    /** Token claims: `principal.claims` in process, the Supabase JWT claims, PowerSync `auth.parameter()`. */
+    readonly claims?: Readonly<Record<string, unknown>>;
   };
   readonly row: unknown;
   readonly newRow?: unknown;
@@ -64,7 +66,13 @@ function asFixtures(value: unknown): readonly RlsFixture[] {
         `PermDock CLI: fixture ${index} subject.tenant must be a string`,
       );
     }
-    // SAFETY: subject, row, action, subject.id, memberships and tenant were each checked above.
+    const claims = item["subject"]["claims"];
+    if (claims !== undefined && !isRecord(claims)) {
+      throw new Error(
+        `PermDock CLI: fixture ${index} subject.claims must be an object`,
+      );
+    }
+    // SAFETY: subject, row, action, subject.id, memberships, tenant and claims were each checked above.
     return item as RlsFixture;
   });
 }
@@ -108,6 +116,7 @@ export function fixtureSubject(fixture: RlsFixture["subject"]): Subject {
       roles: fixture.roles ?? [],
       ...(fixture.tenant === undefined ? {} : { tenant: fixture.tenant }),
       memberships: fixture.memberships ?? [],
+      ...(fixture.claims === undefined ? {} : { claims: fixture.claims }),
     },
     context: {},
   };

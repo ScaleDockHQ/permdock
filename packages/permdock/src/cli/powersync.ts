@@ -6,7 +6,12 @@ import type { CommandResult } from "./commands/context.ts";
 import type { SqlConnect } from "./pg.ts";
 import type { PermDockConfig } from "./types.ts";
 
-import { createPermDock, findPermission, memoryRoleSource } from "../index.ts";
+import {
+  createPermDock,
+  findPermission,
+  localSnapshotManifest,
+  memoryRoleSource,
+} from "../index.ts";
 import { usageResult } from "./errors.ts";
 import {
   type RlsFixture,
@@ -19,6 +24,7 @@ import { connectPg } from "./pg.ts";
 import {
   POSTGRES,
   type PowerSyncStream,
+  type SubjectStream,
   powersyncPlan,
   powersyncYaml,
 } from "./powersync-streams.ts";
@@ -48,13 +54,71 @@ async function loadPolicy(
   return asPolicy(pickNamed(await loadModule(resolve(cwd, path)), ["policy"]));
 }
 
-/** The Sync Streams file the policy compiles to, with the grants that do not sync. */
-export function powersyncFile(
+export type PowerSyncFile = {
+  readonly path: string;
+  readonly text: string;
+  /** Compared as parsed JSON, so a formatter run over the file keeps it current. */
+  readonly json?: true;
+};
+
+function sameJson(current: string, expected: string): boolean {
+  try {
+    return (
+      JSON.stringify(JSON.parse(current)) ===
+      JSON.stringify(JSON.parse(expected))
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The files the policy compiles to: the Sync Streams file and, with
+ * `powersync.manifest`, the local-snapshot manifest. `warnings` lists the
+ * grants that do not sync.
+ */
+export function powersyncFiles(
   policy: Policy,
   config: PermDockConfig,
-): { readonly yaml: string; readonly warnings: readonly string[] } {
+  out?: string,
+): {
+  readonly files: readonly PowerSyncFile[];
+  readonly warnings: readonly string[];
+} {
   const plan = powersyncPlan(policy, config);
-  return { yaml: powersyncYaml(plan), warnings: plan.warnings };
+  const files: PowerSyncFile[] = [
+    { path: powersyncOut(config, out), text: powersyncYaml(plan) },
+  ];
+  const manifest = config.powersync?.manifest;
+  if (manifest !== undefined) {
+    files.push({
+      path: manifest,
+      json: true,
+      text: `${JSON.stringify(localSnapshotManifest(policy), null, 2)}\n`,
+    });
+  }
+  return { files, warnings: plan.warnings };
+}
+
+/** The files whose content on disk is not what the policy compiles to, with `missing` for an absent one. */
+export function staleFiles(
+  cwd: string,
+  files: readonly PowerSyncFile[],
+): readonly { readonly path: string; readonly missing: boolean }[] {
+  const stale: { path: string; missing: boolean }[] = [];
+  for (const file of files) {
+    const path = resolve(cwd, file.path);
+    const current = existsSync(path) ? readFileSync(path, "utf8") : undefined;
+    const same =
+      current !== undefined &&
+      (file.json === true
+        ? sameJson(current, file.text)
+        : current === file.text);
+    if (!same) {
+      stale.push({ path: file.path, missing: current === undefined });
+    }
+  }
+  return stale;
 }
 
 function rowValue(row: unknown, key: string | undefined): string | undefined {
@@ -66,6 +130,29 @@ function rowValue(row: unknown, key: string | undefined): string | undefined {
       ? Object.entries(row).find(([name]) => name === key)?.[1]
       : undefined;
   return value === undefined || value === null ? undefined : String(value);
+}
+
+function claimsJson(fixture: RlsFixture): string {
+  return JSON.stringify(fixture.subject.claims ?? {});
+}
+
+/** Whether a stream of the user's own rows holds a row of another user. */
+async function leaks(
+  query: (sql: string, values: unknown[]) => Promise<readonly unknown[]>,
+  stream: SubjectStream,
+  user: string,
+  fixture: RlsFixture,
+): Promise<boolean> {
+  for (const text of stream.queries) {
+    const rows = await query(
+      `select 1 from (${text}) q where q.${quoteIdent(user)}::text is distinct from $1::text and $2::jsonb is not null limit 1`,
+      [fixture.subject.id, claimsJson(fixture)],
+    );
+    if (rows.length > 0) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /** Whether the stream holds the fixture's row for its subject. */
@@ -82,7 +169,7 @@ async function synced(
     // Every parameter is typed in the outer query, so a stream query that uses none still prepares.
     const rows = await query(
       `select 1 from (${text}) q where q.${quoteIdent(stream.id)}::text = $3::text and $1::text is not null and $2::jsonb is not null limit 1`,
-      [fixture.subject.id, "{}", value],
+      [fixture.subject.id, claimsJson(fixture), value],
     );
     if (rows.length > 0) {
       return true;
@@ -109,6 +196,23 @@ async function verifyStreams(input: {
     (scope) => scope.within === undefined,
   )?.key;
   try {
+    const checked = new Set<string>();
+    for (const fixture of input.fixtures) {
+      if (checked.has(fixture.subject.id)) {
+        continue;
+      }
+      checked.add(fixture.subject.id);
+      for (const stream of plan.subject) {
+        if (
+          stream.user !== undefined &&
+          (await leaks(query, stream, stream.user, fixture))
+        ) {
+          mismatches.push(
+            `stream ${stream.name} syncs another user's ${stream.table} rows to ${fixture.subject.id}`,
+          );
+        }
+      }
+    }
     for (const fixture of input.fixtures) {
       const permission = findPermission(
         input.policy.permissions,
@@ -173,36 +277,48 @@ export async function runPowerSync(input: {
     return { code: 2, output: POWERSYNC_HELP };
   }
   let policy: Policy;
-  let file: ReturnType<typeof powersyncFile>;
+  let compiled: ReturnType<typeof powersyncFiles>;
   try {
     policy = await loadPolicy(input.cwd, input.config, input.from);
-    file = powersyncFile(policy, input.config);
+    compiled = powersyncFiles(policy, input.config, input.out);
   } catch (cause) {
     return usageResult(cause);
   }
-  const { yaml, warnings } = file;
+  const { files, warnings } = compiled;
   const out = powersyncOut(input.config, input.out);
-  const path = resolve(input.cwd, out);
-  const current = existsSync(path) ? readFileSync(path, "utf8") : undefined;
+  const stale = staleFiles(input.cwd, files);
   if (verb === "generate") {
     if (input.check) {
-      return current === yaml
-        ? { code: 0, output: `${out} is current` }
+      return stale.length === 0
+        ? {
+            code: 0,
+            output: files.map((file) => `${file.path} is current`).join("\n"),
+          }
         : {
             code: 1,
-            output: `${out} is stale: run permdock powersync generate`,
+            output: stale
+              .map(
+                (file) =>
+                  `${file.path} is stale: run permdock powersync generate`,
+              )
+              .join("\n"),
           };
     }
-    writeFileSync(path, yaml);
-    return { code: 0, output: [`wrote ${out}`, ...warnings].join("\n") };
+    for (const file of files) {
+      writeFileSync(resolve(input.cwd, file.path), file.text);
+    }
+    return {
+      code: 0,
+      output: [...files.map((file) => `wrote ${file.path}`), ...warnings].join(
+        "\n",
+      ),
+    };
   }
-  const mismatches: string[] = [];
+  const mismatches: string[] = stale.map(
+    (file) =>
+      `${file.path} ${file.missing ? "is missing" : "differs from the policy"}: run permdock powersync generate`,
+  );
   const notes: string[] = [...warnings];
-  if (current !== yaml) {
-    mismatches.push(
-      `${out} ${current === undefined ? "is missing" : "differs from the policy"}: run permdock powersync generate`,
-    );
-  }
   if (input.db !== undefined) {
     try {
       const fixturesPath =

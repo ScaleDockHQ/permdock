@@ -1,0 +1,619 @@
+{
+  "v": 1,
+  "scopes": [
+    {
+      "name": "organization",
+      "key": "organization_id",
+      "resources": ["job", "customer"]
+    }
+  ],
+  "vocabulary": {},
+  "roles": ["admin", "pro", "support", "technician"],
+  "grants": [
+    {
+      "permission": "job.read",
+      "effect": "allow",
+      "role": "admin",
+      "to": {
+        "kind": "role",
+        "role": "admin",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "job.update",
+      "effect": "allow",
+      "role": "admin",
+      "to": {
+        "kind": "role",
+        "role": "admin",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "customer.read",
+      "effect": "allow",
+      "role": "admin",
+      "to": {
+        "kind": "role",
+        "role": "admin",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "job.read",
+      "effect": "allow",
+      "role": "technician",
+      "to": {
+        "kind": "role",
+        "role": "technician",
+        "scope": "organization"
+      },
+      "where": {
+        "op": "eq",
+        "field": "assignee_id",
+        "value": {
+          "ref": "principal.id"
+        }
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "job.update",
+      "effect": "allow",
+      "role": "technician",
+      "to": {
+        "kind": "role",
+        "role": "technician",
+        "scope": "organization"
+      },
+      "where": {
+        "op": "eq",
+        "field": "assignee_id",
+        "value": {
+          "ref": "principal.id"
+        }
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "customer.read",
+      "effect": "allow",
+      "role": "pro",
+      "to": {
+        "kind": "role",
+        "role": "pro",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "job.read",
+      "effect": "allow",
+      "role": "support",
+      "to": {
+        "kind": "role",
+        "role": "support",
+        "scope": "global"
+      }
+    },
+    {
+      "permission": "customer.read",
+      "effect": "allow",
+      "role": "support",
+      "to": {
+        "kind": "role",
+        "role": "support",
+        "scope": "global"
+      }
+    }
+  ],
+  "custom": {
+    "organization": {
+      "permissions": {
+        "job.read": {
+          "all": [
+            {
+              "permission": "job.read",
+              "effect": "allow",
+              "role": "\u0000custom",
+              "to": {
+                "kind": "role",
+                "role": "\u0000custom",
+                "scope": "organization"
+              },
+              "scope": "organization"
+            },
+            {
+              "permission": "job.read",
+              "effect": "allow",
+              "role": "\u0000custom",
+              "to": {
+                "kind": "role",
+                "role": "\u0000custom",
+                "scope": "organization"
+              },
+              "where": {
+                "op": "eq",
+                "field": "assignee_id",
+                "value": {
+                  "ref": "principal.id"
+                }
+              },
+              "scope": "organization"
+            }
+          ],
+          "levels": {
+            "own": [
+              {
+                "permission": "job.read",
+                "effect": "allow",
+                "role": "\u0000custom",
+                "to": {
+                  "kind": "role",
+                  "role": "\u0000custom",
+                  "scope": "organization"
+                },
+                "where": {
+                  "op": "eq",
+                  "field": "assignee_id",
+                  "value": {
+                    "ref": "principal.id"
+                  }
+                },
+                "scope": "organization"
+              },
+              {
+                "permission": "job.read",
+                "effect": "allow",
+                "role": "\u0000custom",
+                "to": {
+                  "kind": "role",
+                  "role": "\u0000custom",
+                  "scope": "organization"
+                },
+                "where": {
+                  "op": "and",
+                  "conditions": [
+                    {
+                      "op": "eq",
+                      "field": "assignee_id",
+                      "value": {
+                        "ref": "principal.id"
+                      }
+                    },
+                    {
+                      "op": "eq",
+                      "field": "assignee_id",
+                      "value": {
+                        "ref": "principal.id"
+                      }
+                    }
+                  ]
+                },
+                "scope": "organization"
+              }
+            ],
+            "team": [
+              {
+                "permission": "job.read",
+                "effect": "allow",
+                "role": "\u0000custom",
+                "to": {
+                  "kind": "role",
+                  "role": "\u0000custom",
+                  "scope": "organization"
+                },
+                "where": {
+                  "op": "in",
+                  "field": "team_id",
+                  "value": {
+                    "ref": "principal.claims.team_ids"
+                  }
+                },
+                "scope": "organization"
+              },
+              {
+                "permission": "job.read",
+                "effect": "allow",
+                "role": "\u0000custom",
+                "to": {
+                  "kind": "role",
+                  "role": "\u0000custom",
+                  "scope": "organization"
+                },
+                "where": {
+                  "op": "and",
+                  "conditions": [
+                    {
+                      "op": "eq",
+                      "field": "assignee_id",
+                      "value": {
+                        "ref": "principal.id"
+                      }
+                    },
+                    {
+                      "op": "in",
+                      "field": "team_id",
+                      "value": {
+                        "ref": "principal.claims.team_ids"
+                      }
+                    }
+                  ]
+                },
+                "scope": "organization"
+              }
+            ],
+            "all": [
+              {
+                "permission": "job.read",
+                "effect": "allow",
+                "role": "\u0000custom",
+                "to": {
+                  "kind": "role",
+                  "role": "\u0000custom",
+                  "scope": "organization"
+                },
+                "scope": "organization"
+              },
+              {
+                "permission": "job.read",
+                "effect": "allow",
+                "role": "\u0000custom",
+                "to": {
+                  "kind": "role",
+                  "role": "\u0000custom",
+                  "scope": "organization"
+                },
+                "where": {
+                  "op": "eq",
+                  "field": "assignee_id",
+                  "value": {
+                    "ref": "principal.id"
+                  }
+                },
+                "scope": "organization"
+              }
+            ]
+          }
+        },
+        "job.update": {
+          "all": [
+            {
+              "permission": "job.update",
+              "effect": "allow",
+              "role": "\u0000custom",
+              "to": {
+                "kind": "role",
+                "role": "\u0000custom",
+                "scope": "organization"
+              },
+              "scope": "organization"
+            },
+            {
+              "permission": "job.update",
+              "effect": "allow",
+              "role": "\u0000custom",
+              "to": {
+                "kind": "role",
+                "role": "\u0000custom",
+                "scope": "organization"
+              },
+              "where": {
+                "op": "eq",
+                "field": "assignee_id",
+                "value": {
+                  "ref": "principal.id"
+                }
+              },
+              "scope": "organization"
+            }
+          ],
+          "levels": {
+            "own": [
+              {
+                "permission": "job.update",
+                "effect": "allow",
+                "role": "\u0000custom",
+                "to": {
+                  "kind": "role",
+                  "role": "\u0000custom",
+                  "scope": "organization"
+                },
+                "where": {
+                  "op": "eq",
+                  "field": "assignee_id",
+                  "value": {
+                    "ref": "principal.id"
+                  }
+                },
+                "scope": "organization"
+              },
+              {
+                "permission": "job.update",
+                "effect": "allow",
+                "role": "\u0000custom",
+                "to": {
+                  "kind": "role",
+                  "role": "\u0000custom",
+                  "scope": "organization"
+                },
+                "where": {
+                  "op": "and",
+                  "conditions": [
+                    {
+                      "op": "eq",
+                      "field": "assignee_id",
+                      "value": {
+                        "ref": "principal.id"
+                      }
+                    },
+                    {
+                      "op": "eq",
+                      "field": "assignee_id",
+                      "value": {
+                        "ref": "principal.id"
+                      }
+                    }
+                  ]
+                },
+                "scope": "organization"
+              }
+            ],
+            "team": [
+              {
+                "permission": "job.update",
+                "effect": "allow",
+                "role": "\u0000custom",
+                "to": {
+                  "kind": "role",
+                  "role": "\u0000custom",
+                  "scope": "organization"
+                },
+                "where": {
+                  "op": "in",
+                  "field": "team_id",
+                  "value": {
+                    "ref": "principal.claims.team_ids"
+                  }
+                },
+                "scope": "organization"
+              },
+              {
+                "permission": "job.update",
+                "effect": "allow",
+                "role": "\u0000custom",
+                "to": {
+                  "kind": "role",
+                  "role": "\u0000custom",
+                  "scope": "organization"
+                },
+                "where": {
+                  "op": "and",
+                  "conditions": [
+                    {
+                      "op": "eq",
+                      "field": "assignee_id",
+                      "value": {
+                        "ref": "principal.id"
+                      }
+                    },
+                    {
+                      "op": "in",
+                      "field": "team_id",
+                      "value": {
+                        "ref": "principal.claims.team_ids"
+                      }
+                    }
+                  ]
+                },
+                "scope": "organization"
+              }
+            ],
+            "all": [
+              {
+                "permission": "job.update",
+                "effect": "allow",
+                "role": "\u0000custom",
+                "to": {
+                  "kind": "role",
+                  "role": "\u0000custom",
+                  "scope": "organization"
+                },
+                "scope": "organization"
+              },
+              {
+                "permission": "job.update",
+                "effect": "allow",
+                "role": "\u0000custom",
+                "to": {
+                  "kind": "role",
+                  "role": "\u0000custom",
+                  "scope": "organization"
+                },
+                "where": {
+                  "op": "eq",
+                  "field": "assignee_id",
+                  "value": {
+                    "ref": "principal.id"
+                  }
+                },
+                "scope": "organization"
+              }
+            ]
+          }
+        },
+        "customer.read": {
+          "all": [
+            {
+              "permission": "customer.read",
+              "effect": "allow",
+              "role": "\u0000custom",
+              "to": {
+                "kind": "role",
+                "role": "\u0000custom",
+                "scope": "organization"
+              },
+              "scope": "organization"
+            },
+            {
+              "permission": "customer.read",
+              "effect": "allow",
+              "role": "\u0000custom",
+              "to": {
+                "kind": "role",
+                "role": "\u0000custom",
+                "scope": "organization"
+              },
+              "scope": "organization"
+            }
+          ]
+        }
+      },
+      "includes": {
+        "admin": [
+          {
+            "permission": "job.read",
+            "effect": "allow",
+            "role": "\u0000custom",
+            "to": {
+              "kind": "role",
+              "role": "\u0000custom",
+              "scope": "organization"
+            },
+            "scope": "organization"
+          },
+          {
+            "permission": "job.update",
+            "effect": "allow",
+            "role": "\u0000custom",
+            "to": {
+              "kind": "role",
+              "role": "\u0000custom",
+              "scope": "organization"
+            },
+            "scope": "organization"
+          },
+          {
+            "permission": "customer.read",
+            "effect": "allow",
+            "role": "\u0000custom",
+            "to": {
+              "kind": "role",
+              "role": "\u0000custom",
+              "scope": "organization"
+            },
+            "scope": "organization"
+          }
+        ],
+        "pro": [
+          {
+            "permission": "customer.read",
+            "effect": "allow",
+            "role": "\u0000custom",
+            "to": {
+              "kind": "role",
+              "role": "\u0000custom",
+              "scope": "organization"
+            },
+            "scope": "organization"
+          }
+        ],
+        "support": [
+          {
+            "permission": "job.read",
+            "effect": "allow",
+            "role": "\u0000custom",
+            "to": {
+              "kind": "role",
+              "role": "\u0000custom",
+              "scope": "organization"
+            },
+            "scope": "organization"
+          },
+          {
+            "permission": "job.read",
+            "effect": "allow",
+            "role": "\u0000custom",
+            "to": {
+              "kind": "role",
+              "role": "\u0000custom",
+              "scope": "organization"
+            },
+            "where": {
+              "op": "eq",
+              "field": "assignee_id",
+              "value": {
+                "ref": "principal.id"
+              }
+            },
+            "scope": "organization"
+          },
+          {
+            "permission": "customer.read",
+            "effect": "allow",
+            "role": "\u0000custom",
+            "to": {
+              "kind": "role",
+              "role": "\u0000custom",
+              "scope": "organization"
+            },
+            "scope": "organization"
+          },
+          {
+            "permission": "customer.read",
+            "effect": "allow",
+            "role": "\u0000custom",
+            "to": {
+              "kind": "role",
+              "role": "\u0000custom",
+              "scope": "organization"
+            },
+            "scope": "organization"
+          }
+        ],
+        "technician": [
+          {
+            "permission": "job.read",
+            "effect": "allow",
+            "role": "\u0000custom",
+            "to": {
+              "kind": "role",
+              "role": "\u0000custom",
+              "scope": "organization"
+            },
+            "where": {
+              "op": "eq",
+              "field": "assignee_id",
+              "value": {
+                "ref": "principal.id"
+              }
+            },
+            "scope": "organization"
+          },
+          {
+            "permission": "job.update",
+            "effect": "allow",
+            "role": "\u0000custom",
+            "to": {
+              "kind": "role",
+              "role": "\u0000custom",
+              "scope": "organization"
+            },
+            "where": {
+              "op": "eq",
+              "field": "assignee_id",
+              "value": {
+                "ref": "principal.id"
+              }
+            },
+            "scope": "organization"
+          }
+        ]
+      }
+    }
+  }
+}
