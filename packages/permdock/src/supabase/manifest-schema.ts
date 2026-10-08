@@ -241,6 +241,21 @@ export const supabaseManifestSchema: JsonSchemaNode = freezeDeep({
                 $ref: "#/$defs/activeRow",
               },
             },
+            memberships: {
+              type: "object",
+              required: ["keep"],
+              additionalProperties: false,
+              properties: {
+                keep: {
+                  description:
+                    "The permission keys a membership whose disabledAt column is set still holds.",
+                  type: "array",
+                  items: {
+                    type: "string",
+                  },
+                },
+              },
+            },
           },
         },
         assignments: {
@@ -381,6 +396,9 @@ export const supabaseManifestSchema: JsonSchemaNode = freezeDeep({
           $ref: "#/$defs/value",
         },
         expiresAt: {
+          $ref: "#/$defs/column",
+        },
+        disabledAt: {
           $ref: "#/$defs/column",
         },
         columns: {
