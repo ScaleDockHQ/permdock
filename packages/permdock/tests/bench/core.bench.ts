@@ -46,6 +46,9 @@ test("filter over 1,000 rows", async ({ bench }) => {
     bench("admin with a deny", () => {
       admin.filter(permissions.project.delete, rows);
     }),
+    bench("member from a snapshot", () => {
+      client.filter(permissions.project.update, rows);
+    }),
   );
 });
 
@@ -61,7 +64,14 @@ test("snapshot", async ({ bench }) => {
 });
 
 test("client store", async ({ bench }) => {
-  await bench("permissionState, cached answer", () => {
-    store.permissionState(permissions.project.update, own);
-  }).run();
+  await bench.compare(
+    bench("permissionState, cached answer", () => {
+      store.permissionState(permissions.project.update, own);
+    }),
+    bench("permissionState, 20 reads of one row in a render pass", () => {
+      for (let read = 0; read < 20; read += 1) {
+        store.permissionState(permissions.project.update, own);
+      }
+    }),
+  );
 });

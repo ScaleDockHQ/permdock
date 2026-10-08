@@ -15,11 +15,16 @@ export type PermissionBoundaryState = PermDockDigest & {
   readonly retry: () => void;
 };
 
+/** A fallback node, or a function of what was refused. */
+export type PermissionBoundaryFallback =
+  | ReactNode
+  | ((state: PermissionBoundaryState) => ReactNode);
+
 export type PermissionBoundaryProps = {
   /** Rendered in place of the children when one throws `PermDockDeniedError`. */
-  readonly denied?: ReactNode;
+  readonly denied?: PermissionBoundaryFallback;
   /** Rendered when a child throws `PermDockApprovalRequiredError`; defaults to `denied`. */
-  readonly approval?: ReactNode;
+  readonly approval?: PermissionBoundaryFallback;
 };
 
 // SAFETY: Node ESM loads next/error.js as CommonJS, where catchError is a getter only the default export (module.exports) carries; bundlers expose the named export.
@@ -41,13 +46,14 @@ function PermissionFallback(
     // Not a PermDock error: let the next boundary up handle it.
     throw info.error;
   }
-  const node =
+  const fallback =
     parsed.outcome === "approval-required"
       ? (props.approval ?? props.denied)
       : props.denied;
+  const state: PermissionBoundaryState = { ...parsed, retry: info.retry };
   return (
-    <BoundaryContext.Provider value={{ ...parsed, retry: info.retry }}>
-      {node ?? null}
+    <BoundaryContext.Provider value={state}>
+      {typeof fallback === "function" ? fallback(state) : (fallback ?? null)}
     </BoundaryContext.Provider>
   );
 }

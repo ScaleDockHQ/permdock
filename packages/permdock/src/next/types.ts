@@ -3,7 +3,7 @@ import type { ReactElement, ReactNode } from "react";
 import type { ApprovalStore } from "../approvals/types.ts";
 import type { Decision } from "../core/decision.ts";
 import type { InstanceOptions } from "../core/instance-options.ts";
-import type { SnapshotSource } from "../core/interfaces.ts";
+import type { Snapshot, SnapshotSource } from "../core/interfaces.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permissions.ts";
 import type { PolicyVocabulary } from "../core/policy.ts";
@@ -33,6 +33,16 @@ export type NextPermDockOptions<TUser = NextSubjectInput> = InstanceOptions & {
 
 export type GetPermDockQuery = {
   readonly tenant?: string;
+};
+
+export type GetSnapshotQuery = GetPermDockQuery & {
+  readonly include?: readonly (
+    | Permission
+    | { readonly [key: string]: unknown }
+  )[];
+  readonly tenants?: "all";
+  /** Tags added next to `snapshotTag(sub)`, such as the app's own organisation tag. */
+  readonly tags?: readonly string[];
 };
 
 export type RequireAccessInput = {
@@ -70,10 +80,22 @@ export type PermDockHandler = {
 
 export type NextPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
   readonly getPermDock: (query?: GetPermDockQuery) => Promise<PermDock<V>>;
+  /**
+   * `{ allowed, status: 'ready', decision }`. Any failure to build the
+   * instance denies; Next.js interrupts (`redirect()`, `notFound()`,
+   * request-time bailouts) from `subject` or `tenant` pass through.
+   */
   readonly getPermission: (
     permission: Permission,
     data?: unknown,
+    query?: GetPermDockQuery,
   ) => Promise<ServerPermissionState>;
+  /**
+   * The session's snapshot for a `'use cache: private'` function the app owns:
+   * calls `cacheLife(cacheLifeFor(snapshot))` and `cacheTag(snapshotTag(sub), ...tags)`
+   * in that scope, and throws outside one.
+   */
+  readonly getSnapshot: (query?: GetSnapshotQuery) => Promise<Snapshot>;
   /**
    * Resolves to the granted `Decision`. A denial calls `unauthorized()` for an
    * anonymous subject and `forbidden()` otherwise (`experimental.authInterrupts`);

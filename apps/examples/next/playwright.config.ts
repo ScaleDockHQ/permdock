@@ -7,6 +7,9 @@ export default defineConfig({
   testDir: "tests/instant",
   testMatch: "*.instant.ts",
   forbidOnly: "CI" in process.env,
+  // Store reads wait DEMO_LATENCY_MS (3 s by default); a cold page chains a few.
+  timeout: 90_000,
+  expect: { timeout: 20_000 },
   reporter: "list",
   use: { baseURL, browserName: "chromium" },
   projects: [

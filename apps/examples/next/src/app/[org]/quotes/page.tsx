@@ -1,7 +1,8 @@
 import { Suspense } from "react";
 
 import { PageHeader } from "@/components/page-header.tsx";
-import { ListSkeleton, QuoteList } from "@/components/quotes/quote-list.tsx";
+import { QuoteList } from "@/components/quotes/quote-list.tsx";
+import { ListSkeleton } from "@/components/quotes/quote-states.tsx";
 
 export const instant = true;
 

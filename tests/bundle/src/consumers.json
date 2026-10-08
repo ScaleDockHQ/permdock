@@ -1,9 +1,9 @@
 {
   "core definePolicy + createPermDock": 46519,
-  "react PermDockProvider + usePermission": 18365,
-  "react-native PermDockProvider + usePermission": 18750,
-  "react-native PermDockProvider + localSnapshot": 19906,
-  "next createPermDock": 50286,
+  "react PermDockProvider + usePermission": 18574,
+  "react-native PermDockProvider + usePermission": 18968,
+  "react-native PermDockProvider + localSnapshot": 20123,
+  "next createPermDock": 50909,
   "server createPermDock": 47221,
   "server createPermDock + verifyWebBotAuth": 48806,
   "hono createPermDock": 48242,

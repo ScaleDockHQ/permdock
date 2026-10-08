@@ -4,6 +4,7 @@ import { Suspense } from "react";
 
 import { organizationBySlug, visibleStaff } from "../../../../../lib/access.ts";
 import { permissions } from "../../../../../policy.ts";
+import { DataSource } from "../../../data-source.tsx";
 
 export const instant = true;
 
@@ -26,13 +27,16 @@ async function StaffList(props: {
   }
   const staff = await visibleStaff(organization.id);
   return (
-    <ul data-testid="staff">
-      {staff.map((row) => (
-        <li key={row.id} data-staff={row.id}>
-          {row.name}, {row.title}
-        </li>
-      ))}
-    </ul>
+    <>
+      <ul data-testid="staff">
+        {staff.value.map((row) => (
+          <li key={row.id} data-staff={row.id}>
+            {row.name}, {row.title}
+          </li>
+        ))}
+      </ul>
+      <DataSource name="Staff" loaded={staff} />
+    </>
   );
 }
 

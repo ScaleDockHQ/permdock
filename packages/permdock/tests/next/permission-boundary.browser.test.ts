@@ -125,6 +125,25 @@ describe("permdock/next PermissionBoundary", () => {
     expect(view.textContent).toBe("content");
   });
 
+  it("calls a function fallback with what was refused", () => {
+    thrown.current = digestError(approvalDigest("post.delete", "pd1.token"));
+    const view = mount(
+      createElement(
+        PermissionBoundary,
+        {
+          denied: (state: PermissionBoundaryState) =>
+            `denied ${state.permission}`,
+          approval: (state: PermissionBoundaryState) =>
+            state.outcome === "approval-required"
+              ? `approve ${state.permission} ${state.token}`
+              : "unreachable",
+        },
+        createElement(Child),
+      ),
+    );
+    expect(view.textContent).toBe("approve post.delete pd1.token");
+  });
+
   it("renders approval for an approval digest, falling back to denied, then nothing", () => {
     thrown.current = digestError(approvalDigest("post.delete", "pd1.token"));
     const approval = mount(

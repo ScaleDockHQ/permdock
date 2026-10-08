@@ -107,6 +107,25 @@ describe("permdock/react", () => {
     expect(html).toContain("locked");
   });
 
+  it("renders pending for another tenant while the snapshot is on its way", () => {
+    const html = renderToStaticMarkup(
+      <PermDockProvider
+        snapshotPromise={Promise.withResolvers<never>().promise}
+      >
+        <Protected
+          permission={permissions.post.update}
+          data={ownPost}
+          tenant="globex"
+          pending={<span>wait</span>}
+          fallback={<span>locked</span>}
+        >
+          <span>edit</span>
+        </Protected>
+      </PermDockProvider>,
+    );
+    expect(html).toBe("<span>wait</span>");
+  });
+
   it("exposes snapshot introspection through hooks", async () => {
     const snapshot = await memberSnapshot();
     const html = renderToStaticMarkup(

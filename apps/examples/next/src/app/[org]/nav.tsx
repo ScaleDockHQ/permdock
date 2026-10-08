@@ -4,10 +4,16 @@ import type { LucideIcon } from "lucide-react";
 import type { Permission } from "permdock";
 
 import { cn } from "cn";
-import { FileText, LayoutDashboard, Settings, Users } from "lucide-react";
-import Link from "next/link";
+import {
+  FileText,
+  LayoutDashboard,
+  LoaderCircle,
+  Settings,
+  Users,
+} from "lucide-react";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
-import { usePermission } from "permdock/react";
+import { Protected } from "permdock/react";
 import { use } from "react";
 
 import { Skeleton } from "@/components/ui/skeleton.tsx";
@@ -72,6 +78,18 @@ export function NavSkeleton() {
   );
 }
 
+/** Shown while a click on a link waits for its route; a prefetched route usually never shows it. */
+function Pending() {
+  const { pending } = useLinkStatus();
+  return pending ? (
+    <LoaderCircle
+      data-testid="nav-pending"
+      className="ml-auto size-3.5 animate-spin"
+      aria-hidden="true"
+    />
+  ) : null;
+}
+
 function NavLink(props: {
   readonly item: Item;
   readonly href: string;
@@ -92,6 +110,7 @@ function NavLink(props: {
       >
         <Icon className="size-4" aria-hidden="true" />
         {props.item.label}
+        <Pending />
       </Link>
     </li>
   );
@@ -103,12 +122,10 @@ function GatedLink(props: {
   readonly href: string;
   readonly current: boolean;
 }) {
-  const { allowed } = usePermission(props.permission);
-  if (!allowed) {
-    return null;
-  }
   return (
-    <NavLink item={props.item} href={props.href} current={props.current} />
+    <Protected permission={props.permission}>
+      <NavLink item={props.item} href={props.href} current={props.current} />
+    </Protected>
   );
 }
 

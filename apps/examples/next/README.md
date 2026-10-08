@@ -25,6 +25,8 @@ Where things live:
 - `src/app/[org]/access-summary.tsx`: `usePermission` in the static shell, without a Suspense boundary; it shows `pending` until the snapshot lands.
 - `src/components/ui`: shadcn/ui (`base-vega`, Tailwind CSS 4), vendored with `pnpm dlx shadcn@latest add <name>` from this folder.
 
+Every store read waits 3 s, so a cached read and a prefetched navigation stand out from a cold one. Each list and card has a footer with how long its read took and when it ran; a cache hit keeps both. Set `DEMO_LATENCY_MS` to change the delay, or to `0` to turn it off.
+
 Set `SESSION_SECRET` in any deployment; the demo falls back to a fixed secret.
 
 ## Verify instant navigation
@@ -33,4 +35,4 @@ Set `SESSION_SECRET` in any deployment; the demo falls back to a fixed secret.
 pnpm --filter @permdock/example-next test:instant
 ```
 
-Builds the app with `EXPOSE_TESTING_API=1`, serves it on `http://127.0.0.1:3585`, and runs `tests/instant/*.instant.ts` with `instant()` from `@next/playwright` at 1280 px and 390 px. The specs cover the initial load of `/acme` and `/portal/acme`, the soft navigation from Overview to Quotes, the organization switch, and the per-link prefetch of a quote and the Members page. Under the lock each spec expects the shell and the skeleton, and expects the deferred list to be absent. Install Chromium once with `pnpm --filter @permdock/example-next exec playwright install chromium`.
+Builds the app with `EXPOSE_TESTING_API=1`, serves it on `http://127.0.0.1:3585`, and runs `tests/instant/*.instant.ts` with `instant()` from `@next/playwright` at 1280 px and 390 px. The specs cover the initial load of `/acme` and `/portal/acme`, the soft navigation from Overview to Quotes, the organization switch, and the per-link prefetch of a quote and the Members page. `cold-then-warm.instant.ts` reads Quotes and `q-101` once, then checks that a reload and a revisit show the same read time under the lock. Under the lock each spec expects the shell and the skeleton, and expects the deferred list to be absent. Install Chromium once with `pnpm --filter @permdock/example-next exec playwright install chromium`.

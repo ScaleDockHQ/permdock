@@ -13,7 +13,13 @@ export function Protected(props: ProtectedProps): JSX.Element {
     () => props.data,
   );
   const view = createMemo(() =>
-    protectedView(local(), root, props.permission, props.data, props.tenant),
+    protectedView(
+      local(),
+      root,
+      props.permission,
+      props.data,
+      props.tenant === undefined ? undefined : root.tenant(props.tenant),
+    ),
   );
   const render = (): SolidChild => {
     const scoped = view();

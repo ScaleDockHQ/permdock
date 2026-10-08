@@ -1,4 +1,4 @@
-import { type ReactElement, useLayoutEffect, useMemo } from "react";
+import { type ReactElement, useLayoutEffect } from "react";
 
 import type { Permission } from "../core/permissions.ts";
 import type { PermDockProviderProps } from "./types.ts";
@@ -10,6 +10,7 @@ import {
   PermDockSnapshotPromiseContext,
   PermDockStoreContext,
 } from "./context.ts";
+import { useKeyed } from "./keyed.ts";
 import { useLiveOptions } from "./live-options.ts";
 
 /** One hint per provider: the first check `endpoint: false` turns into a `server-only` denial. */
@@ -32,7 +33,7 @@ export function PermDockProvider(props: PermDockProviderProps): ReactElement {
   const suspend = props.suspend === true;
   const awaiting = promise !== null && !suspend;
   const live = useLiveOptions(props);
-  const store = useMemo(
+  const store = useKeyed(
     () =>
       adapterStore(
         compact({

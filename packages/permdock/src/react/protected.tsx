@@ -1,4 +1,4 @@
-import { type ReactNode, Suspense } from "react";
+import { type ReactNode, Suspense, useMemo } from "react";
 
 import type { ProtectedProps } from "./types.ts";
 
@@ -19,13 +19,11 @@ export function Protected(props: ProtectedProps): ReactNode {
 function Guard(props: ProtectedProps): ReactNode {
   const root = usePermDock();
   const local = usePermission(props.permission, props.data);
-  const view = protectedView(
-    local,
-    root,
-    props.permission,
-    props.data,
-    props.tenant,
+  const scoped = useMemo(
+    () => (props.tenant === undefined ? undefined : root.tenant(props.tenant)),
+    [root, props.tenant],
   );
+  const view = protectedView(local, root, props.permission, props.data, scoped);
   switch (view.slot) {
     case "pending":
       return props.pending ?? null;

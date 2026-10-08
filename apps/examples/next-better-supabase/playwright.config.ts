@@ -11,6 +11,9 @@ export default defineConfig({
   testMatch: "*.instant.ts",
   forbidOnly: "CI" in process.env,
   reporter: "list",
+  // Every RLS read waits `DEMO_LATENCY_MS`, 3 s by default.
+  timeout: 90_000,
+  expect: { timeout: 20_000 },
   use: { baseURL, browserName: "chromium" },
   projects: [
     { name: "desktop", use: { viewport: { width: 1280, height: 800 } } },

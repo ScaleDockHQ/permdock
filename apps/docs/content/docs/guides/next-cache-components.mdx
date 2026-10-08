@@ -7,7 +7,7 @@ This guide builds permission UI for a multi-org SaaS on Next.js 16.3 with `cache
 
 `apps/examples/next` and `apps/examples/next-better-supabase` run this pattern.
 
-PermDock adds no cache directives and never calls `cookies()` or `headers()`. The app owns every `'use cache'`, `cacheLife` and `cacheTag`; PermDock supplies pure functions to call inside them.
+PermDock adds no cache directives and never calls `cookies()` or `headers()` itself. The app owns every `'use cache'` and `'use cache: private'` directive. PermDock supplies pure functions to call inside them, and `getSnapshot` from the `permdock/next` factory, which calls `cacheLife` and `cacheTag` inside the app's private scope.
 
 ## Why this shape
 

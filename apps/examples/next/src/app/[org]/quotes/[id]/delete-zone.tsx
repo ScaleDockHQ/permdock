@@ -1,6 +1,6 @@
 import { Trash2 } from "lucide-react";
 
-import { Button } from "@/components/ui/button.tsx";
+import { SubmitButton } from "@/components/submit-button.tsx";
 import {
   Card,
   CardAction,
@@ -8,11 +8,24 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card.tsx";
+import { Skeleton } from "@/components/ui/skeleton.tsx";
 
-import { findQuote } from "../../../../lib/store.ts";
+import { getQuote } from "../../../../lib/access.ts";
 import { getPermDock } from "../../../../permdock/server.ts";
 import { permissions } from "../../../../permissions.ts";
 import { deleteQuote } from "../../../actions.ts";
+
+/** The delete zone's place while its request-time read and check run. */
+export function DeleteZoneSkeleton() {
+  return (
+    <Card aria-busy="true" data-testid="delete-skeleton">
+      <CardHeader>
+        <Skeleton className="h-5 w-40" />
+        <Skeleton className="h-4 w-72" />
+      </CardHeader>
+    </Card>
+  );
+}
 
 /**
  * Checks at request time and throws: a denial or an approval request becomes
@@ -22,11 +35,13 @@ export async function DeleteZone(props: {
   readonly params: Promise<{ readonly org: string; readonly id: string }>;
 }) {
   const { org, id } = await props.params;
-  const quote = await findQuote(org, id);
+  const [{ value: quote }, permdock] = await Promise.all([
+    getQuote(org, id),
+    getPermDock({ tenant: org }),
+  ]);
   if (quote === null) {
     return null;
   }
-  const permdock = await getPermDock({ tenant: org });
   permdock.assert(permissions.quote.delete, quote);
   return (
     <Card className="ring-destructive/30">
@@ -37,10 +52,13 @@ export async function DeleteZone(props: {
         </CardDescription>
         <CardAction>
           <form action={deleteQuote.bind(null, org, quote.id)}>
-            <Button type="submit" variant="destructive" data-action="delete">
-              <Trash2 data-icon="inline-start" />
+            <SubmitButton
+              variant="destructive"
+              data-action="delete"
+              icon={<Trash2 data-icon="inline-start" />}
+            >
               Delete quote
-            </Button>
+            </SubmitButton>
           </form>
         </CardAction>
       </CardHeader>

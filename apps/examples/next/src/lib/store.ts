@@ -2,6 +2,8 @@ import type { Membership } from "permdock";
 
 import type { Quote, RoleName } from "../permissions.ts";
 
+import { latency } from "./latency.ts";
+
 export type Organization = { readonly id: string; readonly name: string };
 export type Customer = {
   readonly id: string;
@@ -110,7 +112,9 @@ function store(): Store {
   return holder[KEY];
 }
 
-export function membershipsOf(user: string): Membership[] {
+// Reads wait `DEMO_LATENCY_MS`, as they would against a remote database.
+export async function membershipsOf(user: string): Promise<Membership[]> {
+  await latency();
   const { staff, contacts } = store();
   return [
     ...staff
@@ -133,11 +137,10 @@ export function membershipsOf(user: string): Membership[] {
   ];
 }
 
-// Reads are async, as they would be against a database.
 export async function staffOf(
   organization: string,
 ): Promise<{ readonly user: string; readonly role: RoleName }[]> {
-  await Promise.resolve();
+  await latency();
   return store()
     .staff.filter((row) => row.organization === organization)
     .map((row) => ({ user: row.user, role: row.role }));
@@ -160,7 +163,7 @@ export function setStaffRole(
 }
 
 export async function quotesOf(organization: string): Promise<Quote[]> {
-  await Promise.resolve();
+  await latency();
   return store().quotes.filter(
     (quote) => quote.organization_id === organization,
   );
@@ -170,7 +173,7 @@ export async function findQuote(
   organization: string,
   id: string,
 ): Promise<Quote | null> {
-  await Promise.resolve();
+  await latency();
   return (
     store().quotes.find(
       (quote) => quote.organization_id === organization && quote.id === id,

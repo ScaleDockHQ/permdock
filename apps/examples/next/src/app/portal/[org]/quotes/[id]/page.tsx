@@ -2,7 +2,8 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 
-import { QuoteSkeleton, QuoteView } from "@/components/quotes/quote-view.tsx";
+import { QuoteSkeleton } from "@/components/quotes/quote-states.tsx";
+import { QuoteView } from "@/components/quotes/quote-view.tsx";
 import { buttonVariants } from "@/components/ui/button.tsx";
 import { Skeleton } from "@/components/ui/skeleton.tsx";
 

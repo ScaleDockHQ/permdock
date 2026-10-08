@@ -28,7 +28,11 @@ function compileReact(): Plugin {
     name: "react-compiler",
     enforce: "pre",
     async transform(code, id) {
-      if (!/\/src\/(?:react|react-native|client)\/[^?]+\.tsx?$/u.test(id)) {
+      if (
+        !/\/src\/(?:(?:react|react-native|client)\/[^?]+|next\/client)\.tsx?$/u.test(
+          id,
+        )
+      ) {
         return null;
       }
       const result = await transformAsync(code, {
@@ -86,6 +90,7 @@ export default defineConfig({
           include: [
             "tests/react/*.browser.test.ts",
             "tests/react-native/*.browser.test.ts",
+            "tests/next/*.browser.test.ts",
           ],
         },
       },

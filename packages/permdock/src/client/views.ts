@@ -1,4 +1,5 @@
 import type { Decision, GrantedDecision } from "../core/decision.ts";
+import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permissions.ts";
 import type { Role } from "../core/vocabulary.ts";
 import type { ClientStore } from "../react/store.ts";
@@ -107,16 +108,19 @@ export type ProtectedView =
       readonly slot: "default";
     };
 
-/** `local` answers the active tenant; another `tenant` is decided on the spot. */
+/**
+ * `local` answers the active tenant; `scoped`, the root's view of another
+ * tenant, is decided on the spot and shares the root's `pending` and `stale`.
+ */
 export function protectedView(
   local: PermissionState,
   root: ClientPermDock,
   permission: Permission,
   data: unknown,
-  tenant: string | undefined,
+  scoped: PermDock | undefined,
 ): ProtectedView {
   const state =
-    tenant === undefined ? local : decideIn(root, tenant, permission, data);
+    scoped === undefined ? local : decideIn(root, scoped, permission, data);
   if (state.status === "pending") {
     return { ...state, slot: "pending" };
   }
@@ -129,14 +133,18 @@ export function protectedView(
 
 function decideIn(
   root: ClientPermDock,
-  tenant: string,
+  scoped: PermDock,
   permission: Permission,
   data: unknown,
 ): PermissionState {
   // SAFETY: decide's instance and collection overloads share one implementation that takes either kind.
-  const scoped = root.tenant(tenant) as DecidePermDock;
-  const decision = scoped.decide(permission, data);
-  return { allowed: decision.outcome === "granted", status: "ready", decision };
+  const decision = (scoped as DecidePermDock).decide(permission, data);
+  const status = root.status();
+  return {
+    allowed: decision.outcome === "granted",
+    status: status === "pending" || status === "stale" ? status : "ready",
+    decision,
+  };
 }
 
 export function approvalHandle(
