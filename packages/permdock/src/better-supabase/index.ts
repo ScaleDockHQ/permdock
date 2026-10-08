@@ -9,3 +9,4 @@ export type {
 export { apiKeyClaimOptions, apiKeyVerifier } from "./api-keys.ts";
 export type { ApiKeyVerifierOptions } from "./api-keys.ts";
 export { subjectFromBetterSupabase } from "./subject.ts";
+export type { SupabasePrincipal } from "../supabase/types.ts";

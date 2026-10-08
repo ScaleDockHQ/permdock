@@ -33,7 +33,7 @@ function issue(issues: Issues, path: Path, message: string): void {
   issues.push({ message, path: [...path] });
 }
 
-export function isRecord(value: unknown): value is Record<string, unknown> {
+function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
