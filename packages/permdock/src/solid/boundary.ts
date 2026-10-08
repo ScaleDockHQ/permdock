@@ -34,16 +34,18 @@ export function PermissionBoundary(
         throw error;
       }
       const state: PermissionBoundaryState = { ...digest, retry: reset };
-      const chosen =
-        digest.outcome === "approval-required"
-          ? (props.approval ?? props.denied)
-          : props.denied;
-      const node: SolidChild =
-        typeof chosen === "function" ? chosen(state) : (chosen ?? null);
       // SAFETY: Solid renders whatever children it is given; the prop is `unknown` so any child fits.
       return createComponent(BoundaryContext.Provider, {
         value: state,
-        children: node,
+        get children(): SolidChild {
+          const chosen =
+            digest.outcome === "approval-required"
+              ? (props.approval ?? props.denied)
+              : props.denied;
+          return typeof chosen === "function"
+            ? chosen(state)
+            : (chosen ?? null);
+        },
       } as BoundaryProviderProps) as JSX.Element;
     },
     get children(): unknown {

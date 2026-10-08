@@ -11,15 +11,20 @@ import {
 import type { Snapshot } from "../../src/core/interfaces.ts";
 
 import { createPermDock } from "../../src/core/permdock.ts";
-import { PermissionBoundary } from "../../src/vue/boundary.ts";
+import {
+  PermissionBoundary,
+  usePermissionBoundary,
+} from "../../src/vue/boundary.ts";
 import {
   useAssignablePermissions,
   usePermDock,
   usePermission,
+  useTenant,
 } from "../../src/vue/composables.ts";
 import { permdockPlugin } from "../../src/vue/plugin.ts";
 import { Protected } from "../../src/vue/protected.ts";
 import { memberUser, permissions, policy } from "../fixtures/quick-start.ts";
+import { alice, policy as saasPolicy } from "../fixtures/saas.ts";
 
 async function memberSnapshot(): Promise<Snapshot> {
   // SAFETY: memberUser is a quick-start user fixture; only the policy generic is erased.
@@ -77,6 +82,59 @@ describe("permdock/vue parity", () => {
     await nextTick();
     expect(second.textContent).toBe("approval tok");
     again.unmount();
+  });
+
+  it("usePermissionBoundary reads the refusal inside a slot component", async () => {
+    const Child = defineComponent({
+      setup() {
+        throw refused("PERMDOCK_DENIED;post.publish");
+      },
+    });
+    const Fallback = defineComponent({
+      setup() {
+        const state = usePermissionBoundary();
+        return () => h("i", `hook ${state?.permission ?? "none"}`);
+      },
+    });
+    const root = document.createElement("div");
+    const app = createApp({
+      render: () =>
+        h(PermissionBoundary, null, {
+          default: () => h(Child),
+          denied: () => h(Fallback),
+        }),
+    });
+    app.mount(root);
+    await nextTick();
+    expect(root.textContent).toBe("hook post.publish");
+    app.unmount();
+  });
+
+  it("switches tenant when the tenant ref changes", async () => {
+    const server = await createPermDock(saasPolicy, alice, { tenant: "acme" });
+    // SAFETY: snapshot() returns a Snapshot without a signer.
+    const snapshot = server.snapshot({ tenants: "all" }) as Snapshot;
+    const tenant = shallowRef<string | undefined>("acme");
+    let view: ReturnType<typeof useTenant> | undefined;
+    const app = createApp(
+      defineComponent({
+        setup() {
+          view = useTenant();
+          return () => null;
+        },
+      }),
+    );
+    app.use(permdockPlugin, { snapshot, endpoint: false, tenant });
+    app.mount(document.createElement("div"));
+    expect(view?.value.tenant).toBe("acme");
+    tenant.value = undefined;
+    await nextTick();
+    expect(view?.value.tenant).toBe("acme");
+    tenant.value = "globex";
+    await vi.waitFor(() => {
+      expect(view?.value.tenant).toBe("globex");
+    });
+    app.unmount();
   });
 
   it("PermissionBoundary lets other errors propagate", async () => {

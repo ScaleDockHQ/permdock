@@ -10,7 +10,10 @@ import { describe, expect, it, vi } from "vitest";
 import type { Snapshot } from "../../src/core/interfaces.ts";
 
 import { createPermDock } from "../../src/core/permdock.ts";
-import { PermissionBoundary } from "../../src/solid/boundary.ts";
+import {
+  PermissionBoundary,
+  usePermissionBoundary,
+} from "../../src/solid/boundary.ts";
 import { usePermDock, useTenant } from "../../src/solid/hooks.ts";
 import { PermDockProvider } from "../../src/solid/provider.ts";
 import { alice, policy as saasPolicy } from "../fixtures/saas.ts";
@@ -59,6 +62,29 @@ describe("permdock/solid parity", () => {
     setDigest(null);
     retry?.();
     expect(root.textContent).toBe("content");
+    dispose();
+  });
+
+  it("usePermissionBoundary reads the refusal inside the fallback", () => {
+    const root = document.createElement("div");
+    const Fallback = (): JSX.Element => {
+      const state = usePermissionBoundary();
+      // SAFETY: Solid renders a string child as text.
+      return `hook ${state?.permission ?? "none"}` as unknown as JSX.Element;
+    };
+    const dispose = render(
+      () =>
+        createComponent(PermissionBoundary, {
+          denied: () => createComponent(Fallback, {}),
+          get children() {
+            return createComponent(Thrower, {
+              digest: () => "PERMDOCK_DENIED;post.publish",
+            });
+          },
+        }),
+      root,
+    );
+    expect(root.textContent).toBe("hook post.publish");
     dispose();
   });
 
