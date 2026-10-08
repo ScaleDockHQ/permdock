@@ -1,0 +1,262 @@
+---
+title: better-supabase
+description: The permdock/better-supabase entry fills better-supabase's authorization slots with PermDock, an authorization provider for its SQL modules and doctor, bucket and topic policies, an API key verifier, and a subject from its session.
+---
+
+`permdock/better-supabase` connects PermDock to [better-supabase](https://bettersupabase.com/docs/extending/authorization-providers). better-supabase verifies tokens, builds sessions and owns the data layer; PermDock owns roles, permissions, the claim contract and the one token hook. better-supabase never imports PermDock: it reads a versioned `AuthorizationProvider` object from its config, and this entry builds that object and the other values its slots take from the files PermDock already generates.
+
+The entry needs `better-supabase` 0.6 or later as a peer. Everything on the [Supabase page](/docs/adapters/supabase) still applies: the hook, the helpers and the claims are the same with or without better-supabase.
+
+## Why
+
+- better-supabase has slots, not a PermDock mode. Its config takes an `authorization` provider, a bucket or topic takes an `access` policy, and its API key block takes a claim and a verifier. Each slot is a neutral, versioned contract (`apiVersion: 1`), so PermDock fills it the way `permdock/better-auth` fills Better Auth's role source, and any other authorization package could fill it too.
+- The provider is data built from the manifest. `permdock supabase inspect --out` already writes `permdock.manifest.json` with the helper schema, the scopes, the membership tables and the hook's claims. `authorizationProvider` maps that file to the contract, so better-supabase's SQL and doctor follow the helpers `permdock rls generate` wrote without reading a PermDock file themselves.
+- `permdock/supabase` stays plain Supabase. It names no better-supabase identifier, and an app on `@supabase/supabase-js` or `@supabase/server` alone never loads this entry.
+
+## Who owns what
+
+| Concern                                                                                                                         | Owner           |
+| ------------------------------------------------------------------------------------------------------------------------------- | --------------- |
+| Token verification (`@supabase/server`), sessions, refresh and the `AuthSession` shape                                          | better-supabase |
+| Typed clients, repositories and typegen                                                                                         | better-supabase |
+| Storage and Realtime plumbing (`defineBucket`, `defineTopic`), jobs and webhooks                                                | better-supabase |
+| MCP protected-resource metadata and the `scopes` guard (`createMcp`)                                                            | better-supabase |
+| Token lifetime, refresh-token reuse, signing keys, splinter and claim size lints                                                | better-supabase |
+| The claim contract: `user_role`, `roles`, `memberships`, the active-tenant claim, `attrs`, `authz_ver`, `memberships_truncated` | PermDock        |
+| The one token hook (`permdock supabase hook generate`)                                                                          | PermDock        |
+| `role_permissions`, `authorize()`, the SQL helpers and the table policies                                                       | PermDock        |
+| Tool and route authorization                                                                                                    | PermDock        |
+
+## API
+
+```ts
+import {
+  authorizationProvider,
+  bucketPolicy,
+  topicPolicy,
+  apiKeyVerifier,
+  apiKeyClaimOptions,
+  subjectFromBetterSupabase,
+} from "permdock/better-supabase";
+```
+
+- `authorizationProvider({ manifest, catalog?, scope? })` returns better-supabase's `AuthorizationProvider` (`apiVersion: 1`, `name: "permdock"`). `manifest` is `permdock.manifest.json`, parsed or as JSON text; `catalog` is `permissions.catalog.json`, and without it the provider lists no permissions, so better-supabase refuses every key a bucket, topic or module checks. `scope` names the tenant scope and defaults to the manifest's one root scope. Its `functions` call `permitted_<scope>_ids`, `member_<scope>_ids`, `permdock_has` and their `_for` forms in `rls.schema`; `requires` lists each helper with the role that must execute it; `memberships`, `suspension` and `roleSources` come from `rls`; `tokenHook` names the hook function and the claims it owns. A manifest that cannot fill a field is recorded in `problems`, which better-supabase's doctor reports, and an invalid manifest throws a `TypeError`.
+- `bucketPolicy(access, options)` and `topicPolicy(access, options)` return the `access` policy for `defineBucket` and `defineTopic`. `access` maps the operations (`read`, `list`, `write`, `delete` for a bucket; `receive`, `send` for a topic) to permissions, and `options` is `{ manifest, catalog, scope, segment? }`. The helpers check role and scope only, so a permission the catalog does not mark `rowConditions: false`, or does not grant at `scope`, throws. `scope: "platform"` checks a permission granted globally.
+- `apiKeyVerifier({ keys, serviceRoles?, allPermissions? })` is a `CredentialVerifier` over better-supabase's `createApiKeys()`, for [`subjectFromApiKey`](/docs/concepts/credentials#using-a-key). A personal key is a `user` credential acting as its user, a tenant key a `service` credential holding `serviceRoles` in its tenant, and the key's scopes are the credential's permissions. An invalid, revoked, expired or rate-limited key, and a failed lookup, verify to `null`.
+- `apiKeyClaimOptions(manifest)` returns the `claim` and `tenantClaim` options of better-supabase's `apiKeyClaims()` and `apiKeyResolver()`, from the manifest's `rls.apiKeys`, so a key's token carries the scopes ceiling, tenant and roles the helpers read. It throws when the manifest has no `rls.apiKeys`.
+- `subjectFromBetterSupabase(session, options?)` is `subjectFromSupabaseSession` with better-supabase's defaults: `memberships` for the memberships and the entitlements module's `features` claim for `principal.plans`. A `user` session maps through `subjectFromSupabase`; `anon`, `service` and `invalid` sessions give the anonymous subject. Options override the defaults.
+
+## Setup
+
+Generate the helpers, the hook and the manifest first, as on the [Supabase page](/docs/adapters/supabase):
+
+```bash
+permdock rls generate --target sql --out supabase/migrations/<n>_permdock_rls.sql
+permdock supabase hook generate
+permdock supabase inspect --out
+permdock catalog --out permissions.catalog.json
+```
+
+Then hand the provider to better-supabase. The config runs in Node, so it reads the two files directly:
+
+```ts title="better-supabase.config.ts"
+import { readFileSync } from "node:fs";
+import { defineConfig } from "better-supabase/config";
+import { authorizationProvider } from "permdock/better-supabase";
+
+const read = (file: string) =>
+  readFileSync(new URL(file, import.meta.url), "utf8");
+
+export default defineConfig({
+  authorization: authorizationProvider({
+    manifest: read("permdock.manifest.json"),
+    catalog: read("permissions.catalog.json"),
+  }),
+  sql: { modules: { access: { model: "provider" }, organizations: {} } },
+});
+```
+
+Run `better-supabase sql sync` and `better-supabase gen` after a change to the policy, so the rendered SQL and the provider agree. Rerun `permdock supabase inspect --out` first.
+
+### Claims
+
+Validate sessions with the claim contract's Standard Schema, extended with the app's own claims:
+
+```ts title="src/lib/supabase/index.ts"
+import { defineSupabase } from "better-supabase";
+import { supabaseClaims } from "permdock/supabase";
+import { z } from "zod";
+import { schema } from "./generated";
+
+export const betterSupabase = defineSupabase(schema).claims(
+  supabaseClaims().extend(
+    z.object({ datetime_preferences: z.object({ timezone: z.string() }) }),
+  ),
+);
+```
+
+A token whose claims fail either schema resolves to an `invalid` session. Pass `supabaseClaims({ tenantClaim })` when `rls.tenantClaim` is not `tenant_id`, and set the same name in better-supabase's `claims.tenant`.
+
+### Memberships
+
+PermDock owns the memberships. Keep them in the app's own tables and describe them with PermDock sources. Don't run `better-supabase sql add tenant`, whose `membership_claims()` would write a second set of tenant claims: it refuses while the provider's `tokenHook.ownedClaims` lists `memberships`, and better-supabase's doctor reports BS407 for a hook that writes them next to PermDock's.
+
+The entitlements module's `features` claim goes through `supabase.hook.claims`:
+
+```ts title="permdock.config.ts"
+import { fromJunction } from "permdock/supabase";
+
+export default {
+  supabase: {
+    hook: {
+      memberships: [
+        fromJunction({
+          table: "app.memberships",
+          scope: "organization",
+          id: "organization_id",
+          roles: "role",
+        }),
+      ],
+      claims: { features: "public.feature_claims" },
+    },
+  },
+};
+```
+
+With the provider set, the entitlements module reads membership through `member_<scope>_ids` and its `_for` form, so an expired membership or a suspended organization loses its features in the same token that loses the membership ([claims other packages own](/docs/adapters/supabase-hook#claims-other-packages-own)).
+
+## Server code
+
+```ts title="src/lib/access.ts"
+import { createPermDock } from "permdock";
+import { subjectFromBetterSupabase } from "permdock/better-supabase";
+
+export async function permdockFor() {
+  const session = await bs.session();
+  return createPermDock(policy, subjectFromBetterSupabase(session));
+}
+```
+
+The same subject works in the [Hono](/docs/adapters/hono), [oRPC](/docs/adapters/orpc) and `@supabase/middleware` adapters: map `c.get("auth")`, `context.auth` or the session the middleware put on the context.
+
+## Storage and Realtime
+
+```ts
+import { defineBucket } from "better-supabase/storage";
+import { bucketPolicy } from "permdock/better-supabase";
+
+export const documents = defineBucket({
+  id: "documents",
+  path: "{organizationId}/{name}",
+  policy: bucketPolicy(
+    { read: permissions.documents.browse, write: permissions.documents.upload },
+    { manifest, catalog, scope: "organization" },
+  ),
+});
+```
+
+A permission's row conditions (such as `ownerId = principal.id`) are applied by the table policies, not by the helpers, so `bucketPolicy` refuses a key the catalog marks `rowConditions: true`. Grant browse-style permissions per scope with no row condition for objects. `permdock doctor` PD037 reports a `storage.objects` or `realtime.messages` policy that calls a helper for such a key.
+
+## API keys
+
+Use `apiKeyClaimOptions` where better-supabase turns a key into a token, so the token carries the claims the helpers read:
+
+```ts
+import { apiKeyResolver, createApiKeys } from "better-supabase/blocks/api-keys";
+import { apiKeyClaimOptions } from "permdock/better-supabase";
+
+const keys = createApiKeys(transport);
+const resolver = apiKeyResolver({
+  keys,
+  ...apiKeyClaimOptions(manifest),
+  serviceRoles: () => ["integration"],
+});
+```
+
+Use `apiKeyVerifier` where PermDock reads the key itself, for example a route outside better-supabase's middleware:
+
+```ts
+import { apiKeyVerifier } from "permdock/better-supabase";
+import { subjectFromApiKey } from "permdock/server";
+
+const resolveKey = subjectFromApiKey({
+  verifier: apiKeyVerifier({
+    keys,
+    serviceRoles: ["integration"],
+    allPermissions: Object.values(permissions),
+  }),
+});
+const subject = await resolveKey(request.headers.get("x-api-key"));
+```
+
+## MCP tools
+
+`permdock/mcp` wraps the official MCP SDK's server, so it cannot wrap better-supabase's `createMcp`. With `createMcp`, put the permission in each tool's `meta` and answer its `visible` and `authorize` hooks with PermDock. `meta` is `unknown` to better-supabase, so narrow it with `isPermission` first; a tool without a permission is hidden and refused:
+
+```ts title="supabase/functions/mcp/index.ts"
+import { createMcp } from "better-supabase/mcp";
+import { createPermDock, isPermission, mayUse } from "permdock";
+import { subjectFromBetterSupabase } from "permdock/better-supabase";
+
+type Auth = { kind: string; claims?: unknown };
+type Instance = Awaited<ReturnType<typeof createPermDock>>;
+
+// One PermDock instance per request: `visible` runs once per tool.
+const instances = new WeakMap<Auth, Promise<Instance>>();
+function permdockFor(ctx: { auth: Auth }): Promise<Instance> {
+  let permdock = instances.get(ctx.auth);
+  if (!permdock) {
+    permdock = createPermDock(policy, subjectFromBetterSupabase(ctx.auth));
+    instances.set(ctx.auth, permdock);
+  }
+  return permdock;
+}
+
+const bs = createMcp(betterSupabase, {
+  name: "crm",
+  version: "1.0.0",
+  scopes: ["openid"],
+  authorize: async (ctx, tool) => {
+    if (!isPermission(tool.meta))
+      return { allowed: false, reason: "No PermDock permission in meta" };
+    return (await permdockFor(ctx)).can(tool.meta)
+      ? { allowed: true }
+      : { allowed: false, reason: "PermDock denied this tool" };
+  },
+  visible: async (ctx, tool) =>
+    isPermission(tool.meta) && mayUse(await permdockFor(ctx), tool.meta),
+}).tool({
+  name: "export_customers",
+  description: "Export the organisation's customers as CSV.",
+  meta: permissions.customers.export,
+  run: (_args, { db }) => db.customers.findMany(),
+});
+```
+
+`mayUse` lists a tool when some grant could apply, including one with a row condition; `can` decides without a row, so check row-scoped permissions inside `run` or rely on RLS. A permission that needs approval is refused, because `createMcp` has no approval store: serve those tools through [`permdock/mcp`](/docs/adapters/mcp) on the official SDK. `tests/better-supabase/mcp.test-d.ts` type-checks this recipe against `better-supabase/mcp`.
+
+## Sessions and actors
+
+- better-supabase's `checkSession(sql, auth)` checks that a token's session is still in `auth.sessions`. Call it before a sensitive action and pass the result as `liveSession` ([live sessions](/docs/adapters/supabase#live-sessions)).
+- A support session and `actingAs` write `act` with `kind: "support"` or `"impersonation"`, so the subject's actor has that kind and every call denies with `no-delegation` until the policy names the actor in a [delegation](/docs/security/delegation#policy-delegations) ([support and impersonation actors](/docs/adapters/supabase#support-and-impersonation-actors)).
+- The `scopes` guard answers 403 `insufficient_scope` before PermDock runs; PermDock's delegation narrowing still applies after it.
+- Only `allow: ["anonymous"]` admits a `signInAnonymously()` user past a guard. Pair the default `allow: ["user"]` with `anonymousSignIns: "deny"` ([anonymous sign-ins](/docs/adapters/supabase#anonymous-sign-ins)).
+
+## Testing
+
+`testAuthorizationProvider` from `better-supabase/testing` checks a provider against the contract; `tests/better-supabase/provider.test.ts` runs it on the provider built from a fixture manifest. `tests/integration/src/better-supabase-provider.test.ts` applies the example's migrations to Postgres and checks that every `requires` entry exists with its grant and every template runs at every scope. `supabaseClaimFixtures.tenantPlans` in `permdock/testing` is a token with `features` claims for `subjectFromBetterSupabase`.
+
+## Example app
+
+`apps/examples/next-better-supabase`: better-supabase on Next.js 16.3 with Cache Components.
+
+- `better-supabase.config.ts` passes `authorizationProvider` the example's `permdock.manifest.json` and `permissions.catalog.json`.
+- `src/lib/supabase/index.ts` validates sessions with `supabaseClaims().extend(appClaims)`, and `src/lib/access.ts` maps them with `subjectFromBetterSupabase`.
+- `supabase/schemas/public/functions/feature_claims.sql` adds `public.feature_claims(user_id)`, which reads `organization_features` for the organizations `permdock.member_organization_ids_for(user_id)` returns. `permdock.config.ts` registers it as the `features` claim.
+- `supabase/tests` holds pgTAP tests over the seeded tenants, and `tests/claims.test.ts` maps every claim fixture through better-supabase's `createServer`.
+
+## Related
+
+- [Supabase](/docs/adapters/supabase): the claims, helpers and middleware this entry builds on.
+- [Supabase token hook](/docs/adapters/supabase-hook): the one hook and `supabase.hook.claims`.
+- [RLS adapter](/docs/adapters/rls): the SQL helper contract the provider's templates call.
