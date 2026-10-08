@@ -46,7 +46,25 @@ A resource may parent itself (`folder` above): that is what makes a chain. Every
 | Implied    | `{ includes: ['editor'] }`                                 | the principal holds any relation in `includes`                                                                                                                                                                              |
 | Scope      | `{ field, memberOf }`                                      | tenancy, not the graph: a `through` grant never walks it                                                                                                                                                                    |
 
-`restricted` names a boolean column. A restricted object is reached only by grants on itself, never by relations held on its ancestors, and nothing below it is reached through it. Grants on the restricted object still reach its descendants.
+`restricted` names a boolean column. A restricted object is reached only by grants on itself, never by relations held on its ancestors or through its [links](#links), and nothing below it is reached through it. Grants on the restricted object still reach its descendants.
+
+### What a restricted row stops
+
+`restricted: { field, stops }` closes only the paths `stops` names: `'parent'` for the parent walk, and link names for grants that cross those links. The string form `restricted: 'restricted'` closes the parent walk and every link.
+
+```ts
+fileNode: resource(FileNode, {
+  actions: ["read"],
+  parent: { field: "parentId", resource: "fileNode" },
+  links: { drive: { field: "driveId", resource: "fileDrive" } },
+  relations: { viewer: { edge: "file_node_shares" } },
+  restricted: { field: "restricted", stops: ["parent"] },
+}),
+```
+
+With `stops: ["parent"]`, a share on a folder above a restricted node no longer reaches it, while everyone who reads the drive still reads the node and its subtree through `inherit(permissions.fileDrive.read, { through: ["drive"] })`. With `stops: ["drive"]` the drive link is closed and the parent walk passes the restricted row, so a share on a folder above it still reaches it.
+
+A closed link stays closed below the restricted row. For a self-parented resource, a grant across a closed link does not reach a row when the row is restricted, when a row above it within 32 parent hops is restricted, or when its chain goes on past 32 hops; the last case denies with `relation-depth`, so a tree deeper than the check never opens by accident. A grant on the restricted row, or a parent walk from a row at or below it, still reaches its subtree. `definePermissions` rejects an empty `stops`, a link the resource does not declare, and `'parent'` on a resource without a `parent`.
 
 ### One edge table, several relations
 
@@ -119,7 +137,7 @@ allow(permissions.doc.review, {
 })
 ```
 
-`through` is `'parent'` or a list of link names followed in order, each on the resource the previous one reached. With a list, `depth` walks the last resource's parent chain from where the links end; without it the grant reads that one instance. Each link counts towards the 32-hop limit. A restricted row stops a link walk as it stops a parent walk.
+`through` is `'parent'` or a list of link names followed in order, each on the resource the previous one reached. With a list, `depth` walks the last resource's parent chain from where the links end; without it the grant reads that one instance. Each link counts towards the 32-hop limit. A restricted row stops a link walk when its `restricted` closes that link, the default ([what a restricted row stops](#what-a-restricted-row-stops)).
 
 ## Granting through the graph
 
@@ -210,7 +228,7 @@ allow(permissions.node.share, {
 });
 ```
 
-`through` is `'parent'` (the row's `parent` must be on the permission's resource) or a list of link names ending on it, as for `relation()`. The target row's own denies, conditions and `requires` apply, since the target is decided as `can(permission, targetRow)` would decide it. A restricted row inherits nothing. `definePolicy` rejects `inherit()` on a deny, on a collection action, for an undeclared permission, for a path that does not reach the permission's resource, and a chain of `inherit()` grants that comes back to a permission it started from.
+`through` is `'parent'` (the row's `parent` must be on the permission's resource) or a list of link names ending on it, as for `relation()`. The target row's own denies, conditions and `requires` apply, since the target is decided as `can(permission, targetRow)` would decide it. A restricted row inherits nothing through a path its `restricted` closes, and a row below it inherits nothing through a closed link. `definePolicy` rejects `inherit()` on a deny, on a collection action, for an undeclared permission, for a path that does not reach the permission's resource, and a chain of `inherit()` grants that comes back to a permission it started from.
 
 In process the instance reads the target row through `RelationSource.row` and caches it like any other graph fact; `memoryRelations` answers it from `rows`. A source without `row`, or a read that fails, denies with `relation-unavailable`. The grant is server-only in snapshots, stays out of `where()` (`partial: true`) and `whoCan` (`complete: false`), and never matches as an approver or a delegation `from`, because each needs a row.
 
@@ -246,7 +264,7 @@ type RelationSource = {
 createPermDock(policy, user, { relations: source });
 ```
 
-`ancestors` returns the chain nearest first, at most `depth` entries, each with its own `restricted` flag, plus `truncated` when the chain goes on. With a link name as `through` it returns the one instance the link points to. `related` returns the holders of one concrete relation on one object: `{ principal: { id } }` or `{ group: { resource, id, relation } }`, with optional `startsAt` / `expiresAt` in seconds. `row` returns one row by id, or `null` when there is none, for [`inherit()`](#inheriting-a-permission-through-a-link) grants. The instance expands `includes` and groups itself, so a source never answers for an implied relation. `memoryRelations(permissions, { rows, edges })` is the in-process source; `testRelationSource` in `permdock/testing` checks any other ([extension interfaces](/docs/concepts/extension-interfaces)).
+`ancestors` returns the chain nearest first, at most `depth` entries, each with its own `restricted` flag, plus `truncated` when the chain goes on to a row that exists. A restricted row ends the parent chain after itself only when its `restricted` closes `'parent'`; otherwise the chain goes on and keeps the flags, which the check below a closed link reads. With a link name as `through` it returns the one instance the link points to. `related` returns the holders of one concrete relation on one object: `{ principal: { id } }` or `{ group: { resource, id, relation } }`, with optional `startsAt` / `expiresAt` in seconds. `row` returns one row by id, or `null` when there is none, for [`inherit()`](#inheriting-a-permission-through-a-link) grants. The instance expands `includes` and groups itself, so a source never answers for an implied relation. `memoryRelations(permissions, { rows, edges })` is the in-process source; `testRelationSource` in `permdock/testing` checks any other ([extension interfaces](/docs/concepts/extension-interfaces)).
 
 Answers are cached per instance, never at module level: a request's `can`, `filter`, `whoCan` and the instances `tenant()`, `team()` and `simulate()` derive share one cache, and the next request starts empty. Evaluation stays synchronous. A source that answers synchronously is used directly; a Promise the instance has not loaded yet denies, and `await permdock.loadRelations(permission, rows)` loads what those rows need first:
 
@@ -310,6 +328,7 @@ OpenFGA and SpiceDB are recipes, not package entries ([ecosystem index](/docs/re
 - **Parent chains, not a tuple store.** A Zanzibar-style relation store leaves the subset the database can enforce. A parent pointer on the row and relations on the resource node compile to a closure table and one subquery, so the same grant is enforced by `can`, by the database and by `rls verify`. Teams that already run OpenFGA or SpiceDB plug them in as a source.
 - **Depth is bounded, and past it means denied.** A chain with no bound is a denial-of-service vector and a cycle is an infinite loop. The walk reads at most `depth` ancestors (16 by default, 32 at most); a holder within them grants, anything beyond is never read, and when nothing within them holds the relation the denial says `relation-depth` so an operator can tell a cut-off chain from a missing share. A cycle always denies. In Postgres the triggers refuse a write that makes a row its own ancestor, so the database never holds a cycle to disagree about.
 - **Restricted stops inheritance at the row.** The common need is a folder inside a shared tree that only its own members see (HR under the company root). Stopping the walk at the restricted row, after reading its own relations, gives that without a deny, and the closure triggers stop at the same row, so the database agrees.
+- **A restricted row names what it stops, and a closed link stays closed below it.** A file tree inside a drive has two inherited paths: shares on folders above, and access to the drive. Some apps want a restricted folder hidden from shares above it but still visible to the drive's members; others want it hidden from both. One column that closed every path forced the second meaning on everyone, and checked a link only on the row itself, so the restricted folder disappeared from the drive while its unrestricted children stayed visible through their own drive link. `stops` lets the resource choose, and checking the rows above for a closed link makes a subtree follow its restricted root. The string form keeps closing every path and now applies the check below too: this is a breaking change for trees that relied on children of a restricted row staying reachable through a link, and it fails closed. The check reads the closure in Postgres and the parent chain in process, both 32 hops deep, the deepest any walk goes.
 - **Evaluation stays synchronous.** `can` runs on every render and inside `filter`; making it async for one grant kind would split every adapter. The limit store set the precedent: a Promise is never awaited on the decision path. `loadRelations` is the explicit async step, and it only fills the cache.
 - **Graph facts stay on the server.** A snapshot that listed every folder a user can see would be a cache that goes stale on every share and leaks the tree's shape, so graph grants resolve on the server. Relation periods follow them, since a client clock is not the server's.
 - **Roles, implication, groups and links, but no tuple store.** These are the four patterns the parent chain could not express (Google Drive's viewer-implies-commenter, teams as members of folders, a role column on a membership table, a document reviewed by its folder's owning team). Each compiles to a column predicate, an `or`, a bounded recursive CTE or a to-one join, so `can`, the ORM filters and RLS still agree. Arbitrary userset rewrites and intersections over relations stay with OpenFGA and SpiceDB.
