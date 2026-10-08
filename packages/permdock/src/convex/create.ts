@@ -1,6 +1,6 @@
 import type { Permission } from "../core/permissions.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy.ts";
-import type { Principal } from "../core/subject.ts";
+import type { Actor, Principal } from "../core/subject.ts";
 import type {
   ConvexCtxLike,
   ConvexHandler,
@@ -17,6 +17,10 @@ import {
 } from "../core/errors.ts";
 import { instanceOptions } from "../core/instance-options.ts";
 import { createPermDock as createCore } from "../core/permdock.ts";
+import { isActor } from "../core/subject.ts";
+
+/** Convex's runtime sends `data` to the client only for an error carrying this symbol. */
+const CONVEX_ERROR = Symbol.for("ConvexError");
 
 export class ConvexError extends Error {
   public override readonly name = "ConvexError";
@@ -27,6 +31,7 @@ export class ConvexError extends Error {
   ) {
     super(data.detail);
     this.data = data;
+    Object.defineProperty(this, CONVEX_ERROR, { value: true });
   }
 }
 
@@ -50,6 +55,30 @@ export function createPermDock<
   policy: Policy<TUser, TPrincipal, V>,
   options: ConvexPermDockOptions<TCtx, TUser>,
 ): ConvexPermDock<TCtx, V> {
+  const tenantOf = async (ctx: TCtx): Promise<string | undefined> => {
+    const { tenant } = options;
+    if (tenant === undefined || typeof tenant === "string") {
+      return tenant;
+    }
+    try {
+      return await tenant(ctx);
+    } catch {
+      return undefined;
+    }
+  };
+
+  const actorOf = async (ctx: TCtx): Promise<Actor | undefined> => {
+    if (options.actor === undefined) {
+      return undefined;
+    }
+    try {
+      const resolved = await options.actor(ctx);
+      return isActor(resolved) ? resolved : undefined;
+    } catch {
+      return undefined;
+    }
+  };
+
   const withPermDock = <TArgs, TResult>(
     handler: ConvexHandler<TCtx, TArgs, TResult, V>,
   ): ((ctx: TCtx, args: TArgs) => Promise<TResult>) => {
@@ -60,7 +89,15 @@ export function createPermDock<
       } catch {
         user = null;
       }
-      const permdock = await createCore(policy, user, instanceOptions(options));
+      const permdock = await createCore(
+        policy,
+        user,
+        compact({
+          tenant: await tenantOf(ctx),
+          ...instanceOptions(options),
+          actor: await actorOf(ctx),
+        }),
+      );
       // SAFETY: the spread keeps every TCtx field and adds the permdock instance built above.
       const next = { ...ctx, permdock } as ConvexPermDockCtx<TCtx, V>;
       try {

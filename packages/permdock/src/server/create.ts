@@ -211,6 +211,17 @@ export type ServerKernel<V extends PolicyVocabulary = PolicyVocabulary> = {
     query?: SnapshotQuery,
   ) => Promise<Snapshot>;
   readonly protect: Protect<V, [scope?: TenantScope]>;
+  /**
+   * `protect` against an instance the adapter already holds, such as a gateway
+   * connection's: the same OAuth scope check, loader, decision and approval resume.
+   */
+  readonly protectOn: <T = unknown>(
+    instance: PermDock<V>,
+    permission: Permission | null,
+    load?: () => T | null | undefined | Promise<T | null | undefined>,
+    protectOptions?: ProtectOptions,
+    request?: Request,
+  ) => Promise<Guard<T, V> | ScopeGuard<T, V>>;
   readonly connection: <T = unknown>(
     request: Request,
     options?: ConnectionOptions<T>,
@@ -512,120 +523,144 @@ export function createServerKernel<
         }
         throw error;
       }
-      const declared = routeScopes(
-        protectOptions.oauthScopes ??
-          options.operations?.oauthScopesForRequest(
-            request.method,
-            new URL(request.url).pathname,
-          ),
-      );
-      const credentials = request.headers.has("authorization");
-      if (permission === null) {
-        if (declared === undefined) {
-          throw new TypeError(
-            `PermDock: protect(null) needs oauthScopes, and no operation declares them for ${request.method} ${new URL(request.url).pathname}`,
-          );
-        }
-        if (instance.subject.principal === null) {
-          return { ok: false, response: unauthenticatedProblem(credentials) };
-        }
-      }
-      const held = instance.subject.delegation?.scopes;
-      if (
-        declared !== undefined &&
-        held !== undefined &&
-        !declared.some((granted) => held.includes(granted))
-      ) {
-        return {
-          ok: false,
-          response: scopeProblem(
-            permission,
-            instance.subject,
-            credentials,
-            declared[0],
-          ),
-        };
-      }
-      let data: T | undefined;
-      if (loadData !== undefined) {
-        const loaded = await loadData(request);
-        if (loaded === null || loaded === undefined) {
-          return { ok: false, response: notFoundProblem() };
-        }
-        data = loaded;
-      }
-      if (permission === null) {
-        // SAFETY: T is loadData's result type; data is undefined only when no loadData was passed.
-        return { ok: true, permdock: instance, data: data as T };
-      }
-      const decideOptions = compact<DecideOptions>({
-        source: "adapter",
-        adapter,
-        ...(protectOptions.trusted === true
-          ? { trusted: true }
-          : { trusted: false, boundary: "http-body" as const }),
-      });
-      // SAFETY: decide's generics only tie the row type to the permission; it accepts any row.
-      const raw =
-        remote === undefined
-          ? (
-              instance.decide as (
-                next: Permission,
-                row?: unknown,
-                options?: DecideOptions,
-              ) => Decision
-            )(permission, data, decideOptions)
-          : await remote
-              .decide(permission, data, decideOptions)
-              .catch((): Decision => ({
-                outcome: "denied",
-                denials: [{ role: null, reason: "pdp-unavailable" }],
-                alternatives: [],
-              }));
-      const decision = await applyApprovalResume(
-        raw,
-        permission,
+      return guardOn<T>(
         instance,
-        options.store,
+        remote,
         request,
-        compact({
-          type: permission.resource,
-          id:
-            data !== null &&
-            typeof data === "object" &&
-            "id" in data &&
-            (typeof data.id === "string" || typeof data.id === "number")
-              ? String(data.id)
-              : undefined,
-        }),
-        adapter,
+        permission,
+        loadData === undefined
+          ? undefined
+          : (): ReturnType<Loader<T>> => loadData(request),
+        protectOptions,
       );
-      if (decision.outcome === "granted") {
-        // SAFETY: T is loadData's result type; data is undefined only when no loadData was passed.
-        return {
-          ok: true,
-          permdock: instance,
-          decision,
-          data: data as T,
-        };
+    };
+  };
+
+  const guardOn = async <T>(
+    instance: PermDock<V>,
+    remote: PdpPermDock | undefined,
+    request: Request | undefined,
+    permission: Permission | null,
+    load: (() => ReturnType<Loader<T>>) | undefined,
+    protectOptions: ProtectOptions,
+  ): Promise<Guard<T, V> | ScopeGuard<T, V>> => {
+    const declared = routeScopes(
+      protectOptions.oauthScopes ??
+        (request === undefined
+          ? undefined
+          : options.operations?.oauthScopesForRequest(
+              request.method,
+              new URL(request.url).pathname,
+            )),
+    );
+    const credentials = request?.headers.has("authorization") ?? false;
+    if (permission === null) {
+      if (declared === undefined) {
+        throw new TypeError(
+          request === undefined
+            ? "PermDock: protect(null) needs oauthScopes"
+            : `PermDock: protect(null) needs oauthScopes, and no operation declares them for ${request.method} ${new URL(request.url).pathname}`,
+        );
       }
+      if (instance.subject.principal === null) {
+        return { ok: false, response: unauthenticatedProblem(credentials) };
+      }
+    }
+    const held = instance.subject.delegation?.scopes;
+    if (
+      declared !== undefined &&
+      held !== undefined &&
+      !declared.some((granted) => held.includes(granted))
+    ) {
       return {
         ok: false,
-        response: problemFromDecision(
-          decision,
+        response: scopeProblem(
           permission,
           instance.subject,
-          compact({
-            approval: options.approval,
-            credentials,
-            scope: declared?.[0] ?? challengeScope(policy, permission),
-            disclosure:
-              data === undefined
-                ? undefined
-                : policy.resources.get(permission.resource)?.disclosure,
-          }),
+          credentials,
+          declared[0],
         ),
       };
+    }
+    let data: T | undefined;
+    if (load !== undefined) {
+      const loaded = await load();
+      if (loaded === null || loaded === undefined) {
+        return { ok: false, response: notFoundProblem() };
+      }
+      data = loaded;
+    }
+    if (permission === null) {
+      // SAFETY: T is loadData's result type; data is undefined only when no loadData was passed.
+      return { ok: true, permdock: instance, data: data as T };
+    }
+    const decideOptions = compact<DecideOptions>({
+      source: "adapter",
+      adapter,
+      ...(protectOptions.trusted === true
+        ? { trusted: true }
+        : { trusted: false, boundary: "http-body" as const }),
+    });
+    // SAFETY: decide's generics only tie the row type to the permission; it accepts any row.
+    const raw =
+      remote === undefined
+        ? (
+            instance.decide as (
+              next: Permission,
+              row?: unknown,
+              options?: DecideOptions,
+            ) => Decision
+          )(permission, data, decideOptions)
+        : await remote
+            .decide(permission, data, decideOptions)
+            .catch((): Decision => ({
+              outcome: "denied",
+              denials: [{ role: null, reason: "pdp-unavailable" }],
+              alternatives: [],
+            }));
+    const decision = await applyApprovalResume(
+      raw,
+      permission,
+      instance,
+      options.store,
+      request,
+      compact({
+        type: permission.resource,
+        id:
+          data !== null &&
+          typeof data === "object" &&
+          "id" in data &&
+          (typeof data.id === "string" || typeof data.id === "number")
+            ? String(data.id)
+            : undefined,
+      }),
+      adapter,
+    );
+    if (decision.outcome === "granted") {
+      // SAFETY: T is loadData's result type; data is undefined only when no loadData was passed.
+      return {
+        ok: true,
+        permdock: instance,
+        decision,
+        data: data as T,
+      };
+    }
+    return {
+      ok: false,
+      response: problemFromDecision(
+        decision,
+        permission,
+        instance.subject,
+        compact({
+          approval: options.approval,
+          credentials,
+          scope: declared?.[0] ?? challengeScope(policy, permission),
+          disclosure:
+            data === undefined
+              ? undefined
+              : policy.resources.get(permission.resource)?.disclosure,
+        }),
+      ),
     };
   };
 
@@ -672,6 +707,8 @@ export function createServerKernel<
     permdock,
     getSnapshot,
     protect,
+    protectOn: (instance, permission, load, protectOptions = {}, request) =>
+      guardOn(instance, undefined, request, permission, load, protectOptions),
     connection,
     problem: (decision, init) => problemFor(decision, init, options.approval),
     openapi,

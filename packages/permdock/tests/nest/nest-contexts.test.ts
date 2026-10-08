@@ -6,7 +6,10 @@ import { describe, expect, it } from "vitest";
 
 import type { NestRequest } from "../../src/nest/index.ts";
 
-import { PermDockDeniedError } from "../../src/core/errors.ts";
+import {
+  PermDockDeniedError,
+  PermDockRevokedError,
+} from "../../src/core/errors.ts";
 import { memoryRevocationFeed } from "../../src/core/revocations.ts";
 import { createPermDock } from "../../src/nest/index.ts";
 import {
@@ -132,7 +135,45 @@ describe("permdock/nest gateway connections", () => {
       ],
     ]);
     expect(disconnects).toEqual([true]);
-    await expect(guard.canActivate(message("p1"))).rejects.toThrow(
+    await expect(guard.canActivate(message("p1"))).rejects.toBeInstanceOf(
+      PermDockRevokedError,
+    );
+  });
+
+  it("runs protect(null) on a message: a principal and the declared OAuth scopes", async () => {
+    let user: typeof memberUser | null = memberUser;
+    const { PermDockGuard, Protect, connection } = createPermDock(policy, {
+      subject: () => user,
+      request: () => fakeRequest("p1"),
+    });
+    class Feed {
+      public open(): string {
+        return "ok";
+      }
+    }
+    const descriptor = Object.getOwnPropertyDescriptor(Feed.prototype, "open")!;
+    Protect(null, undefined, { oauthScopes: ["posts:read"] })(
+      Feed.prototype,
+      "open",
+      descriptor,
+    );
+    const guard = new PermDockGuard(new Reflector());
+    const forClient = (client: object): ExecutionContext =>
+      // SAFETY: descriptor.value is Feed.open; the stub extends contextOf with the ws client.
+      ({
+        ...contextOf("ws", descriptor.value as () => unknown),
+        getClass: () => Feed,
+        switchToWs: () => ({ getData: () => ({}), getClient: () => client }),
+      }) as unknown as ExecutionContext;
+
+    const member = {};
+    await connection(member, fakeRequest("handshake"));
+    await expect(guard.canActivate(forClient(member))).resolves.toBe(true);
+
+    user = null;
+    const anonymous = {};
+    await connection(anonymous, fakeRequest("handshake"));
+    await expect(guard.canActivate(forClient(anonymous))).rejects.toThrow(
       "permdock denied",
     );
   });

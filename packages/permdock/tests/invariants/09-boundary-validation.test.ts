@@ -27,7 +27,6 @@ const src = path.join(import.meta.dirname, "../../src");
 const TRUSTED_SITES: Readonly<Record<string, string>> = {
   "authzen/create.ts:loaded": "a row the application `load` read by id",
   "authzen/create.ts:decide": "forwards the loaded flag above",
-  "nest/create.ts": "the application opted in on the route rule",
   "server/create.ts": "the application opted in through protect options",
   "server/connection.ts": "the application opted in on the check",
 };

@@ -54,7 +54,7 @@ export const list = query({
 export const snapshot = snapshotQuery(); // client: useQuery(api.permissions.snapshot) → PermDockProvider snapshot
 ```
 
-- `createPermDock(policy, options)` returns `withPermDock`, a handler wrapper that resolves the subject from `ctx`, builds the request-scoped instance and attaches it as `ctx.permdock`; and `snapshotQuery`, a ready-made Convex query that returns `permdock.snapshot()` for the caller (optionally scoped: `snapshotQuery({ include: [permissions.post] })`).
+- `createPermDock(policy, options)` takes `subject(ctx)`, an optional `tenant` (a fixed id or `(ctx) => id`; a throw is no tenant) and an optional `actor(ctx)` (anything but an `Actor` is ignored), and returns `withPermDock`, a handler wrapper that resolves the subject from `ctx`, builds the request-scoped instance and attaches it as `ctx.permdock`; and `snapshotQuery`, a ready-made Convex query that returns `permdock.snapshot()` for the caller (optionally scoped: `snapshotQuery({ include: [permissions.post] })`).
 - Handlers are wrapped one by one; there is no `customQuery` / `customMutation` builder. A closure grant marked `server-only` in the snapshot is answered by an app-defined Convex query that calls `ctx.permdock.can`.
 - `subject` receives the Convex context so it can read identity and role tables; it may be sync when roles live in the identity claims.
 - Works for `query`, `mutation`, `action` and `internal*` variants; in actions without database access the subject resolver must rely on identity claims.
@@ -77,7 +77,7 @@ export const snapshot = snapshotQuery(); // client: useQuery(api.permissions.sna
 
 ## How denials surface
 
-- `assert` throws `PermDockDeniedError` or `PermDockApprovalRequiredError`; the wrapper converts them into a Convex `ConvexError` whose `data` is the RFC 9457 Problem Details object (`type`, `title`, `permission`, `denials`, `alternatives`), so the client receives structured, serialisable denial data.
+- `assert` throws `PermDockDeniedError` or `PermDockApprovalRequiredError`; the wrapper converts them into a Convex `ConvexError` whose `data` is the RFC 9457 Problem Details object (`type`, `title`, `permission`, `denials`, `alternatives`), so the client receives structured, serialisable denial data. The class carries the `Symbol.for('ConvexError')` marker Convex's runtime looks for, so `data` reaches the client's `ConvexError` without `permdock/convex` importing `convex/values`.
 - `filter` and `can` never throw; a query returns the permitted subset.
 - Anonymous callers yield the anonymous subject; only anonymous grants apply.
 - The snapshot query itself never fails on denial; it returns whatever grants the subject holds, including none.

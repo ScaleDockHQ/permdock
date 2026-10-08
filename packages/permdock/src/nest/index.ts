@@ -1,7 +1,9 @@
 export { createPermDock } from "./create.ts";
+export { decorateMethod } from "./decorate.ts";
 export type {
   NestPermDock,
   NestHandlerOptions,
+  PermDockModuleOptions,
   NestPermDockOptions,
   NestProtect,
   NestRequest,

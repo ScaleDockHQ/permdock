@@ -76,7 +76,14 @@ export function createKeyCache(options: JoseTokenVerifierOptions): KeyCache {
         readonly jwks_uri: string;
       }>
     | undefined;
-  let jwksCache: CachedDocument<JsonWebKeySet> | undefined;
+  /** Keyed by `jwks_uri`: keys cached for one URI never answer for another. */
+  let jwksCache:
+    | (CachedDocument<JsonWebKeySet> & { readonly href: string })
+    | undefined;
+  const cachedJwks = (href: string, now: number): JsonWebKeySet | undefined =>
+    jwksCache?.href === href && jwksCache.expiresAt > now
+      ? jwksCache.value
+      : undefined;
   let cooldownUntil = 0;
   let discoveryCause: TokenFailureCause | undefined;
 
@@ -188,8 +195,9 @@ export function createKeyCache(options: JoseTokenVerifierOptions): KeyCache {
     now: number,
     force: boolean,
   ): Promise<ResolvedKeys> => {
-    if (!force && jwksCache !== undefined && jwksCache.expiresAt > now) {
-      return Promise.resolve({ ok: true, jwks: jwksCache.value });
+    const cached = force ? undefined : cachedJwks(href, now);
+    if (cached !== undefined) {
+      return Promise.resolve({ ok: true, jwks: cached });
     }
     const pending = jwksInFlight.get(href);
     if (pending !== undefined) {
@@ -224,11 +232,12 @@ export function createKeyCache(options: JoseTokenVerifierOptions): KeyCache {
         minTtl,
         maxTtl,
       );
-      jwksCache = { value: body, expiresAt: now + ttl };
+      jwksCache = { href, value: body, expiresAt: now + ttl };
       return { ok: true, jwks: body };
     } catch {
-      if (jwksCache !== undefined && jwksCache.expiresAt > now) {
-        return { ok: true, jwks: jwksCache.value };
+      const stale = cachedJwks(href, now);
+      if (stale !== undefined) {
+        return { ok: true, jwks: stale };
       }
       return { ok: false, cause: "jwks-unavailable" };
     }

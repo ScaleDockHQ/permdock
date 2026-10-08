@@ -14,18 +14,18 @@ Nest structures authorization as guards and decorators, so `permdock/nest` maps 
 ```ts
 // permdock.module.ts
 import { Module } from "@nestjs/common";
-import { APP_GUARD } from "@nestjs/core";
 import { createPermDock } from "permdock/nest";
 import { policy } from "./policy";
 
-export const { PermDockModule, PermDockGuard, Protect, InjectPermDock } =
-  createPermDock(policy, {
+export const { PermDockModule, Protect, InjectPermDock } = createPermDock(
+  policy,
+  {
     subject: (request) => request.user ?? null,
-  });
+  },
+);
 
 @Module({
-  imports: [PermDockModule],
-  providers: [{ provide: APP_GUARD, useExisting: PermDockGuard }],
+  imports: [PermDockModule.forRoot({ guard: "global" })],
 })
 export class AppModule {}
 
@@ -47,20 +47,21 @@ export class PostsController {
 }
 ```
 
-| Export                                     | Role                                                                                                                                                                                                                                                                                                                                           |
-| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `PermDockModule`                           | Registers the kernel factory as a provider so guards and services can inject it. Also registers `PermDockExceptionFilter` as `APP_FILTER`.                                                                                                                                                                                                     |
-| `PermDockGuard`                            | `CanActivate` implementation. Builds the request-scoped instance once per request (stored on the request), reads `Protect` metadata from the handler and class, runs `loadData`, decides, and throws before the handler. Routes without `Protect` metadata pass through but still get an instance. Register as `APP_GUARD` with `useExisting`. |
-| `Protect(permission, loadData?, options?)` | Method or class decorator setting metadata for the guard. Multiple decorators on class and method are all enforced. `options` is `ProtectOptions` (`{ trusted: true }` for a loader that returns a row the server loaded).                                                                                                                     |
-| `InjectPermDock()`                         | Parameter decorator injecting the request-scoped instance into handlers.                                                                                                                                                                                                                                                                       |
-| `PermDockExceptionFilter`                  | Filter that renders PermDock exceptions as `application/problem+json` with `WWW-Authenticate` when the kernel sets it.                                                                                                                                                                                                                         |
-| `permdockHandler(options?)`                | Controller class for the AuthZEN-shaped decision endpoint. `options.path` is the controller path (default `api/permdock`) and may hold route params, for example `':org/permdock/access/v1/evaluations'` with a `tenant` that reads `req.params.org`.                                                                                          |
-| `openapi`                                  | Kernel hook contract for `@nestjs/swagger`.                                                                                                                                                                                                                                                                                                    |
-| `request` option                           | `(context: ExecutionContext) => request \| undefined`. Maps a non-HTTP context (for example a GraphQL `context.req` or a WebSocket handshake) to the request the kernel reads. Without it, protected non-HTTP routes are denied.                                                                                                               |
+| Export                                     | Role                                                                                                                                                                                                                                                                                                                                                                                      |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PermDockModule`                           | Registers the kernel factory as a provider so guards and services can inject it. Also registers `PermDockExceptionFilter` as `APP_FILTER`. `PermDockModule.forRoot({ guard: 'global' })` also registers `PermDockGuard` as `APP_GUARD`.                                                                                                                                                   |
+| `PermDockGuard`                            | `CanActivate` implementation. Builds the request-scoped instance once per request (stored on the request), reads `Protect` metadata from the handler and class, runs `loadData`, decides, and throws before the handler. Routes without `Protect` metadata pass through but still get an instance. Register it with `forRoot({ guard: 'global' })`, or as `APP_GUARD` with `useExisting`. |
+| `Protect(permission, loadData?, options?)` | Method or class decorator setting metadata for the guard. Multiple decorators on class and method are all enforced. `Protect(null, loadData?, { oauthScopes })` needs a principal and, from a delegated token, one of the OAuth scopes, but no permission. `options` is `ProtectOptions` (`{ trusted: true }` for a loader that returns a row the server loaded).                         |
+| `InjectPermDock()`                         | Parameter decorator injecting the request-scoped instance into handlers.                                                                                                                                                                                                                                                                                                                  |
+| `PermDockExceptionFilter`                  | Filter that renders PermDock exceptions (denied, approval required, revoked, validation, invalid signature) as `application/problem+json` with `WWW-Authenticate` when the kernel sets it.                                                                                                                                                                                                |
+| `permdockHandler(options?)`                | Controller class for the AuthZEN-shaped decision endpoint. `options.path` is the controller path (default `api/permdock`) and may hold route params, for example `':org/permdock/access/v1/evaluations'` with a `tenant` that reads `req.params.org`.                                                                                                                                     |
+| `decorateMethod(cls, key, ...decorators)`  | Applies method decorators in the order given without decorator syntax, for code limited to erasable TypeScript: `decorateMethod(PostsController, 'update', Patch(':id'), Protect(permissions.post.update))`.                                                                                                                                                                              |
+| `openapi`                                  | Kernel hook contract for `@nestjs/swagger`.                                                                                                                                                                                                                                                                                                                                               |
+| `request` option                           | `(context: ExecutionContext) => request \| undefined`. Maps a non-HTTP context (for example a GraphQL `context.req` or a WebSocket handshake) to the request the kernel reads. Without it, protected non-HTTP routes are denied.                                                                                                                                                          |
 
 ### Gateways
 
-`connection(client, req, options?)` opens a kernel [`Connection`](/docs/adapters/server-kernel#connections) for a gateway client (typed `NestSocket`: a Socket.IO socket or a raw `ws` socket), memoised per client. When it aborts, the client receives `permdock:error` with the Problem Details and is disconnected, or a raw socket is closed with `1008`. `PermDockGuard` on a `@SubscribeMessage` handler with `Protect` metadata checks each message through the client's connection: a `null` loader result is a `404` problem, a denial the usual Problem Details, and the connection stays open. Pass `revocations` to `PermDockModule`.
+`connection(client, req, options?)` opens a kernel [`Connection`](/docs/adapters/server-kernel#connections) for a gateway client (typed `NestSocket`: a Socket.IO socket or a raw `ws` socket), memoised per client. When it aborts, the client receives `permdock:error` with the Problem Details and is disconnected, or a raw socket is closed with `1008`. `PermDockGuard` on a `@SubscribeMessage` handler with `Protect` metadata checks each message against the client's connection the way HTTP `protect` does: the OAuth scope check, the loader (a `null` result is a `404` problem), the decision and the approval resume from the `PermDock-Approval` header on the mapped request. A denial is the usual Problem Details and the connection stays open; a message after revocation throws `PermDockRevokedError`. Pass `revocations` to `PermDockModule`.
 
 ```ts
 @WebSocketGateway()

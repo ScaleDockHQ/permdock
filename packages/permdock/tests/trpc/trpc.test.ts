@@ -213,6 +213,24 @@ describe("permdock/trpc", () => {
     }
   });
 
+  it("protect(null) needs a principal and the declared OAuth scopes", async () => {
+    const t = initTRPC.context<Ctx>().create();
+    const { protect } = createPermDock<Ctx>(policy, {
+      subject: (opts) => opts.ctx.user,
+    });
+    const appRouter = t.router({
+      me: t.procedure
+        .use(protect(null, undefined, { oauthScopes: ["posts:read"] }))
+        .query(() => "ok"),
+    });
+    await expect(
+      appRouter.createCaller({ user: memberUser }).me(),
+    ).resolves.toBe("ok");
+    await expect(
+      appRouter.createCaller({ user: null }).me(),
+    ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+  });
+
   it("answers AuthZEN evaluations over Fetch", async () => {
     const { permdockHandler, openapi } = createPermDock<Ctx>(policy, {
       subject: () => memberUser,

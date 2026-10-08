@@ -122,4 +122,43 @@ describe("permdock/convex", () => {
     const list = withPermDock((ctx) => ctx.permdock.can(permissions.post.list));
     await expect(list({}, {})).resolves.toBe(false);
   });
+
+  it("carries the ConvexError symbol so Convex sends data to the client", () => {
+    const error = new ConvexError({
+      type: "https://permdock.dev/problems/denied",
+      title: "Forbidden",
+      status: 403,
+      detail: "denied",
+    });
+    expect(Symbol.for("ConvexError") in error).toBe(true);
+  });
+
+  it("resolves tenant and actor from the Convex context", async () => {
+    const tenants: unknown[] = [];
+    const { withPermDock } = createPermDock<
+      { readonly org: string },
+      { id: string; roles: readonly string[] }
+    >(policy, {
+      subject: () => ({ id: "user-1", roles: ["member"] }),
+      tenant: (ctx) => ctx.org,
+      actor: () => ({ id: "agent-1", kind: "agent" }),
+      memberships: {
+        membershipsFor: (_principal, query) => {
+          tenants.push(query?.tenant);
+          return [];
+        },
+      },
+    });
+    const read = withPermDock((ctx) => ctx.permdock.subject.actor?.id);
+    await expect(read({ org: "t1" }, {})).resolves.toBe("agent-1");
+    expect(tenants).toEqual(["t1"]);
+    const throwing = createPermDock(policy, {
+      subject: () => ({ id: "user-1", roles: ["member"] }),
+      tenant: () => {
+        throw new Error("no org");
+      },
+      actor: () => "not an actor",
+    }).withPermDock((ctx) => ctx.permdock.subject.actor);
+    await expect(throwing({}, {})).resolves.toBeUndefined();
+  });
 });

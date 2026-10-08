@@ -2,7 +2,7 @@ import "reflect-metadata";
 import type { ArgumentsHost, ExecutionContext } from "@nestjs/common";
 import type { ServerResponse } from "node:http";
 
-import { Reflector } from "@nestjs/core";
+import { APP_GUARD, Reflector } from "@nestjs/core";
 import { PassThrough } from "node:stream";
 import { describe, expect, it } from "vitest";
 
@@ -10,7 +10,7 @@ import type { NestRequest } from "../../src/nest/index.ts";
 
 import { memoryRevocationFeed } from "../../src/core/revocations.ts";
 import { sendNestResponse, toRequest } from "../../src/nest/http.ts";
-import { createPermDock } from "../../src/nest/index.ts";
+import { createPermDock, decorateMethod } from "../../src/nest/index.ts";
 import {
   memberUser,
   otherPost,
@@ -121,6 +121,36 @@ describe("permdock/nest Protect", () => {
     expect(() =>
       Protect(permissions.post.read)(Posts.prototype, "update", { value: 5 }),
     ).toThrow(TypeError);
+  });
+
+  it("registers the guard as APP_GUARD with forRoot({ guard: 'global' })", () => {
+    const { PermDockModule, PermDockGuard } = createPermDock(policy, {
+      subject: () => memberUser,
+    });
+    expect(PermDockModule.forRoot({ guard: "global" })).toEqual({
+      module: PermDockModule,
+      providers: [{ provide: APP_GUARD, useExisting: PermDockGuard }],
+    });
+    expect(PermDockModule.forRoot().providers).toEqual([]);
+  });
+
+  it("applies method decorators in order with decorateMethod", () => {
+    class Posts {
+      public update(): string {
+        return "ok";
+      }
+    }
+    const seen: string[] = [];
+    const tag =
+      (name: string): MethodDecorator =>
+      (_target, key) => {
+        seen.push(`${name}:${String(key)}`);
+      };
+    decorateMethod(Posts, "update", tag("a"), tag("b"));
+    expect(seen).toEqual(["a:update", "b:update"]);
+    expect(() => {
+      decorateMethod(Posts, "missing", tag("c"));
+    }).toThrow(/missing is not a method/);
   });
 
   it("requires reflect-metadata", () => {

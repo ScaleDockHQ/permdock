@@ -79,7 +79,7 @@ export type TrpcOpenApiHooks = {
 export type TrpcPermDock<TCtx = object> = {
   readonly permdock: () => TrpcMiddleware;
   readonly protect: (
-    permission: Permission,
+    permission: Permission | null,
     loadData?: (opts: TrpcMiddlewareOpts<TCtx>) => unknown,
     protectOptions?: StreamProtectOptions,
   ) => TrpcMiddleware;
@@ -301,7 +301,7 @@ export function createPermDock<
   const guardSubscription = async (
     result: unknown,
     opts: TrpcMiddlewareOpts<TCtx>,
-    permission: Permission,
+    permission: Permission | null,
     loadData: (() => unknown) | undefined,
     protectOptions: StreamProtectOptions | undefined,
   ): Promise<unknown> => {
@@ -316,7 +316,7 @@ export function createPermDock<
     }
     const conn = await connection(
       opts,
-      compact({ permission, data: loadData }),
+      permission === null ? {} : compact({ permission, data: loadData }),
     );
     // SAFETY: isAsyncIterable confirmed data above.
     return {
@@ -335,7 +335,7 @@ export function createPermDock<
   };
 
   const protect = (
-    permission: Permission,
+    permission: Permission | null,
     loadData?: (opts: TrpcMiddlewareOpts<TCtx>) => unknown,
     protectOptions?: StreamProtectOptions,
   ): TrpcMiddleware =>

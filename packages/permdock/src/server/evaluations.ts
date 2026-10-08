@@ -99,7 +99,7 @@ export function applyApprovalResume(
   permission: Permission,
   permdock: PermDock,
   store: ApprovalStore | undefined,
-  request: Request,
+  request: Request | undefined,
   resource: { readonly type: string; readonly id?: string },
   adapter: string,
 ): Promise<Decision> {
@@ -110,7 +110,8 @@ export function applyApprovalResume(
     store,
     resource,
     adapter,
-    token: readApprovalHeader(request.headers),
+    token:
+      request === undefined ? undefined : readApprovalHeader(request.headers),
   });
 }
 
