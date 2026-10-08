@@ -23,21 +23,16 @@ export const {
 
 Needs Next.js 16.3 or later. Guard with `getPermission(permissions.post.update, post)` or `assert`. For a page or Server Action that must stop on a denial, `await requireAccess({ permission, data, tenant })` calls `forbidden()` (or `unauthorized()` for a signed-out user); enable `experimental.authInterrupts` and add `app/forbidden.tsx` and `app/unauthorized.tsx`. When only part of a page is gated, let a Server Component `assert` inside `<PermissionBoundary denied={...} approval={...}>` from `permdock/next/client` (with a `Suspense` inside it); `usePermissionBoundary()` in the fallback gives the permission, the approval `token` and `retry()`. Client components use `permdock/react` inside the server `PermDockProvider`, which never awaits: it streams a `snapshotPromise`, and permission hooks answer `pending` until it lands (add `suspend` to make them suspend).
 
-With `cacheComponents`, when permission UI (nav items, row actions) must be prefetched, the app owns the cache. Never put `'use cache'` inside PermDock calls, and never read `headers()` / `cookies()` in a function you mean to cache outside `'use cache: private'`:
+With `cacheComponents`, when permission UI (nav items, row actions) must be prefetched, the app owns the cache directive and `getSnapshot` fills it. Without the factory, call `snapshotFor` and set `cacheLife(cacheLifeFor(snapshot))` and `cacheTag(snapshotTag(sub))` yourself. Never put `'use cache'` inside PermDock calls, and never read `headers()` / `cookies()` in a function you mean to cache outside `'use cache: private'`:
 
 ```tsx
 // src/permdock/snapshot.ts
-import { cacheLife, cacheTag } from 'next/cache';
-import { snapshotFor } from 'permdock';
-import { cacheLifeFor, snapshotTag } from 'permdock/next';
+import { getSnapshot } from './server'; // the createPermDock factory from permdock/next
 
 export async function loadSnapshot(org: string) {
   'use cache: private';
-  const claims = await getClaims(); // verified locally against JWKS
-  const snapshot = snapshotFor(policy, claims, { tenant: org });
-  cacheLife(cacheLifeFor(snapshot));
-  cacheTag(snapshotTag(claims?.sub));
-  return snapshot;
+  // Sets cacheLife(cacheLifeFor(snapshot)) and cacheTag(snapshotTag(sub), ...tags) in this scope.
+  return getSnapshot({ tenant: org, tags: [`org:${org}`] });
 }
 
 // app/[org]/layout.tsx: keep it synchronous

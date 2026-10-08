@@ -4,6 +4,7 @@ export { createPermDock } from "./create.ts";
 export { snapshotTag } from "./snapshot-tag.ts";
 export type {
   GetPermDockQuery,
+  GetSnapshotQuery,
   NextPermDock,
   NextPermDockOptions,
   PermDockHandler,

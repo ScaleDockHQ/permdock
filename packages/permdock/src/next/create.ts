@@ -1,5 +1,5 @@
 import { forbidden, unauthorized, unstable_rethrow } from "#next/navigation";
-import { io } from "next/cache.js";
+import { cacheLife, cacheTag, io } from "next/cache.js";
 import { after } from "next/server.js";
 import { cache, type ReactElement } from "react";
 
@@ -11,6 +11,7 @@ import type { Policy, PolicyVocabulary } from "../core/policy.ts";
 import type { Principal } from "../core/subject.ts";
 import type {
   GetPermDockQuery,
+  GetSnapshotQuery,
   NextPermDock,
   NextPermDockOptions,
   NextSubjectInput,
@@ -22,8 +23,10 @@ import type {
 import { compact } from "../core/compact.ts";
 import { instanceOptions } from "../core/instance-options.ts";
 import { createPermDock as createCorePermDock } from "../core/permdock.ts";
+import { cacheLifeFor } from "./cache-life.ts";
 import { createEvaluationsHandler } from "./handler.ts";
 import { renderClientProvider } from "./provider.tsx";
+import { snapshotTag } from "./snapshot-tag.ts";
 
 type GrantedDecision = Extract<Decision, { readonly outcome: "granted" }>;
 
@@ -210,6 +213,29 @@ export function createPermDock<
     }
   };
 
+  const getSnapshot = async (
+    query: GetSnapshotQuery = {},
+  ): Promise<Snapshot> => {
+    const permdock = await getPermDock(compact({ tenant: query.tenant }));
+    const snapshot = permdock.snapshot(
+      compact({ include: query.include, tenants: query.tenants }),
+    );
+    try {
+      cacheLife(cacheLifeFor(snapshot));
+      cacheTag(
+        snapshotTag(permdock.subject.principal?.id),
+        ...(query.tags ?? []),
+      );
+    } catch (error) {
+      unstable_rethrow(error);
+      throw new Error(
+        "PermDock: getSnapshot() sets cacheLife() and cacheTag(), so call it inside a 'use cache: private' function with cacheComponents enabled.",
+        { cause: error },
+      );
+    }
+    return snapshot;
+  };
+
   const requireAccess = async (
     input: RequireAccessInput,
   ): Promise<GrantedDecision> => {
@@ -276,6 +302,7 @@ export function createPermDock<
   return {
     getPermDock,
     getPermission,
+    getSnapshot,
     requireAccess,
     PermDockProvider,
     permdockHandler,

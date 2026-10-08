@@ -57,6 +57,7 @@ describe("permdock/next", () => {
         "PermDockProvider",
         "getPermDock",
         "getPermission",
+        "getSnapshot",
         "permdockHandler",
         "requireAccess",
       ].toSorted(),
