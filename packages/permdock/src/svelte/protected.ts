@@ -25,11 +25,12 @@ export function protectedView(
   tenant?: string,
   _generation?: number,
 ): ProtectedView {
+  const root = store.get();
   return viewOf(
     store.permissionState(reference, data),
-    store.get(),
+    root,
     reference,
     data,
-    tenant,
+    tenant === undefined ? undefined : root.tenant(tenant),
   );
 }

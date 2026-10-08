@@ -1,9 +1,10 @@
-import { type ReactElement, useEffect, useMemo } from "react";
+import { type ReactElement, useEffect } from "react";
 
 import type { NativePermDockProviderProps } from "./types.ts";
 
 import { compact } from "../core/compact.ts";
 import { PermDockStoreContext } from "../react/context.ts";
+import { useKeyed } from "../react/keyed.ts";
 import { useLiveOptions } from "../react/live-options.ts";
 import { connectSource, createNativeStore } from "./store.ts";
 
@@ -11,7 +12,7 @@ export function PermDockProvider(
   props: NativePermDockProviderProps,
 ): ReactElement {
   const live = useLiveOptions(props);
-  const store = useMemo(
+  const store = useKeyed(
     () =>
       createNativeStore(
         compact({

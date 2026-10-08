@@ -15,6 +15,7 @@ import { rowIdOf } from "../core/row-pair.ts";
 import { parseSnapshot } from "../core/snapshot.ts";
 import { nowSeconds } from "../core/tenancy.ts";
 import { timeoutSignal } from "../core/timeout.ts";
+import { payloadDigest } from "../core/token.ts";
 
 /** Milliseconds a decision, refresh or approval request may take; a slower one is an error like a failed request. */
 const STORE_TIMEOUT_MS = 10_000;
@@ -52,8 +53,26 @@ type CacheEntry = {
   readonly status: ClientStatus;
 };
 
-function cacheKey(permission: Permission, data: unknown): string {
-  return `${permission.key}:${rowIdOf(data)}`;
+/** The row's id under the snapshot's id field, or `undefined` for a row without one. */
+function rowId(
+  snapshot: Snapshot,
+  permission: Permission,
+  data: unknown,
+): string | undefined {
+  const id = rowIdOf(data, snapshot.ids?.[permission.resource]);
+  return id === "*" ? undefined : id;
+}
+
+// A row without an id is keyed by its content, so two such rows never share an answer.
+function cacheKey(
+  snapshot: Snapshot,
+  permission: Permission,
+  data: unknown,
+): string {
+  if (data === undefined) {
+    return `${permission.key}:*`;
+  }
+  return `${permission.key}:${rowId(snapshot, permission, data) ?? `#${payloadDigest(data)}`}`;
 }
 
 function withTenant(source: string, tenant: string | undefined): string {
@@ -335,12 +354,7 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
             action: { name: item.permission.action },
             resource: {
               type: item.permission.resource,
-              id:
-                item.data !== null &&
-                typeof item.data === "object" &&
-                "id" in item.data
-                  ? String(item.data.id ?? "")
-                  : undefined,
+              id: rowId(snapshot, item.permission, item.data),
               properties: item.data,
             },
           })),
@@ -400,7 +414,7 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
     permission: Permission,
     data?: unknown,
   ): PermissionState => {
-    const key = `${tenant ?? ""}|${cacheKey(permission, data)}`;
+    const key = `${tenant ?? ""}|${cacheKey(snapshot, permission, data)}`;
     const hit = answers.get(key);
     if (hit !== undefined) {
       return {
@@ -439,6 +453,8 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
   const approvalInterval = options.approvalInterval ?? 2000;
   const approvals = new Map<string, ApprovalState>();
   const polls = new Map<string, ReturnType<typeof setTimeout>>();
+  // Tokens a render asked about that have not reached a terminal state.
+  const watched = new Set<string>();
   // Bumped by `clear()`: a poll answer for the previous user is dropped.
   let approvalEpoch = 0;
 
@@ -504,7 +520,9 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
             approvals.set(token, next);
             emit();
           }
-          if (!TERMINAL.has(approvals.get(token) ?? "required")) {
+          if (TERMINAL.has(approvals.get(token) ?? "required")) {
+            watched.delete(token);
+          } else {
             schedulePoll(token);
           }
         })();
@@ -517,14 +535,24 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
       return "not-needed";
     }
     const current = approvals.get(decision.token) ?? "required";
-    if (!TERMINAL.has(current)) {
+    if (TERMINAL.has(current)) {
+      watched.delete(decision.token);
+    } else {
+      watched.add(decision.token);
       schedulePoll(decision.token);
     }
     return current;
   };
 
+  // StrictMode and remounts unsubscribe every listener for a moment; polls resume
+  // with the next subscriber instead of waiting for the next render.
   const subscribe = (listener: () => void): (() => void) => {
     listeners.add(listener);
+    if (listeners.size === 1) {
+      for (const token of watched) {
+        schedulePoll(token);
+      }
+    }
     return (): void => {
       listeners.delete(listener);
       if (listeners.size === 0) {
@@ -630,6 +658,7 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
         approvalEpoch += 1;
         stopPolls();
         approvals.clear();
+        watched.clear();
         options.onClear?.();
         emit();
       },

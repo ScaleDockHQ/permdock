@@ -461,6 +461,57 @@ describe("createClientStore endpoint evaluations", () => {
     );
   });
 
+  it("keys rows without an id by their content", async () => {
+    const bodies: { evaluations: unknown[] }[] = [];
+    const store = createClientStore({
+      snapshot: await closureSnapshot(),
+      endpoint: "/api/permdock",
+      server: false,
+      fetch: async (_input, init) => {
+        const body = JSON.parse(String(init?.body));
+        bodies.push(body);
+        return json({
+          evaluations: body.evaluations.map(() => ({
+            context: { permdock: granted },
+          })),
+        });
+      },
+    });
+    const draft = { authorId: "u1", title: "a" };
+    store.permissionState(permissions.post.update, draft);
+    store.permissionState(permissions.post.update, { ...draft, title: "b" });
+    store.permissionState(permissions.post.update, {
+      title: "a",
+      authorId: "u1",
+    });
+    await settle();
+    expect(bodies).toHaveLength(1);
+    expect(bodies[0]?.evaluations).toHaveLength(2);
+  });
+
+  it("reads the row id from the field the snapshot names", async () => {
+    const bodies: unknown[] = [];
+    const store = createClientStore({
+      snapshot: await closureSnapshot({ ids: { post: "slug" } }),
+      endpoint: "/api/permdock",
+      server: false,
+      fetch: async (_input, init) => {
+        bodies.push(JSON.parse(String(init?.body)));
+        return json({ evaluations: [{ context: { permdock: granted } }, {}] });
+      },
+    });
+    store.permissionState(permissions.post.update, { ...ownPost, slug: "s1" });
+    store.permissionState(permissions.post.update, { ...ownPost, slug: "s2" });
+    await settle();
+    expect(bodies[0]).toMatchObject({
+      evaluations: [{ resource: { id: "s1" } }, { resource: { id: "s2" } }],
+    });
+    expect(
+      store.permissionState(permissions.post.update, { ...ownPost, slug: "s2" })
+        .allowed,
+    ).toBe(false);
+  });
+
   it("skips the request when a reset empties the queue first", async () => {
     const snapshot = await closureSnapshot();
     let calls = 0;
@@ -655,6 +706,30 @@ describe("createClientStore approval edge cases", () => {
     await vi.advanceTimersByTimeAsync(100);
     expect(store.approvalState(required)).toBe("expired");
     stop();
+  });
+
+  it("polls again when a subscriber returns", async () => {
+    let calls = 0;
+    const store = createClientStore({
+      snapshot: signedIn("u1"),
+      approvals: "/api/approvals",
+      server: false,
+      approvalInterval: 100,
+      fetch: async () => {
+        calls += 1;
+        return json({ status: "approved" });
+      },
+    });
+    store.subscribe(ignore)();
+    store.approvalState(required);
+    const first = store.subscribe(ignore);
+    store.approvalState(required);
+    first();
+    const second = store.subscribe(ignore);
+    await vi.advanceTimersByTimeAsync(100);
+    expect(calls).toBe(1);
+    expect(store.approvalState(required)).toBe("approved");
+    second();
   });
 
   it("drops a poll answer that lands after clear", async () => {

@@ -50,7 +50,7 @@ export const Protected: DefineComponent<ProtectedProps> = defineComponent({
         root,
         props.permission,
         props.data,
-        props.tenant,
+        props.tenant === undefined ? undefined : root.tenant(props.tenant),
       );
       switch (view.slot) {
         case "pending":
