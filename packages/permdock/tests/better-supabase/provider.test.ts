@@ -319,4 +319,107 @@ describe("authorizationProvider", () => {
       },
     });
   });
+
+  it("checks custom roles through permdock_can_assign_any at the tenant scope", async () => {
+    const helper = (
+      name: string,
+      args: string,
+      execute = ["authenticated"],
+    ) => ({
+      name,
+      args,
+      returns: "boolean",
+      execute,
+    });
+    const provider = authorizationProvider({
+      manifest: withRls({
+        customRoles: true,
+        helpers: [
+          ...supabaseHookManifestFixture.rls.helpers,
+          helper("permdock_can_assign", "p_role text, p_scope_id text"),
+          helper(
+            "permdock_can_assign_for",
+            "p_user uuid, p_role text, p_scope_id text",
+            [],
+          ),
+          helper(
+            "permdock_can_assign_any",
+            "p_role text, p_tenant uuid, p_scope text, p_scope_id text",
+          ),
+          helper(
+            "permdock_can_assign_any_for",
+            "p_user uuid, p_role text, p_tenant uuid, p_scope text, p_scope_id text",
+            [],
+          ),
+        ],
+      }),
+    });
+    await expect(testAuthorizationProvider(provider)).resolves.toBeDefined();
+    expect(provider.functions).toMatchObject({
+      canAssign:
+        "permdock.permdock_can_assign_any({role}, {tenant}, '{scope}', {tenant}::text)",
+      canAssignFor:
+        "permdock.permdock_can_assign_any_for({user}, {role}, {tenant}, '{scope}', {tenant}::text)",
+    });
+    expect(provider.requires).toEqual(
+      expect.arrayContaining([
+        {
+          function: "permdock.permdock_can_assign_any",
+          args: "text, uuid, text, text",
+          role: "authenticated",
+        },
+        {
+          function: "permdock.permdock_can_assign_any_for",
+          args: "uuid, text, uuid, text, text",
+          role: "postgres",
+        },
+      ]),
+    );
+    expect(
+      provider.requires?.map((requirement) => requirement.function),
+    ).not.toContain("permdock.permdock_can_assign");
+    expect(provider.problems).toBeUndefined();
+  });
+
+  it("keeps the declared-role check below the root scope and says so", () => {
+    const provider = authorizationProvider({
+      scope: "project",
+      manifest: withRls({
+        customRoles: true,
+        scopes: [
+          { name: "tenant", type: "uuid" },
+          { name: "project", type: "uuid", within: "tenant" },
+        ],
+        helpers: [
+          ...supabaseHookManifestFixture.rls.helpers,
+          {
+            name: "permitted_project_ids",
+            args: "p_grant text",
+            returns: "setof uuid",
+            execute: ["authenticated"],
+          },
+          {
+            name: "permdock_can_assign",
+            args: "p_role text, p_scope_id text",
+            returns: "boolean",
+            execute: ["authenticated"],
+          },
+          {
+            name: "permdock_can_assign_any",
+            args: "p_role text, p_tenant uuid, p_scope text, p_scope_id text",
+            returns: "boolean",
+            execute: ["authenticated"],
+          },
+        ],
+      }),
+    });
+    expect(provider.functions.canAssign).toBe(
+      "permdock.permdock_can_assign({role}, {tenant}::text)",
+    );
+    expect(provider.problems).toEqual([
+      expect.stringContaining(
+        'The tenant scope "project" is not a root scope, so canAssign checks declared roles only',
+      ),
+    ]);
+  });
 });

@@ -45,18 +45,15 @@ export const sqlIdent = (name: string): string =>
 
 type Template = keyof AuthorizationFunctions;
 
+type TemplateEntry = {
+  readonly helper: string;
+  readonly args: string;
+  readonly role: string;
+  readonly sql: string;
+};
+
 /** The helper each template calls (with `{scope}` unfilled), its default argument types and the role that calls it. */
-const TEMPLATES: Readonly<
-  Record<
-    Template,
-    {
-      readonly helper: string;
-      readonly args: string;
-      readonly role: string;
-      readonly sql: string;
-    }
-  >
-> = {
+const TEMPLATES: Readonly<Record<Template, TemplateEntry>> = {
   idsWith: {
     helper: "permitted_{scope}_ids",
     args: "text",
@@ -104,6 +101,23 @@ const TEMPLATES: Readonly<
     args: "uuid, text, text",
     role: "postgres",
     sql: "permdock_can_assign_for({user}, {role}, {tenant}::text)",
+  },
+};
+
+const ASSIGN_ANY: Readonly<
+  Record<"canAssign" | "canAssignFor", TemplateEntry>
+> = {
+  canAssign: {
+    helper: "permdock_can_assign_any",
+    args: "text, uuid, text, text",
+    role: "authenticated",
+    sql: "permdock_can_assign_any({role}, {tenant}, '{scope}', {tenant}::text)",
+  },
+  canAssignFor: {
+    helper: "permdock_can_assign_any_for",
+    args: "uuid, text, uuid, text, text",
+    role: "postgres",
+    sql: "permdock_can_assign_any_for({user}, {role}, {tenant}, '{scope}', {tenant}::text)",
   },
 };
 
@@ -289,8 +303,16 @@ export function authorizationProvider(
     rls.helpers.map((helper) => [helper.name, helper]),
   );
   const schema = sqlIdent(rls.schema);
+  const rootTenant =
+    rls.scopes.find((scope) => scope.name === tenantScope)?.within ===
+    undefined;
+  const assignAny = rls.customRoles === true && rootTenant;
+  const entryOf = (template: Template): TemplateEntry =>
+    assignAny && (template === "canAssign" || template === "canAssignFor")
+      ? ASSIGN_ANY[template]
+      : TEMPLATES[template];
   const listed = (template: Template, scope: string): boolean =>
-    helpers.has(TEMPLATES[template].helper.replaceAll("{scope}", scope));
+    helpers.has(entryOf(template).helper.replaceAll("{scope}", scope));
   const templates: Template[] = [
     "idsWith",
     "isPlatform",
@@ -303,11 +325,20 @@ export function authorizationProvider(
       );
     }
   }
+  if (
+    rls.customRoles === true &&
+    !rootTenant &&
+    templates.includes("canAssign")
+  ) {
+    problems.push(
+      `The tenant scope "${tenantScope}" is not a root scope, so canAssign checks declared roles only: ${rls.schema}.${ASSIGN_ANY.canAssign.helper}, which also answers for custom roles, takes the root tenant id.`,
+    );
+  }
   const optional: { -readonly [K in Template]?: string } = {};
   const requires: AuthorizationRequirement[] = [];
   const required = new Set<string>();
   for (const template of templates) {
-    const entry = TEMPLATES[template];
+    const entry = entryOf(template);
     optional[template] = `${schema}.${entry.sql}`;
     for (const scope of entry.helper.includes("{scope}")
       ? scopeNames
