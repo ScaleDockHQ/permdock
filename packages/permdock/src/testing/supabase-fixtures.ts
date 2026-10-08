@@ -3,14 +3,14 @@ import type { SupabaseHookManifest } from "../supabase/manifest.ts";
 /**
  * Claim sets in the shape the Supabase custom access token hook produces (the RBAC guide's
  * `user_role` claim, optionally mirrored into `app_metadata`, plus a `memberships` array for
- * multi-org apps). `betterSupabase` is the canonical shape better-supabase 0.5 emits: scoped
- * memberships, `tenant_id` and per-tenant plans in `features`. `full` sets every field of the
+ * multi-org apps). `tenantPlans` has scoped memberships, `tenant_id` and per-tenant plans in
+ * `features`, read with `plans: 'features'`. `full` sets every field of the
  * claim contract plus a `hook.claims` extra claim; `portalContact`, `oauthClient` and
  * `actChain` cover a customer contact, a Supabase OAuth server token and an RFC 8693 chain.
  * `supportSession`, `supportSessionReadOnly` and `impersonation` are the `act.kind` tokens
- * better-supabase mints; `anonymousSignIn` is a `signInAnonymously()` token read with
+ * of a support tool; `anonymousSignIn` is a `signInAnonymously()` token read with
  * `anonymousSignIns: 'deny'`. Every fixture passes `supabaseClaims()` and
- * `schemas/supabase-claims-v1.json`. Plain data: no Supabase or better-supabase types.
+ * `schemas/supabase-claims-v1.json`. Plain data: no Supabase types.
  */
 export type SupabaseClaimFixture = {
   readonly claims: Readonly<Record<string, unknown>>;
@@ -112,7 +112,7 @@ export type SupabaseClaimFixtureName =
   | "nullRole"
   | "userMetadataIgnored"
   | "multiOrg"
-  | "betterSupabase"
+  | "tenantPlans"
   | "full"
   | "portalContact"
   | "oauthClient"
@@ -191,7 +191,7 @@ export const supabaseClaimFixtures: Readonly<
       ],
     },
   },
-  betterSupabase: {
+  tenantPlans: {
     claims: {
       ...base,
       user_role: null,
@@ -430,7 +430,7 @@ export { supabaseMembershipsBudget } from "../supabase/budget.ts";
 /**
  * The `permdock supabase inspect --json` manifest for a policy with one
  * `tenant` scope, the default `supabase.hook` and a `features` claim from
- * `better_supabase.feature_claims`. A package that reads the manifest tests its
+ * `public.feature_claims`. A package that reads the manifest tests its
  * parser against this value.
  */
 export const supabaseHookManifestFixture: SupabaseHookManifest = {
@@ -464,7 +464,7 @@ export const supabaseHookManifestFixture: SupabaseHookManifest = {
     { name: "authz_ver", source: "permdock", budget: false },
     {
       name: "features",
-      source: "better_supabase.feature_claims",
+      source: "public.feature_claims",
       budget: false,
     },
   ],

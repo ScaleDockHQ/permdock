@@ -203,6 +203,10 @@
       "types": "./dist/better-auth/index.d.ts",
       "default": "./dist/better-auth/index.js"
     },
+    "./better-supabase": {
+      "types": "./dist/better-supabase/index.d.ts",
+      "default": "./dist/better-supabase/index.js"
+    },
     "./clerk": {
       "types": "./dist/clerk/index.d.ts",
       "default": "./dist/clerk/index.js"
@@ -294,6 +298,7 @@
     "ai": "catalog:",
     "ajv": "catalog:",
     "babel-plugin-react-compiler": "catalog:",
+    "better-supabase": "catalog:",
     "drizzle-orm": "catalog:",
     "elysia": "catalog:",
     "eve": "catalog:",
@@ -315,6 +320,7 @@
     "rxjs": "catalog:",
     "solid-js": "catalog:",
     "svelte": "catalog:",
+    "temporal-polyfill": "catalog:",
     "tsdown": "catalog:",
     "typescript": "catalog:",
     "unplugin": "catalog:",
@@ -336,6 +342,7 @@
     "@supabase/middleware": "catalog:peers",
     "@trpc/server": "catalog:peers",
     "ai": "catalog:peers",
+    "better-supabase": "catalog:peers",
     "drizzle-orm": "catalog:peers",
     "elysia": "catalog:peers",
     "eve": "catalog:peers",
@@ -363,7 +370,19 @@
     "@modelcontextprotocol/server": {
       "optional": true
     },
+    "@nestjs/common": {
+      "optional": true
+    },
+    "@nestjs/core": {
+      "optional": true
+    },
+    "@nestjs/platform-express": {
+      "optional": true
+    },
     "@openai/agents": {
+      "optional": true
+    },
+    "@opentelemetry/api": {
       "optional": true
     },
     "@orpc/server": {
@@ -378,31 +397,16 @@
     "ai": {
       "optional": true
     },
-    "elysia": {
-      "optional": true
-    },
-    "@nestjs/common": {
-      "optional": true
-    },
-    "@nestjs/core": {
-      "optional": true
-    },
-    "@nestjs/platform-express": {
-      "optional": true
-    },
-    "reflect-metadata": {
-      "optional": true
-    },
-    "rxjs": {
+    "better-supabase": {
       "optional": true
     },
     "drizzle-orm": {
       "optional": true
     },
-    "eve": {
+    "elysia": {
       "optional": true
     },
-    "kysely": {
+    "eve": {
       "optional": true
     },
     "express": {
@@ -417,25 +421,10 @@
     "jose": {
       "optional": true
     },
+    "kysely": {
+      "optional": true
+    },
     "next": {
-      "optional": true
-    },
-    "react": {
-      "optional": true
-    },
-    "solid-js": {
-      "optional": true
-    },
-    "svelte": {
-      "optional": true
-    },
-    "vue": {
-      "optional": true
-    },
-    "@opentelemetry/api": {
-      "optional": true
-    },
-    "vitest": {
       "optional": true
     },
     "pg": {
@@ -444,7 +433,28 @@
     "pgsql-parser": {
       "optional": true
     },
+    "react": {
+      "optional": true
+    },
+    "reflect-metadata": {
+      "optional": true
+    },
+    "rxjs": {
+      "optional": true
+    },
+    "solid-js": {
+      "optional": true
+    },
+    "svelte": {
+      "optional": true
+    },
     "unplugin": {
+      "optional": true
+    },
+    "vitest": {
+      "optional": true
+    },
+    "vue": {
       "optional": true
     }
   },

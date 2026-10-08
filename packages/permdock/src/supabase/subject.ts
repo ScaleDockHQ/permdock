@@ -230,7 +230,7 @@ function copyAct(level: Record<string, unknown>): SupabaseActClaim {
 }
 
 /**
- * The outer `act` level by its `kind`, the marker better-supabase writes: none is an OAuth client
+ * The outer `act` level by its `kind`, the marker a support tool writes: none is an OAuth client
  * or agent chain, `support` a support session (with `session_id`), `impersonation` an admin acting
  * as the user. Any other `kind`, or a support level without `session_id`, is invalid.
  */
@@ -239,7 +239,7 @@ function actingParty(
   id: string,
 ): SupabaseActorResult {
   const marked = Object.hasOwn(outer, "kind") ? outer["kind"] : undefined;
-  // better-supabase 0.5.0 minted support tokens with `session_id` and no `kind`; it reads them as support until 0.6.
+  // A level with `session_id` and no `kind` is a support session: issuers that predate `kind` mint them so.
   const kind =
     marked === undefined && Object.hasOwn(outer, "session_id")
       ? "support"
@@ -557,7 +557,7 @@ export function subjectFromSupabase(
 }
 
 /**
- * A verified session object (for example better-supabase's `AuthSession`) in, `Subject` out.
+ * A verified session object (`{ kind, claims }`) in, `Subject` out.
  * Only `kind: 'user'` sessions map; `anon`, `service`, `invalid` and anything else are anonymous.
  */
 export function subjectFromSupabaseSession(

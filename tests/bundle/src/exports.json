@@ -421,6 +421,7 @@
     "fromJunction",
     "fromSupabasePostgres",
     "fromTable",
+    "parseSupabaseManifest",
     "postgrestSources",
     "readSubjectRecord",
     "subjectFromSupabase",
@@ -438,6 +439,14 @@
     "onRoleChange",
     "rolesFromAccessControl",
     "subjectFromBetterAuth"
+  ],
+  "./better-supabase": [
+    "apiKeyClaimOptions",
+    "apiKeyVerifier",
+    "authorizationProvider",
+    "bucketPolicy",
+    "subjectFromBetterSupabase",
+    "topicPolicy"
   ],
   "./clerk": ["subjectFromClerk"],
   "./convex": ["ConvexError", "createPermDock"],

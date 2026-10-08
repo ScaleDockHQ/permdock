@@ -22,6 +22,7 @@ export const SERVER_SPECIFIERS = [
   "permdock/approvals",
   "permdock/authzen",
   "permdock/better-auth",
+  "permdock/better-supabase",
   "permdock/claude-agent",
   "permdock/clerk",
   "permdock/cloud",

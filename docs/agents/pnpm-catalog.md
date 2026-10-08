@@ -8,3 +8,4 @@ Every external dependency is an exact pin in the `catalog` of `pnpm-workspace.ya
 - `pnpm add` prunes catalog entries that no workspace uses any more. Check `git diff pnpm-workspace.yaml` after every add and restore anything removed by mistake.
 - Insert new catalog lines in place. Re-sorting the whole catalog rewrites unrelated lines.
 - Never undo someone else's uncommitted `package.json` edits with `git checkout --`: they may hold dependencies not yet committed.
+- To develop against an unpublished sibling release, point its catalog line at `link:../<repo>/packages/<name>` and never commit that line. While it is in place, export `pnpm_config_strict_peer_dependencies=false pnpm_config_verify_deps_before_run=false` for every command, hooks included. Otherwise the peer range fails the install, and the dependency check reinstalls the published version whenever the lefthook stash hides the link, so lint runs against the old types.

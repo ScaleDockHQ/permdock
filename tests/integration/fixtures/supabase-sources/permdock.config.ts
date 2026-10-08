@@ -7,7 +7,7 @@ export default {
     hook: {
       memberships: sources(),
       attrs: { table: "profiles", columns: ["locale", "timezone"] },
-      claims: { features: "better_supabase.feature_claims" },
+      claims: { features: "billing.feature_claims" },
       suspension,
     },
   },

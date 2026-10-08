@@ -283,13 +283,13 @@ attrs: {
 
 ## Claims other packages own
 
-`supabase.hook.claims` adds claims PermDock does not own to the one hook Supabase allows, for example better-supabase's per-tenant plan features. PermDock owns the hook and the claims the SQL helpers read; better-supabase owns authentication, sessions and its own claims ([with better-supabase](/docs/adapters/supabase#with-better-supabase) has the full split):
+`supabase.hook.claims` adds claims PermDock does not own to the one hook Supabase allows, for example per-tenant plan features from a billing module. PermDock owns the hook and the claims the SQL helpers read; the other package owns its claim and the function that computes it ([better-supabase](/docs/adapters/better-supabase#memberships) shows one such split):
 
 ```ts
 supabase: {
   hook: {
     memberships: sources(),
-    claims: { features: 'better_supabase.feature_claims' },
+    claims: { features: 'public.feature_claims' },
   },
 }
 ```
@@ -303,7 +303,7 @@ supabase: {
 - A function that needs the user's memberships calls `<schema>.member_<scope>_ids_for(user_id)` instead of reading the membership tables itself, so it agrees with the hook and RLS about expiry and suspension:
 
   ```sql
-  create function better_supabase.feature_claims(user_id uuid) returns jsonb
+  create function public.feature_claims(user_id uuid) returns jsonb
   language sql stable as $$
     select jsonb_object_agg(f.organization_id, f.features)
     from public.organization_features f

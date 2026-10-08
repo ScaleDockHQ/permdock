@@ -13,7 +13,7 @@ export const policy = definePolicy(
       organization: { key: "organization_id" },
       customer: { key: "customer_id", within: "organization" },
     },
-    // The loaders pass a full Subject from `subjectFromSupabaseSession`, which skips this mapper.
+    // The loaders pass a full Subject from `subjectFromBetterSupabase`, which skips this mapper.
     subject: (user: Principal | null) => user,
     roles: [
       role(

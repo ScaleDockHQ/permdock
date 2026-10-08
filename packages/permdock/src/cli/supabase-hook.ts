@@ -251,7 +251,7 @@ function extraClaimsPlan(
     }
     if (typeof fn !== "string" || !CLAIM_FUNCTION.test(fn)) {
       errors.push(
-        `supabase.hook.claims.${claim} must be a schema-qualified function name such as better_supabase.feature_claims`,
+        `supabase.hook.claims.${claim} must be a schema-qualified function name such as public.feature_claims`,
       );
       continue;
     }

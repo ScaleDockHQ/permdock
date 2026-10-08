@@ -92,7 +92,7 @@ Security notes on the helpers:
 
 ### SQL helper contract
 
-Other packages call the helpers from policies PermDock does not generate: better-supabase's `defineBucket` and `defineTopic` in `permdock` mode write Storage and Realtime policies that do, and an app's own RPCs may. These signatures, the claims they read and the rules below are the contract; they change only with a new major of the hook marker (`-- permdock:hook v1`) and the [hook manifest](/docs/concepts/wire-formats#supabase-hook-manifest).
+Other packages call the helpers from policies PermDock does not generate: better-supabase's Storage and Realtime policies do through the provider from [`permdock/better-supabase`](/docs/adapters/better-supabase), and an app's own RPCs may. These signatures, the claims they read and the rules below are the contract; they change only with a new major of the hook marker (`-- permdock:hook v1`) and the [hook manifest](/docs/concepts/wire-formats#supabase-hook-manifest).
 
 | Function                                                                                 | Returns              | Answers                                                                                                                                                                                                                                       |
 | ---------------------------------------------------------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

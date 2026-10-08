@@ -1,8 +1,8 @@
 import { HELPERS } from "./rls-helpers.ts";
 
 /**
- * Tables whose policies other packages write (better-supabase `defineBucket`
- * and `defineTopic` in `permdock` mode) by calling the SQL helpers directly.
+ * Tables whose policies other packages write by calling the SQL helpers
+ * directly (storage buckets and realtime topics).
  */
 export const HELPER_TABLES = ["storage.objects", "realtime.messages"] as const;
 

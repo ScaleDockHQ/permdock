@@ -472,7 +472,7 @@ export type SupabaseHookConfig = {
   };
   /**
    * Claims other packages own, each `claim: '<schema>.<function>'`, for
-   * example `{ features: 'better_supabase.feature_claims' }`. The function
+   * example `{ features: 'public.feature_claims' }`. The function
    * takes the user id (`uuid`) and returns `jsonb`; `null` omits the claim.
    * Reserved names are refused, the claims sit outside `budget`, and a
    * suspended user gets none.

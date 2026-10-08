@@ -142,7 +142,7 @@ describe("member_<scope>_ids_for", () => {
 });
 
 describe("the hook grants for member_<scope>_ids_for", () => {
-  const features = { features: "better_supabase.feature_claims" };
+  const features = { features: "billing.feature_claims" };
   const config = (
     rls: PermDockConfig["rls"],
     claims: Readonly<Record<string, string>> = features,
