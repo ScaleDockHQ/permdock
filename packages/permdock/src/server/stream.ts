@@ -92,6 +92,24 @@ export async function* guardIterable(
   }
 }
 
+/**
+ * The connection loader for a stream `protect` already admitted: the first
+ * read returns the row `protect` loaded, and each revalidation reloads it.
+ */
+export function reloadAfter(
+  loaded: unknown,
+  load: () => unknown,
+): () => unknown {
+  let first = true;
+  return (): unknown => {
+    if (first) {
+      first = false;
+      return loaded;
+    }
+    return load();
+  };
+}
+
 /** WebSocket close code for a policy violation (RFC 6455 section 7.4.1). */
 export const POLICY_VIOLATION = 1008;
 

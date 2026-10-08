@@ -1,7 +1,12 @@
 <script lang="ts">
   import type { Permission, Snapshot } from 'permdock';
 
-  import { Protected, setPermDock } from 'permdock/svelte';
+  import {
+    PermissionBoundary,
+    Protected,
+    requiredPlans,
+    setPermDock,
+  } from 'permdock/svelte';
 
   let {
     snapshot,
@@ -14,6 +19,8 @@
   setPermDock({ snapshot });
 </script>
 
+<s>{typeof requiredPlans}</s>
+<PermissionBoundary>
 <Protected permission={granted}>
   {#snippet children()}<b>granted</b>{/snippet}
   {#snippet fallback()}<i>denied</i>{/snippet}
@@ -22,3 +29,4 @@
   {#snippet children()}<b>granted</b>{/snippet}
   {#snippet fallback()}<i>denied</i>{/snippet}
 </Protected>
+</PermissionBoundary>

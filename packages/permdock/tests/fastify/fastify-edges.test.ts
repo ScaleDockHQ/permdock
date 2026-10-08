@@ -162,4 +162,21 @@ describe("permdock/fastify edge cases", () => {
       snapshot: snapshot.statusCode,
     }).toEqual({ posts: { via: "u1" }, snapshot: 200 });
   });
+
+  it("withPermDock passes the decorated request to the route", async () => {
+    const { permdock, withPermDock } = createPermDock(policy, {
+      subject: () => memberUser,
+    });
+    const app = Fastify();
+    apps.push(app);
+    await app.register(permdock);
+    app.get(
+      "/can",
+      withPermDock((request) => ({
+        update: request.permdock.can(permissions.post.update, otherPost),
+      })),
+    );
+    const response = await app.inject({ method: "GET", url: "/can" });
+    expect(response.json()).toEqual({ update: false });
+  });
 });

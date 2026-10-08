@@ -485,6 +485,29 @@ describe("discovery", () => {
     ]);
   });
 
+  it("fetches the keys again when discovery moves jwks_uri", async () => {
+    const issuer = "https://login.test";
+    let jwksUri = "https://login.test/jwks";
+    const fake = fakeFetch((call) => {
+      if (call.url === "https://login.test/.well-known/openid-configuration") {
+        return json({ issuer, jwks_uri: jwksUri }, 200, {
+          "cache-control": "max-age=60",
+        });
+      }
+      return call.url === jwksUri ? json({ keys: [es.jwk] }) : undefined;
+    });
+    const cache = createKeyCache({ discovery: issuer, fetch: fake.fetch });
+    expect((await cache.resolveJwks(NOW)).ok).toBe(true);
+    jwksUri = "https://login.test/keys-2";
+    expect((await cache.resolveJwks(NOW + 120)).ok).toBe(true);
+    expect(fake.calls.map((call) => call.url)).toEqual([
+      "https://login.test/.well-known/openid-configuration",
+      "https://login.test/jwks",
+      "https://login.test/.well-known/openid-configuration",
+      "https://login.test/keys-2",
+    ]);
+  });
+
   it("falls back to RFC 8414 metadata", async () => {
     const issuer = "https://login.test/tenant";
     const fake = discoveryFetch({

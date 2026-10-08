@@ -453,6 +453,10 @@ describe("rls verify fixtures", () => {
       "subject.tenant must be a string",
     ],
     [
+      [{ subject: { id: "u1", claims: "x" }, row: own, action: "post.read" }],
+      "subject.claims must be an object",
+    ],
+    [
       { customRoles: {}, fixtures: [] },
       "fixtures customRoles must be an array",
     ],

@@ -1,6 +1,7 @@
 import type {
   ArgumentsHost,
   CanActivate,
+  DynamicModule,
   ExceptionFilter,
   ExecutionContext,
   Type,
@@ -19,7 +20,7 @@ import {
   Res,
   createParamDecorator,
 } from "@nestjs/common";
-import { APP_FILTER, Reflector } from "@nestjs/core";
+import { APP_FILTER, APP_GUARD, Reflector } from "@nestjs/core";
 
 import type { ApprovalStore } from "../approvals/types.ts";
 import type { InstanceOptions } from "../core/instance-options.ts";
@@ -44,14 +45,15 @@ import { compact } from "../core/compact.ts";
 import {
   PermDockApprovalRequiredError,
   PermDockDeniedError,
+  PermDockRevokedError,
   PermDockValidationError,
 } from "../core/errors.ts";
 import { instanceOptions } from "../core/instance-options.ts";
 import { createServerKernel, tenantScope } from "../server/create.ts";
 import { problemFromError } from "../server/map-error.ts";
-import { notFoundProblem } from "../server/problem.ts";
 import { POLICY_VIOLATION, onRevoked } from "../server/stream.ts";
 import { InvalidSignatureError } from "../server/web-bot-auth.ts";
+import { decorateMethod } from "./decorate.ts";
 import { sendNestResponse, toRequest, type NestHttpRequest } from "./http.ts";
 
 const PROTECT_KEY = "permdock:protect";
@@ -92,8 +94,9 @@ export type NestSocket = {
   close?(code?: number, reason?: string): unknown;
 };
 
+/** `Protect(null, loadData?, { oauthScopes })` needs a principal and one of the OAuth scopes, but no permission. */
 export type NestProtect = (
-  permission: Permission,
+  permission: Permission | null,
   loadData?: (req: NestRequest) => unknown,
   protectOptions?: ProtectOptions,
 ) => ClassDecorator & MethodDecorator;
@@ -103,8 +106,15 @@ export type NestHandlerOptions = {
   readonly path?: string;
 };
 
+export type PermDockModuleOptions = {
+  /** `"global"` registers `PermDockGuard` as `APP_GUARD`, so every `Protect` rule runs without `UseGuards`. */
+  readonly guard?: "global";
+};
+
 export type NestPermDock = {
-  readonly PermDockModule: Type<unknown>;
+  readonly PermDockModule: Type<unknown> & {
+    readonly forRoot: (options?: PermDockModuleOptions) => DynamicModule;
+  };
   readonly PermDockGuard: Type<CanActivate>;
   readonly Protect: NestProtect;
   readonly InjectPermDock: () => ParameterDecorator;
@@ -124,7 +134,7 @@ export type NestPermDock = {
 };
 
 type ProtectRule = {
-  readonly permission: Permission;
+  readonly permission: Permission | null;
   readonly loadData?: (req: NestRequest) => unknown;
   readonly options?: ProtectOptions;
 };
@@ -156,18 +166,6 @@ function reflectMeta(): ReflectMeta {
   return ref;
 }
 
-function applyMethod(
-  cls: { readonly prototype: object },
-  key: string,
-  decorator: MethodDecorator,
-): void {
-  const descriptor = Object.getOwnPropertyDescriptor(cls.prototype, key);
-  if (descriptor === undefined) {
-    throw new TypeError(`missing ${key} handler`);
-  }
-  decorator(cls.prototype, key, descriptor);
-}
-
 function applyParameter(
   cls: { readonly prototype: object },
   key: string,
@@ -186,6 +184,31 @@ function hasEmit(
     value !== null &&
     typeof (value as { readonly emit?: unknown }).emit === "function"
   );
+}
+
+type Loads = (
+  loader: ((req: NestRequest) => unknown) | undefined,
+) => (() => unknown) | undefined;
+
+/** One call per loader for a request, so class and method rules naming the same loader share its row. */
+function loadsFor(req: NestRequest | undefined): Loads {
+  const loaded = new Map<(req: NestRequest) => unknown, Promise<unknown>>();
+  return (loader) => {
+    if (loader === undefined) {
+      return undefined;
+    }
+    return (): Promise<unknown> => {
+      if (req === undefined) {
+        return Promise.resolve(undefined);
+      }
+      let hit = loaded.get(loader);
+      if (hit === undefined) {
+        hit = Promise.resolve(loader(req));
+        loaded.set(loader, hit);
+      }
+      return hit;
+    };
+  };
 }
 
 function rulesOf(target: object): readonly ProtectRule[] {
@@ -259,15 +282,15 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     req: NestRequest,
     request: globalThis.Request,
     scope: TenantScope,
+    load: Loads,
   ): Promise<void> => {
     const [rule, ...rest] = remaining;
     if (rule === undefined) {
       return;
     }
-    const loader = rule.loadData;
     const guard = await kernel.protect(
       rule.permission,
-      loader === undefined ? undefined : (): unknown => loader(req),
+      load(rule.loadData),
       rule.options,
     )(request, scope);
     if (!guard.ok) {
@@ -275,7 +298,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     }
     req.permdock = guard.permdock;
     req.permdockData = guard.data;
-    await applyProtect(rest, req, request, scope);
+    await applyProtect(rest, req, request, scope, load);
   };
 
   const bind = (req: NestRequest): globalThis.Request => {
@@ -320,31 +343,30 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     return opened;
   };
 
-  /** Decides each rule for a gateway message against the client's connection. */
+  /** Decides each rule for a gateway message against the client's connection, as `protect` does for HTTP. */
   const checkMessage = async (
     rules: readonly ProtectRule[],
     conn: Connection,
     req: NestRequest | undefined,
   ): Promise<void> => {
+    const request = req === undefined ? undefined : bind(req);
+    const load = loadsFor(req);
     for (const rule of rules) {
-      const loader = rule.loadData;
-      let data: unknown;
-      if (loader !== undefined) {
-        // oxlint-disable-next-line no-await-in-loop -- rules apply in order
-        data = req === undefined ? undefined : await loader(req);
-        if (data === null || data === undefined) {
-          throw new PermDockHttpError(notFoundProblem());
-        }
+      if (conn.signal.aborted) {
+        throw conn.signal.reason instanceof PermDockRevokedError
+          ? conn.signal.reason
+          : new PermDockRevokedError({ code: "denied" });
       }
-      const decision = conn.check(
+      // oxlint-disable-next-line no-await-in-loop -- rules apply in order
+      const guard = await kernel.protectOn(
+        conn.permdock,
         rule.permission,
-        data,
-        rule.options?.trusted === true ? { trusted: true } : undefined,
+        load(rule.loadData),
+        rule.options,
+        request,
       );
-      if (decision.outcome !== "granted") {
-        throw new PermDockHttpError(
-          kernel.problem(decision, { permission: rule.permission }),
-        );
+      if (!guard.ok) {
+        throw new PermDockHttpError(guard.response);
       }
     }
   };
@@ -377,7 +399,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       const request = bind(req);
       const scope = await scopeOf(req);
       req.permdock = await kernel.permdock(request, scope);
-      await applyProtect(rules, req, request, scope);
+      await applyProtect(rules, req, request, scope, loadsFor(req));
       return true;
     }
 
@@ -440,12 +462,25 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     InvalidSignatureError,
     PermDockDeniedError,
     PermDockApprovalRequiredError,
+    PermDockRevokedError,
     PermDockValidationError,
   )(PermDockExceptionFilter);
   Injectable()(PermDockExceptionFilter);
 
   class PermDockRoot {
     public static readonly adapter = "nest" as const;
+
+    public static forRoot(
+      moduleOptions: PermDockModuleOptions = {},
+    ): DynamicModule {
+      return {
+        module: PermDockRoot,
+        providers:
+          moduleOptions.guard === "global"
+            ? [{ provide: APP_GUARD, useExisting: PermDockGuard }]
+            : [],
+      };
+    }
   }
   Module({
     providers: [
@@ -492,6 +527,10 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       public async post(req: NestRequest, res: unknown): Promise<void> {
         const request = toRequest(req);
         contexts.set(request, req);
+        const previous = bound.get(req);
+        if (previous !== undefined) {
+          kernel.shareSubject(previous, request);
+        }
         await this.send(res, await POST(request));
       }
 
@@ -500,8 +539,8 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       }
     }
     Controller(handlerOptions.path ?? "api/permdock")(EvaluationsController);
-    applyMethod(EvaluationsController, "post", Post());
-    applyMethod(EvaluationsController, "get", Get());
+    decorateMethod(EvaluationsController, "post", Post());
+    decorateMethod(EvaluationsController, "get", Get());
     applyParameter(EvaluationsController, "post", 0, Req());
     applyParameter(
       EvaluationsController,

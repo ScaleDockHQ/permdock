@@ -3,6 +3,7 @@ import type { StandardSchemaV1 } from "@standard-schema/spec";
 import type { RoleSource } from "../core/interfaces.ts";
 import type { Permission } from "../core/permissions.ts";
 import type { Principal } from "../core/subject.ts";
+import type { RemotePdpCache } from "../pdp/types.ts";
 
 export type ClerkPrincipal = Principal & {
   readonly clerkPermissions?: readonly string[];
@@ -56,4 +57,8 @@ export type ClerkAuthObject = {
   readonly sessionId?: string | null;
   readonly sessionClaims?: Readonly<Record<string, unknown>> | null;
   readonly has?: (...args: never[]) => unknown;
+};
+
+export type ClerkSubjectResolverOptions = ClerkSubjectOptions & {
+  readonly cache?: RemotePdpCache;
 };

@@ -64,7 +64,27 @@ describe("field-service fixture", () => {
       cwd: FIXTURE,
     });
     expect(result.stdout).toContain("sync-config.yaml is current");
+    expect(result.stdout).toContain("permdock-manifest.json is current");
     expect(result.code).toBe(0);
+  });
+
+  it("streams each user's own membership rows and the roles they reference", async () => {
+    const yaml = readFileSync(join(FIXTURE, "sync-config.yaml"), "utf8");
+    const query = (stream: string): string => {
+      const block = yaml.split(`  ${stream}:\n`)[1] ?? "";
+      const line = /- "(.*)"/u.exec(block)?.[1] ?? "";
+      return line.replaceAll("auth.user_id()", "$1::text");
+    };
+    const own = await db!.admin.query(query("permdock_organization_users"), [
+      "u-tech",
+    ]);
+    expect(own.rows).toEqual([
+      { organization_id: "acme", user_id: "u-tech", tier: "pro", role_id: 2 },
+    ]);
+    const roles = await db!.admin.query(query("permdock_roles"), [
+      "u-dispatch",
+    ]);
+    expect(roles.rows).toMatchObject([{ id: 10, key: "dispatcher" }]);
   });
 
   it("syncs no row the policy denies", async () => {

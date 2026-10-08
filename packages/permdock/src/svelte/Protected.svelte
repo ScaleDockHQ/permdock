@@ -1,7 +1,12 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
 
-  import { getStore, protectedView, type ProtectedProps } from './runtime.ts';
+  import {
+    getStore,
+    protectedView,
+    scopedFor,
+    type ProtectedProps,
+  } from './runtime.ts';
 
   let {
     permission,
@@ -19,9 +24,10 @@
       tick += 1;
     }),
   );
+  const scoped = $derived(scopedFor(store, tenant, tick));
   const view = $derived.by(() => {
     const generation = tick;
-    return protectedView(store, permission, data, tenant, generation);
+    return protectedView(store, permission, data, scoped, generation);
   });
 </script>
 

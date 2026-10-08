@@ -168,7 +168,12 @@ async function resolveSubject(
     const proof =
       request === undefined
         ? { ok: false as const, cause: "dpop-proof-invalid" as const }
-        : await verifyDpopProof(request, verified.claims, token);
+        : await verifyDpopProof(
+            request,
+            verified.claims,
+            token,
+            compact({ replay: options.replay }),
+          );
     if (!proof.ok) {
       emitAuth(options, proof.cause, token);
       return anonymousSubject();

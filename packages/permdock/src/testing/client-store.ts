@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type {
   Decision,
@@ -397,6 +397,68 @@ export function testClientStore(
       expect(store.get().status(p.doc.update, acmeDoc)).toBe("pending");
       await settle();
       expect(net.calls).toHaveLength(2);
+    });
+
+    it("answers a row edited in place once the task that read it ends", async () => {
+      const net = recorder(unreachable);
+      const store = createStore({
+        snapshot: snapshotOf("bob", "acme"),
+        tenant: "acme",
+        fetch: net.fetch,
+      });
+      const row = { ...acmeProject, ownerId: "bob" };
+      expect(store.get().status(p.project.update, row)).toBe("ready");
+      expect(store.get().can(p.project.update, row)).toBe(true);
+      row.ownerId = "alice";
+      await settle();
+      expect(store.get().can(p.project.update, row)).toBe(false);
+    });
+
+    it("answers a check on a row that throws as denied, without throwing", () => {
+      const net = recorder(unreachable);
+      const store = createStore({
+        snapshot: snapshotOf("bob", "acme"),
+        tenant: "acme",
+        fetch: net.fetch,
+      });
+      const hostile = new Proxy(
+        {},
+        {
+          get(): never {
+            throw new Error("hostile row");
+          },
+        },
+      );
+      expect(store.get().status(p.project.update, hostile)).not.toBe("pending");
+      expect(store.get().can(p.project.update, hostile)).toBe(false);
+    });
+
+    it("notifies every subscriber of a logout when one of them throws", () => {
+      const reported = vi.fn<(error: unknown) => void>();
+      vi.stubGlobal("reportError", reported);
+      try {
+        const net = recorder(unreachable);
+        const store = createStore({
+          snapshot: snapshotOf("bob", "acme"),
+          tenant: "acme",
+          fetch: net.fetch,
+        });
+        let after = 0;
+        const offThrowing = store.get().subscribe(() => {
+          throw new Error("subscriber failed");
+        });
+        const offCounting = store.get().subscribe(() => {
+          after += 1;
+        });
+        store.get().clear();
+        expect(after).toBe(1);
+        expect(reported).toHaveBeenCalled();
+        expect(store.get().can(p.project.read, acmeProject)).toBe(false);
+        offThrowing();
+        offCounting();
+      } finally {
+        vi.unstubAllGlobals();
+      }
     });
 
     it("does not notify subscribers synchronously from a status read", () => {

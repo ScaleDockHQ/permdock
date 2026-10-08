@@ -10,6 +10,9 @@ export type {
   CiOidcSubjectOptions,
 } from "./ci-oidc.ts";
 export { verifyDpopProof } from "./dpop.ts";
+export type { DpopProofOptions } from "./dpop.ts";
+export { memoryReplayStore } from "../ssf/replay.ts";
+export type { ReplayStore } from "../ssf/types.ts";
 export { subjectFromIntrospection } from "./introspection.ts";
 export { joseTokenSigner } from "./signer.ts";
 export { createJwtSubjectResolver, subjectFromJwt } from "./subject.ts";

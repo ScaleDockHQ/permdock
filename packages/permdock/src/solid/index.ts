@@ -13,6 +13,7 @@ export {
   useSubject,
   useTenant,
 } from "./hooks.ts";
+export { PermissionBoundary, usePermissionBoundary } from "./boundary.ts";
 export { Protected } from "./protected.ts";
 export { PermDockProvider } from "./provider.ts";
 export type {
@@ -22,6 +23,8 @@ export type {
   ClientStatus,
   FilterResult,
   PermDockProviderProps,
+  PermissionBoundaryProps,
+  PermissionBoundaryState,
   PermissionSet,
   PermissionState,
   ProtectedProps,

@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { createPermDock } from "../../src/core/permdock.ts";
 import { approvalHeaders } from "../../src/react/headers.ts";
 import { createSvelteStore } from "../../src/svelte/context.ts";
-import { protectedView } from "../../src/svelte/protected.ts";
+import { protectedView, scopedFor } from "../../src/svelte/protected.ts";
 import {
   approvalFor,
   assignableFor,
@@ -46,12 +46,12 @@ describe("permdock/svelte", () => {
   it("answers portable grants from the snapshot without flashing deny", async () => {
     const snapshot = await memberSnapshot();
     const store = createSvelteStore({ snapshot });
-    expect(protectedView(store, defs.post.update, ownPost).slot).toBe(
-      "default",
-    );
-    expect(protectedView(store, defs.post.update, otherPost).slot).toBe(
-      "fallback",
-    );
+    expect(
+      protectedView(store, defs.post.update, ownPost, undefined).slot,
+    ).toBe("default");
+    expect(
+      protectedView(store, defs.post.update, otherPost, undefined).slot,
+    ).toBe("fallback");
     expect(
       get(permissionFor(store, defs.post.update, () => ownPost)).allowed,
     ).toBe(true);
@@ -101,8 +101,18 @@ describe("permdock/svelte", () => {
     const store = createSvelteStore({ snapshot, tenant: "globex" });
     const globexProject = { ...ownProject, id: "g1", orgId: "globex" };
     const slots = [
-      protectedView(store, saas.project.update, ownProject, "acme"),
-      protectedView(store, saas.project.update, globexProject, "globex"),
+      protectedView(
+        store,
+        saas.project.update,
+        ownProject,
+        scopedFor(store, "acme"),
+      ),
+      protectedView(
+        store,
+        saas.project.update,
+        globexProject,
+        scopedFor(store, "globex"),
+      ),
     ].map((view) => [view.slot, view.status, view.allowed]);
     expect(slots).toEqual([
       ["default", "ready", true],

@@ -120,6 +120,41 @@ describe("permdock/trpc subscriptions", () => {
   });
 });
 
+describe("permdock/trpc subscription data", () => {
+  it("opens the subscription with the row protect loaded and reloads on revalidation", async () => {
+    const t = initTRPC.context<Ctx>().create();
+    const revocations = memoryRevocationFeed();
+    const { protect } = createPermDock<Ctx>(policy, {
+      subject: (opts) => opts.ctx.user,
+      revocations,
+    });
+    let loads = 0;
+    const posts = channel<typeof ownPost>();
+    const appRouter = t.router({
+      comments: t.procedure
+        .use(
+          protect(permissions.post.read, () => {
+            loads += 1;
+            return ownPost;
+          }),
+        )
+        .subscription(() => posts.drain()),
+    });
+    const stream = await appRouter
+      .createCaller({ user: memberUser })
+      .comments();
+    // SAFETY: the comments procedure is a subscription, whose caller result is an async iterable.
+    const iterator = (stream as AsyncIterable<unknown>)[Symbol.asyncIterator]();
+    posts.push(ownPost);
+    await expect(iterator.next()).resolves.toMatchObject({ value: ownPost });
+    expect(loads).toBe(1);
+    await revocations.revoke({ principal: "u1", kind: "changed" });
+    posts.push(ownPost);
+    await expect(iterator.next()).resolves.toMatchObject({ value: ownPost });
+    expect(loads).toBe(2);
+  });
+});
+
 describe("permdock/trpc", () => {
   it("grants and denies through createCaller", async () => {
     const t = initTRPC.context<Ctx>().create();
@@ -211,6 +246,24 @@ describe("permdock/trpc", () => {
       // SAFETY: toBeInstanceOf above checked the error is a TRPCError.
       expect((error as TRPCError).code).toBe("UNAUTHORIZED");
     }
+  });
+
+  it("protect(null) needs a principal and the declared OAuth scopes", async () => {
+    const t = initTRPC.context<Ctx>().create();
+    const { protect } = createPermDock<Ctx>(policy, {
+      subject: (opts) => opts.ctx.user,
+    });
+    const appRouter = t.router({
+      me: t.procedure
+        .use(protect(null, undefined, { oauthScopes: ["posts:read"] }))
+        .query(() => "ok"),
+    });
+    await expect(
+      appRouter.createCaller({ user: memberUser }).me(),
+    ).resolves.toBe("ok");
+    await expect(
+      appRouter.createCaller({ user: null }).me(),
+    ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
 
   it("answers AuthZEN evaluations over Fetch", async () => {

@@ -1,7 +1,7 @@
 {
   "$schema": "https://permdock.com/schemas/catalog-v1.json",
   "version": 1,
-  "generatedAt": "2026-10-04T22:04:43.937Z",
+  "generatedAt": "2026-10-08T19:53:49.039Z",
   "generator": "permdock@0.1.0",
   "fingerprint": "E7G4R7NhectdtojbU3Zsh6WN8PJnXy5K7ZLDvAjp7gk",
   "resources": {
@@ -61,6 +61,11 @@
       "meta": {},
       "usages": [
         {
+          "file": "src/app.ts",
+          "line": 15,
+          "call": "usePermission"
+        },
+        {
           "file": "src/policy.ts",
           "line": 16,
           "call": "allow"
@@ -99,8 +104,8 @@
       "usages": [
         {
           "file": "src/app.ts",
-          "line": 23,
-          "call": "tools"
+          "line": 32,
+          "call": "assert"
         },
         {
           "file": "src/policy.ts",
@@ -141,7 +146,7 @@
       "usages": [
         {
           "file": "src/app.ts",
-          "line": 16,
+          "line": 44,
           "call": "tools"
         },
         {

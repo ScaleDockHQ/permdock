@@ -23,15 +23,24 @@ export type PermDockPluginOptions = {
   readonly snapshot:
     | MaybeRefOrGetter<Snapshot | string>
     | PromiseLike<Snapshot | string>;
-  readonly endpoint?: string;
+  /**
+   * The AuthZEN evaluations endpoint for checks the snapshot cannot answer.
+   * `false` never calls one: such a check is denied with reason `server-only`.
+   */
+  readonly endpoint?: string | false;
   /** Where `refresh()` fetches a fresh snapshot. Defaults to `endpoint`. */
   readonly snapshotUrl?: string;
   readonly approvals?: string;
-  readonly tenant?: string;
+  /** A ref or getter switches the active tenant (`refresh({ tenant })`) when it changes. */
+  readonly tenant?: MaybeRefOrGetter<string | undefined>;
   readonly fetch?: typeof fetch;
-  readonly headers?: Readonly<Record<string, string>>;
+  /** Read on every request: a ref or getter carries a rotated token without rebuilding the store. */
+  readonly headers?: MaybeRefOrGetter<
+    Readonly<Record<string, string>> | undefined
+  >;
   readonly maxAge?: number;
-  readonly verifier?: TokenVerifier;
+  /** Read on every verification; set it at install to verify signed snapshots. */
+  readonly verifier?: MaybeRefOrGetter<TokenVerifier | undefined>;
 };
 
 export type {

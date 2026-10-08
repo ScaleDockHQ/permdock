@@ -6,6 +6,7 @@ import type {
   ClerkBackend,
   ClerkGlobalRoles,
   ClerkPrincipal,
+  ClerkSubjectResolverOptions,
   ClerkSubjectOptions,
 } from "./types.ts";
 
@@ -13,6 +14,7 @@ import { compact } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import { anonymousSubject } from "../core/subject.ts";
 import { ignoreRejection } from "../core/thenable.ts";
+import { ttlCache, ttlMs } from "../pdp/shared.ts";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -333,10 +335,16 @@ function membershipRow(item: unknown, userId: string): Membership | undefined {
   return compact<Membership>({ tenant, roles });
 }
 
+type LoadMemberships = (
+  backend: ClerkBackend | undefined,
+  userId: string,
+) => Promise<readonly Membership[] | undefined>;
+
+/** The memberships Clerk lists for `userId`, or `undefined` when a page fails. */
 async function extraMemberships(
   backend: ClerkBackend | undefined,
   userId: string,
-): Promise<readonly Membership[]> {
+): Promise<readonly Membership[] | undefined> {
   const list = backend?.users?.getOrganizationMembershipList;
   if (list === undefined) {
     return [];
@@ -371,13 +379,44 @@ async function extraMemberships(
     }
     return out;
   } catch {
-    return [];
+    return undefined;
   }
 }
 
-export async function subjectFromClerk(
+export function subjectFromClerk(
   authObject: unknown,
   options: ClerkSubjectOptions = {},
+): Promise<Subject<ClerkPrincipal>> {
+  return fromClerk(authObject, options, extraMemberships);
+}
+
+/**
+ * A resolver that keeps each user's `memberships: 'all'` list for
+ * `cache.ttl` (at most 30 seconds), so a removed membership grants until then.
+ */
+export function createClerkSubjectResolver(
+  options: ClerkSubjectResolverOptions = {},
+): (authObject: unknown) => Promise<Subject<ClerkPrincipal>> {
+  const { cache, ...rest } = options;
+  const lists = ttlCache<readonly Membership[]>(ttlMs(cache));
+  const load: LoadMemberships = async (backend, userId) => {
+    const hit = lists.get(userId);
+    if (hit !== undefined) {
+      return hit;
+    }
+    const loaded = await extraMemberships(backend, userId);
+    if (loaded !== undefined) {
+      lists.set(userId, loaded);
+    }
+    return loaded;
+  };
+  return (authObject) => fromClerk(authObject, rest, load);
+}
+
+async function fromClerk(
+  authObject: unknown,
+  options: ClerkSubjectOptions,
+  loadMemberships: LoadMemberships,
 ): Promise<Subject<ClerkPrincipal>> {
   try {
     const trustedObject = isAuthObject(authObject);
@@ -421,7 +460,7 @@ export async function subjectFromClerk(
         : [];
     const loaded =
       options.memberships === "all"
-        ? await extraMemberships(options.backend, mapped.id)
+        ? ((await loadMemberships(options.backend, mapped.id)) ?? [])
         : [];
     const seen = new Set(sessionMembership.map((item) => item.tenant));
     const memberships = [

@@ -74,7 +74,12 @@ function run(work: () => Promise<void>, next: (err?: unknown) => void): void {
   work().catch(next);
 }
 
-const errorHandler = (): ErrorRequestHandler => (err, req, res, next) => {
+function sendProblem(
+  err: unknown,
+  req: Request,
+  res: Response,
+  next: (err?: unknown) => void,
+): void {
   const problem = problemFromError(err, {
     credentials: req.headers.authorization !== undefined,
   });
@@ -85,6 +90,22 @@ const errorHandler = (): ErrorRequestHandler => (err, req, res, next) => {
   run(async () => {
     await sendResponse(res, problem);
   }, next);
+}
+
+/** Answers a PermDock error with Problem Details; anything else reaches the app's error middleware. */
+function respond(
+  req: Request,
+  res: Response,
+  next: (err?: unknown) => void,
+  work: () => Promise<void>,
+): void {
+  work().catch((err: unknown) => {
+    sendProblem(err, req, res, next);
+  });
+}
+
+const errorHandler = (): ErrorRequestHandler => (err, req, res, next) => {
+  sendProblem(err, req, res, next);
 };
 
 const withPermDock =
@@ -161,16 +182,20 @@ export function createPermDock<
   const rebind = (req: Request): globalThis.Request => {
     const request = toRequest(req);
     contexts.set(request, req);
+    const previous = bound.get(req);
+    if (previous !== undefined) {
+      kernel.shareSubject(previous, request);
+    }
     return request;
   };
 
-  const permdock = (): RequestHandler => (req, _res, next) => {
-    run(async () => {
+  const permdock = (): RequestHandler => (req, res, next) => {
+    respond(req, res, next, async () => {
       const instance = await kernel.permdock(bind(req), await scopeOf(req));
       // SAFETY: this assignment is what makes req a PermDockRequest.
       (req as PermDockRequest).permdock = instance;
       next();
-    }, next);
+    });
   };
 
   const protect =
@@ -180,7 +205,7 @@ export function createPermDock<
       protectOptions?: ProtectOptions,
     ): RequestHandler =>
     (req, res, next) => {
-      run(async () => {
+      respond(req, res, next, async () => {
         const guard = await kernel.protect(
           permission,
           loadData === undefined ? undefined : (): unknown => loadData(req),
@@ -195,7 +220,7 @@ export function createPermDock<
         scoped.permdock = guard.permdock;
         scoped.permdockData = guard.data;
         next();
-      }, next);
+      });
     };
 
   const permdockHandler = (): Router => {
@@ -211,14 +236,14 @@ export function createPermDock<
     );
     const router = express.Router({ mergeParams: true });
     router.post("/", (req, res, next) => {
-      run(async () => {
+      respond(req, res, next, async () => {
         await sendResponse(res, await POST(rebind(req)));
-      }, next);
+      });
     });
     router.get("/", (req, res, next) => {
-      run(async () => {
+      respond(req, res, next, async () => {
         await sendResponse(res, await GET(bind(req)));
-      }, next);
+      });
     });
     return router;
   };

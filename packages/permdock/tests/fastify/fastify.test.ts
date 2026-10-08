@@ -71,6 +71,25 @@ describe("permdock/fastify", () => {
     expect(denied.headers["www-authenticate"]).toBe("Bearer");
   });
 
+  it("builds no instance for a route with config permdock false", async () => {
+    let resolved = 0;
+    const { permdock } = createPermDock(policy, {
+      subject: () => {
+        resolved += 1;
+        return memberUser;
+      },
+    });
+    const app = Fastify();
+    await app.register(permdock);
+    app.get("/health", { config: { permdock: false } }, () => ({ ok: true }));
+    app.get("/posts", () => ({ ok: true }));
+    await app.inject("/health");
+    expect(resolved).toBe(0);
+    await app.inject("/posts");
+    expect(resolved).toBe(1);
+    await app.close();
+  });
+
   it("mounts the AuthZEN evaluations handler", async () => {
     const { permdockHandler } = createPermDock(policy, {
       subject: () => memberUser,

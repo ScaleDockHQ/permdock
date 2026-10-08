@@ -12,6 +12,7 @@ import { z } from "zod";
 
 import { createPermDock } from "../../src/index.ts";
 import { verifyDpopProof } from "../../src/jwt/dpop.ts";
+import { memoryReplayStore } from "../../src/jwt/index.ts";
 import { subjectFromIntrospection } from "../../src/jwt/introspection.ts";
 import { joseTokenSigner } from "../../src/jwt/signer.ts";
 import {
@@ -485,6 +486,69 @@ describe("verifyDpopProof", () => {
       ok: false,
       cause: "dpop-proof-invalid",
     });
+  });
+});
+
+describe("verifyDpopProof htu and replay", () => {
+  const signed = async (): Promise<{ proof: string; jkt: string }> => {
+    const { privateKey, publicKey } = await generateKeyPair("Ed25519", {
+      extractable: true,
+    });
+    const jwk = await exportJWK(publicKey);
+    const { calculateJwkThumbprint } = await import("jose");
+    const proof = await new SignJWT({
+      htm: "GET",
+      htu: "https://API.example.com/posts",
+    })
+      .setProtectedHeader({ alg: "Ed25519", typ: "dpop+jwt", jwk })
+      .setIssuedAt()
+      .setJti("dpop-replay-1")
+      .sign(privateKey);
+    return { proof, jkt: await calculateJwkThumbprint(jwk, "sha256") };
+  };
+  const requestWith = (url: string, proof: string): Request =>
+    new Request(url, { headers: { DPoP: proof } });
+
+  it("compares htu without the request's query and fragment", async () => {
+    const { proof, jkt } = await signed();
+    expect(
+      await verifyDpopProof(
+        requestWith("https://api.example.com/posts?page=2#top", proof),
+        { cnf: { jkt } },
+      ),
+    ).toEqual({ ok: true });
+    expect(
+      await verifyDpopProof(
+        requestWith("https://api.example.com/posts/1", proof),
+        { cnf: { jkt } },
+      ),
+    ).toEqual({ ok: false, cause: "dpop-proof-invalid" });
+  });
+
+  it("rejects a reused jti when a replay store is set", async () => {
+    const { proof, jkt } = await signed();
+    const replay = memoryReplayStore();
+    const url = "https://api.example.com/posts";
+    expect(
+      await verifyDpopProof(
+        requestWith(url, proof),
+        { cnf: { jkt } },
+        undefined,
+        {
+          replay,
+        },
+      ),
+    ).toEqual({ ok: true });
+    expect(
+      await verifyDpopProof(
+        requestWith(url, proof),
+        { cnf: { jkt } },
+        undefined,
+        {
+          replay,
+        },
+      ),
+    ).toEqual({ ok: false, cause: "dpop-proof-invalid" });
   });
 });
 

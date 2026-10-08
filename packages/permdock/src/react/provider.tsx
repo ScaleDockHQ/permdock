@@ -1,6 +1,5 @@
 import { type ReactElement, useLayoutEffect } from "react";
 
-import type { Permission } from "../core/permissions.ts";
 import type { PermDockProviderProps } from "./types.ts";
 
 import { adapterStore } from "../client/store-options.ts";
@@ -13,21 +12,6 @@ import {
 import { useKeyed } from "./keyed.ts";
 import { useLiveOptions } from "./live-options.ts";
 
-/** One hint per provider: the first check `endpoint: false` turns into a `server-only` denial. */
-function hintOnce(): (permission: Permission) => void {
-  let shown = false;
-  return (permission) => {
-    if (shown) {
-      return;
-    }
-    shown = true;
-    // oxlint-disable-next-line no-console -- the one hint for snapshot-only mode
-    console.info(
-      `PermDock: ${permission.key} needs the server (a closure, graph relation or period grant) and endpoint is false, so it is denied with reason server-only; check it with getPermission instead`,
-    );
-  };
-}
-
 export function PermDockProvider(props: PermDockProviderProps): ReactElement {
   const promise = props.snapshotPromise ?? null;
   const suspend = props.suspend === true;
@@ -37,8 +21,7 @@ export function PermDockProvider(props: PermDockProviderProps): ReactElement {
     () =>
       adapterStore(
         compact({
-          endpoint: props.endpoint === false ? undefined : props.endpoint,
-          onServerOnly: props.endpoint === false ? hintOnce() : undefined,
+          endpoint: props.endpoint,
           snapshotUrl: props.snapshotUrl,
           approvals: props.approvals,
           tenant: props.tenant,
@@ -47,6 +30,7 @@ export function PermDockProvider(props: PermDockProviderProps): ReactElement {
           maxAge: props.maxAge,
           verifier: live.verifier,
           awaiting,
+          passCache: true,
         }),
         props.snapshot ?? emptySnapshot(),
       ),

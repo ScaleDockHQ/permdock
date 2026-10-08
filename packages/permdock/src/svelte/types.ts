@@ -26,13 +26,21 @@ export type PermDockSvelteOptions = {
     | (() => Snapshot | string)
     | Readable<Snapshot | string>
     | PromiseLike<Snapshot | string>;
-  readonly endpoint?: string;
+  /**
+   * The AuthZEN evaluations endpoint for checks the snapshot cannot answer.
+   * `false` never calls one: such a check is denied with reason `server-only`.
+   */
+  readonly endpoint?: string | false;
   /** Where `refresh()` fetches a fresh snapshot. Defaults to `endpoint`. */
   readonly snapshotUrl?: string;
   readonly approvals?: string;
-  readonly tenant?: string;
+  /** A getter (`() => page.params.org`) switches the active tenant (`refresh({ tenant })`) when it changes. */
+  readonly tenant?: string | (() => string | undefined);
   readonly fetch?: typeof fetch;
-  readonly headers?: Readonly<Record<string, string>>;
+  /** A getter is read on every request, so a rotated token applies without a new store. */
+  readonly headers?:
+    | Readonly<Record<string, string>>
+    | (() => Readonly<Record<string, string>> | undefined);
   readonly maxAge?: number;
   readonly verifier?: TokenVerifier;
 };

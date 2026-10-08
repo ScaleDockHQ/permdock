@@ -12,30 +12,27 @@ export function Protected(props: ProtectedProps): JSX.Element {
     () => props.permission,
     () => props.data,
   );
+  const scoped = createMemo(() =>
+    props.tenant === undefined ? undefined : root.tenant(props.tenant),
+  );
   const view = createMemo(() =>
-    protectedView(
-      local(),
-      root,
-      props.permission,
-      props.data,
-      props.tenant === undefined ? undefined : root.tenant(props.tenant),
-    ),
+    protectedView(local(), root, props.permission, props.data, scoped()),
   );
   const render = (): SolidChild => {
-    const scoped = view();
-    switch (scoped.slot) {
+    const current = view();
+    switch (current.slot) {
       case "pending":
         return props.pending ?? null;
       case "fallback":
         return typeof props.fallback === "function"
-          ? props.fallback(scoped.decision)
+          ? props.fallback(current.decision)
           : (props.fallback ?? null);
       case "default":
         return typeof props.children === "function"
-          ? props.children(scoped.decision)
+          ? props.children(current.decision)
           : props.children;
       default: {
-        const exhausted: never = scoped;
+        const exhausted: never = current;
         return exhausted;
       }
     }

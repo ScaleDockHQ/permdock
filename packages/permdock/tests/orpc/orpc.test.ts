@@ -189,6 +189,54 @@ describe("permdock/orpc", () => {
     expect(resolved).toBe(1);
   });
 
+  it("rebuilds an instance it did not issue or issued for another tenant", async () => {
+    let tenant = "t1";
+    const { permdock } = createPermDock<Ctx & { readonly permdock?: unknown }>(
+      policy,
+      {
+        subject: (opts) => opts.context.user,
+        tenant: () => tenant,
+      },
+    );
+    const first = os
+      .$context<Ctx & { readonly permdock?: unknown }>()
+      .use(permdock())
+      .handler(({ context }) => context.permdock);
+    const issued = await call(first, undefined, {
+      context: { user: memberUser },
+    });
+    const again = await call(first, undefined, {
+      context: { user: memberUser, permdock: issued },
+    });
+    expect(again).toBe(issued);
+    const forged = { can: () => true };
+    const replaced = await call(first, undefined, {
+      context: { user: memberUser, permdock: forged },
+    });
+    expect(replaced).not.toBe(forged);
+    tenant = "t2";
+    const otherTenant = await call(first, undefined, {
+      context: { user: memberUser, permdock: issued },
+    });
+    expect(otherTenant).not.toBe(issued);
+  });
+
+  it("protect(null) needs a principal and the declared OAuth scopes", async () => {
+    const { protect } = createPermDock<Ctx>(policy, {
+      subject: (opts) => opts.context.user,
+    });
+    const me = os
+      .$context<Ctx>()
+      .use(protect(null, undefined, { oauthScopes: ["posts:read"] }))
+      .handler(({ context }) => context.permdock.subject.principal?.id);
+    await expect(
+      call(me, undefined, { context: { user: memberUser } }),
+    ).resolves.toBe("u1");
+    await expect(
+      call(me, undefined, { context: { user: null } }),
+    ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+  });
+
   it("answers AuthZEN evaluations over Fetch", async () => {
     const { permdockHandler, openapi } = createPermDock(policy, {
       subject: () => memberUser,

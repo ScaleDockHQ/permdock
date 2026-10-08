@@ -1,4 +1,5 @@
 import type { JwtClaims } from "../core/interfaces.ts";
+import type { ReplayStore } from "../ssf/types.ts";
 import type { DpopProofResult } from "./types.ts";
 
 import { bytesToBase64Url, sha256 } from "../core/sha256.ts";
@@ -20,24 +21,51 @@ function headerOf(request: Request): string | null {
   return request.headers.get("DPoP") ?? request.headers.get("dpop");
 }
 
-function requestUrl(request: Request): string {
-  const url = new URL(request.url);
+export type DpopProofOptions = {
+  /** Rejects a proof whose `jti` this key already used within the 60-second window. */
+  readonly replay?: ReplayStore;
+};
+
+// RFC 9449 section 4.3: htu matches the request URI ignoring its query and fragment.
+function withoutQuery(value: unknown): string | null {
+  if (typeof value !== "string" || !URL.canParse(value)) {
+    return null;
+  }
+  const url = new URL(value);
+  url.search = "";
   url.hash = "";
   return url.href;
+}
+
+async function claimJti(
+  replay: ReplayStore,
+  key: string,
+  expiresAt: number,
+): Promise<boolean> {
+  if (replay.claim !== undefined) {
+    return replay.claim(key, expiresAt);
+  }
+  if (await replay.seen(key)) {
+    return false;
+  }
+  await replay.remember(key, expiresAt);
+  return true;
 }
 
 export function verifyDpopProof(
   request: Request,
   claims: JwtClaims,
   accessToken?: string,
+  options: DpopProofOptions = {},
 ): Promise<DpopProofResult> {
-  return verify(request, claims, accessToken);
+  return verify(request, claims, accessToken, options);
 }
 
 async function verify(
   request: Request,
   claims: JwtClaims,
   accessToken: string | undefined,
+  options: DpopProofOptions,
 ): Promise<DpopProofResult> {
   const proof = headerOf(request);
   if (proof === null || proof.length === 0) {
@@ -83,12 +111,33 @@ async function verify(
     }
     const htm = result.payload["htm"];
     const htu = result.payload["htu"];
-    if (htm !== request.method || htu !== requestUrl(request)) {
+    const expectedHtu = withoutQuery(request.url);
+    if (
+      htm !== request.method ||
+      expectedHtu === null ||
+      withoutQuery(htu) !== expectedHtu
+    ) {
       return { ok: false, cause: "dpop-proof-invalid" };
     }
     if (accessToken !== undefined) {
       const ath = bytesToBase64Url(sha256(accessToken));
       if (result.payload["ath"] !== ath) {
+        return { ok: false, cause: "dpop-proof-invalid" };
+      }
+    }
+    if (options.replay !== undefined) {
+      const jti = result.payload.jti;
+      const iat = result.payload.iat;
+      if (
+        typeof jti !== "string" ||
+        jti === "" ||
+        typeof iat !== "number" ||
+        !(await claimJti(
+          options.replay,
+          `dpop\u0000${jkt}\u0000${jti}`,
+          iat + DPOP_WINDOW_SECONDS,
+        ))
+      ) {
         return { ok: false, cause: "dpop-proof-invalid" };
       }
     }

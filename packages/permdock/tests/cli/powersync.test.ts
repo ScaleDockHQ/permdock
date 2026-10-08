@@ -189,6 +189,125 @@ function queries(name: string, target = config): readonly string[] {
 }
 
 describe("powersync streams", () => {
+  it("streams the user's own memberships, the roles they reference and the tenant custom roles", () => {
+    const plan = powersyncPlan(policy, {
+      ...config,
+      rls: {
+        ...config.rls,
+        customRoles: true,
+        roles: {
+          table: "user_roles",
+          role: { through: "roles", on: { role_id: "id" }, column: "key" },
+        },
+      },
+    });
+    expect(plan.subject).toEqual([
+      {
+        name: "permdock_organization_users",
+        table: "organization_users",
+        user: "user_id",
+        queries: [
+          "SELECT * FROM organization_users WHERE organization_users.user_id = auth.user_id()",
+        ],
+      },
+      {
+        name: "permdock_roles",
+        table: "roles",
+        queries: [
+          "SELECT * FROM roles WHERE roles.id IN (SELECT organization_users.role_id FROM organization_users WHERE organization_users.user_id = auth.user_id())",
+          "SELECT * FROM roles WHERE roles.id IN (SELECT user_roles.role_id FROM user_roles WHERE user_roles.user_id = auth.user_id())",
+        ],
+      },
+      {
+        name: "permdock_folder_members",
+        table: "folder_members",
+        user: "user_id",
+        queries: [
+          "SELECT * FROM folder_members WHERE folder_members.user_id = auth.user_id()",
+        ],
+      },
+      {
+        name: "permdock_user_roles",
+        table: "user_roles",
+        user: "user_id",
+        queries: [
+          "SELECT * FROM user_roles WHERE user_roles.user_id = auth.user_id()",
+        ],
+      },
+      {
+        name: "permdock_custom_role_permissions",
+        table: "permdock.custom_role_permissions",
+        queries: [
+          "SELECT * FROM permdock.custom_role_permissions WHERE permdock.custom_role_permissions.tenant_id IS NULL",
+          "SELECT * FROM permdock.custom_role_permissions WHERE permdock.custom_role_permissions.tenant_id IN (SELECT organization_users.organization_id FROM organization_users WHERE organization_users.user_id = auth.user_id())",
+        ],
+      },
+      {
+        name: "permdock_custom_role_includes",
+        table: "permdock.custom_role_includes",
+        queries: [
+          "SELECT * FROM permdock.custom_role_includes WHERE permdock.custom_role_includes.tenant_id IS NULL",
+          "SELECT * FROM permdock.custom_role_includes WHERE permdock.custom_role_includes.tenant_id IN (SELECT organization_users.organization_id FROM organization_users WHERE organization_users.user_id = auth.user_id())",
+        ],
+      },
+    ]);
+    expect(powersyncYaml(plan)).toContain(
+      "  permdock_user_roles:\n    auto_subscribe: true\n",
+    );
+  });
+
+  it("streams tenant and team tables, skips a through without on, and drops user when two tables share rows", () => {
+    const plan = powersyncPlan(policy, {
+      policy: "p.ts",
+      rls: {
+        memberships: {
+          tenant: {
+            table: "members",
+            user: "user_id",
+            role: { through: "roles", on: {}, column: "key" },
+          },
+          team: { table: "members", user: "member_id", role: "role" },
+        },
+        roles: { table: "admins", user: "account_id", role: "level" },
+      },
+    });
+    expect(plan.subject).toEqual([
+      {
+        name: "permdock_members",
+        table: "members",
+        queries: [
+          "SELECT * FROM members WHERE members.user_id = auth.user_id()",
+          "SELECT * FROM members WHERE members.member_id = auth.user_id()",
+        ],
+      },
+      {
+        name: "permdock_admins",
+        table: "admins",
+        user: "account_id",
+        queries: [
+          "SELECT * FROM admins WHERE admins.account_id = auth.user_id()",
+        ],
+      },
+    ]);
+  });
+
+  it("streams the default user_roles table in database mode and nothing without memberships", () => {
+    expect(
+      powersyncPlan(policy, { policy: "p.ts", rls: { authorize: "database" } })
+        .subject,
+    ).toEqual([
+      {
+        name: "permdock_user_roles",
+        table: "permdock.user_roles",
+        user: "user_id",
+        queries: [
+          "SELECT * FROM permdock.user_roles WHERE permdock.user_roles.user_id = auth.user_id()",
+        ],
+      },
+    ]);
+    expect(powersyncPlan(policy, { policy: "p.ts" }).subject).toEqual([]);
+  });
+
   it("compiles a scope role over every role source of the membership table", () => {
     expect(queries("job")).toContain(
       "SELECT * FROM jobs WHERE jobs.org_id IN (SELECT organization_users.organization_id FROM organization_users WHERE organization_users.user_id = auth.user_id() AND organization_users.tier IN ('admin'))",
@@ -516,6 +635,20 @@ describe("powersync streams", () => {
     );
   });
 
+  it("streams only global custom roles without a tenant table", () => {
+    const plan = powersyncPlan(policy, {
+      policy: "p.ts",
+      rls: { authorize: "database", customRoles: true },
+    });
+    expect(
+      plan.subject.find(
+        (stream) => stream.name === "permdock_custom_role_permissions",
+      )?.queries,
+    ).toEqual([
+      "SELECT * FROM permdock.custom_role_permissions WHERE permdock.custom_role_permissions.tenant_id IS NULL",
+    ]);
+  });
+
   it("caps a stream at 32 queries", () => {
     const wide = definePolicy(permissions, {
       scopes: { organization: { key: "org_id" } },
@@ -680,6 +813,138 @@ describe("permdock powersync", () => {
     );
   });
 
+  it("writes, checks and verifies the local-snapshot manifest", async () => {
+    const cwd = project();
+    const withManifest: PermDockConfig = {
+      ...projectConfig,
+      powersync: { manifest: "src/permdock-manifest.json" },
+    };
+    mkdirSync(join(cwd, "src"));
+    const base = { cwd, config: withManifest, check: false };
+    expect((await runPowerSync({ ...base, rest: ["generate"] })).output).toBe(
+      "wrote sync-config.yaml\nwrote src/permdock-manifest.json",
+    );
+    const manifest: unknown = JSON.parse(
+      readFileSync(join(cwd, "src/permdock-manifest.json"), "utf8"),
+    );
+    expect(manifest).toMatchObject({
+      v: 1,
+      grants: [{ permission: "note.read" }],
+    });
+    expect(
+      await runPowerSync({ ...base, rest: ["generate"], check: true }),
+    ).toEqual({
+      code: 0,
+      output:
+        "sync-config.yaml is current\nsrc/permdock-manifest.json is current",
+    });
+    writeFileSync(
+      join(cwd, "src/permdock-manifest.json"),
+      JSON.stringify(manifest),
+    );
+    expect(
+      (await runPowerSync({ ...base, rest: ["generate"], check: true })).code,
+    ).toBe(0);
+    writeFileSync(join(cwd, "src/permdock-manifest.json"), "{}\n");
+    expect(await runPowerSync({ ...base, rest: ["verify"] })).toEqual({
+      code: 1,
+      output:
+        "src/permdock-manifest.json differs from the policy: run permdock powersync generate",
+    });
+    expect(await pd058({ cwd, config: withManifest })).toMatchObject([
+      {
+        message:
+          "src/permdock-manifest.json is not what the policy compiles to, so the device builds snapshots by an older policy",
+      },
+    ]);
+    writeFileSync(join(cwd, "src/permdock-manifest.json"), "not json\n");
+    expect(await pd058({ cwd, config: withManifest })).toHaveLength(1);
+    rmSync(join(cwd, "src/permdock-manifest.json"));
+    expect(await pd058({ cwd, config: withManifest })).toMatchObject([
+      {
+        message:
+          "src/permdock-manifest.json is missing, so the device builds no local snapshot",
+      },
+    ]);
+  });
+
+  it("passes fixture claims to the stream queries and checks own-row streams", async () => {
+    const cwd = project();
+    writeFileSync(
+      join(cwd, "rls.fixtures.json"),
+      JSON.stringify([
+        {
+          subject: { id: "u1", claims: { region: "eu" } },
+          action: "note.read",
+          row: { id: "n1", author_id: "u1" },
+        },
+      ]),
+    );
+    const members: PermDockConfig = {
+      ...projectConfig,
+      rls: {
+        memberships: {
+          scopes: {
+            organization: {
+              table: "members",
+              user: "user_id",
+              role: "role",
+              columns: { organization: "org_id" },
+            },
+          },
+        },
+      },
+    };
+    const base = { cwd, config: members, check: false };
+    await runPowerSync({ ...base, rest: ["generate"] });
+    const seen: unknown[][] = [];
+    const leaking = await runPowerSync({
+      ...base,
+      rest: ["verify"],
+      db: "postgres://test",
+      connect: fakeDb((values) => {
+        seen.push([...values]);
+        return values.length === 2;
+      }),
+    });
+    expect(seen).toContainEqual(["u1", '{"region":"eu"}']);
+    expect(seen).toContainEqual(["u1", '{"region":"eu"}', "n1"]);
+    expect(leaking).toMatchObject({ code: 1 });
+    expect(leaking.output).toContain(
+      "stream permdock_members syncs another user's members rows to u1",
+    );
+    const own = await runPowerSync({
+      ...base,
+      rest: ["verify"],
+      db: "postgres://test",
+      connect: fakeDb((values) => values.length === 3),
+    });
+    expect(own.code).toBe(0);
+  });
+
+  it("rejects fixture claims that are not an object", async () => {
+    const cwd = project();
+    writeFileSync(
+      join(cwd, "rls.fixtures.json"),
+      JSON.stringify([
+        { subject: { id: "u1", claims: [] }, action: "note.read", row: {} },
+      ]),
+    );
+    expect(
+      await runPowerSync({
+        cwd,
+        config: projectConfig,
+        check: false,
+        rest: ["verify"],
+        db: "postgres://test",
+        connect: fakeDb(() => false),
+      }),
+    ).toMatchObject({
+      code: 2,
+      output: "PermDock CLI: fixture 0 subject.claims must be an object",
+    });
+  });
+
   it("prints usage for an unknown verb or a missing policy", async () => {
     const cwd = project();
     expect(
@@ -703,7 +968,15 @@ describe("permdock powersync", () => {
       ...projectConfig,
       rls: { tables: { note: "bad name" } },
     };
-    expect(await pd058({ cwd, config: broken })).toEqual([]);
+    expect(await pd058({ cwd, config: broken })).toEqual([
+      {
+        code: "PD058",
+        severity: "warning",
+        message:
+          "the policy does not compile to Sync Streams: PermDock CLI: 'bad name' is not a plain identifier, which Sync Streams need",
+        fix: "fix the powersync and rls config, then run permdock powersync generate",
+      },
+    ]);
     expect(
       await runPowerSync({
         cwd,

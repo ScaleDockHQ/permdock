@@ -259,6 +259,7 @@ function subjectSettings(
     return settings;
   }
   const claims = {
+    ...fixture.subject.claims,
     sub: fixture.subject.id,
     role: "authenticated",
     [subject.roleClaim]: roles.length === 1 ? roles[0] : roles,

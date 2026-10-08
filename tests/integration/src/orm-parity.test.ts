@@ -209,6 +209,15 @@ describe("ORM parity: filter() in memory equals toWhere(where()) in Postgres", (
   let pool: Pool | undefined;
   let kysely: Kysely<OrmDatabase> | undefined;
   let prisma: { $disconnect(): Promise<void> } | undefined;
+  let prismaItem:
+    | {
+        findFirstOrThrow(args: { where: unknown }): Promise<unknown>;
+        groupBy(args: {
+          by: readonly string[];
+          where: unknown;
+        }): Promise<readonly unknown[]>;
+      }
+    | undefined;
   const engines: Engine[] = [];
   const checkers: Checker[] = [];
 
@@ -225,6 +234,10 @@ describe("ORM parity: filter() in memory equals toWhere(where()) in Postgres", (
       adapter: new PrismaPg({ connectionString: db.uri }),
     }).$extends(permdockExtension());
     prisma = prismaDb;
+    // SAFETY: the extended client's item delegate has findFirstOrThrow and groupBy
+    prismaItem = (
+      prismaDb as unknown as { item: NonNullable<typeof prismaItem> }
+    ).item;
 
     // SAFETY: pg and PGlite Drizzle clients share the query builder DrizzleDb declares
     const drizzleOnPg = drizzleRun(
@@ -426,5 +439,17 @@ describe("ORM parity: filter() in memory equals toWhere(where()) in Postgres", (
     }
     expect(checkers).toHaveLength(3);
     expect(mismatches).toEqual([]);
+  });
+
+  it("permdockExtension rewrites an empty OR in findFirstOrThrow and groupBy", async () => {
+    if (prismaItem === undefined) {
+      throw new Error("Prisma client was not created");
+    }
+    await expect(
+      prismaItem.findFirstOrThrow({ where: { OR: [] } }),
+    ).rejects.toMatchObject({ code: "P2025" });
+    expect(
+      await prismaItem.groupBy({ by: ["orgId"], where: { OR: [] } }),
+    ).toEqual([]);
   });
 });

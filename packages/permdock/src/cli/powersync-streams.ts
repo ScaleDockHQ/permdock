@@ -2,14 +2,21 @@ import type { Scope } from "../core/scopes.ts";
 import type { Condition, ConditionValue, Policy } from "../index.ts";
 import type { RoleSource } from "../supabase/roles.ts";
 import type { RlsGrant } from "./rls-grants.ts";
-import type { PermDockConfig, RlsMembershipTable } from "./types.ts";
+import type {
+  GlobalRoles,
+  PermDockConfig,
+  RlsMembershipTable,
+  RoleThrough,
+} from "./types.ts";
 
 import { isConditionDate, isConditionRef } from "../conditions/ast.ts";
 import { scopeColumn, scopeMembershipTable } from "../conditions/compile.ts";
 import { resolveScope, scopeList } from "../core/scopes.ts";
 import { requiresApproval } from "../index.ts";
+import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
 import { tableFor } from "./rls-compile.ts";
 import { collectGrants } from "./rls-grants.ts";
+import { CUSTOM_ROLES } from "./rls-helpers.ts";
 import { ownershipRules } from "./rls-ownership.ts";
 import { contextRefs } from "./rls-sql.ts";
 
@@ -73,8 +80,18 @@ export type PowerSyncStream = {
   readonly queries: readonly string[];
 };
 
+/** A stream of the rows `localSnapshot` builds the user's snapshot from: memberships, roles, custom roles. */
+export type SubjectStream = {
+  readonly name: string;
+  readonly table: string;
+  /** The user column when every row is the user's own; `verify` checks no other user's row syncs. */
+  readonly user?: string;
+  readonly queries: readonly string[];
+};
+
 export type PowerSyncPlan = {
   readonly streams: readonly PowerSyncStream[];
+  readonly subject: readonly SubjectStream[];
   /** Resources with no stream, and why. */
   readonly omitted: readonly {
     readonly resource: string;
@@ -389,6 +406,123 @@ function accessSql(
   }
 }
 
+/** `permdock_<table>`, with a schema joined by `_`; a table in the `permdock` schema keeps one prefix. */
+function subjectStreamName(table: string): string {
+  const name = table.replaceAll(".", "_");
+  return name.startsWith("permdock_") ? name : `permdock_${name}`;
+}
+
+type SubjectRows = { user: string | undefined; readonly queries: Set<string> };
+
+function roleThroughs(
+  role: RlsMembershipTable["role"] | GlobalRoles["role"],
+): readonly RoleThrough[] {
+  const list = Array.isArray(role) ? role : [role];
+  return list.filter(
+    (item): item is RoleThrough => typeof item === "object" && item !== null,
+  );
+}
+
+/**
+ * Streams of the rows a device builds the user's snapshot from: the user's
+ * own membership and global-role rows, the roles tables they reference, and
+ * the custom roles of the user's tenants. Each query starts from the user's
+ * own rows.
+ */
+function subjectStreams(ctx: Ctx): readonly SubjectStream[] {
+  const rls = ctx.config.rls;
+  const { dialect } = ctx;
+  const tables = new Map<string, SubjectRows>();
+  const add = (table: string, query: string, user?: string): void => {
+    const entry = tables.get(table) ?? {
+      user: undefined,
+      queries: new Set<string>(),
+    };
+    if (entry.queries.size === 0) {
+      entry.user = user;
+    } else if (entry.user !== user) {
+      entry.user = undefined;
+    }
+    entry.queries.add(query);
+    tables.set(table, entry);
+  };
+  const own = (
+    table: string,
+    user: string,
+    role: RlsMembershipTable["role"] | GlobalRoles["role"],
+  ): void => {
+    const name = bare(table);
+    const mine = `${dialect.column(name, user)} = ${dialect.user}`;
+    add(name, `SELECT * FROM ${name} WHERE ${mine}`, user);
+    for (const through of roleThroughs(role)) {
+      const keys = bare(through.through);
+      const [pair] = Object.entries(through.on);
+      if (pair === undefined) {
+        continue;
+      }
+      const [ref, id] = pair;
+      add(
+        keys,
+        `SELECT * FROM ${keys} WHERE ${dialect.column(keys, id)} IN (SELECT ${dialect.column(name, ref)} FROM ${name} WHERE ${mine})`,
+      );
+    }
+  };
+  const memberships = rls?.memberships;
+  for (const table of [
+    ...Object.values(memberships?.scopes ?? {}),
+    ...(memberships?.tenant === undefined ? [] : [memberships.tenant]),
+    ...(memberships?.team === undefined ? [] : [memberships.team]),
+    ...Object.values(memberships?.resource ?? {}),
+  ]) {
+    own(table.table, table.user, table.role);
+  }
+  const schema = rls?.schema ?? PERMDOCK_SCHEMA;
+  const database = rls?.authorize === "database";
+  const globalRoles =
+    rls?.roles ?? (database ? { table: `${schema}.user_roles` } : undefined);
+  if (globalRoles !== undefined) {
+    own(
+      globalRoles.table,
+      globalRoles.user ?? "user_id",
+      globalRoles.role ?? "role",
+    );
+  }
+  if (database && rls?.customRoles === true) {
+    const root = ctx.scopes[0]?.name;
+    const tenants =
+      root === undefined
+        ? undefined
+        : scopeMembershipTable(memberships, ctx.scopes, root);
+    const column =
+      tenants === undefined || root === undefined
+        ? undefined
+        : scopeColumn(tenants, ctx.scopes, root);
+    for (const name of [CUSTOM_ROLES.permissions, CUSTOM_ROLES.includes]) {
+      const table = bare(`${schema}.${name}`);
+      const tenant = dialect.column(table, "tenant_id");
+      add(table, `SELECT * FROM ${table} WHERE ${tenant} IS NULL`);
+      if (tenants !== undefined && column !== undefined) {
+        const members = bare(tenants.table);
+        add(
+          table,
+          `SELECT * FROM ${table} WHERE ${tenant} IN (SELECT ${dialect.column(members, column)} FROM ${members} WHERE ${dialect.column(members, tenants.user)} = ${dialect.user})`,
+        );
+      }
+    }
+  }
+  const out: SubjectStream[] = [];
+  for (const [table, entry] of tables) {
+    const name = subjectStreamName(table);
+    const queries = [...entry.queries];
+    out.push(
+      entry.user === undefined
+        ? { name, table, queries }
+        : { name, table, user: entry.user, queries },
+    );
+  }
+  return out;
+}
+
 /** Why a grant cannot become a stream query, before its conditions are compiled. */
 function unsupported(item: RlsGrant): string | undefined {
   const { grant } = item;
@@ -504,7 +638,7 @@ export function powersyncPlan(
       });
     }
   }
-  return { streams, omitted, warnings };
+  return { streams, subject: subjectStreams(ctx), omitted, warnings };
 }
 
 /** `sync-config.yaml`: edition 3 Sync Streams, one auto-subscribed stream per synced resource. */
@@ -516,10 +650,10 @@ export function powersyncYaml(plan: PowerSyncPlan): string {
     "",
     "streams:",
   ];
-  if (plan.streams.length === 0) {
+  if (plan.streams.length === 0 && plan.subject.length === 0) {
     lines[lines.length - 1] = "streams: {}";
   }
-  for (const stream of plan.streams) {
+  for (const stream of [...plan.streams, ...plan.subject]) {
     lines.push(
       `  ${stream.name}:`,
       "    auto_subscribe: true",

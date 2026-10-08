@@ -151,6 +151,7 @@ export type {
 } from "./core/arazzo.ts";
 export { emptySnapshot, fromSnapshot } from "./core/from-snapshot.ts";
 export { localSnapshotManifest } from "./core/local-manifest.ts";
+export { parseLocalSnapshotManifest } from "./core/parse-local-manifest.ts";
 export { createPermDock, parseSnapshot } from "./core/permdock.ts";
 export { mayAccess } from "./core/may-access.ts";
 export { mayUse, permittedIds } from "./core/may-use.ts";

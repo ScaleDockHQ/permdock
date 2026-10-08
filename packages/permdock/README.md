@@ -293,12 +293,12 @@ Any Standard Schema validator: Zod, Valibot, ArkType, Effect Schema. One import 
 | RPC                | `permdock/trpc` · `permdock/orpc`                                                                                                                       |
 | Agents             | `permdock/mcp` · `permdock/ai-sdk` · `permdock/claude-agent` · `permdock/eve` · `permdock/openai` · `permdock/webmcp` · `permdock/a2a`                  |
 | Decision plane     | `permdock/authzen` · `permdock/approvals` · `permdock/cloud` · `permdock/scim` · `permdock/ssf` · `permdock/openapi` · `permdock/otel` · `permdock/pdp` |
-| Data               | `permdock/drizzle` · `permdock/prisma` · `permdock/kysely` · `permdock rls`                                                                             |
+| Data               | `permdock/drizzle` · `permdock/prisma` · `permdock/kysely` · `permdock rls` · `permdock powersync`                                                      |
 | Auth and providers | `permdock/jwt` · `permdock/supabase` · `permdock/supabase/middleware` · `permdock/better-auth` · `permdock/clerk` · `permdock/convex`                   |
 | Build              | `permdock/next/plugin` · `permdock/unplugin`                                                                                                            |
 | Testing            | `permdock/testing`                                                                                                                                      |
 
-Nuxt, Astro, React Router, TanStack Start and Effect use these entries plus `permdock/unplugin`. The full matrix with example apps and related standards is on the [adapters page](https://permdock.com/docs/adapters).
+React Router, TanStack Start, SvelteKit and Nuxt loaders call `getSnapshot(request)` from `permdock/server` and send `snapshotHeaders(snapshot)`. Astro and Effect use these entries plus `permdock/unplugin`. The full matrix with example apps and related standards is on the [adapters page](https://permdock.com/docs/adapters).
 
 ## Secure by default
 
@@ -306,7 +306,7 @@ Nuxt, Astro, React Router, TanStack Start and Effect use these entries plus `per
 - Deny overrides allow, an unknown reference is a type error, and evaluation is prototype-safe with no eval.
 - `service_role` is never emitted, a model-supplied subject is never trusted, and an agent with no delegation is denied.
 - No one approves their own request by default, there is never a default tenant, and data is validated against the resource schema unless the caller marks a row it loaded `trusted: true`.
-- Authentication stays upstream: PermDock consumes verified sessions, JWKS-verified JWTs (`permdock/jwt`, with `jose` as an optional peer), provider claims and MCP `authInfo`. Core never verifies a token. Read [authentication](https://permdock.com/docs/concepts/authentication).
+- Authentication stays upstream: PermDock consumes verified sessions, JWKS-verified JWTs (`permdock/jwt`, with `jose` as an optional peer), provider claims and MCP `authInfo`. Core never verifies a token. User-editable fields never become claims: `subjectFromBetterAuth` copies `additionalFields` only through a `schema`. Read [authentication](https://permdock.com/docs/concepts/authentication).
 - Every decision runs in-process. [PermDock Cloud](https://permdock.com/docs/adapters/cloud) adds a decision log, an approval inbox, a hosted AuthZEN endpoint and a SCIM relay, behind interfaces this package ships with in-process defaults.
 
 Read the [threat model](https://permdock.com/docs/security/threat-model).

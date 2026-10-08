@@ -32,6 +32,12 @@ export type ConvexQueryBuilder = (definition: {
 
 export type ConvexPermDockOptions<TCtx, TUser = unknown> = InstanceOptions & {
   readonly subject: ConvexSubject<TCtx, TUser>;
+  /** The active tenant: a fixed id or a function of the Convex context; a throw is no tenant. */
+  readonly tenant?:
+    | string
+    | ((ctx: TCtx) => string | undefined | Promise<string | undefined>);
+  /** The agent or service acting for the subject; anything but an `Actor` is ignored. */
+  readonly actor?: (ctx: TCtx) => unknown;
   readonly query?: ConvexQueryBuilder;
 };
 

@@ -31,7 +31,7 @@ import {
   pd055,
 } from "./doctor-collect.ts";
 import { pd042, pd043 } from "./doctor-declarative.ts";
-import { pd044 } from "./doctor-next.ts";
+import { pd044, pd065 } from "./doctor-next.ts";
 import { pd058 } from "./doctor-powersync.ts";
 import {
   pd005,
@@ -299,6 +299,7 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
     run: pd064,
   },
   { code: "PD044", groups: ["next", "endpoint"], run: pd044 },
+  { code: "PD065", groups: ["react-native", "endpoint"], run: pd065 },
 ];
 
 export async function runDoctor(input: {

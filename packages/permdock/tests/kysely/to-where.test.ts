@@ -204,10 +204,9 @@ describe("permdock/kysely toWhere", () => {
     );
     expect(result).toBe("ok");
     expect(queries.map((query) => query.sql)).toEqual([
-      "set local role authenticated",
-      "select set_config('request.jwt.claims', ?, true)",
+      "select set_config('role', ?, true), set_config('request.jwt.claims', ?, true)",
     ]);
-    expect(JSON.parse(String(queries[1]?.values[0]))).toEqual({
+    expect(JSON.parse(String(queries[0]?.values[1]))).toEqual({
       sub: "u1",
       tenant_id: "o1",
       role: "authenticated",

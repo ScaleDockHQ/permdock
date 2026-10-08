@@ -465,6 +465,7 @@ describe("createClientStore endpoint evaluations", () => {
     const store = createClientStore({
       snapshot: await memberSnapshot(),
       server: false,
+      passCache: true,
     });
     const first = store.permissionState(permissions.post.read, ownPost);
     expect(store.permissionState(permissions.post.read, ownPost).decision).toBe(
@@ -474,6 +475,95 @@ describe("createClientStore endpoint evaluations", () => {
     expect(
       store.permissionState(permissions.post.read, ownPost).decision,
     ).not.toBe(first.decision);
+  });
+
+  it("evaluates every check without passCache, so an in-place edit is read at once", async () => {
+    const store = createClientStore({
+      snapshot: await memberSnapshot(),
+      server: false,
+    });
+    const row = { ...ownPost };
+    const first = store.permissionState(permissions.post.update, row);
+    expect(first.allowed).toBe(true);
+    expect(
+      store.permissionState(permissions.post.update, row).decision,
+    ).not.toBe(first.decision);
+    row.authorId = "someone-else";
+    expect(store.permissionState(permissions.post.update, row).allowed).toBe(
+      false,
+    );
+  });
+
+  it("denies without throwing when reading the row throws", async () => {
+    const store = createClientStore({
+      snapshot: await memberSnapshot(),
+      server: false,
+    });
+    const hostile = new Proxy(
+      {},
+      {
+        get(): never {
+          throw new Error("boom");
+        },
+      },
+    );
+    const state = store.permissionState(permissions.post.update, hostile);
+    expect(state.allowed).toBe(false);
+    expect(state.decision.outcome).toBe("denied");
+  });
+
+  it("reports a persisted start stale until a replace lands", async () => {
+    const snapshot = await memberSnapshot();
+    const store = createClientStore({ snapshot, server: false, stale: true });
+    expect(store.get().status()).toBe("stale");
+    expect(store.permissionState(permissions.post.read, ownPost).status).toBe(
+      "stale",
+    );
+    store.replace(snapshot);
+    expect(store.get().status()).toBe("ready");
+  });
+
+  it("reads a headers getter on every request", async () => {
+    let token = "one";
+    const seen: (string | null)[] = [];
+    const store = createClientStore({
+      snapshot: await memberSnapshot(),
+      snapshotUrl: "/api/snapshot",
+      server: false,
+      headers: () => ({ authorization: `Bearer ${token}` }),
+      fetch: (_input, init) => {
+        seen.push(new Headers(init?.headers).get("authorization"));
+        return Promise.resolve(json({}, 500));
+      },
+    });
+    await store.get().refresh();
+    token = "two";
+    await store.get().refresh();
+    expect(seen).toEqual(["Bearer one", "Bearer two"]);
+  });
+
+  it("stops persisting and refreshing after dispose", async () => {
+    const persisted: unknown[] = [];
+    let calls = 0;
+    const store = createClientStore({
+      snapshot: await memberSnapshot(),
+      snapshotUrl: "/api/snapshot",
+      server: false,
+      onSnapshot: (next) => {
+        persisted.push(next);
+      },
+      fetch: () => {
+        calls += 1;
+        return Promise.resolve(json({}, 500));
+      },
+    });
+    const before = persisted.length;
+    store.dispose();
+    await store.get().refresh();
+    store.replace(signedIn("u2"));
+    expect(calls).toBe(0);
+    expect(persisted).toHaveLength(before);
+    expect(store.get().subject.principal?.id).toBe("u2");
   });
 
   it("keys rows without an id by their content", async () => {
@@ -716,10 +806,70 @@ describe("createClientStore approval edge cases", () => {
     });
     const stop = store.subscribe(ignore);
     store.approvalState(required);
-    await vi.advanceTimersByTimeAsync(300);
+    // Each failure doubles the wait: 100, then 200, 400 and 800 ms.
+    await vi.advanceTimersByTimeAsync(700);
     expect(store.approvalState(required)).toBe("required");
-    await vi.advanceTimersByTimeAsync(100);
+    await vi.advanceTimersByTimeAsync(800);
     expect(store.approvalState(required)).toBe("expired");
+    stop();
+  });
+
+  it("stops polling after a refusal or repeated failures", async () => {
+    let refusedCalls = 0;
+    const refused = createClientStore({
+      snapshot: signedIn("u1"),
+      approvals: "/api/approvals",
+      server: false,
+      approvalInterval: 100,
+      fetch: async () => {
+        refusedCalls += 1;
+        return json({}, 403);
+      },
+    });
+    let failedCalls = 0;
+    const failing = createClientStore({
+      snapshot: signedIn("u1"),
+      approvals: "/api/approvals",
+      server: false,
+      approvalInterval: 100,
+      fetch: async () => {
+        failedCalls += 1;
+        return json({}, 503);
+      },
+    });
+    const stops = [refused.subscribe(ignore), failing.subscribe(ignore)];
+    refused.approvalState(required);
+    failing.approvalState(required);
+    await vi.advanceTimersByTimeAsync(600_000);
+    expect(refusedCalls).toBe(1);
+    expect(failedCalls).toBe(5);
+    expect(failing.approvalState(required)).toBe("required");
+    for (const stop of stops) {
+      stop();
+    }
+  });
+
+  it("forgets approval state when another user's snapshot replaces the store's", async () => {
+    let calls = 0;
+    const store = createClientStore({
+      snapshot: signedIn("u1"),
+      approvals: "/api/approvals",
+      server: false,
+      approvalInterval: 100,
+      fetch: async () => {
+        calls += 1;
+        return json({ status: "approved" });
+      },
+    });
+    const stop = store.subscribe(ignore);
+    store.approvalState(required);
+    await vi.advanceTimersByTimeAsync(100);
+    expect(store.approvalState(required)).toBe("approved");
+    store.replace(signedIn("u2"));
+    expect(store.approvalState(required)).toBe("required");
+    store.replace(signedIn("u2"));
+    await vi.advanceTimersByTimeAsync(100);
+    expect(calls).toBe(2);
     stop();
   });
 

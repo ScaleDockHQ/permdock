@@ -24,7 +24,18 @@ export type BetterAuthAssignableRole = {
   readonly statements: BetterAuthStatements;
 };
 
+export type BetterAuthMemberQuery = {
+  readonly model: string;
+  where: { readonly field: string; readonly value: string }[];
+  readonly limit?: number;
+};
+
 export type BetterAuthLike = {
+  readonly $context?: Promise<{
+    readonly adapter?: {
+      readonly findMany?: (query: BetterAuthMemberQuery) => Promise<unknown>;
+    };
+  }>;
   readonly api?: {
     readonly listOrganizations?: (args?: {
       readonly headers?: unknown;
@@ -53,6 +64,10 @@ export type BetterAuthLike = {
 
 export type BetterAuthSubjectOptions = {
   readonly memberships?: "all" | "active";
+  /**
+   * Parses the user's additional fields into `principal.claims`. Without it no
+   * field reaches claims, because a user may edit their own additional fields.
+   */
   readonly schema?: StandardSchemaV1;
   readonly headers?: unknown;
   readonly declared?: readonly string[];

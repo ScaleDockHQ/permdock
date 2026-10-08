@@ -87,6 +87,7 @@ const POWERSYNC = {
   out: true,
   resources: true,
   action: true,
+  manifest: true,
 } as const satisfies Record<keyof PowerSyncConfig, true>;
 
 const DOCTOR = {

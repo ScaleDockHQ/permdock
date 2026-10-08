@@ -16,6 +16,7 @@ import {
   tenantOf,
   userFromEntity,
 } from "../../src/authzen/map.ts";
+import { permissionLookup } from "../../src/server/evaluation-items.ts";
 import { permissions } from "../fixtures/quick-start.ts";
 
 describe("permissionOf", () => {
@@ -63,7 +64,7 @@ describe("permissionOf", () => {
       undefined,
     ],
   ])("resolves %s", (_label, item, key) => {
-    expect(permissionOf(permissions, item)?.key).toBe(key);
+    expect(permissionOf(permissionLookup(permissions), item)?.key).toBe(key);
   });
 });
 

@@ -10,7 +10,11 @@ import {
   vi,
 } from "vitest";
 
-import type { NativeRevalidate } from "../../src/react-native/types.ts";
+import type {
+  NativeRevalidate,
+  SubscribeForeground,
+  SubscribeOnline,
+} from "../../src/react-native/types.ts";
 
 import { emptySnapshot } from "../../src/core/from-snapshot.ts";
 import { PermDockProvider } from "../../src/react-native/provider.tsx";
@@ -71,11 +75,13 @@ function provider(
   extra: {
     readonly fetch: typeof fetch;
     readonly snapshotUrl?: string;
-    readonly subscribeForeground?: (listener: () => void) => () => void;
+    readonly subscribeForeground?: SubscribeForeground;
+    readonly subscribeOnline?: SubscribeOnline;
   },
 ): ReactNode {
   return createElement(PermDockProvider, {
     storage: memoryStorage(),
+    subjectId: null,
     snapshot: emptySnapshot(),
     ...(revalidate === undefined ? {} : { revalidate }),
     ...extra,
@@ -119,7 +125,7 @@ describe("permdock/react-native PermDockProvider revalidation", () => {
 
   it("refreshes on each foreground event and unsubscribes on unmount", async () => {
     const net = counter();
-    let foreground: (() => void) | undefined;
+    let foreground: ((active?: boolean) => void) | undefined;
     const unsubscribe = vi.fn<() => void>();
     mount(
       provider("focus", {
@@ -132,6 +138,7 @@ describe("permdock/react-native PermDockProvider revalidation", () => {
       }),
     );
     await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
       foreground?.();
       await vi.advanceTimersByTimeAsync(0);
     });
@@ -152,19 +159,24 @@ describe("permdock/react-native PermDockProvider revalidation", () => {
     expect(net.calls()).toBe(1);
   });
 
-  it("keeps its store when a re-render passes equal inline headers and a new fetch", async () => {
+  it("keeps its store across new inline headers and fetch, and sends the latest token", async () => {
     const first = counter();
     const second = counter();
     const storage = memoryStorage();
     const snapshot = emptySnapshot();
+    const tokens: (string | null)[] = [];
     const tree = (net: typeof first, token: string): ReactNode =>
       createElement(PermDockProvider, {
         storage,
+        subjectId: null,
         snapshot,
         snapshotUrl: "/snap",
         revalidate: 5,
         headers: { authorization: token },
-        fetch: (input, init) => net.fetch(input, init),
+        fetch: (input, init) => {
+          tokens.push(new Headers(init?.headers).get("authorization"));
+          return net.fetch(input, init);
+        },
         children: createElement(Probe),
       });
     mount(tree(first, "a"));
@@ -182,9 +194,94 @@ describe("permdock/react-native PermDockProvider revalidation", () => {
       root?.render(tree(second, "b"));
     });
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(5_000);
     });
     expect(second.calls()).toBe(2);
+    expect(tokens).toEqual(["a", "a", "b"]);
+  });
+
+  it("pauses the interval in the background and refreshes on return", async () => {
+    const net = counter();
+    let foreground: ((active?: boolean) => void) | undefined;
+    mount(
+      provider(5, {
+        fetch: net.fetch,
+        snapshotUrl: "/snap",
+        subscribeForeground: (listener) => {
+          foreground = listener;
+          return () => undefined;
+        },
+      }),
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+      foreground?.(false);
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+    expect(net.calls()).toBe(1);
+    await act(async () => {
+      foreground?.(true);
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(net.calls()).toBe(2);
+  });
+
+  it("skips refreshes while offline and refreshes on reconnect", async () => {
+    const net = counter();
+    let online: ((next: boolean) => void) | undefined;
+    let foreground: ((active?: boolean) => void) | undefined;
+    mount(
+      provider("focus", {
+        fetch: net.fetch,
+        snapshotUrl: "/snap",
+        subscribeForeground: (listener) => {
+          foreground = listener;
+          return () => undefined;
+        },
+        subscribeOnline: (listener) => {
+          online = listener;
+          return () => undefined;
+        },
+      }),
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+      online?.(false);
+      foreground?.();
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(net.calls()).toBe(1);
+    await act(async () => {
+      online?.(true);
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(net.calls()).toBe(2);
+  });
+
+  it("runs one refresh at a time", async () => {
+    let calls = 0;
+    let foreground: ((active?: boolean) => void) | undefined;
+    mount(
+      provider("focus", {
+        snapshotUrl: "/snap",
+        fetch: () => {
+          calls += 1;
+          return new Promise<Response>(() => {
+            // never settles
+          });
+        },
+        subscribeForeground: (listener) => {
+          foreground = listener;
+          return () => undefined;
+        },
+      }),
+    );
+    await act(async () => {
+      foreground?.();
+      foreground?.();
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(calls).toBe(1);
   });
 
   it("marks the snapshot stale when the launch refresh fails", async () => {

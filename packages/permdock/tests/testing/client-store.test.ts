@@ -5,5 +5,5 @@ import {
 import { testClientStore } from "../../src/testing/client-store.ts";
 
 testClientStore("permdock/react-native createNativeStore", (options) =>
-  createNativeStore({ ...options, storage: memoryStorage() }),
+  createNativeStore({ ...options, storage: memoryStorage(), subjectId: null }),
 );

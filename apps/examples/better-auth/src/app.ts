@@ -1,9 +1,9 @@
 import { Hono } from "hono";
-import { createPermDock } from "permdock";
 import {
   betterAuthRoleSource,
   subjectFromBetterAuth,
 } from "permdock/better-auth";
+import { createPermDock } from "permdock/hono";
 
 import { ownPost, permissions } from "./permissions.ts";
 import { policy } from "./policy.ts";
@@ -25,34 +25,29 @@ const auth = {
   },
 };
 
-async function permdockForSession() {
-  const resolved = await subjectFromBetterAuth(auth, session);
-  const permdock = await createPermDock(policy, resolved, {
-    customRoles: betterAuthRoleSource(auth, {
-      assignable: [
-        { name: "member", statements: { post: ["read", "create"] } },
-      ],
-    }),
-  });
-  return { permdock, resolved };
-}
+const { protect } = createPermDock(policy, {
+  subject: async () => {
+    const subject = await subjectFromBetterAuth(auth, session);
+    return subject;
+  },
+  customRoles: betterAuthRoleSource(auth, {
+    assignable: [{ name: "member", statements: { post: ["read", "create"] } }],
+  }),
+});
 
 export const app = new Hono();
 
 app.get("/health", (c) => c.json({ ok: true }));
 
-app.patch("/posts/:id", async (c) => {
-  const { permdock, resolved } = await permdockForSession();
-  if (!permdock.can(permissions.post.update, ownPost)) {
-    return c.json({ ok: false }, 403);
-  }
-  return c.json({ ok: true, tenant: resolved.principal?.tenant });
-});
+app.patch(
+  "/posts/:id",
+  protect(permissions.post.update, () => ownPost),
+  (c) =>
+    c.json({ ok: true, tenant: c.get("permdock").subject.principal?.tenant }),
+);
 
-app.post("/posts/:id/delete", async (c) => {
-  const { permdock } = await permdockForSession();
-  if (!permdock.can(permissions.post.delete, ownPost)) {
-    return c.json({ ok: false }, 403);
-  }
-  return c.json({ ok: true });
-});
+app.post(
+  "/posts/:id/delete",
+  protect(permissions.post.delete, () => ownPost),
+  (c) => c.json({ ok: true }),
+);

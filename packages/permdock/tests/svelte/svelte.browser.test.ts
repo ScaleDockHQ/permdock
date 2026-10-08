@@ -58,6 +58,21 @@ describe("permdock/svelte (browser build)", () => {
     view.stop();
   });
 
+  it("recomputes every store reading one $state row edited in place", async () => {
+    const store = createSvelteStore({ snapshot: await snapshotOf(memberUser) });
+    const post = reactive({ ...ownPost });
+    const first = latest(permissionFor(store, defs.post.update, () => post));
+    const second = latest(permissionFor(store, defs.post.update, () => post));
+    expect(first.value().allowed).toBe(true);
+    expect(second.value().allowed).toBe(true);
+    post.authorId = otherPost.authorId;
+    flushSync();
+    expect(first.value().allowed).toBe(false);
+    expect(second.value().allowed).toBe(false);
+    first.stop();
+    second.stop();
+  });
+
   it("recomputes filtered when its rows getter reads changed state", async () => {
     const store = createSvelteStore({ snapshot: await snapshotOf(memberUser) });
     const rows = cell([otherPost]);

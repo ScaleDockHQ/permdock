@@ -9,6 +9,7 @@ export type {
   ServerKernelOptions,
   ServerPermDock,
   ServerPermDockOptions,
+  SnapshotQuery,
   TenantOption,
   TenantScope,
 } from "./create.ts";
@@ -32,6 +33,16 @@ export type {
   MemoryCredentials,
   StoredCredential,
 } from "./credentials.ts";
+export {
+  cacheLifeFor,
+  snapshotHeaders,
+  snapshotTag,
+} from "../core/snapshot-cache.ts";
+export type {
+  CacheLifeForOptions,
+  SnapshotHeaders,
+  SnapshotHeadersOptions,
+} from "../core/snapshot-cache.ts";
 export { createEvaluationsHandler } from "./evaluations.ts";
 export { problemFromError } from "./map-error.ts";
 export type { ProblemFromErrorOptions } from "./map-error.ts";

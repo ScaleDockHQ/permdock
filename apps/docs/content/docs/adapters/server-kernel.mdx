@@ -49,6 +49,8 @@ export default async function handler(request: Request): Promise<Response> {
 | --------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `permdock(request)`                                                                                       | Resolves subject, actor and delegation once per `Request` (memoised in a `WeakMap`), builds the immutable `PermDock` for the request's tenant, returns it. One instance is cached per `(Request, tenant)` pair, so a global middleware that runs before routing and a later tenant-scoped `protect` never share an instance. Never throws for anonymous callers; `subject` returning `null` yields an anonymous instance. A request that claims a Web Bot Auth signature and fails verification throws `InvalidSignatureError` with a ready Problem Details `response`. |
 | `protect(permission, loadData?, options?)`                                                                | Returns `(request) => Promise<Guard>`. The `tenant` option is resolved for each call, so two routes of one request may decide in different tenants. The loader's result is validated unless `options.trusted: true` (`ProtectOptions`) marks it as a row the server loaded. Loads data when the permission is an instance action, validates it at the boundary, calls `decide`, and returns either `ok: true` with `permdock`, `decision` and `data`, or `ok: false` with a ready `Response`.                                                                           |
+| `getSnapshot(request, { tenant, include, tenants })`                                                      | The JSON snapshot for a framework loader, built from the instance `permdock(request)` caches, so a loader and a later `protect` on the same `Request` resolve the subject once. `tenant` overrides the `tenant` option. See [Snapshot loaders](#snapshot-loaders).                                                                                                                                                                                                                                                                                                      |
+| `snapshotHeaders(snapshot, { tags, min, max })`, `cacheLifeFor`, `snapshotTag`                            | `snapshotHeaders` returns `Cache-Control: private, max-age=<seconds>` (from `cacheLifeFor`), `Vary: Authorization, Cookie`, an `ETag` over everything but `issuedAt`, and `Cache-Tag` with `snapshotTag(sub)` and `tags`. `permdock/next` exports the same `cacheLifeFor` and `snapshotTag`.                                                                                                                                                                                                                                                                            |
 | `connection(request, options?)`                                                                           | Opens a long-lived `Connection` for a stream or socket; see [Connections](#connections).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `problem(decision, init?)`                                                                                | Builds the RFC 9457 `Response` for a `denied` or `approval-required` decision. Adapters call it when they need to emit the body through their own response object.                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `openapi`                                                                                                 | The hook contract: `openapi.security(permission)` returns the per-operation `security` requirement and `x-permdock-permissions` extension; `openapi.securitySchemes()` returns the scheme with all scopes from `listPermissions`. Framework hooks (`describeRoute`, `createRoute`, oRPC `openapi({ spec })`, `trpc-to-openapi`) call these.                                                                                                                                                                                                                             |
@@ -109,7 +111,7 @@ app.use(async (ctx) => {
 - Denial status: `401` for an anonymous caller or a step-up (with `acr_values` and `max_age`), `429` with `Retry-After` and the `RateLimit` fields when every denial is `limit`, `503` for `limit-unavailable`, `403` otherwise ([Problem Details](/docs/standards/problem-details)).
 - `approval-required`: `protect` fails closed with a `403` whose `type` ends in `/approval-required` and whose body carries `token`. The handler never runs.
 - OAuth scopes per route: `protect(permission, loadData, { oauthScopes: ['api:read'] })`, or the scopes the matching operation declares under `operations`, narrow which coarse scopes reach the route. When the subject carries a token delegation (an OAuth client's `scope`), a token that holds none of them is refused before the loader runs with a `403` and `WWW-Authenticate: Bearer error="insufficient_scope", scope="api:read"`, naming the first; a subject without a delegation, such as a first-party session, is not gated. They only narrow, as in [`permdock/mcp`](/docs/adapters/mcp): the decision still needs the delegation to cover the permission, so the policy's [`oauthScopes`](/docs/security/delegation#coarse-oauth-scopes) lists the permission under each coarse scope that may reach it. A later delegation denial names the route's first scope in its challenge too. An empty list throws.
-- A route without a permission, such as a chat endpoint or setting the caller's active organization: `protect(null, loadData?, { oauthScopes: ['api:chat'] })`, or `protect(null)` with `operations` declaring `{ oauthScopes }` for the operation. The guard checks no permission and has no `decision`: an anonymous caller gets a `401`, a delegated token that holds none of the scopes the same `403` `insufficient_scope` challenge, and a first-party session passes. `protect(null)` with no scopes in its options and no `operations` throws when it is built, and a request no operation declares scopes for throws when it runs. The Hono, Express, Fastify, Elysia and Node adapters take `null` the same way, and the Supabase middleware takes `withPermDock({ oauthScopes })` without `protect`.
+- A route without a permission, such as a chat endpoint or setting the caller's active organization: `protect(null, loadData?, { oauthScopes: ['api:chat'] })`, or `protect(null)` with `operations` declaring `{ oauthScopes }` for the operation. The guard checks no permission and has no `decision`: an anonymous caller gets a `401`, a delegated token that holds none of the scopes the same `403` `insufficient_scope` challenge, and a first-party session passes. `protect(null)` with no scopes in its options and no `operations` throws when it is built, and a request no operation declares scopes for throws when it runs. The Hono, Express, Fastify, Elysia, Node, Nest (`Protect(null, …)`), tRPC and oRPC adapters take `null` the same way, and the Supabase middleware takes `withPermDock({ oauthScopes })` without `protect`.
 - Every outcome is emitted through `on('decision')` with the request method and path attached so [otel](/docs/adapters/otel) and audit sinks see HTTP context.
 
 ### Verified material
@@ -129,6 +131,81 @@ Three consequences:
 - MCP servers do not go through this resolver: `permdock/mcp` receives `authInfo` from the SDK's bearer middleware and hands the principal mapping the same verified object ([MCP adapter](/docs/adapters/mcp)). The shape of the trust boundary is the same; only the carrier differs.
 - API keys resolve through `subjectFromApiKey(options)`, exported here next to its helpers (`apiKeyVerifier`, `memoryCredentials`, `generateApiKey`, `hashApiKey`, `parseApiKey`). It is itself a `SubjectResolver`, so a resolver that reads a `pdk_` bearer calls it and returns the subject; a service key's membership comes from the credential, so skip the `memberships` source for it ([API keys](/docs/concepts/credentials)).
 - `binding` is pass-through. The kernel records the `cnf` object (`jkt` or `x5t#S256`) but does not check proof-of-possession; that is done by the resolver (`verifyDpopProof` in `permdock/jwt`) or by the TLS terminator for mTLS. An adapter that can forward the client certificate thumbprint passes it to the resolver as the second argument.
+
+### Snapshot loaders
+
+`getSnapshot(request)` returns the snapshot a client provider (`permdock/react`, `permdock/vue`, `permdock/svelte`, `permdock/solid`) takes. Send it with `snapshotHeaders(snapshot)` when the framework lets a loader set headers. The private `Cache-Control` keeps a shared cache from storing it, and its `max-age` never reaches past `expiresAt`. Call `invalidate()` or `refresh()` on the client after a role change.
+
+React Router 7 and 8, in `app/root.tsx` (`apps/examples/react-router`):
+
+```tsx
+import { snapshotHeaders } from "permdock/server";
+import { PermDockProvider } from "permdock/react";
+import { data, Outlet, useLoaderData } from "react-router";
+import { getSnapshot } from "~/permdock.server";
+
+export async function loader({ request }: Route.LoaderArgs) {
+  const snapshot = await getSnapshot(request);
+  return data({ snapshot }, { headers: snapshotHeaders(snapshot) });
+}
+
+export function headers({ loaderHeaders }: Route.HeadersArgs) {
+  return loaderHeaders;
+}
+
+export default function App() {
+  const { snapshot } = useLoaderData<typeof loader>();
+  return (
+    <PermDockProvider snapshot={snapshot} endpoint="/api/permdock">
+      <Outlet />
+    </PermDockProvider>
+  );
+}
+```
+
+TanStack Start, with a server function the root route's `loader` calls:
+
+```ts
+import { createServerFn } from "@tanstack/react-start";
+import { getRequest, setResponseHeaders } from "@tanstack/react-start/server";
+import { snapshotHeaders } from "permdock/server";
+import { getSnapshot } from "./permdock.server";
+
+export const loadSnapshot = createServerFn().handler(async () => {
+  const snapshot = await getSnapshot(getRequest());
+  setResponseHeaders(new Headers(snapshotHeaders(snapshot)));
+  return snapshot;
+});
+```
+
+SvelteKit, in `src/routes/+layout.server.ts`; the layout passes `data.snapshot` to `setPermDock`:
+
+```ts
+import { snapshotHeaders } from "permdock/server";
+import { getSnapshot } from "$lib/server/permdock";
+
+export async function load({ request, params, setHeaders }) {
+  const snapshot = await getSnapshot(request, { tenant: params.org });
+  const { "Cache-Control": cacheControl, Vary: vary } =
+    snapshotHeaders(snapshot);
+  setHeaders({ "Cache-Control": cacheControl, Vary: vary });
+  return { snapshot };
+}
+```
+
+Nuxt, with a server route that `useFetch` reads before `app.use(permdockPlugin, { snapshot })`:
+
+```ts
+// server/api/permdock/snapshot.get.ts
+import { snapshotHeaders } from "permdock/server";
+import { getSnapshot } from "~~/server/permdock";
+
+export default defineEventHandler(async (event) => {
+  const snapshot = await getSnapshot(toWebRequest(event));
+  setResponseHeaders(event, snapshotHeaders(snapshot));
+  return snapshot;
+});
+```
 
 ### Connections
 
@@ -176,7 +253,7 @@ The kernel implements the [shared adapter contract](/docs/adapters) for every HT
 
 ## Example app
 
-No dedicated example; the kernel is exercised by every HTTP example (`apps/examples/hono` first) and by the Bun, Deno and workerd apps in `tests/runtimes`. Kernel unit tests live next to the entry and cover anonymous subjects, `loadData` returning `null`, boundary validation failures (`PermDockValidationError` to `400`), and approval-required responses. `tests/integration/src/http/kernel.test.ts` runs the [`testHttpAdapter`](/docs/adapters/testing) scenarios against the kernel behind a plain Fetch handler on `@hono/node-server`.
+`apps/examples/react-router` calls `getSnapshot` and `snapshotHeaders` from its root loader and serves the decision endpoint from a resource route. The rest of the kernel is exercised by every HTTP example (`apps/examples/hono` first) and by the Bun, Deno and workerd apps in `tests/runtimes`. Kernel unit tests live next to the entry and cover anonymous subjects, `loadData` returning `null`, boundary validation failures (`PermDockValidationError` to `400`), and approval-required responses. `tests/integration/src/http/kernel.test.ts` runs the [`testHttpAdapter`](/docs/adapters/testing) scenarios against the kernel behind a plain Fetch handler on `@hono/node-server`.
 
 ## Related standards
 

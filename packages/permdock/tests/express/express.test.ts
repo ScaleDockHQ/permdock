@@ -3,7 +3,11 @@ import type { Server } from "node:http";
 import express from "express";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { createPermDock } from "../../src/express/index.ts";
+import {
+  createPermDock,
+  InvalidSignatureError,
+} from "../../src/express/index.ts";
+import { invalidSignatureProblem } from "../../src/server/web-bot-auth.ts";
 import {
   memberUser,
   otherPost,
@@ -144,6 +148,28 @@ describe("permdock/express", () => {
 
     const other = await request("/boom");
     expect(other.status).toBe(500);
+  });
+
+  it("answers its own errors with Problem Details without errorHandler", async () => {
+    const { permdock } = createPermDock(policy, {
+      subject: () => memberUser,
+      webBotAuth: async () => {
+        throw new InvalidSignatureError(
+          invalidSignatureProblem("bad signature"),
+        );
+      },
+    });
+    const app = express();
+    app.use(permdock());
+    app.get("/posts", (_req, res) => {
+      res.json({ ok: true });
+    });
+    const request = await listen(app);
+    const rejected = await request("/posts");
+    expect(rejected.status).toBe(403);
+    expect(rejected.headers.get("content-type")).toContain(
+      "application/problem+json",
+    );
   });
 
   it("mounts the AuthZEN evaluations handler", async () => {

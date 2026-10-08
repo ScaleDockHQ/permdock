@@ -17,3 +17,26 @@ streams:
       - "SELECT * FROM customers WHERE customers.organization_id IN (SELECT organization_users.organization_id FROM organization_users INNER JOIN roles ON roles.id = organization_users.role_id WHERE organization_users.user_id = auth.user_id() AND roles.key IN ('admin'))"
       - "SELECT * FROM customers WHERE customers.organization_id IN (SELECT organization_users.organization_id FROM organization_users WHERE organization_users.user_id = auth.user_id() AND organization_users.tier IN ('pro'))"
       - "SELECT * FROM customers WHERE customers.organization_id IN (SELECT organization_users.organization_id FROM organization_users INNER JOIN roles ON roles.id = organization_users.role_id WHERE organization_users.user_id = auth.user_id() AND roles.key IN ('pro'))"
+  permdock_organization_users:
+    auto_subscribe: true
+    queries:
+      - "SELECT * FROM organization_users WHERE organization_users.user_id = auth.user_id()"
+  permdock_roles:
+    auto_subscribe: true
+    queries:
+      - "SELECT * FROM roles WHERE roles.id IN (SELECT organization_users.role_id FROM organization_users WHERE organization_users.user_id = auth.user_id())"
+      - "SELECT * FROM roles WHERE roles.id IN (SELECT user_roles.role_id FROM user_roles WHERE user_roles.user_id = auth.user_id())"
+  permdock_user_roles:
+    auto_subscribe: true
+    queries:
+      - "SELECT * FROM user_roles WHERE user_roles.user_id = auth.user_id()"
+  permdock_custom_role_permissions:
+    auto_subscribe: true
+    queries:
+      - "SELECT * FROM permdock.custom_role_permissions WHERE permdock.custom_role_permissions.tenant_id IS NULL"
+      - "SELECT * FROM permdock.custom_role_permissions WHERE permdock.custom_role_permissions.tenant_id IN (SELECT organization_users.organization_id FROM organization_users WHERE organization_users.user_id = auth.user_id())"
+  permdock_custom_role_includes:
+    auto_subscribe: true
+    queries:
+      - "SELECT * FROM permdock.custom_role_includes WHERE permdock.custom_role_includes.tenant_id IS NULL"
+      - "SELECT * FROM permdock.custom_role_includes WHERE permdock.custom_role_includes.tenant_id IN (SELECT organization_users.organization_id FROM organization_users WHERE organization_users.user_id = auth.user_id())"

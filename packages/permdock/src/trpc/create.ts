@@ -29,7 +29,11 @@ import { instanceOptions } from "../core/instance-options.ts";
 import { createServerKernel, tenantScope } from "../server/create.ts";
 import { problemMessage, requestFromContext } from "../server/http.ts";
 import { problemFromError } from "../server/map-error.ts";
-import { guardIterable, isAsyncIterable } from "../server/stream.ts";
+import {
+  guardIterable,
+  isAsyncIterable,
+  reloadAfter,
+} from "../server/stream.ts";
 import { invalidSignatureResponse } from "../server/web-bot-auth.ts";
 
 export type TrpcMiddlewareOpts<TCtx = object, TInput = unknown> = {
@@ -79,7 +83,7 @@ export type TrpcOpenApiHooks = {
 export type TrpcPermDock<TCtx = object> = {
   readonly permdock: () => TrpcMiddleware;
   readonly protect: (
-    permission: Permission,
+    permission: Permission | null,
     loadData?: (opts: TrpcMiddlewareOpts<TCtx>) => unknown,
     protectOptions?: StreamProtectOptions,
   ) => TrpcMiddleware;
@@ -301,7 +305,7 @@ export function createPermDock<
   const guardSubscription = async (
     result: unknown,
     opts: TrpcMiddlewareOpts<TCtx>,
-    permission: Permission,
+    permission: Permission | null,
     loadData: (() => unknown) | undefined,
     protectOptions: StreamProtectOptions | undefined,
   ): Promise<unknown> => {
@@ -316,7 +320,7 @@ export function createPermDock<
     }
     const conn = await connection(
       opts,
-      compact({ permission, data: loadData }),
+      permission === null ? {} : compact({ permission, data: loadData }),
     );
     // SAFETY: isAsyncIterable confirmed data above.
     return {
@@ -335,7 +339,7 @@ export function createPermDock<
   };
 
   const protect = (
-    permission: Permission,
+    permission: Permission | null,
     loadData?: (opts: TrpcMiddlewareOpts<TCtx>) => unknown,
     protectOptions?: StreamProtectOptions,
   ): TrpcMiddleware =>
@@ -358,12 +362,19 @@ export function createPermDock<
           await mapDownstream(await opts.next({ ctx: nextCtx })),
           opts,
           permission,
-          loadData === undefined ? undefined : (): unknown => loadData(opts),
+          loadData === undefined
+            ? undefined
+            : reloadAfter(guard.data, (): unknown => loadData(opts)),
           protectOptions,
         );
       }
       return throwTrpcError(guard.response);
     }) as TrpcMiddleware;
+
+  const evaluations = kernel.permdockHandler((request) => {
+    const opts = optsByRequest.get(request);
+    return opts === undefined ? { tenant: undefined } : scopeOf(opts);
+  });
 
   const permdockHandler = (request: Request): Promise<Response> => {
     // SAFETY: the handler route runs outside tRPC, so its only context is the request as req.
@@ -375,9 +386,10 @@ export function createPermDock<
         Promise.resolve(nextOpts ?? { ctx: { req: request } as TCtx }),
     } satisfies TrpcMiddlewareOpts<TCtx>;
     bind(opts);
-    const { POST, GET } = kernel.permdockHandler(() => scopeOf(opts));
     return Promise.resolve(
-      request.method === "GET" ? GET(request) : POST(request),
+      request.method === "GET"
+        ? evaluations.GET(request)
+        : evaluations.POST(request),
     );
   };
 

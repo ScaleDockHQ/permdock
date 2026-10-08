@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { compile } from "svelte/compiler";
 import { defineConfig } from "tsdown";
 
-const SVELTE_SOURCE = "src/svelte/Protected.svelte";
+const SVELTE_SOURCES = ["Protected.svelte", "PermissionBoundary.svelte"];
 
 function sveltePlugin(): {
   readonly name: string;
@@ -30,22 +30,24 @@ function sveltePlugin(): {
     // app's compiler builds it for SSR or the client.
     resolveId(source, importer) {
       if (
-        source === "./Protected.svelte" &&
+        SVELTE_SOURCES.some((name) => source === `./${name}`) &&
         importer?.endsWith("src/svelte/source.ts") === true
       ) {
-        return { id: "./Protected.svelte", external: true };
+        return { id: source, external: true };
       }
       return null;
     },
     generateBundle() {
-      this.emitFile({
-        type: "asset",
-        fileName: "svelte/Protected.svelte",
-        source: readFileSync(SVELTE_SOURCE, "utf8").replace(
-          "from './runtime.ts'",
-          "from './runtime.js'",
-        ),
-      });
+      for (const name of SVELTE_SOURCES) {
+        this.emitFile({
+          type: "asset",
+          fileName: `svelte/${name}`,
+          source: readFileSync(`src/svelte/${name}`, "utf8").replace(
+            "from './runtime.ts'",
+            "from './runtime.js'",
+          ),
+        });
+      }
     },
     transform(code, id) {
       if (!id.endsWith(".svelte")) {
