@@ -258,6 +258,46 @@ Members of a suspended instance, and of every instance nested in it, then hold t
 
 `member_<scope>_ids()`, a `memberOf` condition without roles that reads it, `permdock_can_assign` and the role listings never count a suspended instance: they name no permission. `permdock doctor` lists each scope's kept keys and warns on a key the definitions do not declare ([PD061](/docs/cli/doctor)).
 
+#### Suspended memberships
+
+A user can be suspended in one instance while their other memberships and their sign-in stay intact. `disabledAt` on a membership table names a nullable timestamp column: a row with a value is a suspended membership. The row and its role stay, so lifting the suspension restores the same role, and only its permissions drop. Set it on an `rls.memberships` table and on the membership sources (`fromTable` `columns.disabledAt`, `fromJunction` `disabledAt`):
+
+```ts
+const suspension = { memberships: { keep: [permissions.organization.leave] } };
+
+rls: {
+  suspension,
+  memberships: {
+    scopes: {
+      organization: {
+        table: 'organization_users', user: 'user_id', role: 'role',
+        columns: { organization: 'organization_id' }, disabledAt: 'disabled_at',
+      },
+    },
+  },
+},
+supabase: {
+  hook: {
+    memberships: [
+      fromJunction({
+        table: 'organization_users', scope: 'organization', id: 'organization_id',
+        roles: 'role', disabledAt: 'disabled_at', suspension,
+      }),
+    ],
+  },
+},
+```
+
+`rls.suspension.memberships.keep` lists what a suspended membership still holds through its roles, as for a scope's `keep`; without it a suspended membership holds nothing. The column applies wherever `expiresAt` does:
+
+- In `database` mode, `permitted_<scope>_ids` and its `_for` form, `member_<scope>_ids`, the `exists` a role-bound `memberOf` carries inline, `permdock_can_assign` and `authorize()` read the column on the table, so a suspension applies on the next statement.
+- The membership sources leave a suspended row out, or keep it with a `keep` list of the keys it still grants. The token hook, `subject_for`, `members_of` and the in-process `MembershipSource` read the same rows, so `can()`, `where()` and RLS agree. A helper reading the sources honours that `keep` column.
+- In `jwt` mode the helpers and `authorize()` read the `memberships` claim, which the hook writes without the suspended membership or with its `keep`. A suspension changes a source row, so the hook's version triggers bump the user's authorization version: in process, `claimsFirst` then reads the token as stale and every `fresh` permission denies. The helpers follow on the next token refresh, as for a removed membership.
+- The holder-count triggers (`min`, `max`, `transferOnly`) count no suspended membership, so suspending the last owner of an instance fails with `last-holder` as removing them would.
+- `member_<scope>_ids()`, `permdock_can_assign` and the role listings never count a suspended membership, `keep` or not: they name no permission.
+
+`disabledAt` is one of the columns that decide a membership, so a client that can write it can lift its own suspension ([PD028](/docs/cli/doctor)). `permdock doctor` lists the keys suspended memberships keep ([PD061](/docs/cli/doctor)), and `permdock supabase inspect` writes the column to the manifest's `memberships` entries and the keys to `rls.suspension.memberships.keep`.
+
 ### Policy layout
 
 The default is one `PERMISSIVE` policy per table, command and database role, named `{table}_{op}` (`post_select`, `post_update`), so Splinter's `multiple_permissive_policies` lint stays quiet: no role sees two permissive policies for one command. `anyone()` grants are ORed into the `authenticated` policy and also get a `{table}_{op}_anon` policy `TO anon` that holds only them, and denies are one `RESTRICTIVE` `deny_{table}_{op}` policy per role.
