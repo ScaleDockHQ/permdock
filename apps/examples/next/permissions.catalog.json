@@ -1,7 +1,7 @@
 {
   "$schema": "https://permdock.com/schemas/catalog-v1.json",
   "version": 1,
-  "generatedAt": "2026-10-07T17:50:31.800Z",
+  "generatedAt": "2026-10-08T07:57:51.564Z",
   "generator": "permdock@0.1.0",
   "fingerprint": "T-Z96MJb0HNjeKTqFsv0j4XFo9LhEHoUKzYy4n-yZzQ",
   "resources": {
@@ -106,7 +106,7 @@
         },
         {
           "file": "src/app/[org]/nav.tsx",
-          "line": 47,
+          "line": 53,
           "call": "tools"
         },
         {
@@ -137,7 +137,7 @@
         },
         {
           "file": "src/app/[org]/nav.tsx",
-          "line": 54,
+          "line": 60,
           "call": "tools"
         },
         {
@@ -172,11 +172,6 @@
           "call": "tools"
         },
         {
-          "file": "src/lib/access.ts",
-          "line": 79,
-          "call": "can"
-        },
-        {
           "file": "src/policy.ts",
           "line": 31,
           "call": "allow"
@@ -199,7 +194,7 @@
       "usages": [
         {
           "file": "src/app/[org]/quotes/[id]/delete-zone.tsx",
-          "line": 30,
+          "line": 45,
           "call": "assert"
         },
         {
@@ -235,7 +230,7 @@
         },
         {
           "file": "src/app/[org]/nav.tsx",
-          "line": 40,
+          "line": 46,
           "call": "tools"
         },
         {
@@ -261,12 +256,12 @@
       "usages": [
         {
           "file": "src/lib/access.ts",
-          "line": 55,
+          "line": 91,
           "call": "filter"
         },
         {
           "file": "src/lib/access.ts",
-          "line": 76,
+          "line": 118,
           "call": "can"
         },
         {
