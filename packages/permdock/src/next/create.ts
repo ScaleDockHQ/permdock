@@ -23,10 +23,9 @@ import type {
 import { compact } from "../core/compact.ts";
 import { instanceOptions } from "../core/instance-options.ts";
 import { createPermDock as createCorePermDock } from "../core/permdock.ts";
-import { cacheLifeFor } from "./cache-life.ts";
+import { cacheLifeFor, snapshotTag } from "../core/snapshot-cache.ts";
 import { createEvaluationsHandler } from "./handler.ts";
 import { renderClientProvider } from "./provider.tsx";
-import { snapshotTag } from "./snapshot-tag.ts";
 
 type GrantedDecision = Extract<Decision, { readonly outcome: "granted" }>;
 

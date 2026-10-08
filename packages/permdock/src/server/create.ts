@@ -2,8 +2,12 @@ import type { ApprovalStore } from "../approvals/types.ts";
 import type { Decision } from "../core/decision.ts";
 import type { ApprovalHint } from "../core/errors.ts";
 import type { InstanceOptions } from "../core/instance-options.ts";
-import type { SnapshotSource } from "../core/interfaces.ts";
-import type { DecideOptions, PermDock } from "../core/permdock.ts";
+import type { Snapshot, SnapshotSource } from "../core/interfaces.ts";
+import type {
+  DecideOptions,
+  PermDock,
+  SnapshotOptions,
+} from "../core/permdock.ts";
 import type { Permission } from "../core/permissions.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy.ts";
 import type { RevocationFeed } from "../core/revocations.ts";
@@ -186,11 +190,26 @@ export type ServerKernelOptions<
  * `TenantScope` on every call, so the adapter resolves the tenant from its
  * own framework context.
  */
+export type SnapshotQuery = {
+  /** The active tenant; defaults to the `tenant` option resolved from the request. */
+  readonly tenant?: string;
+  readonly include?: SnapshotOptions["include"];
+  readonly tenants?: "all";
+};
+
 export type ServerKernel<V extends PolicyVocabulary = PolicyVocabulary> = {
   readonly permdock: (
     request: Request,
     scope?: TenantScope,
   ) => Promise<PermDock<V>>;
+  /**
+   * The JSON snapshot for a loader (React Router, TanStack Start, SvelteKit, Nuxt), built from the
+   * request's cached subject. Send it with `snapshotHeaders(snapshot)`.
+   */
+  readonly getSnapshot: (
+    request: Request,
+    query?: SnapshotQuery,
+  ) => Promise<Snapshot>;
   readonly protect: Protect<V, [scope?: TenantScope]>;
   readonly connection: <T = unknown>(
     request: Request,
@@ -206,6 +225,7 @@ export type ServerKernel<V extends PolicyVocabulary = PolicyVocabulary> = {
 
 export type ServerPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
   readonly permdock: (request: Request) => Promise<PermDock<V>>;
+  readonly getSnapshot: ServerKernel<V>["getSnapshot"];
   readonly protect: Protect<V>;
   /** A long-lived connection for a stream or socket opened by `request`. */
   readonly connection: <T = unknown>(
@@ -451,6 +471,19 @@ export function createServerKernel<
     scope?: TenantScope,
   ): Promise<PermDock<V>> => (await build(request, scope)).permdock;
 
+  const getSnapshot = async (
+    request: Request,
+    query: SnapshotQuery = {},
+  ): Promise<Snapshot> => {
+    const instance = await permdock(
+      request,
+      query.tenant === undefined ? undefined : { tenant: query.tenant },
+    );
+    return instance.snapshot(
+      compact({ include: query.include, tenants: query.tenants }),
+    );
+  };
+
   const protectRoute = <T = unknown>(
     permission: Permission | null,
     loadData?: Loader<T>,
@@ -637,6 +670,7 @@ export function createServerKernel<
 
   return {
     permdock,
+    getSnapshot,
     protect,
     connection,
     problem: (decision, init) => problemFor(decision, init, options.approval),

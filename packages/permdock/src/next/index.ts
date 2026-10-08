@@ -1,7 +1,14 @@
-export { cacheLifeFor } from "./cache-life.ts";
-export type { CacheLifeForOptions } from "./cache-life.ts";
+export {
+  cacheLifeFor,
+  snapshotHeaders,
+  snapshotTag,
+} from "../core/snapshot-cache.ts";
+export type {
+  CacheLifeForOptions,
+  SnapshotHeaders,
+  SnapshotHeadersOptions,
+} from "../core/snapshot-cache.ts";
 export { createPermDock } from "./create.ts";
-export { snapshotTag } from "./snapshot-tag.ts";
 export type {
   GetPermDockQuery,
   GetSnapshotQuery,

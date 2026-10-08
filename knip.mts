@@ -23,6 +23,9 @@ const config: KnipConfig = {
       // Example sources are read as documentation; their exports show the shape.
       entry: ["src/**/*.{ts,tsx,vue,svelte}"],
     },
+    "apps/examples/react-router": {
+      entry: ["app/**/*.{ts,tsx}"],
+    },
     "apps/examples/expo": {
       entry: ["src/**/*.{ts,tsx}"],
       // Expo resolves these native peers and config plugins at build time.

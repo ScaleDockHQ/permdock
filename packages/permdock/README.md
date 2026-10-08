@@ -298,7 +298,7 @@ Any Standard Schema validator: Zod, Valibot, ArkType, Effect Schema. One import 
 | Build              | `permdock/next/plugin` · `permdock/unplugin`                                                                                                            |
 | Testing            | `permdock/testing`                                                                                                                                      |
 
-Nuxt, Astro, React Router, TanStack Start and Effect use these entries plus `permdock/unplugin`. The full matrix with example apps and related standards is on the [adapters page](https://permdock.com/docs/adapters).
+React Router, TanStack Start, SvelteKit and Nuxt loaders call `getSnapshot(request)` from `permdock/server` and send `snapshotHeaders(snapshot)`. Astro and Effect use these entries plus `permdock/unplugin`. The full matrix with example apps and related standards is on the [adapters page](https://permdock.com/docs/adapters).
 
 ## Secure by default
 

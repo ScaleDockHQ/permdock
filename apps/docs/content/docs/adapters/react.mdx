@@ -98,7 +98,7 @@ The [shared adapter contract](/docs/adapters) applies, with these client-side sp
 
 ## Example app
 
-`apps/examples/react-vite`: `src/permissions.ts`, a snapshot from `snapshotFor(policy, memberUser)`, `PermDockProvider`, `Protected` guards and a `usePermission` delete button. Vite serves `http://127.0.0.1:3480/`. The page shows `edit`, `locked` for publish and `ask to delete`, because deleting needs approval.
+`apps/examples/react-vite`: `src/permissions.ts`, a snapshot from `snapshotFor(policy, memberUser)`, `PermDockProvider`, `Protected` guards and a `usePermission` delete button. Vite serves `http://127.0.0.1:3480/`. The page shows `edit`, `locked` for publish and `ask to delete`, because deleting needs approval. `apps/examples/react-router` loads the same snapshot in a React Router root `loader` with `getSnapshot(request)` and `snapshotHeaders` ([snapshot loaders](/docs/adapters/server-kernel#snapshot-loaders)) on `http://127.0.0.1:3484/`.
 
 ## Related standards
 
