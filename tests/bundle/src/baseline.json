@@ -33,7 +33,7 @@
   "./drizzle": 25386,
   "./prisma": 27878,
   "./kysely": 25123,
-  "./supabase": 48529,
+  "./supabase": 48883,
   "./supabase/middleware": 130044,
   "./ssf": 47379,
   "./better-auth": 43830,
@@ -45,7 +45,7 @@
   "./testing": 183025,
   "./testing/saas": 114341,
   "./testing/saas/permissions": 105519,
-  "./cli": 487275,
+  "./cli": 488386,
   "./unplugin": 124349,
   "./next/plugin": 123728,
   "./next/client": 1074
