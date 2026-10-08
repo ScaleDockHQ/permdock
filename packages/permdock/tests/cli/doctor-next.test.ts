@@ -4,7 +4,7 @@ import { afterAll, describe, expect, it } from "vitest";
 
 import type { PermDockConfig } from "../../src/cli/types.ts";
 
-import { pd044 } from "../../src/cli/doctor-next.ts";
+import { pd044, pd065 } from "../../src/cli/doctor-next.ts";
 import { NOW, project, quietIo, removeProjects } from "./doctor-kit.ts";
 
 afterAll(removeProjects);
@@ -118,6 +118,49 @@ describe("PD044 server-only grants read by usePermission", () => {
     ).toEqual([]);
     expect(
       await check({ "src/ui.tsx": UI }, { permissions: "./src/missing.ts" }),
+    ).toEqual([]);
+  });
+});
+
+const NATIVE = `import { Protected, usePermission } from 'permdock/react-native';
+import { permissions } from './definitions.ts';
+
+export const a = () => usePermission(permissions.post.read);
+export const b = () => usePermission(permissions.lease.read);
+`;
+
+describe("PD065 server-only grants read from React Native code", () => {
+  async function native(
+    files: Readonly<Record<string, string>>,
+  ): Promise<readonly string[]> {
+    const cwd = project({ "src/definitions.ts": DEFINITIONS, ...files });
+    const findings = await pd065({ cwd, config, now: NOW, io: quietIo });
+    return findings.map((item) => item.message.split(",")[0] ?? "");
+  }
+
+  it("names a server-only read in a file that imports permdock/react-native, even with an endpoint", async () => {
+    expect(
+      await native({
+        "src/screen.tsx": NATIVE,
+        "src/permdock.ts": `export const options = { endpoint: '/api/permdock' };\n`,
+      }),
+    ).toEqual(["React Native code reads lease.read at src/screen.tsx:5"]);
+  });
+
+  it("ignores web code and portable grants", async () => {
+    expect(await native({ "src/ui.tsx": UI })).toEqual([]);
+    const cwd = project({
+      "src/definitions.ts": DEFINITIONS,
+      "src/screen.tsx": NATIVE,
+      "src/portable.ts": `export { portable as policy } from './definitions.ts';\n`,
+    });
+    expect(
+      await pd065({
+        cwd,
+        config: { ...config, policy: "./src/portable.ts" },
+        now: NOW,
+        io: quietIo,
+      }),
     ).toEqual([]);
   });
 });
