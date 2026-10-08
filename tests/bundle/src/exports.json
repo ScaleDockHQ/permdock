@@ -152,6 +152,7 @@
     "createJwtSubjectResolver",
     "joseTokenSigner",
     "joseTokenVerifier",
+    "memoryReplayStore",
     "subjectFromCapability",
     "subjectFromCiOidc",
     "subjectFromIntrospection",
@@ -275,6 +276,7 @@
   "./nest": [
     "InvalidSignatureError",
     "createPermDock",
+    "decorateMethod",
     "discoverViaSignatureAgent",
     "sendResponse",
     "toRequest",
@@ -470,7 +472,7 @@
     "subjectFromBetterSupabase",
     "topicPolicy"
   ],
-  "./clerk": ["subjectFromClerk"],
+  "./clerk": ["createClerkSubjectResolver", "subjectFromClerk"],
   "./convex": ["ConvexError", "createPermDock"],
   "./pdp": ["createPermDock", "openfga", "remotePdp", "spicedb"],
   "./compile": ["compileWhere", "escapeLike"],
