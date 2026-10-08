@@ -256,6 +256,41 @@ describe("powersync streams", () => {
     );
   });
 
+  it("streams tenant and team tables, skips a through without on, and drops user when two tables share rows", () => {
+    const plan = powersyncPlan(policy, {
+      policy: "p.ts",
+      rls: {
+        memberships: {
+          tenant: {
+            table: "members",
+            user: "user_id",
+            role: { through: "roles", on: {}, column: "key" },
+          },
+          team: { table: "members", user: "member_id", role: "role" },
+        },
+        roles: { table: "admins", user: "account_id", role: "level" },
+      },
+    });
+    expect(plan.subject).toEqual([
+      {
+        name: "permdock_members",
+        table: "members",
+        queries: [
+          "SELECT * FROM members WHERE members.user_id = auth.user_id()",
+          "SELECT * FROM members WHERE members.member_id = auth.user_id()",
+        ],
+      },
+      {
+        name: "permdock_admins",
+        table: "admins",
+        user: "account_id",
+        queries: [
+          "SELECT * FROM admins WHERE admins.account_id = auth.user_id()",
+        ],
+      },
+    ]);
+  });
+
   it("streams the default user_roles table in database mode and nothing without memberships", () => {
     expect(
       powersyncPlan(policy, { policy: "p.ts", rls: { authorize: "database" } })
@@ -600,6 +635,20 @@ describe("powersync streams", () => {
     );
   });
 
+  it("streams only global custom roles without a tenant table", () => {
+    const plan = powersyncPlan(policy, {
+      policy: "p.ts",
+      rls: { authorize: "database", customRoles: true },
+    });
+    expect(
+      plan.subject.find(
+        (stream) => stream.name === "permdock_custom_role_permissions",
+      )?.queries,
+    ).toEqual([
+      "SELECT * FROM permdock.custom_role_permissions WHERE permdock.custom_role_permissions.tenant_id IS NULL",
+    ]);
+  });
+
   it("caps a stream at 32 queries", () => {
     const wide = definePolicy(permissions, {
       scopes: { organization: { key: "org_id" } },
@@ -806,6 +855,15 @@ describe("permdock powersync", () => {
       {
         message:
           "src/permdock-manifest.json is not what the policy compiles to, so the device builds snapshots by an older policy",
+      },
+    ]);
+    writeFileSync(join(cwd, "src/permdock-manifest.json"), "not json\n");
+    expect(await pd058({ cwd, config: withManifest })).toHaveLength(1);
+    rmSync(join(cwd, "src/permdock-manifest.json"));
+    expect(await pd058({ cwd, config: withManifest })).toMatchObject([
+      {
+        message:
+          "src/permdock-manifest.json is missing, so the device builds no local snapshot",
       },
     ]);
   });
