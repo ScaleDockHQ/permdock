@@ -208,10 +208,10 @@ export async function subjectFromBetterAuth(
       declared === undefined
         ? roles
         : roles.filter((role) => declared.includes(role));
-    let extra = extraFields(user);
-    if (options.schema !== undefined) {
-      extra = validateClaims(extra, options.schema) ?? {};
-    }
+    const extra =
+      options.schema === undefined
+        ? {}
+        : (validateClaims(extraFields(user), options.schema) ?? {});
     const memberships = await loadMemberships(
       auth,
       session,

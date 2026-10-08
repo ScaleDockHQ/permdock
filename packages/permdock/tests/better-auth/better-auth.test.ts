@@ -142,9 +142,14 @@ describe("subjectFromBetterAuth", () => {
         via: "team:t_design",
       },
     ]);
-    expect(subject.principal?.claims).toMatchObject({ plan: "pro" });
-    expect(subject.principal?.claims).not.toHaveProperty("name");
-    expect(subject.principal?.claims).not.toHaveProperty("image");
+    expect(subject.principal?.claims).toBeUndefined();
+  });
+
+  it("copies additional fields into claims only through a schema", async () => {
+    const subject = await subjectFromBetterAuth({}, session, {
+      schema: z.object({ plan: z.string() }),
+    });
+    expect(subject.principal?.claims).toEqual({ plan: "pro" });
   });
 
   it("limits memberships to the active organization when requested", async () => {

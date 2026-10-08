@@ -53,6 +53,10 @@ export type BetterAuthLike = {
 
 export type BetterAuthSubjectOptions = {
   readonly memberships?: "all" | "active";
+  /**
+   * Parses the user's additional fields into `principal.claims`. Without it no
+   * field reaches claims, because a user may edit their own additional fields.
+   */
   readonly schema?: StandardSchemaV1;
   readonly headers?: unknown;
   readonly declared?: readonly string[];
