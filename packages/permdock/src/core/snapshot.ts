@@ -4,6 +4,7 @@ import type {
   SnapshotGrant,
   SnapshotNotEntitled,
 } from "./interfaces.ts";
+import type { Permission } from "./permissions.ts";
 import type { Grant, PolicyVocabulary } from "./policy.ts";
 import type { Delegation, Membership, Subject } from "./subject.ts";
 
@@ -13,7 +14,32 @@ import { freezeDeep } from "./freeze.ts";
 import { isForbiddenKey } from "./paths.ts";
 import { scopeList } from "./scopes.ts";
 import { tenantsOf } from "./tenancy.ts";
-import { listPlans, listRoles } from "./vocabulary.ts";
+import { listPlans, listRoles, type Plan, type Role } from "./vocabulary.ts";
+
+function plainPermission(leaf: Permission): Permission {
+  return {
+    key: leaf.key,
+    scope: leaf.scope,
+    resource: leaf.resource,
+    action: leaf.action,
+    meta: leaf.meta,
+    kind: leaf.kind,
+  };
+}
+
+function plainRole(leaf: Role): Role {
+  return compact<Role>({
+    key: leaf.key,
+    on: leaf.on,
+    assignable: leaf.assignable,
+    meta: leaf.meta,
+    kind: leaf.kind,
+  });
+}
+
+function plainPlan(leaf: Plan): Plan {
+  return { key: leaf.key, meta: leaf.meta, kind: leaf.kind };
+}
 
 export function snapshotGrant(
   grant: Grant,
@@ -148,7 +174,9 @@ export function buildSnapshot(input: {
       ? []
       : tenants.map((tenant) => {
           const entry = assignableFor(tenant);
-          const permissions = entry.permissions.filter(included);
+          const permissions = entry.permissions
+            .filter(included)
+            .map(plainPermission);
           if (entry.levels === undefined) {
             return { ...entry, permissions };
           }
@@ -212,7 +240,7 @@ export function buildSnapshot(input: {
                   : Object.fromEntries(
                       listRoles(input.vocabulary.roles).map((leaf) => [
                         leaf.key,
-                        leaf,
+                        plainRole(leaf),
                       ]),
                     ),
               plans:
@@ -221,7 +249,7 @@ export function buildSnapshot(input: {
                   : Object.fromEntries(
                       listPlans(input.vocabulary.plans).map((leaf) => [
                         leaf.key,
-                        leaf,
+                        plainPlan(leaf),
                       ]),
                     ),
             }),
