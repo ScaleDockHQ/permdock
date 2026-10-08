@@ -155,7 +155,10 @@
       "outputs": []
     },
     "//#knip": {
-      "dependsOn": ["@permdock/example-prisma#typegen"],
+      "dependsOn": [
+        "@permdock/example-prisma#typegen",
+        "@permdock/example-react-router#typegen"
+      ],
       "inputs": ["$TURBO_DEFAULT$"],
       "outputs": []
     },

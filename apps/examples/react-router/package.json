@@ -9,7 +9,8 @@
     "doctor": "permdock doctor",
     "lint": "oxlint --disable-nested-config --type-aware",
     "preview": "PORT=3484 HOST=127.0.0.1 react-router-serve ./build/server/index.js",
-    "typecheck": "react-router typegen && tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "typegen": "react-router typegen"
   },
   "dependencies": {
     "@react-router/node": "catalog:",

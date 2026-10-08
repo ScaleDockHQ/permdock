@@ -1,5 +1,10 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
   "extends": ["//"],
-  "tags": ["example"]
+  "tags": ["example"],
+  "tasks": {
+    "typegen": {
+      "outputs": [".react-router/**"]
+    }
+  }
 }
