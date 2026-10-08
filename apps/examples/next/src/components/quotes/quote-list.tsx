@@ -1,15 +1,7 @@
-import { FileText } from "lucide-react";
 import Link from "next/link";
 
-import { Card, CardContent } from "@/components/ui/card.tsx";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty.tsx";
-import { Skeleton } from "@/components/ui/skeleton.tsx";
+import { DataSource } from "@/components/data-source.tsx";
+import { Card, CardFooter } from "@/components/ui/card.tsx";
 import {
   Table,
   TableBody,
@@ -23,38 +15,8 @@ import type { Quote } from "../../permissions.ts";
 
 import { visibleQuotes } from "../../lib/access.ts";
 import { customerName, money } from "./format.ts";
+import { NoQuotes } from "./quote-states.tsx";
 import { StatusBadge } from "./status-badge.tsx";
-
-export function ListSkeleton() {
-  return (
-    <Card aria-busy="true" data-testid="quotes-skeleton" className="py-2">
-      <CardContent className="flex flex-col divide-y px-4">
-        {["a", "b", "c"].map((row) => (
-          <div key={row} className="flex items-center gap-4 py-3">
-            <Skeleton className="h-4 flex-1" />
-            <Skeleton className="hidden h-4 w-28 sm:block" />
-            <Skeleton className="h-5 w-16 rounded-4xl" />
-            <Skeleton className="h-4 w-14" />
-          </div>
-        ))}
-      </CardContent>
-    </Card>
-  );
-}
-
-function NoQuotes() {
-  return (
-    <Empty data-testid="quotes-empty" className="border">
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <FileText />
-        </EmptyMedia>
-        <EmptyTitle>No quotes yet</EmptyTitle>
-        <EmptyDescription>Quotes you may read show up here.</EmptyDescription>
-      </EmptyHeader>
-    </Empty>
-  );
-}
 
 function QuoteRow(props: { readonly quote: Quote; readonly href: string }) {
   const { quote } = props;
@@ -93,7 +55,8 @@ export async function QuoteList(props: {
   readonly prefix: "" | "/portal";
 }) {
   const { org } = await props.params;
-  const quotes = await visibleQuotes(org);
+  const loaded = await visibleQuotes(org);
+  const quotes = loaded.value;
   if (quotes.length === 0) {
     return <NoQuotes />;
   }
@@ -118,6 +81,9 @@ export async function QuoteList(props: {
           ))}
         </TableBody>
       </Table>
+      <CardFooter className="border-t px-4 py-3">
+        <DataSource name="Quotes" loaded={loaded} />
+      </CardFooter>
     </Card>
   );
 }

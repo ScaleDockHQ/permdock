@@ -1,7 +1,8 @@
 import { initials } from "@/components/brand.tsx";
+import { DataSource } from "@/components/data-source.tsx";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar.tsx";
 import { Badge } from "@/components/ui/badge.tsx";
-import { Card } from "@/components/ui/card.tsx";
+import { Card, CardFooter } from "@/components/ui/card.tsx";
 import { Skeleton } from "@/components/ui/skeleton.tsx";
 import {
   Table,
@@ -75,7 +76,7 @@ export async function Staff(props: {
   readonly params: Promise<{ readonly org: string }>;
 }) {
   const { org } = await props.params;
-  const staff = await getStaff(org);
+  const loaded = await getStaff(org);
   return (
     <Card className="py-0">
       <Table data-testid="members">
@@ -89,11 +90,14 @@ export async function Staff(props: {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {staff.map((row) => (
+          {loaded.value.map((row) => (
             <StaffRow key={row.user} org={org} row={row} />
           ))}
         </TableBody>
       </Table>
+      <CardFooter className="border-t px-4 py-3">
+        <DataSource name="Members" loaded={loaded} />
+      </CardFooter>
     </Card>
   );
 }

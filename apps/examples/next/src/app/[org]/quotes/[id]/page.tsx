@@ -1,13 +1,11 @@
-import { ShieldAlert } from "lucide-react";
-import { PermissionBoundary } from "permdock/next/client";
 import { Suspense } from "react";
 
 import { PageHeader } from "@/components/page-header.tsx";
-import { QuoteSkeleton, QuoteView } from "@/components/quotes/quote-view.tsx";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert.tsx";
+import { QuoteSkeleton } from "@/components/quotes/quote-states.tsx";
+import { QuoteView } from "@/components/quotes/quote-view.tsx";
 
-import { ApprovalNotice } from "./approval-notice.tsx";
-import { DeleteZone } from "./delete-zone.tsx";
+import { DeleteBoundary } from "./delete-boundary.tsx";
+import { DeleteZone, DeleteZoneSkeleton } from "./delete-zone.tsx";
 
 export const instant = true;
 
@@ -18,25 +16,16 @@ export default function QuotePage(props: {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Quote"
-        description="The approve button and the delete zone each come from their own access check."
+        description="The approve button comes from the prefetched private cache; the delete zone checks at request time, so it streams in after the store read."
       />
       <Suspense fallback={<QuoteSkeleton />}>
         <QuoteView params={props.params} />
       </Suspense>
-      <PermissionBoundary
-        denied={
-          <Alert data-testid="delete-denied">
-            <ShieldAlert />
-            <AlertTitle>Deleting is not available</AlertTitle>
-            <AlertDescription>Only staff can delete quotes.</AlertDescription>
-          </Alert>
-        }
-        approval={<ApprovalNotice />}
-      >
-        <Suspense fallback={null}>
+      <DeleteBoundary>
+        <Suspense fallback={<DeleteZoneSkeleton />}>
           <DeleteZone params={props.params} />
         </Suspense>
-      </PermissionBoundary>
+      </DeleteBoundary>
     </div>
   );
 }

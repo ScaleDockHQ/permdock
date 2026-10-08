@@ -1,6 +1,6 @@
 import { Protected } from "permdock/react";
 
-import { Button } from "@/components/ui/button.tsx";
+import { SubmitButton } from "@/components/submit-button.tsx";
 
 import { permissions } from "../../../permissions.ts";
 import { changeRole } from "../../actions.ts";
@@ -17,14 +17,9 @@ export function RoleButton(props: {
         <input type="hidden" name="organization" value={props.org} />
         <input type="hidden" name="user" value={props.user} />
         <input type="hidden" name="role" value={next} />
-        <Button
-          type="submit"
-          variant="outline"
-          size="sm"
-          data-change-role={props.user}
-        >
+        <SubmitButton variant="outline" size="sm" data-change-role={props.user}>
           {next === "admin" ? "Make admin" : "Make member"}
-        </Button>
+        </SubmitButton>
       </form>
     </Protected>
   );

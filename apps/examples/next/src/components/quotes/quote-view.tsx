@@ -1,7 +1,8 @@
 import { Check } from "lucide-react";
 import { notFound } from "next/navigation";
 
-import { Button } from "@/components/ui/button.tsx";
+import { DataSource } from "@/components/data-source.tsx";
+import { SubmitButton } from "@/components/submit-button.tsx";
 import {
   Card,
   CardAction,
@@ -11,7 +12,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card.tsx";
-import { Skeleton } from "@/components/ui/skeleton.tsx";
 
 import type { Quote } from "../../permissions.ts";
 
@@ -19,25 +19,6 @@ import { approveQuote } from "../../app/actions.ts";
 import { quoteAccess } from "../../lib/access.ts";
 import { customerName, money } from "./format.ts";
 import { StatusBadge } from "./status-badge.tsx";
-
-export function QuoteSkeleton() {
-  return (
-    <Card aria-busy="true" data-testid="quote-skeleton">
-      <CardHeader>
-        <Skeleton className="h-5 w-56" />
-        <Skeleton className="h-4 w-40" />
-      </CardHeader>
-      <CardContent className="grid gap-4 sm:grid-cols-3">
-        {["a", "b", "c"].map((cell) => (
-          <div key={cell} className="flex flex-col gap-2">
-            <Skeleton className="h-3 w-16" />
-            <Skeleton className="h-5 w-28" />
-          </div>
-        ))}
-      </CardContent>
-    </Card>
-  );
-}
 
 function Facts(props: { readonly quote: Quote }) {
   const facts = [
@@ -63,8 +44,8 @@ export async function QuoteView(props: {
   readonly params: Promise<{ readonly org: string; readonly id: string }>;
 }) {
   const { org, id } = await props.params;
-  const access = await quoteAccess(org, id);
-  const quote = access.quote;
+  const loaded = await quoteAccess(org, id);
+  const { quote, approve } = loaded.value;
   if (quote === null) {
     notFound();
   }
@@ -79,19 +60,22 @@ export async function QuoteView(props: {
           <StatusBadge status={quote.status} testId="quote-status" />
         </CardAction>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex flex-col gap-4">
         <Facts quote={quote} />
+        <DataSource name="Quote" loaded={loaded} />
       </CardContent>
       <CardFooter
         data-testid="quote-actions"
         className="justify-end gap-2 border-t empty:hidden"
       >
-        {access.approve ? (
+        {approve ? (
           <form action={approveQuote.bind(null, org, quote.id)}>
-            <Button type="submit" data-action="approve">
-              <Check data-icon="inline-start" />
+            <SubmitButton
+              data-action="approve"
+              icon={<Check data-icon="inline-start" />}
+            >
               Approve quote
-            </Button>
+            </SubmitButton>
           </form>
         ) : null}
       </CardFooter>
