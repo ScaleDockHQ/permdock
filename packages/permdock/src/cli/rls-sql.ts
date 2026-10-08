@@ -461,6 +461,10 @@ export function linkHelper(resource: string, link: string): string {
   return `permdock_link_${sqlNameOf(resource, `resource '${resource}'`)}_${sqlNameOf(link, `link '${link}' on ${resource}`)}`;
 }
 
+export function restrictedHelper(resource: string): string {
+  return `permdock_restricted_${sqlNameOf(resource, `resource '${resource}'`)}`;
+}
+
 /** Graph SQL parts as RLS text: values inline as literals, the subject from the dialect's claim. */
 export function graphSqlText(parts: GraphSql, ctx: RlsSqlContext): string {
   return parts
@@ -1567,6 +1571,9 @@ function compileHoppedSql(
         {
           text: `select ${schema}.${inheritedRowsHelper(resource)}(${quoteLiteral(permission)})`,
         },
+      ],
+      restrictedRows: (resource) => [
+        { text: `select ${schema}.${restrictedHelper(resource)}()` },
       ],
       linked: (resource, link, targets) => [
         {

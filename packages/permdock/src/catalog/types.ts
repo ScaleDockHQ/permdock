@@ -66,6 +66,7 @@ export type CatalogResource = {
   readonly version?: string;
   /** The boolean column that keeps ancestor grants out of a row. */
   readonly restricted?: string;
+  readonly restrictedStops?: readonly string[];
 };
 
 export type CatalogRole = {

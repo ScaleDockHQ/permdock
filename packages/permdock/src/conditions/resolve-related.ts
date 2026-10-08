@@ -5,9 +5,11 @@ import { freezeDeep } from "../core/freeze.ts";
 import { PermDockValidationError } from "../core/validation-error.ts";
 import {
   type RelationsMapping,
+  type GraphSql,
   relatedRowGuard,
   relatedTargetsSql,
   renderGraphSql,
+  restrictedRowsSql,
 } from "./graph-sql.ts";
 
 export type ResolveRelatedOptions = {
@@ -68,41 +70,66 @@ export async function resolveRelated(
     if (node.ids === undefined && (subject === undefined || subject === "")) {
       return NOTHING;
     }
-    const query = renderGraphSql(
-      relatedTargetsSql(node, { ...options.relations, resources }),
-      {
-        subject: subject ?? "",
-        placeholder: (index) => `$${String(index)}`,
-        /* v8 ignore next 3 */
-        column: (name) => {
-          throw refused(`related: no row column '${name}' in an id query`);
-        },
+    const mapping = { ...options.relations, resources };
+    const ids = await readIds(relatedTargetsSql(node, mapping), node.field);
+    if (ids.length === 0) {
+      return NOTHING;
+    }
+    const reach: Condition = { op: "in", field: node.field, value: ids };
+    const guard = relatedRowGuard(node);
+    const conditions = [
+      reach,
+      ...(guard === undefined ? [] : [notRestricted(guard)]),
+    ];
+    const above = node.restrictedAncestors;
+    if (above !== undefined) {
+      const closed = await readIds(
+        restrictedRowsSql(above, mapping),
+        above.parent,
+      );
+      if (closed.length > 0) {
+        conditions.push({
+          op: "or",
+          conditions: [
+            { op: "isNull", field: above.parent, value: true },
+            { op: "notIn", field: above.parent, value: closed },
+          ],
+        });
+      }
+    }
+    return conditions.length === 1 ? reach : { op: "and", conditions };
+  }
+
+  async function readIds(
+    parts: GraphSql,
+    field: string,
+  ): Promise<readonly (string | number | boolean)[]> {
+    const query = renderGraphSql(parts, {
+      subject: subject ?? "",
+      placeholder: (index) => `$${String(index)}`,
+      /* v8 ignore next 3 */
+      column: (name) => {
+        throw refused(`related: no row column '${name}' in an id query`);
       },
-    );
+    });
     const rows = await options.run({
       sql: `select distinct r.id from (${query.sql}) r where r.id is not null`,
       values: query.values,
     });
-    const ids = rows.flatMap((row) => {
+    return rows.flatMap((row) => {
       const id = row["id"];
       if (typeof id !== "string" && typeof id !== "number") {
         return [];
       }
       const text = String(id);
       const parsed =
-        options.parse === undefined ? text : options.parse(text, node.field);
+        options.parse === undefined ? text : options.parse(text, field);
       return typeof parsed === "string" ||
         typeof parsed === "number" ||
         typeof parsed === "boolean"
         ? [parsed]
         : [];
     });
-    const reach: Condition =
-      ids.length === 0 ? NOTHING : { op: "in", field: node.field, value: ids };
-    const guard = relatedRowGuard(node);
-    return guard === undefined || ids.length === 0
-      ? reach
-      : { op: "and", conditions: [reach, notRestricted(guard)] };
   }
 
   async function resolve(node: Condition): Promise<Condition> {

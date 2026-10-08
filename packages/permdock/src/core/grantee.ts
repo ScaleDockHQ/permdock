@@ -3,6 +3,7 @@ import type {
   ConditionValue,
   RelatedCondition,
   RelatedHop,
+  RestrictedAncestors,
 } from "../conditions/ast.ts";
 import type { DenialReason } from "./decision.ts";
 import type {
@@ -26,6 +27,8 @@ import {
   isPrincipalRelation,
   isSelfParented,
   listPermissions,
+  restrictedFor,
+  restrictedStops,
 } from "./permissions.ts";
 import {
   type Scope,
@@ -422,8 +425,42 @@ export function resourceRoleCondition(
     field: start.field,
     depth: DEFAULT_RELATION_DEPTH,
     parent: start.parent ? true : undefined,
-    restricted: resource.restricted,
+    restricted: restrictedFor(resource, "parent"),
+    passRestricted: passesRestricted(resources.get(membershipResource)),
   });
+}
+
+function passesRestricted(node: ResourceNode | undefined): true | undefined {
+  return node?.restricted !== undefined && !restrictedStops(node, "parent")
+    ? true
+    : undefined;
+}
+
+function linkStop(
+  resource: ResourceNode,
+  link: string,
+): {
+  readonly restricted?: string;
+  readonly restrictedAncestors?: RestrictedAncestors;
+} {
+  const restricted = restrictedFor(resource, link);
+  if (restricted === undefined) {
+    return {};
+  }
+  const parent = resource.parent;
+  if (parent === undefined || !isSelfParented(resource)) {
+    return { restricted };
+  }
+  return {
+    restricted,
+    restrictedAncestors: {
+      resource: resource.name,
+      id: resource.id,
+      parent: parent.field,
+      field: restricted,
+      depth: MAX_RELATION_DEPTH,
+    },
+  };
 }
 
 /**
@@ -550,7 +587,8 @@ export function relationCondition(
         field: path.field,
         depth: path.depth,
         hops: path.hops,
-        restricted: resource?.restricted,
+        ...(resource === undefined ? {} : linkStop(resource, firstLink(path))),
+        passRestricted: path.depth > 0 ? passesRestricted(target) : undefined,
       });
     }
     const start = relationStart(grantee, resource, target);
@@ -565,7 +603,10 @@ export function relationCondition(
       depth: start.depth,
       parent: start.parent ? true : undefined,
       restricted:
-        start.parent || start.depth > 0 ? resource?.restricted : undefined,
+        start.parent || start.depth > 0
+          ? restrictedFor(resource, "parent")
+          : undefined,
+      passRestricted: start.depth > 0 ? passesRestricted(target) : undefined,
     });
   }
   const spec = resource?.relations?.[grantee.relation];
@@ -643,7 +684,7 @@ export function inheritCondition(
       field: parent.field,
       depth: 0,
       parent: true,
-      restricted: resource.restricted,
+      restricted: restrictedFor(resource, "parent"),
     });
   }
   const path = relationHops(
@@ -667,8 +708,12 @@ export function inheritCondition(
     field: path.field,
     depth: 0,
     hops: path.hops,
-    restricted: resource.restricted,
+    ...linkStop(resource, firstLink(path)),
   });
+}
+
+function firstLink(path: { readonly hops: readonly RelatedHop[] }): string {
+  return path.hops[0]?.link ?? "";
 }
 
 function targetMap(

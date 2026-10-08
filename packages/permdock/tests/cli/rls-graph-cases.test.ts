@@ -102,12 +102,24 @@ describe("graphSql", () => {
     );
   });
 
-  it("writes only link helpers for a resource no relation is asked on", () => {
+  it("writes only link helpers for a resource no relation is asked on and no grant walks", () => {
     const plan = withEntry(graphPlan(graphFixture), "folder", {
       relations: new Set(),
       links: new Set(["team"]),
     });
-    const text = graphSql(ctx, plan, undefined);
+    expect(graphSql(ctx, plan, undefined)).toContain(
+      'create or replace function "authz".permitted_folder_ids(p_relation text)',
+    );
+    const folder = plan.get("folder");
+    if (folder === undefined) {
+      throw new Error("no plan entry folder");
+    }
+    const { closure: _closure, ...unwalked } = folder;
+    const text = graphSql(
+      ctx,
+      new Map([...plan, ["folder", unwalked]]),
+      undefined,
+    );
     expect(text).not.toContain('"authz".permitted_folder_ids(p_relation text)');
     expect(text).toContain(
       'create or replace function "authz".permdock_link_folder_team(p_ids text[])',

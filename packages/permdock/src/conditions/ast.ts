@@ -116,6 +116,16 @@ export type RelatedCondition = {
    * `hops`, a restricted row matches nothing; without, the walk stops at the row.
    */
   readonly restricted?: string;
+  readonly restrictedAncestors?: RestrictedAncestors;
+  readonly passRestricted?: true;
+};
+
+export type RestrictedAncestors = {
+  readonly resource: string;
+  readonly id: string;
+  readonly parent: string;
+  readonly depth: number;
+  readonly field: string;
 };
 
 export type RelatedHop = {

@@ -47,6 +47,12 @@
           },
           "restricted": {
             "type": "string"
+          },
+          "restrictedStops": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
       }
