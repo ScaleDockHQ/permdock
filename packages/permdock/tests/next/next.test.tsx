@@ -482,9 +482,60 @@ describe("permdock/next", () => {
     });
   });
 
-  it("denies from getPermission when the instance cannot be built", async () => {
+  it("rethrows a Next.js interrupt from getPermission", async () => {
     const { getPermission } = createPermDock(policy, {
       subject: () => redirect("/login"),
+    });
+    await expect(
+      getPermission(permissions.post.read, ownPost),
+    ).rejects.toMatchObject({
+      digest: expect.stringContaining("NEXT_REDIRECT"),
+    });
+  });
+
+  it("checks getPermission in the requested tenant", async () => {
+    const tenants: string[] = [];
+    const { getPermission } = createPermDock(policy, {
+      subject: () => memberUser,
+      tenant: () => {
+        tenants.push("fallback");
+        return "fallback";
+      },
+    });
+    const state = await getPermission(permissions.post.update, ownPost, {
+      tenant: "acme",
+    });
+    expect(state.allowed).toBe(true);
+    expect(tenants).toEqual([]);
+  });
+
+  it("keeps the factory onDenied on a frozen instance and its tenant views", async () => {
+    const seen: string[] = [];
+    const { getPermDock } = createPermDock(policy, {
+      subject: () => memberUser,
+      onDenied: (decision) => {
+        seen.push(decision.outcome);
+      },
+    });
+    const permdock = await getPermDock();
+    expect(Object.isFrozen(permdock)).toBe(true);
+    const scoped = permdock.tenant("acme");
+    expect(Object.isFrozen(scoped)).toBe(true);
+    expect(() => scoped.assert(permissions.post.publish, ownPost)).toThrow(
+      /post.publish/,
+    );
+    expect(() =>
+      permdock.team("t1").assert(permissions.post.publish, ownPost),
+    ).toThrow(/post.publish/);
+    expect(seen).toEqual(["denied", "denied"]);
+  });
+
+  it("denies from getPermission when the instance cannot be built", async () => {
+    const { getPermission } = createPermDock(policy, {
+      subject: () => memberUser,
+      otel: () => {
+        throw new Error("exporter down");
+      },
     });
     expect(await getPermission(permissions.post.read, ownPost)).toEqual({
       allowed: false,
@@ -515,7 +566,38 @@ describe("permdock/next", () => {
     expect(tenants).toEqual([]);
   });
 
-  it("renders the tenant-scoped provider and fails closed when the instance throws", async () => {
+  it("passes a Next.js interrupt from the server provider to the error path", async () => {
+    const interrupted = createPermDock(policy, {
+      subject: () => redirect("/login"),
+    });
+    const errors: unknown[] = [];
+    const { prelude } = await prerender(
+      interrupted.PermDockProvider({
+        suspend: true,
+        children: (
+          <Protected
+            permission={permissions.post.update}
+            data={ownPost}
+            pending={<span>loading</span>}
+            fallback={<span>locked</span>}
+          >
+            <span>edit</span>
+          </Protected>
+        ),
+      }),
+      { onError: (error) => void errors.push(error) },
+    );
+    const html = await new Response(prelude).text();
+    expect(html).not.toContain("edit");
+    expect(html).not.toContain("locked");
+    expect(errors).toContainEqual(
+      expect.objectContaining({
+        digest: expect.stringContaining("NEXT_REDIRECT"),
+      }),
+    );
+  });
+
+  it("renders the tenant-scoped provider", async () => {
     const scoped = createPermDock(policy, { subject: () => memberUser });
     const guard = (
       <Protected
@@ -531,13 +613,6 @@ describe("permdock/next", () => {
       scoped.PermDockProvider({ tenant: "o1", suspend: true, children: guard }),
     );
     expect(await new Response(tenantRun.prelude).text()).toContain("edit");
-    const interrupted = createPermDock(policy, {
-      subject: () => redirect("/login"),
-    });
-    const { prelude } = await prerender(
-      interrupted.PermDockProvider({ suspend: true, children: guard }),
-    );
-    expect(await new Response(prelude).text()).toContain("locked");
   });
 
   it("writes to a sink without flush and with synchronous writes", async () => {

@@ -20,7 +20,6 @@ import type {
 } from "./types.ts";
 
 import { compact } from "../core/compact.ts";
-import { emptySnapshot } from "../core/from-snapshot.ts";
 import { instanceOptions } from "../core/instance-options.ts";
 import { createPermDock as createCorePermDock } from "../core/permdock.ts";
 import { createEvaluationsHandler } from "./handler.ts";
@@ -104,6 +103,7 @@ function wrapInstance<V extends PolicyVocabulary>(
   if (onDenied === undefined) {
     return permdock;
   }
+  const wrap = (next: PermDock<V>): PermDock<V> => wrapInstance(next, onDenied);
   // SAFETY: assert's instance and collection overloads share one implementation that takes either kind.
   const assert = ((
     permission: Permission,
@@ -124,7 +124,16 @@ function wrapInstance<V extends PolicyVocabulary>(
         onDenied: options?.onDenied ?? onDenied,
       }),
     )) as PermDock<V>["assert"];
-  return { ...permdock, assert };
+  return Object.freeze({
+    ...permdock,
+    assert,
+    tenant: (id: string) => wrap(permdock.tenant(id)),
+    team: (id: string) => wrap(permdock.team(id)),
+    derive: (options: Parameters<PermDock<V>["derive"]>[0]) => {
+      const derived = permdock.derive(options);
+      return derived instanceof Promise ? derived.then(wrap) : wrap(derived);
+    },
+  });
 }
 
 export function createPermDock<
@@ -182,9 +191,10 @@ export function createPermDock<
   const getPermission = async (
     permission: Permission,
     data?: unknown,
+    query?: GetPermDockQuery,
   ): Promise<ServerPermissionState> => {
     try {
-      const permdock = await getPermDock();
+      const permdock = await getPermDock(query);
       // SAFETY: decide's instance and collection overloads share one implementation that takes either kind.
       const decision = (
         permdock.decide as (next: Permission, row?: unknown) => Decision
@@ -194,7 +204,8 @@ export function createPermDock<
         status: "ready",
         decision,
       };
-    } catch {
+    } catch (error) {
+      unstable_rethrow(error);
       return { allowed: false, status: "ready", decision: DENIED };
     }
   };
@@ -230,18 +241,18 @@ export function createPermDock<
   const PermDockProvider = (
     props: ServerPermDockProviderProps,
   ): ReactElement => {
+    // A rejection reaches the client store as `server-only`, or with
+    // `suspend` the nearest error boundary; Next.js interrupts keep working.
     const snapshotPromise = getPermDock(
       props.tenant === undefined ? undefined : { tenant: props.tenant },
-    )
-      .then((permdock): Snapshot | string | Promise<string> =>
-        permdock.snapshot(
-          compact({
-            include: props.include,
-            tenants: props.tenants,
-          }),
-        ),
-      )
-      .catch((): Snapshot => emptySnapshot());
+    ).then((permdock): Snapshot | string | Promise<string> =>
+      permdock.snapshot(
+        compact({
+          include: props.include,
+          tenants: props.tenants,
+        }),
+      ),
+    );
     return renderClientProvider(
       compact({
         snapshotPromise,

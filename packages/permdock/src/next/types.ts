@@ -70,9 +70,15 @@ export type PermDockHandler = {
 
 export type NextPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
   readonly getPermDock: (query?: GetPermDockQuery) => Promise<PermDock<V>>;
+  /**
+   * `{ allowed, status: 'ready', decision }`. Any failure to build the
+   * instance denies; Next.js interrupts (`redirect()`, `notFound()`,
+   * request-time bailouts) from `subject` or `tenant` pass through.
+   */
   readonly getPermission: (
     permission: Permission,
     data?: unknown,
+    query?: GetPermDockQuery,
   ) => Promise<ServerPermissionState>;
   /**
    * Resolves to the granted `Decision`. A denial calls `unauthorized()` for an
