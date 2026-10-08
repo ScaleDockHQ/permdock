@@ -1,20 +1,9 @@
+import type { JsonSchemaNode } from "../core/json-schema.ts";
+
 import { freezeDeep } from "../core/freeze.ts";
 
-/** The JSON Schema keywords `catalogSchema` uses; `checkSchema` interprets exactly these. */
-export type CatalogSchemaNode = {
-  readonly $schema?: string;
-  readonly $id?: string;
-  readonly type?: "object" | "array" | "string" | "boolean" | "integer";
-  readonly const?: unknown;
-  readonly enum?: readonly unknown[];
-  readonly pattern?: string;
-  readonly minimum?: number;
-  readonly required?: readonly string[];
-  readonly properties?: Readonly<Record<string, CatalogSchemaNode>>;
-  readonly additionalProperties?: CatalogSchemaNode;
-  readonly items?: CatalogSchemaNode;
-  readonly oneOf?: readonly CatalogSchemaNode[];
-};
+/** The keywords `catalogSchema` uses, which `checkSchema` interprets. */
+export type CatalogSchemaNode = JsonSchemaNode;
 
 const name = { type: "string", pattern: "^[a-z][a-z0-9_]*$" } as const;
 const validity = {

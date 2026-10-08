@@ -1,3 +1,10 @@
+import type { StandardSchemaV1 } from "@standard-schema/spec";
+
+import { freezeDeep } from "../core/freeze.ts";
+import { checkSchema, copyJson } from "../core/json-schema.ts";
+import { PermDockValidationError } from "../core/validation-error.ts";
+import { supabaseManifestSchema } from "./manifest-schema.ts";
+
 /**
  * What `permdock supabase inspect --json` prints and `--out` writes to
  * `permdock.manifest.json`: the contract between the generated hook and SQL
@@ -195,3 +202,53 @@ export type SupabaseManifestRls = {
     readonly serviceRoles: readonly string[];
   };
 };
+
+/**
+ * Reads a `permdock.manifest.json` document (parsed, or the JSON text) and
+ * validates it against `schemas/supabase-manifest-v1.json`. Returns a
+ * deep-frozen copy built from own keys; throws `PermDockValidationError`
+ * with every issue, so a manifest of another major is refused.
+ */
+export function parseSupabaseManifest(json: unknown): SupabaseHookManifest {
+  const issues: StandardSchemaV1.Issue[] = [];
+  let input = json;
+  if (typeof json === "string") {
+    try {
+      input = JSON.parse(json);
+    } catch (error) {
+      invalidManifest([
+        {
+          message: `Expected JSON text: ${error instanceof Error ? error.message : String(error)}`,
+          path: [],
+        },
+      ]);
+    }
+  }
+  const copy = copyJson(input, [], issues, new Set());
+  if (issues.length === 0) {
+    checkSchema(supabaseManifestSchema, copy, [], issues);
+  }
+  if (issues.length > 0) {
+    invalidManifest(issues);
+  }
+  // SAFETY: copy is plain JSON that passed supabaseManifestSchema, the schema SupabaseHookManifest describes.
+  return freezeDeep(copy as SupabaseHookManifest);
+}
+
+function invalidManifest(issues: readonly StandardSchemaV1.Issue[]): never {
+  const [first] = issues;
+  const where =
+    first?.path === undefined || first.path.length === 0
+      ? ""
+      : ` at ${first.path.map(String).join(".")}`;
+  const more =
+    issues.length > 1 ? ` (and ${String(issues.length - 1)} more)` : "";
+  throw new PermDockValidationError({
+    code: "invalid-data",
+    permission: "",
+    resource: "",
+    boundary: "supabase-manifest",
+    issues,
+    message: `PermDock: invalid Supabase manifest${where}: ${first?.message ?? "unknown"}${more}`,
+  });
+}
