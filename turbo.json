@@ -88,6 +88,7 @@
         ".source/**"
       ],
       "env": [
+        "DEMO_LATENCY_MS",
         "DOCS_ORIGIN",
         "EXPOSE_TESTING_API",
         "NEXT_PUBLIC_*",
@@ -117,6 +118,7 @@
     "test:instant": {
       "dependsOn": ["^build"],
       "cache": false,
+      "env": ["DEMO_LATENCY_MS"],
       "passThroughEnv": ["DOCKER_HOST", "TESTCONTAINERS_*"]
     },
     "size": {

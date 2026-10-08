@@ -50,6 +50,6 @@ export async function currentUser(): Promise<User | null> {
     : {
         id: person.id,
         name: person.name,
-        memberships: membershipsOf(person.id),
+        memberships: await membershipsOf(person.id),
       };
 }
