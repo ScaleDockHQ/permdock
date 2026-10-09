@@ -5,12 +5,11 @@ import type { RlsSqlContext } from "./rls-sql.ts";
 import { partitionsOf, scopeField } from "../core/tenancy.ts";
 import {
   type Body,
-  HELPERS,
   forUserContext,
   functionBody,
   grantBodies,
-  qualified,
 } from "./rls-helpers.ts";
+import { HELPERS, qualified } from "./rls-shared.ts";
 import {
   permittedForHelper,
   permittedIdsHelper,

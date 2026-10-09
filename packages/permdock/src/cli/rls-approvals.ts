@@ -2,7 +2,7 @@ import type { RlsSqlContext } from "./rls-sql.ts";
 import type { RlsApprovalsAdopt } from "./types.ts";
 
 import { APPROVAL_REQUEST_SCHEMA } from "./approval-schema.ts";
-import { qualified } from "./rls-helpers.ts";
+import { qualified } from "./rls-shared.ts";
 import {
   qualifiedTable,
   quoteIdent,

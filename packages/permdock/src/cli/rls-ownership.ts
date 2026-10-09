@@ -14,21 +14,19 @@ import type {
 import { resolveScope, scopeChain } from "../core/scopes.ts";
 import { findRole } from "../core/vocabulary.ts";
 import { roleColumn } from "../supabase/roles.ts";
+import { hasCustomRoleChecksFor } from "./rls-custom-roles.ts";
 import {
-  CUSTOM_ROLES,
   claimKeptLines,
   disabledColumn,
   globalRoleRows,
-  hasCustomRoleChecksFor,
   memberColumn,
   membershipRows,
   membershipTable,
-  qualified,
   roleRows,
-  signedIn,
   sourceFilters,
   sourcesKeep,
 } from "./rls-helpers.ts";
+import { CUSTOM_ROLES, qualified, signedIn } from "./rls-shared.ts";
 import {
   type RlsOwnership,
   type RlsSqlContext,

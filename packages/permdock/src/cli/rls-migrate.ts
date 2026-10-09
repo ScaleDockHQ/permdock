@@ -9,7 +9,7 @@ import { escapeSqlIdent, quoteSqlLiteral } from "../core/sql.ts";
 import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
 import { describeError } from "./errors.ts";
 import { sqlFiles } from "./files.ts";
-import { HELPERS } from "./rls-helpers.ts";
+import { HELPERS } from "./rls-shared.ts";
 
 /** One call `rls migrate` rewrote, or would with `--write`. */
 export type MigrateRewrite = {

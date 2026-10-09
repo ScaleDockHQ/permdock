@@ -26,3 +26,10 @@ export function quoteSqlLiteral(value: string): string {
 export function escapeSqlIdent(name: string): string {
   return `"${name.replaceAll('"', '""')}"`;
 }
+
+const PLAIN_IDENT = /^[a-z_][a-z0-9_]*$/u;
+
+/** An identifier left bare when it is already lower snake case, otherwise quoted by `escapeSqlIdent`. */
+export function sqlIdent(name: string): string {
+  return PLAIN_IDENT.test(name) ? name : escapeSqlIdent(name);
+}

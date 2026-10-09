@@ -76,7 +76,8 @@ import { type Project, loadProject } from "./project.ts";
 import { runSkillsInstall } from "./skills.ts";
 import { createStyle } from "./style.ts";
 import { pd045 } from "./supabase-config.ts";
-import { attrsPlan, hookOut, supabaseHookManifest } from "./supabase-hook.ts";
+import { attrsPlan } from "./supabase-hook-sql.ts";
+import { hookOut, supabaseHookManifest } from "./supabase-hook.ts";
 import { pd039 } from "./supabase-setup.ts";
 import { DOCTOR_REPORT_SCHEMA } from "./version.ts";
 

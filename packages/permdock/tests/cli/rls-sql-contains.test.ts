@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { compileConditionSql } from "../../src/cli/rls-sql.ts";
+import { compileConditionSql } from "../../src/cli/rls-conditions.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 
 const ctx = {

@@ -9,8 +9,8 @@ import type { Permission } from "../core/permissions.ts";
 
 import { parseCatalog } from "../catalog/parse.ts";
 import { freezeDeep } from "../core/freeze.ts";
+import { sqlIdent } from "../core/sql.ts";
 import { parseSupabaseManifest } from "../supabase/manifest.ts";
-import { sqlIdent } from "./provider.ts";
 
 export type AccessPolicyOptions = {
   /** `permdock.manifest.json`, parsed or as JSON text: it names the helpers' schema and the scopes. */

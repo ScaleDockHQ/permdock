@@ -4,15 +4,18 @@ import type { RlsSqlContext } from "../../src/cli/rls-sql.ts";
 import type { Condition } from "../../src/index.ts";
 
 import {
-  activeInstancesSql,
-  activeRowSql,
   andConditions,
-  arrayColumnsOf,
-  checkSuspension,
   claimPath,
-  columnTypesOf,
   compileConditionSql,
   contextRefs,
+  sqlFunctionNames,
+} from "../../src/cli/rls-conditions.ts";
+import {
+  activeInstancesSql,
+  activeRowSql,
+  arrayColumnsOf,
+  checkSuspension,
+  columnTypesOf,
   graphHelper,
   graphSqlName,
   graphSqlText,
@@ -23,7 +26,6 @@ import {
   qualifiedTable,
   scopeTable,
   scopeTypeOf,
-  sqlFunctionNames,
   subjectClaimJsonSql,
   subjectClaimSql,
   tenantTypeOf,

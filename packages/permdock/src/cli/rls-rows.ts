@@ -5,8 +5,8 @@ import type { RlsSqlContext } from "./rls-sql.ts";
 import { flattenGrantee } from "../core/grantee.ts";
 import { tableFor } from "./rls-compile.ts";
 import { branchClauses } from "./rls-compile.ts";
-import { qualified } from "./rls-helpers.ts";
 import { orSql } from "./rls-policies.ts";
+import { qualified } from "./rls-shared.ts";
 import {
   graphSqlName,
   qualifiedTable,

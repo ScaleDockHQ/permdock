@@ -8,7 +8,8 @@ import {
   breakGlassKey,
   collectGrants,
 } from "./rls-grants.ts";
-import { accessSql, qualified } from "./rls-helpers.ts";
+import { accessSql } from "./rls-helpers.ts";
+import { qualified } from "./rls-shared.ts";
 import {
   memberIdsHelper,
   quoteIdent,

@@ -19,6 +19,7 @@ import type {
 
 import { parseCatalog } from "../catalog/parse.ts";
 import { freezeDeep } from "../core/freeze.ts";
+import { quoteSqlLiteral, sqlIdent } from "../core/sql.ts";
 import { parseSupabaseManifest } from "../supabase/manifest.ts";
 
 export type AuthorizationProviderOptions = {
@@ -44,12 +45,6 @@ export type AuthorizationProviderOptions = {
 type DisabledRow = NonNullable<
   NonNullable<AuthorizationProvider["suspension"]>["user"]
 >;
-
-const PLAIN_IDENT = /^[a-z_][a-z0-9_]*$/u;
-
-/** Quotes a Postgres identifier unless it is already lower snake case. */
-export const sqlIdent = (name: string): string =>
-  PLAIN_IDENT.test(name) ? name : `"${name.replaceAll('"', '""')}"`;
 
 /** The templates that call one `rls generate` helper; `canApprove` comes from the `approver` option. */
 type Template = Exclude<keyof AuthorizationFunctions, "canApprove">;
@@ -175,9 +170,6 @@ const withSchema = (schema: string, sql: string): string =>
   sql.includes("{schema}")
     ? sql.replaceAll("{schema}", schema)
     : `${schema}.${sql}`;
-
-const sqlLiteral = (value: string): string =>
-  `'${value.replaceAll("'", "''")}'`;
 
 /** `p_user uuid, p_grant text` as `uuid, text`. */
 const argTypes = (args: string): string =>
@@ -434,7 +426,7 @@ export function authorizationProvider(
       );
     }
     const name = `permitted_${tenantScope}_ids_by_permission`;
-    canApprove = `{tenant} in (select ${schema}.${sqlIdent(name)}(${sqlLiteral(approver.key)}))`;
+    canApprove = `{tenant} in (select ${schema}.${sqlIdent(name)}(${quoteSqlLiteral(approver.key)}))`;
     requires.push({
       function: `${schema}.${sqlIdent(name)}`,
       args: "text",
