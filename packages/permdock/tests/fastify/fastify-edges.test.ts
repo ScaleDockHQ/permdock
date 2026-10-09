@@ -180,3 +180,28 @@ describe("permdock/fastify edge cases", () => {
     expect(response.json()).toEqual({ update: false });
   });
 });
+
+describe("permdock/fastify subject reuse", () => {
+  it("resolves the subject once when permdock runs before the decision endpoint", async () => {
+    let resolved = 0;
+    const { permdock, permdockHandler } = createPermDock(policy, {
+      subject: () => {
+        resolved += 1;
+        return memberUser;
+      },
+    });
+    const app = Fastify();
+    apps.push(app);
+    await app.register(permdock);
+    await app.register(permdockHandler, { prefix: "/api/permdock" });
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/permdock",
+      payload: { evaluations: [{ action: { name: "post.list" } }] },
+    });
+    expect(response.json()).toEqual({
+      evaluations: [expect.objectContaining({ decision: true })],
+    });
+    expect(resolved).toBe(1);
+  });
+});

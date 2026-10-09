@@ -234,6 +234,10 @@ export function createPermDock<
     app.post("/", async (request, reply) => {
       const parsed = toRequest(request);
       contexts.set(parsed, request);
+      const previous = bound.get(request);
+      if (previous !== undefined) {
+        kernel.shareSubject(previous, parsed);
+      }
       await sendReply(reply, await POST(parsed));
     });
     app.get("/", async (request, reply) => {
