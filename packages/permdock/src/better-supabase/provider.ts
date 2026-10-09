@@ -56,6 +56,8 @@ type Template = Exclude<keyof AuthorizationFunctions, "canApprove">;
 
 type TemplateEntry = {
   readonly helper: string;
+  /** The manifest's `rls.helpers` name that `rls generate` writes alongside `helper`. */
+  readonly listedAs?: string;
   readonly args: string;
   readonly role: string;
   /** Prefixed with the schema, or with `{schema}` where the schema goes. */
@@ -69,28 +71,32 @@ type TemplateEntry = {
  */
 const TEMPLATES: Readonly<Record<Template, TemplateEntry>> = {
   idsWith: {
-    helper: "permitted_{scope}_ids",
+    helper: "permitted_{scope}_ids_by_permission",
+    listedAs: "permitted_{scope}_ids",
     args: "text",
     role: "authenticated",
-    sql: "permitted_{scope}_ids({permission})",
+    sql: "permitted_{scope}_ids_by_permission({permission})",
   },
   isPlatform: {
-    helper: "permdock_has",
+    helper: "permdock_has_permission",
+    listedAs: "permdock_has",
     args: "text",
     role: "authenticated",
-    sql: "permdock_has({permission})",
+    sql: "permdock_has_permission({permission})",
   },
   idsWithFor: {
-    helper: "permitted_{scope}_ids_for",
+    helper: "permitted_{scope}_ids_by_permission_for",
+    listedAs: "permitted_{scope}_ids_for",
     args: "uuid, text",
     role: "postgres",
-    sql: "permitted_{scope}_ids_for({user}, {permission})",
+    sql: "permitted_{scope}_ids_by_permission_for({user}, {permission})",
   },
   isPlatformFor: {
-    helper: "permdock_has_for",
+    helper: "permdock_has_permission_for",
+    listedAs: "permdock_has_for",
     args: "uuid, text",
     role: "postgres",
-    sql: "permdock_has_for({user}, {permission})",
+    sql: "permdock_has_permission_for({user}, {permission})",
   },
   memberIds: {
     helper: "member_{scope}_ids",
@@ -140,6 +146,9 @@ const ASSIGN_ANY: Readonly<
     sql: "permdock_can_assign_any_for({user}, {role}, {tenant}, '{scope}', {tenant}::text)",
   },
 };
+
+const listedName = (entry: TemplateEntry): string =>
+  entry.listedAs ?? entry.helper;
 
 const OPTIONAL: readonly Template[] = [
   "idsWithFor",
@@ -358,7 +367,7 @@ export function authorizationProvider(
       ? ASSIGN_ANY[template]
       : TEMPLATES[template];
   const listed = (template: Template, scope: string): boolean =>
-    helpers.has(entryOf(template).helper.replaceAll("{scope}", scope));
+    helpers.has(listedName(entryOf(template)).replaceAll("{scope}", scope));
   const templates: Template[] = [
     "idsWith",
     "isPlatform",
@@ -367,7 +376,7 @@ export function authorizationProvider(
   for (const template of ["idsWith", "isPlatform"] as const) {
     if (!listed(template, tenantScope)) {
       problems.push(
-        `The manifest's rls.helpers has no ${rls.schema}.${TEMPLATES[template].helper.replaceAll("{scope}", tenantScope)}. Run \`permdock rls generate\`, then \`permdock supabase inspect --out\`.`,
+        `The manifest's rls.helpers has no ${rls.schema}.${listedName(TEMPLATES[template]).replaceAll("{scope}", tenantScope)}. Run \`permdock rls generate\`, then \`permdock supabase inspect --out\`.`,
       );
     }
   }

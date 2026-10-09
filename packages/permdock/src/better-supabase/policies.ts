@@ -95,8 +95,8 @@ function target(options: AccessPolicyOptions): {
   return {
     catalog,
     sql: {
-      idsWith: `${schema}.permitted_{scope}_ids({permission})`,
-      isPlatform: `${schema}.permdock_has({permission})`,
+      idsWith: `${schema}.permitted_{scope}_ids_by_permission({permission})`,
+      isPlatform: `${schema}.permdock_has_permission({permission})`,
     },
   };
 }
