@@ -75,6 +75,8 @@ Never pass a `memberships` source to `createPermDock` for a service-key subject:
 
 When the backend then queries Postgres for the key, put the key's permission keys (and, for a service key, its tenant and roles) in an `api_key` claim and set `rls.apiKeys` in `permdock.config.ts`: the generated helpers cap every allow at the key's permissions and hold a key that names a tenant to that tenant, so RLS agrees with `can()`. The key itself never goes to the database.
 
+When the keys live in better-supabase's `api_keys` table, use `apiKeyVerifier({ keys, manifest, allPermissions })` from `permdock/better-supabase` instead, and create the keys with `createApiKeys({ transport, prefix: "pdk" })`: PermDock parses only its own prefix. A third-party token that better-supabase's `CredentialProvider` hands out goes through `credentialGuard(provider, { permdock, use, revoke? })` from the same entry, so PermDock decides each use.
+
 ## Share links
 
 ```ts

@@ -124,18 +124,18 @@ A denied message leaves the socket open; only a revocation, an expiry or a re-de
 
 ### With better-supabase
 
-better-supabase's `createHono` verifies the session and puts it on `c.var.auth`; `bs.middleware()` adds `c.var.db`. Map the session with `subjectFromSupabaseSession` and pair both middlewares in one helper used on every route, instead of `app.use(bs.middleware())`, so a route that skips the helper has no `c.var.db` and `bs.handler` answers 500 instead of running unguarded:
+better-supabase's `createHono` verifies the session and puts it on `c.var.auth`; `bs.middleware()` adds `c.var.db`. Map the session with [`subjectFromBetterSupabase`](/docs/adapters/better-supabase) and pair both middlewares in one helper used on every route, instead of `app.use(bs.middleware())`, so a route that skips the helper has no `c.var.db` and `bs.handler` answers 500 instead of running unguarded:
 
 ```ts title="src/server.ts"
 import { createHono } from "better-supabase/hono";
 import type { Permission } from "permdock";
 import { createPermDock } from "permdock/hono";
-import { subjectFromSupabaseSession } from "permdock/supabase";
+import { subjectFromBetterSupabase } from "permdock/better-supabase";
 
 const bs = createHono(betterSupabase);
 const { protect } = createPermDock(policy, {
   subject: (c) =>
-    subjectFromSupabaseSession(c.get("auth"), { anonymousSignIns: "deny" }),
+    subjectFromBetterSupabase(c.get("auth"), { anonymousSignIns: "deny" }),
 });
 
 const guarded = (permission: Permission) =>

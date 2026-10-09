@@ -24,7 +24,7 @@ Where things live:
 - `supabase/config.toml`: the local stack on ports 54420 to 54429, pg-delta (`[experimental.pgdelta]`) and the token hook in the private `permdock` schema, which `[api] schemas` leaves out.
 - `supabase/schemas`: the source of truth, in pg-delta's per-schema layout. `public/tables` holds the app tables with `created_at` and `updated_at`, money as `amount_minor` plus `currency`, and the better-supabase `updated-at` and `audit` triggers. `permdock/` and `public/policies/permdock.sql` come from `permdock rls generate --split`, and `better_supabase/` comes from `better-supabase sql sync`.
 - `supabase/migrations`: the baseline from `pnpm supabase:diff baseline` (`supabase db schema declarative sync`), the `role_permissions` seeds from `--seeds-out`, and the `audited_tables` rows. Never edit the schema in Studio or with `psql`: the diff does not see those changes.
-- `supabase/tests`: pgTAP over the seeded tenants; `pnpm supabase:start`, then `pnpm supabase:test`.
+- `supabase/tests`: pgTAP over the seeded tenants; `pnpm supabase:start`, then `pnpm supabase:test`. `pnpm supabase:check` runs `supabase db lint`, the advisors, `permdock doctor` and `better-supabase doctor --strict` against the same stack.
 - `permdock.manifest.json`: what the hook and helpers expect, from `permdock supabase inspect --out`; `pnpm gen` writes it, `pnpm gen:check` and `pnpm run doctor` fail on drift.
 - `src/lib/supabase/index.ts`: the `betterSupabase` definition; sessions validated with `supabaseClaims().extend(...)`.
 - `src/lib/supabase/server.ts`: `import 'server-only'`, then `bs = createNext(betterSupabase, ...)` with direct Postgres, an inline JWKS and explicit issuer and audience.

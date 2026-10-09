@@ -4,7 +4,7 @@ import { describe, expectTypeOf, it } from "vitest";
 
 import type { PermDock } from "../../src/core/permdock.ts";
 
-import { mayUse } from "../../src/core/may-use.ts";
+import { toolPolicy } from "../../src/better-supabase/index.ts";
 import { isPermission, type Permission } from "../../src/core/permissions.ts";
 
 declare const schema: ReturnType<typeof defineSchema>;
@@ -14,7 +14,7 @@ declare const exportCustomers: Permission;
 const betterSupabase = defineSupabase(schema);
 
 describe("better-supabase's createMcp with PermDock permissions as tool meta", () => {
-  it("narrows meta with isPermission before mayUse", () => {
+  it("takes toolPolicy's hooks", () => {
     createMcp(betterSupabase, {
       name: "crm",
       version: "1.0.0",
@@ -26,25 +26,33 @@ describe("better-supabase's createMcp with PermDock permissions as tool meta", (
           run: () => null,
         }),
       ],
-      authorize: async (ctx, tool) => {
-        if (!isPermission(tool.meta)) return { allowed: true };
-        expectTypeOf(tool.meta).toEqualTypeOf<Permission>();
-        return mayUse(await dockFor(ctx), tool.meta)
-          ? { allowed: true }
-          : { allowed: false, reason: "PermDock denied this tool" };
-      },
-      visible: async (ctx, tool) =>
-        !isPermission(tool.meta) || mayUse(await dockFor(ctx), tool.meta),
+      ...toolPolicy({ permdock: dockFor }),
     });
   });
 
-  it("rejects passing meta to mayUse without narrowing", () => {
+  it("narrows meta with isPermission and fails closed without one", () => {
+    createMcp(betterSupabase, {
+      name: "crm",
+      version: "1.0.0",
+      authorize: async (ctx, tool) => {
+        if (!isPermission(tool.meta)) {
+          return { allowed: false, reason: "No permission" };
+        }
+        expectTypeOf(tool.meta).toEqualTypeOf<Permission>();
+        return (await dockFor(ctx)).can(tool.meta, undefined)
+          ? { allowed: true }
+          : { allowed: false, reason: "PermDock denied this tool" };
+      },
+    });
+  });
+
+  it("rejects passing meta to can without narrowing", () => {
     createMcp(betterSupabase, {
       name: "crm",
       version: "1.0.0",
       visible: async (ctx, tool) =>
         // @ts-expect-error meta is unknown until isPermission narrows it
-        mayUse(await dockFor(ctx), tool.meta),
+        (await dockFor(ctx)).can(tool.meta, undefined),
     });
   });
 });

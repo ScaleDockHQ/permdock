@@ -54,6 +54,7 @@ import {
   guardedTables,
   ownershipRules,
 } from "./rls-ownership.ts";
+import { permissionKeysForHelper } from "./rls-permission-keys.ts";
 import { authAdminRead, hookUri, resolveAuthorize } from "./rls-rbac.ts";
 import {
   activeRowSql,
@@ -1647,14 +1648,25 @@ function trustedHelpers(
     parts.helpers.memberFor.includes(scope.name),
   );
   const client = ["authenticated"];
+  const scopeTypes = parts.scopes.map(
+    (scope) => [scope.name, types.get(scope.name) ?? "uuid"] as const,
+  );
   const forUser = database
     ? [
         helperEntry(HELPERS.hasFor, "p_user uuid, p_grant text", "boolean", []),
-        ...parts.scopes.map((scope) =>
+        ...scopeTypes.map(([scope, type]) =>
           helperEntry(
-            permittedForHelper(scope.name),
+            permittedForHelper(scope),
             "p_user uuid, p_grant text",
-            `setof ${types.get(scope.name) ?? "uuid"}`,
+            `setof ${type}`,
+            [],
+          ),
+        ),
+        ...scopeTypes.map(([scope, type]) =>
+          helperEntry(
+            permissionKeysForHelper(scope),
+            `p_user uuid, p_id ${type}`,
+            "setof text",
             [],
           ),
         ),

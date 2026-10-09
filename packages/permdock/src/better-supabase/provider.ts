@@ -9,6 +9,7 @@ import type {
 } from "better-supabase/config";
 
 import type { CatalogDocument } from "../catalog/types.ts";
+import type { Permission } from "../core/permissions.ts";
 import type {
   SupabaseHookManifest,
   SupabaseManifestActiveRow,
@@ -31,6 +32,13 @@ export type AuthorizationProviderOptions = {
   readonly catalog?: unknown;
   /** The scope tenants are; defaults to the manifest's one root scope. */
   readonly scope?: string;
+  /**
+   * The permission that lets a user decide a tool call waiting for approval
+   * in a tenant, for better-supabase's `canApprove`. The approver is never
+   * the user who asked (`approvals.distinctApprover`). Without it the chat's
+   * owner decides.
+   */
+  readonly approver?: Permission;
 };
 
 type DisabledRow = NonNullable<
@@ -43,16 +51,22 @@ const PLAIN_IDENT = /^[a-z_][a-z0-9_]*$/u;
 export const sqlIdent = (name: string): string =>
   PLAIN_IDENT.test(name) ? name : `"${name.replaceAll('"', '""')}"`;
 
-type Template = keyof AuthorizationFunctions;
+/** The templates that call one `rls generate` helper; `canApprove` comes from the `approver` option. */
+type Template = Exclude<keyof AuthorizationFunctions, "canApprove">;
 
 type TemplateEntry = {
   readonly helper: string;
   readonly args: string;
   readonly role: string;
+  /** Prefixed with the schema, or with `{schema}` where the schema goes. */
   readonly sql: string;
 };
 
-/** The helper each template calls (with `{scope}` unfilled), its default argument types and the role that calls it. */
+/**
+ * The helper each template calls (with `{scope}` unfilled), its default
+ * argument types and the role that calls it: `postgres` for the templates
+ * better-supabase runs inside its own `security definer` functions.
+ */
 const TEMPLATES: Readonly<Record<Template, TemplateEntry>> = {
   idsWith: {
     helper: "permitted_{scope}_ids",
@@ -102,6 +116,12 @@ const TEMPLATES: Readonly<Record<Template, TemplateEntry>> = {
     role: "postgres",
     sql: "permdock_can_assign_for({user}, {role}, {tenant}::text)",
   },
+  permissionsFor: {
+    helper: "permitted_{scope}_permission_keys_for",
+    args: "uuid, uuid",
+    role: "postgres",
+    sql: "array(select {schema}.permitted_{scope}_permission_keys_for({user}, {tenant}))",
+  },
 };
 
 const ASSIGN_ANY: Readonly<
@@ -128,7 +148,27 @@ const OPTIONAL: readonly Template[] = [
   "memberIdsFor",
   "canAssign",
   "canAssignFor",
+  "permissionsFor",
 ];
+
+/** Postgres aliases of the id types better-supabase reads (`uuid`, `text`, `bigint`, `integer`). */
+const ID_TYPES: Readonly<Record<string, string>> = {
+  uuid: "uuid",
+  text: "text",
+  bigint: "bigint",
+  int8: "bigint",
+  integer: "integer",
+  int: "integer",
+  int4: "integer",
+};
+
+const withSchema = (schema: string, sql: string): string =>
+  sql.includes("{schema}")
+    ? sql.replaceAll("{schema}", schema)
+    : `${schema}.${sql}`;
+
+const sqlLiteral = (value: string): string =>
+  `'${value.replaceAll("'", "''")}'`;
 
 /** `p_user uuid, p_grant text` as `uuid, text`. */
 const argTypes = (args: string): string =>
@@ -285,9 +325,10 @@ function tokenHookOf(manifest: SupabaseHookManifest): AuthorizationTokenHook {
  * manifest and catalog: the scopes, the `rls generate` helpers as SQL
  * templates, the membership tables, suspension rows, the token hook and
  * every catalog key with `sqlComplete` set from its `rowConditions`. A
- * `_for` template is set only when the manifest lists its helper, which
- * `rls.mode: 'database'` writes. Throws when the manifest or catalog is
- * invalid, or when the tenant scope is ambiguous.
+ * `_for` template and `permissionsFor` are set only when the manifest lists
+ * their helper, which `rls.mode: 'database'` writes; `canApprove` only with
+ * `approver`. Throws when the manifest or catalog is invalid, or when the
+ * tenant scope is ambiguous.
  */
 export function authorizationProvider(
   options: AuthorizationProviderOptions,
@@ -297,6 +338,11 @@ export function authorizationProvider(
     options.catalog === undefined ? undefined : parseCatalog(options.catalog);
   const rls = manifest.rls;
   const problems: string[] = [];
+  if (catalog === undefined) {
+    problems.push(
+      "No catalog: better-supabase cannot check that the permission keys its SQL modules use (ai_chat, workflow, inbox and the rest) exist. Pass `catalog`.",
+    );
+  }
   const tenantScope = tenantScopeOf(manifest, options.scope);
   const scopeNames = rls.scopes.map((scope) => scope.name);
   const helpers = new Map<string, SupabaseManifestHelper>(
@@ -339,7 +385,7 @@ export function authorizationProvider(
   const required = new Set<string>();
   for (const template of templates) {
     const entry = entryOf(template);
-    optional[template] = `${schema}.${entry.sql}`;
+    optional[template] = withSchema(schema, entry.sql);
     for (const scope of entry.helper.includes("{scope}")
       ? scopeNames
       : [tenantScope]) {
@@ -367,19 +413,50 @@ export function authorizationProvider(
   }
   const users = rls.suspension?.users;
   const tenants = rls.suspension?.scopes?.[tenantScope];
+  const approver = options.approver;
+  let canApprove: string | undefined;
+  if (approver !== undefined) {
+    if (
+      catalog !== undefined &&
+      !catalog.permissions.some((permission) => permission.key === approver.key)
+    ) {
+      problems.push(
+        `The approver permission ${approver.key} is not in the catalog. Run \`permdock catalog\` after adding it to the policy.`,
+      );
+    }
+    const name = `permitted_${tenantScope}_ids_by_permission`;
+    canApprove = `{tenant} in (select ${schema}.${sqlIdent(name)}(${sqlLiteral(approver.key)}))`;
+    requires.push({
+      function: `${schema}.${sqlIdent(name)}`,
+      args: "text",
+      role: "postgres",
+    });
+  }
   const functions: AuthorizationFunctions = {
     ...optional,
     idsWith: `${schema}.${TEMPLATES.idsWith.sql}`,
     isPlatform: `${schema}.${TEMPLATES.isPlatform.sql}`,
+    ...(canApprove === undefined ? {} : { canApprove }),
   };
+  const scopes = rls.scopes.map((scope) => {
+    const idType = ID_TYPES[scope.type.trim().toLowerCase()];
+    if (idType === undefined) {
+      problems.push(
+        `Scope "${scope.name}" has ids of type ${scope.type}; better-supabase reads uuid, text, bigint and integer ids.`,
+      );
+    }
+    return scope.within === undefined
+      ? { name: scope.name, idType: idType ?? scope.type }
+      : {
+          name: scope.name,
+          idType: idType ?? scope.type,
+          parent: scope.within,
+        };
+  });
   return freezeDeep({
     apiVersion: 1,
     name: "PermDock",
-    scopes: rls.scopes.map((scope) =>
-      scope.within === undefined
-        ? { name: scope.name, idType: scope.type }
-        : { name: scope.name, idType: scope.type, parent: scope.within },
-    ),
+    scopes,
     tenantScope,
     functions,
     requires,
@@ -396,6 +473,9 @@ export function authorizationProvider(
         }
       : {}),
     ...(roleSources.length > 0 ? { roleSources } : {}),
+    ...(canApprove === undefined
+      ? {}
+      : { approvals: { distinctApprover: true } }),
     decidingColumns: manifest.decidingColumns,
     tokenHook: tokenHookOf(manifest),
     ...(problems.length > 0 ? { problems } : {}),

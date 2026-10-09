@@ -13,10 +13,25 @@ import {
   apiKeyClaimOptions,
   apiKeyVerifier,
 } from "../../src/better-supabase/index.ts";
+import { testCredentialVerifier } from "../../src/testing/conformance.ts";
 import { supabaseHookManifestFixture } from "../../src/testing/supabase-fixtures.ts";
 
 const ORG = "11111111-1111-4111-8111-111111111111";
 const USER = "22222222-2222-4222-8222-222222222222";
+
+const withApiKeys: SupabaseHookManifest = {
+  ...supabaseHookManifestFixture,
+  rls: {
+    ...supabaseHookManifestFixture.rls,
+    apiKeys: {
+      claim: "api_key",
+      scopes: "scopes",
+      tenant: "tenant",
+      roles: "roles",
+      serviceRoles: ["integration"],
+    },
+  },
+};
 
 // Node 24 ships no Temporal, which the api-keys block needs.
 beforeAll(() => {
@@ -154,24 +169,59 @@ describe("apiKeyVerifier", () => {
       await verifier({}, { serviceRoles: [""] }).verify(await token()),
     ).toBeNull();
   });
+
+  it("takes a tenant key's roles from the manifest's rls.apiKeys", async () => {
+    expect(
+      await verifier({}, { manifest: withApiKeys }).verify(await token()),
+    ).toMatchObject({ kind: "service", roles: ["integration"] });
+    expect(
+      await verifier(
+        {},
+        { manifest: withApiKeys, serviceRoles: ["auditor"] },
+      ).verify(await token()),
+    ).toMatchObject({ roles: ["auditor"] });
+  });
+});
+
+describe("apiKeyVerifier conformance", () => {
+  const stored = new Map<string, { hash: string; revoked: boolean }>();
+  const keys = createApiKeys({
+    prefix: "pdk",
+    transport: {
+      call: async (_schema, fn, args) => {
+        const publicId = String(args["public_id"]);
+        if (fn === "create_api_key") {
+          stored.set(publicId, {
+            hash: String(args["secret_hash"]),
+            revoked: false,
+          });
+          return row({ public_id: publicId, user_id: USER });
+        }
+        if (fn === "revoke_api_key") {
+          for (const entry of stored.values()) entry.revoked = true;
+          return true;
+        }
+        const entry = stored.get(publicId);
+        return entry !== undefined &&
+          !entry.revoked &&
+          entry.hash === args["secret_hash"]
+          ? { status: "ok", key: row({ public_id: publicId, user_id: USER }) }
+          : { status: "invalid" };
+      },
+    },
+  });
+  testCredentialVerifier(apiKeyVerifier({ keys }), {
+    key: async () =>
+      (await keys.create({ name: "CI", organizationId: ORG }).orThrow()).token,
+    revoke: async () => {
+      await keys.revoke("33333333-3333-4333-8333-333333333333").orThrow();
+    },
+  });
 });
 
 describe("apiKeyClaimOptions", () => {
   it("reads rls.apiKeys and the tenant claim", () => {
-    const manifest: SupabaseHookManifest = {
-      ...supabaseHookManifestFixture,
-      rls: {
-        ...supabaseHookManifestFixture.rls,
-        apiKeys: {
-          claim: "api_key",
-          scopes: "scopes",
-          tenant: "tenant",
-          roles: "roles",
-          serviceRoles: ["integration"],
-        },
-      },
-    };
-    expect(apiKeyClaimOptions(manifest)).toEqual({
+    expect(apiKeyClaimOptions(withApiKeys)).toEqual({
       claim: {
         name: "api_key",
         scopes: "scopes",

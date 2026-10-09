@@ -3,7 +3,7 @@
 /* eslint-disable */
 
 import { defineSchema, type Schema } from "better-supabase";
-import type { EnrichDatabase } from "better-supabase";
+import type { EnrichDatabase, MutableWhere, OrderByArg, OrderByInput } from "better-supabase";
 import type { Database as SupabaseDatabase } from "./database.types.ts";
 import meta from "./generated.meta.js";
 
@@ -306,19 +306,19 @@ export type Models = {
 export type Functions = {
   audit_retention: {
     Args: {
-      tenant: string;
+      tenant: string | null;
     };
-    Returns: string;
+    Returns: string | null;
   };
   datetime_preference_claims: {
     Args: {
-      p_user_id: string;
+      p_user_id: string | null;
     };
     Returns: Json;
   };
   feature_claims: {
     Args: {
-      p_user_id: string;
+      p_user_id: string | null;
     };
     Returns: Json;
   };
@@ -332,5 +332,11 @@ export type ForeignKeyConstraint = Models[TableName]['ForeignKeys'];
 export type RowOf<T extends TableName> = Models[T]['Row'];
 export type InsertOf<T extends TableName> = Models[T]['Insert'];
 export type UpdateOf<T extends TableName> = Models[T]['Update'];
+/** A `where` for `T` you can assign to one key at a time. */
+export type WhereOf<T extends TableName> = MutableWhere<Models, T>;
+/** An `orderBy` for `T`: one sort or a list, by column or to-one relation. */
+export type OrderByOf<T extends TableName> = OrderByArg<Models, T>;
+/** One sort term of `T`'s `orderBy`, by column or to-one relation. */
+export type OrderTermOf<T extends TableName> = OrderByInput<Models, T>;
 
 export const schema: Schema<Models, Database, Functions> = defineSchema(meta);
