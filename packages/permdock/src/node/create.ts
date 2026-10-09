@@ -1,26 +1,19 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
-import type { ApprovalStore } from "../approvals/types.ts";
-import type { InstanceOptions } from "../core/instance-options.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permissions.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy.ts";
 import type { Principal } from "../core/subject.ts";
-import type { OtelWrap } from "../otel/types.ts";
-import type { PdpFactory } from "../pdp/types.ts";
+import type { ServerAdapterOptions } from "../server/bind.ts";
 import type {
   Guard,
   OpenApiHooks,
   ProtectOptions,
   ScopeGuard,
-  TenantOption,
   TenantScope,
 } from "../server/create.ts";
-import type { WebBotAuthVerifier } from "../server/web-bot-auth.ts";
 
-import { compact } from "../core/compact.ts";
-import { instanceOptions } from "../core/instance-options.ts";
-import { createServerKernel, tenantScope } from "../server/create.ts";
+import { bindKernel } from "../server/bind.ts";
 import {
   fromResponse,
   sendResponse,
@@ -28,19 +21,10 @@ import {
   type NodeRequest,
 } from "./http.ts";
 
-export type NodePermDockOptions<TUser = unknown> = InstanceOptions & {
-  readonly subject: (req: NodeRequest) => TUser | Promise<TUser>;
-  /** The agent or service acting for the subject; anything but an `Actor` is ignored. */
-  readonly actor?: (req: NodeRequest) => unknown;
-  readonly tenant?: TenantOption<NodeRequest>;
-  readonly store?: ApprovalStore;
-  /** `createPermDock` from `permdock/pdp`; `protect` then decides delegated permissions remotely. */
-  readonly pdp?: PdpFactory;
-  /** `(permdock) => withOtel(permdock, options)` from `permdock/otel`. */
-  readonly otel?: OtelWrap;
-  /** `(request) => verifyWebBotAuth(request, options)`; a verified bot becomes the actor. */
-  readonly webBotAuth?: WebBotAuthVerifier;
-};
+export type NodePermDockOptions<TUser = unknown> = ServerAdapterOptions<
+  NodeRequest,
+  TUser
+>;
 
 type NodeProtect = {
   (
@@ -68,6 +52,9 @@ export type NodePermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
   readonly openapi: OpenApiHooks;
 };
 
+// SAFETY: NodeRequest only adds optional fields that Express-style servers set on the request.
+const nodeRequest = (req: IncomingMessage): NodeRequest => req as NodeRequest;
+
 export function createPermDock<
   TUser,
   TPrincipal extends Principal = Principal,
@@ -76,52 +63,17 @@ export function createPermDock<
   policy: Policy<TUser, TPrincipal, V>,
   options: NodePermDockOptions<TUser>,
 ): NodePermDock<V> {
-  const contexts = new WeakMap<globalThis.Request, NodeRequest>();
-  const bound = new WeakMap<IncomingMessage, globalThis.Request>();
-  const kernel = createServerKernel(
-    policy,
-    compact({
-      subject: (request: globalThis.Request) => {
-        const req = contexts.get(request);
-        return req === undefined ? null : options.subject(req);
-      },
-      actor:
-        options.actor === undefined
-          ? undefined
-          : (request: globalThis.Request): unknown => {
-              const req = contexts.get(request);
-              return req === undefined ? undefined : options.actor?.(req);
-            },
-      ...instanceOptions(options),
-      store: options.store,
-      pdp: options.pdp,
-      webBotAuth: options.webBotAuth,
-      adapter: "node",
-      wrap: options.otel,
-    }),
-  );
-
-  const bind = (req: IncomingMessage): globalThis.Request => {
-    const hit = bound.get(req);
-    if (hit !== undefined) {
-      return hit;
-    }
-    // SAFETY: NodeRequest only adds optional fields that Express-style servers set on the request.
-    const nodeReq = req as NodeRequest;
-    const request = toRequest(nodeReq);
-    bound.set(req, request);
-    contexts.set(request, nodeReq);
-    return request;
-  };
-
-  // SAFETY: NodeRequest only adds optional fields that Express-style servers set on the request.
+  const bound = bindKernel(policy, options, "node", toRequest);
+  const { kernel, handlerScope } = bound;
+  const bind = (req: IncomingMessage): globalThis.Request =>
+    bound.bind(nodeRequest(req));
   const scopeOf = (req: IncomingMessage): Promise<TenantScope> =>
-    tenantScope(options.tenant, req as NodeRequest);
+    bound.scopeOf(nodeRequest(req));
 
   const permdock = async (req: IncomingMessage): Promise<PermDock<V>> =>
     kernel.permdock(bind(req), await scopeOf(req));
 
-  // SAFETY: NodeRequest only adds optional fields that Express-style servers set on the request, and NodeProtect's overloads only narrow the guard by whether permission is null, as the kernel's do.
+  // SAFETY: NodeProtect's overloads only narrow the guard by whether permission is null, as the kernel's do.
   const protect = ((
     permission: Permission | null,
     loadData?: (req: NodeRequest) => unknown,
@@ -132,7 +84,7 @@ export function createPermDock<
         permission,
         loadData === undefined
           ? undefined
-          : (): unknown => loadData(req as NodeRequest),
+          : (): unknown => loadData(nodeRequest(req)),
         protectOptions,
       )(bind(req), await scopeOf(req))) as NodeProtect;
 
@@ -140,24 +92,13 @@ export function createPermDock<
     req: IncomingMessage,
     res: ServerResponse,
   ) => Promise<void>) => {
-    const { POST, GET } = kernel.permdockHandler((request) => {
-      const req = contexts.get(request);
-      return req === undefined ? { tenant: undefined } : scopeOf(req);
-    });
+    const { POST, GET } = kernel.permdockHandler(handlerScope);
     return async (req, res): Promise<void> => {
       if (req.method === "GET" || req.method === "HEAD") {
         await sendResponse(res, await GET(bind(req)));
         return;
       }
-      // SAFETY: NodeRequest only adds optional fields that Express-style servers set on the request.
-      const nodeReq = req as NodeRequest;
-      const request = toRequest(nodeReq);
-      contexts.set(request, nodeReq);
-      const previous = bound.get(req);
-      if (previous !== undefined) {
-        kernel.shareSubject(previous, request);
-      }
-      await sendResponse(res, await POST(request));
+      await sendResponse(res, await POST(bound.rebind(nodeRequest(req))));
     };
   };
 

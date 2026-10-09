@@ -3,8 +3,7 @@ import type { StandardSchemaV1 } from "@standard-schema/spec";
 import type { ProblemDetails } from "./errors.ts";
 
 import { compact } from "./compact.ts";
-
-const PROBLEM_BASE = "https://permdock.com/problems";
+import { PROBLEM_BASE } from "./problem-details.ts";
 
 export class PermDockValidationError extends Error {
   public override readonly name = "PermDockValidationError" as const;

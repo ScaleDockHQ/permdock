@@ -9,14 +9,14 @@ import type {
 } from "./types.ts";
 
 import { compact } from "../core/compact.ts";
+import { PROBLEM_BASE } from "../core/problem-details.ts";
 import { rootMembershipId } from "../core/scopes.ts";
+import { hasCredentials } from "../server/http.ts";
 import { unauthenticatedProblem } from "../server/problem.ts";
 import { isApprovalError } from "./errors.ts";
 import { heldPermissions } from "./permissions.ts";
 import { approverRelations } from "./relations.ts";
 import { assertApprover } from "./store.ts";
-
-const PROBLEM_BASE = "https://permdock.com/problems";
 
 export type ApprovalsHandlerOptions = {
   readonly subject: (
@@ -321,7 +321,7 @@ export function approvalsHandler(
     const subject = await resolveSubject(request, options.subject);
     const principal = subject?.principal ?? null;
     if (subject === null || principal === null) {
-      return unauthenticatedProblem(request.headers.has("authorization"));
+      return unauthenticatedProblem(hasCredentials(request));
     }
 
     try {
@@ -417,7 +417,7 @@ export function approvalsHandler(
         }),
       );
     } catch (error) {
-      return mapError(error, request.headers.has("authorization"));
+      return mapError(error, hasCredentials(request));
     }
   };
 }

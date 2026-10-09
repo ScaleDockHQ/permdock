@@ -27,6 +27,7 @@ import {
   applyApprovalResume,
   createEvaluationsHandler,
 } from "./evaluations.ts";
+import { hasCredentials } from "./http.ts";
 import {
   decisionResponse,
   notFoundProblem,
@@ -390,25 +391,6 @@ export function createServerKernel<
   const subjects = new WeakMap<Request, Promise<Resolved<TUser>>>();
   const instances = new WeakMap<Request, Map<string, Promise<Built<V>>>>();
 
-  const resolveSubject = (request: Request): Promise<Resolved<TUser>> => {
-    const hit = subjects.get(request);
-    if (hit !== undefined) {
-      return hit;
-    }
-    const resolved = (async (): Promise<Resolved<TUser>> => {
-      const actor = await resolveActor(request, options);
-      let user: TUser | Subject | null = null;
-      try {
-        user = await options.subject(request);
-      } catch {
-        user = null;
-      }
-      return { user, actor };
-    })();
-    subjects.set(request, resolved);
-    return resolved;
-  };
-
   const freshSubject = async (request: Request): Promise<Resolved<TUser>> => {
     const actor = await resolveActor(request, options);
     try {
@@ -416,6 +398,16 @@ export function createServerKernel<
     } catch {
       return { user: null, actor };
     }
+  };
+
+  const resolveSubject = (request: Request): Promise<Resolved<TUser>> => {
+    const hit = subjects.get(request);
+    if (hit !== undefined) {
+      return hit;
+    }
+    const resolved = freshSubject(request);
+    subjects.set(request, resolved);
+    return resolved;
   };
 
   const instanceFor = async (
@@ -557,7 +549,7 @@ export function createServerKernel<
               new URL(request.url).pathname,
             )),
     );
-    const credentials = request?.headers.has("authorization") ?? false;
+    const credentials = request === undefined ? false : hasCredentials(request);
     if (permission === null) {
       if (declared === undefined) {
         throw new TypeError(

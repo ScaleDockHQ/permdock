@@ -11,6 +11,7 @@ import { createPermDock as createCorePermDock } from "../core/permdock.ts";
 import { getResource, listPermissions } from "../core/permissions.ts";
 import { permissionLookup } from "../server/evaluation-items.ts";
 import { applyApprovalResume } from "../server/evaluations.ts";
+import { hasCredentials } from "../server/http.ts";
 import {
   DEFAULT_MAX_EVALUATIONS,
   PROBLEM_BASE,
@@ -128,7 +129,7 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
       pep = null;
     }
     if ((pep === null || pep === undefined) && !allowAnonymous) {
-      return unauthenticatedProblem(request.headers.has("authorization"));
+      return unauthenticatedProblem(hasCredentials(request));
     }
     return { pep: pep ?? null };
   }

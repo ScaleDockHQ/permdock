@@ -1,27 +1,16 @@
 import { Elysia } from "elysia";
 
-import type { ApprovalStore } from "../approvals/types.ts";
-import type { InstanceOptions } from "../core/instance-options.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permissions.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy.ts";
 import type { RevocationFeed } from "../core/revocations.ts";
 import type { Principal } from "../core/subject.ts";
-import type { OtelWrap } from "../otel/types.ts";
-import type { PdpFactory } from "../pdp/types.ts";
+import type { ServerAdapterOptions } from "../server/bind.ts";
 import type { Connection, ConnectionOptions } from "../server/connection.ts";
-import type {
-  OpenApiHooks,
-  ProtectOptions,
-  TenantOption,
-  TenantScope,
-} from "../server/create.ts";
-import type { WebBotAuthVerifier } from "../server/web-bot-auth.ts";
+import type { OpenApiHooks, ProtectOptions } from "../server/create.ts";
 
-import { compact } from "../core/compact.ts";
-import { instanceOptions } from "../core/instance-options.ts";
-import { createServerKernel, tenantScope } from "../server/create.ts";
-import { parsedBody } from "../server/http.ts";
+import { bindKernel, decorate, socketConnection } from "../server/bind.ts";
+import { hasCredentials, parsedBody } from "../server/http.ts";
 import { problemFromError } from "../server/map-error.ts";
 import { POLICY_VIOLATION, onRevoked } from "../server/stream.ts";
 
@@ -31,18 +20,10 @@ export type ElysiaCtx = {
   readonly params?: Readonly<Record<string, string | undefined>>;
 };
 
-export type ElysiaPermDockOptions<TUser = unknown> = InstanceOptions & {
-  readonly subject: (ctx: ElysiaCtx) => TUser | Promise<TUser>;
-  /** The agent or service acting for the subject; anything but an `Actor` is ignored. */
-  readonly actor?: (ctx: ElysiaCtx) => unknown;
-  readonly tenant?: TenantOption<ElysiaCtx>;
-  readonly store?: ApprovalStore;
-  /** `createPermDock` from `permdock/pdp`; `protect` then decides delegated permissions remotely. */
-  readonly pdp?: PdpFactory;
-  /** `(permdock) => withOtel(permdock, options)` from `permdock/otel`. */
-  readonly otel?: OtelWrap;
-  /** `(request) => verifyWebBotAuth(request, options)`; a verified bot becomes the actor. */
-  readonly webBotAuth?: WebBotAuthVerifier;
+export type ElysiaPermDockOptions<TUser = unknown> = ServerAdapterOptions<
+  ElysiaCtx,
+  TUser
+> & {
   /** Ends or revalidates open sockets. */
   readonly revocations?: RevocationFeed;
 };
@@ -103,59 +84,13 @@ export function createPermDock<
   policy: Policy<TUser, TPrincipal, V>,
   options: ElysiaPermDockOptions<TUser>,
 ): ElysiaPermDock<V> {
-  const contexts = new WeakMap<Request, ElysiaCtx>();
-  const bound = new WeakMap<ElysiaCtx, Request>();
   const seed = globalThis.crypto.randomUUID();
-  const kernel = createServerKernel(
+  const { kernel, bind, scopeOf, handlerScope } = bindKernel(
     policy,
-    compact({
-      subject: (request: Request) => {
-        const ctx = contexts.get(request);
-        return ctx === undefined ? null : options.subject(ctx);
-      },
-      actor:
-        options.actor === undefined
-          ? undefined
-          : (request: Request): unknown => {
-              const ctx = contexts.get(request);
-              return ctx === undefined ? undefined : options.actor?.(ctx);
-            },
-      ...instanceOptions(options),
-      store: options.store,
-      pdp: options.pdp,
-      webBotAuth: options.webBotAuth,
-      revocations: options.revocations,
-      adapter: "elysia",
-      wrap: options.otel,
-    }),
+    options,
+    "elysia",
+    toRequest,
   );
-
-  const bind = (ctx: ElysiaCtx): Request => {
-    const hit = bound.get(ctx);
-    if (hit !== undefined) {
-      return hit;
-    }
-    const next = toRequest(ctx);
-    bound.set(ctx, next);
-    contexts.set(next, ctx);
-    return next;
-  };
-
-  const scopeOf = (ctx: ElysiaCtx): Promise<TenantScope> =>
-    tenantScope(options.tenant, ctx);
-
-  const decorate = (
-    ctx: ElysiaCtx,
-    instance: PermDock<V>,
-    data?: unknown,
-  ): void => {
-    // SAFETY: ElysiaContext is the request context plus the permdock fields assigned here.
-    const scoped = ctx as ElysiaContext<V>;
-    scoped.permdock = instance;
-    if (data !== undefined) {
-      scoped.permdockData = data;
-    }
-  };
 
   // SAFETY: the chain returns an Elysia instance; its generics are narrowed to the global permdock derive.
   const permdock = (): ElysiaPermDockPlugin<V> =>
@@ -167,7 +102,7 @@ export function createPermDock<
       })
       .onError({ as: "global" }, ({ error, request }) =>
         problemFromError(error, {
-          credentials: request.headers.has("authorization"),
+          credentials: hasCredentials(request),
         }),
       ) as unknown as ElysiaPermDockPlugin<V>;
 
@@ -190,12 +125,8 @@ export function createPermDock<
   const connection = (
     ws: ElysiaSocket,
     connectionOptions?: ConnectionOptions,
-  ): Promise<Connection> => {
-    const hit = sockets.get(ws.data);
-    if (hit !== undefined) {
-      return hit;
-    }
-    const opened = (async (): Promise<Connection> => {
+  ): Promise<Connection> =>
+    socketConnection(sockets, ws.data, async () => {
       const conn = await kernel.connection(
         bind(ws.data),
         connectionOptions,
@@ -205,16 +136,10 @@ export function createPermDock<
         ws.close(POLICY_VIOLATION, problem.type);
       });
       return conn;
-    })();
-    sockets.set(ws.data, opened);
-    return opened;
-  };
+    });
 
   const permdockHandler = (): Elysia => {
-    const { POST, GET } = kernel.permdockHandler((request) => {
-      const ctx = contexts.get(request);
-      return ctx === undefined ? { tenant: undefined } : scopeOf(ctx);
-    });
+    const { POST, GET } = kernel.permdockHandler(handlerScope);
     // SAFETY: the chain returns an Elysia instance; only its accumulated generics are dropped.
     return new Elysia({ name: "permdock-handler", seed })
       .post("/", (ctx) => POST(bind(ctx)))

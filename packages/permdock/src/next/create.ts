@@ -21,19 +21,14 @@ import type {
 } from "./types.ts";
 
 import { compact } from "../core/compact.ts";
+import { NO_GRANT } from "../core/decision.ts";
 import { instanceOptions } from "../core/instance-options.ts";
 import { createPermDock as createCorePermDock } from "../core/permdock.ts";
 import { cacheLifeFor, snapshotTag } from "../core/snapshot-cache.ts";
-import { createEvaluationsHandler } from "./handler.ts";
+import { createEvaluationsHandler } from "../server/evaluations.ts";
 import { renderClientProvider } from "./provider.tsx";
 
 type GrantedDecision = Extract<Decision, { readonly outcome: "granted" }>;
-
-const DENIED: Decision = {
-  outcome: "denied",
-  denials: [{ role: null, reason: "no-grant" }],
-  alternatives: [],
-};
 
 function assertServerOnly(): void {
   // SAFETY: document is only compared with undefined, so runtimes without it read undefined.
@@ -208,7 +203,7 @@ export function createPermDock<
       };
     } catch (error) {
       unstable_rethrow(error);
-      return { allowed: false, status: "ready", decision: DENIED };
+      return { allowed: false, status: "ready", decision: NO_GRANT };
     }
   };
 

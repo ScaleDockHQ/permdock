@@ -3,7 +3,6 @@ import type { Server } from "node:http";
 import express from "express";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { withBound } from "../../src/express/create.ts";
 import { createPermDock } from "../../src/express/index.ts";
 import { memberUser, permissions, policy } from "../fixtures/quick-start.ts";
 
@@ -97,19 +96,5 @@ describe("permdock/express subject reuse", () => {
       evaluations: [expect.objectContaining({ decision: true })],
     });
     expect(resolved).toBe(1);
-  });
-});
-
-describe("withBound", () => {
-  it("falls back for a request the adapter never bound", () => {
-    const contexts = new WeakMap<globalThis.Request, express.Request>();
-    expect(
-      withBound(
-        contexts,
-        new Request("http://localhost/"),
-        () => "used",
-        "fallback",
-      ),
-    ).toBe("fallback");
   });
 });

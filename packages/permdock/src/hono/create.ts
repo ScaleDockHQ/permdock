@@ -3,48 +3,29 @@ import type { WSEvents } from "hono/ws";
 
 import { Hono, type Context, type MiddlewareHandler, type Next } from "hono";
 
-import type { ApprovalStore } from "../approvals/types.ts";
-import type { InstanceOptions } from "../core/instance-options.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permissions.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy.ts";
 import type { RevocationFeed } from "../core/revocations.ts";
 import type { Principal } from "../core/subject.ts";
-import type { OtelWrap } from "../otel/types.ts";
-import type { PdpFactory } from "../pdp/types.ts";
+import type { ServerAdapterOptions } from "../server/bind.ts";
 import type { Connection, ConnectionOptions } from "../server/connection.ts";
-import type {
-  OpenApiHooks,
-  ProtectOptions,
-  TenantOption,
-  TenantScope,
-} from "../server/create.ts";
-import type { WebBotAuthVerifier } from "../server/web-bot-auth.ts";
+import type { OpenApiHooks, ProtectOptions } from "../server/create.ts";
 
 import { compact } from "../core/compact.ts";
 import { PermDockRevokedError } from "../core/errors.ts";
-import { instanceOptions } from "../core/instance-options.ts";
-import { createServerKernel, tenantScope } from "../server/create.ts";
+import { bindKernel } from "../server/bind.ts";
 import { problemFromError } from "../server/map-error.ts";
 import {
   POLICY_VIOLATION,
   guardIterable,
   onRevoked,
 } from "../server/stream.ts";
-import { invalidSignatureResponse } from "../server/web-bot-auth.ts";
 
-export type HonoPermDockOptions<TUser = unknown> = InstanceOptions & {
-  readonly subject: (c: Context) => TUser | Promise<TUser>;
-  /** The agent or service acting for the subject; anything but an `Actor` is ignored. */
-  readonly actor?: (c: Context) => unknown;
-  readonly tenant?: TenantOption<Context>;
-  readonly store?: ApprovalStore;
-  /** `createPermDock` from `permdock/pdp`; `protect` then decides delegated permissions remotely. */
-  readonly pdp?: PdpFactory;
-  /** `(permdock) => withOtel(permdock, options)` from `permdock/otel`. */
-  readonly otel?: OtelWrap;
-  /** `(request) => verifyWebBotAuth(request, options)`; a verified bot becomes the actor. */
-  readonly webBotAuth?: WebBotAuthVerifier;
+export type HonoPermDockOptions<TUser = unknown> = ServerAdapterOptions<
+  Context,
+  TUser
+> & {
   /** Ends or revalidates open sockets and streams. */
   readonly revocations?: RevocationFeed;
 };
@@ -194,53 +175,20 @@ export function createPermDock<
   policy: Policy<TUser, TPrincipal, V>,
   options: HonoPermDockOptions<TUser>,
 ): HonoPermDock<V> {
-  const contexts = new WeakMap<Request, Context>();
-  const kernel = createServerKernel(
+  const { kernel, bind, scopeOf, handlerScope, attach } = bindKernel(
     policy,
-    compact({
-      subject: (request: Request) => {
-        const c = contexts.get(request);
-        return c === undefined ? null : options.subject(c);
-      },
-      actor:
-        options.actor === undefined
-          ? undefined
-          : (request: Request): unknown => {
-              const c = contexts.get(request);
-              return c === undefined ? undefined : options.actor?.(c);
-            },
-      ...instanceOptions(options),
-      store: options.store,
-      pdp: options.pdp,
-      webBotAuth: options.webBotAuth,
-      revocations: options.revocations,
-      adapter: "hono",
-      wrap: options.otel,
-    }),
+    options,
+    "hono",
+    (c: Context) => c.req.raw,
   );
-
-  const bind = (c: Context): Request => {
-    const raw = c.req.raw;
-    if (!contexts.has(raw)) {
-      contexts.set(raw, c);
-    }
-    return raw;
-  };
-
-  const scopeOf = (c: Context): Promise<TenantScope> =>
-    tenantScope(options.tenant, c);
 
   const permdock =
     (): MiddlewareHandler<PermDockEnv<unknown, V>> => async (c, next: Next) => {
-      try {
-        c.set("permdock", await kernel.permdock(bind(c), await scopeOf(c)));
-      } catch (error) {
-        const response = invalidSignatureResponse(error);
-        if (response !== undefined) {
-          return response;
-        }
-        throw error;
+      const attached = await attach(c);
+      if (!attached.ok) {
+        return attached.response;
       }
+      c.set("permdock", attached.permdock);
       await next();
       mapDownstream(c);
       return undefined;
@@ -276,10 +224,7 @@ export function createPermDock<
     kernel.connection(bind(c), connectionOptions, await scopeOf(c));
 
   const permdockHandler = (): Hono => {
-    const { POST, GET } = kernel.permdockHandler((request) => {
-      const c = contexts.get(request);
-      return c === undefined ? { tenant: undefined } : scopeOf(c);
-    });
+    const { POST, GET } = kernel.permdockHandler(handlerScope);
     const app = new Hono();
     app.post("/", (c) => POST(bind(c)));
     app.get("/", (c) => GET(bind(c)));

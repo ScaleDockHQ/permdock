@@ -8,6 +8,7 @@ import type { PermissionLookup } from "./evaluation-items.ts";
 
 import { readApprovalHeader, resumeDecision } from "../approvals/helpers.ts";
 import { compact } from "../core/compact.ts";
+import { NO_GRANT } from "../core/decision.ts";
 import { wireDenials } from "../core/wire-denial.ts";
 import { itemResourceData, permissionLookup } from "./evaluation-items.ts";
 import {
@@ -16,12 +17,6 @@ import {
   validationProblem,
 } from "./problem.ts";
 import { InvalidSignatureError } from "./web-bot-auth.ts";
-
-const DENIED: Decision = {
-  outcome: "denied",
-  denials: [{ role: null, reason: "no-grant" }],
-  alternatives: [],
-};
 
 type EvaluationItem = {
   readonly resource?: {
@@ -125,7 +120,7 @@ function evaluateOne(
 ): Promise<Decision> {
   const permission = permissionOf(lookup, item);
   if (permission === undefined) {
-    return Promise.resolve(DENIED);
+    return Promise.resolve(NO_GRANT);
   }
   const data = itemResourceData(item.resource);
   // SAFETY: decide's generics only tie the row type to the permission; it accepts any row.
