@@ -2,7 +2,7 @@ import type { ApprovalStore } from "../approvals/types.ts";
 import type { Decision } from "../core/decision.ts";
 import type { ApprovalHint } from "../core/errors.ts";
 import type { InstanceOptions } from "../core/instance-options.ts";
-import type { Snapshot, SnapshotSource } from "../core/interfaces.ts";
+import type { Snapshot } from "../core/interfaces.ts";
 import type {
   DecideOptions,
   PermDock,
@@ -55,8 +55,6 @@ export type ServerPermDockOptions<TUser = unknown> = InstanceOptions & {
    * synchronous and keeps denying delegated permissions (`pdp-unavailable`).
    */
   readonly pdp?: PdpFactory;
-  /** @deprecated Not read by any adapter. */
-  readonly snapshots?: SnapshotSource;
   /** Added as `approval` to every `approval-required` problem. */
   readonly approval?: ApprovalHint;
   readonly operations?: OperationScopes;

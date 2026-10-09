@@ -2,7 +2,6 @@ import type { ToolMap } from "../agent/types.ts";
 import type { ToolVerdict } from "../agent/types.ts";
 import type { ApprovalStore } from "../approvals/types.ts";
 import type { InstanceOptions } from "../core/instance-options.ts";
-import type { SnapshotSource } from "../core/interfaces.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permissions.ts";
 import type { Policy } from "../core/policy.ts";
@@ -35,8 +34,6 @@ export type AiSdkPermDockOptions<TUser = unknown> = InstanceOptions & {
       ) => string | undefined | Promise<string | undefined>);
   readonly tools: ToolMap;
   readonly store?: ApprovalStore;
-  /** @deprecated Not read by any adapter. */
-  readonly snapshots?: SnapshotSource;
   /**
    * Tools the `tools` map does not bind to a permission. `'deny'` (default):
    * the middleware hides them and `toolApproval` denies them. `'allow'`: they

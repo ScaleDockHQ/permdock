@@ -1,6 +1,5 @@
 import type { ApprovalStore } from "../approvals/types.ts";
 import type { InstanceOptions } from "../core/instance-options.ts";
-import type { SnapshotSource } from "../core/interfaces.ts";
 import type { Policy } from "../core/policy.ts";
 import type { Principal } from "../core/subject.ts";
 
@@ -32,8 +31,6 @@ export type AuthzenPermDockOptions<TUser = unknown> = InstanceOptions & {
       | Promise<readonly AuthzenSubjectRecord[]>;
   };
   readonly store?: ApprovalStore;
-  /** @deprecated Not read by any adapter. */
-  readonly snapshots?: SnapshotSource;
   readonly maxEvaluations?: number;
 };
 

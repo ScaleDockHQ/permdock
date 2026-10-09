@@ -133,13 +133,12 @@ const permdockCloud = cloud({
   environment: "production", // defaults to VERCEL_ENV when present
 });
 
-// Plug into any adapter that accepts store / sink / snapshots
+// Plug into any adapter that accepts store / sink / policies
 export const { getPermDock, getPermission, PermDockProvider, permdockHandler } =
   createPermDock(policy, {
     subject,
     store: permdockCloud.approvals, // ApprovalStore: persistent, inbox UI, delivery
     sink: permdockCloud.sink, // DecisionSink: batched, retried, queryable
-    snapshots: permdockCloud.snapshots, // SnapshotSource: distributed, CAEP-invalidated (optional)
     policies: permdockCloud.policies, // PolicySource: hosted grants on hostable permissions (optional)
   });
 ```

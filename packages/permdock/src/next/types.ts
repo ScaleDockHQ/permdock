@@ -3,7 +3,7 @@ import type { ReactElement, ReactNode } from "react";
 import type { ApprovalStore } from "../approvals/types.ts";
 import type { Decision } from "../core/decision.ts";
 import type { InstanceOptions } from "../core/instance-options.ts";
-import type { Snapshot, SnapshotSource } from "../core/interfaces.ts";
+import type { Snapshot } from "../core/interfaces.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permissions.ts";
 import type { PolicyVocabulary } from "../core/policy.ts";
@@ -19,8 +19,6 @@ export type NextPermDockOptions<TUser = NextSubjectInput> = InstanceOptions & {
     | (() => string | undefined | Promise<string | undefined>);
   readonly onDenied?: (decision: Decision) => never | void;
   readonly store?: ApprovalStore;
-  /** @deprecated Not read by any adapter. */
-  readonly snapshots?: SnapshotSource;
   /** `(permdock) => withOtel(permdock, options)` from `permdock/otel`. */
   readonly otel?: OtelWrap;
   /**

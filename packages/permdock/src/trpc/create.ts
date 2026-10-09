@@ -7,7 +7,6 @@ import {
 import type { ApprovalStore } from "../approvals/types.ts";
 import type { PermDockRevokedError } from "../core/errors.ts";
 import type { InstanceOptions } from "../core/instance-options.ts";
-import type { SnapshotSource } from "../core/interfaces.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permissions.ts";
 import type { Policy } from "../core/policy.ts";
@@ -61,8 +60,6 @@ export type TrpcPermDockOptions<
   readonly store?: ApprovalStore;
   /** `createPermDock` from `permdock/pdp`; `protect` then decides delegated permissions remotely. */
   readonly pdp?: PdpFactory;
-  /** @deprecated Not read by any adapter. */
-  readonly snapshots?: SnapshotSource;
   /** `(request) => verifyWebBotAuth(request, options)`; a verified bot becomes the actor. */
   readonly webBotAuth?: WebBotAuthVerifier;
   /** Ends or revalidates open subscriptions. */

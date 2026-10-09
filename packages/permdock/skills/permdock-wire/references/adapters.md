@@ -351,7 +351,6 @@ export const { getPermDock } = createPermDock(policy, {
   subject,
   store: permdockCloud.approvals,
   sink: permdockCloud.sink,
-  snapshots: permdockCloud.snapshots,
 });
 ```
 

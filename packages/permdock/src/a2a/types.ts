@@ -1,7 +1,6 @@
 import type { ApprovalStore } from "../approvals/types.ts";
 import type { ProblemDetails } from "../core/errors.ts";
 import type { InstanceOptions } from "../core/instance-options.ts";
-import type { SnapshotSource } from "../core/interfaces.ts";
 import type { Permission } from "../core/permissions.ts";
 import type { AuthorizationDetail } from "../core/subject.ts";
 
@@ -161,8 +160,6 @@ export type A2aPermDockOptions<TUser = unknown> = InstanceOptions & {
     | string
     | ((auth: A2aAuth) => string | undefined | Promise<string | undefined>);
   readonly store?: ApprovalStore;
-  /** @deprecated Not read by any adapter. */
-  readonly snapshots?: SnapshotSource;
 };
 
 export type A2aPermDock = {

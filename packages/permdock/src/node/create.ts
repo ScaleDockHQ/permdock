@@ -2,7 +2,6 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 
 import type { ApprovalStore } from "../approvals/types.ts";
 import type { InstanceOptions } from "../core/instance-options.ts";
-import type { SnapshotSource } from "../core/interfaces.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permissions.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy.ts";
@@ -37,8 +36,6 @@ export type NodePermDockOptions<TUser = unknown> = InstanceOptions & {
   readonly store?: ApprovalStore;
   /** `createPermDock` from `permdock/pdp`; `protect` then decides delegated permissions remotely. */
   readonly pdp?: PdpFactory;
-  /** @deprecated Not read by any adapter. */
-  readonly snapshots?: SnapshotSource;
   /** `(permdock) => withOtel(permdock, options)` from `permdock/otel`. */
   readonly otel?: OtelWrap;
   /** `(request) => verifyWebBotAuth(request, options)`; a verified bot becomes the actor. */

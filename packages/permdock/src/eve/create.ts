@@ -1,7 +1,6 @@
 import type { ToolBinding, ToolMap, ToolVerdict } from "../agent/types.ts";
 import type { ApprovalRequest, ApprovalStore } from "../approvals/types.ts";
 import type { InstanceOptions } from "../core/instance-options.ts";
-import type { SnapshotSource } from "../core/interfaces.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permissions.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy.ts";
@@ -79,8 +78,6 @@ export type EvePermDockOptions<TUser = unknown> = InstanceOptions & {
   readonly tools: ToolMap;
   readonly approvers?: EveApprovers;
   readonly store?: ApprovalStore;
-  /** @deprecated Not read by any adapter. */
-  readonly snapshots?: SnapshotSource;
 };
 
 export type EveRequestResult =
