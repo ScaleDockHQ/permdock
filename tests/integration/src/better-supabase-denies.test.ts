@@ -16,6 +16,14 @@ import { permissions } from "../fixtures/permission-denies/permissions.ts";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/permission-denies");
 
+/** The inline SQL a policy carries; `"provider"` and a missing value fail the test. */
+function inlineSql<T>(sql: T | "provider" | undefined): T {
+  if (sql === undefined || sql === "provider") {
+    throw new Error("expected the policy to carry inline SQL");
+  }
+  return sql;
+}
+
 const READER = "00000000-0000-4000-8000-0000000000d1";
 const BLOCKED = "00000000-0000-4000-8000-0000000000d2";
 const STAFF = "00000000-0000-4000-8000-0000000000d3";
@@ -167,12 +175,21 @@ describe("better-supabase SQL against a deny of the same permission", () => {
     const inAcme = (template: string): string =>
       `'acme' in (select ${fill(template)})`;
     expect({
-      bucketReader: await askAs(READER, inAcme(bucket.sql.idsWith)),
-      bucketBlocked: await askAs(BLOCKED, inAcme(bucket.sql.idsWith)),
-      topicReader: await askAs(READER, inAcme(topic.sql.idsWith)),
-      topicBlocked: await askAs(BLOCKED, inAcme(topic.sql.idsWith)),
-      platformStaff: await askAs(STAFF, fill(platform.sql.isPlatform)),
-      platformSuspended: await askAs(SUSPENDED, fill(platform.sql.isPlatform)),
+      bucketReader: await askAs(READER, inAcme(inlineSql(bucket.sql).idsWith)),
+      bucketBlocked: await askAs(
+        BLOCKED,
+        inAcme(inlineSql(bucket.sql).idsWith),
+      ),
+      topicReader: await askAs(READER, inAcme(inlineSql(topic.sql).idsWith)),
+      topicBlocked: await askAs(BLOCKED, inAcme(inlineSql(topic.sql).idsWith)),
+      platformStaff: await askAs(
+        STAFF,
+        fill(inlineSql(platform.sql).isPlatform),
+      ),
+      platformSuspended: await askAs(
+        SUSPENDED,
+        fill(inlineSql(platform.sql).isPlatform),
+      ),
     }).toEqual({
       bucketReader: true,
       bucketBlocked: false,
