@@ -34,6 +34,7 @@ import { instanceOptions } from "../core/instance-options.ts";
 import { mayUse } from "../core/may-use.ts";
 import { challengeScope, scopesReaching } from "../core/oauth-scopes.ts";
 import { annotationsFor } from "../core/permissions.ts";
+import { resourceRef } from "../core/resource-ref.ts";
 import { wireDenials } from "../core/wire-denial.ts";
 import {
   bearerChallenge,
@@ -245,19 +246,6 @@ function urlElicitation(
     },
     requestState,
   });
-}
-
-function resourceRef(
-  permission: Permission,
-  data: unknown,
-): { readonly type: string; readonly id?: string } {
-  if (isRecord(data)) {
-    const id = data["id"];
-    if (typeof id === "string" || typeof id === "number") {
-      return { type: permission.resource, id: String(id) };
-    }
-  }
-  return { type: permission.resource };
 }
 
 function deniedRefusal(

@@ -8,7 +8,7 @@ import {
 
 import type { Permission } from "../core/permissions.ts";
 
-import { protectedView } from "../client/views.ts";
+import { protectedView, scopedTenant } from "../client/views.ts";
 import { usePermission, usePermDock } from "./composables.ts";
 
 export type ProtectedProps = {
@@ -41,9 +41,7 @@ export const Protected: DefineComponent<ProtectedProps> = defineComponent({
       () => props.data,
     );
     const root = usePermDock();
-    const scoped = computed(() =>
-      props.tenant === undefined ? undefined : root.tenant(props.tenant),
-    );
+    const scoped = computed(() => scopedTenant(root, props.tenant));
     return (): VNode | VNode[] | string | null => {
       const view = protectedView(
         {

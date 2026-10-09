@@ -37,7 +37,6 @@ import {
   coversRequirements,
   delegatedPermissions,
   requiresStandIn,
-  resourceIdOf,
 } from "./delegation.ts";
 import {
   actorRequiredVias,
@@ -58,6 +57,7 @@ import { applyQuota } from "./limits.ts";
 import { findPermission, getResource, listPermissions } from "./permissions.ts";
 import { requiresApproval, type Grant, type Policy } from "./policy.ts";
 import { resolveRelated } from "./relations.ts";
+import { resourceIdOf } from "./resource-ref.ts";
 import { isRowPair, rowIdOf, rowValues } from "./row-pair.ts";
 import {
   keepsPermission,

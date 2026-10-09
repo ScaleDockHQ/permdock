@@ -3,7 +3,7 @@ import { createMemo, type JSX } from "solid-js";
 import type { SolidChild } from "./types.ts";
 import type { ProtectedProps } from "./types.ts";
 
-import { protectedView } from "../client/views.ts";
+import { protectedView, scopedTenant } from "../client/views.ts";
 import { usePermission, usePermDock } from "./hooks.ts";
 
 export function Protected(props: ProtectedProps): JSX.Element {
@@ -12,9 +12,7 @@ export function Protected(props: ProtectedProps): JSX.Element {
     () => props.permission,
     () => props.data,
   );
-  const scoped = createMemo(() =>
-    props.tenant === undefined ? undefined : root.tenant(props.tenant),
-  );
+  const scoped = createMemo(() => scopedTenant(root, props.tenant));
   const view = createMemo(() =>
     protectedView(local(), root, props.permission, props.data, scoped()),
   );

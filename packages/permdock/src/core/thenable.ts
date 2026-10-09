@@ -1,4 +1,6 @@
-export function isThenable<T>(value: T | Promise<T>): value is Promise<T> {
+export function isThenable<T>(
+  value: T | PromiseLike<T>,
+): value is PromiseLike<T> {
   return (
     value !== null &&
     typeof value === "object" &&

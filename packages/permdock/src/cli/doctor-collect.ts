@@ -35,8 +35,9 @@ import {
 } from "./helper-calls.ts";
 import { asPolicy, loadModule, pickNamed } from "./load.ts";
 import { commandFor, tableFor } from "./rls-compile.ts";
+import { contextRefs } from "./rls-conditions.ts";
 import { graphPlan } from "./rls-graph.ts";
-import { contextRefs, graphSqlName } from "./rls-sql.ts";
+import { graphSqlName } from "./rls-sql.ts";
 import { supabaseConfig } from "./supabase-config.ts";
 import { runUsage } from "./usage.ts";
 

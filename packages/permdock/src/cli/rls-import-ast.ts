@@ -6,7 +6,7 @@ import type { HelperScope, RolePermission } from "./rls-helpers.ts";
 import type { RlsFunctionMapping, RlsMemberships } from "./types.ts";
 
 import { quoteSqlLiteral } from "../core/sql.ts";
-import { HELPERS } from "./rls-helpers.ts";
+import { HELPERS } from "./rls-shared.ts";
 import { SESSION_LIVE_HELPER, USER_ID_HELPER } from "./rls-sql.ts";
 
 type PgNode = Record<string, unknown>;

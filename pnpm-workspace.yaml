@@ -159,7 +159,7 @@ catalog:
   "@ai-sdk/otel": 1.0.127
   dotenv-cli: 11.0.0
   portless: 0.15.7
-  better-supabase: 0.6.0
+  better-supabase: link:../better-supabase/packages/better-supabase
   "@supabase/postgrest-typegen": 0.4.0
   supabase: 2.119.0
   server-only: 0.0.1

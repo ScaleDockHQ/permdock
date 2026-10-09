@@ -9,10 +9,9 @@ import {
 import type { Snapshot } from "../core/interfaces.ts";
 import type { PermDockProviderProps } from "./types.ts";
 
-import { adapterStore, liveOptions } from "../client/store-options.ts";
+import { providerStore, switchTenant } from "../client/provider-store.ts";
+import { isPromiseLike } from "../client/source.ts";
 import { compact } from "../core/compact.ts";
-import { emptySnapshot } from "../core/from-snapshot.ts";
-import { isPromiseLike } from "../react/source.ts";
 import { PermDockContext } from "./context.ts";
 
 type ProviderProps = Parameters<typeof PermDockContext.Provider>[0];
@@ -31,31 +30,26 @@ export function PermDockProvider(props: PermDockProviderProps): JSX.Element {
     : read === undefined
       ? (source as Snapshot | string)
       : read();
-  const store = adapterStore(
+  const store = providerStore(
     compact({
       endpoint: props.endpoint,
       snapshotUrl: props.snapshotUrl,
       approvals: props.approvals,
       tenant: props.tenant,
       maxAge: props.maxAge,
-      ...liveOptions(() => ({
-        headers: props.headers,
-        fetch: props.fetch,
-        verifier: props.verifier,
-      })),
     }),
-    initial ?? emptySnapshot(),
+    () => ({
+      headers: props.headers,
+      fetch: props.fetch,
+      verifier: props.verifier,
+    }),
+    promised ? source : initial,
   );
   createComputed(
     on(
       () => props.tenant,
       (next) => {
-        if (next !== undefined) {
-          store
-            .get()
-            .refresh({ tenant: next })
-            .catch(() => undefined);
-        }
+        switchTenant(store, next);
       },
       { defer: true },
     ),
@@ -63,9 +57,7 @@ export function PermDockProvider(props: PermDockProviderProps): JSX.Element {
   onCleanup(() => {
     store.dispose();
   });
-  if (promised) {
-    store.follow(source);
-  } else if (read !== undefined) {
+  if (!promised && read !== undefined) {
     // An accessor that is still `undefined` (a loading `createResource`)
     // keeps the store pending until its first value.
     let arrive: ((value: Snapshot | string) => void) | undefined;

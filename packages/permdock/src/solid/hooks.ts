@@ -6,11 +6,11 @@ import {
   type Accessor,
 } from "solid-js";
 
+import type { ClientStore } from "../client/store.ts";
 import type { Decision } from "../core/decision.ts";
 import type { Permission } from "../core/permissions.ts";
 import type { Membership } from "../core/subject.ts";
 import type { Role } from "../core/vocabulary.ts";
-import type { ClientStore } from "../react/store.ts";
 import type {
   ApprovalHandle,
   ClientPermDock,
@@ -25,6 +25,7 @@ import type {
 import {
   approvalHandle,
   filterResult,
+  livePermDock,
   permissionSet,
   rolesView,
   subjectView,
@@ -50,12 +51,9 @@ function useVersion(store: ClientStore): Accessor<number> {
 export function usePermDock(): ClientPermDock {
   const store = useStore();
   const version = useVersion(store);
-  // SAFETY: the empty target is never read; the get trap answers from the store's current instance.
-  return new Proxy({} as ClientPermDock, {
-    get(_target, prop, _receiver): unknown {
-      version();
-      return Reflect.get(store.get(), prop);
-    },
+  return livePermDock(() => {
+    version();
+    return store.get();
   });
 }
 

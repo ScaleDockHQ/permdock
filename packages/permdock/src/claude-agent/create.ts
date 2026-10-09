@@ -1,7 +1,6 @@
 import type { ToolMap, ToolVerdict } from "../agent/types.ts";
 import type { ApprovalStore } from "../approvals/types.ts";
 import type { InstanceOptions } from "../core/instance-options.ts";
-import type { SnapshotSource } from "../core/interfaces.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy.ts";
 import type { Delegation, Principal } from "../core/subject.ts";
@@ -43,8 +42,6 @@ export type ClaudeAgentPermDockOptions<TUser = unknown> = InstanceOptions & {
   /** MCP server sources whose `mcp__*` tools may be decided; default `['sdk']`. */
   readonly mcpSources?: readonly string[];
   readonly store?: ApprovalStore;
-  /** @deprecated Not read by any adapter. */
-  readonly snapshots?: SnapshotSource;
 };
 
 export type PermissionResult =

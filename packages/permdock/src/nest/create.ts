@@ -6,7 +6,6 @@ import type {
   ExecutionContext,
   Type,
 } from "@nestjs/common";
-import type { IncomingMessage } from "node:http";
 
 import {
   Catch,
@@ -22,24 +21,18 @@ import {
 } from "@nestjs/common";
 import { APP_FILTER, APP_GUARD, Reflector } from "@nestjs/core";
 
-import type { ApprovalStore } from "../approvals/types.ts";
-import type { InstanceOptions } from "../core/instance-options.ts";
-import type { SnapshotSource } from "../core/interfaces.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permissions.ts";
 import type { Policy } from "../core/policy.ts";
 import type { RevocationFeed } from "../core/revocations.ts";
 import type { Principal } from "../core/subject.ts";
-import type { OtelWrap } from "../otel/types.ts";
-import type { PdpFactory } from "../pdp/types.ts";
+import type { ServerAdapterOptions } from "../server/bind.ts";
 import type { Connection, ConnectionOptions } from "../server/connection.ts";
 import type {
   OpenApiHooks,
   ProtectOptions,
-  TenantOption,
   TenantScope,
 } from "../server/create.ts";
-import type { WebBotAuthVerifier } from "../server/web-bot-auth.ts";
 
 import { compact } from "../core/compact.ts";
 import {
@@ -48,8 +41,7 @@ import {
   PermDockRevokedError,
   PermDockValidationError,
 } from "../core/errors.ts";
-import { instanceOptions } from "../core/instance-options.ts";
-import { createServerKernel, tenantScope } from "../server/create.ts";
+import { bindKernel, socketConnection } from "../server/bind.ts";
 import { problemFromError } from "../server/map-error.ts";
 import { POLICY_VIOLATION, onRevoked } from "../server/stream.ts";
 import { InvalidSignatureError } from "../server/web-bot-auth.ts";
@@ -64,20 +56,10 @@ export type NestRequest = NestHttpRequest & {
   permdockData?: unknown;
 };
 
-export type NestPermDockOptions<TUser = unknown> = InstanceOptions & {
-  readonly subject: (req: NestRequest) => TUser | Promise<TUser>;
-  /** The agent or service acting for the subject; anything but an `Actor` is ignored. */
-  readonly actor?: (req: NestRequest) => unknown;
-  readonly tenant?: TenantOption<NestRequest>;
-  readonly store?: ApprovalStore;
-  /** `createPermDock` from `permdock/pdp`; `protect` then decides delegated permissions remotely. */
-  readonly pdp?: PdpFactory;
-  /** @deprecated Not read by any adapter. */
-  readonly snapshots?: SnapshotSource;
-  /** `(permdock) => withOtel(permdock, options)` from `permdock/otel`. */
-  readonly otel?: OtelWrap;
-  /** `(request) => verifyWebBotAuth(request, options)`; a verified bot becomes the actor. */
-  readonly webBotAuth?: WebBotAuthVerifier;
+export type NestPermDockOptions<TUser = unknown> = ServerAdapterOptions<
+  NestRequest,
+  TUser
+> & {
   /**
    * Maps a `ws`, `rpc` or `graphql` context to the request its subject comes
    * from. Without it, a protected handler outside HTTP is denied.
@@ -248,34 +230,12 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
   policy: Policy<TUser, TPrincipal>,
   options: NestPermDockOptions<TUser>,
 ): NestPermDock {
-  const contexts = new WeakMap<globalThis.Request, NestRequest>();
-  const bound = new WeakMap<IncomingMessage, globalThis.Request>();
-  const kernel = createServerKernel(
+  const { kernel, bind, rebind, scopeOf, handlerScope } = bindKernel(
     policy,
-    compact({
-      subject: (request: globalThis.Request) => {
-        const req = contexts.get(request);
-        return req === undefined ? null : options.subject(req);
-      },
-      actor:
-        options.actor === undefined
-          ? undefined
-          : (request: globalThis.Request): unknown => {
-              const req = contexts.get(request);
-              return req === undefined ? undefined : options.actor?.(req);
-            },
-      ...instanceOptions(options),
-      store: options.store,
-      pdp: options.pdp,
-      webBotAuth: options.webBotAuth,
-      revocations: options.revocations,
-      adapter: "nest",
-      wrap: options.otel,
-    }),
+    options,
+    "nest",
+    toRequest,
   );
-
-  const scopeOf = (req: NestRequest): Promise<TenantScope> =>
-    tenantScope(options.tenant, req);
 
   const applyProtect = async (
     remaining: readonly ProtectRule[],
@@ -301,29 +261,14 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     await applyProtect(rest, req, request, scope, load);
   };
 
-  const bind = (req: NestRequest): globalThis.Request => {
-    const hit = bound.get(req);
-    if (hit !== undefined) {
-      return hit;
-    }
-    const request = toRequest(req);
-    bound.set(req, request);
-    contexts.set(request, req);
-    return request;
-  };
-
   const sockets = new WeakMap<object, Promise<Connection>>();
 
   const connection = (
     client: NestSocket,
     req: NestRequest,
     connectionOptions?: ConnectionOptions,
-  ): Promise<Connection> => {
-    const hit = sockets.get(client);
-    if (hit !== undefined) {
-      return hit;
-    }
-    const opened = (async (): Promise<Connection> => {
+  ): Promise<Connection> =>
+    socketConnection(sockets, client, async () => {
       const conn = await kernel.connection(
         bind(req),
         connectionOptions,
@@ -338,10 +283,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         }
       });
       return conn;
-    })();
-    sockets.set(client, opened);
-    return opened;
-  };
+    });
 
   /** Decides each rule for a gateway message against the client's connection, as `protect` does for HTTP. */
   const checkMessage = async (
@@ -468,8 +410,6 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
   Injectable()(PermDockExceptionFilter);
 
   class PermDockRoot {
-    public static readonly adapter = "nest" as const;
-
     public static forRoot(
       moduleOptions: PermDockModuleOptions = {},
     ): DynamicModule {
@@ -517,21 +457,12 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
   const permdockHandler = (
     handlerOptions: NestHandlerOptions = {},
   ): Type<unknown> => {
-    const { POST, GET } = kernel.permdockHandler((request) => {
-      const req = contexts.get(request);
-      return req === undefined ? { tenant: undefined } : scopeOf(req);
-    });
+    const { POST, GET } = kernel.permdockHandler(handlerScope);
     class EvaluationsController {
       private readonly send = sendNestResponse;
 
       public async post(req: NestRequest, res: unknown): Promise<void> {
-        const request = toRequest(req);
-        contexts.set(request, req);
-        const previous = bound.get(req);
-        if (previous !== undefined) {
-          kernel.shareSubject(previous, request);
-        }
-        await this.send(res, await POST(request));
+        await this.send(res, await POST(rebind(req)));
       }
 
       public async get(req: NestRequest, res: unknown): Promise<void> {

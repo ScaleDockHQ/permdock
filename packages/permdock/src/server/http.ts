@@ -56,6 +56,11 @@ export function requestFromContext(context: object): Request | undefined {
   return undefined;
 }
 
+/** Whether the caller sent credentials, which turns a `401` into a `WWW-Authenticate` challenge. */
+export function hasCredentials(request: Request): boolean {
+  return request.headers.has("authorization");
+}
+
 /** The Problem Details `detail` of `cause`, or `fallback` when it has none. */
 export function problemMessage(cause: unknown, fallback: string): string {
   if (

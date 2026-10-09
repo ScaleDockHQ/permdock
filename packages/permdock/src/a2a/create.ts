@@ -26,12 +26,9 @@ import {
 import { instanceOptions } from "../core/instance-options.ts";
 import { mayUse } from "../core/may-use.ts";
 import { challengeScope, scopesReaching } from "../core/oauth-scopes.ts";
+import { resourceRef } from "../core/resource-ref.ts";
 import { bytesToBase64Url } from "../core/sha256.ts";
 import { bearerChallenge, wwwAuthenticate } from "../server/problem.ts";
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
 
 function firstScheme(options: A2aPermDockOptions): string | undefined {
   return Object.keys(options.securitySchemes)[0];
@@ -157,19 +154,6 @@ function actorOf(auth: A2aAuth): Actor | undefined {
 
 function hasScope(auth: A2aAuth, scopes: readonly string[]): boolean {
   return scopes.some((scope) => auth.scopes?.includes(scope) === true);
-}
-
-function resourceRef(
-  permission: Permission,
-  data: unknown,
-): { readonly type: string; readonly id?: string } {
-  if (!isRecord(data)) {
-    return { type: permission.resource };
-  }
-  const id = data["id"];
-  return typeof id === "string" || typeof id === "number"
-    ? { type: permission.resource, id: String(id) }
-    : { type: permission.resource };
 }
 
 const LOAD_FAILED: Extract<Decision, { readonly outcome: "denied" }> = {

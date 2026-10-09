@@ -148,16 +148,6 @@ function typeMatches(type: string, resource: string): boolean {
   return type.endsWith(`/${resource}`);
 }
 
-export function resourceIdOf(data: unknown): string | undefined {
-  if (data === null || typeof data !== "object" || !("id" in data)) {
-    return undefined;
-  }
-  const id = data.id;
-  return typeof id === "string" || typeof id === "number"
-    ? String(id)
-    : undefined;
-}
-
 /**
  * Whether the subject's principal is a `from` of the delegation: every item
  * matches, with roles checked against the roles the principal holds here

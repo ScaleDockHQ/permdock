@@ -21,7 +21,7 @@ import {
   tenantOf,
 } from "../core/scopes.ts";
 import { heldRoleNames } from "../core/snapshot-subject.ts";
-import { resolveActiveTenant } from "../core/tenancy.ts";
+import { nowSeconds, resolveActiveTenant } from "../core/tenancy.ts";
 
 /** What the device holds for the signed-in user, read from its local database. */
 export type LocalSnapshotData = {
@@ -182,7 +182,7 @@ function customScope(
 export function buildLocalSnapshot(
   manifest: LocalSnapshotManifest,
   data: LocalSnapshotData,
-  now: number = Math.floor(Date.now() / 1000),
+  now: number = Math.floor(nowSeconds()),
 ): Snapshot {
   if (
     manifest === null ||

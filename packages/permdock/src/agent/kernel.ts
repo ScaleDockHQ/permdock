@@ -2,7 +2,7 @@ import type { Decision } from "../core/decision.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permissions.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy.ts";
-import type { Actor, Delegation, Principal } from "../core/subject.ts";
+import type { Delegation, Principal } from "../core/subject.ts";
 import type { Boundary } from "../core/validation.ts";
 import type {
   AgentKernelOptions,
@@ -14,37 +14,13 @@ import type {
 } from "./types.ts";
 
 import { resumeDecision, storedApprovalToken } from "../approvals/helpers.ts";
+import { actorFrom, tenantScope } from "../core/adapter-context.ts";
 import { compact } from "../core/compact.ts";
 import { instanceOptions } from "../core/instance-options.ts";
 import { mayUse } from "../core/may-use.ts";
 import { createPermDock as createCorePermDock } from "../core/permdock.ts";
+import { resourceRef } from "../core/resource-ref.ts";
 import { modelReason, thrownReason, unmappedReason } from "./reason.ts";
-
-function asActor(value: unknown): Actor | undefined {
-  if (value === null || typeof value !== "object" || Array.isArray(value)) {
-    return undefined;
-  }
-  // SAFETY: checked above to be a non-array object; id and kind are typeof-checked below.
-  const record = value as { readonly id?: unknown; readonly kind?: unknown };
-  if (typeof record.id !== "string" || typeof record.kind !== "string") {
-    return undefined;
-  }
-  return { id: record.id, kind: record.kind };
-}
-
-async function resolveTenant<TContext>(
-  tenant: AgentKernelOptions<TContext>["tenant"],
-  context: TContext,
-): Promise<string | undefined> {
-  if (tenant === undefined || typeof tenant === "string") {
-    return tenant;
-  }
-  try {
-    return await tenant(context);
-  } catch {
-    return undefined;
-  }
-}
 
 /** The resume token an agent run carries under the namespaced `permdockApproval` key. */
 export function approvalTokenOf(context: unknown): string | undefined {
@@ -55,28 +31,6 @@ export function approvalTokenOf(context: unknown): string | undefined {
   const token = (context as { readonly permdockApproval?: unknown })
     .permdockApproval;
   return typeof token === "string" && token !== "" ? token : undefined;
-}
-
-export function idOf(data: unknown): string | undefined {
-  if (data === null || typeof data !== "object") {
-    return undefined;
-  }
-  // SAFETY: checked above to be a non-null object; id is typeof-checked below.
-  const id = (data as { readonly id?: unknown }).id;
-  if (typeof id === "string" || typeof id === "number") {
-    return String(id);
-  }
-  return undefined;
-}
-
-export function resourceRef(
-  permission: Permission,
-  data: unknown,
-): { readonly type: string; readonly id?: string } {
-  return compact({
-    type: permission.resource,
-    id: idOf(data),
-  });
 }
 
 function runDecide(
@@ -163,14 +117,7 @@ export function createAgentKernel<
       } catch {
         user = null;
       }
-      let actor: Actor | undefined;
-      if (options.actor !== undefined) {
-        try {
-          actor = asActor(await options.actor(context));
-        } catch {
-          actor = undefined;
-        }
-      }
+      const actor = await actorFrom(options.actor, context);
       let delegation: Delegation | undefined;
       if (options.delegation !== undefined) {
         try {
@@ -179,7 +126,7 @@ export function createAgentKernel<
           delegation = undefined;
         }
       }
-      const tenant = await resolveTenant(options.tenant, context);
+      const { tenant } = await tenantScope(options.tenant, context);
       const created = await createCorePermDock(
         policy,
         user,

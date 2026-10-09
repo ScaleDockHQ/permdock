@@ -20,6 +20,11 @@ import {
 import { jsonSchemaOf } from "./catalog-doc.ts";
 import { apiKeyAllowsCall } from "./rls-api-keys.ts";
 import {
+  compileConditionSql,
+  contextRefs,
+  sqlFunctionNames,
+} from "./rls-conditions.ts";
+import {
   breakGlassHolder,
   breakGlassKey,
   collectGrants,
@@ -30,10 +35,7 @@ import { requiresSql } from "./rls-permission-keys.ts";
 import {
   arrayColumnsOf,
   columnTypesOf,
-  compileConditionSql,
-  contextRefs,
   quoteLiteral,
-  sqlFunctionNames,
   subjectClaimJsonSql,
   subjectClaimSql,
 } from "./rls-sql.ts";

@@ -19,6 +19,7 @@ import type {
 
 import { parseCatalog } from "../catalog/parse.ts";
 import { freezeDeep } from "../core/freeze.ts";
+import { quoteSqlLiteral, sqlIdent } from "../core/sql.ts";
 import { parseSupabaseManifest } from "../supabase/manifest.ts";
 
 export type AuthorizationProviderOptions = {
@@ -45,17 +46,13 @@ type DisabledRow = NonNullable<
   NonNullable<AuthorizationProvider["suspension"]>["user"]
 >;
 
-const PLAIN_IDENT = /^[a-z_][a-z0-9_]*$/u;
-
-/** Quotes a Postgres identifier unless it is already lower snake case. */
-export const sqlIdent = (name: string): string =>
-  PLAIN_IDENT.test(name) ? name : `"${name.replaceAll('"', '""')}"`;
-
 /** The templates that call one `rls generate` helper; `canApprove` comes from the `approver` option. */
 type Template = Exclude<keyof AuthorizationFunctions, "canApprove">;
 
 type TemplateEntry = {
   readonly helper: string;
+  /** The manifest's `rls.helpers` name that `rls generate` writes alongside `helper`. */
+  readonly listedAs?: string;
   readonly args: string;
   readonly role: string;
   /** Prefixed with the schema, or with `{schema}` where the schema goes. */
@@ -69,28 +66,32 @@ type TemplateEntry = {
  */
 const TEMPLATES: Readonly<Record<Template, TemplateEntry>> = {
   idsWith: {
-    helper: "permitted_{scope}_ids",
+    helper: "permitted_{scope}_ids_by_permission",
+    listedAs: "permitted_{scope}_ids",
     args: "text",
     role: "authenticated",
-    sql: "permitted_{scope}_ids({permission})",
+    sql: "permitted_{scope}_ids_by_permission({permission})",
   },
   isPlatform: {
-    helper: "permdock_has",
+    helper: "permdock_has_permission",
+    listedAs: "permdock_has",
     args: "text",
     role: "authenticated",
-    sql: "permdock_has({permission})",
+    sql: "permdock_has_permission({permission})",
   },
   idsWithFor: {
-    helper: "permitted_{scope}_ids_for",
+    helper: "permitted_{scope}_ids_by_permission_for",
+    listedAs: "permitted_{scope}_ids_for",
     args: "uuid, text",
     role: "postgres",
-    sql: "permitted_{scope}_ids_for({user}, {permission})",
+    sql: "permitted_{scope}_ids_by_permission_for({user}, {permission})",
   },
   isPlatformFor: {
-    helper: "permdock_has_for",
+    helper: "permdock_has_permission_for",
+    listedAs: "permdock_has_for",
     args: "uuid, text",
     role: "postgres",
-    sql: "permdock_has_for({user}, {permission})",
+    sql: "permdock_has_permission_for({user}, {permission})",
   },
   memberIds: {
     helper: "member_{scope}_ids",
@@ -141,6 +142,9 @@ const ASSIGN_ANY: Readonly<
   },
 };
 
+const listedName = (entry: TemplateEntry): string =>
+  entry.listedAs ?? entry.helper;
+
 const OPTIONAL: readonly Template[] = [
   "idsWithFor",
   "isPlatformFor",
@@ -166,9 +170,6 @@ const withSchema = (schema: string, sql: string): string =>
   sql.includes("{schema}")
     ? sql.replaceAll("{schema}", schema)
     : `${schema}.${sql}`;
-
-const sqlLiteral = (value: string): string =>
-  `'${value.replaceAll("'", "''")}'`;
 
 /** `p_user uuid, p_grant text` as `uuid, text`. */
 const argTypes = (args: string): string =>
@@ -358,7 +359,7 @@ export function authorizationProvider(
       ? ASSIGN_ANY[template]
       : TEMPLATES[template];
   const listed = (template: Template, scope: string): boolean =>
-    helpers.has(entryOf(template).helper.replaceAll("{scope}", scope));
+    helpers.has(listedName(entryOf(template)).replaceAll("{scope}", scope));
   const templates: Template[] = [
     "idsWith",
     "isPlatform",
@@ -367,7 +368,7 @@ export function authorizationProvider(
   for (const template of ["idsWith", "isPlatform"] as const) {
     if (!listed(template, tenantScope)) {
       problems.push(
-        `The manifest's rls.helpers has no ${rls.schema}.${TEMPLATES[template].helper.replaceAll("{scope}", tenantScope)}. Run \`permdock rls generate\`, then \`permdock supabase inspect --out\`.`,
+        `The manifest's rls.helpers has no ${rls.schema}.${listedName(TEMPLATES[template]).replaceAll("{scope}", tenantScope)}. Run \`permdock rls generate\`, then \`permdock supabase inspect --out\`.`,
       );
     }
   }
@@ -425,7 +426,7 @@ export function authorizationProvider(
       );
     }
     const name = `permitted_${tenantScope}_ids_by_permission`;
-    canApprove = `{tenant} in (select ${schema}.${sqlIdent(name)}(${sqlLiteral(approver.key)}))`;
+    canApprove = `{tenant} in (select ${schema}.${sqlIdent(name)}(${quoteSqlLiteral(approver.key)}))`;
     requires.push({
       function: `${schema}.${sqlIdent(name)}`,
       args: "text",

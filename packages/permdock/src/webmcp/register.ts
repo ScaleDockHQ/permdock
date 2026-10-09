@@ -25,6 +25,7 @@ import {
   resourceOfNode,
   listPermissions,
 } from "../core/permissions.ts";
+import { resourceRef } from "../core/resource-ref.ts";
 import { ignoreRejection, isThenable } from "../core/thenable.ts";
 import { PermDockValidationError } from "../core/validation-error.ts";
 import { wireDenials } from "../core/wire-denial.ts";
@@ -191,19 +192,6 @@ function bindTenant(
   return { ok: true, input: { ...input, [tenantKey]: tenant } };
 }
 
-function resourceRef(
-  permission: Permission,
-  data: unknown,
-): { readonly type: string; readonly id?: string } {
-  if (permission.kind === "collection" || !isRecord(data)) {
-    return { type: permission.resource };
-  }
-  const id = data["id"];
-  return typeof id === "string" || typeof id === "number"
-    ? { type: permission.resource, id: String(id) }
-    : { type: permission.resource };
-}
-
 function alternativesOf(
   decision: Extract<Decision, { readonly outcome: "denied" }>,
 ): string[] {
@@ -225,7 +213,10 @@ function deniedResult(
     structuredContent: compact({
       outcome: "denied" as const,
       permission: permission.key,
-      resource: resourceRef(permission, data),
+      resource: resourceRef(
+        permission,
+        permission.kind === "collection" ? undefined : data,
+      ),
       denials: wireDenials(decision.denials),
       alternatives,
       detail: described.detail,
@@ -243,7 +234,10 @@ function approvalResult(
     structuredContent: {
       outcome: "approval-required" as const,
       permission: permission.key,
-      resource: resourceRef(permission, data),
+      resource: resourceRef(
+        permission,
+        permission.kind === "collection" ? undefined : data,
+      ),
       token: decision.token,
     },
   };

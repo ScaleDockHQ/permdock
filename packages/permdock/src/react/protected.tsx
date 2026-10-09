@@ -2,7 +2,7 @@ import { type ReactNode, Suspense, useMemo } from "react";
 
 import type { ProtectedProps } from "./types.ts";
 
-import { protectedView } from "../client/views.ts";
+import { protectedView, scopedTenant } from "../client/views.ts";
 import { usePermission, usePermDock } from "./hooks.ts";
 
 export function Protected(props: ProtectedProps): ReactNode {
@@ -20,7 +20,7 @@ function Guard(props: ProtectedProps): ReactNode {
   const root = usePermDock();
   const local = usePermission(props.permission, props.data);
   const scoped = useMemo(
-    () => (props.tenant === undefined ? undefined : root.tenant(props.tenant)),
+    () => scopedTenant(root, props.tenant),
     [root, props.tenant],
   );
   const view = protectedView(local, root, props.permission, props.data, scoped);

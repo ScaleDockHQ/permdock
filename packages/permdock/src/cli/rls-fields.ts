@@ -4,8 +4,8 @@ import type { RlsSqlContext } from "./rls-sql.ts";
 
 import { jsonSchemaOf } from "./catalog-doc.ts";
 import { andSql, branchClauses, wrapSql } from "./rls-compile.ts";
-import { helperSchema, signedIn } from "./rls-helpers.ts";
 import { orSql } from "./rls-policies.ts";
+import { helperSchema, signedIn } from "./rls-shared.ts";
 import {
   qualifiedTable,
   quoteIdent,

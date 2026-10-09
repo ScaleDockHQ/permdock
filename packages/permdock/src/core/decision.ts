@@ -178,3 +178,10 @@ export type Decision =
   | GrantedDecision
   | DeniedDecision
   | ApprovalRequiredDecision;
+
+/** The denial for a check that failed or named no declared permission. */
+export const NO_GRANT: DeniedDecision = Object.freeze({
+  outcome: "denied",
+  denials: Object.freeze([Object.freeze({ role: null, reason: "no-grant" })]),
+  alternatives: Object.freeze([]),
+});

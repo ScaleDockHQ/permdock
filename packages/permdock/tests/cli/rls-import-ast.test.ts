@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 
+import { sqlFunctionNames } from "../../src/cli/rls-conditions.ts";
 import {
   canonicalDump,
   conditionFromAst,
   fingerprintSql,
 } from "../../src/cli/rls-import-ast.ts";
-import { sqlFunctionNames } from "../../src/cli/rls-sql.ts";
 
 const memberships = {
   tenant: {

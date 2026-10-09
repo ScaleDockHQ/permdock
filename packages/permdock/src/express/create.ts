@@ -8,44 +8,21 @@ import type {
 
 import express from "express";
 
-import type { ApprovalStore } from "../approvals/types.ts";
-import type { InstanceOptions } from "../core/instance-options.ts";
-import type { SnapshotSource } from "../core/interfaces.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permissions.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy.ts";
 import type { Principal } from "../core/subject.ts";
-import type { OtelWrap } from "../otel/types.ts";
-import type { PdpFactory } from "../pdp/types.ts";
-import type {
-  OpenApiHooks,
-  ProtectOptions,
-  TenantOption,
-  TenantScope,
-} from "../server/create.ts";
-import type { WebBotAuthVerifier } from "../server/web-bot-auth.ts";
+import type { ServerAdapterOptions } from "../server/bind.ts";
+import type { OpenApiHooks, ProtectOptions } from "../server/create.ts";
 
-import { compact } from "../core/compact.ts";
-import { instanceOptions } from "../core/instance-options.ts";
-import { createServerKernel, tenantScope } from "../server/create.ts";
+import { bindKernel, decorate } from "../server/bind.ts";
 import { problemFromError } from "../server/map-error.ts";
 import { sendResponse, toRequest } from "./http.ts";
 
-export type ExpressPermDockOptions<TUser = unknown> = InstanceOptions & {
-  readonly subject: (req: Request) => TUser | Promise<TUser>;
-  /** The agent or service acting for the subject; anything but an `Actor` is ignored. */
-  readonly actor?: (req: Request) => unknown;
-  readonly tenant?: TenantOption<Request>;
-  readonly store?: ApprovalStore;
-  /** `createPermDock` from `permdock/pdp`; `protect` then decides delegated permissions remotely. */
-  readonly pdp?: PdpFactory;
-  /** @deprecated Not read by any adapter. */
-  readonly snapshots?: SnapshotSource;
-  /** `(permdock) => withOtel(permdock, options)` from `permdock/otel`. */
-  readonly otel?: OtelWrap;
-  /** `(request) => verifyWebBotAuth(request, options)`; a verified bot becomes the actor. */
-  readonly webBotAuth?: WebBotAuthVerifier;
-};
+export type ExpressPermDockOptions<TUser = unknown> = ServerAdapterOptions<
+  Request,
+  TUser
+>;
 
 export type PermDockRequest<
   T = unknown,
@@ -119,17 +96,6 @@ const withPermDock =
     }, next);
   };
 
-/** Runs `use` on the Express request bound to `request`; `fallback` for a request this adapter never bound. */
-export function withBound<T>(
-  contexts: WeakMap<globalThis.Request, Request>,
-  request: globalThis.Request,
-  use: (req: Request) => T,
-  fallback: T,
-): T {
-  const req = contexts.get(request);
-  return req === undefined ? fallback : use(req);
-}
-
 export function createPermDock<
   TUser,
   TPrincipal extends Principal = Principal,
@@ -138,62 +104,16 @@ export function createPermDock<
   policy: Policy<TUser, TPrincipal, V>,
   options: ExpressPermDockOptions<TUser>,
 ): ExpressPermDock<V> {
-  const contexts = new WeakMap<globalThis.Request, Request>();
-  const bound = new WeakMap<Request, globalThis.Request>();
-  const kernel = createServerKernel(
+  const { kernel, bind, rebind, scopeOf, handlerScope } = bindKernel(
     policy,
-    compact({
-      subject: (request: globalThis.Request) =>
-        withBound(contexts, request, options.subject, null),
-      actor:
-        options.actor === undefined
-          ? undefined
-          : (request: globalThis.Request): unknown =>
-              withBound(
-                contexts,
-                request,
-                (req): unknown => options.actor?.(req),
-                undefined,
-              ),
-      ...instanceOptions(options),
-      store: options.store,
-      pdp: options.pdp,
-      webBotAuth: options.webBotAuth,
-      adapter: "express",
-      wrap: options.otel,
-    }),
+    options,
+    "express",
+    toRequest,
   );
-
-  const bind = (req: Request): globalThis.Request => {
-    const hit = bound.get(req);
-    if (hit !== undefined) {
-      return hit;
-    }
-    const request = toRequest(req);
-    bound.set(req, request);
-    contexts.set(request, req);
-    return request;
-  };
-
-  const scopeOf = (req: Request): Promise<TenantScope> =>
-    tenantScope(options.tenant, req);
-
-  /** The decision endpoint reads the body a parser may have consumed since `bind`. */
-  const rebind = (req: Request): globalThis.Request => {
-    const request = toRequest(req);
-    contexts.set(request, req);
-    const previous = bound.get(req);
-    if (previous !== undefined) {
-      kernel.shareSubject(previous, request);
-    }
-    return request;
-  };
 
   const permdock = (): RequestHandler => (req, res, next) => {
     respond(req, res, next, async () => {
-      const instance = await kernel.permdock(bind(req), await scopeOf(req));
-      // SAFETY: this assignment is what makes req a PermDockRequest.
-      (req as PermDockRequest).permdock = instance;
+      decorate(req, await kernel.permdock(bind(req), await scopeOf(req)));
       next();
     });
   };
@@ -215,25 +135,13 @@ export function createPermDock<
           await sendResponse(res, guard.response);
           return;
         }
-        // SAFETY: the next line assigns permdock, which makes req a PermDockRequest.
-        const scoped = req as PermDockRequest;
-        scoped.permdock = guard.permdock;
-        scoped.permdockData = guard.data;
+        decorate(req, guard.permdock, guard.data);
         next();
       });
     };
 
   const permdockHandler = (): Router => {
-    const { POST, GET } = kernel.permdockHandler((request) =>
-      withBound<TenantScope | Promise<TenantScope>>(
-        contexts,
-        request,
-        scopeOf,
-        {
-          tenant: undefined,
-        },
-      ),
-    );
+    const { POST, GET } = kernel.permdockHandler(handlerScope);
     const router = express.Router({ mergeParams: true });
     router.post("/", (req, res, next) => {
       respond(req, res, next, async () => {

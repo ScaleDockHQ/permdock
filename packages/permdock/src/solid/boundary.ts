@@ -9,7 +9,7 @@ import {
 import type { PermissionBoundaryState } from "../client/boundary.ts";
 import type { PermissionBoundaryProps, SolidChild } from "./types.ts";
 
-import { boundaryDigest } from "../client/boundary.ts";
+import { boundaryDigest, boundaryFallback } from "../client/boundary.ts";
 
 const BoundaryContext = createContext<PermissionBoundaryState | null>(null);
 
@@ -38,10 +38,7 @@ export function PermissionBoundary(
       return createComponent(BoundaryContext.Provider, {
         value: state,
         get children(): SolidChild {
-          const chosen =
-            digest.outcome === "approval-required"
-              ? (props.approval ?? props.denied)
-              : props.denied;
+          const chosen = boundaryFallback(digest, props);
           return typeof chosen === "function"
             ? chosen(state)
             : (chosen ?? null);

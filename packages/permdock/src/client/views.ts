@@ -2,7 +2,7 @@ import type { Decision, GrantedDecision } from "../core/decision.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permissions.ts";
 import type { Role } from "../core/vocabulary.ts";
-import type { ClientStore } from "../react/store.ts";
+import type { ClientStore } from "./store.ts";
 import type {
   ApprovalHandle,
   ClientPermDock,
@@ -12,7 +12,7 @@ import type {
   SubjectView,
   TenantView,
   UseRolesOptions,
-} from "../react/types.ts";
+} from "./types.ts";
 
 export function permissionSet(
   store: ClientStore,
@@ -107,6 +107,24 @@ export type ProtectedView =
       readonly decision: GrantedDecision;
       readonly slot: "default";
     };
+
+/** The root's view of another tenant for a `Protected` with a `tenant` prop; `undefined` answers the active one. */
+export function scopedTenant(
+  root: PermDock,
+  tenant: string | undefined,
+): PermDock | undefined {
+  return tenant === undefined ? undefined : root.tenant(tenant);
+}
+
+/** An instance whose every read answers from `current()`, so a held reference follows the store. */
+export function livePermDock(current: () => ClientPermDock): ClientPermDock {
+  // SAFETY: the empty target is never read; the get trap answers from the store's current instance.
+  return new Proxy({} as ClientPermDock, {
+    get(_target, prop, _receiver): unknown {
+      return Reflect.get(current(), prop);
+    },
+  });
+}
 
 /**
  * `local` answers the active tenant; `scoped`, the root's view of another

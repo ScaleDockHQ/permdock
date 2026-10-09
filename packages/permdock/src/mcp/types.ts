@@ -22,7 +22,6 @@ import type { ApprovalStore } from "../approvals/types.ts";
 import type { ClientNames } from "../core/clients.ts";
 import type { ApprovalHint } from "../core/errors.ts";
 import type { InstanceOptions } from "../core/instance-options.ts";
-import type { SnapshotSource } from "../core/interfaces.ts";
 import type { Permission } from "../core/permissions.ts";
 import type { Principal } from "../core/subject.ts";
 import type { OtelWrap } from "../otel/types.ts";
@@ -200,8 +199,6 @@ export type McpPermDockOptions<TUser = unknown> = InstanceOptions & {
     readonly mint: (token: string, context?: never) => Promise<string>;
   };
   readonly store?: ApprovalStore;
-  /** @deprecated Not read by any adapter. */
-  readonly snapshots?: SnapshotSource;
   /** `(permdock) => withOtel(permdock, options)` from `permdock/otel`. */
   readonly otel?: OtelWrap;
 };

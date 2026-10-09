@@ -6,9 +6,9 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import { createAgentKernel } from "../../src/agent/kernel.ts";
+import { createClientStore } from "../../src/client/store.ts";
 import { createPermDock } from "../../src/index.ts";
 import { createPermDock as createMcpPermDock } from "../../src/mcp/index.ts";
-import { createClientStore } from "../../src/react/store.ts";
 import { createPermDock as createServerPermDock } from "../../src/server/index.ts";
 import { reasonOf } from "../fixtures/decisions.ts";
 import {

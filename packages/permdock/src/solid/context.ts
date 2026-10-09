@@ -1,6 +1,6 @@
 import { createContext, useContext, type Context } from "solid-js";
 
-import type { ClientStore } from "../react/store.ts";
+import type { ClientStore } from "../client/store.ts";
 
 export const PermDockContext: Context<ClientStore | undefined> = createContext<
   ClientStore | undefined

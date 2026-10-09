@@ -1,7 +1,7 @@
 "use client";
 
 export { describe, requiredPlans } from "../core/describe.ts";
-export { approvalHeaders } from "../react/headers.ts";
+export { approvalHeaders } from "../client/headers.ts";
 export {
   useApproval,
   useAssignablePermissions,
@@ -24,10 +24,10 @@ export type {
   FilterResult,
   PermissionSet,
   PermissionState,
-  ProtectedProps,
   SubjectView,
   TenantView,
-} from "../react/types.ts";
+} from "../client/types.ts";
+export type { ProtectedProps } from "../react/types.ts";
 export { parseLocalSnapshotManifest } from "../core/parse-local-manifest.ts";
 export { useSnapshotReady, usePermissionGuard } from "./guards.ts";
 export { buildLocalSnapshot, localSnapshot } from "./local.ts";

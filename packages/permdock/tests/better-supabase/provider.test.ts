@@ -42,8 +42,8 @@ describe("authorizationProvider", () => {
       scopes: [{ name: "tenant", idType: "uuid" }],
       tenantScope: "tenant",
       functions: {
-        idsWith: "permdock.permitted_{scope}_ids({permission})",
-        isPlatform: "permdock.permdock_has({permission})",
+        idsWith: "permdock.permitted_{scope}_ids_by_permission({permission})",
+        isPlatform: "permdock.permdock_has_permission({permission})",
         memberIds: "permdock.member_{scope}_ids()",
         memberIdsFor: "permdock.member_{scope}_ids_for({user})",
       },
@@ -79,12 +79,12 @@ describe("authorizationProvider", () => {
     });
     expect(provider.requires).toEqual([
       {
-        function: "permdock.permitted_tenant_ids",
+        function: "permdock.permitted_tenant_ids_by_permission",
         args: "text",
         role: "authenticated",
       },
       {
-        function: "permdock.permdock_has",
+        function: "permdock.permdock_has_permission",
         args: "text",
         role: "authenticated",
       },
@@ -141,11 +141,13 @@ describe("authorizationProvider", () => {
       { name: "customer", idType: "uuid", parent: "organization" },
     ]);
     expect(provider.functions).toMatchObject({
-      idsWithFor: "permdock.permitted_{scope}_ids_for({user}, {permission})",
-      isPlatformFor: "permdock.permdock_has_for({user}, {permission})",
+      idsWithFor:
+        "permdock.permitted_{scope}_ids_by_permission_for({user}, {permission})",
+      isPlatformFor:
+        "permdock.permdock_has_permission_for({user}, {permission})",
     });
     expect(provider.requires).toContainEqual({
-      function: "permdock.permitted_customer_ids_for",
+      function: "permdock.permitted_customer_ids_by_permission_for",
       args: "uuid, text",
       role: "postgres",
     });
@@ -247,7 +249,7 @@ describe("authorizationProvider", () => {
       }),
     });
     expect(provider.functions.idsWith).toBe(
-      '"AuthZ".permitted_{scope}_ids({permission})',
+      '"AuthZ".permitted_{scope}_ids_by_permission({permission})',
     );
     expect(provider.functions.memberIds).toBeUndefined();
     expect(provider.memberships).toBeUndefined();

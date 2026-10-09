@@ -6,12 +6,11 @@ import type { SubjectRef } from "../../src/conditions/refs.ts";
 
 import { compileGrants } from "../../src/cli/rls-compile.ts";
 import {
-  arrayColumnsOf,
   claimPath,
-  columnTypesOf,
   compileConditionSql,
   contextRefs,
-} from "../../src/cli/rls-sql.ts";
+} from "../../src/cli/rls-conditions.ts";
+import { arrayColumnsOf, columnTypesOf } from "../../src/cli/rls-sql.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import {
   allow,

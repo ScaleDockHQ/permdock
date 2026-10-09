@@ -9,8 +9,8 @@ import type { Permission } from "../core/permissions.ts";
 
 import { parseCatalog } from "../catalog/parse.ts";
 import { freezeDeep } from "../core/freeze.ts";
+import { sqlIdent } from "../core/sql.ts";
 import { parseSupabaseManifest } from "../supabase/manifest.ts";
-import { sqlIdent } from "./provider.ts";
 
 export type AccessPolicyOptions = {
   /** `permdock.manifest.json`, parsed or as JSON text: it names the helpers' schema and the scopes. */
@@ -95,8 +95,8 @@ function target(options: AccessPolicyOptions): {
   return {
     catalog,
     sql: {
-      idsWith: `${schema}.permitted_{scope}_ids({permission})`,
-      isPlatform: `${schema}.permdock_has({permission})`,
+      idsWith: `${schema}.permitted_{scope}_ids_by_permission({permission})`,
+      isPlatform: `${schema}.permdock_has_permission({permission})`,
     },
   };
 }

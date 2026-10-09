@@ -1,6 +1,7 @@
 <script lang="ts">
   import {
     boundaryDigest,
+    boundaryFallback,
     type PermissionBoundaryProps,
     type PermissionBoundaryState,
   } from './runtime.ts';
@@ -29,8 +30,7 @@
   {@render children?.()}
   {#snippet failed()}
     {#if refused !== null}
-      {@const fallback =
-        refused.outcome === 'approval-required' ? (approval ?? denied) : denied}
+      {@const fallback = boundaryFallback(refused, { denied, approval })}
       {@render fallback?.(refused)}
     {/if}
   {/snippet}

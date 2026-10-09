@@ -1,10 +1,10 @@
 import { get } from "svelte/store";
 import { describe, expect, it } from "vitest";
 
+import { approvalHeaders } from "../../src/client/headers.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
-import { approvalHeaders } from "../../src/react/headers.ts";
 import { createSvelteStore } from "../../src/svelte/context.ts";
-import { protectedView, scopedFor } from "../../src/svelte/protected.ts";
+import { viewFor, scopedFor } from "../../src/svelte/protected.ts";
 import {
   approvalFor,
   assignableFor,
@@ -46,12 +46,12 @@ describe("permdock/svelte", () => {
   it("answers portable grants from the snapshot without flashing deny", async () => {
     const snapshot = await memberSnapshot();
     const store = createSvelteStore({ snapshot });
-    expect(
-      protectedView(store, defs.post.update, ownPost, undefined).slot,
-    ).toBe("default");
-    expect(
-      protectedView(store, defs.post.update, otherPost, undefined).slot,
-    ).toBe("fallback");
+    expect(viewFor(store, defs.post.update, ownPost, undefined).slot).toBe(
+      "default",
+    );
+    expect(viewFor(store, defs.post.update, otherPost, undefined).slot).toBe(
+      "fallback",
+    );
     expect(
       get(permissionFor(store, defs.post.update, () => ownPost)).allowed,
     ).toBe(true);
@@ -92,7 +92,7 @@ describe("permdock/svelte", () => {
     );
   });
 
-  it("decides <Protected> for another tenant through protectedView", async () => {
+  it("decides <Protected> for another tenant through viewFor", async () => {
     const server = await createPermDock(saasPolicy, alice, { tenant: "acme" });
     const snapshot = server.snapshot({ tenants: "all" });
     if (snapshot instanceof Promise) {
@@ -101,13 +101,8 @@ describe("permdock/svelte", () => {
     const store = createSvelteStore({ snapshot, tenant: "globex" });
     const globexProject = { ...ownProject, id: "g1", orgId: "globex" };
     const slots = [
-      protectedView(
-        store,
-        saas.project.update,
-        ownProject,
-        scopedFor(store, "acme"),
-      ),
-      protectedView(
+      viewFor(store, saas.project.update, ownProject, scopedFor(store, "acme")),
+      viewFor(
         store,
         saas.project.update,
         globexProject,

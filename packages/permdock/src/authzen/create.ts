@@ -9,8 +9,10 @@ import { instanceOptions } from "../core/instance-options.ts";
 import { ownGet } from "../core/paths.ts";
 import { createPermDock as createCorePermDock } from "../core/permdock.ts";
 import { getResource, listPermissions } from "../core/permissions.ts";
+import { resourceRef } from "../core/resource-ref.ts";
 import { permissionLookup } from "../server/evaluation-items.ts";
 import { applyApprovalResume } from "../server/evaluations.ts";
+import { hasCredentials } from "../server/http.ts";
 import {
   DEFAULT_MAX_EVALUATIONS,
   PROBLEM_BASE,
@@ -83,25 +85,6 @@ function withRequestId(request: Request, response: Response): Response {
   return response;
 }
 
-function resourceRef(
-  permission: Permission,
-  data: unknown,
-  item: AuthzenItem,
-): { readonly type: string; readonly id?: string } {
-  const fromRow =
-    data !== null && typeof data === "object" && "id" in data
-      ? data.id
-      : undefined;
-  const fromWire = item.resource?.id;
-  const id =
-    typeof fromRow === "string" || typeof fromRow === "number"
-      ? String(fromRow)
-      : typeof fromWire === "string" || typeof fromWire === "number"
-        ? String(fromWire)
-        : undefined;
-  return compact({ type: permission.resource, id });
-}
-
 export const createPermDock: AuthzenFactory = (policy, options) => {
   const maxEvaluations = options.maxEvaluations ?? DEFAULT_MAX_EVALUATIONS;
   const lookup = permissionLookup(policy.permissions);
@@ -128,7 +111,7 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
       pep = null;
     }
     if ((pep === null || pep === undefined) && !allowAnonymous) {
-      return unauthenticatedProblem(request.headers.has("authorization"));
+      return unauthenticatedProblem(hasCredentials(request));
     }
     return { pep: pep ?? null };
   }
@@ -220,7 +203,7 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
       permdock,
       options.store,
       request,
-      resourceRef(permission, data, item),
+      resourceRef(permission, data, item.resource?.id),
       "authzen",
     );
   }

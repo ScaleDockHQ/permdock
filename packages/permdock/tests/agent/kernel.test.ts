@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  createAgentKernel,
-  idOf,
-  resourceRef,
-} from "../../src/agent/kernel.ts";
+import { createAgentKernel } from "../../src/agent/kernel.ts";
 import { memoryApprovalStore } from "../../src/approvals/index.ts";
 import { mayUse } from "../../src/core/may-use.ts";
 import {
@@ -55,23 +51,6 @@ function tools() {
     },
   };
 }
-
-describe("agent kernel helpers", () => {
-  it("reads a resource id from objects and ignores other values", () => {
-    expect(idOf({ id: "p1" })).toBe("p1");
-    expect(idOf({ id: 7 })).toBe("7");
-    expect(idOf({ id: true })).toBeUndefined();
-    expect(idOf(null)).toBeUndefined();
-    expect(idOf("p1")).toBeUndefined();
-    expect(resourceRef(permissions.post.update, ownPost)).toEqual({
-      type: "post",
-      id: "p1",
-    });
-    expect(resourceRef(permissions.post.list, undefined)).toEqual({
-      type: "post",
-    });
-  });
-});
 
 describe("createAgentKernel", () => {
   it("maps granted, denied and unmapped tools", async () => {
@@ -152,6 +131,27 @@ describe("createAgentKernel", () => {
     });
     const permdock = await kernel.instance({});
     expect(permdock.subject.actor).toEqual({ id: "agent-1", kind: "test" });
+  });
+
+  it("keeps the read-only flag and client name of the actor", async () => {
+    const kernel = createAgentKernel(policy, {
+      adapter: "test",
+      subject: () => memberUser,
+      actor: () => ({
+        id: "support-1",
+        kind: "support",
+        readOnly: true,
+        client: "console",
+      }),
+      tools: tools(),
+    });
+    const permdock = await kernel.instance({});
+    expect(permdock.subject.actor).toEqual({
+      id: "support-1",
+      kind: "support",
+      readOnly: true,
+      client: "console",
+    });
   });
 
   it("lists tools that have any matching grant", async () => {

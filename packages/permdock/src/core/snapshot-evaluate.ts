@@ -14,10 +14,11 @@ import type { Subject } from "./subject.ts";
 import { evaluateCondition } from "../conditions/evaluate.ts";
 import { requiresApproval } from "./approval-required.ts";
 import { compact } from "./compact.ts";
-import { coveredByDelegation, resourceIdOf } from "./delegation.ts";
+import { coveredByDelegation } from "./delegation.ts";
 import { grantCoversField } from "./fields.ts";
 import { freezeDeep } from "./freeze.ts";
 import { matchGrantee } from "./grantee.ts";
+import { resourceIdOf } from "./resource-ref.ts";
 import { rowIdOf, rowValues } from "./row-pair.ts";
 import { type Scope, scopeList } from "./scopes.ts";
 import {

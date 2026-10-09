@@ -45,8 +45,8 @@ describe("bucketPolicy", () => {
       scope: "organization",
       segment: 2,
       sql: {
-        idsWith: "permdock.permitted_{scope}_ids({permission})",
-        isPlatform: "permdock.permdock_has({permission})",
+        idsWith: "permdock.permitted_{scope}_ids_by_permission({permission})",
+        isPlatform: "permdock.permdock_has_permission({permission})",
       },
     });
     expect(Object.isFrozen(policy.access)).toBe(true);
@@ -106,8 +106,8 @@ describe("topicPolicy", () => {
       send: "quotes.list",
       scope: "customer",
       sql: {
-        idsWith: "permdock.permitted_{scope}_ids({permission})",
-        isPlatform: "permdock.permdock_has({permission})",
+        idsWith: "permdock.permitted_{scope}_ids_by_permission({permission})",
+        isPlatform: "permdock.permdock_has_permission({permission})",
       },
     });
     expect(

@@ -1,24 +1,20 @@
 import { type Middleware, defineMiddleware } from "@supabase/middleware";
 
-import type { ApprovalStore } from "../approvals/types.ts";
 import type { Credential } from "../core/credential.ts";
 import type { InstanceOptions } from "../core/instance-options.ts";
-import type { SnapshotSource } from "../core/interfaces.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission, PermissionTree } from "../core/permissions.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy.ts";
 import type { Principal, Subject } from "../core/subject.ts";
-import type { OtelWrap } from "../otel/types.ts";
-import type { PdpFactory } from "../pdp/types.ts";
+import type { ServerAdapterServices } from "../server/bind.ts";
 import type { OpenApiHooks } from "../server/create.ts";
-import type { WebBotAuthVerifier } from "../server/web-bot-auth.ts";
 
 import { compact } from "../core/compact.ts";
 import { credentialSubject } from "../core/credential.ts";
 import { instanceOptions } from "../core/instance-options.ts";
+import { attached } from "../server/bind.ts";
 import { createServerKernel } from "../server/create.ts";
 import { methodNotAllowed } from "../server/problem.ts";
-import { invalidSignatureResponse } from "../server/web-bot-auth.ts";
 
 /**
  * The verified Supabase Auth access-token payload as `@supabase/server`
@@ -61,34 +57,26 @@ export type SupabaseSecretKey = {
 };
 
 export type SupabaseMiddlewarePermDockOptions<TUser = unknown> =
-  InstanceOptions & {
-    /**
-     * Named secret keys (`SUPABASE_SECRET_KEYS`) that act as service
-     * principals when `withSupabase` matched one (`authMode: 'secret'` with
-     * that `authKeyName`). Any other key, an unnamed `secret` and every
-     * `publishable` key stay anonymous.
-     */
-    readonly secretKeys?: Readonly<Record<string, SupabaseSecretKey>>;
-    readonly subject: (
-      ctx: SupabaseMiddlewareContext,
-      request: Request,
-    ) => TUser | Subject | null | Promise<TUser | Subject | null>;
-    readonly tenant?:
-      | string
-      | ((
-          ctx: SupabaseMiddlewareContext,
-          request: Request,
-        ) => string | undefined | Promise<string | undefined>);
-    readonly store?: ApprovalStore;
-    /** `createPermDock` from `permdock/pdp`; `protect` then decides delegated permissions remotely. */
-    readonly pdp?: PdpFactory;
-    /** @deprecated Not read by any adapter. */
-    readonly snapshots?: SnapshotSource;
-    /** `(permdock) => withOtel(permdock, options)` from `permdock/otel`. */
-    readonly otel?: OtelWrap;
-    /** `(request) => verifyWebBotAuth(request, options)`; a verified bot becomes the actor. */
-    readonly webBotAuth?: WebBotAuthVerifier;
-  };
+  InstanceOptions &
+    ServerAdapterServices & {
+      /**
+       * Named secret keys (`SUPABASE_SECRET_KEYS`) that act as service
+       * principals when `withSupabase` matched one (`authMode: 'secret'` with
+       * that `authKeyName`). Any other key, an unnamed `secret` and every
+       * `publishable` key stay anonymous.
+       */
+      readonly secretKeys?: Readonly<Record<string, SupabaseSecretKey>>;
+      readonly subject: (
+        ctx: SupabaseMiddlewareContext,
+        request: Request,
+      ) => TUser | Subject | null | Promise<TUser | Subject | null>;
+      readonly tenant?:
+        | string
+        | ((
+            ctx: SupabaseMiddlewareContext,
+            request: Request,
+          ) => string | undefined | Promise<string | undefined>);
+    };
 
 export type WithPermDockConfig = {
   /** Run `protect` before the handler; a denial short-circuits with Problem Details. */
@@ -256,15 +244,10 @@ export function createPermDock<
           config?.protect === undefined &&
           config?.oauthScopes === undefined
         ) {
-          try {
-            return { permdock: await kernel.permdock(request) };
-          } catch (error) {
-            const response = invalidSignatureResponse(error);
-            if (response !== undefined) {
-              return response;
-            }
-            throw error;
-          }
+          const instance = await attached(() => kernel.permdock(request));
+          return instance.ok
+            ? { permdock: instance.permdock }
+            : instance.response;
         }
         const loadData = config.data;
         const guard = await kernel.protect(

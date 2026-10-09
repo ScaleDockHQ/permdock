@@ -1,18 +1,18 @@
+import type { ClientStore } from "../client/store.ts";
 import type { Snapshot, SnapshotSource } from "../core/interfaces.ts";
-import type { ClientStore } from "../react/store.ts";
 import type {
   NativePermDockProviderProps,
   SubscribeForeground,
 } from "./types.ts";
 
+import { isJws } from "../client/source.ts";
+import { adapterStore } from "../client/store-options.ts";
 import { compact } from "../core/compact.ts";
 import { emptySnapshot } from "../core/from-snapshot.ts";
 import { parseSnapshot } from "../core/snapshot.ts";
-import { createClientStore } from "../react/store.ts";
 import {
   clearStorage,
   guardStorage,
-  isJws,
   persistSnapshot,
   readStored,
   readStoredSync,
@@ -143,9 +143,8 @@ export function createNativeStore(options: NativeStoreOptions): ClientStore {
     options.tenant ?? carried?.tenant() ?? sync?.tenant ?? undefined;
   // A boot or carried snapshot is already in storage; only later answers are written.
   let booted = false;
-  const store = createClientStore(
+  const store = adapterStore(
     compact({
-      snapshot,
       endpoint: options.endpoint,
       snapshotUrl: options.snapshotUrl,
       approvals: options.approvals,
@@ -154,15 +153,14 @@ export function createNativeStore(options: NativeStoreOptions): ClientStore {
       headers: options.headers,
       maxAge: options.maxAge,
       verifier: options.verifier,
-      server: false,
       awaiting: waiting,
-      stale: revalidates && (fromStorage !== undefined || waiting),
       passCache: true,
-      onSnapshot: (
-        next: Snapshot,
-        nextTenant: string | undefined,
-        raw: string | undefined,
-      ) => {
+    }),
+    snapshot,
+    {
+      server: false,
+      stale: revalidates && (fromStorage !== undefined || waiting),
+      onSnapshot: (next, nextTenant, raw) => {
         if (!booted || !belongsTo(next, options.subjectId)) {
           return;
         }
@@ -174,7 +172,7 @@ export function createNativeStore(options: NativeStoreOptions): ClientStore {
       onClear: () => {
         clearStorage(storage);
       },
-    }),
+    },
   );
   booted = true;
   if (seeded !== undefined && typeof seeded !== "string") {

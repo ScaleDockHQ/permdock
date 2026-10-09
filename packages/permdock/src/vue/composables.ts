@@ -9,11 +9,11 @@ import {
   type MaybeRefOrGetter,
 } from "vue";
 
+import type { ClientStore } from "../client/store.ts";
 import type { Decision } from "../core/decision.ts";
 import type { Permission } from "../core/permissions.ts";
 import type { Membership } from "../core/subject.ts";
 import type { Role } from "../core/vocabulary.ts";
-import type { ClientStore } from "../react/store.ts";
 import type {
   ApprovalHandle,
   ClientPermDock,
@@ -28,6 +28,7 @@ import type {
 import {
   approvalHandle,
   filterResult,
+  livePermDock,
   permissionSet,
   rolesView,
   subjectView,
@@ -64,12 +65,7 @@ function useTick(store: ClientStore): ComputedRef<ClientPermDock> {
 export function usePermDock(): ClientPermDock {
   const store = useStore();
   const permdock = useTick(store);
-  // SAFETY: the empty target is never read; the get trap answers from the store's current instance.
-  return new Proxy({} as ClientPermDock, {
-    get(_target, prop, _receiver): unknown {
-      return Reflect.get(permdock.value, prop);
-    },
-  });
+  return livePermDock(() => permdock.value);
 }
 
 export function usePermission(

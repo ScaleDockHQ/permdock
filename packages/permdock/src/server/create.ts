@@ -1,8 +1,9 @@
 import type { ApprovalStore } from "../approvals/types.ts";
+import type { TenantOption, TenantScope } from "../core/adapter-context.ts";
 import type { Decision } from "../core/decision.ts";
 import type { ApprovalHint } from "../core/errors.ts";
 import type { InstanceOptions } from "../core/instance-options.ts";
-import type { Snapshot, SnapshotSource } from "../core/interfaces.ts";
+import type { Snapshot } from "../core/interfaces.ts";
 import type {
   DecideOptions,
   PermDock,
@@ -16,17 +17,22 @@ import type { PdpFactory, PdpPermDock } from "../pdp/types.ts";
 import type { Connection, ConnectionOptions } from "./connection.ts";
 import type { WebBotAuthVerifier } from "./web-bot-auth.ts";
 
+export { tenantScope };
+export type { TenantOption, TenantScope };
+
+import { actorFrom, tenantScope } from "../core/adapter-context.ts";
 import { compact } from "../core/compact.ts";
 import { instanceOptions } from "../core/instance-options.ts";
 import { challengeScope } from "../core/oauth-scopes.ts";
 import { createPermDock as createCorePermDock } from "../core/permdock.ts";
 import { listPermissions } from "../core/permissions.ts";
 import { problemDetails } from "../core/problem-details.ts";
-import { isActor } from "../core/subject.ts";
+import { resourceRef } from "../core/resource-ref.ts";
 import {
   applyApprovalResume,
   createEvaluationsHandler,
 } from "./evaluations.ts";
+import { hasCredentials } from "./http.ts";
 import {
   decisionResponse,
   notFoundProblem,
@@ -55,8 +61,6 @@ export type ServerPermDockOptions<TUser = unknown> = InstanceOptions & {
    * synchronous and keeps denying delegated permissions (`pdp-unavailable`).
    */
   readonly pdp?: PdpFactory;
-  /** @deprecated Not read by any adapter. */
-  readonly snapshots?: SnapshotSource;
   /** Added as `approval` to every `approval-required` problem. */
   readonly approval?: ApprovalHint;
   readonly operations?: OperationScopes;
@@ -150,31 +154,6 @@ export type ProtectOptions = {
   readonly oauthScopes?: readonly string[];
 };
 
-/**
- * The active tenant an adapter resolved from its own framework context.
- * Present means "use this tenant", even when `tenant` is `undefined`.
- */
-export type TenantScope = { readonly tenant: string | undefined };
-
-export type TenantOption<TContext> =
-  | string
-  | ((context: TContext) => string | undefined | Promise<string | undefined>);
-
-/** Resolves an adapter `tenant` option against its framework context; a throw is no tenant. */
-export async function tenantScope<TContext>(
-  option: TenantOption<TContext> | undefined,
-  context: TContext,
-): Promise<TenantScope> {
-  if (option === undefined || typeof option === "string") {
-    return { tenant: option };
-  }
-  try {
-    return { tenant: await option(context) };
-  } catch {
-    return { tenant: undefined };
-  }
-}
-
 export type ServerKernelOptions<
   TUser,
   V extends PolicyVocabulary = PolicyVocabulary,
@@ -265,18 +244,7 @@ async function resolveActor(
     options.webBotAuth === undefined
       ? undefined
       : await options.webBotAuth(request);
-  if (verified !== undefined) {
-    return verified;
-  }
-  if (options.actor === undefined) {
-    return undefined;
-  }
-  try {
-    const resolved = await options.actor(request);
-    return isActor(resolved) ? resolved : undefined;
-  } catch {
-    return undefined;
-  }
+  return verified ?? actorFrom(options.actor, request);
 }
 
 type Built<V extends PolicyVocabulary = PolicyVocabulary> = {
@@ -392,25 +360,6 @@ export function createServerKernel<
   const subjects = new WeakMap<Request, Promise<Resolved<TUser>>>();
   const instances = new WeakMap<Request, Map<string, Promise<Built<V>>>>();
 
-  const resolveSubject = (request: Request): Promise<Resolved<TUser>> => {
-    const hit = subjects.get(request);
-    if (hit !== undefined) {
-      return hit;
-    }
-    const resolved = (async (): Promise<Resolved<TUser>> => {
-      const actor = await resolveActor(request, options);
-      let user: TUser | Subject | null = null;
-      try {
-        user = await options.subject(request);
-      } catch {
-        user = null;
-      }
-      return { user, actor };
-    })();
-    subjects.set(request, resolved);
-    return resolved;
-  };
-
   const freshSubject = async (request: Request): Promise<Resolved<TUser>> => {
     const actor = await resolveActor(request, options);
     try {
@@ -418,6 +367,16 @@ export function createServerKernel<
     } catch {
       return { user: null, actor };
     }
+  };
+
+  const resolveSubject = (request: Request): Promise<Resolved<TUser>> => {
+    const hit = subjects.get(request);
+    if (hit !== undefined) {
+      return hit;
+    }
+    const resolved = freshSubject(request);
+    subjects.set(request, resolved);
+    return resolved;
   };
 
   const instanceFor = async (
@@ -559,7 +518,7 @@ export function createServerKernel<
               new URL(request.url).pathname,
             )),
     );
-    const credentials = request?.headers.has("authorization") ?? false;
+    const credentials = request === undefined ? false : hasCredentials(request);
     if (permission === null) {
       if (declared === undefined) {
         throw new TypeError(
@@ -630,16 +589,7 @@ export function createServerKernel<
       instance,
       options.store,
       request,
-      compact({
-        type: permission.resource,
-        id:
-          data !== null &&
-          typeof data === "object" &&
-          "id" in data &&
-          (typeof data.id === "string" || typeof data.id === "number")
-            ? String(data.id)
-            : undefined,
-      }),
+      resourceRef(permission, data),
       adapter,
     );
     if (decision.outcome === "granted") {

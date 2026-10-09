@@ -10,46 +10,23 @@ import type {
   RouteGenericInterface,
 } from "fastify";
 
-import type { ApprovalStore } from "../approvals/types.ts";
-import type { InstanceOptions } from "../core/instance-options.ts";
-import type { SnapshotSource } from "../core/interfaces.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permissions.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy.ts";
 import type { Principal } from "../core/subject.ts";
-import type { OtelWrap } from "../otel/types.ts";
-import type { PdpFactory } from "../pdp/types.ts";
-import type {
-  OpenApiHooks,
-  ProtectOptions,
-  TenantOption,
-  TenantScope,
-} from "../server/create.ts";
-import type { WebBotAuthVerifier } from "../server/web-bot-auth.ts";
+import type { ServerAdapterOptions } from "../server/bind.ts";
+import type { OpenApiHooks, ProtectOptions } from "../server/create.ts";
 
-import { compact } from "../core/compact.ts";
-import { instanceOptions } from "../core/instance-options.ts";
-import { createServerKernel, tenantScope } from "../server/create.ts";
+import { bindKernel, decorate } from "../server/bind.ts";
 import { problemFromError } from "../server/map-error.ts";
 import { sendReply, toRequest } from "./http.ts";
 
 const SKIP_OVERRIDE = Symbol.for("skip-override");
 
-export type FastifyPermDockOptions<TUser = unknown> = InstanceOptions & {
-  readonly subject: (request: FastifyRequest) => TUser | Promise<TUser>;
-  /** The agent or service acting for the subject; anything but an `Actor` is ignored. */
-  readonly actor?: (request: FastifyRequest) => unknown;
-  readonly tenant?: TenantOption<FastifyRequest>;
-  readonly store?: ApprovalStore;
-  /** `createPermDock` from `permdock/pdp`; `protect` then decides delegated permissions remotely. */
-  readonly pdp?: PdpFactory;
-  /** @deprecated Not read by any adapter. */
-  readonly snapshots?: SnapshotSource;
-  /** `(permdock) => withOtel(permdock, options)` from `permdock/otel`. */
-  readonly otel?: OtelWrap;
-  /** `(request) => verifyWebBotAuth(request, options)`; a verified bot becomes the actor. */
-  readonly webBotAuth?: WebBotAuthVerifier;
-};
+export type FastifyPermDockOptions<TUser = unknown> = ServerAdapterOptions<
+  FastifyRequest,
+  TUser
+>;
 
 export type PermDockRequest<
   Route extends RouteGenericInterface = RouteGenericInterface,
@@ -117,19 +94,6 @@ function skipped(request: FastifyRequest): boolean {
   );
 }
 
-function decorate<V extends PolicyVocabulary>(
-  request: FastifyRequest,
-  instance: PermDock<V>,
-  data?: unknown,
-): void {
-  // SAFETY: the next line assigns permdock, which makes the request a PermDockRequest.
-  const scoped = request as PermDockRequest<RouteGenericInterface, V>;
-  scoped.permdock = instance;
-  if (data !== undefined) {
-    scoped.permdockData = data;
-  }
-}
-
 export function createPermDock<
   TUser,
   TPrincipal extends Principal = Principal,
@@ -138,44 +102,12 @@ export function createPermDock<
   policy: Policy<TUser, TPrincipal, V>,
   options: FastifyPermDockOptions<TUser>,
 ): FastifyPermDock<V> {
-  const contexts = new WeakMap<Request, FastifyRequest>();
-  const bound = new WeakMap<FastifyRequest, Request>();
-  const kernel = createServerKernel(
+  const { kernel, bind, rebind, scopeOf, handlerScope } = bindKernel(
     policy,
-    compact({
-      subject: (request: Request) => {
-        const req = contexts.get(request);
-        return req === undefined ? null : options.subject(req);
-      },
-      actor:
-        options.actor === undefined
-          ? undefined
-          : (request: Request): unknown => {
-              const req = contexts.get(request);
-              return req === undefined ? undefined : options.actor?.(req);
-            },
-      ...instanceOptions(options),
-      store: options.store,
-      pdp: options.pdp,
-      webBotAuth: options.webBotAuth,
-      adapter: "fastify",
-      wrap: options.otel,
-    }),
+    options,
+    "fastify",
+    toRequest,
   );
-
-  const bind = (request: FastifyRequest): Request => {
-    const hit = bound.get(request);
-    if (hit !== undefined) {
-      return hit;
-    }
-    const next = toRequest(request);
-    bound.set(request, next);
-    contexts.set(next, request);
-    return next;
-  };
-
-  const scopeOf = (request: FastifyRequest): Promise<TenantScope> =>
-    tenantScope(options.tenant, request);
 
   const permdock = breakEncapsulation((app) => {
     app.decorateRequest("permdock", null);
@@ -227,14 +159,9 @@ export function createPermDock<
     };
 
   const permdockHandler: FastifyPluginAsync = (app) => {
-    const { POST, GET } = kernel.permdockHandler((request) => {
-      const req = contexts.get(request);
-      return req === undefined ? { tenant: undefined } : scopeOf(req);
-    });
+    const { POST, GET } = kernel.permdockHandler(handlerScope);
     app.post("/", async (request, reply) => {
-      const parsed = toRequest(request);
-      contexts.set(parsed, request);
-      await sendReply(reply, await POST(parsed));
+      await sendReply(reply, await POST(rebind(request)));
     });
     app.get("/", async (request, reply) => {
       await sendReply(reply, await GET(bind(request)));

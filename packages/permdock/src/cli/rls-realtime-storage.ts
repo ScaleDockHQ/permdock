@@ -7,8 +7,8 @@ import type {
   RlsStorageBucket,
 } from "./types.ts";
 
-import { qualified } from "./rls-helpers.ts";
 import { permittedByPermissionHelper } from "./rls-permission-keys.ts";
+import { qualified } from "./rls-shared.ts";
 import { quoteLiteral } from "./rls-sql.ts";
 
 /** What the policies may name: the declared scopes and the permission keys with and without row conditions. */

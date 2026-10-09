@@ -8,6 +8,8 @@ import type { PermissionLookup } from "./evaluation-items.ts";
 
 import { readApprovalHeader, resumeDecision } from "../approvals/helpers.ts";
 import { compact } from "../core/compact.ts";
+import { NO_GRANT } from "../core/decision.ts";
+import { resourceRef } from "../core/resource-ref.ts";
 import { wireDenials } from "../core/wire-denial.ts";
 import { itemResourceData, permissionLookup } from "./evaluation-items.ts";
 import {
@@ -16,12 +18,6 @@ import {
   validationProblem,
 } from "./problem.ts";
 import { InvalidSignatureError } from "./web-bot-auth.ts";
-
-const DENIED: Decision = {
-  outcome: "denied",
-  denials: [{ role: null, reason: "no-grant" }],
-  alternatives: [],
-};
 
 type EvaluationItem = {
   readonly resource?: {
@@ -40,25 +36,6 @@ function permissionOf(
     typeof item.action?.name === "string" ? item.action.name : undefined,
     item.resource,
   );
-}
-
-function resourceRef(
-  permission: Permission,
-  item: EvaluationItem,
-  data: unknown,
-): { readonly type: string; readonly id?: string } {
-  const fromRow =
-    data !== null && typeof data === "object" && "id" in data
-      ? data.id
-      : undefined;
-  const fromWire = item.resource?.id;
-  const id =
-    typeof fromRow === "string" || typeof fromRow === "number"
-      ? String(fromRow)
-      : typeof fromWire === "string" || typeof fromWire === "number"
-        ? String(fromWire)
-        : undefined;
-  return compact({ type: permission.resource, id });
 }
 
 function evaluationRow(decision: Decision): {
@@ -125,7 +102,7 @@ function evaluateOne(
 ): Promise<Decision> {
   const permission = permissionOf(lookup, item);
   if (permission === undefined) {
-    return Promise.resolve(DENIED);
+    return Promise.resolve(NO_GRANT);
   }
   const data = itemResourceData(item.resource);
   // SAFETY: decide's generics only tie the row type to the permission; it accepts any row.
@@ -149,7 +126,7 @@ function evaluateOne(
     permission,
     subject: permdock.subject,
     store,
-    resource: resourceRef(permission, item, data),
+    resource: resourceRef(permission, data, item.resource?.id),
     adapter,
     token: header,
     consume: false,

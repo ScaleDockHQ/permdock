@@ -3,7 +3,7 @@ import type { Condition, Grant, Grantee, Policy } from "../index.ts";
 import { inheritCondition, relationCondition } from "../core/grantee.ts";
 import { scopeList } from "../core/scopes.ts";
 import { listRoles } from "../index.ts";
-import { andConditions } from "./rls-sql.ts";
+import { andConditions } from "./rls-conditions.ts";
 
 /** Who a grant reaches before any row condition applies. */
 export type RlsAccess =

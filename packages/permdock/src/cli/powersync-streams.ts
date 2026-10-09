@@ -12,13 +12,14 @@ import type {
 import { isConditionDate, isConditionRef } from "../conditions/ast.ts";
 import { scopeColumn, scopeMembershipTable } from "../conditions/compile.ts";
 import { resolveScope, scopeList } from "../core/scopes.ts";
+import { quoteSqlLiteral, SQL_IDENT } from "../core/sql.ts";
 import { requiresApproval } from "../index.ts";
 import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
 import { tableFor } from "./rls-compile.ts";
+import { contextRefs } from "./rls-conditions.ts";
 import { collectGrants } from "./rls-grants.ts";
-import { CUSTOM_ROLES } from "./rls-helpers.ts";
 import { ownershipRules } from "./rls-ownership.ts";
-import { contextRefs } from "./rls-sql.ts";
+import { CUSTOM_ROLES } from "./rls-shared.ts";
 
 /**
  * How a stream query names the signed-in user, its claims and row columns.
@@ -34,10 +35,8 @@ export type StreamDialect = {
   literal(value: string | number | boolean): string;
 };
 
-const IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/u;
-
 function ident(name: string): string {
-  if (!IDENT.test(name)) {
+  if (!SQL_IDENT.test(name)) {
     throw new TypeError(
       `PermDock CLI: '${name}' is not a plain identifier, which Sync Streams need`,
     );
@@ -45,29 +44,25 @@ function ident(name: string): string {
   return name;
 }
 
-function stringLiteral(value: string): string {
-  return `'${value.replaceAll("'", "''")}'`;
-}
-
 export const POWERSYNC: StreamDialect = {
   user: "auth.user_id()",
-  claim: (name) => `auth.parameter(${stringLiteral(name)})`,
+  claim: (name) => `auth.parameter(${quoteSqlLiteral(name)})`,
   claims: (name) =>
-    `(SELECT value FROM json_each(auth.parameter(${stringLiteral(name)})))`,
+    `(SELECT value FROM json_each(auth.parameter(${quoteSqlLiteral(name)})))`,
   column: (table, name) => `${table}.${ident(name)}`,
   literal: (value) =>
-    typeof value === "string" ? stringLiteral(value) : String(value),
+    typeof value === "string" ? quoteSqlLiteral(value) : String(value),
 };
 
 export const POSTGRES: StreamDialect = {
   user: "$1::text",
-  claim: (name) => `($2::jsonb ->> ${stringLiteral(name)})`,
+  claim: (name) => `($2::jsonb ->> ${quoteSqlLiteral(name)})`,
   claims: (name) =>
-    `(select jsonb_array_elements_text(case jsonb_typeof($2::jsonb -> ${stringLiteral(name)}) when 'array' then $2::jsonb -> ${stringLiteral(name)} else '[]'::jsonb end))`,
+    `(select jsonb_array_elements_text(case jsonb_typeof($2::jsonb -> ${quoteSqlLiteral(name)}) when 'array' then $2::jsonb -> ${quoteSqlLiteral(name)} else '[]'::jsonb end))`,
   column: (table, name, numeric) =>
     `${table}.${ident(name)}${numeric === true ? "" : "::text"}`,
   literal: (value) =>
-    typeof value === "number" ? String(value) : stringLiteral(String(value)),
+    typeof value === "number" ? String(value) : quoteSqlLiteral(String(value)),
 };
 
 export type PowerSyncStream = {
@@ -181,7 +176,7 @@ function conditionSql(
   ctx: Ctx,
 ): readonly (readonly string[])[] | undefined {
   const column = (field: string): string | undefined =>
-    IDENT.test(field) ? ctx.dialect.column(table, field) : undefined;
+    SQL_IDENT.test(field) ? ctx.dialect.column(table, field) : undefined;
   switch (condition.op) {
     case "eq":
     case "ne":
@@ -190,7 +185,7 @@ function conditionSql(
     case "lt":
     case "lte": {
       const left =
-        typeof condition.value === "number" && IDENT.test(condition.field)
+        typeof condition.value === "number" && SQL_IDENT.test(condition.field)
           ? ctx.dialect.column(table, condition.field, true)
           : column(condition.field);
       if (condition.value === null && left !== undefined) {
@@ -361,7 +356,7 @@ function accessSql(
       const field = ctx.policy.scopes.find(
         (scope) => scope.name === access.scope,
       )?.key;
-      if (field === undefined || !IDENT.test(field)) {
+      if (field === undefined || !SQL_IDENT.test(field)) {
         return `scope ${access.scope} has no row key`;
       }
       return (
@@ -383,7 +378,11 @@ function accessSql(
           : node?.parent?.resource === access.resource
             ? node.parent.field
             : undefined;
-      if (holder === undefined || field === undefined || !IDENT.test(field)) {
+      if (
+        holder === undefined ||
+        field === undefined ||
+        !SQL_IDENT.test(field)
+      ) {
         return `no rls.memberships.resource table for ${access.resource} on the row`;
       }
       return (

@@ -8,9 +8,9 @@ import type {
 
 import { decidingColumns } from "../../src/cli/deciding-columns.ts";
 import { compileGrants } from "../../src/cli/rls-compile.ts";
+import { compileConditionSql } from "../../src/cli/rls-conditions.ts";
 import { helpersSql } from "../../src/cli/rls-helpers.ts";
 import { ownershipRules, ownershipSql } from "../../src/cli/rls-ownership.ts";
-import { compileConditionSql } from "../../src/cli/rls-sql.ts";
 import {
   supabaseHookManifest,
   supabaseHookSql,

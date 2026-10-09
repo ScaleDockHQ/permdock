@@ -6,14 +6,11 @@ import type { ComponentType, ReactNode } from "react";
 import * as nextError from "next/error.js";
 import { createContext, useContext } from "react";
 
-import type { PermDockDigest } from "../core/digest.ts";
+import type { PermissionBoundaryState } from "../client/boundary.ts";
 
-import { parsePermDockDigest } from "../core/digest.ts";
+import { boundaryDigest, boundaryFallback } from "../client/boundary.ts";
 
-export type PermissionBoundaryState = PermDockDigest & {
-  /** Re-fetches and re-renders the boundary's children, e.g. after an approval or a role change. */
-  readonly retry: () => void;
-};
+export type { PermissionBoundaryState } from "../client/boundary.ts";
 
 /** A fallback node, or a function of what was refused. */
 export type PermissionBoundaryFallback =
@@ -38,18 +35,12 @@ function PermissionFallback(
   props: PermissionBoundaryProps,
   info: ErrorInfo,
 ): ReactNode {
-  // SAFETY: an optional read of the digest Next.js adds to errors; parsePermDockDigest validates it.
-  const parsed = parsePermDockDigest(
-    (info.error as Error & { readonly digest?: unknown }).digest,
-  );
+  const parsed = boundaryDigest(info.error);
   if (parsed === null) {
     // Not a PermDock error: let the next boundary up handle it.
     throw info.error;
   }
-  const fallback =
-    parsed.outcome === "approval-required"
-      ? (props.approval ?? props.denied)
-      : props.denied;
+  const fallback = boundaryFallback(parsed, props);
   const state: PermissionBoundaryState = { ...parsed, retry: info.retry };
   return (
     <BoundaryContext.Provider value={state}>

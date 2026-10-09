@@ -1,8 +1,8 @@
 import { test } from "vitest";
 
+import { createClientStore } from "../../src/client/store.ts";
 import { createPermDock, fromSnapshot } from "../../src/core/permdock.ts";
 import { snapshotFor } from "../../src/core/snapshot-for.ts";
-import { createClientStore } from "../../src/react/store.ts";
 import { alice, bob, permissions, policy } from "../fixtures/saas.ts";
 
 const rows = Array.from({ length: 1000 }, (_, index) => ({

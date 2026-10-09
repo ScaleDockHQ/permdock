@@ -1,5 +1,5 @@
 export { describe, requiredPlans } from "../core/describe.ts";
-export { approvalHeaders } from "../react/headers.ts";
+export { approvalHeaders } from "../client/headers.ts";
 export {
   useApproval,
   useAssignablePermissions,

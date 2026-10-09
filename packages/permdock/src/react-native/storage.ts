@@ -1,7 +1,9 @@
 import type { Snapshot } from "../core/interfaces.ts";
 import type { PermDockStorage } from "./types.ts";
 
+import { isJws } from "../client/source.ts";
 import { parseSnapshot } from "../core/snapshot.ts";
+import { isThenable } from "../core/thenable.ts";
 
 export const SNAPSHOT_KEY = "permdock.snapshot";
 export const TENANT_KEY = "permdock.tenant";
@@ -21,20 +23,6 @@ export function memoryStorage(
       map.delete(key);
     },
   };
-}
-
-function isThenable(value: unknown): value is PromiseLike<unknown> {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "then" in value &&
-    typeof value.then === "function"
-  );
-}
-
-export function isJws(value: string): boolean {
-  const parts = value.split(".");
-  return parts.length === 3 && parts.every((part) => part.length > 0);
 }
 
 /** What a persisted value may become: a plain snapshot, or a compact JWS the verifier still has to check. */
@@ -80,6 +68,20 @@ export function acceptStored(
 
 function tenantOf(raw: string | null): string | undefined {
   return raw === null || raw.length === 0 ? undefined : raw;
+}
+
+/** The tenant is read only alongside an accepted snapshot. */
+function storedRead(
+  raw: string | null,
+  tenantRaw: string | null,
+  subjectId: string,
+  signed: boolean,
+): StoredRead {
+  const stored = acceptStored(raw, subjectId, signed);
+  return {
+    stored,
+    tenant: stored === undefined ? undefined : tenantOf(tenantRaw),
+  };
 }
 
 /**
@@ -151,11 +153,7 @@ export function readStoredSync(
   if (isThenable(raw) || isThenable(tenantRaw)) {
     return undefined;
   }
-  const stored = acceptStored(raw, subjectId, signed);
-  return {
-    stored,
-    tenant: stored === undefined ? undefined : tenantOf(tenantRaw),
-  };
+  return storedRead(raw, tenantRaw, subjectId, signed);
 }
 
 export async function readStored(
@@ -171,11 +169,7 @@ export async function readStored(
       Promise.resolve(storage.read(SNAPSHOT_KEY)),
       Promise.resolve(storage.read(TENANT_KEY)),
     ]);
-    const stored = acceptStored(raw, subjectId, signed);
-    return {
-      stored,
-      tenant: stored === undefined ? undefined : tenantOf(tenantRaw),
-    };
+    return storedRead(raw, tenantRaw, subjectId, signed);
   } catch (error) {
     storage.fail(error);
     return NOTHING;

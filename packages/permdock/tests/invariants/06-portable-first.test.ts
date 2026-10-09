@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { Condition } from "../../src/conditions/ast.ts";
 import type { Subject } from "../../src/core/subject.ts";
 
-import { compileConditionSql } from "../../src/cli/rls-sql.ts";
+import { compileConditionSql } from "../../src/cli/rls-conditions.ts";
 import { compileWhere } from "../../src/conditions/compile.ts";
 import { evaluateCondition } from "../../src/conditions/evaluate.ts";
 import { scopeList } from "../../src/core/scopes.ts";

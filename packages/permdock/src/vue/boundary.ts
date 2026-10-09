@@ -12,7 +12,7 @@ import {
 
 import type { PermissionBoundaryState } from "../client/boundary.ts";
 
-import { boundaryDigest } from "../client/boundary.ts";
+import { boundaryDigest, boundaryFallback } from "../client/boundary.ts";
 
 const boundaryKey: InjectionKey<ShallowRef<PermissionBoundaryState | null>> =
   Symbol("permdock-boundary");
@@ -46,10 +46,10 @@ export const PermissionBoundary: DefineComponent = defineComponent({
       if (current === null) {
         return slots["default"]?.() ?? null;
       }
-      const slot =
-        current.outcome === "approval-required"
-          ? (slots["approval"] ?? slots["denied"])
-          : slots["denied"];
+      const slot = boundaryFallback(current, {
+        denied: slots["denied"],
+        approval: slots["approval"],
+      });
       return slot?.(current) ?? null;
     };
   },

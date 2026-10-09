@@ -3,34 +3,23 @@ import { effectScope, isRef, toValue, watch, type App, type Plugin } from "vue";
 import type { Snapshot } from "../core/interfaces.ts";
 import type { PermDockPluginOptions } from "./types.ts";
 
-import { adapterStore, liveOptions } from "../client/store-options.ts";
-import { compact } from "../core/compact.ts";
-import { emptySnapshot } from "../core/from-snapshot.ts";
-import { isPromiseLike } from "../react/source.ts";
+import { providerStore, switchTenant } from "../client/provider-store.ts";
+import { isPromiseLike } from "../client/source.ts";
 import { permDockKey } from "./context.ts";
 
 export const permdockPlugin: Plugin<PermDockPluginOptions> = {
   install(app: App, options: PermDockPluginOptions): void {
     const source = options.snapshot;
     const promised = isPromiseLike(source);
-    const store = adapterStore(
-      compact({
-        endpoint: options.endpoint,
-        snapshotUrl: options.snapshotUrl,
-        approvals: options.approvals,
-        tenant: toValue(options.tenant),
-        maxAge: options.maxAge,
-        ...liveOptions(() => ({
-          headers: toValue(options.headers),
-          fetch: options.fetch,
-          verifier: toValue(options.verifier),
-        })),
+    const store = providerStore(
+      { ...options, tenant: toValue(options.tenant) },
+      () => ({
+        headers: toValue(options.headers),
+        fetch: options.fetch,
+        verifier: toValue(options.verifier),
       }),
-      promised ? emptySnapshot() : toValue(source),
+      promised ? source : toValue(source),
     );
-    if (promised) {
-      store.follow(source);
-    }
     const scope = effectScope(true);
     scope.run(() => {
       if (!promised && (isRef(source) || typeof source === "function")) {
@@ -47,12 +36,7 @@ export const permdockPlugin: Plugin<PermDockPluginOptions> = {
         watch(
           () => toValue(tenant),
           (next) => {
-            if (next !== undefined) {
-              store
-                .get()
-                .refresh({ tenant: next })
-                .catch(() => undefined);
-            }
+            switchTenant(store, next);
           },
         );
       }

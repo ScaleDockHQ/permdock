@@ -2,8 +2,8 @@ import { useMemo } from "react";
 
 import type { Permission } from "../core/permissions.ts";
 
+import { storeOf } from "../client/store.ts";
 import { usePermDock } from "../react/hooks.ts";
-import { storeOf } from "../react/store.ts";
 
 /** `true` once the provider has a snapshot to answer from: storage was read or a seed was given. Hide the splash screen on it. */
 export function useSnapshotReady(): boolean {
