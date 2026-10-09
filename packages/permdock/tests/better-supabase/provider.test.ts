@@ -13,6 +13,14 @@ const read = (path: string): unknown =>
 const EXAMPLE = "../../../../apps/examples/next-better-supabase/";
 const exampleManifest = read(`${EXAMPLE}permdock.manifest.json`);
 const exampleCatalog = read(`${EXAMPLE}permissions.catalog.json`);
+const emptyCatalog = {
+  $schema: "https://permdock.com/schemas/catalog-v1.json",
+  version: 1,
+  generatedAt: "2026-01-01T00:00:00Z",
+  generator: "test",
+  resources: {},
+  permissions: [],
+};
 
 const withRls = (
   rls: Partial<SupabaseHookManifest["rls"]>,
@@ -25,6 +33,7 @@ describe("authorizationProvider", () => {
   it("passes better-supabase's conformance kit for the fixture", async () => {
     const provider = authorizationProvider({
       manifest: supabaseHookManifestFixture,
+      catalog: emptyCatalog,
     });
     await expect(testAuthorizationProvider(provider)).resolves.toBeDefined();
     expect(provider).toMatchObject({
@@ -50,9 +59,18 @@ describe("authorizationProvider", () => {
     });
     expect(provider.functions.idsWithFor).toBeUndefined();
     expect(provider.functions.canAssign).toBeUndefined();
-    expect(provider.permissions).toBeUndefined();
+    expect(provider.permissions).toEqual([]);
     expect(provider.problems).toBeUndefined();
     expect(Object.isFrozen(provider.functions)).toBe(true);
+  });
+
+  it("asks for the catalog so better-supabase can check module keys", () => {
+    const provider = authorizationProvider({
+      manifest: supabaseHookManifestFixture,
+    });
+    expect(provider.problems).toEqual([
+      expect.stringContaining("Pass `catalog`"),
+    ]);
   });
 
   it("lists every helper with its argument types and calling role", () => {
@@ -193,6 +211,7 @@ describe("authorizationProvider", () => {
 
   it("reports missing helpers and user references, and skips other scopes", () => {
     const provider = authorizationProvider({
+      catalog: emptyCatalog,
       manifest: withRls({
         schema: "AuthZ",
         helpers: [],
@@ -332,6 +351,7 @@ describe("authorizationProvider", () => {
       execute,
     });
     const provider = authorizationProvider({
+      catalog: emptyCatalog,
       manifest: withRls({
         customRoles: true,
         helpers: [
@@ -383,6 +403,7 @@ describe("authorizationProvider", () => {
 
   it("keeps the declared-role check below the root scope and says so", () => {
     const provider = authorizationProvider({
+      catalog: emptyCatalog,
       scope: "project",
       manifest: withRls({
         customRoles: true,
@@ -421,5 +442,85 @@ describe("authorizationProvider", () => {
         'The tenant scope "project" is not a root scope, so canAssign checks declared roles only',
       ),
     ]);
+  });
+
+  it("reads a member's permission keys through permission_keys_for", async () => {
+    const provider = authorizationProvider({
+      manifest: withRls({
+        helpers: [
+          ...supabaseHookManifestFixture.rls.helpers,
+          {
+            name: "permitted_tenant_permission_keys_for",
+            args: "p_user uuid, p_id uuid",
+            returns: "setof text",
+            execute: [],
+          },
+        ],
+      }),
+    });
+    await expect(testAuthorizationProvider(provider)).resolves.toBeDefined();
+    expect(provider.functions.permissionsFor).toBe(
+      "array(select permdock.permitted_{scope}_permission_keys_for({user}, {tenant}))",
+    );
+    expect(provider.requires).toContainEqual({
+      function: "permdock.permitted_tenant_permission_keys_for",
+      args: "uuid, uuid",
+      role: "postgres",
+    });
+  });
+
+  it("lets an approver permission decide tool calls, never the requester", async () => {
+    const approver = {
+      key: "tools.approve",
+      scope: "tools:approve",
+      resource: "tools",
+      action: "approve",
+      meta: {},
+      kind: "collection",
+    } as const;
+    const provider = authorizationProvider({
+      manifest: supabaseHookManifestFixture,
+      approver,
+    });
+    await expect(testAuthorizationProvider(provider)).resolves.toBeDefined();
+    expect(provider.functions.canApprove).toBe(
+      "{tenant} in (select permdock.permitted_tenant_ids_by_permission('tools.approve'))",
+    );
+    expect(provider.approvals).toEqual({ distinctApprover: true });
+    expect(provider.requires).toContainEqual({
+      function: "permdock.permitted_tenant_ids_by_permission",
+      args: "text",
+      role: "postgres",
+    });
+    expect(
+      authorizationProvider({
+        manifest: exampleManifest,
+        catalog: exampleCatalog,
+        approver,
+      }).problems,
+    ).toContainEqual(
+      expect.stringContaining("tools.approve is not in the catalog"),
+    );
+    expect(
+      authorizationProvider({ manifest: supabaseHookManifestFixture }),
+    ).not.toHaveProperty("approvals");
+  });
+
+  it("names Postgres id type aliases as better-supabase does and reports others", () => {
+    const scoped = (type: string) =>
+      authorizationProvider({
+        manifest: withRls({
+          scopes: [{ ...supabaseHookManifestFixture.rls.scopes[0]!, type }],
+        }),
+      });
+    expect(scoped("int8").scopes).toEqual([
+      { name: "tenant", idType: "bigint" },
+    ]);
+    expect(scoped("INT4").scopes).toEqual([
+      { name: "tenant", idType: "integer" },
+    ]);
+    expect(scoped("citext").problems).toContainEqual(
+      expect.stringContaining("ids of type citext"),
+    );
   });
 });

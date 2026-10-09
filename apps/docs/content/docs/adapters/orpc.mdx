@@ -106,7 +106,7 @@ A procedure behind `protect(permission, load?, { items })` whose handler returns
 
 ### With better-supabase
 
-better-supabase's `createOrpc` puts the verified `AuthState` on `context.auth` through `bs.middleware()`, which also adds `context.db`. Export one builder that takes a permission and keeps `bs.middleware()` inside it: a procedure built any other way has no `context.db`, and one built with `procedure()` does not compile without a permission. Serve the router with `bs.fetchHandler`.
+better-supabase's `createOrpc` puts the verified `AuthState` on `context.auth` through `bs.middleware()`, which also adds `context.db`. Map it with [`subjectFromBetterSupabase`](/docs/adapters/better-supabase); pass its `apiKeys` option when API keys reach the router. Export one builder that takes a permission and keeps `bs.middleware()` inside it: a procedure built any other way has no `context.db`, and one built with `procedure()` does not compile without a permission. Serve the router with `bs.fetchHandler`.
 
 ```ts title="src/router.ts"
 import { os } from "@orpc/server";
@@ -114,7 +114,7 @@ import { createOrpc, type OrpcRequestContext } from "better-supabase/orpc";
 import type { AuthState } from "better-supabase/server";
 import type { Permission } from "permdock";
 import { createPermDock } from "permdock/orpc";
-import { subjectFromSupabaseSession } from "permdock/supabase";
+import { subjectFromBetterSupabase } from "permdock/better-supabase";
 
 export const bs = createOrpc(betterSupabase);
 
@@ -123,7 +123,7 @@ const { protect } = createPermDock<
   OrpcRequestContext & { readonly auth: AuthState }
 >(policy, {
   subject: ({ context }) =>
-    subjectFromSupabaseSession(context.auth, { anonymousSignIns: "deny" }),
+    subjectFromBetterSupabase(context.auth, { anonymousSignIns: "deny" }),
 });
 
 const procedure = (permission: Permission) => authed.use(protect(permission));

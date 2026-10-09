@@ -32,6 +32,11 @@ function permissionKeysHelper(scope: string): string {
   return `permitted_${scope}_permission_keys`;
 }
 
+/** `permitted_<scope>_permission_keys_for(p_user, p_id)`, written in `database` mode. */
+export function permissionKeysForHelper(scope: string): string {
+  return `${permissionKeysHelper(scope)}_for`;
+}
+
 /** `permitted_<scope>_ids_by_permission(p_permission)`. */
 export function permittedByPermissionHelper(scope: string): string {
   return `${permittedIdsHelper(scope)}_by_permission`;
@@ -357,7 +362,7 @@ ${revoke(fn)}`);
 revoke execute on function ${fn}(${user}, text, boolean) from public, anon, authenticated;`);
     const keysFor = qualified(
       ctx,
-      checkName(`${permissionKeysHelper(scope.name)}_for`),
+      checkName(permissionKeysForHelper(scope.name)),
     );
     const type = scopeTypeOf(ctx, scope.name);
     const named = grantBodies({ ...forUserContext(ctx), grantSet: true });

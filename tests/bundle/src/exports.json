@@ -469,7 +469,9 @@
     "apiKeyVerifier",
     "authorizationProvider",
     "bucketPolicy",
+    "credentialGuard",
     "subjectFromBetterSupabase",
+    "toolPolicy",
     "topicPolicy"
   ],
   "./clerk": ["createClerkSubjectResolver", "subjectFromClerk"],

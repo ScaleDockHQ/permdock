@@ -159,7 +159,8 @@ catalog:
   "@ai-sdk/otel": 1.0.127
   dotenv-cli: 11.0.0
   portless: 0.15.7
-  better-supabase: 0.5.1
+  better-supabase: 0.6.0
+  "@supabase/postgrest-typegen": 0.4.0
   supabase: 2.119.0
   server-only: 0.0.1
   "@clack/prompts": 1.8.1
@@ -230,8 +231,8 @@ catalogPrune: true
 engineStrict: true
 minimumReleaseAge: 1440
 minimumReleaseAgeExclude:
-  # First-party ScaleDockHQ release, adopted on publish day; remove after 2026-10-05 19:42 UTC.
-  - better-supabase@0.5.1
+  # First-party ScaleDockHQ release, adopted on publish day; remove a day after 0.6.0 is published.
+  - better-supabase@0.6.0
 nodeLinker: isolated
 nodeOptions: "${NODE_OPTIONS:- } --disable-warning=MODULE_TYPELESS_PACKAGE_JSON"
 saveExact: true
@@ -250,7 +251,7 @@ peerDependencyRules:
   allowedVersions:
     # Only its optional Nest integration needs the peer; tests/integration runs Nest 12.
     "@supabase/server>@nestjs/common": "12"
-    # typegen 0.4.0 pins oxfmt 0.66.0 exactly; better-supabase 0.5.1, its only parent, accepts >=0.66.0 <1.
+    # typegen 0.4.0 pins oxfmt 0.66.0 exactly; the example's `better-supabase gen` formats with the repo's oxfmt.
     "@supabase/postgrest-typegen>oxfmt": "0.71"
 
 # The VS Code TypeScript native preview looks for `@typescript/typescript-<platform>`

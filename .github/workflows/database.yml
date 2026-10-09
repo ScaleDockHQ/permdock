@@ -50,7 +50,7 @@ jobs:
         run: pnpm --filter permdock build
         working-directory: .
 
-      - name: Generated SQL, manifest, kit and types are current
+      - name: Generated SQL, manifest, blocks and types are current
         run: pnpm run gen:check
 
       - name: Start the local stack

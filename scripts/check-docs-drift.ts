@@ -187,6 +187,26 @@ function unknownImports(): readonly string[] {
   return [...found];
 }
 
+/** Entries whose every runtime export needs a row on the Naming page; add an entry once its rows exist. */
+const NAMED_ENTRIES: readonly string[] = ["./better-supabase"];
+
+/** Runtime exports of `NAMED_ENTRIES` that the Naming page never names in backticks. */
+function unnamedExports(): readonly string[] {
+  // SAFETY: exports.json is the bundle test's own baseline, entry to sorted runtime export names
+  const exported = JSON.parse(read(EXPORTS)) as Readonly<
+    Record<string, readonly string[]>
+  >;
+  const naming = read(NAMING_PAGE);
+  return NAMED_ENTRIES.flatMap((entry) =>
+    (exported[entry] ?? [])
+      .filter((name) => !naming.includes(`\`${name}\``))
+      .map(
+        (name) =>
+          `permdock/${entry.slice(2)} exports ${name}, which getting-started/naming.mdx does not list`,
+      ),
+  );
+}
+
 const problems = [
   ...doctorCodes()
     .filter((code) => !cliDocs.includes(`| \`${code}\``))
@@ -198,6 +218,7 @@ const problems = [
   ...standardsTests(),
   ...bannedNames(),
   ...unknownImports(),
+  ...unnamedExports(),
 ];
 
 if (problems.length > 0) {

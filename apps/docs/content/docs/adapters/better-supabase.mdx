@@ -1,6 +1,6 @@
 ---
 title: better-supabase
-description: The permdock/better-supabase entry fills better-supabase's authorization slots with PermDock, an authorization provider for its SQL modules and doctor, bucket and topic policies, an API key verifier, and a subject from its session.
+description: The permdock/better-supabase entry fills better-supabase's authorization slots with PermDock, an authorization provider for its SQL modules and doctor, bucket and topic policies, API keys, MCP tool hooks, a credential guard, and a subject from its session.
 ---
 
 `permdock/better-supabase` connects PermDock to [better-supabase](https://bettersupabase.com/docs/extending/authorization-providers). better-supabase verifies tokens, builds sessions and owns the data layer; PermDock owns roles, permissions, the claim contract and the one token hook. better-supabase never imports PermDock: it reads a versioned `AuthorizationProvider` object from its config, and this entry builds that object and the other values its slots take from the files PermDock already generates.
@@ -20,7 +20,7 @@ The entry needs `better-supabase` 0.6 or later as a peer. Everything on the [Sup
 | Token verification (`@supabase/server`), sessions, refresh and the `AuthSession` shape                                          | better-supabase |
 | Typed clients, repositories and typegen                                                                                         | better-supabase |
 | Storage and Realtime plumbing (`defineBucket`, `defineTopic`), jobs and webhooks                                                | better-supabase |
-| MCP protected-resource metadata and the `scopes` guard (`createMcp`)                                                            | better-supabase |
+| MCP protected-resource metadata and the scope guards (`createMcp`, `createMcpAuth`)                                             | better-supabase |
 | Token lifetime, refresh-token reuse, signing keys, splinter and claim size lints                                                | better-supabase |
 | The claim contract: `user_role`, `roles`, `memberships`, the active-tenant claim, `attrs`, `authz_ver`, `memberships_truncated` | PermDock        |
 | The one token hook (`permdock supabase hook generate`)                                                                          | PermDock        |
@@ -37,14 +37,23 @@ import {
   apiKeyVerifier,
   apiKeyClaimOptions,
   subjectFromBetterSupabase,
+  toolPolicy,
+  credentialGuard,
 } from "permdock/better-supabase";
 ```
 
-- `authorizationProvider({ manifest, catalog?, scope? })` returns better-supabase's `AuthorizationProvider` (`apiVersion: 1`, `name: "permdock"`). `manifest` is `permdock.manifest.json`, parsed or as JSON text; `catalog` is `permissions.catalog.json`, and without it the provider lists no permissions, so better-supabase refuses every key a bucket, topic or module checks. `scope` names the tenant scope and defaults to the manifest's one root scope. Its `functions` call `permitted_<scope>_ids`, `member_<scope>_ids`, `permdock_has` and their `_for` forms in `rls.schema`; `canAssign` and `canAssignFor` call `permdock_can_assign` and `permdock_can_assign_for`, or, when the manifest's `rls.customRoles` is set and the tenant scope is a root scope, `permdock_can_assign_any` and `permdock_can_assign_any_for` at the tenant scope, so better-supabase's `can_assign` and `can_assign_as` also answer for a custom role; `requires` lists each helper with the role that must execute it; `memberships`, `suspension` and `roleSources` come from `rls`; `tokenHook` names the hook function and the claims it owns. A manifest that cannot fill a field is recorded in `problems`, which better-supabase's doctor reports, and an invalid manifest throws a `TypeError`.
+- `authorizationProvider({ manifest, catalog?, scope?, approver? })` returns better-supabase's `AuthorizationProvider` (`apiVersion: 1`, `name: "PermDock"`). `manifest` is `permdock.manifest.json`, parsed or as JSON text; `catalog` is `permissions.catalog.json`. Without a catalog the provider lists no permissions, so better-supabase refuses every key a bucket, topic or module checks, and `problems` asks for it. `scope` names the tenant scope and defaults to the manifest's one root scope.
+- Its `functions` call `permitted_<scope>_ids`, `member_<scope>_ids`, `permdock_has` and their `_for` forms in `rls.schema`. `permissionsFor` calls `permitted_<scope>_permission_keys_for`, so better-supabase's `member_permissions` lists a member's keys; like the other `_for` templates it is set only when the manifest lists the helper, which `rls.mode: 'database'` writes.
+- `canAssign` and `canAssignFor` call `permdock_can_assign` and `permdock_can_assign_for`. When the manifest's `rls.customRoles` is set and the tenant scope is a root scope, they call `permdock_can_assign_any` and `permdock_can_assign_any_for` at the tenant scope instead, so better-supabase's `can_assign` and `can_assign_as` also answer for a custom role.
+- `approver` is a permission. With it, `canApprove` lets a member who holds that permission in the tenant approve an AI tool call (`decide_ai_tool_approval`), and `approvals.distinctApprover` is `true`, so the requester never approves their own call. A key the catalog lacks is a problem.
+- `scopes` carry each scope's `idType`: `uuid`, `text`, `bigint` or `integer`, with `int8`, `int` and `int4` normalised. Any other id type is a problem.
+- `requires` lists each helper with the role that must execute it; `memberships`, `suspension` and `roleSources` come from `rls`; `tokenHook` names the hook function and the claims it owns. A manifest that cannot fill a field is recorded in `problems`, which better-supabase's doctor reports, and an invalid manifest throws a `TypeError`.
 - `bucketPolicy(access, options)` and `topicPolicy(access, options)` return the `access` policy for `defineBucket` and `defineTopic`. `access` maps the operations (`read`, `list`, `write`, `delete` for a bucket; `receive`, `send` for a topic) to permissions, and `options` is `{ manifest, catalog, scope, segment? }`. The helpers check role and scope only, so a permission the catalog does not mark `rowConditions: false`, or does not grant at `scope`, throws. `scope: "platform"` checks a permission granted globally.
-- `apiKeyVerifier({ keys, serviceRoles?, allPermissions? })` is a `CredentialVerifier` over better-supabase's `createApiKeys()`, for [`subjectFromApiKey`](/docs/concepts/credentials#using-a-key). A personal key is a `user` credential acting as its user, a tenant key a `service` credential holding `serviceRoles` in its tenant, and the key's scopes are the credential's permissions. An invalid, revoked, expired or rate-limited key, and a failed lookup, verify to `null`.
+- `apiKeyVerifier({ keys, manifest?, serviceRoles?, allPermissions? })` is a `CredentialVerifier` over better-supabase's `createApiKeys()`, for [`subjectFromApiKey`](/docs/concepts/credentials#using-a-key). A personal key is a `user` credential acting as its user, a tenant key a `service` credential holding `serviceRoles` in its tenant, and the key's scopes are the credential's permissions. `serviceRoles` defaults to the manifest's `rls.apiKeys.serviceRoles`. An invalid, revoked, expired or rate-limited key, and a failed lookup, verify to `null`.
 - `apiKeyClaimOptions(manifest)` returns the `claim` and `tenantClaim` options of better-supabase's `apiKeyClaims()` and `apiKeyResolver()`, from the manifest's `rls.apiKeys`, so a key's token carries the scopes ceiling, tenant and roles the helpers read. It throws when the manifest has no `rls.apiKeys`.
-- `subjectFromBetterSupabase(session, options?)` is `subjectFromSupabaseSession` with better-supabase's defaults: `memberships` for the memberships and the entitlements module's `features` claim for `principal.plans`. A `user` session maps through `subjectFromSupabase`; `anon`, `service` and `invalid` sessions give the anonymous subject. Options override the defaults.
+- `subjectFromBetterSupabase(session, options?)` is `subjectFromSupabaseSession` with better-supabase's defaults: `memberships` for the memberships and the entitlements module's `features` claim for `principal.plans`. A `user` session maps through `subjectFromSupabase`. With `apiKeys: { permissions, manifest?, serviceRoles? }`, an `apiKey` session maps like `apiKeyVerifier`'s credential; without it, and for `anon`, `service` and `invalid` sessions, the subject is anonymous. `plans: { claim?, keys? }` decodes the short codes `entitlements.claim.keys` writes back to feature keys. Other options override the defaults.
+- `toolPolicy({ permdock, data? })` returns the `authorize` and `visible` hooks of `createMcp` for tools whose `meta` is a permission ([MCP tools](#mcp-tools)).
+- `credentialGuard(provider, { permdock, use, revoke? })` wraps a `CredentialProvider` so PermDock decides each token use ([Credentials](#credentials)).
 
 ## Setup
 
@@ -130,6 +139,8 @@ With the provider set, the entitlements module reads membership through `member_
 ```ts title="src/lib/access.ts"
 import { createPermDock } from "permdock";
 import { subjectFromBetterSupabase } from "permdock/better-supabase";
+import { policy } from "../policy";
+import { bs } from "./supabase/server";
 
 export async function permdockFor() {
   const session = await bs.session();
@@ -159,13 +170,15 @@ A permission's row conditions (such as `ownerId = principal.id`) are applied by 
 
 ## API keys
 
+PermDock parses better-supabase keys only when the block uses PermDock's prefix: pass `prefix: "pdk"` to `createApiKeys`. The format is the same, checksum included. The credential's id is the key's public id, the part between the prefix and the secret.
+
 Use `apiKeyClaimOptions` where better-supabase turns a key into a token, so the token carries the claims the helpers read:
 
 ```ts
 import { apiKeyResolver, createApiKeys } from "better-supabase/blocks/api-keys";
 import { apiKeyClaimOptions } from "permdock/better-supabase";
 
-const keys = createApiKeys(transport);
+const keys = createApiKeys({ transport, prefix: "pdk" });
 const resolver = apiKeyResolver({
   keys,
   ...apiKeyClaimOptions(manifest),
@@ -182,27 +195,43 @@ import { subjectFromApiKey } from "permdock/server";
 const resolveKey = subjectFromApiKey({
   verifier: apiKeyVerifier({
     keys,
-    serviceRoles: ["integration"],
+    manifest,
     allPermissions: Object.values(permissions),
   }),
+  permissions,
 });
 const subject = await resolveKey(request.headers.get("x-api-key"));
 ```
 
+`permdock/server` exports an `apiKeyVerifier` too, over PermDock's own key store. This one reads better-supabase's `api_keys` table instead; import the one that matches where the keys live.
+
+When better-supabase's middleware already verified the key, the session is `kind: "apiKey"`. Pass `apiKeys` to `subjectFromBetterSupabase` to map it the same way:
+
+```ts
+const subject = subjectFromBetterSupabase(session, {
+  apiKeys: { permissions, manifest },
+});
+```
+
 ## MCP tools
 
-`permdock/mcp` wraps the official MCP SDK's server, so it cannot wrap better-supabase's `createMcp`. With `createMcp`, put the permission in each tool's `meta` and answer its `visible` and `authorize` hooks with PermDock. `meta` is `unknown` to better-supabase, so narrow it with `isPermission` first; a tool without a permission is hidden and refused:
+`permdock/mcp` wraps the official MCP SDK's server, so it cannot wrap better-supabase's `createMcp`. With `createMcp`, put the permission in each tool's `meta` and spread `toolPolicy` into the options. A tool without a permission is hidden and refused, and a check that throws refuses:
 
 ```ts title="supabase/functions/mcp/index.ts"
 import { createMcp } from "better-supabase/mcp";
-import { createPermDock, isPermission, mayUse } from "permdock";
-import { subjectFromBetterSupabase } from "permdock/better-supabase";
+import { createPermDock } from "permdock";
+import {
+  subjectFromBetterSupabase,
+  toolPolicy,
+} from "permdock/better-supabase";
+import { betterSupabase } from "../_shared/supabase.ts";
+import { permissions, policy } from "../_shared/policy.ts";
 
-type Auth = { kind: string; claims?: unknown };
+type Auth = Parameters<typeof subjectFromBetterSupabase>[0];
 type Instance = Awaited<ReturnType<typeof createPermDock>>;
 
 // One PermDock instance per request: `visible` runs once per tool.
-const instances = new WeakMap<Auth, Promise<Instance>>();
+const instances = new WeakMap<object, Promise<Instance>>();
 function permdockFor(ctx: { auth: Auth }): Promise<Instance> {
   let permdock = instances.get(ctx.auth);
   if (!permdock) {
@@ -212,19 +241,11 @@ function permdockFor(ctx: { auth: Auth }): Promise<Instance> {
   return permdock;
 }
 
-const bs = createMcp(betterSupabase, {
+const server = createMcp(betterSupabase, {
   name: "crm",
   version: "1.0.0",
-  scopes: ["openid"],
-  authorize: async (ctx, tool) => {
-    if (!isPermission(tool.meta))
-      return { allowed: false, reason: "No PermDock permission in meta" };
-    return (await permdockFor(ctx)).can(tool.meta)
-      ? { allowed: true }
-      : { allowed: false, reason: "PermDock denied this tool" };
-  },
-  visible: async (ctx, tool) =>
-    isPermission(tool.meta) && mayUse(await permdockFor(ctx), tool.meta),
+  advertisedScopes: ["openid"],
+  ...toolPolicy({ permdock: permdockFor }),
 }).tool({
   name: "export_customers",
   description: "Export the organisation's customers as CSV.",
@@ -233,7 +254,35 @@ const bs = createMcp(betterSupabase, {
 });
 ```
 
-`mayUse` lists a tool when some grant could apply, including one with a row condition; `can` decides without a row, so check row-scoped permissions inside `run` or rely on RLS. A permission that needs approval is refused, because `createMcp` has no approval store: serve those tools through [`permdock/mcp`](/docs/adapters/mcp) on the official SDK. `tests/better-supabase/mcp.test-d.ts` type-checks this recipe against `better-supabase/mcp`.
+`visible` uses `mayUse`, so a tool is listed when some grant could apply, including one with a row condition. `authorize` decides with `decide` on the row `data(ctx, tool, args)` returns, or on no row, which a row-scoped permission denies; check those inside `run` or rely on RLS. A permission that needs approval is refused, because `createMcp` has no approval store: serve those tools through [`permdock/mcp`](/docs/adapters/mcp) on the official SDK, with better-supabase's `createMcpAuth` from `better-supabase/mcp/sdk` for the bearer token and metadata. `tests/better-supabase/mcp.test-d.ts` type-checks this recipe against `better-supabase/mcp`.
+
+## Credentials
+
+`credentialGuard` wraps a better-supabase `CredentialProvider`, the interface its AI and integration blocks fetch third-party tokens through. Every `getToken`, `startAuthorization` and `completeAuthorization` is decided against `use`, and `revoke` against `revoke` or `use`, with the `CredentialRef` as the row. A denial or a failed check returns a `forbidden` error with hint `PERMDOCK_DENIED`; `capabilities` and `verifyInbound` pass through.
+
+```ts
+import { credentialGuard } from "permdock/better-supabase";
+
+const credentials = credentialGuard(vault, {
+  permdock: () => permdockFor(request),
+  use: permissions.integrations.use,
+  revoke: permissions.integrations.manage,
+});
+```
+
+Build it per request, with that request's PermDock. `testCredentialProvider` from `better-supabase/testing` accepts the guarded provider.
+
+## Agents and tool approval
+
+better-supabase's `createAgentRuntime({ toolApproval })` from `better-supabase/ai-sdk/agents` takes an AI SDK tool-approval function and combines it with the tenant's `ask` tools; the stricter answer wins. `toolApproval` and `composeToolApproval(...)` from [`permdock/ai-sdk`](/docs/adapters/ai-sdk) are such functions: a call PermDock answers `approval-required` asks for the user's approval, and a denied call is refused. `tests/better-supabase/agents.test-d.ts` type-checks the pairing.
+
+## Module permission keys
+
+better-supabase's SQL modules check permission keys, such as `audit.read`, `api_keys.manage` and the AI, workflow and inbox modules' keys. Its doctor reports a key the provider's `permissions` lacks, so pass `catalog` and declare each key the installed modules check in the policy. Rename a key with `sql.modules.<module>.permissions` in `better-supabase.config.ts`.
+
+## When to use bucketPolicy and topicPolicy
+
+`bucketPolicy` and `topicPolicy` decide in better-supabase's Storage and Realtime policies through the provider's helpers, for buckets and topics defined with `defineBucket` and `defineTopic`. PermDock's own `rls.storage` and `rls.realtime` write the policies on `storage.objects` and `realtime.messages` from `permdock rls generate` instead. Pick one per bucket or topic: both on the same one write two policies that Postgres combines with `or`.
 
 ## Sessions and actors
 

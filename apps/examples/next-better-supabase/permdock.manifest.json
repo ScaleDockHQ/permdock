@@ -194,6 +194,18 @@
         "args": "p_user uuid, p_grant text",
         "returns": "setof uuid",
         "execute": []
+      },
+      {
+        "name": "permitted_organization_permission_keys_for",
+        "args": "p_user uuid, p_id uuid",
+        "returns": "setof text",
+        "execute": []
+      },
+      {
+        "name": "permitted_customer_permission_keys_for",
+        "args": "p_user uuid, p_id uuid",
+        "returns": "setof text",
+        "execute": []
       }
     ],
     "memberships": [
