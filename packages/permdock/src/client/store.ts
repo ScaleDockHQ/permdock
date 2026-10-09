@@ -18,6 +18,7 @@ import { nowSeconds } from "../core/tenancy.ts";
 import { createApprovals } from "./approvals.ts";
 import { NO_ENDPOINT, SERVER_ONLY, cacheKey, createBatch } from "./batch.ts";
 import { storeRequest } from "./request.ts";
+import { isJws } from "./source.ts";
 
 export type ClientStoreOptions = {
   readonly snapshot: Snapshot | string;
@@ -82,11 +83,6 @@ function refKey(ref: Permission | { readonly [key: string]: unknown }): string {
     return ref.key;
   }
   return "";
-}
-
-function isJws(value: string): boolean {
-  const parts = value.split(".");
-  return parts.length === 3 && parts.every((part) => part.length > 0);
 }
 
 const CURRENT = Symbol.for("permdock.current");

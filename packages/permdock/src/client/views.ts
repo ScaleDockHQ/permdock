@@ -108,6 +108,24 @@ export type ProtectedView =
       readonly slot: "default";
     };
 
+/** The root's view of another tenant for a `Protected` with a `tenant` prop; `undefined` answers the active one. */
+export function scopedTenant(
+  root: PermDock,
+  tenant: string | undefined,
+): PermDock | undefined {
+  return tenant === undefined ? undefined : root.tenant(tenant);
+}
+
+/** An instance whose every read answers from `current()`, so a held reference follows the store. */
+export function livePermDock(current: () => ClientPermDock): ClientPermDock {
+  // SAFETY: the empty target is never read; the get trap answers from the store's current instance.
+  return new Proxy({} as ClientPermDock, {
+    get(_target, prop, _receiver): unknown {
+      return Reflect.get(current(), prop);
+    },
+  });
+}
+
 /**
  * `local` answers the active tenant; `scoped`, the root's view of another
  * tenant, is decided on the spot and shares the root's `pending` and `stale`.

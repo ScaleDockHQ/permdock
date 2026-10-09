@@ -6,9 +6,7 @@ import type { Decision } from "../core/decision.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permissions.ts";
 
-import { protectedView as viewOf } from "../client/views.ts";
-
-export type { ProtectedView } from "../client/views.ts";
+import { protectedView, scopedTenant } from "../client/views.ts";
 
 export type ProtectedProps = {
   readonly permission: Permission;
@@ -25,17 +23,17 @@ export function scopedFor(
   tenant: string | undefined,
   _generation?: number,
 ): PermDock | undefined {
-  return tenant === undefined ? undefined : store.get().tenant(tenant);
+  return scopedTenant(store.get(), tenant);
 }
 
-export function protectedView(
+export function viewFor(
   store: ClientStore,
   reference: Permission,
   data: unknown,
   scoped: PermDock | undefined,
   _generation?: number,
 ): ProtectedView {
-  return viewOf(
+  return protectedView(
     store.permissionState(reference, data),
     store.get(),
     reference,

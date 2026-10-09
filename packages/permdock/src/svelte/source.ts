@@ -37,10 +37,8 @@ export type {
   UseRolesOptions,
 } from "./types.ts";
 
-export type {
-  PermissionBoundaryProps,
-  PermissionBoundaryState,
-} from "./boundary.ts";
+export type { PermissionBoundaryState } from "../client/boundary.ts";
+export type { PermissionBoundaryProps } from "./boundary.ts";
 export type { ProtectedProps } from "./protected.ts";
 
 export const Protected: Component<ProtectedProps> = ProtectedComponent;

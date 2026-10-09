@@ -3,8 +3,8 @@
 
   import {
     getStore,
-    protectedView,
     scopedFor,
+    viewFor,
     type ProtectedProps,
   } from './runtime.ts';
 
@@ -27,7 +27,7 @@
   const scoped = $derived(scopedFor(store, tenant, tick));
   const view = $derived.by(() => {
     const generation = tick;
-    return protectedView(store, permission, data, scoped, generation);
+    return viewFor(store, permission, data, scoped, generation);
   });
 </script>
 

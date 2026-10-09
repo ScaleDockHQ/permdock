@@ -1,4 +1,4 @@
-import type { Snapshot, TokenVerifier } from "../core/interfaces.ts";
+import type { Snapshot } from "../core/interfaces.ts";
 import type { Permission } from "../core/permissions.ts";
 import type { ClientStore, ClientStoreOptions } from "./store.ts";
 
@@ -26,8 +26,6 @@ export type AdapterStoreOptions = Pick<
   readonly endpoint?: string | false;
 };
 
-type Headers = Readonly<Record<string, string>>;
-
 /** One hint per store: the first check `endpoint: false` turns into a `server-only` denial. */
 function hintOnce(): (permission: Permission) => void {
   let shown = false;
@@ -43,9 +41,16 @@ function hintOnce(): (permission: Permission) => void {
   };
 }
 
+/** Store options only the React Native provider sets. */
+type NativeStoreHooks = Pick<
+  ClientStoreOptions,
+  "server" | "stale" | "onSnapshot" | "onClear"
+>;
+
 export function adapterStore(
   options: AdapterStoreOptions,
   snapshot: Snapshot | string,
+  native?: NativeStoreHooks,
 ): ClientStore {
   return createClientStore(
     compact({
@@ -61,37 +66,10 @@ export function adapterStore(
       verifier: options.verifier,
       awaiting: options.awaiting,
       passCache: options.passCache,
+      server: native?.server,
+      stale: native?.stale,
+      onSnapshot: native?.onSnapshot,
+      onClear: native?.onClear,
     }),
   );
-}
-
-/**
- * Store options that read `read()` on every request, so a rotated token, a
- * new `fetch` or a new verifier applies without rebuilding the store. A
- * verifier is wired only when one is present at creation: it switches the
- * store to signed snapshots.
- */
-export function liveOptions(
-  read: () => {
-    readonly headers?: Headers | undefined;
-    readonly fetch?: typeof fetch | undefined;
-    readonly verifier?: TokenVerifier | undefined;
-  },
-): Pick<AdapterStoreOptions, "headers" | "fetch" | "verifier"> {
-  const verifier: TokenVerifier = {
-    verify: (token, expectations) => {
-      const current = read().verifier;
-      return current === undefined
-        ? Promise.reject(
-            new Error("PermDock: the verifier option was removed."),
-          )
-        : current.verify(token, expectations);
-    },
-  };
-  return compact({
-    headers: () => read().headers,
-    fetch: (...args: Parameters<typeof fetch>): Promise<Response> =>
-      (read().fetch ?? fetch)(...args),
-    verifier: read().verifier === undefined ? undefined : verifier,
-  });
 }

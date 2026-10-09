@@ -20,6 +20,7 @@ import type { PermDockSvelteOptions } from "./types.ts";
 import {
   approvalHandle,
   filterResult,
+  livePermDock,
   permissionSet,
   rolesView,
   subjectView,
@@ -43,12 +44,7 @@ function fromStore<T>(store: ClientStore, compute: () => T): Readable<T> {
 }
 
 export function sveltePermDock(store: ClientStore): ClientPermDock {
-  // SAFETY: the empty target is never read; the get trap answers from the store's current instance.
-  return new Proxy({} as ClientPermDock, {
-    get(_target, prop, _receiver): unknown {
-      return Reflect.get(store.get(), prop);
-    },
-  });
+  return livePermDock(() => store.get());
 }
 
 export function setPermDock(options: PermDockSvelteOptions): ClientPermDock {

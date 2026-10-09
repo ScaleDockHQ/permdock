@@ -5,10 +5,9 @@ import type { ClientStore } from "../client/store.ts";
 import type { Snapshot } from "../core/interfaces.ts";
 import type { PermDockSvelteOptions } from "./types.ts";
 
+import { providerStore, switchTenant } from "../client/provider-store.ts";
 import { isPromiseLike } from "../client/source.ts";
-import { adapterStore, liveOptions } from "../client/store-options.ts";
 import { compact } from "../core/compact.ts";
-import { emptySnapshot } from "../core/from-snapshot.ts";
 
 const permDockKey: unique symbol = Symbol("permdock");
 
@@ -41,7 +40,7 @@ function connectSvelteStore(options: PermDockSvelteOptions): {
   const source = options.snapshot;
   const promised = isPromiseLike(source);
   const reactive = promised ? undefined : reactiveSource(source);
-  let initial: Snapshot | string = emptySnapshot();
+  let initial: Snapshot | string | undefined;
   if (reactive !== undefined) {
     reactive.subscribe((value) => {
       initial = value;
@@ -52,25 +51,23 @@ function connectSvelteStore(options: PermDockSvelteOptions): {
   }
   const tenant = options.tenant;
   const headers = options.headers;
-  const store = adapterStore(
+  const store = providerStore(
     compact({
       endpoint: options.endpoint,
       snapshotUrl: options.snapshotUrl,
       approvals: options.approvals,
       tenant: typeof tenant === "function" ? tenant() : tenant,
       maxAge: options.maxAge,
-      ...liveOptions(() => ({
-        headers: typeof headers === "function" ? headers() : headers,
-        fetch: options.fetch,
-        verifier: options.verifier,
-      })),
     }),
-    initial,
+    () => ({
+      headers: typeof headers === "function" ? headers() : headers,
+      fetch: options.fetch,
+      verifier: options.verifier,
+    }),
+    promised ? source : initial,
   );
   const stops: (() => void)[] = [];
-  if (promised) {
-    store.follow(source);
-  } else if (reactive !== undefined) {
+  if (reactive !== undefined) {
     let current = initial;
     stops.push(
       reactive.subscribe((value) => {
@@ -87,10 +84,7 @@ function connectSvelteStore(options: PermDockSvelteOptions): {
       toStore(tenant).subscribe((next) => {
         if (next !== undefined && next !== active) {
           active = next;
-          store
-            .get()
-            .refresh({ tenant: next })
-            .catch(() => undefined);
+          switchTenant(store, next);
         }
       }),
     );

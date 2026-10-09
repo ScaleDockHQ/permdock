@@ -1,10 +1,4 @@
-import {
-  type ReactElement,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react";
+import { type ReactElement, useEffect, useRef } from "react";
 
 import type { ClientStore } from "../client/store.ts";
 import type { NativePermDockProviderProps } from "./types.ts";
@@ -18,15 +12,7 @@ import { connectSource, createNativeStore } from "./store.ts";
 export function PermDockProvider(
   props: NativePermDockProviderProps,
 ): ReactElement {
-  const live = useLiveOptions(props);
-  const latest = useRef(props);
-  useLayoutEffect(() => {
-    latest.current = props;
-  });
-  const [headers] = useState(
-    () => (): Readonly<Record<string, string>> | undefined =>
-      latest.current.headers,
-  );
+  const live = useLiveOptions(props, false);
   const shown = useRef<ClientStore | null>(null);
   const store = useKeyed(
     () =>
@@ -41,7 +27,7 @@ export function PermDockProvider(
           approvals: props.approvals,
           tenant: props.tenant,
           fetch: live.fetch,
-          headers,
+          headers: live.readHeaders,
           maxAge: props.maxAge,
           verifier: live.verifier,
           previous: shown.current ?? undefined,

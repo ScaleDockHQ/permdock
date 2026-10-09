@@ -25,6 +25,7 @@ import type {
 import {
   approvalHandle,
   filterResult,
+  livePermDock,
   permissionSet,
   rolesView,
   subjectView,
@@ -50,12 +51,9 @@ function useVersion(store: ClientStore): Accessor<number> {
 export function usePermDock(): ClientPermDock {
   const store = useStore();
   const version = useVersion(store);
-  // SAFETY: the empty target is never read; the get trap answers from the store's current instance.
-  return new Proxy({} as ClientPermDock, {
-    get(_target, prop, _receiver): unknown {
-      version();
-      return Reflect.get(store.get(), prop);
-    },
+  return livePermDock(() => {
+    version();
+    return store.get();
   });
 }
 

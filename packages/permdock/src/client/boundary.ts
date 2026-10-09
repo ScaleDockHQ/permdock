@@ -14,3 +14,16 @@ export function boundaryDigest(error: unknown): PermDockDigest | null {
   }
   return parsePermDockDigest(error.digest);
 }
+
+/** What a boundary renders for `digest`: `approval` for an approval request when given, otherwise `denied`. */
+export function boundaryFallback<T>(
+  digest: PermDockDigest,
+  fallbacks: {
+    readonly denied?: T | undefined;
+    readonly approval?: T | undefined;
+  },
+): T | undefined {
+  return digest.outcome === "approval-required"
+    ? (fallbacks.approval ?? fallbacks.denied)
+    : fallbacks.denied;
+}

@@ -12,6 +12,8 @@ type LiveProps = {
 
 export type LiveOptions = {
   readonly headers: Headers | undefined;
+  /** The latest `headers` prop, read on every request without rebuilding the store. */
+  readonly readHeaders: () => Headers | undefined;
   readonly fetch: typeof fetch;
   readonly verifier: TokenVerifier | undefined;
 };
@@ -33,17 +35,24 @@ function sameHeaders(a: Headers | undefined, b: Headers | undefined): boolean {
 /**
  * Store options whose identity survives a re-render, so an inline `headers`
  * object or `fetch` arrow does not rebuild the store and drop its snapshot.
- * `headers` compare by value; `fetch` and `verifier` call the latest prop.
+ * `headers` compare by value, unless `headersByValue` is `false` for a store
+ * that only reads `readHeaders`; `fetch` and `verifier` call the latest prop.
  */
-export function useLiveOptions(props: LiveProps): LiveOptions {
+export function useLiveOptions(
+  props: LiveProps,
+  headersByValue = true,
+): LiveOptions {
   const latest = useRef(props);
   useLayoutEffect(() => {
     latest.current = props;
   });
   const [headers, setHeaders] = useState(props.headers);
-  if (!sameHeaders(headers, props.headers)) {
+  if (headersByValue && !sameHeaders(headers, props.headers)) {
     setHeaders(props.headers);
   }
+  const [readHeaders] = useState(
+    () => (): Headers | undefined => latest.current.headers,
+  );
   const [liveFetch] = useState(
     () =>
       (...args: Parameters<typeof fetch>): Promise<Response> =>
@@ -59,6 +68,7 @@ export function useLiveOptions(props: LiveProps): LiveOptions {
   }));
   return {
     headers,
+    readHeaders,
     fetch: liveFetch,
     verifier: props.verifier === undefined ? undefined : liveVerifier,
   };
