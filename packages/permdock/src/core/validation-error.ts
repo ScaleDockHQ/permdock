@@ -3,7 +3,9 @@ import type { StandardSchemaV1 } from "@standard-schema/spec";
 import type { ProblemDetails } from "./errors.ts";
 
 import { compact } from "./compact.ts";
-import { PROBLEM_BASE } from "./problem-details.ts";
+
+/** The base of every Problem Details `type` URI; defined here so a validation error does not pull in the Problem Details builders. */
+export const PROBLEM_BASE = "https://permdock.com/problems";
 
 export class PermDockValidationError extends Error {
   public override readonly name = "PermDockValidationError" as const;

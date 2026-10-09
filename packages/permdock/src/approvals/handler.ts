@@ -9,8 +9,8 @@ import type {
 } from "./types.ts";
 
 import { compact } from "../core/compact.ts";
-import { PROBLEM_BASE } from "../core/problem-details.ts";
 import { rootMembershipId } from "../core/scopes.ts";
+import { PROBLEM_BASE } from "../core/validation-error.ts";
 import { hasCredentials } from "../server/http.ts";
 import { unauthenticatedProblem } from "../server/problem.ts";
 import { isApprovalError } from "./errors.ts";

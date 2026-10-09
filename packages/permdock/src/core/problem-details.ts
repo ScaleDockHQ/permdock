@@ -3,9 +3,10 @@ import type { ProblemDetails } from "./errors.ts";
 import type { Grantee } from "./grantee.ts";
 
 import { compact } from "./compact.ts";
+import { PROBLEM_BASE } from "./validation-error.ts";
 import { wireDenials } from "./wire-denial.ts";
 
-export const PROBLEM_BASE = "https://permdock.com/problems";
+export { PROBLEM_BASE };
 
 export type Disclosure = "hide" | "reveal";
 
