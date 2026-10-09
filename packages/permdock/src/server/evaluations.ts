@@ -9,6 +9,7 @@ import type { PermissionLookup } from "./evaluation-items.ts";
 import { readApprovalHeader, resumeDecision } from "../approvals/helpers.ts";
 import { compact } from "../core/compact.ts";
 import { NO_GRANT } from "../core/decision.ts";
+import { resourceRef } from "../core/resource-ref.ts";
 import { wireDenials } from "../core/wire-denial.ts";
 import { itemResourceData, permissionLookup } from "./evaluation-items.ts";
 import {
@@ -35,25 +36,6 @@ function permissionOf(
     typeof item.action?.name === "string" ? item.action.name : undefined,
     item.resource,
   );
-}
-
-function resourceRef(
-  permission: Permission,
-  item: EvaluationItem,
-  data: unknown,
-): { readonly type: string; readonly id?: string } {
-  const fromRow =
-    data !== null && typeof data === "object" && "id" in data
-      ? data.id
-      : undefined;
-  const fromWire = item.resource?.id;
-  const id =
-    typeof fromRow === "string" || typeof fromRow === "number"
-      ? String(fromRow)
-      : typeof fromWire === "string" || typeof fromWire === "number"
-        ? String(fromWire)
-        : undefined;
-  return compact({ type: permission.resource, id });
 }
 
 function evaluationRow(decision: Decision): {
@@ -144,7 +126,7 @@ function evaluateOne(
     permission,
     subject: permdock.subject,
     store,
-    resource: resourceRef(permission, item, data),
+    resource: resourceRef(permission, data, item.resource?.id),
     adapter,
     token: header,
     consume: false,

@@ -1,6 +1,6 @@
 import type { Permission } from "../core/permissions.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy.ts";
-import type { Actor, Principal } from "../core/subject.ts";
+import type { Principal } from "../core/subject.ts";
 import type {
   ConvexCtxLike,
   ConvexHandler,
@@ -9,6 +9,7 @@ import type {
   ConvexPermDockOptions,
 } from "./types.ts";
 
+import { actorFrom, tenantScope } from "../core/adapter-context.ts";
 import { compact } from "../core/compact.ts";
 import {
   PermDockApprovalRequiredError,
@@ -17,7 +18,6 @@ import {
 } from "../core/errors.ts";
 import { instanceOptions } from "../core/instance-options.ts";
 import { createPermDock as createCore } from "../core/permdock.ts";
-import { isActor } from "../core/subject.ts";
 
 /** Convex's runtime sends `data` to the client only for an error carrying this symbol. */
 const CONVEX_ERROR = Symbol.for("ConvexError");
@@ -55,30 +55,6 @@ export function createPermDock<
   policy: Policy<TUser, TPrincipal, V>,
   options: ConvexPermDockOptions<TCtx, TUser>,
 ): ConvexPermDock<TCtx, V> {
-  const tenantOf = async (ctx: TCtx): Promise<string | undefined> => {
-    const { tenant } = options;
-    if (tenant === undefined || typeof tenant === "string") {
-      return tenant;
-    }
-    try {
-      return await tenant(ctx);
-    } catch {
-      return undefined;
-    }
-  };
-
-  const actorOf = async (ctx: TCtx): Promise<Actor | undefined> => {
-    if (options.actor === undefined) {
-      return undefined;
-    }
-    try {
-      const resolved = await options.actor(ctx);
-      return isActor(resolved) ? resolved : undefined;
-    } catch {
-      return undefined;
-    }
-  };
-
   const withPermDock = <TArgs, TResult>(
     handler: ConvexHandler<TCtx, TArgs, TResult, V>,
   ): ((ctx: TCtx, args: TArgs) => Promise<TResult>) => {
@@ -93,9 +69,9 @@ export function createPermDock<
         policy,
         user,
         compact({
-          tenant: await tenantOf(ctx),
+          tenant: (await tenantScope(options.tenant, ctx)).tenant,
           ...instanceOptions(options),
-          actor: await actorOf(ctx),
+          actor: await actorFrom(options.actor, ctx),
         }),
       );
       // SAFETY: the spread keeps every TCtx field and adds the permdock instance built above.

@@ -55,6 +55,47 @@ export type BoundKernel<TContext, V extends PolicyVocabulary> = {
   readonly attach: (context: TContext) => Promise<Attached<V>>;
 };
 
+/** The server kernel with the subject and actor callbacks reading the context `contextOf` maps a `Request` to. */
+export function adapterKernel<
+  TContext,
+  TUser,
+  TPrincipal extends Principal = Principal,
+  V extends PolicyVocabulary = PolicyVocabulary,
+>(
+  policy: Policy<TUser, TPrincipal, V>,
+  options: ServerAdapterOptions<TContext, TUser> & {
+    readonly revocations?: RevocationFeed;
+  },
+  adapter: string,
+  contextOf: (request: Request) => TContext | undefined,
+): ServerKernel<V> {
+  return createServerKernel(
+    policy,
+    compact({
+      subject: (request: Request) => {
+        const context = contextOf(request);
+        return context === undefined ? null : options.subject(context);
+      },
+      actor:
+        options.actor === undefined
+          ? undefined
+          : (request: Request): unknown => {
+              const context = contextOf(request);
+              return context === undefined
+                ? undefined
+                : options.actor?.(context);
+            },
+      ...instanceOptions(options),
+      store: options.store,
+      pdp: options.pdp,
+      webBotAuth: options.webBotAuth,
+      revocations: options.revocations,
+      adapter,
+      wrap: options.otel,
+    }),
+  );
+}
+
 /**
  * The kernel of a framework adapter, with the subject, actor and tenant
  * callbacks reading the framework context each `Request` was built from.
@@ -74,30 +115,8 @@ export function bindKernel<
 ): BoundKernel<TContext, V> {
   const contexts = new WeakMap<Request, TContext>();
   const bound = new WeakMap<TContext, Request>();
-  const kernel = createServerKernel(
-    policy,
-    compact({
-      subject: (request: Request) => {
-        const context = contexts.get(request);
-        return context === undefined ? null : options.subject(context);
-      },
-      actor:
-        options.actor === undefined
-          ? undefined
-          : (request: Request): unknown => {
-              const context = contexts.get(request);
-              return context === undefined
-                ? undefined
-                : options.actor?.(context);
-            },
-      ...instanceOptions(options),
-      store: options.store,
-      pdp: options.pdp,
-      webBotAuth: options.webBotAuth,
-      revocations: options.revocations,
-      adapter,
-      wrap: options.otel,
-    }),
+  const kernel = adapterKernel(policy, options, adapter, (request) =>
+    contexts.get(request),
   );
 
   const bind = (context: TContext): Request => {

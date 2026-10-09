@@ -36,8 +36,10 @@ describe("adapters forward approvalPolicies", () => {
       file: path.relative(src, file),
       text: readFileSync(file, "utf8"),
     }));
-    const builders = files.filter(({ text }) =>
-      text.includes("...instanceOptions(options)"),
+    const builders = files.filter(
+      ({ text }) =>
+        text.includes("...instanceOptions(options)") ||
+        /\bbind(?:Rpc)?Kernel\(/u.test(text),
     );
     expect(builders.length).toBeGreaterThan(15);
     expect(

@@ -25,6 +25,7 @@ import { resumeDecision, storedApprovalToken } from "../approvals/helpers.ts";
 import { compact } from "../core/compact.ts";
 import { instanceOptions } from "../core/instance-options.ts";
 import { createPermDock as createCorePermDock } from "../core/permdock.ts";
+import { resourceRef } from "../core/resource-ref.ts";
 import { isSubject } from "../core/subject.ts";
 import { revokeCredential } from "./device.ts";
 import { defaultExit, EX_NOPERM, EX_USAGE } from "./exit.ts";
@@ -137,19 +138,6 @@ function actorFromResolved(value: unknown): TerminalActor {
     return { actor: value as Actor };
   }
   return {};
-}
-
-function resourceRef(
-  permission: Permission,
-  data: unknown,
-): { readonly type: string; readonly id?: string } {
-  if (data !== null && typeof data === "object" && "id" in data) {
-    const id = data.id;
-    if (typeof id === "string" || typeof id === "number") {
-      return { type: permission.resource, id: String(id) };
-    }
-  }
-  return { type: permission.resource };
 }
 
 function defaultConfirm(input: {
