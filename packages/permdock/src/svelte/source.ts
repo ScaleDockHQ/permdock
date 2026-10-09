@@ -8,7 +8,7 @@ import PermissionBoundaryComponent from "./PermissionBoundary.svelte";
 import ProtectedComponent from "./Protected.svelte";
 
 export { describe, requiredPlans } from "../core/describe.ts";
-export { approvalHeaders } from "../react/headers.ts";
+export { approvalHeaders } from "../client/headers.ts";
 export { setPermDock } from "./stores.ts";
 export {
   approval,

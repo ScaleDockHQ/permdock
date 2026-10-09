@@ -1,10 +1,10 @@
 import type { Snippet } from "svelte";
 
+import type { ClientStore } from "../client/store.ts";
 import type { ProtectedView } from "../client/views.ts";
 import type { Decision } from "../core/decision.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permissions.ts";
-import type { ClientStore } from "../react/store.ts";
 
 import { protectedView as viewOf } from "../client/views.ts";
 

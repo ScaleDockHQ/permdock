@@ -3,9 +3,10 @@ import { renderToStaticMarkup, renderToString } from "react-dom/server";
 import { prerender } from "react-dom/static";
 import { describe, expect, it, vi } from "vitest";
 
+import { approvalHeaders } from "../../src/client/headers.ts";
+import { createClientStore } from "../../src/client/store.ts";
 import { emptySnapshot } from "../../src/core/from-snapshot.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
-import { approvalHeaders } from "../../src/react/headers.ts";
 import {
   useAssignablePermissions,
   useFilter,
@@ -19,7 +20,6 @@ import {
 } from "../../src/react/hooks.ts";
 import { Protected } from "../../src/react/protected.tsx";
 import { PermDockProvider } from "../../src/react/provider.tsx";
-import { createClientStore } from "../../src/react/store.ts";
 import {
   memberUser,
   otherPost,

@@ -12,6 +12,8 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import type { Decision } from "../../src/core/decision.ts";
 import type { Snapshot } from "../../src/core/interfaces.ts";
 
+import { isPromiseLike } from "../../src/client/source.ts";
+import { type ClientStore, createClientStore } from "../../src/client/store.ts";
 import { emptySnapshot } from "../../src/core/from-snapshot.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
 import { PermDockStoreContext } from "../../src/react/context.ts";
@@ -27,8 +29,6 @@ import {
 import { Protected } from "../../src/react/protected.tsx";
 import { PermDockProvider as ClientPermDockProvider } from "../../src/react/provider-client.ts";
 import { PermDockProvider } from "../../src/react/provider.tsx";
-import { isPromiseLike } from "../../src/react/source.ts";
-import { type ClientStore, createClientStore } from "../../src/react/store.ts";
 import {
   memberUser,
   otherPost,

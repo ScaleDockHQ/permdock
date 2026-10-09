@@ -1,6 +1,6 @@
 import { createComponent, createRoot } from "solid-js";
 
-import type { ClientStore } from "../../src/react/store.ts";
+import type { ClientStore } from "../../src/client/store.ts";
 
 import { useStore } from "../../src/solid/context.ts";
 import { PermDockProvider } from "../../src/solid/provider.ts";

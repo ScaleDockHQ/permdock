@@ -1,9 +1,9 @@
 import type { Snapshot, TokenVerifier } from "../core/interfaces.ts";
 import type { Permission } from "../core/permissions.ts";
-import type { ClientStore, ClientStoreOptions } from "../react/store.ts";
+import type { ClientStore, ClientStoreOptions } from "./store.ts";
 
 import { compact } from "../core/compact.ts";
-import { createClientStore } from "../react/store.ts";
+import { createClientStore } from "./store.ts";
 
 /** The provider options every UI adapter forwards to its client store. */
 export type AdapterStoreOptions = Pick<

@@ -1,8 +1,8 @@
 import { get } from "svelte/store";
 import { describe, expect, it } from "vitest";
 
+import { approvalHeaders } from "../../src/client/headers.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
-import { approvalHeaders } from "../../src/react/headers.ts";
 import { createSvelteStore } from "../../src/svelte/context.ts";
 import { protectedView, scopedFor } from "../../src/svelte/protected.ts";
 import {

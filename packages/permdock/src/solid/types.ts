@@ -1,9 +1,6 @@
 import type { Accessor } from "solid-js";
 
 import type { PermissionBoundaryState } from "../client/boundary.ts";
-import type { Decision } from "../core/decision.ts";
-import type { Snapshot, TokenVerifier } from "../core/interfaces.ts";
-import type { Permission } from "../core/permissions.ts";
 import type {
   ApprovalHandle,
   ApprovalState,
@@ -15,7 +12,10 @@ import type {
   SubjectView,
   TenantView,
   UseRolesOptions,
-} from "../react/types.ts";
+} from "../client/types.ts";
+import type { Decision } from "../core/decision.ts";
+import type { Snapshot, TokenVerifier } from "../core/interfaces.ts";
+import type { Permission } from "../core/permissions.ts";
 
 /** Structural `JSX.Element`: text, a DOM node or a list of children. */
 export type SolidChild =

@@ -2,7 +2,7 @@ import type { Decision, GrantedDecision } from "../core/decision.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permissions.ts";
 import type { Role } from "../core/vocabulary.ts";
-import type { ClientStore } from "../react/store.ts";
+import type { ClientStore } from "./store.ts";
 import type {
   ApprovalHandle,
   ClientPermDock,
@@ -12,7 +12,7 @@ import type {
   SubjectView,
   TenantView,
   UseRolesOptions,
-} from "../react/types.ts";
+} from "./types.ts";
 
 export function permissionSet(
   store: ClientStore,

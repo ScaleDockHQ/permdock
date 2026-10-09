@@ -1,11 +1,11 @@
 import { use, useMemo, useSyncExternalStore } from "react";
 
+import type { ClientStore } from "../client/store.ts";
 import type { Decision } from "../core/decision.ts";
 import type { Permission } from "../core/permissions.ts";
 import type { PolicyVocabulary } from "../core/policy.ts";
 import type { Membership } from "../core/subject.ts";
 import type { Role } from "../core/vocabulary.ts";
-import type { ClientStore } from "./store.ts";
 import type {
   ApprovalHandle,
   ClientPermDock,
@@ -17,6 +17,7 @@ import type {
   UseRolesOptions,
 } from "./types.ts";
 
+import { storeOf } from "../client/store.ts";
 import {
   approvalHandle,
   filterResult,
@@ -29,7 +30,6 @@ import {
   PermDockSnapshotPromiseContext,
   PermDockStoreContext,
 } from "./context.ts";
-import { storeOf } from "./store.ts";
 
 function useStore(): ClientStore {
   const store = use(PermDockStoreContext);

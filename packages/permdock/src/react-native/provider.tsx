@@ -6,7 +6,7 @@ import {
   useState,
 } from "react";
 
-import type { ClientStore } from "../react/store.ts";
+import type { ClientStore } from "../client/store.ts";
 import type { NativePermDockProviderProps } from "./types.ts";
 
 import { compact } from "../core/compact.ts";

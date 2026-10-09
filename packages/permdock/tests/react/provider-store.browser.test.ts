@@ -1,7 +1,7 @@
 import { createElement, use } from "react";
 import { renderToString } from "react-dom/server";
 
-import type { ClientStore } from "../../src/react/store.ts";
+import type { ClientStore } from "../../src/client/store.ts";
 
 import { PermDockStoreContext } from "../../src/react/context.ts";
 import { PermDockProvider } from "../../src/react/provider.tsx";

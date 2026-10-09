@@ -2,6 +2,8 @@ import type { Decision } from "../core/decision.ts";
 import type { Snapshot, TokenVerifier } from "../core/interfaces.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permissions.ts";
+import type { CacheEntry } from "./batch.ts";
+import type { StoreHeaders } from "./request.ts";
 import type {
   ApprovalState,
   ClientPermDock,
@@ -11,20 +13,11 @@ import type {
 
 import { compact } from "../core/compact.ts";
 import { emptySnapshot, fromSnapshot } from "../core/from-snapshot.ts";
-import { rowIdOf } from "../core/row-pair.ts";
 import { parseSnapshot } from "../core/snapshot.ts";
 import { nowSeconds } from "../core/tenancy.ts";
-import { timeoutSignal } from "../core/timeout.ts";
-import { payloadDigest } from "../core/token.ts";
-
-/** Milliseconds a decision, refresh or approval request may take; a slower one is an error like a failed request. */
-const STORE_TIMEOUT_MS = 10_000;
-/** Ceiling for the approval poll backoff after a failed status request. */
-const APPROVAL_BACKOFF_CAP_MS = 60_000;
-/** Consecutive failed status requests after which a token is no longer polled. */
-const APPROVAL_MAX_FAILURES = 5;
-
-type StoreHeaders = Readonly<Record<string, string>>;
+import { createApprovals } from "./approvals.ts";
+import { NO_ENDPOINT, SERVER_ONLY, cacheKey, createBatch } from "./batch.ts";
+import { storeRequest } from "./request.ts";
 
 export type ClientStoreOptions = {
   readonly snapshot: Snapshot | string;
@@ -68,33 +61,6 @@ export type ClientStoreOptions = {
   readonly passCache?: boolean;
 };
 
-type CacheEntry = {
-  readonly decision: Decision;
-  readonly status: ClientStatus;
-};
-
-/** The row's id under the snapshot's id field, or `undefined` for a row without one. */
-function rowId(
-  snapshot: Snapshot,
-  permission: Permission,
-  data: unknown,
-): string | undefined {
-  const id = rowIdOf(data, snapshot.ids?.[permission.resource]);
-  return id === "*" ? undefined : id;
-}
-
-// A row without an id is keyed by its content, so two such rows never share an answer.
-function cacheKey(
-  snapshot: Snapshot,
-  permission: Permission,
-  data: unknown,
-): string {
-  if (data === undefined) {
-    return `${permission.key}:*`;
-  }
-  return `${permission.key}:${rowId(snapshot, permission, data) ?? `#${payloadDigest(data)}`}`;
-}
-
 function withTenant(source: string, tenant: string | undefined): string {
   if (tenant === undefined) {
     return source;
@@ -125,19 +91,6 @@ function isJws(value: string): boolean {
 
 const CURRENT = Symbol.for("permdock.current");
 const STORE = Symbol("permdock.store");
-
-const SERVER_ONLY: Decision = {
-  outcome: "denied",
-  denials: [{ role: null, reason: "opaque-condition" }],
-  alternatives: [],
-};
-
-/** The client has no endpoint to ask (`endpoint: false`, or none given). */
-const NO_ENDPOINT: Decision = {
-  outcome: "denied",
-  denials: [{ role: null, reason: "server-only" }],
-  alternatives: [],
-};
 
 export type ClientStore = {
   get(): ClientPermDock;
@@ -209,12 +162,6 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
     (globalThis as { readonly window?: unknown }).window === undefined;
   const listeners = new Set<() => void>();
   const answers = new Map<string, CacheEntry>();
-  let queued: {
-    readonly permission: Permission;
-    readonly data: unknown;
-    readonly key: string;
-  }[] = [];
-  let flushScheduled = false;
   let emitScheduled = false;
   let snapshot = emptySnapshot();
   let tenant = options.tenant;
@@ -238,8 +185,9 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
   // The compact JWS the snapshot being hydrated was verified from.
   let rawJws: string | undefined;
 
-  const headers = (): StoreHeaders | undefined =>
-    typeof options.headers === "function" ? options.headers() : options.headers;
+  const request = storeRequest(fetchImpl, (): StoreHeaders | undefined =>
+    typeof options.headers === "function" ? options.headers() : options.headers,
+  );
 
   // A throwing subscriber must not keep the others on a revoked answer.
   const emit = (): void => {
@@ -267,11 +215,35 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
     });
   };
 
+  const batch = createBatch({
+    endpoint: options.endpoint,
+    request,
+    answers,
+    onServerOnly: options.onServerOnly,
+    generation: () => generation,
+    snapshot: () => snapshot,
+    instance: () => instance,
+    emit,
+    emitSoon,
+  });
+
+  const approvals = createApprovals({
+    approvals: options.approvals,
+    endpoint: options.endpoint,
+    interval: options.approvalInterval ?? 2000,
+    server,
+    request,
+    emit,
+    disposed: () => disposed,
+    listening: () => listeners.size > 0,
+    simulated: () => snapshot.simulated === true,
+  });
+
   const reset = (): void => {
     generation += 1;
     answers.clear();
     decided.clear();
-    queued = [];
+    batch.clear();
   };
 
   const hydrate = (next: Snapshot): void => {
@@ -280,7 +252,7 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
       (snapshot.subject.principal?.id ?? null) !==
       (next.subject.principal?.id ?? null)
     ) {
-      forgetApprovals();
+      approvals.forget();
     }
     snapshot = next;
     instance = fromSnapshot(snapshot, compact({ tenant }));
@@ -380,106 +352,6 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
     applyParsed(claim);
   };
 
-  const scheduleFlush = (): void => {
-    if (flushScheduled || options.endpoint === undefined) {
-      return;
-    }
-    flushScheduled = true;
-    queueMicrotask(() => {
-      flushScheduled = false;
-      void flush();
-    });
-  };
-
-  const flush = async (): Promise<void> => {
-    const batch = queued;
-    queued = [];
-    if (batch.length === 0 || options.endpoint === undefined) {
-      return;
-    }
-    const started = generation;
-    if (snapshot.simulated === true) {
-      for (const item of batch) {
-        answers.set(item.key, { decision: SERVER_ONLY, status: "server-only" });
-      }
-      emit();
-      return;
-    }
-    try {
-      const response = await fetchImpl(options.endpoint, {
-        method: "POST",
-        credentials: "include",
-        signal: timeoutSignal(STORE_TIMEOUT_MS),
-        headers: {
-          accept: "application/json",
-          "content-type": "application/json",
-          ...headers(),
-        },
-        body: JSON.stringify({
-          evaluations: batch.map((item) => ({
-            subject: {
-              type: instance.subject.principal?.kind ?? "user",
-              id: instance.subject.principal?.id ?? "",
-            },
-            action: { name: item.permission.action },
-            resource: {
-              type: item.permission.resource,
-              id: rowId(snapshot, item.permission, item.data),
-              properties: item.data,
-            },
-          })),
-        }),
-      });
-      if (!response.ok) {
-        throw new Error("evaluations failed");
-      }
-      // SAFETY: the app's own PermDock evaluations endpoint answers in this AuthZEN shape.
-      const body = (await response.json()) as {
-        readonly evaluations?: readonly {
-          readonly decision?: boolean;
-          readonly context?: { readonly permdock?: Decision };
-        }[];
-      };
-      if (started !== generation) {
-        return;
-      }
-      for (const [index, item] of batch.entries()) {
-        const row = body.evaluations?.[index];
-        const decision = row?.context?.permdock ?? SERVER_ONLY;
-        answers.set(item.key, { decision, status: "ready" });
-      }
-    } catch {
-      if (started !== generation) {
-        return;
-      }
-      for (const item of batch) {
-        answers.set(item.key, { decision: SERVER_ONLY, status: "server-only" });
-      }
-    }
-    emit();
-  };
-
-  // Called from render: notifies subscribers in a microtask, never inline.
-  const enqueue = (
-    key: string,
-    permission: Permission,
-    data: unknown,
-  ): void => {
-    if (answers.has(key)) {
-      return;
-    }
-    if (options.endpoint === undefined) {
-      answers.set(key, { decision: NO_ENDPOINT, status: "server-only" });
-      options.onServerOnly?.(permission);
-      emitSoon();
-      return;
-    }
-    answers.set(key, { decision: SERVER_ONLY, status: "pending" });
-    queued.push({ permission, data, key });
-    emitSoon();
-    scheduleFlush();
-  };
-
   // With `passCache`, one render pass that checks the same row object from many
   // components evaluates it once. The decisions live until the next microtask:
   // a row mutated in place and checked again in the same task reads the earlier
@@ -551,7 +423,7 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
       if (server && options.endpoint !== undefined) {
         return { allowed: false, status: "pending", decision: SERVER_ONLY };
       }
-      enqueue(key, permission, data);
+      batch.enqueue(key, permission, data);
       const next = answers.get(key);
       if (next !== undefined) {
         return {
@@ -574,150 +446,17 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
     };
   };
 
-  const approvalInterval = options.approvalInterval ?? 2000;
-  const approvals = new Map<string, ApprovalState>();
-  const polls = new Map<string, ReturnType<typeof setTimeout>>();
-  // Tokens a render asked about that have not reached a terminal state.
-  const watched = new Set<string>();
-  // Bumped by `clear()`: a poll answer for the previous user is dropped.
-  let approvalEpoch = 0;
-
-  const TERMINAL: ReadonlySet<ApprovalState> = new Set([
-    "approved",
-    "rejected",
-    "expired",
-  ]);
-
-  const stopPolls = (): void => {
-    for (const timer of polls.values()) {
-      clearTimeout(timer);
-    }
-    polls.clear();
-  };
-
-  // Consecutive failed status requests per token; a success resets it.
-  const failures = new Map<string, number>();
-
-  const forgetApprovals = (): void => {
-    approvalEpoch += 1;
-    stopPolls();
-    approvals.clear();
-    watched.clear();
-    failures.clear();
-  };
-
-  const schedulePoll = (token: string): void => {
-    if (
-      disposed ||
-      server ||
-      options.approvals === undefined ||
-      polls.has(token) ||
-      listeners.size === 0
-    ) {
-      return;
-    }
-    const epoch = approvalEpoch;
-    const href = `${options.approvals.replace(/\/+$/u, "")}/${encodeURIComponent(token)}`;
-    const failed = failures.get(token) ?? 0;
-    const delay = Math.min(
-      approvalInterval * 2 ** failed,
-      Math.max(approvalInterval, APPROVAL_BACKOFF_CAP_MS),
-    );
-    polls.set(
-      token,
-      setTimeout(() => {
-        void (async (): Promise<void> => {
-          let next: ApprovalState | undefined;
-          // `true` for an answer that will not change by asking again (a 4xx other than 404).
-          let refused = false;
-          let errored = false;
-          try {
-            const response = await fetchImpl(href, {
-              method: "GET",
-              credentials: "include",
-              signal: timeoutSignal(STORE_TIMEOUT_MS),
-              headers: { accept: "application/json", ...headers() },
-            });
-            if (response.status === 404) {
-              next = "expired";
-            } else if (response.status >= 400 && response.status < 500) {
-              refused = true;
-            } else if (response.ok) {
-              // SAFETY: status is only compared with the four literals; a null body throws into the catch.
-              const body = (await response.json()) as {
-                readonly status?: unknown;
-              };
-              next =
-                body.status === "pending" ||
-                body.status === "approved" ||
-                body.status === "rejected" ||
-                body.status === "expired"
-                  ? body.status
-                  : undefined;
-              errored = next === undefined;
-            } else {
-              errored = true;
-            }
-          } catch {
-            next = undefined;
-            errored = true;
-          }
-          if (epoch !== approvalEpoch || disposed) {
-            return;
-          }
-          polls.delete(token);
-          if (next !== undefined && approvals.get(token) !== next) {
-            approvals.set(token, next);
-            emit();
-          }
-          const count = errored ? (failures.get(token) ?? 0) + 1 : 0;
-          if (count === 0) {
-            failures.delete(token);
-          } else {
-            failures.set(token, count);
-          }
-          if (
-            refused ||
-            count >= APPROVAL_MAX_FAILURES ||
-            TERMINAL.has(approvals.get(token) ?? "required")
-          ) {
-            watched.delete(token);
-            failures.delete(token);
-          } else {
-            schedulePoll(token);
-          }
-        })();
-      }, delay),
-    );
-  };
-
-  const approvalState = (decision: Decision): ApprovalState => {
-    if (decision.outcome !== "approval-required") {
-      return "not-needed";
-    }
-    const current = approvals.get(decision.token) ?? "required";
-    if (TERMINAL.has(current)) {
-      watched.delete(decision.token);
-    } else {
-      watched.add(decision.token);
-      schedulePoll(decision.token);
-    }
-    return current;
-  };
-
   // StrictMode and remounts unsubscribe every listener for a moment; polls resume
   // with the next subscriber instead of waiting for the next render.
   const subscribe = (listener: () => void): (() => void) => {
     listeners.add(listener);
     if (listeners.size === 1) {
-      for (const token of watched) {
-        schedulePoll(token);
-      }
+      approvals.resume();
     }
     return (): void => {
       listeners.delete(listener);
       if (listeners.size === 0) {
-        stopPolls();
+        approvals.stop();
       }
     };
   };
@@ -774,15 +513,7 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
         let body: unknown;
         let ok = false;
         try {
-          const response = await fetchImpl(withTenant(source, requested), {
-            method: "GET",
-            credentials: "include",
-            signal: timeoutSignal(STORE_TIMEOUT_MS),
-            headers: {
-              accept: "application/json",
-              ...headers(),
-            },
-          });
+          const response = await request(withTenant(source, requested));
           if (response.ok) {
             body = await response.json();
             ok = true;
@@ -825,7 +556,7 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
         snapshot = emptySnapshot();
         instance = fromSnapshot(snapshot, compact({ tenant }));
         base = "server-only";
-        forgetApprovals();
+        approvals.forget();
         if (!disposed) {
           options.onClear?.();
         }
@@ -839,13 +570,20 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
     return client;
   };
 
+  // A compact JWS goes through the verifier; anything else is parsed as a snapshot.
+  const dispatch = (value: unknown): void => {
+    if (typeof value === "string" && isJws(value)) {
+      void bootJws(value);
+    } else {
+      applyParsed(value);
+    }
+  };
+
   const land = (next: unknown): void => {
     if (next === undefined) {
       serverOnly();
-    } else if (typeof next === "string" && isJws(next)) {
-      void bootJws(next);
     } else {
-      applyParsed(next);
+      dispatch(next);
     }
   };
 
@@ -866,30 +604,16 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
     });
   };
 
-  const boot = (value: Snapshot | string): void => {
-    if (typeof value === "string" && isJws(value)) {
-      cached = wrap(instance);
-      void bootJws(value);
-    } else {
-      applyParsed(value);
-      cached = wrap(instance);
-    }
-  };
-
   const store: ClientStore = {
     get(): ClientPermDock {
       return cached;
     },
     subscribe,
     permissionState,
-    approvalState,
+    approvalState: approvals.state,
     replace(value: unknown): void {
       staleNext = false;
-      if (typeof value === "string" && isJws(value)) {
-        void bootJws(value);
-        return;
-      }
-      applyParsed(value);
+      dispatch(value);
     },
     follow,
     track(value: PromiseLike<Snapshot | string>): void {
@@ -922,7 +646,7 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
       reset();
       silent = true;
       try {
-        boot(value);
+        dispatch(value);
       } finally {
         silent = false;
       }
@@ -937,45 +661,12 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
     dispose(): void {
       disposed = true;
       generation += 1;
-      queued = [];
-      forgetApprovals();
+      batch.clear();
+      approvals.forget();
       listeners.clear();
     },
-    async requestApproval(decision: Decision, note?: string): Promise<void> {
-      if (
-        decision.outcome !== "approval-required" ||
-        snapshot.simulated === true
-      ) {
-        return;
-      }
-      const href = options.approvals ?? options.endpoint;
-      if (href === undefined) {
-        return;
-      }
-      const response = await fetchImpl(href, {
-        method: "POST",
-        credentials: "include",
-        signal: timeoutSignal(STORE_TIMEOUT_MS),
-        headers: {
-          accept: "application/json",
-          "content-type": "application/json",
-          ...headers(),
-        },
-        body: JSON.stringify({
-          permission: decision.grant.permission,
-          token: decision.token,
-          note,
-        }),
-      });
-      if (
-        response.ok &&
-        !TERMINAL.has(approvals.get(decision.token) ?? "required")
-      ) {
-        approvals.set(decision.token, "pending");
-        emit();
-      }
-    },
+    requestApproval: approvals.request,
   };
-  boot(options.snapshot);
+  dispatch(options.snapshot);
   return store;
 }

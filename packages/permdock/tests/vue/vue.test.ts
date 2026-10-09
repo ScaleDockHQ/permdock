@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { createSSRApp, defineComponent, h, ref } from "vue";
 import { renderToString } from "vue/server-renderer";
 
+import { approvalHeaders } from "../../src/client/headers.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
-import { approvalHeaders } from "../../src/react/headers.ts";
 import {
   useFilter,
   useMemberships,

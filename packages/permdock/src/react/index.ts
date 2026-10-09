@@ -1,7 +1,7 @@
 "use client";
 
 export { describe, requiredPlans } from "../core/describe.ts";
-export { approvalHeaders } from "./headers.ts";
+export { approvalHeaders } from "../client/headers.ts";
 export {
   useApproval,
   useAssignablePermissions,

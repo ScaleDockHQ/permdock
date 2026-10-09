@@ -7,9 +7,9 @@ import type {
   WebMcpToolResult,
 } from "../../src/webmcp/types.ts";
 
+import { createClientStore } from "../../src/client/store.ts";
 import { emptySnapshot, fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
-import { createClientStore } from "../../src/react/store.ts";
 import { registerTools } from "../../src/webmcp/register.ts";
 import {
   adminUser,

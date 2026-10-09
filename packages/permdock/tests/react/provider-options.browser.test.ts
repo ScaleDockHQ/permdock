@@ -2,8 +2,8 @@ import { type ReactNode, act, createElement, use } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
+import type { ClientStore } from "../../src/client/store.ts";
 import type { TokenVerifier } from "../../src/core/interfaces.ts";
-import type { ClientStore } from "../../src/react/store.ts";
 
 import { emptySnapshot } from "../../src/core/from-snapshot.ts";
 import { PermDockStoreContext } from "../../src/react/context.ts";

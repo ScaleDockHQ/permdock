@@ -1,14 +1,14 @@
+import type { ClientStore } from "../client/store.ts";
 import type { Snapshot, SnapshotSource } from "../core/interfaces.ts";
-import type { ClientStore } from "../react/store.ts";
 import type {
   NativePermDockProviderProps,
   SubscribeForeground,
 } from "./types.ts";
 
+import { createClientStore } from "../client/store.ts";
 import { compact } from "../core/compact.ts";
 import { emptySnapshot } from "../core/from-snapshot.ts";
 import { parseSnapshot } from "../core/snapshot.ts";
-import { createClientStore } from "../react/store.ts";
 import {
   clearStorage,
   guardStorage,

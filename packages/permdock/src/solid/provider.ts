@@ -9,10 +9,10 @@ import {
 import type { Snapshot } from "../core/interfaces.ts";
 import type { PermDockProviderProps } from "./types.ts";
 
+import { isPromiseLike } from "../client/source.ts";
 import { adapterStore, liveOptions } from "../client/store-options.ts";
 import { compact } from "../core/compact.ts";
 import { emptySnapshot } from "../core/from-snapshot.ts";
-import { isPromiseLike } from "../react/source.ts";
 import { PermDockContext } from "./context.ts";
 
 type ProviderProps = Parameters<typeof PermDockContext.Provider>[0];

@@ -1,14 +1,14 @@
 import { getContext, onDestroy, setContext } from "svelte";
 import { toStore, type Readable } from "svelte/store";
 
+import type { ClientStore } from "../client/store.ts";
 import type { Snapshot } from "../core/interfaces.ts";
-import type { ClientStore } from "../react/store.ts";
 import type { PermDockSvelteOptions } from "./types.ts";
 
+import { isPromiseLike } from "../client/source.ts";
 import { adapterStore, liveOptions } from "../client/store-options.ts";
 import { compact } from "../core/compact.ts";
 import { emptySnapshot } from "../core/from-snapshot.ts";
-import { isPromiseLike } from "../react/source.ts";
 
 const permDockKey: unique symbol = Symbol("permdock");
 
