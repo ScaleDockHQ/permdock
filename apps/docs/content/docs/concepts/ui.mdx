@@ -56,7 +56,7 @@ const actions = usePermissions(
 // actions.granted -> [permissions.post.update]      references, not strings
 ```
 
-It is the client form of AuthZEN action search and resolves the [React adapter](/docs/adapters/react) open question about `usePermittedActions`: the input is references (typed, rename-safe), the output is keyed by `.key` for lookup and exposes the granted references as an array. Entries that need the endpoint batch into one `evaluations` call.
+It is the client form of AuthZEN action search. The input is references (typed, rename-safe), the output is keyed by `.key` for lookup and exposes the granted references as an array. Entries that need the endpoint batch into one `evaluations` call.
 
 ## Lists
 
