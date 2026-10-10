@@ -168,6 +168,36 @@ describe("rls.assignments on the global-roles table", () => {
   const replace = (user: string, roles: string[]): string =>
     `select permdock.permdock_replace_global_roles('${user}', array[${roles.map((role) => `'${role}'`).join(", ")}]::text[])`;
 
+  const rolesAfter = async (
+    user: string,
+    statements: readonly string[],
+  ): Promise<string[]> => {
+    if (db === undefined) {
+      throw new Error("PermDock: Postgres was not started");
+    }
+    const target = db;
+    return target.as(
+      {
+        role: "authenticated",
+        settings: {
+          "request.jwt.claims": JSON.stringify({
+            sub: user,
+            role: "authenticated",
+          }),
+        },
+      },
+      async () => {
+        for (const statement of statements) {
+          await target.tester.query(statement);
+        }
+        const rows = await target.tester.query<{ role: string }>(
+          `select role from public.user_roles where user_id = '${NEWCOMER}' order by role`,
+        );
+        return rows.rows.map((row) => row.role);
+      },
+    );
+  };
+
   const rolesOf = async (user: string): Promise<string[]> => {
     if (db === undefined) {
       throw new Error("PermDock: Postgres was not started");
@@ -180,15 +210,20 @@ describe("rls.assignments on the global-roles table", () => {
 
   it("replaces a user's global roles in one call, through the assignment trigger", async () => {
     await expect(
-      as(PLATFORM, replace(NEWCOMER, ["platform-support"])),
-    ).resolves.toBeUndefined();
-    expect(await rolesOf(NEWCOMER)).toEqual(["platform-support"]);
+      rolesAfter(PLATFORM, [replace(NEWCOMER, ["platform-support"])]),
+    ).resolves.toEqual(["platform-support"]);
     await expect(
-      as(PLATFORM, replace(NEWCOMER, ["platform-support"])),
-    ).resolves.toBeUndefined();
-    expect(await rolesOf(NEWCOMER)).toEqual(["platform-support"]);
-    await expect(as(PLATFORM, replace(NEWCOMER, []))).resolves.toBeUndefined();
-    expect(await rolesOf(NEWCOMER)).toEqual([]);
+      rolesAfter(PLATFORM, [
+        replace(NEWCOMER, ["platform-support"]),
+        replace(NEWCOMER, ["platform-support"]),
+      ]),
+    ).resolves.toEqual(["platform-support"]);
+    await expect(
+      rolesAfter(PLATFORM, [
+        replace(NEWCOMER, ["platform-support"]),
+        replace(NEWCOMER, []),
+      ]),
+    ).resolves.toEqual([]);
   });
 
   it("keeps the ceiling and the own-row rule on a replacement", async () => {
