@@ -1,3 +1,6 @@
+import type { EntitlementClaimOptions } from "better-supabase/blocks/entitlements";
+import type { AuthSession } from "better-supabase/server";
+
 import type { CredentialPrincipal } from "../core/credential.ts";
 import type { PermissionTree } from "../core/permissions.ts";
 import type { Subject } from "../core/subject.ts";
@@ -15,17 +18,7 @@ import { subjectFromSupabaseSession } from "../supabase/subject.ts";
 import { keyCredential, manifestServiceRoles } from "./api-keys.ts";
 
 /** An `AuthSession` of kind `apiKey`, from better-supabase's api-keys middleware. */
-export type ApiKeySession = {
-  readonly kind: "apiKey";
-  readonly keyId: string;
-  readonly name: string;
-  readonly organizationId?: string;
-  readonly userId?: string;
-  readonly scopes: readonly string[];
-  /** Seconds since epoch. */
-  readonly createdAt?: number;
-  readonly createdBy?: string;
-};
+export type ApiKeySession = Extract<AuthSession, { readonly kind: "apiKey" }>;
 
 export type ApiKeySessionOptions = {
   /** The definitions: the key's scopes become the subject's delegation, and `*` stands for all of them. */
@@ -36,11 +29,8 @@ export type ApiKeySessionOptions = {
   readonly serviceRoles?: ServiceRoles<ApiKeySession>;
 };
 
-/** better-supabase's `EntitlementClaimOptions`: the claim, and the short code written for each feature key. */
-export type FeatureClaim = {
-  readonly claim?: string;
-  readonly keys?: Readonly<Record<string, string>>;
-};
+/** The claim, and the short code better-supabase writes for each feature key. */
+export type FeatureClaim = EntitlementClaimOptions;
 
 export type BetterSupabaseSubjectOptions = Omit<
   SupabaseSubjectOptions,
