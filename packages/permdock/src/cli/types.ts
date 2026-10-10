@@ -489,6 +489,19 @@ export type SupabaseHookConfig = {
   readonly budget?: number;
   /** Keep `permdock_authz_version` and write the `authz_ver` claim. Default `true`. */
   readonly version?: boolean;
+  /**
+   * Write PostgREST wrappers for `subject_for`, `members_of` and
+   * `authz_version_for` into `schema` (default `public`), named
+   * `<prefix>subject_for` and so on (default prefix `permdock_`), for a
+   * backend that reaches Postgres through the Data API while the hook schema
+   * is not exposed. Each wrapper is `security definer`, revoked from
+   * `public`, `anon` and `authenticated`, and granted to `service_role`: the
+   * one place the hook grants to it. Pass the same setting to `postgrestSources`.
+   */
+  readonly api?: {
+    readonly schema?: string;
+    readonly prefix?: string;
+  };
   /** The `jwt_expiry` the printed `config.toml` block sets. Default 900. */
   readonly jwtExpiry?: number;
   /** Suspended users get empty claims. Default `rls.suspension`. */

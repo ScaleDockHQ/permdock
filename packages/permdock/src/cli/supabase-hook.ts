@@ -34,6 +34,7 @@ import {
   hookSql,
   managedSql,
   membersOfSql,
+  apiWrappersSql,
   subjectForSql,
   versionSql,
 } from "./supabase-hook-sql.ts";
@@ -54,7 +55,7 @@ Reads supabase.hook from permdock.config.ts: the fromTable / fromJunction source
 passes as memberships. hook generate emits custom_access_token_hook(jsonb), the grants it
 needs (the ones db diff drops in --grants-out, for declarative schemas), the permdock_authz_version table
 and its triggers. Never grants anything to
-service_role. inspect prints the manifest: helper schema, names and signatures, tenant claim,
+service_role unless supabase.hook.api is set, which grants its wrappers to it. inspect prints the manifest: helper schema, names and signatures, tenant claim,
 budget, the claims the hook writes, the membership sources and the columns that decide them.
 --out writes it as JSON, to permdock.manifest.json without a path; --check exits 1 when that
 file differs.
@@ -127,6 +128,7 @@ ${toml}${grantsOut === undefined ? "" : `\n-- what supabase db diff drops from t
     subjectForSql(parts, config),
     authzVersionForSql(parts),
     membersOfSql(parts),
+    apiWrappersSql(parts),
     grantsSql(parts),
     managedSql(parts),
   ]

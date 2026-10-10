@@ -18,6 +18,8 @@ import { resolveScope, rootScope, scopeChain } from "../core/scopes.ts";
 import { roleManifest } from "../supabase/roles.ts";
 import {
   AUTHZ_VERSION_TABLE,
+  HOOK_API_SCHEMA,
+  hookApiNames,
   PERMDOCK_SCHEMA,
   supabaseMembershipsBudget,
   supabaseTenantClaim,
@@ -899,6 +901,50 @@ ${entriesSql(parts).replaceAll(/^/gmu, "      ")}
 end;
 $$;
 revoke execute on function ${fn}(uuid) from public, anon, authenticated;`;
+}
+
+/**
+ * The PostgREST wrappers `supabase.hook.api` asks for: one `security definer`
+ * function per reader, in the API schema, executable by `service_role` only.
+ */
+export function apiWrappersSql(parts: Parts): string {
+  const api = parts.hook.api;
+  if (api === undefined) {
+    return "";
+  }
+  const target = api.schema ?? HOOK_API_SCHEMA;
+  const names = hookApiNames(api.prefix);
+  const source = quoteIdent(parts.schema);
+  const wrapper = (
+    name: string,
+    inner: string,
+    params: string,
+    args: string,
+    types: string,
+    returns: string,
+  ): string => {
+    const fn = `${quoteIdent(target)}.${quoteIdent(name)}`;
+    if (target === parts.schema && name === inner) {
+      throw new Error(
+        `PermDock CLI: supabase.hook.api would replace ${source}.${inner}: set api.schema or api.prefix`,
+      );
+    }
+    return `create or replace function ${fn}(${params})
+returns ${returns}
+language sql
+stable
+security definer
+set search_path = ''
+as $$ select ${source}.${inner}(${args}) $$;
+revoke execute on function ${fn}(${types}) from public, anon, authenticated;
+grant execute on function ${fn}(${types}) to service_role;`;
+  };
+  return `-- supabase.hook.api: wrappers in ${quoteIdent(target)} for a backend that reaches the hook schema through the Data API; only service_role may execute them
+${wrapper(names.subjectFor, SUBJECT_FOR, "p_user uuid", "p_user", "uuid", "jsonb")}
+
+${wrapper(names.membersOf, MEMBERS_OF, "p_scope text, p_id text", "p_scope, p_id", "text, text", "jsonb")}
+
+${wrapper(names.authzVersionFor, AUTHZ_VERSION_FOR, "p_user uuid", "p_user", "uuid", "bigint")}`;
 }
 
 const AUTHZ_VERSION_FOR = "authz_version_for";

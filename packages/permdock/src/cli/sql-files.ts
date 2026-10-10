@@ -133,10 +133,43 @@ export function migrationVersion(now: Date): string {
     .slice(0, 14);
 }
 
+const VERSION_PREFIX = /^\d{14}(?=_)/u;
+
+/**
+ * The version of a new migration that sorts after every migration in
+ * `names`: one second past the newest, so the same directory always gives the
+ * same name. Only a directory with no versioned migration falls back to `now`.
+ */
+export function nextMigrationVersion(
+  names: readonly string[],
+  now: Date,
+): string {
+  const times = names.flatMap((name) => {
+    const stamp = VERSION_PREFIX.exec(name)?.[0];
+    return stamp === undefined
+      ? []
+      : [
+          Date.UTC(
+            Number(stamp.slice(0, 4)),
+            Number(stamp.slice(4, 6)) - 1,
+            Number(stamp.slice(6, 8)),
+            Number(stamp.slice(8, 10)),
+            Number(stamp.slice(10, 12)),
+            Number(stamp.slice(12, 14)),
+          ),
+        ];
+  });
+  return times.length === 0
+    ? migrationVersion(now)
+    : migrationVersion(new Date(Math.max(...times) + 1000));
+}
+
 /**
  * The seeds part in a migrations directory: the newest migration there that
  * starts with \`marker\` when its text is \`text\` already, otherwise a new
- * \`<version>_permdock_seeds.sql\`. \`current\` is false when a new one is due.
+ * \`<version>_permdock_seeds.sql\` one second after the newest migration
+ * (\`nextMigrationVersion\`), so a regeneration of the same directory names it
+ * the same. \`current\` is false when a new one is due.
  */
 export function seedsMigration(
   cwd: string,
@@ -162,8 +195,9 @@ export function seedsMigration(
   ) {
     return { rel: `${base}/${latest}`, current: true };
   }
+  const names = existsSync(path) ? readdirSync(path) : [];
   return {
-    rel: `${base}/${migrationVersion(now)}_permdock_seeds.sql`,
+    rel: `${base}/${nextMigrationVersion(names, now)}_permdock_seeds.sql`,
     current: false,
   };
 }

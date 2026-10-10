@@ -109,3 +109,52 @@ describe("runSupabase dispatch", () => {
     );
   });
 });
+
+describe("supabase.hook.api", () => {
+  const hook = (api?: { schema?: string; prefix?: string }) =>
+    supabaseHookSql(scopes, {
+      policy: "p.ts",
+      supabase: {
+        hook: {
+          memberships: [fromTable({ table: "memberships" })],
+          ...(api === undefined ? {} : { api }),
+        },
+      },
+    }).sql;
+
+  it("writes no wrapper without the option and never grants service_role", () => {
+    const sql = hook();
+    expect(sql).not.toContain("permdock_subject_for");
+    expect(sql).not.toContain("service_role");
+  });
+
+  it("writes the three wrappers in public with the default prefix", () => {
+    const sql = hook({});
+    expect(sql).toContain(
+      `create or replace function "public"."permdock_subject_for"(p_user uuid)\nreturns jsonb`,
+    );
+    expect(sql).toContain(
+      `as $$ select "permdock".subject_for(p_user) $$;\nrevoke execute on function "public"."permdock_subject_for"(uuid) from public, anon, authenticated;\ngrant execute on function "public"."permdock_subject_for"(uuid) to service_role;`,
+    );
+    expect(sql).toContain(
+      `create or replace function "public"."permdock_members_of"(p_scope text, p_id text)`,
+    );
+    expect(sql).toContain(`select "permdock".members_of(p_scope, p_id)`);
+    expect(sql).toContain(
+      `create or replace function "public"."permdock_authz_version_for"(p_user uuid)\nreturns bigint`,
+    );
+  });
+
+  it("honours the schema and the prefix", () => {
+    const sql = hook({ schema: "api", prefix: "pd_" });
+    expect(sql).toContain(`"api"."pd_subject_for"`);
+    expect(sql).toContain(`"api"."pd_members_of"`);
+    expect(sql).toContain(`"api"."pd_authz_version_for"`);
+  });
+
+  it("refuses a wrapper that would replace the function it wraps", () => {
+    expect(() => hook({ schema: "permdock", prefix: "" })).toThrow(
+      /would replace "permdock"\.subject_for/,
+    );
+  });
+});

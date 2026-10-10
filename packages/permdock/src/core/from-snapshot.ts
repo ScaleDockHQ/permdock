@@ -331,7 +331,13 @@ export function fromSnapshot(
         alternatives: [],
       });
     },
-    assignableRoles(query?: { readonly tenant?: string }) {
+    assignableRoles(query?: {
+      readonly tenant?: string;
+      readonly scope?: "global";
+    }) {
+      if (query?.scope === "global") {
+        return [];
+      }
       const tenant = query?.tenant ?? subject.principal?.tenant;
       const tree = snapshot.vocabulary?.roles;
       if (snapshot.assignable !== undefined) {

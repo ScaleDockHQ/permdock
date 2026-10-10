@@ -11,6 +11,7 @@ import type { CollectOutcome } from "./collect.ts";
 import type { DoctorFinding, DoctorInput } from "./doctor-types.ts";
 import type { CliIo, RlsActions } from "./types.ts";
 
+import { policyRowConditionKeys } from "../core/row-conditions.ts";
 import {
   normalizeMemberships,
   resolveScope,
@@ -24,7 +25,7 @@ import {
   validateCustomRole,
 } from "../index.ts";
 import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
-import { jsonSchemaOf, policyRowConditionKeys } from "./catalog-doc.ts";
+import { jsonSchemaOf } from "./catalog-doc.ts";
 import { runCollect } from "./collect.ts";
 import { MIGRATION_DIRS } from "./doctor-project.ts";
 import { doctorSrcPath, sqlFiles } from "./files.ts";

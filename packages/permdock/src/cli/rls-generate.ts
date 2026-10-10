@@ -18,11 +18,11 @@ import type {
 
 import { compact } from "../core/compact.ts";
 import { renamedKeys } from "../core/permissions.ts";
+import { policyRowConditionKeys } from "../core/row-conditions.ts";
 import { resolveScope, scopeList } from "../core/scopes.ts";
 import { listPermissions, listRoles } from "../index.ts";
 import { supabaseTenantClaim } from "../supabase/budget.ts";
 import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
-import { policyRowConditionKeys } from "./catalog-doc.ts";
 import { describeError } from "./errors.ts";
 import { asPolicy, loadModule, pickNamed } from "./load.ts";
 import { GRANTS_MARKER, INDEXES_MARKER, SEEDS_MARKER } from "./markers.ts";

@@ -12,7 +12,7 @@ import type {
 } from "../core/subject.ts";
 
 import { compact } from "../core/compact.ts";
-import { PERMDOCK_SCHEMA } from "./sources.ts";
+import { HOOK_API_SCHEMA, hookApiNames, PERMDOCK_SCHEMA } from "./sources.ts";
 import { readMemberships } from "./subject.ts";
 
 /** What a supabase-js `rpc` call resolves to: `data` or an `error` with a message. */
@@ -52,6 +52,17 @@ export function callRpc(
 }
 
 export type PostgrestSourcesOptions = {
+  /**
+   * The `supabase.hook.api` setting the hook file was generated with: the
+   * wrappers live in `schema` (default `public`) as `<prefix>subject_for`,
+   * `<prefix>members_of` and `<prefix>authz_version_for` (default prefix
+   * `permdock_`). It sets the defaults of `schema`, `fn`, `membersFn` and
+   * `versionFn`, which still override it.
+   */
+  readonly api?: {
+    readonly schema?: string;
+    readonly prefix?: string;
+  };
   /** Schema of the functions. Default `permdock`, where the hook generates `subject_for` and `members_of`. */
   readonly schema?: string;
   /** Function name, for a wrapper in an exposed schema. Default `subject_for`. */
@@ -225,10 +236,15 @@ export function postgrestSources(
   client: SupabaseRpcCaller,
   options: PostgrestSourcesOptions = {},
 ): PostgrestSources {
-  const schema = options.schema ?? PERMDOCK_SCHEMA;
-  const fn = options.fn ?? "subject_for";
-  const membersFn = options.membersFn ?? "members_of";
-  const versionFn = options.versionFn ?? "authz_version_for";
+  const api = options.api;
+  const names = api === undefined ? undefined : hookApiNames(api.prefix);
+  const schema =
+    options.schema ??
+    (api === undefined ? PERMDOCK_SCHEMA : (api.schema ?? HOOK_API_SCHEMA));
+  const fn = options.fn ?? names?.subjectFor ?? "subject_for";
+  const membersFn = options.membersFn ?? names?.membersOf ?? "members_of";
+  const versionFn =
+    options.versionFn ?? names?.authzVersionFor ?? "authz_version_for";
   const declared =
     options.policy === undefined
       ? undefined

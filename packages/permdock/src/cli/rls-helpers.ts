@@ -18,6 +18,7 @@ import {
   customRoleWritesSql,
   roleReadersSql,
 } from "./rls-custom-roles.ts";
+import { globalRolesSql } from "./rls-global-roles.ts";
 import {
   allowEntry,
   CUSTOM_ROLES,
@@ -1240,6 +1241,10 @@ revoke all on table ${ur} from anon, authenticated, public;`);
     if (cascade !== "") {
       chunks.push(cascade);
     }
+  }
+  const globalRoles = globalRolesSql(ctx);
+  if (globalRoles !== "") {
+    chunks.push(globalRoles);
   }
   const readers = roleReadersSql(
     ctx,

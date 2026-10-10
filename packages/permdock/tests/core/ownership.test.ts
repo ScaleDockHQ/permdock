@@ -27,6 +27,8 @@ async function permdockFor(
   });
 }
 
+type NamedChange = Extract<RoleChange, { readonly id: string }>;
+
 const staffTarget = { id: "u_new", via: "staff", roles: [] };
 
 function reasons(decision: ReturnType<PermDock["decideRoleChange"]>) {
@@ -183,7 +185,7 @@ describe("ownership: membership kinds", () => {
 });
 
 describe("ownership: decideRoleChange (CentraKit assertion 8)", () => {
-  const inT = (change: Partial<RoleChange>): RoleChange => ({
+  const inT = (change: Partial<NamedChange>): RoleChange => ({
     kind: "assign",
     role: "member",
     scope: "organization",
@@ -455,7 +457,7 @@ describe("ownership: max, transferOnly and exclusiveWith", () => {
     tenant: "o1",
     memberships: [{ scope: "org", id: "o1", roles: ["primary"] }],
   };
-  const change = (extra: Partial<RoleChange>): RoleChange => ({
+  const change = (extra: Partial<NamedChange>): RoleChange => ({
     kind: "assign",
     role: "primary",
     scope: "org",

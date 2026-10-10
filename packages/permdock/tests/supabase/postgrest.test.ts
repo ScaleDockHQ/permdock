@@ -53,6 +53,33 @@ const owner = {
   authzVersion: 4,
 };
 
+describe("postgrestSources api", () => {
+  it("defaults to the supabase.hook.api wrappers", async () => {
+    const calls: string[] = [];
+    const sources = postgrestSources(fakeClient({ u1: owner }, calls), {
+      api: {},
+    });
+    await sources.subject("u1");
+    await sources.memberships.version?.({ id: "u1" });
+    expect(calls[0]).toBe("public.permdock_subject_for(u1)");
+  });
+
+  it("takes the schema and prefix of the setting and lets an explicit name win", async () => {
+    const calls: string[] = [];
+    const sources = postgrestSources(fakeClient({ u1: owner }, calls), {
+      api: { schema: "api", prefix: "pd_" },
+      fn: "custom_subject",
+    });
+    await sources.subject("u1");
+    expect(calls).toEqual(["api.custom_subject(u1)"]);
+    const defaults: string[] = [];
+    await postgrestSources(fakeClient({ u1: owner }, defaults), {
+      api: { schema: "api", prefix: "pd_" },
+    }).subject("u1");
+    expect(defaults).toEqual(["api.pd_subject_for(u1)"]);
+  });
+});
+
 describe("postgrestSources", () => {
   it("reads one record per user and builds the subject the hook would mint", async () => {
     const calls: string[] = [];

@@ -34,13 +34,9 @@ export type RoleChangeTarget = {
   readonly managedBy?: "idp";
 };
 
-export type RoleChange = {
+type RoleChangeBase = {
   readonly kind: "assign" | "revoke" | "transfer";
   readonly role: string | Role;
-  /** The scope the role is held at (a declared name or alias). */
-  readonly scope: string;
-  /** The scope instance. */
-  readonly id: string;
   /** Ids of the instance's ancestor scopes; a holder there may assign here. */
   readonly within?: Readonly<Record<string, string>>;
   readonly target: RoleChangeTarget;
@@ -51,6 +47,25 @@ export type RoleChange = {
    */
   readonly holders?: number;
 };
+
+/**
+ * A role held at a named scope instance (`scope` is a declared name or alias
+ * and `id` the instance), or a global role: `scope: 'global'` with no `id`.
+ * A global change has no tenant, so `within` and `holders` do not apply to it.
+ */
+export type RoleChange = RoleChangeBase &
+  (
+    | {
+        /** The scope the role is held at (a declared name or alias). */
+        readonly scope: string;
+        /** The scope instance. */
+        readonly id: string;
+      }
+    | {
+        readonly scope: "global";
+        readonly id?: undefined;
+      }
+  );
 
 /**
  * `granted` names the role that authorised the change (`null` when a
@@ -411,7 +426,7 @@ function heldAnchor(
 }
 
 export type AssignAuthority = {
-  /** Role names the ceiling (`assignableRoles`) lets the actor hand out in the instance's tenant. */
+  /** Role names the ceiling (`assignableRoles`) lets the actor hand out in the instance's tenant, or globally. */
   readonly assignable: ReadonlySet<string>;
   /** The actor holds a `meta.manageRoles` role or permission there. */
   readonly manage: boolean;
@@ -429,7 +444,7 @@ export function decideRoleChange(
   scopes: readonly Scope[],
   change: RoleChange,
   customRoles: readonly CustomRole[],
-  authority: (tenant: string) => AssignAuthority,
+  authority: (tenant: string | undefined) => AssignAuthority,
   now: number,
   options: RoleChangeOptions = {},
 ): RoleChangeDecision {
@@ -451,11 +466,13 @@ export function decideRoleChange(
   }
   const kind = change?.kind;
   const target = change?.target;
+  const global = change?.scope === "global";
   if (
     typeof name !== "string" ||
     (kind !== "assign" && kind !== "revoke" && kind !== "transfer") ||
-    typeof change.id !== "string" ||
-    change.id === "" ||
+    (global
+      ? change.id !== undefined
+      : typeof change.id !== "string" || change.id === "") ||
     target === null ||
     typeof target !== "object" ||
     typeof target.id !== "string" ||
@@ -464,60 +481,71 @@ export function decideRoleChange(
     deny("validation");
     return done(null);
   }
+  const id = change.id ?? "";
   const binding = bindingOf(policy, name);
   const declared = declaredRoleNames(policy).has(name);
-  const named = declared
-    ? []
-    : tenantCustomRoles(policy, customRoles).filter(
-        (role) => role.name === name,
-      );
+  const named =
+    declared || global
+      ? []
+      : tenantCustomRoles(policy, customRoles).filter(
+          (role) => role.name === name,
+        );
   if (!declared && named.length === 0) {
     deny("unknown-role");
     return done(null);
   }
-  const scope = resolveScope(scopes, change.scope);
+  const scope = global ? "global" : resolveScope(scopes, change.scope);
   const customAt = named.map((role) => customRoleScope(role, scopes));
   const on = declared
     ? (binding?.on ?? findRole(policy.vocabulary?.roles, name)?.on)
     : customAt.includes(scope)
       ? scope
       : customAt[0];
-  const heldAt = typeof on === "string" ? resolveScope(scopes, on) : undefined;
+  const heldAt =
+    typeof on === "string"
+      ? resolveScope(scopes, on)
+      : global
+        ? "global"
+        : undefined;
   if (scope === undefined || heldAt === undefined || heldAt !== scope) {
     deny("scope", { expected: heldAt ?? null });
     return done(null);
   }
-  const root = scopes[0]?.name;
-  const supplied =
-    change.within === undefined
-      ? undefined
-      : Object.entries(change.within).find(
-          ([key]) => resolveScope(scopes, key) === root,
-        )?.[1];
   let tenant: string | undefined;
   let within = change.within;
-  if (scope === root) {
-    tenant = change.id;
-  } else {
-    const anchor = heldAnchor(principal, scopes, scope, change.id, now);
-    const held = anchor === undefined ? undefined : tenantOf(anchor, scopes);
-    if (held !== undefined) {
-      tenant = supplied === undefined || supplied === held ? held : undefined;
-      within = anchor?.within;
-    } else if (options.trusted === true) {
-      tenant = supplied;
+  let custom: CustomRole | undefined;
+  if (!global) {
+    const root = scopes[0]?.name;
+    const supplied =
+      change.within === undefined
+        ? undefined
+        : Object.entries(change.within).find(
+            ([key]) => resolveScope(scopes, key) === root,
+          )?.[1];
+    if (scope === root) {
+      tenant = id;
+    } else {
+      const anchor = heldAnchor(principal, scopes, scope, id, now);
+      const held = anchor === undefined ? undefined : tenantOf(anchor, scopes);
+      if (held !== undefined) {
+        tenant = supplied === undefined || supplied === held ? held : undefined;
+        within = anchor?.within;
+      } else if (options.trusted === true) {
+        tenant = supplied;
+      }
     }
+    if (tenant === undefined) {
+      deny("no-membership", { scope, id });
+      return done(null);
+    }
+    const found = tenant;
+    custom = named.find(
+      (role) =>
+        sameId(role.tenant, found) &&
+        customRoleScope(role, scopes) === scope &&
+        sameId(customRoleId(role) ?? id, id),
+    );
   }
-  if (tenant === undefined) {
-    deny("no-membership", { scope, id: change.id });
-    return done(null);
-  }
-  const custom = named.find(
-    (role) =>
-      sameId(role.tenant, tenant) &&
-      customRoleScope(role, scopes) === scope &&
-      sameId(customRoleId(role) ?? change.id, change.id),
-  );
   if (!declared && custom === undefined) {
     deny("unknown-role");
     return done(null);
@@ -535,7 +563,11 @@ export function decideRoleChange(
     if (self) {
       deny("self-demotion");
     }
-    if (holdsAt(principal, name, scope, change.id, now)) {
+    if (
+      global
+        ? (principal.roles ?? []).includes(name)
+        : holdsAt(principal, name, scope, id, now)
+    ) {
       by = name;
     } else {
       deny("not-assignable-by", { holds: false });
@@ -552,15 +584,14 @@ export function decideRoleChange(
     if (!allowed.assignable.has(name) && revocable !== true) {
       deny("not-assignable-by");
     } else if (custom === undefined && usesAssigns(policy) && !allowed.manage) {
-      const held = rolesAtInstance(
-        policy,
-        principal,
-        scopes,
-        scope,
-        change.id,
-        within,
-        now,
-      );
+      const held = global
+        ? rankRoles(
+            policy,
+            (principal.roles ?? []).filter((role) =>
+              declaredRoleNames(policy).has(role),
+            ),
+          )
+        : rolesAtInstance(policy, principal, scopes, scope, id, within, now);
       by =
         held.find(
           (role) => bindingOf(policy, role)?.assigns?.includes(name) === true,
