@@ -18,6 +18,25 @@ const markdownAccept = {
   value: "(?:(?!text/html).)*text/(?:x-)?markdown.*",
 } as const;
 
+// Research pages retired in the 0.1.0 reset, mapped to the page that owns the topic now.
+const retiredResearch = {
+  "agent-frameworks": "/docs/research/ecosystem-index",
+  "agent-standards-2026": "/docs/standards/agent-docs-standards",
+  "api-surface-2026": "/docs/research/landscape",
+  "casl-v7": "/docs/research/landscape",
+  "commercial-landscape": "/docs/research/landscape",
+  "expo-router": "/docs/adapters/react-native",
+  "kilpi-v1": "/docs/research/landscape",
+  "local-first-sync": "/docs/research/ecosystem-index",
+  "next-intl-extraction-model": "/docs/research/landscape",
+  "nextjs-16-3-instant-navigation": "/docs/guides/next-cache-components",
+  "openapi-ecosystem": "/docs/research/ecosystem-index",
+  "permix-lessons": "/docs/research/landscape",
+  "postgres-rls": "/docs/standards/postgres-rls",
+  "saas-tenancy-and-roles": "/docs/concepts/tenancy",
+  "zap-studio-permit": "/docs/research/landscape",
+} as const;
+
 const config: NextConfig = {
   ...createNextConfig({
     headers: [
@@ -33,11 +52,20 @@ const config: NextConfig = {
         destination: "/docs",
         permanent: false,
       },
+      ...Object.entries(retiredResearch).flatMap(([slug, destination]) =>
+        ["/", "%2F"].map((separator) => ({
+          source: `/docs/research${separator}${slug}`,
+          destination,
+          permanent: true,
+        })),
+      ),
     ];
   },
   rewrites() {
     return {
       beforeFiles: [
+        { source: "/docs/llms.txt", destination: "/llms.txt" },
+        { source: "/docs/llms-full.txt", destination: "/llms-full.txt" },
         { source: "/docs.md", destination: `${docsContentRoute}/content.md` },
         {
           source: "/docs/:path+.md",
