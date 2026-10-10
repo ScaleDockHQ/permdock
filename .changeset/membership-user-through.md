@@ -1,5 +1,0 @@
----
-"permdock": minor
----
-
-A membership source can read its user through another table: `fromJunction` `user` and `fromTable` `columns.user` take `{ through, on, column }`, the shape a role column already takes, so portal contacts in `customer_contacts (contact_profile_id)` whose login is `contact_profiles.user_id` need no copied `user_id`. The token hook, in-process `membershipsFor` and `list`, the `database` mode helpers and `permdock_can_assign` join that table and filter on its user column, with `suspension` applied to the joined user and to the source's instances. A row whose referenced row is missing or has no user holds no membership. `supabase_auth_admin` gets read access to the table, `rls generate --indexes` indexes its user column, `permdock_bump_authz_version_member_users` bumps the users a membership row references, and `permdock_bump_authz_version_linked_users` bumps both the old and the new user when the referenced row is re-linked, skipping a login that was deleted. The manifest's membership `user` carries `through`, and doctor PD028 counts the referenced table's `id` and user columns. User and role `through` combine on one source.
