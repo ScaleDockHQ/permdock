@@ -259,8 +259,14 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
   }) => readonly Role[];
   /** The distinct `meta.audience` values of the roles held in the active tenant, in rank order. */
   readonly audiences: () => readonly string[];
+  /**
+   * The roles the subject may hand out in a tenant (the active one by
+   * default), or with `scope: 'global'` the global roles it may hand out. A
+   * snapshot answers only the tenant form.
+   */
   readonly assignableRoles: (options?: {
     readonly tenant?: string;
+    readonly scope?: "global";
   }) => readonly Role[];
   /**
    * The custom-role ceiling the subject may hand out: in a tenant (empty

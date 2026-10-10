@@ -4,6 +4,10 @@ import { describe, expect, it } from "vitest";
 import type { Permission } from "../../src/core/permissions.ts";
 
 import { bucketPolicy, topicPolicy } from "../../src/better-supabase/index.ts";
+import {
+  permissions as fixture,
+  policy as fixturePolicy,
+} from "../fixtures/named-scopes.ts";
 
 const read = (path: string): unknown =>
   JSON.parse(readFileSync(new URL(path, import.meta.url), "utf8"));
@@ -113,5 +117,89 @@ describe("topicPolicy", () => {
     expect(
       topicPolicy({ receive: permission("quotes.read") }, options),
     ).not.toHaveProperty("send");
+  });
+});
+
+describe("policies from the policy definition", () => {
+  const from = { policy: fixturePolicy, scope: "organization" } as const;
+
+  it("checks the permissions without a manifest or a catalog", () => {
+    expect(
+      bucketPolicy(
+        { read: fixture.asset.update, write: fixture.asset.update },
+        { ...from, segment: 2 },
+      ),
+    ).toEqual({
+      access: { read: "asset.update", write: "asset.update" },
+      scope: "organization",
+      segment: 2,
+      sql: {
+        idsWith: "permdock.permitted_{scope}_ids_by_permission({permission})",
+        isPlatform: "permdock.permdock_has_permission({permission})",
+      },
+    });
+    expect(
+      topicPolicy(
+        { receive: fixture.asset.read },
+        { policy: fixturePolicy, scope: "customer", schema: "authz" },
+      ),
+    ).toMatchObject({
+      receive: "asset.read",
+      sql: {
+        idsWith: "authz.permitted_{scope}_ids_by_permission({permission})",
+      },
+    });
+  });
+
+  it("refuses a permission with a conditioned grant, a wrong scope and an unknown scope", () => {
+    expect(() =>
+      bucketPolicy(
+        { read: fixture.quote.read, write: fixture.asset.update },
+        from,
+      ),
+    ).toThrow(/has row conditions/u);
+    expect(() =>
+      bucketPolicy(
+        { read: fixture.asset.update, write: fixture.asset.update },
+        { policy: fixturePolicy, scope: "platform" },
+      ),
+    ).toThrow(/granted at organization, not at global/u);
+    expect(() =>
+      topicPolicy({ receive: fixture.asset.read }, { ...from, scope: "team" }),
+    ).toThrow(/is not in the policy's scopes \(organization, customer\)/u);
+  });
+
+  it("keeps send, list, delete and the segment", () => {
+    expect(
+      topicPolicy(
+        { receive: fixture.asset.read, send: fixture.asset.update },
+        { ...from, segment: 3 },
+      ),
+    ).toMatchObject({ send: "asset.update", segment: 3 });
+    expect(
+      bucketPolicy(
+        {
+          read: fixture.asset.update,
+          list: fixture.asset.update,
+          write: fixture.asset.update,
+          delete: fixture.asset.update,
+        },
+        from,
+      ).access,
+    ).toEqual({
+      read: "asset.update",
+      list: "asset.update",
+      write: "asset.update",
+      delete: "asset.update",
+    });
+  });
+
+  it("checks a permission granted globally at platform", () => {
+    expect(
+      topicPolicy(
+        { receive: fixture.organization.read },
+        { policy: fixturePolicy, scope: "platform" },
+      ),
+    ).toMatchObject({ receive: "organization.read", scope: "platform" });
   });
 });

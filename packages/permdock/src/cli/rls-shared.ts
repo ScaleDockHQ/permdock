@@ -34,6 +34,11 @@ export const CUSTOM_ROLES = {
   cascade: "permdock_cascade_custom_role",
 } as const;
 
+/** The function `rls.roles` adds. The name is part of the SQL contract. */
+export const GLOBAL_ROLES = {
+  replace: "permdock_replace_global_roles",
+} as const;
+
 export function helperSchema(ctx: RlsSqlContext): string {
   return ctx.schema ?? PERMDOCK_SCHEMA;
 }

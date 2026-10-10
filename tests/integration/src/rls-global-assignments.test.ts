@@ -164,4 +164,56 @@ describe("rls.assignments on the global-roles table", () => {
       "platform-support",
     ]);
   });
+
+  const replace = (user: string, roles: string[]): string =>
+    `select permdock.permdock_replace_global_roles('${user}', array[${roles.map((role) => `'${role}'`).join(", ")}]::text[])`;
+
+  const rolesOf = async (user: string): Promise<string[]> => {
+    if (db === undefined) {
+      throw new Error("PermDock: Postgres was not started");
+    }
+    const rows = await db.admin.query<{ role: string }>(
+      `select role from public.user_roles where user_id = '${user}' order by role`,
+    );
+    return rows.rows.map((row) => row.role);
+  };
+
+  it("replaces a user's global roles in one call, through the assignment trigger", async () => {
+    await expect(
+      as(PLATFORM, replace(NEWCOMER, ["platform-support"])),
+    ).resolves.toBeUndefined();
+    expect(await rolesOf(NEWCOMER)).toEqual(["platform-support"]);
+    await expect(
+      as(PLATFORM, replace(NEWCOMER, ["platform-support"])),
+    ).resolves.toBeUndefined();
+    expect(await rolesOf(NEWCOMER)).toEqual(["platform-support"]);
+    await expect(as(PLATFORM, replace(NEWCOMER, []))).resolves.toBeUndefined();
+    expect(await rolesOf(NEWCOMER)).toEqual([]);
+  });
+
+  it("keeps the ceiling and the own-row rule on a replacement", async () => {
+    await expect(
+      as(PLATFORM, replace(NEWCOMER, ["platform-admin"])),
+    ).rejects.toThrow(/may not assign platform-admin in null/u);
+    await expect(
+      as(OWNER, replace(NEWCOMER, ["platform-support"])),
+    ).rejects.toThrow(/may not assign platform-support in null/u);
+    await expect(
+      as(PLATFORM, replace(PLATFORM, ["platform-admin"])),
+    ).rejects.toThrow(/may not change their own roles/u);
+    expect(await rolesOf(NEWCOMER)).toEqual([]);
+  });
+
+  it("runs with the caller's rights and is not executable by anon or public", async () => {
+    if (db === undefined) {
+      throw new Error("PermDock: Postgres was not started");
+    }
+    const grants = await db.admin.query<{ secdef: boolean; anon: boolean }>(
+      `select p.prosecdef as secdef,
+              has_function_privilege('anon', p.oid, 'execute') as anon
+       from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+       where n.nspname = 'permdock' and p.proname = 'permdock_replace_global_roles'`,
+    );
+    expect(grants.rows).toEqual([{ secdef: false, anon: false }]);
+  });
 });

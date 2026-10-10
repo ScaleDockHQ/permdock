@@ -90,11 +90,26 @@ permdock.decideRoleChange(
 
 The actor is always the instance's own subject; nothing in the change can stand in for it. The application supplies what only its store knows: the target's current membership in the instance and the holder count. `decideRoleChange` never writes.
 
+### Global roles
+
+A role declared without `on` is a global role, held by the principal's `roles` and not through a membership. Change one with `scope: 'global'` and no `id`; `id` is required for every named scope and a global change that carries one is denied with `validation`.
+
+```ts
+permdock.decideRoleChange({
+  kind: "assign",
+  role: roles["platform-support"],
+  scope: "global",
+  target: { id: "u_bob", roles: [] },
+});
+```
+
+There is no tenant, so `within` and `{ trusted }` do not apply and the change never answers `no-membership`. The authority is the one `assignableRoles({ scope: 'global' })` lists: the declared roles with `assignable: true` (a global role is not assignable by default) whose every allow the subject holds through its global roles, or, with an `assigns` graph, exactly the roles the subject's global roles list. `exclusiveWith`, `managedBy: 'idp'` and the self-change rule behave as for a scoped role. `min`, `max`, `transferOnly` and `for` are not defined on a global role, so none of them applies. A transfer needs the subject to hold the role globally. A role held at a named scope is denied with `scope`, an undeclared name with `unknown-role` (a platform custom role is not changed through `decideRoleChange`), and the generated global-roles trigger judges the same write at commit.
+
 Authority comes from memberships the subject holds now. An expired membership gives no tenant and no assign authority. For a role on a nested scope, the tenant and ancestors are read from the subject's own live membership at that instance (or at one of its ancestors), and a `within` that disagrees is denied with `no-membership`. When the subject holds nothing at the instance, as an organization admin assigning a role on a customer does, `within` is taken from the change only with `{ trusted: true }`, which the application passes after loading the customer's ancestors from its own store. Without either, the change is denied with `no-membership`.
 
 | Rule                                                                                                                                                                                                                                      | Checked on                 | Denial reason                                                    |
 | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- | ---------------------------------------------------------------- |
-| The role is declared, or is a custom role of the instance's tenant, and is held at `scope`                                                                                                                                                | every change               | `unknown-role`, `scope`                                          |
+| The role is declared, or is a custom role of the instance's tenant, and is held at `scope` (`global` for a role with no `on`)                                                                                                             | every change               | `unknown-role`, `scope`                                          |
 | The subject changes someone else                                                                                                                                                                                                          | every change               | `self-demotion` (revoke, transfer), `not-assignable-by` (assign) |
 | The subject may hand the role out: it is in `assignableRoles()` for the instance's tenant and, with an `assigns` graph, a role the subject holds at the instance or an ancestor in `within` lists it (a custom role needs only the first) | assign, revoke             | `not-assignable-by`                                              |
 | The subject holds the role at the instance                                                                                                                                                                                                | transfer                   | `not-assignable-by`                                              |
@@ -131,7 +146,7 @@ export async function changeRole(input: unknown) {
 }
 ```
 
-On the snapshot-backed client `decideRoleChange` always denies with `unsupported`: the snapshot carries no holder counts, so role changes are server decisions. The UI offers `assignableRoles()` instead.
+On the snapshot-backed client `decideRoleChange` always denies with `unsupported`: the snapshot carries no holder counts, so role changes are server decisions. The UI offers `assignableRoles()` instead; a snapshot answers `assignableRoles({ scope: 'global' })` with an empty list.
 
 ## Who may hand out what
 

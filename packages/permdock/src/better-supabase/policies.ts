@@ -4,23 +4,54 @@ import type {
   AccessPolicySql,
 } from "better-supabase/storage";
 
-import type { CatalogDocument } from "../catalog/types.ts";
 import type { Permission } from "../core/permissions.ts";
+import type { Policy } from "../core/policy.ts";
 
 import { parseCatalog } from "../catalog/parse.ts";
 import { freezeDeep } from "../core/freeze.ts";
+import { policyRowConditionKeys } from "../core/row-conditions.ts";
+import { scopeList } from "../core/scopes.ts";
 import { sqlIdent } from "../core/sql.ts";
 import { parseSupabaseManifest } from "../supabase/manifest.ts";
+import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
 
-export type AccessPolicyOptions = {
-  /** `permdock.manifest.json`, parsed or as JSON text: it names the helpers' schema and the scopes. */
-  readonly manifest: unknown;
-  /** `permissions.catalog.json`: only keys it marks `rowConditions: false` are accepted. */
-  readonly catalog: unknown;
-  /** A scope in the manifest's `rls.scopes`, or `platform` for permissions granted globally. */
+type AccessScope = {
+  /** A scope in the policy's scopes (or the manifest's `rls.scopes`), or `platform` for permissions granted globally. */
   readonly scope: string;
   /** 1-based path or topic segment holding the scope id; better-supabase's default is the `{organizationId}` segment. */
   readonly segment?: number;
+};
+
+/**
+ * Either the policy the app already defines, or the two files the CLI writes.
+ * With `policy` nothing is read at runtime: the scopes, the row conditions and
+ * the scopes a permission is granted at come from the definitions.
+ */
+export type AccessPolicyOptions = AccessScope &
+  (
+    | {
+        /** `permdock.manifest.json`, parsed or as JSON text: it names the helpers' schema and the scopes. */
+        readonly manifest: unknown;
+        /** `permissions.catalog.json`: only keys it marks `rowConditions: false` are accepted. */
+        readonly catalog: unknown;
+        readonly policy?: undefined;
+        readonly schema?: undefined;
+      }
+    | {
+        /** The `definePolicy` result: only keys with no row condition in it are accepted. */
+        readonly policy: Policy;
+        /** The schema `rls generate` put the helpers in (`rls.schema`). Default `permdock`. */
+        readonly schema?: string;
+        readonly manifest?: undefined;
+        readonly catalog?: undefined;
+      }
+  );
+
+/** What a policy check reads about a permission key, from a catalog or a policy. */
+type KeyFacts = {
+  readonly known: boolean;
+  readonly rowConditions: boolean;
+  readonly grantScopes: readonly string[];
 };
 
 export type BucketAccess = {
@@ -45,7 +76,7 @@ const SPLIT_KEY = /#\d+$/u;
 function checkedKey(
   where: string,
   permission: Permission,
-  catalog: CatalogDocument,
+  facts: (key: string) => KeyFacts,
   scope: string,
 ): string {
   const key = permission.key;
@@ -54,8 +85,8 @@ function checkedKey(
       `PermDock: ${where} "${key}" is one part of a permission split by row condition. Use the policies \`permdock rls generate\` writes for it.`,
     );
   }
-  const entry = catalog.permissions.find((candidate) => candidate.key === key);
-  if (!entry) {
+  const entry = facts(key);
+  if (!entry.known) {
     throw new TypeError(
       `PermDock: ${where} "${key}" is not in permissions.catalog.json. Run \`permdock catalog\`.`,
     );
@@ -66,11 +97,7 @@ function checkedKey(
     );
   }
   const grantScope = scope === "platform" ? "global" : scope;
-  const scopes = (catalog.grants ?? []).flatMap((grant) =>
-    grant.permission === key && typeof grant.scope === "string"
-      ? [grant.scope]
-      : [],
-  );
+  const scopes = entry.grantScopes;
   if (scopes.length > 0 && !scopes.includes(grantScope)) {
     throw new TypeError(
       `PermDock: ${where} "${key}" is granted at ${[...new Set(scopes)].join(", ")}, not at ${grantScope}. Check it at one of those scopes.`,
@@ -80,20 +107,56 @@ function checkedKey(
 }
 
 function target(options: AccessPolicyOptions): {
-  readonly catalog: CatalogDocument;
+  readonly facts: (key: string) => KeyFacts;
   readonly sql: AccessPolicySql;
 } {
-  const manifest = parseSupabaseManifest(options.manifest);
-  const catalog = parseCatalog(options.catalog);
-  const names = manifest.rls.scopes.map((scope) => scope.name);
+  const policy = options.policy;
+  let names: readonly string[];
+  let schemaName: string;
+  let facts: (key: string) => KeyFacts;
+  if (policy === undefined) {
+    const manifest = parseSupabaseManifest(options.manifest);
+    const catalog = parseCatalog(options.catalog);
+    names = manifest.rls.scopes.map((scope) => scope.name);
+    schemaName = manifest.rls.schema;
+    facts = (key): KeyFacts => {
+      const entry = catalog.permissions.find(
+        (candidate) => candidate.key === key,
+      );
+      return {
+        known: entry !== undefined,
+        rowConditions: entry?.rowConditions === true,
+        grantScopes: (catalog.grants ?? []).flatMap((grant) =>
+          grant.permission === key && typeof grant.scope === "string"
+            ? [grant.scope]
+            : [],
+        ),
+      };
+    };
+  } else {
+    names = scopeList(policy.scopes).map((scope) => scope.name);
+    schemaName = options.schema ?? PERMDOCK_SCHEMA;
+    const conditioned = policyRowConditionKeys(policy);
+    facts = (key): KeyFacts => ({
+      known: true,
+      rowConditions: conditioned.has(key),
+      grantScopes: policy.grants.flatMap((grant) =>
+        grant.hosted === undefined &&
+        grant.permission.key === key &&
+        typeof grant.scope === "string"
+          ? [grant.scope]
+          : [],
+      ),
+    });
+  }
   if (options.scope !== "platform" && !names.includes(options.scope)) {
     throw new TypeError(
-      `PermDock: scope "${options.scope}" is not in the manifest's rls.scopes (${names.join(", ")}) and is not "platform".`,
+      `PermDock: scope "${options.scope}" is not in the ${policy === undefined ? "manifest's rls.scopes" : "policy's scopes"} (${names.join(", ")}) and is not "platform".`,
     );
   }
-  const schema = sqlIdent(manifest.rls.schema);
+  const schema = sqlIdent(schemaName);
   return {
-    catalog,
+    facts,
     sql: {
       idsWith: `${schema}.permitted_{scope}_ids_by_permission({permission})`,
       isPlatform: `${schema}.permdock_has_permission({permission})`,
@@ -104,16 +167,17 @@ function target(options: AccessPolicyOptions): {
 /**
  * A better-supabase bucket `policy` that checks PermDock permissions with
  * the `rls generate` helpers at `scope`. The helpers check role and scope
- * only, so a permission the catalog doesn't mark `rowConditions: false`, or
- * doesn't grant at `scope`, throws.
+ * only, so a permission with row conditions (`rowConditions: true` in the
+ * catalog, or a conditioned grant in `policy`), or one not granted at
+ * `scope`, throws.
  */
 export function bucketPolicy(
   access: BucketAccess,
   options: AccessPolicyOptions,
 ): AccessBucketPolicy {
-  const { catalog, sql } = target(options);
+  const { facts, sql } = target(options);
   const key = (name: keyof BucketAccess, permission: Permission): string =>
-    checkedKey(`bucket access.${name}`, permission, catalog, options.scope);
+    checkedKey(`bucket access.${name}`, permission, facts, options.scope);
   return freezeDeep({
     access: {
       read: key("read", access.read),
@@ -132,9 +196,9 @@ export function topicPolicy(
   access: TopicAccess,
   options: AccessPolicyOptions,
 ): AccessTopicPolicy {
-  const { catalog, sql } = target(options);
+  const { facts, sql } = target(options);
   const key = (name: keyof TopicAccess, permission: Permission): string =>
-    checkedKey(`topic ${name}`, permission, catalog, options.scope);
+    checkedKey(`topic ${name}`, permission, facts, options.scope);
   return freezeDeep({
     receive: key("receive", access.receive),
     ...(access.send ? { send: key("send", access.send) } : {}),

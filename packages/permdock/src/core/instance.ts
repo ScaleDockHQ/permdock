@@ -857,6 +857,17 @@ export function buildInstance(
       tenant,
       tenant === undefined ? undefined : envBase.assignable?.get(tenant),
     );
+  const assignableGlobal = (): Assignable =>
+    assignableIn(
+      policy,
+      subject,
+      envBase.customRoles,
+      customGrants,
+      undefined,
+      undefined,
+      nowSeconds(),
+      true,
+    );
   const envFor = (emit: boolean, skipAlternatives = false): EvalEnv => ({
     emit,
     simulated: envBase.simulated,
@@ -1402,7 +1413,13 @@ export function buildInstance(
         heldRoleNames(policy, subject, subject.principal?.tenant),
       );
     },
-    assignableRoles(options?: { readonly tenant?: string }): readonly Role[] {
+    assignableRoles(options?: {
+      readonly tenant?: string;
+      readonly scope?: "global";
+    }): readonly Role[] {
+      if (options?.scope === "global") {
+        return assignableGlobal().roles.filter((leaf) => leaf.on === undefined);
+      }
       return assignableAt(options?.tenant ?? subject.principal?.tenant).roles;
     },
     assignablePermissions(options?: {
@@ -1410,16 +1427,7 @@ export function buildInstance(
       readonly scope?: "global";
     }): readonly Permission[] {
       if (options?.scope === "global") {
-        return assignableIn(
-          policy,
-          subject,
-          envBase.customRoles,
-          customGrants,
-          undefined,
-          undefined,
-          nowSeconds(),
-          true,
-        ).permissions;
+        return assignableGlobal().permissions;
       }
       const tenant = options?.tenant ?? subject.principal?.tenant;
       return tenant === undefined ? [] : assignableAt(tenant).permissions;
@@ -1433,18 +1441,7 @@ export function buildInstance(
           ? found.levels[permission.key]
           : undefined) ?? [];
       if (options?.scope === "global") {
-        return of(
-          assignableIn(
-            policy,
-            subject,
-            envBase.customRoles,
-            customGrants,
-            undefined,
-            undefined,
-            nowSeconds(),
-            true,
-          ),
-        );
+        return of(assignableGlobal());
       }
       const tenant = options?.tenant ?? subject.principal?.tenant;
       return tenant === undefined ? [] : of(assignableAt(tenant));
@@ -1460,7 +1457,8 @@ export function buildInstance(
         change,
         envBase.customRoles,
         (tenant) => {
-          const found = assignableAt(tenant);
+          const found =
+            tenant === undefined ? assignableGlobal() : assignableAt(tenant);
           return {
             assignable: new Set(found.roles.map((leaf) => leaf.key)),
             manage: found.manage,

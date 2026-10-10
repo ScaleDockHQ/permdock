@@ -10,7 +10,10 @@ import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { runRlsGenerate } from "../../src/cli/rls-generate.ts";
-import { migrationVersion } from "../../src/cli/sql-files.ts";
+import {
+  migrationVersion,
+  nextMigrationVersion,
+} from "../../src/cli/sql-files.ts";
 
 const TMP = path.join(import.meta.dirname, "../../tmp");
 mkdirSync(TMP, { recursive: true });
@@ -65,14 +68,31 @@ describe("rls generate --seeds-out <directory>", () => {
     const drift = await generate("2026-10-03T08:00:00Z", true);
     expect(drift.code).toBe(1);
     expect(drift.output).toContain(
-      "seeds: missing migrations/20261003080000_permdock_seeds.sql",
+      "seeds: missing migrations/20261001090001_permdock_seeds.sql",
     );
     expect((await generate("2026-10-03T08:00:00Z")).code).toBe(0);
     expect(migrations()).toEqual([
       "20261001080000_permdock_seeds.sql",
       "20261001090000_other.sql",
-      "20261003080000_permdock_seeds.sql",
+      "20261001090001_permdock_seeds.sql",
     ]);
+  });
+
+  it("names a new seeds migration one second after the newest, whatever the clock says", async () => {
+    const first = (await generate("2026-10-03T08:00:00Z", true)).output;
+    const second = (await generate("2031-01-01T00:00:00Z", true)).output;
+    expect(first).toBe(second);
+  });
+
+  it("numbers a migration after the newest one in a directory", () => {
+    const now = new Date("2030-01-01T00:00:00Z");
+    expect(
+      nextMigrationVersion(
+        ["20261231235959_a.sql", "20260101000000_b.sql", "notes.txt"],
+        now,
+      ),
+    ).toBe("20270101000000");
+    expect(nextMigrationVersion([], now)).toBe("20300101000000");
   });
 
   it("names a migration by its UTC version", () => {

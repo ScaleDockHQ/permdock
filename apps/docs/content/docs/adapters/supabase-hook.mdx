@@ -147,29 +147,29 @@ const permdock = await createPermDock(
 
 ### A stored user over PostgREST
 
-The sources above run SQL through `SqlQuery`. A backend that reaches Postgres only through supabase-js reads the same answers from `subject_for(p_user uuid) returns jsonb`, which the hook file defines next to the hook: the global roles, the memberships of every source with their expiry and suspension filters, the authorization version, and in `database` mode with `rls.customRoles` the custom roles the user holds with their grants and includes. A suspended user comes back as `{ id, active: false }`, an unknown one as `null`. `execute` is revoked from `public`, `anon` and `authenticated`, because the caller names the user; grant it to the role your backend client uses, and expose it through the Data API with a wrapper when `permdock` is not an exposed schema:
+The sources above run SQL through `SqlQuery`. A backend that reaches Postgres only through supabase-js reads the same answers from `subject_for(p_user uuid) returns jsonb`, which the hook file defines next to the hook: the global roles, the memberships of every source with their expiry and suspension filters, the authorization version, and in `database` mode with `rls.customRoles` the custom roles the user holds with their grants and includes. A suspended user comes back as `{ id, active: false }`, an unknown one as `null`. `execute` is revoked from `public`, `anon` and `authenticated`, because the caller names the user; grant it to the role your backend client uses. The hook file also defines `members_of(p_scope text, p_id text) returns jsonb`: every live membership of one scope instance as `[{ principal: { id }, membership }]`, from the same sources with the same expiry and suspension filters, under the same grants. It also defines `authz_version_for(p_user uuid) returns bigint`: the authorization version `subject_for` reports, `null` for an unknown or suspended user, read without the roles and memberships.
 
-```sql
-create function public.permdock_subject_for(p_user uuid) returns jsonb
-language sql stable security definer set search_path = ''
-as $$ select permdock.subject_for(p_user) $$;
-revoke execute on function public.permdock_subject_for(uuid) from public, anon, authenticated;
-grant execute on function public.permdock_subject_for(uuid) to service_role;
+The Data API serves only exposed schemas, and `permdock` is not one. Set `supabase.hook.api` and `hook generate` writes a wrapper for each of the three in an exposed schema:
+
+```ts title="permdock.config.ts"
+supabase: {
+  hook: {
+    memberships: [/* ... */],
+    api: { schema: "public", prefix: "permdock_" }, // both are the defaults
+  },
+},
 ```
 
-The hook file also defines `members_of(p_scope text, p_id text) returns jsonb`: every live membership of one scope instance as `[{ principal: { id }, membership }]`, from the same sources with the same expiry and suspension filters, under the same grants. It also defines `authz_version_for(p_user uuid) returns bigint`: the authorization version `subject_for` reports, `null` for an unknown or suspended user, read without the roles and memberships. Wrap both the same way when `permdock` is not exposed.
+That writes `public.permdock_subject_for(p_user uuid)`, `public.permdock_members_of(p_scope text, p_id text)` and `public.permdock_authz_version_for(p_user uuid)`. Each is a `security definer` function with an empty `search_path` that calls the function in the hook schema, revoked from `public`, `anon` and `authenticated` and granted to `service_role`: the only grant the hook makes to it, and only with `api`. Without `api`, no wrapper is written and nothing is granted to `service_role`. `generate` refuses an `api` that would replace the function it wraps (the hook schema with an empty prefix).
 
-`postgrestSources(client, { schema?, fn?, membersFn?, versionFn?, policy? })` in `permdock/supabase` calls `subject_for` once per user and `members_of` once per instance, and returns the three inputs `createPermDock` takes. `sources.memberships.version` calls `authz_version_for` (or the record already read), so `claimsFirst(sources.memberships, { onStale: "reread" })` checks the token's freshness with one cheap call per request and reads `subject_for` only when the token is behind. When the version function does not exist yet, `version` falls back to `subject_for`; regenerate the hook file to get it. Pass `policy` when the app has custom roles: `customRoles` then reads nothing while every role the subject holds is declared, and `version` calls `subject_for` instead of `authz_version_for` when the token claims a role the policy does not declare, because the custom roles need that record anyway. A current token with only declared roles costs one version call; a custom-role token costs one `subject_for` call, fresh or stale. `sources.memberships.list(query)` is the member list `countHolders` and `whoCan` read, so a role change can pass the holders `decideRoleChange` needs:
+`postgrestSources(client, { api?, schema?, fn?, membersFn?, versionFn?, policy? })` in `permdock/supabase` calls `subject_for` once per user and `members_of` once per instance, and returns the three inputs `createPermDock` takes. `sources.memberships.version` calls `authz_version_for` (or the record already read), so `claimsFirst(sources.memberships, { onStale: "reread" })` checks the token's freshness with one cheap call per request and reads `subject_for` only when the token is behind. When the version function does not exist yet, `version` falls back to `subject_for`; regenerate the hook file to get it. Pass `policy` when the app has custom roles: `customRoles` then reads nothing while every role the subject holds is declared, and `version` calls `subject_for` instead of `authz_version_for` when the token claims a role the policy does not declare, because the custom roles need that record anyway. A current token with only declared roles costs one version call; a custom-role token costs one `subject_for` call, fresh or stale. `sources.memberships.list(query)` is the member list `countHolders` and `whoCan` read, so a role change can pass the holders `decideRoleChange` needs:
 
 ```ts
 import { claimsFirst, countHolders, createPermDock } from "permdock";
 import { postgrestSources, subjectFromSupabase } from "permdock/supabase";
 
 const sources = postgrestSources(admin, {
-  schema: "public",
-  fn: "permdock_subject_for",
-  membersFn: "permdock_members_of",
-  versionFn: "permdock_authz_version_for",
+  api: { schema: "public", prefix: "permdock_" }, // the supabase.hook.api setting
   policy,
 });
 
@@ -195,7 +195,7 @@ const holders = await countHolders(sources.memberships, {
 });
 ```
 
-`sources.memberships` answers `membershipsFor` and `version`, so `claimsFirst` freshness works without a `SqlQuery`. `sources.customRoles(principal)` returns the custom roles that principal holds; a role-management page that needs every role of a tenant composes [`customRoleSource`](/docs/concepts/extension-interfaces#membershipsource-and-rolesource) over its own read. `sources.subject(userId)` is the anonymous subject for a suspended or unknown user, and a failed call rejects, which `createPermDock` turns into a denial.
+`api` sets the defaults of `schema`, `fn`, `membersFn` and `versionFn` to the wrappers `supabase.hook.api` writes; any of the four still overrides it. Without `api` they default to the hook schema's own functions, for a client that can reach it. `sources.memberships` answers `membershipsFor` and `version`, so `claimsFirst` freshness works without a `SqlQuery`. `sources.customRoles(principal)` returns the custom roles that principal holds; a role-management page that needs every role of a tenant composes [`customRoleSource`](/docs/concepts/extension-interfaces#membershipsource-and-rolesource) over its own read. `sources.subject(userId)` is the anonymous subject for a suspended or unknown user, and a failed call rejects, which `createPermDock` turns into a denial.
 
 ## Generate
 
@@ -232,7 +232,7 @@ The output is one idempotent migration:
   - `attrs`: the allow-listed attribute columns and `app_metadata` keys (below), never other columns;
   - `authz_ver`: the user's authorization version (below);
   - the claims other packages own, from `supabase.hook.claims` (below).
-- The `supabase_auth_admin` grants: `usage` on the schema, `execute` on the hook, `select` and a read policy on every table the hook reads (sources, their suspension tables, global roles, every roles table and user table a `through` references, the `attrs` table, version). `execute` is revoked from `authenticated`, `anon` and `public`. Nothing is granted to `service_role`.
+- The `supabase_auth_admin` grants: `usage` on the schema, `execute` on the hook, `select` and a read policy on every table the hook reads (sources, their suspension tables, global roles, every roles table and user table a `through` references, the `attrs` table, version). `execute` is revoked from `authenticated`, `anon` and `public`. Nothing is granted to `service_role`, except to the `supabase.hook.api` wrappers when you set it.
 - `permdock_authz_version (user_id, version)` and the `permdock_bump_authz_version` trigger on every source table and the global-roles table. With `through` on the global roles or on a source, `permdock_bump_authz_version_role_keys` on each referenced roles table bumps every user who holds a renamed role, globally or through a membership, when its key or id changes, since a rename changes their `roles` and `memberships` claims. A source that reads its user through another table gets `permdock_bump_authz_version_member_users` instead, which bumps the users its old and new rows reference, and the referenced table gets `permdock_bump_authz_version_linked_users` on updates of its user and id columns and on delete, which bumps both the old and the new user when a profile is re-linked to another login. That trigger skips a login that no longer exists in `auth.users`, so deleting a user whose profile is set to `null` still succeeds.
 - `permdock_bump_authz_version_for(p_users uuid[])`, which bumps each listed user once, for membership data the hook does not read (below).
 - The `permdock_protect_managed` trigger on sources with `managedBy`.

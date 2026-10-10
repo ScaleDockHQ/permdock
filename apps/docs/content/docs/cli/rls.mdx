@@ -485,6 +485,19 @@ A row whose `id` is null assigns a global role, such as an invitation to a platf
 
 Trusted SQL that runs later for a stored user re-checks the assignment with the `_for` forms: `permdock_can_assign_for(p_user, p_role, p_scope_id)` for a declared role and `permdock_can_assign_custom_role_for(p_user, p_tenant, p_scope, p_scope_id, p_role)` for a custom one, or `permdock_can_assign_any_for(p_user, p_role, p_tenant, p_scope, p_scope_id)` for either, so the caller needs no branch on whether the role is declared. An invitation-accept function calls them with the inviter, so an invitation stops working once the inviter may no longer assign its role. The custom-role form needs `member_<scope>_ids_for` for every scope (Supabase, with each scope mapped to a table or a membership source); without it the output leaves the custom-role form out. No client role may execute either.
 
+#### Replacing a user's global roles
+
+With `rls.roles` set, `generate` also writes `permdock_replace_global_roles(p_user, p_roles text[])` in the helper schema. It makes the user's rows in the global-roles table match `p_roles` in one call: it deletes the rows whose role is not in the list and inserts the roles the user does not hold yet, so an admin console saves a role editor without a delete-then-insert race. `p_user` is `uuid` on Supabase and `text` otherwise. With a role column that references a roles table (`through`), an entry that is not a key of that table raises `22023` with hint `unknown-role` before anything changes.
+
+The function runs as the invoker (it is not `security definer`), so the table's own grants and policies apply to every row it writes, and the `rls.assignments` trigger judges each deleted and inserted row for a client role, with `ownRole: 'refuse'` included. `execute` is revoked from `public` and `anon` and granted to `authenticated`; it is not granted to `service_role`, which needs no trigger check and can call it after its own grant. The role column must accept a `text` value on insert (a `text` column, or a type with an assignment cast from `text`).
+
+```sql
+select permdock.permdock_replace_global_roles(
+  '6f1c...'::uuid,
+  array['platform-support', 'auditor']
+);
+```
+
 ### Custom roles
 
 `--custom-roles` (or `rls.customRoles: true`) adds, next to the helpers:
@@ -648,7 +661,7 @@ supabase db schema declarative sync --no-apply -f permdock   # a reviewed migrat
 
 `declarative sync` replays the migrations before it diffs, so the seeds migration has to sort after the migration that creates `role_permissions`: generate the schema files, sync, then write the seeds to a migration named after the synced one.
 
-`--seeds-out` may name the migrations directory instead of a file (a path that ends in `/` or an existing directory). `generate` then compares the rows with the newest migration there that starts with `-- permdock:seeds v1` and writes a new `<version>_permdock_seeds.sql` (the current UTC time, as `supabase migration new` names it) only when they differ, so an unchanged policy writes nothing and an applied migration is never rewritten in place. With `--check` it fails when that newest migration is missing or out of date. Run it after `declarative sync` or `db diff`, so the new migration sorts after the one that creates `role_permissions`; doctor PD054 warns when the newest seeds migration no longer matches the policy.
+`--seeds-out` may name the migrations directory instead of a file (a path that ends in `/` or an existing directory). `generate` then compares the rows with the newest migration there that starts with `-- permdock:seeds v1` and writes a new `<version>_permdock_seeds.sql` only when they differ, numbered one second after the newest versioned migration in the directory (the clock is read only when the directory has none), so the same directory always gives the same name and a repeated `--check` names the same file, so an unchanged policy writes nothing and an applied migration is never rewritten in place. With `--check` it fails when that newest migration is missing or out of date. Run it after `declarative sync` or `db diff`, so the new migration sorts after the one that creates `role_permissions`; doctor PD054 warns when the newest seeds migration no longer matches the policy.
 
 ````bash
 permdock rls generate --target sql --split helpers,seeds,indexes,policies,hook --seeds-out supabase/migrations/

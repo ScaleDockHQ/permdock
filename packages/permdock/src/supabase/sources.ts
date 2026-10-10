@@ -898,6 +898,23 @@ export const AUTHZ_VERSION_TABLE = "permdock_authz_version";
  */
 export const PERMDOCK_SCHEMA = "permdock";
 
+/** Where `supabase.hook.api` puts the PostgREST wrappers, and the prefix of their names. */
+export const HOOK_API_SCHEMA = "public";
+const HOOK_API_PREFIX = "permdock_";
+
+/** The wrapper function names of `supabase.hook.api` for `prefix`. */
+export function hookApiNames(prefix: string = HOOK_API_PREFIX): {
+  readonly subjectFor: string;
+  readonly membersOf: string;
+  readonly authzVersionFor: string;
+} {
+  return {
+    subjectFor: `${prefix}subject_for`,
+    membersOf: `${prefix}members_of`,
+    authzVersionFor: `${prefix}authz_version_for`,
+  };
+}
+
 export { supabaseMembershipsBudget, supabaseTenantClaim } from "./budget.ts";
 
 /**

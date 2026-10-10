@@ -5,6 +5,7 @@ import type { CustomRole, PermDock, Permission, Policy } from "../index.ts";
 import type { CliIo, PermDockConfig, RlsDialect } from "./types.ts";
 
 import { customRoleScope, membershipsClaim } from "../core/custom-roles.ts";
+import { policyRowConditionKeys } from "../core/row-conditions.ts";
 import { scopeList } from "../core/scopes.ts";
 import {
   createPermDock,
@@ -14,7 +15,6 @@ import {
 } from "../index.ts";
 import { supabaseTenantClaim } from "../supabase/budget.ts";
 import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
-import { policyRowConditionKeys } from "./catalog-doc.ts";
 import { usageResult, describeError } from "./errors.ts";
 import {
   type RlsFixture,

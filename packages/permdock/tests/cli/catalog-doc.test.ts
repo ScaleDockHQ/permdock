@@ -5,11 +5,8 @@ import type { ScanResult } from "../../src/cli/types.ts";
 import type { PolicyScopesInput } from "../../src/index.ts";
 
 import { parseCatalog } from "../../src/catalog/parse.ts";
-import {
-  buildCatalog,
-  catalogGrants,
-  policyRowConditionKeys,
-} from "../../src/cli/catalog-doc.ts";
+import { buildCatalog, catalogGrants } from "../../src/cli/catalog-doc.ts";
+import { policyRowConditionKeys } from "../../src/core/row-conditions.ts";
 import {
   allow,
   anyone,
