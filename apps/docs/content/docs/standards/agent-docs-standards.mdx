@@ -31,7 +31,7 @@ The same rule applies to the maintainer side: an agent contributing to PermDock 
 | `AGENTS.md`                    | Repository root, under 12 KB not counting the block `turbo` appends                                         | Agents contributing to PermDock: layout, commands, the invariants index and the rule index                                                           |
 | `.agents/rules/*.mdc`          | Repository root; `.cursor/rules` symlinks the folder and `.claude/rules/<name>.md` symlinks each file       | The same maintainers: invariants, naming, docs conventions, the change checklist, testing, deployment, skills and prose rules, each attached by path |
 | `CLAUDE.md`                    | Repository root, the one line `@AGENTS.md`                                                                  | Claude Code and other tools that look for this name                                                                                                  |
-| `llms.txt`, `llms-full.txt`    | Docs site root                                                                                              | Models indexing the documentation                                                                                                                    |
+| `llms.txt`, `llms-full.txt`    | Docs site root, and the same files under `/docs`                                                            | Models indexing the documentation                                                                                                                    |
 | `.md` per docs page            | Docs site, same path with `.md`                                                                             | Agents fetching one page as text                                                                                                                     |
 | Docs MCP server                | `POST /mcp` on the docs site; `server.json` in this repository                                              | Agents querying the docs through MCP tools                                                                                                           |
 | JSON Schema catalog            | `permdock catalog --format json-schema`                                                                     | Agents and tools reading the permission model without TypeScript                                                                                     |
@@ -61,7 +61,9 @@ The skills are also shipped inside the `permdock` npm package so `permdock skill
 
 - Every docs page has frontmatter `title` and `description`, one topic per page, plain Markdown bodies, so `.md` and `llms-full.txt` are lossless.
 - A page for something not built yet carries a `Status: planned` or `Status: tracking` line, so an agent knows whether an import path exists; a page without one describes code that exists.
-- `llms.txt` lists every page, and `llms-full.txt` carries the full text.
+- `llms.txt` follows [llmstxt.org](https://llmstxt.org): one `##` section per sidebar section, an absolute link to each page's `.md` URL with its description, and the research pages under `## Optional`.
+- `llms-full.txt` carries the full text. Table padding is dropped from it and from every `.md` page.
+- Each HTML page links its Markdown as `<link rel="alternate" type="text/markdown">`.
 - Error messages and Problem Details `detail` text are written so a model can act on them (what was denied, why, what is permitted instead); see [Problem Details](/docs/standards/problem-details).
 - Code examples use the exact public identifiers (`createPermDock`, `permissions.post.update`) and never placeholders an agent might copy literally.
 - `permdock doctor` reports the same findings the `permdock-audit` skill looks for, so the skill and the CLI cannot drift.
