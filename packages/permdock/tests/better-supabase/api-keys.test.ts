@@ -170,6 +170,38 @@ describe("apiKeyVerifier", () => {
     ).toBeNull();
   });
 
+  it("expires a rotated key's credential when its grace period ends", async () => {
+    const graceEnds = 1_798_761_600;
+    expect(
+      await verifier({
+        user_id: USER,
+        revoked_at: "2027-01-01T00:00:00Z",
+        expires_at: "2028-01-01T00:00:00Z",
+      }).verify(await token()),
+    ).toMatchObject({ kind: "user", expiresAt: graceEnds });
+    expect(
+      await verifier({
+        user_id: USER,
+        revoked_at: "2027-01-01T00:00:00Z",
+      }).verify(await token()),
+    ).toMatchObject({ expiresAt: graceEnds });
+    expect(
+      await verifier({
+        user_id: USER,
+        revoked_at: "2028-01-01T00:00:00Z",
+        expires_at: "2027-01-01T00:00:00Z",
+      }).verify(await token()),
+    ).toMatchObject({ expiresAt: graceEnds });
+  });
+
+  it("is null for a verified key that is neither active nor in grace", async () => {
+    for (const state of ["revoked", "expired"]) {
+      expect(
+        await verifier({ user_id: USER, state }).verify(await token()),
+      ).toBeNull();
+    }
+  });
+
   it("takes a tenant key's roles from the manifest's rls.apiKeys", async () => {
     expect(
       await verifier({}, { manifest: withApiKeys }).verify(await token()),

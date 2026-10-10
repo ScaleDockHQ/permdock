@@ -1,15 +1,15 @@
+import type { ToolDecision, ToolRef } from "better-supabase/mcp";
+
 import type { PermDock } from "../core/permdock.ts";
 
 import { mayUse } from "../core/may-use.ts";
 import { isPermission } from "../core/permissions.ts";
 
-/** What better-supabase's `createMcp` hooks see of a tool (`ToolRef`). */
-export type McpToolRef = { readonly meta: unknown };
+/** What better-supabase's `createMcp` hooks see of a tool. */
+export type McpToolRef = Pick<ToolRef, "meta">;
 
-/** better-supabase's `ToolDecision`, without OAuth scopes. */
-export type McpToolDecision =
-  | { readonly allowed: true }
-  | { readonly allowed: false; readonly reason: string };
+/** The outcome of better-supabase's `createMcp` `authorize` hook. */
+export type McpToolDecision = ToolDecision;
 
 export type ToolPolicyOptions<C> = {
   /** The request's PermDock instance, from the hook's context. */

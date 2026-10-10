@@ -414,8 +414,8 @@ catalogs:
       specifier: 1.1.3
       version: 1.1.3
     better-supabase:
-      specifier: link:../better-supabase/packages/better-supabase
-      version: link:../better-supabase/packages/better-supabase
+      specifier: 0.6.0
+      version: 0.6.0
     botid:
       specifier: 1.5.11
       version: 1.5.11
@@ -450,8 +450,8 @@ catalogs:
       specifier: 2.11.7
       version: 2.11.7
     eve:
-      specifier: 0.70.1
-      version: 0.70.1
+      specifier: 0.71.3
+      version: 0.71.3
     expo:
       specifier: 57.0.26
       version: 57.0.26
@@ -1426,7 +1426,7 @@ importers:
         version: 2.3.0
       '@orpc/server':
         specifier: 'catalog:'
-        version: 2.0.0-beta.41(crossws@0.4.12)(fastify@5.12.5)
+        version: 2.0.0-beta.41(crossws@0.4.12(srvx@1.0.4))(fastify@5.12.5)
       permdock:
         specifier: workspace:*
         version: link:../../../packages/permdock
@@ -1601,7 +1601,7 @@ importers:
     dependencies:
       better-supabase:
         specifier: 'catalog:'
-        version: link:../../../../better-supabase/packages/better-supabase
+        version: 0.6.0(194159b5e9e1d3b8ee83734f8619b6b9)
       jose:
         specifier: 'catalog:'
         version: 6.2.12
@@ -2442,7 +2442,7 @@ importers:
         version: 2.0.0-beta.41(crossws@0.4.12(srvx@1.0.4))(fastify@5.12.5)
       '@orpc/server':
         specifier: 'catalog:'
-        version: 2.0.0-beta.41(crossws@0.4.12)(fastify@5.12.5)
+        version: 2.0.0-beta.41(crossws@0.4.12(srvx@1.0.4))(fastify@5.12.5)
       '@permdock/ox-config':
         specifier: workspace:*
         version: link:../ox-config
@@ -2490,7 +2490,7 @@ importers:
         version: 1.0.0
       better-supabase:
         specifier: 'catalog:'
-        version: link:../../../better-supabase/packages/better-supabase
+        version: 0.6.0(477e4626e8167dbfcae1a9c9388c9d12)
       drizzle-orm:
         specifier: 'catalog:'
         version: 1.0.0-rc.5-5935859(@electric-sql/pglite@0.5.8)(@opentelemetry/api@1.9.1)(@sinclair/typebox@0.34.52)(@types/pg@8.23.1)(arktype@2.2.3)(mysql2@3.24.5(@types/node@26.6.4))(pg@8.23.1)(postgres@3.4.7)(valibot@1.5.0(typescript@7.0.2))(zod@4.6.5)
@@ -2499,7 +2499,7 @@ importers:
         version: 1.4.30(@sinclair/typebox@0.34.52)(exact-mirror@1.2.6)(file-type@22.1.1(supports-color@7.2.0))(openapi-types@12.1.3)(typescript@7.0.2)
       eve:
         specifier: 'catalog:'
-        version: 0.70.1(@opentelemetry/api@1.9.1)(ai@7.0.127(zod@4.6.5))
+        version: 0.71.3(@opentelemetry/api@1.9.1)(ai@7.0.127(zod@4.6.5))
       express:
         specifier: 'catalog:'
         version: 5.2.1(supports-color@7.2.0)
@@ -2793,7 +2793,7 @@ importers:
         version: 7.0.127(zod@4.6.5)
       better-supabase:
         specifier: 'catalog:'
-        version: link:../../../better-supabase/packages/better-supabase
+        version: 0.6.0(477e4626e8167dbfcae1a9c9388c9d12)
       drizzle-orm:
         specifier: 'catalog:'
         version: 1.0.0-rc.5-5935859(@electric-sql/pglite@0.5.8)(@opentelemetry/api@1.9.1)(@sinclair/typebox@0.34.52)(@types/pg@8.23.1)(arktype@2.2.3)(mysql2@3.24.5(@types/node@26.6.4))(pg@8.23.1)(postgres@3.4.7)(valibot@1.5.0(typescript@7.0.2))(zod@4.6.5)
@@ -7337,6 +7337,11 @@ packages:
       pg:
         optional: true
 
+  '@supabase/ssr@0.12.7':
+    resolution: {integrity: sha512-wiBtEie1KkRJi9RrZWY3R2imRhX1JY7qMyUCH2z9AUk15gQebNEplM+urbCKamdxaTJLXUU6LlpkJsaxhojCEg==}
+    peerDependencies:
+      '@supabase/supabase-js': ^2.114.0
+
   '@supabase/storage-js@2.117.2':
     resolution: {integrity: sha512-8gAJoVaxZa/War2kFRfJMxGk4M190Q7lJ70BofwGlRxU/u9pIodd6XyTvmXkxOKXWuIYtkDaYPZrIAUt1T/7FQ==}
     engines: {node: '>=22.0.0'}
@@ -8846,6 +8851,101 @@ packages:
   better-result@2.10.0:
     resolution: {integrity: sha512-oQhh0y1qo2/ZKdAAEvHZAqKKiHOFU5k/bW96fE2ScgQOVkJRiHwB+nOS1SgFsYqRlxMDWvefXi9Q3px7QvgNDw==}
 
+  better-supabase@0.6.0:
+    resolution: {integrity: sha512-mKYjlZ26LCqyzI1v/hNe/Xt3KuNyQ3wyOvSMqnKzZto7J410am9o0KkHTmFSsaAvrfgch0/UHqLu/HH5vy0lbA==}
+    engines: {node: '>=24'}
+    hasBin: true
+    peerDependencies:
+      '@ai-sdk/mcp': '>=2 <3'
+      '@ai-sdk/react': '>=4 <5'
+      '@ai-sdk/workflow': '>=2 <3'
+      '@modelcontextprotocol/server': '>=2.3.0 <3'
+      '@nestjs/common': '>=11 <13'
+      '@next/playwright': '>=16.2 <17'
+      '@opentelemetry/api': '>=1.9 <2'
+      '@orpc/server': '>=2.0.0-beta.40 <3'
+      '@supabase/config': '>=0.9.0 <0.12'
+      '@supabase/postgrest-typegen': 0.4.0
+      '@supabase/supabase-js': ^2.116.0
+      '@tanstack/query-core': ^5.62.0
+      '@workflow/world': '>=5.0.2 <5.1'
+      '@workflow/world-postgres': '>=5.0.2 <5.1'
+      ai: '>=7 <8'
+      chat: '>=4.41 <5'
+      eve: '>=0.71 <1'
+      expo-server: '>=55 <59'
+      hono: '>=4 <5'
+      next: 16.3.8
+      oxfmt: '>=0.66.0 <1'
+      pg: 8.23.1
+      react: 19.3.0
+      redis: '>=5 <7'
+      solid-js: ^1.8
+      stripe: '>=17 <24'
+      svelte: ^5.7
+      temporal-polyfill: '>=1'
+      vue: ^3.3
+      workflow: '>=5.1 <6'
+    peerDependenciesMeta:
+      '@ai-sdk/mcp':
+        optional: true
+      '@ai-sdk/react':
+        optional: true
+      '@ai-sdk/workflow':
+        optional: true
+      '@modelcontextprotocol/server':
+        optional: true
+      '@nestjs/common':
+        optional: true
+      '@next/playwright':
+        optional: true
+      '@opentelemetry/api':
+        optional: true
+      '@orpc/server':
+        optional: true
+      '@supabase/config':
+        optional: true
+      '@supabase/postgrest-typegen':
+        optional: true
+      '@tanstack/query-core':
+        optional: true
+      '@workflow/world':
+        optional: true
+      '@workflow/world-postgres':
+        optional: true
+      ai:
+        optional: true
+      chat:
+        optional: true
+      eve:
+        optional: true
+      expo-server:
+        optional: true
+      hono:
+        optional: true
+      next:
+        optional: true
+      oxfmt:
+        optional: true
+      pg:
+        optional: true
+      react:
+        optional: true
+      redis:
+        optional: true
+      solid-js:
+        optional: true
+      stripe:
+        optional: true
+      svelte:
+        optional: true
+      temporal-polyfill:
+        optional: true
+      vue:
+        optional: true
+      workflow:
+        optional: true
+
   big-integer@1.6.52:
     resolution: {integrity: sha512-QxD8cf2eVqJOOz63z6JIN9BzvVs/dlySa5HGSBH5xtR8dPteIRQnBxxKqkNTiT6jbDTF6jAfrd4oMcND9RGbQg==}
     engines: {node: '>=0.6'}
@@ -10263,8 +10363,8 @@ packages:
     resolution: {integrity: sha512-aIL5Fx7mawVa300al2BnEE4iNvo1qETxLrPI/o05L7z6go7fCw1J6EQmbK4FmJ2AS7kgVF/KEZWufBfdClMcPg==}
     engines: {node: '>= 0.6'}
 
-  eve@0.70.1:
-    resolution: {integrity: sha512-JkXvyG73sVsNSvm5ksmi9pm10MKdSwC/y7evA0F0M7u8CZ+lYtLeHyy7/2B64DErXR4cDLLYtg9sH3RLdl6qIQ==}
+  eve@0.71.3:
+    resolution: {integrity: sha512-n0IdHqthlSTZvWjRtyaai0dQQB6K441JUbBbk9N63zsZrVkOkaJrLxh0hY9AfPb+TlJINOlhd/BcIQIHgf5w4g==}
     engines: {node: '>=24'}
     hasBin: true
     peerDependencies:
@@ -17930,6 +18030,19 @@ snapshots:
       '@tybys/wasm-util': 0.10.4
     optional: true
 
+  '@nestjs/common@11.1.29(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2)':
+    dependencies:
+      file-type: 21.3.4(supports-color@10.2.2)
+      iterare: 1.2.1
+      load-esm: 1.0.3
+      reflect-metadata: 0.2.2
+      rxjs: 7.8.2
+      tslib: 2.8.1
+      uid: 2.0.2
+    transitivePeerDependencies:
+      - supports-color
+    optional: true
+
   '@nestjs/common@11.1.29(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1)':
     dependencies:
       file-type: 21.3.4(supports-color@8.1.1)
@@ -18755,7 +18868,7 @@ snapshots:
       '@openapi-spec/types': 0.1.0
       '@orpc/client': 2.0.0-beta.41
       '@orpc/contract': 2.0.0-beta.41
-      '@orpc/server': 2.0.0-beta.41(crossws@0.4.12)(fastify@5.12.5)
+      '@orpc/server': 2.0.0-beta.41(crossws@0.4.12(srvx@1.0.4))(fastify@5.12.5)
       '@orpc/shared': 2.0.0-beta.41
       '@standard-schema/spec': 1.1.0
     transitivePeerDependencies:
@@ -18769,7 +18882,7 @@ snapshots:
       '@orpc/client': 2.0.0-beta.41
       '@orpc/contract': 2.0.0-beta.41
       '@orpc/json-schema': 2.0.0-beta.41(crossws@0.4.12(srvx@1.0.4))(fastify@5.12.5)
-      '@orpc/server': 2.0.0-beta.41(crossws@0.4.12)(fastify@5.12.5)
+      '@orpc/server': 2.0.0-beta.41(crossws@0.4.12(srvx@1.0.4))(fastify@5.12.5)
       '@orpc/shared': 2.0.0-beta.41
       '@standard-server/core': 0.10.0
       '@standard-server/fetch': 0.10.0
@@ -18777,6 +18890,22 @@ snapshots:
     transitivePeerDependencies:
       - crossws
       - fastify
+
+  '@orpc/server@2.0.0-beta.41(crossws@0.4.12(srvx@1.0.4))(fastify@5.12.5)':
+    dependencies:
+      '@orpc/client': 2.0.0-beta.41
+      '@orpc/contract': 2.0.0-beta.41
+      '@orpc/shared': 2.0.0-beta.41
+      '@standard-server/aws-lambda': 0.10.0
+      '@standard-server/core': 0.10.0
+      '@standard-server/fastify': 0.10.0(fastify@5.12.5)
+      '@standard-server/fetch': 0.10.0
+      '@standard-server/node': 0.10.0
+      '@standard-server/peer': 0.10.0
+      cookie: 2.0.1
+    optionalDependencies:
+      crossws: 0.4.12(srvx@1.0.4)
+      fastify: 5.12.5
 
   '@orpc/server@2.0.0-beta.41(crossws@0.4.12)(fastify@5.12.5)':
     dependencies:
@@ -20649,6 +20778,19 @@ snapshots:
       '@supabase/phoenix': 0.4.5
       tslib: 2.8.1
 
+  '@supabase/server@1.9.1(@nestjs/common@11.1.29(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2))(@supabase/supabase-js@2.117.2(@opentelemetry/api@1.9.1))(elysia@1.4.30(typescript@7.0.2))(hono@4.13.12)(pg@8.23.1)(typescript@7.0.2)':
+    dependencies:
+      '@supabase/middleware': 1.0.0(typescript@7.0.2)
+      '@supabase/supabase-js': 2.117.2(@opentelemetry/api@1.9.1)
+      jose: 6.2.12
+    optionalDependencies:
+      '@nestjs/common': 11.1.29(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2)
+      elysia: 1.4.30(@sinclair/typebox@0.34.52)(exact-mirror@1.2.6)(file-type@22.1.1(supports-color@8.1.1))(openapi-types@12.1.3)(typescript@7.0.2)
+      hono: 4.13.12
+      pg: 8.23.1
+    transitivePeerDependencies:
+      - typescript
+
   '@supabase/server@1.9.1(@nestjs/common@11.1.29(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@supabase/supabase-js@2.117.2(@opentelemetry/api@1.9.1))(elysia@1.4.30(@sinclair/typebox@0.34.52)(exact-mirror@1.2.6)(file-type@22.1.1(supports-color@8.1.1))(openapi-types@12.1.3)(typescript@7.0.2))(hono@4.13.12)(pg@8.23.1)(typescript@7.0.2)':
     dependencies:
       '@supabase/middleware': 1.0.0(typescript@7.0.2)
@@ -20674,6 +20816,11 @@ snapshots:
       pg: 8.23.1
     transitivePeerDependencies:
       - typescript
+
+  '@supabase/ssr@0.12.7(@supabase/supabase-js@2.117.2(@opentelemetry/api@1.9.1))':
+    dependencies:
+      '@supabase/supabase-js': 2.117.2(@opentelemetry/api@1.9.1)
+      cookie: 1.1.1
 
   '@supabase/storage-js@2.117.2':
     dependencies:
@@ -22289,6 +22436,73 @@ snapshots:
 
   better-result@2.10.0: {}
 
+  better-supabase@0.6.0(194159b5e9e1d3b8ee83734f8619b6b9):
+    dependencies:
+      '@standard-schema/spec': 1.1.0
+      '@supabase/middleware': 1.0.0(typescript@7.0.2)
+      '@supabase/postgrest-js': 2.117.2
+      '@supabase/server': 1.9.1(@nestjs/common@11.1.29(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2))(@supabase/supabase-js@2.117.2(@opentelemetry/api@1.9.1))(elysia@1.4.30(typescript@7.0.2))(hono@4.13.12)(pg@8.23.1)(typescript@7.0.2)
+      '@supabase/ssr': 0.12.7(@supabase/supabase-js@2.117.2(@opentelemetry/api@1.9.1))
+      '@supabase/supabase-js': 2.117.2(@opentelemetry/api@1.9.1)
+    optionalDependencies:
+      '@ai-sdk/mcp': 2.0.66(zod@4.6.5)
+      '@ai-sdk/react': 4.0.130(react@19.3.0)(zod@4.6.5)
+      '@modelcontextprotocol/server': 2.3.0
+      '@nestjs/common': 11.1.29(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2)
+      '@next/playwright': 16.3.8(@playwright/test@1.63.0)
+      '@opentelemetry/api': 1.9.1
+      '@orpc/server': 2.0.0-beta.41(crossws@0.4.12)(fastify@5.12.5)
+      '@supabase/postgrest-typegen': 0.4.0(oxfmt@0.71.0(svelte@5.57.1(@typescript-eslint/types@8.71.0)))
+      ai: 7.0.127(zod@4.6.5)
+      eve: 0.71.3(@opentelemetry/api@1.9.1)(ai@7.0.127(zod@4.6.5))
+      expo-server: 57.0.3
+      hono: 4.13.12
+      next: 16.3.8(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@playwright/test@1.63.0)(@types/node@26.6.4)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      oxfmt: 0.71.0(svelte@5.57.1(@typescript-eslint/types@8.71.0))
+      pg: 8.23.1
+      react: 19.3.0
+      solid-js: 1.9.15
+      svelte: 5.57.1(@typescript-eslint/types@8.71.0)
+      temporal-polyfill: 1.0.5
+      vue: 3.5.43(typescript@7.0.2)
+    transitivePeerDependencies:
+      - elysia
+      - h3
+      - typescript
+
+  better-supabase@0.6.0(477e4626e8167dbfcae1a9c9388c9d12):
+    dependencies:
+      '@standard-schema/spec': 1.1.0
+      '@supabase/middleware': 1.0.0(typescript@7.0.2)
+      '@supabase/postgrest-js': 2.117.2
+      '@supabase/server': 1.9.1(@nestjs/common@12.1.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0))(@supabase/supabase-js@2.117.2(@opentelemetry/api@1.9.1))(elysia@1.4.30(@sinclair/typebox@0.34.52)(exact-mirror@1.2.6)(file-type@22.1.1(supports-color@7.2.0))(openapi-types@12.1.3)(typescript@7.0.2))(hono@4.13.12)(pg@8.23.1)(typescript@7.0.2)
+      '@supabase/ssr': 0.12.7(@supabase/supabase-js@2.117.2(@opentelemetry/api@1.9.1))
+      '@supabase/supabase-js': 2.117.2(@opentelemetry/api@1.9.1)
+    optionalDependencies:
+      '@ai-sdk/mcp': 2.0.66(zod@4.6.5)
+      '@ai-sdk/react': 4.0.130(react@19.3.0)(zod@4.6.5)
+      '@modelcontextprotocol/server': 2.3.0
+      '@nestjs/common': 12.1.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0)
+      '@next/playwright': 16.3.8(@playwright/test@1.63.0)
+      '@opentelemetry/api': 1.9.1
+      '@orpc/server': 2.0.0-beta.41(crossws@0.4.12)(fastify@5.12.5)
+      ai: 7.0.127(zod@4.6.5)
+      eve: 0.71.3(@opentelemetry/api@1.9.1)(ai@7.0.127(zod@4.6.5))
+      expo-server: 57.0.3
+      hono: 4.13.12
+      next: 16.3.8(@babel/core@8.0.6)(@opentelemetry/api@1.9.1)(@playwright/test@1.63.0)(@types/node@26.6.4)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      oxfmt: 0.71.0(svelte@5.57.1(@typescript-eslint/types@8.71.0))
+      pg: 8.23.1
+      react: 19.3.0
+      solid-js: 1.9.15
+      svelte: 5.57.1(@typescript-eslint/types@8.71.0)
+      temporal-polyfill: 1.0.5
+      vue: 3.5.43(typescript@7.0.2)
+    transitivePeerDependencies:
+      - elysia
+      - h3
+      - typescript
+
   big-integer@1.6.52: {}
 
   bindings@1.5.0:
@@ -23623,7 +23837,7 @@ snapshots:
 
   etag@1.8.1: {}
 
-  eve@0.70.1(@opentelemetry/api@1.9.1)(ai@7.0.127(zod@4.6.5)):
+  eve@0.71.3(@opentelemetry/api@1.9.1)(ai@7.0.127(zod@4.6.5)):
     dependencies:
       ai: 7.0.127(zod@4.6.5)
       nitro: 3.0.260903-beta
@@ -24112,6 +24326,16 @@ snapshots:
   figures@6.1.0:
     dependencies:
       is-unicode-supported: 2.1.0
+
+  file-type@21.3.4(supports-color@10.2.2):
+    dependencies:
+      '@tokenizer/inflate': 0.4.1(supports-color@10.2.2)
+      strtok3: 10.3.5
+      token-types: 6.1.2
+      uint8array-extras: 1.5.0
+    transitivePeerDependencies:
+      - supports-color
+    optional: true
 
   file-type@21.3.4(supports-color@8.1.1):
     dependencies:

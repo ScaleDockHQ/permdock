@@ -82,7 +82,7 @@ catalog:
   "@prisma/adapter-pg": 7.10.0
   "@prisma/client": 7.10.0
   prisma: 7.10.0
-  eve: 0.70.1
+  eve: 0.71.3
   expo: 57.0.26
   expo-constants: 57.0.20
   expo-linking: 57.0.11
@@ -159,7 +159,7 @@ catalog:
   "@ai-sdk/otel": 1.0.127
   dotenv-cli: 11.0.0
   portless: 0.15.7
-  better-supabase: link:../better-supabase/packages/better-supabase
+  better-supabase: 0.6.0
   "@supabase/postgrest-typegen": 0.4.0
   supabase: 2.119.0
   server-only: 0.0.1

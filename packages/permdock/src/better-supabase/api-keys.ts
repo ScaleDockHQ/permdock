@@ -52,6 +52,16 @@ export type KeyRecord = {
 const seconds = (instant: Temporal.Instant): number =>
   Math.floor(instant.epochMilliseconds / 1000);
 
+/** When a key stops verifying: its expiry, or the end of a rotated key's grace period. */
+function endOf(key: ApiKey): Temporal.Instant | undefined {
+  const { expiresAt, revokedAt } = key;
+  if (revokedAt === undefined) return expiresAt;
+  if (expiresAt === undefined) return revokedAt;
+  return revokedAt.epochMilliseconds < expiresAt.epochMilliseconds
+    ? revokedAt
+    : expiresAt;
+}
+
 /** `rls.apiKeys.serviceRoles` from the manifest, when it has `rls.apiKeys`. */
 export function manifestServiceRoles(
   manifest: unknown,
@@ -118,8 +128,9 @@ export function keyCredential(
  * is limited to one), a tenant key a `service` credential holding
  * `serviceRoles` in its tenant, and the key's scopes are the credential's
  * permissions. better-supabase records the use when it verifies, so there is
- * no `touch`. An invalid, revoked, expired or rate-limited key, and a failed
- * lookup, are `null`. `permdock/server` exports a different
+ * no `touch`. A rotated key in its grace period verifies, and its credential
+ * expires when the grace period ends. An invalid, revoked, expired or
+ * rate-limited key, and a failed lookup, are `null`. `permdock/server` exports a different
  * `apiKeyVerifier`, over the application's own key records.
  */
 export function apiKeyVerifier(
@@ -132,6 +143,8 @@ export function apiKeyVerifier(
         const checked = await options.keys.verify(secret);
         if (!checked.ok || checked.data.status !== "ok") return null;
         const { key } = checked.data;
+        if (key.state !== "active" && key.state !== "grace") return null;
+        const end = endOf(key);
         const roles =
           typeof options.serviceRoles === "function"
             ? options.serviceRoles(key)
@@ -149,9 +162,7 @@ export function apiKeyVerifier(
             ...(key.createdBy === undefined
               ? {}
               : { createdBy: key.createdBy }),
-            ...(key.expiresAt === undefined
-              ? {}
-              : { expiresAt: seconds(key.expiresAt) }),
+            ...(end === undefined ? {} : { expiresAt: seconds(end) }),
           },
           roles,
           options.allPermissions,
