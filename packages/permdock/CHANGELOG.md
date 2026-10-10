@@ -1,5 +1,23 @@
 # permdock
 
+## 0.3.0
+
+### Minor Changes
+
+- [#135](https://github.com/ScaleDockHQ/permdock/pull/135) [`5b23a06`](https://github.com/ScaleDockHQ/permdock/commit/5b23a060442429f442ece19e046a6b9a7abf64d0) Thanks [@mick340](https://github.com/mick340)! - `permdock/better-supabase`: `bucketPolicy` and `topicPolicy` accept `{ policy, schema?, scope, segment? }` besides `{ manifest, catalog, scope, segment? }`. With the `definePolicy` result the app already imports, no manifest or catalog is read at runtime: the scopes, the permissions with row conditions and the scopes a permission is granted at come from the policy, and `schema` names the helper schema (default `permdock`). The same keys are refused as before.
+
+- [#135](https://github.com/ScaleDockHQ/permdock/pull/135) [`5b23a06`](https://github.com/ScaleDockHQ/permdock/commit/5b23a060442429f442ece19e046a6b9a7abf64d0) Thanks [@mick340](https://github.com/mick340)! - `permdock rls generate --seeds-out <directory>` numbers a new seeds migration one second after the newest versioned migration in the directory instead of using the current time, so regenerating the same directory gives the same file name and `--check` names the same missing file on every run. The clock is read only when the directory holds no versioned migration. A seeds migration still sorts after the migrations that create `role_permissions`, and an unchanged policy still writes nothing.
+
+- [#135](https://github.com/ScaleDockHQ/permdock/pull/135) [`5b23a06`](https://github.com/ScaleDockHQ/permdock/commit/5b23a060442429f442ece19e046a6b9a7abf64d0) Thanks [@mick340](https://github.com/mick340)! - `decideRoleChange` checks a change to a global role. Pass `scope: 'global'` and no `id` for a role declared without `on`; `RoleChange` is now a union in which `id` is required for a named scope and absent for `'global'`, so a helper typed `Partial<RoleChange>` needs `Extract<RoleChange, { id: string }>`. The authority is the one `assignableRoles({ scope: 'global' })` lists, which is new: the assignable global roles the subject may hand out through its own global roles. `exclusiveWith`, `managedBy: 'idp'` and the self-change rule apply as for a scoped role, a role held at a named scope is denied with `scope`, and an `id` on a global change is denied with `validation`. The snapshot-backed client answers `assignableRoles({ scope: 'global' })` with an empty list.
+
+- [#135](https://github.com/ScaleDockHQ/permdock/pull/135) [`5b23a06`](https://github.com/ScaleDockHQ/permdock/commit/5b23a060442429f442ece19e046a6b9a7abf64d0) Thanks [@mick340](https://github.com/mick340)! - `supabase.hook.api: { schema?, prefix? }` makes `permdock supabase hook generate` write `public.permdock_subject_for`, `permdock_members_of` and `permdock_authz_version_for` (schema `public` and prefix `permdock_` by default), so a backend can call the hook's readers through the Data API without hand-written wrappers. Each is `security definer`, revoked from `public`, `anon` and `authenticated`, and granted to `service_role`: the only grant the hook makes to it, and only with `api`. `postgrestSources(client, { api })` takes the same setting and derives `schema`, `fn`, `membersFn` and `versionFn` from it; the four options still override.
+
+- [#135](https://github.com/ScaleDockHQ/permdock/pull/135) [`5b23a06`](https://github.com/ScaleDockHQ/permdock/commit/5b23a060442429f442ece19e046a6b9a7abf64d0) Thanks [@mick340](https://github.com/mick340)! - `permdock rls generate` writes `permdock_replace_global_roles(p_user, p_roles text[])` when `rls.roles` names the global-roles table. It deletes the user's rows whose role is not in the list and inserts the missing ones in one call, for a role editor that saves a whole set. It runs with the caller's rights, so the table's policies and the `rls.assignments` trigger judge each row, and `execute` goes to `authenticated`. A role column that references a roles table (`through`) refuses an unknown key with `unknown-role`. Regenerate the helpers.
+
+### Patch Changes
+
+- [#137](https://github.com/ScaleDockHQ/permdock/pull/137) [`4b6d538`](https://github.com/ScaleDockHQ/permdock/commit/4b6d5387dd03bcefc84c627420efd3a1419fa0fc) Thanks [@mick340](https://github.com/mick340)! - `permdock/better-supabase` accepts better-supabase 0.7 as its optional peer, so an app can install better-supabase 0.7.0 next to PermDock with strict peer dependencies.
+
 ## 0.2.0
 
 ### Minor Changes
