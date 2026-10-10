@@ -1,12 +1,12 @@
 import { cacheLife } from "next/cache";
 
 import { markdownHeaders } from "@/lib/shared";
-import { docsLlms } from "@/lib/source";
+import { renderDocsLlmsIndex } from "@/lib/source";
 
 async function llmsIndex(): Promise<string> {
   "use cache";
   cacheLife("max");
-  return docsLlms.index();
+  return renderDocsLlmsIndex();
 }
 
 export async function GET(): Promise<Response> {
