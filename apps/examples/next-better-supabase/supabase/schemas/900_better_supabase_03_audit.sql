@@ -1,5 +1,5 @@
--- better-supabase module: audit (0.5.1)
--- @bs-module audit@5 managed
+-- better-supabase module: audit (0.7.0)
+-- @bs-module audit@6 managed
 -- Records inserts, updates and deletes with the actor and changed columns for tables you register, plus semantic events through audit_event(), with redaction, an append-only guard, a tenant read policy and per-tenant retention as options.
 -- Managed by `better-supabase sql add`; re-running it overwrites this file.
 -- Change it through `sql.modules` in better-supabase.config.ts and the module's SQL hooks.
@@ -49,6 +49,15 @@ begin
 exception when others then
   return null;
 end;
+$$;
+
+create or replace function better_supabase.request_id_or_null(value text)
+returns text
+language sql
+immutable
+set search_path = ''
+as $$
+  select case when value ~ '^[A-Za-z0-9._:;,@/+=-]{1,128}$' then value end;
 $$;
 
 -- The client address the API gateway appended to x-forwarded-for (the
@@ -117,6 +126,7 @@ alter table "better_supabase"."audit_events" add column if not exists "scope" te
 create index if not exists audit_events_record_idx on "better_supabase"."audit_events" ("table_name", "record_id", "occurred_at" desc);
 create index if not exists audit_events_organization_idx on "better_supabase"."audit_events" ("organization_id", "occurred_at" desc);
 create index if not exists audit_events_occurred_at_idx on "better_supabase"."audit_events" ("occurred_at");
+create index if not exists audit_events_correlation_idx on "better_supabase"."audit_events" ("correlation_id") where "correlation_id" is not null;
 create unique index if not exists audit_events_idempotency_idx on "better_supabase"."audit_events" ("idempotency_key", "organization_id") nulls not distinct where "idempotency_key" is not null;
 alter table "better_supabase"."audit_events" enable row level security;
 revoke all on "better_supabase"."audit_events" from anon, authenticated;
@@ -211,8 +221,8 @@ begin
     null,
     row_data ->> entry.label_column,
     null,
-    (v_headers ->> 'x-request-id'),
-    (v_headers ->> 'x-correlation-id'),
+    coalesce(better_supabase.request_id_or_null(current_setting('better_supabase.request_id', true)), better_supabase.request_id_or_null((v_headers ->> 'x-request-id'))),
+    coalesce(better_supabase.request_id_or_null(current_setting('better_supabase.correlation_id', true)), better_supabase.request_id_or_null((v_headers ->> 'x-correlation-id'))),
     case when row_tenant is null then 'platform' else 'tenant' end
   )
   returning "id" into entry_id;
@@ -549,8 +559,8 @@ begin
     null,
     target_label,
     summary,
-    coalesce(request_id, better_supabase.request_header('x-request-id')),
-    coalesce(correlation_id, better_supabase.request_header('x-correlation-id')),
+    coalesce(better_supabase.request_id_or_null(request_id), coalesce(better_supabase.request_id_or_null(current_setting('better_supabase.request_id', true)), better_supabase.request_id_or_null(better_supabase.request_header('x-request-id')))),
+    coalesce(better_supabase.request_id_or_null(correlation_id), coalesce(better_supabase.request_id_or_null(current_setting('better_supabase.correlation_id', true)), better_supabase.request_id_or_null(better_supabase.request_header('x-correlation-id')))),
     coalesce(audit_event.scope, case when tenant is null then 'platform' else 'tenant' end)
   )
   returning "id" into entry_id;
@@ -644,8 +654,8 @@ begin
     null,
     target_label,
     summary,
-    coalesce(request_id, better_supabase.request_header('x-request-id')),
-    coalesce(correlation_id, better_supabase.request_header('x-correlation-id')),
+    coalesce(better_supabase.request_id_or_null(request_id), coalesce(better_supabase.request_id_or_null(current_setting('better_supabase.request_id', true)), better_supabase.request_id_or_null(better_supabase.request_header('x-request-id')))),
+    coalesce(better_supabase.request_id_or_null(correlation_id), coalesce(better_supabase.request_id_or_null(current_setting('better_supabase.correlation_id', true)), better_supabase.request_id_or_null(better_supabase.request_header('x-correlation-id')))),
     coalesce(audit_event_trusted.scope, case when tenant is null then 'platform' else 'tenant' end)
   )
   returning "id" into entry_id;

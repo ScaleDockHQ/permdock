@@ -1,4 +1,4 @@
--- better-supabase module: audit (0.5.1)
+-- better-supabase module: audit (0.7.0)
 -- @bs-module-data audit
 -- Rows and settings a schema diff doesn't capture. Run `better-supabase sql data`
 -- after the schema migration to put them in a migration.
@@ -15,6 +15,6 @@ delete from better_supabase.audited_tables a
 where not exists (select 1 from pg_catalog.pg_class c where c.oid = a.target::oid);
 
 insert into better_supabase.modules (name, version, mode)
-values ('audit', 5, 'managed')
+values ('audit', 6, 'managed')
 on conflict (name) do update
   set version = excluded.version, mode = excluded.mode, updated_at = now();
