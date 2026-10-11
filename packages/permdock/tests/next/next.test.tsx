@@ -571,6 +571,23 @@ describe("permdock/next", () => {
     });
   });
 
+  it("applies wrap after otel", async () => {
+    const order: string[] = [];
+    const { getPermDock } = createPermDock(policy, {
+      subject: () => memberUser,
+      otel: (permdock) => {
+        order.push("otel");
+        return permdock;
+      },
+      wrap: (permdock) => {
+        order.push("wrap");
+        return permdock;
+      },
+    });
+    await getPermDock();
+    expect(order).toEqual(["otel", "wrap"]);
+  });
+
   it("checks requireAccess in the requested tenant", async () => {
     const tenants: (string | undefined)[] = [];
     const { requireAccess } = createPermDock(policy, {

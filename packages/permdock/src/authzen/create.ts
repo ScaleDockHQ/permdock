@@ -1,15 +1,11 @@
 import type { Decision } from "../core/decision.ts";
+import type { DecideOptions, PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { AuthzenFactory } from "./types.ts";
 
+import { buildInstance, resolveOrNull } from "../core/build-instance.ts";
 import { compact, isRecord } from "../core/compact.ts";
-import { instanceOptions } from "../core/instance-options.ts";
 import { ownGet } from "../core/paths.ts";
-import {
-  type DecideOptions,
-  type PermDock,
-  createPermDock as createCorePermDock,
-} from "../core/permdock.ts";
 import { getResource, listPermissions } from "../core/permission-registry.ts";
 import { resourceRef } from "../core/resource-ref.ts";
 import { permissionLookup } from "../server/evaluation-items.ts";
@@ -106,35 +102,31 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
   async function authenticate(
     request: Request,
   ): Promise<{ readonly pep: unknown } | Response> {
-    let pep: unknown;
-    try {
-      pep = await options.subject(request);
-    } catch {
-      pep = null;
-    }
+    const pep = await resolveOrNull(() => options.subject(request));
     if ((pep === null || pep === undefined) && !allowAnonymous) {
       return unauthenticatedProblem(hasCredentials(request));
     }
     return { pep: pep ?? null };
   }
 
-  function instantiate(
+  async function instantiate(
     pep: unknown,
     item: AuthzenItem,
-  ): PermDock | Promise<PermDock> {
+  ): Promise<PermDock> {
     const trusted = trusts(pep);
     const bodyUser = trusted ? userFromEntity(item.subject) : null;
     const user = bodyUser ?? pep;
-    return createCorePermDock(
+    const built = await buildInstance({
       policy,
       user,
-      compact({
+      sources: options,
+      scope: {
         actor: trusted ? actorOf(item) : undefined,
         delegation: trusted ? delegationOf(item) : undefined,
         tenant: tenantOf(item),
-        ...instanceOptions(options),
-      }),
-    );
+      },
+    });
+    return built.permdock;
   }
 
   async function resourceOf(item: AuthzenItem): Promise<

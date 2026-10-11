@@ -1,6 +1,7 @@
 import { createInterface } from "node:readline";
 
 import type { Decision } from "../core/decision.ts";
+import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type {
@@ -20,16 +21,11 @@ import type {
 } from "./types.ts";
 
 import { resumeDecision, storedApprovalToken } from "../approvals/helpers.ts";
+import { buildInstance, resolveOrNull } from "../core/build-instance.ts";
 import { compact } from "../core/compact.ts";
-import { instanceOptions } from "../core/instance-options.ts";
-import {
-  type PermDock,
-  createPermDock as createCorePermDock,
-} from "../core/permdock.ts";
 import { resourceRef } from "../core/resource-ref.ts";
 import {
   type Actor,
-  type Delegation,
   type Principal,
   type Subject,
   isSubject,
@@ -237,34 +233,24 @@ export function createPermDock<
       token: tokenFor(profile, resolveOptions.source),
       profile,
     };
-    let user: TUser | null = null;
-    try {
-      user = await options.subject(context);
-    } catch {
-      user = null;
-    }
-    let actor: Actor | undefined;
-    let delegation: Delegation | undefined;
-    if (options.actor !== undefined) {
-      try {
-        const resolved = actorFromResolved(await options.actor(context));
-        actor = resolved.actor;
-        delegation = resolved.delegation;
-      } catch {
-        actor = undefined;
-        delegation = undefined;
-      }
-    }
-    const built = await createCorePermDock(
+    const user = await resolveOrNull(() => options.subject(context));
+    const resolveActor = options.actor;
+    const resolved =
+      resolveActor === undefined
+        ? null
+        : await resolveOrNull(async () =>
+            actorFromResolved(await resolveActor(context)),
+          );
+    const { permdock: built } = await buildInstance({
       policy,
       user,
-      compact({
+      sources: options,
+      scope: {
         tenant: options.tenant,
-        actor,
-        delegation,
-        ...instanceOptions(options),
-      }),
-    );
+        actor: resolved?.actor,
+        delegation: resolved?.delegation,
+      },
+    });
     last = built;
     return built;
   };

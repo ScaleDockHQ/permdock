@@ -1,3 +1,4 @@
+import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { Snapshot } from "../core/snapshot-types.ts";
@@ -26,11 +27,7 @@ import {
   actorFrom,
   tenantScope,
 } from "../core/adapter-context.ts";
-import { instanceOptions } from "../core/instance-options.ts";
-import {
-  type PermDock,
-  createPermDock as createCorePermDock,
-} from "../core/permdock.ts";
+import { resolveOrNull } from "../core/build-instance.ts";
 import { listPermissions } from "../core/permission-registry.ts";
 import { problemFor } from "./kernel-problems.ts";
 import { InvalidSignatureError } from "./web-bot-auth.ts";
@@ -40,7 +37,7 @@ export type { TenantOption, TenantScope };
 
 import { compact } from "../core/compact.ts";
 import {
-  errorChannel,
+  buildReportingInstance,
   requestContext,
   type Report,
   type RequestContext,
@@ -95,11 +92,8 @@ export function createServerKernel<
     const actor = await resolveActor(request, options);
     const errors: unknown[] = [];
     const context = await requestContext(options.context, request, errors);
-    try {
-      return { user: await options.subject(request), actor, context, errors };
-    } catch {
-      return { user: null, actor, context, errors };
-    }
+    const user = await resolveOrNull(() => options.subject(request));
+    return { user, actor, context, errors };
   };
 
   const resolveSubject = (request: Request): Promise<Resolved<TUser>> => {
@@ -118,24 +112,20 @@ export function createServerKernel<
     { user, actor, context, errors }: Resolved<TUser>,
     tenant: string | undefined,
   ): Promise<Built<V>> => {
-    const coreOptions = compact({
-      tenant,
-      ...instanceOptions(options),
-      actor,
-      context,
+    const built = await buildReportingInstance({
+      policy,
+      user,
+      sources: options,
+      scope: { tenant, actor, context },
+      errors,
+      wrap: options.wrap,
     });
-    const channel = errorChannel(errors);
-    const permdock = channel.attach(
-      await createCorePermDock(policy, user, coreOptions),
-    );
     const remote =
       options.pdp === undefined
         ? undefined
-        : await options.pdp(policy, user, coreOptions);
-    const wrapped =
-      options.wrap === undefined ? permdock : options.wrap(permdock);
-    reporters.set(wrapped, channel.report);
-    return { permdock: wrapped, remote, report: channel.report };
+        : await options.pdp(policy, user, built.options);
+    reporters.set(built.permdock, built.report);
+    return { permdock: built.permdock, remote, report: built.report };
   };
 
   const build = async (

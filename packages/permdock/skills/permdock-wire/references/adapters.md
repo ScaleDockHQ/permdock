@@ -319,7 +319,7 @@ Every HTTP adapter, `permdock/mcp` and `permdock/ai-sdk` take three hooks ([exte
 
 - `onDenied`: on HTTP, `({ decision, problem, request })` returns Problem Details with extra members, a `Response`, or `undefined`; a status below 300 or a throw keeps the default. On MCP and the AI SDK it returns replacement text only. On Next.js the factory `onDenied` also runs for `requireAccess`.
 - `context`: returns plain JSON merged into `subject.context`. Return only server-derived values, never a header, body field or tool argument; it is visible in the snapshot.
-- `wrap`: wraps each instance after `otel`. Build it with `wrapPermDock(permdock, (inner) => ({ … }))` so `tenant()`, `team()` and `derive()` stay wrapped.
+- `wrap`: wraps each instance after `otel`; `permdock/next` takes it too. Build it with `wrapPermDock(permdock, (inner) => ({ … }))` so `tenant()`, `team()` and `derive()` stay wrapped.
 
 ## SCIM — `permdock/scim`
 
