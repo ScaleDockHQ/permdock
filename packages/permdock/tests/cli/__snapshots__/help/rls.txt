@@ -47,6 +47,8 @@ OPTIONS
                 --split=<parts>    Write helpers, seeds, policies and hook as separate parts
             --grants-out=<file>    File for the helper and hook privileges db diff drops    
              --seeds-out=<file>    File for the role_permissions seeds                      
+          --backfill-out=<file>    File for the rls.customRoles.from copy                   
+            --retire-out=<file>    migrate: file dropping the rls.migrate.tables            
                  --helpers-only    Write the helpers and keep the policies hand-written     
                         --shims    Wrap each rls.migrate helper under its legacy name       
                         --write    migrate: rewrite the files instead of a dry run          

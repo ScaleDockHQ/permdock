@@ -75,6 +75,8 @@ create unique index if not exists ${quoteIdent(`${name}_level_key`)}`
 );
 ${index}
   on ${table} (coalesce(tenant_id::text, ''), scope, coalesce(scope_id, ''), role, ${unique});
+-- a row identity for triggers the application adds, such as an audit trigger that reads the primary key
+alter table ${table} add column if not exists id bigint generated always as identity primary key;
 alter table ${table} enable row level security;
 revoke all on table ${table} from anon, authenticated, public;`);
     }
@@ -468,7 +470,7 @@ revoke execute on function ${trusted}(${signature}) from public, anon, authentic
 }
 
 /** `expr` read as its current key: a former key maps to the key it was renamed to. */
-function currentKeyExpr(
+export function currentKeyExpr(
   renames: readonly (readonly [string, string])[],
   expr: string,
 ): string {

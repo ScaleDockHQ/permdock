@@ -67,6 +67,7 @@ import {
   pd052,
   pd053,
   pd056,
+  pd066,
   pd062,
   pd063,
 } from "./doctor-sql.ts";
@@ -285,6 +286,12 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
     code: "PD056",
     groups: ["sql", "shims"],
     run: (project) => pd056(project.cwd, project.config),
+  },
+  {
+    code: "PD066",
+    groups: ["sql", "shims"],
+    when: (config) => config.rls?.migrate?.tables !== undefined,
+    run: (project) => pd066(project.cwd, project.config),
   },
   { code: "PD058", groups: ["powersync"], run: pd058 },
   {

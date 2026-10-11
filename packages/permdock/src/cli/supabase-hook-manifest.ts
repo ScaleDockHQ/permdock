@@ -27,7 +27,7 @@ import {
 } from "./rls-ownership.ts";
 import { permissionKeysForHelper } from "./rls-permission-keys.ts";
 import { resolveAuthorize } from "./rls-rbac.ts";
-import { HELPERS } from "./rls-shared.ts";
+import { customRolesOn, HELPERS } from "./rls-shared.ts";
 import {
   checkSuspension,
   memberForHelper,
@@ -100,7 +100,7 @@ function trustedHelpers(
   policy: Policy | undefined,
 ): readonly SupabaseManifestHelper[] {
   const database = resolveAuthorize(config) === "database";
-  const custom = database && config.rls?.customRoles === true;
+  const custom = database && customRolesOn(config.rls);
   const everyFor = parts.scopes.every((scope) =>
     parts.helpers.memberFor.includes(scope.name),
   );
@@ -219,8 +219,7 @@ function rlsSettings(
       ? undefined
       : guardedTables(config, parts.scopes);
   return {
-    customRoles:
-      resolveAuthorize(config) === "database" && rls?.customRoles === true,
+    customRoles: resolveAuthorize(config) === "database" && customRolesOn(rls),
     ...(parts.roles === undefined
       ? {}
       : {

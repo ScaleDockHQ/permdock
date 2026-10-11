@@ -11,7 +11,7 @@ An app with its own authorization adopts PermDock in steps. Each step leaves the
 | 2. Helpers beside SQL   | `rls generate --helpers-only --shims`                           | Every hand-written policy, function, view and trigger |
 | 3. Rewrite policies     | `rls migrate --write`                                           | Function bodies, views and triggers, through shims    |
 | 4. Token cutover        | The Supabase token hook, `claimsFirst`, legacy claims           | Tokens issued before the deploy                       |
-| 5. Custom-role data     | Rows copied into `custom_role_permissions`                      | Roles stored under old keys                           |
+| 5. Custom-role data     | `rls generate --backfill-out` copies the app's role tables      | Roles stored under old keys; the app's own tables     |
 | 6. Rename keys          | `renamed` aliases, then a deprecation window measured by doctor | Old keys in SQL, tokens and stored roles              |
 
 ## Model the existing vocabulary
@@ -81,8 +81,8 @@ Pick `database` when a revoked role must stop working on the next request for ev
 To retire the table:
 
 1. Generate the helpers beside it with `--shims` and an `rls.migrate.helpers` entry for `has_permission` ([shims](/docs/cli/rls#shims)). The shim answers for function bodies and views that still call the old name.
-2. Run `rls migrate --write` to rewrite the policies.
-3. Drop the triggers, the `user_permissions` table and the shim once `permdock doctor` PD056 reports no remaining caller.
+2. Add `user_permissions` to `rls.migrate.tables` and run `rls migrate --write` to rewrite the policies. The report lists the refresh triggers and every view, function or policy that still reads the table; `permdock doctor` reports the same as PD066.
+3. Rewrite the remaining readers by hand. When the report shows none, run `rls migrate --retire-out supabase/migrations/`: it writes one migration that drops the refresh triggers and their functions, the uncalled shim and the table, without `cascade` ([retire a materialised table](/docs/cli/rls#retire-a-materialised-table)).
 
 ## Cut tokens over
 
@@ -95,7 +95,16 @@ Keep the old claims for at least one `jwt_expiry` after the hook deploys, so eve
 
 ## Move custom-role data
 
-Copy each stored custom role into `custom_role_permissions` and `custom_role_includes` (`database` mode) or the `grants` claim (`jwt` mode) with `customRoleClaim(roles, policy)` ([custom roles](/docs/concepts/custom-roles#row-level-security)). Platform roles go in the same tables with `scope = 'global'` and a null `tenant_id`. Run `validateCustomRole` over every role first: a key outside the ceiling is dropped, never widened, and `dropped` names each one so an admin can fix it before the copy.
+In `database` mode, name the app's role tables in `rls.customRoles.from` and the roles table in `rls.customRoleWrites.roles`, then let `generate` write the copy:
+
+```bash
+permdock rls generate --target sql --rbac supabase --out supabase/schemas/permdock.sql \
+  --backfill-out supabase/migrations/
+```
+
+The backfill migration saves each role through `permdock_trusted_replace_custom_role_grants`, mapping old keys the way `rls migrate` does, and skips a role that already has rows, so it is safe to apply again ([backfill](/docs/cli/rls#backfill-from-existing-tables)). Platform roles, the rows with no tenant, land with `scope = 'global'`. An entry outside the ceiling is dropped, never widened, and the migration's warning lists each one so an admin can fix it in the app's tables and apply the copy for that role again.
+
+In `jwt` mode there are no tables to fill: build the `grants` claim with `customRoleClaim(roles, policy)` ([custom roles](/docs/concepts/custom-roles#row-level-security)), after running `validateCustomRole` over every role to see what it drops.
 
 The app's `RoleSource` reads the same rows. Roles stored under old keys keep resolving through `renamed`, so the copy does not have to rewrite keys.
 

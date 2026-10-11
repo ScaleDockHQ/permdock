@@ -9,6 +9,12 @@ export const SEEDS_MARKER = "-- permdock:seeds v1";
 /** The first line of the `indexes` part: the indexes the policies and helpers read through. */
 export const INDEXES_MARKER = "-- permdock:indexes v1";
 
+/** The first line of a `--backfill-out` migration: existing custom roles copied into the custom-role tables. */
+export const BACKFILL_MARKER = "-- permdock:backfill v1";
+
+/** The first line of a `rls migrate --retire-out` migration: a materialised permissions table and its refresh triggers dropped. */
+export const RETIRE_MARKER = "-- permdock:retire v1";
+
 const HOOK_LINE = /^-- permdock:hook v(?<version>[1-9]\d*)(?: (?<rest>.*))?$/u;
 const GRANTS_LINE =
   /^-- permdock:grants v(?<version>[1-9]\d*)(?: (?<rest>.*))?$/u;

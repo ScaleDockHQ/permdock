@@ -21,6 +21,8 @@ permdock rls generate --target sql --fields views --revoke-columns --out migrati
 permdock rls generate --target sql --split helpers,seeds,indexes,policies,hook \
   --seeds-out supabase/migrations/20260101000001_permdock_seeds.sql   # declarative schemas on pg-delta
 permdock rls generate --target sql --rbac supabase --helpers-only --out supabase/migrations/0056_permdock.sql   # policies stay hand-written
+permdock rls generate --target sql --rbac supabase --out supabase/schemas/permdock.sql \
+  --backfill-out supabase/migrations/   # copy rls.customRoles.from into the custom-role tables
 ```
 
 Inputs: the policy module from `permdock.config.ts` (roles as data) and a mapping from resources to tables. The mapping is read from `--from drizzle` (table names and columns from the Drizzle schema, resource schemas via `drizzle-zod`) or declared in the config as `rls.tables`. Without `rls.tables`, every resource is a table of the same name in `public`. With it, a resource it does not name is not assumed to be a table: with `--helpers-only` it gets no index and `generate` prints `no index is suggested for resources without an rls.tables entry: <resources>`; otherwise its policies still target `public.<resource>` and `generate` prints that it does. Map every resource that is a table; a resource that only names permissions (an analytics area, a settings page) needs no entry. A table name without a schema is in `public`; `schema.table` names a table in another schema, such as one a package installs in its own schema (`{ webhook: 'integrations.webhook_endpoints' }`). `generate`, `verify` (with `--db` and in the pgTAP output) and `verify --tree` use the qualified name as written, and the default Drizzle export and Prisma model name is the table name without its schema. The same holds for the tables in `rls.memberships` and `rls.assignments`.
@@ -585,6 +587,64 @@ grant execute on function permdock.permdock_trusted_replace_custom_role_grants(u
 
 The argument types follow `rls.tenantType`. Grant only a role whose sessions the application controls: the trusted functions believe their caller.
 
+#### Backfill from existing tables
+
+An application that already stores custom roles in its own tables names them in `rls.customRoles.from`, and `generate --backfill-out <file>|<dir>/|-` writes a data migration that copies them into `custom_role_permissions` and `custom_role_includes`. An object for `rls.customRoles` turns custom roles on like `true`. Each role row comes from `rls.customRoleWrites.roles`, which supplies the name, tenant, scope, instance and `skip` flag, so that key is required:
+
+```ts title="permdock.config.ts"
+rls: {
+  authorize: "database",
+  customRoles: {
+    from: {
+      permissions: {
+        table: "role_permissions", // one row per permission a role holds
+        role: { through: "roles", on: { role_id: "id" }, column: "key" },
+        permission: "permission", // or a reference to a permissions table
+        effect: "effect", // optional: 'allow' or 'deny'; default allow
+        level: "level", // optional: when resources declare levels
+      },
+      includes: {
+        table: "role_includes",
+        role: { through: "roles", on: { role_id: "id" }, column: "key" },
+        include: { through: "roles", on: { included_id: "id" }, column: "key" },
+      },
+    },
+  },
+  customRoleWrites: { roles: { table: "roles", key: "key", tenant: "organization_id", skip: "system" } },
+  migrate: { helpers: {}, prefixes: { "organization.": "" } },
+},
+```
+
+The migration starts with `-- permdock:backfill v1` and holds one `do` block. For each roles-table row that is not skipped and is not a declared role, it maps every stored key the way [`migrate`](#migrate) does (`rls.migrate.keys`, then `renamed`, then the longest `rls.migrate.prefixes` match) and saves the role through `permdock_trusted_replace_custom_role_grants`, so the same definition checks apply. An entry PermDock cannot hold is left out: an effect other than `allow` or `deny`, an undeclared key or level, a key outside the scope's ceiling, an undeclared include or one that allows more than the ceiling. The block ends with a notice counting the copied roles and one warning listing up to 50 dropped entries.
+
+A role that already has rows in either table is skipped, so running the migration again copies nothing and keeps any edit made after the copy. A directory output gets a new versioned file only when the newest `permdock:backfill` file differs, and `--check` reports a stale one, as with [`--seeds-out`](#declarative-schemas). `generate` exits `2` when `--backfill-out` is set without `rls.customRoles.from`, in `jwt` mode (build the claim with `customRoleClaim` instead), without `rls.customRoleWrites.roles`, or when a `through` or `column` is not that table and its key.
+
+### Triggers and audit
+
+The tables `generate` creates take triggers the application declares, so they live in the generated files instead of a hand-written migration that has to run after them. `rls.triggers` maps a generated table to its triggers; `rls.audit` registers tables with an audit module that creates its own trigger:
+
+```ts title="permdock.config.ts"
+rls: {
+  triggers: {
+    custom_role_permissions: [
+      { name: "notify_role_change", when: "after", events: ["insert", "update", "delete"], function: "app.notify_role_change", args: ["roles"] },
+    ],
+  },
+  audit: { function: "better_supabase.audit", args: { category: "permissions" } },
+},
+```
+
+| Key                    | Meaning                                                                                                                                     |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `rls.triggers.<table>` | `name` (`permdock_` is reserved), `when` (`before` or `after`), `events`, `level` (`row` by default), a schema-qualified `function`, `args` |
+| `rls.audit.function`   | A schema-qualified function called once per table as `function('<schema>.<table>'::regclass, <args>)`                                       |
+| `rls.audit.tables`     | Default: `custom_role_permissions`, `custom_role_includes` and `user_roles`, among those this run creates                                   |
+| `rls.audit.args`       | Named arguments passed after the table, as string literals                                                                                  |
+
+Each trigger is written as `drop trigger if exists` followed by `create trigger`, after the table it is on. A `truncate` trigger needs `level: 'statement'`. The audit calls are data statements, so with `--split` they go in the `seeds` part next to the seeds when that part is split out, and after the helpers otherwise. `generate` exits `2` for a table this run does not create, an unqualified function, a reserved name or an unknown event.
+
+`custom_role_permissions` and `custom_role_includes` carry an `id bigint generated always as identity primary key`, so an audit module that reads a table's primary key (such as [better-supabase's `audit()`](/docs/adapters/better-supabase#audit-the-permdock-tables)) can name each row.
+
 ### Link capabilities
 
 `--capabilities` (or `rls.capabilities: true`) adds one helper and one `anon` branch per resource-scoped grant:
@@ -699,7 +759,8 @@ PermDock's integration suite checks the split with `@pgkit/migra`, the engine `s
 ```bash
 permdock rls migrate --rbac supabase --sql supabase              # dry run: every rewrite and every skipped call
 permdock rls migrate --rbac supabase --sql supabase --write      # apply them
-permdock rls migrate --rbac supabase --sql supabase --json       # { rewrites, skipped }
+permdock rls migrate --rbac supabase --sql supabase --json       # { rewrites, skipped, retire }
+permdock rls migrate --rbac supabase --sql supabase --retire-out supabase/migrations/   # drop rls.migrate.tables once unread
 ```
 
 `migrate` rewrites calls to a project's own SQL helpers in `create policy` and `alter policy` statements onto the generated ones, file by file, under `--sql` (a file or a directory of `.sql` files). It parses each file with `pgsql-parser` (the same optional peer as `import`) and splices only the call's text, so comments and formatting around it are kept. It takes the generate flags, because it checks every key against what `generate` would seed. Without `--write` it only prints. `rls.migrate` names the helpers and how keys map:
@@ -759,6 +820,34 @@ The generated helpers take grant keys, and a permission whose grants differ by c
 The wrappers are `language sql stable security definer` with `search_path = ''`. They read no table, and call only the helpers, which read the caller's claims, so they answer the same as `security invoker` would; as `security definer` a caller needs `execute` on the wrapper and not `usage` on the helper schema, so a server role that calls the legacy helper keeps working without a grant on that schema. `execute` goes to `authenticated` only. Without `rls.migrate.helpers` the flag exits `2`.
 
 `create or replace` cannot change an existing function's argument names or return type, so drop a legacy helper with a different signature first. [`doctor`](/docs/cli/doctor) reports the remaining callers of each legacy name as PD056; drop the wrapper once it is quiet.
+
+### Retire a materialised table
+
+A project whose helpers read a permissions table it keeps in step with triggers (`user_permissions`, refreshed when memberships change) names that table in `rls.migrate.tables`. `migrate` then reports, per table, the triggers and functions that refresh it and everything that still reads it, and `--retire-out <file>|<dir>/|-` writes the migration that removes them:
+
+```ts title="permdock.config.ts"
+migrate: {
+  helpers: { has_org_permission: { form: "row", scope: "organization" } },
+  tables: {
+    user_permissions: {}, // refresh functions found by what writes the table
+    "app.member_grants": { refresh: ["app.rebuild_member_grants"] }, // or named
+  },
+},
+```
+
+```bash
+permdock rls migrate --rbac supabase --sql supabase --retire-out supabase/migrations/
+```
+
+`migrate` reads every file under `--sql` in path order and keeps each object's last definition, so a function replaced by a [shim](#shims) or a view dropped in a later file no longer counts. A refresh function is one whose body inserts into, updates, deletes from, truncates, merges into or refreshes the table, one listed in `refresh`, or one that calls such a function; a refresh trigger is a trigger on another table that runs one. A reader is a policy on another table, a view or a function that names the table and is not a refresh function. A legacy helper from `rls.migrate.helpers` that nothing calls any more (the PD056 count is zero) is not a reader: the migration drops it.
+
+| Report line                                                                | Meaning                                                 |
+| -------------------------------------------------------------------------- | ------------------------------------------------------- |
+| `retire <table>: N refresh trigger(s), N refresh function(s), N reader(s)` | What the migration would drop, and what still blocks it |
+| `read by <kind> <name> at <file>:<line>`                                   | One reader: `policy`, `view` or `function`              |
+| `retire <table>: no longer created by --sql`                               | A later file already drops it                           |
+
+While any listed table still has a reader, `--retire-out` writes nothing and the command exits `1`. Otherwise the migration starts with `-- permdock:retire v1 table=<tables>` and drops, in order, the refresh triggers, the refresh functions, the uncalled legacy helpers and the tables, each with `if exists` and without `cascade`, so a dependant the analysis missed fails the migration instead of disappearing. A directory output gets a versioned file only when the newest `permdock:retire` file differs, and once that file is under `--sql` the next run prints `nothing to retire`. `--json` adds a `retire` object with `tables` and `helpers`. [`doctor`](/docs/cli/doctor#pd066-a-materialised-table-still-created) reports each table the migrations still create as PD066.
 
 ## import
 

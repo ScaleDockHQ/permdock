@@ -27,15 +27,16 @@ export const RLS_HELP = `permdock rls generate | import | verify | migrate
            [--capabilities] [--fields views [--revoke-columns]]
            [--out <path>] [--check] [--skip-closures] [--inline-functions] [--force] [--guc-prefix app]
            [--split helpers,seeds,policies,hook --out <dir>/056_permdock_{part}.sql]
-           [--grants-out <file>|-] [--seeds-out <file>|-]
+           [--grants-out <file>|-] [--seeds-out <file>|-] [--backfill-out <file>|<dir>/|-]
            [--helpers-only] [--shims] [--db $DATABASE_URL]
   import   --sql schema.sql | --db $DATABASE_URL --out src/permissions.generated.ts
            [--schema zod|valibot|arktype] [--memberships <table>:tenant,user,role]
   verify   [--db $DATABASE_URL] [--fixtures rls.fixtures.ts] [--format pgtap|node] [--tree]
            [--introspect --db $DATABASE_URL, with the generate flags]
            [--advisors [--db $DATABASE_URL] [--json]]: supabase db advisors, security lints
-  migrate  --sql <dir> [--write] [--json], with the generate flags
-           rewrites the rls.migrate helpers' calls in policies onto the generated helpers
+  migrate  --sql <dir> [--write] [--json] [--retire-out <file>|<dir>/|-], with the generate flags
+           rewrites the rls.migrate helpers' calls in policies onto the generated helpers;
+           --retire-out drops each rls.migrate.tables table and its refresh triggers once unread
 
 Never emits service_role, except in the execute grant rls.trustedReaders asks for. memberOf compiles through the dialect memberships mapping.
 `;
@@ -74,6 +75,8 @@ export type RlsRunInput = {
   readonly split: string | undefined;
   readonly grantsOut: string | undefined;
   readonly seedsOut: string | undefined;
+  readonly backfillOut?: string | undefined;
+  readonly retireOut?: string | undefined;
   readonly helpersOnly: boolean;
   readonly shims?: boolean;
   readonly write: boolean;
@@ -147,6 +150,9 @@ function generateInput(
     ...(input.split === undefined ? {} : { split: input.split }),
     ...(input.grantsOut === undefined ? {} : { grantsOut: input.grantsOut }),
     ...(input.seedsOut === undefined ? {} : { seedsOut: input.seedsOut }),
+    ...(input.backfillOut === undefined
+      ? {}
+      : { backfillOut: input.backfillOut }),
     helpersOnly: input.helpersOnly,
     shims: input.shims === true,
   };
@@ -197,6 +203,8 @@ async function migrate(
     target: migrateTarget(generated),
     write: input.write,
     json: input.json,
+    retireOut: input.retireOut,
+    ...(input.io.now === undefined ? {} : { now: input.io.now() }),
   });
 }
 

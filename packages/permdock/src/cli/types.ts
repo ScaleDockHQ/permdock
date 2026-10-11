@@ -148,9 +148,19 @@ export type RlsConfig = {
   /**
    * Resolve tenant-defined custom roles in the helpers: `custom_role_permissions` and
    * `custom_role_includes` in `database` mode, the `memberships[].grants` claim in `jwt` mode,
-   * always intersected with the `permdock_ceiling` view. Off by default.
+   * always intersected with the `permdock_ceiling` view. Off by default. An
+   * object turns them on and names the application's existing role tables
+   * that `--backfill-out` copies from.
    */
-  readonly customRoles?: boolean;
+  readonly customRoles?: boolean | RlsCustomRolesConfig;
+  /**
+   * Triggers the application owns on tables `generate` creates, by table
+   * name without the schema (`custom_role_permissions`): written after the
+   * tables, each as `drop trigger if exists` and `create trigger`.
+   */
+  readonly triggers?: Readonly<Record<string, readonly RlsTrigger[]>>;
+  /** Register generated tables with an audit function, such as `better_supabase.audit`. */
+  readonly audit?: RlsAudit;
   /** How the generated custom-role write functions check the caller (`database` mode with `customRoles`). */
   readonly customRoleWrites?: {
     /**
@@ -367,6 +377,67 @@ export type RlsCustomRoleTable = {
   readonly skip?: string;
 };
 
+/** `rls.customRoles` as an object: custom roles on, plus where existing ones live. */
+export type RlsCustomRolesConfig = {
+  /** The application's role tables `--backfill-out` copies into `custom_role_permissions` and `custom_role_includes`. */
+  readonly from?: RlsCustomRolesFrom;
+};
+
+/**
+ * Existing custom-role data. Each row's role is a row of
+ * `rls.customRoleWrites.roles`, which supplies its name, tenant, scope,
+ * instance and `skip` flag.
+ */
+export type RlsCustomRolesFrom = {
+  readonly permissions: {
+    /** `table` or `schema.table`: one row per permission a role holds. */
+    readonly table: string;
+    /** The reference to the roles table: `{ through: 'roles', on: { role_id: 'id' }, column: 'key' }`. */
+    readonly role: RoleThrough;
+    /** The permission key column, or a reference to a permissions table that holds the key. */
+    readonly permission: string | RoleThrough;
+    /** A text column holding `allow` or `deny`. Without it every row allows. */
+    readonly effect?: string;
+    /** A text column holding the level of a leveled allow. */
+    readonly level?: string;
+  };
+  readonly includes?: {
+    readonly table: string;
+    /** The reference to the including role's row in the roles table. */
+    readonly role: RoleThrough;
+    /** The included role's key column, or a reference to the roles table. */
+    readonly include: string | RoleThrough;
+  };
+};
+
+/** One trigger the application owns on a generated table (`rls.triggers`). */
+export type RlsTrigger = {
+  /** The trigger name; `permdock_` is reserved for generated triggers. */
+  readonly name: string;
+  readonly when: "before" | "after";
+  readonly events: readonly ("insert" | "update" | "delete" | "truncate")[];
+  /** Default `row`. */
+  readonly level?: "row" | "statement";
+  /** `schema.function`, a trigger function that already exists. */
+  readonly function: string;
+  /** String arguments passed to the trigger function. */
+  readonly args?: readonly string[];
+};
+
+/**
+ * `rls.audit`: one `select <function>('<schema>.<table>'::regclass, <args>)`
+ * per generated table, for an audit module that registers a table by
+ * creating its own trigger.
+ */
+export type RlsAudit = {
+  /** `schema.function` taking the table as its first argument. */
+  readonly function: string;
+  /** Generated tables, without the schema. Default the custom-role tables and `user_roles`, those this run creates. */
+  readonly tables?: readonly string[];
+  /** Named text arguments: `{ tenant_column: 'tenant_id' }` passes `tenant_column => 'tenant_id'`. */
+  readonly args?: Readonly<Record<string, string>>;
+};
+
 /** `rls.shims`: where the legacy-named wrappers go. */
 export type RlsShimsConfig = {
   /** Schema of the legacy helpers. Default `public`. */
@@ -399,6 +470,18 @@ export type RlsMigrateConfig = {
   readonly globalScopes?: readonly string[];
   /** For `scoped` helpers, a scope literal's PermDock scope when the names differ. */
   readonly scopes?: Readonly<Record<string, string>>;
+  /**
+   * Materialised permission tables to retire, by `schema.table`: a table the
+   * application keeps in step with triggers and reads instead of the grants.
+   * `rls migrate --retire-out` drops it with its refresh triggers once
+   * nothing else reads it.
+   */
+  readonly tables?: Readonly<Record<string, RlsMigrateTable>>;
+};
+
+export type RlsMigrateTable = {
+  /** The functions that keep the table in step. Default: every function in `--sql` whose body writes it, and every function that calls one. */
+  readonly refresh?: readonly string[];
 };
 
 /** Where global roles live: `table (user, role)`. Defaults `user_id` and `role`. */

@@ -51,6 +51,8 @@ const RLS = {
   authorize: true,
   policyPerRole: true,
   customRoles: true,
+  triggers: true,
+  audit: true,
   capabilities: true,
   anonymousSignIns: true,
   fields: true,

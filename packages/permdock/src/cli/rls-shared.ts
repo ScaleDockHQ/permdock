@@ -1,7 +1,14 @@
 import type { RlsSqlContext } from "./rls-sql.ts";
+import type { RlsConfig } from "./types.ts";
 
 import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
 import { quoteIdent, quoteLiteral, subjectIdSql } from "./rls-sql.ts";
+
+/** `rls.customRoles` turns custom roles on as `true` or as an object. */
+export function customRolesOn(rls: RlsConfig | undefined): boolean {
+  const custom = rls?.customRoles;
+  return custom === true || (typeof custom === "object" && custom !== null);
+}
 
 /**
  * The per-statement helpers every generated policy calls: `permdock_has` for

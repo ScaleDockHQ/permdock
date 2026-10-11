@@ -8,6 +8,11 @@ import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
 import { tableKey } from "./deciding-columns.ts";
 import { MIGRATION_DIRS } from "./doctor-project.ts";
 import { rel, sqlFiles } from "./files.ts";
+import {
+  legacyHelperCalls,
+  legacyHelperNames,
+  retirePlan,
+} from "./rls-retire.ts";
 import { group, sqlStatements } from "./sql-statements.ts";
 import { supabaseConfig } from "./supabase-config.ts";
 import { supautilsRejections } from "./supautils.ts";
@@ -570,43 +575,57 @@ export function pd056(
   cwd: string,
   config: PermDockConfig,
 ): readonly DoctorFinding[] {
-  const helpers = Object.keys(config.rls?.migrate?.helpers ?? {}).filter(
-    (name) => /^[a-z_][a-z0-9_]*$/u.test(name),
-  );
+  const migrate = config.rls?.migrate;
+  const helpers = migrate === undefined ? [] : legacyHelperNames(migrate);
   if (helpers.length === 0) {
     return [];
   }
   const statements = migrationStatements(cwd, config);
   const findings: DoctorFinding[] = [];
   for (const name of helpers) {
-    const own = new RegExp(
-      String.raw`^\s*(?:create\s+(?:or\s+replace\s+)?function|drop\s+function|revoke|grant|alter\s+function|comment\s+on\s+function)\b[^(]*?(?:^|[\s."])${name}"?\s*\(`,
-      "iu",
-    );
-    const call = new RegExp(
-      String.raw`(?<![\w$])(?:(?:"[^"]+"|\w+)\s*\.\s*)?"?${name}"?\s*\(`,
-      "giu",
-    );
-    let count = 0;
-    const files = new Set<string>();
-    for (const statement of statements) {
-      const hits = own.test(statement.text)
-        ? 0
-        : (statement.text.match(call) ?? []).length;
-      if (hits > 0) {
-        count += hits;
-        files.add(statement.file);
-      }
-    }
+    const { count, files } = legacyHelperCalls(statements, name);
     if (count === 0) {
       continue;
     }
     findings.push({
       code: "PD056",
       severity: "warning",
-      message: `legacy helper ${name} is still called ${String(count)} time(s), in ${[...files].toSorted().join(", ")}`,
+      message: `legacy helper ${name} is still called ${String(count)} time(s), in ${files.join(", ")}`,
       fix: `run permdock rls migrate --write for policies, rewrite function bodies, views and triggers onto the permdock helpers by hand, then drop function ${name}`,
     });
   }
   return findings;
+}
+
+/**
+ * PD066: the migrations still create an `rls.migrate.tables` table: something
+ * still reads it, or `rls migrate --retire-out` can drop it now.
+ */
+export function pd066(
+  cwd: string,
+  config: PermDockConfig,
+): readonly DoctorFinding[] {
+  const migrate = config.rls?.migrate;
+  if (migrate?.tables === undefined) {
+    return [];
+  }
+  const plan = retirePlan(migrationStatements(cwd, config), migrate);
+  return plan.tables
+    .filter((table) => table.present)
+    .map((table): DoctorFinding => {
+      const [first] = table.readers;
+      return first === undefined
+        ? {
+            code: "PD066",
+            severity: "warning",
+            message: `${table.table} has no reader left, but the migrations still create it and its ${String(table.refreshTriggers.length)} refresh trigger(s)`,
+            fix: "run permdock rls migrate --sql <dir> --retire-out supabase/migrations/ and apply the migration it writes",
+          }
+        : {
+            code: "PD066",
+            severity: "warning",
+            message: `${table.table} is still read by ${String(table.readers.length)} object(s), first ${first.kind} ${first.name} at ${first.file}:${String(first.line)}`,
+            fix: "rewrite each reader onto the permdock helpers, then run permdock rls migrate --retire-out",
+          };
+    });
 }

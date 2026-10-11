@@ -31,6 +31,7 @@ import { asPolicy, loadModule, pickNamed } from "./load.ts";
 import { connectPg, type SqlConnect } from "./pg.ts";
 import { commandFor } from "./rls-compile.ts";
 import { FIELD_VIEWS, viewName } from "./rls-fields.ts";
+import { customRolesOn } from "./rls-shared.ts";
 import { quoteIdent, quoteLiteral, quoteTable } from "./rls-sql.ts";
 import { verifyTree } from "./rls-verify-tree.ts";
 
@@ -318,8 +319,8 @@ function customRoleRows(
 function seedsCustomRoleTables(config: PermDockConfig): boolean {
   const rls = config.rls;
   return (
-    rls?.customRoles === true &&
-    (rls.authorize ?? rls.rbac?.authorize ?? "jwt") === "database"
+    customRolesOn(rls) &&
+    (rls?.authorize ?? rls?.rbac?.authorize ?? "jwt") === "database"
   );
 }
 

@@ -28,6 +28,7 @@ import { PERMDOCK_CLAIMS_SCHEMA } from "./claims-schema.ts";
 import { tableKey } from "./deciding-columns.ts";
 import { globalRoleSource, type RoleRows } from "./global-roles.ts";
 import { authAdminRead, hookUri, resolveAuthorize } from "./rls-rbac.ts";
+import { customRolesOn } from "./rls-shared.ts";
 import {
   activeRowSql,
   checkSuspension,
@@ -863,7 +864,7 @@ export function subjectForSql(parts: Parts, config: PermDockConfig): string {
   ver := coalesce(ver, 0);`
     : "";
   const custom =
-    config.rls?.customRoles === true && resolveAuthorize(config) === "database"
+    customRolesOn(config.rls) && resolveAuthorize(config) === "database"
       ? customRolesOfSql(parts)
       : "";
   return `-- the subject the hook would mint for p_user, for a backend acting for a stored user; no client role may execute it

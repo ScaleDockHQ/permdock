@@ -101,6 +101,7 @@ PD004 compares the catalog on disk with the one `collect` would write from `coll
 | `PD063` | A migration changes or drops a reserved Supabase role, or grants a reserved membership, which supautils rejects                                                                                                                                                                                            | error           |
 | `PD064` | `rls.assignments` guards a table (a membership table, the global-roles table or a listed table) that no `permdock_assignment` trigger is created on in the migrations or the `rls generate` output                                                                                                         | warning         |
 | `PD065` | A file that imports `permdock/react-native` reads a permission whose grant the snapshot cannot answer, so the device denies it offline                                                                                                                                                                     | warning         |
+| `PD066` | An `rls.migrate.tables` table that the migrations still create, with what still reads it or a note that `rls migrate --retire-out` can drop it                                                                                                                                                             | warning         |
 
 ### PD001: server-only imports in client entries
 
@@ -397,6 +398,10 @@ With `rls.assignments` and a role that declares `assigns`, every membership tabl
 ### PD065: server-only grants in React Native code
 
 A React Native app answers portable grants from the persisted snapshot, offline included. A grant the snapshot cannot carry (a closure, a graph relation through `parent` or links, a relation with a `period`) goes to the decision endpoint, so without a connection the hook answers `denied` with reason `server-only`. The check loads the policy, lists the permissions with such an allow, and warns once per `usePermission` call or permission reference on one of them in a source file that imports `permdock/react-native`, whether or not an endpoint is configured. Fix it by expressing the grant with a portable condition when the screen must work offline, or by showing the offline state for that check ([React Native offline behaviour](/docs/adapters/react-native#offline-behaviour)). `--only react-native` (or `--only endpoint`) runs PD065.
+
+### PD066: a materialised table still created
+
+With `rls.migrate.tables` set, the check replays the migration folders the way [`rls migrate`](/docs/cli/rls#retire-a-materialised-table) does and warns once per listed table that a migration still creates and none drops. While a policy on another table, a view or a function still reads it, the message counts the readers and names the first with its file and line; rewrite them onto the PermDock helpers. With no reader left, the message says so: run `permdock rls migrate --retire-out` and apply the migration it writes. `--only shims` (or `--only sql`) runs PD066.
 
 ## Why
 
