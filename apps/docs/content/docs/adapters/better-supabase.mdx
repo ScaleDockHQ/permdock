@@ -282,6 +282,23 @@ better-supabase's `createAgentRuntime({ toolApproval })` from `better-supabase/a
 
 better-supabase's SQL modules check permission keys, such as `audit.read`, `api_keys.manage` and the AI, workflow and inbox modules' keys. Its doctor reports a key the provider's `permissions` lacks, so pass `catalog` and declare each key the installed modules check in the policy. Rename a key with `sql.modules.<module>.permissions` in `better-supabase.config.ts`.
 
+## Audit the PermDock tables
+
+better-supabase's audit module registers a table with `better_supabase.audit(target regclass, …)`, which creates the audit trigger and reads the table's primary key. [`rls.audit`](/docs/cli/rls#triggers-and-audit) writes that call into the generated SQL for the custom-role tables, so every save through `permdock_replace_custom_role_grants` leaves an audit row:
+
+```ts title="permdock.config.ts"
+rls: {
+  customRoles: true,
+  audit: {
+    function: "better_supabase.audit",
+    tables: ["custom_role_permissions", "custom_role_includes"],
+    args: { category: "permissions", tenant_column: "tenant_id", label_column: "role" },
+  },
+},
+```
+
+The arguments apply to every listed table, so `user_roles`, which has no `tenant_id`, needs a second call of your own or no `tenant_column`. Apply better-supabase's migrations before PermDock's, because the function must exist when the call runs.
+
 ## When to use bucketPolicy and topicPolicy
 
 `bucketPolicy` and `topicPolicy` decide in better-supabase's Storage and Realtime policies through the provider's helpers, for buckets and topics defined with `defineBucket` and `defineTopic`. PermDock's own `rls.storage` and `rls.realtime` write the policies on `storage.objects` and `realtime.messages` from `permdock rls generate` instead. Pick one per bucket or topic: both on the same one write two policies that Postgres combines with `or`.
