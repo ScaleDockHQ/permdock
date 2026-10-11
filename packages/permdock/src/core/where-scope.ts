@@ -17,7 +17,7 @@ import {
 } from "./tenancy.ts";
 import { isActive } from "./validity.ts";
 
-const ALWAYS: Condition = { op: "eq", field: "_", value: true };
+const ALWAYS: Condition = freezeDeep({ op: "eq", field: "_", value: true });
 
 export type WhereScope = {
   readonly resource: string;

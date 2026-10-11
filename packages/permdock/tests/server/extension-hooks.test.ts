@@ -96,6 +96,41 @@ describe("server onDenied", () => {
     },
   );
 
+  it("receives a frozen decision, so a mutating hook cannot change a later refusal", async () => {
+    const seen: unknown[] = [];
+    const server = createPermDock(policy, {
+      subject: () => memberUser,
+      onDenied: ({ decision }) => {
+        seen.push(decision);
+        expect(decision.outcome).toBe("denied");
+        if (decision.outcome !== "denied") {
+          return undefined;
+        }
+        expect(Object.isFrozen(decision)).toBe(true);
+        expect(Object.isFrozen(decision.denials)).toBe(true);
+        expect(() => {
+          // SAFETY: the test writes through the readonly type to prove the object refuses it.
+          (decision.denials as unknown[]).push({ role: null, reason: "x" });
+        }).toThrow(TypeError);
+        return undefined;
+      },
+    });
+    const failing = (): never => {
+      throw new Error("database down");
+    };
+    await server.protect(permissions.post.update, failing)(request());
+    const second = await server.protect(
+      permissions.post.update,
+      failing,
+    )(request());
+    expect(second.ok).toBe(false);
+    const refusal = second.ok ? undefined : second.decision;
+    expect(refusal?.outcome === "denied" ? refusal.denials : undefined).toEqual(
+      [{ role: null, reason: "validation" }],
+    );
+    expect(seen).toHaveLength(2);
+  });
+
   it("is never called for a granted request", async () => {
     let calls = 0;
     const server = createPermDock(policy, {

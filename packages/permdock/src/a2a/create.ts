@@ -23,6 +23,7 @@ import {
   PermDockApprovalRequiredError,
   PermDockDeniedError,
 } from "../core/errors.ts";
+import { freezeDeep } from "../core/freeze.ts";
 import { instanceOptions } from "../core/instance-options.ts";
 import { mayUse } from "../core/may-use.ts";
 import { challengeScope, scopesReaching } from "../core/oauth-scopes.ts";
@@ -156,11 +157,12 @@ function hasScope(auth: A2aAuth, scopes: readonly string[]): boolean {
   return scopes.some((scope) => auth.scopes?.includes(scope) === true);
 }
 
-const LOAD_FAILED: Extract<Decision, { readonly outcome: "denied" }> = {
-  outcome: "denied",
-  denials: [{ role: null, reason: "validation" }],
-  alternatives: [],
-};
+const LOAD_FAILED: Extract<Decision, { readonly outcome: "denied" }> =
+  freezeDeep({
+    outcome: "denied",
+    denials: [{ role: null, reason: "validation" }],
+    alternatives: [],
+  });
 
 const NO_SUBJECT: Subject = { principal: null, context: {} };
 

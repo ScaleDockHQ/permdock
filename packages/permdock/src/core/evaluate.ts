@@ -243,7 +243,7 @@ export function declaredRoleNames(policy: Policy): ReadonlySet<string> {
   return policy.index.declaredRoles;
 }
 
-const NEVER: Condition = { op: "or", conditions: [] };
+const NEVER: Condition = freezeDeep({ op: "or", conditions: [] });
 
 function isUnconditionedAllow(grant: Grant, now: number): boolean {
   return (

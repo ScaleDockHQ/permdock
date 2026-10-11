@@ -24,6 +24,7 @@ import type { PermDockWrap } from "../core/wrap.ts";
 
 import { actorFrom, tenantScope } from "../core/adapter-context.ts";
 import { compact } from "../core/compact.ts";
+import { freezeDeep } from "../core/freeze.ts";
 import { instanceOptions } from "../core/instance-options.ts";
 import { challengeScope } from "../core/oauth-scopes.ts";
 import { createPermDock as createCorePermDock } from "../core/permdock.ts";
@@ -336,17 +337,19 @@ function routeScopes(value: unknown): readonly string[] | undefined {
   return names;
 }
 
-const NOT_DELEGATED: Extract<Decision, { readonly outcome: "denied" }> = {
-  outcome: "denied",
-  denials: [{ role: null, reason: "not-delegated" }],
-  alternatives: [],
-};
+const NOT_DELEGATED: Extract<Decision, { readonly outcome: "denied" }> =
+  freezeDeep({
+    outcome: "denied",
+    denials: [{ role: null, reason: "not-delegated" }],
+    alternatives: [],
+  });
 
-const LOAD_FAILED: Extract<Decision, { readonly outcome: "denied" }> = {
-  outcome: "denied",
-  denials: [{ role: null, reason: "validation" }],
-  alternatives: [],
-};
+const LOAD_FAILED: Extract<Decision, { readonly outcome: "denied" }> =
+  freezeDeep({
+    outcome: "denied",
+    denials: [{ role: null, reason: "validation" }],
+    alternatives: [],
+  });
 
 /** The `403` for a loader that threw: the check fails closed, as on MCP. */
 function loadFailedProblem(permission: Permission | null): Response {

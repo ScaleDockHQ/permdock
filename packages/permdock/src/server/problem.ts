@@ -10,6 +10,7 @@ import {
   approvalMessage,
   deniedMessage,
 } from "../core/errors.ts";
+import { freezeDeep } from "../core/freeze.ts";
 import {
   PROBLEM_BASE,
   notFoundDetails,
@@ -343,11 +344,12 @@ export function notFoundProblem(instance?: string): Response {
   return problemResponse(notFoundDetails(instance));
 }
 
-export const ANONYMOUS: Extract<Decision, { readonly outcome: "denied" }> = {
-  outcome: "denied",
-  denials: [{ role: null, reason: "anonymous" }],
-  alternatives: [],
-};
+export const ANONYMOUS: Extract<Decision, { readonly outcome: "denied" }> =
+  freezeDeep({
+    outcome: "denied",
+    denials: [{ role: null, reason: "anonymous" }],
+    alternatives: [],
+  });
 
 /** The `401` for a request with no subject, with the RFC 6750 challenge its credentials call for. */
 export function unauthenticatedProblem(credentials: boolean): Response {
