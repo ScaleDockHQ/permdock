@@ -155,7 +155,15 @@ export function createPermDock<
   policy: Policy<TUser, TPrincipal>,
   options: TrpcPermDockOptions<TCtx, TUser>,
 ): TrpcPermDock<TCtx> {
-  const { kernel, bind, attach, scopeOf, connection, evaluate } = bindRpcKernel(
+  const {
+    kernel,
+    bind,
+    attach,
+    scopeOf,
+    connection,
+    evaluate,
+    guard: runGuard,
+  } = bindRpcKernel(
     policy,
     options,
     "trpc",
@@ -220,12 +228,12 @@ export function createPermDock<
   ): TrpcMiddleware =>
     // SAFETY: the function has tRPC's middleware call shape; its generics cannot be inferred from it.
     (async (opts: TrpcMiddlewareOpts<TCtx>): Promise<unknown> => {
-      const request = bind(opts);
-      const guard = await kernel.protect(
+      const { request, guard } = await runGuard(
         permission,
-        loadData === undefined ? undefined : (): unknown => loadData(opts),
+        loadData,
+        opts,
         protectOptions,
-      )(request, await scopeOf(opts));
+      );
       if (guard.ok) {
         const nextCtx = {
           ...opts.ctx,

@@ -79,14 +79,13 @@ export function createPermDock<
     loadData?: (req: NodeRequest) => unknown,
     protectOptions?: ProtectOptions,
   ): ((req: IncomingMessage) => Promise<Guard | ScopeGuard>) =>
-    async (req: IncomingMessage): Promise<Guard | ScopeGuard> =>
-      kernel.protect(
+    (req: IncomingMessage): Promise<Guard | ScopeGuard> =>
+      bound.guard(
         permission,
-        loadData === undefined
-          ? undefined
-          : (): unknown => loadData(nodeRequest(req)),
+        loadData,
+        nodeRequest(req),
         protectOptions,
-      )(bind(req), await scopeOf(req))) as NodeProtect;
+      )) as NodeProtect;
 
   const permdockHandler = (): ((
     req: IncomingMessage,

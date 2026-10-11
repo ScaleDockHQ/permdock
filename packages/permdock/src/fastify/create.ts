@@ -18,6 +18,7 @@ import type { ServerAdapterOptions } from "../server/bind.ts";
 import type { OpenApiHooks, ProtectOptions } from "../server/create.ts";
 
 import { bindKernel, decorate } from "../server/bind.ts";
+import { hasCredentials } from "../server/http.ts";
 import { problemFromError } from "../server/map-error.ts";
 import { sendReply, toRequest } from "./http.ts";
 
@@ -102,12 +103,14 @@ export function createPermDock<
   policy: Policy<TUser, TPrincipal, V>,
   options: FastifyPermDockOptions<TUser>,
 ): FastifyPermDock<V> {
-  const { kernel, bind, rebind, scopeOf, handlerScope } = bindKernel(
-    policy,
-    options,
-    "fastify",
-    toRequest,
-  );
+  const {
+    kernel,
+    bind,
+    rebind,
+    scopeOf,
+    handlerScope,
+    guard: runGuard,
+  } = bindKernel(policy, options, "fastify", toRequest);
 
   const permdock = breakEncapsulation((app) => {
     app.decorateRequest("permdock", null);
@@ -130,7 +133,7 @@ export function createPermDock<
     ) => unknown = app.errorHandler;
     app.setErrorHandler(async function permdockErrors(err, request, reply) {
       const problem = problemFromError(err, {
-        credentials: request.headers.authorization !== undefined,
+        credentials: hasCredentials(request),
       });
       if (problem === undefined) {
         await previous.call(this, err, request, reply);
@@ -146,11 +149,12 @@ export function createPermDock<
     (permission, loadData, protectOptions) => async (request, reply) => {
       // SAFETY: a route-typed FastifyRequest; bind and scopeOf read only the untyped base request.
       const plain = request as FastifyRequest;
-      const guard = await kernel.protect(
+      const guard = await runGuard(
         permission,
         loadData === undefined ? undefined : (): unknown => loadData(request),
+        plain,
         protectOptions,
-      )(bind(plain), await scopeOf(plain));
+      );
       if (!guard.ok) {
         await sendReply(reply, guard.response);
         return;

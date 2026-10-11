@@ -175,12 +175,14 @@ export function createPermDock<
   policy: Policy<TUser, TPrincipal, V>,
   options: HonoPermDockOptions<TUser>,
 ): HonoPermDock<V> {
-  const { kernel, bind, scopeOf, handlerScope, attach } = bindKernel(
-    policy,
-    options,
-    "hono",
-    (c: Context) => c.req.raw,
-  );
+  const {
+    kernel,
+    bind,
+    scopeOf,
+    handlerScope,
+    attach,
+    guard: runGuard,
+  } = bindKernel(policy, options, "hono", (c: Context) => c.req.raw);
 
   const permdock =
     (): MiddlewareHandler<PermDockEnv<unknown, V>> => async (c, next: Next) => {
@@ -201,11 +203,7 @@ export function createPermDock<
       protectOptions?: ProtectOptions,
     ): MiddlewareHandler<PermDockEnv<NonNullable<TData>, V>> =>
     async (c, next: Next): Promise<Response | undefined> => {
-      const guard = await kernel.protect(
-        permission,
-        loadData === undefined ? undefined : (): unknown => loadData(c),
-        protectOptions,
-      )(bind(c), await scopeOf(c));
+      const guard = await runGuard(permission, loadData, c, protectOptions);
       if (!guard.ok) {
         return guard.response;
       }

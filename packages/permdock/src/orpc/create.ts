@@ -219,7 +219,15 @@ export function createPermDock<
   policy: Policy<TUser, TPrincipal, V>,
   options: OrpcPermDockOptions<TCtx, TUser>,
 ): OrpcPermDock<TCtx, V> {
-  const { kernel, bind, attach, scopeOf, connection, evaluate } = bindRpcKernel(
+  const {
+    kernel,
+    bind,
+    attach,
+    scopeOf,
+    connection,
+    evaluate,
+    guard: runGuard,
+  } = bindRpcKernel(
     policy,
     options,
     "orpc",
@@ -339,13 +347,12 @@ export function createPermDock<
             readonly context: TCtx;
           }) => Promise<unknown>,
         );
-        const request = bind(opts);
-        const scope = await scopeOf(opts);
-        const guard = await kernel.protect(
+        const { request, scope, guard } = await runGuard(
           permission,
-          loadData === undefined ? undefined : (): unknown => loadData(opts),
+          loadData,
+          opts,
           protectOptions,
-        )(request, scope);
+        );
         if (guard.ok) {
           const nextCtx = {
             ...opts.context,

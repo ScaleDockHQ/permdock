@@ -85,12 +85,13 @@ export function createPermDock<
   options: ElysiaPermDockOptions<TUser>,
 ): ElysiaPermDock<V> {
   const seed = globalThis.crypto.randomUUID();
-  const { kernel, bind, scopeOf, handlerScope } = bindKernel(
-    policy,
-    options,
-    "elysia",
-    toRequest,
-  );
+  const {
+    kernel,
+    bind,
+    scopeOf,
+    handlerScope,
+    guard: runGuard,
+  } = bindKernel(policy, options, "elysia", toRequest);
 
   // SAFETY: the chain returns an Elysia instance; its generics are narrowed to the global permdock derive.
   const permdock = (): ElysiaPermDockPlugin<V> =>
@@ -108,11 +109,7 @@ export function createPermDock<
 
   const protect: ElysiaProtect =
     (permission, loadData, protectOptions) => async (ctx) => {
-      const guard = await kernel.protect(
-        permission,
-        loadData === undefined ? undefined : (): unknown => loadData(ctx),
-        protectOptions,
-      )(bind(ctx), await scopeOf(ctx));
+      const guard = await runGuard(permission, loadData, ctx, protectOptions);
       if (!guard.ok) {
         return guard.response;
       }

@@ -16,6 +16,7 @@ import type { ServerAdapterOptions } from "../server/bind.ts";
 import type { OpenApiHooks, ProtectOptions } from "../server/create.ts";
 
 import { bindKernel, decorate } from "../server/bind.ts";
+import { hasCredentials } from "../server/http.ts";
 import { problemFromError } from "../server/map-error.ts";
 import { sendResponse, toRequest } from "./http.ts";
 
@@ -58,7 +59,7 @@ function sendProblem(
   next: (err?: unknown) => void,
 ): void {
   const problem = problemFromError(err, {
-    credentials: req.headers.authorization !== undefined,
+    credentials: hasCredentials(req),
   });
   if (problem === undefined) {
     next(err);
@@ -104,12 +105,14 @@ export function createPermDock<
   policy: Policy<TUser, TPrincipal, V>,
   options: ExpressPermDockOptions<TUser>,
 ): ExpressPermDock<V> {
-  const { kernel, bind, rebind, scopeOf, handlerScope } = bindKernel(
-    policy,
-    options,
-    "express",
-    toRequest,
-  );
+  const {
+    kernel,
+    bind,
+    rebind,
+    scopeOf,
+    handlerScope,
+    guard: runGuard,
+  } = bindKernel(policy, options, "express", toRequest);
 
   const permdock = (): RequestHandler => (req, res, next) => {
     respond(req, res, next, async () => {
@@ -126,11 +129,7 @@ export function createPermDock<
     ): RequestHandler =>
     (req, res, next) => {
       respond(req, res, next, async () => {
-        const guard = await kernel.protect(
-          permission,
-          loadData === undefined ? undefined : (): unknown => loadData(req),
-          protectOptions,
-        )(bind(req), await scopeOf(req));
+        const guard = await runGuard(permission, loadData, req, protectOptions);
         if (!guard.ok) {
           await sendResponse(res, guard.response);
           return;

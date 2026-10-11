@@ -42,6 +42,7 @@ import {
   PermDockValidationError,
 } from "../core/errors.ts";
 import { bindKernel, socketConnection } from "../server/bind.ts";
+import { hasCredentials } from "../server/http.ts";
 import { problemFromError } from "../server/map-error.ts";
 import { POLICY_VIOLATION, onRevoked } from "../server/stream.ts";
 import { InvalidSignatureError } from "../server/web-bot-auth.ts";
@@ -375,8 +376,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
           : problemFromError(exception, {
               credentials:
                 host.getType() === "http" &&
-                host.switchToHttp().getRequest<NestRequest>().headers
-                  .authorization !== undefined,
+                hasCredentials(host.switchToHttp().getRequest<NestRequest>()),
             });
       if (problem === undefined) {
         throw new TypeError("unhandled permdock exception");

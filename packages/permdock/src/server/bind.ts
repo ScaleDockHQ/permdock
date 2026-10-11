@@ -1,6 +1,7 @@
 import type { ApprovalStore } from "../approvals/types.ts";
 import type { InstanceOptions } from "../core/instance-options.ts";
 import type { PermDock } from "../core/permdock.ts";
+import type { Permission } from "../core/permissions.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy.ts";
 import type { RevocationFeed } from "../core/revocations.ts";
 import type { Principal } from "../core/subject.ts";
@@ -9,8 +10,11 @@ import type { OtelWrap } from "../otel/types.ts";
 import type { PdpFactory } from "../pdp/types.ts";
 import type { Connection } from "./connection.ts";
 import type {
+  Guard,
   OnDenied,
+  ProtectOptions,
   RequestContext,
+  ScopeGuard,
   ServerKernel,
   TenantOption,
   TenantScope,
@@ -58,6 +62,11 @@ export type Attached<V extends PolicyVocabulary = PolicyVocabulary> =
   | { readonly ok: true; readonly permdock: PermDock<V> }
   | { readonly ok: false; readonly response: Response };
 
+/** What `protect` resolves to when the permission may be `null`. */
+export type AnyGuard<V extends PolicyVocabulary = PolicyVocabulary> =
+  | Guard<unknown, V>
+  | ScopeGuard<unknown, V>;
+
 export type BoundKernel<TContext, V extends PolicyVocabulary> = {
   readonly kernel: ServerKernel<V>;
   /** The `Request` for `context`, built once and mapped back to it for the option callbacks. */
@@ -72,6 +81,13 @@ export type BoundKernel<TContext, V extends PolicyVocabulary> = {
   readonly handlerScope: (request: Request) => Promise<TenantScope>;
   /** The instance for `context`; an invalid Web Bot Auth signature is its `401` response. */
   readonly attach: (context: TContext) => Promise<Attached<V>>;
+  /** `protect` for `context`: `loadData` reads the framework context and the tenant comes from `scopeOf`. */
+  readonly guard: (
+    permission: Permission | null,
+    loadData: ((context: TContext) => unknown) | undefined,
+    context: TContext,
+    protectOptions?: ProtectOptions,
+  ) => Promise<AnyGuard<V>>;
 };
 
 /** The server kernel with the subject and actor callbacks reading the context `contextOf` maps a `Request` to. */
@@ -186,7 +202,19 @@ export function bindKernel<
       kernel.permdock(bind(context), await scopeOf(context)),
     );
 
-  return { kernel, bind, rebind, scopeOf, handlerScope, attach };
+  const guard = async (
+    permission: Permission | null,
+    loadData: ((context: TContext) => unknown) | undefined,
+    context: TContext,
+    protectOptions?: ProtectOptions,
+  ): Promise<AnyGuard<V>> =>
+    kernel.protect(
+      permission,
+      loadData === undefined ? undefined : (): unknown => loadData(context),
+      protectOptions,
+    )(bind(context), await scopeOf(context));
+
+  return { kernel, bind, rebind, scopeOf, handlerScope, attach, guard };
 }
 
 /** The instance `build` resolves; an invalid Web Bot Auth signature is its `401` response. */
