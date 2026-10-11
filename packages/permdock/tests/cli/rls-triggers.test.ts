@@ -290,3 +290,60 @@ describe("rls generate with rls.triggers and rls.audit", () => {
     expect(seeds).toContain('select "better_supabase"."audit"');
   });
 });
+
+describe("rls.triggers and rls.audit edge cases", () => {
+  const tables = ["custom_role_includes", "custom_role_permissions"];
+  const base = {
+    name: "t",
+    when: "after",
+    events: ["insert"],
+    function: "app.f",
+  } as const;
+
+  it("refuses an unknown when or level", () => {
+    expect(() =>
+      triggersSql(
+        // SAFETY: a config file is untyped JavaScript; this is what one may pass.
+        { custom_role_permissions: [{ ...base, when: "during" } as never] },
+        "permdock",
+        tables,
+      ),
+    ).toThrow(/when must be before or after/u);
+    expect(() =>
+      triggersSql(
+        // SAFETY: as above, a level the type does not allow.
+        { custom_role_permissions: [{ ...base, level: "column" } as never] },
+        "permdock",
+        tables,
+      ),
+    ).toThrow(/level must be row or statement/u);
+  });
+
+  it("orders tables by name and writes nothing for empty lists", () => {
+    expect(
+      triggersSql(
+        { custom_role_permissions: [], custom_role_includes: [] },
+        "permdock",
+        tables,
+      ),
+    ).toBe("");
+    const sql = triggersSql(
+      { custom_role_permissions: [base], custom_role_includes: [base] },
+      "permdock",
+      tables,
+    );
+    expect(sql.indexOf("custom_role_includes")).toBeLessThan(
+      sql.indexOf("custom_role_permissions"),
+    );
+  });
+
+  it("calls the audit function without arguments, and not at all with no table", () => {
+    expect(auditSql({ function: "audit.track" }, "permdock", tables)).toBe(
+      `-- rls.audit: generated tables registered with audit.track
+select "audit"."track"('"permdock"."custom_role_permissions"'::regclass);
+select "audit"."track"('"permdock"."custom_role_includes"'::regclass);
+`,
+    );
+    expect(auditSql({ function: "audit.track" }, "permdock", [])).toBe("");
+  });
+});

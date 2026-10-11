@@ -87,6 +87,11 @@ const DROP_POLICY = new RegExp(
   "iu",
 );
 
+/** A capture group the pattern always fills. */
+function group(match: RegExpExecArray, index: number): string {
+  return match[index] ?? "";
+}
+
 function bare(ident: string): string {
   return ident.replaceAll('"', "");
 }
@@ -175,19 +180,19 @@ function replay(statements: readonly RetireStatement[]): Schema {
     const defined = { file: statement.file, line: statement.line, text };
     let match = CREATE_TABLE.exec(text);
     if (match !== null) {
-      schema.relations.set(key(match[1] ?? ""), "table");
+      schema.relations.set(key(group(match, 1)), "table");
       continue;
     }
     match = CREATE_MATVIEW.exec(text);
     if (match !== null) {
-      const name = key(match[1] ?? "");
+      const name = key(group(match, 1));
       schema.relations.set(name, "materialized view");
       schema.views.set(name, defined);
       continue;
     }
     match = DROP_RELATION.exec(text);
     if (match !== null) {
-      for (const name of (match[2] ?? "").split(",").map(key)) {
+      for (const name of group(match, 2).split(",").map(key)) {
         schema.relations.delete(name);
         schema.views.delete(name);
       }
@@ -195,45 +200,47 @@ function replay(statements: readonly RetireStatement[]): Schema {
     }
     match = CREATE_VIEW.exec(text);
     if (match !== null) {
-      schema.views.set(key(match[1] ?? ""), defined);
+      schema.views.set(key(group(match, 1)), defined);
       continue;
     }
     match = CREATE_FUNCTION.exec(text);
     if (match !== null) {
-      schema.functions.set(key(match[1] ?? ""), defined);
+      schema.functions.set(key(group(match, 1)), defined);
       continue;
     }
     match = DROP_FUNCTION.exec(text);
     if (match !== null) {
-      for (const name of droppedFunctions(match[1] ?? "")) {
+      for (const name of droppedFunctions(group(match, 1))) {
         schema.functions.delete(name);
       }
       continue;
     }
     match = CREATE_TRIGGER.exec(text);
     if (match !== null) {
-      const name = bare(match[1] ?? "");
-      const table = key(match[2] ?? "");
+      const name = bare(group(match, 1));
+      const table = key(group(match, 2));
       schema.triggers.set(`${table}:${name}`, {
         name,
         table,
-        function: key(match[3] ?? ""),
+        function: key(group(match, 3)),
       });
       continue;
     }
     match = DROP_TRIGGER.exec(text);
     if (match !== null) {
-      schema.triggers.delete(`${key(match[2] ?? "")}:${bare(match[1] ?? "")}`);
+      schema.triggers.delete(
+        `${key(group(match, 2))}:${bare(group(match, 1))}`,
+      );
       continue;
     }
     match = POLICY.exec(text);
     if (match !== null) {
-      const name = bare(match[2] ?? "");
-      const table = key(match[3] ?? "");
+      const name = bare(group(match, 2));
+      const table = key(group(match, 3));
       const id = `${table}:${name}`;
       const expressions = text.slice(match[0].length);
       if (
-        match[1]?.toLowerCase() === "create" ||
+        group(match, 1).toLowerCase() === "create" ||
         /\b(?:using|with\s+check)\b/iu.test(expressions)
       ) {
         schema.policies.set(id, { ...defined, text: expressions, table, name });
@@ -242,7 +249,9 @@ function replay(statements: readonly RetireStatement[]): Schema {
     }
     match = DROP_POLICY.exec(text);
     if (match !== null) {
-      schema.policies.delete(`${key(match[2] ?? "")}:${bare(match[1] ?? "")}`);
+      schema.policies.delete(
+        `${key(group(match, 2))}:${bare(group(match, 1))}`,
+      );
     }
   }
   return schema;

@@ -281,6 +281,28 @@ describe("rls migrate --retire-out", () => {
     );
   });
 
+  it("prints to stdout with -, and is up to date in a directory outside --sql", async () => {
+    const cwd = project({
+      "supabase/schemas/001_legacy.sql": `${LEGACY.replace(
+        "public.has_org_permission(asset.organization_id, 'organization.asset.update')",
+        "true",
+      )}${CLEANUP}select 1;\n`,
+    });
+    mkdirSync(join(cwd, "supabase/migrations"));
+    const printed = await run([...ARGS, "--retire-out", "-"], { cwd });
+    expect(printed.code).toBe(0);
+    expect(printed.stdout).toContain(
+      'drop table if exists "public"."user_permissions";',
+    );
+    const out = [...ARGS, "--retire-out", "supabase/migrations/"];
+    expect((await run(out, { cwd })).stdout).toContain(
+      "wrote supabase/migrations/",
+    );
+    expect((await run(out, { cwd })).stdout).toContain(
+      "rls migrate --retire-out: up to date",
+    );
+  });
+
   it("needs rls.migrate.tables", async () => {
     const cwd = project({});
     writeFileSync(
@@ -296,5 +318,47 @@ describe("rls migrate --retire-out", () => {
     expect(result.stderr + result.stdout).toContain(
       "rls migrate --retire-out needs rls.migrate.tables",
     );
+  });
+});
+
+describe("retirePlan edge cases", () => {
+  it("follows alter policy, drop policy, drop view and quoted names", () => {
+    const plan = retirePlan(
+      statements({
+        "001.sql": `create table "app"."grants" (user_id uuid);
+create policy p on public.notes using (exists (select 1 from app.grants));
+create policy q on public.docs using (true);
+create view app.mine as select * from "app"."grants";
+create function app.refill() returns trigger language plpgsql as $$ begin truncate table only app.grants; return null; end $$;
+create function app.kick() returns trigger language plpgsql as $$ begin perform app.refill(); return null; end $$;
+create trigger "kick" after insert on public.members for each statement execute procedure app.kick();
+`,
+        "002.sql": `alter policy p on public.notes rename to p2;
+alter policy q on public.docs using (exists (select 1 from app.grants));
+drop policy if exists p on public.notes;
+drop view if exists app.mine;
+drop function if exists app.other, app.unknown(int) cascade;
+`,
+      }),
+      { helpers: {}, tables: { "app.grants": {} } },
+    );
+    expect(plan.tables[0]).toMatchObject({
+      table: "app.grants",
+      present: true,
+      refreshTriggers: [
+        { name: "kick", table: "public.members", function: "app.kick" },
+      ],
+      refreshFunctions: ["app.kick", "app.refill"],
+      readers: [{ kind: "policy", name: "q on public.docs", file: "002.sql" }],
+    });
+  });
+
+  it("has no tables without rls.migrate.tables", () => {
+    expect(
+      retirePlan(statements({ "001.sql": LEGACY }), MIGRATE),
+    ).toMatchObject({ tables: [{ table: "public.user_permissions" }] });
+    expect(
+      retirePlan(statements({ "001.sql": LEGACY }), { helpers: {} }).tables,
+    ).toEqual([]);
   });
 });

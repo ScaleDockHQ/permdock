@@ -186,6 +186,62 @@ describe("backfillSql", () => {
   });
 });
 
+describe("backfillSql with platform-only roles in another schema", () => {
+  const platform: RlsSqlContext = {
+    ...ctx,
+    customRoles: {
+      declared: ["admin"],
+      assignable: ["admin"],
+      renamed: { "a.old": "asset.read", "b.old": "asset.read" },
+      table: { table: "app.roles", key: "key", scope: "scope", id: "scope_id" },
+    },
+  };
+  const appFrom: RlsCustomRolesFrom = {
+    permissions: {
+      table: "app.role_permissions",
+      role: { through: "roles", on: { role_id: "id" }, column: "key" },
+      permission: "permission",
+    },
+  };
+
+  it("reads the scope and instance columns and resolves an unqualified through in the table's schema", () => {
+    const sql = backfillSql(platform, appFrom, {
+      helpers: {},
+      prefixes: { "ab.": "", "aa.": "x." },
+    });
+    expect(sql).toContain(
+      `select null::uuid as tenant_id, case when null::uuid is null then 'global' else r."scope"::text end as scope, r."scope_id"::text as scope_id`,
+    );
+    expect(sql).toContain('from "app"."roles" r\n    where not false');
+    expect(sql).toContain("not (m.key = any(array['a.old', 'b.old']::text[]))");
+    expect(sql).toContain(
+      "when left(n.legacy, 3) = 'aa.' then 'x.' || substr(n.legacy, 4) when left(n.legacy, 3) = 'ab.'",
+    );
+  });
+
+  it("refuses custom roles off and a reference that maps no single column", () => {
+    expect(() =>
+      backfillSql({ ...ctx, customRoles: undefined }, appFrom, undefined),
+    ).toThrow(/needs custom roles on/u);
+    expect(() =>
+      backfillSql(
+        platform,
+        {
+          permissions: {
+            ...appFrom.permissions,
+            role: {
+              through: "app.roles",
+              on: { role_id: "id", org_id: "organization_id" },
+              column: "key",
+            },
+          },
+        },
+        undefined,
+      ),
+    ).toThrow(/must map exactly one column/u);
+  });
+});
+
 const TMP = path.join(import.meta.dirname, "../../tmp");
 mkdirSync(TMP, { recursive: true });
 const cwd = mkdtempSync(path.join(TMP, "rls-backfill-"));
