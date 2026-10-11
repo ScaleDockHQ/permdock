@@ -64,6 +64,9 @@ export function snapshotGrant(
     portable: grant.portable ? undefined : false,
     fields: grant.fields,
     validity: grant.validity,
+    name: grant.name,
+    meta: grant.meta,
+    obligations: grant.obligations,
   });
   return freezeDeep(entry);
 }

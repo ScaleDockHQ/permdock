@@ -1106,6 +1106,7 @@ export function buildInstance(
             })
           : freezeDeep({
               outcome: "denied",
+              permission: permission.key,
               denials: [{ role: null, reason: "no-grant" }],
               alternatives: [],
             });

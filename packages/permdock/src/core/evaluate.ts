@@ -733,7 +733,13 @@ export function evaluate(
     options.explain === true
       ? { evaluated: 0, allows: [], denies: [], skipped: [] }
       : undefined;
-  const complete = (decision: Decision, membership?: Membership): Decision => {
+  const complete = (raw: Decision, membership?: Membership): Decision => {
+    const decision: Decision =
+      env.outcomeOnly !== true &&
+      raw.outcome === "denied" &&
+      raw.permission === undefined
+        ? { ...raw, permission: permission.key }
+        : raw;
     const final: Decision =
       env.outcomeOnly === true
         ? decision

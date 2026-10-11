@@ -5,6 +5,7 @@ import type {
   ApprovalRequirement,
   Grant,
   GrantMeta,
+  GrantValidity,
   HostedGrantRef,
 } from "./policy.ts";
 import type { Membership, Subject } from "./subject.ts";
@@ -54,10 +55,25 @@ export type DenialReason =
   | "exceeds-creator"
   | "credential-policy";
 
-export type Denial = {
+/** The `detail` each denial reason carries, where PermDock sets a structured one. */
+export type DenialDetails = {
+  readonly limit: LimitDetail;
+  /** The window the inactive allow applies in. */
+  readonly "inactive-grant": GrantValidity;
+  /** The matching deny's declared `name`. */
+  readonly deny: { readonly name?: string };
+};
+
+/**
+ * Why a candidate grant did not apply. `Denial<"limit">` types `detail` for a
+ * reason in `DenialDetails`; any other reason's detail is `unknown`.
+ */
+export type Denial<R extends DenialReason = DenialReason> = {
   readonly role: string | null;
-  readonly reason: DenialReason;
-  readonly detail?: unknown;
+  readonly reason: R;
+  readonly detail?: [R] extends [keyof DenialDetails]
+    ? DenialDetails[R]
+    : unknown;
   readonly to?: Grantee | readonly Grantee[];
 };
 
@@ -175,6 +191,11 @@ export type GrantedDecision = {
 
 export type DeniedDecision = {
   readonly outcome: "denied";
+  /**
+   * The key of the permission that was checked. Absent on a denial for a
+   * check that named no declared permission.
+   */
+  readonly permission?: string;
   readonly denials: readonly Denial[];
   readonly alternatives: readonly Permission[];
   /** Present only with `explain: true`. */

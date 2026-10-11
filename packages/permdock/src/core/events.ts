@@ -169,6 +169,8 @@ export function finish(
           ? compact({
               role: decision.matched.role,
               permission: decision.matched.permission,
+              name: decision.matched.name,
+              meta: decision.matched.meta,
               to: decision.matched.to,
               hosted: decision.matched.hosted,
               breakGlass: decision.matched.breakGlass,
@@ -177,10 +179,17 @@ export function finish(
             ? compact({
                 role: decision.grant.role,
                 permission: decision.grant.permission,
+                name: decision.grant.name,
+                meta: decision.grant.meta,
                 to: decision.grant.to,
                 hosted: decision.grant.hosted,
               })
             : undefined,
+      obligations:
+        decision.outcome === "granted" &&
+        (decision.obligations?.length ?? 0) > 0
+          ? decision.obligations
+          : undefined,
       purpose:
         Array.isArray(subject.context["purpose"]) &&
         subject.context["purpose"].length > 0

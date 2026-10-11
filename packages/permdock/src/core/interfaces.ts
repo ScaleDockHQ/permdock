@@ -4,11 +4,12 @@ import type {
   CredentialKind,
   CredentialPolicy,
 } from "./credential.ts";
-import type { Decision } from "./decision.ts";
+import type { AppObligation, Decision, Obligation } from "./decision.ts";
 import type { Grantee } from "./grantee.ts";
 import type { Permission } from "./permissions.ts";
 import type {
   ApprovalRequirement,
+  GrantMeta,
   GrantValidity,
   HostedGrantRef,
 } from "./policy.ts";
@@ -374,6 +375,12 @@ export type SnapshotGrant = {
   readonly fields?: readonly string[];
   /** When the grant applies (Unix seconds, `from` inclusive, `until` exclusive); absent means always. */
   readonly validity?: GrantValidity;
+  /** The grant's declared `name`. */
+  readonly name?: string;
+  /** The grant's declared `meta`; visible to the client that holds the snapshot. */
+  readonly meta?: GrantMeta;
+  /** The app obligations an allow declares, emitted on a granted decision. */
+  readonly obligations?: readonly AppObligation[];
 };
 
 /**
@@ -579,10 +586,16 @@ export type DecisionEvent = {
   readonly matched?: {
     readonly role: string | null;
     readonly permission: string;
+    /** The grant's declared `name`. */
+    readonly name?: string;
+    /** The grant's declared `meta`; PermDock never reads it. */
+    readonly meta?: GrantMeta;
     readonly to?: Grantee | readonly Grantee[];
     readonly hosted?: HostedGrantRef;
     readonly breakGlass?: true;
   };
+  /** What a granted decision owes, as on `GrantedDecision.obligations`. */
+  readonly obligations?: readonly Obligation[];
   /** Purposes of use the caller asserted (`context.purpose`); present when any was. */
   readonly purpose?: readonly string[];
   /** The justification the caller supplied (`context.reason`); present when set. */

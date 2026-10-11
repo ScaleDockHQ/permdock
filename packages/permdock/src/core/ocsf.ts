@@ -41,6 +41,10 @@ export type OcsfAuthorizeSession = {
     readonly source: DecisionEvent["source"];
     readonly phase?: DecisionEvent["phase"];
     readonly role?: string | null;
+    /** The matched grant's declared `name`. */
+    readonly grant?: string;
+    /** The names of the app obligations the decision carries. */
+    readonly obligations?: readonly string[];
     readonly via?: string | null;
     /** Set high-severity break-glass events apart in a SIEM. */
     readonly breakGlass?: true;
@@ -71,6 +75,16 @@ function unknownStatus(
   _outcome: never,
 ): Pick<OcsfAuthorizeSession, "status_id" | "status"> {
   return { status_id: 0, status: "Unknown" };
+}
+
+/** The names of a decision event's app obligations, or `undefined` when it has none. */
+export function appObligationNames(
+  event: DecisionEvent,
+): readonly string[] | undefined {
+  const names = (event.obligations ?? []).flatMap((obligation) =>
+    obligation.kind === "app" ? [obligation.name] : [],
+  );
+  return names.length === 0 ? undefined : names;
 }
 
 /** Projects a decision or approval event onto OCSF Authorize Session; the event itself is unchanged. */
@@ -123,6 +137,8 @@ export function toOcsf(event: DecisionEvent): OcsfAuthorizeSession {
       source: event.source,
       phase: event.phase,
       role: event.matched?.role,
+      grant: event.matched?.name,
+      obligations: appObligationNames(event),
       via: event.via,
       breakGlass: breakGlass ? (true as const) : undefined,
       purpose: event.purpose,

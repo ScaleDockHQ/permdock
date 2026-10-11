@@ -10,6 +10,7 @@ import type {
 } from "./types.ts";
 
 import { compact } from "../core/compact.ts";
+import { appObligationNames } from "../core/ocsf.ts";
 import {
   GENAI_SEMCONV_PIN,
   GEN_AI_TOOL_CALL_ID,
@@ -149,6 +150,8 @@ function attributesOf(
     "permdock.actor.kind": event.subject.actor?.kind,
     "permdock.delegation.scopes": event.subject.delegation?.scopes?.join(","),
     "permdock.matched.role": event.matched?.role,
+    "permdock.matched.name": event.matched?.name,
+    "permdock.obligations": appObligationNames(event)?.join(","),
     "permdock.denials.count": event.denials?.length,
     "permdock.token": event.token,
     "permdock.validate": event.trusted ? "trusted" : "boundary",

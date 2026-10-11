@@ -163,6 +163,7 @@ describe("ApprovalPolicySource", () => {
     for (const source of [throwing, rejecting, escalating, junk, opaque]) {
       expect(await decide(source, permissions.expense.read, small)).toEqual({
         outcome: "denied",
+        permission: "expense.read",
         denials: [
           {
             role: null,

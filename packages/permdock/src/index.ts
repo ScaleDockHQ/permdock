@@ -32,6 +32,7 @@ export type {
   ApprovalRequiredDecision,
   Decision,
   Denial,
+  DenialDetails,
   DenialReason,
   DeniedDecision,
   ExplainedDecision,
