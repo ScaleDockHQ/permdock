@@ -124,7 +124,7 @@ export function openapi(ctx: CliContext): Command {
           throw new Error("openapi --doc is required");
         }
         // Lazy: the implementation loads only when this command runs, not for --help.
-        const { runOpenapiImport } = await import("../openapi-import.ts");
+        const { runOpenapiImport } = await import("../openapi/import.ts");
         ctx.report(
           await runOpenapiImport({
             cwd: ctx.cwd,
@@ -140,7 +140,7 @@ export function openapi(ctx: CliContext): Command {
       }
       // Lazy: the implementation loads only when this command runs, not for --help.
       const result = await (
-        await import("../openapi.ts")
+        await import("../openapi/openapi.ts")
       ).runOpenapi({
         cwd: ctx.cwd,
         config: ctx.config,

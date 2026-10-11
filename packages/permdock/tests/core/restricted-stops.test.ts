@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { RelatedCondition } from "../../src/conditions/ast.ts";
 
-import { closureDepths, graphPlan, graphSql } from "../../src/cli/rls-graph.ts";
+import { closureDepths, graphPlan, graphSql } from "../../src/cli/rls/graph.ts";
 import {
   relatedSql,
   renderGraphSql,

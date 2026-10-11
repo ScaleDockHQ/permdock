@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { RlsSqlContext } from "../../src/cli/sql/context.ts";
 
-import { accessSql, helpersSql } from "../../src/cli/rls-helpers.ts";
+import { accessSql, helpersSql } from "../../src/cli/rls/helpers.ts";
 import { quoteQualified } from "../../src/cli/sql/quote.ts";
 import { fromTable } from "../../src/supabase/index.ts";
 

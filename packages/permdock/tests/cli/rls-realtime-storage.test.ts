@@ -2,11 +2,11 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
+import { run } from "../../src/cli/run.ts";
 import {
   helperCallKeys,
   helperTablePolicies,
-} from "../../src/cli/helper-calls.ts";
-import { run } from "../../src/cli/run.ts";
+} from "../../src/cli/sql/helper-calls.ts";
 import { supabaseRls } from "../../src/supabase/index.ts";
 import { project, removeProjects } from "./doctor-kit.ts";
 

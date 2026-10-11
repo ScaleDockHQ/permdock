@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import type { RlsSqlContext } from "../../src/cli/sql/context.ts";
 
-import { permissionHelpersSql } from "../../src/cli/rls-permission-keys.ts";
-import { shimGrants } from "../../src/cli/rls-shims.ts";
+import { permissionHelpersSql } from "../../src/cli/rls/permission-keys.ts";
+import { shimGrants } from "../../src/cli/rls/shims.ts";
 import { compileGrants } from "../../src/cli/sql/compile.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import {

@@ -70,7 +70,7 @@ export function supabase(ctx: CliContext): Command {
       const schema = stringArg(parsed.schema);
       const grantsOut = stringArg(parsed["grants-out"]);
       // Lazy: the implementation loads only when this command runs, not for --help.
-      const { runSupabase } = await import("../supabase-hook.ts");
+      const { runSupabase } = await import("../supabase-hook/supabase-hook.ts");
       ctx.report(
         await runSupabase({
           cwd: ctx.cwd,

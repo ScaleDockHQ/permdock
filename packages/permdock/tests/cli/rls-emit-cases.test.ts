@@ -10,7 +10,7 @@ import {
   emitSql,
   migrationOut,
   migrationSql,
-} from "../../src/cli/rls-emit.ts";
+} from "../../src/cli/rls/emit.ts";
 
 function policy(over: Partial<CompiledPolicy> = {}): CompiledPolicy {
   return {

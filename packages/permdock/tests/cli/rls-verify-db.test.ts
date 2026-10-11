@@ -6,8 +6,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { PermDockConfig } from "../../src/cli/types.ts";
 import type { SqlCall, SqlReply } from "../fakes/sql.ts";
 
-import { HELPER_TABLE_POLICIES_SQL } from "../../src/cli/helper-calls.ts";
-import { runRlsVerify } from "../../src/cli/rls-verify.ts";
+import { runRlsVerify } from "../../src/cli/rls/verify.ts";
+import { HELPER_TABLE_POLICIES_SQL } from "../../src/cli/sql/helper-calls.ts";
 import { fakeSql } from "../fakes/sql.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));

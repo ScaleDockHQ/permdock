@@ -4,7 +4,7 @@ import type { ScanResult } from "../../src/cli/types.ts";
 import type { CustomRole, Membership } from "../../src/core/subject.ts";
 
 import { buildCatalog } from "../../src/cli/catalog-doc.ts";
-import { diffCatalogs } from "../../src/cli/diff.ts";
+import { diffCatalogs } from "../../src/cli/diff/diff.ts";
 import { principal } from "../../src/conditions/refs.ts";
 import {
   customRoleClaim,

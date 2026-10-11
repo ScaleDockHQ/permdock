@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { verifyTree } from "../../src/cli/rls-verify-tree.ts";
+import { verifyTree } from "../../src/cli/rls/verify-tree.ts";
 import { insertedRows } from "../fakes/sql.ts";
 import { policy } from "../fixtures/graph.ts";
 

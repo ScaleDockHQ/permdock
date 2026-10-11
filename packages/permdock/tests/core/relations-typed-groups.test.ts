@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import type { RlsSqlContext } from "../../src/cli/sql/context.ts";
 
-import { closureDepths, graphPlan, graphSql } from "../../src/cli/rls-graph.ts";
+import { closureDepths, graphPlan, graphSql } from "../../src/cli/rls/graph.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import {
   allow,

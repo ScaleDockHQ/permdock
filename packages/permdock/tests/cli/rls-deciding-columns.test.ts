@@ -4,7 +4,7 @@ import {
   decidingColumns,
   membershipColumns,
   tableKey,
-} from "../../src/cli/deciding-columns.ts";
+} from "../../src/cli/sql/deciding-columns.ts";
 import { fromTable } from "../../src/supabase/index.ts";
 
 describe("tableKey", () => {

@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import type { ScanResult } from "../../src/cli/types.ts";
 
 import { buildCatalog } from "../../src/cli/catalog-doc.ts";
-import { diffCatalogs } from "../../src/cli/diff.ts";
+import { diffCatalogs } from "../../src/cli/diff/diff.ts";
 import { run } from "../../src/cli/run.ts";
 import {
   customRoleClaim,

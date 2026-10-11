@@ -13,7 +13,7 @@ import {
   migrationVersion,
   nextMigrationVersion,
 } from "../../src/cli/output-files.ts";
-import { runRlsGenerate } from "../../src/cli/rls-generate.ts";
+import { runRlsGenerate } from "../../src/cli/rls/generate.ts";
 
 const TMP = path.join(import.meta.dirname, "../../tmp");
 mkdirSync(TMP, { recursive: true });

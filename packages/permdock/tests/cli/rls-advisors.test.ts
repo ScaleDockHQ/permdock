@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import type { CliExec } from "../../src/cli/rls-advisors.ts";
+import type { CliExec } from "../../src/cli/rls/advisors.ts";
 
-import { runRlsAdvisors } from "../../src/cli/rls-advisors.ts";
+import { runRlsAdvisors } from "../../src/cli/rls/advisors.ts";
 
 const ROWS = {
   results: [

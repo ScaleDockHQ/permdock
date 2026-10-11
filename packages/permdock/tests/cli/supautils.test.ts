@@ -2,8 +2,8 @@ import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { emitSql, migrationSql } from "../../src/cli/rls-emit.ts";
-import { supautilsRejections } from "../../src/cli/supautils.ts";
+import { emitSql, migrationSql } from "../../src/cli/rls/emit.ts";
+import { supautilsRejections } from "../../src/cli/sql/supautils.ts";
 
 const GOLDEN = path.join(import.meta.dirname, "fixtures/golden");
 

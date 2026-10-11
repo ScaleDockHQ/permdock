@@ -7,7 +7,7 @@ import type { CompiledPolicy } from "../../src/cli/sql/compile.ts";
 import {
   readOnlyActorKinds,
   readOnlyActorPolicies,
-} from "../../src/cli/rls-policies.ts";
+} from "../../src/cli/rls/policies.ts";
 import { run } from "../../src/cli/run.ts";
 import { project, removeProjects } from "./doctor-kit.ts";
 

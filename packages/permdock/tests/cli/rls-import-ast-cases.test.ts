@@ -3,7 +3,7 @@ import type * as PgsqlParser from "pgsql-parser";
 import { parse } from "pgsql-parser";
 import { describe, expect, it, vi } from "vitest";
 
-import type { RolePermission } from "../../src/cli/rls-helpers.ts";
+import type { RolePermission } from "../../src/cli/rls/helpers.ts";
 import type { RlsMemberships } from "../../src/cli/types.ts";
 
 import {
@@ -11,7 +11,7 @@ import {
   helperGrants,
   seedFromRow,
   seedsFromSql,
-} from "../../src/cli/rls-import-ast.ts";
+} from "../../src/cli/rls/import-ast.ts";
 
 vi.mock("pgsql-parser", async (importOriginal) => {
   const actual = await importOriginal<typeof PgsqlParser>();

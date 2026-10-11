@@ -9,7 +9,7 @@ import {
   closureDepths,
   graphPlan,
   graphSql,
-} from "../../src/cli/rls-graph.ts";
+} from "../../src/cli/rls/graph.ts";
 import {
   allow,
   definePermissions,

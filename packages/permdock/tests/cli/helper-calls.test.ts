@@ -6,7 +6,7 @@ import {
   helperTablePolicies,
   helperTablePoliciesFromRows,
   rowConditionMessage,
-} from "../../src/cli/helper-calls.ts";
+} from "../../src/cli/sql/helper-calls.ts";
 
 describe("helperCallKeys", () => {
   it("reads the keys passed to permdock_has and permitted_<scope>_ids", () => {

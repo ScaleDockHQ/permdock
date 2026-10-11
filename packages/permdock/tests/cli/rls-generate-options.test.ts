@@ -12,9 +12,9 @@ import type { RlsSqlContext } from "../../src/cli/sql/context.ts";
 import type { PermDockConfig } from "../../src/cli/types.ts";
 
 import { CliError } from "../../src/cli/errors.ts";
-import { runRlsGenerate } from "../../src/cli/rls-generate.ts";
-import { assignmentSql, ownershipRules } from "../../src/cli/rls-ownership.ts";
-import { supabaseHookSql } from "../../src/cli/supabase-hook.ts";
+import { runRlsGenerate } from "../../src/cli/rls/generate.ts";
+import { assignmentSql, ownershipRules } from "../../src/cli/rls/ownership.ts";
+import { supabaseHookSql } from "../../src/cli/supabase-hook/supabase-hook.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import { fromJunction } from "../../src/supabase/index.ts";
 import { policy as namedScopes } from "../fixtures/named-scopes.ts";

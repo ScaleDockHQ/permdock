@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { closureDepths, graphPlan, graphSql } from "../../src/cli/rls-graph.ts";
-import { inheritTargets, rowHelpersSql } from "../../src/cli/rls-rows.ts";
+import { closureDepths, graphPlan, graphSql } from "../../src/cli/rls/graph.ts";
+import { inheritTargets, rowHelpersSql } from "../../src/cli/rls/rows.ts";
 import { compileGrants } from "../../src/cli/sql/compile.ts";
 import { relatedSql } from "../../src/conditions/graph-sql.ts";
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";

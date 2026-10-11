@@ -12,8 +12,8 @@ import { afterAll, describe, expect, it } from "vitest";
 
 import type { PermDockConfig } from "../../src/cli/types.ts";
 
-import { validateOpenapi } from "../../src/cli/openapi-schema.ts";
-import { runOpenapi } from "../../src/cli/openapi.ts";
+import { runOpenapi } from "../../src/cli/openapi/openapi.ts";
+import { validateOpenapi } from "../../src/cli/openapi/schema.ts";
 import { run } from "../../src/cli/run.ts";
 
 const FIXTURE = path.join(import.meta.dirname, "fixtures/mini-app");

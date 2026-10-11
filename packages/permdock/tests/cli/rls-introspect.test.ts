@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { ActualRls } from "../../src/cli/rls-introspect.ts";
+import type { ActualRls } from "../../src/cli/rls/introspect.ts";
 
 import {
   diffMixed,
@@ -10,7 +10,7 @@ import {
   introspectRls,
   missingIndexes,
   normalizeTableName,
-} from "../../src/cli/rls-introspect.ts";
+} from "../../src/cli/rls/introspect.ts";
 import { run } from "../../src/cli/run.ts";
 import { fakeSql } from "../fakes/sql.ts";
 

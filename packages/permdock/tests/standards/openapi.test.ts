@@ -5,7 +5,7 @@ import { z } from "zod";
 
 import type { OpenApiPermDockOptions } from "../../src/openapi/types.ts";
 
-import { validateOpenapi } from "../../src/cli/openapi-schema.ts";
+import { validateOpenapi } from "../../src/cli/openapi/schema.ts";
 import { run } from "../../src/cli/run.ts";
 import { principal } from "../../src/conditions/refs.ts";
 import {

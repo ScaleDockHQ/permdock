@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import type { GenerateOutcome } from "../../src/cli/rls-generate.ts";
+import type { GenerateOutcome } from "../../src/cli/rls/generate.ts";
 
-import { migrateTarget } from "../../src/cli/rls-migrate.ts";
+import { migrateTarget } from "../../src/cli/rls/migrate.ts";
 
 describe("migrateTarget", () => {
   it("counts only allow seeds as granted keys", () => {

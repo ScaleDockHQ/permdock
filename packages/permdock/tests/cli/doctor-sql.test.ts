@@ -16,7 +16,7 @@ import {
   pd053,
   pd062,
   pd063,
-} from "../../src/cli/doctor-sql.ts";
+} from "../../src/cli/doctor/sql.ts";
 import { sqlStatements } from "../../src/cli/sql/statements.ts";
 import { project, removeProjects } from "./doctor-kit.ts";
 

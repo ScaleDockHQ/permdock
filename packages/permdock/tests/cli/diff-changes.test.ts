@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import type { CatalogDiff } from "../../src/cli/diff.ts";
+import type { CatalogDiff } from "../../src/cli/diff/diff.ts";
 import type {
   CatalogDelegation,
   CatalogDocument,
   CatalogGrant,
 } from "../../src/cli/types.ts";
 
-import { diffCatalogs } from "../../src/cli/diff.ts";
+import { diffCatalogs } from "../../src/cli/diff/diff.ts";
 
 function catalog(
   overrides: Partial<CatalogDocument> & {

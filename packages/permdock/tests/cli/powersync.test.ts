@@ -13,14 +13,14 @@ import type { SqlClient } from "../../src/cli/pg.ts";
 import type { PermDockConfig } from "../../src/cli/types.ts";
 import type { Condition } from "../../src/index.ts";
 
-import { pd058 } from "../../src/cli/doctor-powersync.ts";
+import { pd058 } from "../../src/cli/doctor/powersync.ts";
+import { runPowerSync } from "../../src/cli/powersync/powersync.ts";
 import {
   POSTGRES,
   POWERSYNC,
   powersyncPlan,
   powersyncYaml,
-} from "../../src/cli/powersync-streams.ts";
-import { runPowerSync } from "../../src/cli/powersync.ts";
+} from "../../src/cli/powersync/streams.ts";
 import { run } from "../../src/cli/run.ts";
 import {
   actor,

@@ -7,7 +7,7 @@ import {
   guardedTables,
   ownershipRules,
   ownershipSql,
-} from "../../src/cli/rls-ownership.ts";
+} from "../../src/cli/rls/ownership.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import { policy } from "../fixtures/named-scopes.ts";
 

@@ -2,7 +2,7 @@ import { Ajv2020 } from "ajv/dist/2020.js";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import { supabaseHookManifest } from "../../src/cli/supabase-hook.ts";
+import { supabaseHookManifest } from "../../src/cli/supabase-hook/supabase-hook.ts";
 import { defineScopes } from "../../src/core/scopes.ts";
 import {
   allow,

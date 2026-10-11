@@ -9,7 +9,7 @@ import {
   indexName,
   pruneIndexTargets,
   readTableIndexFacts,
-} from "../../src/cli/rls-indexes.ts";
+} from "../../src/cli/rls/indexes.ts";
 import { compileGrants } from "../../src/cli/sql/compile.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import {

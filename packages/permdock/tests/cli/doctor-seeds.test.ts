@@ -4,7 +4,7 @@ import { afterAll, describe, expect, it } from "vitest";
 
 import type { PermDockConfig } from "../../src/cli/types.ts";
 
-import { pd054 } from "../../src/cli/doctor-seeds.ts";
+import { pd054 } from "../../src/cli/doctor/seeds.ts";
 import { run } from "../../src/cli/run.ts";
 import { project, removeProjects } from "./doctor-kit.ts";
 

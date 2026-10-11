@@ -4,7 +4,7 @@ import { z } from "zod";
 import type { RlsSqlContext } from "../../src/cli/sql/context.ts";
 import type { RelatedCondition } from "../../src/conditions/ast.ts";
 
-import { closureDepths, graphPlan, graphSql } from "../../src/cli/rls-graph.ts";
+import { closureDepths, graphPlan, graphSql } from "../../src/cli/rls/graph.ts";
 import { compileConditionSql } from "../../src/cli/sql/conditions.ts";
 import { compileWhere } from "../../src/conditions/compile.ts";
 import { scopeList } from "../../src/core/scopes.ts";

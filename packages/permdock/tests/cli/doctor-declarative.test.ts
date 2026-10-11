@@ -2,8 +2,8 @@ import { afterAll, describe, expect, it } from "vitest";
 
 import type { PermDockConfig } from "../../src/cli/types.ts";
 
-import { pd042, pd043 } from "../../src/cli/doctor-declarative.ts";
-import { HOOK_MARKER } from "../../src/cli/markers.ts";
+import { pd042, pd043 } from "../../src/cli/doctor/declarative.ts";
+import { HOOK_MARKER } from "../../src/cli/sql/markers.ts";
 import { project, removeProjects } from "./doctor-kit.ts";
 
 afterAll(removeProjects);

@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
-import { apiKeysPlan } from "../../src/cli/rls-api-keys.ts";
+import { apiKeysPlan } from "../../src/cli/rls/api-keys.ts";
 import { run } from "../../src/cli/run.ts";
 import { policyProject, removeProjects } from "./doctor-kit.ts";
 

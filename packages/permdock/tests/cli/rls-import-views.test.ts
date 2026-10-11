@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import type { RolePermission } from "../../src/cli/rls-helpers.ts";
+import type { RolePermission } from "../../src/cli/rls/helpers.ts";
 
 import {
   fieldViewsFromSql,
   viewsSqlFromDb,
-} from "../../src/cli/rls-import-views.ts";
+} from "../../src/cli/rls/import-views.ts";
 
 const seeds: RolePermission[] = [
   {

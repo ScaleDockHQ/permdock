@@ -9,7 +9,7 @@ import path from "node:path";
 import { parse } from "pgsql-parser";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { conditionFromAst } from "../../src/cli/rls-import-ast.ts";
+import { conditionFromAst } from "../../src/cli/rls/import-ast.ts";
 import { run } from "../../src/cli/run.ts";
 
 type Node = Record<string, unknown>;

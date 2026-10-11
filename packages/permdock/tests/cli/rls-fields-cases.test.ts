@@ -4,7 +4,7 @@ import { z } from "zod";
 import type { CompiledBranch } from "../../src/cli/sql/compile.ts";
 import type { RlsSqlContext } from "../../src/cli/sql/context.ts";
 
-import { fieldViews, fieldViewsSql } from "../../src/cli/rls-fields.ts";
+import { fieldViews, fieldViewsSql } from "../../src/cli/rls/fields.ts";
 import { definePermissions, definePolicy, resource } from "../../src/index.ts";
 
 const Doc = z.object({

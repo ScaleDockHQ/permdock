@@ -19,7 +19,7 @@ import {
   pd038,
   pd041,
   pd057,
-} from "../../src/cli/doctor-source.ts";
+} from "../../src/cli/doctor/source.ts";
 
 function src(file: string, text: string): DoctorSource {
   return { file, text };

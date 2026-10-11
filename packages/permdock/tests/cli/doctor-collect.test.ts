@@ -29,8 +29,8 @@ import {
   pd034,
   pd035,
   pd037,
-} from "../../src/cli/doctor-collect.ts";
-import { pd044 } from "../../src/cli/doctor-next.ts";
+} from "../../src/cli/doctor/collect.ts";
+import { pd044 } from "../../src/cli/doctor/next.ts";
 import {
   NOW,
   PERMISSIONS,

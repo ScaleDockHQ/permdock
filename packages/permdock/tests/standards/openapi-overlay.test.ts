@@ -14,7 +14,7 @@ import type { OpenApiPermDockOptions } from "../../src/openapi/types.ts";
 import {
   validateOpenapi,
   validateOverlay,
-} from "../../src/cli/openapi-schema.ts";
+} from "../../src/cli/openapi/schema.ts";
 import { run } from "../../src/cli/run.ts";
 import {
   allow,

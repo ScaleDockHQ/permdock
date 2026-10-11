@@ -3,7 +3,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import type { PermDockConfig } from "../../src/cli/types.ts";
 
 import { runCollect } from "../../src/cli/collect.ts";
-import { runDoctor } from "../../src/cli/doctor.ts";
+import { runDoctor } from "../../src/cli/doctor/doctor.ts";
 import {
   NOW,
   PERMISSIONS,

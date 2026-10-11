@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { RlsSqlContext } from "../../src/cli/sql/context.ts";
 
-import { assemblePolicies } from "../../src/cli/rls-policies.ts";
+import { assemblePolicies } from "../../src/cli/rls/policies.ts";
 import { compileGrants } from "../../src/cli/sql/compile.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import {

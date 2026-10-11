@@ -12,7 +12,7 @@ import {
   pd012,
   pd022,
   pd028,
-} from "../../src/cli/doctor-project.ts";
+} from "../../src/cli/doctor/project.ts";
 import { sqlFiles } from "../../src/cli/files.ts";
 import { fromJunction } from "../../src/supabase/sources.ts";
 import { project, removeProjects } from "./doctor-kit.ts";

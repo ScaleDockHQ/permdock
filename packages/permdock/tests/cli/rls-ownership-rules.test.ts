@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { RlsSqlContext } from "../../src/cli/sql/context.ts";
 
-import { ownershipRules, ownershipSql } from "../../src/cli/rls-ownership.ts";
+import { ownershipRules, ownershipSql } from "../../src/cli/rls/ownership.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import {
   allow,

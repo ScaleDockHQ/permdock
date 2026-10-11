@@ -5,15 +5,15 @@ import { afterAll, describe, expect, it } from "vitest";
 
 import type { RlsSqlContext } from "../../src/cli/sql/context.ts";
 
-import { pd005 } from "../../src/cli/doctor-project.ts";
+import { pd005 } from "../../src/cli/doctor/project.ts";
 import {
   isSeedsDirectory,
   seedsMigration,
 } from "../../src/cli/output-files.ts";
-import { helpersSql } from "../../src/cli/rls-helpers.ts";
-import { assignmentSql, ownershipRules } from "../../src/cli/rls-ownership.ts";
-import { permissionHelpersSql } from "../../src/cli/rls-permission-keys.ts";
-import { shimGrants } from "../../src/cli/rls-shims.ts";
+import { helpersSql } from "../../src/cli/rls/helpers.ts";
+import { assignmentSql, ownershipRules } from "../../src/cli/rls/ownership.ts";
+import { permissionHelpersSql } from "../../src/cli/rls/permission-keys.ts";
+import { shimGrants } from "../../src/cli/rls/shims.ts";
 import { compileGrants } from "../../src/cli/sql/compile.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import { policy } from "../fixtures/named-scopes.ts";

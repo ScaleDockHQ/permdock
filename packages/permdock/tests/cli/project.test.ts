@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { runDoctor } from "../../src/cli/doctor.ts";
+import { runDoctor } from "../../src/cli/doctor/doctor.ts";
 import { loadModule } from "../../src/cli/load.ts";
 import { loadProject } from "../../src/cli/project.ts";
 import { NOW, policyProject, quietIo, removeProjects } from "./doctor-kit.ts";

@@ -18,14 +18,14 @@ import {
   requiresApproval,
 } from "../../index.ts";
 import { jsonSchemaOf } from "../catalog-doc.ts";
-import { apiKeyAllowsCall } from "../rls-api-keys.ts";
+import { apiKeyAllowsCall } from "../rls/api-keys.ts";
 import {
   type RolePermission,
   accessSql,
   capabilityAccessSql,
-} from "../rls-helpers.ts";
-import { indexedFields } from "../rls-indexes.ts";
-import { requiresSql } from "../rls-permission-keys.ts";
+} from "../rls/helpers.ts";
+import { indexedFields } from "../rls/indexes.ts";
+import { requiresSql } from "../rls/permission-keys.ts";
 import { arrayColumnsOf, columnTypesOf } from "./columns.ts";
 import {
   compileConditionSql,
