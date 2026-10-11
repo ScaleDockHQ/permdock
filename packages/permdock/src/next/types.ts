@@ -1,7 +1,8 @@
 import type { ReactElement, ReactNode } from "react";
 
 import type { ApprovalStore } from "../approvals/types.ts";
-import type { Decision } from "../core/decision.ts";
+import type { Decision, DenialReason } from "../core/decision.ts";
+import type { DescribeMessages } from "../core/describe.ts";
 import type { InstanceOptions } from "../core/instance-options.ts";
 import type { Snapshot } from "../core/interfaces.ts";
 import type { PermDock } from "../core/permdock.ts";
@@ -69,6 +70,19 @@ export type ServerPermDockProviderProps = {
   readonly endpoint?: string | false;
   /** Suspends permission readers until the snapshot streams in, instead of answering `pending`. */
   readonly suspend?: boolean;
+  /**
+   * What every `<Protected>` below renders for a slot it leaves out. Nodes
+   * only: a function cannot cross from a Server Component to the client.
+   */
+  readonly defaults?: {
+    readonly pending?: ReactNode;
+    readonly fallback?: ReactNode;
+    readonly approval?: ReactNode;
+  };
+  /** Localised text for `useDescribe()`; records only, for the same reason. */
+  readonly messages?: Pick<DescribeMessages, "titles" | "separator"> & {
+    readonly reasons?: Partial<Record<DenialReason, string>>;
+  };
 };
 
 export type PermDockHandler = {

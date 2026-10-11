@@ -5,7 +5,7 @@ import type { PermDockPluginOptions } from "./types.ts";
 
 import { providerStore, switchTenant } from "../client/provider-store.ts";
 import { isPromiseLike } from "../client/source.ts";
-import { permDockKey } from "./context.ts";
+import { permDockKey, permDockUiKey } from "./context.ts";
 
 export const permdockPlugin: Plugin<PermDockPluginOptions> = {
   install(app: App, options: PermDockPluginOptions): void {
@@ -46,5 +46,9 @@ export const permdockPlugin: Plugin<PermDockPluginOptions> = {
       store.dispose();
     });
     app.provide(permDockKey, store);
+    app.provide(permDockUiKey, {
+      defaults: options.defaults,
+      messages: options.messages,
+    });
   },
 };

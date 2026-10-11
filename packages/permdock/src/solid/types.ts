@@ -1,6 +1,7 @@
 import type { Accessor } from "solid-js";
 
 import type { PermissionBoundaryState } from "../client/boundary.ts";
+import type { ClientStoreOptions } from "../client/store.ts";
 import type {
   ApprovalHandle,
   ApprovalState,
@@ -13,7 +14,12 @@ import type {
   TenantView,
   UseRolesOptions,
 } from "../client/types.ts";
-import type { Decision } from "../core/decision.ts";
+import type {
+  ApprovalRequiredDecision,
+  Decision,
+  GrantedDecision,
+} from "../core/decision.ts";
+import type { DescribeMessages } from "../core/describe.ts";
 import type { Snapshot, TokenVerifier } from "../core/interfaces.ts";
 import type { Permission } from "../core/permissions.ts";
 
@@ -53,7 +59,26 @@ export type PermDockProviderProps = {
   readonly headers?: Readonly<Record<string, string>>;
   readonly maxAge?: number;
   readonly verifier?: TokenVerifier;
+  /** What every `<Protected>` below renders for a slot it leaves out. */
+  readonly defaults?: PermDockDefaults;
+  /** Localised text for `useDescribe()`. */
+  readonly messages?: DescribeMessages;
+  /** Called with each snapshot the store accepts. */
+  readonly onSnapshot?: NonNullable<ClientStoreOptions["onSnapshot"]>;
+  /** Called when the store drops its snapshot. */
+  readonly onClear?: () => void;
+  /** Milliseconds between approval status polls. Defaults to 2000. */
+  readonly approvalInterval?: number;
   readonly children: unknown;
+};
+
+/** Provider-wide content for the `<Protected>` slots a component leaves out. */
+export type PermDockDefaults = {
+  readonly pending?: SolidChild;
+  readonly fallback?: SolidChild | ((decision: Decision) => SolidChild);
+  readonly approval?:
+    | SolidChild
+    | ((decision: ApprovalRequiredDecision) => SolidChild);
 };
 
 export type PermissionBoundaryProps = {
@@ -74,11 +99,11 @@ export type ProtectedProps = {
   readonly tenant?: string;
   readonly pending?: SolidChild;
   readonly fallback?: SolidChild | ((decision: Decision) => SolidChild);
-  readonly children:
+  /** Rendered for an approval-required decision; defaults to `fallback`. */
+  readonly approval?:
     | SolidChild
-    | ((
-        decision: Extract<Decision, { readonly outcome: "granted" }>,
-      ) => SolidChild);
+    | ((decision: ApprovalRequiredDecision) => SolidChild);
+  readonly children: SolidChild | ((decision: GrantedDecision) => SolidChild);
 };
 
 export type {

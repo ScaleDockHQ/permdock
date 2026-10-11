@@ -1,6 +1,12 @@
 import type { ReactNode } from "react";
 
-import type { Decision } from "../core/decision.ts";
+import type { ClientStoreOptions } from "../client/store.ts";
+import type {
+  ApprovalRequiredDecision,
+  Decision,
+  GrantedDecision,
+} from "../core/decision.ts";
+import type { DescribeMessages } from "../core/describe.ts";
 import type { Snapshot, TokenVerifier } from "../core/interfaces.ts";
 import type { Permission } from "../core/permissions.ts";
 
@@ -47,7 +53,26 @@ export type PermDockProviderProps = (
   readonly headers?: Readonly<Record<string, string>>;
   readonly maxAge?: number;
   readonly verifier?: TokenVerifier;
+  /** What every `<Protected>` below renders for a slot it leaves out. */
+  readonly defaults?: PermDockDefaults;
+  /** Localised text for `useDescribe()`. */
+  readonly messages?: DescribeMessages;
+  /** Called with each snapshot the store accepts; the latest prop is called. */
+  readonly onSnapshot?: NonNullable<ClientStoreOptions["onSnapshot"]>;
+  /** Called when the store drops its snapshot; the latest prop is called. */
+  readonly onClear?: () => void;
+  /** Milliseconds between approval status polls. Defaults to 2000. */
+  readonly approvalInterval?: number;
   readonly children: ReactNode;
+};
+
+/** Provider-wide content for the `<Protected>` slots a component leaves out. */
+export type PermDockDefaults = {
+  readonly pending?: ReactNode;
+  readonly fallback?: ReactNode | ((decision: Decision) => ReactNode);
+  readonly approval?:
+    | ReactNode
+    | ((decision: ApprovalRequiredDecision) => ReactNode);
 };
 
 export type ProtectedProps = {
@@ -56,9 +81,9 @@ export type ProtectedProps = {
   readonly tenant?: string;
   readonly pending?: ReactNode;
   readonly fallback?: ReactNode | ((decision: Decision) => ReactNode);
-  readonly children:
+  /** Rendered for an approval-required decision; defaults to `fallback`. */
+  readonly approval?:
     | ReactNode
-    | ((
-        decision: Extract<Decision, { readonly outcome: "granted" }>,
-      ) => ReactNode);
+    | ((decision: ApprovalRequiredDecision) => ReactNode);
+  readonly children: ReactNode | ((decision: GrantedDecision) => ReactNode);
 };

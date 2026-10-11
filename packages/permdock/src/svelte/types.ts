@@ -1,5 +1,7 @@
+import type { Snippet } from "svelte";
 import type { Readable } from "svelte/store";
 
+import type { ClientStoreOptions } from "../client/store.ts";
 import type {
   ApprovalHandle,
   ApprovalState,
@@ -12,6 +14,8 @@ import type {
   TenantView,
   UseRolesOptions,
 } from "../client/types.ts";
+import type { ApprovalRequiredDecision, Decision } from "../core/decision.ts";
+import type { DescribeMessages } from "../core/describe.ts";
 import type { Snapshot, TokenVerifier } from "../core/interfaces.ts";
 
 export type PermDockSvelteOptions = {
@@ -43,6 +47,23 @@ export type PermDockSvelteOptions = {
     | (() => Readonly<Record<string, string>> | undefined);
   readonly maxAge?: number;
   readonly verifier?: TokenVerifier;
+  /** What every `<Protected>` renders for a snippet it leaves out. */
+  readonly defaults?: PermDockDefaults;
+  /** Localised text for `getDescribe()`. */
+  readonly messages?: DescribeMessages;
+  /** Called with each snapshot the store accepts. */
+  readonly onSnapshot?: NonNullable<ClientStoreOptions["onSnapshot"]>;
+  /** Called when the store drops its snapshot. */
+  readonly onClear?: () => void;
+  /** Milliseconds between approval status polls. Defaults to 2000. */
+  readonly approvalInterval?: number;
+};
+
+/** Snippets for the `<Protected>` slots a component leaves out. */
+export type PermDockDefaults = {
+  readonly pending?: Snippet;
+  readonly fallback?: Snippet<[Decision]>;
+  readonly approval?: Snippet<[ApprovalRequiredDecision]>;
 };
 
 export type {

@@ -2,14 +2,22 @@ import { getContext, onDestroy, setContext } from "svelte";
 import { toStore, type Readable } from "svelte/store";
 
 import type { ClientStore } from "../client/store.ts";
+import type { DescribeMessages } from "../core/describe.ts";
 import type { Snapshot } from "../core/interfaces.ts";
-import type { PermDockSvelteOptions } from "./types.ts";
+import type { PermDockDefaults, PermDockSvelteOptions } from "./types.ts";
 
 import { providerStore, switchTenant } from "../client/provider-store.ts";
 import { isPromiseLike } from "../client/source.ts";
 import { compact } from "../core/compact.ts";
 
 const permDockKey: unique symbol = Symbol("permdock");
+const permDockUiKey: unique symbol = Symbol("permdock-ui");
+
+/** The provider's `defaults` and `messages`. */
+export type PermDockUi = {
+  readonly defaults?: PermDockDefaults | undefined;
+  readonly messages?: DescribeMessages | undefined;
+};
 
 function isReadable(value: unknown): value is Readable<Snapshot | string> {
   return (
@@ -58,6 +66,9 @@ function connectSvelteStore(options: PermDockSvelteOptions): {
       approvals: options.approvals,
       tenant: typeof tenant === "function" ? tenant() : tenant,
       maxAge: options.maxAge,
+      onSnapshot: options.onSnapshot,
+      onClear: options.onClear,
+      approvalInterval: options.approvalInterval,
     }),
     () => ({
       headers: typeof headers === "function" ? headers() : headers,
@@ -110,7 +121,15 @@ export function providePermDock(options: PermDockSvelteOptions): ClientStore {
     store.dispose();
   });
   setContext(permDockKey, store);
+  setContext<PermDockUi>(permDockUiKey, {
+    defaults: options.defaults,
+    messages: options.messages,
+  });
   return store;
+}
+
+export function getUi(): PermDockUi {
+  return getContext<PermDockUi | undefined>(permDockUiKey) ?? {};
 }
 
 export function getStore(): ClientStore {

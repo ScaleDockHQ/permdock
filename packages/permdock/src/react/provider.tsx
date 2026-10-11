@@ -1,4 +1,4 @@
-import { type ReactElement, useLayoutEffect } from "react";
+import { type ReactElement, useLayoutEffect, useMemo } from "react";
 
 import type { PermDockProviderProps } from "./types.ts";
 
@@ -8,6 +8,7 @@ import { emptySnapshot } from "../core/from-snapshot.ts";
 import {
   PermDockSnapshotPromiseContext,
   PermDockStoreContext,
+  PermDockUiContext,
 } from "./context.ts";
 import { useKeyed } from "./keyed.ts";
 import { useLiveOptions } from "./live-options.ts";
@@ -31,6 +32,9 @@ export function PermDockProvider(props: PermDockProviderProps): ReactElement {
           verifier: live.verifier,
           awaiting,
           passCache: true,
+          onSnapshot: live.onSnapshot,
+          onClear: live.onClear,
+          approvalInterval: props.approvalInterval,
         }),
         props.snapshot ?? emptySnapshot(),
       ),
@@ -45,7 +49,14 @@ export function PermDockProvider(props: PermDockProviderProps): ReactElement {
       props.maxAge,
       live.verifier,
       awaiting,
+      live.onSnapshot,
+      live.onClear,
+      props.approvalInterval,
     ],
+  );
+  const ui = useMemo(
+    () => ({ defaults: props.defaults, messages: props.messages }),
+    [props.defaults, props.messages],
   );
   useLayoutEffect(() => {
     if (promise !== null && !suspend) {
@@ -54,9 +65,11 @@ export function PermDockProvider(props: PermDockProviderProps): ReactElement {
   }, [store, promise, suspend]);
   return (
     <PermDockStoreContext value={store}>
-      <PermDockSnapshotPromiseContext value={suspend ? promise : null}>
-        {props.children}
-      </PermDockSnapshotPromiseContext>
+      <PermDockUiContext value={ui}>
+        <PermDockSnapshotPromiseContext value={suspend ? promise : null}>
+          {props.children}
+        </PermDockSnapshotPromiseContext>
+      </PermDockUiContext>
     </PermDockStoreContext>
   );
 }

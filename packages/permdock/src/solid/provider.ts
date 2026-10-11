@@ -12,9 +12,14 @@ import type { PermDockProviderProps } from "./types.ts";
 import { providerStore, switchTenant } from "../client/provider-store.ts";
 import { isPromiseLike } from "../client/source.ts";
 import { compact } from "../core/compact.ts";
-import { PermDockContext } from "./context.ts";
+import {
+  PermDockContext,
+  PermDockUiContext,
+  type PermDockUi,
+} from "./context.ts";
 
 type ProviderProps = Parameters<typeof PermDockContext.Provider>[0];
+type UiProviderProps = Parameters<typeof PermDockUiContext.Provider>[0];
 
 export function PermDockProvider(props: PermDockProviderProps): JSX.Element {
   const source = props.snapshot;
@@ -37,6 +42,9 @@ export function PermDockProvider(props: PermDockProviderProps): JSX.Element {
       approvals: props.approvals,
       tenant: props.tenant,
       maxAge: props.maxAge,
+      onSnapshot: props.onSnapshot,
+      onClear: props.onClear,
+      approvalInterval: props.approvalInterval,
     }),
     () => ({
       headers: props.headers,
@@ -88,11 +96,29 @@ export function PermDockProvider(props: PermDockProviderProps): JSX.Element {
       ),
     );
   }
+  const ui: PermDockUi = {
+    get defaults(): PermDockUi["defaults"] {
+      return props.defaults;
+    },
+    get messages(): PermDockUi["messages"] {
+      return props.messages;
+    },
+  };
   // SAFETY: Solid renders whatever children it is given; the prop is `unknown` so any JSX child fits.
   return createComponent(PermDockContext.Provider, {
     value: store,
-    get children() {
-      return props.children;
+    get children(): unknown {
+      return uiProvider(ui, props);
     },
   } as ProviderProps);
+}
+
+function uiProvider(ui: PermDockUi, props: PermDockProviderProps): unknown {
+  // SAFETY: as for the store provider, the UI provider renders any JSX child.
+  return createComponent(PermDockUiContext.Provider, {
+    value: ui,
+    get children(): unknown {
+      return props.children;
+    },
+  } as UiProviderProps);
 }

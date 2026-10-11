@@ -279,6 +279,8 @@ export function createPermDock<
         endpoint: props.endpoint ?? options.endpoint ?? "/api/permdock",
         tenant: props.tenant,
         suspend: props.suspend,
+        defaults: props.defaults,
+        messages: props.messages,
         children: props.children,
       }),
     );

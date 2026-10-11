@@ -21,7 +21,7 @@ import {
 
 export type NativeStoreOptions = Omit<
   NativePermDockProviderProps,
-  "children" | "headers"
+  "children" | "headers" | "defaults" | "messages"
 > & {
   readonly headers?:
     | Readonly<Record<string, string>>
@@ -155,6 +155,9 @@ export function createNativeStore(options: NativeStoreOptions): ClientStore {
       verifier: options.verifier,
       awaiting: waiting,
       passCache: true,
+      onSnapshot: options.onSnapshot,
+      onClear: options.onClear,
+      approvalInterval: options.approvalInterval,
     }),
     snapshot,
     {

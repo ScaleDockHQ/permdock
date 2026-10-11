@@ -2,19 +2,27 @@ import type { Snippet } from "svelte";
 
 import type { ClientStore } from "../client/store.ts";
 import type { ProtectedView } from "../client/views.ts";
-import type { Decision } from "../core/decision.ts";
+import type {
+  ApprovalRequiredDecision,
+  Decision,
+  GrantedDecision,
+} from "../core/decision.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permissions.ts";
 
 import { protectedView, scopedTenant } from "../client/views.ts";
 
+export { slotContent } from "../client/views.ts";
+
 export type ProtectedProps = {
   readonly permission: Permission;
   readonly data?: unknown;
   readonly tenant?: string;
-  readonly children?: Snippet<[Decision]>;
+  readonly children?: Snippet<[GrantedDecision]>;
   readonly pending?: Snippet;
   readonly fallback?: Snippet<[Decision]>;
+  /** Rendered for an approval-required decision; defaults to `fallback`. */
+  readonly approval?: Snippet<[ApprovalRequiredDecision]>;
 };
 
 /** The instance for `tenant`, built once per store change rather than once per check. */

@@ -45,7 +45,13 @@ function liveOptions(
 /** The options the Vue, Svelte and Solid providers read once, when they build the store. */
 type ProviderStoreOptions = Pick<
   AdapterStoreOptions,
-  "endpoint" | "snapshotUrl" | "approvals" | "maxAge"
+  | "endpoint"
+  | "snapshotUrl"
+  | "approvals"
+  | "maxAge"
+  | "onSnapshot"
+  | "onClear"
+  | "approvalInterval"
 > & { readonly tenant?: string | undefined };
 
 /**
@@ -65,6 +71,9 @@ export function providerStore(
       approvals: options.approvals,
       tenant: options.tenant,
       maxAge: options.maxAge,
+      onSnapshot: options.onSnapshot,
+      onClear: options.onClear,
+      approvalInterval: options.approvalInterval,
       ...liveOptions(read),
     }),
     promised || snapshot === undefined ? emptySnapshot() : snapshot,

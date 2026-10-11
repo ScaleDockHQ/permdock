@@ -1,4 +1,13 @@
-import type { Decision, GrantedDecision } from "../core/decision.ts";
+import type {
+  ApprovalRequiredDecision,
+  Decision,
+  GrantedDecision,
+} from "../core/decision.ts";
+import type {
+  DecisionDescription,
+  DescribeMessages,
+  DescribeOptions,
+} from "../core/describe.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permissions.ts";
 import type { Role } from "../core/vocabulary.ts";
@@ -13,6 +22,8 @@ import type {
   TenantView,
   UseRolesOptions,
 } from "./types.ts";
+
+import { describe } from "../core/describe.ts";
 
 export function permissionSet(
   store: ClientStore,
@@ -98,9 +109,19 @@ type DecidePermDock = {
   readonly decide: (permission: Permission, data?: unknown) => Decision;
 };
 
-/** What `Protected` renders: `pending` while an endpoint answer is in flight, `fallback` unless granted. */
+/**
+ * What `Protected` renders: `pending` while an endpoint answer is in flight,
+ * `approval` for an approval-required decision, `fallback` for any other
+ * denial.
+ */
 export type ProtectedView =
   | (PermissionState & { readonly slot: "pending" | "fallback" })
+  | {
+      readonly allowed: false;
+      readonly status: PermissionState["status"];
+      readonly decision: ApprovalRequiredDecision;
+      readonly slot: "approval";
+    }
   | {
       readonly allowed: true;
       readonly status: PermissionState["status"];
@@ -143,6 +164,9 @@ export function protectedView(
     return { ...state, slot: "pending" };
   }
   const decision = state.decision;
+  if (decision.outcome === "approval-required") {
+    return { allowed: false, status: state.status, decision, slot: "approval" };
+  }
   if (!state.allowed || decision.outcome !== "granted") {
     return { ...state, slot: "fallback" };
   }
@@ -175,4 +199,65 @@ export function approvalHandle(
       decision.outcome === "approval-required" ? decision.token : undefined,
     request: (note?: string) => store.requestApproval(decision, note),
   };
+}
+
+/** Provider-wide content for the `Protected` slots a component leaves out. */
+export type SlotDefaults<P, F, A = F> = {
+  readonly pending?: P;
+  readonly fallback?: F;
+  readonly approval?: A;
+};
+
+/**
+ * The content `Protected` renders for a non-default slot. Its own prop wins
+ * over the provider default; `approval` falls back to `fallback`, first the
+ * component's, then the provider's.
+ */
+export function slotContent<P, F, A>(
+  slot: "pending",
+  own: SlotDefaults<P, F, A>,
+  defaults: SlotDefaults<P, F, A> | undefined,
+): P | undefined;
+export function slotContent<P, F, A>(
+  slot: "fallback",
+  own: SlotDefaults<P, F, A>,
+  defaults: SlotDefaults<P, F, A> | undefined,
+): F | undefined;
+export function slotContent<P, F, A>(
+  slot: "approval",
+  own: SlotDefaults<P, F, A>,
+  defaults: SlotDefaults<P, F, A> | undefined,
+): F | A | undefined;
+export function slotContent<P, F, A>(
+  slot: "pending" | "fallback" | "approval",
+  own: SlotDefaults<P, F, A>,
+  defaults: SlotDefaults<P, F, A> | undefined,
+): P | F | A | undefined {
+  switch (slot) {
+    case "pending":
+      return own.pending ?? defaults?.pending;
+    case "fallback":
+      return own.fallback ?? defaults?.fallback;
+    case "approval":
+      return (
+        own.approval ?? own.fallback ?? defaults?.approval ?? defaults?.fallback
+      );
+    default: {
+      const exhausted: never = slot;
+      return exhausted;
+    }
+  }
+}
+
+/** `describe` with the provider's `messages`; a call's own `messages` win. */
+export function describeWith(
+  messages: DescribeMessages | undefined,
+): (decision: Decision, options?: DescribeOptions) => DecisionDescription {
+  return (decision, options) =>
+    describe(
+      decision,
+      messages === undefined || options?.messages !== undefined
+        ? options
+        : { ...options, messages },
+    );
 }

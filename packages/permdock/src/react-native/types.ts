@@ -1,10 +1,13 @@
 import type { ReactNode } from "react";
 
+import type { ClientStoreOptions } from "../client/store.ts";
+import type { DescribeMessages } from "../core/describe.ts";
 import type {
   Snapshot,
   SnapshotSource,
   TokenVerifier,
 } from "../core/interfaces.ts";
+import type { PermDockDefaults } from "../react/types.ts";
 
 export type PermDockStorage = {
   getItem(key: string): string | null | Promise<string | null>;
@@ -49,5 +52,15 @@ export type NativePermDockProviderProps = {
   readonly headers?: Readonly<Record<string, string>>;
   readonly maxAge?: number;
   readonly verifier?: TokenVerifier;
+  /** What every `<Protected>` below renders for a slot it leaves out. */
+  readonly defaults?: PermDockDefaults;
+  /** Localised text for `useDescribe()`. */
+  readonly messages?: DescribeMessages;
+  /** Called with each snapshot the store accepts, after it is persisted. */
+  readonly onSnapshot?: NonNullable<ClientStoreOptions["onSnapshot"]>;
+  /** Called when the store drops its snapshot, after storage is cleared. */
+  readonly onClear?: () => void;
+  /** Milliseconds between approval status polls. Defaults to 2000. */
+  readonly approvalInterval?: number;
   readonly children: ReactNode;
 };

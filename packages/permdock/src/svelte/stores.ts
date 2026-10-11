@@ -2,6 +2,7 @@ import { readable, toStore, type Readable } from "svelte/store";
 
 import type { ClientStore } from "../client/store.ts";
 import type { Decision } from "../core/decision.ts";
+import type { DecisionDescription, DescribeOptions } from "../core/describe.ts";
 import type { Permission } from "../core/permissions.ts";
 import type { Membership } from "../core/subject.ts";
 import type { Role } from "../core/vocabulary.ts";
@@ -19,6 +20,7 @@ import type { PermDockSvelteOptions } from "./types.ts";
 
 import {
   approvalHandle,
+  describeWith,
   filterResult,
   livePermDock,
   permissionSet,
@@ -26,7 +28,7 @@ import {
   subjectView,
   tenantView,
 } from "../client/views.ts";
-import { getStore, providePermDock } from "./context.ts";
+import { getStore, getUi, providePermDock } from "./context.ts";
 
 // Recomputes on a store change and, in the browser build, when a rune read
 // inside `compute` (a `data`, `rows` or `options` getter) changes.
@@ -53,6 +55,14 @@ export function setPermDock(options: PermDockSvelteOptions): ClientPermDock {
 
 export function getPermDock(): ClientPermDock {
   return sveltePermDock(getStore());
+}
+
+/** `describe` with the provider's `messages`; a call's own `messages` win. Call it during component init. */
+export function getDescribe(): (
+  decision: Decision,
+  options?: DescribeOptions,
+) => DecisionDescription {
+  return describeWith(getUi().messages);
 }
 
 export function permission(

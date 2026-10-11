@@ -1,22 +1,27 @@
-import { type ReactNode, Suspense, useMemo } from "react";
+import { type ReactNode, Suspense, use, useMemo } from "react";
 
+import type { ApprovalRequiredDecision, Decision } from "../core/decision.ts";
 import type { ProtectedProps } from "./types.ts";
 
-import { protectedView, scopedTenant } from "../client/views.ts";
+import { protectedView, scopedTenant, slotContent } from "../client/views.ts";
+import { PermDockUiContext } from "./context.ts";
 import { usePermission, usePermDock } from "./hooks.ts";
 
 export function Protected(props: ProtectedProps): ReactNode {
-  if (props.pending === undefined) {
+  const { defaults } = use(PermDockUiContext);
+  const pending = slotContent("pending", props, defaults);
+  if (pending === undefined) {
     return <Guard {...props} />;
   }
   return (
-    <Suspense fallback={props.pending}>
+    <Suspense fallback={pending}>
       <Guard {...props} />
     </Suspense>
   );
 }
 
 function Guard(props: ProtectedProps): ReactNode {
+  const { defaults } = use(PermDockUiContext);
   const root = usePermDock();
   const local = usePermission(props.permission, props.data);
   const scoped = useMemo(
@@ -26,11 +31,14 @@ function Guard(props: ProtectedProps): ReactNode {
   const view = protectedView(local, root, props.permission, props.data, scoped);
   switch (view.slot) {
     case "pending":
-      return props.pending ?? null;
+      return slotContent("pending", props, defaults) ?? null;
     case "fallback":
-      return typeof props.fallback === "function"
-        ? props.fallback(view.decision)
-        : (props.fallback ?? null);
+      return render(slotContent("fallback", props, defaults), view.decision);
+    case "approval":
+      return render<ApprovalRequiredDecision>(
+        slotContent("approval", props, defaults),
+        view.decision,
+      );
     case "default":
       return typeof props.children === "function"
         ? props.children(view.decision)
@@ -40,4 +48,11 @@ function Guard(props: ProtectedProps): ReactNode {
       return exhausted;
     }
   }
+}
+
+function render<D extends Decision>(
+  content: ReactNode | ((decision: D) => ReactNode),
+  decision: D,
+): ReactNode {
+  return typeof content === "function" ? content(decision) : (content ?? null);
 }

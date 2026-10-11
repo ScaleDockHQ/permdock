@@ -3,11 +3,13 @@ import {
   createSignal,
   getOwner,
   onCleanup,
+  useContext,
   type Accessor,
 } from "solid-js";
 
 import type { ClientStore } from "../client/store.ts";
 import type { Decision } from "../core/decision.ts";
+import type { DecisionDescription, DescribeOptions } from "../core/describe.ts";
 import type { Permission } from "../core/permissions.ts";
 import type { Membership } from "../core/subject.ts";
 import type { Role } from "../core/vocabulary.ts";
@@ -24,6 +26,7 @@ import type {
 
 import {
   approvalHandle,
+  describeWith,
   filterResult,
   livePermDock,
   permissionSet,
@@ -31,7 +34,7 @@ import {
   subjectView,
   tenantView,
 } from "../client/views.ts";
-import { useStore } from "./context.ts";
+import { PermDockUiContext, useStore } from "./context.ts";
 
 function useVersion(store: ClientStore): Accessor<number> {
   if (getOwner() === null) {
@@ -140,4 +143,13 @@ export function useApproval(
     version();
     return approvalHandle(store, decision());
   });
+}
+
+/** `describe` with the provider's `messages`; a call's own `messages` win. */
+export function useDescribe(): (
+  decision: Decision,
+  options?: DescribeOptions,
+) => DecisionDescription {
+  const ui = useContext(PermDockUiContext);
+  return (decision, options) => describeWith(ui.messages)(decision, options);
 }

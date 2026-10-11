@@ -20,6 +20,7 @@ import {
   permissions as defs,
   policy,
 } from "../fixtures/quick-start.ts";
+import DefaultsHarness from "./DefaultsHarness.test.svelte";
 import { cell, reactive } from "./fixtures/cell.svelte.ts";
 import Harness from "./Harness.test.svelte";
 
@@ -155,6 +156,19 @@ describe("permdock/svelte (browser build)", () => {
     await Promise.resolve();
     flushSync();
     expect(target.textContent).toBe("granted");
+    await unmount(app);
+  });
+
+  it("<Protected> renders approval, fallback and setPermDock defaults", async () => {
+    const target = document.createElement("div");
+    const app = mount(DefaultsHarness, {
+      target,
+      props: { snapshot: await snapshotOf(memberUser) },
+    });
+    flushSync();
+    expect(target.textContent.replaceAll(/\s/gu, "")).toBe(
+      "ask:human|own|no|Geentoegang",
+    );
     await unmount(app);
   });
 });
