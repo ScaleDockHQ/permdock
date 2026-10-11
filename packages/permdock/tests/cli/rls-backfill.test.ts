@@ -220,9 +220,10 @@ describe("backfillSql with platform-only roles in another schema", () => {
   });
 
   it("refuses custom roles off and a reference that maps no single column", () => {
-    expect(() =>
-      backfillSql({ ...ctx, customRoles: undefined }, appFrom, undefined),
-    ).toThrow(/needs custom roles on/u);
+    const { customRoles: _customRoles, ...off } = ctx;
+    expect(() => backfillSql(off, appFrom, undefined)).toThrow(
+      /needs custom roles on/u,
+    );
     expect(() =>
       backfillSql(
         platform,
