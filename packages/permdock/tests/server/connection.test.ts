@@ -150,6 +150,18 @@ describe("kernel connection", () => {
     );
   });
 
+  it("resolves settled() only after a queued revalidation swaps the instance", async () => {
+    const state: Session = { id: "u2", roles: ["admin"] };
+    const { open, revocations } = setup(state);
+    const conn = await open(permissions.post.list);
+    state.roles = ["member"];
+    await revocations.revoke({ principal: "u2", kind: "changed" });
+    await conn.settled();
+    expect(conn.check(permissions.post.publish, ownPost).outcome).toBe(
+      "denied",
+    );
+  });
+
   it("aborts with denied when a demotion removes the opening permission", async () => {
     const state: Session = { id: "u2", roles: ["admin"] };
     const { open, revocations } = setup(state);

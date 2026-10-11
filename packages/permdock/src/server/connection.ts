@@ -40,6 +40,11 @@ export type Connection = {
     permission: Permission<string, T, "instance">,
     items: readonly T[],
   ) => T[];
+  /**
+   * Resolves once every revalidation queued so far has finished, so a message
+   * checked after a revocation event is checked against the rebuilt instance.
+   */
+  readonly settled: () => Promise<void>;
   /** Stops timers and the feed subscription. Call it when the transport closes. */
   readonly close: () => void;
 };
@@ -342,6 +347,7 @@ export async function openConnection<T>(
         ? []
         : permdock.filter(permission, items, decideOptions);
     },
+    settled: (): Promise<void> => chain,
     close(): void {
       closed = true;
       clear();

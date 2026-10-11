@@ -69,6 +69,8 @@ export async function* guardIterable(
       }
       const row =
         options.unwrap === undefined ? next.value : options.unwrap(next.value);
+      // oxlint-disable-next-line no-await-in-loop -- each item waits for a pending revalidation
+      await Promise.race([connection.settled(), aborted]);
       if (
         options.items === undefined ||
         connection.check(options.items, row).outcome === "granted"
