@@ -789,6 +789,14 @@ describe("permdock supabase hook generate", () => {
     const drift = await run([...out, "--check"], { cwd });
     expect(drift.code).toBe(1);
     expect(drift.stdout).toContain("differs in tenantClaim");
+    writeFileSync(path, "{ not json");
+    const unreadable = await run([...out, "--check"], { cwd });
+    expect(unreadable.code).toBe(1);
+    expect(unreadable.stdout).toContain("permdock.manifest.json is not JSON");
+    writeFileSync(path, "[]");
+    const notObject = await run([...out, "--check"], { cwd });
+    expect(notObject.code).toBe(1);
+    expect(notObject.stdout).toContain("permdock.manifest.json differs in ");
   });
 
   it("defaults --out and --check to permdock.manifest.json", async () => {
