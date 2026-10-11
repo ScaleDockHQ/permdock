@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import type { CliIo } from "../../src/cli/types.ts";
@@ -75,6 +75,26 @@ export function policyProject(
     ),
     ...extra,
   });
+}
+
+/** A copy of `fixtures/mini-app` in a fresh directory under `tmp/`. */
+export function miniAppCopy(): string {
+  mkdirSync(TMP, { recursive: true });
+  const dir = mkdtempSync(path.join(TMP, "doctor-"));
+  temps.push(dir);
+  cpSync(path.join(import.meta.dirname, "fixtures/mini-app"), dir, {
+    recursive: true,
+  });
+  return dir;
+}
+
+/** The finding codes in the `--json` report `permdock doctor` printed. */
+export function findingCodes(stdout: string): readonly string[] {
+  // SAFETY: stdout is the --json report printed by `permdock doctor`.
+  const report = JSON.parse(stdout) as {
+    readonly findings: readonly { readonly code: string }[];
+  };
+  return report.findings.map((item) => item.code);
 }
 
 export function removeProjects(): void {
