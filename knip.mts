@@ -14,7 +14,10 @@ const config: KnipConfig = {
       entry: ["scripts/*.{ts,mjs}"],
       project: ["*.{ts,mts}", "scripts/**/*.{ts,mjs}"],
     },
-    "apps/docs": {},
+    "apps/docs": {
+      // `@fumadocs/local-md` loads shiki at runtime; it must be a direct dependency to be externalised.
+      ignoreDependencies: ["shiki"],
+    },
     "apps/marketing": {
       // shadcn and ReUI registry code is vendored whole, used or not.
       entry: ["components/{blocks,examples}/**/*.{ts,tsx}"],

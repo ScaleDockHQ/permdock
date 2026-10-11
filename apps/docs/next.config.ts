@@ -38,11 +38,7 @@ const retiredResearch = {
 } as const;
 
 const config: NextConfig = {
-  ...createNextConfig({
-    headers: [
-      { source: "/docs/:path*", headers: [{ key: "Vary", value: "Accept" }] },
-    ],
-  }),
+  ...createNextConfig(),
   assetPrefix: "/docs",
   transpilePackages: ["@permdock/ui"],
   redirects() {

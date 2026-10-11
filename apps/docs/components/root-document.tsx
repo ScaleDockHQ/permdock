@@ -6,6 +6,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import { RootProvider } from "fumadocs-ui/provider/next";
 import { Inter } from "next/font/google";
 
+import { WebMCP } from "@/components/webmcp";
 import { env } from "@/env";
 
 const inter = Inter({
@@ -26,7 +27,10 @@ export function RootDocument({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className={inter.className} suppressHydrationWarning>
       <body className="flex min-h-screen flex-col">
-        <RootProvider>{children}</RootProvider>
+        <RootProvider>
+          {children}
+          <WebMCP />
+        </RootProvider>
         <Analytics />
         <SpeedInsights />
       </body>

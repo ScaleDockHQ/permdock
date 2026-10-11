@@ -34,6 +34,7 @@ The same rule applies to the maintainer side: an agent contributing to PermDock 
 | `llms.txt`, `llms-full.txt`    | Docs site root, and the same files under `/docs`                                                            | Models indexing the documentation                                                                                                                    |
 | `.md` per docs page            | Docs site, same path with `.md`                                                                             | Agents fetching one page as text                                                                                                                     |
 | Docs MCP server                | `POST /mcp` on the docs site; `server.json` in this repository                                              | Agents querying the docs through MCP tools                                                                                                           |
+| Docs WebMCP tools              | Every docs page, through `document.modelContext`                                                            | The browser's agent searching and reading the docs on the open page; [Docs WebMCP](#docs-webmcp)                                                     |
 | JSON Schema catalog            | `permdock catalog --format json-schema`                                                                     | Agents and tools reading the permission model without TypeScript                                                                                     |
 
 ### Discovery and trust
@@ -112,6 +113,7 @@ metadata:
 | npm provenance, JSR, Context7                                  | Publishing and registration steps in the release checklist; see "Discovery and trust"                                          |
 | `.md` per page                                                 | Served by the docs app for every route: append `.md`, or send an `Accept` header that lists `text/markdown` before `text/html` |
 | MCP docs server                                                | `POST /mcp`: `search`, `list_pages` and `get_page` (read-only; no subject)                                                     |
+| WebMCP                                                         | Every docs page: `search_docs`, `read_page` and `open_page` through `document.modelContext`                                    |
 | Machine-readable model                                         | `permdock catalog` JSON and JSON Schema output                                                                                 |
 
 ## Docs MCP
@@ -130,11 +132,15 @@ metadata:
 
 Connect a client in one step:
 
-- Cursor: [add `permdock-docs` to Cursor](cursor://anysphere.cursor-deeplink/mcp/install?name=permdock-docs&config=eyJ1cmwiOiJodHRwczovL3Blcm1kb2NrLmRldi9tY3AifQ==).
+- Cursor: [add `permdock-docs` to Cursor](cursor://anysphere.cursor-deeplink/mcp/install?name=permdock-docs&config=eyJ1cmwiOiJodHRwczovL3Blcm1kb2NrLmNvbS9tY3AifQ==).
 - VS Code: [add `permdock-docs` to VS Code](vscode:mcp/install?%7B%22name%22%3A%22permdock-docs%22%2C%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fpermdock.com%2Fmcp%22%7D).
 - Claude Code: run `claude mcp add --transport http permdock-docs https://permdock.com/mcp`. In Claude Desktop, add `https://permdock.com/mcp` as a custom connector.
 
 Locally the same handler is `http://localhost:3000/mcp` while `pnpm dev:docs` is running. The repository-root `server.json` is the [MCP Registry](https://registry.modelcontextprotocol.io) listing.
+
+## Docs WebMCP
+
+Every docs page registers three [WebMCP](https://webmachinelearning.github.io/webmcp/) tools with the browser's own agent through `document.modelContext`: `search_docs` (the docs search index), `read_page` (a page's Markdown) and `open_page` (navigate to a page). `read_page` and `open_page` accept only a `/docs` path on the same origin. The component comes from the Fumadocs WebMCP feature, not `permdock/webmcp`, which registers permission-gated actions for a signed-in subject. WebMCP is experimental: it needs Chrome 149 or later with the `#enable-webmcp-testing` flag, and the page registers nothing in a browser without `document.modelContext`.
 
 ## Sources
 
