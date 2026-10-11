@@ -526,7 +526,7 @@ Other surfaces implement the same three steps (send, wait, resolve with a verifi
 
 ## Example app
 
-None of its own. `apps/examples/ai-sdk-agent`, `apps/examples/eve-agent` and `apps/examples/openai-agent` each mount `approvalsHandler` next to their agent and include a test that approves from a second authenticated user and refuses an approval from the actor itself. `apps/examples/terminal` resolves approvals interactively against the same store.
+None of its own. `apps/examples/ai-sdk-agent`, `apps/examples/eve-agent` and `apps/examples/openai-agent` each mount `approvalsHandler` next to their agent. Approving from a second authenticated user and refusing an approval from the actor itself are tested in `packages/permdock/tests/approvals`. `apps/examples/terminal` resolves approvals interactively against the same store.
 
 ## Related standards
 
