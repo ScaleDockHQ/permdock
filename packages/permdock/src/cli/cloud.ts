@@ -1,10 +1,15 @@
-import type { Grant, Policy, Snapshot, SnapshotGrant } from "../index.ts";
 import type { CommandResult } from "./commands/context.ts";
 import type { CliIo, PermDockConfig } from "./types.ts";
 
 import { parseCatalog } from "../catalog/parse.ts";
-import { snapshotScopes } from "../core/instance.ts";
-import { catalogFingerprint } from "../index.ts";
+import { snapshotScopes } from "../core/instance-snapshot.ts";
+import {
+  type Grant,
+  type Policy,
+  type Snapshot,
+  type SnapshotGrant,
+  catalogFingerprint,
+} from "../index.ts";
 import { runCatalog } from "./catalog.ts";
 import { describeError } from "./errors.ts";
 import { loadConfiguredPolicy } from "./load.ts";

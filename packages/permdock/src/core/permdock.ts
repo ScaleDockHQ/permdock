@@ -2,6 +2,7 @@ import type { Condition } from "../conditions/ast.ts";
 import type { ArazzoPlan, ArazzoSimulateInput } from "./arazzo.ts";
 import type { Decision, ExplainedDecision } from "./decision.ts";
 import type { ActivateInput } from "./elevated.ts";
+import type { InstanceEnv } from "./instance-env.ts";
 import type {
   AuthEvent,
   DecisionEvent,
@@ -423,7 +424,7 @@ function instantiate(
     buildInstance(
       policy,
       subject,
-      compact<Parameters<typeof buildInstance>[2]>({
+      compact<InstanceEnv>({
         customRoles: roles,
         sink: options.sink,
         limits: options.limits,

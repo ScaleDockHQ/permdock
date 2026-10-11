@@ -5,10 +5,10 @@ import type { Principal, Subject } from "./subject.ts";
 
 import { compact } from "./compact.ts";
 import { flattenGrantee } from "./grantee.ts";
-import { collectSnapshotGrants } from "./instance.ts";
 import { declaredRoleNames, grantList } from "./policy.ts";
 import { resolveSubject } from "./resolve-subject.ts";
 import { scopeList, tenantOf } from "./scopes.ts";
+import { collectSnapshotGrants } from "./snapshot-grants.ts";
 import { isThenable } from "./thenable.ts";
 import { listPlans } from "./vocabulary.ts";
 

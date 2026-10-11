@@ -10,7 +10,7 @@ import { compact } from "./compact.ts";
 import { ceilingGrants, resolveCustomRole } from "./custom-roles.ts";
 import { freezeDeep } from "./freeze.ts";
 import { flattenGrantee } from "./grantee.ts";
-import { snapshotScopes } from "./instance.ts";
+import { snapshotScopes } from "./instance-snapshot.ts";
 import { LOCAL_CUSTOM_ROLE } from "./local-role.ts";
 import { rankRoles, usesAssigns } from "./ownership.ts";
 import { findPermission } from "./permission-registry.ts";

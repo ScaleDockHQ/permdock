@@ -4,7 +4,7 @@ import type { CustomRole, Membership, Principal, Subject } from "./subject.ts";
 
 import { compact } from "./compact.ts";
 import { freezeDeep } from "./freeze.ts";
-import { type SnapshotInclude, snapshotOf } from "./instance.ts";
+import { type SnapshotInclude, snapshotOf } from "./instance-snapshot.ts";
 import { resolveSubject } from "./resolve-subject.ts";
 import { scopeList } from "./scopes.ts";
 import { tenantsOf } from "./tenancy.ts";
