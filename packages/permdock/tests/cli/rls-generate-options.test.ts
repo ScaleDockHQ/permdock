@@ -5,6 +5,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import type { RlsSqlContext } from "../../src/cli/rls-sql.ts";
 import type { PermDockConfig } from "../../src/cli/types.ts";
 
+import { CliError } from "../../src/cli/errors.ts";
 import { runRlsGenerate } from "../../src/cli/rls-generate.ts";
 import { assignmentSql, ownershipRules } from "../../src/cli/rls-ownership.ts";
 import { supabaseHookSql } from "../../src/cli/supabase-hook.ts";
@@ -72,6 +73,31 @@ function generate(rls: NonNullable<PermDockConfig["rls"]>) {
 }
 
 describe("rls generate options", () => {
+  it("exits 1, not 2, when --db cannot be reached", async () => {
+    const outcome = await runRlsGenerate({
+      cwd,
+      config: { policy: "./manage.ts", rls: { memberships } },
+      target: "sql",
+      dialect: "supabase",
+      rbac: false,
+      check: false,
+      skipClosures: false,
+      inlineFunctions: false,
+      io,
+      write: false,
+      db: "postgres://unreachable.invalid/app",
+      connect: () =>
+        Promise.reject(
+          new CliError(
+            "unavailable",
+            "PermDock CLI: rls generate could not connect",
+          ),
+        ),
+    });
+    expect(outcome.code).toBe(1);
+    expect(outcome.output).toBe("PermDock CLI: rls generate could not connect");
+  });
+
   it("reads manageRoles for the write requirement and the hand-out lift", async () => {
     const outcome = await generate({
       customRoleWrites: { requires: "manageRoles" },

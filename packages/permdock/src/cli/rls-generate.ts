@@ -23,7 +23,7 @@ import { resolveScope, scopeList } from "../core/scopes.ts";
 import { listPermissions, listRoles } from "../index.ts";
 import { supabaseTenantClaim } from "../supabase/budget.ts";
 import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
-import { describeError } from "./errors.ts";
+import { cliErrorKind, describeError, exitCodeOf } from "./errors.ts";
 import { asPolicy, loadModule, pickNamed } from "./load.ts";
 import {
   BACKFILL_MARKER,
@@ -871,7 +871,7 @@ export async function runRlsGenerate(input: {
       warnings.push(...pruned.warnings);
     } catch (cause) {
       return {
-        code: 2,
+        code: exitCodeOf(cliErrorKind(cause)),
         output: describeError(cause),
         text: "",
       };
