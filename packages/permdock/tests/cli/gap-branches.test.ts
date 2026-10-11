@@ -10,8 +10,9 @@ import {
   isSeedsDirectory,
   seedsMigration,
 } from "../../src/cli/output-files.ts";
+import { assignmentSql } from "../../src/cli/rls/assignments.ts";
 import { helpersSql } from "../../src/cli/rls/helpers.ts";
-import { assignmentSql, ownershipRules } from "../../src/cli/rls/ownership.ts";
+import { ownershipRules } from "../../src/cli/rls/ownership.ts";
 import { permissionHelpersSql } from "../../src/cli/rls/permission-keys.ts";
 import { shimGrants } from "../../src/cli/rls/shims.ts";
 import { compileGrants } from "../../src/cli/sql/compile.ts";

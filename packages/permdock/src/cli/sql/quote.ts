@@ -37,3 +37,9 @@ export function quoteLiteral(value: string): string {
 }
 
 export const CLI = "PermDock CLI";
+
+export function declaredArray(values: readonly string[]): string {
+  return values.length === 0
+    ? `'{}'::text[]`
+    : `array[${values.map(quoteLiteral).join(", ")}]::text[]`;
+}

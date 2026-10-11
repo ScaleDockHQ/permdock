@@ -2,11 +2,6 @@ import { basename } from "node:path";
 
 import type { PermDockConfig, RlsShimsConfig } from "../types.ts";
 import type { GenerateContext } from "./generate-context.ts";
-import type {
-  GenerateOptions,
-  Refusal,
-  RlsGenerateInput,
-} from "./generate-options.ts";
 import type { SplitSql } from "./generate-output.ts";
 
 import { compact } from "../../core/compact.ts";
@@ -22,6 +17,7 @@ import {
   sessionLiveHelperSql,
 } from "../sql/subject.ts";
 import { adoptedApprovalStoreSql, approvalStoreSql } from "./approvals.ts";
+import { assignmentSql } from "./assignments.ts";
 import { backfillSql } from "./backfill.ts";
 import { breakGlassEntries, breakGlassSql } from "./break-glass.ts";
 import {
@@ -34,7 +30,13 @@ import {
   migrationSql,
 } from "./emit.ts";
 import { rowBranches } from "./fields.ts";
-import { isRefusal, splitsPart } from "./generate-options.ts";
+import {
+  type GenerateOptions,
+  type Refusal,
+  type RlsGenerateInput,
+  isRefusal,
+  splitsPart,
+} from "./generate-options.ts";
 import {
   type GeneratedPolicies,
   generatePolicies,
@@ -43,7 +45,7 @@ import {
 import { graphSql } from "./graph.ts";
 import { helpersSql, seedSql } from "./helpers.ts";
 import { type IndexTarget, indexTargets, indexesSql } from "./indexes.ts";
-import { assignmentSql, ownershipSql } from "./ownership.ts";
+import { ownershipSql } from "./ownership.ts";
 import { permissionHelpersSql } from "./permission-keys.ts";
 import { rbacScaffold } from "./rbac.ts";
 import { inheritTargets, rowHelpersSql } from "./rows.ts";

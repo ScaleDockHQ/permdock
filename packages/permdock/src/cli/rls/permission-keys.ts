@@ -7,12 +7,8 @@ import { scopeTypeOf } from "../sql/columns.ts";
 import { permittedForHelper, permittedIdsHelper } from "../sql/names.ts";
 import { qualified, quoteIdent, quoteLiteral } from "../sql/quote.ts";
 import { HELPERS } from "../sql/shared.ts";
-import {
-  type Body,
-  forUserContext,
-  functionBody,
-  grantBodies,
-} from "./helpers.ts";
+import { type Body, functionBody } from "./helper-bodies.ts";
+import { forUserContext, grantBodies } from "./helpers.ts";
 
 /** The helpers that take a permission key instead of a grant key. Names are part of the SQL contract. */
 const PERMISSION_HELPERS = {

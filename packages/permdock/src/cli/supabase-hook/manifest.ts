@@ -18,12 +18,9 @@ import { hasConditionOp } from "../../conditions/ast.ts";
 import { qualifySqlTable } from "../../core/sql.ts";
 import { keptKeys } from "../../supabase/keep.ts";
 import { API_KEY_ALLOWS, apiKeyFields } from "../rls/api-keys.ts";
-import {
-  ASSIGNMENTS,
-  guardedTables,
-  OWNERSHIP,
-  ownershipRules,
-} from "../rls/ownership.ts";
+import { guardedTables } from "../rls/assignments.ts";
+import { ASSIGNMENTS, OWNERSHIP } from "../rls/ownership-names.ts";
+import { ownershipRules } from "../rls/ownership.ts";
 import { permissionKeysForHelper } from "../rls/permission-keys.ts";
 import { resolveAuthorize } from "../rls/rbac.ts";
 import { checkSuspension } from "../sql/active.ts";
