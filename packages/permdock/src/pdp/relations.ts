@@ -12,8 +12,7 @@ import type {
   SpiceDbOptions,
 } from "./types.ts";
 
-import { isRecord } from "../authzen/map.ts";
-import { compact } from "../core/compact.ts";
+import { compact, isRecord } from "../core/compact.ts";
 import {
   DEFAULT_TIMEOUT_MS,
   cacheKey,

@@ -5,7 +5,7 @@ import type { JwtSubjectOptions } from "../jwt/types.ts";
 import type { McpAuthInfo, McpPrincipal } from "./types.ts";
 
 import { clientNameOf } from "../core/clients.ts";
-import { compact } from "../core/compact.ts";
+import { compact, isRecord } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import { anonymousSubject } from "../core/subject.ts";
 import { mapClaimsToSubject } from "../jwt/map-claims.ts";
@@ -28,10 +28,6 @@ export function mcpActorKind(kind: unknown): string | undefined {
     return DEFAULT_MCP_ACTOR_KIND;
   }
   return typeof kind === "string" && kind !== "" ? kind : undefined;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 /**

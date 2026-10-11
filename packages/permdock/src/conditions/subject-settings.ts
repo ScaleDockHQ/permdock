@@ -1,5 +1,7 @@
 import type { Subject } from "../core/subject.ts";
 
+import { isRecord } from "../core/compact.ts";
+
 export type WithSubjectOptions = {
   /** Which settings the generated policies read; match `rls.dialect`. Default `supabase`. */
   readonly dialect?: "supabase" | "guc" | "neon";
@@ -53,10 +55,6 @@ type HeldCredential = {
   readonly roles: readonly string[];
   readonly scopes: readonly string[];
 };
-
-function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 function strings(value: unknown): readonly string[] {
   return Array.isArray(value)

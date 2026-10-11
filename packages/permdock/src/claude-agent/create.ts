@@ -6,7 +6,7 @@ import type { Policy, PolicyVocabulary } from "../core/policy.ts";
 import type { Delegation, Principal } from "../core/subject.ts";
 
 import { createAgentKernel } from "../agent/kernel.ts";
-import { compact } from "../core/compact.ts";
+import { compact, isRecord } from "../core/compact.ts";
 import { instanceOptions } from "../core/instance-options.ts";
 
 /** Structural `McpServerProvenance` from `@anthropic-ai/claude-agent-sdk`. */
@@ -98,11 +98,7 @@ export type ClaudeAgentPermDock<V extends PolicyVocabulary = PolicyVocabulary> =
 const MCP_PREFIX = "mcp__";
 
 function asInput(input: unknown): Record<string, unknown> {
-  if (input !== null && typeof input === "object" && !Array.isArray(input)) {
-    // SAFETY: checked just above to be a non-null, non-array object.
-    return input as Record<string, unknown>;
-  }
-  return {};
+  return isRecord(input) ? input : {};
 }
 
 function untrustedServer(

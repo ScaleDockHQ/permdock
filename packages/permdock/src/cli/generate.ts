@@ -1,3 +1,4 @@
+import { isRecord } from "../core/compact.ts";
 import { byCodePoint } from "../core/compare.ts";
 
 export type SchemaKind = "zod" | "valibot" | "arktype";
@@ -54,10 +55,6 @@ export function emptySchema(kind: SchemaKind): string {
 
 function propertyKey(name: string): string {
   return IDENTIFIER.test(name) ? name : JSON.stringify(name);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function literalEnum(schema: JsonSchema): readonly string[] | undefined {

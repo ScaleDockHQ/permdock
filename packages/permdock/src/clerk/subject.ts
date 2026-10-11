@@ -10,15 +10,11 @@ import type {
   ClerkSubjectOptions,
 } from "./types.ts";
 
-import { compact } from "../core/compact.ts";
+import { compact, isRecord } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import { anonymousSubject } from "../core/subject.ts";
 import { ignoreRejection } from "../core/thenable.ts";
 import { ttlCache, ttlMs } from "../pdp/shared.ts";
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
 
 function asRoles(value: unknown): readonly string[] {
   if (typeof value === "string") {

@@ -1,6 +1,4 @@
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
+import { isRecord } from "./compact.ts";
 
 /**
  * JSON with sorted keys and `undefined` members dropped, so equal values hash

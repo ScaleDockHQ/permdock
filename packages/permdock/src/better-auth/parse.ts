@@ -1,11 +1,7 @@
 import type { Membership } from "../core/subject.ts";
 import type { BetterAuthStatements } from "./types.ts";
 
-import { compact } from "../core/compact.ts";
-
-export function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
+import { compact, isRecord } from "../core/compact.ts";
 
 export function asRoles(value: unknown): readonly string[] {
   if (typeof value === "string") {

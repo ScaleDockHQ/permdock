@@ -18,7 +18,7 @@ import type {
 } from "./types.ts";
 
 import { clientNameOf } from "../core/clients.ts";
-import { compact } from "../core/compact.ts";
+import { compact, isRecord } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import { anonymousSubject } from "../core/subject.ts";
 import { ignoreRejection } from "../core/thenable.ts";
@@ -45,10 +45,6 @@ const REGISTERED = new Set([
   "client_id",
   "scope",
 ]);
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
 
 /** Top-level first, then `app_metadata`. `null` counts as absent: the RBAC hook writes `null` for a user with no role row. */
 function readClaim(claims: Record<string, unknown>, name: string): unknown {

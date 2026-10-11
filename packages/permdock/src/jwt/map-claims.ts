@@ -19,7 +19,7 @@ import type {
 } from "./types.ts";
 
 import { clientNameOf } from "../core/clients.ts";
-import { compact } from "../core/compact.ts";
+import { compact, isRecord } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import { isForbiddenKey, readPath } from "../core/paths.ts";
 import { anonymousSubject } from "../core/subject.ts";
@@ -131,10 +131,6 @@ function assuranceOf(
   return Object.keys(assurance).length === 0 ? undefined : assurance;
 }
 
-function isPlainRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
 function hasForbiddenKey(value: unknown, depth = 0): boolean {
   if (depth > 16) {
     return true;
@@ -142,7 +138,7 @@ function hasForbiddenKey(value: unknown, depth = 0): boolean {
   if (Array.isArray(value)) {
     return value.some((item) => hasForbiddenKey(item, depth + 1));
   }
-  if (!isPlainRecord(value)) {
+  if (!isRecord(value)) {
     return false;
   }
   return Object.keys(value).some(
@@ -160,10 +156,10 @@ function verifiedClaimsOf(
   const entries = Array.isArray(value) ? value : [value];
   const verified = entries.filter(
     (entry): entry is VerifiedClaims =>
-      isPlainRecord(entry) &&
-      isPlainRecord(entry["verification"]) &&
+      isRecord(entry) &&
+      isRecord(entry["verification"]) &&
       typeof entry["verification"]["trust_framework"] === "string" &&
-      isPlainRecord(entry["claims"]) &&
+      isRecord(entry["claims"]) &&
       !hasForbiddenKey(entry),
   );
   return verified.length === 0

@@ -3,7 +3,7 @@ import type { Permission } from "../core/permissions.ts";
 import type { Actor, Delegation } from "../core/subject.ts";
 import type { PermissionLookup } from "../server/evaluation-items.ts";
 
-import { compact } from "../core/compact.ts";
+import { compact, isRecord } from "../core/compact.ts";
 import { itemResourceData } from "../server/evaluation-items.ts";
 
 export type AuthzenEntity = {
@@ -31,10 +31,6 @@ export const UNAVAILABLE: Decision = {
   denials: [{ role: null, reason: "no-grant", detail: "resource-unavailable" }],
   alternatives: [],
 };
-
-export function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
 
 function actionNameOf(item: AuthzenItem): string | undefined {
   if (typeof item.action?.name === "string") {

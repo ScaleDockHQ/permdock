@@ -4,10 +4,9 @@ import type { Policy } from "./policy.ts";
 import type { Principal, Subject } from "./subject.ts";
 
 import { compact } from "./compact.ts";
-import { declaredRoleNames } from "./evaluate.ts";
 import { flattenGrantee } from "./grantee.ts";
 import { collectSnapshotGrants } from "./instance.ts";
-import { grantList } from "./policy.ts";
+import { declaredRoleNames, grantList } from "./policy.ts";
 import { resolveSubject } from "./resolve-subject.ts";
 import { scopeList, tenantOf } from "./scopes.ts";
 import { isThenable } from "./thenable.ts";

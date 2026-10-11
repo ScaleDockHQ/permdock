@@ -5,7 +5,7 @@ import type { RlsMembershipTable } from "./types.ts";
 
 import { scopeColumn, scopeMembershipTable } from "../conditions/compile.ts";
 import { relatedSql } from "../conditions/graph-sql.ts";
-import { isReadonlyArray, sole } from "../core/compact.ts";
+import { isReadonlyArray, isRecord, sole } from "../core/compact.ts";
 import { isForbiddenKey } from "../core/paths.ts";
 import { resolveScope, rootScope } from "../core/scopes.ts";
 import { isSqlFunctionField } from "../index.ts";
@@ -19,7 +19,6 @@ import {
   graphHelper,
   graphSqlText,
   inheritedRowsHelper,
-  isRecord,
   keyTenantSql,
   kindFilterSql,
   linkHelper,

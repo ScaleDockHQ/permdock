@@ -4,7 +4,7 @@ import type { Permission } from "../core/permissions.ts";
 import type { AuthzenItem } from "./map.ts";
 import type { AuthzenFactory } from "./types.ts";
 
-import { compact } from "../core/compact.ts";
+import { compact, isRecord } from "../core/compact.ts";
 import { instanceOptions } from "../core/instance-options.ts";
 import { ownGet } from "../core/paths.ts";
 import { createPermDock as createCorePermDock } from "../core/permdock.ts";
@@ -29,7 +29,6 @@ import {
   delegationOf,
   endsWithPath,
   evaluationRow,
-  isRecord,
   mergeItem,
   pageOf,
   paged,

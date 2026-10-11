@@ -12,6 +12,7 @@ import type {
 } from "./permissions.ts";
 import type { Subject } from "./subject.ts";
 
+import { isRecord } from "./compact.ts";
 import { idText } from "./ids.ts";
 import { ownGet } from "./paths.ts";
 import {
@@ -68,10 +69,6 @@ export type RelatedVerdict =
   | boolean
   | "relation-depth"
   | "relation-unavailable";
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
 
 function isInstant(value: unknown): value is number | undefined {
   return (

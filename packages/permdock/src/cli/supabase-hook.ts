@@ -7,6 +7,7 @@ import type { SupabaseHookManifest } from "../supabase/manifest.ts";
 import type { HookOverrides } from "./supabase-hook-sql.ts";
 import type { CliIo, PermDockConfig } from "./types.ts";
 
+import { isRecord } from "../core/compact.ts";
 import { scopeList } from "../core/scopes.ts";
 import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
 import { asPolicy, loadModule, pickNamed } from "./load.ts";
@@ -204,10 +205,9 @@ function manifestFile(
   } catch {
     return { code: 1, output: `supabase manifest drift: ${rel} is not JSON` };
   }
-  const found: Record<string, unknown> =
-    typeof onDisk === "object" && onDisk !== null && !Array.isArray(onDisk)
-      ? Object.fromEntries(Object.entries(onDisk))
-      : {};
+  const found: Record<string, unknown> = isRecord(onDisk)
+    ? Object.fromEntries(Object.entries(onDisk))
+    : {};
   const changed = [
     ...new Set([...Object.keys(manifest), ...Object.keys(found)]),
   ].filter(

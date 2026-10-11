@@ -5,6 +5,7 @@ import { parse } from "pgsql-parser";
 import type { GenerateOutcome } from "./rls-generate.ts";
 import type { RlsMigrateConfig, RlsMigrateHelper } from "./types.ts";
 
+import { isRecord } from "../core/compact.ts";
 import { escapeSqlIdent, quoteSqlLiteral } from "../core/sql.ts";
 import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
 import { describeError } from "./errors.ts";
@@ -93,12 +94,8 @@ export function migrateTarget(generated: GenerateOutcome): MigrateTarget {
 
 type Node = Readonly<Record<string, unknown>>;
 
-function isNode(value: unknown): value is Node {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 function child(node: unknown, key: string): unknown {
-  return isNode(node) ? node[key] : undefined;
+  return isRecord(node) ? node[key] : undefined;
 }
 
 function list(value: unknown): readonly unknown[] {
@@ -487,11 +484,11 @@ async function migrateSql(
       }
       return;
     }
-    if (!isNode(node)) {
+    if (!isRecord(node)) {
       return;
     }
     for (const [kind, value] of Object.entries(node)) {
-      if (kind === "FuncCall" && isNode(value)) {
+      if (kind === "FuncCall" && isRecord(value)) {
         const call = rewriter.call(value);
         if (call !== undefined) {
           const source =
@@ -533,7 +530,7 @@ async function migrateSql(
     const statement = child(raw, "stmt");
     const offset = child(raw, "stmt_location");
     const statementStart = at(typeof offset === "number" ? offset : 0);
-    const kind = isNode(statement) ? Object.keys(statement)[0] : undefined;
+    const kind = isRecord(statement) ? Object.keys(statement)[0] : undefined;
     if (kind !== undefined && BODY_STATEMENTS.has(kind)) {
       for (const body of bodyStrings(child(statement, kind))) {
         const bodyStart = text.indexOf(body, statementStart);

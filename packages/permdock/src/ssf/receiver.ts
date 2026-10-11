@@ -18,7 +18,7 @@ import type {
 } from "./types.ts";
 
 import { cancelApprovals } from "../approvals/helpers.ts";
-import { compact } from "../core/compact.ts";
+import { compact, isRecord } from "../core/compact.ts";
 import {
   asSubject,
   eventSession,
@@ -36,7 +36,6 @@ import {
   SET_TYP,
   contentType,
   errForCause,
-  isRecord,
   jsonResponse,
   parseEvery,
   rfc8935,

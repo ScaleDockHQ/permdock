@@ -15,6 +15,7 @@ import type {
 import type { JsonWebKeySet } from "../jwt/types.ts";
 import type { ReplayStore } from "../ssf/types.ts";
 
+import { isRecord } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import { isForbiddenKey } from "../core/paths.ts";
 import { CLOUD_EVENT_TYPES } from "../core/sink.ts";
@@ -73,10 +74,6 @@ export type VerifiedWebhook =
     };
 
 const TYPES: ReadonlySet<string> = new Set(Object.values(CLOUD_EVENT_TYPES));
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
 
 function hasUnsafeKey(value: unknown): boolean {
   if (Array.isArray(value)) {

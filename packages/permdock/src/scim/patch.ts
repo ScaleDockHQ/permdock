@@ -1,14 +1,10 @@
 import type { ScimPatchOp } from "./types.ts";
 
-import { isReadonlyArray } from "../core/compact.ts";
+import { isReadonlyArray, isRecord } from "../core/compact.ts";
 import { ROLES_EXTENSION } from "./types.ts";
 
 const FILTER_PATH =
   /^(?<attribute>[A-Za-z0-9._]+)\[(?<field>[A-Za-z0-9._]+)\s+eq\s+"(?<value>[^"]+)"\](?<rest>\.[A-Za-z0-9._]+)?$/u;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
 
 function coerceActive(value: unknown): boolean | undefined {
   if (typeof value === "boolean") {

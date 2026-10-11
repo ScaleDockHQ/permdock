@@ -7,14 +7,13 @@ import type {
   BetterAuthSubjectOptions,
 } from "./types.ts";
 
-import { compact, isReadonlyArray } from "../core/compact.ts";
+import { compact, isReadonlyArray, isRecord } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import { anonymousSubject } from "../core/subject.ts";
 import { ignoreRejection } from "../core/thenable.ts";
 import {
   asRoles,
   expiresAtSeconds,
-  isRecord,
   parseMemberRows,
   parseTeamRows,
 } from "./parse.ts";

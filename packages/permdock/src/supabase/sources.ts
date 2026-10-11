@@ -8,7 +8,7 @@ import type {
 } from "./types.ts";
 
 import { readAppData } from "../core/app-data.ts";
-import { compact } from "../core/compact.ts";
+import { compact, isRecord } from "../core/compact.ts";
 import { quoteSqlIdent, quoteSqlLiteral, quoteSqlTable } from "../core/sql.ts";
 import { keptKeys } from "./keep.ts";
 import {
@@ -523,17 +523,14 @@ function membershipOf(row: Record<string, unknown>): Membership | undefined {
   if (roles.length === 0) {
     return undefined;
   }
-  // SAFETY: row['within'] is checked just before to be a non-null, non-array object.
-  const within =
-    row["within"] !== null &&
-    typeof row["within"] === "object" &&
-    !Array.isArray(row["within"])
-      ? Object.fromEntries(
-          Object.entries(row["within"] as Record<string, unknown>).filter(
-            (entry): entry is [string, string] => typeof entry[1] === "string",
-          ),
-        )
-      : undefined;
+  const rawWithin = row["within"];
+  const within = isRecord(rawWithin)
+    ? Object.fromEntries(
+        Object.entries(rawWithin).filter(
+          (entry): entry is [string, string] => typeof entry[1] === "string",
+        ),
+      )
+    : undefined;
   const expires =
     typeof row["expires_at"] === "number"
       ? row["expires_at"]

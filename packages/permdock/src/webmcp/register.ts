@@ -16,7 +16,7 @@ import type {
   WebMcpToolResult,
 } from "./types.ts";
 
-import { compact } from "../core/compact.ts";
+import { compact, isRecord } from "../core/compact.ts";
 import { describe } from "../core/describe.ts";
 import {
   annotationsFor,
@@ -32,10 +32,6 @@ import { wireDenials } from "../core/wire-denial.ts";
 
 const MISSING_CONTEXT =
   "permdock/webmcp: document.modelContext is absent; registerTools is a no-op.";
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
 
 const CURRENT = Symbol.for("permdock.current");
 

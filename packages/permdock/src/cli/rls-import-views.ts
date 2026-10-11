@@ -4,6 +4,7 @@ import type { RolePermission } from "./rls-helpers.ts";
 import type { ImportedGrant } from "./rls-import-ast.ts";
 import type { RlsFunctionMapping, RlsMemberships } from "./types.ts";
 
+import { isRecord } from "../core/compact.ts";
 import { escapeSqlIdent } from "../core/sql.ts";
 import { FIELD_VIEWS } from "./rls-fields.ts";
 import { helperGrants } from "./rls-import-ast.ts";
@@ -11,10 +12,7 @@ import { helperGrants } from "./rls-import-ast.ts";
 type PgNode = Record<string, unknown>;
 
 function asNode(value: unknown): PgNode | undefined {
-  // SAFETY: checked to be a non-null, non-array object, which is all PgNode claims.
-  return value !== null && typeof value === "object" && !Array.isArray(value)
-    ? (value as PgNode)
-    : undefined;
+  return isRecord(value) ? value : undefined;
 }
 
 function list(value: unknown): readonly unknown[] {

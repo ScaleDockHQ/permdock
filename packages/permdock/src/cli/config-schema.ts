@@ -8,6 +8,7 @@ import type {
   SupabaseConfig,
 } from "./types.ts";
 
+import { isRecord } from "../core/compact.ts";
 import { CliError } from "./errors.ts";
 
 type Section = Exclude<keyof PermDockConfig, "permissions" | "policy">;
@@ -123,10 +124,6 @@ export type ParsedConfig = {
   /** Keys PermDock does not read, as `path: message`; a typo lands here. */
   readonly warnings: readonly string[];
 };
-
-function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
 
 function isSection(key: string): key is Section {
   return Object.hasOwn(SECTIONS, key);

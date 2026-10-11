@@ -21,7 +21,7 @@ import type {
 } from "./types.ts";
 
 import { ApprovalError, isApprovalErrorCode } from "../approvals/errors.ts";
-import { compact } from "../core/compact.ts";
+import { compact, isRecord } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import { parsePolicyDocument } from "../core/hosted.ts";
 import { timeoutSignal } from "../core/timeout.ts";
@@ -49,10 +49,6 @@ function firstNonEmpty(...values: readonly (string | undefined)[]): string {
 
 function trimSlash(value: string): string {
   return value.endsWith("/") ? value.slice(0, -1) : value;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function asApproval(value: unknown): ApprovalRequest | null {

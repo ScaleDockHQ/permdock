@@ -3,7 +3,7 @@ import type { Grantee } from "./grantee.ts";
 import type { ApprovalRequirement, Grant, Policy } from "./policy.ts";
 
 import { normalizeWhere } from "../conditions/normalize.ts";
-import { compact } from "./compact.ts";
+import { compact, isRecord } from "./compact.ts";
 import { parseDuration } from "./duration.ts";
 import { freezeDeep } from "./freeze.ts";
 import { MAX_RELATION_DEPTH, flattenGrantee } from "./grantee.ts";
@@ -76,10 +76,6 @@ export function memoryPolicySource(
     current: (): PolicyDocument | null => current,
     refresh: (): Promise<void> => Promise.resolve(),
   });
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function rejectUnsafe(value: unknown): void {

@@ -5,6 +5,7 @@ import type { Condition, ConditionValue, SqlFunctionArg } from "../index.ts";
 import type { HelperScope, RolePermission } from "./rls-helpers.ts";
 import type { RlsFunctionMapping, RlsMemberships } from "./types.ts";
 
+import { isRecord } from "../core/compact.ts";
 import { quoteSqlLiteral } from "../core/sql.ts";
 import { HELPERS } from "./rls-shared.ts";
 import { SESSION_LIVE_HELPER, USER_ID_HELPER } from "./rls-sql.ts";
@@ -12,11 +13,7 @@ import { SESSION_LIVE_HELPER, USER_ID_HELPER } from "./rls-sql.ts";
 type PgNode = Record<string, unknown>;
 
 function asNode(value: unknown): PgNode | undefined {
-  if (value !== null && typeof value === "object" && !Array.isArray(value)) {
-    // SAFETY: checked to be a non-null, non-array object, which is all PgNode claims.
-    return value as PgNode;
-  }
-  return undefined;
+  return isRecord(value) ? value : undefined;
 }
 
 function stringVal(value: unknown): string | undefined {

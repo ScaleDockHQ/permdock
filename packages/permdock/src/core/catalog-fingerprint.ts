@@ -1,11 +1,8 @@
 import { canonicalJson } from "./canonical-json.ts";
+import { isRecord } from "./compact.ts";
 import { bytesToBase64Url, sha256 } from "./sha256.ts";
 
 const OMITTED_TOP_LEVEL = new Set(["generatedAt", "generator", "fingerprint"]);
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
 
 function fingerprintInput(catalog: Record<string, unknown>): unknown {
   const out: Record<string, unknown> = {};

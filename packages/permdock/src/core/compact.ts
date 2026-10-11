@@ -20,3 +20,8 @@ export function isReadonlyArray(value: unknown): value is readonly unknown[] {
 export function sole<T>(items: readonly T[]): T | undefined {
   return items.length === 1 ? items[0] : undefined;
 }
+
+/** A plain object: not `null` and not an array. */
+export function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}

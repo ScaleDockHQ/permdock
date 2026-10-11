@@ -1,5 +1,6 @@
 import type { Permission, PermissionTree } from "../core/permissions.ts";
 
+import { isRecord } from "../core/compact.ts";
 import { findPermission, isPermission } from "../core/permissions.ts";
 
 const METHODS = new Set([
@@ -197,10 +198,6 @@ export function operationPermissions(
       return byId.get(id)?.oauthScopes;
     },
   };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 /**

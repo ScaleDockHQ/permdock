@@ -4,6 +4,7 @@ import { Ajv2020 } from "ajv/dist/2020.js";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
+import { isRecord } from "../core/compact.ts";
 import { DRAFT_PINS } from "../openapi/pins.ts";
 import { packageRoot } from "./package-root.ts";
 
@@ -11,10 +12,6 @@ export type OpenapiVersion = "3.1" | "3.2" | "3.3";
 
 function schemaDir(): string {
   return join(packageRoot(), "schemas", "openapi");
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 const validators = new Map<string, ValidateFunction>();

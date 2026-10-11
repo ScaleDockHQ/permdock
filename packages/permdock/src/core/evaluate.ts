@@ -55,7 +55,12 @@ import {
 } from "./grantee.ts";
 import { applyQuota } from "./limits.ts";
 import { findPermission, getResource, listPermissions } from "./permissions.ts";
-import { requiresApproval, type Grant, type Policy } from "./policy.ts";
+import {
+  declaredRoleNames,
+  requiresApproval,
+  type Grant,
+  type Policy,
+} from "./policy.ts";
 import { resolveRelated } from "./relations.ts";
 import { resourceIdOf } from "./resource-ref.ts";
 import { isRowPair, rowIdOf, rowValues } from "./row-pair.ts";
@@ -237,10 +242,6 @@ export function expandRoleNames(
     }
   }
   return { roles: [...resolved], unknown };
-}
-
-export function declaredRoleNames(policy: Policy): ReadonlySet<string> {
-  return policy.index.declaredRoles;
 }
 
 const NEVER: Condition = freezeDeep({ op: "or", conditions: [] });

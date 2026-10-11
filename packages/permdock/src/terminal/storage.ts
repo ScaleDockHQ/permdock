@@ -15,7 +15,7 @@ import type {
   TerminalStorageOptions,
 } from "./types.ts";
 
-import { compact } from "../core/compact.ts";
+import { compact, isRecord } from "../core/compact.ts";
 
 const FILE_MODE = 0o600;
 const DIR_MODE = 0o700;
@@ -37,10 +37,6 @@ export function credentialsPath(
   }
   const xdg = env["XDG_CONFIG_HOME"] ?? path.join(home(), ".config");
   return path.join(xdg, service, "credentials.json");
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function parseCredential(value: unknown): StoredCredential | null {

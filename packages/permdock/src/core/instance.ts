@@ -58,7 +58,6 @@ import {
 import {
   assignableNamesFor,
   customRolesFor,
-  declaredRoleNames,
   evaluate,
   expandRoleNames,
   requirementCondition,
@@ -85,7 +84,12 @@ import {
   isPrincipalRelation,
   listPermissions,
 } from "./permissions.ts";
-import { grantList, levelCondition, levelNames } from "./policy.ts";
+import {
+  declaredRoleNames,
+  grantList,
+  levelCondition,
+  levelNames,
+} from "./policy.ts";
 import {
   type RelationCache,
   pendingRelations,

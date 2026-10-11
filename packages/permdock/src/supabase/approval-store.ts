@@ -17,7 +17,7 @@ import {
 } from "../approvals/page.ts";
 import { applyApprovalVerdict } from "../approvals/store.ts";
 import { canonicalJson } from "../core/canonical-json.ts";
-import { compact } from "../core/compact.ts";
+import { compact, isRecord } from "../core/compact.ts";
 import { callRpc } from "./postgrest.ts";
 import { PERMDOCK_SCHEMA } from "./sources.ts";
 
@@ -34,10 +34,6 @@ export type SupabaseApprovalStoreOptions = {
    */
   readonly onOpen?: (request: ApprovalRequest) => void | Promise<void>;
 };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
 
 /** A stored body as the request it is; the store wrote it from an `ApprovalRequest`. */
 function requestOf(value: unknown): ApprovalRequest | null {

@@ -62,10 +62,6 @@ export function errForCause(cause: TokenFailureCause): string {
   }
 }
 
-export function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
 export function contentType(request: Request): string {
   const raw = request.headers.get("content-type") ?? "";
   return raw.split(";", 1)[0]?.trim().toLowerCase() ?? "";

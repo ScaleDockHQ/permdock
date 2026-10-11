@@ -10,6 +10,7 @@ import type {
 } from "./generate.ts";
 import type { CliIo } from "./types.ts";
 
+import { isRecord } from "../core/compact.ts";
 import { byCodePoint } from "../core/compare.ts";
 import { emitPermissionsModule, schemaExpression } from "./generate.ts";
 import { validateOpenapi } from "./openapi-schema.ts";
@@ -50,10 +51,6 @@ type ResourceEntry = {
   >;
   schema?: JsonSchema;
 };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
 
 function operations(document: Record<string, unknown>): readonly Operation[] {
   const paths = isRecord(document["paths"]) ? document["paths"] : {};

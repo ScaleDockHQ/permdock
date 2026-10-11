@@ -1,10 +1,7 @@
 import type { LocalSnapshotManifest } from "./interfaces.ts";
 
+import { isRecord } from "./compact.ts";
 import { isForbiddenKey } from "./paths.ts";
-
-function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
 
 function isStrings(value: unknown): boolean {
   return (

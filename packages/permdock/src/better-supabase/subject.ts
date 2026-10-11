@@ -11,6 +11,7 @@ import type {
 } from "../supabase/types.ts";
 import type { KeyRecord, ServiceRoles } from "./api-keys.ts";
 
+import { isRecord } from "../core/compact.ts";
 import { credentialSubject } from "../core/credential.ts";
 import { listPermissions } from "../core/permissions.ts";
 import { anonymousSubject } from "../core/subject.ts";
@@ -46,9 +47,6 @@ export type BetterSupabaseSubjectOptions = Omit<
    */
   readonly plans?: string | FeatureClaim;
 };
-
-const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
 
 /** `session` with the short codes in `claim` turned back into feature keys. */
 function decodedFeatures(

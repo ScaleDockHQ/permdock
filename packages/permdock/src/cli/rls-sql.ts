@@ -16,6 +16,7 @@ import type {
 } from "./types.ts";
 
 import { scopeColumn, scopeMembershipTable } from "../conditions/compile.ts";
+import { isRecord } from "../core/compact.ts";
 import { byCodePoint } from "../core/compare.ts";
 import { isForbiddenKey } from "../core/paths.ts";
 import { resolveScope, rootScope, scopeChain } from "../core/scopes.ts";
@@ -835,10 +836,6 @@ export function subjectClaimJsonSql(ctx: RlsSqlContext, claim: string): string {
       return exhaustive;
     }
   }
-}
-
-export function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 /** The Postgres type a JSON Schema property compares as; `undefined` for text or an unknown shape. */

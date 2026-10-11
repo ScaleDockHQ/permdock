@@ -4,6 +4,7 @@ import type { Scope } from "../core/scopes.ts";
 import type { CustomRole, PermDock, Permission, Policy } from "../index.ts";
 import type { CliIo, PermDockConfig, RlsDialect } from "./types.ts";
 
+import { isRecord } from "../core/compact.ts";
 import { customRoleScope, membershipsClaim } from "../core/custom-roles.ts";
 import { policyRowConditionKeys } from "../core/row-conditions.ts";
 import { scopeList } from "../core/scopes.ts";
@@ -39,10 +40,6 @@ export type VerifyOutcome = {
   readonly code: 0 | 1 | 2;
   readonly output: string;
 };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
 
 /** A custom role's scope and pinned instance, as the `custom_role_*` tables store them. */
 function customRoleAt(

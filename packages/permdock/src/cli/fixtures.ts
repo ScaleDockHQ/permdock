@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 
 import type { CustomRole, Membership, Subject } from "../index.ts";
 
+import { isRecord } from "../core/compact.ts";
 import { loadModule, pickNamed } from "./load.ts";
 
 /** One subject, row and action, as `rls verify` and `diff --impact` read them. */
@@ -26,10 +27,6 @@ export type FixtureFile = {
   /** Tenant-defined roles the fixtures' memberships may hold. */
   readonly customRoles: readonly CustomRole[];
 };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
 
 function asFixtures(value: unknown): readonly RlsFixture[] {
   const list = Array.isArray(value)

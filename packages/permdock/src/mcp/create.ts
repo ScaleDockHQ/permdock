@@ -29,7 +29,7 @@ import { deniedText } from "../agent/denied-text.ts";
 import { createAgentKernel } from "../agent/kernel.ts";
 import { boundedMap } from "../agent/lru.ts";
 import { clientNameOf } from "../core/clients.ts";
-import { compact } from "../core/compact.ts";
+import { compact, isRecord } from "../core/compact.ts";
 import { describe } from "../core/describe.ts";
 import { instanceOptions } from "../core/instance-options.ts";
 import { mayUse } from "../core/may-use.ts";
@@ -120,10 +120,6 @@ type InnerServer = {
   getClientCapabilities?: () => unknown;
   _getRequestHandler?: (method: string) => Handler | undefined;
 };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
 
 function contextOf(value: unknown): Context {
   // SAFETY: a record from the SDK's handler context; every Context field is optional and type-checked on read.

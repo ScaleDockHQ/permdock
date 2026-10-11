@@ -2,7 +2,7 @@ import type { JwtClaims } from "../core/interfaces.ts";
 import type { Actor, Binding } from "../core/subject.ts";
 import type { JwtSubjectOptions, MappedSubject } from "./types.ts";
 
-import { compact } from "../core/compact.ts";
+import { compact, isRecord } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import { anonymousSubject } from "../core/subject.ts";
 import { mapClaimsToSubject } from "./map-claims.ts";
@@ -20,10 +20,6 @@ function emitAuth(options: JwtSubjectOptions, cause: "invalid-chain"): void {
       requestId: options.requestId,
     }),
   );
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function keyToCnf(key: unknown): JwtClaims["cnf"] {

@@ -1,6 +1,7 @@
 import type { Membership, Subject } from "./subject.ts";
 
 import { type AppData, readAppData } from "./app-data.ts";
+import { isRecord } from "./compact.ts";
 import { freezeCopy } from "./freeze.ts";
 import { idText } from "./ids.ts";
 import { isForbiddenKey } from "./paths.ts";
@@ -266,13 +267,8 @@ export function normalizeMembership(
   if (eligible !== undefined && eligible.length > 0) {
     extra.eligible = Object.freeze([...eligible]);
   }
-  // SAFETY: member is a non-null, non-array object checked in the condition; group is checked below.
-  const member =
-    raw["member"] !== null &&
-    typeof raw["member"] === "object" &&
-    !Array.isArray(raw["member"])
-      ? (raw["member"] as Record<string, unknown>)["group"]
-      : undefined;
+  const rawMember = raw["member"];
+  const member = isRecord(rawMember) ? rawMember["group"] : undefined;
   if (typeof member === "string" && member !== "") {
     extra.member = Object.freeze({ group: member });
   }

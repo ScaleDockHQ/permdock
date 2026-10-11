@@ -4,8 +4,7 @@ import type { Permission } from "../core/permissions.ts";
 import type { Subject } from "../core/subject.ts";
 import type { RemotePdpOptions } from "./types.ts";
 
-import { isRecord } from "../authzen/map.ts";
-import { compact } from "../core/compact.ts";
+import { compact, isRecord } from "../core/compact.ts";
 import { listPermissions } from "../core/permissions.ts";
 import {
   DEFAULT_TIMEOUT_MS,

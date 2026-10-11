@@ -5,16 +5,13 @@ import type { Permission, Policy } from "../index.ts";
 import type { OverlayOperation } from "../openapi/types.ts";
 import type { CliIo, PermDockConfig } from "./types.ts";
 
+import { isRecord } from "../core/compact.ts";
 import { definePolicy, findPermission, getResource } from "../index.ts";
 import { openapiVersion } from "../openapi/emit.ts";
 import { createPermDock } from "../openapi/index.ts";
 import { asPermissionTree, asPolicy, loadModule, pickNamed } from "./load.ts";
 import { validateOpenapi, validateOverlay } from "./openapi-schema.ts";
 import { shortDiff } from "./text-diff.ts";
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
 
 function mergeRecord(
   base: Readonly<Record<string, unknown>>,

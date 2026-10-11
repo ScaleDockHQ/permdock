@@ -11,7 +11,7 @@ import type { Subject } from "./subject.ts";
 
 import { evaluateCondition } from "../conditions/evaluate.ts";
 import { normalizeWhere } from "../conditions/normalize.ts";
-import { compact } from "./compact.ts";
+import { compact, isRecord } from "./compact.ts";
 import { parseDuration } from "./duration.ts";
 import { authenticated } from "./grantee.ts";
 import { isPortableCondition } from "./hosted.ts";
@@ -85,10 +85,6 @@ export type LoadedApprovalPolicy = {
 
 /** `"failed"`: the source threw or returned something that cannot be applied. */
 export type LoadedApprovalPolicies = readonly LoadedApprovalPolicy[] | "failed";
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
 
 function isStringList(value: unknown): value is readonly string[] {
   return (
