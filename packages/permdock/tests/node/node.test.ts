@@ -1,9 +1,9 @@
-import type { IncomingMessage, Server, ServerResponse } from "node:http";
+import type { IncomingMessage } from "node:http";
 
-import { createServer } from "node:http";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { createPermDock, toRequest } from "../../src/node/index.ts";
+import { listen } from "../fakes/server.ts";
 import {
   memberUser,
   otherPost,
@@ -11,48 +11,6 @@ import {
   permissions,
   policy,
 } from "../fixtures/quick-start.ts";
-
-const servers: Server[] = [];
-
-afterEach(async () => {
-  await Promise.all(
-    servers.splice(0).map(
-      (server) =>
-        new Promise<void>((resolve, reject) => {
-          server.close((err) => {
-            if (err === undefined) {
-              resolve();
-              return;
-            }
-            reject(err instanceof Error ? err : new Error(String(err)));
-          });
-        }),
-    ),
-  );
-});
-
-async function listen(
-  handler: (req: IncomingMessage, res: ServerResponse) => unknown,
-): Promise<(path: string, init?: RequestInit) => Promise<Response>> {
-  const server = await new Promise<Server>((resolve) => {
-    const next = createServer((req, res) => {
-      Promise.resolve(handler(req, res)).catch((err: unknown) => {
-        res.statusCode = 500;
-        res.end(err instanceof Error ? err.message : "error");
-      });
-    });
-    next.listen(0, "127.0.0.1", () => {
-      resolve(next);
-    });
-  });
-  servers.push(server);
-  const address = server.address();
-  if (address === null || typeof address === "string") {
-    throw new TypeError("expected tcp address");
-  }
-  const base = `http://127.0.0.1:${String(address.port)}`;
-  return (path, init) => fetch(`${base}${path}`, init);
-}
 
 describe("permdock/node", () => {
   it("sets a request-scoped instance and protects routes", async () => {
@@ -140,33 +98,24 @@ describe("permdock/node", () => {
   });
 
   it("leaves the body stream to a later parser until the Web body is read", async () => {
-    const received = await new Promise<string>((resolve, reject) => {
-      const server = createServer((req, res) => {
-        toRequest(req);
-        setTimeout(() => {
-          const chunks: Buffer[] = [];
-          req.on("data", (chunk: Buffer) => {
-            chunks.push(chunk);
-          });
-          req.on("end", () => {
-            res.end();
-            resolve(Buffer.concat(chunks).toString("utf8"));
-          });
-        }, 20);
-      });
-      servers.push(server);
-      server.listen(0, "127.0.0.1", () => {
-        const address = server.address();
-        if (address === null || typeof address === "string") {
-          reject(new Error("no port"));
-          return;
-        }
-        fetch(`http://127.0.0.1:${address.port}/`, {
-          method: "POST",
-          body: "whole-body",
-        }).catch(reject);
-      });
+    let resolveBody: (body: string) => void = () => undefined;
+    const received = new Promise<string>((resolve) => {
+      resolveBody = resolve;
     });
-    expect(received).toBe("whole-body");
+    const request = await listen((req, res) => {
+      toRequest(req);
+      setTimeout(() => {
+        const chunks: Buffer[] = [];
+        req.on("data", (chunk: Buffer) => {
+          chunks.push(chunk);
+        });
+        req.on("end", () => {
+          res.end();
+          resolveBody(Buffer.concat(chunks).toString("utf8"));
+        });
+      }, 20);
+    });
+    await request("/", { method: "POST", body: "whole-body" });
+    expect(await received).toBe("whole-body");
   });
 });

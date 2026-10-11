@@ -10,10 +10,9 @@ import { createPermDock } from "../../src/openai/index.ts";
 import {
   adminUser,
   memberUser,
-  otherPost,
-  ownPost,
   permissions,
   policy,
+  postTools,
 } from "../fixtures/quick-start.ts";
 
 const delegated = {
@@ -24,24 +23,6 @@ const delegated = {
     permissions.post.publish.scope,
   ],
 };
-
-function tools() {
-  return {
-    delete_post: {
-      permission: permissions.post.delete,
-      data: (args: unknown) => {
-        // SAFETY: every tool call in this file passes an object args with an optional id.
-        const id = (args as { readonly id?: string }).id;
-        return id === "p1" ? ownPost : otherPost;
-      },
-    },
-    list_posts: { permission: permissions.post.list },
-    publish_post: {
-      permission: permissions.post.publish,
-      data: () => ownPost,
-    },
-  };
-}
 
 function item(callId: string, name: string, args: unknown): OpenAiInterruption {
   return {
@@ -103,7 +84,7 @@ describe("permdock/openai", () => {
           id: typeof context.agentId === "string" ? context.agentId : "agent",
           kind: "openai-agent",
         }),
-        tools: tools(),
+        tools: postTools(),
       },
     );
     const context = { user: memberUser, agentId: "agent-1" };
@@ -139,7 +120,7 @@ describe("permdock/openai", () => {
       subject: (context) => context.user,
       delegation: () => delegated,
       actor: () => ({ id: "agent-1", kind: "openai-agent" }),
-      tools: tools(),
+      tools: postTools(),
       store,
     });
     const context = { user: memberUser };
@@ -189,7 +170,7 @@ describe("permdock/openai", () => {
       subject: (context: { readonly user?: unknown }) => context.user,
       delegation: () => delegated,
       actor: () => ({ id: "agent-1", kind: "openai-agent" }),
-      tools: tools(),
+      tools: postTools(),
       store,
     };
     const context = { user: memberUser };
@@ -230,7 +211,7 @@ describe("permdock/openai", () => {
     const store = memoryApprovalStore();
     const { resolveInterruptions } = createPermDock(policy, {
       subject: (context) => context.user,
-      tools: tools(),
+      tools: postTools(),
       store,
     });
     const context = { user: memberUser };
@@ -276,7 +257,7 @@ describe("permdock/openai", () => {
   it("hides tools with no grant and ignores a subject in arguments", async () => {
     const { guardTools, needsApproval } = createPermDock(policy, {
       subject: (context) => context.user,
-      tools: tools(),
+      tools: postTools(),
     });
     const context = { user: memberUser };
     const guarded = await guardTools(
