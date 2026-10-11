@@ -20,6 +20,7 @@ PermDock is a library repository: one published package, two deployed apps, and 
   - `example`: `apps/examples/*`. Import `library` and `tooling`; nothing depends on them.
   - `test`: `tests/*`.
 - Files are kebab-case. Tests live in each workspace's `tests/` folder, never beside the source.
+- A library source file stays under 1,000 code lines, blank lines and comments excluded; `eslint/max-lines` in the `library` preset enforces it.
 - Repo scripts are TypeScript in `scripts/`, run directly by Node.
 
 ## Code rules
