@@ -59,6 +59,46 @@ describe("permdock_replace_global_roles", () => {
     );
   });
 
+  it("resolves keys among the global rows of a roles table that also holds tenant roles", () => {
+    const sql = globalRolesSql({
+      ...base,
+      roles: {
+        table: "user_roles",
+        role: { through: "roles", on: { role_id: "id" }, column: "key" },
+      },
+      customRoles: {
+        declared: [],
+        assignable: [],
+        table: { table: "roles", key: "key", tenant: "organization_id" },
+      },
+    });
+    expect(sql).toContain(
+      `where not exists (select 1 from "public"."roles" k where k."key"::text = w.r and k."organization_id" is null);`,
+    );
+    expect(sql).toContain(
+      `and k."key"::text = any(coalesce(p_roles, '{}'::text[])) and k."organization_id" is null\n    );`,
+    );
+    expect(sql).toContain(
+      `where k."key"::text in (select distinct r from unnest(coalesce(p_roles, '{}'::text[])) r where r is not null) and k."organization_id" is null\n`,
+    );
+  });
+
+  it("leaves the lookup alone when the custom roles table is another table", () => {
+    const sql = globalRolesSql({
+      ...base,
+      roles: {
+        table: "user_roles",
+        role: { through: "roles", on: { role_id: "id" }, column: "key" },
+      },
+      customRoles: {
+        declared: [],
+        assignable: [],
+        table: { table: "app_roles", key: "name", tenant: "organization_id" },
+      },
+    });
+    expect(sql).not.toContain("organization_id");
+  });
+
   it("takes a text user id outside Supabase", () => {
     const sql = globalRolesSql({
       ...base,

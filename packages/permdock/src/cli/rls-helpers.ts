@@ -286,7 +286,7 @@ export function globalRoleRows(
         userSql: "ur.user_id",
         roleSql: "ur.role::text",
       }
-    : globalRoleSource(ctx.roles, "public", "ur");
+    : globalRoleSource(ctx.roles, "public", "ur", ctx.customRoles?.table);
 }
 
 function customKeysJoin(

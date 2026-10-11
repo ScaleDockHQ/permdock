@@ -123,7 +123,7 @@ rls: {
 },
 ```
 
-`permdock_has` and `permdock_can_assign` then join `user_roles` to `roles` on `on` and compare `roles.key`, and `generate` no longer creates `user_roles`. An unqualified `through` is in the table's schema. `--rbac supabase` brings its own `user_roles (user_id, role app_role)`, so it refuses `rls.roles`.
+`permdock_has` and `permdock_can_assign` then join `user_roles` to `roles` on `on` and compare `roles.key`, and `generate` no longer creates `user_roles`. An unqualified `through` is in the table's schema. When `rls.customRoleWrites.roles` names the same roles table with a `tenant` column, its rows with a tenant are tenant custom roles: the global-role readers (`permdock_has`, the token hook) and `permdock_replace_global_roles` consider only its rows where that column is null. `--rbac supabase` brings its own `user_roles (user_id, role app_role)`, so it refuses `rls.roles`.
 
 A scope's membership role takes the same `through`, on an `rls.memberships` table (`role`) and on a membership source (`fromTable` `columns.role`, `fromJunction` `roles`):
 
@@ -487,7 +487,7 @@ Trusted SQL that runs later for a stored user re-checks the assignment with the 
 
 #### Replacing a user's global roles
 
-With `rls.roles` set, `generate` also writes `permdock_replace_global_roles(p_user, p_roles text[])` in the helper schema. It makes the user's rows in the global-roles table match `p_roles` in one call: it deletes the rows whose role is not in the list and inserts the roles the user does not hold yet, so an admin console saves a role editor without a delete-then-insert race. `p_user` is `uuid` on Supabase and `text` otherwise. With a role column that references a roles table (`through`), an entry that is not a key of that table raises `22023` with hint `unknown-role` before anything changes.
+With `rls.roles` set, `generate` also writes `permdock_replace_global_roles(p_user, p_roles text[])` in the helper schema. It makes the user's rows in the global-roles table match `p_roles` in one call: it deletes the rows whose role is not in the list and inserts the roles the user does not hold yet, so an admin console saves a role editor without a delete-then-insert race. `p_user` is `uuid` on Supabase and `text` otherwise. With a role column that references a roles table (`through`), an entry that is not a key of that table raises `22023` with hint `unknown-role` before anything changes. When that table is also `rls.customRoleWrites.roles` with a `tenant` column, only its rows without a tenant count: a tenant role named `dispatcher` is neither inserted nor kept, and a key only tenant roles have is `unknown-role`.
 
 The function runs as the invoker (it is not `security definer`), so the table's own grants and policies apply to every row it writes, and the `rls.assignments` trigger judges each deleted and inserted row for a client role, with `ownRole: 'refuse'` included. `execute` is revoked from `public` and `anon` and granted to `authenticated`; it is not granted to `service_role`, which needs no trigger check and can call it after its own grant. The role column must accept a `text` value on insert (a `text` column, or a type with an assignment cast from `text`).
 

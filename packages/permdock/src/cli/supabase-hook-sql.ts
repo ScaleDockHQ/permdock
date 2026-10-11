@@ -1506,6 +1506,7 @@ export function hookParts(
               config.rls?.roles ?? { table: `${schema}.user_roles` },
             "public",
             "r",
+            config.rls?.customRoleWrites?.roles,
           ),
     active: activeFromSql(overrides.activeFrom ?? hook.activeFrom, root),
     attrs: hook.attrs === undefined ? undefined : attrsPlan(hook.attrs),

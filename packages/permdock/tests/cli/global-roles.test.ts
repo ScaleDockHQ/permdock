@@ -30,7 +30,7 @@ const THROUGH = {
   role: { through: "roles", on: { role_id: "id" }, column: "key" },
 };
 
-function project(): string {
+function project(rls = ""): string {
   mkdirSync(TMP, { recursive: true });
   const cwd = mkdtempSync(join(TMP, "global-roles-"));
   temps.push(cwd);
@@ -39,7 +39,7 @@ function project(): string {
     `import { fromTable } from ${JSON.stringify(SUPABASE)};
 export default {
   policy: ${JSON.stringify(POLICY)},
-  rls: { dialect: 'supabase', authorize: 'database', roles: ${JSON.stringify(THROUGH)} },
+  rls: { dialect: 'supabase', authorize: 'database', roles: ${JSON.stringify(THROUGH)}${rls} },
   supabase: { hook: { memberships: [fromTable({ table: 'memberships' })] } },
 };
 `,
@@ -59,6 +59,26 @@ describe("globalRoleSource", () => {
         ref: "role_id",
       },
     });
+  });
+
+  it("joins only the rows without a tenant of the custom roles table", () => {
+    const tenant = { table: "identity.roles", key: "key", tenant: "org_id" };
+    expect(globalRoleSource(THROUGH, "public", "r", tenant)).toMatchObject({
+      from: '"identity"."user_roles" r\n    join "identity"."roles" rk on rk."id" = r."role_id" and rk."org_id" is null',
+      tenant: "org_id",
+    });
+    expect(
+      globalRoleSource(THROUGH, "public", "r", {
+        ...tenant,
+        table: "roles",
+      }),
+    ).not.toHaveProperty("tenant");
+    expect(
+      globalRoleSource(THROUGH, "public", "r", {
+        table: "identity.roles",
+        key: "key",
+      }),
+    ).not.toHaveProperty("tenant");
   });
 
   it("needs exactly one join column", () => {
@@ -109,6 +129,37 @@ describe("rls.roles", () => {
     expect(hook).toContain(`create trigger "permdock_authz_version"
   after update or delete on "identity"."roles"
   for each row execute function "permdock".permdock_bump_authz_version_role_keys();`);
+  });
+
+  it("reads and replaces only global rows of a roles table that also holds tenant roles", async () => {
+    const cwd = project(
+      `, customRoles: true, customRoleWrites: { roles: { table: 'identity.roles', key: 'key', tenant: 'organization_id' } }`,
+    );
+    const result = await run(
+      [
+        "rls",
+        "generate",
+        "--target",
+        "sql",
+        "--split",
+        "helpers,hook",
+        "--out",
+        "{part}.sql",
+      ],
+      { cwd },
+    );
+    expect(result.code).toBe(0);
+    const helpers = readFileSync(join(cwd, "helpers.sql"), "utf8");
+    expect(helpers).toContain(`from "identity"."user_roles" ur
+    join "identity"."roles" urk on urk."id" = ur."role_id" and urk."organization_id" is null
+    join "permdock".role_permissions rp on rp.role = urk."key"::text`);
+    expect(helpers).toContain(
+      `where k."key"::text in (select distinct r from unnest(coalesce(p_roles, '{}'::text[])) r where r is not null) and k."organization_id" is null`,
+    );
+    const hook = readFileSync(join(cwd, "hook.sql"), "utf8");
+    expect(hook).toContain(
+      'join "identity"."roles" rk on rk."id" = r."role_id" and rk."organization_id" is null',
+    );
   });
 
   it("refuses the RBAC scaffold, which brings its own user_roles", async () => {
