@@ -1,7 +1,7 @@
 import type { CustomRole, Principal } from "permdock";
 import type { Client } from "pg";
 
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -446,5 +446,165 @@ describe("CentraKit adoption shapes", () => {
         { by: APPROVER, stage: 1 },
       ],
     });
+  });
+});
+
+/** CentraKit's own custom-role grants, before adoption, and an audit module that registers a table by creating its trigger. */
+const LEGACY_ROLES = `
+create table role_permissions (role_id uuid not null references roles (id), permission text not null);
+insert into role_permissions values
+  ('${DISPATCH_A_ROLE}', 'organization.customers.view'),
+  ('${DISPATCH_B_ROLE}', 'billing.view'),
+  ('${DISPATCH_B_ROLE}', 'organization.customers.purge'),
+  ('${ADMIN_ROLE}', 'organization.customers.update');
+create table audit_log (tbl text not null, op text not null);
+create function public.audit_row() returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  insert into public.audit_log values (tg_table_name, tg_op);
+  return null;
+end $$;
+create function public.audit_register(target regclass) returns void language plpgsql as $$
+begin
+  execute format('create trigger audit after insert or update or delete on %s for each row execute function public.audit_row()', target);
+end $$;
+`;
+
+describe("CentraKit adoption: backfill and audit", () => {
+  let db: Postgres | undefined;
+  let dir = "";
+  let backfill = "";
+
+  beforeAll(async () => {
+    dir = mkdtempSync(join(tmpdir(), "permdock-backfill-"));
+    writeFileSync(
+      join(dir, "permdock.config.ts"),
+      `import base from ${JSON.stringify(join(FIXTURE, "permdock.config.ts"))};
+const policy = ${JSON.stringify(join(FIXTURE, "policy.ts"))};
+export default {
+  ...base,
+  permissions: policy,
+  policy,
+  rls: {
+    ...base.rls,
+    customRoles: {
+      from: {
+        permissions: {
+          table: "role_permissions",
+          role: { through: "roles", on: { role_id: "id" }, column: "key" },
+          permission: "permission",
+        },
+      },
+    },
+    customRoleWrites: {
+      roles: { table: "roles", key: "key", tenant: "organization_id", skip: "system" },
+    },
+    audit: { function: "public.audit_register" },
+  },
+};
+`,
+    );
+    const result = await run(
+      [
+        "rls",
+        "generate",
+        "--target",
+        "sql",
+        "--rbac",
+        "supabase",
+        "--out",
+        join(dir, "permdock.sql"),
+        "--backfill-out",
+        join(dir, "backfill.sql"),
+      ],
+      { cwd: dir },
+    );
+    if (result.code !== 0) {
+      throw new Error(`rls generate: ${result.stdout}${result.stderr}`);
+    }
+    backfill = readFileSync(join(dir, "backfill.sql"), "utf8");
+    db = await startPostgres([
+      SETUP,
+      LEGACY_ROLES,
+      readFileSync(join(dir, "permdock.sql"), "utf8"),
+      backfill,
+    ]);
+  }, 180_000);
+
+  afterAll(async () => {
+    await db?.stop();
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  const started = (): Postgres => {
+    if (db === undefined) {
+      throw new Error("PermDock: Postgres was not started");
+    }
+    return db;
+  };
+
+  const ids = async (sub: string, table: string) => {
+    const pg = started();
+    return pg.as(
+      {
+        role: "authenticated",
+        settings: {
+          "request.jwt.claims": JSON.stringify({ sub, role: "authenticated" }),
+        },
+      },
+      async () =>
+        (
+          await pg.tester.query<{ id: string }>(
+            `select id from ${table} order by id`,
+          )
+        ).rows.map((row) => row.id),
+    );
+  };
+
+  const rows = async () =>
+    (
+      await started().admin.query<{ role: string; permission: string }>(
+        "select tenant_id::text || ':' || role as role, permission from permdock.custom_role_permissions order by 1, 2",
+      )
+    ).rows;
+
+  const audited = async () =>
+    (
+      await started().admin.query<{ tbl: string; op: string; n: number }>(
+        "select tbl, op, count(*)::int as n from audit_log group by 1, 2 order by 1, 2",
+      )
+    ).rows;
+
+  it("copies each organization's custom role under its current key and drops the rest", async () => {
+    expect(backfill.split("\n")[0]).toBe(
+      "-- permdock:backfill v1 schema=permdock",
+    );
+    expect(await rows()).toEqual([
+      { role: `${ORG_A}:dispatcher`, permission: "customers.view" },
+      { role: `${ORG_B}:dispatcher`, permission: "billing.view" },
+    ]);
+    expect(await ids(DISPATCHER, "customers")).toEqual([CUST_A]);
+    expect(await ids(DISPATCHER, "billing")).toEqual([BILL_B]);
+  });
+
+  it("audits each row the replace function writes, through the registered trigger", async () => {
+    expect(await audited()).toEqual([
+      { tbl: "custom_role_permissions", op: "INSERT", n: 2 },
+    ]);
+  });
+
+  it("copies nothing on a second run and keeps an edit made after the copy", async () => {
+    const pg = started();
+    await pg.admin.query(
+      `select permdock.permdock_trusted_replace_custom_role_grants('${ORG_B}'::uuid, 'organization', null, 'dispatcher', array['customers.view'], null, null)`,
+    );
+    await pg.admin.query(backfill);
+    expect(await rows()).toEqual([
+      { role: `${ORG_A}:dispatcher`, permission: "customers.view" },
+      { role: `${ORG_B}:dispatcher`, permission: "customers.view" },
+    ]);
+    expect(await audited()).toEqual([
+      { tbl: "custom_role_permissions", op: "DELETE", n: 1 },
+      { tbl: "custom_role_permissions", op: "INSERT", n: 3 },
+    ]);
   });
 });

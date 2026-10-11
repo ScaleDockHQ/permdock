@@ -1,6 +1,12 @@
 import type { Client } from "pg";
 
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -240,4 +246,152 @@ export default {
       "public.quotes: policy quotes_typo passes quote.read, which the policy does not declare, so it always denies",
     );
   });
+});
+
+/** A permissions table CentraKit keeps in step with triggers, and the legacy helper that reads it. */
+const MATERIALISED = `create table public.user_permissions (user_id uuid not null, organization_id uuid not null, permission text not null);
+
+create function public.refresh_user_permissions() returns trigger
+language plpgsql security definer set search_path = '' as $$
+begin
+  delete from public.user_permissions;
+  insert into public.user_permissions
+    select m.user_id, m.scope_id, 'customers.update' from public.memberships m where m.role = 'member';
+  return null;
+end $$;
+
+create trigger refresh_user_permissions after insert or update or delete on public.memberships
+  for each statement execute function public.refresh_user_permissions();
+
+create function public.has_org_permission(p_org uuid, p_key text) returns boolean
+language sql stable security definer set search_path = '' as $$
+  select exists (select 1 from public.user_permissions up
+    where up.user_id = auth.uid() and up.organization_id = p_org and up.permission = p_key)
+$$;
+`;
+
+describe("rls migrate --retire-out on CentraKit's materialised permissions", () => {
+  let db: Postgres | undefined;
+  let dir = "";
+  let sql = "";
+
+  const cli = async (args: readonly string[]) => {
+    const result = await run(["rls", ...args, "--rbac", "supabase"], {
+      cwd: dir,
+    });
+    return { code: result.code, out: `${result.stdout}${result.stderr}` };
+  };
+
+  beforeAll(async () => {
+    dir = mkdtempSync(join(tmpdir(), "permdock-retire-"));
+    sql = join(dir, "sql");
+    mkdirSync(sql);
+    writeFileSync(
+      join(dir, "permdock.config.ts"),
+      `import legacy from ${JSON.stringify(join(FIXTURE, "permdock.config.ts"))};
+const policy = ${JSON.stringify(join(FIXTURE, "../centrakit/policy.ts"))};
+export default {
+  ...legacy,
+  permissions: policy,
+  policy,
+  rls: {
+    ...legacy.rls,
+    migrate: { ...legacy.rls.migrate, tables: { user_permissions: {} } },
+  },
+};
+`,
+    );
+    writeFileSync(join(sql, "001_materialised.sql"), MATERIALISED);
+    writeFileSync(join(sql, "002_legacy.sql"), LEGACY);
+  }, 60_000);
+
+  afterAll(async () => {
+    await db?.stop();
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("refuses while the legacy helper still has callers", async () => {
+    const result = await cli([
+      "migrate",
+      "--sql",
+      sql,
+      "--retire-out",
+      join(sql, "003_retire.sql"),
+    ]);
+    expect(result.code).toBe(1);
+    expect(result.out).toContain(
+      "retire public.user_permissions: 1 refresh trigger(s), 1 refresh function(s), 1 reader(s)",
+    );
+    expect(result.out).toContain("read by function public.has_org_permission");
+    expect(result.out).toContain("still read; nothing written");
+  });
+
+  it("drops the table, its trigger and the uncalled helper, and the policies still answer", async () => {
+    expect((await cli(["migrate", "--sql", sql, "--write"])).code).toBe(0);
+    const retired = await cli([
+      "migrate",
+      "--sql",
+      sql,
+      "--retire-out",
+      join(sql, "003_retire.sql"),
+    ]);
+    expect(retired.code).toBe(0);
+    const retire = readFileSync(join(sql, "003_retire.sql"), "utf8");
+    expect(retire).toBe(`-- permdock:retire v1 table=public.user_permissions
+-- rls.migrate.tables: the refresh triggers and functions, uncalled legacy helpers, then the table; no cascade, so a dependant left behind fails the migration
+drop trigger if exists "refresh_user_permissions" on "public"."memberships";
+drop function if exists "public"."refresh_user_permissions";
+drop function if exists "public"."has_org_permission";
+drop table if exists "public"."user_permissions";
+`);
+    const helpers = join(dir, "helpers.sql");
+    const generated = await cli([
+      "generate",
+      "--target",
+      "sql",
+      "--out",
+      helpers,
+    ]);
+    expect(generated.code).toBe(0);
+    db = await startPostgres([
+      SETUP,
+      readFileSync(helpers, "utf8"),
+      MATERIALISED,
+      readFileSync(join(sql, "002_legacy.sql"), "utf8"),
+      retire,
+    ]);
+    const { rows } = await db.admin.query<{ n: number }>(
+      "select count(*)::int as n from pg_class where relname = 'user_permissions'",
+    );
+    expect(rows[0]?.n).toBe(0);
+    const customers = await db.as(
+      {
+        role: "authenticated",
+        settings: {
+          "request.jwt.claims": JSON.stringify({
+            sub: MEMBER,
+            role: "authenticated",
+          }),
+        },
+      },
+      async () =>
+        (
+          await db!.tester.query<{ id: string }>(
+            "select id from customers order by id",
+          )
+        ).rows.map((row) => row.id),
+    );
+    expect(customers).toEqual([CUST_A]);
+    expect(
+      (
+        await cli([
+          "migrate",
+          "--sql",
+          sql,
+          "--retire-out",
+          join(sql, "003_retire.sql"),
+        ])
+      ).out,
+    ).toContain("rls migrate --retire-out: nothing to retire");
+  }, 180_000);
 });
