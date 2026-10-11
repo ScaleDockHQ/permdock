@@ -8,7 +8,14 @@ import type {
 } from "./types.ts";
 
 import { compact } from "../core/compact.ts";
-import { quoteSqlIdent, quoteSqlLiteral, quoteSqlTable } from "../core/sql.ts";
+import {
+  qualifySqlTable,
+  quoteQualifiedTable,
+  quoteSqlIdent,
+  quoteSqlLiteral,
+  quoteSqlTable,
+  sqlTextArray,
+} from "../core/sql.ts";
 import { supabaseTenantClaim } from "./budget.ts";
 import { keptKeys } from "./keep.ts";
 import { type RoleColumn, roleColumn } from "./roles.ts";
@@ -44,30 +51,14 @@ export function supabaseRls(
 }
 
 const ident = (name: string): string => quoteSqlIdent(name);
-const table = (name: string): string => quoteSqlTable(name);
 const literal = quoteSqlLiteral;
-
-// `authorize()` runs with `search_path = ''`, so a bare table name must be qualified.
-function qualifiedTable(name: string): string {
-  return table(name.includes(".") ? name : `public.${name}`);
-}
 
 /** The memberships table's role key over alias `m`, joined to its roles table when it holds a reference. */
 function tenantRole(memberships: SupabaseMembershipTable): RoleColumn {
-  return roleColumn(
-    memberships.role,
-    memberships.table.includes(".")
-      ? memberships.table
-      : `public.${memberships.table}`,
-    "m",
-    { label: "authorizeSql tenant.role", indent: "      " },
-  );
-}
-
-function textArray(values: readonly string[]): string {
-  return values.length === 0
-    ? `'{}'::text[]`
-    : `array[${values.map(literal).join(", ")}]::text[]`;
+  return roleColumn(memberships.role, qualifySqlTable(memberships.table), "m", {
+    label: "authorizeSql tenant.role",
+    indent: "      ",
+  });
 }
 
 function activeRow(row: SupabaseActiveRow, id: string, text = false): string {
@@ -81,14 +72,16 @@ function activeRow(row: SupabaseActiveRow, id: string, text = false): string {
         "PermDock: a suspension status column needs its active values",
       );
     }
-    parts.push(`s.${ident(row.status)}::text = any(${textArray(row.active)})`);
+    parts.push(
+      `s.${ident(row.status)}::text = any(${sqlTextArray(row.active)})`,
+    );
   }
   if (row.disabledAt === undefined && row.status === undefined) {
     throw new TypeError(
       "PermDock: a suspension table needs disabledAt or status",
     );
   }
-  return `exists (select 1 from ${qualifiedTable(row.table)} s where ${parts.join(" and ")})`;
+  return `exists (select 1 from ${quoteQualifiedTable(row.table)} s where ${parts.join(" and ")})`;
 }
 
 /**
@@ -113,7 +106,7 @@ function suspendedGuards(
     const kept =
       keep.length === 0
         ? ""
-        : ` and not (requested_permission::text = any(${textArray(keep)}))`;
+        : ` and not (requested_permission::text = any(${sqlTextArray(keep)}))`;
     lines.push(`  if requested_tenant is not null and not ${activeRow(tenant, "requested_tenant", true)}${kept} then
     return false; -- suspended ${scope}
   end if;`);
@@ -158,7 +151,7 @@ function disabledLine(
   const keep = keptKeys(suspension?.memberships);
   return keep.length === 0
     ? `\n        and ${column} is null`
-    : `\n        and (${column} is null or requested_permission::text = any(${textArray(keep)}))`;
+    : `\n        and (${column} is null or requested_permission::text = any(${sqlTextArray(keep)}))`;
 }
 
 function claimKept(suspension: SupabaseSuspension | undefined): string {
@@ -181,10 +174,10 @@ function customDatabaseBranch(
     `array(select c.${value} from ${q(source)} c where ${match}${extra})`;
   return ` or exists (
       select 1
-      from ${qualifiedTable(memberships.table)} m${role.join}
+      from ${quoteQualifiedTable(memberships.table)} m${role.join}
       where m.${ident(memberships.user)} = v_member_user
         and m.${ident(memberships.tenant)} = v_member_tenant
-        and not (${role.sql} = any(${textArray(declared)}))${
+        and not (${role.sql} = any(${sqlTextArray(declared)}))${
           memberships.expiresAt === undefined
             ? ""
             : `\n        and (m.${ident(memberships.expiresAt)} is null or m.${ident(memberships.expiresAt)} > now())`
@@ -242,7 +235,7 @@ function databaseBody(
     const role = tenantRole(memberships);
     const held = (effect: "allow" | "deny"): string => `exists (
       select 1
-      from ${qualifiedTable(memberships.table)} m${role.join}
+      from ${quoteQualifiedTable(memberships.table)} m${role.join}
       join ${q("role_permissions")} rp on rp.role = ${role.sql}
       where m.${ident(memberships.user)} = v_member_user
         and m.${ident(tenantColumn)} = v_member_tenant
@@ -267,8 +260,8 @@ function databaseBody(
   const typed =
     memberships !== undefined && tenantColumn !== undefined
       ? `
-  v_member_user ${qualifiedTable(memberships.table)}.${ident(memberships.user)}%type;
-  v_member_tenant ${qualifiedTable(memberships.table)}.${ident(tenantColumn)}%type;`
+  v_member_user ${quoteQualifiedTable(memberships.table)}.${ident(memberships.user)}%type;
+  v_member_tenant ${quoteQualifiedTable(memberships.table)}.${ident(tenantColumn)}%type;`
       : "";
   return `declare
   uid uuid := (select auth.uid());${typed}
@@ -314,7 +307,7 @@ function jwtBody(
         and m ->> 'id' = requested_tenant
         and ${CLAIM_UNEXPIRED}${claimKept(suspension)}
         and jsonb_typeof(cg.g) = 'array'
-        and not (r.role = any(${textArray(custom.declared)}))
+        and not (r.role = any(${sqlTextArray(custom.declared)}))
         and ${customHolds(
           q,
           scope,
@@ -376,7 +369,7 @@ end;`;
  */
 export function authorizeSql(options: AuthorizeSqlOptions = {}): string {
   const schema = options.schema ?? PERMDOCK_SCHEMA;
-  const q = (name: string): string => table(`${schema}.${name}`);
+  const q = (name: string): string => quoteSqlTable(`${schema}.${name}`);
   const memberships =
     typeof options.tenant === "object" ? options.tenant : undefined;
   const scope = options.scope ?? "tenant";

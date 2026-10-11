@@ -15,6 +15,7 @@ import type {
 } from "./types.ts";
 
 import { hasConditionOp } from "../conditions/ast.ts";
+import { qualifySqlTable } from "../core/sql.ts";
 import { keptKeys } from "../supabase/keep.ts";
 import { decidingColumns } from "./deciding-columns.ts";
 import { HOOK_MARKER } from "./markers.ts";
@@ -34,7 +35,6 @@ import {
   memberIdsHelper,
   permittedForHelper,
   permittedIdsHelper,
-  qualifiedTable,
   scopeTypeOf,
   tenantTypeOf,
   USER_ID_HELPER,
@@ -194,7 +194,7 @@ function activeRowManifest(
 ): SupabaseManifestActiveRow {
   const keep = "keep" in row ? keptKeys(row) : [];
   return {
-    table: qualifiedTable(row.table),
+    table: qualifySqlTable(row.table),
     id: row.id,
     ...(row.disabledAt === undefined ? {} : { disabledAt: row.disabledAt }),
     ...(row.status === undefined ? {} : { status: row.status }),
@@ -224,7 +224,7 @@ function rlsSettings(
       ? {}
       : {
           roles: {
-            table: qualifiedTable(parts.roles.table),
+            table: qualifySqlTable(parts.roles.table),
             user: { column: parts.roles.user },
             role: parts.roles.role,
           },

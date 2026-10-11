@@ -9,12 +9,12 @@ import {
   collectGrants,
 } from "./rls-grants.ts";
 import { accessSql } from "./rls-helpers.ts";
-import { qualified } from "./rls-shared.ts";
 import {
   memberIdsHelper,
+  qualified,
   quoteIdent,
   quoteLiteral,
-  quoteTable,
+  quoteQualified,
   subjectClaimJsonSql,
   subjectIdSql,
 } from "./rls-sql.ts";
@@ -135,10 +135,6 @@ function functionName(resource: string): string {
   return `permdock_break_glass_${resource}`;
 }
 
-function qualifiedTable(name: string): string {
-  return quoteTable(name.includes(".") ? name : `public.${name}`);
-}
-
 function auditSql(ctx: RlsSqlContext): string {
   const audit = qualified(ctx, quoteIdent(BREAK_GLASS_AUDIT));
   return `-- break-glass audit: one row per session that read restricted data
@@ -158,7 +154,7 @@ revoke all on table ${audit} from anon, authenticated, public;`;
 function readFunctionSql(ctx: RlsSqlContext, entry: BreakGlassEntry): string {
   const fn = qualified(ctx, functionName(entry.resource));
   const audit = qualified(ctx, quoteIdent(BREAK_GLASS_AUDIT));
-  const table = qualifiedTable(entry.table);
+  const table = quoteQualified(entry.table);
   const session = subjectClaimJsonSql(ctx, "break_glass");
   const subject = subjectIdSql(ctx);
   return `-- ${entry.resource}: reads restricted rows through a checked, audited break-glass session

@@ -15,6 +15,7 @@ import type {
 
 import { scopeColumn } from "../conditions/compile.ts";
 import { resolveScope, rootScope, scopeChain } from "../core/scopes.ts";
+import { qualifySqlTable } from "../core/sql.ts";
 import { roleManifest } from "../supabase/roles.ts";
 import {
   AUTHZ_VERSION_TABLE,
@@ -39,6 +40,7 @@ import {
   memberRoleOf,
   quoteIdent,
   quoteLiteral,
+  quoteQualified,
   quoteTable,
 } from "./rls-sql.ts";
 
@@ -343,7 +345,7 @@ function mappedMembership(
     ...(mapped.disabledAt === undefined ? [] : [mapped.disabledAt]),
   ];
   return {
-    table: mapped.table.includes(".") ? mapped.table : `public.${mapped.table}`,
+    table: qualifySqlTable(mapped.table),
     user: { column: mapped.user },
     scope: { value: name },
     id: { column: id },
@@ -367,10 +369,6 @@ function mappedMembership(
       : { disabledAt: { column: mapped.disabledAt } }),
     columns: [...new Set(columns)],
   };
-}
-
-function table(name: string): string {
-  return quoteTable(name.includes(".") ? name : `public.${name}`);
 }
 
 function positiveInteger(value: unknown, label: string): number {
@@ -413,8 +411,8 @@ export function activeFromSql(
       : spec;
   const id = "id" in parsed && parsed.id !== undefined ? parsed.id : "id";
   return {
-    sql: `(select a.${quoteIdent(parsed.column)}::text from ${table(parsed.table)} a where a.${quoteIdent(id)} = v_active_user)`,
-    userType: `${table(parsed.table)}.${quoteIdent(id)}%type`,
+    sql: `(select a.${quoteIdent(parsed.column)}::text from ${quoteQualified(parsed.table)} a where a.${quoteIdent(id)} = v_active_user)`,
+    userType: `${quoteQualified(parsed.table)}.${quoteIdent(id)}%type`,
   };
 }
 
@@ -432,12 +430,12 @@ function typedUsers(parts: Parts): string {
     ...(parts.roles === undefined
       ? []
       : [
-          `v_roles_user ${table(parts.roles.table)}.${quoteIdent(parts.roles.user)}%type := uid;`,
+          `v_roles_user ${quoteQualified(parts.roles.table)}.${quoteIdent(parts.roles.user)}%type := uid;`,
         ]),
     ...(parts.attrs?.table === undefined || parts.attrs.columns.length === 0
       ? []
       : [
-          `v_attrs_user ${table(parts.attrs.table)}.${quoteIdent(parts.attrs.id)}%type := uid;`,
+          `v_attrs_user ${quoteQualified(parts.attrs.table)}.${quoteIdent(parts.attrs.id)}%type := uid;`,
         ]),
     ...(parts.active.userType === undefined
       ? []
@@ -522,7 +520,7 @@ export function hookSql(parts: Parts): string {
     )
     .join(", ")}))
     into attrs
-    from ${table(plan.table)} p
+    from ${quoteQualified(plan.table)} p
     where p.${quoteIdent(plan.id)} = v_attrs_user;`;
   const fromMeta =
     plan === undefined || plan.meta.length === 0
@@ -782,9 +780,9 @@ export function versionSql(parts: Parts): string {
       ([
         name,
         user,
-      ]) => `drop trigger if exists ${quoteIdent(VERSION_TRIGGER)} on ${table(name)};
+      ]) => `drop trigger if exists ${quoteIdent(VERSION_TRIGGER)} on ${quoteQualified(name)};
 create trigger ${quoteIdent(VERSION_TRIGGER)}
-  after insert or update or delete on ${table(name)}
+  after insert or update or delete on ${quoteQualified(name)}
   for each row execute function ${bump}(${quoteLiteral(user)});`,
     )
     .join("\n");
@@ -1125,7 +1123,7 @@ function memberUsersVersionSql(parts: Parts, bumpFor: string): string {
   const groups = [...byTable];
   const lookup = (users: RoleKeys, indent: string): string =>
     `${indent}perform ${bumpFor}(array(
-${indent}  select u.${quoteIdent(users.key)}::uuid from ${table(users.table)} u
+${indent}  select u.${quoteIdent(users.key)}::uuid from ${quoteQualified(users.table)} u
 ${indent}  where ((tg_op <> 'INSERT' and u.${quoteIdent(users.id)} = old.${quoteIdent(users.ref)})
 ${indent}     or (tg_op <> 'DELETE' and u.${quoteIdent(users.id)} = new.${quoteIdent(users.ref)}))
 ${indent}    and ${signedUp(`u.${quoteIdent(users.key)}::uuid`)}
@@ -1143,7 +1141,7 @@ ${group.users.map((users) => lookup(users, "    ")).join("\n")}
     .join("\n");
   const memberTriggers = groups
     .map(([, group]) => {
-      const target = table(group.table);
+      const target = quoteQualified(group.table);
       return `drop trigger if exists ${quoteIdent(VERSION_TRIGGER)} on ${target};
 create trigger ${quoteIdent(VERSION_TRIGGER)}
   after insert or update or delete on ${target}
@@ -1166,7 +1164,7 @@ create trigger ${quoteIdent(VERSION_TRIGGER)}
   }
   const userTriggers = [...userTables.values()]
     .map((entry) => {
-      const target = table(entry.table);
+      const target = quoteQualified(entry.table);
       const name = quoteIdent(`${VERSION_TRIGGER}_${entry.key}`);
       const columns = [entry.key, ...entry.ids].map(quoteIdent).join(", ");
       return `drop trigger if exists ${name} on ${target};
@@ -1292,8 +1290,8 @@ function roleKeysBumpSql(
   const selects = holders
     .map((holder) =>
       holder.userThrough === undefined
-        ? `select h.${quoteIdent(holder.user)}::uuid as user_id from ${table(holder.table)} h where h.${quoteIdent(holder.through.ref)} = old.${quoteIdent(holder.through.id)}`
-        : `select u.${quoteIdent(holder.userThrough.key)}::uuid as user_id from ${table(holder.table)} h join ${table(holder.userThrough.table)} u on u.${quoteIdent(holder.userThrough.id)} = h.${quoteIdent(holder.user)} where h.${quoteIdent(holder.through.ref)} = old.${quoteIdent(holder.through.id)}`,
+        ? `select h.${quoteIdent(holder.user)}::uuid as user_id from ${quoteQualified(holder.table)} h where h.${quoteIdent(holder.through.ref)} = old.${quoteIdent(holder.through.id)}`
+        : `select u.${quoteIdent(holder.userThrough.key)}::uuid as user_id from ${quoteQualified(holder.table)} h join ${quoteQualified(holder.userThrough.table)} u on u.${quoteIdent(holder.userThrough.id)} = h.${quoteIdent(holder.user)} where h.${quoteIdent(holder.through.ref)} = old.${quoteIdent(holder.through.id)}`,
     )
     .join(`\n${indent}  union\n${indent}  `);
   return `${indent}if tg_op = 'UPDATE'
@@ -1348,7 +1346,7 @@ ${roleKeysBumpSql(group.holders, versionTable, "    ")}
     .join("\n");
   const triggers = groups
     .map(([, group]) => {
-      const target = table(group.table);
+      const target = quoteQualified(group.table);
       return `drop trigger if exists ${quoteIdent(VERSION_TRIGGER)} on ${target};
 create trigger ${quoteIdent(VERSION_TRIGGER)}
   after update or delete on ${target}
@@ -1381,7 +1379,7 @@ export function attrsGuardSql(plan: AttrsPlan | undefined): string {
   if (plan?.table === undefined || plan.columns.length === 0) {
     return "";
   }
-  const target = quoteLiteral(table(plan.table));
+  const target = quoteLiteral(quoteQualified(plan.table));
   const columns = plan.columns
     .map((column) => `(${quoteLiteral(column)})`)
     .join(", ");
@@ -1415,9 +1413,9 @@ export function managedSql(parts: Parts): string {
     .map(
       (
         source,
-      ) => `drop trigger if exists ${quoteIdent(MANAGED_TRIGGER)} on ${table(source.sql.table)};
+      ) => `drop trigger if exists ${quoteIdent(MANAGED_TRIGGER)} on ${quoteQualified(source.sql.table)};
 create trigger ${quoteIdent(MANAGED_TRIGGER)}
-  before insert or update or delete on ${table(source.sql.table)}
+  before insert or update or delete on ${quoteQualified(source.sql.table)}
   for each row execute function ${guard}(${quoteLiteral(source.sql.managed ?? "")});`,
     )
     .join("\n");

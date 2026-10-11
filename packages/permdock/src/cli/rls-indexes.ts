@@ -5,13 +5,9 @@ import type { SqlConnect } from "./pg.ts";
 import type { RlsSqlContext } from "./rls-sql.ts";
 
 import { isConditionRef } from "../conditions/ast.ts";
+import { qualifySqlTable } from "../core/sql.ts";
 import { connectPgPool } from "./pg.ts";
-import {
-  qualifiedTable,
-  quoteIdent,
-  quoteTable,
-  scopeTable,
-} from "./rls-sql.ts";
+import { quoteIdent, quoteTable, scopeTable } from "./rls-sql.ts";
 
 /** An index a generated policy or helper needs, its first column the one it filters on. */
 export type IndexTarget = {
@@ -78,7 +74,7 @@ export function indexTargets(
 ): readonly IndexTarget[] {
   const targets = new Map<string, IndexTarget>();
   const add = (table: string, columns: readonly string[]): void => {
-    const target = { table: qualifiedTable(table), columns };
+    const target = { table: qualifySqlTable(table), columns };
     targets.set(`${target.table}\u0000${columns[0] ?? ""}`, target);
   };
   for (const { table, column } of rowColumns) {

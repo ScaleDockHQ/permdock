@@ -2,12 +2,11 @@ import type { RlsSqlContext } from "./rls-sql.ts";
 import type { RlsApprovalsAdopt } from "./types.ts";
 
 import { APPROVAL_REQUEST_SCHEMA } from "./approval-schema.ts";
-import { qualified } from "./rls-shared.ts";
 import {
-  qualifiedTable,
+  qualified,
   quoteIdent,
   quoteLiteral,
-  quoteTable,
+  quoteQualified,
 } from "./rls-sql.ts";
 
 /** The objects `rls.approvals` adds. Names are part of the SQL contract `supabaseApprovalStore` calls. */
@@ -332,7 +331,7 @@ export function adoptedApprovalStoreSql(
   adopt: RlsApprovalsAdopt,
   jsonSchema: "auto" | boolean = false,
 ): string {
-  const table = quoteTable(qualifiedTable(adopt.table));
+  const table = quoteQualified(adopt.table);
   const base = adopt.table.split(".").at(-1) ?? adopt.table;
   const token = quoteIdent(adopt.token ?? "token");
   const body = quoteIdent(adopt.body ?? "body");

@@ -67,7 +67,7 @@ export type ActualRls = {
 };
 
 /** `posts` and `"app"."posts"` as `public.posts` and `app.posts`. */
-export function qualified(table: string): string {
+export function normalizeTableName(table: string): string {
   const parts = table.split(".").map((part) => part.replaceAll('"', ""));
   return parts.length === 1 ? `public.${parts[0] ?? ""}` : parts.join(".");
 }
@@ -91,7 +91,9 @@ export function expectedRls(
   sql: string,
   indexes: readonly IndexTarget[] = [],
 ): ExpectedRls {
-  const tables = [...new Set(policies.map((item) => qualified(item.table)))];
+  const tables = [
+    ...new Set(policies.map((item) => normalizeTableName(item.table))),
+  ];
   const grants: Record<string, Record<string, Privilege[]>> = {};
   for (const table of tables) {
     const byRole: Record<string, Privilege[]> = {};
@@ -100,7 +102,7 @@ export function expectedRls(
         policies
           .filter(
             (item) =>
-              qualified(item.table) === table &&
+              normalizeTableName(item.table) === table &&
               item.effect === "allow" &&
               item.roles.includes(role),
           )
@@ -112,7 +114,7 @@ export function expectedRls(
   }
   return {
     policies: policies.map((item) => ({
-      table: qualified(item.table),
+      table: normalizeTableName(item.table),
       name: item.name,
       command: item.command,
       permissive: item.effect === "allow",
@@ -123,7 +125,7 @@ export function expectedRls(
     helpers: helpersOf(sql),
     indexes: indexes.map((target) => ({
       ...target,
-      table: qualified(target.table),
+      table: normalizeTableName(target.table),
     })),
   };
 }

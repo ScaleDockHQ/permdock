@@ -2,11 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import type { RlsSqlContext } from "../../src/cli/rls-sql.ts";
 
-import {
-  accessSql,
-  helpersSql,
-  membershipTable,
-} from "../../src/cli/rls-helpers.ts";
+import { accessSql, helpersSql } from "../../src/cli/rls-helpers.ts";
+import { quoteQualified } from "../../src/cli/rls-sql.ts";
 import { fromTable } from "../../src/supabase/index.ts";
 
 const scopes = [
@@ -48,8 +45,8 @@ describe("accessSql and membershipTable", () => {
   });
 
   it("keeps a schema-qualified membership table", () => {
-    expect(membershipTable("app.members")).toBe('"app"."members"');
-    expect(membershipTable("members")).toBe('"public"."members"');
+    expect(quoteQualified("app.members")).toBe('"app"."members"');
+    expect(quoteQualified("members")).toBe('"public"."members"');
   });
 });
 

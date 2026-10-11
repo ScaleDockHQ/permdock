@@ -9,7 +9,14 @@ import type {
 
 import { readAppData } from "../core/app-data.ts";
 import { compact, isRecord } from "../core/compact.ts";
-import { quoteSqlIdent, quoteSqlLiteral, quoteSqlTable } from "../core/sql.ts";
+import {
+  qualifySqlTable,
+  quoteQualifiedTable,
+  quoteSqlIdent,
+  quoteSqlLiteral,
+  quoteSqlTable,
+  sqlTextArray,
+} from "../core/sql.ts";
 import { keptKeys } from "./keep.ts";
 import {
   type RoleColumn,
@@ -177,14 +184,6 @@ export type SqlMembershipSource = MembershipSource & {
 const ident = (name: string): string => quoteSqlIdent(name);
 const literal = quoteSqlLiteral;
 
-function qualifiedName(name: string): string {
-  return name.includes(".") ? name : `public.${name}`;
-}
-
-function qualified(name: string): string {
-  return quoteSqlTable(qualifiedName(name));
-}
-
 function col(name: string): string {
   return `m.${ident(name)}`;
 }
@@ -210,7 +209,7 @@ function activeRow(row: SupabaseActiveRow, id: string): string {
       "PermDock: a suspension table needs disabledAt or status",
     );
   }
-  return `exists (select 1 from ${qualified(row.table)} s where ${parts.join(" and ")})`;
+  return `exists (select 1 from ${quoteQualifiedTable(row.table)} s where ${parts.join(" and ")})`;
 }
 
 type Shape = {
@@ -250,10 +249,6 @@ type Shape = {
   readonly columns: readonly string[];
   readonly manifest: Omit<SupabaseManifestMembership, "table" | "columns">;
 };
-
-function textArray(values: readonly string[]): string {
-  return `array[${values.map(literal).join(", ")}]::text[]`;
-}
 
 /**
  * The suspendable instances on the row's chain whose scope keeps
@@ -300,9 +295,9 @@ function keptSql(shape: Shape): string | undefined {
   }
   const keys = [...new Set(list.flatMap((item) => item.keep))].toSorted();
   const each = list
-    .map((item) => `(${item.active} or k = any(${textArray(item.keep)}))`)
+    .map((item) => `(${item.active} or k = any(${sqlTextArray(item.keep)}))`)
     .join(" and ");
-  return `(select jsonb_agg(k order by k) from unnest(${textArray(keys)}) k where ${each})`;
+  return `(select jsonb_agg(k order by k) from unnest(${sqlTextArray(keys)}) k where ${each})`;
 }
 
 function allActive(shape: Shape): string {
@@ -374,7 +369,7 @@ function selectOf(
       : []),
   ];
   return `select ${fields.join(", ")}
-from ${qualified(shape.table)} m${shape.join}
+from ${quoteQualifiedTable(shape.table)} m${shape.join}
 where ${where.join("\n  and ")}
 group by ${group.join(", ")}`;
 }
@@ -382,7 +377,7 @@ group by ${group.join(", ")}`;
 function holdersOf(shape: Shape): MembershipHolders {
   const id = ident(shape.idColumn);
   return {
-    idType: `${qualified(shape.table)}.${id}%type`,
+    idType: `${quoteQualifiedTable(shape.table)}.${id}%type`,
     id: (scope, row) => {
       const filter = shape.holds(scope, row);
       return filter === undefined
@@ -412,7 +407,7 @@ function holdersOf(shape: Shape): MembershipHolders {
             : `(${conditions.join(" and ")})`;
       const kept = where.filter((part) => part !== "true");
       return `select m.${id}::text as id, ${shape.userSql}::text as user_id, ${shape.roleKey} as role, ${shape.via} as via, ${live} as live
-from ${options.from ?? qualified(shape.table)} m${shape.join}${shape.roleJoin}${kept.length === 0 ? "" : `\nwhere ${kept.join(" and ")}`}`;
+from ${options.from ?? quoteQualifiedTable(shape.table)} m${shape.join}${shape.roleJoin}${kept.length === 0 ? "" : `\nwhere ${kept.join(" and ")}`}`;
     },
   };
 }
@@ -426,7 +421,7 @@ function sqlOf(shape: Shape): MembershipSql {
     userThrough: shape.userThrough,
     userType:
       shape.userThrough === undefined
-        ? `${qualified(shape.table)}.${ident(shape.user)}%type`
+        ? `${quoteQualifiedTable(shape.table)}.${ident(shape.user)}%type`
         : `${quoteSqlTable(shape.userThrough.table)}.${ident(shape.userThrough.key)}%type`,
     reads: [
       ...new Set(
@@ -440,7 +435,7 @@ function sqlOf(shape: Shape): MembershipSql {
     throughs: shape.throughs,
     columns: [...new Set(shape.columns)],
     manifest: {
-      table: qualifiedName(shape.table),
+      table: qualifySqlTable(shape.table),
       ...shape.manifest,
       columns: [...new Set(shape.columns)],
     },
@@ -470,7 +465,7 @@ function isFixed(
 
 /** A role column of the membership table, aliased `m`; a `through` column joins its roles table as `mk`. */
 function memberRole(role: RoleSpec, table: string, label: string): RoleColumn {
-  return roleColumn(role, qualifiedName(table), "m", { label, indent: "" });
+  return roleColumn(role, qualifySqlTable(table), "m", { label, indent: "" });
 }
 
 /** The user of the membership table, aliased `m`; a `through` user joins its table as `mu`. */
@@ -479,7 +474,7 @@ function memberUser(
   table: string,
   label: string,
 ): { readonly column: RoleColumn; readonly sql: string } {
-  const column = roleColumn(user, qualifiedName(table), "m", {
+  const column = roleColumn(user, qualifySqlTable(table), "m", {
     label,
     indent: "",
     joined: "mu",
@@ -934,7 +929,7 @@ export function authzVersion(options: {
   readonly query: SqlQuery;
   readonly schema?: string;
 }): NonNullable<MembershipSource["version"]> {
-  const table = qualified(
+  const table = quoteQualifiedTable(
     `${options.schema ?? PERMDOCK_SCHEMA}.${AUTHZ_VERSION_TABLE}`,
   );
   return async (principal) => {

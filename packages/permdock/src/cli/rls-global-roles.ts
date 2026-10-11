@@ -1,12 +1,13 @@
 import type { RlsSqlContext } from "./rls-sql.ts";
 
 import { globalRoleSource } from "./global-roles.ts";
-import { GLOBAL_ROLES, qualified } from "./rls-shared.ts";
-import { quoteIdent, quoteTable } from "./rls-sql.ts";
-
-function qualifiedName(name: string): string {
-  return name.includes(".") ? name : `public.${name}`;
-}
+import { GLOBAL_ROLES } from "./rls-shared.ts";
+import {
+  qualified,
+  quoteIdent,
+  quoteQualified,
+  quoteTable,
+} from "./rls-sql.ts";
 
 /**
  * `permdock_replace_global_roles(p_user, p_roles)`: sets the global roles of
@@ -24,7 +25,7 @@ export function globalRolesSql(ctx: RlsSqlContext): string {
     "t",
     ctx.customRoles?.table,
   );
-  const table = quoteTable(qualifiedName(ctx.roles.table));
+  const table = quoteQualified(ctx.roles.table);
   const user = quoteIdent(source.user);
   const fn = qualified(ctx, GLOBAL_ROLES.replace);
   const type = ctx.dialect === "supabase" ? "uuid" : "text";

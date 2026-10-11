@@ -393,7 +393,7 @@ export function retirePlan(
   return { tables, helpers };
 }
 
-function qualified(name: string): string {
+function escapeQualifiedName(name: string): string {
   return name
     .split(".")
     .map((part) => escapeSqlIdent(part))
@@ -415,19 +415,21 @@ export function retireSql(plan: RetirePlan): string | undefined {
   for (const table of tables) {
     for (const trigger of table.refreshTriggers) {
       lines.push(
-        `drop trigger if exists ${escapeSqlIdent(trigger.name)} on ${qualified(trigger.table)};`,
+        `drop trigger if exists ${escapeSqlIdent(trigger.name)} on ${escapeQualifiedName(trigger.table)};`,
       );
     }
   }
   const functions = new Set(tables.flatMap((table) => table.refreshFunctions));
   for (const fn of [...functions].toSorted()) {
-    lines.push(`drop function if exists ${qualified(fn)};`);
+    lines.push(`drop function if exists ${escapeQualifiedName(fn)};`);
   }
   for (const helper of plan.helpers) {
-    lines.push(`drop function if exists ${qualified(helper)};`);
+    lines.push(`drop function if exists ${escapeQualifiedName(helper)};`);
   }
   for (const table of tables) {
-    lines.push(`drop ${table.kind} if exists ${qualified(table.table)};`);
+    lines.push(
+      `drop ${table.kind} if exists ${escapeQualifiedName(table.table)};`,
+    );
   }
   return `${lines.join("\n")}\n`;
 }

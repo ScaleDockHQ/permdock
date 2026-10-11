@@ -18,24 +18,21 @@ import {
   restrictedFor,
 } from "../core/permissions.ts";
 import { scopeList } from "../core/scopes.ts";
-import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
+import { qualifySqlTable } from "../core/sql.ts";
 import {
   CLOSURE,
   activeUserSql,
   graphHelper,
   graphSqlName,
   graphSqlText,
+  helperSchema,
   linkHelper,
-  qualifiedTable,
+  qualified,
   quoteIdent,
   quoteLiteral,
-  quoteTable,
+  quoteQualified,
   restrictedHelper,
 } from "./rls-sql.ts";
-
-function qualified(ctx: RlsSqlContext, name: string): string {
-  return `${quoteIdent(ctx.schema ?? PERMDOCK_SCHEMA)}.${name}`;
-}
 
 function tableFor(
   resource: string,
@@ -164,10 +161,6 @@ export function closureDepths(
   return out;
 }
 
-function tableSql(name: string): string {
-  return quoteTable(qualifiedTable(name));
-}
-
 /**
  * The `permitted_<resource>_ids(relation)` arm for one concrete relation:
  * ids of `resource` the subject holds it on, directly or through a group.
@@ -200,7 +193,7 @@ function relationArm(
     relationArmSql(node.name, relation, {
       resources: new Map([...plan].map(([name, item]) => [name, item.node])),
       ...(tables === undefined ? {} : { tables }),
-      qualify: qualifiedTable,
+      qualify: qualifySqlTable,
       holders: (resource, groupRelation) => [
         {
           text: `select ${qualified(ctx, graphHelper(resource))}(${quoteLiteral(groupRelation)})`,
@@ -275,7 +268,7 @@ stable
 security definer
 set search_path = ''
 as $$
-  select t.${quoteIdent(node.id)}::text from ${tableSql(tableFor(node.name, tables))} t
+  select t.${quoteIdent(node.id)}::text from ${quoteQualified(tableFor(node.name, tables))} t
   where t.${quoteIdent(spec.field)}::text = any(p_ids)
 $$;
 revoke execute on function ${fn}(text[]) from public, anon;
@@ -313,7 +306,7 @@ function closureObjectsSql(
   const name = node.name;
   const sqlName = graphSqlName(name) ?? name;
   const closure = qualified(ctx, CLOSURE.table);
-  const table = tableSql(tableFor(name, tables));
+  const table = quoteQualified(tableFor(name, tables));
   const id = quoteIdent(node.id);
   const up = quoteIdent(parent.field);
   const restricted = restrictedFor(node, "parent");
@@ -459,8 +452,8 @@ function restrictedRowsHelperSql(
     restrictedRowsSql(above, {
       resources: new Map([...plan].map(([name, item]) => [name, item.node])),
       ...(tables === undefined ? {} : { tables }),
-      qualify: qualifiedTable,
-      closure: `${ctx.schema ?? PERMDOCK_SCHEMA}.${CLOSURE.table}`,
+      qualify: qualifySqlTable,
+      closure: `${helperSchema(ctx)}.${CLOSURE.table}`,
       closureDepths: closureDepths(plan),
     }),
     ctx,

@@ -1,8 +1,7 @@
 import type { RlsSqlContext } from "./rls-sql.ts";
 import type { RlsConfig } from "./types.ts";
 
-import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
-import { quoteIdent, quoteLiteral, subjectIdSql } from "./rls-sql.ts";
+import { subjectIdSql } from "./rls-sql.ts";
 
 /** `rls.customRoles` turns custom roles on as `true` or as an object. */
 export function customRolesOn(rls: RlsConfig | undefined): boolean {
@@ -46,14 +45,6 @@ export const GLOBAL_ROLES = {
   replace: "permdock_replace_global_roles",
 } as const;
 
-export function helperSchema(ctx: RlsSqlContext): string {
-  return ctx.schema ?? PERMDOCK_SCHEMA;
-}
-
-export function qualified(ctx: RlsSqlContext, name: string): string {
-  return `${quoteIdent(helperSchema(ctx))}.${name}`;
-}
-
 /** `user` is the SQL for the user id: the dialect's (the default) or the `p_user` parameter of a `_for` helper. */
 export function signedIn(
   ctx: RlsSqlContext,
@@ -71,10 +62,4 @@ export function allowEntry(ctx: RlsSqlContext): string {
   return ctx.customRoles?.levels === true
     ? "permission || coalesce('@' || c.level, '')"
     : "permission";
-}
-
-export function textArray(values: readonly string[]): string {
-  return values.length === 0
-    ? `'{}'::text[]`
-    : `array[${values.map(quoteLiteral).join(", ")}]::text[]`;
 }

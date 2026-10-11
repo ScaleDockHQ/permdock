@@ -9,10 +9,11 @@ import {
   functionBody,
   grantBodies,
 } from "./rls-helpers.ts";
-import { HELPERS, qualified } from "./rls-shared.ts";
+import { HELPERS } from "./rls-shared.ts";
 import {
   permittedForHelper,
   permittedIdsHelper,
+  qualified,
   quoteIdent,
   quoteLiteral,
   scopeTypeOf,

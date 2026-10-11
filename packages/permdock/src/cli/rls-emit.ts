@@ -7,7 +7,7 @@ import {
   columnRevokeSql,
   fieldViewsSql,
 } from "./rls-fields.ts";
-import { qualifiedTable, quoteIdent, quoteTable } from "./rls-sql.ts";
+import { quoteIdent, quoteQualified } from "./rls-sql.ts";
 import { supautilsRejections } from "./supautils.ts";
 
 const HEADER =
@@ -64,7 +64,7 @@ function tableSql(
   const closed = views.find(
     (view) => view.table === table && view.companion !== undefined,
   );
-  const target = quoteTable(qualifiedTable(table));
+  const target = quoteQualified(table);
   const lines = [`alter table ${target} enable row level security;`];
   if (force) {
     lines.push(`alter table ${target} force row level security;`);
@@ -102,7 +102,7 @@ function tableSql(
 
 /** `drop policy if exists` and `create policy` for one policy, without the table's grants. */
 export function policySql(item: CompiledPolicy): string {
-  const target = quoteTable(qualifiedTable(item.table));
+  const target = quoteQualified(item.table);
   const lines = [
     `drop policy if exists ${quoteIdent(item.name)} on ${target};`,
     `create policy ${quoteIdent(item.name)}`,

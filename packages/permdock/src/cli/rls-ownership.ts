@@ -12,6 +12,7 @@ import type {
 } from "./types.ts";
 
 import { resolveScope, scopeChain } from "../core/scopes.ts";
+import { qualifySqlTable } from "../core/sql.ts";
 import { findRole } from "../core/vocabulary.ts";
 import { roleColumn } from "../supabase/roles.ts";
 import { hasCustomRoleChecksFor } from "./rls-custom-roles.ts";
@@ -21,30 +22,29 @@ import {
   globalRoleRows,
   memberColumn,
   membershipRows,
-  membershipTable,
   roleRows,
   sourceFilters,
   sourcesKeep,
 } from "./rls-helpers.ts";
-import { CUSTOM_ROLES, qualified, signedIn } from "./rls-shared.ts";
+import { CUSTOM_ROLES, signedIn } from "./rls-shared.ts";
 import {
-  type RlsOwnership,
-  type RlsSqlContext,
   globalKindFilterSql,
   kindFilterSql,
   memberForSources,
   memberForTable,
   memberRoleOf,
   memberVia,
+  qualified,
   quoteIdent,
   quoteLiteral,
-  quoteTable,
-  qualifiedTable,
-  tenantTypeOf,
+  quoteQualified,
   roleKindSql,
   scopeSources,
   scopeTable,
   subjectIdSql,
+  tenantTypeOf,
+  type RlsOwnership,
+  type RlsSqlContext,
 } from "./rls-sql.ts";
 
 /** Objects the ownership rules add next to the helpers. Names are part of the SQL contract. */
@@ -173,7 +173,7 @@ function holdersSql(
     filters.push(kind);
   }
   return `select count(distinct m.${quoteIdent(table.user)}) into ${into}
-      from ${membershipTable(table.table)} m${held.join}
+      from ${quoteQualified(table.table)} m${held.join}
       where ${filters.join("\n        and ")}`;
 }
 
@@ -193,7 +193,7 @@ function holdersTriggerSql(
   const col = quoteIdent(column);
   const checks = counted.map((rule) => {
     const lines = [
-      `    select count(*) into v_total from ${membershipTable(table.table)} m where m.${col} = v_key;`,
+      `    select count(*) into v_total from ${quoteQualified(table.table)} m where m.${col} = v_key;`,
       `    ${holdersSql(ctx, table, column, "v_key", rule.role, "v_count")};`,
     ];
     if (rule.min > 0) {
@@ -224,7 +224,7 @@ as $$
 declare
   v_ids text[] := '{}';
   v_id text;
-  v_key ${membershipTable(table.table)}.${col}%type;
+  v_key ${quoteQualified(table.table)}.${col}%type;
   v_total bigint;
   v_count bigint;
 begin
@@ -242,9 +242,9 @@ ${checks.join("\n")}
   return null;
 end;
 $$;
-drop trigger if exists ${objectName(OWNERSHIP.holders, scope)} on ${membershipTable(table.table)};
+drop trigger if exists ${objectName(OWNERSHIP.holders, scope)} on ${quoteQualified(table.table)};
 create constraint trigger ${objectName(OWNERSHIP.holders, scope)}
-  after insert or update or delete on ${membershipTable(table.table)}
+  after insert or update or delete on ${quoteQualified(table.table)}
   deferrable initially deferred
   for each row execute function ${fn}();`;
 }
@@ -285,7 +285,7 @@ function transferTriggerSql(
     end loop;`;
   const inserted = rows("n", "permdock_new", "1");
   const deleted = rows("o", "permdock_old", "-1");
-  const target = membershipTable(table.table);
+  const target = quoteQualified(table.table);
   const trigger = (op: "insert" | "update" | "delete"): string => {
     const name = quoteIdent(`${OWNERSHIP.transferOnly}_${scope}_${op}`);
     const referencing =
@@ -388,11 +388,11 @@ function sourceKeys(sources: readonly HolderSource[]): {
 }
 
 function regclassOf(table: string): string {
-  return `${quoteLiteral(membershipTable(table))}::regclass`;
+  return `${quoteLiteral(quoteQualified(table))}::regclass`;
 }
 
 function sourceTables(sources: readonly HolderSource[]): readonly string[] {
-  return [...new Set(sources.map((source) => membershipTable(source.table)))];
+  return [...new Set(sources.map((source) => quoteQualified(source.table)))];
 }
 
 /** `min` and `max` over membership sources: the same commit-time check as on a mapped table, counted over every source of the scope. */
@@ -684,7 +684,7 @@ ${sourceRowsSql(sources, userOf)}
         filters.push(kind);
       }
       parts.push(`exists (
-      select 1 from ${membershipTable(table.table)} m${role.join}
+      select 1 from ${quoteQualified(table.table)} m${role.join}
       where ${filters.join("\n        and ")}
     )`);
     } else {
@@ -970,13 +970,13 @@ function ownRoleTables(
     return new Set(
       tables
         .filter((entry) => entry.user !== undefined)
-        .map((entry) => qualifiedTable(entry.table)),
+        .map((entry) => qualifySqlTable(entry.table)),
     );
   }
   const out = new Set<string>();
   for (const [name, value] of Object.entries(own)) {
     const entry = tables.find(
-      (table) => qualifiedTable(table.table) === qualifiedTable(name),
+      (table) => qualifySqlTable(table.table) === qualifySqlTable(name),
     );
     if (entry === undefined) {
       throw new Error(
@@ -993,7 +993,7 @@ function ownRoleTables(
         `PermDock CLI: rls.assignments.ownRole names ${name}, which has no user column: set its user in rls.assignments.tables`,
       );
     }
-    out.add(qualifiedTable(entry.table));
+    out.add(qualifySqlTable(entry.table));
   }
   return out;
 }
@@ -1032,7 +1032,7 @@ export function guardedTables(
       (entry) => entry.table,
     ),
   ];
-  return [...new Set(tables.map(qualifiedTable))];
+  return [...new Set(tables.map(qualifySqlTable))];
 }
 
 function isRoleList(
@@ -1048,7 +1048,7 @@ function rowRoles(entry: AssignedTable, row: string): readonly string[] {
     : [entry.role];
   return parts.map(
     (part) =>
-      roleColumn(part, qualifiedTable(entry.table), row, {
+      roleColumn(part, qualifySqlTable(entry.table), row, {
         label: `rls.assignments ${entry.table} role`,
         prefix: "PermDock CLI",
       }).lookup,
@@ -1138,11 +1138,11 @@ export function assignmentSql(ctx: RlsSqlContext): string {
   const tables = assignedTables(ctx);
   const ownRole = ownRoleTables(ctx, tables);
   for (const entry of tables) {
-    const table = quoteTable(qualifiedTable(entry.table));
+    const table = quoteQualified(entry.table);
     const suffix = entry.table.replaceAll(/[^a-z0-9_]/gu, "_");
     const fn = qualified(ctx, quoteIdent(`${ASSIGNMENTS.trigger}_${suffix}`));
     const ownUser =
-      entry.user !== undefined && ownRole.has(qualifiedTable(entry.table))
+      entry.user !== undefined && ownRole.has(qualifySqlTable(entry.table))
         ? entry.user
         : undefined;
     const ownCheck = (row: string, reason: string): string =>

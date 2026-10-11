@@ -21,10 +21,12 @@ import { byCodePoint } from "../core/compare.ts";
 import { isForbiddenKey } from "../core/paths.ts";
 import { resolveScope, rootScope, scopeChain } from "../core/scopes.ts";
 import {
+  SQL_IDENT,
+  qualifySqlTable,
+  quoteQualifiedTable,
   quoteSqlIdent,
   quoteSqlLiteral,
   quoteSqlTable,
-  SQL_IDENT,
 } from "../core/sql.ts";
 import { keptKeys } from "../supabase/keep.ts";
 import { type RoleColumn, roleColumn } from "../supabase/roles.ts";
@@ -287,9 +289,7 @@ export function keptRowSql(
  * suspended, so the check fails closed.
  */
 export function activeRowSql(row: RlsActiveRow, id: string): string {
-  const table = quoteTable(
-    row.table.includes(".") ? row.table : `public.${row.table}`,
-  );
+  const table = quoteTable(qualifySqlTable(row.table));
   const parts = [`s.${quoteIdent(row.id)} = ${id}`];
   if (row.disabledAt !== undefined) {
     parts.push(`s.${quoteIdent(row.disabledAt)} is null`);
@@ -544,7 +544,7 @@ export function memberRoleOf(
   alias = "m",
   indent?: string,
 ): RoleColumn {
-  return roleColumn(table.role, qualifiedTable(table.table), alias, {
+  return roleColumn(table.role, qualifySqlTable(table.table), alias, {
     label: `rls.memberships ${table.table} role`,
     prefix: CLI,
     ...(indent === undefined ? {} : { indent }),
@@ -552,10 +552,6 @@ export function memberRoleOf(
 }
 
 /** The schema-qualified name of a table under `search_path = ''`. */
-export function qualifiedTable(name: string): string {
-  return name.includes(".") ? name : `public.${name}`;
-}
-
 /** The helper returning the ids of scope `name` a grant key reaches. */
 export function permittedIdsHelper(name: string): string {
   if (!/^[a-z][a-z0-9_]*$/u.test(name)) {
@@ -710,6 +706,22 @@ export function quoteTable(name: string): string {
   return quoteSqlTable(name, CLI);
 }
 
+/** A table name with `public.` added when it names no schema, quoted. */
+export function quoteQualified(name: string): string {
+  return quoteQualifiedTable(name, CLI);
+}
+
+export function helperSchema(ctx: Pick<RlsSqlContext, "schema">): string {
+  return ctx.schema ?? PERMDOCK_SCHEMA;
+}
+
+export function qualified(
+  ctx: Pick<RlsSqlContext, "schema">,
+  name: string,
+): string {
+  return `${quoteIdent(helperSchema(ctx))}.${name}`;
+}
+
 /** The membership kind of a row `m` of `table`: its column as text, or its constant (`null` without one). */
 export function memberVia(table: RlsMembershipTable): MemberVia {
   const via = table.via;
@@ -728,7 +740,7 @@ export function quoteLiteral(value: string): string {
 export const USER_ID_HELPER = "permdock_user_id";
 
 export function userIdHelperSql(ctx: Pick<RlsSqlContext, "schema">): string {
-  return `${quoteIdent(ctx.schema ?? PERMDOCK_SCHEMA)}.${USER_ID_HELPER}`;
+  return qualified(ctx, USER_ID_HELPER);
 }
 
 export const SESSION_LIVE_HELPER = "permdock_session_live";
@@ -740,7 +752,7 @@ export function liveSessionSql(ctx: RlsSqlContext): string {
       `PermDock CLI: { subject: { session: { live: true } } } reads auth.sessions, which only the supabase dialect has (got ${ctx.dialect})`,
     );
   }
-  return `(select ${quoteIdent(ctx.schema ?? PERMDOCK_SCHEMA)}.${SESSION_LIVE_HELPER}())`;
+  return `(select ${qualified(ctx, SESSION_LIVE_HELPER)}())`;
 }
 
 /**
@@ -750,7 +762,7 @@ export function liveSessionSql(ctx: RlsSqlContext): string {
  * service key's, is never live.
  */
 export function sessionLiveHelperSql(ctx: RlsSqlContext): string {
-  const name = `${quoteIdent(ctx.schema ?? PERMDOCK_SCHEMA)}.${SESSION_LIVE_HELPER}`;
+  const name = qualified(ctx, SESSION_LIVE_HELPER);
   return `create or replace function ${name}()
 returns boolean
 language plpgsql

@@ -13,7 +13,7 @@ import { createPermDock, listPermissions, memoryRelations } from "../index.ts";
 import { jsonSchemaOf } from "./catalog-doc.ts";
 import { commandFor } from "./rls-compile.ts";
 import { graphPlan } from "./rls-graph.ts";
-import { columnTypesOf, quoteIdent, quoteTable } from "./rls-sql.ts";
+import { columnTypesOf, quoteIdent, quoteQualified } from "./rls-sql.ts";
 
 type Row = Readonly<Record<string, unknown>>;
 
@@ -30,10 +30,6 @@ type TreeNode = {
 };
 
 const SUBJECTS = 3;
-
-function tableSql(name: string): string {
-  return quoteTable(name.includes(".") ? name : `public.${name}`);
-}
 
 function idFactory(node: ResourceNode): () => string | number {
   const type = columnTypesOf(jsonSchemaOf(node))[node.id];
@@ -94,7 +90,7 @@ function insertSql(
         .join(", ")})`,
   );
   return {
-    sql: `insert into ${tableSql(table)} (${columns.map(quoteIdent).join(", ")}) values ${tuples.join(", ")} returning *`,
+    sql: `insert into ${quoteQualified(table)} (${columns.map(quoteIdent).join(", ")}) values ${tuples.join(", ")} returning *`,
     values,
   };
 }
@@ -277,7 +273,7 @@ async function seedRows(
 ): Promise<readonly Row[]> {
   const fill = await requiredValues(
     query,
-    tableSql(table),
+    quoteQualified(table),
     new Set([...Object.keys(rows[0] ?? {}), ...Object.keys(given)]),
   );
   const inserted = insertSql(
@@ -462,7 +458,7 @@ export async function verifyTree(input: {
       }
       const ids = list.map((row) => String(row[node.id]));
       const visible = await query(
-        `select ${quoteIdent(node.id)}::text as id from ${tableSql(tables?.[node.name] ?? node.name)} where ${quoteIdent(node.id)} = any($1)`,
+        `select ${quoteIdent(node.id)}::text as id from ${quoteQualified(tables?.[node.name] ?? node.name)} where ${quoteIdent(node.id)} = any($1)`,
         [ids],
       );
       const seen = new Set(visible.rows.map((row) => String(row["id"])));

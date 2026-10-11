@@ -7,14 +7,16 @@ import type {
   RoleThrough,
 } from "./types.ts";
 
+import { qualifySqlTable, sqlTextArray } from "../core/sql.ts";
 import { roleColumn } from "../supabase/roles.ts";
 import { BACKFILL_MARKER } from "./markers.ts";
 import { currentKeyExpr } from "./rls-custom-roles.ts";
-import { CUSTOM_ROLES, qualified, textArray } from "./rls-shared.ts";
+import { CUSTOM_ROLES } from "./rls-shared.ts";
 import {
-  qualifiedTable,
+  qualified,
   quoteIdent,
   quoteLiteral,
+  quoteQualified,
   quoteTable,
   tenantTypeOf,
 } from "./rls-sql.ts";
@@ -47,7 +49,7 @@ function roleRef(
   const through = role.through.includes(".")
     ? role.through
     : `${schemaOf(table)}.${role.through}`;
-  if (qualifiedTable(through) !== qualifiedTable(roles.table)) {
+  if (qualifySqlTable(through) !== qualifySqlTable(roles.table)) {
     throw new Error(
       `${PREFIX}: ${label}.through must be rls.customRoleWrites.roles.table (${roles.table}), got ${role.through}`,
     );
@@ -143,7 +145,7 @@ export function backfillSql(
     );
   }
   const tenantType = tenantTypeOf(ctx);
-  const rolesTable = quoteTable(qualifiedTable(roles.table));
+  const rolesTable = quoteQualified(roles.table);
   const tenant =
     roles.tenant === undefined
       ? `null::${tenantType}`
@@ -161,12 +163,12 @@ export function backfillSql(
     a < b ? -1 : a > b ? 1 : 0,
   );
   const current = (expr: string): string => currentKeyExpr(renames, expr);
-  const known = textArray([
+  const known = sqlTextArray([
     ...(custom.permissions ?? []),
     ...renames.map(([former]) => former),
   ]);
-  const declared = textArray(custom.declared);
-  const scopes = textArray(ctx.scopes.map((item) => item.name));
+  const declared = sqlTextArray(custom.declared);
+  const scopes = sqlTextArray(ctx.scopes.map((item) => item.name));
   const ceiling = qualified(ctx, CUSTOM_ROLES.ceiling);
   const rp = qualified(ctx, "role_permissions");
   const perms = qualified(ctx, CUSTOM_ROLES.permissions);
@@ -174,7 +176,7 @@ export function backfillSql(
   const replace = qualified(ctx, CUSTOM_ROLES.trustedReplace);
 
   const p = from.permissions;
-  const pTable = qualifiedTable(p.table);
+  const pTable = qualifySqlTable(p.table);
   const pRef = roleRef(
     p.role,
     p.table,
@@ -209,7 +211,7 @@ export function backfillSql(
     : "j.key";
 
   const i = from.includes;
-  const iTable = i === undefined ? undefined : qualifiedTable(i.table);
+  const iTable = i === undefined ? undefined : qualifySqlTable(i.table);
   const iRef =
     i === undefined || iTable === undefined
       ? undefined
@@ -252,7 +254,7 @@ export function backfillSql(
     v_dropped := v_dropped || coalesce(v_lost, '{}'::text[]);`;
 
   return `${BACKFILL_MARKER} schema=${ctx.schema ?? "permdock"}
--- custom roles copied from ${qualifiedTable(roles.table)} (rls.customRoles.from) through ${replace}
+-- custom roles copied from ${qualifySqlTable(roles.table)} (rls.customRoles.from) through ${replace}
 -- a role that already has rows is left as it is; entries PermDock cannot hold are dropped and listed in one warning
 do $permdock$
 declare

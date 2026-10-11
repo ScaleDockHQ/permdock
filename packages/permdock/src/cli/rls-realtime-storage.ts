@@ -8,8 +8,7 @@ import type {
 } from "./types.ts";
 
 import { permittedByPermissionHelper } from "./rls-permission-keys.ts";
-import { qualified } from "./rls-shared.ts";
-import { quoteLiteral } from "./rls-sql.ts";
+import { qualified, quoteLiteral } from "./rls-sql.ts";
 
 /** What the policies may name: the declared scopes and the permission keys with and without row conditions. */
 export type HelperTableFacts = {

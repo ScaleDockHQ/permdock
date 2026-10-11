@@ -6,13 +6,12 @@ import { flattenGrantee } from "../core/grantee.ts";
 import { tableFor } from "./rls-compile.ts";
 import { branchClauses } from "./rls-compile.ts";
 import { orSql } from "./rls-policies.ts";
-import { qualified } from "./rls-shared.ts";
 import {
   graphSqlName,
-  qualifiedTable,
+  qualified,
   quoteIdent,
   quoteLiteral,
-  quoteTable,
+  quoteQualified,
 } from "./rls-sql.ts";
 
 /** `permitted_<resource>_rows(p_permission)`: the resource's row ids the subject may act on with one permission. */
@@ -175,7 +174,7 @@ function resourceSql(
 ): string {
   const name = rowsHelper(node.name);
   const fn = qualified(ctx, name);
-  const table = quoteTable(qualifiedTable(tableFor(node.name, tables)));
+  const table = quoteQualified(tableFor(node.name, tables));
   const cases = [...branches.keys()].toSorted().flatMap((key) => {
     const sql = permissionCase(key, branches.get(key) ?? []);
     return sql === undefined ? [] : [sql];

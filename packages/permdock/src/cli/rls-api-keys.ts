@@ -6,12 +6,11 @@ import type {
 import type { RlsApiKeys } from "./types.ts";
 
 import { SQL_IDENT } from "../core/sql.ts";
-import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
 import {
   activeInstancesSql,
   grantPermissionSql,
   kindFilterSql,
-  quoteIdent,
+  qualified,
   quoteLiteral,
   subjectClaimJsonSql,
   subjectIdSql,
@@ -68,10 +67,6 @@ export function apiKeysPlan(
     ...fields,
     ...(Object.keys(renamed).length === 0 ? {} : { renamed }),
   };
-}
-
-function qualified(ctx: RlsSqlContext, name: string): string {
-  return `${quoteIdent(ctx.schema ?? PERMDOCK_SCHEMA)}.${name}`;
 }
 
 function keyOf(ctx: RlsSqlContext, plan: ApiKeysPlan): string {

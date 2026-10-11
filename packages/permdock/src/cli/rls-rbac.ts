@@ -8,7 +8,12 @@ import type {
 
 import { authorizeSql } from "../supabase/index.ts";
 import { roleNames } from "./rls-grants.ts";
-import { quoteIdent, quoteLiteral, quoteTable } from "./rls-sql.ts";
+import {
+  quoteIdent,
+  quoteLiteral,
+  quoteQualified,
+  quoteTable,
+} from "./rls-sql.ts";
 
 export type RbacAuthorizeMode = "database" | "jwt";
 
@@ -99,13 +104,9 @@ exception when duplicate_object then null;
 end $$;`;
 }
 
-function hookTable(name: string): string {
-  return quoteTable(name.includes(".") ? name : `public.${name}`);
-}
-
 /** A read policy and `select` grant for `supabase_auth_admin` on a table the hook reads. */
 export function authAdminRead(table: string, label: string): string {
-  const t = hookTable(table);
+  const t = quoteQualified(table);
   const policy = quoteIdent(`permdock_auth_admin_read_${label}`);
   return `grant select on table ${t} to supabase_auth_admin;
 drop policy if exists ${policy} on ${t};

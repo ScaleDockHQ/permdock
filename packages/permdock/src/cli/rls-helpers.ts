@@ -3,6 +3,7 @@ import type { RoleRows } from "./global-roles.ts";
 import type { CheckedPermission, RlsSqlContext } from "./rls-sql.ts";
 
 import { scopeColumn } from "../conditions/compile.ts";
+import { sqlTextArray } from "../core/sql.ts";
 import { globalRoleSource } from "./global-roles.ts";
 import {
   apiKeyAllowsCall,
@@ -23,11 +24,8 @@ import {
   allowEntry,
   CUSTOM_ROLES,
   HELPERS,
-  helperSchema,
-  qualified,
   rootName,
   signedIn,
-  textArray,
 } from "./rls-shared.ts";
 import {
   activeInstancesSql,
@@ -37,6 +35,7 @@ import {
   globalKindFilterSql,
   grantPermissionSql,
   hasMemberFor,
+  helperSchema,
   keptRowSql,
   keyTenantSql,
   kindFilterSql,
@@ -47,9 +46,10 @@ import {
   memberVia,
   permittedForHelper,
   permittedIdsHelper,
+  qualified,
   quoteIdent,
   quoteLiteral,
-  quoteTable,
+  quoteQualified,
   scopeSources,
   scopeTable,
   scopeTypeOf,
@@ -165,10 +165,6 @@ as $$
   )::uuid
 $$;
 ${grants}`;
-}
-
-export function membershipTable(name: string): string {
-  return quoteTable(name.includes(".") ? name : `public.${name}`);
 }
 
 function activeTenant(ctx: RlsSqlContext): string {
@@ -335,7 +331,7 @@ ${customKeysJoin(
   rows(CUSTOM_ROLES.includes, "include_role", ""),
 )}
   where ${ur.userSql} = ${subjectIdSql(ctx)}
-    and not (${ur.roleSql} = any(${textArray(custom.declared)}))${active}`;
+    and not (${ur.roleSql} = any(${sqlTextArray(custom.declared)}))${active}`;
   }
   const declared = `  select rp.grant_key
   from ${roleRows(ctx)}
@@ -360,7 +356,7 @@ ${customKeysJoin(
 )}
   where ${signedIn(ctx)}
     and jsonb_typeof(cg.g) = 'array'
-    and not (r.role = any(${textArray(custom.declared)}))${active}`;
+    and not (r.role = any(${sqlTextArray(custom.declared)}))${active}`;
 }
 
 function hasBody(ctx: RlsSqlContext): string {
@@ -394,7 +390,7 @@ function hasBody(ctx: RlsSqlContext): string {
     select 1
     from ${ur.from}
     where ${ur.userSql} = ${subjectIdSql(ctx)}
-      and not (${ur.roleSql} = any(${textArray(custom.declared)}))${active}
+      and not (${ur.roleSql} = any(${sqlTextArray(custom.declared)}))${active}
       ${customKeysSql(
         ctx,
         "global",
@@ -426,7 +422,7 @@ function hasBody(ctx: RlsSqlContext): string {
     from ${roleRows(ctx)}
     cross join lateral (select ${claim} -> r.role as g) cg
     where jsonb_typeof(cg.g) = 'array'
-      and not (r.role = any(${textArray(custom.declared)}))${active}
+      and not (r.role = any(${sqlTextArray(custom.declared)}))${active}
       ${customKeysSql(
         ctx,
         "global",
@@ -538,7 +534,7 @@ function tableBody(ctx: RlsSqlContext, scope: string, type: string): string {
   const kind = kindFilterSql(ctx, role.sql, memberVia(table));
   const lines = [
     `  select${role.lateral ? " distinct" : ""} ${memberColumn(column)}::${type}${set ? ", rp.grant_key" : ""}`,
-    `  from ${membershipTable(table.table)} m${role.join}`,
+    `  from ${quoteQualified(table.table)} m${role.join}`,
     `  join ${qualified(ctx, "role_permissions")} rp on rp.role = ${role.sql}`,
     owner ?? "",
     ...(set ? [] : ["    and rp.grant_key = p_grant"]),
@@ -570,19 +566,19 @@ function tableBody(ctx: RlsSqlContext, scope: string, type: string): string {
       ...lines,
       "  union",
       `  select ${memberColumn(column)}::${type}, ck.grant_key`,
-      `  from ${membershipTable(table.table)} m${role.join}`,
+      `  from ${quoteQualified(table.table)} m${role.join}`,
       customKeysJoin(ctx, scope, ...entries),
       ...filtersFor("ck.grant_key"),
-      `    and not (${role.sql} = any(${textArray(custom.declared)}))`,
+      `    and not (${role.sql} = any(${sqlTextArray(custom.declared)}))`,
     ].join("\n");
   }
   return [
     ...lines,
     "  union",
     `  select ${memberColumn(column)}::${type}`,
-    `  from ${membershipTable(table.table)} m${role.join}`,
+    `  from ${quoteQualified(table.table)} m${role.join}`,
     ...filters,
-    `    and not (${role.sql} = any(${textArray(custom.declared)}))`,
+    `    and not (${role.sql} = any(${sqlTextArray(custom.declared)}))`,
     customKeysSql(ctx, scope, ...entries),
   ].join("\n");
 }
@@ -650,7 +646,7 @@ ${customKeysJoin(
 )}
   where ${signedIn(ctx)}
     and jsonb_typeof(cg.g) = 'array'
-    and not (r.role = any(${textArray(custom.declared)}))
+    and not (r.role = any(${sqlTextArray(custom.declared)}))
 ${filtersFor("ck.grant_key")}`;
   }
   // A custom role rides the membership of the scope it is held at.
@@ -661,7 +657,7 @@ ${filtersFor("ck.grant_key")}`;
   cross join lateral (select m -> 'grants' -> r.role as g) cg
   where ${signedIn(ctx)}
     and jsonb_typeof(cg.g) = 'array'
-    and not (r.role = any(${textArray(custom.declared)}))
+    and not (r.role = any(${sqlTextArray(custom.declared)}))
 ${filters}
 ${customKeysSql(
   ctx,
@@ -820,7 +816,7 @@ ${customKeysJoin(
 )}
   where ${signedIn(ctx)}
     and ms.scope = ${quoteLiteral(scope)}
-    and not (r.role = any(${textArray(custom.declared)}))${narrow}${sourceFilters(ctx, scope, subjectIdSql(ctx), grantPermissionSql("ck.grant_key"), sourcesKeep(sources))}`,
+    and not (r.role = any(${sqlTextArray(custom.declared)}))${narrow}${sourceFilters(ctx, scope, subjectIdSql(ctx), grantPermissionSql("ck.grant_key"), sourcesKeep(sources))}`,
       sources,
       subjectIdSql(ctx),
     );
@@ -832,7 +828,7 @@ ${customKeysJoin(
 ${rows}
   where ${signedIn(ctx)}
     and ms.scope = ${quoteLiteral(scope)}
-    and not (r.role = any(${textArray(custom.declared)}))${narrow}${sourceFilters(ctx, scope, subjectIdSql(ctx), grantPermissionSql("p_grant"), sourcesKeep(sources))}
+    and not (r.role = any(${sqlTextArray(custom.declared)}))${narrow}${sourceFilters(ctx, scope, subjectIdSql(ctx), grantPermissionSql("p_grant"), sourcesKeep(sources))}
 ${customKeysSql(
   ctx,
   scope,
@@ -938,7 +934,7 @@ ${sourceRows(sources)}
   const role = memberRoleOf(table, "m", "  ");
   const lines = [
     `  select distinct ${memberColumn(column)}::${type}`,
-    `  from ${membershipTable(table.table)} m${role.join}`,
+    `  from ${quoteQualified(table.table)} m${role.join}`,
     `  where ${memberColumn(table.user)} = ${user}`,
     `    and ${role.through === undefined && !role.lateral ? memberColumn(role.column) : role.sql} is not null`,
   ];

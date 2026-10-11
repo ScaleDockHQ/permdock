@@ -8,16 +8,17 @@ import { relatedSql } from "../conditions/graph-sql.ts";
 import { isReadonlyArray, isRecord, sole } from "../core/compact.ts";
 import { isForbiddenKey } from "../core/paths.ts";
 import { resolveScope, rootScope } from "../core/scopes.ts";
+import { qualifySqlTable } from "../core/sql.ts";
 import { isSqlFunctionField } from "../index.ts";
-import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
 import {
+  CLAIM,
+  CLOSURE,
   activeInstancesSql,
   activeMembershipSql,
   activeUserSql,
-  CLAIM,
-  CLOSURE,
   graphHelper,
   graphSqlText,
+  helperSchema,
   inheritedRowsHelper,
   keyTenantSql,
   kindFilterSql,
@@ -26,7 +27,7 @@ import {
   memberIdsHelper,
   memberRoleOf,
   memberVia,
-  qualifiedTable,
+  qualified,
   quoteIdent,
   quoteLiteral,
   quoteTable,
@@ -408,12 +409,12 @@ function compileMemberOf(
     condition.roles.length === 0 &&
     scopeSources(ctx, scope).length > 0
   ) {
-    return `${quoteIdent(condition.field)} in (select ${quoteIdent(ctx.schema ?? PERMDOCK_SCHEMA)}.${memberIdsHelper(scope)}())`;
+    return `${quoteIdent(condition.field)} in (select ${qualified(ctx, memberIdsHelper(scope))}())`;
   }
   if (scope !== undefined && scope === rootScope(ctx.scopes)) {
     const parts = [
       ctx.tenants === "all"
-        ? `${quoteIdent(condition.field)} in (select ${quoteIdent(ctx.schema ?? PERMDOCK_SCHEMA)}.${memberIdsHelper(scope)}())`
+        ? `${quoteIdent(condition.field)} in (select ${qualified(ctx, memberIdsHelper(scope))}())`
         : `${quoteIdent(condition.field)} = ${tenantClaimSql(ctx)}`,
       ...(ctx.tenants === "all"
         ? []
@@ -660,14 +661,14 @@ function compileRelatedSql(
       : quoteIdent(condition.field);
   const helper =
     condition.permission === undefined
-      ? `${`${quoteIdent(ctx.schema ?? PERMDOCK_SCHEMA)}.${graphHelper(condition.resource)}`}(${quoteLiteral(condition.relation)})`
-      : `${quoteIdent(ctx.schema ?? PERMDOCK_SCHEMA)}.${inheritedRowsHelper(condition.resource)}(${quoteLiteral(condition.permission)})`;
+      ? `${qualified(ctx, graphHelper(condition.resource))}(${quoteLiteral(condition.relation)})`
+      : `${qualified(ctx, inheritedRowsHelper(condition.resource))}(${quoteLiteral(condition.permission)})`;
   const cap = ctx.graph?.closures[condition.resource];
   let inner: string;
   if (condition.depth > 0 && cap !== undefined) {
     const depth =
       condition.depth < cap ? ` and depth <= ${String(condition.depth)}` : "";
-    inner = `select descendant${cast} from ${`${quoteIdent(ctx.schema ?? PERMDOCK_SCHEMA)}.${CLOSURE.table}`} where resource = ${quoteLiteral(condition.resource)}${depth} and ancestor = any (array(select ${helper}))`;
+    inner = `select descendant${cast} from ${qualified(ctx, CLOSURE.table)} where resource = ${quoteLiteral(condition.resource)}${depth} and ancestor = any (array(select ${helper}))`;
   } else {
     inner =
       cast === ""
@@ -696,14 +697,14 @@ function compileHoppedSql(
       "PermDock CLI: a related condition with link hops needs the policy resources in the RLS context",
     );
   }
-  const schema = quoteIdent(ctx.schema ?? PERMDOCK_SCHEMA);
+  const schema = quoteIdent(helperSchema(ctx));
   return graphSqlText(
     relatedSql(condition, {
       resources,
       ...(ctx.graph?.tables === undefined ? {} : { tables: ctx.graph.tables }),
-      closure: `${ctx.schema ?? PERMDOCK_SCHEMA}.${CLOSURE.table}`,
+      closure: `${helperSchema(ctx)}.${CLOSURE.table}`,
       closureDepths: ctx.graph?.closures ?? {},
-      qualify: qualifiedTable,
+      qualify: qualifySqlTable,
       holders: (resource, relation) => [
         {
           text: `select ${schema}.${graphHelper(resource)}(${quoteLiteral(relation)})`,

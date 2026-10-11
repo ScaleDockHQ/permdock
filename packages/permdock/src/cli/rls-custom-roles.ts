@@ -1,13 +1,12 @@
 import type { RlsSqlContext } from "./rls-sql.ts";
 
+import { qualifySqlTable, sqlTextArray } from "../core/sql.ts";
 import {
   allowEntry,
   CUSTOM_ROLES,
   HELPERS,
-  qualified,
   rootName,
   signedIn,
-  textArray,
 } from "./rls-shared.ts";
 import {
   hasMemberFor,
@@ -15,6 +14,7 @@ import {
   memberIdsHelper,
   permittedForHelper,
   permittedIdsHelper,
+  qualified,
   quoteIdent,
   quoteLiteral,
   quoteTable,
@@ -85,7 +85,7 @@ revoke all on table ${table} from anon, authenticated, public;`);
 create or replace view ${ceiling} with (security_invoker = true) as
 select rp.scope, rp.role, rp.permission, rp.grant_key, rp.effect
 from ${rp} rp
-where rp.role = any(${textArray(custom.assignable)})
+where rp.role = any(${sqlTextArray(custom.assignable)})
   and exists (
     select 1 from ${rp} a
     where a.role = rp.role
@@ -355,7 +355,7 @@ language sql
 stable
 set search_path = ''
 as $$
-  select k.permission from unnest(${textArray(permissions.toSorted())}) k(permission) order by 1
+  select k.permission from unnest(${sqlTextArray(permissions.toSorted())}) k(permission) order by 1
 $$;
 revoke execute on function ${catalog}() from public, anon;
 grant execute on function ${catalog}() to authenticated;
@@ -371,7 +371,7 @@ as $$
   from ${rp} rp
   where rp.scope = p_scope
     and rp.effect = 'allow'
-    and rp.permission = any(${textArray(permissions.toSorted())})
+    and rp.permission = any(${sqlTextArray(permissions.toSorted())})
   order by 1
 $$;
 revoke execute on function ${catalog}(text) from public, anon;
@@ -403,7 +403,7 @@ end;`;
         : `exists (
         select 1 from ${rp} m
         where m.effect = 'allow'
-          and m.permission = any(${textArray(manage)})
+          and m.permission = any(${sqlTextArray(manage)})
           and ${qualified(ctx, HELPERS.has)}(m.grant_key)
       )`;
     const match = `c.tenant_id is not distinct from p_tenant and c.scope = p_scope and c.scope_id is not distinct from p_scope_id and c.role = p_role`;
@@ -412,7 +412,7 @@ end;`;
         ? "c.permission || coalesce('@' || c.level, '')"
         : "c.permission";
     const checked = (gate: string): string => `begin
-  if p_role = any(${textArray(custom.declared)}) then
+  if p_role = any(${sqlTextArray(custom.declared)}) then
     return query
 ${declared};
     return;
@@ -569,7 +569,7 @@ function callerFunctionsSql(
       : `exists (
     select 1 from ${rp} rp
     where rp.effect = 'allow'
-      and rp.permission = any(${textArray(permissions)})
+      and rp.permission = any(${sqlTextArray(permissions)})
       and ${held("rp.grant_key")}
   )`;
   const manageKeys = custom.manage ?? [];
@@ -720,15 +720,15 @@ export function customRoleWritesSql(
     a < b ? -1 : a > b ? 1 : 0,
   );
   const current = (expr: string): string => currentKeyExpr(renames, expr);
-  const known = textArray([
+  const known = sqlTextArray([
     ...(custom.permissions ?? []),
     ...renames.map(([former]) => former),
   ]);
   const caller = callerFunctionsSql(ctx, custom, root, levelReach, false);
   const match = `c.tenant_id is not distinct from p_tenant and c.scope = p_scope and c.scope_id is not distinct from p_scope_id`;
-  const scopes = textArray(ctx.scopes.map((scope) => scope.name));
+  const scopes = sqlTextArray(ctx.scopes.map((scope) => scope.name));
   const roleName = (param: string): string =>
-    `coalesce(${param}, '') = '' or ${param} = any(${textArray(custom.declared)})`;
+    `coalesce(${param}, '') = '' or ${param} = any(${sqlTextArray(custom.declared)})`;
   const levelOf = leveled ? ", nullif(split_part(e, '@', 2), '')" : "";
   const levelColumn = leveled ? ", level" : "";
   const write = `  delete from ${perms} c where ${match} and c.role = p_role;
@@ -858,7 +858,7 @@ ${raiseSql("      ", "22023", `'permdock: ' || v_entry || ' is not a declared pe
     end if;
   end loop;
   foreach v_entry in array coalesce(p_include, '{}'::text[]) loop
-    if not (v_entry = any(${textArray(custom.declared)})) then
+    if not (v_entry = any(${sqlTextArray(custom.declared)})) then
 ${raiseSql("      ", "22023", `'permdock: ' || v_entry || ' is not a declared role'`, "unknown-role")}
     end if;
   end loop;
@@ -990,9 +990,7 @@ export function customRoleCascadeSql(ctx: RlsSqlContext): string {
   const perms = qualified(ctx, CUSTOM_ROLES.permissions);
   const includes = qualified(ctx, CUSTOM_ROLES.includes);
   const fn = qualified(ctx, CUSTOM_ROLES.cascade);
-  const target = quoteTable(
-    table.table.includes(".") ? table.table : `public.${table.table}`,
-  );
+  const target = quoteTable(qualifySqlTable(table.table));
   const tenant = (row: string): string =>
     table.tenant === undefined
       ? `null::${tenantType}`

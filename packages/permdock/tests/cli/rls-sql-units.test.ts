@@ -23,13 +23,13 @@ import {
   memberIdsHelper,
   parseMembershipsFlag,
   permittedIdsHelper,
-  qualifiedTable,
   scopeTable,
   scopeTypeOf,
   subjectClaimJsonSql,
   subjectClaimSql,
   tenantTypeOf,
 } from "../../src/cli/rls-sql.ts";
+import { qualifySqlTable } from "../../src/core/sql.ts";
 
 const scopes = [
   { name: "org", key: "org_id" },
@@ -235,8 +235,8 @@ describe("types and names", () => {
   });
 
   it("qualifies tables and renders graph parts", () => {
-    expect(qualifiedTable("docs")).toBe("public.docs");
-    expect(qualifiedTable("app.docs")).toBe("app.docs");
+    expect(qualifySqlTable("docs")).toBe("public.docs");
+    expect(qualifySqlTable("app.docs")).toBe("app.docs");
     expect(
       graphSqlText(
         [

@@ -9,7 +9,7 @@ import {
   introspectMixed,
   introspectRls,
   missingIndexes,
-  qualified,
+  normalizeTableName,
 } from "../../src/cli/rls-introspect.ts";
 import { run } from "../../src/cli/run.ts";
 import { fakeSql } from "../fakes/sql.ts";
@@ -75,7 +75,7 @@ const clean: ActualRls = {
 
 describe("rls verify --introspect", () => {
   it("expects the security definer helpers, table grants and policies generate writes", () => {
-    expect(qualified('"app"."post"')).toBe("app.post");
+    expect(normalizeTableName('"app"."post"')).toBe("app.post");
     expect(expected.helpers).toEqual(["app.permdock_has"]);
     expect(expected.tables).toEqual(["public.post"]);
     expect(expected.grants).toEqual({

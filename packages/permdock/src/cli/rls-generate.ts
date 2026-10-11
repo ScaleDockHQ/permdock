@@ -20,6 +20,7 @@ import { compact } from "../core/compact.ts";
 import { renamedKeys } from "../core/permissions.ts";
 import { policyRowConditionKeys } from "../core/row-conditions.ts";
 import { resolveScope, scopeList } from "../core/scopes.ts";
+import { qualifySqlTable } from "../core/sql.ts";
 import { listPermissions, listRoles } from "../index.ts";
 import { supabaseTenantClaim } from "../supabase/budget.ts";
 import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
@@ -80,7 +81,6 @@ import {
   checkSuspension,
   graphHelper,
   parseMembershipsFlag,
-  qualifiedTable,
   quoteLiteral,
   scopeSources,
   scopeTable,
@@ -254,7 +254,7 @@ function tableColumns(
     return rowColumns.filter((item) => Object.hasOwn(tables, item.resource));
   }
   warnings.push(
-    `policies for resources without an rls.tables entry target a table named after the resource: ${unmapped.map((resource) => qualifiedTable(resource)).join(", ")}; map each one to its table`,
+    `policies for resources without an rls.tables entry target a table named after the resource: ${unmapped.map((resource) => qualifySqlTable(resource)).join(", ")}; map each one to its table`,
   );
   return rowColumns;
 }
@@ -992,7 +992,7 @@ function guardedPolicySql(item: CompiledPolicy): string {
     .join("\n");
   return `do $permdock$
 begin
-  if to_regclass(${quoteLiteral(qualifiedTable(item.table))}) is not null then
+  if to_regclass(${quoteLiteral(qualifySqlTable(item.table))}) is not null then
 ${body}
   end if;
 end

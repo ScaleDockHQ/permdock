@@ -7,10 +7,11 @@ import type {
 } from "./types.ts";
 
 import { breakGlassKey } from "./rls-grants.ts";
-import { HELPERS, qualified } from "./rls-shared.ts";
+import { HELPERS } from "./rls-shared.ts";
 import {
   memberIdsHelper,
   permittedIdsHelper,
+  qualified,
   quoteIdent,
   quoteLiteral,
   scopeTypeOf,
