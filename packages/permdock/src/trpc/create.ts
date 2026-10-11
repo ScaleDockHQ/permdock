@@ -10,7 +10,7 @@ import type { Policy } from "../core/policy-types.ts";
 import type { RevocationFeed } from "../core/revocations.ts";
 import type { Principal } from "../core/subject.ts";
 import type { Connection, ConnectionOptions } from "../server/connection.ts";
-import type { OpenApiHooks } from "../server/create.ts";
+import type { OpenApiHooks } from "../server/server-types.ts";
 
 import { type ServerAdapterOptions, attached } from "../server/bind.ts";
 import { problemMessage } from "../server/http.ts";

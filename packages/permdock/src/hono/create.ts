@@ -9,7 +9,7 @@ import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { RevocationFeed } from "../core/revocations.ts";
 import type { Principal } from "../core/subject.ts";
 import type { Connection, ConnectionOptions } from "../server/connection.ts";
-import type { OpenApiHooks, ProtectOptions } from "../server/create.ts";
+import type { OpenApiHooks, ProtectOptions } from "../server/server-types.ts";
 
 import { compact } from "../core/compact.ts";
 import { PermDockRevokedError } from "../core/errors.ts";

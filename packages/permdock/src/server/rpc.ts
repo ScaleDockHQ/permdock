@@ -4,6 +4,7 @@ import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { RevocationFeed } from "../core/revocations.ts";
 import type { Principal } from "../core/subject.ts";
 import type { Connection, ConnectionOptions } from "./connection.ts";
+import type { ServerKernel } from "./server-types.ts";
 
 import { compact } from "../core/compact.ts";
 import {
@@ -11,7 +12,7 @@ import {
   type ServerAdapterOptions,
   adapterKernel,
 } from "./bind.ts";
-import { type ServerKernel, type TenantScope, tenantScope } from "./create.ts";
+import { type TenantScope, tenantScope } from "./create.ts";
 import { requestFromContext } from "./http.ts";
 import { type StreamProtectOptions, guardIterable } from "./stream.ts";
 

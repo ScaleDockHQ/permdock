@@ -4,6 +4,7 @@ import type { PermDock } from "../core/permdock.ts";
 import type { Permission, PermissionTree } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { Principal, Subject } from "../core/subject.ts";
+import type { OpenApiHooks } from "../server/server-types.ts";
 
 import { compact } from "../core/compact.ts";
 import { type Credential, credentialSubject } from "../core/credential.ts";
@@ -13,11 +14,7 @@ import {
 } from "../core/instance-options.ts";
 import { composeWraps } from "../core/wrap.ts";
 import { type ServerAdapterServices, attached } from "../server/bind.ts";
-import {
-  type OpenApiHooks,
-  type RequestContext,
-  createServerKernel,
-} from "../server/create.ts";
+import { type RequestContext, createServerKernel } from "../server/create.ts";
 import { methodNotAllowed } from "../server/problem.ts";
 
 /**

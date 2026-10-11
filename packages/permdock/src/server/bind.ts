@@ -7,6 +7,13 @@ import type { Principal } from "../core/subject.ts";
 import type { OtelWrap } from "../otel/types.ts";
 import type { PdpFactory } from "../pdp/types.ts";
 import type { Connection } from "./connection.ts";
+import type {
+  Guard,
+  OnDenied,
+  ProtectOptions,
+  ScopeGuard,
+  ServerKernel,
+} from "./server-types.ts";
 
 import { compact } from "../core/compact.ts";
 import {
@@ -15,12 +22,7 @@ import {
 } from "../core/instance-options.ts";
 import { type PermDockWrap, composeWraps } from "../core/wrap.ts";
 import {
-  type Guard,
-  type OnDenied,
-  type ProtectOptions,
   type RequestContext,
-  type ScopeGuard,
-  type ServerKernel,
   type TenantOption,
   type TenantScope,
   createServerKernel,
