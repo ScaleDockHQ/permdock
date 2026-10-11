@@ -65,6 +65,7 @@ export function buildCatalog(
             version: node?.version,
             restricted: node?.restricted,
             restrictedStops: node?.restrictedStops,
+            meta: node?.meta,
           }
         : {
             id: node?.id ?? "id",
@@ -74,6 +75,7 @@ export function buildCatalog(
             version: node?.version,
             restricted: node?.restricted,
             restrictedStops: node?.restrictedStops,
+            meta: node?.meta,
           },
     );
   }
@@ -178,6 +180,7 @@ function catalogGrant(grant: Grant): CatalogGrant {
         grant.requires?.length === 1 ? grant.requires[0] : grant.requires,
       limit,
       portable: grant.portable ? undefined : (false as const),
+      meta: nonEmpty(grant.meta),
     }),
   };
 }
@@ -387,6 +390,7 @@ function compactResource(resource: {
   readonly version?: string | undefined;
   readonly restricted?: string | undefined;
   readonly restrictedStops?: readonly string[] | undefined;
+  readonly meta?: Readonly<Record<string, unknown>> | undefined;
 }): CatalogDocument["resources"][string] {
   const relations =
     resource.relations !== undefined &&
@@ -402,8 +406,17 @@ function compactResource(resource: {
       version: resource.version,
       restricted: resource.restricted,
       restrictedStops: resource.restrictedStops,
+      meta: nonEmpty(resource.meta),
     }),
   };
+}
+
+function nonEmpty(
+  meta: Readonly<Record<string, unknown>> | undefined,
+): Readonly<Record<string, unknown>> | undefined {
+  return meta === undefined || Object.keys(meta).length === 0
+    ? undefined
+    : { ...meta };
 }
 
 function metaRecord(meta: ActionMeta): Readonly<Record<string, unknown>> {

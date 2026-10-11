@@ -157,10 +157,11 @@ export const app = bs.app().get(
 - `subject(c)` typically reads a user set by an auth middleware earlier in the chain.
 - `protect` exposes the loaded row as `c.get('permdockData')`, so the handler does not run the loader again. A loader that returns `null` or `undefined` answers `404`.
 - After `await next()`, `permdock()` and `protect()` read the error Hono recorded for the downstream handler (for example from `c.get('permdock').assert(...)`) and replace the response with the same Problem Details body. No `app.onError` is needed, and an app's own `onError` keeps handling every other error.
-- Calling `protect` before `permdock()` throws at startup with a message naming both middlewares, instead of failing per request.
+- `protect` builds the instance itself, so it works with or without `permdock()` earlier in the chain; there is no ordering to get wrong.
 - The [decision event](/docs/concepts/wire-formats) carries the permission, resource, subject, tenant and outcome, not the HTTP method or route.
+- `context(c)`, `onDenied` and `wrap` take the Hono context and behave as on the [server kernel](/docs/adapters/server-kernel#options): `context: (c) => ({ region: c.get('geo').region })` adds server-derived request values, and `onDenied` replaces the refusal body.
 
-Denials are the kernel's Problem Details responses.
+Denials are the kernel's Problem Details responses, or what `onDenied` returned.
 
 ## Why
 

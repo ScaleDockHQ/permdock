@@ -14,9 +14,11 @@ type CustomRole = {
   name: string; // unique within the tenant; a declared role name always wins
   includes?: string[]; // declared roles to start from
   grants?: { permission: string; effect?: "allow" | "deny"; level?: string }[]; // declared permission keys
-  meta?: Record<string, unknown>;
+  meta?: RoleMeta; // { title?, description?, audience?, x?, ... }
 };
 ```
+
+`meta` lands on the role leaf `assignableRoles()` returns, so a role picker can show the tenant's `meta.title`. `meta.x` holds the application's own data and is checked by the role tree's `defineRoles(…, { x })` schema; an invalid `x` is dropped and the role stays.
 
 ```ts
 const billingManager: CustomRole = {

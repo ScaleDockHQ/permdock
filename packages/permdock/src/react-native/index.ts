@@ -6,6 +6,7 @@ export {
   useApproval,
   useAssignablePermissions,
   useAssignableRoles,
+  useDescribe,
   useFilter,
   useMemberships,
   usePermDock,
@@ -27,7 +28,7 @@ export type {
   SubjectView,
   TenantView,
 } from "../client/types.ts";
-export type { ProtectedProps } from "../react/types.ts";
+export type { PermDockDefaults, ProtectedProps } from "../react/types.ts";
 export { parseLocalSnapshotManifest } from "../core/parse-local-manifest.ts";
 export { useSnapshotReady, usePermissionGuard } from "./guards.ts";
 export { buildLocalSnapshot, localSnapshot } from "./local.ts";

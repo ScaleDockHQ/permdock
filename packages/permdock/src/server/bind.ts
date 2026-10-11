@@ -4,14 +4,22 @@ import type { PermDock } from "../core/permdock.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy.ts";
 import type { RevocationFeed } from "../core/revocations.ts";
 import type { Principal } from "../core/subject.ts";
+import type { PermDockWrap } from "../core/wrap.ts";
 import type { OtelWrap } from "../otel/types.ts";
 import type { PdpFactory } from "../pdp/types.ts";
 import type { Connection } from "./connection.ts";
-import type { ServerKernel, TenantOption, TenantScope } from "./create.ts";
+import type {
+  OnDenied,
+  RequestContext,
+  ServerKernel,
+  TenantOption,
+  TenantScope,
+} from "./create.ts";
 import type { WebBotAuthVerifier } from "./web-bot-auth.ts";
 
 import { compact } from "../core/compact.ts";
 import { instanceOptions } from "../core/instance-options.ts";
+import { composeWraps } from "../core/wrap.ts";
 import { createServerKernel, tenantScope } from "./create.ts";
 import { invalidSignatureResponse } from "./web-bot-auth.ts";
 
@@ -22,6 +30,13 @@ export type ServerAdapterOptions<TContext, TUser = unknown> = InstanceOptions &
     /** The agent or service acting for the subject; anything but an `Actor` is ignored. */
     readonly actor?: (context: TContext) => unknown;
     readonly tenant?: TenantOption<TContext>;
+    /**
+     * Request values merged into `subject.context`, under `policy.context`.
+     * Only values the server derived belong here, never client input.
+     */
+    readonly context?: (
+      context: TContext,
+    ) => RequestContext | undefined | Promise<RequestContext | undefined>;
   };
 
 /** The services an adapter hands to its kernel unchanged. */
@@ -33,6 +48,10 @@ export type ServerAdapterServices = {
   readonly otel?: OtelWrap;
   /** `(request) => verifyWebBotAuth(request, options)`; a verified bot becomes the actor. */
   readonly webBotAuth?: WebBotAuthVerifier;
+  /** Wraps each instance after `otel`; build it with `wrapPermDock` to cover derived instances. */
+  readonly wrap?: PermDockWrap;
+  /** Replaces the response of a refused guard; it can never turn a refusal into a grant. */
+  readonly onDenied?: OnDenied;
 };
 
 export type Attached<V extends PolicyVocabulary = PolicyVocabulary> =
@@ -85,13 +104,25 @@ export function adapterKernel<
                 ? undefined
                 : options.actor?.(context);
             },
+      context:
+        options.context === undefined
+          ? undefined
+          : (
+              request: Request,
+            ): ReturnType<NonNullable<typeof options.context>> => {
+              const context = contextOf(request);
+              return context === undefined
+                ? undefined
+                : options.context?.(context);
+            },
       ...instanceOptions(options),
       store: options.store,
       pdp: options.pdp,
       webBotAuth: options.webBotAuth,
       revocations: options.revocations,
       adapter,
-      wrap: options.otel,
+      wrap: composeWraps(options.otel, options.wrap),
+      onDenied: options.onDenied,
     }),
   );
 }

@@ -26,10 +26,13 @@ export type {
   DescribeMessages,
   DescribeOptions,
 } from "./core/describe.ts";
+export type { AppData, AppDataSchema } from "./core/app-data.ts";
 export type {
+  AppObligation,
   ApprovalRequiredDecision,
   Decision,
   Denial,
+  DenialDetails,
   DenialReason,
   DeniedDecision,
   ExplainedDecision,
@@ -153,6 +156,9 @@ export { emptySnapshot, fromSnapshot } from "./core/from-snapshot.ts";
 export { localSnapshotManifest } from "./core/local-manifest.ts";
 export { parseLocalSnapshotManifest } from "./core/parse-local-manifest.ts";
 export { createPermDock, parseSnapshot } from "./core/permdock.ts";
+export { wrapPermDock } from "./core/wrap.ts";
+export type { PermDockOverrides, PermDockWrap } from "./core/wrap.ts";
+export type { RequestContext } from "./core/request-context.ts";
 export { mayAccess } from "./core/may-access.ts";
 export { mayUse, permittedIds } from "./core/may-use.ts";
 export type { PermittedIdsOptions } from "./core/may-use.ts";
@@ -206,6 +212,9 @@ export type {
   PermissionTree,
   ResourceInit,
   ResourceLevel,
+  RESOURCE_X,
+  ResourceMeta,
+  ResourceXTree,
   ResourceNode,
   ResourceOptions,
   ComputedRelation,
@@ -259,12 +268,15 @@ export type {
   Grant,
   GrantCondition,
   GrantLimit,
+  GrantMeta,
   GrantOptions,
   GrantScope,
   GrantValidity,
   HostedGrantRef,
   MembershipFixture,
+  ObligationInput,
   Policy,
+  PolicyAppDataSchemas,
   PolicyDelegation,
   SeparationConflict,
   PrincipalOf,
@@ -317,6 +329,7 @@ export type {
   RoleMeta,
   RoleTree,
   Vocabulary,
+  VocabularyOptions,
 } from "./core/vocabulary.ts";
 export type {
   RoleChange,

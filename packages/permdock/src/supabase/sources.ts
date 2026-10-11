@@ -7,6 +7,7 @@ import type {
   SupabaseSuspension,
 } from "./types.ts";
 
+import { readAppData } from "../core/app-data.ts";
 import { compact } from "../core/compact.ts";
 import { quoteSqlIdent, quoteSqlLiteral, quoteSqlTable } from "../core/sql.ts";
 import { keptKeys } from "./keep.ts";
@@ -66,6 +67,8 @@ export type MembershipTableOptions = Common & {
     readonly managedBy?: string;
     /** A `text[]` column of seats. */
     readonly seats?: string;
+    /** A `jsonb` column of app data (`Membership.x`); never written into claims. */
+    readonly x?: string;
   };
 };
 
@@ -102,6 +105,8 @@ export type MembershipJunctionOptions = Common & {
   readonly managedBy?: "idp" | { readonly column: string };
   /** A `text[]` column of seats. */
   readonly seats?: string;
+  /** A `jsonb` column of app data (`Membership.x`); never written into claims. */
+  readonly x?: string;
 };
 
 /** What `permdock supabase hook generate` compiles; the same SQL the source runs. */
@@ -231,6 +236,7 @@ type Shape = {
   readonly managed: string;
   readonly managedColumn: string | undefined;
   readonly seats: string;
+  readonly x: string | undefined;
   /** SQL for the id the row holds for scope `name`, or `null` when it holds none. */
   readonly idOf: (name: string) => string | undefined;
   /** The id column, and the filter keeping the rows of scope `name` over `alias` (`undefined` for none). */
@@ -357,6 +363,7 @@ function selectOf(
     `${shape.memberGroup} as member_group`,
     `${shape.managed} as managed_by`,
     `${shape.seats} as seats`,
+    ...(shape.x === undefined ? [] : [`${col(shape.x)} as x`]),
     ...(keep ? [`${keepColumn(shape)} as keep`] : []),
   ];
   const group = [
@@ -568,6 +575,7 @@ function membershipOf(row: Record<string, unknown>): Membership | undefined {
     managedBy: row["managed_by"] === "idp" ? "idp" : undefined,
     entitlements: seats.length === 0 ? undefined : seats,
     keep: keep === null || keep === undefined ? undefined : strings(keep),
+    x: row["x"] === null ? undefined : readAppData(undefined, row["x"]),
   });
 }
 
@@ -671,6 +679,7 @@ export function fromTable(
     managed: optional(c.managedBy, "text"),
     managedColumn: c.managedBy,
     seats: c.seats === undefined ? "null::jsonb" : `to_jsonb(${col(c.seats)})`,
+    x: c.x,
     idOf: (name) =>
       `coalesce(case when ${scope} = ${literal(name)} then ${id} end${c.within === undefined ? "" : `, ${within} ->> ${literal(name)}`})`,
     idColumn: c.id ?? "scope_id",
@@ -690,6 +699,7 @@ export function fromTable(
         c.group,
         c.managedBy,
         c.seats,
+        c.x,
       ]
         .filter((name): name is string => name !== undefined)
         .map(col),
@@ -809,6 +819,7 @@ export function fromJunction(
       options.seats === undefined
         ? "null::jsonb"
         : `to_jsonb(${col(options.seats)})`,
+    x: options.x,
     idColumn,
     holds: (name) => (name === options.scope ? "true" : undefined),
     roleKey: role === undefined ? "mf.role" : role.sql,
@@ -833,6 +844,7 @@ export function fromJunction(
         groupColumn,
         managedColumn === "" ? undefined : managedColumn,
         options.seats,
+        options.x,
       ]
         .filter((name): name is string => name !== undefined)
         .map(col),

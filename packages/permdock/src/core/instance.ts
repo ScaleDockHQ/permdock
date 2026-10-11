@@ -112,7 +112,13 @@ import {
   tenantsOf,
 } from "./tenancy.ts";
 import { isThenable } from "./thenable.ts";
-import { findRole, listRoles, synthesiseRole } from "./vocabulary.ts";
+import {
+  findRole,
+  listRoles,
+  sourceRoleMeta,
+  synthesiseRole,
+  treeXSchema,
+} from "./vocabulary.ts";
 import { whereFromGrants } from "./where-scope.ts";
 import { whoCan } from "./who-can.ts";
 
@@ -682,7 +688,17 @@ function assignableCustomRoles(
     if (within) {
       out.set(
         role.name,
-        synthesiseRole(role.name, { on: at, assignable: true }),
+        synthesiseRole(
+          role.name,
+          compact({
+            on: at,
+            assignable: true,
+            meta: sourceRoleMeta(
+              role.meta,
+              treeXSchema(policy.vocabulary?.roles),
+            ),
+          }),
+        ),
       );
     }
   }
@@ -1090,6 +1106,7 @@ export function buildInstance(
             })
           : freezeDeep({
               outcome: "denied",
+              permission: permission.key,
               denials: [{ role: null, reason: "no-grant" }],
               alternatives: [],
             });

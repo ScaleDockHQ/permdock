@@ -25,6 +25,7 @@ import type {
   ProcedureMcpServer,
 } from "./types.ts";
 
+import { deniedText } from "../agent/denied-text.ts";
 import { createAgentKernel } from "../agent/kernel.ts";
 import { boundedMap } from "../agent/lru.ts";
 import { clientNameOf } from "../core/clients.ts";
@@ -36,6 +37,7 @@ import { challengeScope, scopesReaching } from "../core/oauth-scopes.ts";
 import { annotationsFor } from "../core/permissions.ts";
 import { resourceRef } from "../core/resource-ref.ts";
 import { wireDenials } from "../core/wire-denial.ts";
+import { composeWraps } from "../core/wrap.ts";
 import {
   bearerChallenge,
   protectedResourceMetadataUrl,
@@ -70,6 +72,10 @@ type Context = {
 
 type Refusal = {
   readonly text: string;
+  /** The decision behind the refusal, for `onDenied`. */
+  readonly decision?: Exclude<Decision, { readonly outcome: "granted" }>;
+  /** The instance that decided, for reporting a failing `onDenied`. */
+  readonly permdock?: PermDock;
   readonly structured: Readonly<Record<string, unknown>>;
   /** An MRTR `input_required` result, returned instead of the refusal. */
   readonly inputRequired?: Readonly<Record<string, unknown>>;
@@ -483,7 +489,12 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       store: options.store,
       adapter: "mcp",
       boundary: "mcp-args" as const,
-      wrap: options.otel,
+      wrap: composeWraps(options.otel, options.wrap),
+      context:
+        options.context === undefined
+          ? undefined
+          : (call: McpCall): ReturnType<NonNullable<typeof options.context>> =>
+              options.context?.(call.authInfo ?? {}),
       ...instanceOptions(options),
     }),
   );
@@ -585,7 +596,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     });
   };
 
-  const check = async (
+  const decideCall = async (
     permission: Permission,
     reach: Reach,
     load: (() => unknown) | undefined,
@@ -658,7 +669,11 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         ok: false,
         refusal:
           rechecked.raw.outcome === "denied"
-            ? deniedRefusal(rechecked.raw, permission, rechecked.data)
+            ? {
+                ...deniedRefusal(rechecked.raw, permission, rechecked.data),
+                decision: rechecked.raw,
+                permdock: rechecked.permdock,
+              }
             : plainRefusal(
                 permission,
                 `Denied: ${permission.key} was revoked before the call completed.`,
@@ -684,11 +699,15 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       case "denied":
         return {
           ok: false,
-          refusal: decision.denials.some(
-            (denial) => denial.reason === "insufficient-user-authentication",
-          )
-            ? stepUpRefusal(decision, permission, data, context, capabilities)
-            : deniedRefusal(decision, permission, data),
+          refusal: {
+            ...(decision.denials.some(
+              (denial) => denial.reason === "insufficient-user-authentication",
+            )
+              ? stepUpRefusal(decision, permission, data, context, capabilities)
+              : deniedRefusal(decision, permission, data)),
+            decision,
+            permdock: checked.permdock,
+          },
         };
       case "approval-required":
         try {
@@ -696,6 +715,8 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
             ok: false,
             refusal: compact<Refusal>({
               ...approvalRefusal(decision, permission, data),
+              decision,
+              permdock: checked.permdock,
               inputRequired: await approvalInput(
                 decision,
                 handlerContext,
@@ -712,6 +733,33 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         return exhaustive;
       }
     }
+  };
+
+  const check = async (
+    ...args: Parameters<typeof decideCall>
+  ): Promise<Checked> => {
+    const checked = await decideCall(...args);
+    if (checked.ok || options.onDenied === undefined) {
+      return checked;
+    }
+    const { refusal } = checked;
+    return {
+      ok: false,
+      refusal: {
+        ...refusal,
+        text: deniedText(
+          options.onDenied,
+          {
+            decision: refusal.decision ?? null,
+            permission: args[0],
+            text: refusal.text,
+          },
+          (error) => {
+            kernel.report(refusal.permdock, error);
+          },
+        ),
+      },
+    };
   };
 
   const visible = async (

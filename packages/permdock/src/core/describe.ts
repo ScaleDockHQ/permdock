@@ -98,6 +98,13 @@ export type DescribeMessages = {
 
 export type DescribeOptions = {
   readonly messages?: DescribeMessages;
+  /**
+   * The permission the decision is about. Its `meta.title` replaces the key in
+   * the `granted` and `approval` text, and is what the message functions get.
+   */
+  readonly permission?: Pick<Permission, "key"> & {
+    readonly meta?: { readonly title?: string };
+  };
 };
 
 const TITLES: Readonly<Record<DecisionDescription["kind"], string>> = {
@@ -148,10 +155,14 @@ export function describe(
   options?: DescribeOptions,
 ): DecisionDescription {
   const messages = options?.messages;
+  const labelOf = (key: string): string =>
+    options?.permission?.key === key
+      ? (options.permission.meta?.title ?? key)
+      : key;
   const titleOf = (kind: DecisionDescription["kind"]): string =>
     messages?.titles?.[kind] ?? TITLES[kind];
   if (decision.outcome === "granted") {
-    const { permission } = decision.matched;
+    const permission = labelOf(decision.matched.permission);
     return {
       kind: "granted",
       title: titleOf("granted"),
@@ -160,7 +171,7 @@ export function describe(
     };
   }
   if (decision.outcome === "approval-required") {
-    const { permission } = decision.grant;
+    const permission = labelOf(decision.grant.permission);
     const labels = approvers(decision.grant.approval);
     return {
       kind: "approval",

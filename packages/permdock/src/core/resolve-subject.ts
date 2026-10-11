@@ -1,13 +1,14 @@
 import type { AuthEvent, MembershipSource } from "./interfaces.ts";
 import type { PermDockOptions } from "./permdock.ts";
-import type { Policy } from "./policy.ts";
 
+import { type AppDataSchema, readAppData } from "./app-data.ts";
 import { compact } from "./compact.ts";
 import { sanitizeContext } from "./fields.ts";
 import { freezeCopy } from "./freeze.ts";
 import { asMembershipSource } from "./memberships.ts";
 import { expandOAuthScopes } from "./oauth-scopes.ts";
 import { applyRoleKinds } from "./ownership.ts";
+import { type Policy, policyX } from "./policy.ts";
 import { normalizeMemberships, scopeList, tenantOf } from "./scopes.ts";
 import {
   type Actor,
@@ -108,7 +109,10 @@ function assemblePrincipal(
   } catch {
     principal = null;
   }
-  const contextResult = resolveContext(policy, user, context, auth);
+  const contextResult = withRequestContext(
+    options.context,
+    resolveContext(policy, user, context, auth),
+  );
   let memberships: readonly Membership[] | Promise<readonly Membership[]> =
     principal?.memberships ?? [];
   let live = false;
@@ -230,7 +234,11 @@ function finishSubject(
   context: Readonly<Record<string, unknown>>,
   input: readonly Membership[],
   options: PermDockOptions,
-  extra: { readonly stale: boolean; readonly plans: readonly string[] },
+  extra: {
+    readonly stale: boolean;
+    readonly plans: readonly string[];
+    readonly auth: AuthEvent[];
+  },
 ): Subject {
   if (assembled.principal === null) {
     return freezeCopy(
@@ -248,7 +256,11 @@ function finishSubject(
   const kinds = applyRoleKinds(
     policy,
     assembled.principal.roles,
-    normalizeMemberships(input, scopes),
+    checkMembershipX(
+      normalizeMemberships(input, scopes),
+      policyX(policy)?.membership,
+      extra.auth,
+    ),
   );
   const roles = held === undefined ? kinds.roles : [];
   const memberships =
@@ -283,6 +295,34 @@ function finishSubject(
       liveSession: assembled.liveSession,
     }),
   );
+}
+
+/** Runs the policy's membership schema over each `x`; an invalid one is dropped and reported, never the membership. */
+function checkMembershipX(
+  memberships: readonly Membership[],
+  schema: AppDataSchema<unknown> | undefined,
+  auth: AuthEvent[],
+): readonly Membership[] {
+  if (schema === undefined) {
+    return memberships;
+  }
+  let dropped = false;
+  const checked = memberships.map((membership) => {
+    if (membership.x === undefined) {
+      return membership;
+    }
+    const x = readAppData(schema, membership.x);
+    if (x === undefined) {
+      dropped = true;
+      const { x: _dropped, ...rest } = membership;
+      return Object.freeze(rest);
+    }
+    return Object.freeze({ ...membership, x: freezeCopy(x) });
+  });
+  if (dropped) {
+    auth.push({ reason: "schema", source: "memberships", cause: "x" });
+  }
+  return checked;
 }
 
 function activeTenantOf(
@@ -432,6 +472,23 @@ function resolveContext(
   }
 }
 
+function withRequestContext(
+  request: Readonly<Record<string, unknown>> | undefined,
+  resolved:
+    | Readonly<Record<string, unknown>>
+    | Promise<Readonly<Record<string, unknown>>>,
+):
+  | Readonly<Record<string, unknown>>
+  | Promise<Readonly<Record<string, unknown>>> {
+  if (request === undefined) {
+    return resolved;
+  }
+  const base = sanitizeContext(request);
+  return isThenable(resolved)
+    ? resolved.then((value) => ({ ...base, ...value }))
+    : { ...base, ...resolved };
+}
+
 export function resolveSubject(
   policy: Policy,
   user: unknown,
@@ -474,6 +531,7 @@ export function resolveSubject(
       finishSubject(policy, assembled, context, resolved, options, {
         stale: isStale,
         plans: await withPlans(resolved),
+        auth,
       }),
     );
   }
@@ -487,7 +545,7 @@ export function resolveSubject(
         assembled.context as Readonly<Record<string, unknown>>,
         memberships,
         options,
-        { stale, plans: resolved },
+        { stale, plans: resolved, auth },
       ),
     );
   }
@@ -497,6 +555,6 @@ export function resolveSubject(
     assembled.context,
     memberships,
     options,
-    { stale, plans },
+    { stale, plans, auth },
   );
 }

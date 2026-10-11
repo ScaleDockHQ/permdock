@@ -210,6 +210,8 @@ function matchedOf(grant: SnapshotGrant): MatchedGrant {
   return compact<MatchedGrant>({
     role: grant.role,
     permission: grant.permission,
+    name: grant.name,
+    meta: grant.meta,
     to: grant.to,
     where: grant.where,
     check: grant.check,
@@ -233,22 +235,26 @@ export function evaluateSnapshot(
     options.explain === true
       ? { evaluated: 0, allows: [], denies: [], skipped: [] }
       : undefined;
-  const done = (decision: Decision): Decision =>
-    outcomeOnly
-      ? decision
-      : freezeDeep(
-          tracer === undefined
-            ? decision
-            : {
-                ...decision,
-                trace: {
-                  evaluated: tracer.evaluated,
-                  allows: tracer.allows,
-                  denies: tracer.denies,
-                  skipped: tracer.skipped,
-                },
-              },
-        );
+  const done = (raw: Decision): Decision => {
+    if (outcomeOnly) {
+      return raw;
+    }
+    const decision: Decision =
+      raw.outcome === "denied" ? { ...raw, permission: permission.key } : raw;
+    return freezeDeep(
+      tracer === undefined
+        ? decision
+        : {
+            ...decision,
+            trace: {
+              evaluated: tracer.evaluated,
+              allows: tracer.allows,
+              denies: tracer.denies,
+              skipped: tracer.skipped,
+            },
+          },
+    );
+  };
   const skip = (grant: SnapshotGrant, why: TraceSkipReason): void => {
     tracer?.skipped.push({
       role: grant.role,
@@ -464,12 +470,15 @@ export function evaluateSnapshot(
       token,
     });
   }
-  return done({
-    outcome: "granted",
-    subject,
-    matched: grant,
-    token,
-  });
+  return done(
+    compact<Decision>({
+      outcome: "granted",
+      subject,
+      matched: grant,
+      token,
+      obligations: matched.obligations,
+    }),
+  );
 }
 
 export function whereFromSnapshot(

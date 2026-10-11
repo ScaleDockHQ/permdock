@@ -672,6 +672,7 @@ function matchedOf(
     role: grant.role,
     permission: permissionKey,
     name: grant.name,
+    meta: grant.meta,
     to: grant.to,
     where: grant.where,
     check: grant.check,
@@ -732,7 +733,13 @@ export function evaluate(
     options.explain === true
       ? { evaluated: 0, allows: [], denies: [], skipped: [] }
       : undefined;
-  const complete = (decision: Decision, membership?: Membership): Decision => {
+  const complete = (raw: Decision, membership?: Membership): Decision => {
+    const decision: Decision =
+      env.outcomeOnly !== true &&
+      raw.outcome === "denied" &&
+      raw.permission === undefined
+        ? { ...raw, permission: permission.key }
+        : raw;
     const final: Decision =
       env.outcomeOnly === true
         ? decision
@@ -1401,6 +1408,7 @@ export function evaluate(
   const obligations = [
     ...(quotaState.obligations ?? []),
     ...(matchedAllow.obligations ?? []),
+    ...(matchedAllow.grant.obligations ?? []),
   ];
   return complete(
     requiresApproval(approval)

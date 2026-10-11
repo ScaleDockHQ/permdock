@@ -2,6 +2,7 @@ import { use, useMemo, useSyncExternalStore } from "react";
 
 import type { ClientStore } from "../client/store.ts";
 import type { Decision } from "../core/decision.ts";
+import type { DecisionDescription, DescribeOptions } from "../core/describe.ts";
 import type { Permission } from "../core/permissions.ts";
 import type { PolicyVocabulary } from "../core/policy.ts";
 import type { Membership } from "../core/subject.ts";
@@ -20,6 +21,7 @@ import type {
 import { storeOf } from "../client/store.ts";
 import {
   approvalHandle,
+  describeWith,
   filterResult,
   permissionSet,
   rolesView,
@@ -29,6 +31,7 @@ import {
 import {
   PermDockSnapshotPromiseContext,
   PermDockStoreContext,
+  PermDockUiContext,
 } from "./context.ts";
 
 function useStore(): ClientStore {
@@ -136,6 +139,15 @@ export function useAssignablePermissions(
 export function useSubject(): SubjectView {
   const permdock = usePermDock();
   return useMemo(() => subjectView(permdock), [permdock]);
+}
+
+/** `describe` with the provider's `messages`; a call's own `messages` win. */
+export function useDescribe(): (
+  decision: Decision,
+  options?: DescribeOptions,
+) => DecisionDescription {
+  const { messages } = use(PermDockUiContext);
+  return useMemo(() => describeWith(messages), [messages]);
 }
 
 export function useApproval(decision: Decision): ApprovalHandle {

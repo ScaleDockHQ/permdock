@@ -67,6 +67,8 @@ export type CatalogResource = {
   /** The boolean column that keeps ancestor grants out of a row. */
   readonly restricted?: string;
   readonly restrictedStops?: readonly string[];
+  /** `resource(…, { meta })`: titles plus the app's own `x`; absent when empty. */
+  readonly meta?: Readonly<Record<string, unknown>>;
 };
 
 export type CatalogRole = {
@@ -153,6 +155,8 @@ export type CatalogGrant = {
   };
   /** Present when the grant is a closure, reads the relation graph or is opaque; `where` and `check` are then omitted. */
   readonly portable?: false;
+  /** The grant's `meta`: a description plus the app's own `x`; absent when empty. */
+  readonly meta?: Readonly<Record<string, unknown>>;
 };
 
 /** `permissions.catalog.json`, validated by `schemas/catalog-v1.json`. */

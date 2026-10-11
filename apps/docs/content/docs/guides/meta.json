@@ -1,4 +1,9 @@
 {
   "title": "Guides",
-  "pages": ["next-cache-components", "scenario-testing", "support-access"]
+  "pages": [
+    "extending",
+    "next-cache-components",
+    "scenario-testing",
+    "support-access"
+  ]
 }

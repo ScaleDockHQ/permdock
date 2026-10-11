@@ -7,11 +7,12 @@ import type { Permission, PermissionTree } from "../core/permissions.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy.ts";
 import type { Principal, Subject } from "../core/subject.ts";
 import type { ServerAdapterServices } from "../server/bind.ts";
-import type { OpenApiHooks } from "../server/create.ts";
+import type { OpenApiHooks, RequestContext } from "../server/create.ts";
 
 import { compact } from "../core/compact.ts";
 import { credentialSubject } from "../core/credential.ts";
 import { instanceOptions } from "../core/instance-options.ts";
+import { composeWraps } from "../core/wrap.ts";
 import { attached } from "../server/bind.ts";
 import { createServerKernel } from "../server/create.ts";
 import { methodNotAllowed } from "../server/problem.ts";
@@ -76,6 +77,14 @@ export type SupabaseMiddlewarePermDockOptions<TUser = unknown> =
             ctx: SupabaseMiddlewareContext,
             request: Request,
           ) => string | undefined | Promise<string | undefined>);
+      /**
+       * Request values merged into `subject.context`, under `policy.context`.
+       * Only values the server derived belong here, never client input.
+       */
+      readonly context?: (
+        ctx: SupabaseMiddlewareContext,
+        request: Request,
+      ) => RequestContext | undefined | Promise<RequestContext | undefined>;
     };
 
 export type WithPermDockConfig = {
@@ -212,12 +221,23 @@ export function createPermDock<
             ): string | undefined | Promise<string | undefined> =>
               tenantOption(contextFor(request), request)
           : tenantOption,
+      context:
+        options.context === undefined
+          ? undefined
+          : (
+              request: Request,
+            ):
+              | RequestContext
+              | undefined
+              | Promise<RequestContext | undefined> =>
+              options.context?.(contextFor(request), request),
       ...instanceOptions(options),
       store: options.store,
       pdp: options.pdp,
       webBotAuth: options.webBotAuth,
       adapter: "supabase-middleware",
-      wrap: options.otel,
+      wrap: composeWraps(options.otel, options.wrap),
+      onDenied: options.onDenied,
     }),
   );
 

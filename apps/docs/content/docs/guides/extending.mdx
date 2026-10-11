@@ -1,0 +1,182 @@
+---
+title: Extend PermDock
+description: Attach typed app data to permissions, resources, roles, plans, grants and memberships, add request data, declare app obligations, set UI defaults and replace adapter responses, without a plugin system and without changing what PermDock decides.
+---
+
+PermDock is extended through options on the functions you already call. Each need below has one extension point, and none of them can turn a denial into a grant.
+
+| Need                                                  | Extension point                                                                                            |
+| ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Your own fields on a permission, resource, role, plan | `meta.x`, typed by a schema on `definePermissions`, `defineRoles` or `definePlans` ([app data](#app-data)) |
+| Your own fields on a grant                            | `allow(p, { name, meta })`, typed by `definePolicy(…, { x: { grant } })`                                   |
+| Your own fields on a membership or a custom role      | `Membership.x` and `CustomRole.meta.x` from your sources, typed by `definePolicy` and `defineRoles`        |
+| A value from the request that a condition reads       | The adapter's `context` hook ([request data](#request-data))                                               |
+| A rule PermDock cannot express                        | A closure grant, `sqlFunction`, a `DecisionProvider` or one of the [interfaces](#custom-logic)             |
+| Something your code must do when a grant applies      | App obligations, `allow(p, { obligations })` ([steering](#steering))                                       |
+| The same fallback, skeleton or wording on every page  | Provider `defaults` and `messages` ([UI defaults](#ui-defaults))                                           |
+| Your own error body, status or refusal text           | The adapter's `onDenied` hook ([adapter responses](#adapter-responses))                                    |
+| Logging, caching or metrics around every check        | The adapter's `wrap` option and `wrapPermDock` ([wrapping an instance](#wrapping-an-instance))             |
+
+## App data
+
+Every definition takes an `x` field for data your application owns: a risk level, an owning team, a ticket id, a department. PermDock checks that it is plain JSON, freezes it, carries it to decisions, events, snapshots and the catalog, and never reads it.
+
+```ts
+import { z } from "zod";
+
+const permissions = definePermissions(
+  {
+    invoice: resource(Invoice, {
+      actions: { pay: { title: "Pay invoice", x: { risk: "high" } }, read: {} },
+      meta: { title: "Invoice", x: { owner: "billing" } },
+    }),
+  },
+  {
+    x: {
+      permission: z.object({ risk: z.enum(["low", "high"]) }),
+      resource: z.object({ owner: z.string() }),
+    },
+  },
+);
+
+const roles = defineRoles(
+  { clerk: { meta: { title: "Clerk", x: { tier: 1 } } } },
+  { x: z.object({ tier: z.number() }) },
+);
+
+export const policy = definePolicy(
+  { permissions, roles },
+  {
+    roles: [
+      role(roles.clerk, [
+        allow(permissions.invoice.pay, {
+          name: "clerk-pays",
+          meta: { description: "Clerks pay invoices", x: { ticket: "FIN-1" } },
+        }),
+      ]),
+    ],
+    principal: (user) => user,
+    x: {
+      grant: z.object({ ticket: z.string() }),
+      membership: z.object({ department: z.string() }),
+    },
+  },
+);
+```
+
+| Where `x` lives          | Schema                                           | Invalid data                                          | Read it from                                                          |
+| ------------------------ | ------------------------------------------------ | ----------------------------------------------------- | --------------------------------------------------------------------- |
+| Permission leaf `meta.x` | `definePermissions(…, { x: { permission } })`    | Throws at definition                                  | `permissions.invoice.pay.meta.x`, the catalog, snapshots              |
+| Resource `meta.x`        | `definePermissions(…, { x: { resource } })`      | Throws at definition                                  | `getResource(permissions, "invoice")?.meta`, the catalog              |
+| Role and plan `meta.x`   | `defineRoles(…, { x })`, `definePlans(…, { x })` | Throws at definition                                  | `roles.clerk.meta.x`, the snapshot's `vocabulary`, the catalog        |
+| Grant `meta.x`           | `definePolicy(…, { x: { grant } })`              | Throws at `definePolicy`                              | `decision.matched.meta`, decision events, snapshot and catalog grants |
+| `Membership.x`           | `definePolicy(…, { x: { membership } })`         | Dropped with an `on('auth')` event of reason `schema` | `permdock.memberships()`, the snapshot's `principal.memberships`      |
+| Custom role `meta.x`     | The role tree's `defineRoles(…, { x })`          | Dropped; the role stays                               | `permdock.assignableRoles()`                                          |
+
+Data you write in code throws when it is invalid, because that is an author error. Data a `MembershipSource` or `RoleSource` returns is dropped when invalid, because a request should never fail on a bad row: the `x` goes, the membership or role stays. Each schema must validate synchronously. With a schema, the field takes its output type; without one, it is `AppData`, a plain JSON object.
+
+All of it is visible to whoever holds a snapshot: grant `meta`, membership `x` and every leaf's `meta` ship to the client. Never put a secret in `x`. Grant `meta` stays out of the policy fingerprint, so editing a description invalidates no decision or approval token. The Supabase sources read `Membership.x` from a `jsonb` column (`fromTable({ columns: { x } })`, `fromJunction({ x })`) and the token hook never writes it into claims ([tenancy](/docs/concepts/tenancy#memberships)).
+
+## Request data
+
+A condition can read `context.<key>`. The policy's own `context` function loads values once per subject; an adapter's `context` hook adds values from the request itself:
+
+```ts
+import { createPermDock } from "permdock/hono";
+
+const { protect } = createPermDock(policy, {
+  subject: (c) => c.get("user"),
+  context: (c) => ({ region: c.get("geo").region }),
+});
+```
+
+| Adapter                                        | Hook                                                      |
+| ---------------------------------------------- | --------------------------------------------------------- |
+| `permdock/server` and every HTTP adapter on it | `context(request)`, or the framework context (`c`, `req`) |
+| `permdock/supabase` middleware                 | `context(ctx, request)`                                   |
+| `permdock/mcp`                                 | `context(authInfo)`                                       |
+| `permdock/ai-sdk`                              | `context(aiSdkContext)`                                   |
+
+The hook returns a plain JSON object, merged into `subject.context` under the policy's `context`: on a clash, the policy's key wins. A hook that throws, or returns something other than a JSON object, adds no request context and reports through `on('error')`. It cannot set the subject, memberships, tenant or actor.
+
+Return only values the server derived: a verified session field, a geo lookup your edge did, a flag the server evaluated. A header, query parameter, request body or tool argument is client input, and copying it into `context` lets the client choose what a condition sees ([threat model](/docs/security/threat-model)). The merged context also appears in the snapshot's `subject.context`, so it never holds a secret. A `context.*` reference cannot compile to RLS; `permdock rls generate` refuses it.
+
+## Custom logic
+
+Logic PermDock does not model goes in code you own, behind a fixed contract:
+
+- A closure grant, `allow(p, (row, ctx) => …)`, runs any synchronous check in process; it is non-portable, so snapshots send it to the decision endpoint ([policies](/docs/concepts/policies#closures)).
+- `sqlFunction` names a database function with a portable twin, for a rule that must hold in RLS too ([conditions](/docs/concepts/conditions)).
+- A `DecisionProvider` delegates chosen permissions to a remote PDP, OpenFGA or SpiceDB ([PDP](/docs/adapters/pdp)).
+- The [extension interfaces](/docs/concepts/extension-interfaces) cover subjects, memberships, roles, relations, stores and sinks, each with a conformance runner.
+
+## Steering
+
+`allow(p, { obligations })` attaches follow-ups your code owes when that grant applies. Each becomes `{ kind: 'app', name, detail? }` on the granted decision:
+
+```ts
+allow(permissions.report.export, {
+  obligations: ["watermark", { name: "mfa-reprompt", detail: { maxAge: 300 } }],
+});
+```
+
+The snapshot carries them, so a client decision owes the same obligations as the server's. Decision events, OCSF and OpenTelemetry carry their names. [Obligations](/docs/concepts/decisions#obligations) lists every kind.
+
+To steer on a denial, read `decision.permission`: the key that was checked, which `findPermission` resolves to the leaf and its `meta`.
+
+## UI defaults
+
+`PermDockProvider` (and the Vue plugin, Svelte context setter and Solid provider) takes `defaults` for the `pending`, `fallback` and `approval` slots every `<Protected>` leaves out, and `messages` for `useDescribe()`. `<Protected approval>` renders an approval-required decision separately from a denial. [Provider defaults](/docs/concepts/ui#provider-defaults) has the props and the order a slot resolves in.
+
+## Adapter responses
+
+The HTTP adapters take `onDenied`, called after a refusal with the decision, the Problem Details PermDock built and the request:
+
+```ts
+import { createPermDock } from "permdock/server";
+
+const { protect } = createPermDock(policy, {
+  subject: (request) => sessionUser(request),
+  onDenied: ({ problem, decision }) => ({
+    ...problem,
+    code: decision.outcome === "denied" ? "FORBIDDEN" : "NEEDS_APPROVAL",
+  }),
+});
+```
+
+- Return Problem Details with extra members to keep the status and headers, a `Response` to replace the answer, or `undefined` for the default.
+- It runs for an unauthenticated subject, a missing OAuth scope, a loader that threw and every denied or approval-required decision.
+- A status below 300, a throw or an invalid return keeps the default response and reports through `on('error')`. The handler behind the guard never runs.
+- A failed guard returns `{ ok: false, response, decision }`, so a framework that builds its own answer can read the decision.
+
+On Next.js the factory's `onDenied` also runs before `requireAccess` interrupts, unless the call passes its own ([Next.js](/docs/adapters/next)). On MCP and the AI SDK, `onDenied` receives `{ decision, permission, text }` and may return replacement text only; `isError`, `structuredContent` and the approval shape stay as PermDock built them ([MCP](/docs/adapters/mcp), [AI SDK](/docs/adapters/ai-sdk)).
+
+## Wrapping an instance
+
+`wrap` on the HTTP, MCP and AI SDK adapters receives each request's instance after `otel` and returns the one handlers see. Build it with `wrapPermDock(permdock, overrides)`, which replaces the members `overrides` returns and applies it again to every instance `tenant()`, `team()` and `derive()` return:
+
+```ts
+import { wrapPermDock } from "permdock";
+
+const { protect } = createPermDock(policy, {
+  subject: (request) => sessionUser(request),
+  wrap: (permdock) =>
+    wrapPermDock(permdock, (inner) => ({
+      // `can` is overloaded; the cast restores the overloads.
+      can: ((...args: Parameters<typeof inner.can>) => {
+        metrics.increment("permdock.can", { permission: args[0].key });
+        return inner.can(...args);
+      }) as typeof inner.can,
+    })),
+});
+```
+
+`withOtel` is built on the same helper. A wrapper changes what your code calls; the decision engine inside is untouched, so a wrapper that returns `true` from `can` lies to your code without changing `decide`, the decision log or RLS.
+
+## Why
+
+- **Options, not a plugin system.** A plugin registry is module-level mutable state, and PermDock instances are immutable and request-scoped. Every extension point here is an option on a function you already call, scoped to the policy or adapter you pass it to, and visible in its type.
+- **PermDock never reads `x`.** App data that fed evaluation would need a portable form for snapshots, RLS and ORM filters, which turns it into a condition operator. Keeping `x` out of evaluation lets it be any JSON your app needs and lets you change it without moving a decision. A value a decision should depend on belongs in a condition, through the principal, `context` or a relation.
+- **One schema per kind.** The `subjectFrom*` helpers already take a Standard Schema, so the same shape types app data with no `declare module` augmentation, and the schema runs at the boundary where the data enters.
+- **App obligations share one `kind`.** A new `kind` per need would break every exhaustive `switch` over `Obligation`. One namespaced variant keeps the list closed and leaves the names to you.
+- **Hooks cannot grant.** `onDenied` runs only after a refusal and is checked for a refusal status; `context` cannot set who the subject is. A hook that throws falls back to the default, so a bug in extension code fails closed.

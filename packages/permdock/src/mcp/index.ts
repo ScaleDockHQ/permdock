@@ -1,6 +1,7 @@
 export { APPROVAL_META_KEY, createPermDock } from "./create.ts";
 export { subjectFromMcp } from "./subject.ts";
 export type { McpSubjectOptions } from "./subject.ts";
+export type { DeniedTextEvent, OnDeniedText } from "../agent/denied-text.ts";
 export type {
   GuardedMcpServer,
   McpAuthInfo,

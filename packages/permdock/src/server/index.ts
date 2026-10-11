@@ -1,9 +1,12 @@
 export { createPermDock, createServerKernel, tenantScope } from "./create.ts";
 export type {
   Guard,
+  OnDenied,
+  OnDeniedEvent,
   OpenApiHooks,
   OperationScopes,
   ProtectOptions,
+  RequestContext,
   ScopeGuard,
   ServerKernel,
   ServerKernelOptions,

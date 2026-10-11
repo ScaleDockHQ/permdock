@@ -1,10 +1,10 @@
-import { type ReactElement, useEffect, useRef } from "react";
+import { type ReactElement, useEffect, useMemo, useRef } from "react";
 
 import type { ClientStore } from "../client/store.ts";
 import type { NativePermDockProviderProps } from "./types.ts";
 
 import { compact } from "../core/compact.ts";
-import { PermDockStoreContext } from "../react/context.ts";
+import { PermDockStoreContext, PermDockUiContext } from "../react/context.ts";
 import { useKeyed } from "../react/keyed.ts";
 import { useLiveOptions } from "../react/live-options.ts";
 import { connectSource, createNativeStore } from "./store.ts";
@@ -30,6 +30,9 @@ export function PermDockProvider(
           headers: live.readHeaders,
           maxAge: props.maxAge,
           verifier: live.verifier,
+          onSnapshot: live.onSnapshot,
+          onClear: live.onClear,
+          approvalInterval: props.approvalInterval,
           previous: shown.current ?? undefined,
         }),
       ),
@@ -45,7 +48,14 @@ export function PermDockProvider(
       live.fetch,
       props.maxAge,
       live.verifier,
+      live.onSnapshot,
+      live.onClear,
+      props.approvalInterval,
     ],
+  );
+  const ui = useMemo(
+    () => ({ defaults: props.defaults, messages: props.messages }),
+    [props.defaults, props.messages],
   );
 
   // The replaced store stops writing once this one is on screen; disposing
@@ -140,6 +150,8 @@ export function PermDockProvider(
   ]);
 
   return (
-    <PermDockStoreContext value={store}>{props.children}</PermDockStoreContext>
+    <PermDockStoreContext value={store}>
+      <PermDockUiContext value={ui}>{props.children}</PermDockUiContext>
+    </PermDockStoreContext>
   );
 }

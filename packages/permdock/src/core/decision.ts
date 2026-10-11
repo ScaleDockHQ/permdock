@@ -1,6 +1,13 @@
+import type { MetaValue } from "./app-data.ts";
 import type { Grantee } from "./grantee.ts";
 import type { Permission } from "./permissions.ts";
-import type { ApprovalRequirement, Grant, HostedGrantRef } from "./policy.ts";
+import type {
+  ApprovalRequirement,
+  Grant,
+  GrantMeta,
+  GrantValidity,
+  HostedGrantRef,
+} from "./policy.ts";
 import type { Membership, Subject } from "./subject.ts";
 
 export type DenialReason =
@@ -48,10 +55,25 @@ export type DenialReason =
   | "exceeds-creator"
   | "credential-policy";
 
-export type Denial = {
+/** The `detail` each denial reason carries, where PermDock sets a structured one. */
+export type DenialDetails = {
+  readonly limit: LimitDetail;
+  /** The window the inactive allow applies in. */
+  readonly "inactive-grant": GrantValidity;
+  /** The matching deny's declared `name`. */
+  readonly deny: { readonly name?: string };
+};
+
+/**
+ * Why a candidate grant did not apply. `Denial<"limit">` types `detail` for a
+ * reason in `DenialDetails`; any other reason's detail is `unknown`.
+ */
+export type Denial<R extends DenialReason = DenialReason> = {
   readonly role: string | null;
-  readonly reason: DenialReason;
-  readonly detail?: unknown;
+  readonly reason: R;
+  readonly detail?: [R] extends [keyof DenialDetails]
+    ? DenialDetails[R]
+    : unknown;
   readonly to?: Grantee | readonly Grantee[];
 };
 
@@ -60,6 +82,8 @@ export type MatchedGrant = {
   readonly permission: string;
   /** The grant's declared `name`, when it has one. */
   readonly name?: string;
+  /** The grant's declared `meta`, when it has one; PermDock never reads it. */
+  readonly meta?: GrantMeta;
   readonly to?: Grantee | readonly Grantee[];
   readonly where?: Grant["where"];
   readonly check?: Grant["check"];
@@ -76,10 +100,21 @@ export type MatchedGrant = {
  * `limit` was past its count; `near-limit`: usage reached `alertAt`.
  * `notify` / `review`: a break-glass grant's declared follow-ups.
  * `justify`: the break-glass reason, carried so audit records why.
+ * `app`: a follow-up the application declared on the grant
+ * (`allow(p, { obligations })`); PermDock carries it and never acts on it.
  */
 export type Obligation =
   | { readonly kind: "over-limit" | "near-limit" | "notify" | "review" }
-  | { readonly kind: "justify"; readonly reason: string };
+  | { readonly kind: "justify"; readonly reason: string }
+  | AppObligation;
+
+/** An obligation the application declares on an allow and handles itself. */
+export type AppObligation = {
+  readonly kind: "app";
+  /** Lower case letters, digits, `_` and `-`, starting with a letter. */
+  readonly name: string;
+  readonly detail?: MetaValue;
+};
 
 /** What is left of the `limit` that applied; `resetsAt` is Unix seconds. */
 export type Quota = {
@@ -156,6 +191,11 @@ export type GrantedDecision = {
 
 export type DeniedDecision = {
   readonly outcome: "denied";
+  /**
+   * The key of the permission that was checked. Absent on a denial for a
+   * check that named no declared permission.
+   */
+  readonly permission?: string;
   readonly denials: readonly Denial[];
   readonly alternatives: readonly Permission[];
   /** Present only with `explain: true`. */

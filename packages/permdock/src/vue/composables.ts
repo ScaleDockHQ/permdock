@@ -11,6 +11,7 @@ import {
 
 import type { ClientStore } from "../client/store.ts";
 import type { Decision } from "../core/decision.ts";
+import type { DecisionDescription, DescribeOptions } from "../core/describe.ts";
 import type { Permission } from "../core/permissions.ts";
 import type { Membership } from "../core/subject.ts";
 import type { Role } from "../core/vocabulary.ts";
@@ -27,6 +28,7 @@ import type {
 
 import {
   approvalHandle,
+  describeWith,
   filterResult,
   livePermDock,
   permissionSet,
@@ -34,7 +36,7 @@ import {
   subjectView,
   tenantView,
 } from "../client/views.ts";
-import { permDockKey } from "./context.ts";
+import { permDockKey, permDockUiKey } from "./context.ts";
 
 function useStore(): ClientStore {
   const store = inject(permDockKey);
@@ -154,4 +156,12 @@ export function useApproval(
     void permdock.value;
     return approvalHandle(store, toValue(decision));
   });
+}
+
+/** `describe` with the plugin's `messages`; a call's own `messages` win. */
+export function useDescribe(): (
+  decision: Decision,
+  options?: DescribeOptions,
+) => DecisionDescription {
+  return describeWith(inject(permDockUiKey, {}).messages);
 }

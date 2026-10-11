@@ -33,9 +33,18 @@ Hardware-key step-up is `to: assurance({ amr: ['hwk'], maxAge: 300 })` and rende
 Adopting PermDock in an app with its own keys, SQL helpers and tokens is a step-by-step guide ([existing apps](https://permdock.com/docs/getting-started/existing-apps)):
 
 - Keep the app's keys. Map verbs such as `view` to SQL with `rls.actions`, and give colliding resources a distinct `name` on `resource()`.
-- Put application-owned metadata in `meta.x`; PermDock carries it and never reads it.
+- Put application-owned metadata in `meta.x`; PermDock carries it and never reads it (see App data below).
 - Rename a key later with `definePermissions(tree, { renamed: { "old.key": "new.key" } })`. Remove the alias only when `permdock doctor` PD055 and PD056 are quiet; `permdock diff` reports the removal as the breaking `alias-removed`.
 - Generate helpers beside legacy SQL with `permdock rls generate --helpers-only --shims`, then rewrite policies with `permdock rls migrate --write`.
+
+## App data and app obligations
+
+Owning page: [extend PermDock](https://permdock.com/docs/guides/extending).
+
+- Type `x` with one Standard Schema per kind: `definePermissions(tree, { x: { permission, resource } })`, `defineRoles(tree, { x })`, `definePlans(tree, { x })`, `definePolicy(…, { x: { grant, membership } })`. Each schema validates synchronously. Invalid `x` in code throws; invalid `Membership.x` or custom-role `meta.x` from a source is dropped and the row stays.
+- Describe a grant with `allow(p, { name, meta: { description, x } })`. It reaches `decision.matched`, decision events, snapshot grants and catalog grants, and stays out of the policy fingerprint.
+- Steer code on a grant with `allow(p, { obligations: ['watermark', { name, detail }] })`, never on a deny. Read `{ kind: 'app', name, detail? }` from `decision.obligations` on a granted decision.
+- Snapshots carry grant `meta`, membership `x` and every leaf's `meta` to the client: never put a secret in them.
 
 ## CLI starting points
 

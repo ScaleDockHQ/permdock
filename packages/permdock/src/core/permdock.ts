@@ -368,6 +368,11 @@ export type PermDockOptions = {
   readonly relations?: RelationSource;
   /** Approval requirements kept as data; they add to the code's and never remove one. A throw denies. */
   readonly approvalPolicies?: ApprovalPolicySource;
+  /**
+   * Request values an adapter's `context` hook derived on the server, merged
+   * into `subject.context`; keys from `policy.context` win on a clash.
+   */
+  readonly context?: Readonly<Record<string, unknown>>;
 };
 
 function hostedPolicy(

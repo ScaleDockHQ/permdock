@@ -3,7 +3,9 @@
 
   import {
     getStore,
+    getUi,
     scopedFor,
+    slotContent,
     viewFor,
     type ProtectedProps,
   } from './runtime.ts';
@@ -15,9 +17,11 @@
     children,
     pending,
     fallback,
+    approval,
   }: ProtectedProps = $props();
 
   const store = getStore();
+  const { defaults } = getUi();
   let tick = $state(0);
   onDestroy(
     store.subscribe(() => {
@@ -29,12 +33,15 @@
     const generation = tick;
     return viewFor(store, permission, data, scoped, generation);
   });
+  const own = $derived({ pending, fallback, approval });
 </script>
 
 {#if view.slot === 'pending'}
-  {@render pending?.()}
+  {@render slotContent('pending', own, defaults)?.()}
+{:else if view.slot === 'approval'}
+  {@render slotContent('approval', own, defaults)?.(view.decision)}
 {:else if view.slot === 'fallback'}
-  {@render fallback?.(view.decision)}
+  {@render slotContent('fallback', own, defaults)?.(view.decision)}
 {:else}
   {@render children?.(view.decision)}
 {/if}

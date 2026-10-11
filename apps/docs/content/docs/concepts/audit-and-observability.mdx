@@ -19,6 +19,8 @@ The event contains the result. permix's `hooks` gave you `{ path, data }` before
 
 `tenant`, `membership` and `via` make a tenant-scoped audit log a filter and let a sink answer "which team grant let this happen" ([tenancy](/docs/concepts/tenancy)). A tenant-defined custom role appears through its resolved declared role in `matched.role`; the custom name is on the `membership`.
 
+`matched.name` and `matched.meta` carry the grant's declared name and app data, and a granted event carries its `obligations`, so a sink can group decisions by the rule that allowed them or by an app tag such as a ticket id ([extend PermDock](/docs/guides/extending#app-data)). The OCSF projection puts the grant name and the app obligation names under `unmapped`, and the OTel span adds `permdock.matched.name` and `permdock.obligations`.
+
 Handlers are fire-and-forget: they run after the decision is computed, a throwing handler is reported to `on('error')` and never changes the outcome, and async handlers are not awaited by `can` or `decide`. If your sink needs backpressure, buffer in the handler.
 
 ### Principal and actor in every event

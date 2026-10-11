@@ -1,5 +1,6 @@
-import type { MaybeRefOrGetter } from "vue";
+import type { MaybeRefOrGetter, VNode } from "vue";
 
+import type { ClientStoreOptions } from "../client/store.ts";
 import type {
   ApprovalHandle,
   ApprovalState,
@@ -12,6 +13,8 @@ import type {
   TenantView,
   UseRolesOptions,
 } from "../client/types.ts";
+import type { ApprovalRequiredDecision, Decision } from "../core/decision.ts";
+import type { DescribeMessages } from "../core/describe.ts";
 import type { Snapshot, TokenVerifier } from "../core/interfaces.ts";
 
 export type PermDockPluginOptions = {
@@ -41,6 +44,27 @@ export type PermDockPluginOptions = {
   readonly maxAge?: number;
   /** Read on every verification; set it at install to verify signed snapshots. */
   readonly verifier?: MaybeRefOrGetter<TokenVerifier | undefined>;
+  /** What every `<Protected>` renders for a slot it leaves out. */
+  readonly defaults?: PermDockDefaults;
+  /** Localised text for `useDescribe()`. */
+  readonly messages?: DescribeMessages;
+  /** Called with each snapshot the store accepts. */
+  readonly onSnapshot?: NonNullable<ClientStoreOptions["onSnapshot"]>;
+  /** Called when the store drops its snapshot. */
+  readonly onClear?: () => void;
+  /** Milliseconds between approval status polls. Defaults to 2000. */
+  readonly approvalInterval?: number;
+};
+
+type SlotOutput = VNode | VNode[] | string | null;
+
+/** Render functions for the `<Protected>` slots a component leaves out; they get the slot props. */
+export type PermDockDefaults = {
+  readonly pending?: () => SlotOutput;
+  readonly fallback?: (props: { readonly decision: Decision }) => SlotOutput;
+  readonly approval?: (props: {
+    readonly decision: ApprovalRequiredDecision;
+  }) => SlotOutput;
 };
 
 export type {

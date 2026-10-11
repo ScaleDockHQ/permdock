@@ -353,4 +353,15 @@ describe("permdock/otel", () => {
     expect(spans).toHaveLength(2);
     expect(spans.every((span) => span.startTime !== undefined)).toBe(true);
   });
+
+  it("instruments instances derived through derive()", async () => {
+    const { api, spans } = fakeApi();
+    const permdock = withOtel(await createPermDock(policy, memberUser), {
+      api,
+    });
+    const derived = await permdock.derive({});
+    derived.can(permissions.post.update, ownPost);
+    expect(spans).toHaveLength(1);
+    expect(spans[0]?.startTime).not.toBeUndefined();
+  });
 });

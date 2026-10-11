@@ -17,6 +17,9 @@ export type AdapterStoreOptions = Pick<
   | "verifier"
   | "awaiting"
   | "passCache"
+  | "onSnapshot"
+  | "onClear"
+  | "approvalInterval"
 > & {
   /**
    * The AuthZEN evaluations endpoint. `false` never calls one: a check the
@@ -47,6 +50,20 @@ type NativeStoreHooks = Pick<
   "server" | "stale" | "onSnapshot" | "onClear"
 >;
 
+/** Runs both hooks: the one the adapter needs first, then the provider option. */
+function both<A extends readonly unknown[]>(
+  first: ((...args: A) => void) | undefined,
+  second: ((...args: A) => void) | undefined,
+): ((...args: A) => void) | undefined {
+  if (first === undefined || second === undefined) {
+    return first ?? second;
+  }
+  return (...args) => {
+    first(...args);
+    second(...args);
+  };
+}
+
 export function adapterStore(
   options: AdapterStoreOptions,
   snapshot: Snapshot | string,
@@ -68,8 +85,9 @@ export function adapterStore(
       passCache: options.passCache,
       server: native?.server,
       stale: native?.stale,
-      onSnapshot: native?.onSnapshot,
-      onClear: native?.onClear,
+      onSnapshot: both(native?.onSnapshot, options.onSnapshot),
+      onClear: both(native?.onClear, options.onClear),
+      approvalInterval: options.approvalInterval,
     }),
   );
 }

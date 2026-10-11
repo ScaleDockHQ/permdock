@@ -1,10 +1,29 @@
 import type { ActionMeta } from "./permissions.ts";
 
-import { freezeDeep } from "./freeze.ts";
+import {
+  type AppDataSchema,
+  type WithX,
+  assertAppData,
+  parseAppData,
+  readAppData,
+} from "./app-data.ts";
+import { freezeCopy, freezeDeep } from "./freeze.ts";
 import { assertSafeKey, isForbiddenKey, ownKeys } from "./paths.ts";
 
 export const ROLE_KIND = "role" as const;
 export const PLAN_KIND = "plan" as const;
+
+const TREE_X_SCHEMA: unique symbol = Symbol.for("permdock.x-schema");
+
+/** `defineRoles` and `definePlans` options. */
+export type VocabularyOptions<X = never> = {
+  /**
+   * A Standard Schema for every leaf's `meta.x`, validated synchronously at
+   * definition time. On a role tree it also checks the `meta.x` of custom
+   * roles a `RoleSource` returns; an invalid one is dropped, not the role.
+   */
+  readonly x?: AppDataSchema<X>;
+};
 
 /**
  * A role's metadata. `audience` names the surface its holders use (`'staff'`,
@@ -55,15 +74,38 @@ export type Vocabulary = {
   readonly plans?: PlanTree;
 };
 
-type InferRoleTree<Input> = {
-  readonly [K in keyof Input & string]: Role<K>;
+type InferRoleTree<Input, X = never> = {
+  readonly [K in keyof Input & string]: WithX<Role<K>, X>;
 };
 
-type InferPlanTree<Input> = {
-  readonly [K in keyof Input & string]: Plan<K>;
+type InferPlanTree<Input, X = never> = {
+  readonly [K in keyof Input & string]: WithX<Plan<K>, X>;
 };
 
-function makeRole<K extends string>(key: K, init: RoleInit): Role<K> {
+function leafMeta(
+  kind: string,
+  key: string,
+  meta: ActionMeta | undefined,
+  schema: AppDataSchema<unknown> | undefined,
+): ActionMeta {
+  if (meta === undefined) {
+    return freezeDeep({});
+  }
+  assertAppData(meta, `meta of ${kind} '${key}'`);
+  if (meta.x === undefined) {
+    return freezeDeep({ ...meta });
+  }
+  return freezeDeep({
+    ...meta,
+    x: parseAppData(schema, meta.x, `meta.x of ${kind} '${key}'`),
+  });
+}
+
+function makeRole<K extends string>(
+  key: K,
+  init: RoleInit,
+  schema?: AppDataSchema<unknown>,
+): Role<K> {
   assertSafeKey(key, "role");
   const on = init.on;
   const assignable = init.assignable ?? on !== undefined;
@@ -71,7 +113,7 @@ function makeRole<K extends string>(key: K, init: RoleInit): Role<K> {
   const leaf = {
     key,
     assignable,
-    meta: freezeDeep({ ...init.meta }),
+    meta: leafMeta("role", key, init.meta, schema),
   } as Role<K>;
   if (on !== undefined) {
     Object.assign(leaf, { on });
@@ -85,12 +127,16 @@ function makeRole<K extends string>(key: K, init: RoleInit): Role<K> {
   return Object.freeze(leaf);
 }
 
-function makePlan<K extends string>(key: K, init: PlanInit): Plan<K> {
+function makePlan<K extends string>(
+  key: K,
+  init: PlanInit,
+  schema?: AppDataSchema<unknown>,
+): Plan<K> {
   assertSafeKey(key, "plan");
   // SAFETY: kind is defined on the leaf right below.
   const leaf = {
     key,
-    meta: freezeDeep({ ...init.meta }),
+    meta: leafMeta("plan", key, init.meta, schema),
   } as Plan<K>;
   Object.defineProperty(leaf, "kind", {
     value: PLAN_KIND,
@@ -123,32 +169,63 @@ export function isPlan(value: unknown): value is Plan {
   );
 }
 
-export function defineRoles<const Input extends Record<string, RoleInit>>(
-  input: Input,
-): InferRoleTree<Input> {
+function attachSchema(
+  tree: Record<string, unknown>,
+  schema: AppDataSchema<unknown> | undefined,
+): void {
+  if (schema !== undefined) {
+    Object.defineProperty(tree, TREE_X_SCHEMA, {
+      value: schema,
+      enumerable: false,
+      writable: false,
+      configurable: false,
+    });
+  }
+}
+
+/** The `x` schema a `defineRoles` or `definePlans` tree was built with. */
+export function treeXSchema(
+  tree: object | undefined,
+): AppDataSchema<unknown> | undefined {
+  if (tree === undefined || !Object.hasOwn(tree, TREE_X_SCHEMA)) {
+    return undefined;
+  }
+  // SAFETY: attachSchema is the only writer of TREE_X_SCHEMA and stores a Standard Schema.
+  return Reflect.get(tree, TREE_X_SCHEMA) as AppDataSchema<unknown>;
+}
+
+export function defineRoles<
+  const Input extends Record<string, RoleInit>,
+  X = never,
+>(input: Input, options?: VocabularyOptions<X>): InferRoleTree<Input, X> {
   const tree: Record<string, Role> = {};
   for (const key of Object.keys(input)) {
     if (isForbiddenKey(key)) {
       throw new Error(`PermDock: forbidden role key '${key}'`);
     }
-    tree[key] = makeRole(key, input[key] ?? {});
+    tree[key] = makeRole(key, input[key] ?? {}, options?.x);
   }
-  // SAFETY: tree has one Role per own key of input, keyed by that key, as InferRoleTree maps.
-  return freezeDeep(tree) as InferRoleTree<Input>;
+  attachSchema(tree, options?.x);
+  const built: unknown = freezeDeep(tree);
+  // SAFETY: tree has one Role per own key of input, keyed by that key, as InferRoleTree maps; makeRole checked every x against the schema.
+  return built as InferRoleTree<Input, X>;
 }
 
-export function definePlans<const Input extends Record<string, PlanInit>>(
-  input: Input,
-): InferPlanTree<Input> {
+export function definePlans<
+  const Input extends Record<string, PlanInit>,
+  X = never,
+>(input: Input, options?: VocabularyOptions<X>): InferPlanTree<Input, X> {
   const tree: Record<string, Plan> = {};
   for (const key of Object.keys(input)) {
     if (isForbiddenKey(key)) {
       throw new Error(`PermDock: forbidden plan key '${key}'`);
     }
-    tree[key] = makePlan(key, input[key] ?? {});
+    tree[key] = makePlan(key, input[key] ?? {}, options?.x);
   }
-  // SAFETY: tree has one Plan per own key of input, keyed by that key, as InferPlanTree maps.
-  return freezeDeep(tree) as InferPlanTree<Input>;
+  attachSchema(tree, options?.x);
+  const built: unknown = freezeDeep(tree);
+  // SAFETY: tree has one Plan per own key of input, keyed by that key, as InferPlanTree maps; makePlan checked every x against the schema.
+  return built as InferPlanTree<Input, X>;
 }
 
 export function listRoles(tree: RoleTree | undefined): readonly Role[] {
@@ -179,6 +256,43 @@ export function findRole(
     return undefined;
   }
   return tree[key];
+}
+
+/**
+ * The meta of a role a source returned (a stored custom role): known string
+ * fields kept, `x` checked by the schema. Never throws; anything invalid is
+ * left out, and the role itself is never dropped for it.
+ */
+export function sourceRoleMeta(
+  meta: unknown,
+  schema: AppDataSchema<unknown> | undefined,
+): RoleMeta | undefined {
+  if (meta === null || typeof meta !== "object" || Array.isArray(meta)) {
+    return undefined;
+  }
+  const text = (field: string): string | undefined => {
+    const value: unknown = Object.hasOwn(meta, field)
+      ? Reflect.get(meta, field)
+      : undefined;
+    return typeof value === "string" ? value : undefined;
+  };
+  const rawX: unknown = Object.hasOwn(meta, "x")
+    ? Reflect.get(meta, "x")
+    : undefined;
+  const out: { -readonly [K in keyof RoleMeta]: RoleMeta[K] } = {};
+  for (const field of ["title", "description", "audience"] as const) {
+    const value = text(field);
+    if (value !== undefined) {
+      out[field] = value;
+    }
+  }
+  if (rawX !== undefined) {
+    const x = readAppData(schema, rawX);
+    if (x !== undefined) {
+      out.x = x;
+    }
+  }
+  return Object.keys(out).length === 0 ? undefined : freezeCopy(out);
 }
 
 export function synthesiseRole(

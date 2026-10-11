@@ -1,6 +1,7 @@
 import {
   computed,
   defineComponent,
+  inject,
   type DefineComponent,
   type PropType,
   type VNode,
@@ -8,8 +9,9 @@ import {
 
 import type { Permission } from "../core/permissions.ts";
 
-import { protectedView, scopedTenant } from "../client/views.ts";
+import { protectedView, scopedTenant, slotContent } from "../client/views.ts";
 import { usePermission, usePermDock } from "./composables.ts";
+import { permDockUiKey } from "./context.ts";
 
 export type ProtectedProps = {
   readonly permission: Permission;
@@ -41,6 +43,7 @@ export const Protected: DefineComponent<ProtectedProps> = defineComponent({
       () => props.data,
     );
     const root = usePermDock();
+    const { defaults } = inject(permDockUiKey, {});
     const scoped = computed(() => scopedTenant(root, props.tenant));
     return (): VNode | VNode[] | string | null => {
       const view = protectedView(
@@ -54,11 +57,34 @@ export const Protected: DefineComponent<ProtectedProps> = defineComponent({
         props.data,
         scoped.value,
       );
+      const own = {
+        pending: slots["pending"],
+        fallback: slots["fallback"],
+        approval: slots["approval"],
+      };
       switch (view.slot) {
         case "pending":
-          return slots["pending"]?.() ?? null;
+          return slotContent("pending", own, defaults)?.() ?? null;
         case "fallback":
-          return slots["fallback"]?.({ decision: view.decision }) ?? null;
+          return (
+            slotContent(
+              "fallback",
+              own,
+              defaults,
+            )?.({
+              decision: view.decision,
+            }) ?? null
+          );
+        case "approval":
+          return (
+            slotContent(
+              "approval",
+              own,
+              defaults,
+            )?.({
+              decision: view.decision,
+            }) ?? null
+          );
         case "default":
           return slots["default"]?.({ decision: view.decision }) ?? null;
         default: {

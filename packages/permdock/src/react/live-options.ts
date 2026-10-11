@@ -1,13 +1,17 @@
 import { useLayoutEffect, useRef, useState } from "react";
 
+import type { ClientStoreOptions } from "../client/store.ts";
 import type { TokenVerifier } from "../core/interfaces.ts";
 
 type Headers = Readonly<Record<string, string>>;
+type OnSnapshot = NonNullable<ClientStoreOptions["onSnapshot"]>;
 
 type LiveProps = {
   readonly headers?: Headers | undefined;
   readonly fetch?: typeof fetch | undefined;
   readonly verifier?: TokenVerifier | undefined;
+  readonly onSnapshot?: OnSnapshot | undefined;
+  readonly onClear?: (() => void) | undefined;
 };
 
 export type LiveOptions = {
@@ -16,6 +20,9 @@ export type LiveOptions = {
   readonly readHeaders: () => Headers | undefined;
   readonly fetch: typeof fetch;
   readonly verifier: TokenVerifier | undefined;
+  /** Call the latest `onSnapshot` / `onClear` prop; set while the prop is. */
+  readonly onSnapshot: OnSnapshot | undefined;
+  readonly onClear: (() => void) | undefined;
 };
 
 function sameHeaders(a: Headers | undefined, b: Headers | undefined): boolean {
@@ -36,7 +43,8 @@ function sameHeaders(a: Headers | undefined, b: Headers | undefined): boolean {
  * Store options whose identity survives a re-render, so an inline `headers`
  * object or `fetch` arrow does not rebuild the store and drop its snapshot.
  * `headers` compare by value, unless `headersByValue` is `false` for a store
- * that only reads `readHeaders`; `fetch` and `verifier` call the latest prop.
+ * that only reads `readHeaders`; `fetch`, `verifier`, `onSnapshot` and
+ * `onClear` call the latest prop.
  */
 export function useLiveOptions(
   props: LiveProps,
@@ -66,10 +74,21 @@ export function useLiveOptions(
         : verifier.verify(token, expectations);
     },
   }));
+  const [liveOnSnapshot] = useState(() => {
+    const call: OnSnapshot = (snapshot, tenant, raw) => {
+      latest.current.onSnapshot?.(snapshot, tenant, raw);
+    };
+    return call;
+  });
+  const [liveOnClear] = useState(() => (): void => {
+    latest.current.onClear?.();
+  });
   return {
     headers,
     readHeaders,
     fetch: liveFetch,
     verifier: props.verifier === undefined ? undefined : liveVerifier,
+    onSnapshot: props.onSnapshot === undefined ? undefined : liveOnSnapshot,
+    onClear: props.onClear === undefined ? undefined : liveOnClear,
   };
 }

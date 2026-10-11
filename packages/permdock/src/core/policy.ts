@@ -1,5 +1,6 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 
+import type { AppObligation } from "./decision.ts";
 import type { DecisionProvider } from "./interfaces.ts";
 import type { Principal } from "./subject.ts";
 import type { Actor, Delegation } from "./subject.ts";
@@ -9,6 +10,14 @@ import {
   type WhereShorthand,
   normalizeWhere,
 } from "../conditions/index.ts";
+import {
+  type AppData,
+  type AppDataSchema,
+  type MetaValue,
+  assertAppData,
+  assertMetaValue,
+  parseAppData,
+} from "./app-data.ts";
 import {
   type Approver,
   type ApproverInput,
@@ -339,9 +348,20 @@ export type GrantOptions<T = Record<string, unknown>> = {
   readonly limit?: GrantLimit;
   readonly reason?: string;
   readonly fields?: readonly (keyof T & string)[];
-  /** A name a `breakGlass` override may lift; only meaningful on a deny. */
+  /**
+   * A stable name for the grant. On a deny, a `breakGlass` override may lift
+   * it; on any grant, it is reported on `decision.matched.name` and on
+   * decision events.
+   */
   readonly name?: string;
   readonly group?: string;
+  /** Display text and app data for the grant, reported on `decision.matched.meta`; never read in evaluation. */
+  readonly meta?: GrantMeta;
+  /**
+   * Follow-ups the application owes when this allow grants: each becomes a
+   * `{ kind: 'app', name, detail? }` obligation on the decision. Allows only.
+   */
+  readonly obligations?: readonly ObligationInput[];
   /** Purposes of use (`context.purpose`) that make the grant apply; non-portable. */
   readonly purpose?: readonly string[];
   /** The grant applies from this instant on (RFC 3339 string or Unix seconds); before it an allow denies with `inactive-grant` and a deny does not apply. */
@@ -355,6 +375,18 @@ export type GrantOptions<T = Record<string, unknown>> = {
    */
   readonly requires?: Permission | readonly Permission[];
 };
+
+/** A grant's metadata. PermDock carries it to decisions, events, snapshots and the catalog and never reads `x`. */
+export type GrantMeta = {
+  readonly description?: string;
+  /** Data the application owns. Plain JSON, checked by `definePolicy(…, { x: { grant } })`. */
+  readonly x?: AppData;
+};
+
+/** An app obligation as declared on an allow: its name, or its name and detail. */
+export type ObligationInput =
+  | string
+  | { readonly name: string; readonly detail?: MetaValue };
 
 /**
  * When a grant applies, in Unix seconds. `from` is inclusive, `until`
@@ -452,9 +484,12 @@ export type Grant = {
   readonly limit?: GrantLimit;
   readonly fields?: readonly string[];
   readonly scope: GrantScope;
-  /** A name a `breakGlass` override may lift; only meaningful on a deny. */
+  /** The grant's stable name: a `breakGlass` override lifts a named deny, and `decision.matched.name` reports it. */
   readonly name?: string;
   readonly group?: string;
+  readonly meta?: GrantMeta;
+  /** App obligations an allow adds to its granted decision. */
+  readonly obligations?: readonly AppObligation[];
   /** Purposes of use that make the grant apply (`context.purpose`); non-portable. */
   readonly purpose?: readonly string[];
   /** Set on a break-glass allow: it overrides named denies and carries obligations. */
@@ -536,6 +571,8 @@ export type Policy<
   readonly onDenied?: (decision: unknown) => never | void;
   readonly fingerprint: string;
   readonly resources: ReadonlyMap<string, ResourceNode>;
+  /** The app data schemas `definePolicy` was given; symbol-keyed so freezing the policy leaves the schemas alone. */
+  readonly [POLICY_X]?: PolicyAppDataSchemas;
   readonly providers?: readonly DecisionProvider[];
   /** Permission keys a hosted policy document may grant or deny; empty by default. */
   readonly hostable: readonly string[];
@@ -983,9 +1020,106 @@ function makeGrant(
     fields: sanitizeFields(condition?.fields),
     name: condition?.name,
     group: grantGroup(condition?.group, permission.key),
+    meta: grantMeta(condition?.meta, permission.key, undefined),
+    obligations: appObligations(condition?.obligations, permission.key, effect),
     purpose,
     validity: normalizeValidity(condition ?? {}, permission.key),
     requires,
+  });
+}
+
+/** Checks a grant's `meta`: plain JSON, string `description`, `x` through the schema when given. */
+function grantMeta(
+  meta: unknown,
+  key: string,
+  schema: AppDataSchema<unknown> | undefined,
+): GrantMeta | undefined {
+  if (meta === undefined) {
+    return undefined;
+  }
+  assertAppData(meta, `meta of a grant on ${key}`);
+  // SAFETY: assertAppData proved meta is a plain JSON object; each field is checked below.
+  const { description, x } = meta as GrantMeta;
+  if (description !== undefined && typeof description !== "string") {
+    throw new TypeError(
+      `PermDock: meta.description of a grant on ${key} must be a string`,
+    );
+  }
+  return freezeDeep(
+    compact<GrantMeta>({
+      description,
+      x:
+        x === undefined
+          ? undefined
+          : parseAppData(schema, x, `meta.x of a grant on ${key}`),
+    }),
+  );
+}
+
+function appObligations(
+  input: readonly ObligationInput[] | undefined,
+  key: string,
+  effect: "allow" | "deny",
+): readonly AppObligation[] | undefined {
+  if (input === undefined) {
+    return undefined;
+  }
+  if (effect !== "allow") {
+    throw new Error(
+      `PermDock: obligations are allowed on an allow only; '${key}' is a deny`,
+    );
+  }
+  const list: unknown = input;
+  if (!Array.isArray(list)) {
+    throw new TypeError(`PermDock: obligations on '${key}' must be a list`);
+  }
+  const items: readonly unknown[] = list;
+  const seen = new Set<string>();
+  const out: AppObligation[] = [];
+  for (const item of items) {
+    const entry: object | undefined =
+      typeof item === "object" && item !== null ? item : undefined;
+    const name: unknown =
+      typeof item === "string"
+        ? item
+        : entry === undefined
+          ? undefined
+          : Reflect.get(entry, "name");
+    if (typeof name !== "string" || !GROUP.test(name)) {
+      throw new Error(
+        `PermDock: obligation '${String(name)}' on '${key}' must be lower case letters, digits, _ or -, starting with a letter`,
+      );
+    }
+    if (seen.has(name)) {
+      throw new Error(
+        `PermDock: obligation '${name}' is listed twice on '${key}'`,
+      );
+    }
+    seen.add(name);
+    const detail: unknown =
+      entry === undefined ? undefined : Reflect.get(entry, "detail");
+    if (detail === undefined) {
+      out.push({ kind: "app", name });
+      continue;
+    }
+    assertMetaValue(detail, `detail of obligation '${name}' on '${key}'`);
+    out.push({ kind: "app", name, detail });
+  }
+  return out.length === 0 ? undefined : freezeDeep(out);
+}
+
+/** Re-checks every grant's `meta.x` with the policy's grant schema, keeping the schema output. */
+function withGrantSchema(
+  grant: Grant,
+  schema: AppDataSchema<unknown> | undefined,
+): Grant {
+  const meta = grant.meta;
+  if (schema === undefined || meta?.x === undefined) {
+    return grant;
+  }
+  return freezeDeep({
+    ...grant,
+    meta: grantMeta(meta, grant.permission.key, schema) ?? meta,
   });
 }
 
@@ -1797,11 +1931,34 @@ function mergeBindings(items: readonly RoleBinding[]): {
   return { roles: [...merged.values()], rolesByName: merged };
 }
 
+const POLICY_X: unique symbol = Symbol.for("permdock.policy-x");
+
+/** The app data schemas of `policy`. */
+export function policyX(policy: object): PolicyAppDataSchemas | undefined {
+  if (!Object.hasOwn(policy, POLICY_X)) {
+    return undefined;
+  }
+  // SAFETY: definePolicy is the only writer of POLICY_X and stores the x option.
+  return Reflect.get(policy, POLICY_X) as PolicyAppDataSchemas;
+}
+
+/**
+ * Standard Schemas for the app data a policy carries. `grant` checks every
+ * grant's `meta.x` at `definePolicy` and throws on invalid data; `membership`
+ * checks `Membership.x` as each subject resolves, dropping an invalid `x`
+ * (never the membership) with an `on('auth')` event of reason `schema`.
+ */
+export type PolicyAppDataSchemas = {
+  readonly grant?: AppDataSchema<unknown>;
+  readonly membership?: AppDataSchema<unknown>;
+};
+
 export type DefinePolicyOptions<
   TUser,
   TPrincipal extends Principal,
   S extends PolicyScopesInput = PolicyScopesInput,
 > = {
+  readonly x?: PolicyAppDataSchemas;
   readonly roles?: readonly RoleBinding<ScopeNames<S>>[];
   readonly grants?: readonly (
     | Omit<Grant, "role" | "scope">
@@ -1875,8 +2032,17 @@ export function definePolicy<
   const resources = getRegistry(tree);
   assertParentGraph(resources);
   const scopes = defineScopes(options.scopes);
+  const grantSchema = options.x?.grant;
   const { roles, rolesByName } = mergeBindings(
-    (options.roles ?? []).map((binding) => rescopeBinding(binding, scopes)),
+    (options.roles ?? []).map((binding) => {
+      const rescoped = rescopeBinding(binding, scopes);
+      const grants = rescoped.grants.map((grant) =>
+        withGrantSchema(grant, grantSchema),
+      );
+      return grants.every((grant, index) => grant === rescoped.grants[index])
+        ? rescoped
+        : freezeDeep({ ...rescoped, grants });
+    }),
   );
   const declared = new Set(roles.map((item) => item.name));
   for (const leaf of listRoles(vocabulary.roles)) {
@@ -1894,7 +2060,7 @@ export function definePolicy<
   const fromBindings = roles.flatMap((item) => item.grants);
   const fromGrants = flattenGrants(options.grants ?? [])
     .map(completeGrant)
-    .map((grant) => rescopeGrant(grant, scopes));
+    .map((grant) => withGrantSchema(rescopeGrant(grant, scopes), grantSchema));
   const grants = [...fromBindings, ...fromGrants];
   assertScopeKeys(grants, scopes, resources);
   assertApprovalVersions(grants, resources);
@@ -1943,6 +2109,7 @@ export function definePolicy<
     onDenied: options.onDenied,
     fingerprint,
     resources,
+    ...(options.x === undefined ? {} : { [POLICY_X]: options.x }),
     providers: options.providers,
     hostable,
     fresh,
