@@ -1,5 +1,3 @@
-import type { StandardSchemaV1 } from "@standard-schema/spec";
-
 import type { Membership, Subject } from "../core/subject.ts";
 import type {
   ClerkAuthObject,
@@ -10,10 +8,11 @@ import type {
   ClerkSubjectOptions,
 } from "./types.ts";
 
-import { compact, isRecord } from "../core/compact.ts";
+import { compact, isRecord, omitKeys } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
+import { readPath } from "../core/paths.ts";
 import { anonymousSubject } from "../core/subject.ts";
-import { ignoreRejection } from "../core/thenable.ts";
+import { validateRecord } from "../core/thenable.ts";
 import { ttlCache, ttlMs } from "../pdp/shared.ts";
 
 function asRoles(value: unknown): readonly string[] {
@@ -24,34 +23,6 @@ function asRoles(value: unknown): readonly string[] {
     return [];
   }
   return value.filter((item): item is string => typeof item === "string");
-}
-
-function readPath(record: Record<string, unknown>, path: string): unknown {
-  let current: unknown = record;
-  for (const part of path.split(".")) {
-    if (!isRecord(current) || !Object.hasOwn(current, part)) {
-      return undefined;
-    }
-    current = current[part];
-  }
-  return current;
-}
-
-function validateClaims(
-  extra: Record<string, unknown>,
-  schema: StandardSchemaV1,
-): Record<string, unknown> | undefined {
-  const result = schema["~standard"].validate(extra);
-  if (result instanceof Promise) {
-    ignoreRejection(result);
-    return undefined;
-  }
-  if ("issues" in result && result.issues !== undefined) {
-    return undefined;
-  }
-  // SAFETY: a synchronous result without issues is the Standard Schema success result, which has value.
-  const value = (result as { readonly value: unknown }).value;
-  return isRecord(value) ? value : undefined;
 }
 
 const REGISTERED_CLAIMS = new Set([
@@ -73,15 +44,11 @@ const REGISTERED_CLAIMS = new Set([
   "v",
 ]);
 
+/** Registered claims plus `unsafeMetadata`, which the user can edit. */
+const NOT_EXTRA = new Set([...REGISTERED_CLAIMS, "unsafeMetadata"]);
+
 function extraClaims(claims: Record<string, unknown>): Record<string, unknown> {
-  const extra: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(claims)) {
-    if (REGISTERED_CLAIMS.has(key) || key === "unsafeMetadata") {
-      continue;
-    }
-    extra[key] = value;
-  }
-  return extra;
+  return omitKeys(claims, NOT_EXTRA);
 }
 
 /**
@@ -471,7 +438,7 @@ async function fromClerk(
     ];
     let claims = extraClaims(mapped.claims);
     if (options.schema !== undefined) {
-      claims = validateClaims(claims, options.schema) ?? {};
+      claims = validateRecord(options.schema, claims) ?? {};
     }
     const global = [
       ...globalRolesFrom(mapped.claims, options.globalRoles),

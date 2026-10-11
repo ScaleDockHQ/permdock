@@ -23,7 +23,7 @@ import { compact, isRecord } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import { isForbiddenKey, readPath } from "../core/paths.ts";
 import { anonymousSubject } from "../core/subject.ts";
-import { ignoreRejection } from "../core/thenable.ts";
+import { validateRecord } from "../core/thenable.ts";
 
 /** OpenID Connect Core section 5.1: profile data the provider owns. */
 const PROFILE_CLAIMS = [
@@ -435,19 +435,8 @@ export function validateCustomClaims(
 ):
   | { readonly ok: true; readonly value: Record<string, unknown> }
   | { readonly ok: false } {
-  const result = schema["~standard"].validate(claims);
-  if (result instanceof Promise) {
-    ignoreRejection(result);
-    return { ok: false };
-  }
-  if ("issues" in result && result.issues !== undefined) {
-    return { ok: false };
-  }
-  // SAFETY: a Standard Schema result without issues is a success carrying the parsed value.
-  return {
-    ok: true,
-    value: (result as { readonly value: Record<string, unknown> }).value,
-  };
+  const value = validateRecord(schema, claims);
+  return value === undefined ? { ok: false } : { ok: true, value };
 }
 
 export function mapClaimsToSubject(

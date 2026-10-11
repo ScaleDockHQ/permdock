@@ -1,5 +1,3 @@
-import type { StandardSchemaV1 } from "@standard-schema/spec";
-
 import type { Membership, Subject } from "../core/subject.ts";
 import type {
   BetterAuthLike,
@@ -10,7 +8,7 @@ import type {
 import { compact, isReadonlyArray, isRecord } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import { anonymousSubject } from "../core/subject.ts";
-import { ignoreRejection } from "../core/thenable.ts";
+import { validateRecord } from "../core/thenable.ts";
 import {
   asRoles,
   expiresAtSeconds,
@@ -19,23 +17,6 @@ import {
 } from "./parse.ts";
 
 const PROFILE_FIELDS = new Set(["name", "image", "displayName"]);
-
-function validateClaims(
-  extra: Record<string, unknown>,
-  schema: StandardSchemaV1,
-): Record<string, unknown> | undefined {
-  const result = schema["~standard"].validate(extra);
-  if (result instanceof Promise) {
-    ignoreRejection(result);
-    return undefined;
-  }
-  if ("issues" in result && result.issues !== undefined) {
-    return undefined;
-  }
-  // SAFETY: a synchronous result without issues is the Standard Schema success result, which has value.
-  const value = (result as { readonly value: unknown }).value;
-  return isRecord(value) ? value : undefined;
-}
 
 function extraFields(user: Record<string, unknown>): Record<string, unknown> {
   const reserved = new Set([
@@ -244,7 +225,7 @@ export async function subjectFromBetterAuth(
     const extra =
       options.schema === undefined
         ? {}
-        : (validateClaims(extraFields(user), options.schema) ?? {});
+        : (validateRecord(options.schema, extraFields(user)) ?? {});
     const memberships = await loadMemberships(
       auth,
       session,

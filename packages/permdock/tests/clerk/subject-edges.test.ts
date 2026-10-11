@@ -144,6 +144,16 @@ describe("subjectFromClerk claim parsing", () => {
     ]);
   });
 
+  it("never reads globalRoles through a __proto__ segment", async () => {
+    const payload: unknown = JSON.parse(
+      '{"sub":"u1","sid":"s1","__proto__":{"role":"admin"}}',
+    );
+    const subject = await subjectFromClerk(payload, {
+      globalRoles: "__proto__.role",
+    });
+    expect(subject.principal?.roles).toEqual([]);
+  });
+
   it("drops claims from an async or non-object schema result", async () => {
     const asyncSchema = z
       .object({ plan: z.string() })
