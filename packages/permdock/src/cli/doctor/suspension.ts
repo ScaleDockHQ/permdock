@@ -3,7 +3,7 @@ import type { DoctorFinding, DoctorInput } from "../shared/doctor-types.ts";
 import { formerKeys } from "../../core/permission-leaf.ts";
 import { listPermissions } from "../../core/permission-registry.ts";
 import { keptKeys } from "../../supabase/keep.ts";
-import { policyOf } from "./collect.ts";
+import { policyOf } from "./inputs.ts";
 
 /**
  * PD061: a suspended scope keeps permissions. Each scope's kept keys are

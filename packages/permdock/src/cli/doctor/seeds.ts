@@ -12,7 +12,7 @@ import { MIGRATION_DIRS } from "../shared/constants.ts";
 import { compileGrants } from "../sql/compile.ts";
 import { tableKey } from "../sql/deciding-columns.ts";
 import { group, sqlStatements } from "../sql/statements.ts";
-import { policyOf } from "./collect.ts";
+import { policyOf } from "./inputs.ts";
 
 const SEED_INSERT =
   /^insert\s+into\s+((?:"[^"]+"|\w+)(?:\.(?:"[^"]+"|\w+))?)\s*\(\s*role\s*,\s*permission\s*,\s*grant_key\s*,\s*scope\s*,\s*effect\s*\)\s*values\s*([\s\S]*?)\s*on\s+conflict\b/iu;

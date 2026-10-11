@@ -10,7 +10,7 @@ import { ownershipRules } from "../rls/ownership.ts";
 import { MIGRATION_DIRS } from "../shared/constants.ts";
 import { tableKey } from "../sql/deciding-columns.ts";
 import { group, sqlStatements } from "../sql/statements.ts";
-import { policyOf } from "./collect.ts";
+import { policyOf } from "./inputs.ts";
 
 const TRIGGER = new RegExp(
   String.raw`^create\s+(?:or\s+replace\s+)?trigger\s+"?permdock_assignment"?\s[\s\S]*?\bon\s+((?:"[^"]+"|\w+)(?:\.(?:"[^"]+"|\w+))?)`,

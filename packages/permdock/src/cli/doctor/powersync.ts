@@ -1,7 +1,7 @@
 import type { DoctorFinding, DoctorInput } from "../shared/doctor-types.ts";
 
 import { powersyncFiles, staleFiles } from "../powersync/powersync.ts";
-import { policyOf } from "./collect.ts";
+import { policyOf } from "./inputs.ts";
 
 /**
  * PD058: `sync-config.yaml` or the `powersync.manifest` file is not what the

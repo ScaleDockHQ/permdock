@@ -9,7 +9,7 @@ import { hasConditionOp } from "../../conditions/ast.ts";
 import { flattenGrantee } from "../../core/grantee.ts";
 import { isPrincipalRelation } from "../../core/resource-relations.ts";
 import { doctorSrcPath, listSourceFiles, rel } from "../files.ts";
-import { collectedOf, policyOf } from "./collect.ts";
+import { collectedOf, policyOf } from "./inputs.ts";
 
 const ROUTE_GLOBS = ["**/api/permdock/route.{ts,tsx,js,jsx,mjs}"];
 const ENDPOINT = /\bendpoint\s*(?::|=)\s*\{?\s*['"`]/u;

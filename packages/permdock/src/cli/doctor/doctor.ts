@@ -18,35 +18,23 @@ import {
 import { pd039 } from "../supabase-setup.ts";
 import { DOCTOR_REPORT_SCHEMA } from "../version.ts";
 import { pd064 } from "./assignments.ts";
+import { pd002, pd003, pd004 } from "./catalog.ts";
+import { pd042, pd043 } from "./declarative.ts";
+import { pd018, pd023, pd025, pd029, pd055 } from "./fixtures.ts";
+import { pd044, pd065 } from "./next.ts";
+import { pd017, pd019, pd021, pd024, pd026, pd033, pd035 } from "./policy.ts";
+import { pd058 } from "./powersync.ts";
+import { pd005, pd006, pd009, pd012, pd022, pd028, pd040 } from "./project.ts";
 import {
-  pd002,
-  pd003,
-  pd004,
   pd016,
-  pd017,
-  pd018,
-  pd019,
   pd020,
-  pd021,
-  pd023,
-  pd024,
-  pd025,
-  pd026,
   pd027,
-  pd029,
   pd030,
   pd031,
   pd032,
-  pd033,
   pd034,
-  pd035,
   pd037,
-  pd055,
-} from "./collect.ts";
-import { pd042, pd043 } from "./declarative.ts";
-import { pd044, pd065 } from "./next.ts";
-import { pd058 } from "./powersync.ts";
-import { pd005, pd006, pd009, pd012, pd022, pd028, pd040 } from "./project.ts";
+} from "./rls.ts";
 import { pd054 } from "./seeds.ts";
 import {
   pd001,
