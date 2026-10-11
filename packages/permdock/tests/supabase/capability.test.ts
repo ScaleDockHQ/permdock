@@ -7,7 +7,8 @@ import {
 import { describe, expect, it } from "vitest";
 
 import { capabilityOf, capabilitySubject } from "../../src/core/capability.ts";
-import { definePermissions, resource } from "../../src/core/permissions.ts";
+import { resource } from "../../src/core/permission-leaf.ts";
+import { definePermissions } from "../../src/core/permissions.ts";
 import { exchangeCapability } from "../../src/supabase/capability.ts";
 
 const permissions = definePermissions({

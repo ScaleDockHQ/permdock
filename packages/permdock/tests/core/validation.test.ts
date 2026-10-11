@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import { PermDockValidationError } from "../../src/core/errors.ts";
-import { definePermissions, resource } from "../../src/core/permissions.ts";
+import { resource } from "../../src/core/permission-leaf.ts";
+import { definePermissions } from "../../src/core/permissions.ts";
 import { validateBoundary } from "../../src/core/validation.ts";
 
 const Post = z.object({ id: z.string(), authorId: z.string() });

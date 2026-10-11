@@ -9,7 +9,8 @@ import type {
 import { memoryApprovalStore } from "../../src/approvals/index.ts";
 import { memoryPolicySource } from "../../src/core/hosted.ts";
 import { memoryLimitStore } from "../../src/core/limits.ts";
-import { definePermissions, resource } from "../../src/core/permissions.ts";
+import { resource } from "../../src/core/permission-leaf.ts";
+import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
 import { defineRoles } from "../../src/core/vocabulary.ts";

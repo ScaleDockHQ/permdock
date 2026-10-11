@@ -17,6 +17,7 @@ import type {
   RoleSourceFactory,
 } from "./interfaces.ts";
 import type { DecideOptions } from "./permdock.ts";
+import type { Permission, ResourceNode } from "./permission-types.ts";
 import type { Grant, Policy } from "./policy-types.ts";
 import type { CustomRole, Membership, Subject } from "./subject.ts";
 
@@ -57,12 +58,10 @@ import {
 } from "./grantee.ts";
 import { applyQuota } from "./limits.ts";
 import {
-  type Permission,
-  type ResourceNode,
   findPermission,
   getResource,
   listPermissions,
-} from "./permissions.ts";
+} from "./permission-registry.ts";
 import { declaredRoleNames, requiresApproval } from "./policy.ts";
 import {
   type RelatedVerdict,

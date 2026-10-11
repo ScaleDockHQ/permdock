@@ -12,11 +12,9 @@ import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { allow, deny } from "../../src/core/grant-builders.ts";
 import { memoryRoleSource } from "../../src/core/interfaces.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
-import {
-  definePermissions,
-  listPermissions,
-  resource,
-} from "../../src/core/permissions.ts";
+import { resource } from "../../src/core/permission-leaf.ts";
+import { listPermissions } from "../../src/core/permission-registry.ts";
+import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
 import { snapshotFor } from "../../src/core/snapshot-for.ts";

@@ -1,5 +1,5 @@
 import type { Grantee, GranteeInput } from "./grantee.ts";
-import type { Permission } from "./permissions.ts";
+import type { Permission } from "./permission-types.ts";
 
 import { isReadonlyArray } from "./compact.ts";
 

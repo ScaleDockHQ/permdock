@@ -9,21 +9,21 @@ import type {
   EdgeRelation,
   PermissionTree,
   ResourceNode,
-} from "./permissions.ts";
+} from "./permission-types.ts";
 import type { Subject } from "./subject.ts";
 
 import { isRecord } from "./compact.ts";
 import { idText } from "./ids.ts";
 import { ownGet } from "./paths.ts";
+import { getRegistry } from "./permission-registry.ts";
 import {
   expandRelation,
-  getRegistry,
   groupEntries,
   isComputedRelation,
   isEdgeRelation,
   isPrincipalRelation,
   restrictedStops,
-} from "./permissions.ts";
+} from "./resource-relations.ts";
 import { isThenable } from "./thenable.ts";
 
 /** How deep groups of one resource may nest in each other; a group of another resource starts a fresh count. */

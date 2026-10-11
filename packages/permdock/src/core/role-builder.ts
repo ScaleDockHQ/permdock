@@ -1,4 +1,4 @@
-import type { Permission, PermissionTree } from "./permissions.ts";
+import type { Permission, PermissionTree } from "./permission-types.ts";
 import type {
   ActivationOption,
   ActivationSpec,

@@ -20,7 +20,7 @@ import type {
   RoleChangeDecision,
   RoleChangeOptions,
 } from "./ownership.ts";
-import type { Permission, ResourceNode } from "./permissions.ts";
+import type { Permission, ResourceNode } from "./permission-types.ts";
 import type { Policy, PolicyVocabulary } from "./policy-types.ts";
 import type {
   Actor,

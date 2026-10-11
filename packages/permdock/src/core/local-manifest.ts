@@ -13,7 +13,7 @@ import { flattenGrantee } from "./grantee.ts";
 import { snapshotScopes } from "./instance.ts";
 import { LOCAL_CUSTOM_ROLE } from "./local-role.ts";
 import { rankRoles, usesAssigns } from "./ownership.ts";
-import { findPermission } from "./permissions.ts";
+import { findPermission } from "./permission-registry.ts";
 import { declaredRoleNames, grantList, levelNames } from "./policy.ts";
 import { scopeList } from "./scopes.ts";
 import { buildSnapshot, snapshotGrant } from "./snapshot.ts";

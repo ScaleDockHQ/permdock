@@ -1,7 +1,7 @@
 import type { Condition } from "../conditions/ast.ts";
 import type { SnapshotGrant } from "./interfaces.ts";
 import type { WhereResult } from "./permdock.ts";
-import type { ResourceNode } from "./permissions.ts";
+import type { ResourceNode } from "./permission-types.ts";
 import type { Membership, Subject } from "./subject.ts";
 
 import { bindConditionRefs } from "../conditions/bind.ts";

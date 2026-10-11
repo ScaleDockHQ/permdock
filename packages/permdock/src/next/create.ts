@@ -4,7 +4,7 @@ import { after } from "next/server.js";
 import { cache, type ReactElement } from "react";
 
 import type { DecisionSink, Snapshot } from "../core/interfaces.ts";
-import type { Permission } from "../core/permissions.ts";
+import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { Principal } from "../core/subject.ts";
 import type {

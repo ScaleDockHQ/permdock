@@ -1,7 +1,7 @@
 import { type Middleware, defineMiddleware } from "@supabase/middleware";
 
 import type { PermDock } from "../core/permdock.ts";
-import type { Permission, PermissionTree } from "../core/permissions.ts";
+import type { Permission, PermissionTree } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { Principal, Subject } from "../core/subject.ts";
 

@@ -2,6 +2,7 @@ import { ORPCError, type Middleware } from "@orpc/server";
 
 import type { PermDockRevokedError } from "../core/errors.ts";
 import type { PermDock } from "../core/permdock.ts";
+import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { RevocationFeed } from "../core/revocations.ts";
 import type { Principal } from "../core/subject.ts";
@@ -9,7 +10,7 @@ import type { Connection, ConnectionOptions } from "../server/connection.ts";
 import type { OpenApiHooks, TenantScope } from "../server/create.ts";
 
 import { compact } from "../core/compact.ts";
-import { type Permission, isPermission } from "../core/permissions.ts";
+import { isPermission } from "../core/permission-registry.ts";
 import { type ServerAdapterOptions, attached } from "../server/bind.ts";
 import { problemMessage } from "../server/http.ts";
 import { problemFromError } from "../server/map-error.ts";

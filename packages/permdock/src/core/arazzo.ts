@@ -1,9 +1,9 @@
 import type { Decision } from "./decision.ts";
-import type { Permission, PermissionTree } from "./permissions.ts";
+import type { Permission, PermissionTree } from "./permission-types.ts";
 
 import { compact, isRecord } from "./compact.ts";
 import { freezeDeep } from "./freeze.ts";
-import { findPermission } from "./permissions.ts";
+import { findPermission } from "./permission-registry.ts";
 
 export type ArazzoSimulateInput = {
   readonly arazzo: unknown;

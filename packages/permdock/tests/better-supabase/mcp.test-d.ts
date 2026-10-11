@@ -3,9 +3,10 @@ import { createMcp, defineTool } from "better-supabase/mcp";
 import { describe, expectTypeOf, it } from "vitest";
 
 import type { PermDock } from "../../src/core/permdock.ts";
+import type { Permission } from "../../src/core/permission-types.ts";
 
 import { toolPolicy } from "../../src/better-supabase/index.ts";
-import { isPermission, type Permission } from "../../src/core/permissions.ts";
+import { isPermission } from "../../src/core/permission-registry.ts";
 
 declare const schema: ReturnType<typeof defineSchema>;
 declare function dockFor(ctx: unknown): Promise<PermDock>;

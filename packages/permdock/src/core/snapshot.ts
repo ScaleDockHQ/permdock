@@ -4,7 +4,7 @@ import type {
   SnapshotGrant,
   SnapshotNotEntitled,
 } from "./interfaces.ts";
-import type { Permission } from "./permissions.ts";
+import type { Permission } from "./permission-types.ts";
 import type { Grant, PolicyVocabulary } from "./policy-types.ts";
 import type { Delegation, Membership, Subject } from "./subject.ts";
 

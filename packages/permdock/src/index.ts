@@ -192,27 +192,25 @@ export type {
   SnapshotOptions,
   WhereResult,
 } from "./core/permdock.ts";
+export { definePermissions } from "./core/permissions.ts";
 export {
-  definePermissions,
   findPermission,
-  formerKeys,
   getResource,
   isPermission,
   listPermissions,
   mergePermissions,
-  resource,
-} from "./core/permissions.ts";
+} from "./core/permission-registry.ts";
+export { formerKeys, resource } from "./core/permission-leaf.ts";
 export { crud, readable, writable } from "./core/presets.ts";
+export type { MetaValue } from "./core/permissions.ts";
 export type {
   ActionMeta,
   DefinePermissionsOptions,
-  MetaValue,
   Permission,
   PermissionKind,
   PermissionTree,
   ResourceInit,
   ResourceLevel,
-  RESOURCE_X,
   ResourceMeta,
   ResourceXTree,
   ResourceNode,
@@ -229,7 +227,8 @@ export type {
   ResourceRelation,
   ResourceRelationInput,
   ResourceRestricted,
-} from "./core/permissions.ts";
+} from "./core/permission-types.ts";
+export type { RESOURCE_X } from "./core/brands.ts";
 export {
   allOf,
   anyOf,

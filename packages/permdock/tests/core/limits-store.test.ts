@@ -7,7 +7,8 @@ import {
   assertLimit,
   memoryLimitStore,
 } from "../../src/core/limits.ts";
-import { definePermissions, resource } from "../../src/core/permissions.ts";
+import { resource } from "../../src/core/permission-leaf.ts";
+import { definePermissions } from "../../src/core/permissions.ts";
 
 const permissions = definePermissions({
   report: resource({ id: "id", actions: ["export"] }),

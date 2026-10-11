@@ -7,7 +7,7 @@ import type { CliIo } from "./types.ts";
 
 import { hasConditionOp } from "../conditions/ast.ts";
 import { flattenGrantee } from "../core/grantee.ts";
-import { isPrincipalRelation } from "../core/permissions.ts";
+import { isPrincipalRelation } from "../core/resource-relations.ts";
 import { collectedOf, policyOf } from "./doctor-collect.ts";
 import { doctorSrcPath, listSourceFiles, rel } from "./files.ts";
 

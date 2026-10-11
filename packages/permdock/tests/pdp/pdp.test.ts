@@ -5,7 +5,8 @@ import type { DecisionProvider } from "../../src/core/interfaces.ts";
 
 import { allow, deny } from "../../src/core/grant-builders.ts";
 import { createPermDock as createCore } from "../../src/core/permdock.ts";
-import { definePermissions, resource } from "../../src/core/permissions.ts";
+import { resource } from "../../src/core/permission-leaf.ts";
+import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
 import { createPermDock, remotePdp } from "../../src/pdp/index.ts";

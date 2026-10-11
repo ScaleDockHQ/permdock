@@ -1,14 +1,16 @@
 import type { Decision } from "../core/decision.ts";
-import type { DecideOptions, PermDock } from "../core/permdock.ts";
-import type { Permission } from "../core/permissions.ts";
-import type { AuthzenItem } from "./map.ts";
+import type { Permission } from "../core/permission-types.ts";
 import type { AuthzenFactory } from "./types.ts";
 
 import { compact, isRecord } from "../core/compact.ts";
 import { instanceOptions } from "../core/instance-options.ts";
 import { ownGet } from "../core/paths.ts";
-import { createPermDock as createCorePermDock } from "../core/permdock.ts";
-import { getResource, listPermissions } from "../core/permissions.ts";
+import {
+  type DecideOptions,
+  type PermDock,
+  createPermDock as createCorePermDock,
+} from "../core/permdock.ts";
+import { getResource, listPermissions } from "../core/permission-registry.ts";
 import { resourceRef } from "../core/resource-ref.ts";
 import { permissionLookup } from "../server/evaluation-items.ts";
 import { applyApprovalResume } from "../server/evaluations.ts";
@@ -23,6 +25,7 @@ import {
   validationProblem,
 } from "../server/problem.ts";
 import {
+  type AuthzenItem,
   UNAVAILABLE,
   UNKNOWN,
   actorOf,

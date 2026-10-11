@@ -5,7 +5,7 @@ import {
 } from "@trpc/server";
 
 import type { PermDockRevokedError } from "../core/errors.ts";
-import type { Permission } from "../core/permissions.ts";
+import type { Permission } from "../core/permission-types.ts";
 import type { Policy } from "../core/policy-types.ts";
 import type { RevocationFeed } from "../core/revocations.ts";
 import type { Principal } from "../core/subject.ts";

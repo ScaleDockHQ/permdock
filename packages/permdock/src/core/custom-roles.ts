@@ -6,7 +6,8 @@ import { freezeDeep } from "./freeze.ts";
 import { type RoleGrantee, flattenGrantee } from "./grantee.ts";
 import { sameId } from "./ids.ts";
 import { isForbiddenKey } from "./paths.ts";
-import { findPermission, formerKeys } from "./permissions.ts";
+import { formerKeys } from "./permission-leaf.ts";
+import { findPermission } from "./permission-registry.ts";
 import { declaredRoleNames, grantList, levelCondition } from "./policy.ts";
 import {
   type Scope,

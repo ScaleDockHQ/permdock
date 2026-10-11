@@ -1,11 +1,11 @@
 import type { Decision, Denial, DenialReason } from "../core/decision.ts";
 import type { DecisionProvider } from "../core/interfaces.ts";
-import type { Permission } from "../core/permissions.ts";
+import type { Permission } from "../core/permission-types.ts";
 import type { Subject } from "../core/subject.ts";
 import type { RemotePdpOptions } from "./types.ts";
 
 import { compact, isRecord } from "../core/compact.ts";
-import { listPermissions } from "../core/permissions.ts";
+import { listPermissions } from "../core/permission-registry.ts";
 import {
   DEFAULT_TIMEOUT_MS,
   cacheKey,

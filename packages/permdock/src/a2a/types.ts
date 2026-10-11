@@ -1,7 +1,7 @@
 import type { ApprovalStore } from "../approvals/types.ts";
 import type { ProblemDetails } from "../core/errors.ts";
 import type { InstanceOptions } from "../core/instance-options.ts";
-import type { Permission } from "../core/permissions.ts";
+import type { Permission } from "../core/permission-types.ts";
 import type { AuthorizationDetail } from "../core/subject.ts";
 
 export type A2aAuth = {

@@ -1,9 +1,9 @@
+import type { EdgeRelation, ResourceNode } from "../core/permission-types.ts";
 import type { RelatedCondition, RestrictedAncestors } from "./ast.ts";
 
 import { assertSafeKey } from "../core/paths.ts";
+import { DEFAULT_GROUP_DEPTH } from "../core/relations.ts";
 import {
-  type EdgeRelation,
-  type ResourceNode,
   expandRelation,
   groupEntries,
   isEdgeRelation,
@@ -11,8 +11,7 @@ import {
   isPrincipalRelation,
   isSelfParented,
   restrictedFor,
-} from "../core/permissions.ts";
-import { DEFAULT_GROUP_DEPTH } from "../core/relations.ts";
+} from "../core/resource-relations.ts";
 
 /**
  * Postgres SQL as parts, so each compiler binds values and names columns its

@@ -3,13 +3,8 @@ import type {
   Decision,
   GrantedDecision,
 } from "../core/decision.ts";
-import type {
-  DecisionDescription,
-  DescribeMessages,
-  DescribeOptions,
-} from "../core/describe.ts";
 import type { PermDock } from "../core/permdock.ts";
-import type { Permission } from "../core/permissions.ts";
+import type { Permission } from "../core/permission-types.ts";
 import type { Role } from "../core/vocabulary.ts";
 import type { ClientStore } from "./store.ts";
 import type {
@@ -23,7 +18,12 @@ import type {
   UseRolesOptions,
 } from "./types.ts";
 
-import { describe } from "../core/describe.ts";
+import {
+  type DecisionDescription,
+  type DescribeMessages,
+  type DescribeOptions,
+  describe,
+} from "../core/describe.ts";
 
 export function permissionSet(
   store: ClientStore,

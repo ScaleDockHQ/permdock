@@ -1,6 +1,5 @@
-import type { ResourceNode } from "../core/permissions.ts";
+import type { ResourceNode } from "../core/permission-types.ts";
 import type { ShimGrants } from "./rls-shims.ts";
-import type { RlsSqlContext } from "./rls-sql.ts";
 
 import { partitionsOf, scopeField } from "../core/tenancy.ts";
 import {
@@ -11,6 +10,7 @@ import {
 } from "./rls-helpers.ts";
 import { HELPERS } from "./rls-shared.ts";
 import {
+  type RlsSqlContext,
   permittedForHelper,
   permittedIdsHelper,
   qualified,

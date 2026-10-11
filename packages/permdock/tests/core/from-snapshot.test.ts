@@ -8,7 +8,8 @@ import {
 } from "../../src/core/errors.ts";
 import { emptySnapshot, fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
-import { definePermissions, resource } from "../../src/core/permissions.ts";
+import { resource } from "../../src/core/permission-leaf.ts";
+import { definePermissions } from "../../src/core/permissions.ts";
 import { defineRoles } from "../../src/core/vocabulary.ts";
 import { reasonOf } from "../fixtures/decisions.ts";
 import {

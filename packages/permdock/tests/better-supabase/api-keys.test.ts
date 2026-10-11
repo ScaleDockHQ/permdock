@@ -5,11 +5,11 @@ import {
 import { Temporal } from "temporal-polyfill";
 import { beforeAll, describe, expect, it } from "vitest";
 
-import type { ApiKeyVerifierOptions } from "../../src/better-supabase/index.ts";
-import type { Permission } from "../../src/core/permissions.ts";
+import type { Permission } from "../../src/core/permission-types.ts";
 import type { SupabaseHookManifest } from "../../src/supabase/manifest.ts";
 
 import {
+  type ApiKeyVerifierOptions,
   apiKeyClaimOptions,
   apiKeyVerifier,
 } from "../../src/better-supabase/index.ts";

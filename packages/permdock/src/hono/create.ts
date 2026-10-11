@@ -4,7 +4,7 @@ import type { WSEvents } from "hono/ws";
 import { Hono, type Context, type MiddlewareHandler, type Next } from "hono";
 
 import type { PermDock } from "../core/permdock.ts";
-import type { Permission } from "../core/permissions.ts";
+import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { RevocationFeed } from "../core/revocations.ts";
 import type { Principal } from "../core/subject.ts";

@@ -1,5 +1,6 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 
+import type { PermissionTree, ResourceNode } from "./permission-types.ts";
 import type {
   DefinePolicyOptions,
   Grant,
@@ -28,12 +29,7 @@ import {
   flattenPermissions,
   withGrantSchema,
 } from "./grant-builders.ts";
-import {
-  type PermissionTree,
-  type ResourceNode,
-  getRegistry,
-  isRegistryTree,
-} from "./permissions.ts";
+import { getRegistry, isRegistryTree } from "./permission-registry.ts";
 import {
   assertInheritGrants,
   assertParentGraph,

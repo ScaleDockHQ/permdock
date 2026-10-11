@@ -1,6 +1,7 @@
 import type { Condition } from "../conditions/ast.ts";
 import type { Decision, ExplainedDecision } from "../core/decision.ts";
 import type { DecisionProvider } from "../core/interfaces.ts";
+import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { Membership, Principal, Subject } from "../core/subject.ts";
 import type { PdpPermDock } from "./types.ts";
@@ -23,7 +24,7 @@ import {
   type WhereResult,
   createPermDock as createCore,
 } from "../core/permdock.ts";
-import { type Permission, getResource } from "../core/permissions.ts";
+import { getResource } from "../core/permission-registry.ts";
 import { isThenable } from "../core/thenable.ts";
 import { denied, resourceIdOf } from "./shared.ts";
 

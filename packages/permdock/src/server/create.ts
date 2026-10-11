@@ -2,6 +2,7 @@ import type { ApprovalStore } from "../approvals/types.ts";
 import type { Decision } from "../core/decision.ts";
 import type { ApprovalHint, ProblemDetails } from "../core/errors.ts";
 import type { Snapshot } from "../core/interfaces.ts";
+import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { RevocationFeed } from "../core/revocations.ts";
 import type { Actor, Principal, Subject } from "../core/subject.ts";
@@ -24,7 +25,7 @@ import {
   type SnapshotOptions,
   createPermDock as createCorePermDock,
 } from "../core/permdock.ts";
-import { type Permission, listPermissions } from "../core/permissions.ts";
+import { listPermissions } from "../core/permission-registry.ts";
 import {
   type WebBotAuthVerifier,
   InvalidSignatureError,

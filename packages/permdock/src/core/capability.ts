@@ -1,14 +1,18 @@
 import type { TokenSigner } from "./interfaces.ts";
-import type { Permission, PermissionTree } from "./permissions.ts";
-import type { Membership, Principal, Subject } from "./subject.ts";
+import type { Permission, PermissionTree } from "./permission-types.ts";
 
 import { compact } from "./compact.ts";
 import { expiredAt } from "./expiry.ts";
 import { freezeDeep } from "./freeze.ts";
 import { sameId } from "./ids.ts";
 import { isForbiddenKey } from "./paths.ts";
-import { listPermissions } from "./permissions.ts";
-import { anonymousSubject } from "./subject.ts";
+import { listPermissions } from "./permission-registry.ts";
+import {
+  type Membership,
+  type Principal,
+  type Subject,
+  anonymousSubject,
+} from "./subject.ts";
 
 /**
  * Who may redeem a capability: anyone holding it, any signed-in principal,

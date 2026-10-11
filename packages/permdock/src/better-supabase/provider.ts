@@ -9,18 +9,18 @@ import type {
 } from "better-supabase/config";
 
 import type { CatalogDocument } from "../catalog/types.ts";
-import type { Permission } from "../core/permissions.ts";
-import type {
-  SupabaseHookManifest,
-  SupabaseManifestActiveRow,
-  SupabaseManifestHelper,
-  SupabaseManifestMembership,
-} from "../supabase/manifest.ts";
+import type { Permission } from "../core/permission-types.ts";
 
 import { parseCatalog } from "../catalog/parse.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import { quoteSqlLiteral, sqlIdent } from "../core/sql.ts";
-import { parseSupabaseManifest } from "../supabase/manifest.ts";
+import {
+  type SupabaseHookManifest,
+  type SupabaseManifestActiveRow,
+  type SupabaseManifestHelper,
+  type SupabaseManifestMembership,
+  parseSupabaseManifest,
+} from "../supabase/manifest.ts";
 
 export type AuthorizationProviderOptions = {
   /** `permdock.manifest.json`, parsed or as JSON text, from `permdock supabase inspect --out`. */

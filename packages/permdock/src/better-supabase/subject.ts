@@ -1,22 +1,27 @@
 import type { EntitlementClaimOptions } from "better-supabase/blocks/entitlements";
 import type { AuthSession } from "better-supabase/server";
 
-import type { CredentialPrincipal } from "../core/credential.ts";
-import type { PermissionTree } from "../core/permissions.ts";
-import type { Subject } from "../core/subject.ts";
+import type { PermissionTree } from "../core/permission-types.ts";
 import type {
   SupabasePrincipal,
   SupabaseSessionLike,
   SupabaseSubjectOptions,
 } from "../supabase/types.ts";
-import type { KeyRecord, ServiceRoles } from "./api-keys.ts";
 
 import { isRecord } from "../core/compact.ts";
-import { credentialSubject } from "../core/credential.ts";
-import { listPermissions } from "../core/permissions.ts";
-import { anonymousSubject } from "../core/subject.ts";
+import {
+  type CredentialPrincipal,
+  credentialSubject,
+} from "../core/credential.ts";
+import { listPermissions } from "../core/permission-registry.ts";
+import { type Subject, anonymousSubject } from "../core/subject.ts";
 import { subjectFromSupabaseSession } from "../supabase/subject.ts";
-import { keyCredential, manifestServiceRoles } from "./api-keys.ts";
+import {
+  type KeyRecord,
+  type ServiceRoles,
+  keyCredential,
+  manifestServiceRoles,
+} from "./api-keys.ts";
 
 /** An `AuthSession` of kind `apiKey`, from better-supabase's api-keys middleware. */
 export type ApiKeySession = Extract<AuthSession, { readonly kind: "apiKey" }>;

@@ -6,10 +6,10 @@ import type { GranteeInput, Grantee, ActorGrantee } from "./grantee.ts";
 import type { DecisionProvider } from "./interfaces.ts";
 import type {
   Permission,
+  PermissionKind,
   PermissionTree,
   ResourceNode,
-  PermissionKind,
-} from "./permissions.ts";
+} from "./permission-types.ts";
 import type { POLICY_X } from "./policy-fingerprint.ts";
 import type { Scope, PolicyScopesInput, ScopeNames } from "./scopes.ts";
 import type { Principal, Actor, Delegation } from "./subject.ts";

@@ -1,5 +1,5 @@
 import type { Decision, DenialReason } from "../core/decision.ts";
-import type { Permission } from "../core/permissions.ts";
+import type { Permission } from "../core/permission-types.ts";
 import type { Subject } from "../core/subject.ts";
 import type { RemotePdpAuth, RemotePdpCache } from "./types.ts";
 

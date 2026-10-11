@@ -9,7 +9,8 @@ import {
   evaluateBreakGlass,
   purposesOf,
 } from "../../src/core/elevated.ts";
-import { definePermissions, resource } from "../../src/core/permissions.ts";
+import { resource } from "../../src/core/permission-leaf.ts";
+import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
 import { defineRoles } from "../../src/core/vocabulary.ts";

@@ -9,7 +9,7 @@ import type { MembershipsMapping } from "../../src/conditions/compile.ts";
 import type { WhereResult } from "../../src/core/permdock.ts";
 import type { Subject } from "../../src/core/subject.ts";
 
-import { getRegistry } from "../../src/core/permissions.ts";
+import { getRegistry } from "../../src/core/permission-registry.ts";
 import { checkRow, toWhere, withSubject } from "../../src/drizzle/to-where.ts";
 import { permissions as graph } from "../fixtures/graph.ts";
 

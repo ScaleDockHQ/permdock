@@ -1,4 +1,5 @@
 import type { Obligation, Decision, Denial, DenialReason } from "./decision.ts";
+import type { Permission, PermissionTree } from "./permission-types.ts";
 import type {
   AssuranceRequirement,
   BreakGlassOptions,
@@ -22,11 +23,7 @@ import {
   authenticated,
 } from "./grantee.ts";
 import { sameId } from "./ids.ts";
-import {
-  type Permission,
-  type PermissionTree,
-  listPermissions,
-} from "./permissions.ts";
+import { listPermissions } from "./permission-registry.ts";
 import { normalizeAssurance, role } from "./role-builder.ts";
 import { type Scope, resolveScope, scopeList } from "./scopes.ts";
 import { isMembershipExpired, nowSeconds } from "./tenancy.ts";

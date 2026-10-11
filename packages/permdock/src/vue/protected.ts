@@ -7,7 +7,7 @@ import {
   type VNode,
 } from "vue";
 
-import type { Permission } from "../core/permissions.ts";
+import type { Permission } from "../core/permission-types.ts";
 
 import { protectedView, scopedTenant, slotContent } from "../client/views.ts";
 import { usePermission, usePermDock } from "./composables.ts";

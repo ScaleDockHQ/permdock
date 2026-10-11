@@ -1,4 +1,4 @@
-import type { Permission } from "./permissions.ts";
+import type { Permission } from "./permission-types.ts";
 
 /** The row's `id` as a string, when it is a string or a number. */
 export function resourceIdOf(data: unknown): string | undefined {

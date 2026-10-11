@@ -1,5 +1,5 @@
 import type { Decision } from "./decision.ts";
-import type { Permission } from "./permissions.ts";
+import type { Permission } from "./permission-types.ts";
 
 import { describe } from "./describe.ts";
 import { wireDenials } from "./wire-denial.ts";

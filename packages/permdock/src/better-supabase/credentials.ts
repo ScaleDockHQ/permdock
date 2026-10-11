@@ -6,7 +6,7 @@ import type {
 import { AsyncResult, dbError } from "better-supabase";
 
 import type { PermDock } from "../core/permdock.ts";
-import type { Permission } from "../core/permissions.ts";
+import type { Permission } from "../core/permission-types.ts";
 
 export type CredentialGuardOptions = {
   /** The request's PermDock instance. */

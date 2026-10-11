@@ -17,6 +17,7 @@ import type {
   SnapshotOptions,
   WhereResult,
 } from "./permdock.ts";
+import type { Permission, ResourceNode } from "./permission-types.ts";
 import type { Grant, Policy } from "./policy-types.ts";
 import type { CustomRole, Membership, Principal, Subject } from "./subject.ts";
 
@@ -82,13 +83,7 @@ import {
   roleMeta,
   usesAssigns,
 } from "./ownership.ts";
-import {
-  type Permission,
-  type ResourceNode,
-  getResource,
-  isPrincipalRelation,
-  listPermissions,
-} from "./permissions.ts";
+import { getResource, listPermissions } from "./permission-registry.ts";
 import {
   declaredRoleNames,
   grantList,
@@ -100,6 +95,7 @@ import {
   pendingRelations,
   relationReader,
 } from "./relations.ts";
+import { isPrincipalRelation } from "./resource-relations.ts";
 import {
   normalizeMemberships,
   resolveScope,

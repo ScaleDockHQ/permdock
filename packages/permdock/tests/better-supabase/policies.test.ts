@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import type { Permission } from "../../src/core/permissions.ts";
+import type { Permission } from "../../src/core/permission-types.ts";
 
 import { bucketPolicy, topicPolicy } from "../../src/better-supabase/index.ts";
 import {

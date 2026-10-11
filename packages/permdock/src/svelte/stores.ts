@@ -3,20 +3,20 @@ import { readable, toStore, type Readable } from "svelte/store";
 import type { ClientStore } from "../client/store.ts";
 import type { Decision } from "../core/decision.ts";
 import type { DecisionDescription, DescribeOptions } from "../core/describe.ts";
-import type { Permission } from "../core/permissions.ts";
+import type { Permission } from "../core/permission-types.ts";
 import type { Membership } from "../core/subject.ts";
 import type { Role } from "../core/vocabulary.ts";
 import type {
   ApprovalHandle,
   ClientPermDock,
   FilterResult,
+  PermDockSvelteOptions,
   PermissionSet,
   PermissionState,
   SubjectView,
   TenantView,
   UseRolesOptions,
 } from "./types.ts";
-import type { PermDockSvelteOptions } from "./types.ts";
 
 import {
   approvalHandle,

@@ -1,5 +1,10 @@
 import type { AppObligation } from "./decision.ts";
 import type {
+  Permission,
+  PermissionKind,
+  PermissionTree,
+} from "./permission-types.ts";
+import type {
   ClosureGrantFn,
   Grant,
   GrantCondition,
@@ -27,13 +32,7 @@ import {
   roleScopeOf,
 } from "./grantee.ts";
 import { assertLimit, normalizeLimit } from "./limits.ts";
-import {
-  type Permission,
-  type PermissionKind,
-  type PermissionTree,
-  isPermission,
-  listPermissions,
-} from "./permissions.ts";
+import { isPermission, listPermissions } from "./permission-registry.ts";
 import { normalizeValidity } from "./validity.ts";
 
 function isClosure(value: unknown): value is ClosureGrantFn {

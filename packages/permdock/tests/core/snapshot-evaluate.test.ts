@@ -4,7 +4,8 @@ import type { Condition } from "../../src/conditions/ast.ts";
 import type { Snapshot, SnapshotGrant } from "../../src/core/interfaces.ts";
 
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
-import { definePermissions, resource } from "../../src/core/permissions.ts";
+import { resource } from "../../src/core/permission-leaf.ts";
+import { definePermissions } from "../../src/core/permissions.ts";
 import { parseSnapshot } from "../../src/core/snapshot.ts";
 import { reasonOf } from "../fixtures/decisions.ts";
 

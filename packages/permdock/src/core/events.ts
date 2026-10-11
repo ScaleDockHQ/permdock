@@ -8,13 +8,14 @@ import type {
   LimitStore,
 } from "./interfaces.ts";
 import type { DecideOptions } from "./permdock.ts";
+import type { Permission } from "./permission-types.ts";
 import type { Policy } from "./policy-types.ts";
 import type { RelationReader } from "./relations.ts";
 import type { CustomRole, Membership, Subject } from "./subject.ts";
 
 import { compact } from "./compact.ts";
 import { freezeDeep } from "./freeze.ts";
-import { type Permission, getResource } from "./permissions.ts";
+import { getResource } from "./permission-registry.ts";
 import { isThenable } from "./thenable.ts";
 import { wireDenials } from "./wire-denial.ts";
 

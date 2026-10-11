@@ -1,6 +1,5 @@
 import type { RelatedHop, RestrictedAncestors } from "../conditions/ast.ts";
 import type { Policy, ResourceNode } from "../index.ts";
-import type { RlsSqlContext } from "./rls-sql.ts";
 
 import { relationArmSql, restrictedRowsSql } from "../conditions/graph-sql.ts";
 import {
@@ -16,11 +15,12 @@ import {
   isPrincipalRelation,
   isSelfParented,
   restrictedFor,
-} from "../core/permissions.ts";
+} from "../core/resource-relations.ts";
 import { scopeList } from "../core/scopes.ts";
 import { qualifySqlTable } from "../core/sql.ts";
 import {
   CLOSURE,
+  type RlsSqlContext,
   activeUserSql,
   graphHelper,
   graphSqlName,

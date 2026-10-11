@@ -1,12 +1,6 @@
 import { basename } from "node:path";
 
-import type { Policy } from "../index.ts";
-import type { SplitPart } from "./output-files.ts";
 import type { SqlConnect } from "./pg.ts";
-import type { CompiledGrants, CompiledPolicy } from "./rls-compile.ts";
-import type { RolePermission } from "./rls-helpers.ts";
-import type { IndexTarget } from "./rls-indexes.ts";
-import type { RlsSqlContext } from "./rls-sql.ts";
 import type {
   CliIo,
   PermDockConfig,
@@ -17,11 +11,11 @@ import type {
 } from "./types.ts";
 
 import { compact } from "../core/compact.ts";
-import { renamedKeys } from "../core/permissions.ts";
+import { renamedKeys } from "../core/permission-registry.ts";
 import { policyRowConditionKeys } from "../core/row-conditions.ts";
 import { resolveScope, scopeList } from "../core/scopes.ts";
 import { qualifySqlTable } from "../core/sql.ts";
-import { listPermissions, listRoles } from "../index.ts";
+import { type Policy, listPermissions, listRoles } from "../index.ts";
 import { supabaseTenantClaim } from "../supabase/budget.ts";
 import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
 import { cliErrorKind, describeError, exitCodeOf } from "./errors.ts";
@@ -33,21 +27,26 @@ import {
   SEEDS_MARKER,
 } from "./markers.ts";
 import {
+  type OutputFile,
+  type SplitPart,
   dataMigrationFile,
   driftOf,
   isSeedsDirectory,
   parseSplit,
-  seedsMigration,
   partPath,
   pgDeltaPath,
-  type OutputFile,
+  seedsMigration,
   writeOutputFiles,
 } from "./output-files.ts";
 import { apiKeysPlan } from "./rls-api-keys.ts";
 import { adoptedApprovalStoreSql, approvalStoreSql } from "./rls-approvals.ts";
 import { backfillSql } from "./rls-backfill.ts";
 import { breakGlassEntries, breakGlassSql } from "./rls-break-glass.ts";
-import { compileGrants } from "./rls-compile.ts";
+import {
+  type CompiledGrants,
+  type CompiledPolicy,
+  compileGrants,
+} from "./rls-compile.ts";
 import {
   defaultOut,
   emitDrizzle,
@@ -61,10 +60,11 @@ import {
 import { fieldViews, rowBranches } from "./rls-fields.ts";
 import { roleNames } from "./rls-grants.ts";
 import { closureDepths, graphPlan, graphSql } from "./rls-graph.ts";
-import { helpersSql, seedSql } from "./rls-helpers.ts";
+import { type RolePermission, helpersSql, seedSql } from "./rls-helpers.ts";
 import {
-  indexesSql,
+  type IndexTarget,
   indexTargets,
+  indexesSql,
   pruneIndexTargets,
   readTableIndexFacts,
 } from "./rls-indexes.ts";
@@ -89,16 +89,17 @@ import { inheritTargets, rowHelpersSql } from "./rls-rows.ts";
 import { customRolesOn } from "./rls-shared.ts";
 import { shimGrants, shimsSql } from "./rls-shims.ts";
 import {
+  type RlsSqlContext,
+  SESSION_LIVE_HELPER,
+  USER_ID_HELPER,
   checkSuspension,
   graphHelper,
   parseMembershipsFlag,
   quoteLiteral,
   scopeSources,
   scopeTable,
-  SESSION_LIVE_HELPER,
   sessionLiveHelperSql,
   subjectClaimJsonSql,
-  USER_ID_HELPER,
 } from "./rls-sql.ts";
 import { auditSql, generatedTables, triggersSql } from "./rls-triggers.ts";
 import { splitUndiffed } from "./sql-statements.ts";

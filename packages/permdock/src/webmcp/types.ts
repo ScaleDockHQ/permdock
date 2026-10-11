@@ -2,7 +2,7 @@ import type { StandardSchemaV1 } from "@standard-schema/spec";
 
 import type { Decision } from "../core/decision.ts";
 import type { Snapshot } from "../core/interfaces.ts";
-import type { Permission, PermissionTree } from "../core/permissions.ts";
+import type { Permission, PermissionTree } from "../core/permission-types.ts";
 
 export type WebMcpClientStatus = "ready" | "pending" | "stale" | "server-only";
 

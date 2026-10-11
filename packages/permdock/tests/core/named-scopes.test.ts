@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import type { Permission } from "../../src/core/permission-types.ts";
 import type { Membership, Principal } from "../../src/core/subject.ts";
 
 import { pushedPolicy } from "../../src/cli/cloud.ts";
@@ -8,11 +9,8 @@ import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { allow } from "../../src/core/grant-builders.ts";
 import { memoryRoleSource } from "../../src/core/interfaces.ts";
 import { type PermDock, createPermDock } from "../../src/core/permdock.ts";
-import {
-  type Permission,
-  definePermissions,
-  resource,
-} from "../../src/core/permissions.ts";
+import { resource } from "../../src/core/permission-leaf.ts";
+import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
 import { parseSnapshot } from "../../src/core/snapshot.ts";

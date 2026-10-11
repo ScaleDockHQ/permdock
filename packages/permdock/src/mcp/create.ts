@@ -8,6 +8,7 @@ import type {
 import type { CheckFailure, ToolBinding } from "../agent/types.ts";
 import type { Decision } from "../core/decision.ts";
 import type { PermDock } from "../core/permdock.ts";
+import type { Permission, ToolHints } from "../core/permission-types.ts";
 import type { Policy } from "../core/policy-types.ts";
 import type { Principal } from "../core/subject.ts";
 import type {
@@ -33,11 +34,7 @@ import {
   hasScope,
   scopesReaching,
 } from "../core/oauth-scopes.ts";
-import {
-  type Permission,
-  type ToolHints,
-  annotationsFor,
-} from "../core/permissions.ts";
+import { annotationsFor } from "../core/permission-leaf.ts";
 import { resourceRef } from "../core/resource-ref.ts";
 import {
   approvalToolRefusal,

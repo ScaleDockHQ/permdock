@@ -6,8 +6,7 @@ import type {
   Permission,
   PermissionTree,
   ResourceNode,
-} from "../core/permissions.ts";
-import type { ResourceRef } from "../core/tool-refusal.ts";
+} from "../core/permission-types.ts";
 import type {
   ModelContext,
   PermissionGroup,
@@ -18,16 +17,17 @@ import type {
 } from "./types.ts";
 
 import { compact, isRecord } from "../core/compact.ts";
+import { resourceOfNode } from "../core/materialise-resource.ts";
+import { annotationsFor } from "../core/permission-leaf.ts";
 import {
-  annotationsFor,
   getRegistry,
   isRegistryTree,
-  resourceOfNode,
   listPermissions,
-} from "../core/permissions.ts";
+} from "../core/permission-registry.ts";
 import { resourceRef } from "../core/resource-ref.ts";
 import { ignoreRejection, isThenable } from "../core/thenable.ts";
 import {
+  type ResourceRef,
   approvalToolRefusal,
   deniedToolRefusal,
   toolErrorResult,

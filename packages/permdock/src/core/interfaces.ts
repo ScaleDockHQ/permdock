@@ -6,7 +6,7 @@ import type {
 } from "./credential.ts";
 import type { AppObligation, Decision, Obligation } from "./decision.ts";
 import type { Grantee } from "./grantee.ts";
-import type { Permission } from "./permissions.ts";
+import type { Permission } from "./permission-types.ts";
 import type {
   ApprovalRequirement,
   GrantMeta,

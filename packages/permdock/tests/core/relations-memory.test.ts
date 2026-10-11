@@ -2,10 +2,14 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import type { RelationSource } from "../../src/core/interfaces.ts";
-import type { RelationCache } from "../../src/core/relations.ts";
 
-import { definePermissions, resource } from "../../src/core/permissions.ts";
-import { memoryRelations, relationReader } from "../../src/core/relations.ts";
+import { resource } from "../../src/core/permission-leaf.ts";
+import { definePermissions } from "../../src/core/permissions.ts";
+import {
+  type RelationCache,
+  memoryRelations,
+  relationReader,
+} from "../../src/core/relations.ts";
 
 const Room = z.object({
   id: z.string(),

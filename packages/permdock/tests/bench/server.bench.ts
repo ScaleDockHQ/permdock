@@ -1,11 +1,9 @@
 import { test } from "vitest";
 
 import { allow } from "../../src/core/grant-builders.ts";
-import {
-  definePermissions,
-  listPermissions,
-  resource,
-} from "../../src/core/permissions.ts";
+import { resource } from "../../src/core/permission-leaf.ts";
+import { listPermissions } from "../../src/core/permission-registry.ts";
+import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
 import { createServerKernel } from "../../src/server/create.ts";

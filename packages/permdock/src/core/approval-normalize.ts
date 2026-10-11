@@ -1,3 +1,4 @@
+import type { ResourceNode } from "./permission-types.ts";
 import type {
   ApprovalEscalation,
   ApprovalMode,
@@ -20,7 +21,7 @@ import {
 import { compact, isReadonlyArray } from "./compact.ts";
 import { parseDuration } from "./duration.ts";
 import { type GranteeInput, asGrantee, authenticated } from "./grantee.ts";
-import { type ResourceNode, isSelfParented } from "./permissions.ts";
+import { isSelfParented } from "./resource-relations.ts";
 
 /** Every approver a requirement names: `by`, each stage and its escalation, and `escalation.to`, inside `anyOf` groups too. */
 function approversOf(requirement: ApprovalRequirement): readonly Approver[] {

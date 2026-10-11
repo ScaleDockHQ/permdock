@@ -18,11 +18,9 @@ import {
   roleScopeOf,
 } from "../../src/core/grantee.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
-import {
-  definePermissions,
-  getResource,
-  resource,
-} from "../../src/core/permissions.ts";
+import { resource } from "../../src/core/permission-leaf.ts";
+import { getResource } from "../../src/core/permission-registry.ts";
+import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { crud } from "../../src/core/presets.ts";
 import { role } from "../../src/core/role-builder.ts";

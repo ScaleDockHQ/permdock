@@ -9,7 +9,8 @@ import {
   createPermDock,
   parseSnapshot,
 } from "../../src/core/permdock.ts";
-import { definePermissions, resource } from "../../src/core/permissions.ts";
+import { resource } from "../../src/core/permission-leaf.ts";
+import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { refAt } from "../fixtures/refs.ts";
 

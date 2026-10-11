@@ -11,7 +11,8 @@ import {
   parsePolicyDocument,
 } from "../../src/core/hosted.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
-import { definePermissions, resource } from "../../src/core/permissions.ts";
+import { resource } from "../../src/core/permission-leaf.ts";
+import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy, grantList } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
 import { memorySink } from "../../src/core/sink.ts";

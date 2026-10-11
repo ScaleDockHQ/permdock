@@ -6,6 +6,7 @@ import type {
   RelationGroup,
   RelationHolder,
 } from "./interfaces.ts";
+import type { Permission, ResourceNode } from "./permission-types.ts";
 import type { Grant, Policy } from "./policy-types.ts";
 import type { Membership, Subject } from "./subject.ts";
 
@@ -22,15 +23,7 @@ import {
   relationCondition,
 } from "./grantee.ts";
 import { ownGet } from "./paths.ts";
-import {
-  type Permission,
-  type ResourceNode,
-  expandRelation,
-  getResource,
-  isEdgeRelation,
-  isFieldRelation,
-  isPrincipalRelation,
-} from "./permissions.ts";
+import { getResource } from "./permission-registry.ts";
 import {
   type ReadHolder,
   type RelationCache,
@@ -40,6 +33,12 @@ import {
   relationId,
   relationWalk,
 } from "./relations.ts";
+import {
+  expandRelation,
+  isEdgeRelation,
+  isFieldRelation,
+  isPrincipalRelation,
+} from "./resource-relations.ts";
 import {
   type Scope,
   normalizeMemberships,

@@ -1,5 +1,5 @@
 import type { Decision } from "../core/decision.ts";
-import type { Permission } from "../core/permissions.ts";
+import type { Permission } from "../core/permission-types.ts";
 
 /** What an agent adapter's `onDenied` receives: the refusal and the text PermDock wrote for it. */
 export type DeniedTextEvent = {

@@ -1,6 +1,7 @@
 import type { DoctorFinding, DoctorInput } from "./doctor-types.ts";
 
-import { formerKeys, listPermissions } from "../core/permissions.ts";
+import { formerKeys } from "../core/permission-leaf.ts";
+import { listPermissions } from "../core/permission-registry.ts";
 import { keptKeys } from "../supabase/keep.ts";
 import { policyOf } from "./doctor-collect.ts";
 

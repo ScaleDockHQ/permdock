@@ -4,7 +4,8 @@ import { z } from "zod";
 
 import { allow } from "../../src/core/grant-builders.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
-import { definePermissions, resource } from "../../src/core/permissions.ts";
+import { resource } from "../../src/core/permission-leaf.ts";
+import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { definePlans, defineRoles } from "../../src/core/vocabulary.ts";
 import { subjectFromJwt } from "../../src/jwt/subject.ts";

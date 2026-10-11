@@ -19,7 +19,7 @@ import { compact, isRecord } from "./compact.ts";
 import { parseDuration } from "./duration.ts";
 import { authenticated } from "./grantee.ts";
 import { isPortableCondition } from "./hosted.ts";
-import { findPermission } from "./permissions.ts";
+import { findPermission } from "./permission-registry.ts";
 import { type Scope, rootMembershipId } from "./scopes.ts";
 import { isThenable } from "./thenable.ts";
 

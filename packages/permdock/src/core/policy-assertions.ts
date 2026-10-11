@@ -1,3 +1,4 @@
+import type { PermissionTree, ResourceNode } from "./permission-types.ts";
 import type { Grant, RoleBinding, RoleScope } from "./policy-types.ts";
 
 import { compact } from "./compact.ts";
@@ -9,13 +10,8 @@ import {
   relationHops,
   relationStart,
 } from "./grantee.ts";
-import {
-  type PermissionTree,
-  type ResourceNode,
-  isFieldRelation,
-  isSelfParented,
-  listPermissions,
-} from "./permissions.ts";
+import { listPermissions } from "./permission-registry.ts";
+import { isFieldRelation, isSelfParented } from "./resource-relations.ts";
 import { type Scope, resolveScope } from "./scopes.ts";
 import { memberOfFields, relatesTo, scopeField } from "./tenancy.ts";
 

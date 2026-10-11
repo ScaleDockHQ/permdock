@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import type { RelationGrantee } from "../../src/core/grantee.ts";
 import type { Subject } from "../../src/core/subject.ts";
 
 import {
+  type RelationGrantee,
   actor,
   asGrantee,
   assurance,
@@ -13,7 +13,8 @@ import {
   relationStart,
   resourceRoleCondition,
 } from "../../src/core/grantee.ts";
-import { definePermissions, resource } from "../../src/core/permissions.ts";
+import { resource } from "../../src/core/permission-leaf.ts";
+import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 
 const permissions = definePermissions({

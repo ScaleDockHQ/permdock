@@ -4,7 +4,8 @@ import { z } from "zod";
 import type { DecisionProvider } from "../../src/core/interfaces.ts";
 import type { Subject } from "../../src/core/subject.ts";
 
-import { definePermissions, resource } from "../../src/core/permissions.ts";
+import { resource } from "../../src/core/permission-leaf.ts";
+import { definePermissions } from "../../src/core/permissions.ts";
 import { openfga, spicedb } from "../../src/pdp/index.ts";
 import { fakeFetch, json } from "../fakes/fetch.ts";
 import { reasonOf } from "../fixtures/decisions.ts";

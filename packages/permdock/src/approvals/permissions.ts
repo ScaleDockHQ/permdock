@@ -1,10 +1,10 @@
 import type { PermDock } from "../core/permdock.ts";
-import type { Permission } from "../core/permissions.ts";
+import type { Permission } from "../core/permission-types.ts";
 import type { Subject } from "../core/subject.ts";
 import type { ApprovalsHandlerOptions } from "./handler.ts";
 import type { ApprovalRequest } from "./types.ts";
 
-import { findPermission } from "../core/permissions.ts";
+import { findPermission } from "../core/permission-registry.ts";
 import { requestApprovers } from "./relations.ts";
 
 /**

@@ -12,24 +12,25 @@ import type {
   PrincipalRelation,
   ResourceLink,
   ResourceNode,
-} from "./permissions.ts";
+} from "./permission-types.ts";
 import type { Subject } from "./subject.ts";
-import type { Plan, Role } from "./vocabulary.ts";
 
 import { compact, sole } from "./compact.ts";
 import { freezeDeep } from "./freeze.ts";
 import {
   isPermission as isPermissionLeaf,
+  listPermissions,
+} from "./permission-registry.ts";
+import {
   expandRelation,
   isComputedRelation,
   isEdgeRelation,
   isFieldRelation,
   isPrincipalRelation,
   isSelfParented,
-  listPermissions,
   restrictedFor,
   restrictedStops,
-} from "./permissions.ts";
+} from "./resource-relations.ts";
 import {
   type Scope,
   activeFor,
@@ -37,7 +38,7 @@ import {
   rootScope,
   scopeList,
 } from "./scopes.ts";
-import { isPlan, isRole } from "./vocabulary.ts";
+import { type Plan, type Role, isPlan, isRole } from "./vocabulary.ts";
 
 export type RoleGrantee = {
   readonly kind: "role";

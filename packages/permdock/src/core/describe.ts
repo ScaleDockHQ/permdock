@@ -1,4 +1,3 @@
-import type { Approver } from "./approvers.ts";
 import type {
   Decision,
   DeniedDecision,
@@ -6,9 +5,9 @@ import type {
   MatchedGrant,
 } from "./decision.ts";
 import type { Grantee } from "./grantee.ts";
-import type { Permission } from "./permissions.ts";
+import type { Permission } from "./permission-types.ts";
 
-import { flattenApprovers } from "./approvers.ts";
+import { type Approver, flattenApprovers } from "./approvers.ts";
 import { requiredPlans } from "./problem-details.ts";
 
 export { requiredPlans };

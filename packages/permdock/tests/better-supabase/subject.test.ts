@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest";
 import type { SupabaseHookManifest } from "../../src/supabase/manifest.ts";
 
 import { subjectFromBetterSupabase } from "../../src/better-supabase/index.ts";
-import { definePermissions, resource } from "../../src/core/permissions.ts";
+import { resource } from "../../src/core/permission-leaf.ts";
+import { definePermissions } from "../../src/core/permissions.ts";
 import { testSubjectResolver } from "../../src/testing/conformance.ts";
 import { supabaseHookManifestFixture } from "../../src/testing/supabase-fixtures.ts";
 

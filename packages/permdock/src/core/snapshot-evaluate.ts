@@ -8,7 +8,7 @@ import type {
 } from "./decision.ts";
 import type { Snapshot, SnapshotGrant } from "./interfaces.ts";
 import type { DecideOptions, WhereResult } from "./permdock.ts";
-import type { Permission } from "./permissions.ts";
+import type { Permission } from "./permission-types.ts";
 import type { Subject } from "./subject.ts";
 
 import { evaluateCondition } from "../conditions/evaluate.ts";

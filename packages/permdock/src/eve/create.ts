@@ -1,7 +1,7 @@
 import type { ToolBinding, ToolMap, ToolVerdict } from "../agent/types.ts";
 import type { ApprovalRequest, ApprovalStore } from "../approvals/types.ts";
 import type { PermDock } from "../core/permdock.ts";
-import type { Permission } from "../core/permissions.ts";
+import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { Delegation, Principal } from "../core/subject.ts";
 

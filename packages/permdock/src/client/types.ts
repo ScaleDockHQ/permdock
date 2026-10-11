@@ -1,7 +1,7 @@
 import type { Decision } from "../core/decision.ts";
 import type { DescribeMessages } from "../core/describe.ts";
 import type { PermDock } from "../core/permdock.ts";
-import type { Permission } from "../core/permissions.ts";
+import type { Permission } from "../core/permission-types.ts";
 import type { PolicyVocabulary } from "../core/policy-types.ts";
 import type { Actor, Delegation, Principal } from "../core/subject.ts";
 import type { ClientStoreOptions } from "./store.ts";

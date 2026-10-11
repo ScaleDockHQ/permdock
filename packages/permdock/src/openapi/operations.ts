@@ -1,7 +1,7 @@
-import type { Permission, PermissionTree } from "../core/permissions.ts";
+import type { Permission, PermissionTree } from "../core/permission-types.ts";
 
 import { isRecord } from "../core/compact.ts";
-import { findPermission, isPermission } from "../core/permissions.ts";
+import { findPermission, isPermission } from "../core/permission-registry.ts";
 
 const METHODS = new Set([
   "GET",

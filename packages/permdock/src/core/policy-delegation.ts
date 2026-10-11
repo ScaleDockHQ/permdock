@@ -1,3 +1,4 @@
+import type { Permission, PermissionTree } from "./permission-types.ts";
 import type {
   DefinePolicyOptions,
   DelegationInput,
@@ -10,13 +11,8 @@ import type { Principal } from "./subject.ts";
 import { compact } from "./compact.ts";
 import { flattenPermissions } from "./grant-builders.ts";
 import { asGrantee, flattenGrantee } from "./grantee.ts";
-import {
-  type Permission,
-  type PermissionTree,
-  annotationsFor,
-  findPermission,
-  listPermissions,
-} from "./permissions.ts";
+import { annotationsFor } from "./permission-leaf.ts";
+import { findPermission, listPermissions } from "./permission-registry.ts";
 import { normalizeValidity } from "./validity.ts";
 
 function delegationTarget(

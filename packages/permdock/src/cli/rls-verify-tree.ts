@@ -1,15 +1,20 @@
 import { randomUUID } from "node:crypto";
 
 import type { MemoryEdge } from "../core/relations.ts";
-import type { Policy, ResourceNode } from "../index.ts";
 import type { PermDockConfig } from "./types.ts";
 
 import {
   isEdgeRelation,
   isFieldRelation,
   isPrincipalRelation,
-} from "../core/permissions.ts";
-import { createPermDock, listPermissions, memoryRelations } from "../index.ts";
+} from "../core/resource-relations.ts";
+import {
+  type Policy,
+  type ResourceNode,
+  createPermDock,
+  listPermissions,
+  memoryRelations,
+} from "../index.ts";
 import { jsonSchemaOf } from "./catalog-doc.ts";
 import { commandFor } from "./rls-compile.ts";
 import { graphPlan } from "./rls-graph.ts";

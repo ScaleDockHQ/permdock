@@ -1,17 +1,18 @@
 import type { Decision, LimitDetail } from "../core/decision.ts";
-import type { ApprovalHint, ProblemDetails } from "../core/errors.ts";
-import type { Permission } from "../core/permissions.ts";
-import type { Disclosure } from "../core/problem-details.ts";
+import type { Permission } from "../core/permission-types.ts";
 import type { Subject } from "../core/subject.ts";
 
 import { compact } from "../core/compact.ts";
 import {
+  type ApprovalHint,
   PermDockValidationError,
+  type ProblemDetails,
   approvalMessage,
   deniedMessage,
 } from "../core/errors.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import {
+  type Disclosure,
   PROBLEM_BASE,
   notFoundDetails,
   problemDetails,

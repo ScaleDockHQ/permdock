@@ -1,4 +1,4 @@
-import type { ResourceRelation } from "../core/permissions.ts";
+import type { ResourceRelation } from "../core/permission-types.ts";
 
 export type CatalogUsage = {
   readonly file: string;

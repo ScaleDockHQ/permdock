@@ -9,7 +9,7 @@ import type {
 import express from "express";
 
 import type { PermDock } from "../core/permdock.ts";
-import type { Permission } from "../core/permissions.ts";
+import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { Principal } from "../core/subject.ts";
 import type { OpenApiHooks, ProtectOptions } from "../server/create.ts";

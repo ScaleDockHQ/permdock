@@ -1,7 +1,7 @@
 import type { Decision } from "../core/decision.ts";
 import type { Snapshot } from "../core/interfaces.ts";
 import type { PermDock } from "../core/permdock.ts";
-import type { Permission } from "../core/permissions.ts";
+import type { Permission } from "../core/permission-types.ts";
 import type { StoreRequest } from "./request.ts";
 import type { ClientStatus } from "./types.ts";
 

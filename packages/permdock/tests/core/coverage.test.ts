@@ -19,14 +19,14 @@ import { allow, deny } from "../../src/core/grant-builders.ts";
 import { memoryRoleSource } from "../../src/core/interfaces.ts";
 import { readPath } from "../../src/core/paths.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
+import { resource } from "../../src/core/permission-leaf.ts";
 import {
-  definePermissions,
   findPermission,
   getResource,
   listPermissions,
   mergePermissions,
-  resource,
-} from "../../src/core/permissions.ts";
+} from "../../src/core/permission-registry.ts";
+import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
 import { defineScopes } from "../../src/core/scopes.ts";

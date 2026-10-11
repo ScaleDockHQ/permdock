@@ -6,7 +6,7 @@ import type { DescribeMessages } from "../core/describe.ts";
 import type { InstanceOptions } from "../core/instance-options.ts";
 import type { Snapshot } from "../core/interfaces.ts";
 import type { PermDock } from "../core/permdock.ts";
-import type { Permission } from "../core/permissions.ts";
+import type { Permission } from "../core/permission-types.ts";
 import type { PolicyVocabulary } from "../core/policy-types.ts";
 import type { OtelWrap } from "../otel/types.ts";
 

@@ -1,4 +1,5 @@
 import type { DecisionSink, RoleSource } from "../core/interfaces.ts";
+import type { PermissionTree } from "../core/permission-types.ts";
 import type { RoleBinding } from "../core/policy-types.ts";
 import type { CustomRole } from "../core/subject.ts";
 import type {
@@ -13,7 +14,7 @@ import type {
 import { compact } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import { allow } from "../core/grant-builders.ts";
-import { type PermissionTree, listPermissions } from "../core/permissions.ts";
+import { listPermissions } from "../core/permission-registry.ts";
 import { role } from "../core/role-builder.ts";
 import { membershipEvent } from "../core/sink.ts";
 import {
