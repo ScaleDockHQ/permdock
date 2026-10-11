@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
+import { allow } from "../../src/core/grant-builders.ts";
 import { relation } from "../../src/core/grantee.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
 import { definePermissions, resource } from "../../src/core/permissions.ts";
-import { allow, definePolicy } from "../../src/core/policy.ts";
+import { definePolicy } from "../../src/core/policy.ts";
 import { memoryRelations } from "../../src/core/relations.ts";
 import { testRelationSource } from "../../src/testing/conformance.ts";
 import {

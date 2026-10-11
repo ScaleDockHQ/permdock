@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { GrantLimit } from "../../src/core/policy.ts";
+import type { GrantLimit } from "../../src/core/policy-types.ts";
 
 import {
   applyQuota,

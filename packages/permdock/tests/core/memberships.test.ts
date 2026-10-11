@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import type { MembershipSource } from "../../src/core/interfaces.ts";
 import type { Principal } from "../../src/core/subject.ts";
 
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
+import { allow } from "../../src/core/grant-builders.ts";
 import { plan } from "../../src/core/grantee.ts";
-import { memoryEntitlementSource } from "../../src/core/interfaces.ts";
+import {
+  type MembershipSource,
+  memoryEntitlementSource,
+} from "../../src/core/interfaces.ts";
 import {
   claimsFirst,
   composeMemberships,
@@ -14,7 +17,8 @@ import {
 } from "../../src/core/memberships.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
 import { definePermissions, resource } from "../../src/core/permissions.ts";
-import { allow, definePolicy, role } from "../../src/core/policy.ts";
+import { definePolicy } from "../../src/core/policy.ts";
+import { role } from "../../src/core/role-builder.ts";
 import { parseSnapshot } from "../../src/core/snapshot.ts";
 import { fromStripeEntitlements } from "../../src/core/stripe-entitlements.ts";
 import {

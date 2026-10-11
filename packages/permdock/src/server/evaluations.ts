@@ -1,17 +1,18 @@
 import type { ApprovalStore } from "../approvals/types.ts";
-import type { Decision } from "../core/decision.ts";
 import type { DecideOptions, PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permissions.ts";
-import type { Policy } from "../core/policy.ts";
-import type { WireDecision } from "../core/wire-denial.ts";
-import type { PermissionLookup } from "./evaluation-items.ts";
+import type { Policy } from "../core/policy-types.ts";
 
 import { readApprovalHeader, resumeDecision } from "../approvals/helpers.ts";
 import { compact } from "../core/compact.ts";
-import { NO_GRANT } from "../core/decision.ts";
+import { type Decision, NO_GRANT } from "../core/decision.ts";
 import { resourceRef } from "../core/resource-ref.ts";
-import { wireDenials } from "../core/wire-denial.ts";
-import { itemResourceData, permissionLookup } from "./evaluation-items.ts";
+import { type WireDecision, wireDenials } from "../core/wire-denial.ts";
+import {
+  type PermissionLookup,
+  itemResourceData,
+  permissionLookup,
+} from "./evaluation-items.ts";
 import {
   DEFAULT_MAX_EVALUATIONS,
   batchTooLarge,

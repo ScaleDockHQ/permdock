@@ -1,34 +1,43 @@
 import type { ApprovalStore } from "../approvals/types.ts";
-import type { TenantOption, TenantScope } from "../core/adapter-context.ts";
 import type { Decision } from "../core/decision.ts";
 import type { ApprovalHint, ProblemDetails } from "../core/errors.ts";
-import type { InstanceOptions } from "../core/instance-options.ts";
 import type { Snapshot } from "../core/interfaces.ts";
-import type {
-  DecideOptions,
-  PermDock,
-  SnapshotOptions,
-} from "../core/permdock.ts";
-import type { Permission } from "../core/permissions.ts";
-import type { Policy, PolicyVocabulary } from "../core/policy.ts";
+import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { RevocationFeed } from "../core/revocations.ts";
 import type { Actor, Principal, Subject } from "../core/subject.ts";
 import type { PdpFactory, PdpPermDock } from "../pdp/types.ts";
 import type { Connection, ConnectionOptions } from "./connection.ts";
-import type { WebBotAuthVerifier } from "./web-bot-auth.ts";
+
+import {
+  type TenantOption,
+  type TenantScope,
+  actorFrom,
+  tenantScope,
+} from "../core/adapter-context.ts";
+import {
+  type InstanceOptions,
+  instanceOptions,
+} from "../core/instance-options.ts";
+import {
+  type DecideOptions,
+  type PermDock,
+  type SnapshotOptions,
+  createPermDock as createCorePermDock,
+} from "../core/permdock.ts";
+import { type Permission, listPermissions } from "../core/permissions.ts";
+import {
+  type WebBotAuthVerifier,
+  InvalidSignatureError,
+} from "./web-bot-auth.ts";
 
 export { tenantScope };
 export type { TenantOption, TenantScope };
 
 import type { PermDockWrap } from "../core/wrap.ts";
 
-import { actorFrom, tenantScope } from "../core/adapter-context.ts";
 import { compact } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
-import { instanceOptions } from "../core/instance-options.ts";
 import { challengeScope } from "../core/oauth-scopes.ts";
-import { createPermDock as createCorePermDock } from "../core/permdock.ts";
-import { listPermissions } from "../core/permissions.ts";
 import { problemDetails } from "../core/problem-details.ts";
 import {
   errorChannel,
@@ -49,7 +58,6 @@ import {
   problemFromDecision,
   unauthenticatedProblem,
 } from "./problem.ts";
-import { InvalidSignatureError } from "./web-bot-auth.ts";
 
 export type ServerPermDockOptions<TUser = unknown> = InstanceOptions & {
   /** The user, or a full `Subject` (core then skips `policy.subject`); `null` is anonymous. */

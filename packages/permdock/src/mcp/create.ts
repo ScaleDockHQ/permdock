@@ -8,10 +8,8 @@ import type {
 import type { CheckFailure, ToolBinding } from "../agent/types.ts";
 import type { Decision } from "../core/decision.ts";
 import type { PermDock } from "../core/permdock.ts";
-import type { Permission, ToolHints } from "../core/permissions.ts";
-import type { Policy } from "../core/policy.ts";
+import type { Policy } from "../core/policy-types.ts";
 import type { Principal } from "../core/subject.ts";
-import type { BearerChallenge } from "../server/problem.ts";
 import type {
   GuardedMcpServer,
   McpAuthInfo,
@@ -35,7 +33,11 @@ import {
   hasScope,
   scopesReaching,
 } from "../core/oauth-scopes.ts";
-import { annotationsFor } from "../core/permissions.ts";
+import {
+  type Permission,
+  type ToolHints,
+  annotationsFor,
+} from "../core/permissions.ts";
 import { resourceRef } from "../core/resource-ref.ts";
 import {
   approvalToolRefusal,
@@ -44,6 +46,7 @@ import {
 } from "../core/tool-refusal.ts";
 import { composeWraps } from "../core/wrap.ts";
 import {
+  type BearerChallenge,
   bearerChallenge,
   protectedResourceMetadataUrl,
   stepUpOf,

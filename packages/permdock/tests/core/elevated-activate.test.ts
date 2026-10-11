@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { Grant } from "../../src/core/policy.ts";
+import type { Grant } from "../../src/core/policy-types.ts";
 import type { Principal, Subject } from "../../src/core/subject.ts";
 
 import {
@@ -10,7 +10,8 @@ import {
   purposesOf,
 } from "../../src/core/elevated.ts";
 import { definePermissions, resource } from "../../src/core/permissions.ts";
-import { definePolicy, role } from "../../src/core/policy.ts";
+import { definePolicy } from "../../src/core/policy.ts";
+import { role } from "../../src/core/role-builder.ts";
 import { defineRoles } from "../../src/core/vocabulary.ts";
 import { reasonOf } from "../fixtures/decisions.ts";
 

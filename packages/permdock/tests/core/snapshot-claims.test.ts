@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import { principal } from "../../src/conditions/refs.ts";
+import { allow } from "../../src/core/grant-builders.ts";
 import { authenticated } from "../../src/core/grantee.ts";
 import {
   fromSnapshot,
@@ -9,7 +10,7 @@ import {
   parseSnapshot,
 } from "../../src/core/permdock.ts";
 import { definePermissions, resource } from "../../src/core/permissions.ts";
-import { allow, definePolicy } from "../../src/core/policy.ts";
+import { definePolicy } from "../../src/core/policy.ts";
 import { refAt } from "../fixtures/refs.ts";
 
 const Entry = z.object({

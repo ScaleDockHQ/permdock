@@ -1,8 +1,7 @@
-import type { Approver } from "../core/approvers.ts";
-import type { ApprovalStage } from "../core/policy.ts";
+import type { ApprovalStage } from "../core/policy-types.ts";
 import type { Subject } from "../core/subject.ts";
 
-import { flattenApprovers } from "../core/approvers.ts";
+import { type Approver, flattenApprovers } from "../core/approvers.ts";
 import { compact } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import { matchGrantee } from "../core/grantee.ts";

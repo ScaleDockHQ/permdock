@@ -4,8 +4,10 @@ import { z } from "zod";
 import type { Subject } from "../../src/core/subject.ts";
 import type { RemotePdpOptions } from "../../src/pdp/types.ts";
 
+import { allow } from "../../src/core/grant-builders.ts";
 import { definePermissions, resource } from "../../src/core/permissions.ts";
-import { allow, definePolicy, role } from "../../src/core/policy.ts";
+import { definePolicy } from "../../src/core/policy.ts";
+import { role } from "../../src/core/role-builder.ts";
 import { createPermDock, remotePdp } from "../../src/pdp/index.ts";
 import { fakeFetch, json } from "../fakes/fetch.ts";
 import { reasonOf } from "../fixtures/decisions.ts";

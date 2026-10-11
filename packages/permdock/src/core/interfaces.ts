@@ -12,7 +12,7 @@ import type {
   GrantMeta,
   GrantValidity,
   HostedGrantRef,
-} from "./policy.ts";
+} from "./policy-types.ts";
 import type {
   CustomRole,
   JsonWebKeyLike,

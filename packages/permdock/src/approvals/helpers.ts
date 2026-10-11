@@ -1,6 +1,6 @@
 import type { Decision } from "../core/decision.ts";
 import type { Permission } from "../core/permissions.ts";
-import type { ApprovalRequirement } from "../core/policy.ts";
+import type { ApprovalRequirement } from "../core/policy-types.ts";
 import type { Membership, Subject } from "../core/subject.ts";
 import type { ApprovalsHandlerOptions } from "./handler.ts";
 

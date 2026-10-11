@@ -1,4 +1,4 @@
-import type { Policy } from "../core/policy.ts";
+import type { Policy } from "../core/policy-types.ts";
 import type {
   OpenApiOverlayOptions,
   OpenApiPermDockOptions,

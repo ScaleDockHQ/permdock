@@ -1,18 +1,19 @@
 import type { PermDockRevokedError } from "../core/errors.ts";
 import type { Permission } from "../core/permissions.ts";
-import type { Policy, PolicyVocabulary } from "../core/policy.ts";
+import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { RevocationFeed } from "../core/revocations.ts";
 import type { Principal } from "../core/subject.ts";
-import type { AnyGuard, ServerAdapterOptions } from "./bind.ts";
 import type { Connection, ConnectionOptions } from "./connection.ts";
-import type { ServerKernel, TenantScope } from "./create.ts";
-import type { StreamProtectOptions } from "./stream.ts";
 
 import { compact } from "../core/compact.ts";
-import { adapterKernel } from "./bind.ts";
-import { tenantScope } from "./create.ts";
+import {
+  type AnyGuard,
+  type ServerAdapterOptions,
+  adapterKernel,
+} from "./bind.ts";
+import { type ServerKernel, type TenantScope, tenantScope } from "./create.ts";
 import { requestFromContext } from "./http.ts";
-import { guardIterable } from "./stream.ts";
+import { type StreamProtectOptions, guardIterable } from "./stream.ts";
 
 export type RpcCode =
   | "UNAUTHORIZED"

@@ -1,8 +1,7 @@
 import type { Decision } from "../core/decision.ts";
-import type { ProblemDetails } from "../core/errors.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permissions.ts";
-import type { Policy } from "../core/policy.ts";
+import type { Policy } from "../core/policy-types.ts";
 import type { Actor, Principal, Subject } from "../core/subject.ts";
 import type {
   A2aAgentCard,
@@ -21,6 +20,7 @@ import { canonicalJson } from "../core/canonical-json.ts";
 import { compact } from "../core/compact.ts";
 import { delegationFrom } from "../core/delegation-input.ts";
 import {
+  type ProblemDetails,
   PermDockApprovalRequiredError,
   PermDockDeniedError,
 } from "../core/errors.ts";

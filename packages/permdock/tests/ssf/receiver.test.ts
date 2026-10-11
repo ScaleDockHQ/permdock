@@ -5,7 +5,6 @@ import type {
   TokenFailureCause,
   TokenVerifier,
 } from "../../src/core/interfaces.ts";
-import type { RevocationEvent } from "../../src/core/revocations.ts";
 import type {
   ReplayStore,
   SetSubject,
@@ -14,9 +13,14 @@ import type {
   SsfReceiver,
 } from "../../src/ssf/types.ts";
 
+import { allow } from "../../src/core/grant-builders.ts";
 import { definePermissions, resource } from "../../src/core/permissions.ts";
-import { allow, definePolicy, role } from "../../src/core/policy.ts";
-import { memoryRevocationFeed } from "../../src/core/revocations.ts";
+import { definePolicy } from "../../src/core/policy.ts";
+import {
+  type RevocationEvent,
+  memoryRevocationFeed,
+} from "../../src/core/revocations.ts";
+import { role } from "../../src/core/role-builder.ts";
 import {
   asSubject,
   eventSession,

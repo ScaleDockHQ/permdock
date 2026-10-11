@@ -15,6 +15,7 @@ import {
   PermDockValidationError,
 } from "../../src/core/errors.ts";
 import { freezeDeep } from "../../src/core/freeze.ts";
+import { allow, deny } from "../../src/core/grant-builders.ts";
 import { memoryRoleSource } from "../../src/core/interfaces.ts";
 import { readPath } from "../../src/core/paths.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
@@ -26,7 +27,8 @@ import {
   mergePermissions,
   resource,
 } from "../../src/core/permissions.ts";
-import { allow, definePolicy, deny, role } from "../../src/core/policy.ts";
+import { definePolicy } from "../../src/core/policy.ts";
+import { role } from "../../src/core/role-builder.ts";
 import { defineScopes } from "../../src/core/scopes.ts";
 import { sha256, bytesToBase64Url } from "../../src/core/sha256.ts";
 import { memorySink } from "../../src/core/sink.ts";

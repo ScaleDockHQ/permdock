@@ -5,7 +5,7 @@ import type {
 } from "better-supabase/storage";
 
 import type { Permission } from "../core/permissions.ts";
-import type { Policy } from "../core/policy.ts";
+import type { Policy } from "../core/policy-types.ts";
 
 import { parseCatalog } from "../catalog/parse.ts";
 import { freezeDeep } from "../core/freeze.ts";

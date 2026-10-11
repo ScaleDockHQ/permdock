@@ -1,15 +1,13 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-import type { Policy } from "../core/policy.ts";
-import type { Scope } from "../core/scopes.ts";
+import type { Policy } from "../core/policy-types.ts";
 import type { SupabaseHookManifest } from "../supabase/manifest.ts";
 import type { CommandResult } from "./commands/context.ts";
-import type { HookOverrides } from "./supabase-hook-sql.ts";
 import type { CliIo, PermDockConfig } from "./types.ts";
 
 import { isRecord } from "../core/compact.ts";
-import { scopeList } from "../core/scopes.ts";
+import { type Scope, scopeList } from "../core/scopes.ts";
 import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
 import { readJsonFile, writeFileEnsuringDir } from "./files.ts";
 import { requirePolicy } from "./load.ts";
@@ -29,6 +27,7 @@ import {
   manifestOf,
 } from "./supabase-hook-manifest.ts";
 import {
+  type HookOverrides,
   attrsGuardSql,
   authzVersionForSql,
   configToml,

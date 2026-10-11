@@ -2,7 +2,7 @@ import type { ProblemDetails } from "../core/errors.ts";
 import type { InstanceOptions } from "../core/instance-options.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permissions.ts";
-import type { PolicyVocabulary } from "../core/policy.ts";
+import type { PolicyVocabulary } from "../core/policy-types.ts";
 
 export type ConvexCtxLike = {
   readonly auth?: {

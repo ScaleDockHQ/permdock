@@ -1,9 +1,11 @@
 import type { Membership, ResourceRestricted } from "../../src/index.ts";
 
+import { allow } from "../../src/core/grant-builders.ts";
 import { inherit, relation } from "../../src/core/grantee.ts";
 import { definePermissions, resource } from "../../src/core/permissions.ts";
-import { allow, definePolicy, role } from "../../src/core/policy.ts";
+import { definePolicy } from "../../src/core/policy.ts";
 import { memoryRelations } from "../../src/core/relations.ts";
+import { role } from "../../src/core/role-builder.ts";
 
 function tree(name: string, restricted: string | ResourceRestricted) {
   return resource({

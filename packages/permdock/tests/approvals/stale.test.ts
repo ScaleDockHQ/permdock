@@ -8,9 +8,11 @@ import {
   resolveApproval,
   resumeDecision,
 } from "../../src/approvals/index.ts";
+import { allow } from "../../src/core/grant-builders.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
 import { definePermissions, resource } from "../../src/core/permissions.ts";
-import { allow, definePolicy, role } from "../../src/core/policy.ts";
+import { definePolicy } from "../../src/core/policy.ts";
+import { role } from "../../src/core/role-builder.ts";
 
 const Invoice = z.object({
   id: z.string(),

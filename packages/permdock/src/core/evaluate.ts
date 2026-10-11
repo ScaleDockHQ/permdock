@@ -1,5 +1,4 @@
 import type { Condition, RelatedCondition } from "../conditions/ast.ts";
-import type { CustomGrant } from "./custom-roles.ts";
 import type {
   Decision,
   Denial,
@@ -18,15 +17,18 @@ import type {
   RoleSourceFactory,
 } from "./interfaces.ts";
 import type { DecideOptions } from "./permdock.ts";
-import type { Permission, ResourceNode } from "./permissions.ts";
-import type { RelatedVerdict, RelationReader } from "./relations.ts";
+import type { Grant, Policy } from "./policy-types.ts";
 import type { CustomRole, Membership, Subject } from "./subject.ts";
 
 import { evaluateCondition } from "../conditions/evaluate.ts";
-import { APPROVAL_POLICY_UNAVAILABLE } from "./approval-policies.ts";
-import { decisionTenant, tightenApproval } from "./approval-policies.ts";
+import {
+  APPROVAL_POLICY_UNAVAILABLE,
+  decisionTenant,
+  tightenApproval,
+} from "./approval-policies.ts";
 import { compact, sole } from "./compact.ts";
 import {
+  type CustomGrant,
   isCustomRoleName,
   holdsCustomRole,
   holdsGlobalCustomRole,
@@ -54,14 +56,19 @@ import {
   resourceRoleCondition,
 } from "./grantee.ts";
 import { applyQuota } from "./limits.ts";
-import { findPermission, getResource, listPermissions } from "./permissions.ts";
 import {
-  declaredRoleNames,
-  requiresApproval,
-  type Grant,
-  type Policy,
-} from "./policy.ts";
-import { resolveRelated } from "./relations.ts";
+  type Permission,
+  type ResourceNode,
+  findPermission,
+  getResource,
+  listPermissions,
+} from "./permissions.ts";
+import { declaredRoleNames, requiresApproval } from "./policy.ts";
+import {
+  type RelatedVerdict,
+  type RelationReader,
+  resolveRelated,
+} from "./relations.ts";
 import { resourceIdOf } from "./resource-ref.ts";
 import { isRowPair, rowIdOf, rowValues } from "./row-pair.ts";
 import {

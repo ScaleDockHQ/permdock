@@ -232,17 +232,22 @@ export type {
 } from "./core/permissions.ts";
 export {
   allOf,
-  allow,
   anyOf,
   definePolicy,
-  deny,
   holder,
-  normalizeApproval,
-  normalizeAssurance,
   requiresApproval,
-  role,
   separationConflicts,
   user,
+} from "./core/policy.ts";
+export { normalizeAssurance, role } from "./core/role-builder.ts";
+export { allow, deny } from "./core/grant-builders.ts";
+export { normalizeApproval } from "./core/approval-normalize.ts";
+export type {
+  AnyOfApprover,
+  Approver,
+  ApproverInput,
+  PermissionApprover,
+  UserApprover,
 } from "./core/policy.ts";
 export type {
   ActivationOption,
@@ -251,11 +256,6 @@ export type {
   ApprovalOption,
   ApprovalRequirement,
   ApprovalStage,
-  AnyOfApprover,
-  Approver,
-  ApproverInput,
-  PermissionApprover,
-  UserApprover,
   AssuranceRequirement,
   BreakGlassOptions,
   BreakGlassRequirements,
@@ -288,7 +288,7 @@ export type {
   SupportAccessOptions,
   SupportConsent,
   ValidateMode,
-} from "./core/policy.ts";
+} from "./core/policy-types.ts";
 export { breakGlass, supportAccess } from "./core/elevated.ts";
 export type { ActivateInput } from "./core/elevated.ts";
 export { parseDuration } from "./core/duration.ts";

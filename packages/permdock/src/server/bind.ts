@@ -1,31 +1,35 @@
 import type { ApprovalStore } from "../approvals/types.ts";
-import type { InstanceOptions } from "../core/instance-options.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permissions.ts";
-import type { Policy, PolicyVocabulary } from "../core/policy.ts";
+import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { RevocationFeed } from "../core/revocations.ts";
 import type { Principal } from "../core/subject.ts";
-import type { PermDockWrap } from "../core/wrap.ts";
 import type { OtelWrap } from "../otel/types.ts";
 import type { PdpFactory } from "../pdp/types.ts";
 import type { Connection } from "./connection.ts";
-import type {
-  Guard,
-  OnDenied,
-  ProtectOptions,
-  RequestContext,
-  ScopeGuard,
-  ServerKernel,
-  TenantOption,
-  TenantScope,
-} from "./create.ts";
-import type { WebBotAuthVerifier } from "./web-bot-auth.ts";
 
 import { compact } from "../core/compact.ts";
-import { instanceOptions } from "../core/instance-options.ts";
-import { composeWraps } from "../core/wrap.ts";
-import { createServerKernel, tenantScope } from "./create.ts";
-import { invalidSignatureResponse } from "./web-bot-auth.ts";
+import {
+  type InstanceOptions,
+  instanceOptions,
+} from "../core/instance-options.ts";
+import { type PermDockWrap, composeWraps } from "../core/wrap.ts";
+import {
+  type Guard,
+  type OnDenied,
+  type ProtectOptions,
+  type RequestContext,
+  type ScopeGuard,
+  type ServerKernel,
+  type TenantOption,
+  type TenantScope,
+  createServerKernel,
+  tenantScope,
+} from "./create.ts";
+import {
+  type WebBotAuthVerifier,
+  invalidSignatureResponse,
+} from "./web-bot-auth.ts";
 
 /** The options of every framework adapter; `TContext` is what its callbacks receive. */
 export type ServerAdapterOptions<TContext, TUser = unknown> = InstanceOptions &

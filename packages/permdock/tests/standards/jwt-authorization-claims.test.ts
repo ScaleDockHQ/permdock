@@ -1,15 +1,21 @@
-import type { JWTPayload } from "jose";
-
-import { SignJWT, exportJWK, generateKeyPair, importJWK } from "jose";
+import {
+  type JWTPayload,
+  SignJWT,
+  exportJWK,
+  generateKeyPair,
+  importJWK,
+} from "jose";
 import { beforeAll, describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import type { AuthEvent } from "../../src/core/interfaces.ts";
 import type { JwtSubjectOptions } from "../../src/jwt/index.ts";
 
+import { allow } from "../../src/core/grant-builders.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
 import { definePermissions, resource } from "../../src/core/permissions.ts";
-import { allow, definePolicy, role } from "../../src/core/policy.ts";
+import { definePolicy } from "../../src/core/policy.ts";
+import { role } from "../../src/core/role-builder.ts";
 import { subjectFromJwt } from "../../src/jwt/subject.ts";
 
 const ISSUER = "https://issuer.example";

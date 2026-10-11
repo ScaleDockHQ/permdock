@@ -2,18 +2,15 @@ import { ORPCError, type Middleware } from "@orpc/server";
 
 import type { PermDockRevokedError } from "../core/errors.ts";
 import type { PermDock } from "../core/permdock.ts";
-import type { Permission } from "../core/permissions.ts";
-import type { Policy, PolicyVocabulary } from "../core/policy.ts";
+import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { RevocationFeed } from "../core/revocations.ts";
 import type { Principal } from "../core/subject.ts";
-import type { ServerAdapterOptions } from "../server/bind.ts";
 import type { Connection, ConnectionOptions } from "../server/connection.ts";
 import type { OpenApiHooks, TenantScope } from "../server/create.ts";
-import type { StreamProtectOptions } from "../server/stream.ts";
 
 import { compact } from "../core/compact.ts";
-import { isPermission } from "../core/permissions.ts";
-import { attached } from "../server/bind.ts";
+import { type Permission, isPermission } from "../core/permissions.ts";
+import { type ServerAdapterOptions, attached } from "../server/bind.ts";
 import { problemMessage } from "../server/http.ts";
 import { problemFromError } from "../server/map-error.ts";
 import {
@@ -22,7 +19,11 @@ import {
   problemBody,
   rpcCode,
 } from "../server/rpc.ts";
-import { isAsyncIterable, reloadAfter } from "../server/stream.ts";
+import {
+  type StreamProtectOptions,
+  isAsyncIterable,
+  reloadAfter,
+} from "../server/stream.ts";
 
 export type OrpcMiddlewareOpts<
   TCtx extends object = object,

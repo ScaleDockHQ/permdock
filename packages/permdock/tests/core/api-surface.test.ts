@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import { principal } from "../../src/conditions/refs.ts";
+import { allow, deny } from "../../src/core/grant-builders.ts";
 import {
   actor,
   anyone,
@@ -22,8 +23,9 @@ import {
   getResource,
   resource,
 } from "../../src/core/permissions.ts";
-import { allow, definePolicy, deny, role } from "../../src/core/policy.ts";
+import { definePolicy } from "../../src/core/policy.ts";
 import { crud } from "../../src/core/presets.ts";
+import { role } from "../../src/core/role-builder.ts";
 import { parseSnapshot } from "../../src/core/snapshot.ts";
 import { isActor } from "../../src/core/subject.ts";
 import {

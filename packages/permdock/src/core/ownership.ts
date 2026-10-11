@@ -1,7 +1,6 @@
 import type { Denial } from "./decision.ts";
-import type { Policy, RoleBinding } from "./policy.ts";
+import type { Policy, RoleBinding } from "./policy-types.ts";
 import type { CustomRole, Membership, Principal } from "./subject.ts";
-import type { Role, RoleMeta } from "./vocabulary.ts";
 
 import { compact, isReadonlyArray } from "./compact.ts";
 import {
@@ -21,7 +20,7 @@ import {
   tenantOf,
 } from "./scopes.ts";
 import { isMembershipExpired } from "./tenancy.ts";
-import { findRole, listRoles } from "./vocabulary.ts";
+import { type Role, type RoleMeta, findRole, listRoles } from "./vocabulary.ts";
 
 /** Who a role change is about: their principal id and their membership in the scope instance. */
 export type RoleChangeTarget = {

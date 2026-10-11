@@ -1,7 +1,6 @@
 import type { Decision } from "../core/decision.ts";
-import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permissions.ts";
-import type { Policy, PolicyVocabulary } from "../core/policy.ts";
+import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { Delegation, Principal } from "../core/subject.ts";
 import type { Boundary } from "../core/validation.ts";
 import type {
@@ -18,7 +17,10 @@ import { actorFrom, tenantScope } from "../core/adapter-context.ts";
 import { compact } from "../core/compact.ts";
 import { instanceOptions } from "../core/instance-options.ts";
 import { mayUse } from "../core/may-use.ts";
-import { createPermDock as createCorePermDock } from "../core/permdock.ts";
+import {
+  type PermDock,
+  createPermDock as createCorePermDock,
+} from "../core/permdock.ts";
 import {
   errorChannel,
   requestContext,

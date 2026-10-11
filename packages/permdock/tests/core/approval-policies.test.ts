@@ -1,20 +1,20 @@
 import { describe, expect, it } from "vitest";
 
-import type {
-  ApprovalPolicy,
-  ApprovalPolicySource,
-} from "../../src/core/approval-policies.ts";
 import type { Decision } from "../../src/core/decision.ts";
 import type { Subject } from "../../src/core/subject.ts";
 
 import {
+  type ApprovalPolicy,
+  type ApprovalPolicySource,
   memoryApprovalPolicies,
   validateApprovalPolicy,
 } from "../../src/core/approval-policies.ts";
 import { describe as describeDecision } from "../../src/core/describe.ts";
+import { allow } from "../../src/core/grant-builders.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
 import { definePermissions, resource } from "../../src/core/permissions.ts";
-import { allow, definePolicy, role } from "../../src/core/policy.ts";
+import { definePolicy } from "../../src/core/policy.ts";
+import { role } from "../../src/core/role-builder.ts";
 import { testApprovalPolicySource } from "../../src/testing/conformance.ts";
 import { permissions, policy, rows } from "../fixtures/expenses.ts";
 

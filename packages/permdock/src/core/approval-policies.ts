@@ -6,17 +6,20 @@ import type {
   ApprovalStage,
   Grant,
   Policy,
-} from "./policy.ts";
+} from "./policy-types.ts";
 import type { Subject } from "./subject.ts";
 
 import { evaluateCondition } from "../conditions/evaluate.ts";
 import { normalizeWhere } from "../conditions/normalize.ts";
+import {
+  assertApprovalRelations,
+  normalizeApproval,
+} from "./approval-normalize.ts";
 import { compact, isRecord } from "./compact.ts";
 import { parseDuration } from "./duration.ts";
 import { authenticated } from "./grantee.ts";
 import { isPortableCondition } from "./hosted.ts";
 import { findPermission } from "./permissions.ts";
-import { assertApprovalRelations, normalizeApproval } from "./policy.ts";
 import { type Scope, rootMembershipId } from "./scopes.ts";
 import { isThenable } from "./thenable.ts";
 

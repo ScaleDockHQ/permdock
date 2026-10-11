@@ -3,22 +3,23 @@ import { crc32 } from "node:zlib";
 import { describe, expect, it } from "vitest";
 
 import type { Credential } from "../../src/core/credential.ts";
-import type { AuthEvent } from "../../src/core/interfaces.ts";
 import type { Subject } from "../../src/core/subject.ts";
-import type { ApiKeySubjectOptions } from "../../src/server/credentials.ts";
 
 import { compact } from "../../src/core/compact.ts";
-import { memorySettings } from "../../src/core/interfaces.ts";
+import { allow } from "../../src/core/grant-builders.ts";
+import { type AuthEvent, memorySettings } from "../../src/core/interfaces.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
 import {
   definePermissions,
   listPermissions,
   resource,
 } from "../../src/core/permissions.ts";
-import { allow, definePolicy, role } from "../../src/core/policy.ts";
+import { definePolicy } from "../../src/core/policy.ts";
+import { role } from "../../src/core/role-builder.ts";
 import { memorySink } from "../../src/core/sink.ts";
 import { createPermDock as createHonoPermDock } from "../../src/hono/index.ts";
 import {
+  type ApiKeySubjectOptions,
   apiKeyVerifier,
   generateApiKey,
   hashApiKey,

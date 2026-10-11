@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import type { Capability } from "../../src/core/capability.ts";
 import type { TokenSigner } from "../../src/core/interfaces.ts";
 import type { Subject } from "../../src/core/subject.ts";
 
 import {
+  type Capability,
   capabilityOf,
   capabilitySubject,
   linkPolicyViolation,
@@ -13,9 +13,11 @@ import {
   signCapability,
 } from "../../src/core/capability.ts";
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
+import { allow } from "../../src/core/grant-builders.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
 import { definePermissions, resource } from "../../src/core/permissions.ts";
-import { allow, definePolicy, role } from "../../src/core/policy.ts";
+import { definePolicy } from "../../src/core/policy.ts";
+import { role } from "../../src/core/role-builder.ts";
 import { parseSnapshot } from "../../src/core/snapshot.ts";
 
 const permissions = definePermissions({

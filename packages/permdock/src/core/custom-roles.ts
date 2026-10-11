@@ -1,10 +1,9 @@
 import type { Condition } from "../conditions/ast.ts";
-import type { RoleGrantee } from "./grantee.ts";
-import type { Grant, Policy } from "./policy.ts";
+import type { Grant, Policy } from "./policy-types.ts";
 import type { CustomRole, CustomRoleGrant, Membership } from "./subject.ts";
 
 import { freezeDeep } from "./freeze.ts";
-import { flattenGrantee } from "./grantee.ts";
+import { type RoleGrantee, flattenGrantee } from "./grantee.ts";
 import { sameId } from "./ids.ts";
 import { isForbiddenKey } from "./paths.ts";
 import { findPermission, formerKeys } from "./permissions.ts";

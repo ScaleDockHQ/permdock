@@ -1,5 +1,4 @@
-import type { Policy } from "../core/policy.ts";
-import type { Scope } from "../core/scopes.ts";
+import type { Policy } from "../core/policy-types.ts";
 import type {
   MembershipHolders,
   SqlMembershipSource,
@@ -11,7 +10,7 @@ import type {
   RoleThrough,
 } from "./types.ts";
 
-import { resolveScope, scopeChain } from "../core/scopes.ts";
+import { type Scope, resolveScope, scopeChain } from "../core/scopes.ts";
 import { qualifySqlTable } from "../core/sql.ts";
 import { findRole } from "../core/vocabulary.ts";
 import { roleColumn } from "../supabase/roles.ts";

@@ -5,7 +5,7 @@ import type {
   SnapshotNotEntitled,
 } from "./interfaces.ts";
 import type { Permission } from "./permissions.ts";
-import type { Grant, PolicyVocabulary } from "./policy.ts";
+import type { Grant, PolicyVocabulary } from "./policy-types.ts";
 import type { Delegation, Membership, Subject } from "./subject.ts";
 
 import { bindConditionRefs } from "../conditions/bind.ts";

@@ -1,14 +1,15 @@
 import { describe, expect, it } from "vitest";
 
 import type { AccessEvent, DecisionEvent } from "../../src/core/interfaces.ts";
-import type { PermDock } from "../../src/core/permdock.ts";
 import type { Principal, Subject } from "../../src/core/subject.ts";
 
 import { breakGlass, supportAccess } from "../../src/core/elevated.ts";
+import { allow, deny } from "../../src/core/grant-builders.ts";
 import { accessToOcsf, toOcsf } from "../../src/core/ocsf.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { type PermDock, createPermDock } from "../../src/core/permdock.ts";
 import { definePermissions, resource } from "../../src/core/permissions.ts";
-import { allow, definePolicy, deny, role } from "../../src/core/policy.ts";
+import { definePolicy } from "../../src/core/policy.ts";
+import { role } from "../../src/core/role-builder.ts";
 import { normalizeMembership } from "../../src/core/scopes.ts";
 import { accessEvent } from "../../src/core/sink.ts";
 

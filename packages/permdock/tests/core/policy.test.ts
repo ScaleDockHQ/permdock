@@ -1,18 +1,17 @@
 import { describe, expect, it } from "vitest";
 
 import { principal } from "../../src/conditions/refs.ts";
+import { normalizeApproval } from "../../src/core/approval-normalize.ts";
+import { allow, deny } from "../../src/core/grant-builders.ts";
 import { assurance, relation } from "../../src/core/grantee.ts";
 import { definePermissions, resource } from "../../src/core/permissions.ts";
 import {
-  allow,
   definePolicy,
-  deny,
   inferOutput,
-  normalizeApproval,
   requiresApproval,
-  role,
   separationConflicts,
 } from "../../src/core/policy.ts";
+import { role } from "../../src/core/role-builder.ts";
 import { defineRoles } from "../../src/core/vocabulary.ts";
 
 const permissions = definePermissions({

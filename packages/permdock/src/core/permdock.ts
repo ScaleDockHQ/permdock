@@ -1,8 +1,4 @@
 import type { Condition } from "../conditions/ast.ts";
-import type {
-  ApprovalPolicySource,
-  LoadedApprovalPolicies,
-} from "./approval-policies.ts";
 import type { ArazzoPlan, ArazzoSimulateInput } from "./arazzo.ts";
 import type { Decision, ExplainedDecision } from "./decision.ts";
 import type { ActivateInput } from "./elevated.ts";
@@ -25,8 +21,7 @@ import type {
   RoleChangeOptions,
 } from "./ownership.ts";
 import type { Permission, ResourceNode } from "./permissions.ts";
-import type { Policy, PolicyVocabulary } from "./policy.ts";
-import type { Scope } from "./scopes.ts";
+import type { Policy, PolicyVocabulary } from "./policy-types.ts";
 import type {
   Actor,
   CustomRole,
@@ -39,7 +34,11 @@ import type { Boundary } from "./validation.ts";
 import type { PlanTree, Role, RoleTree } from "./vocabulary.ts";
 import type { WhoCan } from "./who-can.ts";
 
-import { approvalPoliciesFor } from "./approval-policies.ts";
+import {
+  type ApprovalPolicySource,
+  type LoadedApprovalPolicies,
+  approvalPoliciesFor,
+} from "./approval-policies.ts";
 import { compact } from "./compact.ts";
 import {
   assignableNamesFor,
@@ -54,7 +53,7 @@ import {
 import { buildInstance } from "./instance.ts";
 import { asMembershipSource } from "./memberships.ts";
 import { resolveSubject } from "./resolve-subject.ts";
-import { scopeList } from "./scopes.ts";
+import { type Scope, scopeList } from "./scopes.ts";
 import { parseSnapshot } from "./snapshot.ts";
 import { heldRoleNamesIn, tenantsOf } from "./tenancy.ts";
 import { isThenable } from "./thenable.ts";

@@ -1,5 +1,5 @@
 import type { PermDock } from "../../src/core/permdock.ts";
-import type { Policy, PolicyVocabulary } from "../../src/core/policy.ts";
+import type { Policy, PolicyVocabulary } from "../../src/core/policy-types.ts";
 import type { Principal } from "../../src/core/subject.ts";
 
 import {

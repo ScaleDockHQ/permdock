@@ -1,10 +1,8 @@
 import { createInterface } from "node:readline";
 
 import type { Decision } from "../core/decision.ts";
-import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permissions.ts";
-import type { Policy, PolicyVocabulary } from "../core/policy.ts";
-import type { Actor, Delegation, Principal, Subject } from "../core/subject.ts";
+import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type {
   CommandEntry,
   FilterCommandsOptions,
@@ -24,9 +22,18 @@ import type {
 import { resumeDecision, storedApprovalToken } from "../approvals/helpers.ts";
 import { compact } from "../core/compact.ts";
 import { instanceOptions } from "../core/instance-options.ts";
-import { createPermDock as createCorePermDock } from "../core/permdock.ts";
+import {
+  type PermDock,
+  createPermDock as createCorePermDock,
+} from "../core/permdock.ts";
 import { resourceRef } from "../core/resource-ref.ts";
-import { isSubject } from "../core/subject.ts";
+import {
+  type Actor,
+  type Delegation,
+  type Principal,
+  type Subject,
+  isSubject,
+} from "../core/subject.ts";
 import { revokeCredential } from "./device.ts";
 import { defaultExit, EX_NOPERM, EX_USAGE } from "./exit.ts";
 import { filterCommandEntries } from "./filter.ts";

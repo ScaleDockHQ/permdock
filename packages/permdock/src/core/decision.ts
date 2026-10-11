@@ -7,7 +7,7 @@ import type {
   GrantMeta,
   GrantValidity,
   HostedGrantRef,
-} from "./policy.ts";
+} from "./policy-types.ts";
 import type { Membership, Subject } from "./subject.ts";
 
 export type DenialReason =

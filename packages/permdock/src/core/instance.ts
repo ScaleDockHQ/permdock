@@ -1,7 +1,4 @@
-import type { Condition } from "../conditions/ast.ts";
-import type { LoadedApprovalPolicies } from "./approval-policies.ts";
 import type { Decision, ExplainedDecision } from "./decision.ts";
-import type { GranteeMatch } from "./grantee.ts";
 import type {
   AuthEvent,
   DecisionSink,
@@ -20,13 +17,14 @@ import type {
   SnapshotOptions,
   WhereResult,
 } from "./permdock.ts";
-import type { Permission, ResourceNode } from "./permissions.ts";
-import type { Grant, Policy } from "./policy.ts";
+import type { Grant, Policy } from "./policy-types.ts";
 import type { CustomRole, Membership, Principal, Subject } from "./subject.ts";
-import type { Role } from "./vocabulary.ts";
 
-import { hasConditionOp } from "../conditions/ast.ts";
-import { approvalPoliciesFor } from "./approval-policies.ts";
+import { type Condition, hasConditionOp } from "../conditions/ast.ts";
+import {
+  type LoadedApprovalPolicies,
+  approvalPoliciesFor,
+} from "./approval-policies.ts";
 import {
   type ArazzoPlan,
   type ArazzoSimulateInput,
@@ -66,7 +64,12 @@ import {
 import { type EvalEnv, emitSafe, emptyListeners, finish } from "./events.ts";
 import { pickVisible } from "./fields.ts";
 import { freezeDeep } from "./freeze.ts";
-import { combineWhere, flattenGrantee, matchGrantee } from "./grantee.ts";
+import {
+  type GranteeMatch,
+  combineWhere,
+  flattenGrantee,
+  matchGrantee,
+} from "./grantee.ts";
 import { sameId } from "./ids.ts";
 import {
   type RoleChange,
@@ -80,6 +83,8 @@ import {
   usesAssigns,
 } from "./ownership.ts";
 import {
+  type Permission,
+  type ResourceNode,
   getResource,
   isPrincipalRelation,
   listPermissions,
@@ -117,6 +122,7 @@ import {
 } from "./tenancy.ts";
 import { isThenable } from "./thenable.ts";
 import {
+  type Role,
   findRole,
   listRoles,
   sourceRoleMeta,

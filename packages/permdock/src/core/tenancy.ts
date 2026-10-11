@@ -1,10 +1,9 @@
-import type { ResourceNode } from "./permissions.ts";
-import type { GrantScope } from "./policy.ts";
+import type { GrantScope } from "./policy-types.ts";
 import type { Membership, Principal, Subject } from "./subject.ts";
 
 import { expiredAt } from "./expiry.ts";
 import { sameId } from "./ids.ts";
-import { isFieldRelation } from "./permissions.ts";
+import { type ResourceNode, isFieldRelation } from "./permissions.ts";
 import {
   type Scope,
   activeFor,

@@ -1,27 +1,30 @@
 import type { RelatedCondition } from "../conditions/ast.ts";
 import type { CustomGrant } from "./custom-roles.ts";
 import type { Decision } from "./decision.ts";
-import type { EvalEnv } from "./events.ts";
-import type { Grantee, RelationGrantee, RoleGrantee } from "./grantee.ts";
 import type {
   MembershipSource,
   RelationGroup,
   RelationHolder,
 } from "./interfaces.ts";
-import type { Permission, ResourceNode } from "./permissions.ts";
-import type { Grant, Policy } from "./policy.ts";
-import type { ReadHolder, RelationCache, RelationReader } from "./relations.ts";
-import type { Scope } from "./scopes.ts";
+import type { Grant, Policy } from "./policy-types.ts";
 import type { Membership, Subject } from "./subject.ts";
 
 import { compact } from "./compact.ts";
 import { byCodePoint } from "./compare.ts";
 import { evaluate } from "./evaluate.ts";
-import { emptyListeners } from "./events.ts";
+import { type EvalEnv, emptyListeners } from "./events.ts";
 import { freezeDeep } from "./freeze.ts";
-import { flattenGrantee, relationCondition } from "./grantee.ts";
+import {
+  type Grantee,
+  type RelationGrantee,
+  type RoleGrantee,
+  flattenGrantee,
+  relationCondition,
+} from "./grantee.ts";
 import { ownGet } from "./paths.ts";
 import {
+  type Permission,
+  type ResourceNode,
   expandRelation,
   getResource,
   isEdgeRelation,
@@ -29,12 +32,16 @@ import {
   isPrincipalRelation,
 } from "./permissions.ts";
 import {
+  type ReadHolder,
+  type RelationCache,
+  type RelationReader,
   DEFAULT_GROUP_DEPTH,
   pendingRelations,
   relationId,
   relationWalk,
 } from "./relations.ts";
 import {
+  type Scope,
   normalizeMemberships,
   resolveScope,
   rootScope,

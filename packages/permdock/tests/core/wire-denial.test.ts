@@ -3,8 +3,10 @@ import { describe, expect, it } from "vitest";
 import type { DecisionEvent } from "../../src/core/interfaces.ts";
 
 import { PermDockDeniedError } from "../../src/core/errors.ts";
+import { allow } from "../../src/core/grant-builders.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
-import { allow, definePolicy, role } from "../../src/core/policy.ts";
+import { definePolicy } from "../../src/core/policy.ts";
+import { role } from "../../src/core/role-builder.ts";
 import { wireDenial } from "../../src/core/wire-denial.ts";
 import { isDecisionEvent } from "../fixtures/decisions.ts";
 import { memberUser, ownPost, permissions } from "../fixtures/quick-start.ts";

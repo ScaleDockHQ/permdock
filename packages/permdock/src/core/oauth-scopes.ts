@@ -1,8 +1,7 @@
-import type { Permission } from "./permissions.ts";
-import type { Policy } from "./policy.ts";
+import type { Policy } from "./policy-types.ts";
 import type { Delegation } from "./subject.ts";
 
-import { formerScopes } from "./permissions.ts";
+import { type Permission, formerScopes } from "./permissions.ts";
 
 type ScopedPolicy = Pick<Policy, "oauthScopes">;
 type ScopedPermission = Pick<Permission, "key" | "scope">;

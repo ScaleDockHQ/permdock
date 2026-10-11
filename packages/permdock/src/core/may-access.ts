@@ -1,6 +1,6 @@
 import type { AuthEvent } from "./interfaces.ts";
 import type { Permission } from "./permissions.ts";
-import type { Policy } from "./policy.ts";
+import type { Policy } from "./policy-types.ts";
 import type { Principal, Subject } from "./subject.ts";
 
 import { compact } from "./compact.ts";

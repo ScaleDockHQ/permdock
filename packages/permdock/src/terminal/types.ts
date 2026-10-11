@@ -6,7 +6,7 @@ import type { InstanceOptions } from "../core/instance-options.ts";
 export type { ApprovalHint };
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permissions.ts";
-import type { PolicyVocabulary } from "../core/policy.ts";
+import type { PolicyVocabulary } from "../core/policy-types.ts";
 import type { Actor, Delegation, Subject } from "../core/subject.ts";
 
 export type TokenSourceName = "device" | "keychain" | "env" | "ci-oidc";

@@ -4,8 +4,10 @@ import type { PermDockConfig } from "../../src/cli/types.ts";
 import type { Principal } from "../../src/core/subject.ts";
 
 import { pd061 } from "../../src/cli/doctor-suspension.ts";
+import { allow } from "../../src/core/grant-builders.ts";
 import { definePermissions, resource } from "../../src/core/permissions.ts";
-import { allow, definePolicy, role } from "../../src/core/policy.ts";
+import { definePolicy } from "../../src/core/policy.ts";
+import { role } from "../../src/core/role-builder.ts";
 
 const permissions = definePermissions(
   {

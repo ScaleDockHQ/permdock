@@ -3,7 +3,7 @@ import type {
   MembershipSource,
   RoleSource,
 } from "../core/interfaces.ts";
-import type { Policy } from "../core/policy.ts";
+import type { Policy } from "../core/policy-types.ts";
 import type {
   CustomRole,
   CustomRoleGrant,

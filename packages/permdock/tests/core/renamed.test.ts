@@ -14,6 +14,7 @@ import {
   validateCustomRole,
 } from "../../src/core/custom-roles.ts";
 import { coveredByDelegation } from "../../src/core/delegation.ts";
+import { allow } from "../../src/core/grant-builders.ts";
 import {
   definePermissions,
   findPermission,
@@ -21,7 +22,8 @@ import {
   mergePermissions,
   resource,
 } from "../../src/core/permissions.ts";
-import { allow, definePolicy, role } from "../../src/core/policy.ts";
+import { definePolicy } from "../../src/core/policy.ts";
+import { role } from "../../src/core/role-builder.ts";
 import { defineRoles } from "../../src/core/vocabulary.ts";
 
 const shape = {

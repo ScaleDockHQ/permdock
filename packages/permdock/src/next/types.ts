@@ -7,7 +7,7 @@ import type { InstanceOptions } from "../core/instance-options.ts";
 import type { Snapshot } from "../core/interfaces.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permissions.ts";
-import type { PolicyVocabulary } from "../core/policy.ts";
+import type { PolicyVocabulary } from "../core/policy-types.ts";
 import type { OtelWrap } from "../otel/types.ts";
 
 // oxlint-disable-next-line anti-slop/no-unknown-type-aliases -- public alias; the resolver parses it

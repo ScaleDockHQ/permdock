@@ -1,4 +1,4 @@
-import type { Policy } from "../core/policy.ts";
+import type { Policy } from "../core/policy-types.ts";
 import type { Principal } from "../core/subject.ts";
 import type { SsfPermDock, SsfPermDockOptions } from "./types.ts";
 

@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import type { PermDock } from "../../src/core/permdock.ts";
 import type { Membership } from "../../src/core/subject.ts";
 
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { allow } from "../../src/core/grant-builders.ts";
+import { type PermDock, createPermDock } from "../../src/core/permdock.ts";
 import { definePermissions, resource } from "../../src/core/permissions.ts";
-import { allow, definePolicy, role } from "../../src/core/policy.ts";
+import { definePolicy } from "../../src/core/policy.ts";
+import { role } from "../../src/core/role-builder.ts";
 import { parseSnapshot } from "../../src/core/snapshot.ts";
 import { decideLeaf, reasonOf } from "../fixtures/decisions.ts";
 

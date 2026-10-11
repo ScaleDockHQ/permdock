@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import type { PolicyDocument, PolicySource } from "../../src/core/hosted.ts";
-
+import { allow, deny } from "../../src/core/grant-builders.ts";
 import {
+  type PolicyDocument,
+  type PolicySource,
   isPortableCondition,
   memoryPolicySource,
   mergeHostedGrants,
@@ -11,13 +12,8 @@ import {
 } from "../../src/core/hosted.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
 import { definePermissions, resource } from "../../src/core/permissions.ts";
-import {
-  allow,
-  definePolicy,
-  deny,
-  grantList,
-  role,
-} from "../../src/core/policy.ts";
+import { definePolicy, grantList } from "../../src/core/policy.ts";
+import { role } from "../../src/core/role-builder.ts";
 import { memorySink } from "../../src/core/sink.ts";
 import { definePlans } from "../../src/core/vocabulary.ts";
 

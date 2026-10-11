@@ -3,7 +3,7 @@ import type {
   LocalSnapshotManifest,
   SnapshotGrant,
 } from "./interfaces.ts";
-import type { Grant, Policy } from "./policy.ts";
+import type { Grant, Policy } from "./policy-types.ts";
 import type { CustomRoleGrant } from "./subject.ts";
 
 import { compact } from "./compact.ts";

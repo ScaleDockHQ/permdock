@@ -1,4 +1,4 @@
-import type { GrantValidity } from "./policy.ts";
+import type { GrantValidity } from "./policy-types.ts";
 
 /**
  * An instant as Unix seconds: a finite number is taken as seconds already, a

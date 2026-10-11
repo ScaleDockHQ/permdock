@@ -1,6 +1,6 @@
 import type { LimitDetail, Obligation, Quota } from "./decision.ts";
 import type { LimitStore } from "./interfaces.ts";
-import type { Grant, GrantLimit } from "./policy.ts";
+import type { Grant, GrantLimit } from "./policy-types.ts";
 
 const UNIT_SECONDS: Record<string, number> = {
   s: 1,

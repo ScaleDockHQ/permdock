@@ -10,12 +10,15 @@ import express from "express";
 
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permissions.ts";
-import type { Policy, PolicyVocabulary } from "../core/policy.ts";
+import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { Principal } from "../core/subject.ts";
-import type { ServerAdapterOptions } from "../server/bind.ts";
 import type { OpenApiHooks, ProtectOptions } from "../server/create.ts";
 
-import { bindKernel, decorate } from "../server/bind.ts";
+import {
+  type ServerAdapterOptions,
+  bindKernel,
+  decorate,
+} from "../server/bind.ts";
 import { hasCredentials } from "../server/http.ts";
 import { problemFromError } from "../server/map-error.ts";
 import { sendResponse, toRequest } from "./http.ts";

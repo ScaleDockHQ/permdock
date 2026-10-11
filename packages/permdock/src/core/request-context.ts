@@ -1,5 +1,5 @@
 import type { PermDock } from "./permdock.ts";
-import type { PolicyVocabulary } from "./policy.ts";
+import type { PolicyVocabulary } from "./policy-types.ts";
 
 import { assertAppData } from "./app-data.ts";
 import { wrapPermDock } from "./wrap.ts";

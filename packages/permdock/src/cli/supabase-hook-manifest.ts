@@ -1,4 +1,4 @@
-import type { Policy } from "../core/policy.ts";
+import type { Policy } from "../core/policy-types.ts";
 import type {
   SupabaseHookManifest,
   SupabaseManifestActiveRow,
@@ -6,8 +6,6 @@ import type {
   SupabaseManifestRequires,
   SupabaseManifestRls,
 } from "../supabase/manifest.ts";
-import type { RlsSqlContext } from "./rls-sql.ts";
-import type { Parts } from "./supabase-hook-sql.ts";
 import type {
   PermDockConfig,
   RlsActiveRow,
@@ -30,6 +28,7 @@ import { permissionKeysForHelper } from "./rls-permission-keys.ts";
 import { resolveAuthorize } from "./rls-rbac.ts";
 import { customRolesOn, HELPERS } from "./rls-shared.ts";
 import {
+  type RlsSqlContext,
   checkSuspension,
   memberForHelper,
   memberIdsHelper,
@@ -40,6 +39,7 @@ import {
   USER_ID_HELPER,
 } from "./rls-sql.ts";
 import {
+  type Parts,
   AUTHZ_VERSION_BUMP,
   BUDGET_MEASURE,
   hookClaims,

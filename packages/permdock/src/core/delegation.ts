@@ -1,5 +1,5 @@
 import type { DenialReason } from "./decision.ts";
-import type { Grant, PolicyDelegation } from "./policy.ts";
+import type { Grant, PolicyDelegation } from "./policy-types.ts";
 import type { Delegation, GnapAccess, Subject } from "./subject.ts";
 
 import { flattenGrantee, matchGrantee } from "./grantee.ts";

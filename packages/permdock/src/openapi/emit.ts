@@ -1,7 +1,6 @@
 import type { Condition } from "../conditions/ast.ts";
 import type { Grantee } from "../core/grantee.ts";
-import type { Permission } from "../core/permissions.ts";
-import type { Grant, Policy } from "../core/policy.ts";
+import type { Grant, Policy } from "../core/policy-types.ts";
 import type {
   OpenApiDescribe,
   OpenApiPermDockOptions,
@@ -11,7 +10,11 @@ import type {
 
 import { requiresApproval } from "../core/approval-required.ts";
 import { compact } from "../core/compact.ts";
-import { isPermission, listPermissions } from "../core/permissions.ts";
+import {
+  type Permission,
+  isPermission,
+  listPermissions,
+} from "../core/permissions.ts";
 import {
   DRAFT_PINS,
   GNAP_RESERVED,

@@ -1,26 +1,23 @@
 import { describe as group, expect, it } from "vitest";
 
-import type { ApprovalRequest } from "../../src/approvals/index.ts";
 import type { Subject } from "../../src/core/subject.ts";
 
 import {
+  type ApprovalRequest,
   approvalsHandler,
   approverRelations,
   memoryApprovalStore,
   requestApproval,
   resolveApproval,
 } from "../../src/approvals/index.ts";
+import { normalizeApproval } from "../../src/core/approval-normalize.ts";
 import { describe } from "../../src/core/describe.ts";
+import { allow } from "../../src/core/grant-builders.ts";
 import { relation } from "../../src/core/grantee.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
 import { definePermissions, resource } from "../../src/core/permissions.ts";
-import {
-  allow,
-  definePolicy,
-  normalizeApproval,
-  role,
-  user,
-} from "../../src/core/policy.ts";
+import { definePolicy, user } from "../../src/core/policy.ts";
+import { role } from "../../src/core/role-builder.ts";
 import { permissions, policy, relations, rows } from "../fixtures/expenses.ts";
 
 const BASE = "https://api.example.com/permdock/approvals";

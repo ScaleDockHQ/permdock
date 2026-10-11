@@ -3,11 +3,9 @@ import { cacheLife, cacheTag, io } from "next/cache.js";
 import { after } from "next/server.js";
 import { cache, type ReactElement } from "react";
 
-import type { Decision } from "../core/decision.ts";
 import type { DecisionSink, Snapshot } from "../core/interfaces.ts";
-import type { DecideOptions, PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permissions.ts";
-import type { Policy, PolicyVocabulary } from "../core/policy.ts";
+import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { Principal } from "../core/subject.ts";
 import type {
   GetPermDockQuery,
@@ -21,9 +19,13 @@ import type {
 } from "./types.ts";
 
 import { compact } from "../core/compact.ts";
-import { NO_GRANT } from "../core/decision.ts";
+import { type Decision, NO_GRANT } from "../core/decision.ts";
 import { instanceOptions } from "../core/instance-options.ts";
-import { createPermDock as createCorePermDock } from "../core/permdock.ts";
+import {
+  type DecideOptions,
+  type PermDock,
+  createPermDock as createCorePermDock,
+} from "../core/permdock.ts";
 import { cacheLifeFor, snapshotTag } from "../core/snapshot-cache.ts";
 import { wrapPermDock } from "../core/wrap.ts";
 import { createEvaluationsHandler } from "../server/evaluations.ts";
