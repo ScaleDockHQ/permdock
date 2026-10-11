@@ -1,5 +1,7 @@
 import type { Membership, Subject } from "./subject.ts";
 
+import { type AppData, readAppData } from "./app-data.ts";
+import { freezeCopy } from "./freeze.ts";
 import { idText } from "./ids.ts";
 import { isForbiddenKey } from "./paths.ts";
 
@@ -240,7 +242,14 @@ export function normalizeMembership(
     managedBy?: "idp";
     entitlements?: readonly string[];
     keep?: readonly string[];
+    x?: AppData;
   } = {};
+  if (raw["x"] !== undefined) {
+    const x = readAppData(undefined, raw["x"]);
+    if (x !== undefined) {
+      extra.x = freezeCopy(x);
+    }
+  }
   if (typeof raw["via"] === "string") {
     extra.via = raw["via"];
   }

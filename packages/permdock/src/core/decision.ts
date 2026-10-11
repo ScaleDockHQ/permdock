@@ -1,6 +1,12 @@
+import type { MetaValue } from "./app-data.ts";
 import type { Grantee } from "./grantee.ts";
 import type { Permission } from "./permissions.ts";
-import type { ApprovalRequirement, Grant, HostedGrantRef } from "./policy.ts";
+import type {
+  ApprovalRequirement,
+  Grant,
+  GrantMeta,
+  HostedGrantRef,
+} from "./policy.ts";
 import type { Membership, Subject } from "./subject.ts";
 
 export type DenialReason =
@@ -60,6 +66,8 @@ export type MatchedGrant = {
   readonly permission: string;
   /** The grant's declared `name`, when it has one. */
   readonly name?: string;
+  /** The grant's declared `meta`, when it has one; PermDock never reads it. */
+  readonly meta?: GrantMeta;
   readonly to?: Grantee | readonly Grantee[];
   readonly where?: Grant["where"];
   readonly check?: Grant["check"];
@@ -76,10 +84,21 @@ export type MatchedGrant = {
  * `limit` was past its count; `near-limit`: usage reached `alertAt`.
  * `notify` / `review`: a break-glass grant's declared follow-ups.
  * `justify`: the break-glass reason, carried so audit records why.
+ * `app`: a follow-up the application declared on the grant
+ * (`allow(p, { obligations })`); PermDock carries it and never acts on it.
  */
 export type Obligation =
   | { readonly kind: "over-limit" | "near-limit" | "notify" | "review" }
-  | { readonly kind: "justify"; readonly reason: string };
+  | { readonly kind: "justify"; readonly reason: string }
+  | AppObligation;
+
+/** An obligation the application declares on an allow and handles itself. */
+export type AppObligation = {
+  readonly kind: "app";
+  /** Lower case letters, digits, `_` and `-`, starting with a letter. */
+  readonly name: string;
+  readonly detail?: MetaValue;
+};
 
 /** What is left of the `limit` that applied; `resetsAt` is Unix seconds. */
 export type Quota = {

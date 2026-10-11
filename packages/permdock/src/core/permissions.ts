@@ -1,5 +1,12 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 
+import {
+  type AppData,
+  type AppDataSchema,
+  type WithX,
+  assertAppData,
+  parseAppData,
+} from "./app-data.ts";
 import { compact, isReadonlyArray } from "./compact.ts";
 import { freezeDeep } from "./freeze.ts";
 import {
@@ -15,8 +22,11 @@ const NODE_RESOURCE: unique symbol = Symbol.for("permdock.resource");
 const TREE_LEAVES: unique symbol = Symbol.for("permdock.leaves");
 const LEAF_FORMER: unique symbol = Symbol.for("permdock.former");
 
+/** Phantom key carrying a tree's resource `x` type for `getResource`. */
+declare const RESOURCE_X: unique symbol;
+
 /** `definePermissions` options. */
-export type DefinePermissionsOptions = {
+export type DefinePermissionsOptions<PX = never, RX = never> = {
   /**
    * Keys a permission used to have, mapped to its current key. Old keys are
    * accepted wherever a key arrives as a string (stored custom roles, OAuth
@@ -24,7 +34,28 @@ export type DefinePermissionsOptions = {
    * the current leaf; code, decisions and audit only ever see the current key.
    */
   readonly renamed?: Readonly<Record<string, string>>;
+  /**
+   * Standard Schemas for app data. `permission` checks every action's
+   * `meta.x` and types it on the leaves; `resource` checks every resource's
+   * `meta.x` and types it on `getResource`. Both validate synchronously at
+   * definition time and throw on invalid data.
+   */
+  readonly x?: {
+    readonly permission?: AppDataSchema<PX>;
+    readonly resource?: AppDataSchema<RX>;
+  };
 };
+
+/** A resource's metadata. PermDock carries it to the catalog and never reads `x`. */
+export type ResourceMeta<X = AppData> = {
+  readonly title?: string;
+  readonly description?: string;
+  /** Data the application owns. Plain JSON, typed by `definePermissions(…, { x: { resource } })`. */
+  readonly x?: X;
+};
+
+/** A tree whose resources carry `meta.x` of type `X`, read through `getResource`. */
+export type ResourceXTree<X> = { readonly [RESOURCE_X]?: X };
 
 export type ActionMeta = {
   readonly title?: string;
@@ -45,19 +76,12 @@ export type ActionMeta = {
   /**
    * Data the application owns, such as a risk level or an undo window. Plain
    * JSON; PermDock carries it on the leaf, the catalog and snapshots and
-   * never reads it.
+   * never reads it. `definePermissions(…, { x: { permission } })` types it.
    */
-  readonly x?: Readonly<Record<string, MetaValue>>;
+  readonly x?: AppData;
 };
 
-/** A JSON value in `ActionMeta.x`. */
-export type MetaValue =
-  | string
-  | number
-  | boolean
-  | null
-  | readonly MetaValue[]
-  | { readonly [key: string]: MetaValue };
+export type { MetaValue } from "./app-data.ts";
 
 export type PermissionKind = "instance" | "collection";
 
@@ -321,6 +345,8 @@ export type ResourceOptions<
    * it; it reaches only instance actions. Names match `^[a-z][a-z0-9_]*$`.
    */
   readonly levels?: Readonly<Record<string, ResourceLevel>>;
+  /** Display text and app data for the resource; carried to the catalog, never read in evaluation. */
+  readonly meta?: ResourceMeta;
 };
 
 /** A level's row condition: `where` shorthand or a normalised `Condition`, checked by `definePolicy`. */
@@ -352,6 +378,8 @@ export type ResourceNode<T = unknown> = {
   readonly collectionActions: ReadonlySet<string>;
   /** Declared level names to their raw condition; `definePolicy` normalises them. */
   readonly levels?: Readonly<Record<string, ResourceLevel>>;
+  /** The resource's `meta`, when it declares one. */
+  readonly meta?: ResourceMeta;
 };
 
 export type PermissionTree = {
@@ -374,32 +402,38 @@ type LeavesFrom<
   Names extends string,
   T,
   Kind extends PermissionKind,
+  X = never,
 > = [Names] extends [never]
   ? object
   : {
-      readonly [K in Names]: Permission<
-        Prefix extends "" ? K : `${Prefix}.${K}`,
-        T,
-        Kind
+      readonly [K in Names]: WithX<
+        Permission<Prefix extends "" ? K : `${Prefix}.${K}`, T, Kind>,
+        X
       >;
     };
 
-export type InferResourceLeaves<R extends ResourceInit, Prefix extends string> =
+export type InferResourceLeaves<
+  R extends ResourceInit,
+  Prefix extends string,
+  X = never,
+> =
   R extends ResourceInit<infer T, infer A, infer C>
-    ? LeavesFrom<Prefix, ActionNames<A>, T, "instance"> &
-        LeavesFrom<Prefix, ActionNames<C>, T, "collection">
+    ? LeavesFrom<Prefix, ActionNames<A>, T, "instance", X> &
+        LeavesFrom<Prefix, ActionNames<C>, T, "collection", X>
     : object;
 
 export type InferPermissionTree<
   Input,
   Prefix extends string = "",
+  X = never,
 > = Input extends ResourceInit
-  ? InferResourceLeaves<Input, Prefix>
+  ? InferResourceLeaves<Input, Prefix, X>
   : Input extends Record<string, unknown>
     ? {
         readonly [K in keyof Input & string]: InferPermissionTree<
           Input[K],
-          Prefix extends "" ? K : `${Prefix}.${K}`
+          Prefix extends "" ? K : `${Prefix}.${K}`,
+          X
         >;
       }
     : never;
@@ -434,54 +468,51 @@ function isResourceOptions(value: unknown): value is ResourceOptions {
   );
 }
 
-function metaFor(list: ActionList | undefined, action: string): ActionMeta {
+function metaFor(
+  list: ActionList | undefined,
+  action: string,
+  schema: AppDataSchema<unknown> | undefined,
+): ActionMeta {
   if (list === undefined || Array.isArray(list)) {
     return freezeDeep({});
   }
   // SAFETY: Array.isArray does not narrow a readonly array; the non-array ActionList is this map.
   const meta = (list as Record<string, ActionMeta>)[action];
-  if (meta?.x !== undefined) {
-    assertMetaValue(meta.x, `meta.x of action '${action}'`, 0);
-    if (Array.isArray(meta.x)) {
+  if (meta?.x === undefined) {
+    return freezeDeep({ ...meta });
+  }
+  return freezeDeep({
+    ...meta,
+    x: parseAppData(schema, meta.x, `meta.x of action '${action}'`),
+  });
+}
+
+function resourceMetaFor(
+  name: string,
+  meta: ResourceMeta | undefined,
+  schema: AppDataSchema<unknown> | undefined,
+): ResourceMeta | undefined {
+  if (meta === undefined) {
+    return undefined;
+  }
+  assertAppData(meta, `meta of resource '${name}'`);
+  for (const field of ["title", "description"] as const) {
+    if (meta[field] !== undefined && typeof meta[field] !== "string") {
       throw new TypeError(
-        `PermDock: meta.x of action '${action}' must be a JSON object`,
+        `PermDock: meta.${field} of resource '${name}' must be a string`,
       );
     }
   }
-  return freezeDeep({ ...meta });
-}
-
-const MAX_META_DEPTH = 8;
-
-function assertMetaValue(value: unknown, label: string, depth: number): void {
-  if (depth > MAX_META_DEPTH) {
-    throw new Error(`PermDock: ${label} nests deeper than ${MAX_META_DEPTH}`);
-  }
-  if (
-    value === null ||
-    typeof value === "string" ||
-    typeof value === "boolean" ||
-    (typeof value === "number" && Number.isFinite(value))
-  ) {
-    return;
-  }
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      assertMetaValue(item, label, depth + 1);
-    }
-    return;
-  }
-  if (
-    typeof value === "object" &&
-    Object.getPrototypeOf(value) === Object.prototype
-  ) {
-    for (const key of Object.keys(value)) {
-      assertSafeKey(key, "meta.x key");
-      assertMetaValue(Reflect.get(value, key), label, depth + 1);
-    }
-    return;
-  }
-  throw new Error(`PermDock: ${label} must be plain JSON`);
+  return freezeDeep(
+    compact<ResourceMeta>({
+      title: meta.title,
+      description: meta.description,
+      x:
+        meta.x === undefined
+          ? undefined
+          : parseAppData(schema, meta.x, `meta.x of resource '${name}'`),
+    }),
+  );
 }
 
 export type ToolHints = {
@@ -976,13 +1007,19 @@ function assertGraphTargets(registry: ReadonlyMap<string, ResourceNode>): void {
   }
 }
 
+type BuildContext = {
+  readonly former: ReadonlyMap<string, readonly string[]>;
+  readonly x: DefinePermissionsOptions<unknown, unknown>["x"];
+};
+
 function materialiseResource(
   init: ResourceInit,
   path: readonly string[],
   registry: Map<string, ResourceNode>,
   leaves: Permission[],
-  former: ReadonlyMap<string, readonly string[]>,
+  build: BuildContext,
 ): PermissionTree {
+  const { former } = build;
   const segment = path.at(-1);
   if (segment === undefined) {
     throw new Error(
@@ -1021,7 +1058,7 @@ function materialiseResource(
       key,
       name,
       action,
-      metaFor(init.options.actions, action),
+      metaFor(init.options.actions, action, build.x?.permission),
       "instance",
       former.get(key),
     );
@@ -1039,7 +1076,7 @@ function materialiseResource(
       key,
       name,
       action,
-      metaFor(init.options.collection, action),
+      metaFor(init.options.collection, action, build.x?.permission),
       "collection",
       former.get(key),
     );
@@ -1127,7 +1164,9 @@ function materialiseResource(
       `PermDock: resource '${name}' declares levels but no instance actions`,
     );
   }
+  const meta = resourceMetaFor(name, init.options.meta, build.x?.resource);
   const resourceNode: ResourceNode = Object.freeze({
+    ...(meta === undefined ? {} : { meta }),
     name,
     path: prefix,
     schema: init.schema,
@@ -1182,7 +1221,7 @@ function walk(
   registry: Map<string, ResourceNode>,
   leaves: Permission[],
   depth: number,
-  former: ReadonlyMap<string, readonly string[]>,
+  build: BuildContext,
 ): PermissionTree {
   if (depth > MAX_GROUP_DEPTH) {
     throw new Error(
@@ -1190,7 +1229,7 @@ function walk(
     );
   }
   if (isResourceInit(input)) {
-    return materialiseResource(input, path, registry, leaves, former);
+    return materialiseResource(input, path, registry, leaves, build);
   }
   if (input === null || typeof input !== "object" || Array.isArray(input)) {
     throw new Error(
@@ -1207,7 +1246,7 @@ function walk(
       registry,
       leaves,
       depth + 1,
-      former,
+      build,
     );
   }
   return group;
@@ -1248,6 +1287,14 @@ export function getRegistry(
   return tree[TREE_REGISTRY];
 }
 
+export function getResource<RX = never>(
+  tree: PermissionTree & ResourceXTree<RX>,
+  name: string,
+):
+  | ([RX] extends [never]
+      ? ResourceNode
+      : ResourceNode & { readonly meta?: ResourceMeta<Readonly<RX>> })
+  | undefined;
 export function getResource(
   tree: PermissionTree,
   name: string,
@@ -1327,20 +1374,22 @@ function assertKeys(
   }
 }
 
-export function definePermissions<const Input>(
+export function definePermissions<const Input, PX = never, RX = never>(
   input: Input,
-  options?: DefinePermissionsOptions,
-): InferPermissionTree<Input> {
+  options?: DefinePermissionsOptions<PX, RX>,
+): InferPermissionTree<Input, "", PX> & ResourceXTree<RX> {
   const registry = new Map<string, ResourceNode>();
   const leaves: Permission[] = [];
   const former = formerByKey(options?.renamed);
-  const tree = walk(input, [], registry, leaves, 0, former);
+  const tree = walk(input, [], registry, leaves, 0, {
+    former,
+    x: options?.x,
+  });
   assertKeys(leaves, former);
   assertGraphTargets(registry);
-  // SAFETY: walk builds the tree key by key from input, the shape InferPermissionTree<Input> maps.
-  return freezeDeep(
-    attachRegistry(tree, registry, leaves),
-  ) as InferPermissionTree<Input>;
+  const built: unknown = freezeDeep(attachRegistry(tree, registry, leaves));
+  // SAFETY: walk builds the tree key by key from input, the shape InferPermissionTree maps; metaFor checked every x against the schema; the resource x key is phantom.
+  return built as InferPermissionTree<Input, "", PX> & ResourceXTree<RX>;
 }
 
 function collectLeaves(node: PermissionTree | Permission): Permission[] {

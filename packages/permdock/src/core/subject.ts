@@ -1,3 +1,6 @@
+import type { AppData } from "./app-data.ts";
+import type { RoleMeta } from "./vocabulary.ts";
+
 export type JsonWebKeyLike = {
   readonly kty?: string;
   readonly [key: string]: unknown;
@@ -60,6 +63,13 @@ export type Membership = {
    * Every other grant, allow or deny, ignores it, and so do role listings.
    */
   readonly keep?: readonly string[];
+  /**
+   * Data the application owns about this membership (a department, a seat
+   * label). Plain JSON from a trusted membership source, checked by
+   * `definePolicy(…, { x: { membership } })`. Never read in evaluation,
+   * conditions or RLS, and never written into token claims.
+   */
+  readonly x?: AppData;
   /** Input only: an instance of the first scope. */
   readonly tenant?: string;
   /** Input only: an instance of the second scope, inside `tenant`. */
@@ -81,7 +91,12 @@ type CustomRoleBody = {
   readonly name: string;
   readonly includes?: readonly string[];
   readonly grants?: readonly CustomRoleGrant[];
-  readonly meta?: Readonly<Record<string, unknown>>;
+  /**
+   * Display text and app data, carried onto the role leaf
+   * `assignableRoles()` returns. `x` is checked by the role tree's
+   * `defineRoles(…, { x })` schema; an invalid `x` is dropped, not the role.
+   */
+  readonly meta?: RoleMeta;
 };
 
 /** A role a tenant defines, held on memberships inside that tenant. */

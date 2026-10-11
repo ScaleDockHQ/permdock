@@ -672,6 +672,7 @@ function matchedOf(
     role: grant.role,
     permission: permissionKey,
     name: grant.name,
+    meta: grant.meta,
     to: grant.to,
     where: grant.where,
     check: grant.check,
@@ -1401,6 +1402,7 @@ export function evaluate(
   const obligations = [
     ...(quotaState.obligations ?? []),
     ...(matchedAllow.obligations ?? []),
+    ...(matchedAllow.grant.obligations ?? []),
   ];
   return complete(
     requiresApproval(approval)

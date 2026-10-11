@@ -142,6 +142,36 @@ group by m."scope"::text, m."scope_id"::text`);
     });
   });
 
+  it("selects an x column only when configured and keeps plain JSON x", async () => {
+    expect(fromTable({ table: "memberships" }).sql.select("$1")).not.toContain(
+      " as x",
+    );
+    expect(
+      fromJunction({
+        table: "org_members",
+        scope: "tenant",
+        roles: "role",
+        x: "data",
+      }).sql.select("$1"),
+    ).toContain('m."data" as x');
+    const { query } = recording([
+      { scope: "tenant", id: "o1", roles: ["admin"], x: { department: "ops" } },
+      { scope: "tenant", id: "o2", roles: ["admin"], x: [1] },
+      { scope: "tenant", id: "o3", roles: ["admin"], x: null },
+    ]);
+    const source = fromTable({
+      table: "memberships",
+      columns: { x: "data" },
+      query,
+    });
+    expect(source.sql.select("$1")).toContain('m."data" as x');
+    expect(await source.membershipsFor(principal, {})).toEqual([
+      { scope: "tenant", id: "o1", roles: ["admin"], x: { department: "ops" } },
+      { scope: "tenant", id: "o2", roles: ["admin"] },
+      { scope: "tenant", id: "o3", roles: ["admin"] },
+    ]);
+  });
+
   it("turns rows into memberships and drops rows it cannot read", async () => {
     const { query, calls } = recording([
       {

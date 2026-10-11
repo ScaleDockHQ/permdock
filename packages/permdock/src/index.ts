@@ -26,7 +26,9 @@ export type {
   DescribeMessages,
   DescribeOptions,
 } from "./core/describe.ts";
+export type { AppData, AppDataSchema } from "./core/app-data.ts";
 export type {
+  AppObligation,
   ApprovalRequiredDecision,
   Decision,
   Denial,
@@ -206,6 +208,7 @@ export type {
   PermissionTree,
   ResourceInit,
   ResourceLevel,
+  ResourceMeta,
   ResourceNode,
   ResourceOptions,
   ComputedRelation,
@@ -259,12 +262,15 @@ export type {
   Grant,
   GrantCondition,
   GrantLimit,
+  GrantMeta,
   GrantOptions,
   GrantScope,
   GrantValidity,
   HostedGrantRef,
   MembershipFixture,
+  ObligationInput,
   Policy,
+  PolicyAppDataSchemas,
   PolicyDelegation,
   SeparationConflict,
   PrincipalOf,
@@ -317,6 +323,7 @@ export type {
   RoleMeta,
   RoleTree,
   Vocabulary,
+  VocabularyOptions,
 } from "./core/vocabulary.ts";
 export type {
   RoleChange,
