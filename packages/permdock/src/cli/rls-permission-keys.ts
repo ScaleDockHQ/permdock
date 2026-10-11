@@ -1,5 +1,6 @@
 import type { ResourceNode } from "../core/permission-types.ts";
 import type { ShimGrants } from "./rls-shims.ts";
+import type { RlsSqlContext } from "./sql/context.ts";
 
 import { partitionsOf, scopeField } from "../core/tenancy.ts";
 import {
@@ -8,16 +9,10 @@ import {
   functionBody,
   grantBodies,
 } from "./rls-helpers.ts";
-import { HELPERS } from "./rls-shared.ts";
-import {
-  type RlsSqlContext,
-  permittedForHelper,
-  permittedIdsHelper,
-  qualified,
-  quoteIdent,
-  quoteLiteral,
-  scopeTypeOf,
-} from "./rls-sql.ts";
+import { scopeTypeOf } from "./sql/columns.ts";
+import { permittedForHelper, permittedIdsHelper } from "./sql/names.ts";
+import { qualified, quoteIdent, quoteLiteral } from "./sql/quote.ts";
+import { HELPERS } from "./sql/shared.ts";
 
 /** The helpers that take a permission key instead of a grant key. Names are part of the SQL contract. */
 const PERMISSION_HELPERS = {

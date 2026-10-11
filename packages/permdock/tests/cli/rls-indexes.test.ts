@@ -1,16 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import type { RlsSqlContext } from "../../src/cli/rls-sql.ts";
+import type { RlsSqlContext } from "../../src/cli/sql/context.ts";
 import type { Principal } from "../../src/core/subject.ts";
 
-import { compileGrants } from "../../src/cli/rls-compile.ts";
 import {
   indexedFields,
   indexName,
   pruneIndexTargets,
   readTableIndexFacts,
 } from "../../src/cli/rls-indexes.ts";
+import { compileGrants } from "../../src/cli/sql/compile.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import {
   allow,

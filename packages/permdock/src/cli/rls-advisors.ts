@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { delimiter, join } from "node:path";
 
-import type { CommandResult } from "./commands/context.ts";
+import type { CommandResult } from "./shared/result.ts";
 
 /** Runs a program to completion; `error` is set when it could not start. */
 export type CliExec = (

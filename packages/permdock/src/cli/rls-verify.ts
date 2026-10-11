@@ -1,13 +1,15 @@
-import type { Scope } from "../core/scopes.ts";
-import type { CustomRole, PermDock, Permission, Policy } from "../index.ts";
-import type { CommandResult } from "./commands/context.ts";
+import type { CommandResult } from "./shared/result.ts";
 import type { CliIo, PermDockConfig, RlsDialect } from "./types.ts";
 
 import { isRecord } from "../core/compact.ts";
 import { customRoleScope, membershipsClaim } from "../core/custom-roles.ts";
 import { policyRowConditionKeys } from "../core/row-conditions.ts";
-import { scopeList } from "../core/scopes.ts";
+import { type Scope, scopeList } from "../core/scopes.ts";
 import {
+  type CustomRole,
+  type PermDock,
+  type Permission,
+  type Policy,
   createPermDock,
   findPermission,
   hasConditionOp,
@@ -29,11 +31,11 @@ import {
 } from "./helper-calls.ts";
 import { loadPolicyAt } from "./load.ts";
 import { pgConnector, type SqlConnect } from "./pg.ts";
-import { commandFor } from "./rls-compile.ts";
 import { FIELD_VIEWS, viewName } from "./rls-fields.ts";
-import { customRolesOn } from "./rls-shared.ts";
-import { quoteIdent, quoteLiteral, quoteTable } from "./rls-sql.ts";
 import { verifyTree } from "./rls-verify-tree.ts";
+import { commandFor } from "./sql/compile.ts";
+import { quoteIdent, quoteLiteral, quoteTable } from "./sql/quote.ts";
+import { customRolesOn } from "./sql/shared.ts";
 
 /** A custom role's scope and pinned instance, as the `custom_role_*` tables store them. */
 function customRoleAt(

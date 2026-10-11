@@ -1,18 +1,16 @@
 import type { Policy, ResourceNode } from "../index.ts";
-import type { CompiledBranch } from "./rls-compile.ts";
-import type { RlsSqlContext } from "./rls-sql.ts";
+import type { RlsSqlContext } from "./sql/context.ts";
 
 import { flattenGrantee } from "../core/grantee.ts";
-import { tableFor } from "./rls-compile.ts";
-import { branchClauses } from "./rls-compile.ts";
 import { orSql } from "./rls-policies.ts";
+import { type CompiledBranch, branchClauses, tableFor } from "./sql/compile.ts";
+import { graphSqlName } from "./sql/names.ts";
 import {
-  graphSqlName,
   qualified,
   quoteIdent,
   quoteLiteral,
   quoteQualified,
-} from "./rls-sql.ts";
+} from "./sql/quote.ts";
 
 /** `permitted_<resource>_rows(p_permission)`: the resource's row ids the subject may act on with one permission. */
 export function rowsHelper(resource: string): string {

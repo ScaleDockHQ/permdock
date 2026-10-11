@@ -4,7 +4,7 @@ import {
   group,
   splitUndiffed,
   sqlStatements,
-} from "../../src/cli/sql-statements.ts";
+} from "../../src/cli/sql/statements.ts";
 
 describe("sqlStatements", () => {
   it("keeps an unterminated string or dollar-quoted body as the last statement", () => {

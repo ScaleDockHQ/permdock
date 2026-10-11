@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import type { RlsSqlContext } from "../../src/cli/rls-sql.ts";
+import type { RlsSqlContext } from "../../src/cli/sql/context.ts";
 
-import { compileGrants } from "../../src/cli/rls-compile.ts";
 import { rowHelpersSql, rowsHelper } from "../../src/cli/rls-rows.ts";
+import { compileGrants } from "../../src/cli/sql/compile.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import {
   allow,

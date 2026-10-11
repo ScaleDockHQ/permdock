@@ -1,8 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-import type { Policy } from "../index.ts";
-import type { CommandResult } from "./commands/context.ts";
+import type { CommandResult } from "./shared/result.ts";
 import type {
   CatalogDelegation,
   CatalogDocument,
@@ -14,7 +13,12 @@ import type {
 
 import { parseCatalog } from "../catalog/parse.ts";
 import { canonicalJson } from "../core/canonical-json.ts";
-import { createPermDock, findPermission, memoryRoleSource } from "../index.ts";
+import {
+  type Policy,
+  createPermDock,
+  findPermission,
+  memoryRoleSource,
+} from "../index.ts";
 import { buildCatalog } from "./catalog-doc.ts";
 import { usageResult } from "./errors.ts";
 import { fixtureRow, fixtureSubject, loadFixtures } from "./fixtures.ts";

@@ -1,10 +1,9 @@
 import type { SqlMembershipSource } from "../supabase/sources.ts";
-import type { RoleRows } from "./global-roles.ts";
-import type { CheckedPermission, RlsSqlContext } from "./rls-sql.ts";
+import type { CheckedPermission, RlsSqlContext } from "./sql/context.ts";
 
 import { scopeColumn } from "../conditions/compile.ts";
 import { sqlTextArray } from "../core/sql.ts";
-import { globalRoleSource } from "./global-roles.ts";
+import { type RoleRows, globalRoleSource } from "./global-roles.ts";
 import {
   apiKeyAllowsCall,
   apiKeyAllowsSql,
@@ -21,43 +20,49 @@ import {
 } from "./rls-custom-roles.ts";
 import { globalRolesSql } from "./rls-global-roles.ts";
 import {
+  activeInstancesSql,
+  activeMembershipSql,
+  activeUserSql,
+  disabledKeep,
+  grantPermissionSql,
+  keptRowSql,
+} from "./sql/active.ts";
+import { scopeTypeOf } from "./sql/columns.ts";
+import {
+  hasMemberFor,
+  memberForHelper,
+  memberForSources,
+  memberIdsHelper,
+  memberRoleOf,
+  permittedForHelper,
+  permittedIdsHelper,
+  scopeSources,
+  scopeTable,
+} from "./sql/names.ts";
+import {
+  helperSchema,
+  qualified,
+  quoteIdent,
+  quoteLiteral,
+  quoteQualified,
+} from "./sql/quote.ts";
+import {
   allowEntry,
   CUSTOM_ROLES,
   HELPERS,
   rootName,
   signedIn,
-} from "./rls-shared.ts";
+} from "./sql/shared.ts";
 import {
-  activeInstancesSql,
-  activeMembershipSql,
-  activeUserSql,
-  disabledKeep,
   globalKindFilterSql,
-  grantPermissionSql,
-  hasMemberFor,
-  helperSchema,
-  keptRowSql,
   keyTenantSql,
   kindFilterSql,
-  memberForHelper,
-  memberForSources,
-  memberIdsHelper,
-  memberRoleOf,
   memberVia,
-  permittedForHelper,
-  permittedIdsHelper,
-  qualified,
-  quoteIdent,
-  quoteLiteral,
-  quoteQualified,
-  scopeSources,
-  scopeTable,
-  scopeTypeOf,
   subjectClaimJsonSql,
   subjectClaimSql,
   subjectIdSql,
   userIdHelperSql,
-} from "./rls-sql.ts";
+} from "./sql/subject.ts";
 
 /** The helper `--capabilities` adds: ids of one resource a link capability claim reaches. Part of the SQL contract. */
 const CAPABILITIES = {

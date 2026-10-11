@@ -1,5 +1,5 @@
-import type { CommandResult } from "./commands/context.ts";
-import type { DoctorFinding } from "./doctor-types.ts";
+import type { DoctorFinding } from "./shared/doctor-types.ts";
+import type { CommandResult } from "./shared/result.ts";
 import type { CliIo, PermDockConfig } from "./types.ts";
 
 import { scopeList } from "../core/scopes.ts";
@@ -83,7 +83,7 @@ import { hookOut, supabaseHookManifest } from "./supabase-hook.ts";
 import { pd039 } from "./supabase-setup.ts";
 import { DOCTOR_REPORT_SCHEMA } from "./version.ts";
 
-export type { DoctorFinding, DoctorSeverity } from "./doctor-types.ts";
+export type { DoctorFinding, DoctorSeverity } from "./shared/doctor-types.ts";
 
 /** Static checks over the Supabase migrations; `--only sql` runs them alone. */
 const SQL_CHECKS = [

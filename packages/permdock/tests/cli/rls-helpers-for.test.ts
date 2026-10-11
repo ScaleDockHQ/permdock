@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import type { RlsSqlContext } from "../../src/cli/rls-sql.ts";
+import type { RlsSqlContext } from "../../src/cli/sql/context.ts";
 
-import { compileGrants } from "../../src/cli/rls-compile.ts";
 import { helpersSql } from "../../src/cli/rls-helpers.ts";
+import { compileGrants } from "../../src/cli/sql/compile.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import { fromJunction } from "../../src/supabase/index.ts";
 import { policy } from "../fixtures/named-scopes.ts";

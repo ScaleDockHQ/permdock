@@ -1,4 +1,4 @@
-import type { DoctorFinding, DoctorInput } from "./doctor-types.ts";
+import type { DoctorFinding, DoctorInput } from "./shared/doctor-types.ts";
 
 import { policyOf } from "./doctor-collect.ts";
 import { powersyncFiles, staleFiles } from "./powersync.ts";

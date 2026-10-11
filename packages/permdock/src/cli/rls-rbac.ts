@@ -1,5 +1,5 @@
 import type { Policy } from "../index.ts";
-import type { RlsSqlContext } from "./rls-sql.ts";
+import type { RlsSqlContext } from "./sql/context.ts";
 import type {
   PermDockConfig,
   RlsMemberships,
@@ -7,13 +7,13 @@ import type {
 } from "./types.ts";
 
 import { authorizeSql } from "../supabase/index.ts";
-import { roleNames } from "./rls-grants.ts";
+import { roleNames } from "./sql/grants.ts";
 import {
   quoteIdent,
   quoteLiteral,
   quoteQualified,
   quoteTable,
-} from "./rls-sql.ts";
+} from "./sql/quote.ts";
 
 export type RbacAuthorizeMode = "database" | "jwt";
 

@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 
-import type { DoctorFinding, DoctorInput } from "./doctor-types.ts";
-import type { RlsSqlContext } from "./rls-sql.ts";
+import type { DoctorFinding, DoctorInput } from "./shared/doctor-types.ts";
+import type { RlsSqlContext } from "./sql/context.ts";
 import type { PermDockConfig } from "./types.ts";
 
 import { scopeList } from "../core/scopes.ts";
@@ -9,10 +9,10 @@ import { supabaseTenantClaim } from "../supabase/budget.ts";
 import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
 import { tableKey } from "./deciding-columns.ts";
 import { policyOf } from "./doctor-collect.ts";
-import { MIGRATION_DIRS } from "./doctor-project.ts";
 import { rel, sqlFiles } from "./files.ts";
-import { compileGrants } from "./rls-compile.ts";
-import { group, sqlStatements } from "./sql-statements.ts";
+import { MIGRATION_DIRS } from "./shared/constants.ts";
+import { compileGrants } from "./sql/compile.ts";
+import { group, sqlStatements } from "./sql/statements.ts";
 
 const SEED_INSERT =
   /^insert\s+into\s+((?:"[^"]+"|\w+)(?:\.(?:"[^"]+"|\w+))?)\s*\(\s*role\s*,\s*permission\s*,\s*grant_key\s*,\s*scope\s*,\s*effect\s*\)\s*values\s*([\s\S]*?)\s*on\s+conflict\b/iu;

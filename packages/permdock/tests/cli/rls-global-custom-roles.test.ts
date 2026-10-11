@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { RlsSqlContext } from "../../src/cli/rls-sql.ts";
+import type { RlsSqlContext } from "../../src/cli/sql/context.ts";
 
 import { helpersSql } from "../../src/cli/rls-helpers.ts";
 import { rbacScaffold } from "../../src/cli/rls-rbac.ts";

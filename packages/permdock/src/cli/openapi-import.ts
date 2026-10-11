@@ -2,19 +2,20 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { isMap, parseDocument } from "yaml";
 
-import type { CommandResult } from "./commands/context.ts";
-import type {
-  GeneratedAction,
-  GeneratedResource,
-  JsonSchema,
-  SchemaKind,
-} from "./generate.ts";
+import type { CommandResult } from "./shared/result.ts";
 import type { CliIo } from "./types.ts";
 
 import { isRecord } from "../core/compact.ts";
 import { byCodePoint } from "../core/compare.ts";
 import { readJsonFile } from "./files.ts";
-import { emitPermissionsModule, schemaExpression } from "./generate.ts";
+import {
+  type GeneratedAction,
+  type GeneratedResource,
+  type JsonSchema,
+  type SchemaKind,
+  emitPermissionsModule,
+  schemaExpression,
+} from "./generate.ts";
 import { validateOpenapi } from "./openapi-schema.ts";
 
 const METHODS = [

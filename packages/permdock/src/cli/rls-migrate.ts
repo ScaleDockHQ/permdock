@@ -2,8 +2,8 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { relative, resolve } from "node:path";
 import { parse } from "pgsql-parser";
 
-import type { CommandResult } from "./commands/context.ts";
 import type { GenerateOutcome } from "./rls-generate.ts";
+import type { CommandResult } from "./shared/result.ts";
 import type { RlsMigrateConfig, RlsMigrateHelper } from "./types.ts";
 
 import { isRecord } from "../core/compact.ts";
@@ -19,8 +19,8 @@ import {
   retirePlan,
   retireSql,
 } from "./rls-retire.ts";
-import { HELPERS } from "./rls-shared.ts";
-import { sqlStatements } from "./sql-statements.ts";
+import { HELPERS } from "./sql/shared.ts";
+import { sqlStatements } from "./sql/statements.ts";
 
 /** One call `rls migrate` rewrote, or would with `--write`. */
 export type MigrateRewrite = {

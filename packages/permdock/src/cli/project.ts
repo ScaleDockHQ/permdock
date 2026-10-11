@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import type { Policy } from "../index.ts";
-import type { DoctorInput, DoctorSource } from "./doctor-types.ts";
+import type { DoctorInput, DoctorSource } from "./shared/doctor-types.ts";
 import type { CliIo, PermDockConfig } from "./types.ts";
 
 import { type CollectOutcome, runCollect } from "./collect.ts";

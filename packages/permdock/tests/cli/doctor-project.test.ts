@@ -2,7 +2,7 @@ import { symlinkSync } from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
-import type { DoctorFinding } from "../../src/cli/doctor-types.ts";
+import type { DoctorFinding } from "../../src/cli/shared/doctor-types.ts";
 import type { PermDockConfig } from "../../src/cli/types.ts";
 
 import {

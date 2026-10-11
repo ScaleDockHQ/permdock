@@ -1,10 +1,7 @@
-import type { Scope } from "../core/scopes.ts";
 import type {
   SupabaseHookClaim,
   SupabaseManifestMembership,
 } from "../supabase/manifest.ts";
-import type { RoleKeys } from "../supabase/roles.ts";
-import type { SqlMembershipSource } from "../supabase/sources.ts";
 import type {
   PermDockConfig,
   RlsActiveRow,
@@ -14,14 +11,20 @@ import type {
 } from "./types.ts";
 
 import { scopeColumn } from "../conditions/compile.ts";
-import { resolveScope, rootScope, scopeChain } from "../core/scopes.ts";
+import {
+  type Scope,
+  resolveScope,
+  rootScope,
+  scopeChain,
+} from "../core/scopes.ts";
 import { qualifySqlTable } from "../core/sql.ts";
-import { roleManifest } from "../supabase/roles.ts";
+import { type RoleKeys, roleManifest } from "../supabase/roles.ts";
 import {
   AUTHZ_VERSION_TABLE,
   HOOK_API_SCHEMA,
-  hookApiNames,
   PERMDOCK_SCHEMA,
+  type SqlMembershipSource,
+  hookApiNames,
   supabaseMembershipsBudget,
   supabaseTenantClaim,
 } from "../supabase/sources.ts";
@@ -29,20 +32,21 @@ import { PERMDOCK_CLAIMS_SCHEMA } from "./claims-schema.ts";
 import { tableKey } from "./deciding-columns.ts";
 import { globalRoleSource, type RoleRows } from "./global-roles.ts";
 import { authAdminRead, hookUri, resolveAuthorize } from "./rls-rbac.ts";
-import { customRolesOn } from "./rls-shared.ts";
+import { activeRowSql, checkSuspension } from "./sql/active.ts";
 import {
-  activeRowSql,
-  checkSuspension,
   hasMemberFor,
   memberForHelper,
   memberForSources,
   memberForTable,
   memberRoleOf,
+} from "./sql/names.ts";
+import {
   quoteIdent,
   quoteLiteral,
   quoteQualified,
   quoteTable,
-} from "./rls-sql.ts";
+} from "./sql/quote.ts";
+import { customRolesOn } from "./sql/shared.ts";
 
 const MANAGED_TRIGGER = "permdock_protect_managed";
 

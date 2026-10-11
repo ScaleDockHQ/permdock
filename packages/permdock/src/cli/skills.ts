@@ -12,7 +12,7 @@ import {
 import { createRequire } from "node:module";
 import { basename, dirname, join, relative, resolve } from "node:path";
 
-import type { CommandResult } from "./commands/context.ts";
+import type { CommandResult } from "./shared/result.ts";
 
 import { byCodePoint } from "../core/compare.ts";
 import { readJsonFile } from "./files.ts";

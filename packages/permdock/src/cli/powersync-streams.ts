@@ -1,7 +1,4 @@
-import type { Scope } from "../core/scopes.ts";
-import type { Condition, ConditionValue, Policy } from "../index.ts";
 import type { RoleSource } from "../supabase/roles.ts";
-import type { RlsGrant } from "./rls-grants.ts";
 import type {
   GlobalRoles,
   PermDockConfig,
@@ -11,15 +8,20 @@ import type {
 
 import { isConditionDate, isConditionRef } from "../conditions/ast.ts";
 import { scopeColumn, scopeMembershipTable } from "../conditions/compile.ts";
-import { resolveScope, scopeList } from "../core/scopes.ts";
+import { type Scope, resolveScope, scopeList } from "../core/scopes.ts";
 import { quoteSqlLiteral, SQL_IDENT } from "../core/sql.ts";
-import { requiresApproval } from "../index.ts";
+import {
+  type Condition,
+  type ConditionValue,
+  type Policy,
+  requiresApproval,
+} from "../index.ts";
 import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
-import { tableFor } from "./rls-compile.ts";
-import { contextRefs } from "./rls-conditions.ts";
-import { collectGrants } from "./rls-grants.ts";
 import { ownershipRules } from "./rls-ownership.ts";
-import { CUSTOM_ROLES, customRolesOn } from "./rls-shared.ts";
+import { tableFor } from "./sql/compile.ts";
+import { contextRefs } from "./sql/conditions.ts";
+import { type RlsGrant, collectGrants } from "./sql/grants.ts";
+import { CUSTOM_ROLES, customRolesOn } from "./sql/shared.ts";
 
 /**
  * How a stream query names the signed-in user, its claims and row columns.

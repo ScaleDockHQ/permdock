@@ -1,16 +1,16 @@
 import {
   inheritCondition,
   relationCondition,
-} from "../core/grantee-conditions.ts";
-import { scopeList } from "../core/scopes.ts";
+} from "../../core/grantee-conditions.ts";
+import { scopeList } from "../../core/scopes.ts";
 import {
   type Condition,
   type Grant,
   type Grantee,
   type Policy,
   listRoles,
-} from "../index.ts";
-import { andConditions } from "./rls-conditions.ts";
+} from "../../index.ts";
+import { andConditions } from "./conditions.ts";
 
 /** Who a grant reaches before any row condition applies. */
 export type RlsAccess =

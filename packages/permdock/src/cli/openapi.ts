@@ -1,13 +1,18 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 
-import type { Permission, Policy } from "../index.ts";
 import type { OverlayOperation } from "../openapi/types.ts";
-import type { CommandResult } from "./commands/context.ts";
+import type { CommandResult } from "./shared/result.ts";
 import type { CliIo, PermDockConfig } from "./types.ts";
 
 import { isRecord } from "../core/compact.ts";
-import { definePolicy, findPermission, getResource } from "../index.ts";
+import {
+  type Permission,
+  type Policy,
+  definePolicy,
+  findPermission,
+  getResource,
+} from "../index.ts";
 import { openapiVersion } from "../openapi/emit.ts";
 import { createPermDock } from "../openapi/index.ts";
 import { readJsonFile, writeFileEnsuringDir } from "./files.ts";

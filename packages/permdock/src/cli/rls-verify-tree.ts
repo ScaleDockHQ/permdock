@@ -16,9 +16,10 @@ import {
   memoryRelations,
 } from "../index.ts";
 import { jsonSchemaOf } from "./catalog-doc.ts";
-import { commandFor } from "./rls-compile.ts";
 import { graphPlan } from "./rls-graph.ts";
-import { columnTypesOf, quoteIdent, quoteQualified } from "./rls-sql.ts";
+import { columnTypesOf } from "./sql/columns.ts";
+import { commandFor } from "./sql/compile.ts";
+import { quoteIdent, quoteQualified } from "./sql/quote.ts";
 
 type Row = Readonly<Record<string, unknown>>;
 

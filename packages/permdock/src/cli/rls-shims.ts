@@ -1,21 +1,16 @@
 import type { RolePermission } from "./rls-helpers.ts";
-import type { RlsSqlContext } from "./rls-sql.ts";
+import type { RlsSqlContext } from "./sql/context.ts";
 import type {
   RlsMigrateConfig,
   RlsMigrateHelper,
   RlsShimsConfig,
 } from "./types.ts";
 
-import { breakGlassKey } from "./rls-grants.ts";
-import { HELPERS } from "./rls-shared.ts";
-import {
-  memberIdsHelper,
-  permittedIdsHelper,
-  qualified,
-  quoteIdent,
-  quoteLiteral,
-  scopeTypeOf,
-} from "./rls-sql.ts";
+import { scopeTypeOf } from "./sql/columns.ts";
+import { breakGlassKey } from "./sql/grants.ts";
+import { memberIdsHelper, permittedIdsHelper } from "./sql/names.ts";
+import { qualified, quoteIdent, quoteLiteral } from "./sql/quote.ts";
+import { HELPERS } from "./sql/shared.ts";
 
 const NAME = /^[a-z_][a-z0-9_]*$/u;
 

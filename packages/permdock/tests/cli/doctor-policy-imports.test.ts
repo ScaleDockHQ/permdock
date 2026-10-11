@@ -2,7 +2,7 @@ import { mkdirSync, symlinkSync } from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
-import type { DoctorSource } from "../../src/cli/doctor-types.ts";
+import type { DoctorSource } from "../../src/cli/shared/doctor-types.ts";
 
 import {
   pd001,

@@ -1,4 +1,4 @@
-import { group, sqlStatements } from "./sql-statements.ts";
+import { group, sqlStatements } from "./sql/statements.ts";
 
 /** `supautils.reserved_roles` of supabase/postgres 17.11.0.002 (supautils 3.4.4). */
 const RESERVED_ROLES: ReadonlySet<string> = new Set([

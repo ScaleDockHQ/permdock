@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import type { RlsSqlContext } from "../../src/cli/rls-sql.ts";
+import type { RlsSqlContext } from "../../src/cli/sql/context.ts";
 
 import {
   breakGlassEntries,
   breakGlassSql,
 } from "../../src/cli/rls-break-glass.ts";
-import { compileGrants } from "../../src/cli/rls-compile.ts";
+import { compileGrants } from "../../src/cli/sql/compile.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import {
   breakGlass,

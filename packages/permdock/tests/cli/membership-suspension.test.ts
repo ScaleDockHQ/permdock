@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import type { RlsSqlContext } from "../../src/cli/rls-sql.ts";
+import type { RlsSqlContext } from "../../src/cli/sql/context.ts";
 
 import { pd061 } from "../../src/cli/doctor-suspension.ts";
 import {
   activeMembershipSql,
   checkSuspension,
   keptRowSql,
-} from "../../src/cli/rls-sql.ts";
+} from "../../src/cli/sql/active.ts";
 
 const ctx = (keep?: readonly string[], permission?: string): RlsSqlContext => ({
   dialect: "supabase",

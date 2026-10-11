@@ -1,5 +1,5 @@
-import type { CompiledPolicy, SqlCommand } from "./rls-compile.ts";
-import type { RlsSqlContext } from "./rls-sql.ts";
+import type { CompiledPolicy, SqlCommand } from "./sql/compile.ts";
+import type { RlsSqlContext } from "./sql/context.ts";
 import type {
   RlsPermissionRef,
   RlsRealtime,
@@ -8,7 +8,7 @@ import type {
 } from "./types.ts";
 
 import { permittedByPermissionHelper } from "./rls-permission-keys.ts";
-import { qualified, quoteLiteral } from "./rls-sql.ts";
+import { qualified, quoteLiteral } from "./sql/quote.ts";
 
 /** What the policies may name: the declared scopes and the permission keys with and without row conditions. */
 export type HelperTableFacts = {

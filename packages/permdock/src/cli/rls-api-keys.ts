@@ -2,19 +2,17 @@ import type {
   ApiKeysPlan,
   CheckedPermission,
   RlsSqlContext,
-} from "./rls-sql.ts";
+} from "./sql/context.ts";
 import type { RlsApiKeys } from "./types.ts";
 
 import { SQL_IDENT } from "../core/sql.ts";
+import { activeInstancesSql, grantPermissionSql } from "./sql/active.ts";
+import { qualified, quoteLiteral } from "./sql/quote.ts";
 import {
-  activeInstancesSql,
-  grantPermissionSql,
   kindFilterSql,
-  qualified,
-  quoteLiteral,
   subjectClaimJsonSql,
   subjectIdSql,
-} from "./rls-sql.ts";
+} from "./sql/subject.ts";
 
 export const API_KEY_ALLOWS = "permdock_api_key_allows";
 

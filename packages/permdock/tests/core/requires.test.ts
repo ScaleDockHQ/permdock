@@ -1,14 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import type { Membership } from "../../src/index.ts";
-
 import { catalogGrants } from "../../src/cli/catalog-doc.ts";
-import { compileGrants } from "../../src/cli/rls-compile.ts";
 import { requiresSql } from "../../src/cli/rls-permission-keys.ts";
+import { compileGrants } from "../../src/cli/sql/compile.ts";
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import { parseSnapshot } from "../../src/core/snapshot.ts";
 import {
+  type Membership,
   allow,
   createPermDock,
   definePermissions,

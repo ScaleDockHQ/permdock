@@ -2,13 +2,14 @@ import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
 
-import type { DoctorFinding } from "./doctor-types.ts";
+import type { DoctorFinding } from "./shared/doctor-types.ts";
 import type { PermDockConfig } from "./types.ts";
 
 import { membershipColumns, tableKey } from "./deciding-columns.ts";
 import { readJsonFile, rel, sqlFiles } from "./files.ts";
 import { FIELD_VIEWS } from "./rls-fields.ts";
-import { sqlStatements } from "./sql-statements.ts";
+import { MIGRATION_DIRS } from "./shared/constants.ts";
+import { sqlStatements } from "./sql/statements.ts";
 
 /**
  * The directories from `cwd` up to the workspace root: the first one with a
@@ -214,15 +215,6 @@ export function pd012(
   }
   return findings;
 }
-
-export const MIGRATION_DIRS = [
-  "supabase/migrations",
-  "supabase/schemas",
-  "migrations",
-  "drizzle",
-  "prisma/migrations",
-  "db/migrations",
-] as const;
 
 const VIEW_NAME = String.raw`((?:"[^"]+"|\w+)(?:\.(?:"[^"]+"|\w+))?)`;
 const CREATE_VIEW = new RegExp(

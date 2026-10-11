@@ -1,14 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-import type {
-  CustomRole,
-  Membership,
-  Policy,
-  TenantSettings,
-} from "../index.ts";
-import type { CollectOutcome } from "./collect.ts";
-import type { DoctorFinding, DoctorInput } from "./doctor-types.ts";
+import type { DoctorFinding, DoctorInput } from "./shared/doctor-types.ts";
 import type { CliIo, RlsActions } from "./types.ts";
 
 import { policyRowConditionKeys } from "../core/row-conditions.ts";
@@ -19,6 +12,10 @@ import {
 } from "../core/scopes.ts";
 import { quoteSqlLiteral } from "../core/sql.ts";
 import {
+  type CustomRole,
+  type Membership,
+  type Policy,
+  type TenantSettings,
   hasConditionOp,
   parseCredential,
   separationConflicts,
@@ -26,8 +23,7 @@ import {
 } from "../index.ts";
 import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
 import { jsonSchemaOf } from "./catalog-doc.ts";
-import { runCollect } from "./collect.ts";
-import { MIGRATION_DIRS } from "./doctor-project.ts";
+import { type CollectOutcome, runCollect } from "./collect.ts";
 import { doctorSrcPath, readJsonFile, sqlFiles } from "./files.ts";
 import {
   ROW_CONDITION_FIX,
@@ -35,10 +31,14 @@ import {
   rowConditionMessage,
 } from "./helper-calls.ts";
 import { loadConfiguredPolicy } from "./load.ts";
-import { commandFor, tableFor } from "./rls-compile.ts";
-import { contextRefs } from "./rls-conditions.ts";
 import { graphPlan } from "./rls-graph.ts";
-import { graphSqlName } from "./rls-sql.ts";
+import {
+  DEFAULT_SENSITIVE_ACTIONS,
+  MIGRATION_DIRS,
+} from "./shared/constants.ts";
+import { commandFor, tableFor } from "./sql/compile.ts";
+import { contextRefs } from "./sql/conditions.ts";
+import { graphSqlName } from "./sql/names.ts";
 import { supabaseConfig } from "./supabase-config.ts";
 import { runUsage } from "./usage.ts";
 
@@ -192,16 +192,6 @@ export async function pd016(
   }
   return findings;
 }
-
-export const DEFAULT_SENSITIVE_ACTIONS = [
-  "approve",
-  "pay",
-  "settle",
-  "submit",
-  "transfer",
-  "refund",
-  "disburse",
-] as const;
 
 /** The configured policy, through the project's memoised load when there is one. */
 export function policyOf(input: DoctorInput): Promise<Policy | undefined> {

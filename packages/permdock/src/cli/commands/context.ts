@@ -1,5 +1,6 @@
 import type { ArgsDef, Resolvable, SubCommandsDef } from "citty";
 
+import type { CommandResult } from "../shared/result.ts";
 import type { CliIo, PermDockConfig } from "../types.ts";
 
 /** A command definition as a parent's `subCommands` holds it, whatever its args. */
@@ -7,12 +8,6 @@ export type Command = Extract<
   SubCommandsDef[string],
   { readonly meta?: unknown }
 >;
-
-/** What a command returns: the exit code and the text printed to stdout. */
-export type CommandResult = {
-  readonly code: 0 | 1 | 2;
-  readonly output: string;
-};
 
 /** One invocation's resolved globals; a command reports its result through `report`. */
 export type CliContext = {

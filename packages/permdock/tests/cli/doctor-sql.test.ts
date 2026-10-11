@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
-import type { DoctorFinding } from "../../src/cli/doctor-types.ts";
+import type { DoctorFinding } from "../../src/cli/shared/doctor-types.ts";
 import type { PermDockConfig } from "../../src/cli/types.ts";
 
 import {
@@ -17,7 +17,7 @@ import {
   pd062,
   pd063,
 } from "../../src/cli/doctor-sql.ts";
-import { sqlStatements } from "../../src/cli/sql-statements.ts";
+import { sqlStatements } from "../../src/cli/sql/statements.ts";
 import { project, removeProjects } from "./doctor-kit.ts";
 
 afterAll(removeProjects);

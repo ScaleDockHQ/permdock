@@ -1,7 +1,10 @@
-import type { CompiledBranch, CompiledPolicy } from "./rls-compile.ts";
-
 import { sole } from "../core/compact.ts";
-import { branchClauses, wrapSql } from "./rls-compile.ts";
+import {
+  type CompiledBranch,
+  type CompiledPolicy,
+  branchClauses,
+  wrapSql,
+} from "./sql/compile.ts";
 
 export type PolicyShape = {
   /** One policy per role and permission (the pre-helper layout) instead of one per table and command. */

@@ -1,5 +1,4 @@
-import type { RoleSource } from "../supabase/roles.ts";
-import type { RlsSqlContext } from "./rls-sql.ts";
+import type { RlsSqlContext } from "./sql/context.ts";
 import type {
   RlsCustomRolesFrom,
   RlsCustomRoleTable,
@@ -8,18 +7,18 @@ import type {
 } from "./types.ts";
 
 import { qualifySqlTable, sqlTextArray } from "../core/sql.ts";
-import { roleColumn } from "../supabase/roles.ts";
+import { type RoleSource, roleColumn } from "../supabase/roles.ts";
 import { BACKFILL_MARKER } from "./markers.ts";
 import { currentKeyExpr } from "./rls-custom-roles.ts";
-import { CUSTOM_ROLES } from "./rls-shared.ts";
+import { tenantTypeOf } from "./sql/columns.ts";
 import {
   qualified,
   quoteIdent,
   quoteLiteral,
   quoteQualified,
   quoteTable,
-  tenantTypeOf,
-} from "./rls-sql.ts";
+} from "./sql/quote.ts";
+import { CUSTOM_ROLES } from "./sql/shared.ts";
 
 const PREFIX = "PermDock CLI";
 

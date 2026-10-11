@@ -1,26 +1,28 @@
-import type { RlsSqlContext } from "./rls-sql.ts";
+import type { RlsSqlContext } from "./sql/context.ts";
 
 import { qualifySqlTable, sqlTextArray } from "../core/sql.ts";
-import {
-  allowEntry,
-  CUSTOM_ROLES,
-  HELPERS,
-  rootName,
-  signedIn,
-} from "./rls-shared.ts";
+import { tenantTypeOf } from "./sql/columns.ts";
 import {
   hasMemberFor,
   memberForHelper,
   memberIdsHelper,
   permittedForHelper,
   permittedIdsHelper,
+} from "./sql/names.ts";
+import {
   qualified,
   quoteIdent,
   quoteLiteral,
   quoteTable,
-  subjectIdSql,
-  tenantTypeOf,
-} from "./rls-sql.ts";
+} from "./sql/quote.ts";
+import {
+  allowEntry,
+  CUSTOM_ROLES,
+  HELPERS,
+  rootName,
+  signedIn,
+} from "./sql/shared.ts";
+import { subjectIdSql } from "./sql/subject.ts";
 
 /** The readers every helpers file ends with. Names are part of the SQL contract. */
 const READERS = {

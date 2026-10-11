@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 
 import type { Policy } from "../core/policy-types.ts";
 import type { SupabaseHookManifest } from "../supabase/manifest.ts";
-import type { CommandResult } from "./commands/context.ts";
+import type { CommandResult } from "./shared/result.ts";
 import type { CliIo, PermDockConfig } from "./types.ts";
 
 import { isRecord } from "../core/compact.ts";
@@ -19,7 +19,7 @@ import {
   STDOUT,
   writeOutputFiles,
 } from "./output-files.ts";
-import { splitUndiffed } from "./sql-statements.ts";
+import { splitUndiffed } from "./sql/statements.ts";
 import { supabaseConfig } from "./supabase-config.ts";
 import {
   defaultOut,

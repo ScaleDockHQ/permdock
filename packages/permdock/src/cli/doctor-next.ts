@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import type { Grant, Policy } from "../index.ts";
-import type { DoctorFinding, DoctorInput } from "./doctor-types.ts";
+import type { DoctorFinding, DoctorInput } from "./shared/doctor-types.ts";
 import type { CliIo } from "./types.ts";
 
 import { hasConditionOp } from "../conditions/ast.ts";

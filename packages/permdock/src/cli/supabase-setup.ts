@@ -2,15 +2,14 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
 import type { SupabaseHookManifest } from "../supabase/manifest.ts";
-import type { DoctorFinding } from "./doctor-types.ts";
-import type { SqlConnect } from "./pg.ts";
+import type { DoctorFinding } from "./shared/doctor-types.ts";
 import type { PermDockConfig } from "./types.ts";
 
 import { readMemberships } from "../supabase/subject.ts";
-import { MIGRATION_DIRS } from "./doctor-project.ts";
 import { sqlFiles } from "./files.ts";
 import { partPath } from "./output-files.ts";
-import { pgConnector } from "./pg.ts";
+import { type SqlConnect, pgConnector } from "./pg.ts";
+import { MIGRATION_DIRS } from "./shared/constants.ts";
 
 const HELPER_NAME =
   /^(?:permdock_has|permitted_[a-z][a-z0-9_]*_ids|member_[a-z][a-z0-9_]*_ids(?:_for)?)$/u;

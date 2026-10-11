@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import type { RlsSqlContext } from "../../src/cli/rls-sql.ts";
+import type { RlsSqlContext } from "../../src/cli/sql/context.ts";
 
-import { compileGrants } from "../../src/cli/rls-compile.ts";
+import { compileGrants } from "../../src/cli/sql/compile.ts";
 import { createPermDock, fromSnapshot } from "../../src/core/permdock.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import {

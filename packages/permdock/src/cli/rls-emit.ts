@@ -1,13 +1,13 @@
-import type { CompiledPolicy, SqlCommand } from "./rls-compile.ts";
-import type { FieldView } from "./rls-fields.ts";
+import type { CompiledPolicy, SqlCommand } from "./sql/compile.ts";
 import type { RlsDialect, RlsTarget } from "./types.ts";
 
 import {
+  type FieldView,
   columnGrantSql,
   columnRevokeSql,
   fieldViewsSql,
 } from "./rls-fields.ts";
-import { quoteIdent, quoteQualified } from "./rls-sql.ts";
+import { quoteIdent, quoteQualified } from "./sql/quote.ts";
 import { supautilsRejections } from "./supautils.ts";
 
 const HEADER =

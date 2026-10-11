@@ -1,17 +1,21 @@
 import type { Policy } from "../index.ts";
-import type { CompiledBranch } from "./rls-compile.ts";
-import type { RlsSqlContext } from "./rls-sql.ts";
+import type { RlsSqlContext } from "./sql/context.ts";
 
 import { jsonSchemaOf } from "./catalog-doc.ts";
-import { andSql, branchClauses, wrapSql } from "./rls-compile.ts";
 import { orSql } from "./rls-policies.ts";
-import { signedIn } from "./rls-shared.ts";
+import {
+  type CompiledBranch,
+  andSql,
+  branchClauses,
+  wrapSql,
+} from "./sql/compile.ts";
 import {
   helperSchema,
   quoteIdent,
   quoteLiteral,
   quoteQualified,
-} from "./rls-sql.ts";
+} from "./sql/quote.ts";
+import { signedIn } from "./sql/shared.ts";
 
 /** Names of the field-view objects. Part of the SQL contract. */
 export const FIELD_VIEWS = {

@@ -1,5 +1,5 @@
-import type { CommandResult } from "./commands/context.ts";
 import type { SqlConnect } from "./pg.ts";
+import type { CommandResult } from "./shared/result.ts";
 import type { CliIo, PermDockConfig, RlsDialect, RlsTarget } from "./types.ts";
 
 import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";

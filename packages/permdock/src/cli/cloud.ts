@@ -1,4 +1,4 @@
-import type { CommandResult } from "./commands/context.ts";
+import type { CommandResult } from "./shared/result.ts";
 import type { CliIo, PermDockConfig } from "./types.ts";
 
 import { parseCatalog } from "../catalog/parse.ts";

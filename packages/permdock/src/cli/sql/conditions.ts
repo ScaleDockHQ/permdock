@@ -1,46 +1,54 @@
-import type { RelatedCondition } from "../conditions/ast.ts";
-import type { Condition, ConditionValue } from "../index.ts";
-import type { RlsSqlContext } from "./rls-sql.ts";
-import type { RlsMembershipTable } from "./types.ts";
+import type { RelatedCondition } from "../../conditions/ast.ts";
+import type { RlsMembershipTable } from "../types.ts";
 
-import { scopeColumn, scopeMembershipTable } from "../conditions/compile.ts";
-import { relatedSql } from "../conditions/graph-sql.ts";
-import { isReadonlyArray, isRecord, sole } from "../core/compact.ts";
-import { isForbiddenKey } from "../core/paths.ts";
-import { resolveScope, rootScope } from "../core/scopes.ts";
-import { qualifySqlTable } from "../core/sql.ts";
-import { isSqlFunctionField } from "../index.ts";
+import { scopeColumn, scopeMembershipTable } from "../../conditions/compile.ts";
+import { relatedSql } from "../../conditions/graph-sql.ts";
+import { isReadonlyArray, isRecord, sole } from "../../core/compact.ts";
+import { isForbiddenKey } from "../../core/paths.ts";
+import { resolveScope, rootScope } from "../../core/scopes.ts";
+import { qualifySqlTable } from "../../core/sql.ts";
 import {
-  CLAIM,
-  CLOSURE,
+  type Condition,
+  type ConditionValue,
+  isSqlFunctionField,
+} from "../../index.ts";
+import {
   activeInstancesSql,
   activeMembershipSql,
   activeUserSql,
+} from "./active.ts";
+import { sqlType } from "./columns.ts";
+import { CLAIM, type RlsSqlContext } from "./context.ts";
+import {
+  CLOSURE,
   graphHelper,
   graphSqlText,
-  helperSchema,
   inheritedRowsHelper,
-  keyTenantSql,
-  kindFilterSql,
   linkHelper,
-  liveSessionSql,
   memberIdsHelper,
   memberRoleOf,
-  memberVia,
+  restrictedHelper,
+  scopeSources,
+  scopeTable,
+} from "./names.ts";
+import {
+  helperSchema,
   qualified,
   quoteIdent,
   quoteLiteral,
   quoteTable,
-  restrictedHelper,
+} from "./quote.ts";
+import {
+  keyTenantSql,
+  kindFilterSql,
+  liveSessionSql,
+  memberVia,
   roleKindSql,
-  scopeSources,
-  scopeTable,
-  sqlType,
   subjectClaimJsonSql,
   subjectClaimSql,
   subjectIdSql,
   tenantClaimSql,
-} from "./rls-sql.ts";
+} from "./subject.ts";
 
 const MAX_CLAIM_DEPTH = 8;
 

@@ -7,8 +7,8 @@ import type { RlsFunctionMapping, RlsMemberships } from "./types.ts";
 
 import { isRecord } from "../core/compact.ts";
 import { quoteSqlLiteral } from "../core/sql.ts";
-import { HELPERS } from "./rls-shared.ts";
-import { SESSION_LIVE_HELPER, USER_ID_HELPER } from "./rls-sql.ts";
+import { HELPERS } from "./sql/shared.ts";
+import { SESSION_LIVE_HELPER, USER_ID_HELPER } from "./sql/subject.ts";
 
 type PgNode = Record<string, unknown>;
 

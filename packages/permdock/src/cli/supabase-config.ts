@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join, posix } from "node:path";
 import { parse } from "smol-toml";
 
-import type { DoctorFinding } from "./doctor-types.ts";
+import type { DoctorFinding } from "./shared/doctor-types.ts";
 
 import { describeError } from "./errors.ts";
 

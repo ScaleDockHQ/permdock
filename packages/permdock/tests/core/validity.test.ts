@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import { branchClauses, compileGrants } from "../../src/cli/rls-compile.ts";
+import { branchClauses, compileGrants } from "../../src/cli/sql/compile.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import {
   allow,

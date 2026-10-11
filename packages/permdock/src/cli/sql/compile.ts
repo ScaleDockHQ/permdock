@@ -1,12 +1,13 @@
-import type { GrantValidity } from "../core/policy-types.ts";
-import type { RlsActions } from "./types.ts";
+import type { GrantValidity } from "../../core/policy-types.ts";
+import type { RlsActions } from "../types.ts";
+import type { RlsSqlContext } from "./context.ts";
 
-import { canonicalJson } from "../core/canonical-json.ts";
-import { sole } from "../core/compact.ts";
-import { andWhere, leveled } from "../core/custom-roles.ts";
-import { requiresStandIn } from "../core/delegation.ts";
-import { policyLevels } from "../core/policy.ts";
-import { scopeField } from "../core/tenancy.ts";
+import { canonicalJson } from "../../core/canonical-json.ts";
+import { sole } from "../../core/compact.ts";
+import { andWhere, leveled } from "../../core/custom-roles.ts";
+import { requiresStandIn } from "../../core/delegation.ts";
+import { policyLevels } from "../../core/policy.ts";
+import { scopeField } from "../../core/tenancy.ts";
 import {
   type Condition,
   type Policy,
@@ -15,35 +16,30 @@ import {
   hasConditionOp,
   listPermissions,
   requiresApproval,
-} from "../index.ts";
-import { jsonSchemaOf } from "./catalog-doc.ts";
-import { apiKeyAllowsCall } from "./rls-api-keys.ts";
+} from "../../index.ts";
+import { jsonSchemaOf } from "../catalog-doc.ts";
+import { apiKeyAllowsCall } from "../rls-api-keys.ts";
+import {
+  type RolePermission,
+  accessSql,
+  capabilityAccessSql,
+} from "../rls-helpers.ts";
+import { indexedFields } from "../rls-indexes.ts";
+import { requiresSql } from "../rls-permission-keys.ts";
+import { arrayColumnsOf, columnTypesOf } from "./columns.ts";
 import {
   compileConditionSql,
   contextRefs,
   sqlFunctionNames,
-} from "./rls-conditions.ts";
+} from "./conditions.ts";
 import {
   type RlsGrant,
   breakGlassHolder,
   breakGlassKey,
   collectGrants,
-} from "./rls-grants.ts";
-import {
-  type RolePermission,
-  accessSql,
-  capabilityAccessSql,
-} from "./rls-helpers.ts";
-import { indexedFields } from "./rls-indexes.ts";
-import { requiresSql } from "./rls-permission-keys.ts";
-import {
-  type RlsSqlContext,
-  arrayColumnsOf,
-  columnTypesOf,
-  quoteLiteral,
-  subjectClaimJsonSql,
-  subjectClaimSql,
-} from "./rls-sql.ts";
+} from "./grants.ts";
+import { quoteLiteral } from "./quote.ts";
+import { subjectClaimJsonSql, subjectClaimSql } from "./subject.ts";
 
 export type SqlCommand = "select" | "insert" | "update" | "delete";
 

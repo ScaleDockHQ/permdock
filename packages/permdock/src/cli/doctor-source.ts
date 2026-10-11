@@ -13,7 +13,7 @@ import {
   parseSync,
 } from "oxc-parser";
 
-import type { DoctorFinding, DoctorSource } from "./doctor-types.ts";
+import type { DoctorFinding, DoctorSource } from "./shared/doctor-types.ts";
 
 /** Entries a client file must not import; `tests/cli/doctor-entries.test.ts` keeps it in step with `exports`. */
 export const SERVER_SPECIFIERS = [

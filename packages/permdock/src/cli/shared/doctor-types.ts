@@ -1,6 +1,6 @@
-import type { Policy } from "../index.ts";
-import type { CollectOutcome } from "./collect.ts";
-import type { PermDockConfig } from "./types.ts";
+import type { Policy } from "../../index.ts";
+import type { CollectOutcome } from "../collect.ts";
+import type { PermDockConfig } from "../types.ts";
 
 export type DoctorSeverity = "error" | "warning";
 

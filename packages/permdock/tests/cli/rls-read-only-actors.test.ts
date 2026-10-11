@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
-import type { CompiledPolicy } from "../../src/cli/rls-compile.ts";
+import type { CompiledPolicy } from "../../src/cli/sql/compile.ts";
 
 import {
   readOnlyActorKinds,

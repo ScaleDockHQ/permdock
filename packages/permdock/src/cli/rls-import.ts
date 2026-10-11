@@ -1,11 +1,8 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-import type { CommandResult } from "./commands/context.ts";
-import type { SqlConnect } from "./pg.ts";
 import type { RolePermission } from "./rls-helpers.ts";
-import type { ImportedGrant } from "./rls-import-ast.ts";
-import type { ImportedFieldView } from "./rls-import-views.ts";
+import type { CommandResult } from "./shared/result.ts";
 import type { CliIo, PermDockConfig } from "./types.ts";
 
 import { usageResult } from "./errors.ts";
@@ -15,8 +12,9 @@ import {
   emptySchema,
   isSchemaKind,
 } from "./generate.ts";
-import { pgConnector } from "./pg.ts";
+import { type SqlConnect, pgConnector } from "./pg.ts";
 import {
+  type ImportedGrant,
   canonicalDump,
   conditionFromAst,
   fingerprintSql,
@@ -24,8 +22,12 @@ import {
   seedFromRow,
   seedsFromSql,
 } from "./rls-import-ast.ts";
-import { fieldViewsFromSql, viewsSqlFromDb } from "./rls-import-views.ts";
-import { parseMembershipsFlag } from "./rls-sql.ts";
+import {
+  type ImportedFieldView,
+  fieldViewsFromSql,
+  viewsSqlFromDb,
+} from "./rls-import-views.ts";
+import { parseMembershipsFlag } from "./sql/context.ts";
 
 type ImportedPolicy = {
   readonly table: string;

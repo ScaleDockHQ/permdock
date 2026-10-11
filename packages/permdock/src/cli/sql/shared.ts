@@ -1,7 +1,7 @@
-import type { RlsSqlContext } from "./rls-sql.ts";
-import type { RlsConfig } from "./types.ts";
+import type { RlsConfig } from "../types.ts";
+import type { RlsSqlContext } from "./context.ts";
 
-import { subjectIdSql } from "./rls-sql.ts";
+import { subjectIdSql } from "./subject.ts";
 
 /** `rls.customRoles` turns custom roles on as `true` or as an object. */
 export function customRolesOn(rls: RlsConfig | undefined): boolean {

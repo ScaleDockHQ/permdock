@@ -1,7 +1,7 @@
 import type { RlsAudit, RlsTrigger } from "./types.ts";
 
-import { CUSTOM_ROLES } from "./rls-shared.ts";
-import { quoteIdent, quoteLiteral, quoteTable } from "./rls-sql.ts";
+import { quoteIdent, quoteLiteral, quoteTable } from "./sql/quote.ts";
+import { CUSTOM_ROLES } from "./sql/shared.ts";
 
 const PREFIX = "PermDock CLI";
 const EVENTS = new Set(["insert", "update", "delete", "truncate"]);

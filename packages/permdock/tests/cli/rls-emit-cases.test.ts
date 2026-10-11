@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { CompiledPolicy } from "../../src/cli/rls-compile.ts";
+import type { CompiledPolicy } from "../../src/cli/sql/compile.ts";
 
 import {
   defaultOut,

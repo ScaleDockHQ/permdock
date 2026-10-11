@@ -3,6 +3,7 @@ import type {
   MembershipHolders,
   SqlMembershipSource,
 } from "../supabase/sources.ts";
+import type { RlsOwnership, RlsSqlContext } from "./sql/context.ts";
 import type {
   PermDockConfig,
   RlsAssignmentTable,
@@ -25,26 +26,28 @@ import {
   sourceFilters,
   sourcesKeep,
 } from "./rls-helpers.ts";
-import { CUSTOM_ROLES, signedIn } from "./rls-shared.ts";
+import { tenantTypeOf } from "./sql/columns.ts";
 import {
-  globalKindFilterSql,
-  kindFilterSql,
   memberForSources,
   memberForTable,
   memberRoleOf,
-  memberVia,
+  scopeSources,
+  scopeTable,
+} from "./sql/names.ts";
+import {
   qualified,
   quoteIdent,
   quoteLiteral,
   quoteQualified,
+} from "./sql/quote.ts";
+import { CUSTOM_ROLES, signedIn } from "./sql/shared.ts";
+import {
+  globalKindFilterSql,
+  kindFilterSql,
+  memberVia,
   roleKindSql,
-  scopeSources,
-  scopeTable,
   subjectIdSql,
-  tenantTypeOf,
-  type RlsOwnership,
-  type RlsSqlContext,
-} from "./rls-sql.ts";
+} from "./sql/subject.ts";
 
 /** Objects the ownership rules add next to the helpers. Names are part of the SQL contract. */
 export const OWNERSHIP = {

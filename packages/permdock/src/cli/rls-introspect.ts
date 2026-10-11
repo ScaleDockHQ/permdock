@@ -1,12 +1,10 @@
-import type { SqlClient, SqlConnect } from "./pg.ts";
-import type { CompiledPolicy } from "./rls-compile.ts";
 import type { RolePermission } from "./rls-helpers.ts";
-import type { IndexTarget } from "./rls-indexes.ts";
+import type { CompiledPolicy } from "./sql/compile.ts";
 
 import { escapeSqlIdent } from "../core/sql.ts";
 import { callsHelper, HELPER_TABLES, helperCallKeys } from "./helper-calls.ts";
-import { connectPgPool } from "./pg.ts";
-import { COLUMNS_SQL } from "./rls-indexes.ts";
+import { type SqlClient, type SqlConnect, connectPgPool } from "./pg.ts";
+import { COLUMNS_SQL, type IndexTarget } from "./rls-indexes.ts";
 
 const ROLES = ["anon", "authenticated"] as const;
 /** Neon's `anonymous` is the role `rls generate` writes as `anon` for the other dialects. */

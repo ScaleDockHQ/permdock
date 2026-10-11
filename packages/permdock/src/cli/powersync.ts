@@ -1,12 +1,11 @@
 import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-import type { Policy } from "../index.ts";
-import type { CommandResult } from "./commands/context.ts";
-import type { SqlConnect } from "./pg.ts";
+import type { CommandResult } from "./shared/result.ts";
 import type { PermDockConfig } from "./types.ts";
 
 import {
+  type Policy,
   createPermDock,
   findPermission,
   localSnapshotManifest,
@@ -21,7 +20,7 @@ import {
 } from "./fixtures.ts";
 import { requirePolicy } from "./load.ts";
 import { fileDrift } from "./output-files.ts";
-import { pgConnector } from "./pg.ts";
+import { type SqlConnect, pgConnector } from "./pg.ts";
 import {
   POSTGRES,
   type PowerSyncStream,
@@ -29,8 +28,8 @@ import {
   powersyncPlan,
   powersyncYaml,
 } from "./powersync-streams.ts";
-import { quoteIdent } from "./rls-sql.ts";
 import { canFixture } from "./rls-verify.ts";
+import { quoteIdent } from "./sql/quote.ts";
 
 const POWERSYNC_HELP = `permdock powersync generate [--out sync-config.yaml] [--check]
 permdock powersync verify [--db <url>] [--fixtures rls.fixtures.json]`;

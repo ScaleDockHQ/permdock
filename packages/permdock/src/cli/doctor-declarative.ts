@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import type { DoctorFinding } from "./doctor-types.ts";
+import type { DoctorFinding } from "./shared/doctor-types.ts";
 import type { PermDockConfig } from "./types.ts";
 
 import { rel, sqlFiles } from "./files.ts";

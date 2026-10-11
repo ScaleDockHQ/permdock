@@ -1,15 +1,15 @@
 import { readFileSync } from "node:fs";
 
-import type { DoctorFinding, DoctorInput } from "./doctor-types.ts";
+import type { DoctorFinding, DoctorInput } from "./shared/doctor-types.ts";
 
 import { scopeList } from "../core/scopes.ts";
 import { tableKey } from "./deciding-columns.ts";
 import { policyOf } from "./doctor-collect.ts";
-import { MIGRATION_DIRS } from "./doctor-project.ts";
 import { sqlFiles } from "./files.ts";
 import { partPath } from "./output-files.ts";
 import { guardedTables, ownershipRules } from "./rls-ownership.ts";
-import { group, sqlStatements } from "./sql-statements.ts";
+import { MIGRATION_DIRS } from "./shared/constants.ts";
+import { group, sqlStatements } from "./sql/statements.ts";
 
 const TRIGGER = new RegExp(
   String.raw`^create\s+(?:or\s+replace\s+)?trigger\s+"?permdock_assignment"?\s[\s\S]*?\bon\s+((?:"[^"]+"|\w+)(?:\.(?:"[^"]+"|\w+))?)`,

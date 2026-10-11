@@ -1,4 +1,4 @@
-import type { RlsSqlContext } from "./rls-sql.ts";
+import type { RlsSqlContext } from "./sql/context.ts";
 import type { RlsApprovalsAdopt } from "./types.ts";
 
 import { APPROVAL_REQUEST_SCHEMA } from "./approval-schema.ts";
@@ -7,7 +7,7 @@ import {
   quoteIdent,
   quoteLiteral,
   quoteQualified,
-} from "./rls-sql.ts";
+} from "./sql/quote.ts";
 
 /** The objects `rls.approvals` adds. Names are part of the SQL contract `supabaseApprovalStore` calls. */
 const APPROVAL_STORE = {

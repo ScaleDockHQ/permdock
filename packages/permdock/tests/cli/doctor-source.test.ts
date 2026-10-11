@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type {
   DoctorFinding,
   DoctorSource,
-} from "../../src/cli/doctor-types.ts";
+} from "../../src/cli/shared/doctor-types.ts";
 
 import {
   isClientSource,

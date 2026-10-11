@@ -1,13 +1,13 @@
-import type { RlsSqlContext } from "./rls-sql.ts";
+import type { RlsSqlContext } from "./sql/context.ts";
 
 import { globalRoleSource } from "./global-roles.ts";
-import { GLOBAL_ROLES } from "./rls-shared.ts";
 import {
   qualified,
   quoteIdent,
   quoteQualified,
   quoteTable,
-} from "./rls-sql.ts";
+} from "./sql/quote.ts";
+import { GLOBAL_ROLES } from "./sql/shared.ts";
 
 /**
  * `permdock_replace_global_roles(p_user, p_roles)`: sets the global roles of

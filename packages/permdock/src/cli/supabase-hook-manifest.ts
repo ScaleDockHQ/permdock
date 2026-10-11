@@ -6,6 +6,7 @@ import type {
   SupabaseManifestRequires,
   SupabaseManifestRls,
 } from "../supabase/manifest.ts";
+import type { RlsSqlContext } from "./sql/context.ts";
 import type {
   PermDockConfig,
   RlsActiveRow,
@@ -26,18 +27,16 @@ import {
 } from "./rls-ownership.ts";
 import { permissionKeysForHelper } from "./rls-permission-keys.ts";
 import { resolveAuthorize } from "./rls-rbac.ts";
-import { customRolesOn, HELPERS } from "./rls-shared.ts";
+import { checkSuspension } from "./sql/active.ts";
+import { scopeTypeOf, tenantTypeOf } from "./sql/columns.ts";
 import {
-  type RlsSqlContext,
-  checkSuspension,
   memberForHelper,
   memberIdsHelper,
   permittedForHelper,
   permittedIdsHelper,
-  scopeTypeOf,
-  tenantTypeOf,
-  USER_ID_HELPER,
-} from "./rls-sql.ts";
+} from "./sql/names.ts";
+import { customRolesOn, HELPERS } from "./sql/shared.ts";
+import { USER_ID_HELPER } from "./sql/subject.ts";
 import {
   type Parts,
   AUTHZ_VERSION_BUMP,

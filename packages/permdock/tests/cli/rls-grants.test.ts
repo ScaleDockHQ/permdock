@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import type { Policy } from "../../src/index.ts";
-
-import { collectGrants, roleNames } from "../../src/cli/rls-grants.ts";
+import { collectGrants, roleNames } from "../../src/cli/sql/grants.ts";
 import {
+  type Policy,
   actor,
   allow,
   anyone,

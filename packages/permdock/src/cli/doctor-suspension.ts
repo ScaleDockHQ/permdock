@@ -1,4 +1,4 @@
-import type { DoctorFinding, DoctorInput } from "./doctor-types.ts";
+import type { DoctorFinding, DoctorInput } from "./shared/doctor-types.ts";
 
 import { formerKeys } from "../core/permission-leaf.ts";
 import { listPermissions } from "../core/permission-registry.ts";

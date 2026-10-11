@@ -1,4 +1,4 @@
-import { HELPERS } from "./rls-shared.ts";
+import { HELPERS } from "./sql/shared.ts";
 
 /**
  * Tables whose policies other packages write by calling the SQL helpers

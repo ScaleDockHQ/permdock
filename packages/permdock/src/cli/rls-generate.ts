@@ -43,11 +43,6 @@ import { adoptedApprovalStoreSql, approvalStoreSql } from "./rls-approvals.ts";
 import { backfillSql } from "./rls-backfill.ts";
 import { breakGlassEntries, breakGlassSql } from "./rls-break-glass.ts";
 import {
-  type CompiledGrants,
-  type CompiledPolicy,
-  compileGrants,
-} from "./rls-compile.ts";
-import {
   defaultOut,
   emitDrizzle,
   emitPrisma,
@@ -58,7 +53,6 @@ import {
   policySql,
 } from "./rls-emit.ts";
 import { fieldViews, rowBranches } from "./rls-fields.ts";
-import { roleNames } from "./rls-grants.ts";
 import { closureDepths, graphPlan, graphSql } from "./rls-graph.ts";
 import { type RolePermission, helpersSql, seedSql } from "./rls-helpers.ts";
 import {
@@ -86,23 +80,26 @@ import {
 } from "./rls-rbac.ts";
 import { realtimeStoragePolicies } from "./rls-realtime-storage.ts";
 import { inheritTargets, rowHelpersSql } from "./rls-rows.ts";
-import { customRolesOn } from "./rls-shared.ts";
 import { shimGrants, shimsSql } from "./rls-shims.ts";
+import { auditSql, generatedTables, triggersSql } from "./rls-triggers.ts";
+import { checkSuspension } from "./sql/active.ts";
 import {
-  type RlsSqlContext,
+  type CompiledGrants,
+  type CompiledPolicy,
+  compileGrants,
+} from "./sql/compile.ts";
+import { type RlsSqlContext, parseMembershipsFlag } from "./sql/context.ts";
+import { roleNames } from "./sql/grants.ts";
+import { graphHelper, scopeSources, scopeTable } from "./sql/names.ts";
+import { quoteLiteral } from "./sql/quote.ts";
+import { customRolesOn } from "./sql/shared.ts";
+import { splitUndiffed } from "./sql/statements.ts";
+import {
   SESSION_LIVE_HELPER,
   USER_ID_HELPER,
-  checkSuspension,
-  graphHelper,
-  parseMembershipsFlag,
-  quoteLiteral,
-  scopeSources,
-  scopeTable,
   sessionLiveHelperSql,
   subjectClaimJsonSql,
-} from "./rls-sql.ts";
-import { auditSql, generatedTables, triggersSql } from "./rls-triggers.ts";
-import { splitUndiffed } from "./sql-statements.ts";
+} from "./sql/subject.ts";
 import { supabaseConfig } from "./supabase-config.ts";
 import { grantsLabel, supabaseHookSql } from "./supabase-hook.ts";
 

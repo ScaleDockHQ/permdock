@@ -18,7 +18,7 @@ import {
   retireSql,
 } from "../../src/cli/rls-retire.ts";
 import { run } from "../../src/cli/run.ts";
-import { sqlStatements } from "../../src/cli/sql-statements.ts";
+import { sqlStatements } from "../../src/cli/sql/statements.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const POLICY = join(HERE, "../fixtures/named-scopes.ts");

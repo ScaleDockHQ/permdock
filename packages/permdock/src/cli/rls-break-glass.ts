@@ -1,23 +1,22 @@
 import type { Policy } from "../index.ts";
-import type { RlsSqlContext } from "./rls-sql.ts";
+import type { RlsSqlContext } from "./sql/context.ts";
 
 import { scopeField } from "../core/tenancy.ts";
-import { tableFor } from "./rls-compile.ts";
+import { accessSql } from "./rls-helpers.ts";
+import { tableFor } from "./sql/compile.ts";
 import {
   breakGlassHolder,
   breakGlassKey,
   collectGrants,
-} from "./rls-grants.ts";
-import { accessSql } from "./rls-helpers.ts";
+} from "./sql/grants.ts";
+import { memberIdsHelper } from "./sql/names.ts";
 import {
-  memberIdsHelper,
   qualified,
   quoteIdent,
   quoteLiteral,
   quoteQualified,
-  subjectClaimJsonSql,
-  subjectIdSql,
-} from "./rls-sql.ts";
+} from "./sql/quote.ts";
+import { subjectClaimJsonSql, subjectIdSql } from "./sql/subject.ts";
 
 /** The audit table every generated break-glass read writes to. Part of the SQL contract. */
 const BREAK_GLASS_AUDIT = "permdock_break_glass_audit";

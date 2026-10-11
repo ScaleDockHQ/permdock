@@ -2,7 +2,7 @@ import type { SupabaseManifestRole } from "../supabase/manifest.ts";
 import type { GlobalRoles, RlsCustomRoleTable } from "./types.ts";
 
 import { type RoleKeys, roleColumn, roleManifest } from "../supabase/roles.ts";
-import { quoteIdent, quoteTable } from "./rls-sql.ts";
+import { quoteIdent, quoteTable } from "./sql/quote.ts";
 
 /** A global-roles source as SQL: the `from` clause and the user and role key expressions. */
 export type RoleRows = {

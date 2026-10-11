@@ -1,5 +1,6 @@
 import type { RelatedHop, RestrictedAncestors } from "../conditions/ast.ts";
 import type { Policy, ResourceNode } from "../index.ts";
+import type { RlsSqlContext } from "./sql/context.ts";
 
 import { relationArmSql, restrictedRowsSql } from "../conditions/graph-sql.ts";
 import {
@@ -18,21 +19,22 @@ import {
 } from "../core/resource-relations.ts";
 import { scopeList } from "../core/scopes.ts";
 import { qualifySqlTable } from "../core/sql.ts";
+import { activeUserSql } from "./sql/active.ts";
 import {
   CLOSURE,
-  type RlsSqlContext,
-  activeUserSql,
   graphHelper,
   graphSqlName,
   graphSqlText,
-  helperSchema,
   linkHelper,
+  restrictedHelper,
+} from "./sql/names.ts";
+import {
+  helperSchema,
   qualified,
   quoteIdent,
   quoteLiteral,
   quoteQualified,
-  restrictedHelper,
-} from "./rls-sql.ts";
+} from "./sql/quote.ts";
 
 function tableFor(
   resource: string,

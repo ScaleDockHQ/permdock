@@ -1,19 +1,19 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import type { DoctorFinding } from "./doctor-types.ts";
+import type { DoctorFinding } from "./shared/doctor-types.ts";
 import type { PermDockConfig } from "./types.ts";
 
 import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
 import { tableKey } from "./deciding-columns.ts";
-import { MIGRATION_DIRS } from "./doctor-project.ts";
 import { rel, sqlFiles } from "./files.ts";
 import {
   legacyHelperCalls,
   legacyHelperNames,
   retirePlan,
 } from "./rls-retire.ts";
-import { group, sqlStatements } from "./sql-statements.ts";
+import { MIGRATION_DIRS } from "./shared/constants.ts";
+import { group, sqlStatements } from "./sql/statements.ts";
 import { supabaseConfig } from "./supabase-config.ts";
 import { supautilsRejections } from "./supautils.ts";
 
