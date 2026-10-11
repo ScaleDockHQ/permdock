@@ -16,13 +16,11 @@ import { type SqlConnect, pgConnector } from "../pg.ts";
 import { parseMembershipsFlag } from "../sql/context.ts";
 import {
   type ImportedGrant,
-  canonicalDump,
   conditionFromAst,
-  fingerprintSql,
   helperGrants,
-  seedFromRow,
-  seedsFromSql,
 } from "./import-ast.ts";
+import { canonicalDump, fingerprintSql } from "./import-nodes.ts";
+import { seedFromRow, seedsFromSql } from "./import-seeds.ts";
 import {
   type ImportedFieldView,
   fieldViewsFromSql,

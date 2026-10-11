@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 
+import { conditionFromAst } from "../../src/cli/rls/import-ast.ts";
 import {
   canonicalDump,
-  conditionFromAst,
   fingerprintSql,
-} from "../../src/cli/rls/import-ast.ts";
+} from "../../src/cli/rls/import-nodes.ts";
 import { sqlFunctionNames } from "../../src/cli/sql/conditions.ts";
 
 const memberships = {

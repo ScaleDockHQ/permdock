@@ -9,9 +9,8 @@ import type { RlsMemberships } from "../../src/cli/types.ts";
 import {
   conditionFromAst,
   helperGrants,
-  seedFromRow,
-  seedsFromSql,
 } from "../../src/cli/rls/import-ast.ts";
+import { seedFromRow, seedsFromSql } from "../../src/cli/rls/import-seeds.ts";
 
 vi.mock("pgsql-parser", async (importOriginal) => {
   const actual = await importOriginal<typeof PgsqlParser>();
