@@ -1,10 +1,4 @@
-import type { AuthEvent } from "../core/interfaces.ts";
-import type {
-  Actor,
-  Delegation,
-  Membership,
-  Subject,
-} from "../core/subject.ts";
+import type { AuthEvent } from "../core/event-types.ts";
 import type { SupabaseActClaim } from "./claims.ts";
 import type {
   SupabaseActor,
@@ -18,7 +12,13 @@ import type {
 import { clientNameOf } from "../core/clients.ts";
 import { compact, isRecord } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
-import { anonymousSubject } from "../core/subject.ts";
+import {
+  type Actor,
+  type Delegation,
+  type Membership,
+  type Subject,
+  anonymousSubject,
+} from "../core/subject.ts";
 import { validateRecord } from "../core/thenable.ts";
 import { supabaseTenantClaim } from "./budget.ts";
 

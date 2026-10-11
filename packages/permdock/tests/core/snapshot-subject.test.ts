@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { Snapshot } from "../../src/core/interfaces.ts";
+import type { Snapshot } from "../../src/core/snapshot-types.ts";
 import type { Subject } from "../../src/core/subject.ts";
 
 import { scopeList } from "../../src/core/scopes.ts";

@@ -1,4 +1,4 @@
-import type { DecisionEvent } from "../core/interfaces.ts";
+import type { DecisionEvent } from "../core/event-types.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { PolicyVocabulary } from "../core/policy-types.ts";
 

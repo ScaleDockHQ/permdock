@@ -3,8 +3,8 @@ import { describe, expect, it } from "vitest";
 import type {
   DecisionEvent,
   DirectoryEvent,
-  TokenSigner,
-} from "../../src/core/interfaces.ts";
+} from "../../src/core/event-types.ts";
+import type { TokenSigner } from "../../src/core/interfaces.ts";
 
 import {
   accessEvent,

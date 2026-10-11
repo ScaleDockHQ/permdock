@@ -67,7 +67,7 @@ export {
   memoryRoleSource,
   memorySnapshotSource,
   memorySettings,
-} from "./core/interfaces.ts";
+} from "./core/memory-sources.ts";
 export {
   APPROVAL_POLICY_UNAVAILABLE,
   memoryApprovalPolicies,
@@ -88,8 +88,11 @@ export {
 export { fromStripeEntitlements } from "./core/stripe-entitlements.ts";
 export type { StripeEntitlementsClient } from "./core/stripe-entitlements.ts";
 export { memoryLimitStore } from "./core/limits.ts";
-export { memoryRelations } from "./core/relations.ts";
-export type { MemoryEdge, MemoryRelationsData } from "./core/relations.ts";
+export { memoryRelations } from "./core/memory-relations.ts";
+export type {
+  MemoryEdge,
+  MemoryRelationsData,
+} from "./core/memory-relations.ts";
 export type { Holder, HoldingVia, WhoCan } from "./core/who-can.ts";
 export {
   isPortableCondition,
@@ -105,21 +108,12 @@ export type {
   PolicySource,
 } from "./core/hosted.ts";
 export type {
-  AccessEvent,
-  AuthEvent,
-  CredentialEvent,
   CredentialVerifier,
-  DecisionEvent,
   DecisionProvider,
   DecisionSink,
-  DirectoryEvent,
-  MembershipEvent,
   LimitConsumeInput,
   LimitRemaining,
-  LocalCustomRoleTable,
-  LocalSnapshotManifest,
   LimitStore,
-  SinkEvent,
   EntitlementSource,
   MemberEntry,
   MembershipSource,
@@ -130,11 +124,6 @@ export type {
   RoleSource,
   RoleSourceFactory,
   SettingsSource,
-  Snapshot,
-  SnapshotAssignable,
-  SnapshotGrant,
-  SnapshotNotEntitled,
-  SnapshotScope,
   SnapshotSource,
   SubjectResolver,
   TenantSettings,
@@ -145,6 +134,24 @@ export type {
   VerifiedToken,
   WhereCompiler,
 } from "./core/interfaces.ts";
+export type {
+  LocalCustomRoleTable,
+  LocalSnapshotManifest,
+  Snapshot,
+  SnapshotAssignable,
+  SnapshotGrant,
+  SnapshotNotEntitled,
+  SnapshotScope,
+} from "./core/snapshot-types.ts";
+export type {
+  AccessEvent,
+  AuthEvent,
+  CredentialEvent,
+  DecisionEvent,
+  DirectoryEvent,
+  MembershipEvent,
+  SinkEvent,
+} from "./core/event-types.ts";
 export { arazzoFindings, simulateArazzo } from "./core/arazzo.ts";
 export type {
   ArazzoFinding,

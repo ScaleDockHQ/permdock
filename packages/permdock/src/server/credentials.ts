@@ -1,5 +1,5 @@
+import type { AuthEvent } from "../core/event-types.ts";
 import type {
-  AuthEvent,
   CredentialVerifier,
   DecisionSink,
   SettingsSource,

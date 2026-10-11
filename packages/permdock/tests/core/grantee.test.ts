@@ -3,15 +3,17 @@ import { describe, expect, it } from "vitest";
 import type { Subject } from "../../src/core/subject.ts";
 
 import {
+  relationHops,
+  relationStart,
+  resourceRoleCondition,
+} from "../../src/core/grantee-conditions.ts";
+import { matchGrantee } from "../../src/core/grantee-match.ts";
+import {
   type RelationGrantee,
   actor,
   asGrantee,
   assurance,
-  matchGrantee,
   relation,
-  relationHops,
-  relationStart,
-  resourceRoleCondition,
 } from "../../src/core/grantee.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";

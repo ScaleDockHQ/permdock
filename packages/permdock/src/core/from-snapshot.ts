@@ -1,5 +1,4 @@
 import type { Decision, ExplainedDecision } from "./decision.ts";
-import type { Snapshot, SnapshotAssignable } from "./interfaces.ts";
 import type {
   DecideOptions,
   PermDock,
@@ -7,6 +6,7 @@ import type {
   SnapshotOptions,
 } from "./permdock.ts";
 import type { Permission } from "./permission-types.ts";
+import type { Snapshot, SnapshotAssignable } from "./snapshot-types.ts";
 import type { Membership } from "./subject.ts";
 
 import { isArazzoSimulateInput, simulateArazzo } from "./arazzo.ts";

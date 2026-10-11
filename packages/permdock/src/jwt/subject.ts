@@ -1,10 +1,10 @@
-import type { AuthEvent, JwtClaims } from "../core/interfaces.ts";
-import type { Membership } from "../core/subject.ts";
+import type { AuthEvent } from "../core/event-types.ts";
+import type { JwtClaims } from "../core/interfaces.ts";
 import type { JwtSubjectOptions, MappedSubject } from "./types.ts";
 
 import { compact } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
-import { anonymousSubject } from "../core/subject.ts";
+import { type Membership, anonymousSubject } from "../core/subject.ts";
 import { assertSubjectConfig, fail, issuerFromDiscovery } from "./config.ts";
 import { verifyDpopProof } from "./dpop.ts";
 import { decodeHeader } from "./header.ts";

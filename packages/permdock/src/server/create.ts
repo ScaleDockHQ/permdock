@@ -1,10 +1,10 @@
 import type { ApprovalStore } from "../approvals/types.ts";
 import type { Decision } from "../core/decision.ts";
 import type { ApprovalHint, ProblemDetails } from "../core/errors.ts";
-import type { Snapshot } from "../core/interfaces.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { RevocationFeed } from "../core/revocations.ts";
+import type { Snapshot } from "../core/snapshot-types.ts";
 import type { Actor, Principal, Subject } from "../core/subject.ts";
 import type { PdpFactory, PdpPermDock } from "../pdp/types.ts";
 import type { Connection, ConnectionOptions } from "./connection.ts";

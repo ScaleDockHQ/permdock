@@ -1,13 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 
+import type { Snapshot } from "../../src/core/snapshot-types.ts";
 import type { CustomRole, Principal } from "../../src/core/subject.ts";
 
 import { principal } from "../../src/conditions/refs.ts";
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { allow, deny } from "../../src/core/grant-builders.ts";
 import { authenticated, relation } from "../../src/core/grantee.ts";
-import { type Snapshot, memoryRoleSource } from "../../src/core/interfaces.ts";
 import { localSnapshotManifest } from "../../src/core/local-manifest.ts";
+import { memoryRoleSource } from "../../src/core/memory-sources.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";

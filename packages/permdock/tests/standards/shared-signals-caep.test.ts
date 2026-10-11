@@ -3,7 +3,7 @@ import { SignJWT, exportJWK, generateKeyPair, importJWK } from "jose";
 import { beforeAll, describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import type { DecisionEvent } from "../../src/core/interfaces.ts";
+import type { DecisionEvent } from "../../src/core/event-types.ts";
 
 import { allow } from "../../src/core/grant-builders.ts";
 import { accessToOcsf, toOcsf } from "../../src/core/ocsf.ts";

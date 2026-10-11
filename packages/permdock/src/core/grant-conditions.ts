@@ -1,17 +1,14 @@
 import type { RelatedCondition } from "../conditions/ast.ts";
 import type { DenialReason, MatchedGrant } from "./decision.ts";
-import type { DecisionEvent } from "./interfaces.ts";
+import type { DecisionEvent } from "./event-types.ts";
 import type { Permission } from "./permission-types.ts";
 import type { Grant, Policy } from "./policy-types.ts";
+import type { RelatedVerdict, RelationReader } from "./relations.ts";
 import type { Subject } from "./subject.ts";
 
 import { evaluateCondition } from "../conditions/evaluate.ts";
 import { compact } from "./compact.ts";
-import {
-  type RelatedVerdict,
-  type RelationReader,
-  resolveRelated,
-} from "./relations.ts";
+import { resolveRelated } from "./relation-walk.ts";
 import { isThenable } from "./thenable.ts";
 
 export function evaluateGrantCondition(

@@ -2,11 +2,10 @@ import type { Credential } from "./credential.ts";
 import type {
   AccessEvent,
   CredentialEvent,
-  DecisionSink,
   MembershipEvent,
   SinkEvent,
-  TokenSigner,
-} from "./interfaces.ts";
+} from "./event-types.ts";
+import type { DecisionSink, TokenSigner } from "./interfaces.ts";
 
 import { compact } from "./compact.ts";
 

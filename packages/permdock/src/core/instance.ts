@@ -1,5 +1,5 @@
 import type { Decision, ExplainedDecision } from "./decision.ts";
-import type { AuthEvent, Snapshot } from "./interfaces.ts";
+import type { AuthEvent } from "./event-types.ts";
 import type {
   DecideOptions,
   DeriveOptions,
@@ -10,6 +10,7 @@ import type {
 } from "./permdock.ts";
 import type { Permission } from "./permission-types.ts";
 import type { Policy } from "./policy-types.ts";
+import type { Snapshot } from "./snapshot-types.ts";
 import type { Membership, Principal, Subject } from "./subject.ts";
 import type { Role } from "./vocabulary.ts";
 

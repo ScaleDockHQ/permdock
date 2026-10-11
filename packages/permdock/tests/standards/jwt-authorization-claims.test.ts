@@ -8,7 +8,7 @@ import {
 import { beforeAll, describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import type { AuthEvent } from "../../src/core/interfaces.ts";
+import type { AuthEvent } from "../../src/core/event-types.ts";
 import type { JwtSubjectOptions } from "../../src/jwt/index.ts";
 
 import { allow } from "../../src/core/grant-builders.ts";

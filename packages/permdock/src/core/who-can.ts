@@ -15,15 +15,16 @@ import { byCodePoint } from "./compare.ts";
 import { evaluate } from "./evaluate.ts";
 import { type EvalEnv, emptyListeners } from "./events.ts";
 import { freezeDeep } from "./freeze.ts";
+import { relationCondition } from "./grantee-conditions.ts";
 import {
   type Grantee,
   type RelationGrantee,
   type RoleGrantee,
   flattenGrantee,
-  relationCondition,
 } from "./grantee.ts";
 import { ownGet } from "./paths.ts";
 import { getResource } from "./permission-registry.ts";
+import { relationWalk } from "./relation-walk.ts";
 import {
   type ReadHolder,
   type RelationCache,
@@ -31,7 +32,6 @@ import {
   DEFAULT_GROUP_DEPTH,
   pendingRelations,
   relationId,
-  relationWalk,
 } from "./relations.ts";
 import {
   expandRelation,

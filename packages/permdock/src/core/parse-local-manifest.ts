@@ -1,4 +1,4 @@
-import type { LocalSnapshotManifest } from "./interfaces.ts";
+import type { LocalSnapshotManifest } from "./snapshot-types.ts";
 
 import { isRecord } from "./compact.ts";
 import { isForbiddenKey } from "./paths.ts";

@@ -1,8 +1,8 @@
 import { SignJWT, exportJWK, generateKeyPair } from "jose";
 import { describe, expect, it } from "vitest";
 
+import type { AuthEvent } from "../../src/core/event-types.ts";
 import type {
-  AuthEvent,
   JwtClaims,
   MembershipSource,
   TokenVerifier,

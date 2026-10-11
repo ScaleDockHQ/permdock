@@ -4,21 +4,20 @@ import type {
   DecisionEvent,
   DirectoryEvent,
   MembershipEvent,
-  TokenFailureCause,
-  TokenVerifier,
-} from "../core/interfaces.ts";
-import type {
-  CatalogEventData,
-  CatalogFindingCode,
-  CloudEventType,
-} from "../core/sink.ts";
+} from "../core/event-types.ts";
+import type { TokenFailureCause, TokenVerifier } from "../core/interfaces.ts";
 import type { JsonWebKeySet } from "../jwt/types.ts";
 import type { ReplayStore } from "../ssf/types.ts";
 
 import { isRecord } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import { isForbiddenKey } from "../core/paths.ts";
-import { CLOUD_EVENT_TYPES } from "../core/sink.ts";
+import {
+  CLOUD_EVENT_TYPES,
+  type CatalogEventData,
+  type CatalogFindingCode,
+  type CloudEventType,
+} from "../core/sink.ts";
 import { joseTokenVerifier } from "../jwt/verifier.ts";
 
 type Envelope<TType extends CloudEventType, TData> = {

@@ -1,4 +1,5 @@
-import type { Snapshot, TokenSigner } from "./interfaces.ts";
+import type { TokenSigner } from "./interfaces.ts";
+import type { Snapshot } from "./snapshot-types.ts";
 
 import { compact } from "./compact.ts";
 

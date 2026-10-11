@@ -3,11 +3,11 @@ import { z } from "zod";
 
 import type { RelationSource } from "../../src/core/interfaces.ts";
 
+import { memoryRelations } from "../../src/core/memory-relations.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import {
   type RelationCache,
-  memoryRelations,
   relationReader,
 } from "../../src/core/relations.ts";
 

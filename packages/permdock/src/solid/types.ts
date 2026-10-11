@@ -19,8 +19,9 @@ import type {
   Decision,
   GrantedDecision,
 } from "../core/decision.ts";
-import type { Snapshot, TokenVerifier } from "../core/interfaces.ts";
+import type { TokenVerifier } from "../core/interfaces.ts";
 import type { Permission } from "../core/permission-types.ts";
+import type { Snapshot } from "../core/snapshot-types.ts";
 
 /** Structural `JSX.Element`: text, a DOM node or a list of children. */
 export type SolidChild =

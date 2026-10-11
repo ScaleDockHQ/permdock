@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import type { SnapshotGrant } from "../../src/core/interfaces.ts";
 import type { Scope } from "../../src/core/scopes.ts";
+import type { SnapshotGrant } from "../../src/core/snapshot-types.ts";
 
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";

@@ -10,7 +10,8 @@ import {
   holdsGlobalCustomRole,
 } from "./custom-roles.ts";
 import { freezeDeep } from "./freeze.ts";
-import { combineWhere, flattenGrantee } from "./grantee.ts";
+import { combineWhere } from "./grantee-match.ts";
+import { flattenGrantee } from "./grantee.ts";
 import { declaredRoleNames } from "./policy.ts";
 import { expandRoleNames } from "./role-loading.ts";
 import { keepsPermission, scopeList, tenantOf } from "./scopes.ts";

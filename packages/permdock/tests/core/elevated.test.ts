@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { AccessEvent, DecisionEvent } from "../../src/core/interfaces.ts";
+import type { AccessEvent, DecisionEvent } from "../../src/core/event-types.ts";
 import type { Principal, Subject } from "../../src/core/subject.ts";
 
 import { breakGlass, supportAccess } from "../../src/core/elevated.ts";

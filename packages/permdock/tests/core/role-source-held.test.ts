@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { RoleSource } from "../../src/core/interfaces.ts";
 import type { CustomRole, Principal } from "../../src/index.ts";
 
-import { memoryRoleSource } from "../../src/core/interfaces.ts";
+import { memoryRoleSource } from "../../src/core/memory-sources.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
 import {
   assets,

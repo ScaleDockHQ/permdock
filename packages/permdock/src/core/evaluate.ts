@@ -6,7 +6,7 @@ import type {
   MatchedGrant,
   Obligation,
 } from "./decision.ts";
-import type { AuthEvent } from "./interfaces.ts";
+import type { AuthEvent } from "./event-types.ts";
 import type { DecideOptions } from "./permdock.ts";
 import type { Permission, ResourceNode } from "./permission-types.ts";
 import type { Grant, Policy } from "./policy-types.ts";
@@ -50,16 +50,13 @@ import {
   matchedOf,
   shouldConsumeQuota,
 } from "./grant-conditions.ts";
-import {
-  combineWhere,
-  flattenGrantee,
-  matchGrantee,
-  resourceRoleCondition,
-} from "./grantee.ts";
+import { resourceRoleCondition } from "./grantee-conditions.ts";
+import { combineWhere, matchGrantee } from "./grantee-match.ts";
+import { flattenGrantee } from "./grantee.ts";
 import { applyQuota } from "./limits.ts";
 import { getResource } from "./permission-registry.ts";
 import { declaredRoleNames, requiresApproval } from "./policy.ts";
-import { resolveRelated } from "./relations.ts";
+import { resolveRelated } from "./relation-walk.ts";
 import { requirementCondition } from "./requires-conditions.ts";
 import { resourceIdOf } from "./resource-ref.ts";
 import { expandRoleNames } from "./role-loading.ts";

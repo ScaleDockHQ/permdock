@@ -1,7 +1,8 @@
 import type { Decision } from "../core/decision.ts";
-import type { Snapshot, TokenVerifier } from "../core/interfaces.ts";
+import type { TokenVerifier } from "../core/interfaces.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
+import type { Snapshot } from "../core/snapshot-types.ts";
 import type {
   ApprovalState,
   ClientPermDock,

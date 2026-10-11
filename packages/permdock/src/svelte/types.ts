@@ -1,7 +1,6 @@
 import type { Snippet } from "svelte";
 import type { Readable } from "svelte/store";
 
-import type { ProviderOptionsBase } from "../client/types.ts";
 import type {
   ApprovalHandle,
   ApprovalState,
@@ -10,12 +9,14 @@ import type {
   FilterResult,
   PermissionSet,
   PermissionState,
+  ProviderOptionsBase,
   SubjectView,
   TenantView,
   UseRolesOptions,
 } from "../client/types.ts";
 import type { ApprovalRequiredDecision, Decision } from "../core/decision.ts";
-import type { Snapshot, TokenVerifier } from "../core/interfaces.ts";
+import type { TokenVerifier } from "../core/interfaces.ts";
+import type { Snapshot } from "../core/snapshot-types.ts";
 
 export type PermDockSvelteOptions = ProviderOptionsBase & {
   /**

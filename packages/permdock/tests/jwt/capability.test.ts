@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { AuthEvent } from "../../src/core/interfaces.ts";
+import type { AuthEvent } from "../../src/core/event-types.ts";
 import type { Subject } from "../../src/core/subject.ts";
 
 import { signCapability } from "../../src/core/capability.ts";

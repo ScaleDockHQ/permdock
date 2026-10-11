@@ -2,7 +2,7 @@ import type {
   DirectoryEvent,
   MembershipEvent,
   SinkEvent,
-} from "../core/interfaces.ts";
+} from "../core/event-types.ts";
 import type { ScimCredential } from "./auth.ts";
 import type {
   DirectoryChange,

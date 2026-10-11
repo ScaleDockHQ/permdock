@@ -1,7 +1,7 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 
 import type { ClientNames } from "../core/clients.ts";
-import type { AuthEvent } from "../core/interfaces.ts";
+import type { AuthEvent } from "../core/event-types.ts";
 import type { Principal } from "../core/subject.ts";
 import type { SupabaseActClaim } from "./claims.ts";
 

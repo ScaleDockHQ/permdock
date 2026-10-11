@@ -1,5 +1,5 @@
-import type { Snapshot } from "../core/interfaces.ts";
 import type { Permission } from "../core/permission-types.ts";
+import type { Snapshot } from "../core/snapshot-types.ts";
 
 import { compact } from "../core/compact.ts";
 import {

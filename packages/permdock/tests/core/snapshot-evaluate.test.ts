@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Condition } from "../../src/conditions/ast.ts";
-import type { Snapshot, SnapshotGrant } from "../../src/core/interfaces.ts";
+import type { Snapshot, SnapshotGrant } from "../../src/core/snapshot-types.ts";
 
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { resource } from "../../src/core/permission-leaf.ts";

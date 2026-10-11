@@ -2,10 +2,9 @@ import type { Condition } from "../conditions/ast.ts";
 import type { ArazzoPlan, ArazzoSimulateInput } from "./arazzo.ts";
 import type { Decision, ExplainedDecision } from "./decision.ts";
 import type { ActivateInput } from "./elevated.ts";
+import type { AuthEvent, DecisionEvent } from "./event-types.ts";
 import type { InstanceEnv } from "./instance-env.ts";
 import type {
-  AuthEvent,
-  DecisionEvent,
   DecisionSink,
   LimitStore,
   EntitlementSource,
@@ -13,7 +12,6 @@ import type {
   RelationSource,
   RoleSource,
   RoleSourceFactory,
-  Snapshot,
   TokenSigner,
 } from "./interfaces.ts";
 import type {
@@ -23,6 +21,7 @@ import type {
 } from "./ownership.ts";
 import type { Permission, ResourceNode } from "./permission-types.ts";
 import type { Policy, PolicyVocabulary } from "./policy-types.ts";
+import type { Snapshot } from "./snapshot-types.ts";
 import type {
   Actor,
   CustomRole,

@@ -1,18 +1,17 @@
 import type { Condition } from "../conditions/ast.ts";
-import type { Grantee } from "../core/grantee.ts";
+import type { SnapshotSource } from "../core/interfaces.ts";
 import type {
   LocalCustomRoleTable,
   LocalSnapshotManifest,
   Snapshot,
   SnapshotGrant,
-  SnapshotSource,
-} from "../core/interfaces.ts";
+} from "../core/snapshot-types.ts";
 import type { CustomRole, Membership, Subject } from "../core/subject.ts";
 
 import { bindConditionRefs } from "../conditions/bind.ts";
 import { compact } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
-import { flattenGrantee } from "../core/grantee.ts";
+import { type Grantee, flattenGrantee } from "../core/grantee.ts";
 import { LOCAL_CUSTOM_ROLE } from "../core/local-role.ts";
 import {
   normalizeMemberships,

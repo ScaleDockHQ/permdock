@@ -1,4 +1,4 @@
-import type { AccessEvent, DecisionEvent } from "./interfaces.ts";
+import type { AccessEvent, DecisionEvent } from "./event-types.ts";
 
 import { compact } from "./compact.ts";
 

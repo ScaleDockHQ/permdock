@@ -1,9 +1,9 @@
+import type { Grant, Policy } from "./policy-types.ts";
 import type {
   LocalCustomRoleTable,
   LocalSnapshotManifest,
   SnapshotGrant,
-} from "./interfaces.ts";
-import type { Grant, Policy } from "./policy-types.ts";
+} from "./snapshot-types.ts";
 import type { CustomRoleGrant } from "./subject.ts";
 
 import { compact } from "./compact.ts";

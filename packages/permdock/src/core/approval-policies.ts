@@ -1,5 +1,5 @@
 import type { Condition } from "../conditions/ast.ts";
-import type { AuthEvent } from "./interfaces.ts";
+import type { AuthEvent } from "./event-types.ts";
 import type {
   ApprovalOption,
   ApprovalRequirement,

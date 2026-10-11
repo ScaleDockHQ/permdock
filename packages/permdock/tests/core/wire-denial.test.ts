@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { DecisionEvent } from "../../src/core/interfaces.ts";
+import type { DecisionEvent } from "../../src/core/event-types.ts";
 
 import { PermDockDeniedError } from "../../src/core/errors.ts";
 import { allow } from "../../src/core/grant-builders.ts";

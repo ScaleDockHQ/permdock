@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import type { DecisionEvent } from "../../src/core/event-types.ts";
 import type { Principal, Subject } from "../../src/core/subject.ts";
 
 import { parseCloudEvent } from "../../src/cloud/webhook.ts";
@@ -13,10 +14,7 @@ import {
   parseCredential,
 } from "../../src/core/credential.ts";
 import { allow } from "../../src/core/grant-builders.ts";
-import {
-  type DecisionEvent,
-  memorySettings,
-} from "../../src/core/interfaces.ts";
+import { memorySettings } from "../../src/core/memory-sources.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";

@@ -2,7 +2,7 @@ import { type Context, createContext } from "react";
 
 import type { ClientStore } from "../client/store.ts";
 import type { DescribeMessages } from "../core/describe.ts";
-import type { Snapshot } from "../core/interfaces.ts";
+import type { Snapshot } from "../core/snapshot-types.ts";
 import type { PermDockDefaults } from "./types.ts";
 
 export const PermDockStoreContext: Context<ClientStore | null> =

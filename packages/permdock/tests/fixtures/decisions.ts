@@ -1,4 +1,4 @@
-import type { DecisionEvent } from "../../src/core/interfaces.ts";
+import type { DecisionEvent } from "../../src/core/event-types.ts";
 import type { PermDock } from "../../src/core/permdock.ts";
 import type { Permission } from "../../src/core/permission-types.ts";
 import type { Decision } from "../../src/index.ts";

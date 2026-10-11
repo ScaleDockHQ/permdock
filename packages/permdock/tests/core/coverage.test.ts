@@ -16,7 +16,7 @@ import {
 } from "../../src/core/errors.ts";
 import { freezeDeep } from "../../src/core/freeze.ts";
 import { allow, deny } from "../../src/core/grant-builders.ts";
-import { memoryRoleSource } from "../../src/core/interfaces.ts";
+import { memoryRoleSource } from "../../src/core/memory-sources.ts";
 import { readPath } from "../../src/core/paths.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";

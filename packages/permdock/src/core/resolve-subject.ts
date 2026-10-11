@@ -1,4 +1,5 @@
-import type { AuthEvent, MembershipSource } from "./interfaces.ts";
+import type { AuthEvent } from "./event-types.ts";
+import type { MembershipSource } from "./interfaces.ts";
 import type { PermDockOptions } from "./permdock.ts";
 import type { Policy } from "./policy-types.ts";
 

@@ -1,25 +1,19 @@
-import type {
-  Capability,
-  LinkPolicy,
-  LinkPrincipal,
-} from "../core/capability.ts";
-import type {
-  AuthEvent,
-  TokenFailureCause,
-  TokenVerifier,
-} from "../core/interfaces.ts";
-import type { Subject } from "../core/subject.ts";
+import type { AuthEvent } from "../core/event-types.ts";
+import type { TokenFailureCause, TokenVerifier } from "../core/interfaces.ts";
 import type { ReplayStore } from "../ssf/types.ts";
 import type { JoseTokenVerifierOptions } from "./types.ts";
 
 import {
+  type Capability,
+  type LinkPolicy,
+  type LinkPrincipal,
   capabilitySubject,
   linkPolicyViolation,
   parseCapability,
   redeemerAllows,
 } from "../core/capability.ts";
 import { compact } from "../core/compact.ts";
-import { anonymousSubject } from "../core/subject.ts";
+import { type Subject, anonymousSubject } from "../core/subject.ts";
 import { decodeHeader, normalizeTyp } from "./header.ts";
 import { joseTokenVerifier } from "./verifier.ts";
 

@@ -1,6 +1,6 @@
-import type { Snapshot, SnapshotAssignable } from "./interfaces.ts";
 import type { Permission } from "./permission-types.ts";
 import type { Policy } from "./policy-types.ts";
+import type { Snapshot, SnapshotAssignable } from "./snapshot-types.ts";
 import type { CustomRole, Subject } from "./subject.ts";
 
 import { assignableIn } from "./assignable.ts";

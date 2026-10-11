@@ -12,12 +12,8 @@ import {
 } from "./custom-roles.ts";
 import { coversRequirements } from "./delegation.ts";
 import { freezeDeep } from "./freeze.ts";
-import {
-  type GranteeMatch,
-  combineWhere,
-  flattenGrantee,
-  matchGrantee,
-} from "./grantee.ts";
+import { combineWhere, matchGrantee } from "./grantee-match.ts";
+import { type GranteeMatch, flattenGrantee } from "./grantee.ts";
 import { getResource, listPermissions } from "./permission-registry.ts";
 import { declaredRoleNames, grantList } from "./policy.ts";
 import { requirementCondition } from "./requires-conditions.ts";

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { Snapshot, SnapshotGrant } from "../../src/core/interfaces.ts";
+import type { Snapshot, SnapshotGrant } from "../../src/core/snapshot-types.ts";
 
 import {
   PermDockApprovalRequiredError,

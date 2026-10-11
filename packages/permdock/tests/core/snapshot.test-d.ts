@@ -1,9 +1,13 @@
 import { describe, expectTypeOf, it } from "vitest";
 
-import type { Snapshot, TokenSigner } from "../../src/core/interfaces.ts";
-import type { PermDock, SnapshotOptions } from "../../src/index.ts";
+import type { TokenSigner } from "../../src/core/interfaces.ts";
+import type { Snapshot } from "../../src/core/snapshot-types.ts";
 
-import { snapshotFor } from "../../src/index.ts";
+import {
+  type PermDock,
+  type SnapshotOptions,
+  snapshotFor,
+} from "../../src/index.ts";
 import { alice, policy } from "../fixtures/saas.ts";
 
 type NotSerializable =

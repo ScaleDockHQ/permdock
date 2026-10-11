@@ -1,6 +1,6 @@
-import type { SnapshotGrant } from "./interfaces.ts";
 import type { PermDock } from "./permdock.ts";
 import type { Permission } from "./permission-types.ts";
+import type { SnapshotGrant } from "./snapshot-types.ts";
 import type { Delegation } from "./subject.ts";
 
 import { coveredByDelegation } from "./delegation.ts";

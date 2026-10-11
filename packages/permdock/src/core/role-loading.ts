@@ -1,4 +1,5 @@
-import type { AuthEvent, RoleSource, RoleSourceFactory } from "./interfaces.ts";
+import type { AuthEvent } from "./event-types.ts";
+import type { RoleSource, RoleSourceFactory } from "./interfaces.ts";
 import type { CustomRole, Subject } from "./subject.ts";
 
 import { isCustomRoleName } from "./custom-roles.ts";

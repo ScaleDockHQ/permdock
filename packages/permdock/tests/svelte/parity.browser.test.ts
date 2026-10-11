@@ -1,7 +1,7 @@
 import { flushSync, mount, unmount } from "svelte";
 import { describe, expect, it, vi } from "vitest";
 
-import type { Snapshot } from "../../src/core/interfaces.ts";
+import type { Snapshot } from "../../src/core/snapshot-types.ts";
 import type { PermissionBoundaryState } from "../../src/svelte/runtime.ts";
 
 import { tenantView } from "../../src/client/views.ts";

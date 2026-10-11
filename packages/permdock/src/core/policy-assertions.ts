@@ -4,12 +4,12 @@ import type { Grant, RoleBinding, RoleScope } from "./policy-types.ts";
 import { compact } from "./compact.ts";
 import { freezeDeep } from "./freeze.ts";
 import {
-  flattenGrantee,
   inheritCondition,
   isGraphRelation,
   relationHops,
   relationStart,
-} from "./grantee.ts";
+} from "./grantee-conditions.ts";
+import { flattenGrantee } from "./grantee.ts";
 import { listPermissions } from "./permission-registry.ts";
 import { isFieldRelation, isSelfParented } from "./resource-relations.ts";
 import { type Scope, resolveScope } from "./scopes.ts";

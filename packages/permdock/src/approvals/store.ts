@@ -4,7 +4,7 @@ import type { Subject } from "../core/subject.ts";
 import { type Approver, flattenApprovers } from "../core/approvers.ts";
 import { compact } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
-import { matchGrantee } from "../core/grantee.ts";
+import { matchGrantee } from "../core/grantee-match.ts";
 import { rootMembershipId } from "../core/scopes.ts";
 import { ApprovalError } from "./errors.ts";
 import { pageApprovals } from "./page.ts";

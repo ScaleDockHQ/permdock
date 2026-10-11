@@ -1,5 +1,6 @@
-import type { AuthEvent, Snapshot } from "./interfaces.ts";
+import type { AuthEvent } from "./event-types.ts";
 import type { Policy, PolicyVocabulary } from "./policy-types.ts";
+import type { Snapshot } from "./snapshot-types.ts";
 import type { CustomRole, Membership, Principal, Subject } from "./subject.ts";
 
 import { compact } from "./compact.ts";

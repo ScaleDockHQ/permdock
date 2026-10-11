@@ -3,10 +3,10 @@ import type { Policy, ResourceNode } from "../index.ts";
 
 import { relationArmSql, restrictedRowsSql } from "../conditions/graph-sql.ts";
 import {
-  flattenGrantee,
   inheritCondition,
   relationCondition,
-} from "../core/grantee.ts";
+} from "../core/grantee-conditions.ts";
+import { flattenGrantee } from "../core/grantee.ts";
 import {
   expandRelation,
   groupEntries,

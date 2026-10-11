@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import type { MemoryEdge } from "../core/relations.ts";
+import type { MemoryEdge } from "../core/memory-relations.ts";
 import type { PermDockConfig } from "./types.ts";
 
 import {

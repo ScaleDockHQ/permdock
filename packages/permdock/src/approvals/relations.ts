@@ -6,12 +6,12 @@ import type { Subject } from "../core/subject.ts";
 
 import { type Approver, approverLeaves } from "../core/approvers.ts";
 import { getRegistry } from "../core/permission-registry.ts";
+import { resolveRelated } from "../core/relation-walk.ts";
 import {
   type RelationCache,
   type RelationReader,
   pendingRelations,
   relationReader,
-  resolveRelated,
 } from "../core/relations.ts";
 import { type ApprovalRequest, approverRelationKey } from "./types.ts";
 

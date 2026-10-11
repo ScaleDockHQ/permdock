@@ -1,4 +1,4 @@
-import type { Snapshot } from "../core/interfaces.ts";
+import type { Snapshot } from "../core/snapshot-types.ts";
 import type { PermDockStorage } from "./types.ts";
 
 import { isJws } from "../client/source.ts";

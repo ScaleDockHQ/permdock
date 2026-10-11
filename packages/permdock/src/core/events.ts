@@ -1,12 +1,8 @@
 import type { LoadedApprovalPolicies } from "./approval-policies.ts";
 import type { CustomGrant } from "./custom-roles.ts";
 import type { Decision } from "./decision.ts";
-import type {
-  AuthEvent,
-  DecisionEvent,
-  DecisionSink,
-  LimitStore,
-} from "./interfaces.ts";
+import type { AuthEvent, DecisionEvent } from "./event-types.ts";
+import type { DecisionSink, LimitStore } from "./interfaces.ts";
 import type { DecideOptions } from "./permdock.ts";
 import type { Permission } from "./permission-types.ts";
 import type { Policy } from "./policy-types.ts";

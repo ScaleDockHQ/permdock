@@ -1,12 +1,12 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 
 import type { Decision } from "../core/decision.ts";
-import type { Snapshot } from "../core/interfaces.ts";
 import type {
   Permission,
   PermissionTree,
   ResourceNode,
 } from "../core/permission-types.ts";
+import type { Snapshot } from "../core/snapshot-types.ts";
 import type {
   ModelContext,
   PermissionGroup,

@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import type { AuthEvent } from "../../src/core/interfaces.ts";
-import type { ClientNames } from "../../src/index.ts";
+import type { AuthEvent } from "../../src/core/event-types.ts";
 
 import {
+  type ClientNames,
   allow,
   createPermDock,
   definePermissions,

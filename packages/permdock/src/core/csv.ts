@@ -1,4 +1,4 @@
-import type { DecisionEvent } from "./interfaces.ts";
+import type { DecisionEvent } from "./event-types.ts";
 
 /** The CSV export columns, in order; the header row of every CSV file. */
 export const CSV_COLUMNS: readonly [

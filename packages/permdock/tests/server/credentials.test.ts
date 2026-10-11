@@ -3,11 +3,12 @@ import { crc32 } from "node:zlib";
 import { describe, expect, it } from "vitest";
 
 import type { Credential } from "../../src/core/credential.ts";
+import type { AuthEvent } from "../../src/core/event-types.ts";
 import type { Subject } from "../../src/core/subject.ts";
 
 import { compact } from "../../src/core/compact.ts";
 import { allow } from "../../src/core/grant-builders.ts";
-import { type AuthEvent, memorySettings } from "../../src/core/interfaces.ts";
+import { memorySettings } from "../../src/core/memory-sources.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { listPermissions } from "../../src/core/permission-registry.ts";

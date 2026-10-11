@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
-import type { Snapshot } from "../../src/core/interfaces.ts";
+import type { Snapshot } from "../../src/core/snapshot-types.ts";
 
 import { createPermDock } from "../../src/core/permdock.ts";
 import { useDescribe, usePermission } from "../../src/react/hooks.ts";

@@ -1,5 +1,5 @@
+import type { AuthEvent } from "./event-types.ts";
 import type {
-  AuthEvent,
   DecisionSink,
   LimitStore,
   MembershipSource,

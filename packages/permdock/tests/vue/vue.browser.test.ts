@@ -9,8 +9,8 @@ import {
   Suspense,
 } from "vue";
 
-import type { Snapshot } from "../../src/core/interfaces.ts";
 import type { Permission } from "../../src/core/permission-types.ts";
+import type { Snapshot } from "../../src/core/snapshot-types.ts";
 
 import { createPermDock } from "../../src/core/permdock.ts";
 import { usePermDock } from "../../src/vue/composables.ts";

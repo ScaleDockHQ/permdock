@@ -2,7 +2,7 @@ import { SignJWT, importJWK } from "jose";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import type { AuthEvent } from "../../src/core/interfaces.ts";
+import type { AuthEvent } from "../../src/core/event-types.ts";
 
 import { subjectFromCiOidc } from "../../src/jwt/index.ts";
 

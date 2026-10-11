@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { ApprovalRequest } from "../../src/approvals/types.ts";
-import type { SinkEvent, TokenVerifier } from "../../src/core/interfaces.ts";
+import type { SinkEvent } from "../../src/core/event-types.ts";
+import type { TokenVerifier } from "../../src/core/interfaces.ts";
 import type { Subject } from "../../src/core/subject.ts";
 
 import { isApprovalError } from "../../src/approvals/errors.ts";

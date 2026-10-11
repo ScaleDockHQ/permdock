@@ -10,7 +10,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import type { Decision } from "../../src/core/decision.ts";
-import type { Snapshot } from "../../src/core/interfaces.ts";
+import type { Snapshot } from "../../src/core/snapshot-types.ts";
 
 import { isPromiseLike } from "../../src/client/source.ts";
 import { type ClientStore, createClientStore } from "../../src/client/store.ts";

@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { principal } from "../../src/conditions/refs.ts";
 import { allow, deny } from "../../src/core/grant-builders.ts";
+import { matchGrantee } from "../../src/core/grantee-match.ts";
 import {
   actor,
   anyone,
@@ -11,7 +12,6 @@ import {
   authenticated,
   flattenGrantee,
   hasAnyone,
-  matchGrantee,
   plan,
   relation,
   roleNameOf,

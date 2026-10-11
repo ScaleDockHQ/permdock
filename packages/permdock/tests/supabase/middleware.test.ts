@@ -1,8 +1,7 @@
 import { defineMiddleware, pipeline } from "@supabase/middleware";
 import { describe, expect, expectTypeOf, it } from "vitest";
 
-import type { SinkEvent } from "../../src/core/interfaces.ts";
-import type { SupabaseJwtClaims } from "../../src/supabase/middleware.ts";
+import type { SinkEvent } from "../../src/core/event-types.ts";
 import type { PermDockOf } from "../fixtures/vocabulary.ts";
 
 import {
@@ -11,7 +10,10 @@ import {
 } from "../../src/approvals/index.ts";
 import { APPROVAL_HEADER } from "../../src/approvals/types.ts";
 import { verifyWebBotAuth } from "../../src/server/web-bot-auth.ts";
-import { createPermDock } from "../../src/supabase/middleware.ts";
+import {
+  type SupabaseJwtClaims,
+  createPermDock,
+} from "../../src/supabase/middleware.ts";
 import { subjectFromSupabase } from "../../src/supabase/subject.ts";
 import {
   saasPermissions,

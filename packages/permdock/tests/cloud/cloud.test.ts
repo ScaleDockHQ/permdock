@@ -6,7 +6,8 @@ import type {
   ApprovalRequest,
   ApprovalStatus,
 } from "../../src/approvals/types.ts";
-import type { SinkEvent, Snapshot } from "../../src/core/interfaces.ts";
+import type { SinkEvent } from "../../src/core/event-types.ts";
+import type { Snapshot } from "../../src/core/snapshot-types.ts";
 import type { Subject } from "../../src/core/subject.ts";
 
 import { isApprovalError } from "../../src/approvals/errors.ts";

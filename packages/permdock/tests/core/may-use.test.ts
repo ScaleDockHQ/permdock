@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import type { Snapshot, SnapshotGrant } from "../../src/core/interfaces.ts";
 import type { PermDock } from "../../src/core/permdock.ts";
+import type { Snapshot, SnapshotGrant } from "../../src/core/snapshot-types.ts";
 
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { allow, deny } from "../../src/core/grant-builders.ts";

@@ -1,12 +1,14 @@
-import type { AuthInfo } from "@modelcontextprotocol/server";
-
 import { Client } from "@modelcontextprotocol/client";
-import { InMemoryTransport, McpServer } from "@modelcontextprotocol/server";
+import {
+  type AuthInfo,
+  InMemoryTransport,
+  McpServer,
+} from "@modelcontextprotocol/server";
 import { call, ORPCError, os } from "@orpc/server";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import type { SinkEvent } from "../../src/core/interfaces.ts";
+import type { SinkEvent } from "../../src/core/event-types.ts";
 
 import { createPermDock as createMcpPermDock } from "../../src/mcp/index.ts";
 import {

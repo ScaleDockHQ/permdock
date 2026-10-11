@@ -1,6 +1,6 @@
 import { describe } from "vitest";
 
-import { memorySettings } from "../../src/core/interfaces.ts";
+import { memorySettings } from "../../src/core/memory-sources.ts";
 import {
   generateApiKey,
   memoryCredentials,

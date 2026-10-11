@@ -6,7 +6,7 @@ import {
   type JSX,
 } from "solid-js";
 
-import type { Snapshot } from "../core/interfaces.ts";
+import type { Snapshot } from "../core/snapshot-types.ts";
 import type { PermDockProviderProps } from "./types.ts";
 
 import { providerStore, switchTenant } from "../client/provider-store.ts";
