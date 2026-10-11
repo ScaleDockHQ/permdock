@@ -27,10 +27,8 @@ import {
   subjectFromApiKey,
 } from "../../src/server/credentials.ts";
 import { createPermDock as createServerPermDock } from "../../src/server/index.ts";
-import {
-  testCredentialVerifier,
-  testSubjectResolver,
-} from "../../src/testing/conformance.ts";
+import { testCredentialVerifier } from "../../src/testing/conformance/credentials.ts";
+import { testSubjectResolver } from "../../src/testing/conformance/identity.ts";
 
 const org = { organization: { field: "orgId", memberOf: "organization" } };
 const permissions = definePermissions({

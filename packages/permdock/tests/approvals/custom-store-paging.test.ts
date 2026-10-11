@@ -1,11 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import type {
-  ApprovalListQuery,
-  ApprovalStore,
-} from "../../src/approvals/index.ts";
-
 import {
+  type ApprovalListQuery,
+  type ApprovalStore,
   approvalPageSize,
   decodeApprovalCursor,
   encodeApprovalCursor,
@@ -13,7 +10,7 @@ import {
   memoryApprovalStore,
   pageApprovals,
 } from "../../src/approvals/index.ts";
-import { testApprovalStore } from "../../src/testing/conformance.ts";
+import { testApprovalStore } from "../../src/testing/conformance/approvals.ts";
 
 /** A custom store that keeps its own list and pages it with the exported helpers. */
 function pagedStore(): ApprovalStore {

@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
 
-import type { DirectoryStore } from "../../src/scim/types.ts";
-
 import { groupFromBody, schemasOk, userFromBody } from "../../src/scim/body.ts";
 import {
   locationOf,
@@ -10,8 +8,12 @@ import {
 } from "../../src/scim/route.ts";
 import { directoryMembershipSource } from "../../src/scim/source.ts";
 import { memoryDirectoryStore } from "../../src/scim/store.ts";
-import { PATCH_SCHEMA, USER_SCHEMA } from "../../src/scim/types.ts";
-import { testMembershipSource } from "../../src/testing/conformance.ts";
+import {
+  type DirectoryStore,
+  PATCH_SCHEMA,
+  USER_SCHEMA,
+} from "../../src/scim/types.ts";
+import { testMembershipSource } from "../../src/testing/conformance/identity.ts";
 
 const TENANT = "o_acme";
 const META = { created: "", lastModified: "" };

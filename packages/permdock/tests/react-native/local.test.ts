@@ -26,7 +26,7 @@ import {
   connectSource,
   createNativeStore,
 } from "../../src/react-native/store.ts";
-import { testSnapshotSource } from "../../src/testing/conformance.ts";
+import { testSnapshotSource } from "../../src/testing/conformance/runtime-stores.ts";
 
 const permissions = definePermissions({
   job: resource({

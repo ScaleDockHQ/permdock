@@ -36,7 +36,7 @@ export type {
   MatrixOutcome,
 } from "./describe-policy.ts";
 export { snapshotFixture } from "./snapshot-fixture.ts";
-export { testHttpAdapter } from "./http-adapter.ts";
+export { testHttpAdapter } from "./http-adapter/scenarios.ts";
 export type {
   HttpAdapterOptions,
   HttpCall,
@@ -45,7 +45,7 @@ export type {
   HttpResult,
   HttpScenarioDomain,
   HttpScenarioName,
-} from "./http-adapter.ts";
+} from "./http-adapter/domain.ts";
 export {
   AGENT_THROWING_ROW,
   AGENT_THROWING_USER,
@@ -75,28 +75,34 @@ export type {
   AuthZenVectors,
   TestAuthZenOptions,
 } from "./authzen.ts";
-export type { ApprovalStoreOptions } from "./conformance.ts";
+export type { ApprovalStoreOptions } from "./conformance/approvals.ts";
 export {
   testApprovalPolicySource,
   testApprovalStore,
+} from "./conformance/approvals.ts";
+export { testWhereCompiler } from "./conformance/where.ts";
+export {
   testCredentialVerifier,
-  testDecisionSink,
-  testEntitlementSource,
-  testLimitStore,
-  testDirectoryStore,
   testReplayStore,
   testRevocationFeed,
-  testMembershipSource,
-  testRelationSource,
-  testPolicySource,
-  testRoleSource,
-  testSettingsSource,
-  testSnapshotSource,
-  testSubjectResolver,
   testTokenSigner,
   testTokenVerifier,
-  testWhereCompiler,
-} from "./conformance.ts";
+} from "./conformance/credentials.ts";
+export {
+  testDecisionSink,
+  testLimitStore,
+  testPolicySource,
+  testSnapshotSource,
+} from "./conformance/runtime-stores.ts";
+export { testRelationSource } from "./conformance/relations.ts";
+export {
+  testEntitlementSource,
+  testDirectoryStore,
+  testMembershipSource,
+  testRoleSource,
+  testSettingsSource,
+  testSubjectResolver,
+} from "./conformance/identity.ts";
 export {
   jwtFixtureAudience,
   jwtFixtureIssuer,

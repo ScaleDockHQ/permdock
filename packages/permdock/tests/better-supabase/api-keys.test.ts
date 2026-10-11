@@ -13,7 +13,7 @@ import {
   apiKeyClaimOptions,
   apiKeyVerifier,
 } from "../../src/better-supabase/index.ts";
-import { testCredentialVerifier } from "../../src/testing/conformance.ts";
+import { testCredentialVerifier } from "../../src/testing/conformance/credentials.ts";
 import { supabaseHookManifestFixture } from "../../src/testing/supabase-fixtures.ts";
 
 const ORG = "11111111-1111-4111-8111-111111111111";

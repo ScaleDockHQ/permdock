@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import { subjectFromClerk } from "../../src/clerk/index.ts";
-import { testSubjectResolver } from "../../src/testing/conformance.ts";
+import { testSubjectResolver } from "../../src/testing/conformance/identity.ts";
 
 const has = (): boolean => false;
 

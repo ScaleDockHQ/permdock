@@ -23,7 +23,7 @@ import { fromStripeEntitlements } from "../../src/core/stripe-entitlements.ts";
 import {
   testEntitlementSource,
   testMembershipSource,
-} from "../../src/testing/conformance.ts";
+} from "../../src/testing/conformance/identity.ts";
 
 const Doc = {
   "~standard": {

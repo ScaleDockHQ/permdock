@@ -16,7 +16,7 @@ import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
-import { testApprovalPolicySource } from "../../src/testing/conformance.ts";
+import { testApprovalPolicySource } from "../../src/testing/conformance/approvals.ts";
 import { permissions, policy, rows } from "../fixtures/expenses.ts";
 
 const [large, small] = rows.expense;

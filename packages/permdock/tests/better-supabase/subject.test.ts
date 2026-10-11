@@ -5,7 +5,7 @@ import type { SupabaseHookManifest } from "../../src/supabase/manifest.ts";
 import { subjectFromBetterSupabase } from "../../src/better-supabase/index.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
-import { testSubjectResolver } from "../../src/testing/conformance.ts";
+import { testSubjectResolver } from "../../src/testing/conformance/identity.ts";
 import { supabaseHookManifestFixture } from "../../src/testing/supabase-fixtures.ts";
 
 const ORG = "11111111-1111-4111-8111-111111111111";

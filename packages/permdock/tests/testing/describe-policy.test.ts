@@ -14,18 +14,16 @@ import {
   definePolicy,
   defineRoles,
   deny,
-  principal,
-  relation,
-  resource,
-  role,
-  sqlFunction,
-} from "../../src/index.ts";
-import {
   memoryLimitStore,
   memoryPolicySource,
   memoryRevocationFeed,
   mergeHostedGrants,
   parsePolicyDocument,
+  principal,
+  relation,
+  resource,
+  role,
+  sqlFunction,
 } from "../../src/index.ts";
 import {
   joseTokenSigner,
@@ -34,22 +32,26 @@ import {
 } from "../../src/jwt/index.ts";
 import { memoryDirectoryStore } from "../../src/scim/index.ts";
 import { memoryReplayStore } from "../../src/ssf/index.ts";
+import { testApprovalStore } from "../../src/testing/conformance/approvals.ts";
 import {
-  testApprovalStore,
-  testDecisionSink,
-  testLimitStore,
-  testDirectoryStore,
   testReplayStore,
   testRevocationFeed,
-  testMembershipSource,
-  testPolicySource,
-  testRoleSource,
-  testSnapshotSource,
-  testSubjectResolver,
   testTokenSigner,
   testTokenVerifier,
-  testWhereCompiler,
-} from "../../src/testing/conformance.ts";
+} from "../../src/testing/conformance/credentials.ts";
+import {
+  testDirectoryStore,
+  testMembershipSource,
+  testRoleSource,
+  testSubjectResolver,
+} from "../../src/testing/conformance/identity.ts";
+import {
+  testDecisionSink,
+  testLimitStore,
+  testPolicySource,
+  testSnapshotSource,
+} from "../../src/testing/conformance/runtime-stores.ts";
+import { testWhereCompiler } from "../../src/testing/conformance/where.ts";
 import { describePolicy } from "../../src/testing/describe-policy.ts";
 import { jwtFixtureJwks } from "../../src/testing/jwt-fixtures.ts";
 import {

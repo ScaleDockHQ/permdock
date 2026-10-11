@@ -17,7 +17,7 @@ import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
-import { testRelationSource } from "../../src/testing/conformance.ts";
+import { testRelationSource } from "../../src/testing/conformance/relations.ts";
 
 const Folder = z.object({
   id: z.string(),

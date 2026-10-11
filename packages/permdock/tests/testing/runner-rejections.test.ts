@@ -1,24 +1,27 @@
 import type * as Vitest from "vitest";
-import type { TestContext } from "vitest";
 
-import { describe, vi } from "vitest";
+import { type TestContext, describe, vi } from "vitest";
 
-import type { PolicySource } from "../../src/core/hosted.ts";
 import type {
   RevocationEvent,
   RevocationFeed,
 } from "../../src/core/revocations.ts";
 
-import { memoryPolicySource } from "../../src/core/hosted.ts";
+import {
+  type PolicySource,
+  memoryPolicySource,
+} from "../../src/core/hosted.ts";
 import { memoryLimitStore } from "../../src/core/limits.ts";
 import {
   testCredentialVerifier,
-  testLimitStore,
-  testMembershipSource,
-  testPolicySource,
-  testRelationSource,
   testRevocationFeed,
-} from "../../src/testing/conformance.ts";
+} from "../../src/testing/conformance/credentials.ts";
+import { testMembershipSource } from "../../src/testing/conformance/identity.ts";
+import { testRelationSource } from "../../src/testing/conformance/relations.ts";
+import {
+  testLimitStore,
+  testPolicySource,
+} from "../../src/testing/conformance/runtime-stores.ts";
 import { relations } from "../fixtures/graph.ts";
 
 const rejecting = vi.hoisted(() => {

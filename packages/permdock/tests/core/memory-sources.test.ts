@@ -11,8 +11,8 @@ import {
 import {
   testMembershipSource,
   testRoleSource,
-  testSnapshotSource,
-} from "../../src/testing/conformance.ts";
+} from "../../src/testing/conformance/identity.ts";
+import { testSnapshotSource } from "../../src/testing/conformance/runtime-stores.ts";
 
 const snapshot: Snapshot = {
   v: 1,

@@ -8,7 +8,7 @@ import { createPermDock } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
-import { testRelationSource } from "../../src/testing/conformance.ts";
+import { testRelationSource } from "../../src/testing/conformance/relations.ts";
 import {
   engAdmin,
   permissions,

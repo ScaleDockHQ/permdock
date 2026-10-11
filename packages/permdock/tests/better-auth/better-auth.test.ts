@@ -13,7 +13,7 @@ import { memorySink } from "../../src/core/sink.ts";
 import {
   testRoleSource,
   testSubjectResolver,
-} from "../../src/testing/conformance.ts";
+} from "../../src/testing/conformance/identity.ts";
 
 const Post = z.object({ id: z.string(), authorId: z.string() });
 

@@ -16,21 +16,25 @@ import { role } from "../../src/core/role-builder.ts";
 import { defineRoles } from "../../src/core/vocabulary.ts";
 import { generateApiKey } from "../../src/server/credentials.ts";
 import { memoryReplayStore } from "../../src/ssf/index.ts";
+import { testApprovalStore } from "../../src/testing/conformance/approvals.ts";
 import {
-  testApprovalStore,
   testCredentialVerifier,
-  testDecisionSink,
-  testEntitlementSource,
-  testLimitStore,
-  testMembershipSource,
-  testPolicySource,
-  testRelationSource,
   testReplayStore,
-  testRoleSource,
-  testSnapshotSource,
   testTokenSigner,
-  testWhereCompiler,
-} from "../../src/testing/conformance.ts";
+} from "../../src/testing/conformance/credentials.ts";
+import {
+  testEntitlementSource,
+  testMembershipSource,
+  testRoleSource,
+} from "../../src/testing/conformance/identity.ts";
+import { testRelationSource } from "../../src/testing/conformance/relations.ts";
+import {
+  testDecisionSink,
+  testLimitStore,
+  testPolicySource,
+  testSnapshotSource,
+} from "../../src/testing/conformance/runtime-stores.ts";
+import { testWhereCompiler } from "../../src/testing/conformance/where.ts";
 import { relations } from "../fixtures/graph.ts";
 
 describe("testMembershipSource with list and version", () => {

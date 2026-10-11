@@ -1,14 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import type { SqlQuery } from "../../src/supabase/sources.ts";
-
 import {
+  type SqlQuery,
   authzVersion,
   fromJunction,
   fromSupabasePostgres,
   fromTable,
 } from "../../src/supabase/sources.ts";
-import { testMembershipSource } from "../../src/testing/conformance.ts";
+import { testMembershipSource } from "../../src/testing/conformance/identity.ts";
 
 type Call = { readonly text: string; readonly values: readonly unknown[] };
 

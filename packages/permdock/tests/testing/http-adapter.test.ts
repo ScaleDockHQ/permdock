@@ -1,19 +1,19 @@
 import type { PermDock, Permission } from "../../src/index.ts";
-import type { ServerPermDock } from "../../src/server/index.ts";
 import type {
   HttpCall,
   HttpMounted,
   HttpResult,
   HttpScenarioDomain,
-} from "../../src/testing/http-adapter.ts";
+} from "../../src/testing/http-adapter/domain.ts";
 
 import { APPROVAL_HEADER } from "../../src/approvals/index.ts";
 import {
-  createPermDock,
   PermDockRevokedError,
+  type ServerPermDock,
+  createPermDock,
   problemFromError,
 } from "../../src/server/index.ts";
-import { testHttpAdapter } from "../../src/testing/http-adapter.ts";
+import { testHttpAdapter } from "../../src/testing/http-adapter/scenarios.ts";
 import { saasPermissions as p } from "../../src/testing/saas/index.ts";
 
 type Handler = (context: {
