@@ -22,8 +22,11 @@ const NODE_RESOURCE: unique symbol = Symbol.for("permdock.resource");
 const TREE_LEAVES: unique symbol = Symbol.for("permdock.leaves");
 const LEAF_FORMER: unique symbol = Symbol.for("permdock.former");
 
-/** Phantom key carrying a tree's resource `x` type for `getResource`. */
-declare const RESOURCE_X: unique symbol;
+/**
+ * Phantom key carrying a tree's resource `x` type for `getResource`. Exported
+ * as a type only, so a consumer's declaration emit can name it; it has no value.
+ */
+export declare const RESOURCE_X: unique symbol;
 
 /** `definePermissions` options. */
 export type DefinePermissionsOptions<PX = never, RX = never> = {

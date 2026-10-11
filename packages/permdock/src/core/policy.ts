@@ -1931,7 +1931,7 @@ function mergeBindings(items: readonly RoleBinding[]): {
   return { roles: [...merged.values()], rolesByName: merged };
 }
 
-export const POLICY_X: unique symbol = Symbol.for("permdock.policy-x");
+const POLICY_X: unique symbol = Symbol.for("permdock.policy-x");
 
 /** The app data schemas of `policy`. */
 export function policyX(policy: object): PolicyAppDataSchemas | undefined {

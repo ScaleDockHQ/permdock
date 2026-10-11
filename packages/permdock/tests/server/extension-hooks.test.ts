@@ -189,6 +189,39 @@ describe("server context", () => {
     expect(permdock.subject.context).toEqual({ region: "eu" });
     expect(errorsOf(permdock)).toHaveLength(1);
   });
+
+  it("merges request values under an async policy.context", async () => {
+    const asyncContext = definePolicy(permissions, {
+      roles: [role("member", [allow(permissions.post.read)])],
+      subject: (user: { id: string } | null) =>
+        user === null ? null : { id: user.id, roles: ["member"] },
+      context: async () => ({ region: "eu" }),
+    });
+    const server = createPermDock(asyncContext, {
+      subject: () => ({ id: "u1" }),
+      context: () => ({ region: "us", tier: "gold" }),
+    });
+    const permdock = await server.permdock(request());
+    expect(permdock.subject.context).toEqual({ region: "eu", tier: "gold" });
+  });
+
+  it("stops delivering errors to a handler once it unsubscribes", async () => {
+    const server = createPermDock(permissionsOnly, {
+      subject: () => ({ id: "u1" }),
+      context: () => {
+        throw new Error("no geo");
+      },
+    });
+    const permdock = await server.permdock(request());
+    const seen: unknown[] = [];
+    const off = permdock.on("error", (error) => {
+      seen.push(error);
+    });
+    expect(seen).toHaveLength(1);
+    off();
+    expect(errorsOf(permdock)).toHaveLength(1);
+    expect(seen).toHaveLength(1);
+  });
 });
 
 describe("server wrap", () => {
