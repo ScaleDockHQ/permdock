@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, it } from "vitest";
 
 import { pd055 } from "../../src/cli/doctor-collect.ts";
-import { pd056 } from "../../src/cli/doctor-sql.ts";
+import { pd056, pd066 } from "../../src/cli/doctor-sql.ts";
 import { project, removeProjects } from "./doctor-kit.ts";
 
 afterAll(removeProjects);
@@ -118,5 +118,55 @@ create function public.visible(p uuid) returns boolean language sql as $$ select
     });
     expect(pd056(cwd, {})).toEqual([]);
     expect(pd056(cwd, config)).toEqual([]);
+  });
+});
+
+describe("PD066 a materialised table still in the migrations", () => {
+  const config = {
+    rls: {
+      migrate: {
+        helpers: { has_perm: { form: "row", scope: "tenant" } },
+        tables: { user_permissions: {} },
+      },
+    },
+  } as const;
+  const LEGACY = `create table public.user_permissions (user_id uuid, permission text);
+create function public.sync() returns trigger language plpgsql as $$ begin delete from public.user_permissions; return null; end $$;
+create trigger sync after insert on public.memberships for each statement execute function public.sync();
+`;
+
+  it("names the first reader while one remains", () => {
+    const cwd = project({
+      "supabase/migrations/001_legacy.sql": `${LEGACY}create view public.mine as select * from user_permissions;\n`,
+    });
+    expect(pd066(cwd, config)).toEqual([
+      {
+        code: "PD066",
+        severity: "warning",
+        message:
+          "public.user_permissions is still read by 1 object(s), first view public.mine at supabase/migrations/001_legacy.sql:4",
+        fix: "rewrite each reader onto the permdock helpers, then run permdock rls migrate --retire-out",
+      },
+    ]);
+  });
+
+  it("says --retire-out is ready with no reader, and is quiet once dropped", () => {
+    const cwd = project({ "supabase/migrations/001_legacy.sql": LEGACY });
+    expect(pd066(cwd, config)).toEqual([
+      {
+        code: "PD066",
+        severity: "warning",
+        message:
+          "public.user_permissions has no reader left, but the migrations still create it and its 1 refresh trigger(s)",
+        fix: "run permdock rls migrate --sql <dir> --retire-out supabase/migrations/ and apply the migration it writes",
+      },
+    ]);
+    const dropped = project({
+      "supabase/migrations/001_legacy.sql": LEGACY,
+      "supabase/migrations/002_retire.sql":
+        "drop table public.user_permissions;\n",
+    });
+    expect(pd066(dropped, config)).toEqual([]);
+    expect(pd066(cwd, {})).toEqual([]);
   });
 });
