@@ -39,6 +39,7 @@
     "permdock": "workspace:*",
     "react": "catalog:",
     "react-dom": "catalog:",
+    "shiki": "catalog:",
     "unist-util-visit": "catalog:",
     "valibot": "catalog:",
     "zod": "catalog:"
