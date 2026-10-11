@@ -1,6 +1,8 @@
-import { readFileSync } from "node:fs";
-
-import type { DoctorFinding, DoctorInput } from "../shared/doctor-types.ts";
+import type {
+  DoctorFiles,
+  DoctorFinding,
+  DoctorInput,
+} from "../shared/doctor-types.ts";
 import type { RlsSqlContext } from "../sql/context.ts";
 import type { PermDockConfig } from "../types.ts";
 
@@ -9,6 +11,7 @@ import { supabaseTenantClaim } from "../../supabase/budget.ts";
 import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
 import { rel, sqlFiles } from "../files.ts";
 import { MIGRATION_DIRS } from "../shared/constants.ts";
+import { filesOf } from "../shared/doctor-files.ts";
 import { compileGrants } from "../sql/compile.ts";
 import { tableKey } from "../sql/deciding-columns.ts";
 import { group, sqlStatements } from "../sql/statements.ts";
@@ -35,6 +38,7 @@ function rowKey(values: readonly string[]): string {
 
 /** The rows of the last statement that seeds or clears `table`, in migration order. */
 function lastSeed(
+  files: DoctorFiles,
   cwd: string,
   config: PermDockConfig,
   table: string,
@@ -44,7 +48,7 @@ function lastSeed(
     cwd,
     config.doctor?.migrations ?? MIGRATION_DIRS,
   )) {
-    for (const { text } of sqlStatements(readFileSync(file, "utf8"))) {
+    for (const { text } of sqlStatements(files.read(file))) {
       const insert = SEED_INSERT.exec(text);
       if (insert !== null && tableKey(group(insert, 1)) === table) {
         const rows = new Set<string>();
@@ -89,7 +93,12 @@ export async function pd054(
     return [];
   }
   const schema = rls?.schema ?? rls?.rbac?.schema ?? PERMDOCK_SCHEMA;
-  const seeded = lastSeed(cwd, config, `${schema}.role_permissions`);
+  const seeded = lastSeed(
+    filesOf(input),
+    cwd,
+    config,
+    `${schema}.role_permissions`,
+  );
   if (seeded === undefined) {
     return [];
   }

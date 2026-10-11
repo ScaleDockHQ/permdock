@@ -1,7 +1,6 @@
-import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import type { DoctorFinding } from "../shared/doctor-types.ts";
+import type { DoctorFiles, DoctorFinding } from "../shared/doctor-types.ts";
 import type { PermDockConfig } from "../types.ts";
 
 import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
@@ -12,6 +11,7 @@ import {
   retirePlan,
 } from "../rls/retire.ts";
 import { MIGRATION_DIRS } from "../shared/constants.ts";
+import { nodeFiles } from "../shared/doctor-files.ts";
 import { tableKey } from "../sql/deciding-columns.ts";
 import { group, sqlStatements } from "../sql/statements.ts";
 import { supautilsRejections } from "../sql/supautils.ts";
@@ -35,21 +35,26 @@ function header(text: string): string {
   return text.replaceAll(/\$([A-Za-z_]*)\$[\s\S]*?\$\1\$/gu, "$$$$");
 }
 
-function isSupabase(cwd: string, config: PermDockConfig): boolean {
+function isSupabase(
+  files: DoctorFiles,
+  cwd: string,
+  config: PermDockConfig,
+): boolean {
   return (
-    existsSync(join(cwd, "supabase")) ||
+    files.exists(join(cwd, "supabase")) ||
     config.rls?.dialect === "supabase" ||
     config.supabase !== undefined
   );
 }
 
 function migrationStatements(
+  files: DoctorFiles,
   cwd: string,
   config: PermDockConfig,
 ): readonly SqlStatement[] {
   return sqlFiles(cwd, config.doctor?.migrations ?? MIGRATION_DIRS).flatMap(
     (file) =>
-      sqlStatements(readFileSync(file, "utf8")).map((statement) =>
+      sqlStatements(files.read(file)).map((statement) =>
         Object.assign({ file: rel(cwd, file) }, statement),
       ),
   );
@@ -71,8 +76,9 @@ function unquote(name: string): string {
 export function pd046(
   cwd: string,
   config: PermDockConfig,
+  files: DoctorFiles = nodeFiles,
 ): readonly DoctorFinding[] {
-  if (!existsSync(join(cwd, "supabase/config.toml"))) {
+  if (!files.exists(join(cwd, "supabase/config.toml"))) {
     return [];
   }
   const schema =
@@ -100,11 +106,12 @@ const USER_METADATA = /\b(raw_user_meta_data|user_metadata)\b/giu;
 export function pd047(
   cwd: string,
   config: PermDockConfig,
+  files: DoctorFiles = nodeFiles,
 ): readonly DoctorFinding[] {
-  if (!isSupabase(cwd, config)) {
+  if (!isSupabase(files, cwd, config)) {
     return [];
   }
-  return migrationStatements(cwd, config).flatMap((statement) =>
+  return migrationStatements(files, cwd, config).flatMap((statement) =>
     [...statement.text.matchAll(USER_METADATA)].map((match) => ({
       code: "PD047",
       severity: "warning" as const,
@@ -157,11 +164,12 @@ function createdFunctions(
 export function pd048(
   cwd: string,
   config: PermDockConfig,
+  files: DoctorFiles = nodeFiles,
 ): readonly DoctorFinding[] {
-  if (!isSupabase(cwd, config)) {
+  if (!isSupabase(files, cwd, config)) {
     return [];
   }
-  const statements = migrationStatements(cwd, config);
+  const statements = migrationStatements(files, cwd, config);
   const altered = new Set(
     statements.flatMap((statement) => {
       const match = ALTER_SEARCH_PATH.exec(statement.text);
@@ -221,11 +229,12 @@ function revokedExecute(
 export function pd049(
   cwd: string,
   config: PermDockConfig,
+  files: DoctorFiles = nodeFiles,
 ): readonly DoctorFinding[] {
-  if (!isSupabase(cwd, config)) {
+  if (!isSupabase(files, cwd, config)) {
     return [];
   }
-  const statements = migrationStatements(cwd, config);
+  const statements = migrationStatements(files, cwd, config);
   const revoked = revokedExecute(statements);
   const findings: DoctorFinding[] = [];
   for (const fn of createdFunctions(statements)) {
@@ -271,13 +280,14 @@ const DROP_TABLE =
 export function pd050(
   cwd: string,
   config: PermDockConfig,
+  files: DoctorFiles = nodeFiles,
 ): readonly DoctorFinding[] {
-  if (!isSupabase(cwd, config)) {
+  if (!isSupabase(files, cwd, config)) {
     return [];
   }
   const created = new Map<string, SqlStatement>();
   const enabled = new Set<string>();
-  for (const statement of migrationStatements(cwd, config)) {
+  for (const statement of migrationStatements(files, cwd, config)) {
     const table = CREATE_TABLE.exec(statement.text);
     if (table !== null) {
       created.set(tableKey(group(table, 1)), statement);
@@ -315,11 +325,12 @@ const UNWRAPPED_AUTH = /(?<!\bselect\s{1,20})\bauth\.(uid|jwt)\s*\(\s*\)/giu;
 export function pd051(
   cwd: string,
   config: PermDockConfig,
+  files: DoctorFiles = nodeFiles,
 ): readonly DoctorFinding[] {
-  if (!isSupabase(cwd, config)) {
+  if (!isSupabase(files, cwd, config)) {
     return [];
   }
-  return migrationStatements(cwd, config).flatMap((statement) => {
+  return migrationStatements(files, cwd, config).flatMap((statement) => {
     const policy = CREATE_POLICY.exec(statement.text);
     if (policy === null) {
       return [];
@@ -349,11 +360,12 @@ export function pd051(
 export function pd052(
   cwd: string,
   config: PermDockConfig,
+  files: DoctorFiles = nodeFiles,
 ): readonly DoctorFinding[] {
-  if (!isSupabase(cwd, config)) {
+  if (!isSupabase(files, cwd, config)) {
     return [];
   }
-  return migrationStatements(cwd, config).flatMap((statement) => {
+  return migrationStatements(files, cwd, config).flatMap((statement) => {
     const policy = CREATE_POLICY.exec(statement.text);
     const rest = policy?.[3] ?? "";
     if (
@@ -445,13 +457,14 @@ const CREATE_INDEX = new RegExp(
 export function pd053(
   cwd: string,
   config: PermDockConfig,
+  files: DoctorFiles = nodeFiles,
 ): readonly DoctorFinding[] {
-  if (!isSupabase(cwd, config)) {
+  if (!isSupabase(files, cwd, config)) {
     return [];
   }
   const keys: ForeignKey[] = [];
   const indexed = new Set<string>();
-  for (const statement of migrationStatements(cwd, config)) {
+  for (const statement of migrationStatements(files, cwd, config)) {
     const table = CREATE_TABLE.exec(statement.text);
     if (table !== null) {
       const key = tableKey(group(table, 1));
@@ -512,11 +525,12 @@ function at(statement: SqlStatement): string {
 export function pd062(
   cwd: string,
   config: PermDockConfig,
+  files: DoctorFiles = nodeFiles,
 ): readonly DoctorFinding[] {
-  if (!isSupabase(cwd, config)) {
+  if (!isSupabase(files, cwd, config)) {
     return [];
   }
-  const statements = migrationStatements(cwd, config);
+  const statements = migrationStatements(files, cwd, config);
   const latest = new Map<string, string>();
   for (const fn of createdFunctions(statements)) {
     latest.set(fn.key, at(fn));
@@ -552,13 +566,14 @@ export function pd062(
 export function pd063(
   cwd: string,
   config: PermDockConfig,
+  files: DoctorFiles = nodeFiles,
 ): readonly DoctorFinding[] {
-  if (!isSupabase(cwd, config)) {
+  if (!isSupabase(files, cwd, config)) {
     return [];
   }
   return sqlFiles(cwd, config.doctor?.migrations ?? MIGRATION_DIRS).flatMap(
     (file) =>
-      supautilsRejections(readFileSync(file, "utf8")).map((found) => ({
+      supautilsRejections(files.read(file)).map((found) => ({
         code: "PD063",
         severity: "error" as const,
         message: `${rel(cwd, file)}:${String(found.line)} ${found.reason}, which supautils rejects for the postgres role on Supabase`,
@@ -574,23 +589,24 @@ export function pd063(
 export function pd056(
   cwd: string,
   config: PermDockConfig,
+  files: DoctorFiles = nodeFiles,
 ): readonly DoctorFinding[] {
   const migrate = config.rls?.migrate;
   const helpers = migrate === undefined ? [] : legacyHelperNames(migrate);
   if (helpers.length === 0) {
     return [];
   }
-  const statements = migrationStatements(cwd, config);
+  const statements = migrationStatements(files, cwd, config);
   const findings: DoctorFinding[] = [];
   for (const name of helpers) {
-    const { count, files } = legacyHelperCalls(statements, name);
+    const { count, files: callers } = legacyHelperCalls(statements, name);
     if (count === 0) {
       continue;
     }
     findings.push({
       code: "PD056",
       severity: "warning",
-      message: `legacy helper ${name} is still called ${String(count)} time(s), in ${files.join(", ")}`,
+      message: `legacy helper ${name} is still called ${String(count)} time(s), in ${callers.join(", ")}`,
       fix: `run permdock rls migrate --write for policies, rewrite function bodies, views and triggers onto the permdock helpers by hand, then drop function ${name}`,
     });
   }
@@ -604,12 +620,13 @@ export function pd056(
 export function pd066(
   cwd: string,
   config: PermDockConfig,
+  files: DoctorFiles = nodeFiles,
 ): readonly DoctorFinding[] {
   const migrate = config.rls?.migrate;
   if (migrate?.tables === undefined) {
     return [];
   }
-  const plan = retirePlan(migrationStatements(cwd, config), migrate);
+  const plan = retirePlan(migrationStatements(files, cwd, config), migrate);
   return plan.tables
     .filter((table) => table.present)
     .map((table): DoctorFinding => {

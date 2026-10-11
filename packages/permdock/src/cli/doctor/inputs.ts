@@ -1,4 +1,3 @@
-import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 
 import type { CustomRole, Membership, Policy } from "../../index.ts";
@@ -6,8 +5,9 @@ import type { DoctorInput } from "../shared/doctor-types.ts";
 import type { CliIo } from "../types.ts";
 
 import { type CollectOutcome, runCollect } from "../collect.ts";
-import { doctorSrcPath, readJsonFile } from "../files.ts";
+import { doctorSrcPath } from "../files.ts";
 import { loadConfiguredPolicy } from "../load.ts";
+import { filesOf, readJson } from "../shared/doctor-files.ts";
 
 /** The configured policy, through the project's memoised load when there is one. */
 export function policyOf(input: DoctorInput): Promise<Policy | undefined> {
@@ -51,16 +51,20 @@ export function asMembershipsFixture(parsed: unknown): MembershipsFixture {
     : {};
 }
 
-export function readJson(cwd: string, path: string | undefined): unknown {
+export function readFixture(
+  input: DoctorInput,
+  path: string | undefined,
+): unknown {
+  const files = filesOf(input);
   if (path === undefined) {
     return undefined;
   }
-  const absolute = resolve(cwd, path);
-  if (!existsSync(absolute)) {
+  const absolute = resolve(input.cwd, path);
+  if (!files.exists(absolute)) {
     return undefined;
   }
   try {
-    return readJsonFile(absolute);
+    return readJson(files, absolute);
   } catch {
     return undefined;
   }
@@ -77,16 +81,17 @@ export function listField(value: unknown, field: string): readonly unknown[] {
 
 /** Reads the doctor memberships fixture, if one is configured and parseable. */
 export function membershipsFixture(input: DoctorInput): MembershipsFixture {
+  const files = filesOf(input);
   const fixturePath = input.config.doctor?.memberships;
   if (fixturePath === undefined) {
     return {};
   }
   const absolute = resolve(input.cwd, fixturePath);
-  if (!existsSync(absolute)) {
+  if (!files.exists(absolute)) {
     return {};
   }
   try {
-    return asMembershipsFixture(readJsonFile(absolute));
+    return asMembershipsFixture(readJson(files, absolute));
   } catch {
     return {};
   }

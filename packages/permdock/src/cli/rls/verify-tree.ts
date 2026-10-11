@@ -21,6 +21,17 @@ import { commandFor } from "../sql/compile.ts";
 import { quoteIdent, quoteQualified } from "../sql/quote.ts";
 import { graphPlan } from "./graph.ts";
 
+/** The clock and id source a generated tree reads. */
+export type TreeEntropy = {
+  readonly now: () => number;
+  readonly randomUUID: () => string;
+};
+
+const SYSTEM_ENTROPY: TreeEntropy = Object.freeze({
+  now: () => Date.now(),
+  randomUUID: () => randomUUID(),
+});
+
 type Row = Readonly<Record<string, unknown>>;
 
 type Query = (
@@ -37,7 +48,10 @@ type TreeNode = {
 
 const SUBJECTS = 3;
 
-function idFactory(node: ResourceNode): () => string | number {
+function idFactory(
+  node: ResourceNode,
+  entropy: TreeEntropy,
+): () => string | number {
   const type = columnTypesOf(jsonSchemaOf(node))[node.id];
   let next = 900_000;
   return type === "numeric"
@@ -45,7 +59,7 @@ function idFactory(node: ResourceNode): () => string | number {
         next += 1;
         return next;
       }
-    : () => randomUUID();
+    : () => entropy.randomUUID();
 }
 
 /**
@@ -53,8 +67,12 @@ function idFactory(node: ResourceNode): () => string | number {
  * crossed; side branches under the first levels alternate restricted, and
  * the second spine is restricted two levels down.
  */
-function generateTree(node: ResourceNode, depth: number): readonly TreeNode[] {
-  const id = idFactory(node);
+function generateTree(
+  node: ResourceNode,
+  depth: number,
+  entropy: TreeEntropy,
+): readonly TreeNode[] {
+  const id = idFactory(node, entropy);
   const nodes: TreeNode[] = [];
   for (const spine of [0, 1]) {
     let parent: string | number | null = null;
@@ -160,7 +178,7 @@ function checkedValue(checks: readonly string[]): unknown {
   return undefined;
 }
 
-function placeholder(column: RequiredColumn): unknown {
+function placeholder(column: RequiredColumn, entropy: TreeEntropy): unknown {
   if (column.enumLabel !== null) {
     return column.enumLabel;
   }
@@ -170,7 +188,7 @@ function placeholder(column: RequiredColumn): unknown {
   }
   const type = column.type;
   if (type === "uuid") {
-    return randomUUID();
+    return entropy.randomUUID();
   }
   if (type === "boolean") {
     return false;
@@ -179,7 +197,7 @@ function placeholder(column: RequiredColumn): unknown {
     return 0;
   }
   if (type.startsWith("timestamp") || type === "date") {
-    return new Date().toISOString();
+    return new Date(entropy.now()).toISOString();
   }
   if (type === "json" || type === "jsonb") {
     return {};
@@ -187,8 +205,12 @@ function placeholder(column: RequiredColumn): unknown {
   return "permdock-tree";
 }
 
-function distinctPlaceholder(column: RequiredColumn, index: number): unknown {
-  const value = placeholder(column);
+function distinctPlaceholder(
+  column: RequiredColumn,
+  index: number,
+  entropy: TreeEntropy,
+): unknown {
+  const value = placeholder(column, entropy);
   if (column.enumLabel !== null) {
     return value;
   }
@@ -233,6 +255,7 @@ async function requiredValues(
   query: Query,
   table: string,
   set: ReadonlySet<string>,
+  entropy: TreeEntropy,
 ): Promise<(index: number) => Readonly<Record<string, unknown>>> {
   const columns = (await query(REQUIRED_COLUMNS_SQL, [table])).rows
     .map(asRequiredColumn)
@@ -258,13 +281,13 @@ async function requiredValues(
     } else if (unique.has(column.name)) {
       distinct.push(column);
     } else {
-      values[column.name] = placeholder(column);
+      values[column.name] = placeholder(column, entropy);
     }
   }
   return (index) => {
     const row: Record<string, unknown> = { ...values };
     for (const column of distinct) {
-      row[column.name] = distinctPlaceholder(column, index);
+      row[column.name] = distinctPlaceholder(column, index, entropy);
     }
     return row;
   };
@@ -275,12 +298,14 @@ async function seedRows(
   query: Query,
   table: string,
   rows: readonly Row[],
-  given: Row = {},
+  given: Row,
+  entropy: TreeEntropy,
 ): Promise<readonly Row[]> {
   const fill = await requiredValues(
     query,
     quoteQualified(table),
     new Set([...Object.keys(rows[0] ?? {}), ...Object.keys(given)]),
+    entropy,
   );
   const inserted = insertSql(
     table,
@@ -309,12 +334,15 @@ export async function verifyTree(input: {
   readonly config: PermDockConfig;
   readonly query: Query;
   readonly bind: (subject: string) => Promise<void>;
+  /** Defaults to `Date.now` and `crypto.randomUUID`. */
+  readonly entropy?: TreeEntropy;
 }): Promise<TreeVerification> {
   const { policy, query } = input;
+  const entropy = input.entropy ?? SYSTEM_ENTROPY;
   const tables = input.config.rls?.tables;
   const treeValues = input.config.rls?.treeValues ?? {};
   const seed = (table: string, list: readonly Row[]): Promise<readonly Row[]> =>
-    seedRows(query, table, list, treeValues[table] ?? {});
+    seedRows(query, table, list, treeValues[table] ?? {}, entropy);
   const plan = graphPlan(policy);
   const walked = [...plan.values()].filter(
     (entry) => entry.closure !== undefined,
@@ -328,18 +356,18 @@ export async function verifyTree(input: {
     };
   }
   const subjects: string[] = Array.from({ length: SUBJECTS }, () =>
-    randomUUID(),
+    entropy.randomUUID(),
   );
   const rows: Record<string, Row[]> = {};
   const edges: Record<string, Record<string, MemoryEdge[]>> = {};
-  const now = Date.now();
+  const now = entropy.now();
   for (const entry of walked) {
     const node = entry.node;
     const parent = node.parent;
     if (parent === undefined) {
       continue;
     }
-    const tree = generateTree(node, entry.closure ?? 0);
+    const tree = generateTree(node, entry.closure ?? 0, entropy);
     const seeded = tree.map((item, index) => {
       const row: Record<string, unknown> = {
         [node.id]: item.id,
@@ -359,7 +387,7 @@ export async function verifyTree(input: {
             : undefined;
         if (column !== undefined && column !== parent.field) {
           row[column] =
-            index % 4 === 0 ? subjects[index % SUBJECTS] : randomUUID();
+            index % 4 === 0 ? subjects[index % SUBJECTS] : entropy.randomUUID();
         }
       }
       return row;
@@ -423,7 +451,7 @@ export async function verifyTree(input: {
       if (child.name === node.name || child.parent?.resource !== node.name) {
         continue;
       }
-      const make = idFactory(child);
+      const make = idFactory(child, entropy);
       const childRows = tree.map((item, index) => {
         const row: Record<string, unknown> = {
           [child.id]: make(),

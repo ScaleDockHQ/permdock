@@ -1,4 +1,3 @@
-import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 
 import type { DoctorFinding, DoctorInput } from "../shared/doctor-types.ts";
@@ -13,17 +12,18 @@ import {
   validateCustomRole,
 } from "../../index.ts";
 import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
-import { readJsonFile } from "../files.ts";
+import { filesOf, readJson } from "../shared/doctor-files.ts";
 import {
   asMembershipsFixture,
   listField,
   policyOf,
-  readJson,
+  readFixture,
 } from "./inputs.ts";
 
 export async function pd018(
   input: DoctorInput,
 ): Promise<readonly DoctorFinding[]> {
+  const files = filesOf(input);
   if (input.config.policy === undefined) {
     return [];
   }
@@ -50,7 +50,7 @@ export async function pd018(
     return findings;
   }
   const absolute = resolve(input.cwd, fixturePath);
-  if (!existsSync(absolute)) {
+  if (!files.exists(absolute)) {
     findings.push({
       code: "PD018",
       severity: "warning",
@@ -61,7 +61,7 @@ export async function pd018(
   }
   let parsed: unknown;
   try {
-    parsed = readJsonFile(absolute);
+    parsed = readJson(files, absolute);
   } catch {
     findings.push({
       code: "PD018",
@@ -112,17 +112,18 @@ function customRoleLabel(role: CustomRole): string {
 export async function pd023(
   input: DoctorInput,
 ): Promise<readonly DoctorFinding[]> {
+  const files = filesOf(input);
   const fixturePath = input.config.doctor?.memberships;
   if (input.config.policy === undefined || fixturePath === undefined) {
     return [];
   }
   const absolute = resolve(input.cwd, fixturePath);
-  if (!existsSync(absolute)) {
+  if (!files.exists(absolute)) {
     return [];
   }
   let parsed: unknown;
   try {
-    parsed = readJsonFile(absolute);
+    parsed = readJson(files, absolute);
   } catch {
     return [];
   }
@@ -161,17 +162,18 @@ export async function pd023(
 export async function pd055(
   input: DoctorInput,
 ): Promise<readonly DoctorFinding[]> {
+  const files = filesOf(input);
   const fixturePath = input.config.doctor?.memberships;
   if (input.config.policy === undefined || fixturePath === undefined) {
     return [];
   }
   const absolute = resolve(input.cwd, fixturePath);
-  if (!existsSync(absolute)) {
+  if (!files.exists(absolute)) {
     return [];
   }
   let parsed: unknown;
   try {
-    parsed = readJsonFile(absolute);
+    parsed = readJson(files, absolute);
   } catch {
     return [];
   }
@@ -196,7 +198,7 @@ export async function pd055(
 
 /** Fixture API keys that never expire, credential policies that allow it, and records that are not v1 credentials. */
 export function pd029(input: DoctorInput): readonly DoctorFinding[] {
-  const parsed = readJson(input.cwd, input.config.doctor?.credentials);
+  const parsed = readFixture(input, input.config.doctor?.credentials);
   const findings: DoctorFinding[] = [];
   for (const [index, record] of listField(parsed, "credentials").entries()) {
     const credential = parseCredential(record);
@@ -249,17 +251,18 @@ export function pd029(input: DoctorInput): readonly DoctorFinding[] {
 export async function pd025(
   input: DoctorInput,
 ): Promise<readonly DoctorFinding[]> {
+  const files = filesOf(input);
   const fixturePath = input.config.doctor?.memberships;
   if (input.config.policy === undefined || fixturePath === undefined) {
     return [];
   }
   const absolute = resolve(input.cwd, fixturePath);
-  if (!existsSync(absolute)) {
+  if (!files.exists(absolute)) {
     return [];
   }
   let parsed: unknown;
   try {
-    parsed = readJsonFile(absolute);
+    parsed = readJson(files, absolute);
   } catch {
     return [];
   }

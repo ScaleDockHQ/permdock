@@ -2,7 +2,10 @@ import { existsSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
-import type { DoctorFinding } from "../../src/cli/shared/doctor-types.ts";
+import type {
+  DoctorFiles,
+  DoctorFinding,
+} from "../../src/cli/shared/doctor-types.ts";
 import type { PermDockConfig } from "../../src/cli/types.ts";
 
 import { runCollect } from "../../src/cli/collect.ts";
@@ -500,6 +503,33 @@ describe("PD029 credential fixtures", () => {
         findings: pd029({ cwd, config: { doctor: { credentials } } }),
       }).toEqual({ credentials, findings: [] });
     }
+  });
+
+  it("reads the fixture through the files reader it is given", () => {
+    const disk: Readonly<Record<string, string>> = {
+      "/virtual/credentials.json": JSON.stringify({
+        credentials: [{ id: "k1" }],
+        settings: { acme: { credentials: { allowNoExpiry: true } } },
+      }),
+    };
+    const files: DoctorFiles = {
+      exists: (file) => Object.hasOwn(disk, file),
+      read: (file) => disk[file] ?? "",
+      list: () => [],
+      isDirectory: () => false,
+    };
+    expect(
+      messages(
+        pd029({
+          cwd: "/virtual",
+          config: { doctor: { credentials: "./credentials.json" } },
+          files,
+        }),
+      ),
+    ).toEqual([
+      "credentials[0] is not a valid v1 credential, so it verifies to no subject",
+      "tenant acme allows API keys that never expire",
+    ]);
   });
 });
 

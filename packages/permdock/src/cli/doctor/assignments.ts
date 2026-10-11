@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-
 import type { DoctorFinding, DoctorInput } from "../shared/doctor-types.ts";
 
 import { scopeList } from "../../core/scopes.ts";
@@ -8,6 +6,7 @@ import { partPath } from "../output-files.ts";
 import { guardedTables } from "../rls/assignments.ts";
 import { ownershipRules } from "../rls/ownership.ts";
 import { MIGRATION_DIRS } from "../shared/constants.ts";
+import { filesOf } from "../shared/doctor-files.ts";
 import { tableKey } from "../sql/deciding-columns.ts";
 import { group, sqlStatements } from "../sql/statements.ts";
 import { policyOf } from "./inputs.ts";
@@ -30,7 +29,7 @@ function triggeredTables(input: DoctorInput): ReadonlySet<string> {
   ]);
   const tables = new Set<string>();
   for (const file of files) {
-    for (const statement of sqlStatements(readFileSync(file, "utf8"))) {
+    for (const statement of sqlStatements(filesOf(input).read(file))) {
       const match = TRIGGER.exec(statement.text);
       if (match !== null) {
         tables.add(tableKey(group(match, 1)));

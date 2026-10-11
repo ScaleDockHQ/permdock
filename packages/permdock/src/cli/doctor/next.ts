@@ -1,14 +1,18 @@
-import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import type { Grant, Policy } from "../../index.ts";
-import type { DoctorFinding, DoctorInput } from "../shared/doctor-types.ts";
+import type {
+  DoctorFiles,
+  DoctorFinding,
+  DoctorInput,
+} from "../shared/doctor-types.ts";
 import type { CliIo } from "../types.ts";
 
 import { hasConditionOp } from "../../conditions/ast.ts";
 import { flattenGrantee } from "../../core/grantee.ts";
 import { isPrincipalRelation } from "../../core/resource-relations.ts";
 import { doctorSrcPath, listSourceFiles, rel } from "../files.ts";
+import { filesOf } from "../shared/doctor-files.ts";
 import { collectedOf, policyOf } from "./inputs.ts";
 
 const ROUTE_GLOBS = ["**/api/permdock/route.{ts,tsx,js,jsx,mjs}"];
@@ -52,18 +56,18 @@ function serverOnlyKeys(policy: Policy): ReadonlySet<string> {
 }
 
 /** An `app/**\/api/permdock/route.ts` that exports `permdockHandler`'s result, or an `endpoint` string in the source. */
-function hasEndpoint(cwd: string, sources: readonly string[]): boolean {
+function hasEndpoint(
+  files: DoctorFiles,
+  cwd: string,
+  sources: readonly string[],
+): boolean {
   const routes = listSourceFiles(cwd, ROUTE_GLOBS).filter((file) =>
     /(?:^|[\\/])app[\\/]/u.test(rel(cwd, file)),
   );
-  if (
-    routes.some((file) =>
-      readFileSync(file, "utf8").includes("permdockHandler"),
-    )
-  ) {
+  if (routes.some((file) => files.read(file).includes("permdockHandler"))) {
     return true;
   }
-  return sources.some((file) => ENDPOINT.test(readFileSync(file, "utf8")));
+  return sources.some((file) => ENDPOINT.test(files.read(file)));
 }
 
 /**
@@ -94,7 +98,7 @@ export async function pd044(
     return [];
   }
   const sources = listSourceFiles(input.cwd, doctorSrcPath(input.config));
-  if (hasEndpoint(input.cwd, sources)) {
+  if (hasEndpoint(filesOf(input), input.cwd, sources)) {
     return [];
   }
   return hooked.map(({ key, usage }) => ({
@@ -127,7 +131,7 @@ export async function pd065(
     let hit = native.get(file);
     if (hit === undefined) {
       try {
-        hit = NATIVE_IMPORT.test(readFileSync(join(input.cwd, file), "utf8"));
+        hit = NATIVE_IMPORT.test(filesOf(input).read(join(input.cwd, file)));
       } catch {
         hit = false;
       }

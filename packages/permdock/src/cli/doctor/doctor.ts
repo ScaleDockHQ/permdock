@@ -125,7 +125,11 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
   { code: "PD002", groups: ["references"], run: pd002 },
   { code: "PD003", groups: ["ungranted"], run: pd003 },
   { code: "PD004", groups: ["catalog"], run: pd004 },
-  { code: "PD005", groups: ["skills"], run: (project) => pd005(project.cwd) },
+  {
+    code: "PD005",
+    groups: ["skills"],
+    run: (project) => pd005(project.cwd, project.files),
+  },
   {
     code: "PD006",
     groups: ["typescript"],
@@ -144,7 +148,7 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
   {
     code: "PD009",
     groups: ["duplicates"],
-    run: (project) => pd009(project.cwd),
+    run: (project) => pd009(project.cwd, project.files),
   },
   {
     code: "PD010",
@@ -159,7 +163,7 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
   {
     code: "PD012",
     groups: ["drafts"],
-    run: (project) => pd012(project.cwd, project.config),
+    run: (project) => pd012(project.cwd, project.config, project.files),
   },
   {
     code: "PD013",
@@ -189,7 +193,7 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
   {
     code: "PD022",
     groups: ["views"],
-    run: (project) => pd022(project.cwd, project.config),
+    run: (project) => pd022(project.cwd, project.config, project.files),
   },
   { code: "PD023", groups: ["custom-roles"], run: pd023 },
   { code: "PD024", groups: ["self-approval"], run: pd024 },
@@ -199,7 +203,8 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
   {
     code: "PD028",
     groups: ["attrs", "supabase"],
-    run: (project) => pd028(project.cwd, project.config, attrsPlan),
+    run: (project) =>
+      pd028(project.cwd, project.config, attrsPlan, project.files),
   },
   { code: "PD029", groups: ["credentials"], run: pd029 },
   { code: "PD030", groups: ["fields"], run: pd030 },
@@ -241,7 +246,7 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
   {
     code: "PD040",
     groups: ["supabase", "auth-role"],
-    run: (project) => pd040(project.cwd, project.config),
+    run: (project) => pd040(project.cwd, project.config, project.files),
   },
   {
     code: "PD041",
@@ -251,31 +256,31 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
   {
     code: "PD042",
     groups: ["supabase", "declarative"],
-    run: (project) => pd042(project.cwd, project.config),
+    run: (project) => pd042(project.cwd, project.config, project.files),
   },
   {
     code: "PD043",
     groups: ["supabase", "declarative"],
-    run: (project) => pd043(project.cwd),
+    run: (project) => pd043(project.cwd, project.files),
   },
   { code: "PD045", groups: ["supabase"], run: (project) => pd045(project.cwd) },
   ...SQL_CHECKS.map(([code, check]): DoctorCheck => ({
     code,
     groups: ["supabase", "sql"],
-    run: (project) => check(project.cwd, project.config),
+    run: (project) => check(project.cwd, project.config, project.files),
   })),
   { code: "PD054", groups: ["supabase", "seeds"], run: pd054 },
   { code: "PD055", groups: ["custom-roles", "renamed"], run: pd055 },
   {
     code: "PD056",
     groups: ["sql", "shims"],
-    run: (project) => pd056(project.cwd, project.config),
+    run: (project) => pd056(project.cwd, project.config, project.files),
   },
   {
     code: "PD066",
     groups: ["sql", "shims"],
     when: (config) => config.rls?.migrate?.tables !== undefined,
-    run: (project) => pd066(project.cwd, project.config),
+    run: (project) => pd066(project.cwd, project.config, project.files),
   },
   { code: "PD058", groups: ["powersync"], run: pd058 },
   {

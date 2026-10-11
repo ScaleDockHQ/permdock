@@ -1,10 +1,10 @@
-import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import type { DoctorFinding } from "../shared/doctor-types.ts";
+import type { DoctorFiles, DoctorFinding } from "../shared/doctor-types.ts";
 import type { PermDockConfig } from "../types.ts";
 
 import { rel, sqlFiles } from "../files.ts";
+import { nodeFiles } from "../shared/doctor-files.ts";
 import { HOOK_MARKER } from "../sql/markers.ts";
 import { supabaseConfig } from "../supabase-config.ts";
 
@@ -37,6 +37,7 @@ function uncommented(text: string): string {
 export function pd042(
   cwd: string,
   config: PermDockConfig,
+  files: DoctorFiles = nodeFiles,
 ): readonly DoctorFinding[] {
   if (
     config.supabase?.hook === undefined ||
@@ -45,14 +46,14 @@ export function pd042(
     return [];
   }
   const declared = sqlFiles(cwd, [SCHEMAS]).some((file) =>
-    readFileSync(file, "utf8").startsWith(`${HOOK_MARKER} `),
+    files.read(file).startsWith(`${HOOK_MARKER} `),
   );
   if (!declared) {
     return [];
   }
   const migrations = sqlFiles(cwd, [MIGRATIONS]).map((file) => ({
     file,
-    text: uncommented(readFileSync(file, "utf8")),
+    text: uncommented(files.read(file)),
   }));
   const created = migrations.findIndex(({ text }) => CREATES_HOOK.test(text));
   const dropped = migrations.findLastIndex(({ text }) => DROPS_HOOK.test(text));
@@ -93,20 +94,23 @@ function orderedSchemaFiles(cwd: string): readonly string[] {
  * that calls `permdock_has` or `permitted_<scope>_ids` before the file that
  * defines them fails to apply. pg-delta orders by dependencies instead.
  */
-export function pd043(cwd: string): readonly DoctorFinding[] {
+export function pd043(
+  cwd: string,
+  files: DoctorFiles = nodeFiles,
+): readonly DoctorFinding[] {
   if (supabaseConfig(cwd).pgDelta !== undefined) {
     return [];
   }
-  if (!existsSync(join(cwd, SCHEMAS))) {
+  if (!files.exists(join(cwd, SCHEMAS))) {
     return [];
   }
-  const files = orderedSchemaFiles(cwd).map((file) => ({
+  const schemas = orderedSchemaFiles(cwd).map((file) => ({
     file,
-    text: uncommented(readFileSync(file, "utf8")),
+    text: uncommented(files.read(file)),
   }));
-  const helpers = files.findIndex(({ text }) => DEFINES_HELPER.test(text));
+  const helpers = schemas.findIndex(({ text }) => DEFINES_HELPER.test(text));
   const defined = sqlFiles(cwd, [SCHEMAS]).find((file) =>
-    DEFINES_HELPER.test(uncommented(readFileSync(file, "utf8"))),
+    DEFINES_HELPER.test(uncommented(files.read(file))),
   );
   if (helpers === -1) {
     return defined === undefined
@@ -120,8 +124,8 @@ export function pd043(cwd: string): readonly DoctorFinding[] {
           },
         ];
   }
-  const helperFile = rel(cwd, files[helpers]?.file ?? "");
-  return files
+  const helperFile = rel(cwd, schemas[helpers]?.file ?? "");
+  return schemas
     .slice(0, helpers)
     .filter(({ text }) => CALLS_HELPER.test(text))
     .map(({ file }) => ({

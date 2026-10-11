@@ -1,13 +1,13 @@
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
 
-import type { DoctorFinding } from "../shared/doctor-types.ts";
+import type { DoctorFiles, DoctorFinding } from "../shared/doctor-types.ts";
 import type { PermDockConfig } from "../types.ts";
 
-import { readJsonFile, rel, sqlFiles } from "../files.ts";
+import { rel, sqlFiles } from "../files.ts";
 import { FIELD_VIEWS } from "../rls/fields.ts";
 import { MIGRATION_DIRS } from "../shared/constants.ts";
+import { nodeFiles, readJson } from "../shared/doctor-files.ts";
 import { membershipColumns, tableKey } from "../sql/deciding-columns.ts";
 import { sqlStatements } from "../sql/statements.ts";
 
@@ -16,12 +16,12 @@ import { sqlStatements } from "../sql/statements.ts";
  * `pnpm-workspace.yaml`, a `package.json` that declares `workspaces`, or a
  * `.git`. Skills are often installed once at a monorepo's root.
  */
-function workspaceDirs(cwd: string): readonly string[] {
+function workspaceDirs(files: DoctorFiles, cwd: string): readonly string[] {
   const dirs: string[] = [];
   let dir = resolve(cwd);
   for (;;) {
     dirs.push(dir);
-    if (isWorkspaceRoot(dir)) {
+    if (isWorkspaceRoot(files, dir)) {
       return dirs;
     }
     const parent = dirname(dir);
@@ -32,19 +32,19 @@ function workspaceDirs(cwd: string): readonly string[] {
   }
 }
 
-function isWorkspaceRoot(dir: string): boolean {
+function isWorkspaceRoot(files: DoctorFiles, dir: string): boolean {
   if (
-    existsSync(join(dir, "pnpm-workspace.yaml")) ||
-    existsSync(join(dir, ".git"))
+    files.exists(join(dir, "pnpm-workspace.yaml")) ||
+    files.exists(join(dir, ".git"))
   ) {
     return true;
   }
   const manifest = join(dir, "package.json");
-  if (!existsSync(manifest)) {
+  if (!files.exists(manifest)) {
     return false;
   }
   try {
-    const parsed: unknown = readJsonFile(manifest);
+    const parsed: unknown = readJson(files, manifest);
     return (
       parsed !== null &&
       typeof parsed === "object" &&
@@ -56,16 +56,16 @@ function isWorkspaceRoot(dir: string): boolean {
 }
 
 /** Whether `dir` holds a skills lock: PermDock's own, or the `skills` CLI's naming the `permdock` skill. */
-function hasSkillsLock(dir: string): boolean {
-  if (existsSync(join(dir, ".permdock/skills-lock.json"))) {
+function hasSkillsLock(files: DoctorFiles, dir: string): boolean {
+  if (files.exists(join(dir, ".permdock/skills-lock.json"))) {
     return true;
   }
   const shared = join(dir, "skills-lock.json");
-  if (!existsSync(shared)) {
+  if (!files.exists(shared)) {
     return false;
   }
   try {
-    const parsed: unknown = readJsonFile(shared);
+    const parsed: unknown = readJson(files, shared);
     const skills: unknown =
       parsed !== null && typeof parsed === "object"
         ? Reflect.get(parsed, "skills")
@@ -80,11 +80,14 @@ function hasSkillsLock(dir: string): boolean {
   }
 }
 
-export function pd005(cwd: string): readonly DoctorFinding[] {
-  const dirs = workspaceDirs(cwd);
+export function pd005(
+  cwd: string,
+  files: DoctorFiles = nodeFiles,
+): readonly DoctorFinding[] {
+  const dirs = workspaceDirs(files, cwd);
   const installed = dirs.some((dir) =>
     [".agents/skills", ".claude/skills", ".cursor/skills"].some((folder) =>
-      existsSync(join(dir, folder, "permdock/SKILL.md")),
+      files.exists(join(dir, folder, "permdock/SKILL.md")),
     ),
   );
   if (!installed) {
@@ -97,7 +100,7 @@ export function pd005(cwd: string): readonly DoctorFinding[] {
       },
     ];
   }
-  if (!dirs.some(hasSkillsLock)) {
+  if (!dirs.some((dir) => hasSkillsLock(files, dir))) {
     return [
       {
         code: "PD005",
@@ -151,26 +154,29 @@ export function pd006(cwd: string): readonly DoctorFinding[] {
   }
 }
 
-export function pd009(cwd: string): readonly DoctorFinding[] {
+export function pd009(
+  cwd: string,
+  files: DoctorFiles = nodeFiles,
+): readonly DoctorFinding[] {
   const copies: string[] = [];
   function walk(dir: string, depth: number): void {
-    if (depth > 6 || !existsSync(dir)) {
+    if (depth > 6 || !files.exists(dir)) {
       return;
     }
     const pkg = join(dir, "node_modules/permdock/package.json");
-    if (existsSync(pkg)) {
+    if (files.exists(pkg)) {
       copies.push(pkg);
     }
-    if (!existsSync(join(dir, "node_modules"))) {
+    if (!files.exists(join(dir, "node_modules"))) {
       return;
     }
-    for (const name of readdirSync(join(dir, "node_modules"))) {
+    for (const name of files.list(join(dir, "node_modules"))) {
       if (name.startsWith(".")) {
         continue;
       }
       const nested = join(dir, "node_modules", name);
       try {
-        if (statSync(nested).isDirectory()) {
+        if (files.isDirectory(nested)) {
           walk(nested, depth + 1);
         }
       } catch {
@@ -195,15 +201,16 @@ export function pd009(cwd: string): readonly DoctorFinding[] {
 export function pd012(
   cwd: string,
   config: PermDockConfig,
+  files: DoctorFiles = nodeFiles,
 ): readonly DoctorFinding[] {
   const docs = config.openapi?.doc ?? [];
   const findings: DoctorFinding[] = [];
   for (const doc of docs) {
     const abs = resolve(cwd, doc);
-    if (!existsSync(abs)) {
+    if (!files.exists(abs)) {
       continue;
     }
-    const text = readFileSync(abs, "utf8");
+    const text = files.read(abs);
     if (text.includes('"drafts"') && !text.includes("overlay")) {
       findings.push({
         code: "PD012",
@@ -241,6 +248,7 @@ const COMPANION = new RegExp(
 export function pd022(
   cwd: string,
   config: PermDockConfig,
+  files: DoctorFiles = nodeFiles,
 ): readonly DoctorFinding[] {
   if (config.rls === undefined && config.doctor?.migrations === undefined) {
     return [];
@@ -252,7 +260,7 @@ export function pd022(
     cwd,
     config.doctor?.migrations ?? MIGRATION_DIRS,
   )) {
-    const raw = readFileSync(file, "utf8");
+    const raw = files.read(file);
     const text = raw
       .replaceAll(/--[^\n]*/gu, "")
       .replaceAll(/\/\*[\s\S]*?\*\//gu, "");
@@ -294,13 +302,15 @@ const AUTH_ROLE = /\bauth\.role\s*\(\s*\)/giu;
 export function pd040(
   cwd: string,
   config: PermDockConfig,
+  files: DoctorFiles = nodeFiles,
 ): readonly DoctorFinding[] {
   const findings: DoctorFinding[] = [];
   for (const file of sqlFiles(
     cwd,
     config.doctor?.migrations ?? MIGRATION_DIRS,
   )) {
-    const text = readFileSync(file, "utf8")
+    const text = files
+      .read(file)
       .replaceAll(/--[^\n]*/gu, (comment) => " ".repeat(comment.length))
       .replaceAll(/\/\*[\s\S]*?\*\//gu, (comment) =>
         comment.replaceAll(/[^\n]/gu, " "),
@@ -372,6 +382,7 @@ const REVOKE_DEFAULT_TABLES =
  * everything, until a migration revokes them.
  */
 function clientWritable(
+  files: DoctorFiles,
   cwd: string,
   config: PermDockConfig,
   target: string,
@@ -382,7 +393,7 @@ function clientWritable(
     cwd,
     config.doctor?.migrations ?? MIGRATION_DIRS,
   )) {
-    for (const { text } of sqlStatements(readFileSync(file, "utf8"))) {
+    for (const { text } of sqlStatements(files.read(file))) {
       if (REVOKE_DEFAULT_TABLES.test(text)) {
         defaults = false;
         continue;
@@ -423,12 +434,13 @@ function clientWritable(
 
 /** Membership columns a client can write: a user who sets `user_id` or `role` grants themselves access. */
 function membershipFindings(
+  files: DoctorFiles,
   cwd: string,
   config: PermDockConfig,
 ): readonly DoctorFinding[] {
   const findings: DoctorFinding[] = [];
   for (const [table, columns] of membershipColumns(config)) {
-    const writable = clientWritable(cwd, config, table);
+    const writable = clientWritable(files, cwd, config, table);
     const exposed = [...columns].filter(
       (column) => writable.has("*") || writable.has(column),
     );
@@ -461,8 +473,9 @@ export function pd028(
     readonly columns: readonly string[];
     readonly errors: readonly string[];
   },
+  files: DoctorFiles = nodeFiles,
 ): readonly DoctorFinding[] {
-  const memberships = membershipFindings(cwd, config);
+  const memberships = membershipFindings(files, cwd, config);
   const attrs = config.supabase?.hook?.attrs;
   if (attrs === undefined) {
     return memberships;
@@ -475,7 +488,12 @@ export function pd028(
     fix: "list server-owned columns or app_metadata.<key> entries; user_metadata is user-editable",
   }));
   if (planned.table !== undefined && planned.columns.length > 0) {
-    const writable = clientWritable(cwd, config, tableKey(planned.table));
+    const writable = clientWritable(
+      files,
+      cwd,
+      config,
+      tableKey(planned.table),
+    );
     const exposed = planned.columns.filter(
       (column) => writable.has("*") || writable.has(column),
     );

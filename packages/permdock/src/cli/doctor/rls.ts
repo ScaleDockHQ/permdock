@@ -1,4 +1,3 @@
-import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import type { DoctorFinding, DoctorInput } from "../shared/doctor-types.ts";
@@ -11,6 +10,7 @@ import { jsonSchemaOf } from "../catalog-doc.ts";
 import { sqlFiles } from "../files.ts";
 import { graphPlan } from "../rls/graph.ts";
 import { MIGRATION_DIRS } from "../shared/constants.ts";
+import { filesOf } from "../shared/doctor-files.ts";
 import { commandFor, tableFor } from "../sql/compile.ts";
 import { contextRefs } from "../sql/conditions.ts";
 import {
@@ -52,6 +52,7 @@ export async function pd027(
 export async function pd016(
   input: DoctorInput,
 ): Promise<readonly DoctorFinding[]> {
+  const files = filesOf(input);
   if (input.config.rls === undefined || input.config.policy === undefined) {
     return [];
   }
@@ -87,8 +88,8 @@ export async function pd016(
   if (sqlFunction) {
     const fixtures = input.config.rls.fixtures ?? "rls.fixtures.json";
     if (
-      !existsSync(resolve(input.cwd, fixtures)) &&
-      !existsSync(resolve(input.cwd, "rls.fixtures.ts"))
+      !files.exists(resolve(input.cwd, fixtures)) &&
+      !files.exists(resolve(input.cwd, "rls.fixtures.ts"))
     ) {
       findings.push({
         code: "PD016",
@@ -351,6 +352,7 @@ export async function pd034(
 export async function pd037(
   input: DoctorInput,
 ): Promise<readonly DoctorFinding[]> {
+  const files = filesOf(input);
   if (input.config.policy === undefined) {
     return [];
   }
@@ -364,7 +366,7 @@ export async function pd037(
     input.cwd,
     input.config.doctor?.migrations ?? MIGRATION_DIRS,
   )) {
-    for (const found of helperTablePolicies(readFileSync(file, "utf8"))) {
+    for (const found of helperTablePolicies(files.read(file))) {
       const keys = found.keys.filter((key) => conditioned.has(key));
       if (keys.length > 0) {
         findings.push({
