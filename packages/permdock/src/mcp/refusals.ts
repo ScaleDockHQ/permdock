@@ -56,7 +56,7 @@ export function stillAllowed(
   }
 }
 
-export function acceptsUrlElicitation(
+function acceptsUrlElicitation(
   context: Context,
   fallback: (() => unknown) | undefined,
 ): boolean {
@@ -68,7 +68,7 @@ export function acceptsUrlElicitation(
   return isRecord(capabilities["elicitation"]["url"]);
 }
 
-export function withParams(
+function withParams(
   at: string,
   params: Readonly<Record<string, string | undefined>>,
 ): string | undefined {
@@ -86,7 +86,7 @@ export function withParams(
   return url.href;
 }
 
-export function urlElicitation(
+function urlElicitation(
   key: string,
   message: string,
   url: string,

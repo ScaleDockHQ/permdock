@@ -27,7 +27,7 @@ import {
 } from "./mcp-auth.ts";
 import { throwRefusal, toolRefusal } from "./refusals.ts";
 
-export const SESSIONS_PER_SERVER = 1000;
+const SESSIONS_PER_SERVER = 1000;
 
 export type Handler = (...params: unknown[]) => unknown;
 
@@ -43,7 +43,7 @@ export type InnerServer = {
   _getRequestHandler?: (method: string) => Handler | undefined;
 };
 
-export function requirePermission(
+function requirePermission(
   kind: string,
   name: string,
   config: unknown,
@@ -58,7 +58,7 @@ export function requirePermission(
   return permission as unknown as Permission;
 }
 
-export function guardUpdates(
+function guardUpdates(
   registered: Registered,
   wrap: (callback: Handler) => Handler,
   rename?: (from: string, to: string | null) => void,

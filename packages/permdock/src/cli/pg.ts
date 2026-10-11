@@ -65,10 +65,7 @@ export function pgConnector(
 }
 
 /** One connection, for commands that run a transaction. */
-export async function connectPg(
-  db: string,
-  command: string,
-): Promise<SqlClient> {
+async function connectPg(db: string, command: string): Promise<SqlClient> {
   const pg = await loadPg(command);
   const client = new pg.Client(options(db));
   try {

@@ -25,7 +25,7 @@ function deliver(handler: (payload: unknown) => void, error: unknown): void {
   }
 }
 
-export function errorChannel(queued: readonly unknown[]): {
+function errorChannel(queued: readonly unknown[]): {
   readonly report: Report;
   readonly attach: <V extends PolicyVocabulary>(
     permdock: PermDock<V>,

@@ -202,10 +202,7 @@ export function subjectClaimJsonSql(ctx: RlsSqlContext, claim: string): string {
  */
 export type MemberVia = string | { readonly value: string | null };
 
-export function viaAllowed(
-  value: string | null,
-  allowed: readonly string[],
-): boolean {
+function viaAllowed(value: string | null, allowed: readonly string[]): boolean {
   return allowed.includes(value ?? "");
 }
 

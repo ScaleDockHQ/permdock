@@ -32,7 +32,7 @@ export function sqlIdent(name: string): string {
 }
 
 /** The plain-identifier check behind `quoteSqlIdent`, returning the name unquoted. */
-export function assertSqlIdent(name: string, prefix = "PermDock"): string {
+function assertSqlIdent(name: string, prefix = "PermDock"): string {
   if (!SQL_IDENT.test(name)) {
     throw new TypeError(`${prefix}: unsafe SQL identifier '${name}'`);
   }
