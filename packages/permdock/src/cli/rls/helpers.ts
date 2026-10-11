@@ -22,12 +22,9 @@ import {
   serviceKeyIdsSql,
 } from "./api-keys.ts";
 import { capabilitiesSql } from "./capabilities.ts";
-import {
-  customRoleCascadeSql,
-  customRolesSql,
-  customRoleWritesSql,
-  roleReadersSql,
-} from "./custom-roles.ts";
+import { customRoleCascadeSql } from "./custom-role-cascade.ts";
+import { customRoleWritesSql } from "./custom-role-writes.ts";
+import { customRolesSql, roleReadersSql } from "./custom-roles.ts";
 import { globalRolesSql } from "./global-roles.ts";
 import {
   type Body,
