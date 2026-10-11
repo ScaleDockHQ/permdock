@@ -42,7 +42,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: ./.github/actions/setup
+      - uses: $/.github/actions/setup
         with:
           turbo-team: ${{ vars.TURBO_TEAM }}
 
