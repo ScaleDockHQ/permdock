@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { SqlMembershipSource } from "../../src/supabase/sources.ts";
 
-import { activeFromSql } from "../../src/cli/supabase-hook/sql.ts";
+import { activeFromSql } from "../../src/cli/supabase-hook/memberships.ts";
 import {
   loadScopes,
   runSupabase,

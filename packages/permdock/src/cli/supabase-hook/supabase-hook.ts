@@ -30,21 +30,23 @@ import {
   missingHelpersInFiles,
   missingHelpersMessage,
 } from "../supabase-setup.ts";
+import {
+  authzVersionForSql,
+  membersOfSql,
+  apiWrappersSql,
+  subjectForSql,
+} from "./api.ts";
+import { attrsGuardSql } from "./claims.ts";
 import { defaultOut, hookMarker, manifestOf } from "./manifest.ts";
 import {
   type HookOverrides,
-  attrsGuardSql,
-  authzVersionForSql,
   configToml,
   grantsSql,
   hookParts,
   hookSql,
   managedSql,
-  membersOfSql,
-  apiWrappersSql,
-  subjectForSql,
-  versionSql,
 } from "./sql.ts";
+import { versionSql } from "./version.ts";
 
 const SUPABASE_HELP = `permdock supabase hook generate | inspect
 

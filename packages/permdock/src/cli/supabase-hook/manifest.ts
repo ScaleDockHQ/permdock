@@ -12,6 +12,7 @@ import type {
   RlsActiveRow,
   RlsSuspendedScope,
 } from "../types.ts";
+import type { Parts } from "./parts.ts";
 
 import { hasConditionOp } from "../../conditions/ast.ts";
 import { qualifySqlTable } from "../../core/sql.ts";
@@ -38,12 +39,9 @@ import {
 import { customRolesOn, HELPERS } from "../sql/shared.ts";
 import { USER_ID_HELPER } from "../sql/subject.ts";
 import { SUPABASE_MANIFEST_SCHEMA } from "../version.ts";
-import {
-  type Parts,
-  AUTHZ_VERSION_BUMP,
-  BUDGET_MEASURE,
-  hookClaims,
-} from "./sql.ts";
+import { hookClaims } from "./claims.ts";
+import { BUDGET_MEASURE } from "./sql.ts";
+import { AUTHZ_VERSION_BUMP } from "./version.ts";
 
 function helperList(
   parts: Parts,
