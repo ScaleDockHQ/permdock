@@ -1,16 +1,19 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
 
 import type { Permission, Policy } from "../index.ts";
 import type { OverlayOperation } from "../openapi/types.ts";
+import type { CommandResult } from "./commands/context.ts";
 import type { CliIo, PermDockConfig } from "./types.ts";
 
 import { isRecord } from "../core/compact.ts";
 import { definePolicy, findPermission, getResource } from "../index.ts";
 import { openapiVersion } from "../openapi/emit.ts";
 import { createPermDock } from "../openapi/index.ts";
+import { readJsonFile, writeFileEnsuringDir } from "./files.ts";
 import { asPermissionTree, asPolicy, loadModule, pickNamed } from "./load.ts";
 import { validateOpenapi, validateOverlay } from "./openapi-schema.ts";
+import { fileDrift } from "./output-files.ts";
 import { shortDiff } from "./text-diff.ts";
 
 function mergeRecord(
@@ -279,7 +282,7 @@ export async function runOpenapi(input: {
   readonly tokenUrl?: string | undefined;
   readonly deviceAuthorizationUrl?: string | undefined;
   readonly io: CliIo;
-}): Promise<{ readonly code: 0 | 1 | 2; readonly output: string }> {
+}): Promise<CommandResult> {
   const action = input.rest[0] ?? "emit";
   if (action !== "emit") {
     return {
@@ -328,7 +331,7 @@ export async function runOpenapi(input: {
   }
   let parsed: unknown;
   try {
-    parsed = JSON.parse(readFileSync(docPath, "utf8"));
+    parsed = readJsonFile(docPath);
   } catch {
     return {
       code: 2,
@@ -379,24 +382,21 @@ export async function runOpenapi(input: {
     return { code: 1, output: conformance };
   }
   const text = stableJson(result);
-  const outPath = resolve(input.cwd, input.out ?? input.doc);
+  const outFile = input.out ?? input.doc;
+  const outPath = resolve(input.cwd, outFile);
   if (input.check) {
-    if (!existsSync(outPath)) {
-      return {
-        code: 1,
-        output: `openapi drift: missing ${input.out ?? input.doc}`,
-      };
-    }
-    const current = readFileSync(outPath, "utf8");
-    if (current === text) {
+    const found = fileDrift(outPath, text);
+    if (found === undefined) {
       return { code: 0, output: "openapi up to date" };
     }
     return {
       code: 1,
-      output: `openapi drift\n${shortDiff(input.out ?? input.doc, current, text)}`,
+      output:
+        found.kind === "missing"
+          ? `openapi drift: missing ${outFile}`
+          : `openapi drift\n${shortDiff(outFile, found.onDisk, text)}`,
     };
   }
-  mkdirSync(dirname(outPath), { recursive: true });
-  writeFileSync(outPath, text);
-  return { code: 0, output: `wrote ${input.out ?? input.doc}` };
+  writeFileEnsuringDir(outPath, text);
+  return { code: 0, output: `wrote ${outFile}` };
 }

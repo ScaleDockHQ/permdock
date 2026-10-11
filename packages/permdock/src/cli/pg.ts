@@ -57,6 +57,13 @@ function unreachable(command: string, cause: unknown): CliError {
   );
 }
 
+/** The default `connect` of a command: one connection, failing with a message that names `command`. */
+export function pgConnector(
+  command: string,
+): (db: string) => Promise<SqlClient> {
+  return (db) => connectPg(db, command);
+}
+
 /** One connection, for commands that run a transaction. */
 export async function connectPg(
   db: string,

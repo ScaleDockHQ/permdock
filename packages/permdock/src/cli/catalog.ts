@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 
+import type { CommandResult } from "./commands/context.ts";
 import type { CatalogDocument, CliIo, PermDockConfig } from "./types.ts";
 
 import {
@@ -28,7 +29,7 @@ export async function runCatalog(input: {
   readonly include: readonly string[];
   readonly now: Date;
   readonly io: CliIo;
-}): Promise<{ readonly code: 0 | 1 | 2; readonly output: string }> {
+}): Promise<CommandResult> {
   if (input.format === "schema") {
     return {
       code: 0,

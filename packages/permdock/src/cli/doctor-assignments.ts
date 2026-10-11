@@ -7,8 +7,8 @@ import { tableKey } from "./deciding-columns.ts";
 import { policyOf } from "./doctor-collect.ts";
 import { MIGRATION_DIRS } from "./doctor-project.ts";
 import { sqlFiles } from "./files.ts";
+import { partPath } from "./output-files.ts";
 import { guardedTables, ownershipRules } from "./rls-ownership.ts";
-import { partPath } from "./sql-files.ts";
 import { group, sqlStatements } from "./sql-statements.ts";
 
 const TRIGGER = new RegExp(

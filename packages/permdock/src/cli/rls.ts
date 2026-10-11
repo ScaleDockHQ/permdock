@@ -1,3 +1,4 @@
+import type { CommandResult } from "./commands/context.ts";
 import type { SqlConnect } from "./pg.ts";
 import type { CliIo, PermDockConfig, RlsDialect, RlsTarget } from "./types.ts";
 
@@ -158,9 +159,7 @@ function generateInput(
   };
 }
 
-async function migrate(
-  input: RlsRunInput,
-): Promise<{ readonly code: 0 | 1 | 2; readonly output: string }> {
+async function migrate(input: RlsRunInput): Promise<CommandResult> {
   const config = input.config.rls?.migrate;
   if (config === undefined) {
     return {
@@ -214,7 +213,7 @@ async function introspectHelpersOnly(
   expected: ExpectedRls,
   generated: GenerateOutcome,
   connect: SqlConnect | undefined,
-): Promise<{ readonly code: 0 | 1 | 2; readonly output: string }> {
+): Promise<CommandResult> {
   const schema = generated.schema ?? PERMDOCK_SCHEMA;
   try {
     const actual = await introspectRls(db, expected, connect);
@@ -247,9 +246,7 @@ async function introspectHelpersOnly(
 }
 
 /** `verify --introspect`: the catalogs against what `generate` would write with the same flags. */
-async function introspect(
-  input: RlsRunInput,
-): Promise<{ readonly code: 0 | 1 | 2; readonly output: string }> {
+async function introspect(input: RlsRunInput): Promise<CommandResult> {
   if (input.db === undefined) {
     return {
       code: 2,
@@ -298,9 +295,7 @@ async function introspect(
   }
 }
 
-export async function runRls(
-  input: RlsRunInput,
-): Promise<{ readonly code: 0 | 1 | 2; readonly output: string }> {
+export async function runRls(input: RlsRunInput): Promise<CommandResult> {
   const action = input.rest[0];
   if (action === undefined || action === "help") {
     return { code: 2, output: RLS_HELP };

@@ -1,4 +1,10 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
@@ -96,6 +102,27 @@ describe("rls generate options", () => {
     });
     expect(outcome.code).toBe(1);
     expect(outcome.output).toBe("PermDock CLI: rls generate could not connect");
+  });
+
+  it("writes --out and prints nothing else when every part goes to a file", async () => {
+    const outcome = await runRlsGenerate({
+      cwd,
+      config: { policy: "./manage.ts", rls: { memberships } },
+      target: "sql",
+      dialect: "supabase",
+      rbac: false,
+      check: false,
+      skipClosures: false,
+      inlineFunctions: false,
+      io,
+      write: true,
+      out: "out/permdock.sql",
+    });
+    expect(outcome.code).toBe(0);
+    expect(outcome.output.split("\n")[0]).toBe("wrote out/permdock.sql");
+    expect(readFileSync(path.join(cwd, "out/permdock.sql"), "utf8")).toBe(
+      outcome.text,
+    );
   });
 
   it("reads manageRoles for the write requirement and the hand-out lift", async () => {

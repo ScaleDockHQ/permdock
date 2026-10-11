@@ -1,4 +1,5 @@
 import type { Grant, Policy, Snapshot, SnapshotGrant } from "../index.ts";
+import type { CommandResult } from "./commands/context.ts";
 import type { CliIo, PermDockConfig } from "./types.ts";
 
 import { parseCatalog } from "../catalog/parse.ts";
@@ -15,11 +16,6 @@ export type PushedPolicy = {
   readonly grants: readonly (SnapshotGrant & {
     readonly limit?: Grant["limit"];
   })[];
-};
-
-export type CloudPushResult = {
-  readonly code: 0 | 1 | 2;
-  readonly output: string;
 };
 
 function firstNonEmpty(...values: readonly (string | undefined)[]): string {
@@ -79,7 +75,7 @@ export async function runCloud(input: {
   readonly env: Readonly<Record<string, string | undefined>>;
   readonly now: Date;
   readonly io: CliIo;
-}): Promise<CloudPushResult> {
+}): Promise<CommandResult> {
   const action = input.rest[0];
   if (action !== "push") {
     return {

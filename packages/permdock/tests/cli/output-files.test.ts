@@ -7,8 +7,8 @@ import {
   parseSplit,
   partPath,
   STDOUT,
-  writeSqlFiles,
-} from "../../src/cli/sql-files.ts";
+  writeOutputFiles,
+} from "../../src/cli/output-files.ts";
 
 const TMP = path.join(import.meta.dirname, "../../tmp");
 mkdirSync(TMP, { recursive: true });
@@ -18,7 +18,7 @@ afterAll(() => {
   rmSync(cwd, { recursive: true, force: true });
 });
 
-describe("driftOf and writeSqlFiles", () => {
+describe("driftOf and writeOutputFiles", () => {
   it("skips stdout files, reports missing and differing ones", () => {
     writeFileSync(path.join(cwd, "same.sql"), "select 1;\n");
     writeFileSync(path.join(cwd, "stale.sql"), "select 1;\nselect 2;\n");
@@ -56,7 +56,7 @@ describe("driftOf and writeSqlFiles", () => {
   });
 
   it("writes files, creating directories, and returns stdout text", () => {
-    const result = writeSqlFiles(cwd, [
+    const result = writeOutputFiles(cwd, [
       { part: "out", rel: STDOUT, text: "one\n\n" },
       { part: "helpers", rel: "deep/dir/helpers.sql", text: "h" },
       { part: "out", rel: STDOUT, text: "two" },

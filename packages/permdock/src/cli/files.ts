@@ -1,11 +1,14 @@
 import {
   existsSync,
   globSync,
+  mkdirSync,
+  readFileSync,
   readdirSync,
   realpathSync,
   statSync,
+  writeFileSync,
 } from "node:fs";
-import { basename, extname, join, relative, resolve } from "node:path";
+import { basename, dirname, extname, join, relative, resolve } from "node:path";
 
 const SOURCE_EXT = new Set([".ts", ".tsx", ".js", ".jsx", ".mts", ".cts"]);
 const SKIP_DIRS = new Set([
@@ -168,4 +171,15 @@ export function doctorSrcPath(config: {
   readonly doctor?: { readonly srcPath?: readonly string[] };
 }): readonly string[] {
   return config.doctor?.srcPath ?? config.collect?.srcPath ?? defaultSrcPath();
+}
+
+/** The parsed JSON at `path`; throws when it is unreadable or not JSON. */
+export function readJsonFile(path: string): unknown {
+  return JSON.parse(readFileSync(path, "utf8"));
+}
+
+/** Writes `text` to `path`, creating its directory first. */
+export function writeFileEnsuringDir(path: string, text: string): void {
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, text);
 }

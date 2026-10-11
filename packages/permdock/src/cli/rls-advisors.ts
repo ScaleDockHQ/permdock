@@ -1,6 +1,8 @@
 import { spawnSync } from "node:child_process";
 import { delimiter, join } from "node:path";
 
+import type { CommandResult } from "./commands/context.ts";
+
 /** Runs a program to completion; `error` is set when it could not start. */
 export type CliExec = (
   command: string,
@@ -92,7 +94,7 @@ export function runRlsAdvisors(input: {
   readonly json: boolean;
   readonly env: Readonly<Record<string, string | undefined>>;
   readonly exec?: CliExec;
-}): { readonly code: 0 | 1 | 2; readonly output: string } {
+}): CommandResult {
   const exec = input.exec ?? defaultExec;
   const bin = join(input.cwd, "node_modules", ".bin");
   const path = input.env["PATH"];

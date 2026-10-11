@@ -1,3 +1,4 @@
+import type { CommandResult } from "./commands/context.ts";
 import type { DoctorFinding } from "./doctor-types.ts";
 import type { CliIo, PermDockConfig } from "./types.ts";
 
@@ -320,7 +321,7 @@ export async function runDoctor(input: {
   readonly color: boolean;
   readonly now: Date;
   readonly io: CliIo;
-}): Promise<{ readonly code: 0 | 1 | 2; readonly output: string }> {
+}): Promise<CommandResult> {
   if (input.fix) {
     runSkillsInstall({
       cwd: input.cwd,

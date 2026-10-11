@@ -1,6 +1,7 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
+import type { CommandResult } from "./commands/context.ts";
 import type { SqlConnect } from "./pg.ts";
 import type { RolePermission } from "./rls-helpers.ts";
 import type { ImportedGrant } from "./rls-import-ast.ts";
@@ -8,12 +9,13 @@ import type { ImportedFieldView } from "./rls-import-views.ts";
 import type { CliIo, PermDockConfig } from "./types.ts";
 
 import { usageResult } from "./errors.ts";
+import { writeFileEnsuringDir } from "./files.ts";
 import {
   emitPermissionsModule,
   emptySchema,
   isSchemaKind,
 } from "./generate.ts";
-import { connectPg } from "./pg.ts";
+import { pgConnector } from "./pg.ts";
 import {
   canonicalDump,
   conditionFromAst,
@@ -24,11 +26,6 @@ import {
 } from "./rls-import-ast.ts";
 import { fieldViewsFromSql, viewsSqlFromDb } from "./rls-import-views.ts";
 import { parseMembershipsFlag } from "./rls-sql.ts";
-
-export type ImportOutcome = {
-  readonly code: 0 | 1 | 2;
-  readonly output: string;
-};
 
 type ImportedPolicy = {
   readonly table: string;
@@ -275,7 +272,7 @@ export async function runRlsImport(input: {
   readonly io: CliIo;
   /** Opens the `--db` connection; defaults to the `pg` peer. */
   readonly connect?: SqlConnect;
-}): Promise<ImportOutcome> {
+}): Promise<CommandResult> {
   let policies: ImportedPolicy[] = [];
   let bodies = new Map<string, string>();
   let seeds: readonly RolePermission[] = [];
@@ -301,8 +298,7 @@ export async function runRlsImport(input: {
     try {
       const fromDb = await policiesFromDb(
         input.db,
-        input.connect ??
-          ((db: string) => connectPg(db, "permdock rls import --db")),
+        input.connect ?? pgConnector("permdock rls import --db"),
       );
       policies = fromDb.policies;
       bodies = fromDb.bodies;
@@ -356,8 +352,10 @@ export async function runRlsImport(input: {
       : await fieldViewsFromSql(viewsSql, memberships, functions, seeds);
   const outRel = input.out ?? "src/permissions.generated.ts";
   const outPath = resolve(input.cwd, outRel);
-  mkdirSync(dirname(outPath), { recursive: true });
-  writeFileSync(outPath, emitGenerated(catalog, fieldViews, input.schema));
+  writeFileEnsuringDir(
+    outPath,
+    emitGenerated(catalog, fieldViews, input.schema),
+  );
   const unique = [...new Set(unmapped)];
   const hints = [
     ...uniqueHints(unique, bodies),

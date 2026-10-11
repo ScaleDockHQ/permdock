@@ -1,6 +1,8 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { readJsonFile } from "./files.ts";
 
 let cached: string | undefined;
 
@@ -21,7 +23,7 @@ export function findPackageRoot(start: string): string {
     const manifest = join(dir, "package.json");
     if (existsSync(manifest)) {
       // SAFETY: name is typed unknown and compared with a string literal before use.
-      const { name } = JSON.parse(readFileSync(manifest, "utf8")) as {
+      const { name } = readJsonFile(manifest) as {
         readonly name?: unknown;
       };
       if (name === "permdock") {

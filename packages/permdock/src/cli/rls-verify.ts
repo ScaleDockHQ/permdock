@@ -1,7 +1,6 @@
-import { resolve } from "node:path";
-
 import type { Scope } from "../core/scopes.ts";
 import type { CustomRole, PermDock, Permission, Policy } from "../index.ts";
+import type { CommandResult } from "./commands/context.ts";
 import type { CliIo, PermDockConfig, RlsDialect } from "./types.ts";
 
 import { isRecord } from "../core/compact.ts";
@@ -28,18 +27,13 @@ import {
   helperTablePoliciesFromRows,
   rowConditionMessage,
 } from "./helper-calls.ts";
-import { asPolicy, loadModule, pickNamed } from "./load.ts";
-import { connectPg, type SqlConnect } from "./pg.ts";
+import { loadPolicyAt } from "./load.ts";
+import { pgConnector, type SqlConnect } from "./pg.ts";
 import { commandFor } from "./rls-compile.ts";
 import { FIELD_VIEWS, viewName } from "./rls-fields.ts";
 import { customRolesOn } from "./rls-shared.ts";
 import { quoteIdent, quoteLiteral, quoteTable } from "./rls-sql.ts";
 import { verifyTree } from "./rls-verify-tree.ts";
-
-export type VerifyOutcome = {
-  readonly code: 0 | 1 | 2;
-  readonly output: string;
-};
 
 /** A custom role's scope and pinned instance, as the `custom_role_*` tables store them. */
 function customRoleAt(
@@ -615,7 +609,7 @@ async function verifyTreeAgainstDatabase(
   policy: Policy,
   config: PermDockConfig,
   connect: SqlConnect,
-): Promise<VerifyOutcome> {
+): Promise<CommandResult> {
   const client = await connect(db);
   const scopes = scopeList(policy.scopes);
   const query = async (
@@ -683,10 +677,8 @@ export async function runRlsVerify(input: {
   readonly io: CliIo;
   /** Opens the `--db` connection; defaults to the `pg` peer. */
   readonly connect?: SqlConnect;
-}): Promise<VerifyOutcome> {
-  const connect =
-    input.connect ??
-    ((db: string) => connectPg(db, "permdock rls verify --db"));
+}): Promise<CommandResult> {
+  const connect = input.connect ?? pgConnector("permdock rls verify --db");
   const policyPath = input.from ?? input.config.policy;
   if (policyPath === undefined) {
     return {
@@ -694,9 +686,7 @@ export async function runRlsVerify(input: {
       output: "PermDock CLI: rls verify needs policy in the config or --from",
     };
   }
-  const policy: Policy = asPolicy(
-    pickNamed(await loadModule(resolve(input.cwd, policyPath)), ["policy"]),
-  );
+  const policy: Policy = await loadPolicyAt(input.cwd, policyPath);
   if (input.tree === true) {
     if (input.db === undefined) {
       return {

@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { isMap, parseDocument } from "yaml";
 
+import type { CommandResult } from "./commands/context.ts";
 import type {
   GeneratedAction,
   GeneratedResource,
@@ -12,6 +13,7 @@ import type { CliIo } from "./types.ts";
 
 import { isRecord } from "../core/compact.ts";
 import { byCodePoint } from "../core/compare.ts";
+import { readJsonFile } from "./files.ts";
 import { emitPermissionsModule, schemaExpression } from "./generate.ts";
 import { validateOpenapi } from "./openapi-schema.ts";
 
@@ -318,7 +320,7 @@ function readMap(
   }
   let parsed: unknown;
   try {
-    parsed = JSON.parse(readFileSync(path, "utf8"));
+    parsed = readJsonFile(path);
   } catch {
     return "--map must be a JSON object";
   }
@@ -404,7 +406,7 @@ export async function runOpenapiImport(input: {
   readonly map: string | undefined;
   readonly annotate: boolean;
   readonly io: CliIo;
-}): Promise<{ readonly code: 0 | 1 | 2; readonly output: string }> {
+}): Promise<CommandResult> {
   if (input.out === undefined) {
     return { code: 2, output: "openapi import needs --out <file>" };
   }

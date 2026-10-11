@@ -2,6 +2,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { relative, resolve } from "node:path";
 import { parse } from "pgsql-parser";
 
+import type { CommandResult } from "./commands/context.ts";
 import type { GenerateOutcome } from "./rls-generate.ts";
 import type { RlsMigrateConfig, RlsMigrateHelper } from "./types.ts";
 
@@ -11,6 +12,7 @@ import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
 import { describeError } from "./errors.ts";
 import { sqlFiles } from "./files.ts";
 import { RETIRE_MARKER } from "./markers.ts";
+import { dataMigrationFile, writeOutputFiles } from "./output-files.ts";
 import {
   type RetirePlan,
   type RetireStatement,
@@ -18,7 +20,6 @@ import {
   retireSql,
 } from "./rls-retire.ts";
 import { HELPERS } from "./rls-shared.ts";
-import { dataMigrationFile, writeSqlFiles } from "./sql-files.ts";
 import { sqlStatements } from "./sql-statements.ts";
 
 /** One call `rls migrate` rewrote, or would with `--write`. */
@@ -611,7 +612,7 @@ function describe(report: MigrateReport, write: boolean): string {
 /** `permdock rls migrate`: a dry run unless `write`; exits 1 while a key is unknown. */
 export async function runRlsMigrate(
   input: MigrateRunInput,
-): Promise<{ readonly code: 0 | 1 | 2; readonly output: string }> {
+): Promise<CommandResult> {
   const root = resolve(input.cwd, input.sql);
   if (!existsSync(root)) {
     return {
@@ -700,7 +701,7 @@ function writeRetire(
   if (file === undefined) {
     return { code: 0, output: "rls migrate --retire-out: up to date" };
   }
-  const written = writeSqlFiles(cwd, [file]);
+  const written = writeOutputFiles(cwd, [file]);
   return {
     code: 0,
     output:

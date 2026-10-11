@@ -119,6 +119,28 @@ export function leavesOf(tree: PermissionTree): readonly Permission[] {
   return listPermissions(tree);
 }
 
+/** The `policy` export of the module at `path`. */
+export async function loadPolicyAt(
+  cwd: string,
+  path: string,
+  options?: LoadOptions,
+): Promise<Policy> {
+  return asPolicy(
+    pickNamed(await loadModule(resolve(cwd, path), options), ["policy"]),
+  );
+}
+
+/** The `policy` export at `path`; without one, throws `PermDock CLI: <missing>`. */
+export function requirePolicy(
+  cwd: string,
+  path: string | undefined,
+  missing: string,
+): Promise<Policy> {
+  return path === undefined
+    ? Promise.reject(new Error(`PermDock CLI: ${missing}`))
+    : loadPolicyAt(cwd, path);
+}
+
 /** The configured policy export, or `undefined` when unset or unloadable. */
 export async function loadConfiguredPolicy(
   cwd: string,
@@ -129,9 +151,7 @@ export async function loadConfiguredPolicy(
     return undefined;
   }
   try {
-    return asPolicy(
-      pickNamed(await loadModule(resolve(cwd, path), options), ["policy"]),
-    );
+    return await loadPolicyAt(cwd, path, options);
   } catch {
     return undefined;
   }

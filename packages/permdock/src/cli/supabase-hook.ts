@@ -1,24 +1,26 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 import type { Policy } from "../core/policy.ts";
 import type { Scope } from "../core/scopes.ts";
 import type { SupabaseHookManifest } from "../supabase/manifest.ts";
+import type { CommandResult } from "./commands/context.ts";
 import type { HookOverrides } from "./supabase-hook-sql.ts";
 import type { CliIo, PermDockConfig } from "./types.ts";
 
 import { isRecord } from "../core/compact.ts";
 import { scopeList } from "../core/scopes.ts";
 import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
-import { asPolicy, loadModule, pickNamed } from "./load.ts";
+import { readJsonFile, writeFileEnsuringDir } from "./files.ts";
+import { requirePolicy } from "./load.ts";
 import { GRANTS_MARKER, HOOK_MARKER, hookMarkerFields } from "./markers.ts";
 import {
   driftOf,
   pgDeltaPath,
-  type SqlFile,
+  type OutputFile,
   STDOUT,
-  writeSqlFiles,
-} from "./sql-files.ts";
+  writeOutputFiles,
+} from "./output-files.ts";
 import { splitUndiffed } from "./sql-statements.ts";
 import { supabaseConfig } from "./supabase-config.ts";
 import {
@@ -192,8 +194,7 @@ function manifestFile(
 ): { readonly code: 0 | 1; readonly output: string } {
   const path = resolve(cwd, rel);
   if (!check) {
-    mkdirSync(dirname(path), { recursive: true });
-    writeFileSync(path, `${JSON.stringify(manifest, null, 2)}\n`);
+    writeFileEnsuringDir(path, `${JSON.stringify(manifest, null, 2)}\n`);
     return { code: 0, output: `wrote ${rel}` };
   }
   if (!existsSync(path)) {
@@ -201,7 +202,7 @@ function manifestFile(
   }
   let onDisk: unknown;
   try {
-    onDisk = JSON.parse(readFileSync(path, "utf8"));
+    onDisk = readJsonFile(path);
   } catch {
     return { code: 1, output: `supabase manifest drift: ${rel} is not JSON` };
   }
@@ -229,17 +230,11 @@ export async function loadScopes(
   return scopeList((await loadHookPolicy(cwd, config)).scopes);
 }
 
-async function loadHookPolicy(
-  cwd: string,
-  config: PermDockConfig,
-): Promise<Policy> {
-  if (config.policy === undefined) {
-    throw new Error(
-      "PermDock CLI: supabase hook generate needs policy in permdock.config.ts",
-    );
-  }
-  return asPolicy(
-    pickNamed(await loadModule(resolve(cwd, config.policy)), ["policy"]),
+function loadHookPolicy(cwd: string, config: PermDockConfig): Promise<Policy> {
+  return requirePolicy(
+    cwd,
+    config.policy,
+    "supabase hook generate needs policy in permdock.config.ts",
   );
 }
 
@@ -257,7 +252,7 @@ export async function runSupabase(input: {
   readonly schema?: string;
   readonly grantsOut?: string;
   readonly io: CliIo;
-}): Promise<{ readonly code: 0 | 1 | 2; readonly output: string }> {
+}): Promise<CommandResult> {
   const [area, action] = input.rest;
   const overrides: HookOverrides = Object.fromEntries(
     Object.entries({
@@ -309,7 +304,7 @@ export async function runSupabase(input: {
       : hookOut(input.cwd, input.config, input.schema);
   const outPath = resolve(input.cwd, outRel);
   const hook = input.config.supabase?.hook;
-  const grantsFile: readonly SqlFile[] =
+  const grantsFile: readonly OutputFile[] =
     input.grantsOut === undefined
       ? []
       : [{ part: "grants", rel: input.grantsOut, text: grants }];
@@ -330,9 +325,8 @@ export async function runSupabase(input: {
       ? { code: 0, output: "supabase hook up to date" }
       : { code: 1, output: `supabase hook drift: ${drift.join("; ")}` };
   }
-  mkdirSync(dirname(outPath), { recursive: true });
-  writeFileSync(outPath, sql);
-  const grantsWritten = writeSqlFiles(input.cwd, grantsFile);
+  writeFileEnsuringDir(outPath, sql);
+  const grantsWritten = writeOutputFiles(input.cwd, grantsFile);
   const placed = { ...manifest, hook: { ...manifest.hook, out: outRel } };
   const missing =
     input.db === undefined

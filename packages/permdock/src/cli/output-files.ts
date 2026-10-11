@@ -1,17 +1,11 @@
-import {
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  readFileSync,
-  statSync,
-  writeFileSync,
-} from "node:fs";
-import { dirname, resolve } from "node:path";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { resolve } from "node:path";
 
+import { writeFileEnsuringDir } from "./files.ts";
 import { shortDiff } from "./text-diff.ts";
 
 /** One generated file: `part` names it in drift reports, `rel` is relative to the working directory, `-` for stdout. */
-export type SqlFile = {
+export type OutputFile = {
   readonly part: string;
   readonly rel: string;
   readonly text: string;
@@ -19,32 +13,45 @@ export type SqlFile = {
 
 export const STDOUT = "-";
 
+/** How `path` on disk differs from `expected`; `undefined` when `same` holds. */
+export function fileDrift(
+  path: string,
+  expected: string,
+  same: (onDisk: string, expected: string) => boolean = (a, b) => a === b,
+):
+  | { readonly kind: "missing" }
+  | { readonly kind: "differs"; readonly onDisk: string }
+  | undefined {
+  if (!existsSync(path)) {
+    return { kind: "missing" };
+  }
+  const onDisk = readFileSync(path, "utf8");
+  return same(onDisk, expected) ? undefined : { kind: "differs", onDisk };
+}
+
 /** `--check`: one entry per file that is missing or differs, naming its part; a differing file carries a short diff. */
-export function driftOf(cwd: string, files: readonly SqlFile[]): string[] {
+export function driftOf(cwd: string, files: readonly OutputFile[]): string[] {
   const drift: string[] = [];
   for (const file of files) {
     if (file.rel === STDOUT) {
       continue;
     }
-    const path = resolve(cwd, file.rel);
-    if (!existsSync(path)) {
+    const found = fileDrift(resolve(cwd, file.rel), file.text);
+    if (found?.kind === "missing") {
       drift.push(`${file.part}: missing ${file.rel}`);
-    } else {
-      const onDisk = readFileSync(path, "utf8");
-      if (onDisk !== file.text) {
-        drift.push(
-          `${file.part}: ${file.rel}\n${shortDiff(file.rel, onDisk, file.text)}`,
-        );
-      }
+    } else if (found?.kind === "differs") {
+      drift.push(
+        `${file.part}: ${file.rel}\n${shortDiff(file.rel, found.onDisk, file.text)}`,
+      );
     }
   }
   return drift;
 }
 
 /** Writes every file but the stdout ones, whose text it returns for printing. */
-export function writeSqlFiles(
+export function writeOutputFiles(
   cwd: string,
-  files: readonly SqlFile[],
+  files: readonly OutputFile[],
 ): { readonly wrote: readonly string[]; readonly printed: string } {
   const wrote: string[] = [];
   const printed: string[] = [];
@@ -54,8 +61,7 @@ export function writeSqlFiles(
       continue;
     }
     const path = resolve(cwd, file.rel);
-    mkdirSync(dirname(path), { recursive: true });
-    writeFileSync(path, file.text);
+    writeFileEnsuringDir(path, file.text);
     wrote.push(file.rel);
   }
   return { wrote, printed: printed.join("\n") };
@@ -139,7 +145,7 @@ export function dataMigrationFile(input: {
   readonly text: string;
   readonly now: Date;
   readonly check: boolean;
-}): SqlFile | undefined {
+}): OutputFile | undefined {
   if (!isSeedsDirectory(input.cwd, input.out)) {
     return { part: input.part, rel: input.out, text: input.text };
   }

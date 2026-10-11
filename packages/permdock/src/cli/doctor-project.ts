@@ -6,7 +6,7 @@ import type { DoctorFinding } from "./doctor-types.ts";
 import type { PermDockConfig } from "./types.ts";
 
 import { membershipColumns, tableKey } from "./deciding-columns.ts";
-import { rel, sqlFiles } from "./files.ts";
+import { readJsonFile, rel, sqlFiles } from "./files.ts";
 import { FIELD_VIEWS } from "./rls-fields.ts";
 import { sqlStatements } from "./sql-statements.ts";
 
@@ -43,7 +43,7 @@ function isWorkspaceRoot(dir: string): boolean {
     return false;
   }
   try {
-    const parsed: unknown = JSON.parse(readFileSync(manifest, "utf8"));
+    const parsed: unknown = readJsonFile(manifest);
     return (
       parsed !== null &&
       typeof parsed === "object" &&
@@ -64,7 +64,7 @@ function hasSkillsLock(dir: string): boolean {
     return false;
   }
   try {
-    const parsed: unknown = JSON.parse(readFileSync(shared, "utf8"));
+    const parsed: unknown = readJsonFile(shared);
     const skills: unknown =
       parsed !== null && typeof parsed === "object"
         ? Reflect.get(parsed, "skills")

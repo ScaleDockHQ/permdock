@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import type { Condition, Policy } from "../index.ts";
+import type { CommandResult } from "./commands/context.ts";
 import type {
   CatalogUsage,
   CliIo,
@@ -55,7 +56,7 @@ export async function runUsage(input: {
   readonly collected?: () => Promise<CollectOutcome>;
   /** The configured policy already loaded, or `undefined` when it failed to load. */
   readonly policy?: () => Promise<Policy | undefined>;
-}): Promise<{ readonly code: 0 | 1 | 2; readonly output: string }> {
+}): Promise<CommandResult> {
   const collected =
     input.collected === undefined
       ? await runCollect({

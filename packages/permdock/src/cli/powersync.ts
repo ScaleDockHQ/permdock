@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import type { Policy } from "../index.ts";
@@ -19,8 +19,9 @@ import {
   fixtureSubject,
   loadFixtures,
 } from "./fixtures.ts";
-import { asPolicy, loadModule, pickNamed } from "./load.ts";
-import { connectPg } from "./pg.ts";
+import { requirePolicy } from "./load.ts";
+import { fileDrift } from "./output-files.ts";
+import { pgConnector } from "./pg.ts";
 import {
   POSTGRES,
   type PowerSyncStream,
@@ -40,18 +41,16 @@ function powersyncOut(config: PermDockConfig, out?: string): string {
   return out ?? config.powersync?.out ?? DEFAULT_OUT;
 }
 
-async function loadPolicy(
+function loadPolicy(
   cwd: string,
   config: PermDockConfig,
   from: string | undefined,
 ): Promise<Policy> {
-  const path = from ?? config.policy;
-  if (path === undefined) {
-    throw new Error(
-      "PermDock CLI: powersync needs policy in the config or --from",
-    );
-  }
-  return asPolicy(pickNamed(await loadModule(resolve(cwd, path)), ["policy"]));
+  return requirePolicy(
+    cwd,
+    from ?? config.policy,
+    "powersync needs policy in the config or --from",
+  );
 }
 
 export type PowerSyncFile = {
@@ -107,15 +106,13 @@ export function staleFiles(
 ): readonly { readonly path: string; readonly missing: boolean }[] {
   const stale: { path: string; missing: boolean }[] = [];
   for (const file of files) {
-    const path = resolve(cwd, file.path);
-    const current = existsSync(path) ? readFileSync(path, "utf8") : undefined;
-    const same =
-      current !== undefined &&
-      (file.json === true
-        ? sameJson(current, file.text)
-        : current === file.text);
-    if (!same) {
-      stale.push({ path: file.path, missing: current === undefined });
+    const found = fileDrift(
+      resolve(cwd, file.path),
+      file.text,
+      file.json === true ? sameJson : undefined,
+    );
+    if (found !== undefined) {
+      stale.push({ path: file.path, missing: found.kind === "missing" });
     }
   }
   return stale;
@@ -333,9 +330,7 @@ export async function runPowerSync(input: {
         fixtures,
         customRoles,
         db: input.db,
-        connect:
-          input.connect ??
-          ((db: string) => connectPg(db, "permdock powersync verify --db")),
+        connect: input.connect ?? pgConnector("permdock powersync verify --db"),
       });
       mismatches.push(...database.mismatches);
       notes.push(...database.notes);

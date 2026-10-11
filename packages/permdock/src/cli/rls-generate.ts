@@ -1,12 +1,12 @@
-import { basename, resolve } from "node:path";
+import { basename } from "node:path";
 
 import type { Policy } from "../index.ts";
+import type { SplitPart } from "./output-files.ts";
 import type { SqlConnect } from "./pg.ts";
 import type { CompiledGrants, CompiledPolicy } from "./rls-compile.ts";
 import type { RolePermission } from "./rls-helpers.ts";
 import type { IndexTarget } from "./rls-indexes.ts";
 import type { RlsSqlContext } from "./rls-sql.ts";
-import type { SplitPart } from "./sql-files.ts";
 import type {
   CliIo,
   PermDockConfig,
@@ -25,13 +25,24 @@ import { listPermissions, listRoles } from "../index.ts";
 import { supabaseTenantClaim } from "../supabase/budget.ts";
 import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
 import { cliErrorKind, describeError, exitCodeOf } from "./errors.ts";
-import { asPolicy, loadModule, pickNamed } from "./load.ts";
+import { requirePolicy } from "./load.ts";
 import {
   BACKFILL_MARKER,
   GRANTS_MARKER,
   INDEXES_MARKER,
   SEEDS_MARKER,
 } from "./markers.ts";
+import {
+  dataMigrationFile,
+  driftOf,
+  isSeedsDirectory,
+  parseSplit,
+  seedsMigration,
+  partPath,
+  pgDeltaPath,
+  type OutputFile,
+  writeOutputFiles,
+} from "./output-files.ts";
 import { apiKeysPlan } from "./rls-api-keys.ts";
 import { adoptedApprovalStoreSql, approvalStoreSql } from "./rls-approvals.ts";
 import { backfillSql } from "./rls-backfill.ts";
@@ -90,17 +101,6 @@ import {
   USER_ID_HELPER,
 } from "./rls-sql.ts";
 import { auditSql, generatedTables, triggersSql } from "./rls-triggers.ts";
-import {
-  dataMigrationFile,
-  driftOf,
-  isSeedsDirectory,
-  parseSplit,
-  seedsMigration,
-  partPath,
-  pgDeltaPath,
-  type SqlFile,
-  writeSqlFiles,
-} from "./sql-files.ts";
 import { splitUndiffed } from "./sql-statements.ts";
 import { supabaseConfig } from "./supabase-config.ts";
 import { grantsLabel, supabaseHookSql } from "./supabase-hook.ts";
@@ -127,20 +127,17 @@ export type GenerateOutcome = {
   readonly helpersOnly?: boolean;
 };
 
-async function loadPolicy(
+function loadPolicy(
   cwd: string,
   config: PermDockConfig,
   from: string | undefined,
 ): Promise<Policy> {
   const policyPath =
     from === "drizzle" ? config.policy : (from ?? config.policy);
-  if (policyPath === undefined) {
-    throw new Error(
-      "PermDock CLI: rls generate needs policy in permdock.config.ts or --from",
-    );
-  }
-  return asPolicy(
-    pickNamed(await loadModule(resolve(cwd, policyPath)), ["policy"]),
+  return requirePolicy(
+    cwd,
+    policyPath,
+    "rls generate needs policy in permdock.config.ts or --from",
   );
 }
 
@@ -935,7 +932,7 @@ export async function runRlsGenerate(input: {
   if (typeof planned === "string") {
     return { code: 2, output: planned, text, ...extras };
   }
-  const files: SqlFile[] = [...planned];
+  const files: OutputFile[] = [...planned];
   if (migrationRel !== undefined) {
     files.push({ part: "migration", rel: migrationRel, text: migration });
   }
@@ -964,7 +961,7 @@ export async function runRlsGenerate(input: {
           ...extras,
         };
   }
-  const written = writeSqlFiles(input.cwd, files);
+  const written = writeOutputFiles(input.cwd, files);
   const extra = warnings.length === 0 ? "" : `\n${warnings.join("\n")}`;
   return {
     code: 0,
@@ -1035,7 +1032,7 @@ function outputFiles(plan: {
   };
   readonly scopes: ReturnType<typeof scopeList>;
   readonly schema: string;
-}): readonly SqlFile[] | string {
+}): readonly OutputFile[] | string {
   const { input } = plan;
   const split = parseSplit(input.split);
   if (typeof split === "string") {
@@ -1107,7 +1104,7 @@ function outputFiles(plan: {
     relocated === undefined || !split.includes("policies")
       ? sql.seeds
       : `${sql.seeds}\n${relocated}`;
-  const files: SqlFile[] = [];
+  const files: OutputFile[] = [];
   const label = grantsLabel(input.grantsOut);
   let grantsMarker = `${GRANTS_MARKER} schema=${plan.schema}`;
   const grants: string[] = [];

@@ -28,13 +28,13 @@ import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
 import { jsonSchemaOf } from "./catalog-doc.ts";
 import { runCollect } from "./collect.ts";
 import { MIGRATION_DIRS } from "./doctor-project.ts";
-import { doctorSrcPath, sqlFiles } from "./files.ts";
+import { doctorSrcPath, readJsonFile, sqlFiles } from "./files.ts";
 import {
   ROW_CONDITION_FIX,
   helperTablePolicies,
   rowConditionMessage,
 } from "./helper-calls.ts";
-import { asPolicy, loadModule, pickNamed } from "./load.ts";
+import { loadConfiguredPolicy } from "./load.ts";
 import { commandFor, tableFor } from "./rls-compile.ts";
 import { contextRefs } from "./rls-conditions.ts";
 import { graphPlan } from "./rls-graph.ts";
@@ -203,19 +203,6 @@ export const DEFAULT_SENSITIVE_ACTIONS = [
   "disburse",
 ] as const;
 
-async function loadPolicy(
-  cwd: string,
-  path: string,
-): Promise<Policy | undefined> {
-  try {
-    return asPolicy(
-      pickNamed(await loadModule(resolve(cwd, path)), ["policy"]),
-    );
-  } catch {
-    return undefined;
-  }
-}
-
 /** The configured policy, through the project's memoised load when there is one. */
 export function policyOf(input: DoctorInput): Promise<Policy | undefined> {
   const path = input.config.policy;
@@ -223,7 +210,7 @@ export function policyOf(input: DoctorInput): Promise<Policy | undefined> {
     return Promise.resolve(undefined);
   }
   return input.policy === undefined
-    ? loadPolicy(input.cwd, path)
+    ? loadConfiguredPolicy(input.cwd, path)
     : input.policy();
 }
 
@@ -376,7 +363,7 @@ export async function pd018(
   }
   let parsed: unknown;
   try {
-    parsed = JSON.parse(readFileSync(absolute, "utf8"));
+    parsed = readJsonFile(absolute);
   } catch {
     findings.push({
       code: "PD018",
@@ -534,7 +521,7 @@ export async function pd023(
   }
   let parsed: unknown;
   try {
-    parsed = JSON.parse(readFileSync(absolute, "utf8"));
+    parsed = readJsonFile(absolute);
   } catch {
     return [];
   }
@@ -583,7 +570,7 @@ export async function pd055(
   }
   let parsed: unknown;
   try {
-    parsed = JSON.parse(readFileSync(absolute, "utf8"));
+    parsed = readJsonFile(absolute);
   } catch {
     return [];
   }
@@ -615,7 +602,7 @@ function readJson(cwd: string, path: string | undefined): unknown {
     return undefined;
   }
   try {
-    return JSON.parse(readFileSync(absolute, "utf8"));
+    return readJsonFile(absolute);
   } catch {
     return undefined;
   }
@@ -735,7 +722,7 @@ export async function pd025(
   }
   let parsed: unknown;
   try {
-    parsed = JSON.parse(readFileSync(absolute, "utf8"));
+    parsed = readJsonFile(absolute);
   } catch {
     return [];
   }
@@ -959,7 +946,7 @@ function membershipsFixture(input: DoctorInput): MembershipsFixture {
     return {};
   }
   try {
-    return asMembershipsFixture(JSON.parse(readFileSync(absolute, "utf8")));
+    return asMembershipsFixture(readJsonFile(absolute));
   } catch {
     return {};
   }

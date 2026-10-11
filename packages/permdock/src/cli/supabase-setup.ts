@@ -9,8 +9,8 @@ import type { PermDockConfig } from "./types.ts";
 import { readMemberships } from "../supabase/subject.ts";
 import { MIGRATION_DIRS } from "./doctor-project.ts";
 import { sqlFiles } from "./files.ts";
-import { connectPg } from "./pg.ts";
-import { partPath } from "./sql-files.ts";
+import { partPath } from "./output-files.ts";
+import { pgConnector } from "./pg.ts";
 
 const HELPER_NAME =
   /^(?:permdock_has|permitted_[a-z][a-z0-9_]*_ids|member_[a-z][a-z0-9_]*_ids(?:_for)?)$/u;
@@ -92,8 +92,7 @@ export function missingHelpersInFiles(
 export async function missingHelpersInDb(
   db: string,
   manifest: SupabaseHookManifest,
-  connect: SqlConnect = (url) =>
-    connectPg(url, "permdock supabase hook generate --db"),
+  connect: SqlConnect = pgConnector("permdock supabase hook generate --db"),
 ): Promise<readonly string[]> {
   const client = await connect(db);
   try {

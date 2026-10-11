@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import type { Policy } from "../index.ts";
+import type { CommandResult } from "./commands/context.ts";
 import type {
   CatalogDelegation,
   CatalogDocument,
@@ -799,7 +800,7 @@ export async function runDiff(input: {
   readonly json: boolean;
   readonly now: Date;
   readonly io: CliIo;
-}): Promise<{ readonly code: 0 | 1 | 2; readonly output: string }> {
+}): Promise<CommandResult> {
   const [sourceA, sourceB, ...extra] = input.sources;
   if (sourceA === undefined || sourceB === undefined || extra.length > 0) {
     return {
