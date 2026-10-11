@@ -8,6 +8,7 @@ import {
   compileWhere,
   escapeLike,
 } from "../conditions/compile.ts";
+import { loadPeer } from "../conditions/peer.ts";
 import { compact } from "../core/compact.ts";
 import { assertSafeKey } from "../core/paths.ts";
 import { PermDockValidationError } from "../core/validation-error.ts";
@@ -50,32 +51,10 @@ function loadCombinators(injected?: PrismaCombinators): PrismaCombinators {
   if (injected !== undefined) {
     return injected;
   }
-  // SAFETY: optional chaining guards a missing process; node:module is Node's createRequire module.
-  const loader = (
-    globalThis as {
-      readonly process?: {
-        readonly getBuiltinModule?: (id: string) => unknown;
-      };
-    }
-  ).process?.getBuiltinModule?.("node:module") as
-    | {
-        readonly createRequire: (
-          from: string,
-        ) => (id: string) => PrismaCombinators;
-      }
-    | undefined;
-  try {
-    if (loader === undefined) {
-      throw new Error("no module loader");
-    }
-    return loader.createRequire(import.meta.url)(
-      "@prisma/orm-postgres/orm-client",
-    );
-  } catch {
-    throw new Error(
-      "PermDock: toPredicate needs @prisma/orm-postgres; pass `combinators` on runtimes without require",
-    );
-  }
+  return loadPeer<PrismaCombinators>(
+    "@prisma/orm-postgres/orm-client",
+    "PermDock: toPredicate needs @prisma/orm-postgres; pass `combinators` on runtimes without require",
+  );
 }
 
 function refused(detail: string): PermDockValidationError {

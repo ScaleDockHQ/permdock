@@ -208,12 +208,17 @@ export function statementText(statement: SubjectStatement): string {
   return text;
 }
 
+/** Strings as a template-strings array, for calling a `sql` tag directly. */
+export function templateOf(parts: readonly string[]): TemplateStringsArray {
+  // SAFETY: a string array with a matching `raw` array is the shape a template tag reads.
+  return Object.assign([...parts], {
+    raw: [...parts],
+  }) as unknown as TemplateStringsArray;
+}
+
 /** A statement as a template-strings array, for `sql` tags. */
 export function statementTemplate(
   statement: SubjectStatement,
 ): TemplateStringsArray {
-  // SAFETY: a string array with a matching `raw` array is the shape a template tag reads.
-  return Object.assign([...statement.strings], {
-    raw: [...statement.strings],
-  }) as unknown as TemplateStringsArray;
+  return templateOf(statement.strings);
 }
